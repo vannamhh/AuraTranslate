@@ -49,9 +49,54 @@ pub enum DomainLogDecision {
     Denied,
 }
 
+/// Kết quả THẬT của một chặng ĐÃ CHO PHÉP — danh mục ĐÓNG.
+///
+/// 🔵 **THÊM 2026-09-08 (Story 6.11, vòng rà đối kháng 3 lớp, Ice ký cùng ngày).** Hai ô
+/// `Error Handling` của I/O Matrix spec 6.11 (khối ĐÓNG BĂNG) đòi nhật ký domain phân biệt
+/// được lý do một ẢNH ĐÃ ĐƯỢC PHÉP rồi trượt (*"lý do phân biệt được"* ·
+/// *"`FetchError::TooLarge` vào nhật ký"*) — trước bản sửa này, `DomainLogEntry::decision`
+/// chỉ có `Allowed(Tier)`/`Denied`, nên một ảnh vượt trần để lại đúng MỘT hàng *"ĐÃ CHO
+/// PHÉP"*, không phân biệt được với một ảnh tải xong trọn vẹn. Ice chốt NỚI cấu trúc này
+/// thay vì thu hẹp Acceptance Criteria.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DomainLogOutcome {
+    /// Thân đọc xong TRỌN VẸN, trong hạn `MAX_RESPONSE_BYTES` — Fetcher không biết gì thêm về
+    /// nội dung (bóc được hay không là việc của `Extractor`; MIME có được `core::webimport::assets`
+    /// chấp nhận hay không là việc của `commands::project`, xem [`MimeRejected`](Self::MimeRejected)).
+    Fetched,
+    /// Chặng này là một chuyển hướng ĐƯỢC THEO (3xx mang `Location` hợp lệ) — hop tiếp theo
+    /// mang một bản ghi RIÊNG của chính nó.
+    Redirected,
+    /// Máy chủ trả một mã lỗi HTTP (4xx/5xx), hoặc một 3xx KHÔNG mang `Location` hợp lệ.
+    HttpStatus,
+    /// Hết thời gian chờ.
+    Timeout,
+    /// Không kết nối được (DNS, bị từ chối, …).
+    ConnectFailed,
+    /// Thân trả về vượt `MAX_RESPONSE_BYTES` — đọc dừng NGAY, không nạp trọn.
+    TooLarge,
+    /// **CHỈ `ResourceKind::Image`.** Thân tải THÀNH CÔNG (`Fetched` đúng nghĩa mạng), nhưng
+    /// `content-type` không phải một MIME ảnh raster mà `core::webimport::assets` chấp nhận
+    /// (SVG, `text/html`, …). `fetcher.rs` KHÔNG BAO GIỜ tự gán biến thể này — nó không biết
+    /// gì về danh mục MIME ảnh (AD-40: Fetcher không phân tích nội dung); `commands::project`
+    /// là nơi DUY NHẤT gán nó, SAU khi `fetch()` đã trả về (xem
+    /// `commands::project::fetch_and_write_one_asset`).
+    MimeRejected,
+    /// Lỗi khác (đọc thân trượt giữa chừng, dựng client thất bại, vòng lặp chuyển hướng vượt
+    /// trần, …) — chẩn đoán CHỈ cho log, không phân loại thêm được nữa.
+    Other,
+}
+
 /// Một bản ghi THÔ — đúng những gì mockup `web-import.html:423` liệt (`Thời điểm · Domain ·
-/// Tầng · Vì sao được phép · Kết quả`), trừ cột "Kết quả" (một số ĐẾM gộp theo domain — tầng
-/// trình bày tự tính từ nhiều bản ghi, không phải một trường của MỘT bản ghi).
+/// Tầng · Vì sao được phép · Kết quả`).
+///
+/// 🔵 **SỬA 2026-09-08 (Story 6.11) — mệnh đề "trừ cột Kết quả" đã HẾT ĐÚNG.** Câu gốc (Story
+/// 6.8) khai cột "Kết quả" của mockup KHÔNG phải một trường — nó nói đúng cho Ý ĐỊNH lúc đó
+/// (một SỐ ĐẾM gộp theo domain, tầng trình bày tự tính). Story 6.11 đo ra một Ý NGHĨA THỨ HAI
+/// của "kết quả" mà mockup không tách bạch: KẾT QUẢ của TỪNG LƯỢT GỌI (thành công/lý do
+/// trượt), không phải SỐ LẦN gọi — trường [`outcome`](Self::outcome) chở đúng nghĩa thứ hai
+/// đó; số đếm gộp theo domain VẪN là việc của tầng trình bày, không đổi.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DomainLogEntry {
     /// Mili-giây epoch UTC lúc bản ghi được TẠO. Định dạng hiển thị chỉ ở frontend
@@ -60,11 +105,26 @@ pub struct DomainLogEntry {
     pub domain: String,
     pub kind: ResourceKind,
     pub decision: DomainLogDecision,
+    /// `None` cho MỌI bản ghi `Denied` (0 kết nối mở ra, không có gì để mà báo kết quả) và
+    /// cho bản ghi vừa `push` nhưng CHƯA `send()` (cửa sổ trong `fetcher::fetch`, luôn được
+    /// điền trước khi hàm đó trả về — xem `fetcher.rs::mark_last_outcome`). `Some(..)` cho
+    /// MỌI bản ghi `Allowed` đã hoàn tất, kể cả lượt trượt (§Always spec 6.11: "kể cả lượt
+    /// trượt").
+    pub outcome: Option<DomainLogOutcome>,
 }
 
 impl DomainLogEntry {
     pub fn new(at_epoch_ms: u64, domain: String, kind: ResourceKind, decision: DomainLogDecision) -> Self {
-        DomainLogEntry { at_epoch_ms, domain, kind, decision }
+        DomainLogEntry { at_epoch_ms, domain, kind, decision, outcome: None }
+    }
+
+    /// Builder — đính `outcome`. Tách khỏi [`Self::new`] (không thêm tham số thứ năm) để MỌI
+    /// chỗ gọi `new(..)` đã có (tests kể cả) không phải sửa một chữ; chỉ chỗ gọi THẬT SỰ biết
+    /// kết quả (`fetcher.rs`, `commands::project` cho ca `MimeRejected`) mới gọi hàm này.
+    #[must_use]
+    pub fn with_outcome(mut self, outcome: DomainLogOutcome) -> Self {
+        self.outcome = Some(outcome);
+        self
     }
 }
 

@@ -35,6 +35,7 @@ import { useSelectionSurface } from './panels/selectionContract'
 import {
   SETTINGS_SECTIONS,
   domainLogKindLabelKey,
+  domainLogOutcomeLabelKey,
   domainLogReasonKey,
   selectSettingsSection,
   settingsActiveSection,
@@ -189,11 +190,15 @@ function formatCallTime(atEpochMs: number): string {
                     <th>{{ t('settings.privacy.col_domain') }}</th>
                     <th>{{ t('settings.privacy.col_kind') }}</th>
                     <th>{{ t('settings.privacy.col_reason') }}</th>
+                    <th>{{ t('settings.privacy.col_outcome') }}</th>
                     <th>{{ t('settings.privacy.col_result') }}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in settingsDomainLogRows" :key="`${row.domain} ${row.kind} ${row.tier}`">
+                  <tr
+                    v-for="row in settingsDomainLogRows"
+                    :key="`${row.domain} ${row.kind} ${row.tier} ${row.outcome ?? 'null'}`"
+                  >
                     <!-- aura-allow-text: thời điểm định dạng cục bộ — DỮ LIỆU, không một chuỗi giao diện. -->
                     <td class="set-mono">{{ formatCallTime(row.firstAtEpochMs) }}</td>
                     <!-- aura-allow-text: domain — DỮ LIỆU (URL người dùng tự dán). -->
@@ -202,6 +207,12 @@ function formatCallTime(atEpochMs: number): string {
                       <span class="set-tag">{{ t(domainLogKindLabelKey(row.kind)) }}</span>
                     </td>
                     <td>{{ t(domainLogReasonKey(row.tier)) }}</td>
+                    <!--
+                      Story 6.11, mục A (vòng rà đối kháng 3 lớp) — cột MỚI, tách khỏi "Vì sao
+                      được phép" (`tier`): một chặng ĐÃ được phép còn có thể tải xong hay
+                      trượt mạng/MIME/quá cỡ, đây là câu trả lời cho câu hỏi đó.
+                    -->
+                    <td>{{ t(domainLogOutcomeLabelKey(row.outcome)) }}</td>
                     <td>{{ t('settings.privacy.col_result_count', { count: String(row.count) }) }}</td>
                   </tr>
                 </tbody>

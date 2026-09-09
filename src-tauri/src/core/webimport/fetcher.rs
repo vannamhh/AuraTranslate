@@ -65,7 +65,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use super::allowlist::{Allowlist, AllowlistDecision, ResourceKind};
-use super::domain_log::{DomainLogDecision, DomainLogEntry, now_epoch_ms};
+use super::domain_log::{DomainLogDecision, DomainLogEntry, DomainLogOutcome, now_epoch_ms};
 
 /// Trần byte MỘT phản hồi.
 ///
@@ -234,14 +234,33 @@ pub fn fetch(
 ) -> (Result<FetchedPage, FetchError>, Vec<DomainLogEntry>) {
     let mut log: Vec<DomainLogEntry> = Vec::new();
 
+    // 🔵 THÊM (vòng rà đối kháng 3, mục R1) — `url` không phân giải được thành một
+    // `reqwest::Url` nghĩa là KHÔNG CÓ host nào để mà hỏi allowlist (0 kết nối, đúng hình
+    // dạng `Denied`), nhưng lý do trượt KHÔNG PHẢI chính sách allowlist — đánh dấu `Other`
+    // để phân biệt "bị chặn bởi chính sách" khỏi "không thể xác định được sẽ nối tới đâu".
+    // Không có host thật, dùng nguyên văn `url` làm giá trị `domain` (chẩn đoán, không phải
+    // một tên miền hợp lệ) — thà một chuỗi không hoàn hảo còn hơn 0 hàng kiểm toán, đúng
+    // §Always "kể cả lượt trượt" (`domain_log.rs`).
     let mut current = match reqwest::Url::parse(url) {
         Ok(p) => p,
-        Err(e) => return (Err(FetchError::InvalidUrl { detail: e.to_string() }), log),
+        Err(e) => {
+            let entry = DomainLogEntry::new(now_epoch_ms(), url.to_owned(), kind, DomainLogDecision::Denied)
+                .with_outcome(DomainLogOutcome::Other);
+            return (Err(FetchError::InvalidUrl { detail: e.to_string() }), vec![entry]);
+        }
     };
 
+    // 🔵 THÊM (vòng rà đối kháng 3, mục R1) — ở ĐÂY `url` ĐÃ phân giải được (`current` có
+    // host thật), nhưng client dùng chung dựng thất bại TRƯỚC khi kịp hỏi allowlist — cùng
+    // lý lẽ nhánh trên: 0 kết nối (Denied) nhưng lý do KHÔNG PHẢI chính sách (Other).
     let client = match shared_client() {
         Ok(c) => c,
-        Err(detail) => return (Err(FetchError::Other { detail: detail.to_owned() }), log),
+        Err(detail) => {
+            let host = current.host_str().unwrap_or(url).to_owned();
+            let entry = DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Denied)
+                .with_outcome(DomainLogOutcome::Other);
+            return (Err(FetchError::Other { detail: detail.to_owned() }), vec![entry]);
+        }
     };
 
     // 🔵 Vòng lặp thủ công — thay `redirect::Policy::custom` (xem doc-comment đầu tệp "MỘT
@@ -251,6 +270,14 @@ pub fn fetch(
     let mut redirects_followed: usize = 0;
     let resp = loop {
         let Some(host) = current.host_str().map(str::to_owned) else {
+            // 🔵 THÊM (vòng rà đối kháng 3, mục R1) — cùng lý lẽ hai nhánh phía trên: một
+            // chặng (chặng đầu hoặc một đích chuyển hướng) mất host giữa đường vẫn phải để
+            // lại một hàng kiểm toán, không được im lặng trả `log` (có thể RỖNG nếu đây là
+            // chặng đầu tiên).
+            log.push(
+                DomainLogEntry::new(now_epoch_ms(), current.to_string(), kind, DomainLogDecision::Denied)
+                    .with_outcome(DomainLogOutcome::Other),
+            );
             return (
                 Err(FetchError::InvalidUrl { detail: "url khong co host".to_owned() }),
                 log,
@@ -266,13 +293,21 @@ pub fn fetch(
                 return (Err(FetchError::NotAllowlisted), log);
             }
             AllowlistDecision::Allowed(tier) => {
+                // 🔵 **THÊM (Story 6.11, vòng rà đối kháng 3 lớp, Ice ký 2026-09-08)** — bản
+                // ghi của CHÍNH chặng này chưa có KẾT QUẢ lúc `push` (chưa `send()`); nó được
+                // điền vào bằng `mark_last_outcome` ở MỌI nhánh thoát bên dưới, kể cả lượt
+                // trượt — xem doc-comment `DomainLogEntry::outcome`.
                 log.push(DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Allowed(tier)));
             }
         }
 
         let resp = match client.get(current.clone()).send() {
             Ok(r) => r,
-            Err(e) => return (Err(classify_send_error(e)), log),
+            Err(e) => {
+                let err = classify_send_error(e);
+                mark_last_outcome(&mut log, outcome_for_fetch_error(&err));
+                return (Err(err), log);
+            }
         };
 
         if !resp.status().is_redirection() {
@@ -283,11 +318,17 @@ pub fn fetch(
         // lỗi HTTP, cùng khuôn 4xx/5xx bên dưới (P3 vòng rà đối kháng bước 4 của Story 6.7: một
         // 3xx LÀNH, ví dụ 304, không được báo sai thành `NotAllowlisted`).
         let Some(location) = resp.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok()) else {
+            mark_last_outcome(&mut log, DomainLogOutcome::HttpStatus);
             return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
         };
         let Ok(next) = current.join(location) else {
+            mark_last_outcome(&mut log, DomainLogOutcome::HttpStatus);
             return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
         };
+
+        // Chặng NÀY thật sự chuyển hướng đi — bản ghi của nó khép lại ở đây; chặng KẾ TIẾP
+        // (vòng lặp tiếp theo) mở một bản ghi RIÊNG của chính nó.
+        mark_last_outcome(&mut log, DomainLogOutcome::Redirected);
 
         current = next;
         // `redirects_followed` đếm số chặng đã THEO (không tính chặng đầu) — so bằng
@@ -295,6 +336,14 @@ pub fn fetch(
         // không lệ thuộc lại một cơ chế đếm nội bộ của `reqwest`.
         redirects_followed += 1;
         if redirects_followed > MAX_REDIRECTS {
+            // D4 (vòng rà đối kháng 2, 3 lớp) — bản ghi vừa đánh `Redirected` (dòng ngay
+            // trên) là của chặng ĐÃ tìm ra `Location` và ĐỊNH theo, nhưng cuộc theo đó không
+            // bao giờ diễn ra (vượt trần trước khi client kịp gọi host kế tiếp) — sửa lại
+            // outcome thành `Other` để phản ánh đúng: fetch này KẾT THÚC bằng một lượt HUỶ vì
+            // vượt trần, không phải một chuyển hướng thành công đang chờ chặng sau. Không sửa
+            // lại, bản ghi cuối cùng đọc lên y hệt một chuyển hướng bình thường — không phân
+            // biệt được với một `fetch` còn đang giữa chừng.
+            mark_last_outcome(&mut log, DomainLogOutcome::Other);
             return (
                 Err(FetchError::Other { detail: "qua tran so chang chuyen huong (P2)".to_owned() }),
                 log,
@@ -309,6 +358,7 @@ pub fn fetch(
                 Some(status) => FetchError::HttpStatus { status: status.as_u16() },
                 None => classify_send_error(e),
             };
+            mark_last_outcome(&mut log, outcome_for_fetch_error(&err));
             return (Err(err), log);
         }
     };
@@ -328,14 +378,57 @@ pub fn fetch(
                 out.extend_from_slice(&buf[..n]);
                 if out.len() > MAX_RESPONSE_BYTES {
                     drop(resp);
+                    mark_last_outcome(&mut log, DomainLogOutcome::TooLarge);
                     return (Err(FetchError::TooLarge), log);
                 }
             }
-            Err(e) => return (Err(FetchError::Other { detail: e.to_string() }), log),
+            Err(e) => {
+                mark_last_outcome(&mut log, DomainLogOutcome::Other);
+                return (Err(FetchError::Other { detail: e.to_string() }), log);
+            }
         }
     }
 
+    mark_last_outcome(&mut log, DomainLogOutcome::Fetched);
     (Ok(FetchedPage { bytes: out, content_type }), log)
+}
+
+/// Điền `outcome` vào bản ghi CUỐI CÙNG của `log` — đây LUÔN là bản ghi của chặng đang xử lý
+/// (chặng vừa được `Allowed`, chưa từng bị ghi đè bởi một chặng khác vì mỗi chặng `push` một
+/// bản ghi RIÊNG). Không làm gì nếu `log` rỗng — bất khả trên mọi nhánh gọi hàm này (luôn có
+/// ít nhất một bản ghi `Allowed` vừa `push` trước đó), giữ hàm AN TOÀN thay vì `.unwrap()`.
+fn mark_last_outcome(log: &mut [DomainLogEntry], outcome: DomainLogOutcome) {
+    if let Some(last) = log.last_mut() {
+        last.outcome = Some(outcome);
+    }
+}
+
+/// Ánh xạ MỘT CHIỀU `FetchError` → `DomainLogOutcome` cho các biến thể có Ý NGHĨA MẠNG (loại
+/// trừ `InvalidUrl`/`NotAllowlisted` — hai biến thể đó không bao giờ đi qua đường này: cái
+/// trước không có host để `push` một bản ghi, cái sau tự `return` ngay tại nhánh `Denied`).
+/// 🔵 **SỬA (vòng rà đối kháng 2, mục D3) — `InvalidUrl`/`NotAllowlisted` KHÔNG THỂ tới hàm
+/// này.** Cả hai chỗ gọi (`classify_send_error(e)` sau `send()` lỗi, và sau
+/// `resp.error_for_status()` lỗi) chỉ đưa vào đây những gì `classify_send_error` trả về
+/// (`Timeout`/`ConnectFailed`/`Other`) hoặc `HttpStatus` dựng tại chỗ — `InvalidUrl` chỉ sinh
+/// ra ở bước `Url::parse`/thiếu host (return sớm, KHÔNG qua `outcome_for_fetch_error`), và
+/// `NotAllowlisted` chỉ sinh ra ở bước `allowlist.decide` (cũng return sớm, cũng KHÔNG qua
+/// đây). `unreachable!()` thay vì gộp chung `Other` — nếu một lượt sửa sau này lỡ đổi luồng
+/// khiến hai biến thể đó thật sự tới được đây, một PANIC lớn tiếng còn hơn một lượt gán
+/// `Other` âm thầm SAI cho một lý do không phải là "lỗi mạng khác".
+fn outcome_for_fetch_error(err: &FetchError) -> DomainLogOutcome {
+    match err {
+        FetchError::HttpStatus { .. } => DomainLogOutcome::HttpStatus,
+        FetchError::TooLarge => DomainLogOutcome::TooLarge,
+        FetchError::ConnectFailed { .. } => DomainLogOutcome::ConnectFailed,
+        FetchError::Timeout { .. } => DomainLogOutcome::Timeout,
+        FetchError::Other { .. } => DomainLogOutcome::Other,
+        FetchError::InvalidUrl { .. } | FetchError::NotAllowlisted => {
+            unreachable!(
+                "outcome_for_fetch_error: {err:?} khong the toi day -- ca hai bien the nay \
+                 chi sinh ra o mot nhanh return SOM, truoc khi outcome_for_fetch_error duoc goi"
+            )
+        }
+    }
 }
 
 fn classify_send_error(e: reqwest::Error) -> FetchError {

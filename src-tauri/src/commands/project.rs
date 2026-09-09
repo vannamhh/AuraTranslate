@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 
 use crate::core::cleanup::{CleanupRule, CleanupRuleTier};
-use crate::core::i18n::IpcError;
+use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
@@ -99,6 +99,40 @@ pub struct OpenWork {
     /// chữ ấy vô điều kiện — nằm cách đó sáu dòng và không lượt rà nội bộ nào nhìn. Nó được
     /// đóng ở `panels/editorPanelState.ts::noteEditorEdit`, bằng một cửa khoá gõ.
     pub chapter_id: i64,
+    /// **THÊM 2026-09-08 (Story 6.11, FR127)** — số HÀNG `asset` đã chèn lúc [`create_work`]
+    /// chạy (đúng bằng `saved_assets.len()`, và đúng bằng số lời gọi `INSERT INTO asset`
+    /// thực hiện — hai con số này khoá lẫn nhau bằng cấu trúc, không cần một cổng riêng).
+    /// `0` cho MỌI đường khác `create_work` (dán văn bản, tệp, mở lại một `.atproj` đã có) —
+    /// chúng không bao giờ chạy pha ảnh.
+    ///
+    /// 🔵 **SỬA 2026-09-09 (D2 vòng rà đối kháng 3 lớp).** Câu cũ khai "số ảnh đã tải & ghi
+    /// thành công xuống `assets/`" — SAI trong ca DEDUP: cùng một URL ảnh xuất hiện ở hai
+    /// Chương (hoặc hai lần trong một Chương) chỉ được TẢI và GHI TỆP một lần
+    /// (`fetch_and_write_one_asset` chạy đúng một lần mỗi URL, xem cache trong
+    /// [`prepare_chapter_images`]), nhưng sinh HAI hàng `asset` (mỗi hàng một neo khác
+    /// nhau) ⇒ `images_saved == 2` trong khi số TỆP thật trên đĩa là 1. Trường này đếm HÀNG,
+    /// không đếm TỆP; không có API nào ở đây trả số tệp thật, vì bề mặt hiển thị (FR127) chỉ
+    /// cần biết bao nhiêu tham chiếu ảnh đã có trong CSDL.
+    pub images_saved: u32,
+    /// **THÊM 2026-09-08 (Story 6.11, FR127)** — số VỊ TRÍ ảnh GIỮ nhưng KHÔNG có hàng
+    /// `asset` (host ngoài tầng 2, MIME không phải ảnh raster, mạng lỗi, neo không tính
+    /// được, …) — KHÔNG làm trượt `create_work` (§Design Notes spec 6.11). Bề mặt HIỂN THỊ
+    /// con số này là nợ có chủ, chưa dựng ở story này — `deferred-work.md`.
+    ///
+    /// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 2, mục D2).** Đếm theo VỊ TRÍ (mỗi khối ảnh
+    /// KEPT không cho ra một hàng `asset`), KHÔNG đếm theo LƯỢT GỌI MẠNG — cùng URL ảnh lỗi
+    /// (404, timeout, …) dùng lại ở TÁM Chương khác nhau cho `images_failed == 8` dù cache
+    /// dedup (`prepare_chapter_images::cache`) chỉ thực hiện ĐÚNG MỘT lượt gọi mạng cho URL
+    /// đó (kết quả thất bại cũng được cache — xem doc-comment `CachedFetch`). Đối xứng với
+    /// `images_saved` (cũng đếm HÀNG/VỊ TRÍ, không đếm TỆP/LƯỢT TẢI — xem doc-comment ở
+    /// trên): cả hai trường đếm ĐÚNG những gì chúng khai — vị trí trong Chương, không phải
+    /// hoạt động mạng — nhưng câu mô tả ban đầu của trường này không nói rõ điều đó.
+    pub images_failed: u32,
+    // 🔵 SỬA 2026-09-08 (mục B1 vòng rà đối kháng 3 lớp) — trường `pending_domain_log` đã BỊ
+    // GỠ. Bản trước tích luỹ `Vec<DomainLogEntry>` ở đây, CHỈ nối vào `DomainLogState` trên
+    // đường THÀNH CÔNG — một lượt trượt (đĩa đầy giữa lúc ghi ảnh) làm nó biến mất, vi phạm
+    // §Always "kể cả lượt trượt". `create_work` nay nhận thẳng `&DomainLogState` và mỗi lời
+    // gọi `fetch` push NGAY khi hoàn tất — không còn gì để mà "mang" qua `OpenWork` nữa.
 }
 
 /// Thư mục gốc mặc định chứa mọi `.atproj` — `~/Documents/AuraTranslate/` (AD-23).
@@ -305,6 +339,16 @@ pub fn resolve_chapter_pattern(
 /// hiện sửa tay — `wire::confirm_import_with_encoding` là chỗ gọi PHẢI đọc
 /// `Tier2BlockOverridesState` rồi truyền NGUYÊN VẸN vào đây, reset state đó SAU KHI ghi
 /// xong (không phải TRƯỚC — một lượt xác nhận trượt giữ nguyên override để thử lại).
+/// 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1 vòng rà đối kháng 3 lớp) — tham số `domain_log_state`.**
+/// Trước bản sửa này, pha ảnh tích luỹ `Vec<DomainLogEntry>` cục bộ rồi CHỈ gắn nó vào
+/// `OpenWork::pending_domain_log` trên đường THÀNH CÔNG — một lượt nhập trượt (ví dụ đĩa đầy
+/// giữa lúc ghi ảnh thứ N) trả `Err` sớm, và không kiểu `Result<OpenWork, IpcError>` nào chở
+/// được một `Vec<DomainLogEntry>` kèm theo nhánh `Err`, nên nhật ký của N-1 ảnh ĐÃ tải thành
+/// công trước đó biến mất — vi phạm đúng chữ §Always spec 6.11 *"kể cả lượt trượt"*. Sửa bằng
+/// cách PUSH THẲNG vào `domain_log_state` ngay khi mỗi lời gọi `fetch` hoàn tất (thành công
+/// hay không), thay vì tích luỹ cục bộ rồi trả về SAU CÙNG — một khi đã push, entry đó SỐNG
+/// SÓT bất kể phần còn lại của `create_work` có trượt hay không. Test không cần domain log
+/// bền qua lượt trượt (đa số) truyền `&Mutex::new(Vec::new())` — một kho tạm, vứt đi sau ca.
 pub fn create_work(
     documents_root: &Path,
     name: &str,
@@ -315,6 +359,7 @@ pub fn create_work(
     cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
+    domain_log_state: &webimport::DomainLogState,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -360,10 +405,48 @@ pub fn create_work(
     // ca đó ĐỎ OAN. Đúng điều kiện: hình dạng LÀ `Chapters` VÀ đơn vị ĐẦU là `RawBytes` (byte
     // thô CHƯA giải mã — dấu hiệu THẬT của "đến từ mạng", `AlreadyText` không bao giờ cần
     // bóc, dù đứng trong hình dạng nào).
+    // ⚠️ **NỢ CÓ CHỦ, ghi ra tại chỗ (vòng rà đối kháng 2, mục D6).** Điều kiện dưới đây đọc
+    // MỘT MÌNH `cs.first()` — nếu MỘT `PipelineShape::Chapters` nào đó lỡ TRỘN hình dạng (mục
+    // đầu `AlreadyText`, mục SAU `RawBytes`), `extract_main_content` tắt cho TOÀN BỘ danh
+    // sách và những mục `RawBytes` phía sau KHÔNG BAO GIỜ được bóc nội dung/tìm ảnh — không
+    // panic, không lỗi, `images_failed` vẫn `0` (im lặng, không phải một lượt "thử rồi
+    // trượt"). ĐO ĐƯỢC: hai bộ dựng SẢN PHẨM DUY NHẤT của `Chapters` hôm nay
+    // (`chapters_shape_if_all_ok`/`chapters_shape_for_view`) luôn dựng một danh sách ĐỒNG
+    // NHẤT (toàn `RawBytes`, từ `UrlImportItem` đã tải) —
+    // 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3, mục T6): câu trước dẫn `homogeneity_boundary.rs
+    // (nếu có)` — tệp đó KHÔNG tồn tại trong `src-tauri/tests/`, một đoạn khai ĐO ĐƯỢC mà
+    // mang "(nếu có)" là tự thú chưa kiểm. Test THẬT khoá bất biến này là
+    // `webimport_contract.rs::the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw_bytes`.
+    // Đường KHÁC (test dựng tay `Chapters(AlreadyText, ..)`, xem chú thích trên) cũng đồng
+    // nhất. Vì thế điều kiện SAI này chưa từng bị kích hoạt trên đường thật — nhưng
+    // `run_import`/`PipelineInput` là một seam CÔNG KHAI, và không gì ở KIỂU ngăn một chỗ gọi
+    // tương lai trộn hình dạng. **Chủ: Ice** — sửa đúng cần `extract_main_content` chuyển
+    // thành MỘT QUYẾT ĐỊNH THEO TỪNG Chương
+    // (không phải một cờ toàn cục), một thay đổi cấu trúc lớn hơn phạm vi lượt vá nhỏ này;
+    // xem `deferred-work.md`.
     let extract_main_content = matches!(
         &shape,
         PipelineShape::Chapters(cs) if matches!(cs.first(), Some(ChapterInput::RawBytes { .. }))
     );
+
+    // 🔴 **THÊM 2026-09-08 (Story 6.11, FR127)** — trích URL trang của TỪNG đơn vị TRƯỚC khi
+    // `shape` bị `run_pipeline` (ngay dưới) tiêu thụ (Code Map spec 6.11: "URL trang ... đọc
+    // được từ `shape` TRƯỚC KHI nó bị run_import nuốt"). Chỉ có ý nghĩa khi `extract_main_content`
+    // (đường URL, ảnh cần URL trang để phân giải `src` tương đối) — đường Blob/AlreadyText cho
+    // ra một danh sách một phần tử KHÔNG bao giờ được `prepare_chapter_images` đọc tới (nó
+    // `continue` ngay ở Chương có `blocks: None`).
+    let chapter_urls: Vec<String> = match &shape {
+        PipelineShape::Blob(c) => vec![chapter_input_page_url(c)],
+        PipelineShape::Chapters(cs) => cs.iter().map(chapter_input_page_url).collect(),
+    };
+    // `cleanup_rules`/`block_overrides` bị DI CHUYỂN vào `PipelineInput` ngay dưới — pha ảnh
+    // (sau khi chuỗi chạy xong) cần lại đúng hai giá trị này để tính neo (bước 3/4 AD-39 lặp
+    // lại trên TIỀN TỐ, xem `core::segment::anchor::compute_anchor`) và để biết Chương nào
+    // đọc `block_overrides` (chỉ Chương đầu — cùng luật `Step::ExtractMainContent`), nên clone
+    // TRƯỚC khi di chuyển, không sau.
+    let cleanup_rules_for_images = cleanup_rules.clone();
+    let block_overrides_for_images = block_overrides.clone();
+
     let outcome = match run_pipeline(
         PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
             .with_cleanup_rules(cleanup_rules)
@@ -379,6 +462,42 @@ pub fn create_work(
         }
     };
     let chapters = outcome.chapters;
+
+    // 🔴 THÊM 2026-09-09 (D10 vòng rà đối kháng 3 lớp) — `chapter_urls` (dựng TRƯỚC
+    // `run_pipeline`, một phần tử mỗi ĐƠN VỊ đầu vào, xem trên) và `chapters` (SAU khi bảy
+    // bước AD-39 chạy) được `prepare_chapter_images` giả định 1:1 THEO CHỈ SỐ
+    // (`chapter_urls.get(i)`) — không một dòng nào từng khẳng định điều đó trước sửa này.
+    // Giả định ĐÚNG khi `extract_main_content` bật: điều kiện đó buộc `shape` từng là
+    // `PipelineShape::Chapters` (khối `matches!` phía trên), tức `already_chaptered = true`,
+    // khiến `split_chapters_step` (`core::segment::pipeline`) return SỚM, không đổi số
+    // Chương. Đường `Blob` CÓ THỂ nổ ra N > 1 Chương thật (Story 6.6, mẫu phân tách) trong
+    // khi `chapter_urls.len() == 1` — nhưng nhánh đó không bao giờ chạy pha ảnh
+    // (`extract_main_content = false` ⇒ mọi `chapter.blocks` đều `None`, `prepare_chapter_images`
+    // `continue` ngay), nên bất biến chỉ cần đúng trong ĐÚNG nhánh sẽ thật sự đọc
+    // `chapter_urls`. Nếu nó SAI, `unwrap_or("")` ở `prepare_chapter_images` khiến mọi `src`
+    // tương đối trượt ÂM THẦM, không phân biệt được với "trang không có ảnh" (D10) — một lỗi
+    // LẬP TRÌNH thật (không phải điều kiện người dùng có thể gây ra), bắt tại nguồn.
+    //
+    // 🔵 SỬA (vòng rà đối kháng 2, mục B1) — `assert_eq!` ĐỔI THÀNH `IpcError` + dọn
+    // `.atproj`, không còn panic trần. `Cargo.toml` đặt `panic = "abort"` (bán kính nổ TOÀN
+    // TIẾN TRÌNH — cùng lý lẽ chú thích "vòng rà đối kháng 2026-09-04, item 4" ngay dưới đây),
+    // và tại DÒNG NÀY `create_work_folder`/`Store::open` đã chạy — một panic ở đây giết cả
+    // ứng dụng NGƯỜI DÙNG ĐANG DÙNG và để lại một `.atproj` nửa vời, đúng trạng thái mà MỌI
+    // nhánh `Err` khác của hàm này dùng `remove_folder` để tránh. Cùng khuôn hai kiểm tra
+    // `chapters.is_empty()`/`i64::try_from` ngay dưới đây.
+    if extract_main_content && chapters.len() != chapter_urls.len() {
+        store.close();
+        remove_folder(&dir);
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: format!(
+                "bat bien 1:1 giua chapters ({}) va chapter_urls ({}) da vo -- loi lap trinh, \
+                 khong phai dieu kien nguoi dung gay ra",
+                chapters.len(),
+                chapter_urls.len()
+            ),
+        }
+        .into());
+    }
 
     // 🔴 SỬA (vòng rà đối kháng 2026-09-04, item 4) — bán kính nổ của một `.expect()` bên
     // TRONG closure ghi là TOÀN TIẾN TRÌNH: `panic = "abort"` giết ngay khi giao dịch đang
@@ -405,6 +524,37 @@ pub fn create_work(
         }
         .into());
     }
+
+    // 🔴 **THÊM 2026-09-08 (Story 6.11, FR127)** — pha ảnh chạy Ở ĐÂY: sau khi chuỗi bảy bước
+    // đã ổn định `chapter.source_text`/`segments` (cần cho `anchor::compute_anchor`), TRƯỚC
+    // giao dịch ghi SQL bên dưới. Ghi TỆP xảy ra ở đây, NGOÀI closure `store.write` (khuôn
+    // `Meta::write_atomic` — job ghi bên dưới CHỈ SQL); một ảnh trượt tải KHÔNG dừng hàm này (đếm
+    // vào `images_failed`, log chẩn đoán), nhưng ghi BYTE trượt giữa chừng (đĩa đầy) THÌ
+    // dừng — cùng khuôn mọi lỗi khác của hàm này (dọn `.atproj` nửa vời, AC8).
+    let image_prep = match prepare_chapter_images(
+        &dir,
+        &chapters,
+        &chapter_urls,
+        &block_overrides_for_images,
+        &cleanup_rules_for_images,
+        &source_lang_owned,
+        domain_log_state,
+    ) {
+        Ok(prep) => prep,
+        Err(err) => {
+            store.close();
+            remove_folder(&dir);
+            return Err(err);
+        }
+    };
+
+    // 🔴 **THÊM 2026-09-08 (Story 6.11)** — tách `image_prep` thành các trường rời TRƯỚC
+    // closure `move` bên dưới: `saved` di chuyển vào closure (ghi `INSERT INTO asset`, CÙNG
+    // giao dịch với `chapter`/`segment` — khuôn `atomic asset row` của spec 6.11); hai trường
+    // còn lại ở lại đây để lắp vào `OpenWork` SAU khi giao dịch commit. `domain_log` KHÔNG
+    // còn là một trường ở đây (mục B1) — mỗi lời gọi `fetch` đã PUSH THẲNG vào
+    // `domain_log_state` ngay khi hoàn tất, nên nó sống sót cả trên đường trượt phía trên.
+    let ImagePrepOutcome { saved: saved_assets, images_saved, images_failed } = image_prep;
 
     // 🔴 Quyết định #3: job ghi CHỈ SQL — không `fs::write` nào bên trong closure này.
     let write_result = store.write(move |tx: &Transaction<'_>| {
@@ -447,6 +597,27 @@ pub fn create_work(
             // nào khác chen được vào giữa hai dòng này.
             let chapter_id = tx.last_insert_rowid();
             crate::commands::segment::insert_segments(tx, chapter_id, &chapter.segments)?;
+
+            // 🔴 **THÊM 2026-09-08 (Story 6.11, FR127)** — hàng `asset` của CHÍNH Chương này,
+            // CÙNG giao dịch với `chapter`/`segment` (§Always spec 6.11: "ghi SQL đi qua
+            // `store::Writer` như mọi lệnh ghi khác"). Tệp đã nằm trên đĩa từ TRƯỚC giao dịch
+            // này (`prepare_chapter_images`, NGOÀI closure) — ở đây chỉ còn việc ghi HÀNG.
+            for saved in saved_assets.iter().filter(|s| s.chapter_index == i) {
+                tx.execute(
+                    "INSERT INTO asset (chapter_id, file_name, source_url, \
+                     anchor_after_segment_ord, byte_len, content_type, created_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                    (
+                        chapter_id,
+                        &saved.file_name,
+                        &saved.source_url,
+                        saved.anchor_after_segment_ord,
+                        saved.byte_len,
+                        &saved.content_type,
+                    ),
+                )?;
+            }
+
             if is_first {
                 first_chapter_id = chapter_id;
                 is_first = false;
@@ -514,13 +685,437 @@ pub fn create_work(
         work_id: meta.work_id.clone(),
     });
 
-    Ok(OpenWork {
-        dir,
-        store,
-        scope,
-        meta,
-        chapter_id,
-    })
+    Ok(OpenWork { dir, store, scope, meta, chapter_id, images_saved, images_failed })
+}
+
+/// Trích URL của một [`ChapterInput`] cho [`prepare_chapter_images`] — URL của TRANG chứa
+/// ảnh, không phải một nhãn chẩn đoán chung chung.
+///
+/// 🔵 **SỬA (vòng rà đối kháng 2, mục F1) — gọi THẲNG `pipeline::label_of`, không còn một
+/// bản chép riêng.** `label_of` từng là một hàm LỒNG riêng tư bên trong
+/// `run_import_with_order`, buộc module này phải giữ một bản chép tay 4 dòng y hệt (khoá
+/// đồng bộ bằng một cổng test riêng, `chapter_page_url_drift_boundary.rs`). `label_of` nay
+/// `pub(crate)` ở module scope — gọi thẳng xoá bản chép VÀ xoá luôn cổng canh trôi (một
+/// nguồn sự thật duy nhất không thể trôi khỏi chính nó).
+fn chapter_input_page_url(c: &ChapterInput) -> String {
+    crate::core::segment::pipeline::label_of(c)
+}
+
+/// Một hàng `asset` ĐÃ SẴN SÀNG ghi — tệp đã nằm trên đĩa, chỉ còn thiếu `chapter_id` (chưa
+/// biết tới khi giao dịch ghi chèn hàng `chapter` và đọc `last_insert_rowid()`), nên trường
+/// đó thay bằng `chapter_index` (chỉ số trong `chapters`, ổn định xuyên suốt `create_work`).
+struct SavedAsset {
+    chapter_index: usize,
+    anchor_after_segment_ord: i64,
+    file_name: String,
+    /// ⚠️ **NỢ CÓ CHỦ, ghi ra tại chỗ (vòng rà đối kháng 2, mục D1) — đây là URL YÊU CẦU
+    /// (`p.resolved_url`, `src` đã phân giải tuyệt đối), KHÔNG PHẢI chặng CUỐI sau chuyển
+    /// hướng.** `webimport::fetch`/[`FetchedPage`] không trả lại URL cuối cùng đã dừng ở đó
+    /// (chỉ trả `bytes`/`content_type`) — thêm trường đó là một thay đổi chữ ký xuyên
+    /// `fetcher.rs`→`fetch_and_write_one_asset`→ở đây, ngoài phạm vi lượt vá nhỏ này. Cột
+    /// `source_url` mang HAI VAI cùng lúc (xuất xứ hiển thị cho người dùng VÀ khoá dedup
+    /// AD-41 — xem `cache` bên dưới, khoá bằng CHÍNH `resolved_url` này) — nếu sửa để ghi
+    /// chặng cuối, vai KHOÁ DEDUP phải tách khỏi vai HIỂN THỊ (hai cột, không một). Một ảnh
+    /// mà máy chủ chuyển hướng sang host khác sẽ hiển thị SAI xuất xứ cho người dùng hôm nay.
+    /// **Chủ: Story 6.14** (màn hình đầu tiên THẬT SỰ hiển thị `source_url` cho người dùng
+    /// đọc) — `deferred-work.md`.
+    source_url: String,
+    byte_len: i64,
+    content_type: String,
+}
+
+/// Kết quả pha ảnh (Story 6.11) — xem doc-comment [`create_work`] cho VỊ TRÍ nó chạy.
+///
+/// 🔵 **SỬA 2026-09-08 (mục B1 vòng rà đối kháng 3 lớp) — KHÔNG còn trường `domain_log`.**
+/// Bản trước tích luỹ `Vec<DomainLogEntry>` ở đây rồi CHỈ gắn vào `OpenWork` trên đường thành
+/// công — một lượt trượt giữa chừng (ví dụ đĩa đầy) trả `Err` sớm và không có kiểu nào chở
+/// được `Vec` đó đi cùng nhánh lỗi, nên nhật ký của những ảnh ĐÃ tải xong trước đó biến mất
+/// (vi phạm §Always "kể cả lượt trượt"). Mỗi lời gọi `fetch` nay PUSH THẲNG vào
+/// `webimport::DomainLogState` (tham số mới của `prepare_chapter_images`) NGAY khi hoàn tất —
+/// entry sống sót bất kể phần còn lại của `create_work` có trượt hay không.
+struct ImagePrepOutcome {
+    saved: Vec<SavedAsset>,
+    images_saved: u32,
+    images_failed: u32,
+}
+
+/// Một URL ảnh đã thử tải TRONG CHÍNH lượt nhập này — `None` nghĩa là đã thử và TRƯỢT.
+///
+/// 🔴 Cache CẢ chiều thất bại (không chỉ chiều thành công): AD-41 vế "không tải lại ảnh đã
+/// có" áp cho MỌI kết quả trong cùng lượt nhập — một host trả 404 lặp lại ở tám Chương không
+/// đáng tám lượt gọi mạng giống hệt nhau, đúng tinh thần I/O Matrix "0 lời gọi mạng; dùng lại
+/// (kết quả đã có)".
+struct CachedFetch {
+    file_name: String,
+    byte_len: i64,
+    content_type: String,
+}
+
+/// Pha ảnh của [`create_work`] (Story 6.11, FR127) — chạy TRƯỚC giao dịch ghi SQL, NGOÀI mọi
+/// closure `Store::write`.
+///
+/// Ba việc, theo đúng thứ tự (mỗi ảnh KEPT của mỗi Chương có `blocks: Some(..)`):
+/// 1. Tính neo TRƯỚC KHI thử mạng (`core::segment::anchor::compute_anchor`) — một ảnh không
+///    tính được neo thì KHÔNG đáng một lượt tải (tránh ghi một tệp mồ côi không có hàng
+///    `asset` nào tham chiếu được tới nó).
+/// 2. Phân giải `src` thành URL tuyệt đối (`webimport::assets::resolve_absolute_url`), dựng
+///    MỘT [`webimport::Allowlist`] tầng 2 từ đúng những host của các ảnh sẽ thử tải (§Always
+///    spec 6.11 — tầng 2 dựng từ ĐÚNG ảnh `effective_kept` trả `true`).
+/// 3. Tải qua [`webimport::fetch`] (kèm cache dedup theo URL tuyệt đối, cả hai chiều thành
+///    công/thất bại), kiểm MIME, ghi byte xuống `assets/` (đường DUY NHẤT `fs::write` của cả
+///    hàm).
+///
+/// # Lỗi
+/// Trả `Err` ở HAI nhánh, cả hai đều là điều kiện KHÔNG THỂ NGƯỜI DÙNG GÂY RA (lỗi lập trình
+/// hoặc I/O thật, không phải một MIME/host/mạng xấu):
+/// 1. Ghi BYTE xuống đĩa thất bại (`std::fs::write`, ví dụ đĩa đầy) — I/O Matrix spec 6.11
+///    hàng "Ghi tệp trượt giữa chừng".
+/// 2. 🔵 **THÊM (vòng rà đối kháng 2, mục B1)** — bất biến nội bộ vỡ: `extension_for_mime`
+///    xác nhận một MIME thuộc danh mục ĐÓNG nhưng `normalized_mime` (đọc CÙNG `content_type`)
+///    lại trả `None` — chứng minh được là KHÔNG THỂ xảy ra hôm nay (cùng phép chuẩn hoá nội
+///    bộ), nhưng trả `Err` thay vì `unreachable!()` để phòng một lượt tách rời logic sau này
+///    (`panic = "abort"` giết cả tiến trình, một `Err` thì không).
+///
+/// Cả hai nhánh khiến `create_work` dọn SẠCH `.atproj` (không phải hàm này — nó chỉ trả
+/// `Err`, chỗ gọi mới `remove_folder`). MỌI lý do khác (host ngoài tầng 2, MIME sai, mạng
+/// lỗi, neo không tính được) chỉ đếm vào `images_failed`, KHÔNG BAO GIỜ trả `Err`.
+fn prepare_chapter_images(
+    dir: &Path,
+    chapters: &[crate::core::segment::import::ImportedChapter],
+    chapter_urls: &[String],
+    block_overrides: &[Option<bool>],
+    cleanup_rules: &[crate::core::cleanup::CleanupRule],
+    source_lang: &str,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<ImagePrepOutcome, IpcError> {
+    use crate::core::segment::pipeline::effective_kept_for_blocks;
+    use crate::core::webimport::BlockBody;
+
+    /// Một ảnh GIỮ mà neo ĐÃ tính được — sẵn sàng đi vào hàng đợi tải.
+    struct PendingImage {
+        chapter_index: usize,
+        anchor_after_segment_ord: i64,
+        resolved_url: String,
+    }
+
+    let mut pending: Vec<PendingImage> = Vec::new();
+    // 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3, mục R5) — MỌI lượt tăng `images_failed` trong
+    // hàm này dùng `saturating_add(1)`, không `+= 1` trần. Trước sửa này `images_saved` được
+    // bão hoà có chủ (kèm hẳn một đoạn biện hộ, xem cuối hàm) trong khi `images_failed` +=
+    // trần WRAP AROUND về 0 trên release build (Rust chỉ panic-on-overflow ở debug) — cùng
+    // MIỀN TRÀN (đếm ảnh trong một lượt nhập) nhưng HAI kỷ luật khác nhau là một sự bất nhất
+    // không có lý do. Chọn MỘT: bão hoà ở CẢ HAI, cùng lý lẽ hệt `images_saved` — tràn đòi
+    // hơn bốn tỷ ảnh trong MỘT lượt nhập, không một trang thật nào chạm tới, và một con số
+    // bão hoà ("ít nhất lớn cỡ này") trung thực hơn một số WRAP về 0 im lặng.
+    let mut images_failed: u32 = 0;
+
+    for (i, chapter) in chapters.iter().enumerate() {
+        let Some(blocks) = &chapter.blocks else { continue };
+        if blocks.is_empty() {
+            continue;
+        }
+        // Cùng luật `Step::ExtractMainContent` (`pipeline.rs`) — chỉ Chương ĐẦU TIÊN đọc
+        // `block_overrides` (§Never spec 6.9, kế thừa nguyên vẹn ở đây).
+        let overrides_for_unit: &[Option<bool>] = if i == 0 { block_overrides } else { &[] };
+        let effective_kept = effective_kept_for_blocks(blocks, overrides_for_unit);
+        let page_url = chapter_urls.get(i).map(String::as_str).unwrap_or("");
+
+        for (block_idx, block) in blocks.iter().enumerate() {
+            let BlockBody::Image { src, .. } = &block.body else { continue };
+            if !effective_kept[block_idx] {
+                continue;
+            }
+
+            let Some(src) = src else {
+                images_failed = images_failed.saturating_add(1);
+                eprintln!(
+                    "asset[src] anh khong co thuoc tinh src -- bo qua (chuong {i}, khoi {block_idx})"
+                );
+                continue;
+            };
+
+            // Neo TRƯỚC mạng — một ảnh không neo được thì không đáng một lượt tải (tránh một
+            // tệp mồ côi không hàng `asset` nào trỏ tới, xem doc-comment hàm này).
+            let anchor_after_segment_ord = match crate::core::segment::anchor::compute_anchor(
+                blocks,
+                &effective_kept,
+                block_idx,
+                &chapter.source_text,
+                &chapter.segments,
+                cleanup_rules,
+                source_lang,
+            ) {
+                Ok(ord) => ord,
+                Err(err) => {
+                    images_failed = images_failed.saturating_add(1);
+                    eprintln!(
+                        "asset[neo] tinh neo that bai (chuong {i}, khoi {block_idx}): {}",
+                        err.detail
+                    );
+                    continue;
+                }
+            };
+
+            match webimport::assets::resolve_absolute_url(src, page_url) {
+                Ok(resolved_url) => pending.push(PendingImage {
+                    chapter_index: i,
+                    anchor_after_segment_ord,
+                    resolved_url,
+                }),
+                Err(_err) => {
+                    images_failed = images_failed.saturating_add(1);
+                    // E4 (vòng rà đối kháng 2, 3 lớp) — `ResolveUrlError::detail` nhúng
+                    // NGUYÊN VĂN `src` (URL người dùng đã dán/trang chứa) — KHÔNG in ra
+                    // stderr, kể cả bản release. Vị trí (chương/khối) đủ để chẩn đoán cục bộ
+                    // mà không lộ URL.
+                    eprintln!("asset[url] khong phan giai duoc src (chuong {i}, khoi {block_idx})");
+                }
+            }
+        }
+    }
+
+    if pending.is_empty() {
+        return Ok(ImagePrepOutcome { saved: Vec::new(), images_saved: 0, images_failed });
+    }
+
+    // 🔴 Tầng 2 dựng từ ĐÚNG những host của ảnh sẽ thử tải — không tầng 1 (pha này KHÔNG BAO
+    // GIỜ tải Trang, §Always spec 6.11). Tầng 1 rỗng ⇒ `Allowlist::decide` cho `ResourceKind::Page`
+    // luôn `Denied`, vô hại vì hàm này chỉ gọi `fetch(..., ResourceKind::Image)`.
+    let tier2_hosts: std::collections::BTreeSet<String> =
+        pending.iter().filter_map(|p| webimport::assets::host_of(&p.resolved_url)).collect();
+    let allowlist = webimport::Allowlist::default().with_tier2_hosts(tier2_hosts);
+
+    let assets_dir = dir.join("assets");
+    let mut cache: std::collections::HashMap<String, Option<CachedFetch>> = std::collections::HashMap::new();
+    let mut saved: Vec<SavedAsset> = Vec::new();
+
+    for p in &pending {
+        let cached = match cache.entry(p.resolved_url.clone()) {
+            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                // 🔵 B1 — `fetch_and_write_one_asset` PUSH THẲNG vào `domain_log_state` bên
+                // trong nó (trước bước ghi tệp có thể trượt); `?` ở đây không còn vứt mất một
+                // Vec cục bộ nào — cái duy nhất `?` lan ra là `IpcError` của chính lượt ghi
+                // byte trượt, nhật ký thì đã AN TOÀN từ trước đó rồi.
+                let outcome = fetch_and_write_one_asset(&p.resolved_url, &allowlist, &assets_dir, domain_log_state)?;
+                e.insert(outcome)
+            }
+        };
+
+        match cached {
+            Some(c) => saved.push(SavedAsset {
+                chapter_index: p.chapter_index,
+                anchor_after_segment_ord: p.anchor_after_segment_ord,
+                file_name: c.file_name.clone(),
+                source_url: p.resolved_url.clone(),
+                byte_len: c.byte_len,
+                content_type: c.content_type.clone(),
+            }),
+            None => images_failed = images_failed.saturating_add(1),
+        }
+    }
+
+    // 🔵 THÊM (vòng rà đối kháng 3, mục R2) — kiểm TRƯỚC giao dịch ghi, không để một `CHECK`
+    // của `ASSET_DDL` vỡ BÊN TRONG `store.write` giết TRỌN lượt nhập. Một hàng vi phạm bên
+    // trong giao dịch làm SQLite trả lỗi, `create_work` dọn SẠCH `.atproj` — đúng cho lỗi
+    // GHI ĐĨA (§Always spec 6.11), nhưng SAI cho một hàng dữ liệu hỏng của MỘT ảnh: cùng
+    // triết lý §Always "một ảnh trượt không được dừng cả lượt nhập" mà `images_failed` tồn
+    // tại để giữ. Lọc Ở ĐÂY (ngoài giao dịch, có thể đếm/log an toàn) thay vì để SQLite từ
+    // chối bên trong.
+    let (saved, newly_failed) = saved.into_iter().partition::<Vec<_>, _>(saved_asset_satisfies_asset_check_constraints);
+    for offender in &newly_failed {
+        eprintln!(
+            "asset[check] hang asset vi pham CHECK cua ASSET_DDL, bo qua truoc giao dich (chuong {}, file_name={:?})",
+            offender.chapter_index, offender.file_name
+        );
+    }
+    images_failed = images_failed.saturating_add(u32::try_from(newly_failed.len()).unwrap_or(u32::MAX));
+
+    // 🔵 THÊM (vòng rà đối kháng 3, mục R6) — phép kiểm VÉT CẠN cho `chapter_index`, ĐO ĐƯỢC
+    // là an toàn hôm nay (mỗi `chapter_index` chép THẲNG từ `i` của vòng lặp
+    // `chapters.iter().enumerate()` ngay trên, cùng hàm này — không đường nào khác gán nó),
+    // nhưng chỗ gọi (`create_work`) lọc theo `chapter_index == i` bằng một `filter()` KHÔNG
+    // VÉT CẠN — một `SavedAsset` mang `chapter_index` không khớp BẤT KỲ vòng lặp Chương nào
+    // (một lượt tách rời logic tương lai lỡ gán sai) sẽ không được lọc trúng ở BẤT KỲ chỉ số
+    // nào: 0 lần `INSERT`, tệp vẫn nằm trên đĩa (đã ghi ở `fetch_and_write_one_asset`, TRƯỚC
+    // giao dịch), và `images_saved` (tính NGAY DƯỚI ĐÂY, từ `saved.len()`) đếm THỪA đúng
+    // hàng đó — một tệp mồ côi VÀ một con số hiển thị sai, không lỗi nào báo. Lọc Ở ĐÂY
+    // (cùng vị trí R2, ngoài giao dịch) thay vì phát hiện muộn sau khi đã ghi xong.
+    let chapters_len = chapters.len();
+    let (saved, out_of_range) =
+        saved.into_iter().partition::<Vec<_>, _>(|s| saved_asset_chapter_index_is_in_range(s, chapters_len));
+    for offender in &out_of_range {
+        eprintln!(
+            "asset[chapter_index] chapter_index ({}) vuot qua so Chuong ({chapters_len}) -- bo qua truoc giao dich, file_name={:?}",
+            offender.chapter_index, offender.file_name
+        );
+    }
+    images_failed = images_failed.saturating_add(u32::try_from(out_of_range.len()).unwrap_or(u32::MAX));
+
+    // ⚠️ NÓI RA (vòng rà đối kháng 2, mục D7) — cùng lý lẽ hệt `byte_len` ở
+    // `fetch_and_write_one_asset`: `unwrap_or(u32::MAX)` là một con số CHẨN ĐOÁN (số hàng
+    // `asset` đã chèn thành công), không phải một VỊ TRÍ — tràn `u32` đòi hơn bốn tỷ ảnh
+    // trong MỘT lượt nhập, một con số không một trang/Tác phẩm thật nào chạm tới được. Bão
+    // hoà thay vì `Err`/panic ở một nhánh không ai từng chạm là lựa chọn có chủ, không phải
+    // một lối tắt.
+    let images_saved = u32::try_from(saved.len()).unwrap_or(u32::MAX);
+    Ok(ImagePrepOutcome { saved, images_saved, images_failed })
+}
+
+/// R2 (vòng rà đối kháng 3, lớp 3) — bản Rust CỦA CHÍNH các `CHECK` mà `ASSET_DDL` khai, đo
+/// TRƯỚC khi một hàng đi vào giao dịch ghi. `char::is_whitespace()` của Rust đã đúng thuộc
+/// tính Unicode `White_Space` (không cần liệt tay 25 điểm mã như SQL — `trim()` của SQLite
+/// chỉ cắt ASCII, `str::trim()` của Rust thì không có giới hạn đó), nên vế này ĐƠN GIẢN HƠN
+/// bản SQL, không phải một bản chép kém trung thành hơn.
+fn saved_asset_satisfies_asset_check_constraints(saved: &SavedAsset) -> bool {
+    !saved.file_name.trim().is_empty()
+        && !saved.source_url.trim().is_empty()
+        && !saved.content_type.trim().is_empty()
+        && saved.byte_len >= 0
+        && saved.anchor_after_segment_ord >= 0
+}
+
+/// R6 (vòng rà đối kháng 3, lớp 3) — vị từ VÉT CẠN cho `chapter_index`: chỗ gọi
+/// (`create_work`) chỉ ghi hàng có `chapter_index == i` cho `i` chạy trong `0..chapters_len`
+/// (đúng vòng lặp `chapters.iter().enumerate()`) — một hàng nằm NGOÀI dải đó không được lọc
+/// trúng ở BẤT KỲ `i` nào, để lại một tệp mồ côi trên đĩa và một `images_saved` đếm thừa.
+fn saved_asset_chapter_index_is_in_range(saved: &SavedAsset, chapters_len: usize) -> bool {
+    saved.chapter_index < chapters_len
+}
+
+/// Tải + ghi ĐÚNG MỘT ảnh (đã qua dedup ở [`prepare_chapter_images`]) — đường DUY NHẤT
+/// `fs::write` của cả pha ảnh.
+///
+/// `Ok(None)` cho MỌI lý do khiến ảnh này không có tệp: mạng lỗi/host bị chặn/HTTP lỗi
+/// (`FetchError`), hoặc MIME không phải ảnh raster (§Never spec 6.11: SVG bị loại).
+///
+/// 🔵 **SỬA (vòng rà đối kháng 3, mục T4) — `Err` không còn CHỈ cho ghi byte thất bại.** Câu
+/// cũ ở đây hết đúng từ lượt B1 (vòng rà đối kháng 2): `Err` còn nổ ở nhánh bất biến nội bộ
+/// `normalized_mime` vỡ (xem `# Lỗi` của [`prepare_chapter_images`] cho chi tiết cả hai
+/// nhánh) — cả hai đều là điều kiện lập trình/I-O thật, không phải một MIME/host/mạng xấu.
+///
+/// 🔵 **SỬA (vòng rà đối kháng, đo được — không suy luận).** Bản trước gọi
+/// [`webimport::assets::is_raster_image_mime`] làm một bước GÁC RIÊNG đứng TRƯỚC
+/// [`webimport::assets::extension_for_mime`] — hai vị từ cùng canh một mệnh đề ("MIME này có
+/// được chấp nhận không") trên đúng một danh mục bốn phần tử. Đo bằng phép GỠ THẬT: gỡ hẳn
+/// nhánh gọi `is_raster_image_mime` khỏi hàm này rồi chạy TRỌN `cargo test --locked` (46
+/// binary, kể cả `asset_contract.rs`/`webimport_contract.rs`) — **0 ca đỏ**. Đúng thứ mã CHẾT
+/// trên đường sản phẩm: `extension_for_mime` đã TỰ đóng vai trò gác cổng qua nhánh `_ => None`
+/// của chính nó, nên gọi `is_raster_image_mime` trước đó không đổi một hành vi quan sát được
+/// nào — đúng lớp lỗi "hai nguồn sự thật cho một mệnh đề" (không phải "ca đầu-cuối gác nhầm
+/// chỗ": ca đầu-cuối ĐÚNG chỗ, vị từ ĐẦU mới là chỗ thừa). ⇒ Gỡ HẲN nhánh gọi rời đó —
+/// `extension_for_mime` MỘT MÌNH là điểm quyết định DUY NHẤT trên đường này.
+/// `is_raster_image_mime` VẪN ở lại `core::webimport::assets` (xuất khẩu công khai, tự kiểm
+/// bằng test riêng của nó) như một vị từ ĐỘC LẬP cho chỗ gọi tương lai (Story 6.14 hay bất kỳ
+/// nơi nào cần hỏi "MIME này có phải ảnh raster hay không" mà không cần đuôi tệp) — nó không
+/// còn là một BƯỚC trong luồng ghi ảnh của story này.
+///
+/// 🔵 **SỬA 2026-09-08 (mục B1 vòng rà đối kháng 3 lớp) — nhận `&DomainLogState`, không còn
+/// `&mut Vec`.** `Vec<DomainLogEntry>` do `fetch()` trả về được PUSH THẲNG vào state ngay tại
+/// đây — TRƯỚC bước ghi byte (dòng có thể trả `Err` và khiến hàm này thoát sớm). Nhờ vậy nhật
+/// ký của lượt gọi NÀY luôn an toàn trước khi có cơ hội bị `?` cuốn mất ở tầng gọi.
+fn fetch_and_write_one_asset(
+    url: &str,
+    allowlist: &webimport::Allowlist,
+    assets_dir: &Path,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<Option<CachedFetch>, IpcError> {
+    let (result, mut log) = webimport::fetch(url, allowlist, webimport::ResourceKind::Image);
+
+    let page = match result {
+        Ok(page) => page,
+        Err(_err) => {
+            // E4 (vòng rà đối kháng 2, 3 lớp) — KHÔNG `eprintln!` URL của người dùng ra
+            // stderr (kể cả bản release, không điều kiện) — `domain_log_state` NGAY DƯỚI đây
+            // đã là đúng kênh cho đúng loại sự kiện này (NFR19 audit trail, session-lifetime,
+            // không phải một tệp log vô thời hạn trên đĩa).
+            webimport::append_domain_log_entries(domain_log_state, log);
+            return Ok(None);
+        }
+    };
+
+    let Some(ext) = webimport::assets::extension_for_mime(page.content_type.as_deref()) else {
+        // E4 (vòng rà đối kháng 2, 3 lớp) — KHÔNG in URL người dùng ra stderr; `content_type`
+        // (một chuỗi MIME, không phải dữ liệu định danh cá nhân) đủ để chẩn đoán cục bộ.
+        eprintln!("asset[mime] mime khong phai anh raster: {:?}", page.content_type);
+        // 🔵 Story 6.11, mục A (Ice ký 2026-09-08) — chặng này ĐÃ được `fetch()` gán
+        // `Fetched` (mạng thành công); sửa lại thành `MimeRejected` TRƯỚC khi push, vì
+        // `fetcher.rs` không biết gì về danh mục MIME ảnh (AD-40) — chỉ tầng gọi này biết.
+        if let Some(last) = log.last_mut() {
+            last.outcome = Some(webimport::DomainLogOutcome::MimeRejected);
+        }
+        webimport::append_domain_log_entries(domain_log_state, log);
+        return Ok(None);
+    };
+    // MIME đã CHUẨN HOÁ lấy THẲNG từ content-type của phản hồi (D1 vòng rà đối kháng 3 lớp) —
+    // không dựng lại từ đuôi tệp bằng một bảng `match` thứ ba song song với
+    // `RASTER_IMAGE_MIMES`/nhánh của `extension_for_mime`. `ext` vừa được `extension_for_mime`
+    // xác nhận là MỘT TRONG BỐN kiểu ĐÃ CHẤP NHẬN, nên `normalized_mime` của CHÍNH
+    // `content_type` này (đọc CÙNG một `content_type`, cùng phép chuẩn hoá nội bộ) không thể
+    // trả `None` — bất biến này chứng minh được bằng ĐỌC MÃ, không suy diễn.
+    //
+    // 🔵 SỬA (vòng rà đối kháng 2, mục B1) — trả `Err` thay vì `unreachable!()`. Dù bất biến
+    // trên ĐÚNG hôm nay, `Cargo.toml` đặt `panic = "abort"` — MỘT LƯỢT SAU tách rời logic của
+    // hai hàm (ví dụ một trong hai đổi bảng MIME mà quên đổi bảng kia) sẽ biến một điều kiện
+    // "không thể" thành một điều kiện THẬT, và khi đó `unreachable!()` giết NGUYÊN tiến trình
+    // thay vì trả một lỗi có thể phục hồi — đúng lớp lỗi mà B1 (chapters/chapter_urls) vừa
+    // sửa ở `create_work`. Phòng thủ ở ĐÂY không tốn gì (một nhánh `Err` thay vì panic).
+    //
+    // `append_domain_log_entries` chạy TRƯỚC nhánh `Err` này (không sau) — cùng lý lẽ B1:
+    // chặng mạng ĐÃ hoàn tất (log đã có nội dung thật) không được phép biến mất chỉ vì một
+    // bước XỬ LÝ sau đó (dù chỉ là một bất biến nội bộ, không phải I/O) gặp trục trặc.
+    webimport::append_domain_log_entries(domain_log_state, log);
+
+    let Some(normalized_content_type) = webimport::normalized_mime(page.content_type.as_deref()) else {
+        eprintln!("asset[mime] bat bien noi bo vo (extension_for_mime nhan {ext} nhung normalized_mime tra None)");
+        return Err(IpcError::new(
+            "work.create_failed",
+            MessageKey::WorkCreateFailed,
+            std::collections::BTreeMap::new(),
+            false,
+        ));
+    };
+
+    let file_name = format!("{}.{ext}", Uuid::new_v4());
+    let path = assets_dir.join(&file_name);
+    // D3 (vòng rà đối kháng 3 lớp) — CỐ Ý KHÔNG dùng khuôn ghi-nguyên-tử của
+    // `core::library::meta::Meta::write_atomic`/`core::glossary::exchange_io::write_export_file`
+    // (tạm cạnh đích → sync → rename) ở đây, dù Task list ban đầu viện dẫn đúng khuôn đó. Lý
+    // do: cả hai khuôn kia tồn tại để bảo vệ một tệp ĐÍCH đã có từ TRƯỚC khỏi bị GHI ĐÈ dở
+    // dang (meta.json đang dùng, tệp xuất người dùng chỉ định) — nếu `rename` không chạy tới,
+    // bản CŨ vẫn còn nguyên. Ở đây `path` là một tên UUID hoàn toàn MỚI, chưa từng tồn tại,
+    // và KHÔNG ai đọc `path` này cho tới khi hàng `INSERT INTO asset` trỏ tới nó được COMMIT
+    // — điều chỉ xảy ra ở nhánh `Ok`. Nếu `fs::write` trượt giữa chừng (đĩa đầy), hàm này trả
+    // `Err`, và MỌI đường gọi nó (`prepare_chapter_images` → `create_work`) đều
+    // `remove_folder(&dir)` xoá NGUYÊN `.atproj` vừa tạo — bao gồm cả tệp cụt vừa ghi dở, nếu
+    // có. Không có cửa sổ nào để một tệp cụt bị đọc nhầm là một ảnh thật: nguyên tử ở tầng
+    // TỆP là thừa khi tầng NGOÀI nó (thư mục `.atproj`) đã nguyên tử theo kiểu "tất cả hoặc
+    // không gì" bằng `remove_folder`.
+    if let Err(e) = std::fs::write(&path, &page.bytes) {
+        eprintln!("asset[ghi] ghi byte anh xuong dia that bai ({}): {e}", path.display());
+        return Err(IpcError::new(
+            "asset.write_failed",
+            MessageKey::AssetWriteFailed,
+            std::collections::BTreeMap::new(),
+            false,
+        ));
+    }
+
+    // ⚠️ NÓI RA (vòng rà đối kháng 2, mục D7) — `unwrap_or(i64::MAX)` là một lượt LÀM TRÒN,
+    // đối nghịch bề mặt với kỷ luật "không làm tròn im lặng" mà `compute_anchor` (B2/B3)
+    // vừa được sửa để theo. HAI KỶ LUẬT KHÔNG THẬT SỰ MÂU THUẪN: `compute_anchor` làm tròn
+    // một VỊ TRÍ (một anchor sai đặt ảnh vào GIỮA một câu — dữ liệu SAI, không phân biệt
+    // được với dữ liệu ĐÚNG); ở ĐÂY là một con số CHẨN ĐOÁN (`byte_len`, không ảnh hưởng anh
+    // hiển thị đúng hay sai) và nhánh tràn KHÔNG THỂ XẢY RA trong thực tế — `page.bytes.len()`
+    // bị `fetcher.rs::MAX_RESPONSE_BYTES` (20 MiB) chặn TRƯỚC khi tới đây, và 20 MiB nằm sâu
+    // trong `i64::MAX`. Trả một `i64::MAX` bão hoà ("ít nhất lớn cỡ này") trung thực hơn một
+    // panic/`Err` làm trượt cả ảnh vì một con số hiển thị, cho một nhánh không ai từng chạm
+    // được. Giữ nguyên, có lý do tại chỗ — không phải một lối tắt bị quên.
+    Ok(Some(CachedFetch {
+        file_name,
+        byte_len: i64::try_from(page.bytes.len()).unwrap_or(i64::MAX),
+        content_type: normalized_content_type,
+    }))
 }
 
 /// **Hàm thuần** — nhánh dán văn bản của AC1.
@@ -537,6 +1132,8 @@ pub fn create_work_from_text(
     genre: &str,
     text: String,
 ) -> Result<OpenWork, IpcError> {
+    // Đường Blob KHÔNG BAO GIỜ có ảnh (extract_main_content luôn false cho hình dạng này) —
+    // một kho tạm, vứt đi ngay sau lượt gọi, đúng khuôn doc-comment `create_work`.
     create_work(
         documents_root,
         name,
@@ -547,6 +1144,7 @@ pub fn create_work_from_text(
         Vec::new(),
         None,
         Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
     )
 }
 
@@ -972,6 +1570,7 @@ pub fn create_work_from_file(
     path: &Path,
 ) -> Result<OpenWork, IpcError> {
     let shape = import_file(path)?;
+    // Đường Blob KHÔNG BAO GIỜ có ảnh — cùng lý do `create_work_from_text`.
     create_work(
         documents_root,
         name,
@@ -982,6 +1581,7 @@ pub fn create_work_from_file(
         Vec::new(),
         None,
         Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
     )
 }
 
@@ -2347,6 +2947,8 @@ pub fn cancel_import_preview(state: &PendingImportSourceState) {
 /// `wire::confirm_import_with_encoding` đọc `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN
 /// (cùng kỷ luật "đọc lại lúc xác nhận, không tái dùng bộ lúc xem trước" mà `cleanup_rules`
 /// đã theo) rồi truyền vào đây; state đó chỉ được RESET ở lớp vỏ SAU KHI hàm này trả `Ok`.
+/// 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1) — tham số `domain_log_state`.** Đọc doc-comment
+/// `create_work` — thread thẳng xuống đó, không tự tích luỹ gì ở tầng này.
 pub fn confirm_import_with_encoding(
     documents_root: &Path,
     state: &PendingImportSourceState,
@@ -2357,6 +2959,7 @@ pub fn confirm_import_with_encoding(
     cleanup_rules: Vec<CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
+    domain_log_state: &webimport::DomainLogState,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -2391,6 +2994,7 @@ pub fn confirm_import_with_encoding(
         cleanup_rules,
         chapter_pattern,
         block_overrides,
+        domain_log_state,
     )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
@@ -2536,14 +3140,25 @@ pub struct UrlImportBatchWire {
 pub struct DomainLogEntryWire {
     pub at_epoch_ms: u64,
     pub domain: String,
-    /// `"document"` | `"image"` — khớp [`webimport::ResourceKind`], `serde(rename_all =
-    /// "snake_case")` trên chính kiểu đó (định nghĩa ở `core::webimport::allowlist`).
+    /// `"page"` | `"image"` — khớp [`webimport::ResourceKind`] (biến thể `Page`/`Image`),
+    /// `serde(rename_all = "snake_case")` trên chính kiểu đó (định nghĩa ở
+    /// `core::webimport::allowlist`).
+    ///
+    /// 🔵 SỬA 2026-09-09 (vòng rà đối kháng 2, mục D8) — câu cũ khai `"document"`, một chuỗi
+    /// KHÔNG BAO GIỜ thật sự đi qua dây (lỗi từ Story 6.8): biến thể Rust là `Page`, và
+    /// `snake_case` của `Page` là `"page"`, không phải `"document"`.
     pub kind: webimport::ResourceKind,
     pub allowed: bool,
     /// `"tier1"` | `"tier2"` | `"denied"` — tầng đã CẤP PHÉP khi `allowed == true`; luôn
     /// `"denied"` khi `allowed == false`. Một trường DUY NHẤT (không `Option<Tier>` +
     /// `bool` rời) để phía TS không phải tự đối chiếu hai trường có nhất quán không.
     pub tier: &'static str,
+    /// **THÊM 2026-09-08 (Story 6.11)** — `null` khi `allowed == false` (0 kết nối, không có
+    /// kết quả mạng nào để mà báo); một trong tám chuỗi `snake_case` của
+    /// [`webimport::DomainLogOutcome`] khi `allowed == true`. Đây là trường trả lời "và rồi
+    /// SAO" cho một chặng đã cho phép — thứ hai ô `Error Handling` của I/O Matrix spec 6.11
+    /// đòi mà `tier`/`allowed` một mình không nói được.
+    pub outcome: Option<webimport::DomainLogOutcome>,
 }
 
 impl From<&webimport::DomainLogEntry> for DomainLogEntryWire {
@@ -2553,7 +3168,14 @@ impl From<&webimport::DomainLogEntry> for DomainLogEntryWire {
             webimport::DomainLogDecision::Allowed(webimport::Tier::Two) => (true, "tier2"),
             webimport::DomainLogDecision::Denied => (false, "denied"),
         };
-        DomainLogEntryWire { at_epoch_ms: entry.at_epoch_ms, domain: entry.domain.clone(), kind: entry.kind, allowed, tier }
+        DomainLogEntryWire {
+            at_epoch_ms: entry.at_epoch_ms,
+            domain: entry.domain.clone(),
+            kind: entry.kind,
+            allowed,
+            tier,
+            outcome: entry.outcome,
+        }
     }
 }
 
@@ -2928,7 +3550,12 @@ pub fn open_work(
         work_id: meta.work_id.clone(),
     });
 
-    Ok(OpenWork { dir, store, scope, meta, chapter_id })
+    // Story 6.11 -- mo lai KHONG bao gio chay pha anh (chi `create_work` chay), nen ca HAI
+    // truong moi deu la gia tri "chua tung chay" -- 0/0.
+    // 🔵 SUA 2026-09-09 (vong ra doi khang 2, muc D8) -- cau cu khai BA truong; truong thu ba
+    // (`pending_domain_log`) da bi GO hoan toan khoi OpenWork tu luot sua B1 (domain_log_state
+    // nay la mot tham so ngoai, khong con la mot truong tra ve) -- chi con HAI truong that.
+    Ok(OpenWork { dir, store, scope, meta, chapter_id, images_saved: 0, images_failed: 0 })
 }
 
 /// Kiểu state Tauri quản lý — Tác phẩm đang mở, hoặc chưa mở gì (Task 7).
@@ -2999,11 +3626,12 @@ fn swap_locked<T>(mutex: &std::sync::Mutex<Option<T>>, new: T) -> Option<T> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ImportScanGeneration, ImportScanNextStep, create_work_from_text,
+        ImportScanGeneration, ImportScanNextStep, SavedAsset, create_work_from_text,
         dictionary_inconclusive_event, dictionary_probe_from_grouped,
         filter_and_enqueue_current_import_scan, guarded_dict_layers, guarded_open_store,
         import_scan_next_step, keep_committed_import_when_scan_spawn_fails,
-        read_chapter_segment_texts, swap_locked,
+        read_chapter_segment_texts, saved_asset_chapter_index_is_in_range,
+        saved_asset_satisfies_asset_check_constraints, swap_locked,
     };
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
@@ -3809,6 +4437,73 @@ mod tests {
         root_test_cleanup(&dir);
     }
 
+    /// R2 (vòng rà đối kháng 3, lớp 3) — vị từ Rust phải khớp ĐÚNG những `CHECK` mà
+    /// `ASSET_DDL` khai: một hàng hợp lệ (fixture thật) qua được, một hàng vi phạm MỖI cột
+    /// một lượt phải bị bắt.
+    fn well_formed_saved_asset() -> SavedAsset {
+        SavedAsset {
+            chapter_index: 0,
+            anchor_after_segment_ord: 1,
+            file_name: "abc123.jpg".to_owned(),
+            source_url: "https://example.test/a.jpg".to_owned(),
+            byte_len: 10,
+            content_type: "image/jpeg".to_owned(),
+        }
+    }
+
+    #[test]
+    fn a_well_formed_saved_asset_satisfies_every_check_constraint() {
+        assert!(saved_asset_satisfies_asset_check_constraints(&well_formed_saved_asset()));
+    }
+
+    #[test]
+    fn saved_asset_check_constraints_catch_a_violation_on_each_field_one_at_a_time() {
+        let mut bad = well_formed_saved_asset();
+        bad.file_name = "   ".to_owned();
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "file_name toan khoang trang phai bi bat");
+
+        let mut bad = well_formed_saved_asset();
+        bad.source_url = String::new();
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "source_url rong phai bi bat");
+
+        let mut bad = well_formed_saved_asset();
+        bad.content_type = "\u{3000}".to_owned();
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "content_type toan U+3000 phai bi bat");
+
+        let mut bad = well_formed_saved_asset();
+        bad.byte_len = -1;
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "byte_len am phai bi bat");
+
+        let mut bad = well_formed_saved_asset();
+        bad.anchor_after_segment_ord = -1;
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "anchor am phai bi bat");
+    }
+
+    /// R6 (vòng rà đối kháng 3, lớp 3) — `chapter_index` trong dải `0..chapters_len` phải
+    /// qua được vị từ; NGOÀI dải (kể cả ĐÚNG BẰNG `chapters_len`, biên trên không hợp lệ)
+    /// phải bị bắt.
+    #[test]
+    fn saved_asset_chapter_index_in_range_accepts_valid_indices_and_rejects_out_of_range_ones() {
+        let mut a = well_formed_saved_asset();
+        a.chapter_index = 0;
+        assert!(saved_asset_chapter_index_is_in_range(&a, 3), "chapter_index 0 trong dai 0..3 phai qua");
+
+        let mut b = well_formed_saved_asset();
+        b.chapter_index = 2;
+        assert!(saved_asset_chapter_index_is_in_range(&b, 3), "chapter_index 2 trong dai 0..3 phai qua");
+
+        let mut c = well_formed_saved_asset();
+        c.chapter_index = 3;
+        assert!(
+            !saved_asset_chapter_index_is_in_range(&c, 3),
+            "chapter_index == chapters_len (bien tren, KHONG hop le) phai bi bat"
+        );
+
+        let mut d = well_formed_saved_asset();
+        d.chapter_index = 99;
+        assert!(!saved_asset_chapter_index_is_in_range(&d, 3), "chapter_index vuot xa dai phai bi bat");
+    }
+
 }
 
 /// Nhiều vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
@@ -3959,6 +4654,21 @@ pub mod wire {
         /// AC5 cấm đường dẫn tuyệt đối bên trong `meta.json`/`project.db`, không cấm
         /// nói cho người dùng biết Tác phẩm của họ nằm ở đâu.
         pub folder: String,
+        /// **THÊM 2026-09-08 (Story 6.11, FR127)** — số HÀNG `asset` đã chèn. `0` cho mọi
+        /// lượt tạo KHÔNG đi qua đường URL (dán văn bản, tệp) — không `#[serde(rename_all
+        /// = "camelCase")]` (cùng luật mọi struct qua dây, `project_contract.rs` khoá dây).
+        ///
+        /// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 3, mục T1).** Câu cũ khai "số ảnh đã tải &
+        /// ghi thành công" — SAI trong ca DEDUP (D2, `commands::project::OpenWork::images_saved`
+        /// đã sửa CÙNG câu này ở bản `OpenWork`, nhưng bỏ sót đúng bản SONG SINH này mà
+        /// frontend thật sự đọc qua dây): cùng một URL ảnh dùng lại ở hai Chương chỉ tải/ghi
+        /// MỘT tệp nhưng sinh HAI hàng `asset` ⇒ `images_saved == 2` trong khi số TỆP thật là
+        /// 1. Trường này đếm HÀNG, không đếm TỆP.
+        pub images_saved: u32,
+        /// **THÊM 2026-09-08 (Story 6.11, FR127)** — số ảnh GIỮ nhưng không có hàng `asset`.
+        /// Bề mặt HIỂN THỊ con số này là nợ có chủ (`deferred-work.md`) — trường có mặt ở đây
+        /// để KHÔNG bị bịa lại một lần nữa khi bề mặt đó được dựng.
+        pub images_failed: u32,
     }
 
     impl CreatedWork {
@@ -3967,6 +4677,8 @@ pub mod wire {
             Self {
                 meta: open.meta.clone(),
                 folder: open.dir.display().to_string(),
+                images_saved: open.images_saved,
+                images_failed: open.images_failed,
             }
         }
     }
@@ -4276,6 +4988,25 @@ pub mod wire {
         // viên bảng mã khác mà không mất lượt sửa tay vừa làm).
         let block_overrides = resolve_tier2_block_overrides(&app);
         let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
+        // 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1 vòng rà đối kháng 3 lớp)** — nhật ký domain
+        // của PHA ẢNH nay được PUSH THẲNG vào state THẬT của phiên chạy TỪ BÊN TRONG
+        // `create_work` (mỗi lời gọi `fetch` một lần, ngay khi hoàn tất) — KỂ CẢ khi
+        // `confirm_import_with_encoding` sau đó trả `Err` (đĩa đầy giữa lúc ghi ảnh, §Always
+        // "kể cả lượt trượt"). Không còn một bước `append_domain_log` RỜI sau `?` — bước đó
+        // sẽ KHÔNG BAO GIỜ chạy trên đường lỗi (chính vấn đề mục B1 sửa), và giữ nó trên
+        // đường thành công sẽ nối trùng hai lần cùng một lô entry.
+        //
+        // ⚠️ Vắng `DomainLogState` (lỗi lắp dây ở `lib.rs`) ⇒ rơi về một kho TẠM cục bộ,
+        // best-effort — cùng triết lý mọi state Tauri vắng mặt khác trong tệp này (chẩn đoán,
+        // không chặn nghiệp vụ). Kho tạm này chỉ SỐNG trong lượt gọi này rồi mất — chấp nhận
+        // được vì đây là đường KHÔNG BAO GIỜ xảy ra trên một app đã khởi động đúng
+        // (`open_work_slot` luôn `.manage()` nó).
+        let fallback_domain_log_state: webimport::DomainLogState = std::sync::Mutex::new(Vec::new());
+        let domain_log_state = app.try_state::<webimport::DomainLogState>();
+        let domain_log_state_ref = domain_log_state.as_deref().unwrap_or_else(|| {
+            eprintln!("webimport[domain_log] DomainLogState chua duoc quan ly - dung kho tam");
+            &fallback_domain_log_state
+        });
         let opened = super::confirm_import_with_encoding(
             &root,
             &pending_state,
@@ -4286,6 +5017,7 @@ pub mod wire {
             cleanup_rules,
             pattern,
             block_overrides,
+            domain_log_state_ref,
         )?;
         reset_tier2_block_overrides(&app);
 

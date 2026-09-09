@@ -12,8 +12,11 @@
 //!    ở phạm vi toàn cây; phép kiểm này lặp lại đúng mệnh đề đó nhưng THU HẸP vào riêng
 //!    `core/cleanup/**` — không sửa một kỳ vọng nào của `scope_boundary.rs`, chỉ thêm một
 //!    lớp phòng thủ đặc thù module).
-//! 3. **Chỗ gọi sản phẩm của `core::cleanup::apply` đúng SỐ ĐÃ BIẾT (một)** — trong
-//!    `pipeline.rs`, bước 3. Một chỗ gọi THỨ HAI là một đường ghi/dựng MỚI không ai ký.
+//! 3. **Chỗ gọi sản phẩm của `core::cleanup::apply` đúng SỐ ĐÃ BIẾT.** 🔵 **SỬA 2026-09-08
+//!    (Story 6.11) — "một" → "hai, cả hai có tên".** `pipeline.rs` (bước 3, Story 6.5) cộng
+//!    `core::segment::anchor::compute_anchor` (Story 6.11, FR127 — chạy lại bước 3 trên
+//!    TIỀN TỐ đứng trước một ảnh để tính neo, §Design Notes spec 6.11). Một chỗ gọi THỨ BA
+//!    là một đường ghi/dựng MỚI không ai ký.
 //!
 //! Sàn quần thể + kiểm chứng dương (ca dương + ca âm cho MỖI vị từ) là bắt buộc, khuôn
 //! `segment_pipeline_boundary.rs`/`segment_normalize_boundary.rs`.
@@ -301,11 +304,22 @@ fn the_forbidden_token_check_would_actually_flag_a_seeded_violation_and_ignore_c
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Mệnh đề 3 — chỗ gọi sản phẩm của core::cleanup::apply đúng SỐ ĐÃ BIẾT (một)
+// Mệnh đề 3 — chỗ gọi sản phẩm của core::cleanup::apply đúng SỐ ĐÃ BIẾT
 // ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔵 **SỬA 2026-09-08 (Story 6.11) — "một" đã HẾT ĐÚNG, "hai" thì đúng và CÓ TÊN cả hai.**
+// Tên hàm cũ `..._has_exactly_one_named_product_call_site` khai đúng con số MỘT — đúng lúc
+// nó được viết, sai từ story này. `core::segment::anchor::compute_anchor` (Story 6.11,
+// FR127) chạy lại ĐÚNG bước 3 của AD-39 trên TIỀN TỐ đứng trước một ảnh, để tính neo vị trí
+// (§Design Notes spec 6.11: "chạy lại hai bước biến đổi văn bản trên TIỀN TỐ" là phương án
+// ĐÃ ĐO và ĐÃ CHỌN, không phải một lối tắt lẻn vào). Đây là một chỗ gọi sản phẩm THỨ HAI có
+// tên, có lý do, có phép đo — khác hẳn "một chỗ gọi thứ hai không ai ký" mà mệnh đề gốc lo
+// ngại. Cổng vẫn giữ nguyên TINH THẦN: khoá đúng vào MỘT TẬP ĐÃ ĐẶT TÊN, để một chỗ gọi THỨ
+// BA xuất hiện lặng lẽ (không phải hai chỗ này) vẫn làm ca dưới đây đỏ.
+const KNOWN_CLEANUP_APPLY_CALL_SITES: [&str; 2] = ["core/segment/pipeline.rs", "core/segment/anchor.rs"];
 
 #[test]
-fn the_cleanup_apply_function_has_exactly_one_named_product_call_site() {
+fn the_cleanup_apply_function_has_exactly_two_named_product_call_sites() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -331,18 +345,27 @@ fn the_cleanup_apply_function_has_exactly_one_named_product_call_site() {
 
     assert_eq!(
         sites.len(),
-        1,
-        "kỳ vọng ĐÚNG MỘT chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs`), \
+        2,
+        "kỳ vọng ĐÚNG HAI chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs`, \
+         cộng `anchor::compute_anchor` chạy lại bước đó trên tiền tố — Story 6.11), \
          tìm thấy {}:\n{}",
         sites.len(),
         sites.join("\n")
     );
-    assert!(
-        sites[0].starts_with("core/segment/pipeline.rs"),
-        "chỗ gọi DUY NHẤT phải ở `core/segment/pipeline.rs::Step::CleanByRules` — tìm thấy ở \
-         đây thay vì đó: {}",
-        sites[0]
-    );
+    for site in &sites {
+        assert!(
+            KNOWN_CLEANUP_APPLY_CALL_SITES.iter().any(|known| site.starts_with(known)),
+            "chỗ gọi `{site}` không thuộc tập ĐÃ ĐẶT TÊN {KNOWN_CLEANUP_APPLY_CALL_SITES:?} — \
+             một chỗ gọi sản phẩm THỨ BA không ai ký"
+        );
+    }
+    for known in KNOWN_CLEANUP_APPLY_CALL_SITES {
+        assert!(
+            sites.iter().any(|site| site.starts_with(known)),
+            "khong tim thay chỗ gọi ĐÃ ĐẶT TÊN `{known}` trong {sites:?} -- no bi mat hay bi doi \
+             ten?"
+        );
+    }
 }
 
 /// Đối chứng dương THỨ TƯ cho mệnh đề 3 — một lời gọi `cleanup::apply(` sống CHỈ trong khối

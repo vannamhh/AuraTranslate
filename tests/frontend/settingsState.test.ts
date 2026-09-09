@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import type { DomainLogEntryWire } from '../../src/config/project'
+import type { DomainLogEntryWire, DomainLogOutcomeWire } from '../../src/config/project'
 
 const listDomainLogMock = vi.fn()
 
@@ -38,8 +38,11 @@ function entry(
   tier: DomainLogEntryWire['tier'],
   allowed: boolean,
   atEpochMs = 1,
+  // 🔵 THÊM 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp) — mặc định `null`
+  // (đúng giá trị Rust gửi khi `allowed === false`), giữ MỌI ca gọi cũ không cần sửa.
+  outcome: DomainLogOutcomeWire | null = null,
 ): DomainLogEntryWire {
-  return { at_epoch_ms: atEpochMs, domain, kind, allowed, tier }
+  return { at_epoch_ms: atEpochMs, domain, kind, allowed, tier, outcome }
 }
 
 beforeEach(() => {
@@ -88,9 +91,36 @@ describe('groupDomainLogEntries — gộp bản ghi THÔ theo (domain, kind, tie
     ])
     expect(rows.map((r) => r.domain)).toEqual(['earlier.example', 'later.example'])
   })
+
+  // 🔵 THÊM 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp) — `outcome` nay MỘT PHẦN
+  // của khoá gộp: cùng (domain, kind, tier) nhưng khác outcome (một lượt tải xong, một lượt
+  // bị `too_large` cắt) phải ra HAI hàng, mỗi hàng mang đúng MỘT outcome — không một hàng
+  // "trộn" khai một kết quả không khớp một phần bản ghi của chính nó.
+  it('CÙNG (domain, kind, tier) nhưng KHÁC outcome ra HAI hàng riêng', async () => {
+    const { state } = await freshState()
+    const rows = state.groupDomainLogEntries([
+      entry('cdn.example', 'image', 'tier2', true, 1, 'fetched'),
+      entry('cdn.example', 'image', 'tier2', true, 2, 'too_large'),
+    ])
+
+    expect(rows.length).toBe(2)
+    expect(new Set(rows.map((r) => r.outcome))).toEqual(new Set(['fetched', 'too_large']))
+  })
+
+  it('CÙNG (domain, kind, tier, outcome) gộp thành MỘT hàng như trước', async () => {
+    const { state } = await freshState()
+    const rows = state.groupDomainLogEntries([
+      entry('cdn.example', 'image', 'tier2', true, 1, 'fetched'),
+      entry('cdn.example', 'image', 'tier2', true, 2, 'fetched'),
+    ])
+
+    expect(rows.length).toBe(1)
+    expect(rows[0]?.count).toBe(2)
+    expect(rows[0]?.outcome).toBe('fetched')
+  })
 })
 
-describe('domainLogKindLabelKey / domainLogReasonKey — khoá LITERAL, khuôn cleanupTierLabelKey', () => {
+describe('domainLogKindLabelKey / domainLogReasonKey / domainLogOutcomeLabelKey — khoá LITERAL, khuôn cleanupTierLabelKey', () => {
   it('hai kind ra hai khoá khác nhau, đều khác rỗng', async () => {
     const { state } = await freshState()
     expect(state.domainLogKindLabelKey('page')).not.toBe(state.domainLogKindLabelKey('image'))
@@ -106,6 +136,24 @@ describe('domainLogKindLabelKey / domainLogReasonKey — khoá LITERAL, khuôn c
       state.domainLogReasonKey('denied'),
     ])
     expect(keys.size).toBe(3)
+  })
+
+  it('tám outcome cộng `null` ra CHÍN khoá phân biệt, đều khác rỗng', async () => {
+    const { state } = await freshState()
+    const outcomes: Array<DomainLogOutcomeWire | null> = [
+      null,
+      'fetched',
+      'redirected',
+      'http_status',
+      'timeout',
+      'connect_failed',
+      'too_large',
+      'mime_rejected',
+      'other',
+    ]
+    const keys = outcomes.map((o) => state.domainLogOutcomeLabelKey(o))
+    expect(new Set(keys).size).toBe(9)
+    for (const k of keys) expect(k).toBeTruthy()
   })
 })
 

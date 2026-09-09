@@ -59,7 +59,12 @@
 //! [`review`] — phán quyết *cần xem*/*sạch* cho từng Chương (Story 6.10, FR132). Hàng rào
 //! Tukey (`1,5 × IQR`, tên riêng) trên ba số tóm tắt đã có (`length`/`cleanup_match_count`/
 //! `joined_line_count`) — module THUẦN, không đọc dây, không đọc kho.
+//!
+//! [`anchor`] — neo vị trí của một ảnh GIỮ trong Chương (Story 6.11, FR127): chạy lại bước 3/4
+//! của AD-39 trên TIỀN TỐ đứng trước ảnh rồi đếm segment lọt vào đó. Module THUẦN, tự KIỂM
+//! (trả lỗi phân biệt được, không làm tròn về `0`) — xem doc-comment đầu tệp cho cơ chế.
 
+pub mod anchor;
 pub mod chapterpattern;
 pub mod encoding;
 pub mod import;

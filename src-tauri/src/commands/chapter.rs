@@ -558,6 +558,17 @@ pub fn rename_chapter(
 /// KHÔNG mang `updated_at`: đây là một phép SẮP LẠI, không phải một phép ghi nội dung, cùng
 /// lý lẽ đã ghi ở [`normalize_chapter_ord`].
 ///
+/// 🔵 **THÊM 2026-09-09 (vòng rà đối kháng 3, mục T8) — đây là đường TỔ CHỨC LẠI Chương THỨ
+/// TƯ (cùng họ với gộp/tách Chương, gộp/tách câu — xem "duy trì hàng `asset` qua bốn đường
+/// tổ chức lại Chương" ở `core::store::schema::ASSET_DDL`), và là đường DUY NHẤT trong bốn
+/// đường đó KHÔNG chạm bảng `asset`.** Lý do: hàm này chỉ hoán vị `chapter.ord` giữa HAI hàng
+/// `chapter` — nó không đổi `chapter_id` của bất kỳ `segment`/`asset` nào, và không đổi
+/// `segment.ord` (thứ tự CÂU bên trong mỗi Chương không đổi, chỉ thứ tự CHƯƠNG với nhau đổi).
+/// `asset.chapter_id`/`anchor_after_segment_ord` vì thế không có lý do gì phải đổi theo một
+/// lượt gọi hàm này — xem ca
+/// `moving_a_chapter_up_or_down_never_touches_any_asset_row_byte_for_byte`
+/// (`tests/project_contract.rs`) cho bằng chứng đo được, không chỉ suy luận.
+///
 /// # Lỗi
 /// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
 /// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có), **0 hàng
@@ -749,6 +760,32 @@ pub fn merge_chapter_into_previous(
             (a_id, shift, chapter_id),
         )?;
 
+        // 🔴 THÊM (Ice chốt 2026-09-09, "duy trì hàng `asset` qua bốn đường tổ chức lại
+        // Chương") — hàng `asset` của B (Chương bị gộp) đi theo ĐÚNG khuôn segment ngay
+        // trên: đổi `chapter_id` sang A, dời `anchor_after_segment_ord` ĐÚNG bằng `shift`
+        // (số segment A đã có TRƯỚC khi B nối vào — cùng con số segment của B vừa dời).
+        // Không mệnh đề nào lọc bớt: mọi ảnh của B đều dời, kể cả một ảnh của B mang neo 0
+        // (đứng TRƯỚC mọi segment của B) khi chính B không có segment nào — neo mới của nó
+        // là `0 + shift = shift`, đúng vị trí "ngay TRƯỚC nội dung mà B lẽ ra đóng góp".
+        //
+        // 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3, mục T5) — câu trước còn khai "đúng vị trí
+        // NGAY SAU SEGMENT CUỐI CŨ CỦA A" cho MỌI trường hợp — SAI khi CHÍNH A cũng có 0
+        // segment (`shift = 0`): khi đó neo mới vẫn là `0`, nghĩa là "TRƯỚC MỌI THỨ" trong
+        // Chương gộp, không phải "sau segment cuối của A" — A không CÓ segment cuối nào để
+        // mà đứng sau. Giá trị (`shift`) vẫn ĐÚNG ở cả hai ca; chỉ câu MÔ TẢ vị trí bằng lời
+        // là sai cho ca suy biến (A rỗng), sửa tại đây thay vì để nó đọc như một mệnh đề
+        // đúng cho MỌI trường hợp.
+        //
+        // Cùng khuôn `chapter_position` (§"SỬA 2026-08-29 (Story 5.8)" ngay trên
+        // `CHAPTER_POSITION_DDL`, `core/store/schema.rs`) và §"SỬA 2026-09-09 (vòng rà đối
+        // kháng 3, mục T3)" ngay trên `ASSET_DDL` (cùng tệp): KHÔNG còn đường sản phẩm nào
+        // tạo một hàng `asset` mồ côi sau lượt gộp.
+        tx.execute(
+            "UPDATE asset SET chapter_id = ?1, anchor_after_segment_ord = anchor_after_segment_ord + ?2 \
+             WHERE chapter_id = ?3",
+            (a_id, shift, chapter_id),
+        )?;
+
         // §Design Notes "Vì sao gộp done + chưa xong ra in_progress".
         //
         // 🔴 Qua `LifecycleStatus::…as_str()`, KHÔNG hai chuỗi viết thẳng. §Verification của
@@ -913,6 +950,22 @@ pub fn split_chapter_at_segment(
             "UPDATE segment SET chapter_id = ?1, ord = ord - (?2 - 1) \
              WHERE chapter_id = ?3 AND (ord > ?2 OR (ord = ?2 AND id >= ?4))",
             (chapter_b, seg_ord, chapter_a, segment_id),
+        )?;
+
+        // 🔴 THÊM (Ice chốt 2026-09-09, "duy trì hàng `asset` qua bốn đường tổ chức lại
+        // Chương") — hàng `asset` đi theo ĐÚNG nửa chứa vị trí neo của nó. `anchor_after_segment_ord`
+        // = k nghĩa là "ngay sau segment thứ k (đếm 1..N, 0 = trước segment đầu)" theo đúng
+        // đánh số CŨ của A. Segment mang `ord >= seg_ord` đổi sang B (dòng ngay trên) — một
+        // ảnh neo tại k < seg_ord nằm TRỌN trong phần CÒN LẠI của A (không cần dời số, các
+        // segment nó đếm vẫn giữ nguyên `ord` trong A); một ảnh neo tại k >= seg_ord nằm
+        // SAU (hoặc ngay tại) segment ĐẦU TIÊN chuyển sang B, nên đổi Chương và dời số ĐÚNG
+        // công thức hệt segment: `k - (seg_ord - 1)`. Không cần so `id` tie-break như segment
+        // (segment có thể trùng `ord` giữa hàng SỐNG/VỀ HƯU; `asset.anchor_after_segment_ord`
+        // không có khái niệm đó — một GIÁ TRỊ, ranh giới tại `seg_ord` là đủ, không mơ hồ).
+        tx.execute(
+            "UPDATE asset SET chapter_id = ?1, anchor_after_segment_ord = anchor_after_segment_ord - (?2 - 1) \
+             WHERE chapter_id = ?3 AND anchor_after_segment_ord >= ?2",
+            (chapter_b, seg_ord, chapter_a),
         )?;
 
         // Hàng vị trí ĐÃ DỜI theo câu -- xác định "đã dời" bằng cách đọc lại `chapter_id`

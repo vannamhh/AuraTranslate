@@ -30,7 +30,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listDomainLog } from './config/project'
-import type { DomainLogEntryWire } from './config/project'
+import type { DomainLogEntryWire, DomainLogOutcomeWire } from './config/project'
 import type { IpcError } from './i18n'
 
 /** Mười một mục nav, ĐÚNG thứ tự hiện (xem §quyết định TẠM ở doc-comment đầu tệp). */
@@ -141,25 +141,53 @@ export type DomainLogGroupedRow = {
   domain: string
   kind: DomainLogEntryWire['kind']
   tier: DomainLogEntryWire['tier']
+  /** 🔵 THÊM 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp) — nay MỘT PHẦN của khoá gộp
+   * (xem doc-comment dưới): hai lượt gọi cùng `(domain, kind, tier)` nhưng khác `outcome` (một
+   * lượt tải xong, một lượt bị `TooLarge` cắt) phải ra HAI hàng — gộp chung sẽ gán một
+   * "kết quả" SAI cho một phần bản ghi trong nhóm. */
+  outcome: DomainLogEntryWire['outcome']
   count: number
   /** Mili-giây epoch của lượt gọi ĐẦU TIÊN trong nhóm — dòng "Thời điểm" của mockup. */
   firstAtEpochMs: number
 }
 
 /**
- * Gộp `entries` THEO ĐÚNG khoá `(domain, kind, tier)` — cùng domain nhưng khác `kind`/`tier`
- * (ví dụ: một lượt bị TỪ CHỐI rồi một lượt sau đó cùng domain lại ĐƯỢC PHÉP, thực tế không
- * xảy ra trên đường sản phẩm hôm nay nhưng khả dĩ trên đường test) ra HAI hàng riêng — gộp
- * chúng làm một sẽ làm bảng khai một "vì sao được phép" không khớp thực tế của một phần bản
- * ghi. **Hàm thuần, xuất được, test được.**
+ * Gộp `entries` THEO ĐÚNG khoá `(domain, kind, tier, outcome)` — cùng domain nhưng khác
+ * `kind`/`tier` (ví dụ: một lượt bị TỪ CHỐI rồi một lượt sau đó cùng domain lại ĐƯỢC PHÉP, thực
+ * tế không xảy ra trên đường sản phẩm hôm nay nhưng khả dĩ trên đường test) ra HAI hàng riêng —
+ * gộp chúng làm một sẽ làm bảng khai một "vì sao được phép" không khớp thực tế của một phần
+ * bản ghi.
+ *
+ * 🔵 SỬA 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp) — `outcome` gia nhập khoá gộp
+ * cùng lý do hệt `tier`: một domain ẢNH được phép (`tier2`) có thể vừa tải THÀNH CÔNG ở một
+ * lượt vừa bị `TooLarge` cắt ở lượt khác — gộp chung một hàng thì cột "Kết quả" chỉ nói
+ * đúng cho MỘT lượt trong khi con số đếm khai cả hai. **Hàm thuần, xuất được, test được.**
+
+ *
+ * ⚠️ **QUYẾT ĐỊNH CHƯA CÓ ICE KÝ, GHI RÕ ĐỂ KHÔNG AI ĐỌC NHẦM LÀ ĐÃ CHỐT (vòng rà đối kháng
+ * 2, mục E3).** `outcome` gia nhập khoá gộp làm HÌNH DẠNG BẢNG đổi hẳn so với mockup
+ * `web-import.html:423` (một hàng mỗi domain): một domain hôm nay có thể nở ra tới CHÍN hàng
+ * (tám `outcome` khả dĩ cộng `null`), mỗi hàng một mốc "Thời điểm" riêng. Đây là lựa chọn của
+ * lượt thi công này để đóng đúng ô "Error Handling" thứ hai của I/O Matrix spec 6.11 (một
+ * domain ĐÃ được phép còn có thể vừa thành công vừa trượt) — chưa phải một mockup đã duyệt.
+ * Nếu hình dạng CHÍN-hàng này không phải điều Ice muốn, phương án khác: gộp CHỈ theo
+ * `(domain, kind, tier)` như cũ, và hiển thị outcome PHỔ BIẾN NHẤT hoặc một danh sách outcome
+ * trong CÙNG một hàng (ô "Kết quả gọi" mang nhiều dòng) thay vì tách hàng.
  */
 export function groupDomainLogEntries(entries: readonly DomainLogEntryWire[]): DomainLogGroupedRow[] {
   const rows = new Map<string, DomainLogGroupedRow>()
   for (const entry of entries) {
-    const key = `${entry.domain} ${entry.kind} ${entry.tier}`
+    const key = `${entry.domain} ${entry.kind} ${entry.tier} ${entry.outcome ?? 'null'}`
     const existing = rows.get(key)
     if (existing === undefined) {
-      rows.set(key, { domain: entry.domain, kind: entry.kind, tier: entry.tier, count: 1, firstAtEpochMs: entry.at_epoch_ms })
+      rows.set(key, {
+        domain: entry.domain,
+        kind: entry.kind,
+        tier: entry.tier,
+        outcome: entry.outcome,
+        count: 1,
+        firstAtEpochMs: entry.at_epoch_ms,
+      })
       continue
     }
     existing.count += 1
@@ -190,6 +218,33 @@ export function domainLogReasonKey(tier: DomainLogEntryWire['tier']): string {
       return 'settings.privacy.reason_tier2'
     case 'denied':
       return 'settings.privacy.reason_denied'
+  }
+}
+
+/** Khoá i18n của cột "Kết quả" cho một chặng ĐÃ ĐƯỢC PHÉP — `null` (chặng bị TỪ CHỐI, 0 kết
+ * nối) trả khoá riêng cho "không áp dụng", KHÔNG dùng chuỗi rỗng (đường vòng qua i18n). 🔵
+ * THÊM 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp) — `tier`/`allowed` một mình
+ * không phân biệt được một chặng ĐÃ CHO PHÉP rồi tải xong với một chặng ĐÃ CHO PHÉP rồi
+ * trượt mạng/MIME/quá cỡ; đây là hàm ánh xạ LITERAL, cùng khuôn `domainLogReasonKey`. */
+export function domainLogOutcomeLabelKey(outcome: DomainLogOutcomeWire | null): string {
+  if (outcome === null) return 'settings.privacy.outcome_not_applicable'
+  switch (outcome) {
+    case 'fetched':
+      return 'settings.privacy.outcome_fetched'
+    case 'redirected':
+      return 'settings.privacy.outcome_redirected'
+    case 'http_status':
+      return 'settings.privacy.outcome_http_status'
+    case 'timeout':
+      return 'settings.privacy.outcome_timeout'
+    case 'connect_failed':
+      return 'settings.privacy.outcome_connect_failed'
+    case 'too_large':
+      return 'settings.privacy.outcome_too_large'
+    case 'mime_rejected':
+      return 'settings.privacy.outcome_mime_rejected'
+    case 'other':
+      return 'settings.privacy.outcome_other'
   }
 }
 

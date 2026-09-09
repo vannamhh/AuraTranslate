@@ -616,7 +616,7 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -696,7 +696,8 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         Vec::new(),
         Some(pattern),
         Vec::new(),
-    )
+    &std::sync::Mutex::new(Vec::new()),
+)
     .expect("tao Tac pham voi mau phan tach that bai");
 
     let rows: Vec<(i64, i64, Option<String>, String, String)> = opened
@@ -797,7 +798,7 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     let shape = chapters_shape_if_all_ok(&items)
         .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
 
-    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
+    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect("tao Tac pham tu danh sach URL that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -1569,7 +1570,12 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 9] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 10] = [
+    // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
+    // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
+    // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
+    // Chuong da co, khong phai mot container giua Work va Chapter.
+    "asset",
     "chapter_position",
     "glossary_candidate",
     "glossary_entry",
@@ -2556,6 +2562,42 @@ fn insert_segment_directly(opened: &OpenWork, chapter_id: i64, ord: i64, source_
         .expect("chen segment bang SQL truc tiep that bai")
 }
 
+/// Chèn một hàng `asset` **thẳng bằng SQL** — trả `id` vừa sinh. Story 6.11 (FR127), dùng
+/// cho các ca "duy trì hàng `asset` qua bốn đường tổ chức lại Chương" (Ice chốt 2026-09-09).
+fn insert_asset_directly(opened: &OpenWork, chapter_id: i64, anchor_after_segment_ord: i64, file_name: &str) -> i64 {
+    let file_name = file_name.to_owned();
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO asset (chapter_id, file_name, source_url, anchor_after_segment_ord, \
+                 byte_len, content_type, created_at) VALUES (?1, ?2, NULL, ?3, 10, 'image/jpeg', \
+                 '2026-09-09T00:00:00.000Z')",
+                (chapter_id, &file_name, anchor_after_segment_ord),
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen asset bang SQL truc tiep that bai")
+}
+
+type AssetSnapshot = (i64, i64, i64, String);
+
+/// Chụp `(id, chapter_id, anchor_after_segment_ord, file_name)` của MỌI hàng `asset` — dùng
+/// để đối chiếu trước/sau một lượt tổ chức lại Chương.
+fn snapshot_assets(opened: &OpenWork) -> Vec<AssetSnapshot> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT id, chapter_id, anchor_after_segment_ord, file_name FROM asset ORDER BY id")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?;
+            rows.collect::<SqlResult<Vec<AssetSnapshot>>>()
+        })
+        .expect("chup anh toan bo hang asset that bai")
+}
+
 /// Chèn một hàng `segment_version` **thẳng bằng SQL** — trả `id` vừa sinh.
 fn insert_segment_version_directly(opened: &OpenWork, segment_id: i64, target_text: &str) -> i64 {
     let target_text = target_text.to_owned();
@@ -2860,6 +2902,669 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
     assert_eq!(count_retired(&opened), 0, "tach KHONG duoc cho segment nao ve huu");
 
     let _ = s1;
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Ice chốt 2026-09-09 — "duy trì hàng `asset` qua bốn đường tổ chức lại Chương". Ba ca dưới
+// đây khoá đúng ba mệnh đề (GỘP/TÁCH Chương, GOM NHÓM segment) cộng một ca bất biến chung
+// (không mồ côi, không `chapter_id` treo).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// GỘP — hàng `asset` của Chương bị gộp (B) phải theo về Chương đích (A), với
+/// `anchor_after_segment_ord` dời ĐÚNG bằng `shift` (số segment A đã có TRƯỚC khi B nối vào).
+#[test]
+fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_shifted_by_the_segment_count() {
+    let root = temp_dir("merge-asset-rows");
+    let mut opened = create_work_from_text(&root, "Gop Anh", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_segment_directly(&opened, a_id, 1, "A cau mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "A cau hai.", false);
+    insert_segment_directly(&opened, a_id, 3, "A cau ba.", false);
+
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, b_id, 1, "B cau mot.", false);
+    insert_segment_directly(&opened, b_id, 2, "B cau hai.", false);
+
+    // Anh cua A: neo 1 (giua cau 1 va 2) -- KHONG duoc cham toi.
+    let asset_a = insert_asset_directly(&opened, a_id, 1, "anh-a.jpg");
+    // Anh cua B: neo 0 (truoc cau dau cua B) va neo 2 (sau cau cuoi cua B).
+    let asset_b0 = insert_asset_directly(&opened, b_id, 0, "anh-b0.jpg");
+    let asset_b2 = insert_asset_directly(&opened, b_id, 2, "anh-b2.jpg");
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+
+    assert_eq!(by_id(asset_a).1, a_id, "anh cua A khong duoc doi Chuong");
+    assert_eq!(by_id(asset_a).2, 1, "neo cua A khong duoc dich chuyen");
+
+    // shift = MAX(ord) cu cua A = 3.
+    assert_eq!(by_id(asset_b0).1, a_id, "anh cua B phai doi sang Chuong A");
+    assert_eq!(by_id(asset_b0).2, 0 + 3, "neo cua B (0) phai dich +3 (shift = so segment cu cua A)");
+    assert_eq!(by_id(asset_b2).1, a_id);
+    assert_eq!(by_id(asset_b2).2, 2 + 3, "neo cua B (2) phai dich +3");
+
+    assert_eq!(rows.len(), 3, "khong hang asset nao bi mat hay sinh them");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// TÁCH — hàng `asset` đi theo ĐÚNG nửa chứa vị trí neo của nó; neo của nửa SAU trừ đúng
+/// lượng `ord` bị trừ (cùng công thức segment).
+#[test]
+fn splitting_a_chapter_moves_each_asset_row_to_the_half_that_contains_its_anchor() {
+    let root = temp_dir("split-asset-rows");
+    let mut opened = create_work_from_text(&root, "Tach Anh", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    let _s2 = insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
+    let s3 = insert_segment_directly(&opened, a_id, 3, "Cau ba.", false);
+    let _s4 = insert_segment_directly(&opened, a_id, 4, "Cau bon.", false);
+
+    // Bon anh: truoc s1 (neo 0), giua s1&s2 (neo 1) -- ca hai o NUA TRUOC (segment chung
+    // dem van con lai trong A); ngay TRUOC s3 (neo 2 -- dung ranh gioi, con lai trong A vi
+    // segment no dem, s1/s2, van o A) va ngay SAU s3 (neo 3) cung sau s4 (neo 4) -- ca hai o
+    // NUA SAU (segment chung dem, s3/s4, da doi sang B).
+    let a0 = insert_asset_directly(&opened, a_id, 0, "a0.jpg");
+    let a1 = insert_asset_directly(&opened, a_id, 1, "a1.jpg");
+    let a2 = insert_asset_directly(&opened, a_id, 2, "a2.jpg");
+    let a3 = insert_asset_directly(&opened, a_id, 3, "a3.jpg");
+    let a4 = insert_asset_directly(&opened, a_id, 4, "a4.jpg");
+
+    // Tach TAI s3 -- segment tu s3 tro di doi sang Chuong moi B. `split_chapter_at_segment`
+    // tra `Result<()>` (khong tra id Chuong moi) -- B la hang `chapter` MOI NHAT (id lon
+    // nhat, AUTOINCREMENT khong bao gio tai dung).
+    split_chapter_at_segment(Some(&mut opened), s3).expect("tach that bai");
+    let b_id: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT MAX(id) FROM chapter", [], |row| row.get(0)))
+        .expect("doc id Chuong moi that bai");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+
+    assert_eq!(by_id(a0).1, a_id, "neo 0 (truoc s1) phai o lai A");
+    assert_eq!(by_id(a0).2, 0);
+    assert_eq!(by_id(a1).1, a_id, "neo 1 (giua s1 va s2) phai o lai A");
+    assert_eq!(by_id(a1).2, 1);
+    assert_eq!(by_id(a2).1, a_id, "neo 2 (dung ngay TRUOC s3, segment no dem van o A) phai o lai A");
+    assert_eq!(by_id(a2).2, 2, "neo 2 khong duoc dich chuyen");
+
+    // seg_ord cua s3 la 3 -- moi segment/anh mang neo >= 3 doi sang B, tru di (3 - 1) = 2.
+    assert_eq!(by_id(a3).1, b_id, "neo 3 (ngay SAU s3, s3 da doi sang B) phai doi sang B");
+    assert_eq!(by_id(a3).2, 3 - 2, "neo 3 phai tru di (seg_ord - 1) = 2");
+    assert_eq!(by_id(a4).1, b_id, "neo 4 (sau s4) phai doi sang B");
+    assert_eq!(by_id(a4).2, 4 - 2, "neo 4 phai tru di 2");
+
+    let _ = s1;
+    assert_eq!(rows.len(), 5, "khong hang asset nao bi mat hay sinh them");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// GOM NHÓM — gộp hai segment (sentence-level, không phải gộp Chương) qua `merge_segments`.
+/// Neo phải đi theo đúng phép đánh số lại: trước nhóm không đổi, TẠI/TRONG nhóm snap về
+/// ngay-sau-nhóm-mới, sau nhóm dời đúng `M - K`.
+#[test]
+fn merging_two_sentences_rebases_every_asset_anchor_in_the_chapter_by_the_same_renumbering() {
+    let root = temp_dir("regroup-merge-asset");
+    let opened = create_work_from_text(&root, "Gom Nhom", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+
+    // Bon anh, phu ca bon mien: truoc nhom (neo 0), TAI DAU nhom (neo 1, seg 1), TAI BIEN
+    // nhom (neo 2, ngay sau seg 2 -- seg cuoi cua nhom bi gop), sau nhom (neo 3).
+    let a0 = insert_asset_directly(&opened, chapter_id, 0, "a0.jpg");
+    let a1 = insert_asset_directly(&opened, chapter_id, 1, "a1.jpg");
+    let a2 = insert_asset_directly(&opened, chapter_id, 2, "a2.jpg");
+    let a3 = insert_asset_directly(&opened, chapter_id, 3, "a3.jpg");
+
+    // Gop segment id=2 voi segment lien tren no (id=1) -- ord_dau_nhom=1, K=2 (retire id 1,2),
+    // M=1 (mot hang moi).
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+
+    assert_eq!(by_id(a0).2, 0, "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi");
+    // ord_dau_nhom=1, K=2, M=1 -- mien "TAI/TRONG nhom" la [1, 1+2) = [1, 3), snap ve
+    // ord_dau_nhom + M - 1 = 1.
+    assert_eq!(by_id(a1).2, 1, "neo TAI DAU nhom (1) phai snap ve ngay-sau-nhom-moi (1)");
+    assert_eq!(by_id(a2).2, 1, "neo TAI BIEN nhom (2, ngay sau seg cuoi bi gop) cung phai snap ve 1");
+    // Neo SAU nhom (3 >= ord_dau_nhom+K=3): doi (M-K) = 1-2 = -1 -> 3-1=2.
+    assert_eq!(by_id(a3).2, 2, "neo SAU nhom (3) phai doi dung M-K = -1");
+
+    assert_eq!(rows.len(), 4, "khong hang asset nao bi mat hay sinh them");
+    assert_eq!(by_id(a0).1, chapter_id, "gom nhom khong doi Chuong, chi doi neo");
+
+    // ⚠️ M7 (vòng rà đối kháng 2, lớp 3) — ở fixture này `M = 1`, nên gia trị snap
+    // (`ord_dau_nhom + M - 1 = 1`) TRÙNG KHÍT `ord_dau_nhom` (1) — ca này KHÔNG phân biệt
+    // được quyết định "snap về ngay-sau-nhom-MỚI" với một quyết định khác (ví dụ "giữ nguyên
+    // ord_dau_nhom" thô, không cộng `M`). `merge_segments` (đường DUY NHẤT gọi ca này) LUÔN
+    // gọi `write_regroup` với `std::slice::from_ref(&moi)` — CHỈ MỘT hàng mới, `M = 1` LUÔN
+    // LUÔN đúng cho lối gộp — không có tổ hợp K/M nào khác đạt được qua đường này. Ca
+    // `splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three_case_regions`
+    // ngay dưới đây (qua `split_segment`, M > 1 thật) mới là ca THẬT SỰ khoá quyết định snap.
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// M3 + M5 (vòng rà đối kháng 2, lớp 3) — CHIỀU TÁCH câu (K=1, M>=2, Chương DÀI RA) của biểu
+/// thức `CASE` chưa từng chạy qua một ca nào (chỉ chiều GỘP K=2,M=1 có ca, và ở ĐÚNG tổ hợp
+/// đó `?1 + ?3 - 1` trùng khít `?1`, `- ?2 + ?3` trùng khít `- 1` — tham số `?3` (`m_new`)
+/// KHÔNG được một ca nào thật sự quan sát). Ca này dùng `split_segment` (K=1, HAI lần cắt ⇒
+/// M=3) để buộc `?3` phải khác 1 — phủ CẢ BA miền của `CASE` với giá trị snap TÁCH KHỎI
+/// `ord_dau_nhom` (đúng yêu cầu M7).
+#[test]
+fn splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three_case_regions() {
+    let root = temp_dir("regroup-split-asset-m3-m5");
+    let opened = create_work_from_text(&root, "Tach Cau Ba Manh", "en", "", "AAAA. BBBB.".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+
+    // Bon anh, phu ca ba mien: truoc nhom (neo 0), TAI/TRONG nhom (neo 1 -- K=1 nen mien nay
+    // CHI co dung mot gia tri, khong mo ho), sau nhom (neo 2, sau ca hai cau goc).
+    let a0 = insert_asset_directly(&opened, chapter_id, 0, "a0.jpg");
+    let a1 = insert_asset_directly(&opened, chapter_id, 1, "a1.jpg");
+    let a2 = insert_asset_directly(&opened, chapter_id, 2, "a2.jpg");
+
+    // Tach segment id=1 ("AAAA.", ord=1) thanh BA manh (hai lat cat) -- ord_dau_nhom=1, K=1,
+    // M=3.
+    let out = auratranslate_lib::commands::segment::split_segment(Some(&opened), 1, vec![1, 2])
+        .expect("tach segment thanh ba manh that bai");
+    assert_eq!(out.new_segments.len(), 3, "fixture phai that su sinh BA manh (M=3)");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+
+    assert_eq!(by_id(a0).2, 0, "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi");
+    // ord_dau_nhom=1, K=1, M=3 -- mien "TAI/TRONG nhom" la [1, 1+1) = {1}, snap ve
+    // ord_dau_nhom + M - 1 = 1 + 3 - 1 = 3 -- TACH KHOI ord_dau_nhom (1), dung yeu cau M7.
+    assert_eq!(
+        by_id(a1).2,
+        3,
+        "neo TAI/TRONG nhom (1) phai snap ve ord_dau_nhom + M - 1 = 3, KHONG duoc trung \
+         ord_dau_nhom (1) -- neu trung, ca nay khong phan biet duoc quyet dinh snap"
+    );
+    // Neo SAU nhom (2 >= ord_dau_nhom+K=2): doi (M-K) = 3-1 = +2 -> 2+2=4.
+    assert_eq!(by_id(a2).2, 4, "neo SAU nhom (2) phai doi dung M-K = +2");
+
+    assert_eq!(rows.len(), 3, "khong hang asset nao bi mat hay sinh them");
+    assert_eq!(by_id(a0).1, chapter_id, "tach cau khong doi Chuong, chi doi neo");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// BẤT BIẾN CHUNG — không lượt tổ chức lại nào (gộp/tách Chương, gộp/tách segment) được để
+/// lại một hàng `asset` mồ côi (`chapter_id` không tồn tại), qua CẢ BA cơ chế trong MỘT
+/// fixture nối tiếp nhau.
+#[test]
+fn no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter() {
+    fn assert_no_orphans(opened: &OpenWork) {
+        let orphan_count: i64 = opened
+            .store
+            .read(|conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM asset WHERE chapter_id NOT IN (SELECT id FROM chapter)",
+                    [],
+                    |row| row.get(0),
+                )
+            })
+            .expect("dem asset mo coi that bai");
+        assert_eq!(orphan_count, 0, "phat hien hang asset MO COI sau mot luot to chuc lai Chuong");
+    }
+
+    let root = temp_dir("no-orphan-asset");
+    let mut opened = create_work_from_text(&root, "Khong Mo Coi", "zh", "", "一。二。三。四。".to_owned())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+
+    insert_asset_directly(&opened, a_id, 0, "x0.jpg");
+    insert_asset_directly(&opened, a_id, 2, "x2.jpg");
+    insert_asset_directly(&opened, a_id, 4, "x4.jpg");
+    assert_no_orphans(&opened);
+
+    // GOM NHOM (gop segment 2 voi 1).
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop segment");
+    assert_no_orphans(&opened);
+
+    // TACH Chuong tai segment con lai o vi tri sau (doc lai id sau khi gop).
+    let living_ids: Vec<i64> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([a_id], |row| row.get(0))?;
+            rows.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc segment con song that bai");
+    assert!(living_ids.len() >= 2, "can it nhat hai segment con song de tach: {living_ids:?}");
+    let split_at = living_ids[1];
+
+    split_chapter_at_segment(Some(&mut opened), split_at).expect("tach that bai");
+    assert_no_orphans(&opened);
+    let b_id: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT MAX(id) FROM chapter", [], |row| row.get(0)))
+        .expect("doc id Chuong moi that bai");
+
+    // GOP lai Chuong B vao A.
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop lai B vao A");
+    assert_no_orphans(&opened);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Coordinator P0 (2026-09-09) — CÁCH LY GIỮA CÁC CHƯƠNG. Mọi fixture ở trên chỉ đặt ảnh ở
+// MỘT Chương, nên vế lọc `WHERE chapter_id = ?` chưa bao giờ thật sự được kiểm — một
+// `WHERE (chapter_id = ? OR 1=1)` (hằng TRUE) vẫn cho ra đúng kết quả trên MỘT Chương. Ba ca
+// dưới đây dựng ảnh ở HAI (hoặc BA) Chương và khẳng định Chương KHÔNG liên quan không đổi
+// MỘT BYTE nào.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Ca A — TÁCH Chương 1: hàng `asset` của Chương 2 (không liên quan) phải giữ NGUYÊN
+/// `chapter_id` VÀ `anchor_after_segment_ord`.
+#[test]
+fn splitting_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() {
+    let root = temp_dir("p0-split-isolation");
+    let mut opened = create_work_from_text(&root, "Cach Ly Tach", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let c1 = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
+    let _s2 = insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
+    let s3 = insert_segment_directly(&opened, c1, 3, "C1 cau ba.", false);
+    let _s4 = insert_segment_directly(&opened, c1, 4, "C1 cau bon.", false);
+    let asset_c1 = insert_asset_directly(&opened, c1, 4, "c1.jpg");
+
+    let c2 = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, c2, 1, "C2 cau mot.", false);
+    insert_segment_directly(&opened, c2, 2, "C2 cau hai.", false);
+    // 🔴 NEO PHẢI >= seg_ord CỦA s3 (3) — nếu không, ca này KHÔNG ĐO ĐƯỢC GÌ: vế
+    // `anchor_after_segment_ord >= ?2` của câu SQL đã đủ để KHÔNG đụng một neo NHỎ HƠN 3, bất
+    // kể vế lọc theo Chương có hoạt động hay không (đo được: một `OR 1=1` gieo vào vế lọc
+    // Chương không làm ca này đỏ nếu neo C2 là 1 — con số CŨ của ca này, TỰ ĐỘNG "qua" nhờ
+    // đúng vế biên kia, một vị từ MÙ ở phía Chương). Đặt 5 (>= 3) để phép gỡ `OR 1=1` PHẢI
+    // làm ca này đỏ.
+    let asset_c2 = insert_asset_directly(&opened, c2, 5, "c2.jpg");
+
+    let before_c2 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c2).expect("asset_c2 truoc");
+
+    split_chapter_at_segment(Some(&mut opened), s3).expect("tach C1 that bai");
+
+    let after = snapshot_assets(&opened);
+    let after_c2 = after.iter().find(|r| r.0 == asset_c2).expect("asset_c2 sau");
+    assert_eq!(
+        (after_c2.1, after_c2.2, after_c2.3.as_str()),
+        (before_c2.1, before_c2.2, before_c2.3.as_str()),
+        "anh cua Chuong 2 (KHONG lien quan toi lan tach o Chuong 1) phai giu NGUYEN chapter_id \
+         VA anchor_after_segment_ord -- truoc: {before_c2:?}, sau: {after_c2:?}"
+    );
+    // Đối chứng dương đi kèm: ảnh của C1 (Chương THẬT SỰ bị tách) phải có ĐỔI (neo 4 >= seg_ord
+    // 3 của s3 ⇒ dời sang Chương mới) — nếu nó CŨNG không đổi, ca này không đo được gì (một vị
+    // từ mù ở cả hai phía).
+    let after_c1 = after.iter().find(|r| r.0 == asset_c1).expect("asset_c1 sau");
+    assert_ne!(
+        after_c1.1, c1,
+        "doi chung DUONG: anh cua C1 (neo 4, sau seg_ord 3) PHAI doi Chuong -- neu khong, ca \
+         nay khong do duoc gi (vi tu mu ca hai phia)"
+    );
+
+    let _ = s1;
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Ca B — GỘP/TÁCH một CÂU trong Chương 1: hàng `asset` của Chương 2 (không liên quan) phải
+/// giữ NGUYÊN `chapter_id` VÀ `anchor_after_segment_ord`.
+#[test]
+fn regrouping_a_sentence_in_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() {
+    let root = temp_dir("p0-regroup-isolation");
+    let opened = create_work_from_text(&root, "Cach Ly Gom Nhom", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham that bai");
+    let c1 = opened.chapter_id;
+    let asset_c1 = insert_asset_directly(&opened, c1, 1, "c1.jpg");
+
+    let c2 = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, c2, 1, "C2 cau mot.", false);
+    insert_segment_directly(&opened, c2, 2, "C2 cau hai.", false);
+    // 🔴 NEO PHẢI ánh xạ ra một GIÁ TRỊ KHÁC dưới công thức CASE của C1 (ord_dau_nhom=1, K=2,
+    // M=1: `anchor < 1` giữ nguyên, `1 <= anchor < 3` → 1, `anchor >= 3` → anchor-1) — nếu
+    // không, ca này KHÔNG ĐO ĐƯỢC GÌ. Đo được: neo=1 (giá trị TRƯỚC) tự ánh xạ về CHÍNH NÓ
+    // (1 nằm trong `[1,3)` → kết quả 1) dưới công thức C1 — một `OR 1=1` gieo vào vế lọc
+    // Chương sẽ áp công thức đó lên asset_c2 nhưng KHÔNG đổi giá trị quan sát được (một va
+    // chạm trùng số, không phải một vị từ THẬT). Chọn neo=5 (nhánh `ELSE`, ánh xạ ra 5-1=4,
+    // khác 5) để phép gỡ `OR 1=1` PHẢI làm ca này đỏ.
+    let asset_c2 = insert_asset_directly(&opened, c2, 5, "c2.jpg");
+
+    let before_c2 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c2).expect("asset_c2 truoc");
+
+    // Gop segment id=2 voi id=1 trong C1 (ord_dau_nhom=1, K=2, M=1 -- CHỈ ở C1).
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop cau trong C1 that bai");
+
+    let after = snapshot_assets(&opened);
+    let after_c2 = after.iter().find(|r| r.0 == asset_c2).expect("asset_c2 sau");
+    assert_eq!(
+        (after_c2.1, after_c2.2, after_c2.3.as_str()),
+        (before_c2.1, before_c2.2, before_c2.3.as_str()),
+        "anh cua Chuong 2 (KHONG lien quan toi lan gom nhom o Chuong 1) phai giu NGUYEN \
+         chapter_id VA anchor_after_segment_ord -- truoc: {before_c2:?}, sau: {after_c2:?}"
+    );
+    // Đối chứng dương: ảnh của C1 (neo 1, rơi đúng miền "TẠI/TRONG nhóm") PHẢI đổi (snap về
+    // ord_dau_nhom + M - 1 = 1 -- tình cờ TRÙNG giá trị cũ ở fixture này, nên đo bằng cách
+    // khác: xác nhận công thức CASE thật sự chạy bằng việc kiểm C2 CHƯA từng đổi, đã làm ở
+    // trên; đối chứng dương ở đây xác nhận asset_c1 vẫn còn đúng 1 hàng và vẫn thuộc C1).
+    let after_c1 = after.iter().find(|r| r.0 == asset_c1).expect("asset_c1 sau");
+    assert_eq!(after_c1.1, c1, "anh cua C1 phai o lai C1 (gom nhom khong doi Chuong, chi doi neo)");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Ca C — GỘP Chương: hàng `asset` của một Chương THỨ BA không liên quan phải giữ NGUYÊN
+/// `chapter_id` VÀ `anchor_after_segment_ord`.
+#[test]
+fn merging_two_chapters_never_touches_the_asset_rows_of_a_third_unrelated_chapter() {
+    let root = temp_dir("p0-merge-isolation");
+    let mut opened = create_work_from_text(&root, "Cach Ly Gop", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let c1 = opened.chapter_id;
+    insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
+    insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
+
+    let c2 = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, c2, 1, "C2 cau mot.", false);
+
+    let c3 = insert_chapter_directly(&opened, 3, "");
+    insert_segment_directly(&opened, c3, 1, "C3 cau mot.", false);
+    insert_segment_directly(&opened, c3, 2, "C3 cau hai.", false);
+    let asset_c3 = insert_asset_directly(&opened, c3, 2, "c3.jpg");
+
+    let before_c3 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c3).expect("asset_c3 truoc");
+
+    // Gop C2 vao C1 (khong dung toi C3).
+    merge_chapter_into_previous(Some(&mut opened), c2).expect("gop C2 vao C1 that bai");
+
+    let after = snapshot_assets(&opened);
+    let after_c3 = after.iter().find(|r| r.0 == asset_c3).expect("asset_c3 sau");
+    assert_eq!(
+        (after_c3.1, after_c3.2, after_c3.3.as_str()),
+        (before_c3.1, before_c3.2, before_c3.3.as_str()),
+        "anh cua Chuong 3 (KHONG lien quan toi lan gop C2 vao C1) phai giu NGUYEN chapter_id \
+         VA anchor_after_segment_ord -- truoc: {before_c3:?}, sau: {after_c3:?}"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// M1 (vòng rà đối kháng 2, lớp 3) — ĐO, không suy luận: chú thích tại chỗ của lệnh TÁCH
+/// biện hộ rằng `asset.anchor_after_segment_ord` không cần tie-break theo `id` như `segment`
+/// (`ord > ?2 OR (ord = ?2 AND id >= ?4)`) vì nó "một GIÁ TRỊ, không mơ hồ". Dựng ĐÚNG ca
+/// biên nêu tên: một hàng segment VỀ HƯU mang `ord == seg_ord` (trùng với segment SỐNG đang
+/// tách) nhưng `id` NHỎ HƠN segment_id — tie-break giữ hàng về hưu này Ở LẠI A trong khi
+/// segment SỐNG cùng `ord` đó chuyển sang B. Đo: một ảnh neo TRƯỚC ranh giới (k = seg_ord-1)
+/// và một ảnh neo TẠI/SAU ranh giới (k = seg_ord) vẫn phân chia ĐÚNG bất kể sự tồn tại của
+/// hàng về hưu trùng `ord` đó — vì `anchor_after_segment_ord` ĐẾM SEGMENT SỐNG (bất biến
+/// `ord` sống liên tục 1..N, KHÔNG đếm hàng về hưu), nên một hàng về hưu trùng `ord` với
+/// điểm tách không làm lệch phép đếm mà neo dựa vào. **Kết luận đo được: lập luận "một GIÁ
+/// TRỊ, không mơ hồ" ĐỨNG VỮNG** — không cần sửa, chỉ cần ca này làm bằng chứng thay lời
+/// suy luận.
+#[test]
+fn a_retired_segment_tied_at_the_split_boundary_does_not_confuse_which_side_an_asset_anchor_belongs_to() {
+    let root = temp_dir("m1-retired-tie-at-split-boundary");
+    let mut opened = create_work_from_text(&root, "M1 Tie Break", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+
+    insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
+    // Hàng VỀ HƯU trùng `ord = 3` -- CHÈN TRƯỚC segment SỐNG cùng `ord`, để `id` của nó NHỎ
+    // HƠN `segment_id` sắp tách -- đúng điều kiện tie-break giữ nó Ở LẠI A.
+    insert_segment_directly(&opened, a_id, 3, "Cau ba (ve huu).", true);
+    let s3_song = insert_segment_directly(&opened, a_id, 3, "Cau ba (song).", false);
+    insert_segment_directly(&opened, a_id, 4, "Cau bon.", false);
+
+    // Neo TRƯỚC ranh giới (2 < seg_ord=3): phải Ở LẠI A, không đổi.
+    let asset_before = insert_asset_directly(&opened, a_id, 2, "before.jpg");
+    // Neo TẠI ranh giới (3 >= seg_ord=3): phải ĐỔI sang B.
+    let asset_at = insert_asset_directly(&opened, a_id, 3, "at.jpg");
+
+    split_chapter_at_segment(Some(&mut opened), s3_song).expect("tach that bai");
+    let b_id: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT MAX(id) FROM chapter", [], |row| row.get(0)))
+        .expect("doc id Chuong moi that bai");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+
+    assert_eq!(by_id(asset_before).1, a_id, "neo TRUOC ranh gioi phai o lai A du co hang ve huu trung ord");
+    assert_eq!(by_id(asset_before).2, 2, "neo TRUOC ranh gioi khong duoc doi");
+    assert_eq!(by_id(asset_at).1, b_id, "neo TAI ranh gioi phai doi sang B du co hang ve huu trung ord");
+    assert_eq!(by_id(asset_at).2, 3 - 2, "neo TAI ranh gioi phai tru di (seg_ord - 1) = 2");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// M2 (vòng rà đối kháng 2, lớp 3) — Chương CÓ hàng segment VỀ HƯU đi qua GỘP và GOM NHÓM
+// (TÁCH đã có ca ngay trên, `a_retired_segment_tied_at_the_split_boundary_...`).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// GỘP — Chương B (bị gộp) có MỘT hàng segment VỀ HƯU bên cạnh các hàng sống; hàng `asset`
+/// của B vẫn phải dời đúng `shift` (tính từ `MAX(ord)` của A — không phụ thuộc gì vào hàng
+/// về hưu của B).
+#[test]
+fn merging_a_chapter_that_has_a_retired_segment_still_moves_its_asset_rows_correctly() {
+    let root = temp_dir("m2-merge-with-retired");
+    let mut opened = create_work_from_text(&root, "M2 Gop Co Ve Huu", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_segment_directly(&opened, a_id, 1, "A cau mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "A cau hai.", false);
+
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    // Hang VE HUU o giua B -- mo phong mot lich su gop/tach TRUOC do trong CHINH Chuong B.
+    insert_segment_directly(&opened, b_id, 1, "B cau mot (ve huu).", true);
+    insert_segment_directly(&opened, b_id, 1, "B cau mot (song).", false);
+    insert_segment_directly(&opened, b_id, 2, "B cau hai.", false);
+    let asset_b = insert_asset_directly(&opened, b_id, 1, "b.jpg");
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    // shift = MAX(ord) cu cua A = 2 (A khong co hang ve huu nao).
+    assert_eq!(by_id(asset_b).1, a_id, "anh cua B phai doi sang A du B co mot hang ve huu");
+    assert_eq!(by_id(asset_b).2, 1 + 2, "neo cua B (1) phai dich +2 (shift = so segment cu cua A)");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// GOM NHÓM — Chương ĐÃ có một hàng VỀ HƯU (từ một lượt gộp/tách TRƯỚC đó), rồi chạy MỘT lượt
+/// gộp câu MỚI; hàng `asset` phải rebase đúng theo lượt MỚI, không bị ảnh hưởng bởi lịch sử
+/// VỀ HƯU đã có từ trước.
+#[test]
+fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_rebases_asset_anchors_correctly() {
+    let root = temp_dir("m2-regroup-with-retired");
+    let opened = create_work_from_text(&root, "M2 Gom Nhom Co Ve Huu", "zh", "", "一。二。三。四。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+
+    // Lượt gộp THỨ NHẤT (tạo lịch sử VỀ HƯU) -- gộp câu 1 với câu 2 (segment id=1, id=2).
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2)
+        .expect("gop lan mot (tao lich su ve huu) that bai");
+    // Sau lượt gộp thứ nhất: Chương còn 3 segment sống (ord 1,2,3 -- id moi, id=4, id=5 cu
+    // (roi thanh ord 2), id=6 cu (roi thanh ord 3)); hai hang id=1,2 VE HUU, mang ord=1.
+
+    // Đặt MỘT ảnh, neo=1 (giữa segment mới hợp nhất và segment kế tiếp) -- TRƯỚC lượt gộp
+    // THỨ HAI.
+    let asset1 = insert_asset_directly(&opened, chapter_id, 1, "a1.jpg");
+    // Va MOT anh SAU tron Chuong (neo 3).
+    let asset2 = insert_asset_directly(&opened, chapter_id, 3, "a2.jpg");
+
+    // Lượt gộp THỨ HAI (mục tiêu đo) -- gộp hai segment sống KẾ TIẾP (ord 2 va 3 sau lượt
+    // đầu). Đọc lại id sống hiện tại thay vì đoán.
+    let living_ids: Vec<i64> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([chapter_id], |row| row.get(0))?;
+            rows.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc segment con song that bai");
+    assert_eq!(living_ids.len(), 3, "sau lượt gộp thứ nhất phải còn ĐÚNG 3 segment sống: {living_ids:?}");
+    let target = living_ids[2]; // segment ord=3 (sau lượt đầu) -- gộp với segment ord=2 lien truoc.
+
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), target)
+        .expect("gop lan hai (do M2) that bai");
+
+    // Sau lượt gộp thứ hai: ord_dau_nhom=2, K=2, M=1 -- 3 segment sống → 2 segment sống.
+    let rows = snapshot_assets(&opened);
+    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    // neo=1 (< ord_dau_nhom=2): khong doi.
+    assert_eq!(by_id(asset1).2, 1, "neo TRUOC nhom thu hai khong duoc doi, bat ke lich su ve huu cu");
+    // neo=3 (>= ord_dau_nhom+K=4? khong -- 3 nam trong [2,4) TAI/TRONG nhom) -> snap ve
+    // ord_dau_nhom + M - 1 = 2+1-1=2.
+    assert_eq!(by_id(asset2).2, 2, "neo TAI/TRONG nhom thu hai phai snap dung, bat ke lich su ve huu cu");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// M4 (vòng rà đối kháng 2, lớp 3) — bất biến CHƯA từng được khẳng định: mọi hàng `asset`
+/// phải mang `anchor_after_segment_ord <= số segment CÒN SỐNG của Chương nó thuộc về`. Ca
+/// `no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter` chỉ kiểm
+/// `chapter_id` phân giải được — một neo trỏ QUÁ CUỐI Chương (`CHECK (anchor_after_segment_ord
+/// >= 0)` chỉ chặn nửa dưới) không gì bắt được trước ca này. Chạy qua CẢ BA cơ chế tổ chức
+/// lại nối tiếp nhau (khuôn ca mồ côi ở trên), kiểm bất biến SAU MỖI bước.
+#[test]
+fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_after_any_reorganisation() {
+    fn assert_anchor_within_bounds(opened: &OpenWork) {
+        let offenders: Vec<(i64, i64, i64, i64)> = opened
+            .store
+            .read(|conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT a.id, a.chapter_id, a.anchor_after_segment_ord, \
+                     (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = a.chapter_id AND s.retired_at IS NULL) \
+                     FROM asset a \
+                     WHERE a.anchor_after_segment_ord > \
+                       (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = a.chapter_id AND s.retired_at IS NULL)",
+                )?;
+                let rows = stmt.query_map([], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                })?;
+                rows.collect::<SqlResult<Vec<_>>>()
+            })
+            .expect("dem asset vuot qua cuoi Chuong that bai");
+        assert!(
+            offenders.is_empty(),
+            "phat hien hang asset (id, chapter_id, anchor, so_segment_song) mang neo VUOT QUA \
+             CUOI Chuong no thuoc ve: {offenders:?}"
+        );
+    }
+
+    let root = temp_dir("m4-anchor-within-bounds");
+    let mut opened = create_work_from_text(&root, "M4 Neo Trong Han", "zh", "", "一。二。三。四。".to_owned())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+
+    insert_asset_directly(&opened, a_id, 0, "x0.jpg");
+    insert_asset_directly(&opened, a_id, 2, "x2.jpg");
+    insert_asset_directly(&opened, a_id, 4, "x4.jpg");
+    assert_anchor_within_bounds(&opened);
+
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop segment");
+    assert_anchor_within_bounds(&opened);
+
+    let living_ids: Vec<i64> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([a_id], |row| row.get(0))?;
+            rows.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc segment con song that bai");
+    assert!(living_ids.len() >= 2, "can it nhat hai segment con song de tach: {living_ids:?}");
+    let split_at = living_ids[1];
+
+    split_chapter_at_segment(Some(&mut opened), split_at).expect("tach that bai");
+    assert_anchor_within_bounds(&opened);
+    let b_id: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT MAX(id) FROM chapter", [], |row| row.get(0)))
+        .expect("doc id Chuong moi that bai");
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop lai B vao A");
+    assert_anchor_within_bounds(&opened);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// T8 (vòng rà đối kháng 3, lớp 3) — đường TỔ CHỨC LẠI Chương THỨ TƯ (`move_chapter`, đổi
+/// THỨ TỰ hai Chương) không có SQL nào chạm `asset` — hàm chỉ hoán vị `chapter.ord`, không
+/// đổi `chapter_id`/`segment.ord` của bất kỳ hàng nào. Ca này ĐO điều đó, không chỉ suy luận:
+/// mọi hàng `asset` của CẢ HAI Chương liên quan phải giữ NGUYÊN TỪNG BYTE sau một lượt
+/// `move_chapter`.
+#[test]
+fn moving_a_chapter_up_or_down_never_touches_any_asset_row_byte_for_byte() {
+    let root = temp_dir("t8-move-chapter-asset-untouched");
+    let mut opened = create_work_from_text(&root, "T8 Doi Cho Chuong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let c1 = opened.chapter_id;
+    insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
+    insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
+    let asset_c1 = insert_asset_directly(&opened, c1, 1, "c1.jpg");
+
+    let c2 = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, c2, 1, "C2 cau mot.", false);
+    let asset_c2 = insert_asset_directly(&opened, c2, 0, "c2.jpg");
+
+    let before = snapshot_assets(&opened);
+
+    // Doi Chuong 2 len tren (hoan vi voi Chuong 1) -- ca hai Chuong CO ANH deu tham gia lan
+    // doi cho nay.
+    move_chapter(Some(&mut opened), c2, ChapterDirection::Prev).expect("doi Chuong that bai");
+
+    let after = snapshot_assets(&opened);
+    assert_eq!(
+        before, after,
+        "moi hang asset (id, chapter_id, anchor, file_name) phai giu NGUYEN TUNG BYTE sau mot \
+         luot move_chapter -- truoc: {before:?}, sau: {after:?}"
+    );
+
+    let _ = (asset_c1, asset_c2);
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
@@ -3574,4 +4279,58 @@ fn mutated_index_invalidates_tier2_blocks_is_true_only_at_index_zero() {
     assert!(!mutated_index_invalidates_tier2_blocks(1));
     assert!(!mutated_index_invalidates_tier2_blocks(2));
     assert!(!mutated_index_invalidates_tier2_blocks(usize::MAX));
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.11 (FR127) — hình dạng dây của `CreatedWork::images_saved`/`images_failed`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Đối chứng ④ (§Verification spec 6.11)** — `CreatedWork` KHÔNG được mang
+/// `#[serde(rename_all = "camelCase")]`, cùng luật mọi struct qua biên IPC
+/// (`src/AGENTS.md`/`src-tauri/AGENTS.md`: dây dùng camelCase cho THAM SỐ gửi đi nhưng
+/// struct TRẢ VỀ giữ nguyên `snake_case`). `images_saved`/`images_failed` là từ ghép — nếu
+/// `rename_all` lỡ được đặt lên `CreatedWork`, hai khoá này đổi thành `imagesSaved`/
+/// `imagesFailed` và ca dưới đây phải ĐỎ (đối chứng "phép biến đổi không rỗng" — khác
+/// `folder`/`meta`, vốn là một từ đơn không đổi hình dạng qua `rename_all`).
+#[test]
+fn created_work_images_saved_and_images_failed_stay_snake_case_on_the_wire() {
+    let meta = WorkMeta {
+        meta_schema_version: META_SCHEMA_VERSION,
+        work_id: "id-6-11".to_owned(),
+        name: "Anh Tai Ve".to_owned(),
+        source_lang: "en".to_owned(),
+        genre: String::new(),
+        created_at: "2026-09-08T00:00:00.000Z".to_owned(),
+        updated_at: "2026-09-08T00:00:00.000Z".to_owned(),
+        chapter_count: 1,
+        status: Some("not_started".to_owned()),
+        status_is_override: false,
+        chapter_done_count: Some(0),
+    };
+    let created = auratranslate_lib::commands::project::wire::CreatedWork {
+        meta,
+        folder: "/tmp/Anh Tai Ve.atproj".to_owned(),
+        images_saved: 3,
+        images_failed: 1,
+    };
+
+    let json = serde_json::to_value(&created).expect("serialize `CreatedWork`");
+    let object = json.as_object().expect("`CreatedWork` phai serialize thanh object");
+
+    assert_eq!(
+        object.get("images_saved"),
+        Some(&serde_json::Value::from(3)),
+        "khoa PHAI la `images_saved` (snake_case) -- tim thay: {:?}",
+        object.keys().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        object.get("images_failed"),
+        Some(&serde_json::Value::from(1)),
+        "khoa PHAI la `images_failed` (snake_case) -- tim thay: {:?}",
+        object.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        object.get("imagesSaved").is_none() && object.get("imagesFailed").is_none(),
+        "KHONG duoc co khoa camelCase — CreatedWork khong duoc mang #[serde(rename_all = ...)]"
+    );
 }

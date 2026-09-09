@@ -216,19 +216,23 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // 🔵 CAP NHAT 2026-09-05 (Story 6.5): muoi bay buoc → MUOI TAM, dich 18 → 19 (bang
     //    `import_cleanup_rule`, AD-18/FR124, CUNG mot hang voi buoc 7 cua `global.db`). Hai
     //    con so duoi day van chi la NEO -- ly do them bang, khong phai mot ky vong da noi.
+    // 🔵 CAP NHAT 2026-09-08 (Story 6.11): muoi tam buoc → MUOI CHIN, dich 19 → 20 (bang
+    //    `asset`, FR127, KHONG co buoc song sinh o `GLOBAL_MIGRATIONS` -- anh chi thuoc ve
+    //    mot Tac pham, cung khuon `chapter_position`/`reading_mark`). Hai con so duoi day
+    //    van chi la NEO.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        18,
-        "`PROJECT_MIGRATIONS` phai co muoi tam buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        19,
+        "`PROJECT_MIGRATIONS` phai co muoi chin buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
-         5.13, 19 cua Story 6.5"
+         5.13, 19 cua Story 6.5, 20 cua Story 6.11"
     );
     assert_eq!(
         opened.store.schema_version(),
-        19,
-        "mot `project.db` moi phai dung o phien ban 19 (so 4 da chay)"
+        20,
+        "mot `project.db` moi phai dung o phien ban 20 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

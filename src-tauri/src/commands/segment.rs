@@ -2739,6 +2739,42 @@ fn write_regroup(
     fresh: &[NewSegment],
     ord_dau_nhom: i64,
 ) -> SqlResult<Vec<i64>> {
+    // 🔴 THÊM (Ice chốt 2026-09-09, "duy trì hàng `asset` qua bốn đường tổ chức lại Chương",
+    // mệnh đề GOM NHÓM) — dời `anchor_after_segment_ord` của mọi ảnh trong Chương này ĐÚNG
+    // theo phép đánh số lại mà bước ③ dưới đây sắp làm cho `segment`, TRƯỚC KHI bất kỳ
+    // `UPDATE segment` nào chạy (công thức chỉ cần `ord_dau_nhom`/K/M, không cần đọc lại
+    // `segment` sau khi đổi).
+    //
+    // K = số hàng VỀ HƯU (`retire.len()`), M = số hàng MỚI (`fresh.len()`). Trước lượt này,
+    // mọi hàng SỐNG có `ord` liên tục 1..N_cu (bất biến do CHÍNH bước ③ của lượt gọi trước
+    // giữ). Ba miền:
+    // - `k < ord_dau_nhom` — ảnh neo TRƯỚC TRỌN nhóm bị gộp/tách: không đổi (segment nó đếm
+    //   giữ nguyên `ord`).
+    // - `ord_dau_nhom <= k < ord_dau_nhom + K` — ảnh neo TẠI HOẶC BÊN TRONG nhóm cũ (kể cả
+    //   ranh giới "ngay sau segment CUỐI của nhóm cũ", trường hợp THƯỜNG GẶP nhất — ảnh
+    //   đứng giữa hai khối mà một lượt gộp/tách vừa chạm đúng ranh giới đó). CHỌN CÓ CHỦ:
+    //   snap ảnh về NGAY SAU nhóm MỚI (`ord_dau_nhom + M - 1`) — nhóm cũ không còn tồn tại
+    //   dưới hình dạng cũ để mà trỏ vào GIỮA nó nữa, và "sau nhóm" giữ ảnh gần nhất với
+    //   phần văn bản nó từng đứng cạnh. Đây là một QUYẾT ĐỊNH CHƯA CÓ ICE KÝ RIÊNG cho đúng
+    //   ca biên này (Ice chốt CƠ CHẾ dời số nói chung, không chốt hướng snap của ca mơ hồ
+    //   này) — ghi rõ để không ai đọc nhầm là đã có phép đo đứng sau.
+    // - `k >= ord_dau_nhom + K` — ảnh neo SAU TRỌN nhóm cũ: dời đúng `M - K` (cùng công thức
+    //   segment dùng ở bước ③: một segment tại `ord` p >= ord_dau_nhom+K có `ord` mới =
+    //   p - K + M).
+    {
+        let k_old = i64::try_from(retire.len()).unwrap_or(i64::MAX);
+        let m_new = i64::try_from(fresh.len()).unwrap_or(i64::MAX);
+        tx.execute(
+            "UPDATE asset SET anchor_after_segment_ord = CASE \
+                 WHEN anchor_after_segment_ord < ?1 THEN anchor_after_segment_ord \
+                 WHEN anchor_after_segment_ord < ?1 + ?2 THEN ?1 + ?3 - 1 \
+                 ELSE anchor_after_segment_ord - ?2 + ?3 \
+             END \
+             WHERE chapter_id = ?4",
+            (ord_dau_nhom, k_old, m_new, chapter_id),
+        )?;
+    }
+
     // ① VE HUU. `strftime` cua SQLite, cung khuon moc thoi diem voi ca kho (ISO-8601 UTC).
     {
         let mut stmt = tx.prepare_cached(

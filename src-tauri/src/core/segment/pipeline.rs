@@ -476,6 +476,24 @@ struct Flow {
     joined_line_counts: Vec<Option<usize>>,
 }
 
+/// Nhãn chẩn đoán của một [`ChapterInput`] — `RawBytes::label` nếu có (byte thô CHƯA giải
+/// mã, dấu hiệu THẬT của "đến từ mạng"), chuỗi rỗng cho `AlreadyText` (không có nhãn để mà
+/// giữ, `Unit::Decoded` không giữ lại nó).
+///
+/// 🔵 **NÂNG LÊN module-scope, `pub(crate)` (vòng rà đối kháng 2, mục F1).** Trước đây hàm
+/// này SỐNG BÊN TRONG `run_import_with_order` (một closure lồng, riêng tư), và
+/// `commands::project::chapter_input_page_url` giữ một BẢN CHÉP TAY 4 dòng y hệt (không mở
+/// được một chỗ gọi vào một hàm lồng riêng tư của module khác) — một cổng test riêng
+/// (`chapter_page_url_drift_boundary.rs`) phải canh hai bản đó không trôi khỏi nhau. Nâng
+/// hàm này lên `pub(crate)` xoá bản chép, xoá cổng canh trôi, và xoá luôn CHÍNH nguy cơ trôi
+/// (một nguồn sự thật duy nhất) — rẻ hơn hẳn việc canh hai bản đồng bộ mãi mãi.
+pub(crate) fn label_of(c: &ChapterInput) -> String {
+    match c {
+        ChapterInput::RawBytes { label, .. } => label.clone(),
+        ChapterInput::AlreadyText(_) => String::new(),
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Bộ chạy
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -507,13 +525,6 @@ pub fn run_import_with_order(
     // `labels` phải được đọc TRƯỚC khi `ChapterInput` bị `Unit::from` tiêu thụ —
     // `Unit::Decoded` (nhánh `AlreadyText`) không giữ lại nhãn, nên đây là nơi DUY NHẤT còn
     // thấy nó cho cả hai hình dạng đơn vị.
-    fn label_of(c: &ChapterInput) -> String {
-        match c {
-            ChapterInput::RawBytes { label, .. } => label.clone(),
-            ChapterInput::AlreadyText(_) => String::new(),
-        }
-    }
-
     let (initial_units, initial_labels, already_chaptered): (Vec<Unit>, Vec<String>, bool) = match shape {
         PipelineShape::Blob(c) => {
             let label = label_of(&c);

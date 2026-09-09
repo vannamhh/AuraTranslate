@@ -868,6 +868,152 @@ CREATE TABLE import_cleanup_rule (
                           || char(12288)) <> '')
 );";
 
+/// Lược đồ bảng `asset` — **bước 20 của `project.db`**, Story 6.11, FR127.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// MỘT HÀNG = MỘT TỆP THẬT + MỘT NEO VỊ TRÍ + MỘT `source_url` (rỗng hợp lệ)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `.atproj/assets/` đã tồn tại từ Story 1.15 với **0 đường ghi** — story này là đường ghi
+/// ĐẦU TIÊN. `file_name` là tên tệp **tương đối** bên trong `assets/` (`<uuid>.<đuôi>`) —
+/// 🔴 **không đường dẫn tuyệt đối nào được ghi vào trong `.atproj`** (AC5, xem doc-comment
+/// đầu `core::library::atproj`), đúng lý do `file_name` không phải `file_path`.
+///
+/// ⚠️ **Không cột `work_id`** — `project.db` là kho của ĐÚNG một Tác phẩm (đúng một hàng
+/// `work`), nên `chapter_id` đã xác định Tác phẩm. Cạnh `WORK ||--o{ ASSET` của ERD spine là
+/// quan hệ KHÁI NIỆM, không phải một cột thứ hai cần ghi.
+///
+/// `id INTEGER PRIMARY KEY AUTOINCREMENT` — cùng lý do [`CHAPTER_DDL`]/[`GLOSSARY_ENTRY_DDL`]:
+/// một `id` đã về hưu không bao giờ được tái dùng (AD-3), giữ thống nhất với mọi bảng khác.
+///
+/// `source_url` cho phép **NULL** — ảnh người dùng tự thêm sau này (chưa có đường ghi ở
+/// story này, nhưng cột phải chừa chỗ) là một ca HỢP LỆ, không phải một lỗi thiếu dữ liệu;
+/// khác `file_name` (luôn phải có, vì không tệp thì không có gì để hiển thị).
+///
+/// `anchor_after_segment_ord` — neo vị trí trong Chương, tính **MỘT LẦN lúc nhập** (cùng luật
+/// ranh giới segment của AD-4, `AGENTS.md`) bằng [`crate::core::segment::anchor::compute_anchor`].
+/// `0` nghĩa là *"trước segment đầu tiên"* — không tham chiếu một `segment.id`, vì tại lúc ghi
+/// (cùng giao dịch với `INSERT INTO segment`) các `id` đó vừa được `AUTOINCREMENT` cấp và một
+/// cột `INTEGER` đơn giản đọc lại được ngay mà không cần một lượt `SELECT` thứ hai. **Không**
+/// đường mã nào tính lại con số này lúc nạp — nó SỐNG như một sự kiện đã xảy ra, giống hệt
+/// `chapter.source_text`.
+///
+/// `byte_len`/`content_type` — chẩn đoán VÀ dữ kiện hiển thị sau này (Story 6.14): kích
+/// thước tệp trên đĩa đã biết, không cần `fs::metadata` lại; `content_type` là MIME đã
+/// CHUẨN HOÁ (`core::webimport::assets::normalized_mime`), không phải header thô của máy
+/// chủ (có thể mang tham số `charset=...`).
+///
+/// 🔵 SỬA 2026-09-09 (vòng rà đối kháng 2, mục D8) — câu cũ dẫn `is_raster_image_mime`. Hàm
+/// đó là một VỊ TỪ (`bool`), không trả một chuỗi MIME để mà ghi cột — và nó đã bị gỡ khỏi
+/// đường ghi ảnh sản phẩm (D1 vòng rà đối kháng 3 lớp, xem doc-comment đầu
+/// `core/webimport/assets.rs`). Hàm THẬT SỰ chuẩn hoá `content_type` ghi xuống cột này là
+/// `normalized_mime`.
+///
+/// `created_at` — mốc UTC lúc ghi (Consistency Conventions: lưu UTC, định dạng hiển thị chỉ ở
+/// frontend).
+///
+/// Rào rỗng của `file_name` liệt TRỌN 25 điểm mã `White_Space` (`src-tauri/AGENTS.md:37`),
+/// cùng khuôn [`GLOSSARY_ENTRY_DDL`]/[`IMPORT_CLEANUP_RULE_DDL`] — `trim()` của SQLite chỉ cắt
+/// dấu cách ASCII.
+///
+/// 🔵 **SỬA 2026-09-09 (D7 vòng rà đối kháng 3 lớp) — `source_url` nay chịu CÙNG rào rỗng.**
+/// Trước sửa này cột chỉ có hai luật (NULL hợp lệ, TEXT bất kỳ khác cũng hợp lệ) nên bảng có
+/// BA trạng thái phân biệt được (NULL / chuỗi rỗng hoặc toàn khoảng trắng / URL thật), trong
+/// khi Ý NGHĨA chỉ có hai: "chưa biết xuất xứ" (NULL — ảnh người dùng tự thêm sau này) và "biết
+/// xuất xứ" (một chuỗi có nội dung thật). Một `source_url = ''` là một trạng thái không đường
+/// ghi nào của story 6.11 tạo ra, không ai đọc, và không ai phân biệt được với NULL trên UI —
+/// đóng nó lại ngay tại DDL thay vì để nó âm thầm khả thi.
+///
+/// 🔵 **SỬA 2026-09-09 (D7) — thêm `CHECK (byte_len >= 0)`.** Cùng khuôn
+/// `anchor_after_segment_ord >= 0` ngay dưới đây: `byte_len` đến từ `page.bytes.len()` (luôn
+/// không âm ở phía Rust), nhưng CHECK ở tầng DDL không phụ thuộc vào việc mọi đường GHI trong
+/// tương lai đều đi qua đúng đường Rust đó — cùng lý do kho này luôn khoá bất biến ở tầng dữ
+/// liệu, không chỉ ở tầng gọi.
+///
+/// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 3, mục R4) — `content_type` nay chịu CÙNG rào rỗng
+/// 25 điểm mã `White_Space` với `file_name`/`source_url`.** Trước sửa này `content_type TEXT
+/// NOT NULL` nhận cả `''` lẫn một chuỗi TOÀN khoảng trắng Unicode (`trim()` mặc định của
+/// SQLite chỉ cắt ASCII) — đúng lớp lỗi mà D7 vừa đóng cho `file_name`/`source_url`, để hở
+/// ngay cột liền kề trong CÙNG một lượt sửa. `content_type` luôn đến từ `normalized_mime`
+/// (một trong bốn chuỗi MIME cố định) ở phía Rust hôm nay, nhưng CHECK ở tầng DDL không phụ
+/// thuộc vào việc mọi đường GHI tương lai đều đi qua đúng hàm đó.
+///
+/// ⚠️ **KHÔNG `CREATE INDEX` nào cho bảng này ở STORY NÀY.** `asset` sẽ chắc chắn bị đọc bằng
+/// `WHERE chapter_id = ?` khi màn hiển thị ảnh dựng lên (Story 6.14) — khác các bảng
+/// "KHÔNG CREATE INDEX vì không đường đọc nào lọc theo cột này" ở trên (`segment_target`,
+/// `chapter_position`, …), lý do ở ĐÂY không phải "sẽ không bao giờ cần".
+///
+/// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 3, mục T2) — lý do cũ đã HẾT ĐÚNG, kết luận thì
+/// CHƯA CHẮC sai, sửa lý do chứ không sửa kết luận.** Câu cũ khai "Story 6.11 chỉ GHI ...
+/// không có đường ĐỌC nào lọc theo `chapter_id`" — SAI từ chính vòng rà này: `merge_chapter_into_previous`,
+/// `split_chapter_at_segment`, và bước rebase neo của `write_regroup` (§"duy trì hàng `asset`
+/// qua bốn đường tổ chức lại Chương") đều chạy `UPDATE asset ... WHERE chapter_id = ?`, và cả
+/// ba đều nằm trên writer NỐI TIẾP của AD-11 (một giao dịch một lúc, không có ĐỌC đồng thời
+/// cạnh tranh). Lý do hoãn chỉ mục vì thế phải là: (1) writer nối tiếp của AD-11 không có áp
+/// lực ĐỌC ĐỒNG THỜI mà một chỉ mục tồn tại để giảm; (2) khối lượng một lượt `UPDATE` chạm
+/// (một Chương, vài ảnh) quá nhỏ để đo được lợi ích thật của một chỉ mục trên writer đó; (3)
+/// đường ĐỌC THẬT (SELECT lọc `chapter_id` để hiển thị) vẫn chưa tồn tại (Story 6.14). Để
+/// Story 6.14 tự thêm chỉ mục bằng đúng một bước migrate mới, cùng khuôn `idx_segment_chapter_ord`
+/// (bước 5) đã làm khi `segment` bắt đầu cần lọc theo `chapter_id` — thời điểm đó có cả ĐỌC
+/// lẫn GHI để mà đo lợi ích thật, không chỉ suy đoán.
+///
+/// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 3, mục T3) — mệnh đề "không mồ côi" viết THẲNG vào
+/// đây, không chỉ sống trong một chú thích ở `commands::chapter` (tệp đó không sở hữu bảng
+/// này).** Cùng khuôn đoạn "SỬA 2026-08-29 (Story 5.8)" của [`CHAPTER_POSITION_DDL`] ngay
+/// trên: ba đường sản phẩm CHẠM `asset` khi tổ chức lại Chương, và cả ba giữ bất biến "không
+/// hàng mồ côi, không hàng trỏ quá cuối Chương nó thuộc về" TRONG CÙNG giao dịch với lượt đổi
+/// `chapter`/`segment`. **Gộp Chương** (hàm `merge_chapter_into_previous`) — `UPDATE asset
+/// SET chapter_id = <Chương đích>, anchor_after_segment_ord = anchor_after_segment_ord +
+/// <shift>` cho MỌI hàng của Chương bị gộp, TRƯỚC khi `DELETE FROM chapter` xoá hàng nguồn.
+/// **Tách Chương** (hàm `split_chapter_at_segment`) — `UPDATE asset SET chapter_id = <Chương
+/// mới>, anchor_after_segment_ord = anchor_after_segment_ord - (seg_ord - 1) WHERE
+/// anchor_after_segment_ord >= seg_ord`, cùng ranh giới mà lượt tách dùng cho `segment`.
+/// **Gộp/tách CÂU** (hàm `write_regroup`, dùng chung bởi cả gộp lẫn tách một câu) — một biểu
+/// thức `CASE` dời `anchor_after_segment_ord` theo đúng phép đánh số lại mà bước renumber
+/// segment sắp làm, KHÔNG đổi `chapter_id` (gộp/tách câu không đổi Chương). Đường TỔ CHỨC
+/// LẠI thứ tư, đổi THỨ TỰ Chương (hàm `move_chapter`), không chạm bảng này: nó chỉ đổi
+/// `chapter.ord`, không đổi `chapter_id`/`segment.ord` của bất kỳ hàng nào, nên không hàng
+/// `asset` nào có lý do phải đổi theo. ⇒ Không còn đường sản phẩm nào tạo ra một hàng `asset`
+/// mồ côi hay trỏ quá cuối Chương sau một lượt tổ chức lại.
+///
+/// Không `FOREIGN KEY` tới `chapter` — cùng lý do [`CHAPTER_POSITION_DDL`]/[`READING_MARK_DDL`]:
+/// `PRAGMA foreign_keys` của kho cố ý tắt, một khoá ngoại khai ra mà không bật pragma là một
+/// lời hứa không ai giữ.
+pub const ASSET_DDL: &str = "\
+CREATE TABLE asset (
+  id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+  chapter_id               INTEGER NOT NULL,
+  file_name                TEXT    NOT NULL,
+  source_url               TEXT,
+  anchor_after_segment_ord INTEGER NOT NULL,
+  byte_len                 INTEGER NOT NULL,
+  content_type             TEXT    NOT NULL,
+  created_at               TEXT    NOT NULL,
+  CHECK (anchor_after_segment_ord >= 0),
+  CHECK (byte_len >= 0),
+  CHECK (trim(file_name, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                            || char(133) || char(160) || char(5760)
+                            || char(8192) || char(8193) || char(8194) || char(8195)
+                            || char(8196) || char(8197) || char(8198) || char(8199)
+                            || char(8200) || char(8201) || char(8202)
+                            || char(8232) || char(8233) || char(8239) || char(8287)
+                            || char(12288)) <> ''),
+  CHECK (source_url IS NULL OR
+         trim(source_url, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                            || char(133) || char(160) || char(5760)
+                            || char(8192) || char(8193) || char(8194) || char(8195)
+                            || char(8196) || char(8197) || char(8198) || char(8199)
+                            || char(8200) || char(8201) || char(8202)
+                            || char(8232) || char(8233) || char(8239) || char(8287)
+                            || char(12288)) <> ''),
+  CHECK (trim(content_type, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                            || char(133) || char(160) || char(5760)
+                            || char(8192) || char(8193) || char(8194) || char(8195)
+                            || char(8196) || char(8197) || char(8198) || char(8199)
+                            || char(8200) || char(8201) || char(8202)
+                            || char(8232) || char(8233) || char(8239) || char(8287)
+                            || char(12288)) <> '')
+);";
+
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -1399,18 +1545,23 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười tám** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5.
+/// Bộ di trú của `project.db`. Hôm nay **mười chín** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5 · 6.11.
 ///
-/// 🔴 **Mười tám bước, và đích là phiên bản 19.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười chín bước, và đích là phiên bản 20.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]` tăng dần nghiêm ngặt), và
-/// [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]` tăng dần nghiêm
+/// ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị
+/// bỏ qua.
 ///
-/// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// ⚠️ **VẾT SẸO LỊCH SỬ, ĐÓNG BĂNG TẠI 2026-08-11 — không phải một khẳng định về số bước
+/// HÔM NAY** (đọc lại 2026-09-09, vòng rà đối kháng 2, mục D8: câu này giờ đứng cạnh "mười
+/// chín bước", nên "bảy/sáu" càng dễ bị đọc nhầm là con số hiện hành — nó KHÔNG PHẢI). Lúc
+/// đó con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
-/// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
+/// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11. Số bước THẬT
+/// hôm nay là **mười chín**, câu ngay phía trên đoạn này.
 ///
 /// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5):** đích chuyển từ **6** lên **7** — bước
 /// [`SEGMENT_STATUS_AND_VERSION_DDL`]. Câu *"năm bước, đích là 6"* đã hết đúng, sửa tại chỗ
@@ -1493,6 +1644,11 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5):** đích chuyển từ **18** lên **19** — bước
 /// [`IMPORT_CLEANUP_RULE_DDL`] (tầng Tác phẩm của bảng luật làm sạch, AD-18, CÙNG một hằng
 /// với bước 7 của `global.db`). Câu *"mười bảy bước, đích là 18"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-08 (Story 6.11):** đích chuyển từ **19** lên **20** — bước
+/// [`ASSET_DDL`] (ảnh tải về `.atproj`, FR127). Câu *"mười tám bước, đích là 19"* đã hết
+/// đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: ảnh chỉ thuộc về
+/// một Tác phẩm cụ thể, cùng lý do `chapter_position`/`reading_mark`.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1664,6 +1820,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 19,
         sql: IMPORT_CLEANUP_RULE_DDL,
+    },
+    // Story 6.11 -- anh tai ve .atproj (FR127): bang asset, neo vi tri + source_url. Xem
+    // doc-comment cua ASSET_DDL.
+    // 20, khong phai 5 -- 5..19 da tieu.
+    Migration {
+        to_version: 20,
+        sql: ASSET_DDL,
     },
 ];
 

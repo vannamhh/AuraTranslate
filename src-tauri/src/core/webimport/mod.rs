@@ -47,12 +47,16 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 
 pub mod allowlist;
+pub mod assets;
 pub mod domain_log;
 pub mod extractor;
 pub mod fetcher;
 
 pub use allowlist::{Allowlist, AllowlistDecision, ResourceKind, Tier};
-pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogState, append_domain_log_entries, distinct_domain_count, read_domain_log};
+pub use assets::{
+    ResolveUrlError, extension_for_mime, host_of, is_raster_image_mime, normalized_mime, resolve_absolute_url,
+};
+pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogOutcome, DomainLogState, append_domain_log_entries, distinct_domain_count, read_domain_log};
 pub use extractor::{Block, BlockBody, ExtractError, extract};
 pub use fetcher::{FetchError, FetchedPage, MAX_RESPONSE_BYTES, REQUEST_TIMEOUT, fetch, looks_like_html};
 

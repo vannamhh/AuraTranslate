@@ -835,15 +835,19 @@ fn the_migration_doc_headers_state_the_target_their_array_reaches() {
 /// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5).** Bước **19** ra đời cùng bảng
 /// `import_cleanup_rule` (AD-18/FR124, CÙNG một hằng với bước 7 của `global.db`). Danh sách
 /// **nguyên văn** dưới đây lại đổi, hàm test lại không đổi một chữ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-08 (Story 6.11).** Bước **20** ra đời cùng bảng `asset` (FR127,
+/// KHÔNG có bước song sinh ở `GLOBAL_MIGRATIONS` — ảnh chỉ thuộc về một Tác phẩm). Danh sách
+/// **nguyên văn** dưới đây lại đổi, hàm test lại không đổi một chữ.
 #[test]
 fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
     let versions: Vec<u32> = PROJECT_MIGRATIONS.iter().map(|m| m.to_version).collect();
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
-         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 (4 la so da chay)"
+         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 (4 la so da chay)"
     );
 }
 
@@ -911,8 +915,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 5..19 phai da chay tren mot tep dung o phien ban 4"
+        20,
+        "buoc 5..20 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -1073,8 +1077,8 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 6..19 phai chay tren mot tep dung o phien ban 5"
+        20,
+        "buoc 6..20 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -1141,10 +1145,12 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Menh de cua ca nay KHONG doi mot chu.
     // 🔵 CAP NHAT 2026-09-05 (Story 6.5): dich 18 → 19 — buoc 19 (import_cleanup_rule,
     // AD-18/FR124). Menh de cua ca nay KHONG doi mot chu.
+    // 🔵 CAP NHAT 2026-09-08 (Story 6.11): dich 19 → 20 — buoc 20 (asset, FR127).
+    // Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        19,
-        "mot `project.db` moi phai dung o phien ban 19 (Story 6.5 them import_cleanup_rule)"
+        20,
+        "mot `project.db` moi phai dung o phien ban 20 (Story 6.11 them bang asset)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1265,8 +1271,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 7..19 phai chay tren mot tep dung o phien ban 6"
+        20,
+        "buoc 7..20 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1563,8 +1569,8 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 10..19 phai chay tren mot tep dung o phien ban 9"
+        20,
+        "buoc 10..20 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1673,8 +1679,8 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 8..19 phai chay tren mot tep dung o phien ban 7"
+        20,
+        "buoc 8..20 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1880,8 +1886,8 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 9..19 phai chay tren mot tep dung o phien ban 8"
+        20,
+        "buoc 9..20 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -1986,9 +1992,13 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 ///
 /// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5) — fixture nâng từ 19 lên 20.** Bước 19
 /// (`IMPORT_CLEANUP_RULE_DDL`) nay là bước thật; một fixture dừng ở 19 không còn mới hơn app.
+///
+/// 🔵 **CẬP NHẬT 2026-09-08 (Story 6.11) — fixture nâng từ 20 lên 21.** Bước 20
+/// (`ASSET_DDL`) nay là bước thật; một fixture dừng ở 20 không còn mới hơn app.
+/// `STEP_TWENTY` → `STEP_TWENTYONE`; mảng lên `[Migration; 20]`; bước giả lên `to_version: 21`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_TWENTY: [Migration; 19] = [
+    static STEP_TWENTYONE: [Migration; 20] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2007,9 +2017,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[15],
         PROJECT_MIGRATIONS[16],
         PROJECT_MIGRATIONS[17],
-        // Mot buoc 20 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[18],
+        // Mot buoc 21 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 20,
+            to_version: 21,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2018,18 +2029,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_TWENTY,
+        migrations: &STEP_TWENTYONE,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 20");
-    assert_eq!(future.schema_version(), 20);
+    .expect("dung fixture o phien ban 21");
+    assert_eq!(future.schema_version(), 21);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 20 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 21 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -5778,8 +5789,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        19,
-        "buoc 11..19 phai chay tren mot tep dung o phien ban 10"
+        20,
+        "buoc 11..20 phai chay tren mot tep dung o phien ban 10"
     );
 
     let after: Vec<(i64, String, String)> = migrated
@@ -8829,7 +8840,7 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None, Vec::new())
+    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8861,9 +8872,9 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
 
     let results = std::thread::scope(|scope| {
         let h1 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None, Vec::new()));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new())));
         let h2 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None, Vec::new()));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new())));
         [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
     });
 
@@ -8921,7 +8932,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
     let opened =
-        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None, Vec::new())
+        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
             .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8942,7 +8953,7 @@ fn cancelling_then_confirming_creates_zero_works() {
     stash_pending_import_source(&pending, shape);
     cancel_import_preview(&pending);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None, Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("xac nhan sau khi huy phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
 
@@ -8973,7 +8984,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
-    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None, Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("byte GBK phai TU CHOI duoi UTF-8");
     assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
     assert_eq!(err.params().get("encoding").map(String::as_str), Some("UTF-8"));
@@ -8983,7 +8994,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
     );
 
     // 2) chọn LẠI đúng GBK -- KHÔNG cần đọc nguồn lần hai, ô đang chờ vẫn còn từ (1).
-    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None, Vec::new())
+    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, TEXT);
@@ -9001,7 +9012,7 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None, Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("nhan la khong nhan ra phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -9019,7 +9030,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None, Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -9054,7 +9065,7 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     let root = temp_dir("6-3-create-work-utf8-unchanged");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
 
-    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
+    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -9485,7 +9496,7 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
         "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
     ));
 
-    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
+    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);

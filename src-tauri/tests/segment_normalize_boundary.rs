@@ -15,8 +15,10 @@
 //!    ĐÃ BIẾT** — 🔵 SỬA (vá vòng rà 1) từ BA lên BỐN: một trong `pipeline.rs` (bước 4, gọi
 //!    `normalize::normalize`), ba trong `encoding.rs` (dải ứng viên — nhánh `if
 //!    window_truncated` gọi `normalize_window`, nhánh `else` gọi `normalize` thẳng — cộng
-//!    `normalized_self_declared`, đường TỰ KHAI, gọi `normalize_window` một lần thứ ba). Một
-//!    chỗ gọi THỨ NĂM là một đường ghi/dựng MỚI không ai ký.
+//!    `normalized_self_declared`, đường TỰ KHAI, gọi `normalize_window` một lần thứ ba). 🔵
+//!    **SỬA 2026-09-08 (Story 6.11) — BỐN → NĂM:** `core::segment::anchor::compute_anchor`
+//!    (FR127) chạy lại bước 4 trên TIỀN TỐ đứng trước một ảnh để tính neo vị trí (§Design
+//!    Notes spec 6.11). Một chỗ gọi THỨ SÁU là một đường ghi/dựng MỚI không ai ký.
 //!
 //! Sàn quần thể + kiểm chứng dương (ca dương + ca âm cho MỖI vị từ) là bắt buộc, khuôn
 //! `segment_pipeline_boundary.rs`/`segment_encoding_boundary.rs`.
@@ -271,7 +273,7 @@ fn line_calls_a_normalize_function(code: &str) -> bool {
 }
 
 #[test]
-fn the_normalize_functions_have_exactly_four_named_product_call_sites() {
+fn the_normalize_functions_have_exactly_five_named_product_call_sites() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -281,7 +283,16 @@ fn the_normalize_functions_have_exactly_four_named_product_call_sites() {
             // một "chỗ gọi sản phẩm" theo nghĩa của phép kiểm này.
             continue;
         }
-        for (line, code) in code_lines(text) {
+        // 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3 lớp, đo được sau C1) — quét
+        // `text_before_first_cfg_test_line`, KHÔNG quét `text` trần. Bản trước quét TRẦN
+        // toàn văn của MỌI tệp khác `normalize.rs`, nên một `#[test]` mới trong
+        // `core/segment/anchor.rs::tests` (C1, vòng rà đối kháng 3 lớp — chạy lại bước 3/4
+        // AD-39 THẬT trên fixture để đo hành vi có luật làm sạch BẬT) bị đếm NHẦM là "chỗ
+        // gọi sản phẩm": đếm nhảy 5 → 7 dù không một dòng THÂN MÃ sản phẩm nào đổi. Cùng lớp
+        // lỗi mà `webimport_boundary.rs` đã vá (mục "🔴 THÊM 2026-09-07") — áp đúng khuôn đó
+        // ở đây cho MỌI tệp được quét, không chỉ tệp định nghĩa `normalize.rs`.
+        let product_only = text_before_first_cfg_test_line(text);
+        for (line, code) in code_lines(product_only) {
             if line_calls_a_normalize_function(code) {
                 sites.push(format!("{rel}:{line}  {code}"));
             }
@@ -295,19 +306,28 @@ fn the_normalize_functions_have_exactly_four_named_product_call_sites() {
     // normalize_window } else { normalize }` (hai lời gọi tên khác nhau) cộng
     // `normalized_self_declared` (một lời gọi `normalize_window` thứ ba, cửa sổ cố định
     // `EVIDENCE_WINDOW_BYTES`).
+    //
+    // 🔵 SỬA 2026-09-08 (Story 6.11) — từ BỐN lên NĂM: `core::segment::anchor::compute_anchor`
+    // (FR127) chạy lại ĐÚNG bước 4 của AD-39 trên TIỀN TỐ đứng trước một ảnh, để tính neo vị
+    // trí (§Design Notes spec 6.11 — cùng lý do nó cũng là chỗ gọi sản phẩm THỨ HAI của
+    // `cleanup::apply`, xem `cleanup_boundary.rs`). Có tên, có lý do, có phép đo — không phải
+    // một lối tắt lẻn vào.
     assert_eq!(
         sites.len(),
-        4,
-        "kỳ vọng ĐÚNG 4 chỗ gọi sản phẩm của `normalize::normalize`/`normalize::normalize_window` \
+        5,
+        "kỳ vọng ĐÚNG 5 chỗ gọi sản phẩm của `normalize::normalize`/`normalize::normalize_window` \
          (một ở `core/segment/pipeline.rs` bước 4, ba ở `core/segment/encoding.rs` — dải ứng \
-         viên cộng nhánh tự khai), tìm thấy {}:\n{}",
+         viên cộng nhánh tự khai, một ở `core/segment/anchor.rs` — Story 6.11), tìm thấy {}:\n{}",
         sites.len(),
         sites.join("\n")
     );
     for site in &sites {
         assert!(
-            site.starts_with("core/segment/pipeline.rs") || site.starts_with("core/segment/encoding.rs"),
-            "chỗ gọi phải ở `core/segment/pipeline.rs` hoặc `core/segment/encoding.rs` — tìm thấy: {site}"
+            site.starts_with("core/segment/pipeline.rs")
+                || site.starts_with("core/segment/encoding.rs")
+                || site.starts_with("core/segment/anchor.rs"),
+            "chỗ gọi phải ở `core/segment/pipeline.rs`, `core/segment/encoding.rs` hoặc \
+             `core/segment/anchor.rs` — tìm thấy: {site}"
         );
     }
 }

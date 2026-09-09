@@ -10155,6 +10155,13 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hình đó vĩnh viễn ngay từ lượt nhập, không có đường phục hồi sau này (AD-4 đóng băng
   `source_text` lúc nhập). **Chủ: Story 6.11/6.13** (đã có chủ từ trước theo epics.md — ghi
   lại ở đây để nợ này có mặt cạnh nợ ①②③ của cùng story, dễ tra theo một chỗ).
+  🟡 **ĐÓNG MỘT NỬA 2026-09-08 (Story 6.11).** Vế ẢNH đã đóng: mỗi ảnh GIỮ (`effective_kept`)
+  nay tải về `assets/`, ghi thành tệp thật + một hàng `asset` mang neo vị trí
+  (`anchor_after_segment_ord`) và `source_url` — hình minh hoạ không còn mất vĩnh viễn.
+  **Còn hở:** `caption`/`alt-text` vẫn KHÔNG sinh `Segment` vai riêng (§Never spec 6.11: "Không
+  sinh `Segment` vai `alt`/`caption` — đó là Story 6.13, AD-42") — `alt` không được lưu hay
+  hiển thị ở đâu cả, và `Caption` chỉ chảy vào `source_text` như một đoạn văn thường (không
+  đường nào biết nó là chú thích ảnh). **Chủ phần còn hở: Story 6.13.**
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà bước 3 (2026-09-07)
 
@@ -10295,6 +10302,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (`ResourceKind::Image`) cũng **0** chỗ gọi sản phẩm hôm nay (§Never spec 6.8) — chỉ
   `Allowlist::decide`/`fetcher.rs` phủ được bằng test. **Chủ: Story 6.11** — story sở hữu
   `ASSET`/`source_url`, tức nơi "ảnh này đã có chưa" lần đầu có một cột để hỏi.
+  ✅ **ĐÃ ĐÓNG 2026-09-08 (Story 6.11).** Bảng `asset` (bước 20 `PROJECT_MIGRATIONS`) mang cột
+  `source_url`; `prepare_chapter_images` (`commands/project.rs`) cache MỘT lần theo URL tuyệt
+  đối TRONG CHÍNH lượt nhập — hai chỗ dùng cùng ảnh (hai Chương khác nhau tham chiếu cùng
+  `source_url`) chỉ tải **một** lần, dùng lại **một** tệp cho cả hai hàng `asset` (đối chứng:
+  `asset_contract.rs::the_same_image_url_across_two_chapters_is_fetched_exactly_once_and_shares_one_file`).
+  ⚠️ **Phạm vi đóng chỉ trong MỘT lượt `create_work`** — "cùng Tác phẩm" ở đây luôn đúng vì
+  `project.db` vừa tạo còn trống; so `source_url` với các hàng `asset` đã có từ TRƯỚC (ví dụ
+  một lượt nhập thêm Chương vào một Tác phẩm đang mở) chưa có đường sản phẩm nào (Epic 6 hôm
+  nay chỉ tạo Tác phẩm mới từ URL, không "nhập thêm Chương" — nợ đó ở chỗ khác nếu/khi story
+  đó ra đời).
 
 - ⚠️ **Hàng tầng `AI` trong bảng nhật ký domain (mockup `web-import.html:439-443`) không
   dựng.** `core/ai/mod.rs` hôm nay **10 dòng, 0 dòng mã** — điểm ra mạng thứ NHẤT của AD-15
@@ -10342,6 +10359,22 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   bàn đo 6.1. **Chủ: Story 6.11 (hiển thị ảnh trong bản dịch) / Story 6.13 (tải ảnh về
   `.atproj`, FR127)** — story nào chạm bề mặt ảnh trước sẽ là nơi đầu tiên tiêu thụ hai nhánh
   này, và cũng là nơi đầu tiên có dữ liệu thật để đo lại `infer_image_kept_state`.
+  ⚠️ **CHỖ LỆCH VAI, GHI RA KHÔNG SỬA (2026-09-08, Story 6.11) — sổ nợ không sửa mục đã đóng.**
+  Theo `epics.md`, **6.11 là FR127 (tải ảnh về `.atproj`)** và **6.14 là hiển thị ảnh trong bản
+  dịch** — ngược với hai vai mà đoạn trên gán. Mục NÀY giữ nguyên chữ cũ (đúng luật "đừng sửa
+  mục đã có"); đoạn đóng dưới đây nói đúng chủ theo `epics.md`.
+  🟡 **ĐÓNG MỘT NỬA 2026-09-08 (Story 6.11 — đúng vai FR127/tải về theo `epics.md`).**
+  `BlockBody::Image` nay có chỗ gọi SẢN PHẨM đầu tiên: `commands::project::prepare_chapter_images`
+  đọc `effective_kept_for_blocks` rồi tải/ghi từng ảnh GIỮ (`asset_contract.rs`,
+  `webimport_contract.rs::create_work_blocks_an_image_redirect_to_a_host_outside_tier_two_...`).
+  **Còn hở:** `BlockBody::Caption` vẫn 0 chỗ gọi tiêu thụ RIÊNG (chảy chung vào `source_text`
+  như văn bản thường, không được nhận diện là chú thích — cùng vế còn hở đã ghi ở mục
+  `6-7-nhap-tu-url-bang-danh-sach-link`/`6-9-...` phía trên, chủ Story 6.13); và
+  `infer_image_kept_state` **vẫn CHƯA qua dữ liệu thật ngoài bảy mẫu bàn đo 6.1** — bảy ca
+  `asset_contract.rs`/`webimport_contract.rs` của story này dùng fixture HTML tự viết tay
+  (khuôn `html_page_with_paragraphs`), không phải trang thật thứ tám trở đi. **Chủ phần còn
+  hở: Story 6.13 (Caption) / bất kỳ story nào đo `infer_image_kept_state` trên một mẫu bàn đo
+  MỚI (chưa ai nhận).**
 
 - ⚠️ **`Tier2BlockOverridesState` dùng CHUNG một vector override cho cả năm ứng viên bảng mã,
   áp theo INDEX khối — không tách theo ứng viên.** Quyết định #2 §Spec Change Log spec 6.9:
@@ -10461,6 +10494,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   CHE một hồi quy thật ở chính nhóm ca đó. Ba lượt đầu phiên này XANH (binary do lượt trước
   dựng, đã được cấp phép) rồi đỏ tất định sau lượt biên dịch lại — nên nó KHÔNG đọc được
   thành "chập chờn".
+
+  🔵 **QUAN SÁT THỨ HAI 2026-09-09 (Story 6.11) — mục này KHÔNG chỉ đánh `webimport_contract.rs`.**
+  Một lượt `cargo test --locked` cho **12 ca đỏ trong `asset_contract.rs`** (mọi ca dựng máy chủ
+  HTTP cục bộ), ngay sau khi cùng bộ ca ấy đã xanh 1.321/0 trên cùng máy. ⚠️ Thông báo lần này
+  KHÔNG phải một lỗi kết nối mà là một assert hành vi (`images_saved` `left: 0, right: 1`) — tức
+  chữ ký của mục nợ này ĐỔI HÌNH DẠNG theo tầng gọi: một lượt tải bị chặn đi tới người dùng dưới
+  dạng "0 ảnh lưu được", không phải dưới dạng một lỗi mạng. Ai đọc mục này chỉ theo chuỗi
+  *"error sending request for url"* sẽ trượt.
+  🔴 **Phép phân biệt đã dùng, và nó rẻ — dùng lại nó thay vì đoán:** chạy lại ĐÚNG binary đó,
+  KHÔNG đổi một dòng mã, hai lượt liên tiếp ⇒ **19 xanh / 0 đỏ**, 7,86 s và 7,60 s. Cùng mã mà
+  khác kết quả thì nguyên nhân không nằm trong mã. Điều kiện có mặt lúc đỏ:
+  `socketfilterfw --getglobalstate` = enabled, *"Automatically allow built-in signed software
+  DISABLED"*, và `--listapps | grep -c "target/debug"` = **0**.
   **Chủ: Ice** — cần MỘT trong ba, và cả ba đều là quyết định về môi trường/hạ tầng chứ không
   phải một dòng dev: ① cấp phép sẵn cho `src-tauri/target/debug/deps/**` trong firewall (đổi
   cấu hình máy, phải Ice đồng ý); ② cho nhóm ca dựng máy chủ cục bộ một cờ `#[ignore]` có tên
@@ -10515,3 +10561,249 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ⚠️ Chưa có phép đo nào, và trần số Chương một mẫu phân tách sinh ra cũng đang là một món nợ mở
   riêng. **Chủ: Story 6.18** — cùng lý do mục trên: nó là câu hỏi về quy mô thật, phải đo trên
   thư viện thật chứ không trên fixture tổng hợp.
+
+## Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc (2026-09-08)
+
+- ⚠️ **Copy `.atproj` sang máy khác ⇒ ảnh KHÔNG chắc hiển thị đầy đủ, dù `project.db`/`assets/`
+  đi theo trọn vẹn (0 đường dẫn tuyệt đối, đối chứng `asset_contract.rs`).** Story 6.11 chỉ
+  ghi tệp + hàng `asset`; **0** đường sản phẩm nào trong `src-tauri/src/` gọi tới
+  `asset_protocol_scope`/`allow_directory` hay bất kỳ cơ chế nào mở `assetProtocol.scope` của
+  Tauri cho thư mục `assets/` của một Tác phẩm (đo `grep -rn "asset_protocol_scope\|allow_directory"
+  src-tauri/src/` — 0 kết quả, 2026-09-08). `assetProtocol.scope` hôm nay vẫn ĐÚNG MỘT phần tử
+  (`$RESOURCE/fonts/**`, `config_invariants.rs:313` khoá lại) — đúng như §Never spec 6.11 đòi
+  ("không đụng `tauri.conf.json`/`capabilities/main.json`"). Vì thế bản thân TỆP ảnh có mặt
+  trên đĩa ở máy đích, nhưng KHÔNG bề mặt HIỂN THỊ nào trong webview đọc được nó qua
+  `asset://` cho tới khi phạm vi đó được mở. **Chủ: Story 6.14** (hiển thị ảnh trong bản dịch,
+  theo `epics.md`) — đây chính là story sẽ quyết định mở `assetProtocol.scope` cho
+  `$APPDATA`/thư mục Tác phẩm theo cách nào (tĩnh trong `tauri.conf.json`, hay động qua
+  `allow_directory` lúc mở một Tác phẩm) và phải đo lại NFR14 (portable qua hai nền tảng) cho
+  quyết định đó.
+
+- ⚠️ **`srcset`/`<picture>` chưa được `Extractor` đọc — chỉ thuộc tính `src` trần.**
+  `extractor.rs:93` đã ghi bằng chữ từ Story 6.9 (*"⚠️ srcset/<picture> 0 hit — chỉ src"*);
+  Story 6.11 KHÔNG mở lại `extractor.rs` (§Never: không đổi hợp đồng `core::cleanup`/
+  `normalize`, và mô hình khối `Block`/`BlockBody` giữ nguyên hình dạng cũ), nên giới hạn đó
+  đi nguyên vẹn vào pha tải ảnh: một `<img srcset="…">` không mang `src` (hình dạng phổ biến
+  trên trang dùng ảnh responsive) cho `src: None` ⇒ `prepare_chapter_images` đếm nó vào
+  `images_failed` với lý do "khong co thuoc tinh src" — không phải một lỗi tải, mà là một
+  thuộc tính `Extractor` chưa từng đọc. **Chủ: Ice** — cần đo trên trang thật xem tỷ lệ `<img>`
+  chỉ mang `srcset` (không `src`) cao tới đâu trước khi quyết định `Extractor` có nên đọc thêm
+  `srcset` (lấy ứng viên đầu tiên, hay ứng viên độ phân giải cao nhất) hay không — chưa story
+  nào nhận việc này, cần Ice giao trước khi một dev tự chọn.
+
+- ⚠️ **`image/svg+xml` bị loại VĨNH VIỄN — một quyết định kiến trúc (§Never spec 6.11, AD-16),
+  không một chỗ tạm bợ chờ vá.** Ghi lại rõ để người sau không đọc nhầm đây là một việc "còn
+  thiếu": SVG là đánh dấu (có thể mang `<script>`), nhận nó làm "ảnh" mở lại đúng bề mặt mà
+  AD-16 tồn tại để bịt (nội dung ngoài không bao giờ render thành HTML/markup). Muốn hiển thị
+  ảnh SVG một cách an toàn đòi một bước SANITIZE (bóc `<script>`/`on*=`/`javascript:` khỏi
+  XML) mà kho này chưa có, và đó là một quyết định kiến trúc MỚI (một `AD` mới), không phải
+  một dòng mã nới `RASTER_IMAGE_MIMES`. **Chủ: Ice** — chỉ mở lại nếu có yêu cầu thật (trang
+  nguồn dùng SVG làm ảnh minh hoạ chính, không phải icon/logo trang trí).
+
+- ⚠️ **`images_failed`/`images_saved` đi lên dây (`CreatedWork`) nhưng KHÔNG bề mặt hiển thị
+  nào đọc chúng.** Đúng như §Design Notes spec 6.11 đã tuyên bố trước ("Bề mặt HIỂN THỊ con số
+  đó là nợ có chủ, không phải một dòng dev tự thêm") — hai trường có mặt trên dây, kiểm được
+  bằng test (`project_contract.rs::created_work_images_saved_and_images_failed_stay_snake_case_on_the_wire`),
+  nhưng **0** dòng TypeScript nào đọc `images_failed`/`images_saved` sau khi Tác phẩm vừa tạo
+  xong — một lượt nhập với ảnh trượt hôm nay hoàn toàn IM LẶNG với người dùng (chỉ có nhật ký
+  domain ở Cài đặt › Quyền riêng tư, một màn hình người dùng không tự mở). **Chủ: Ice** — cần
+  một quyết định UX (toast? dòng trong xác nhận nhập? mục trong lưới Tác phẩm?) trước khi một
+  story sau viết bề mặt này; chưa story nào nhận việc này hôm nay.
+
+- ⚠️ **Hàng ma trận *"ghi tệp trượt giữa chừng ⇒ lượt nhập trượt sạch, thư mục `.atproj` bị
+  dọn"* CHỈ được nghiệm thu trên Unix.** `asset_contract.rs::a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder`
+  mang `#[cfg(unix)]`, và lý do tại chỗ (`asset_contract.rs:452-454`) là một ràng buộc THẬT của
+  hệ điều hành chứ không phải một lối tắt: thuộc tính *chỉ đọc* của Windows trên một **thư mục**
+  không chặn việc tạo tệp mới bên trong, nên kỹ thuật gây lỗi này không dịch sang đó được.
+  ⇒ Trên Windows, mệnh đề *"thư mục bị dọn"* và đường `MessageKey::AssetWriteFailed` hôm nay
+  **chưa chạy lần nào** — `cargo test` ở nửa Windows của CI biên dịch ca này ra khỏi cây. Đây
+  đúng lớp mà action item **A5 của retro Epic 1** đã gọi tên (*"nửa Windows không có đường
+  nghiệm thu tại chỗ"*), thu hẹp vào một đường **huỷ trọn lượt nhập** — tức chỗ mà một khác
+  biệt hành vi để lại một thư mục `.atproj` nửa vời trên đĩa người dùng. **Chủ: Ice** — cần
+  chọn một trong hai, cả hai đều là quyết định về hạ tầng đo chứ không phải một dòng dev:
+  ① tìm một cơ chế gây lỗi ghi tất định trên Windows (ACL `DENY` qua `icacls`, hoặc một đường
+  dẫn vượt `MAX_PATH`) và bỏ `#[cfg(unix)]`; ② giữ nguyên và ghi vào `AGENTS.md` rằng đường
+  huỷ này chỉ tin được ở nửa Unix, để người sau không đọc một lượt CI Windows xanh thành
+  *"đã được canh"*.
+  🔴 **CẬP NHẬT 2026-09-09 (vòng rà đối kháng 2, mục P0) — cùng lớp, một ca THỨ HAI, và một
+  P0 đã đóng.** `asset_contract.rs::a_later_image_write_failure_does_not_erase_the_domain_log_entry_of_an_earlier_successful_image`
+  (B1, khoá "nhật ký domain sống sót qua một lượt ghi tệp trượt") dùng ĐÚNG cùng kỹ thuật
+  `std::os::unix::fs::PermissionsExt`/`from_mode` nhưng bản đầu QUÊN `#[cfg(unix)]` — không
+  chỉ "chưa chạy trên Windows" như ca kia, mà LÀM TOÀN BỘ BINARY `asset_contract` KHÔNG BIÊN
+  DỊCH ĐƯỢC trên `windows-2025` (lỗi biên dịch, không phải lỗi test), tức **0/16 ca của cả tệp**
+  từng chạy ở nửa Windows của CI cho tới khi được vá (đã vá: `#[cfg(unix)]` thêm vào
+  `asset_contract.rs`, cùng ngày). Ca này giờ **cũng chỉ nghiệm thu trên Unix**, đúng lý do hệt
+  ca kia (quyền thư mục kiểu Unix) — cùng hai lựa chọn ①/② ở trên áp dụng cho CẢ HAI ca, không
+  chỉ ca đầu.
+
+- ⚠️ **`core::webimport::assets::is_raster_image_mime` xuất khẩu công khai nhưng có **0 chỗ gọi
+  sản phẩm** — đúng lớp nợ mà chính story này vừa đóng ba mục.** Đo 2026-09-08 bằng phép GỠ
+  thật: gỡ hẳn lời gọi khỏi `fetch_and_write_one_asset` rồi chạy trọn `cargo test --locked`
+  (46 binary) ⇒ **0 ca đỏ**, vì `extension_for_mime` đã tự gác qua nhánh `_ => None`. Lượt vá
+  đã gỡ đúng bước gác thừa ấy (tốt — hai vị từ cùng canh một mệnh đề là hai nguồn sự thật), và
+  giữ lại hàm như một vị từ độc lập có test riêng. ⚠️ Nhưng lý do giữ (*"cho chỗ gọi tương lai,
+  vd. Story 6.14"*) **chưa kiểm được**: Story 6.14 hiển thị ảnh **từ đĩa**, nó không đọc
+  `content-type` của một phản hồi mạng nào — nên hôm nay không story nào đã biết sẽ gọi nó.
+  🔴 Và nó **không** cấp thêm lớp bảo vệ nào: nếu ai đó thêm `image/svg+xml => Some("svg")` vào
+  `extension_for_mime`, cổng mở ra trong im lặng và một vị từ KHÔNG được gọi không đỏ. Thứ thật
+  sự canh mệnh đề đó là `assets.rs:182` (`extension_for_mime(Some("image/svg+xml")) == None`).
+  **Chủ: Ice** — hai phương án đều hợp lệ: ① **gỡ hẳn** `is_raster_image_mime` (chặt hơn, khớp
+  luật *"luật đã hiển nhiên thì gỡ"*, và không dựng thêm một hàm bỏ không); ② **giữ** như một
+  mệnh đề công khai đặt tên cho danh mục ĐÓNG, chấp nhận nó là hàm không ai gọi cho tới khi có
+  chỗ gọi thật. Đừng để mục này chết bằng cách quên.
+
+## Deferred from: spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc — vòng rà đối kháng bước 4 (2026-09-08)
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Ảnh nhúng dạng `data:` URI bị vứt trọn — byte nằm ngay trong trang mà không đường
+  nào giữ lại, và không mục nợ nào từng nhận việc này (`srcset`/`<picture>` thì đã có).
+  evidence: `resolve_absolute_url` phân giải một `data:image/png;base64,…` thành công, nhưng
+  `host_of` trả `None` nên nó không bao giờ vào tầng 2, rồi `fetch` từ chối với `InvalidUrl`
+  ("url khong co host"). Ảnh rơi vào `images_failed`, không phân biệt được với một ảnh 404.
+  Đây là một nguồn ảnh KHÔNG cần một lời gọi mạng nào — tức nó không đụng AD-41. **Chủ: Ice.**
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Pha ảnh không có ngân sách thời gian, không tiến độ, không huỷ — một lượt nhập
+  nhiều Chương với ảnh chết có thể đứng hình nhiều phút sau khi người dùng đã bấm xác nhận.
+  evidence: Vòng lặp tải là TUẦN TỰ và mỗi ảnh chờ tới `REQUEST_TIMEOUT` 20 s, chạy bên trong
+  `create_work`. Pha TRANG của Story 6.7 thì có tiến độ theo từng mục; pha ảnh thì không có gì.
+  §Ask First spec 6.11 chỉ hỏi trần TỔNG BYTE (Ice: không thêm ngưỡng) — câu hỏi về THỜI GIAN
+  và khả năng HUỶ chưa từng được hỏi, nên đừng đọc câu trả lời kia thành đã chốt cả cái này.
+  **Chủ: Ice.**
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Tập tầng 2 chỉ chở HOST, nên một thẻ `<img>` cấp phép cho mọi cổng và mọi giao thức
+  của host đó.
+  evidence: `Allowlist` (Story 6.8) so bằng `host_str()` — không port, không scheme. Một ảnh
+  trên `x.com` mở đường cho một GET tới `x.com:8443`. KHÔNG do story 6.11 gây ra (đây là hình
+  dạng `Allowlist` đã giao ở 6.8, cùng bộ ca đã ký của nó); story này chỉ là chỗ gọi đầu tiên
+  làm hệ quả ấy quan sát được. **Chủ: Ice** — nới khoá tầng 2 thành host+port+scheme là đổi một
+  cấu trúc đã giao, cần một quyết định chứ không một dòng sửa.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Tệp ảnh mồ côi ở lại trong `assets/` vĩnh viễn nếu tiến trình chết giữa lúc ghi tệp
+  và lúc giao dịch SQL commit.
+  evidence: Byte được ghi xuống `assets/` TRƯỚC `store.write` (bắt buộc — closure ghi chỉ được
+  chứa SQL, `project.rs:417`). Một lượt tắt máy trong cửa sổ đó để lại tệp mà không hàng `asset`
+  nào trỏ tới; không đường mở Tác phẩm nào quét dọn. Vô hại về DỮ LIỆU (không mất gì, không sai
+  gì) nhưng nó làm `.atproj` phình dần mà người dùng không có cách biết. **Chủ: Story 6.14** —
+  story đầu tiên ĐỌC bảng `asset` cũng là chỗ đầu tiên có sẵn phép đối chiếu tệp-với-hàng.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: `segment_normalize_boundary.rs` nay bỏ qua vùng `#[cfg(test)]` của MỌI tệp được quét
+  (trước chỉ bỏ qua của riêng `normalize.rs`) — chỗ mù của cổng rộng ra đúng bằng phép vá đó.
+  evidence: Vòng rà bước 4 thêm test THẬT vào `core/segment/anchor.rs::tests` (gọi `normalize`
+  để đo hành vi khi có luật làm sạch BẬT), làm cổng đếm nhảy 5 → 7 dù không dòng THÂN MÃ sản
+  phẩm nào đổi. Phép vá (`text_before_first_cfg_test_line` cho mọi tệp, khuôn đã có ở
+  `webimport_boundary.rs`) là ĐÚNG hướng và giữ nguyên con số kỳ vọng 5 — nó gỡ một dương tính
+  GIẢ, không nâng ngưỡng. ⚠️ Nhưng hệ quả phải ghi ra: một chỗ gọi sản phẩm THẬT nằm SAU dòng
+  `#[cfg(test)]` đầu tiên trong cùng một tệp nay VÔ HÌNH với cổng. Quy ước Rust đặt `mod tests`
+  ở cuối nên rủi ro nhỏ, và ca kiểm chứng dương hiện có kiểm chính vị từ (kèm ca âm cho một
+  chú thích nhắc lại chuỗi `#[cfg(test)]`) — thứ CHƯA có là một ca gieo một vi phạm THẬT vào
+  vùng mã sản phẩm của một tệp được quét rồi khẳng định cổng đỏ. **Chủ: Ice** — cùng họ với ba
+  cổng khác dùng khuôn `code_lines` + vị từ + đếm; nên đo một lượt cho cả họ, không vá lẻ.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: "`asset.source_url` ghi URL YÊU CẦU (`src` đã phân giải tuyệt đối), không phải
+  chặng CUỐI sau chuyển hướng — một ảnh máy chủ chuyển hướng sang host khác hiển thị SAI xuất
+  xứ."
+  evidence: "`commands/project.rs::SavedAsset::source_url` (vòng rà đối kháng 2, mục D1):
+  `webimport::fetch`/`FetchedPage` không trả lại URL cuối cùng đã dừng ở đó (chỉ `bytes`/
+  `content_type`). Cột này mang HAI VAI cùng lúc — xuất xứ HIỂN THỊ và khoá DEDUP AD-41
+  (`prepare_chapter_images::cache` khoá theo CHÍNH `resolved_url` này) — sửa để ghi chặng
+  cuối đòi tách hai vai đó ra hai cột, không phải đổi một dòng."
+  chủ: Story 6.14 — màn hình đầu tiên THẬT SỰ hiển thị `source_url` cho người dùng đọc; tới
+  lúc đó sự sai lệch này không có bề mặt nào để mà quan sát được.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: "`extract_main_content` chốt vào `cs.first()` của toàn danh sách, không theo từng
+  Chương — một `PipelineShape::Chapters` lỡ TRỘN hình dạng (mục đầu `AlreadyText`, mục sau
+  `RawBytes`) sẽ bỏ qua pha ảnh ÂM THẦM cho mọi mục sau mục đầu."
+  evidence: "`commands/project.rs` (gần dòng dựng `extract_main_content`, vòng rà đối kháng 2,
+  mục D6): điều kiện chỉ đọc `cs.first()`. Đo được hai bộ dựng SẢN PHẨM DUY NHẤT của
+  `PipelineShape::Chapters` hôm nay (`chapters_shape_if_all_ok`/`chapters_shape_for_view`)
+  luôn cho ra danh sách ĐỒNG NHẤT (khoá bằng
+  `webimport_contract.rs::the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw_bytes`)
+  — nên lỗ này CHƯA từng bị kích hoạt trên đường thật. Nhưng `run_import`/`PipelineInput` là
+  một seam CÔNG KHAI, và không gì ở KIỂU ngăn một chỗ gọi tương lai trộn hình dạng."
+  chủ: Ice — sửa đúng cần `extract_main_content` chuyển thành một quyết định THEO TỪNG
+  Chương (không phải một cờ toàn cục cho cả `PipelineInput`), một thay đổi cấu trúc vượt
+  phạm vi một lượt vá nhỏ.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Chưa ca nào phủ một ảnh chuyển hướng CHÉO Chương tới host của một ảnh Ở CHƯƠNG
+  KHÁC trong CÙNG Tác phẩm — mệnh đề `create_work_blocks_an_image_redirect_...` (vòng rà đối
+  kháng 2, mục C2) chỉ khoá trường hợp host đích không khớp `src` nào trong TOÀN Tác phẩm.
+  evidence: `prepare_chapter_images` dựng allowlist tầng 2 MỘT LẦN từ host của MỌI ảnh giữ
+  trong MỌI Chương (`commands/project.rs`), dùng CHUNG cho cả lượt nhập — một ảnh ở Chương 1
+  chuyển hướng sang host của một ảnh Ở CHƯƠNG 5 sẽ ĐƯỢC CHO QUA theo đúng thiết kế đó, không
+  bị `NotAllowlisted` chặn. Đây có thể là hành vi ĐÚNG Ý (tầng 2 vốn khai rõ là của cả Tác
+  phẩm, không riêng từng Chương) hoặc một lỗ AD-41 chưa ai cân nhắc — story 6.11 chưa có phép
+  đo nào phân biệt hai khả năng đó, và ca test hiện có (đổi tên
+  `create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_the_work`) chủ ý
+  không phủ trường hợp này để tên ca không nói quá thứ nó đo. **Chủ: Ice** — cần một quyết
+  định (mệnh đề rộng có phải điều muốn không?) trước khi viết ca cho nhánh này.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Không kiểm được biên dịch cho target Windows trên máy Ice — hai lượt thử đều trượt vì
+  hạ tầng, nên nửa Windows hôm nay CHỈ nghiệm thu được bằng cách đọc CI.
+  evidence: Đo 2026-09-09. `rustup target list --installed` liệt `x86_64-pc-windows-msvc`, và
+  sysroot có thật (`~/.rustup/toolchains/stable-x86_64-apple-darwin/lib/rustlib/x86_64-pc-windows-msvc/lib`,
+  45 tệp, có `libcore-cf5ef8f9edb2b6bd.rlib`). Nhưng `rustup run stable cargo check --locked
+  --tests --target x86_64-pc-windows-msvc` trượt với `error[E0463]: can't find crate for core`
+  ở `windows-link`/`cfg-if`/`memchr` — target std lệch bản so với toolchain. 🔴 Đây là LỖI HẠ
+  TẦNG, không phải một phép kiểm đỏ; không được đọc nó thành "mã hỏng trên Windows".
+  ⚠️ Hệ quả đo được ngay trong story này: ca `a_later_image_write_failure_...` thiếu `#[cfg(unix)]`
+  làm TOÀN BỘ binary `asset_contract` không biên dịch được trên `windows-2025` — tức 0/16 ca hợp
+  đồng mới KHÔNG chạy ở nửa Windows — và **không một lượt nào** trong 11 cổng · 950 ca vitest ·
+  1.3xx ca cargo của phiên này thấy được nó. Chỉ vòng rà đối kháng bắt được, bằng cách đọc mã.
+  **Chủ: Ice** — đây là action item **A5 của retro Epic 1** ("nửa Windows không có đường nghiệm
+  thu tại chỗ") có thêm một phép đo cụ thể: sửa cài đặt target để `cargo check --target
+  x86_64-pc-windows-msvc` chạy được, hoặc ghi vào `AGENTS.md` rằng lượt đọc CI là BẮT BUỘC chứ
+  không phải một lời khuyên.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: `rustc` trên PATH của máy Ice là Homebrew **1.98.0**, còn CI ghim **1.97.1** — mọi số
+  đo của phiên này đo trên một toolchain KHÁC bản CI dùng.
+  evidence: Đo 2026-09-09: `which rustc` → `/usr/local/bin/rustc`, `rustc --version` →
+  `1.98.0 (Homebrew)`; `rustup run stable rustc --version` → `1.97.1`, đúng bản
+  `dtolnay/rust-toolchain@1.97.1` mà `ci.yml` ghim. `pre-push` và mọi lượt `cargo test` của phiên
+  này đi qua bản Homebrew. `project-context.md` §Ràng buộc phiên bản đã ghi vì sao CI ghim số
+  chính xác thay vì `@stable` ("toolchain trôi làm mọi số đo hiệu năng đã ghi hết so sánh được")
+  — nhưng không có gì canh chiều ngược lại, tức máy dev trôi khỏi CI. Không do story này gây ra.
+  **Chủ: Ice** — hoặc thêm `rust-toolchain.toml` để ghim máy dev về đúng bản CI, hoặc ghi ra rằng
+  hai bên cố ý lệch và số đo hiệu năng chỉ tin được ở một phía.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: Hướng "snap" của một ảnh neo RƠI VÀO GIỮA nhóm segment đang bị gộp/tách là một quyết
+  định sản phẩm CHƯA AI KÝ — Ice chốt cơ chế dời số, không chốt ca biên này.
+  evidence: "`commands::segment::write_regroup` (đoạn chú thích ngay trên câu `UPDATE asset ... CASE`)" chọn snap ảnh về NGAY SAU nhóm MỚI
+  (`ord_dau_nhom + M - 1`) khi neo rơi vào miền `ord_dau_nhom <= k < ord_dau_nhom + K`, và chú
+  thích tại chỗ tự khai đúng như vậy: *"QUYẾT ĐỊNH CHƯA CÓ ICE KÝ RIÊNG cho đúng ca biên này"*.
+  Ghi lại ở đây vì một quyết định chỉ sống trong doc-comment là một quyết định sẽ chết bằng cách
+  bị quên — và ca này KHÔNG hiếm: chú thích ghi rằng ranh giới *"ngay sau segment CUỐI của nhóm
+  cũ"* là trường hợp THƯỜNG GẶP NHẤT (ảnh đứng giữa hai khối mà một lượt gộp/tách vừa chạm đúng
+  ranh giới đó). Hướng còn lại — snap về TRƯỚC nhóm mới (`ord_dau_nhom - 1`) — cũng hợp lệ và
+  giữ ảnh ở phía văn bản đứng trước nó. **Chủ: Ice** — chốt một hướng, hoặc nói rõ là không quan
+  trọng để người sau khỏi mở lại; hôm nay chưa có phép đo nào đứng sau lựa chọn đang cài.
+
+- source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
+  summary: "`merge_chapter_into_previous` chạy `normalize_chapter_ord(tx)` TRƯỚC phép kiểm
+  `chapter_id` tồn tại, rồi trả `Ok(0)` khi từ chối — một lượt gộp gọi với `chapter_id` KHÔNG
+  TỒN TẠI vẫn COMMIT thứ mà `normalize_chapter_ord` vừa đổi, ngược với chính doc-comment của
+  hàm (\"0 hàng bị chạm\")."
+  evidence: "`commands::chapter::merge_chapter_into_previous` (thân hàm, ngay đầu closure
+  `open.store.write`): dòng đầu tiên là `normalize_chapter_ord(tx)?;`, và phép kiểm tồn tại
+  (`SELECT COUNT(*) FROM chapter WHERE id = ?1`) chạy SAU đó. Khi hàng không tồn tại, closure
+  trả `Ok(0)` (không phải `Err`) — `Store::write` COMMIT bất kỳ closure nào trả `Ok`, nên
+  lượt renumber của `normalize_chapter_ord` (nếu nó THẬT SỰ đổi gì đó, ví dụ `chapter.ord`
+  có lỗ hổng từ trước) vẫn được ghi xuống đĩa, dù hàm khai với người gọi là \"0 hàng bị
+  chạm\". Lỗi này CÓ TRƯỚC story 6.11 (thuộc Story 5.8) — nay nó nằm ngay THƯỢNG NGUỒN của
+  câu `UPDATE asset` mới thêm (vòng rà đối kháng 3, mục N1): nếu `normalize_chapter_ord`
+  từng đổi gì trên một lượt gộp bị từ chối, `asset` không bị ảnh hưởng trực tiếp (nó chỉ đọc
+  `chapter.ord` gián tiếp qua `shift`, và `shift` chỉ được tính SAU phép kiểm tồn tại thành
+  công), nhưng đây vẫn là đúng lớp \"một hàm khai một điều, làm một điều khác\" mà kho luôn
+  đóng ngay khi thấy."
+  chủ: Ice — quyết định có cần chuyển phép kiểm tồn tại lên TRƯỚC `normalize_chapter_ord`
+  hay không (một thay đổi hành vi ngoài phạm vi story 6.11 — Story 5.8 sở hữu hàm này); ghi
+  nợ, không sửa trong story này.

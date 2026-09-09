@@ -35,10 +35,19 @@ export type WorkMeta = {
  * `meta.name`: Rust thay ký tự cấm và thêm hậu tố ` (2)` khi trùng tên — xem
  * `core::library::atproj::create_work_folder`. AC6 cần con số này để giao được lời hứa
  * *"copy thư mục là đủ để sao lưu"*.
+ *
+ * 🔵 SỬA 2026-09-09 (D8 vòng rà đối kháng 3 lớp) — thêm `images_saved`/`images_failed`
+ * (Story 6.11, FR127): Rust nới `wire::CreatedWork` thêm hai trường này 2026-09-08, câu mô
+ * tả cũ ("khớp ... phía Rust") đã hết đúng cho tới lúc sửa này vì kiểu TS chưa theo kịp.
+ * `0` cho mọi lượt tạo KHÔNG đi qua đường URL (dán văn bản, tệp). `images_failed` chưa có
+ * bề mặt hiển thị ở story này (nợ có chủ, `deferred-work.md`) — có mặt ở đây để không bị
+ * bịa lại từ đầu khi bề mặt đó được dựng.
  */
 export type CreatedWork = {
   meta: WorkMeta
   folder: string
+  images_saved: number
+  images_failed: number
 }
 
 /** Ba trạng thái, cùng khuôn `BootstrapResult` — xem doc-comment ở đó về vì sao ba. */
@@ -841,18 +850,52 @@ export async function previewChapterDetail(
 // `commands::project::{DomainLogEntryWire, wire::list_domain_log}`.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Một bản ghi THÔ — khớp `commands::project::DomainLogEntryWire`. `kind`/`tier` đi qua như
- * DỮ LIỆU (chuỗi định danh máy, AD-21) — `domainLogKindLabelKey`/`domainLogReasonKeyFor`
- * (`settingsState.ts`) ánh xạ sang câu, cùng khuôn `cleanupTierLabelKey`. */
+/** Danh mục ĐÓNG — khớp `webimport::DomainLogOutcome` (`serde(rename_all = "snake_case")`).
+ * `null` khi `allowed === false` (0 kết nối, không có kết quả mạng nào để mà báo).
+ *
+ * 🔵 THÊM 2026-09-09 (Story 6.11, mục A vòng rà đối kháng 3 lớp, Ice ký) — trường "và rồi
+ * SAO" cho một chặng ĐÃ được phép: `tier`/`allowed` một mình không phân biệt được một chặng
+ * ĐÃ CHO PHÉP rồi tải xong với một chặng ĐÃ CHO PHÉP rồi trượt mạng/MIME/quá cỡ — đúng ô
+ * "Error Handling" thứ hai của I/O Matrix spec 6.11 đòi. */
+export type DomainLogOutcomeWire =
+  | 'fetched'
+  | 'redirected'
+  | 'http_status'
+  | 'timeout'
+  | 'connect_failed'
+  | 'too_large'
+  | 'mime_rejected'
+  | 'other'
+
+const DOMAIN_LOG_OUTCOMES: readonly DomainLogOutcomeWire[] = [
+  'fetched',
+  'redirected',
+  'http_status',
+  'timeout',
+  'connect_failed',
+  'too_large',
+  'mime_rejected',
+  'other',
+]
+
+/** Một bản ghi THÔ — khớp `commands::project::DomainLogEntryWire`. `kind`/`tier`/`outcome` đi
+ * qua như DỮ LIỆU (chuỗi định danh máy, AD-21) — `domainLogKindLabelKey`/`domainLogReasonKey`/
+ * `domainLogOutcomeLabelKey` (`settingsState.ts`) ánh xạ sang câu, cùng khuôn `cleanupTierLabelKey`. */
 export type DomainLogEntryWire = {
   at_epoch_ms: number
   domain: string
   kind: 'page' | 'image'
   allowed: boolean
   tier: 'tier1' | 'tier2' | 'denied'
+  /** 🔵 THÊM 2026-09-09 (Story 6.11, mục A) — xem [`DomainLogOutcomeWire`]. */
+  outcome: DomainLogOutcomeWire | null
 }
 
-function isDomainLogEntryWire(value: unknown): value is DomainLogEntryWire {
+/** Hình dạng CỐT LÕI của một bản ghi — mọi trường TRỪ `outcome`. Tách riêng khỏi
+ * `sanitizeDomainLogEntry` (ngay dưới) cho đúng lý do đó: một `outcome` LẠ (một
+ * biến thể Rust MỚI mà bản TS này chưa biết) không được phép làm SAI LỆCH tính hợp lệ của
+ * CHÍNH bản ghi đó — nó chỉ là MỘT TRƯỜNG không đọc được, không phải cả bản ghi hỏng. */
+function isDomainLogEntryWireCoreShape(value: unknown): value is Omit<DomainLogEntryWire, 'outcome'> {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<DomainLogEntryWire>
   return (
@@ -862,6 +905,34 @@ function isDomainLogEntryWire(value: unknown): value is DomainLogEntryWire {
     typeof v.allowed === 'boolean' &&
     (v.tier === 'tier1' || v.tier === 'tier2' || v.tier === 'denied')
   )
+}
+
+/** 🔵 THÊM 2026-09-09 (vòng rà đối kháng 3, mục R3) — HẠ một `outcome` LẠ xuống `null` cho
+ * RIÊNG bản ghi đó, không loại BỎ cả mảng. Trước sửa này, `listDomainLog` gọi
+ * `entries.every(...)` kiểm CẢ `outcome` trong CÙNG một vị từ — MỘT bản ghi mang một biến thể `outcome` mà bản TS
+ * này CHƯA BIẾT (ví dụ Rust thêm biến thể thứ chín mà bản build frontend chưa cập nhật danh
+ * mục `DOMAIN_LOG_OUTCOMES`) làm `every()` trả `false`, và `listDomainLog` vứt TOÀN BỘ mảng
+ * (`entries: null`) — cả màn Quyền riêng tư trống trơn vì đúng MỘT trường của đúng MỘT bản
+ * ghi. Đây là "rỗng không có lý do" đúng lớp mà kho cấm: những bản ghi HOÀN TOÀN HỢP LỆ khác
+ * biến mất theo. Hạ `outcome` lạ về `null` — cùng ý nghĩa "không biết/không áp dụng" mà
+ * `null` đã mang cho một chặng bị từ chối — giữ lại được TOÀN BỘ dữ liệu THẬT, chỉ mất đúng
+ * MỘT trường của đúng MỘT bản ghi. Trả `null` (không phải loại bỏ) nếu hình dạng CỐT LÕI
+ * (ngoài `outcome`) cũng hỏng — đó vẫn là một bản ghi không đọc được, không phải chỉ một
+ * trường lạ.
+ */
+function sanitizeDomainLogEntry(value: unknown): DomainLogEntryWire | null {
+  if (!isDomainLogEntryWireCoreShape(value)) return null
+  const v = value as Omit<DomainLogEntryWire, 'outcome'> & { outcome?: unknown }
+  const outcome =
+    v.outcome === null || v.outcome === undefined
+      ? null
+      : DOMAIN_LOG_OUTCOMES.includes(v.outcome as DomainLogOutcomeWire)
+        ? (v.outcome as DomainLogOutcomeWire)
+        : null
+  if (outcome === null && v.outcome !== null && v.outcome !== undefined) {
+    console.error(`[project] một bản ghi nhật ký domain mang outcome lạ (${String(v.outcome)}) -- ha ve null cho RIENG ban ghi nay`)
+  }
+  return { ...v, outcome }
 }
 
 /** Tên command trên dây. Khớp `commands::project::wire::list_domain_log`. */
@@ -880,11 +951,20 @@ export type ListDomainLogResult = {
  * (`settingsState.ts`), không của adapter này. Không ném. */
 export async function listDomainLog(): Promise<ListDomainLogResult> {
   try {
-    const entries = await invoke<DomainLogEntryWire[]>(CMD_LIST_DOMAIN_LOG)
-    if (!Array.isArray(entries) || !entries.every(isDomainLogEntryWire)) {
+    const raw = await invoke<unknown[]>(CMD_LIST_DOMAIN_LOG)
+    if (!Array.isArray(raw)) {
+      console.error(`[project] \`${CMD_LIST_DOMAIN_LOG}\` tra ve mot hinh dang khong phai mang`)
+      return { entries: null, error: UNKNOWN_IPC_ERROR }
+    }
+    // R3 (vòng rà đối kháng 3, lớp 3) — sanitize TỪNG bản ghi (một `outcome` lạ chỉ hạ
+    // trường đó về `null`), rồi CHỈ từ chối TOÀN BỘ mảng nếu hình dạng CỐT LÕI của MỘT bản
+    // ghi cũng hỏng (không phải chỉ `outcome`).
+    const sanitized = raw.map(sanitizeDomainLogEntry)
+    if (sanitized.some((e) => e === null)) {
       console.error(`[project] \`${CMD_LIST_DOMAIN_LOG}\` tra ve mot hinh dang khong dung DomainLogEntryWire[]`)
       return { entries: null, error: UNKNOWN_IPC_ERROR }
     }
+    const entries = sanitized as DomainLogEntryWire[]
     return { entries, error: null }
   } catch (err) {
     if (isIpcError(err)) return { entries: null, error: err }

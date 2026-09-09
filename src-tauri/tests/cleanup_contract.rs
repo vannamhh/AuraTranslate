@@ -71,6 +71,7 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
         Vec::new(),
     None,
     Vec::new(),
+&std::sync::Mutex::new(Vec::new()),
 )
     .expect("tao OpenWork that bai")
 }
@@ -105,6 +106,7 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
         Vec::new(),
     None,
     Vec::new(),
+&std::sync::Mutex::new(Vec::new()),
 )
     .expect("tao tac pham that bai");
 
@@ -142,6 +144,7 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
         vec![rule],
     None,
     Vec::new(),
+&std::sync::Mutex::new(Vec::new()),
 )
     .expect("tao tac pham that bai");
 
@@ -181,6 +184,7 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
         vec![rule],
     None,
     Vec::new(),
+&std::sync::Mutex::new(Vec::new()),
 )
     .expect("tao tac pham that bai");
 
@@ -507,7 +511,8 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
         rules,
         None,
         Vec::new(),
-    )
+    &std::sync::Mutex::new(Vec::new()),
+)
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -646,7 +651,8 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         Vec::new(),
         None,
         overrides,
-    )
+    &std::sync::Mutex::new(Vec::new()),
+)
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -764,6 +770,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         vec![rule],
     None,
     Vec::new(),
+&std::sync::Mutex::new(Vec::new()),
 )
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
@@ -1489,7 +1496,8 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
         rules,
         Some(pattern),
         Vec::new(),
-    )
+    &std::sync::Mutex::new(Vec::new()),
+)
     .expect("xac nhan that bai");
 
     let written: Vec<(i64, String)> = opened

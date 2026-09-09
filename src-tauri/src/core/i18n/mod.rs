@@ -582,6 +582,20 @@ message_keys! {
     /// `Extractor` chạy nhưng không bóc được nội dung chính (rỗng/quá ngắn) — KHÔNG rơi về
     /// HTML thô, đó là rỗng im lặng đổi hình dạng (§Design Notes spec 6.7).
     ImportWebExtractionEmpty => "err.import.web_extraction_empty" ["url"],
+
+    // ── Story 6.11 (FR127 · AD-16 · AD-41) — MỘT khoá ───────────────────────────────
+    //
+    // Một ẢNH trượt tải (host bị chặn, MIME sai, quá lớn, mạng lỗi, …) KHÔNG làm trượt cả
+    // lượt nhập (§Design Notes spec 6.11: "huỷ trọn lượt nhập vì một ảnh 404 là đánh đổi sai
+    // chiều") — những lý do đó KHÔNG đi qua `IpcError` (chúng chỉ đếm vào `images_failed` +
+    // nhật ký domain, xem `commands::project::prepare_chapter_images`). Khoá DUY NHẤT dưới
+    // đây phủ ca CÒN LẠI, cái duy nhất làm TRỌN lượt nhập trượt: ghi BYTE ảnh xuống
+    // `assets/` thất bại giữa chừng (đĩa đầy, quyền ghi, …) — I/O Matrix spec 6.11 hàng "Ghi
+    // tệp trượt giữa chừng".
+    /// Ghi byte ảnh xuống `assets/` thất bại — khác lỗi tạo Tác phẩm (`WorkCreateFailed`) ở
+    /// chỗ đây LUÔN xảy ra SAU khi thư mục + `project.db` đã dựng xong; câu báo riêng nói
+    /// đúng PHA nào của lượt nhập vừa trượt.
+    AssetWriteFailed => "err.asset.write_failed" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

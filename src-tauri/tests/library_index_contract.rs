@@ -2714,6 +2714,85 @@ fn a_project_db_exactly_at_the_harvest_floor_harvests_successfully() {
     cleanup(&dir);
 }
 
+/// **THÊM Story 6.11 (spec 6.11, Task list "library_index_contract.rs ... MINIMUM_HARVEST_SCHEMA_VERSION
+/// van la 8").** Bang `asset` (buoc 20 cua `PROJECT_MIGRATIONS`) khong duoc `Indexer` doc toi
+/// -- doi tuong duy nhat `harvest_work_text` go dich danh la `segment.is_omitted` (buoc 8),
+/// nen sang buoc 20 san KHONG duoc nang len. Ca nay khoa lai BANG SO, khong bang loi khai --
+/// mot lan sua sau nay lo nang san se lam ca nay do ngay, thay vi im lang cho toi khi mot
+/// `.atproj` cu tren may nguoi dung that bi tu choi thu hoach.
+///
+/// Ve thu hai -- mot `project.db` THAT tu TRUOC Story 6.11 (`user_version = 19`, KHONG co
+/// bang `asset`) van thu hoach duoc binh thuong.
+///
+/// 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3 lớp, mục C7): câu mô tả bản trước khai fixture nay
+/// "mo phong mot Tac pham da tao TRUOC khi nang cap" trong khi CO CHE lai chi ha con so
+/// `user_version`, de nguyen bang `asset` (dich qua HET migrate hien hanh truoc do) -- sua CAU,
+/// khong sua co che, o LUOT do.
+///
+/// 🔴 SỬA 2026-09-09 (vòng rà đối kháng 2, mục C1) -- LUOT NAY sua CA CO CHE cho khop cau da
+/// sua o luot truoc: dong `DROP TABLE asset` nay khien lieu do THAT SU khong con bang `asset`,
+/// dung hinh dang mot `.atproj` THAT tao TRUOC Story 6.11 -- cau mo ta va co che nay MOI khop
+/// nhau. Menh de ca nay kiem khong doi: duong doc cua `harvest_work_text` khong bi chi phoi
+/// boi `user_version`, va SU VANG MAT cua bang `asset` (khong chi mot con so phien ban gia)
+/// khong lam sang doi duong doc do.
+#[test]
+fn minimum_harvest_schema_version_stays_eight_and_a_genuinely_pre_story_6_11_project_db_still_harvests() {
+    assert_eq!(
+        MINIMUM_HARVEST_SCHEMA_VERSION, 8,
+        "Story 6.11 them bang `asset` (buoc 20) nhung KHONG dung toi duong doc cua Indexer -- \
+         san thu hoach phai dung nguyen o 8"
+    );
+
+    let dir = temp_dir("search-project-db-pre-story-6-11");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo619",
+        "id-solo-6-11",
+        "Solo619",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcetextpre611", "unique target text")])],
+    );
+    drop(store);
+
+    {
+        let db_path = work_dir.join("project.db");
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de dung hinh mot project.db CU that");
+        // 🔵 SỬA (vòng rà đối kháng 2, mục C1) — bản trước CHỈ hạ `user_version`, để nguyên
+        // bảng `asset` (đã có thật từ `Store::open` dịch qua hết migrate hiện hành) — tức
+        // fixture đó không hề mô phỏng một `.atproj` THẬT tạo trước Story 6.11 (một liệu độ
+        // như thế sẽ KHÔNG có bảng `asset`). Cùng khuôn
+        // `a_project_db_older_than_the_harvest_floor_skips_only_its_own_text_...` (ngay trên,
+        // dùng `ALTER TABLE ... DROP COLUMN` để dựng đúng hình dạng một cột thiếu THẬT) — ở
+        // đây dùng `DROP TABLE` để dựng đúng hình dạng một BẢNG thiếu THẬT.
+        conn.pragma_update(None, "user_version", 19i64).expect("ha user_version xuong 19");
+        conn.execute("DROP TABLE asset", [])
+            .expect("go bang asset -- dung hinh dang mot project.db THAT tu TRUOC Story 6.11");
+    }
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| {
+        panic!("rebuild tren mot project.db THAT tu TRUOC Story 6.11 (user_version=19, khong co bang asset) KHONG duoc trot: {e}")
+    });
+
+    assert_eq!(outcome.indexed, 1);
+    assert!(
+        outcome.text_skipped.is_empty(),
+        "mot project.db THAT tu TRUOC Story 6.11 (user_version=19, khong bang asset) phai THU \
+         HOACH duoc, khong bi tu choi: {:?}",
+        outcome.text_skipped
+    );
+
+    let report = indexer
+        .search("uniquesourcetextpre611", 20, SearchMode::Exact)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(report.hits.len(), 1, "van ban o phien ban 19 phai co mat trong chi muc: {:?}", report.hits);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
 /// **THÊM (retro Epic 5, AI-3 — 2026-09-03).** `SearchReport::works_total`/`works_with_text` —
 /// độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN, độc lập với `RebuildOutcome::text_skipped`. Hai
 /// Tác phẩm, một trượt thu hoạch (phiên bản mới hơn đích) ⇒ `works_total == 2 &&
