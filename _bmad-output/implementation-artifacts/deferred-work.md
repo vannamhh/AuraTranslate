@@ -10507,6 +10507,21 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   khác kết quả thì nguyên nhân không nằm trong mã. Điều kiện có mặt lúc đỏ:
   `socketfilterfw --getglobalstate` = enabled, *"Automatically allow built-in signed software
   DISABLED"*, và `--listapps | grep -c "target/debug"` = **0**.
+
+  🔴 **QUAN SÁT THỨ BA 2026-09-09 — nó CHẶN CỬA ĐẨY, không chỉ làm phiền một lượt chạy tay.**
+  `git push` bị `.githooks/pre-push` từ chối: 11 cổng · vitest · build đều OK, riêng `cargo test`
+  đỏ — trong khi cùng cây đó vừa cho 1.325 xanh / 0 đỏ vài phút trước và KHÔNG một dòng mã nào
+  đổi (chỉ `git add` + `git commit`). Phép phân biệt chạy ngay sau đó, cùng binary, hai lượt
+  liên tiếp: **lượt 1 = 1.310 xanh / 14 đỏ / 43 binary · lượt 2 = 1.325 xanh / 0 đỏ / 46 binary**.
+  14 ca đỏ nằm TRỌN trong `webimport_contract.rs`, toàn ca mở kết nối thật.
+  ⇒ Trong MỘT phiên, điều kiện này xuất hiện **ba lần** (12 ca ở `asset_contract`, 14 ca ở
+  `webimport_contract`, và một lượt chặn push), và cả ba lần phép phân biệt "chạy lại cùng
+  binary" đều cho cùng câu trả lời: không phải mã.
+  🔴 **Vì sao nó đắt hơn một phiền toái:** một lượt đỏ 14 ca trông y hệt một hồi quy thật ở đúng
+  nhóm ca cưỡng chế AD-41 — nên nó vừa chặn oan, vừa CÓ THỂ CHE một hồi quy thật ở chính nhóm
+  đó; và đường thoát rẻ nhất (`git push --no-verify`) làm mất luôn mười một cổng còn lại, trong
+  đó có `check:debt-owner` và `check:i18n` — hai cổng canh chính những mệnh đề Story 6.11 vừa
+  thêm. Ba lượt của phiên này đều KHÔNG dùng `--no-verify`.
   **Chủ: Ice** — cần MỘT trong ba, và cả ba đều là quyết định về môi trường/hạ tầng chứ không
   phải một dòng dev: ① cấp phép sẵn cho `src-tauri/target/debug/deps/**` trong firewall (đổi
   cấu hình máy, phải Ice đồng ý); ② cho nhóm ca dựng máy chủ cục bộ một cờ `#[ignore]` có tên
