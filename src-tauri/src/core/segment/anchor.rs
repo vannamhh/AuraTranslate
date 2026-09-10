@@ -48,9 +48,15 @@ pub struct AnchorError {
 ///   (đã áp `PipelineInput::block_overrides` qua [`super::pipeline::effective_kept_for_blocks`]
 ///   — CÙNG cặp mà [`super::pipeline::Step::ExtractMainContent`] đã dùng để ghép
 ///   `chapter.source_text`, không phải một bản tính lại độc lập).
-/// - `image_index`: chỉ số của ảnh trong `blocks` — `blocks[image_index].body` phải là
-///   [`crate::core::webimport::BlockBody::Image`] (chỗ gọi đảm bảo; hàm này không tự kiểm lại
-///   vì nó đã đứng SAU một vòng lặp lọc đúng biến thể đó).
+/// - `image_index`: chỉ số của một khối trong `blocks`, dùng để CẮT LÁT `blocks[..image_index]`
+///   — hàm không đọc `blocks[image_index]` một lần nào, nên nó KHÔNG đòi khối đó phải là
+///   [`crate::core::webimport::BlockBody::Image`].
+///   🔵 **SỬA 2026-09-10 (Story 6.13) — mệnh đề cũ ở đây ("chỗ gọi đảm bảo Image") đã HẾT
+///   ĐÚNG, không đổi một dòng hành vi.** `core::segment::role::weave_chapter_segments` gọi
+///   hàm này với chỉ số của một khối `Caption` (đếm segment đứng trước/qua nó để suy chỉ số
+///   segment tương ứng, không phải để tính neo một ảnh) — tên tham số `image_index` giữ
+///   nguyên vì Story 6.11 là chỗ gọi ĐẦU TIÊN, nhưng câu mô tả phải nói đúng những gì hàm THẬT
+///   SỰ đòi hỏi ở tham số này.
 /// - `full_source_text`: `chapter.source_text` đã ghi xuống — mốc để TỰ KIỂM tiền tố.
 /// - `segments`: `chapter.segments` — đã tính sẵn ở bước 7 AD-39, dùng để ĐẾM, không tính lại.
 /// - `cleanup_rules`/`source_lang`: ĐÚNG tham số mà bước 3/4 AD-39 đã dùng cho CHÍNH Chương
@@ -108,6 +114,75 @@ pub fn compute_anchor(
     }
 
     segment_count_within_prefix(segments, full_source_text, prefix.len()).map(|count| count as i64)
+}
+
+/// Độ dài (byte) của tiền tố `full_source_text` sinh ra bởi các khối `blocks[..block_index]`
+/// ĐANG GIỮ — **Story 6.13**, cần cho đúng máy dựng tiền tố mà [`compute_anchor`] đã dùng, khi
+/// bên gọi cần TOẠ ĐỘ BYTE thay vì SỐ SEGMENT: ép ranh giới segment tại hai đầu một khối
+/// `Caption` (Quyết định 1, spec 6.13) đòi biết ĐÚNG nơi khối đó bắt đầu/kết thúc trong
+/// `source_text`, việc mà đếm segment không trả lời được.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT HÀM RIÊNG, KHÔNG REFACTOR [`compute_anchor`] ĐỂ DÙNG CHUNG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`compute_anchor`] đã qua ba vòng rà đối kháng với một bộ test dày (xem `#[cfg(test)]` cuối
+/// tệp) — tách một tham số MỚI (kiểu trả về) ra khỏi nó là rủi ro không cần thiết cho một thay
+/// đổi mà bản thân `compute_anchor` không cần. Ba bước ở đây (ghép + làm sạch + chuẩn hoá) và
+/// phép tự kiểm byte-for-byte là bản sao NGẮN, cùng nguồn dữ liệu ([`join_kept_blocks`],
+/// [`crate::core::cleanup::apply`], [`normalize::normalize`]) — khác nhau đúng MỘT chỗ: hàm
+/// này trả `prefix.len()` (toạ độ byte) thay vì đếm segment. Cùng bất biến, cùng cách trả lỗi
+/// phân biệt được — không làm tròn về `0` khi tiền tố tính được KHÔNG phải một tiền tố thật.
+///
+/// # Tham số
+/// Giống hệt [`compute_anchor`], trừ `block_index` thay cho `image_index` — hàm này KHÔNG đòi
+/// `blocks[block_index]` phải là một [`crate::core::webimport::BlockBody::Image`] (chỗ gọi
+/// của Story 6.13 truyền cả chỉ số một khối `Caption`, và `block_index == blocks.len()` để lấy
+/// tiền tố tính TRỌN mọi khối).
+///
+/// # Lỗi
+/// [`AnchorError`] khi `block_index` vượt độ dài `blocks`/`effective_kept`, hoặc khi tiền tố
+/// sau biến đổi KHÔNG phải một tiền tố byte-for-byte của `full_source_text` — cùng hai điều
+/// kiện mà [`compute_anchor`] đã canh.
+pub fn compute_block_prefix_len(
+    blocks: &[Block],
+    effective_kept: &[bool],
+    block_index: usize,
+    full_source_text: &str,
+    cleanup_rules: &[CleanupRule],
+    source_lang: &str,
+) -> Result<usize, AnchorError> {
+    if block_index > blocks.len() || block_index > effective_kept.len() {
+        return Err(AnchorError {
+            detail: format!(
+                "block_index ({block_index}) vuot qua do dai blocks ({}) hoac effective_kept \
+                 ({}) -- khong the cat lat, day la mot loi goi ham, khong phai mot dieu kien du \
+                 lieu nguoi dung",
+                blocks.len(),
+                effective_kept.len()
+            ),
+        });
+    }
+
+    let prefix_raw = join_kept_blocks(&blocks[..block_index], &effective_kept[..block_index]);
+    let cleaned = crate::core::cleanup::apply(&prefix_raw, cleanup_rules).map_err(|e| AnchorError {
+        detail: format!("cleanup tren tien to that bai: {e}"),
+    })?;
+    let normalized = normalize::normalize(&cleaned.text, source_lang);
+    let prefix = normalized.text;
+
+    if !full_source_text.starts_with(prefix.as_str()) {
+        return Err(AnchorError {
+            detail: format!(
+                "tien to sau chuan hoa ({} byte) khong phai tien to cua chapter.source_text \
+                 ({} byte) -- gia dinh phan tach-theo-tien-to (Design Notes spec 6.11) da lech \
+                 tren du lieu nay, dung lam tron ve 0",
+                prefix.len(),
+                full_source_text.len(),
+            ),
+        });
+    }
+
+    Ok(prefix.len())
 }
 
 /// Đếm bao nhiêu segment ĐẦU TIÊN (theo thứ tự `ord`) nằm TRỌN trong `full_text[..prefix_len]`.

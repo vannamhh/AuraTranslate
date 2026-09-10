@@ -574,7 +574,75 @@ pub fn create_work(
     // còn lại ở lại đây để lắp vào `OpenWork` SAU khi giao dịch commit. `domain_log` KHÔNG
     // còn là một trường ở đây (mục B1) — mỗi lời gọi `fetch` đã PUSH THẲNG vào
     // `domain_log_state` ngay khi hoàn tất, nên nó sống sót cả trên đường trượt phía trên.
-    let ImagePrepOutcome { saved: saved_assets, images_saved, images_failed } = image_prep;
+    let ImagePrepOutcome { saved: mut saved_assets, images_saved, images_failed } = image_prep;
+
+    // 🔴 **THÊM 2026-09-09 (Story 6.13)** — dệt segment vai (Quyết định 1/2 spec 6.13) NGAY Ở
+    // ĐÂY: `chapter.segments` đã ổn định (bước 7 AD-39, kể cả lượt ép ranh giới caption của
+    // `role::force_caption_segment_boundaries` chạy TRONG chuỗi), và `prepare_chapter_images`
+    // vừa xong (mọi neo TRƯỚC-KHI-DỆT đã tính). Đây là chỗ DUY NHẤT có cả `chapter.segments`
+    // lẫn `saved_assets` — dệt xong TRƯỚC `store.write` để dãy segment cuối cùng và neo ĐÃ DỜI
+    // đi vào CÙNG giao dịch, không một đường ghi thứ hai.
+    //
+    // 🔴 `docx_sidecar.is_some()` ⇒ KHÔNG dệt gì (Quyết định 3 spec 6.13: "Chỉ mô hình +
+    // đường web"). `.docx` gắn `blocks` vào Chương đầu (ở trên, "THÊM 2026-09-09 Story 6.12")
+    // nhưng đó là ảnh nhúng tài liệu, không phải bề mặt mà spec 6.13 mở — vế `.docx` là nợ có
+    // chủ (Ice), ghi ở `deferred-work.md`.
+    let weave_this_import = docx_sidecar.is_none();
+    let mut final_segments: Vec<Vec<crate::core::segment::role::WovenSegment>> =
+        Vec::with_capacity(chapters.len());
+    // `(chapter_index, block_index) -> neo ĐÃ DỜI`, chỉ với những Chương THẬT SỰ được dệt.
+    let mut shifted_anchors: std::collections::HashMap<(usize, usize), i64> =
+        std::collections::HashMap::new();
+    for (i, chapter) in chapters.iter().enumerate() {
+        match &chapter.blocks {
+            Some(blocks) if weave_this_import => {
+                // Cùng luật `Step::ExtractMainContent`/`prepare_chapter_images` — chỉ Chương
+                // ĐẦU TIÊN đọc `block_overrides` (§Never spec 6.9, kế thừa nguyên vẹn).
+                let overrides_for_unit: &[Option<bool>] =
+                    if i == 0 { &block_overrides_for_images } else { &[] };
+                let effective_kept = crate::core::segment::pipeline::effective_kept_for_blocks(
+                    blocks,
+                    overrides_for_unit,
+                );
+                let woven = crate::core::segment::role::weave_chapter_segments(
+                    blocks,
+                    &effective_kept,
+                    &chapter.segments,
+                    &chapter.source_text,
+                    &cleanup_rules_for_images,
+                    &source_lang_owned,
+                );
+                for (block_index, anchor) in woven.shifted_anchor_by_block {
+                    shifted_anchors.insert((i, block_index), anchor);
+                }
+                final_segments.push(woven.segments);
+            }
+            // Đường KHÔNG có `blocks` (`.txt`, dán tay) HOẶC đường `.docx` (có `blocks` nhưng
+            // Quyết định 3 loại nó khỏi lượt dệt) — mọi hàng `role = NULL`, KHÔNG một byte nào
+            // đổi so với trước story này (§Always spec 6.13).
+            _ => {
+                final_segments.push(
+                    chapter
+                        .segments
+                        .iter()
+                        .cloned()
+                        .map(crate::core::segment::role::WovenSegment::from)
+                        .collect(),
+                );
+            }
+        }
+    }
+    // Neo của MỌI `SavedAsset` vốn tính TRƯỚC KHI DỆT — cập nhật lại bằng neo ĐÃ DỜI trước khi
+    // ghi `INSERT INTO asset`. Chỉ ảnh thuộc một Chương THẬT SỰ được dệt (và tính neo thành
+    // công ở CẢ HAI lượt tính, `prepare_chapter_images` lẫn `weave_chapter_segments`) mới có
+    // mặt trong `shifted_anchors`; đường `.docx`/không `blocks` không đổi gì (neo giữ nguyên).
+    for saved in &mut saved_assets {
+        if let Some(&shifted) = shifted_anchors.get(&(saved.chapter_index, saved.block_index)) {
+            saved.anchor_after_segment_ord = shifted;
+        }
+    }
+    let final_segments = final_segments;
+    let saved_assets = saved_assets;
 
     // 🔴 Quyết định #3: job ghi CHỈ SQL — không `fs::write` nào bên trong closure này.
     let write_result = store.write(move |tx: &Transaction<'_>| {
@@ -616,7 +684,7 @@ pub fn create_work(
             // nó — `Store::write` giữ một writer duy nhất nối tiếp, nên không lượt chèn
             // nào khác chen được vào giữa hai dòng này.
             let chapter_id = tx.last_insert_rowid();
-            crate::commands::segment::insert_segments(tx, chapter_id, &chapter.segments)?;
+            crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
 
             // 🔴 **THÊM 2026-09-08 (Story 6.11, FR127)** — hàng `asset` của CHÍNH Chương này,
             // CÙNG giao dịch với `chapter`/`segment` (§Always spec 6.11: "ghi SQL đi qua
@@ -726,6 +794,13 @@ fn chapter_input_page_url(c: &ChapterInput) -> String {
 /// đó thay bằng `chapter_index` (chỉ số trong `chapters`, ổn định xuyên suốt `create_work`).
 struct SavedAsset {
     chapter_index: usize,
+    /// **THÊM 2026-09-09 (Story 6.13)** — chỉ số của khối `Image` trong `chapter.blocks` mà
+    /// hàng này sinh ra từ đó. `anchor_after_segment_ord` ngay dưới được tính TRƯỚC khi dệt
+    /// segment vai (Quyết định 2 spec 6.13) — sau khi dệt, `create_work` tra
+    /// `WovenChapter::shifted_anchor_by_block` bằng CẶP `(chapter_index, block_index)` để cập
+    /// nhật lại neo trước khi ghi `INSERT INTO asset`, đúng khuôn dời neo đã ghi ở
+    /// `schema.rs:958-975`.
+    block_index: usize,
     anchor_after_segment_ord: i64,
     file_name: String,
     /// ⚠️ **NỢ CÓ CHỦ, ghi ra tại chỗ (vòng rà đối kháng 2, mục D1) — đây là URL YÊU CẦU
@@ -839,6 +914,8 @@ fn prepare_chapter_images(
     /// Một ảnh GIỮ mà neo ĐÃ tính được — sẵn sàng đi vào hàng đợi tải/ghi.
     struct PendingImage {
         chapter_index: usize,
+        /// **THÊM 2026-09-09 (Story 6.13)** — xem doc-comment [`SavedAsset::block_index`].
+        block_index: usize,
         anchor_after_segment_ord: i64,
         source: PendingImageSource,
     }
@@ -938,7 +1015,7 @@ fn prepare_chapter_images(
                 continue;
             };
 
-            pending.push(PendingImage { chapter_index: i, anchor_after_segment_ord, source });
+            pending.push(PendingImage { chapter_index: i, block_index: block_idx, anchor_after_segment_ord, source });
         }
     }
 
@@ -992,6 +1069,7 @@ fn prepare_chapter_images(
         match cached {
             Some(c) => saved.push(SavedAsset {
                 chapter_index: p.chapter_index,
+                block_index: p.block_index,
                 anchor_after_segment_ord: p.anchor_after_segment_ord,
                 file_name: c.file_name,
                 source_url: match &p.source {
@@ -2407,11 +2485,15 @@ pub struct ImportEncodingPreview {
 /// 🔴 VÌ SAO `count_in_import` = TỔNG `per_rule_counts` QUA MỌI CHƯƠNG, KHÔNG MỘT LƯỢT
 /// `cleanup::apply` THỨ HAI
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `cleanup_boundary.rs::the_cleanup_apply_function_has_exactly_one_named_product_call_site`
-/// khoá `core::cleanup::apply` ở ĐÚNG MỘT chỗ gọi (`pipeline.rs::Step::CleanByRules`) — một
-/// bản nháp sớm của hàm này gọi `apply` LẦN THỨ HAI ở đây để tính lại số khớp riêng từng
-/// Chương, và cổng đó ĐỎ NGAY (đo 2026-09-06: `cargo test --test cleanup_boundary` báo 2 chỗ
-/// gọi, đòi đúng 1). Thay vào đó, `count_in_import` CHỈ CỘNG DỒN các `per_rule_counts` mà
+/// 🔵 **SỬA 2026-09-09 (Story 6.13) — tên cổng đổi, "một" đã hai lần hết đúng.** Cổng nay tên
+/// `cleanup_boundary.rs::the_cleanup_apply_function_has_exactly_three_named_product_call_sites`
+/// (Story 6.11 thêm `anchor::compute_anchor`, Story 6.13 thêm `anchor::compute_block_prefix_len`
+/// — cả hai đều là bản chạy lại CÙNG bước 3 trên một TIỀN TỐ, không phải một lượt tính lại cho
+/// CHÍNH đoạn văn ở đây). Lý lẽ nguyên văn dưới đây (2026-09-06) không đổi: nó vẫn khoá đúng
+/// `core::cleanup::apply` ở một TẬP ĐÃ ĐẶT TÊN — một bản nháp sớm của hàm này gọi `apply` LẦN
+/// THỨ HAI ở đây để tính lại số khớp riêng từng Chương, và cổng đó ĐỎ NGAY (đo 2026-09-06:
+/// `cargo test --test cleanup_boundary` báo 2 chỗ gọi, đòi đúng 1). Thay vào đó, `count_in_import`
+/// CHỈ CỘNG DỒN các `per_rule_counts` mà
 /// CHÍNH `Step::CleanByRules` đã tính — không tính lại gì. Với [`PipelineShape::Chapters`]
 /// (N đơn vị NGAY TỪ ĐẦU, `already_chaptered = true`), bước 3 lặp `apply` một lần cho MỖI
 /// đơn vị (một chỗ gọi nguồn, N lần chạy) nên `outcome.chapters[i].cleanup_report` là báo cáo
@@ -4606,6 +4688,7 @@ mod tests {
     fn well_formed_saved_asset() -> SavedAsset {
         SavedAsset {
             chapter_index: 0,
+            block_index: 0,
             anchor_after_segment_ord: 1,
             file_name: "abc123.jpg".to_owned(),
             source_url: Some("https://example.test/a.jpg".to_owned()),

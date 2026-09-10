@@ -713,7 +713,7 @@ pub fn run_import_with_order(
                 flow
             }
             Step::SplitSegments => {
-                let next = split_segments_step(flow, &source_lang);
+                let next = split_segments_step(flow, &source_lang, &cleanup_rules, &block_overrides);
                 trace.push(step);
                 next
             }
@@ -1160,14 +1160,37 @@ fn split_on_literal_bytes<'a>(data: &'a [u8], pattern: &[u8]) -> Vec<&'a [u8]> {
 /// tập hợp bảy bước, xem [`validate_order`]) đặt bước NÀY trước cả giải mã; `split_source_text`
 /// cần `&str`, và không có nghĩa để chạy nó trên byte thô. Vòng dựng [`PipelineOutput`] cuối
 /// cùng đọc `None` thành 0 segment — không panic.
-fn split_segments_step(mut flow: Flow, source_lang: &str) -> Flow {
-    for (unit, seg) in flow.units.iter().zip(flow.segments.iter_mut()) {
+///
+/// 🔴 **THÊM 2026-09-09 (Story 6.13, Quyết định 1)** — đơn vị có `blocks: Some(..)` (đường URL,
+/// `Step::ExtractMainContent` đã chạy) đi qua
+/// [`super::role::force_caption_segment_boundaries`] thay vì gọi thẳng [`split_source_text`]:
+/// ép ranh giới segment tại hai đầu mọi khối `Caption` có ảnh sở hữu, TRƯỚC khi
+/// `core::segment::anchor::compute_anchor` (chạy SAU, ở `commands::project::create_work`) tính
+/// neo trên chính dãy segment này — dời neo phải thấy đúng số segment ĐÃ ép, không phải số
+/// segment sẽ ép SAU. Đường KHÔNG có `blocks` (`.txt`, dán tay, `.docx`) đi ĐÚNG nhánh cũ, gọi
+/// thẳng [`split_source_text`] — không một byte nào đổi (§Always spec 6.13).
+fn split_segments_step(
+    mut flow: Flow,
+    source_lang: &str,
+    cleanup_rules: &[crate::core::cleanup::CleanupRule],
+    block_overrides: &[Option<bool>],
+) -> Flow {
+    for (index, (unit, seg)) in flow.units.iter().zip(flow.segments.iter_mut()).enumerate() {
         if seg.is_some() {
             continue;
         }
-        if let Unit::Decoded(text) = unit {
-            *seg = Some(split_source_text(text, source_lang));
-        }
+        let Unit::Decoded(text) = unit else { continue };
+        let computed = match flow.blocks.get(index).and_then(Option::as_ref) {
+            Some(blocks) => {
+                // Chỉ đơn vị ĐẦU TIÊN đọc `block_overrides` — cùng luật
+                // `Step::ExtractMainContent` (xem doc-comment `PipelineInput::block_overrides`).
+                let overrides_for_unit: &[Option<bool>] = if index == 0 { block_overrides } else { &[] };
+                let effective_kept = effective_kept_for_blocks(blocks, overrides_for_unit);
+                super::role::force_caption_segment_boundaries(text, blocks, &effective_kept, cleanup_rules, source_lang)
+            }
+            None => split_source_text(text, source_lang),
+        };
+        *seg = Some(computed);
     }
     flow
 }

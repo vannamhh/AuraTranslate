@@ -176,12 +176,15 @@ pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Norm
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 VÌ SAO TÁCH RIÊNG — Story 6.5
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `tests/segment_normalize_boundary.rs::the_normalize_functions_have_exactly_four_named_product_call_sites`
-/// đếm ĐÚNG BỐN chỗ gọi sản phẩm của [`normalize`]/[`normalize_window`] (một trong
-/// `pipeline.rs`, ba trong `encoding.rs`). `commands::project` cần cắt cửa sổ AN TOÀN cho
+/// 🔵 **SỬA 2026-09-09 (Story 6.13) — "bốn"/"thứ năm" đã hai lần hết đúng.** Cổng nay tên
+/// `tests/segment_normalize_boundary.rs::the_normalize_functions_have_exactly_six_named_product_call_sites`
+/// và đếm ĐÚNG SÁU chỗ gọi sản phẩm của [`normalize`]/[`normalize_window`] (một trong
+/// `pipeline.rs`, ba trong `encoding.rs`, hai trong `anchor.rs` — Story 6.11 +
+/// Story 6.13). `commands::project` cần cắt cửa sổ AN TOÀN cho
 /// một ứng viên/đường tự khai RỒI đưa qua chuỗi pipeline thật (`run_pipeline`, đóng nợ
 /// `deferred-work.md:9359`) thay vì tự gọi [`normalize`] một lần nữa — gọi thẳng
-/// [`normalize_window`] ở đó sẽ là chỗ gọi sản phẩm THỨ NĂM và làm cổng đó đỏ. Hàm này
+/// [`normalize_window`] ở đó sẽ là một chỗ gọi sản phẩm NGOÀI tập đã đặt tên và làm cổng đó
+/// đỏ. Hàm này
 /// mang tên KHÁC (không phải `normalize`/`normalize_window`), nên [`commands::project`] gọi
 /// được nó mà không chạm mệnh đề cổng đang canh — [`Step::NormalizeParagraphsAndWhitespace`]
 /// bên trong pipeline vẫn là nơi DUY NHẤT thật sự gọi [`normalize`] trên văn bản đã cắt.

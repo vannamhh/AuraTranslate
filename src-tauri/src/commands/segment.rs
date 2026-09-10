@@ -42,7 +42,8 @@ use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::segment::paragraph::{ParagraphFlags, at_end_of_chapter};
 use crate::core::segment::regroup::{NewSegment, SegmentPart, merge, split_at};
-use crate::core::segment::split::{SplitSegment, split_source_text};
+use crate::core::segment::role::WovenSegment;
+use crate::core::segment::split::split_source_text;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Transaction};
 
 /// Kết quả một lượt tách tường minh — thứ đi ra qua dây.
@@ -99,7 +100,7 @@ pub struct SplitOutcome {
 pub(crate) fn insert_segments(
     tx: &Transaction<'_>,
     chapter_id: i64,
-    segments: &[SplitSegment],
+    segments: &[WovenSegment],
 ) -> SqlResult<()> {
     // 🔴 `is_target_paragraph_end` SET TƯỜNG MINH, không để `DEFAULT 0` cấp — Story 2.5d, AC2.
     //
@@ -129,15 +130,25 @@ pub(crate) fn insert_segments(
     // từ văn bản nguồn **chưa có bản dịch**, nên nó chưa có xuất xứ nào để khai. Cho nó
     // `TRANSLATION_ORIGIN_SELF` là ký thay người dùng đúng lớp lỗi mà `DEFAULT 'draft'` của
     // bước 7 đã ghi bằng chữ.
+    //
+    // 🔴 `role` SET TƯỜNG MINH, không để `DEFAULT` của `ALTER TABLE` cấp — Story 6.13, §Always.
+    // Bước di trú 21 (`SEGMENT_ROLE_DDL`) không có `DEFAULT` (cột `NULL`-able), nên bỏ `?7` ở
+    // đây vẫn cho SQLite chèn `NULL` một cách IM LẶNG — không một ca đọc thô 14 cột nào đỏ, vì
+    // `NULL` trùng đúng giá trị mà đa số hàng (segment văn xuôi) cần. Cái giá của việc BỎ SÓT
+    // chỉ lộ ra ở ĐÚNG những hàng vai — cùng lớp lỗi mà cột `translation_origin` (`?6`) đã ghi
+    // bằng chữ ở khối ngay trên, nhưng ở đây KHÔNG có sự trùng hợp "giá trị đúng = DEFAULT" để
+    // mà che giấu nó một phần: một `alt`/`caption` bỏ `?7` sẽ luôn ghi `role = NULL`, tức chưa
+    // bao giờ mang được vai của nó xuống đĩa.
     let mut stmt = tx.prepare_cached(
         "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-         is_target_paragraph_end, translation_origin, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         is_target_paragraph_end, translation_origin, role, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
          strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
     )?;
     for (index, segment) in segments.iter().enumerate() {
         let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
         let paragraph_end = i64::from(segment.is_paragraph_end);
+        let role: Option<&str> = segment.role.map(crate::core::segment::role::SegmentRole::as_str);
         stmt.execute((
             chapter_id,
             ord,
@@ -145,6 +156,7 @@ pub(crate) fn insert_segments(
             paragraph_end,
             paragraph_end,
             TRANSLATION_ORIGIN_NONE,
+            role,
         ))?;
     }
     Ok(())
@@ -208,6 +220,12 @@ pub(crate) fn insert_segments(
 ///   ⚠️ Cột thứ **BA** liên tiếp đi vào đây cùng lượt với bước di trú sinh ra nó, đúng vì vụ
 ///   `status` ở trên. Lưới riêng:
 ///   `segment_contract.rs::the_load_command_carries_the_target_paragraph_end_column_over_the_wire`.
+///
+/// - `role` — vai của segment (`alt` | `caption` | `null`), Story 6.13, AD-42. Bước di trú
+///   21. `null` cho tuyệt đại đa số segment (văn xuôi thường) — KHÔNG dịch thành `false`/chuỗi
+///   rỗng: đây là "không có vai", khác nghĩa hẳn một vai chưa xác định. Bản chép tay TypeScript
+///   (`src/config/segment.ts`) chở trường này CÙNG một lượt — không codegen nào giữ đồng bộ
+///   hộ hai tệp.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChapterSegment {
     pub id: i64,
@@ -219,6 +237,7 @@ pub struct ChapterSegment {
     pub status: String,
     pub is_omitted: bool,
     pub is_target_paragraph_end: bool,
+    pub role: Option<String>,
 }
 
 /// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
@@ -331,7 +350,14 @@ pub fn split_chapter_into_segments(
     // 🔴 Phep tach chay **NGOAI** closure ghi — Quyet dinh #3 cua Story 1.15, va AD-11:
     // mot writer duy nhat noi tiep, nen thoi gian CPU trong closure chan MOI luot ghi khac
     // cua tien trinh. Closure ghi chi mang SQL.
-    let segments = split_source_text(&source_text, &open.meta.source_lang);
+    //
+    // 🔴 **Story 6.13** — Chương ĐI QUA LỆNH NÀY không bao giờ có `blocks`/ảnh (nó chỉ tồn tại
+    // cho Chương CŨ, tách trước khi bảng `segment` ra đời — xem doc-comment đầu module): mọi
+    // hàng vì thế mang `role = NULL`, đúng `WovenSegment::from` (không dệt gì).
+    let segments: Vec<WovenSegment> = split_source_text(&source_text, &open.meta.source_lang)
+        .into_iter()
+        .map(WovenSegment::from)
+        .collect();
     let segment_count = segments.len();
 
     open.store
@@ -780,7 +806,7 @@ pub fn restore_segment_version(
 fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = conn.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end \
+         is_omitted, is_target_paragraph_end, role \
          FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
     )?;
     let rows = stmt.query_map([chapter_id], |row| {
@@ -801,6 +827,7 @@ fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<V
             status: row.get(6)?,
             is_omitted: omitted != 0,
             is_target_paragraph_end: target_para_end != 0,
+            role: row.get(9)?,
         })
     })?;
     rows.collect::<SqlResult<Vec<ChapterSegment>>>()
@@ -2864,7 +2891,7 @@ fn write_regroup(
 fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = tx.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end FROM segment WHERE id = ?1",
+         is_omitted, is_target_paragraph_end, role FROM segment WHERE id = ?1",
     )?;
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
@@ -2882,6 +2909,11 @@ fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSe
                 status: row.get(6)?,
                 is_omitted: omitted != 0,
                 is_target_paragraph_end: target_para_end != 0,
+                // 🔴 Story 6.13, AC "Gộp/tách một segment vai" — hàng MỚI của một lượt gộp/
+                // tách (`write_regroup`'s `INSERT INTO segment` không đặt cột `role`) luôn
+                // đọc lại `NULL` ở đây: vai KHÔNG nhân bản, AD-5 về hưu + tạo mới đúng nghĩa
+                // "một câu mới không thừa kế vai của câu cũ".
+                role: row.get(9)?,
             })
         })?);
     }

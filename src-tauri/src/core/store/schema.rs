@@ -1111,6 +1111,11 @@ CREATE TABLE chapter (
 /// bảng `segment_version`, và **không** bằng một lượt sửa hằng này *(cùng lý do bước 6 đã
 /// ghi ngay trên)*. ⇒ Danh sách *"ba cột cố ý không có"* nay đọc là **một**: `role`
 /// (`alt` | `caption`, AD-42) → **Story 6.13**.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13):** `role` **đã có** — nó tới bằng bước di trú
+/// **21** ([`SEGMENT_ROLE_DDL`]), **không** bằng một lượt sửa hằng này *(cùng lý do đã ghi
+/// hai lần ngay trên)*. ⇒ Danh sách *"cột cố ý không có"* của hằng này nay đọc là **rỗng** —
+/// mọi cột `SEGMENT_DDL` từng giữ chỗ đều đã tới bằng đúng bước di trú của nó.
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 INDEX ĐẦU TIÊN CỦA TOÀN KHO — Ice ký 2026-08-12, code review
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -1545,23 +1550,58 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười chín** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5 · 6.11.
+/// Thêm cột `segment.role` — **bước 21 MỚI** của [`PROJECT_MIGRATIONS`], Story 6.13, AD-42.
 ///
-/// 🔴 **Mười chín bước, và đích là phiên bản 20.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔵 **ĐÓNG (2026-09-09, Story 6.13)** cái ô đã giữ chỗ ở doc-comment [`SEGMENT_DDL`]
+/// (`:1099-1113`) từ Story 2.2/2.5: *"role (`alt` | `caption`, AD-42) → Story 6.13"*. AD-42 nói
+/// caption/alt-text là `Segment` mang trường **vai** — không một cột text riêng trên `asset`
+/// (đó chính là điều AD-42 tồn tại để chặn, §Never spec 6.13).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `NULL`-ABLE, KHÔNG `DEFAULT`, KHÔNG `CHECK`, KHÔNG `CREATE INDEX`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - **`NULL`-able**: SQLite chỉ đòi một `DEFAULT` không-`NULL` khi cột mới là `NOT NULL`.
+///   `role` NULL-able là đúng NGỮ NGHĨA — segment văn xuôi (đại đa số) không có vai, và
+///   `NULL` ("chưa/không có vai") khác hẳn một chuỗi rỗng (không phải "vai rỗng"). Không cần
+///   `DEFAULT` để chạy được trên bảng đã có dữ liệu.
+/// - **Không `CHECK`**: tiền lệ của chính bảng này — `status`, `is_omitted`,
+///   `is_target_paragraph_end`, `translation_origin` đều cưỡng chế giá trị hợp lệ ở TẦNG
+///   RUST, không trong DDL (`schema.rs:1516-1517`). `role` đi cùng khuôn: kiểu Rust đóng
+///   [`crate::core::segment::role::SegmentRole`] là nơi DUY NHẤT đúc ra chuỗi `'alt'`/`'caption'`.
+/// - **Không `CREATE INDEX`**: chưa đường đọc nào lọc theo cột này — hiển thị vạch lề theo vai
+///   là Story 6.14, chưa tồn tại.
+///
+/// ⚠️ **KHÔNG backfill** — không như bước 9/11 (cờ đích, xuất xứ) vốn suy được một giá trị THẬT
+/// từ dữ liệu đã có, không có phép suy nào cho `role` trên các hàng CŨ: một segment văn xuôi đã
+/// tồn tại trước story này không mang thông tin gì về việc nó từng đứng cạnh một `alt`/`caption`
+/// hay không (mô hình khối `Extractor` không được lưu lại, chỉ `source_text` phẳng ở lại đĩa —
+/// AD-4). Mọi hàng cũ giữ nguyên `role = NULL`, đúng nghĩa "chưa biết/không có vai", và đó là
+/// giá trị ĐÚNG cho chúng (chúng thực sự không có vai).
+pub const SEGMENT_ROLE_DDL: &str = "ALTER TABLE segment ADD COLUMN role TEXT;";
+
+/// Bộ di trú của `project.db`. Hôm nay **hai mươi** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5 · 6.11 · 6.13.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13) — sửa TẠI CHỖ, không chỉ nối chuỗi 🔵 phía dưới:**
+/// câu tiêu đề đổi từ *"mười chín bước..."* thành *"hai mươi bước"* ngay trên, và câu
+/// *"Mười chín bước, đích 20"* ngay dưới đổi thành *"Hai mươi bước, đích 21"* — đúng luật đã
+/// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
+/// chính đoạn đó gọi tên.
+///
+/// 🔴 **Hai mươi bước, và đích là phiên bản 21.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]` tăng dần nghiêm
-/// ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị
-/// bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]` tăng dần
+/// nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước
+/// nào bị bỏ qua.
 ///
 /// ⚠️ **VẾT SẸO LỊCH SỬ, ĐÓNG BĂNG TẠI 2026-08-11 — không phải một khẳng định về số bước
-/// HÔM NAY** (đọc lại 2026-09-09, vòng rà đối kháng 2, mục D8: câu này giờ đứng cạnh "mười
-/// chín bước", nên "bảy/sáu" càng dễ bị đọc nhầm là con số hiện hành — nó KHÔNG PHẢI). Lúc
+/// HÔM NAY** (đọc lại 2026-09-09, vòng rà đối kháng 2, mục D8: câu này giờ đứng cạnh "hai
+/// mươi bước", nên "bảy/sáu" càng dễ bị đọc nhầm là con số hiện hành — nó KHÔNG PHẢI). Lúc
 /// đó con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
 /// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11. Số bước THẬT
-/// hôm nay là **mười chín**, câu ngay phía trên đoạn này.
+/// hôm nay là **hai mươi**, câu ngay phía trên đoạn này.
 ///
 /// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5):** đích chuyển từ **6** lên **7** — bước
 /// [`SEGMENT_STATUS_AND_VERSION_DDL`]. Câu *"năm bước, đích là 6"* đã hết đúng, sửa tại chỗ
@@ -1649,6 +1689,11 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// [`ASSET_DDL`] (ảnh tải về `.atproj`, FR127). Câu *"mười tám bước, đích là 19"* đã hết
 /// đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: ảnh chỉ thuộc về
 /// một Tác phẩm cụ thể, cùng lý do `chapter_position`/`reading_mark`.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13):** đích chuyển từ **20** lên **21** — bước
+/// [`SEGMENT_ROLE_DDL`] (cột `segment.role`, AD-42). Câu *"mười chín bước, đích là 20"* đã
+/// hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: `role` chỉ có
+/// ý nghĩa cho segment của một Tác phẩm cụ thể.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1827,6 +1872,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 20,
         sql: ASSET_DDL,
+    },
+    // Story 6.13 -- cot segment.role (AD-42): 'alt' | 'caption' | NULL. Xem doc-comment cua
+    // SEGMENT_ROLE_DDL.
+    // 21, khong phai 5 -- 5..20 da tieu.
+    Migration {
+        to_version: 21,
+        sql: SEGMENT_ROLE_DDL,
     },
 ];
 

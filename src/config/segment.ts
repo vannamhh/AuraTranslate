@@ -117,6 +117,20 @@ export type ChapterSegment = {
    * Hai khái niệm khác nhau, và AD-46 giữ chúng tách rời có chủ ý.
    */
   is_target_paragraph_end: boolean
+  /**
+   * Vai của segment — `'alt'` | `'caption'` | `null` (Story 6.13, AD-42, bước di trú 21).
+   * `null` là giá trị của tuyệt đại đa số segment (văn xuôi thường) — KHÔNG phải "chưa xác
+   * định", mà là "không có vai".
+   *
+   * ⚠️ Kiểu ở đây là `string | null`, KHÔNG một union hai nhánh — cùng lý do [`status`] ở
+   * trên: dữ liệu này đi qua dây, là một LỜI KHAI về thứ Rust vừa gửi, không một bảo đảm của
+   * trình biên dịch. Cưỡng chế giá trị hợp lệ là việc của tầng Rust
+   * (`core::segment::role::SegmentRole`), không của chỗ này.
+   *
+   * 🔴 Hiển thị theo vai (vạch lề, hộp thoại riêng cho `alt`/`caption`) là **Story 6.14** —
+   * trường này CHỞ ĐƯỢC từ story này, nhưng chưa nơi nào ở webview ĐỌC nó.
+   */
+  role: string | null
 }
 
 /**

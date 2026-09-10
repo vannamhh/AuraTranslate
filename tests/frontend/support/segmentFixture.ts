@@ -55,6 +55,10 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // 🔵 2026-08-16 (Story 2.5d) — cột `is_target_paragraph_end` ra đời cùng bước di trú 9.
     // Câu này giữ cờ đích **BẰNG** cờ nguồn (`false`), đúng AC2 lúc nhập.
     is_target_paragraph_end: false,
+    // 🔵 2026-09-09 (Story 6.13) — cột `role` ra đời cùng bước di trú 21. Cả ba câu ở
+    // `role: null` — đúng vai trò segment VĂN XUÔI, hiển thị theo vai là Story 6.14, chưa
+    // dựng ở webview.
+    role: null,
   },
   {
     id: 12,
@@ -70,6 +74,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // gương cờ nguồn"* với *"cờ đích luôn tắt"*. Giữ nó bằng `true` — một fixture mà mọi hàng
     // đều `false` sẽ xanh với cả một `DEFAULT 0` không bao giờ được backfill.
     is_target_paragraph_end: true,
+    role: null,
   },
   {
     id: 13,
@@ -83,6 +88,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     is_omitted: false,
     // Câu CUỐI Chương ⇒ cờ tắt, luôn luôn (AD-37, ca biên có mã thi hành) — ở cả hai cột.
     is_target_paragraph_end: false,
+    role: null,
   },
 ]
 

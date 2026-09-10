@@ -63,6 +63,13 @@
 //! [`anchor`] — neo vị trí của một ảnh GIỮ trong Chương (Story 6.11, FR127): chạy lại bước 3/4
 //! của AD-39 trên TIỀN TỐ đứng trước ảnh rồi đếm segment lọt vào đó. Module THUẦN, tự KIỂM
 //! (trả lỗi phân biệt được, không làm tròn về `0`) — xem doc-comment đầu tệp cho cơ chế.
+//!
+//! [`role`] — trường **vai** của segment (Story 6.13, FR129, AD-42): ép ranh giới segment tại
+//! hai đầu một khối `Caption` có ảnh sở hữu ([`role::force_caption_segment_boundaries`], chạy
+//! ở bước 7 AD-39, TRƯỚC khi neo được tính), rồi dệt segment `alt` mới + gắn `role: Caption`
+//! vào dãy segment văn xuôi SAU khi neo đã tính ([`role::weave_chapter_segments`], chạy ở
+//! `commands::project::create_work`). `role` KHÔNG thuộc [`split::SplitSegment`] — nó là dữ
+//! kiện của TẦNG NHẬP (biết khối nào là ảnh/caption), không của bộ tách cấp câu.
 
 pub mod anchor;
 pub mod chapterpattern;
@@ -75,4 +82,5 @@ pub mod pipeline;
 pub mod reading;
 pub mod regroup;
 pub mod review;
+pub mod role;
 pub mod split;

@@ -10187,6 +10187,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   sinh `Segment` vai `alt`/`caption` — đó là Story 6.13, AD-42") — `alt` không được lưu hay
   hiển thị ở đâu cả, và `Caption` chỉ chảy vào `source_text` như một đoạn văn thường (không
   đường nào biết nó là chú thích ảnh). **Chủ phần còn hở: Story 6.13.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-09 (Story 6.13).** Cột `segment.role` (bước di trú 21) ra đời:
+  `core::segment::role::weave_chapter_segments` sinh một segment `role='alt'` cho MỌI ảnh GIỮ
+  có `alt` khác rỗng (độc lập với việc tải ảnh có thành công hay không), và
+  `force_caption_segment_boundaries` ép mọi khối `Caption` GIỮ có ảnh sở hữu thành ĐÚNG một
+  segment mang `role='caption'` — cả hai đi qua `insert_segments`/`confirm_segment` như mọi
+  segment khác. Cổng: `tests/segment_role_contract.rs`. Vẫn còn hở, ghi nợ MỚI (không phải
+  mục này còn dở): xem `Deferred from: 6-13-...` cuối tệp cho năm mục ①②③④⑤ (đường `.docx`,
+  số ảnh GIỮ có `alt` trên trang thật chưa đo, nhãn hiển thị theo vai, vai mất khi gộp/tách
+  câu, nghiệm thu TM).
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà bước 3 (2026-09-07)
 
@@ -10400,6 +10409,11 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (khuôn `html_page_with_paragraphs`), không phải trang thật thứ tám trở đi. **Chủ phần còn
   hở: Story 6.13 (Caption) / bất kỳ story nào đo `infer_image_kept_state` trên một mẫu bàn đo
   MỚI (chưa ai nhận).**
+  → 🟡 **Story 6.13 ĐÃ ĐÓNG đúng vế Caption** (`core::segment::role::force_caption_segment_boundaries`
+  + `weave_chapter_segments`, cột `segment.role`, cổng `tests/segment_role_contract.rs`) —
+  `BlockBody::Caption` nay có chỗ gọi SẢN PHẨM RIÊNG, tách khỏi văn xuôi thường. **Vế
+  `infer_image_kept_state` trên dữ liệu thật ngoài bảy mẫu bàn đo 6.1 VẪN MỞ, chưa ai nhận**
+  — không thuộc phạm vi Story 6.13 (đo lại một heuristic đã có, không phải dựng vai mới).
 
 - ⚠️ **`Tier2BlockOverridesState` dùng CHUNG một vector override cho cả năm ứng viên bảng mã,
   áp theo INDEX khối — không tách theo ứng viên.** Quyết định #2 §Spec Change Log spec 6.9:
@@ -10928,6 +10942,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `/private/tmp` — **19 xanh**. Cây Story 6.12 trong repo — 12 đỏ, 12 đỏ, rồi **19 xanh** ba
   lượt liên tiếp không đổi mã. ⇒ Mã KHÔNG phải biến số; hai lượt đỏ giống hệt nhau KHÔNG đủ
   để kết luận tất định.
+  ĐO BỔ SUNG 2026-09-09 (Story 6.13, vòng nghiệm thu phiên chính) — một cơ chế THỨ HAI,
+  TẤT ĐỊNH, nằm dưới cùng triệu chứng, và nó KHÔNG phải tranh chấp scheduler: **lượt kết nối
+  loopback ĐẦU TIÊN của MỖI tiến trình test trong thư mục dự án này bị nuốt** — treo ~5–8 giây
+  rồi trượt — còn mọi lượt sau đó xong trong vài mili-giây. Bằng chứng: chèn một lượt
+  `webimport::fetch` KHỞI ĐỘNG trước `create_work` trong ca hai-ảnh của `segment_role_contract`
+  ⇒ lượt khởi động `ok=false, 7.655 ms`, rồi `images_saved=2, images_failed=0` với hai mục nhật
+  ký domain cách nhau **3 ms** (không chèn: `Other` rồi `Fetched`, cách nhau **5.102 ms**).
+  Cùng cơ chế giải thích vì sao `--test-threads=1` KHÔNG còn cho 19/19 như đo trước: nó cho
+  **18/19**, và ca đỏ luôn là ca chạy TRƯỚC theo thứ tự chữ cái, không phải một ca "yếu" —
+  chạy `a_disk_write_failure` cùng `a_kept_image_gets_a_real_file` thì ca ĐẦU đỏ, ca sau xanh.
+  ⇒ Hai cơ chế cùng tồn tại (tranh chấp scheduler dưới đa luồng; nuốt-kết-nối-đầu dưới mọi chế
+  độ), và cả hai đều gắn với MÔI TRƯỜNG: cùng mã Story 6.13 chạy trong một worktree `/tmp` cho
+  `asset_contract` **19/19** và `segment_role_contract` **11/11** xanh trong 1–2 giây.
   chủ: Ice — quyết định có cần thêm `--test-threads=1` cho riêng `asset_contract.rs` (ví dụ
   qua `#[test]` + một cơ chế khoá tuần tự nội bộ, hoặc tách các ca dựng TCP thật sang một
   target `#[ignore]` chạy tay như `webimport_probe.rs`/`docx_probe.rs`) hay chấp nhận rủi ro
@@ -10959,3 +10986,83 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   liệu) là một thay đổi cấu trúc ngoài phạm vi một lượt vá nhỏ; hoặc chấp nhận giới hạn này
   (ảnh sau ranh giới phân tách luôn trượt có thể phân biệt được, không bao giờ sai Chương)
   như một hành vi ĐỦ AN TOÀN cho tới khi có nhu cầu thật.
+
+## Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)
+
+- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
+  summary: ① `.docx` không sinh segment `alt`/`caption` — story này chỉ dệt vai trên đường
+  WEB (`chapter.blocks` đến từ `Step::ExtractMainContent`, tức HTML). Ảnh nhúng `.docx`
+  (Story 6.12) vẫn tải về `.atproj` bình thường (một hàng `asset`, neo đúng), nhưng `alt`
+  của nó — nếu Word có khai (`wp:docPr@descr`/`@title` trong OOXML) — không được đọc, và
+  chú thích ảnh theo quy ước Word (thường một đoạn `Caption` style ngay dưới ảnh, không một
+  thẻ ngữ nghĩa riêng như `<figcaption>`) không được nhận diện.
+  evidence: "`commands::project::create_work` gate lượt dệt bằng `docx_sidecar.is_none()`
+  (`weave_this_import`) — CHỦ Ý: `DocxSidecar::blocks` không đi qua `Step::ExtractMainContent`
+  (đó là bóc HTML qua `dom_smoothie`, `.docx` không phải HTML — xem doc-comment
+  `DocxSidecar`), nên `role::force_caption_segment_boundaries`/`weave_chapter_segments` không
+  bao giờ chạy cho Chương `.docx`. `core::docx::mod.rs` không đọc thuộc tính `descr`/`title`
+  của `wp:docPr`, và Word không có một thẻ tương đương `<figcaption>` — quy ước caption của
+  Word (kiểu đoạn `Caption`, hay văn bản ngay sau ảnh) chưa ai chốt."
+  chủ: Ice — quy ước caption của Word (dựa `w:pStyle` tên `Caption`, hay vị trí đoạn ngay sau
+  ảnh?) là một quyết định sản phẩm, không phải một lượt đọc-thêm-thuộc-tính đơn giản; đọc
+  `wp:docPr@descr`/`@title` cho `alt` khả thi hơn nhưng vẫn cần Ice chốt phạm vi trước khi
+  cài — spec 6.13 khoanh vùng rõ "chỉ mô hình + đường web" cho đúng lý do này.
+
+- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
+  summary: ② số ảnh GIỮ có `alt` khác rỗng trên trang thật CHƯA ĐO ĐƯỢC — rủi ro "một `alt`
+  rác thành một hàng phải dịch và đếm vào `chapter.segment_count`" (Quyết định 2, Ice nhận
+  trước khi ký) là một SUY ĐOÁN, không phải một phép đo, vì bàn đo 6.1 (2026-09-09) không ghi
+  cột đó.
+  evidence: "Bảy mẫu bàn đo 6.1 (`6-1-ban-do/REPORT.md`) chỉ ghi số khối `figcaption` dài hơn
+  một câu (2/7) — không cột nào đếm số `<img alt=\"...\">` khác rỗng trên bảy trang đó, và
+  không ai đo lại trên một tập mẫu khác trước khi story này ký. `weave_chapter_segments`
+  (`core/segment/role.rs`) sinh một segment `alt` cho MỌI ảnh giữ có `alt` khác rỗng đúng
+  chữ AD-42/Quyết định 2 — hành vi ĐÃ ĐÚNG theo đặc tả, nhưng quy mô THẬT của rủi ro (bao
+  nhiêu phần trăm `alt` trên các trang truyện/bài viết thật là rác kiểu `alt=\"image1\"` so
+  với mô tả có nghĩa) chưa ai đếm."
+  chủ: Ice — cần một phép đo mới trên một tập mẫu trang thật (không phải bảy mẫu 6.1, vốn
+  không ghi cột này) trước khi cân nhắc một luật lọc `alt` rác (ví dụ độ dài tối thiểu, hay
+  loại các mẫu số thuần) — một luật lọc dựng SỚM mà không có số đo đứng sau là đúng lớp lỗi
+  AGENTS.md cấm ("đo trước khi chốt kiến trúc").
+
+- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
+  summary: ③ hàng `role='alt'`/`role='caption'` hiện KHÔNG NHÃN trong lưới (Editor) — sau
+  story này, một Chương nhập từ web có ảnh mang `alt`/caption sẽ có thêm hàng trong
+  `GridPanel.vue` mà không cách nào phân biệt với một câu văn xuôi bình thường.
+  evidence: "`src/config/segment.ts::ChapterSegment.role` chở được giá trị (`'alt'` |
+  `'caption'` | `null`) qua dây, nhưng `src/panels/GridPanel.vue`/`editorSegments.ts`
+  KHÔNG đọc trường này ở đâu cả — năm cột render hiện tại (`GridPanel.vue:1568-1730`, dẫn ở
+  Code Map spec 6.13) không có nhánh nào rẽ theo `role`. Một người dùng mở lưới sau story
+  này thấy thêm hàng lạ giữa văn xuôi, không có gợi ý nào nói \"đây là mô tả ảnh\"/\"đây là chú
+  thích ảnh\" — hệ quả đã biết trước, ghi ở §Boundaries Always mục 4 của spec 6.13."
+  chủ: Story 6.14 — epics.md:5151 giao đúng bề mặt hiển thị ảnh (kể cả nhãn cho hàng vai)
+  cho story này; không mở nó ở đây (§Never spec 6.13: "Không đụng bề mặt HIỂN THỊ ảnh").
+
+- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
+  summary: ④ vai bị MẤT khi người dùng gộp/tách câu chạm vào một segment vai — `write_regroup`
+  (Story 2.8) không đọc/không mang `role` sang hàng mới, đúng AD-5 ("về hưu + tạo mới", không
+  nhân bản), nhưng chưa có bề mặt nào CẢNH BÁO người dùng trước khi họ gộp một câu `alt`/
+  `caption` với câu văn xuôi bên cạnh và mất dấu vết vai của nó vĩnh viễn.
+  evidence: "`commands::segment::write_regroup`'s `INSERT INTO segment` (`:2822` trước Story
+  6.13) không nhắc cột `role` — hàng mới luôn `role = NULL` theo đúng AC \"Gộp/tách một
+  segment vai\" của spec 6.13 (khoá bởi
+  `segment_contract.rs::a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default`,
+  cập nhật Story 6.13). Đây là hành vi DỰ ĐỊNH của AD-5, không một lỗi — nhưng UI gộp/tách
+  (Story 2.8) không biết gì về `role`, nên người dùng không được cảnh báo \"câu này đang mang
+  vai X, gộp sẽ xoá vai\" trước khi bấm."
+  chủ: Story 6.14 — cùng story sở hữu HIỂN THỊ vai (mục ③ ngay trên) là nơi hợp lý nhất để
+  quyết định có cần một cảnh báo gộp/tách riêng cho segment vai hay không, vì nó cần biết
+  TRƯỚC ĐÓ hàng nào đang mang vai để mà cảnh báo.
+
+- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
+  summary: ⑤ nghiệm thu vế Translation Memory/Glossary cho segment vai CHƯA làm ở story này
+  — AD-42 nói lý do TỒN TẠI của cả story là để `alt`/`caption` "tự động vào TM/Glossary sau
+  này", nhưng `core/tm/mod.rs` hôm nay là ba dòng doc-comment, 0 hàm.
+  evidence: "`core/tm/mod.rs` không có một hàm nào đọc `segment.role` hay bất kỳ cột nào của
+  `segment` — TM chưa tồn tại để mà tiêu thụ vai. Story 6.13 chỉ đảm bảo segment vai đi qua
+  ĐÚNG luồng `confirm_segment`/`segment_version` như mọi segment khác (khoá bởi
+  `segment_role_contract.rs::confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment`)
+  — điều kiện CẦN để Epic 7 gắn TM theo `role` sau này, nhưng không phải điều kiện ĐỦ: chưa
+  ai viết logic \"segment `role='alt'` vào bảng TM nào, dưới khoá gì\"."
+  chủ: Story 7.1 — `epics.md:5404` giao đúng vế nghiệm thu TM cho story đó; Story 6.13 chỉ
+  dựng nền (cột `role`, luồng xác nhận dùng chung) mà Story 7.1 sẽ đọc.

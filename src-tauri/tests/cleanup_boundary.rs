@@ -316,10 +316,20 @@ fn the_forbidden_token_check_would_actually_flag_a_seeded_violation_and_ignore_c
 // tên, có lý do, có phép đo — khác hẳn "một chỗ gọi thứ hai không ai ký" mà mệnh đề gốc lo
 // ngại. Cổng vẫn giữ nguyên TINH THẦN: khoá đúng vào MỘT TẬP ĐÃ ĐẶT TÊN, để một chỗ gọi THỨ
 // BA xuất hiện lặng lẽ (không phải hai chỗ này) vẫn làm ca dưới đây đỏ.
+//
+// 🔵 **SỬA 2026-09-09 (Story 6.13) — "hai" đã HẾT ĐÚNG, "ba" thì đúng và CÓ TÊN cả ba.**
+// `core::segment::anchor::compute_block_prefix_len` (Story 6.13, AD-42) là bản sao NGẮN,
+// CỐ Ý, của đúng ba bước (ghép + làm sạch + chuẩn hoá) mà `compute_anchor` đã dùng — khác
+// nhau đúng MỘT chỗ: nó trả `prefix.len()` (toạ độ byte, cần cho việc ép ranh giới segment
+// tại hai đầu một khối `Caption`) thay vì đếm segment (doc-comment hàm đó giải thích đầy đủ
+// vì sao KHÔNG refactor `compute_anchor` để dùng chung: nó đã qua ba vòng rà đối kháng với
+// một bộ test dày, tách một tham số MỚI ra khỏi nó là rủi ro không cần thiết). Cùng FILE đã
+// có tên (`core/segment/anchor.rs`) — `KNOWN_CLEANUP_APPLY_CALL_SITES` KHÔNG đổi, chỉ con số
+// TỔNG SỐ chỗ gọi đổi từ hai lên ba.
 const KNOWN_CLEANUP_APPLY_CALL_SITES: [&str; 2] = ["core/segment/pipeline.rs", "core/segment/anchor.rs"];
 
 #[test]
-fn the_cleanup_apply_function_has_exactly_two_named_product_call_sites() {
+fn the_cleanup_apply_function_has_exactly_three_named_product_call_sites() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -345,10 +355,11 @@ fn the_cleanup_apply_function_has_exactly_two_named_product_call_sites() {
 
     assert_eq!(
         sites.len(),
-        2,
-        "kỳ vọng ĐÚNG HAI chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs`, \
-         cộng `anchor::compute_anchor` chạy lại bước đó trên tiền tố — Story 6.11), \
-         tìm thấy {}:\n{}",
+        3,
+        "kỳ vọng ĐÚNG BA chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs`, \
+         cộng `anchor::compute_anchor` chạy lại bước đó trên tiền tố — Story 6.11, cộng \
+         `anchor::compute_block_prefix_len` chạy lại CÙNG bước đó cho một khối bất kỳ — \
+         Story 6.13), tìm thấy {}:\n{}",
         sites.len(),
         sites.join("\n")
     );

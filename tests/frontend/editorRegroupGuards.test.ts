@@ -50,6 +50,7 @@ const HANG_MOI: ChapterSegment = {
   status: 'draft',
   is_omitted: false,
   is_target_paragraph_end: true,
+  role: null,
 }
 
 const ketQuaGop: {

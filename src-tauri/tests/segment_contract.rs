@@ -839,15 +839,20 @@ fn the_migration_doc_headers_state_the_target_their_array_reaches() {
 /// 🔵 **CẬP NHẬT 2026-09-08 (Story 6.11).** Bước **20** ra đời cùng bảng `asset` (FR127,
 /// KHÔNG có bước song sinh ở `GLOBAL_MIGRATIONS` — ảnh chỉ thuộc về một Tác phẩm). Danh sách
 /// **nguyên văn** dưới đây lại đổi, hàm test lại không đổi một chữ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13).** Bước **21** ra đời cùng cột `segment.role`
+/// (AD-42, KHÔNG có bước song sinh ở `GLOBAL_MIGRATIONS` — `role` chỉ có nghĩa cho segment
+/// của một Tác phẩm cụ thể). Danh sách **nguyên văn** dưới đây lại đổi, hàm test lại không
+/// đổi một chữ.
 #[test]
 fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
     let versions: Vec<u32> = PROJECT_MIGRATIONS.iter().map(|m| m.to_version).collect();
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
-         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 (4 la so da chay)"
+         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 (4 la so da chay)"
     );
 }
 
@@ -913,10 +918,12 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // gia tri term_origin thu tu) ra doi. Menh de van khong doi.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 5..20 phai da chay tren mot tep dung o phien ban 4"
+        21,
+        "buoc 5..21 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -1075,10 +1082,12 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15, nay la CHIN buoc mot luot.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 6..20 phai chay tren mot tep dung o phien ban 5"
+        21,
+        "buoc 6..21 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -1147,10 +1156,12 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // AD-18/FR124). Menh de cua ca nay KHONG doi mot chu.
     // 🔵 CAP NHAT 2026-09-08 (Story 6.11): dich 19 → 20 — buoc 20 (asset, FR127).
     // Menh de cua ca nay KHONG doi mot chu.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich 20 → 21 — buoc 21 (segment.role, AD-42).
+    // Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        20,
-        "mot `project.db` moi phai dung o phien ban 20 (Story 6.11 them bang asset)"
+        21,
+        "mot `project.db` moi phai dung o phien ban 21 (Story 6.13 them cot segment.role)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1269,10 +1280,12 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15, va buoc 15 cung khong dung toi `status`.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 7..20 phai chay tren mot tep dung o phien ban 6"
+        21,
+        "buoc 7..21 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1567,10 +1580,12 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15 — buoc 15 ra doi.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 10..20 phai chay tren mot tep dung o phien ban 9"
+        21,
+        "buoc 10..21 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1677,10 +1692,12 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15 — buoc 15 ra doi.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 8..20 phai chay tren mot tep dung o phien ban 7"
+        21,
+        "buoc 8..21 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1884,10 +1901,12 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15 — buoc 15 ra doi.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 9..20 phai chay tren mot tep dung o phien ban 8"
+        21,
+        "buoc 9..21 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -1996,9 +2015,14 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// 🔵 **CẬP NHẬT 2026-09-08 (Story 6.11) — fixture nâng từ 20 lên 21.** Bước 20
 /// (`ASSET_DDL`) nay là bước thật; một fixture dừng ở 20 không còn mới hơn app.
 /// `STEP_TWENTY` → `STEP_TWENTYONE`; mảng lên `[Migration; 20]`; bước giả lên `to_version: 21`.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13) — fixture nâng từ 21 lên 22.** Bước 21
+/// (`SEGMENT_ROLE_DDL`) nay là bước thật; một fixture dừng ở 21 không còn mới hơn app —
+/// `Store::open` thật sẽ không TỪ CHỐI nó nữa (21 == 21, không còn `21 > 21`). `STEP_TWENTYONE`
+/// → `STEP_TWENTYTWO`; mảng lên `[Migration; 21]`; bước giả lên `to_version: 22`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_TWENTYONE: [Migration; 20] = [
+    static STEP_TWENTYTWO: [Migration; 21] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2018,9 +2042,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[16],
         PROJECT_MIGRATIONS[17],
         PROJECT_MIGRATIONS[18],
-        // Mot buoc 21 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[19],
+        // Mot buoc 22 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 21,
+            to_version: 22,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2029,18 +2054,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_TWENTYONE,
+        migrations: &STEP_TWENTYTWO,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 21");
-    assert_eq!(future.schema_version(), 21);
+    .expect("dung fixture o phien ban 22");
+    assert_eq!(future.schema_version(), 22);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 21 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 22 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -2625,6 +2650,12 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
 /// cột**. Tức lượt né trần sẽ tắt đúng cái lưới tồn tại để bắt cột mới. Một tuple **struct**
 /// giữ nguyên `.0` … `.12` ở mọi chỗ gọi *(không một chỗ dùng nào phải sửa)*, nhận `derive`
 /// ở **mọi** arity, và giữ phép đếm cột trung thực.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13, AD-42): mười ba cột → MƯỜI BỐN** — bước di trú 21
+/// thêm `role`. Cùng lý do nguyên văn đã ghi ba lần ở trên: một cột mới PHẢI vào bộ đọc thô
+/// CÙNG LƯỢT, nếu không cổng `a_flush_touches_exactly_...` mù với đúng cột đó và vẫn xanh —
+/// dù `role` không nằm trong đường flush, ĐÂY VẪN là bộ đọc THÔ duy nhất kho có cho bảng này,
+/// và một cột nó không thấy là một cột không ai đối chứng được ở tầng SQL.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SegmentRow(
     i64,
@@ -2640,6 +2671,7 @@ struct SegmentRow(
     i64,
     i64,
     String,
+    Option<String>,
 );
 
 fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<SegmentRow> {
@@ -2648,7 +2680,7 @@ fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) 
             let mut stmt = conn.prepare(
                 "SELECT id, chapter_id, ord, source_text, is_paragraph_end, retired_at, \
                  created_at, updated_at, target_text, status, is_omitted, \
-                 is_target_paragraph_end, translation_origin \
+                 is_target_paragraph_end, translation_origin, role \
                  FROM segment ORDER BY ord",
             )?;
             let rows = stmt.query_map([], |r| {
@@ -2666,11 +2698,12 @@ fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) 
                     r.get(10)?,
                     r.get(11)?,
                     r.get(12)?,
+                    r.get(13)?,
                 ))
             })?;
             rows.collect::<Result<Vec<_>, _>>()
         })
-        .expect("doc lai muoi ba cot that bai")
+        .expect("doc lai muoi bon cot that bai")
 }
 
 /// 🔴 **Cổng tự kiểm: số cột mà [`read_all_segment_rows`] đọc phải bằng số cột THẬT của
@@ -2696,8 +2729,8 @@ fn the_raw_column_reader_sees_every_column_the_segment_table_actually_has() {
         .expect("dem cot that bai");
 
     assert_eq!(
-        real, 13,
-        "bang `segment` co {real} cot, ma `read_all_segment_rows` doc 13. Mot cot moi PHAI \
+        real, 14,
+        "bang `segment` co {real} cot, ma `read_all_segment_rows` doc 14. Mot cot moi PHAI \
          duoc them vao `SegmentRow` CUNG LUOT voi buoc di tru sinh ra no -- neu khong, cong \
          AC8 (`a_flush_touches_exactly_...`) mu voi dung cot do va van xanh"
     );
@@ -2852,6 +2885,11 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
         b.10,
         b.11,
         b.12.clone(),
+        // 🔴 Story 6.13 — cột thứ mười bốn (`role`) đi vào MIỄN PHÍ đúng như chú thích trên đã
+        // hứa: thiếu dòng này là một lỗi BIÊN DỊCH (tuple thiếu phần tử), không phải một cổng
+        // âm thầm mù. `role` không nằm trong hai cột `save_segment_targets` được phép chạm,
+        // nên giá trị mong đợi là NGUYÊN VẸN từ trước lượt flush.
+        b.13.clone(),
     );
     assert_eq!(
         a, &expected,
@@ -5787,10 +5825,12 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 14 → 15 — buoc 15 ra doi.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override,
     // FR6) ra doi. Menh de van khong doi.
+    // 🔵 CAP NHAT 2026-09-09 (Story 6.13): dich len 21 — buoc 21 (cot segment.role, AD-42)
+    // ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        20,
-        "buoc 11..20 phai chay tren mot tep dung o phien ban 10"
+        21,
+        "buoc 11..21 phai chay tren mot tep dung o phien ban 10"
     );
 
     let after: Vec<(i64, String, String)> = migrated
@@ -6774,6 +6814,11 @@ fn the_grid_stops_showing_a_row_the_moment_a_real_merge_or_split_retires_it() {
 /// cột này"*, ngay tại lượt di trú. Không ai phải nhớ gì cả. Đây đúng là thứ mà khuôn *"chữ
 /// ký thi hành đúng MỘT NỬA"* — đã lặp **năm** lần trong Epic 2 — không cưỡng chế được bằng
 /// một lời dặn trong chú thích.
+///
+/// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13) — "cột thứ mười bốn" không còn là một ví dụ giả
+/// định.** Bước di trú 21 (`role`) chính là nó: `SegmentRow` nhận trường thứ mười bốn, và
+/// dòng dựng `expected` ngay dưới trả lời câu hỏi đó bằng `None` — đúng AC "Gộp/tách một
+/// segment vai": vai KHÔNG nhân bản, một hàng mới không thừa kế vai của câu cũ.
 #[test]
 fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     use auratranslate_lib::commands::segment::{
@@ -6841,6 +6886,9 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
         0,                              // is_omitted — khong cat bo
         0,                              // is_target_paragraph_end
         TRANSLATION_ORIGIN_SELF.to_owned(), // 🔴 translation_origin — AD-47, KHONG roi ve DEFAULT
+        None,                           // 🔴 role — Story 6.13: vai KHONG nhan ban tren mot
+                                        // hang MOI (AD-5 ve huu + tao moi), du hang bi gop co
+                                        // mang vai hay khong
     );
     assert_eq!(
         moi, &expected,

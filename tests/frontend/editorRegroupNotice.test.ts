@@ -46,6 +46,7 @@ const HANG_GOP: ChapterSegment = {
   status: 'draft',
   is_omitted: false,
   is_target_paragraph_end: true,
+  role: null,
 }
 
 /** Lượt gộp kế tiếp trả gì. Đặt lại ở mỗi ca. */
