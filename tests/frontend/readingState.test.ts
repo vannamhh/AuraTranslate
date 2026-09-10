@@ -41,10 +41,15 @@ const OTHER_ERROR = {
 type ReadingSegmentFixture = { id: number; source_text: string; target_text: string; is_confirmed?: boolean }
 
 /** Một `ReadingChapter` fixture — `segment_count` mặc định đếm đúng số câu của `paragraphs`
- * (ca thường nhất: không câu nào bị cắt bỏ), ghi đè được cho ca "mọi câu đã cắt bỏ". */
+ * (ca thường nhất: không câu nào bị cắt bỏ), ghi đè được cho ca "mọi câu đã cắt bỏ".
+ *
+ * 🔵 THÊM Story 6.14 — `images: []` mặc định: tệp này không kiểm ảnh (đó là
+ * `readingModeImages.test.ts`), nhưng `isReadingChapter` phía `config/reading.ts` đòi trường
+ * này CÓ MẶT trên dây, nếu không CẢ RUN bị từ chối (`kind: 'error'`) — đúng cảnh báo 🔴 đã ghi
+ * ở đầu tệp `config/reading.ts` cho `isReadingSegment`/`isReadingRun`. */
 function chapterFixture(
   paragraphs: ReadingSegmentFixture[][],
-  overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; segment_count: number }> = {},
+  overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; segment_count: number; images: unknown[] }> = {},
 ) {
   const segmentCount = paragraphs.reduce((sum, p) => sum + p.length, 0)
   return {
@@ -55,6 +60,7 @@ function chapterFixture(
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
+    images: [],
     ...overrides,
   }
 }
@@ -71,8 +77,9 @@ function nextNotDoneFrontier(overrides: Partial<{ chapter_id: number; chapter_or
   }
 }
 
+/** 🔵 THÊM Story 6.14 — `assets_dir: ''` mặc định, cùng lý do `images: []` của [`chapterFixture`]. */
 function runFixture(chapters: ReturnType<typeof chapterFixture>[], frontier: ReturnType<typeof endOfWorkFrontier | typeof nextNotDoneFrontier> = endOfWorkFrontier()) {
-  return { chapters, frontier }
+  return { chapters, frontier, assets_dir: '' }
 }
 
 function chapterRow(overrides: Partial<{ chapter_id: number; ord: number; title: string | null; status: string; segment_count: number }> = {}) {

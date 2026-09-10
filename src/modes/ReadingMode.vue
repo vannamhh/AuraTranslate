@@ -56,7 +56,8 @@ import {
   setLineHeight,
   setReadingAim,
 } from './readingState'
-import type { ReadingChapter, ReadingFrontierChapter } from '../config/reading'
+import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
+import ChapterImage from '../ChapterImage.vue'
 
 const root = useTemplateRef<HTMLElement>('root')
 const tocPanel = useTemplateRef<HTMLElement>('tocPanel')
@@ -340,6 +341,63 @@ function chapterEmptyNote(chapter: DeepReadonly<ReadingChapter>): string {
  * `v-for` cố đọc `.chapters` của nó).
  */
 const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingRun.value?.chapters ?? [])])
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔵 THÊM Story 6.14 (FR42 · FR43) — ẢNH ĐÚNG VỊ TRÍ
+// ═════════════════════════════════════════════════════════════════════════════════
+/** Đường dẫn tuyệt đối tới `assets/` — MỘT lần cho cả lượt đọc (`ReadingRun.assets_dir`). */
+const readingAssetsDir = computed<string>(() => readingRun.value?.assets_dir ?? '')
+
+/** Ảnh đứng TRƯỚC đoạn ĐẦU TIÊN của Chương — `after_segment_id === null` (neo `0`, hoặc dời hẳn về đầu Chương). */
+function leadingImagesOf(chapter: DeepReadonly<ReadingChapter>): DeepReadonly<ReadingImage>[] {
+  return chapter.images.filter((img) => img.after_segment_id === null)
+}
+
+/**
+ * Một MẢNH của một đoạn — hoặc một dãy câu liên tiếp để render trong một `<p>`, hoặc một ảnh
+ * đứng GIỮA hai câu của CÙNG một đoạn. §I/O Matrix spec 6.14: "ảnh giữa hai câu ⇒ hiện SAU
+ * câu k ở CẢ HAI bề mặt" — kể cả khi câu k và câu k+1 thuộc cùng một đoạn Chế độ đọc. Một
+ * `<figure>` (block) không sống hợp lệ bên trong một `<p>` (inline flow), nên đoạn phải được
+ * CHẺ quanh ảnh thành nhiều `<p>` — `paragraphRuns` là nơi DUY NHẤT làm phép chẻ này.
+ */
+type ParagraphRun =
+  | { kind: 'text'; segments: DeepReadonly<ReadingSegment>[] }
+  | { kind: 'image'; image: DeepReadonly<ReadingImage> }
+
+/**
+ * Chẻ MỘT đoạn quanh các ảnh neo vào câu bên trong nó — xem [`ParagraphRun`]. Đoạn của Rust
+ * (`ReadingParagraph`) là MỘT khái niệm ngữ nghĩa (một đoạn văn bản dịch); nó có thể render
+ * thành NHIỀU thẻ `<p>` liền kề khi một ảnh chen giữa — điều đó không đổi ranh giới đoạn Rust
+ * đã quyết, chỉ đổi số thẻ HTML cần để vẽ nó.
+ */
+function paragraphRuns(
+  chapter: DeepReadonly<ReadingChapter>,
+  paragraph: DeepReadonly<ReadingParagraph>,
+): ParagraphRun[] {
+  const imagesAfter = new Map<number, DeepReadonly<ReadingImage>[]>()
+  for (const img of chapter.images) {
+    if (img.after_segment_id === null) continue
+    const list = imagesAfter.get(img.after_segment_id) ?? []
+    list.push(img)
+    imagesAfter.set(img.after_segment_id, list)
+  }
+
+  const runs: ParagraphRun[] = []
+  let current: DeepReadonly<ReadingSegment>[] = []
+  for (const segment of paragraph.segments) {
+    current.push(segment)
+    for (const img of imagesAfter.get(segment.id) ?? []) {
+      // 🔴 `current.length > 0` — ảnh THỨ HAI của cùng một neo đóng một mảnh chữ đã RỖNG,
+      // và một mảnh rỗng render thành `<p class="paragraph">` không có câu nào: một khoảng
+      // trắng dọc giữa hai `<figure>`. Bắt ở vòng rà 2026-09-10.
+      if (current.length > 0) runs.push({ kind: 'text', segments: current })
+      runs.push({ kind: 'image', image: img })
+      current = []
+    }
+  }
+  if (current.length > 0) runs.push({ kind: 'text', segments: current })
+  return runs
+}
 </script>
 
 <template>
@@ -498,48 +556,85 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
           <!-- aura-allow-text: `chapterLabel()` trả tên Chương (dữ liệu) hoặc gọi `untitled()`
                (qua t()) cho hàng chưa đặt tên -- không một biểu thức trộn nào lộ ra template. -->
           <h2 class="chapter-title">{{ chapterLabel(chapter) }}</h2>
+          <!--
+            🔵 Story 6.14 (FR42) — ảnh neo `0` (hoặc dời hẳn về đầu Chương), TRƯỚC đoạn ĐẦU
+            TIÊN. `<figcaption>` chỉ dựng khi `caption_text` có nội dung THẬT (§Always: "ảnh
+            không caption ⇒ không chừa chỗ trống") — chuỗi rỗng (chưa dịch) cùng luật với `null`.
+          -->
+          <figure v-for="image in leadingImagesOf(chapter)" :key="'lead-' + image.asset_id" class="reading-figure">
+            <ChapterImage
+              :file-name="image.file_name"
+              :assets-dir="readingAssetsDir"
+              :source-url="image.source_url"
+              :alt-text="image.alt_text ?? ''"
+            />
+            <!-- aura-allow-text: `caption_text` là bản dịch của Tác phẩm — DỮ LIỆU, không câu giao diện. -->
+            <figcaption v-if="image.caption_text !== null && image.caption_text !== ''" class="reading-figure-caption">{{ image.caption_text }}</figcaption>
+          </figure>
           <template v-if="chapter.paragraphs.length > 0">
-            <p v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="paragraph">
+            <template v-for="(paragraph, index) in chapter.paragraphs" :key="index">
               <!--
-                aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
-                🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
-                lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
-                hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
-                (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
-                `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
-                không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
-                ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
-                lơ lửng sau câu chót của mỗi đoạn.
-                🔴 THÊM (Story 5.12, AC6) — `:class="{ unconfirmed: !segment.is_confirmed }"`: câu
-                CHƯA xác nhận mang gạch chấm nhẹ, dấu hiệu đến từ `is_confirmed` trên dây.
+                🔵 Story 6.14 — MỘT đoạn Rust có thể vẽ thành NHIỀU `<p>` liền kề khi một ảnh
+                chen giữa hai câu của nó (§I/O Matrix "ảnh giữa hai câu ⇒ hiện sau câu k ở CẢ
+                HAI bề mặt"; xem doc-comment `paragraphRuns`). Ranh giới ĐOẠN của Rust không
+                đổi — chỉ số THẺ HTML cần để vẽ nó đổi.
               -->
-              <span
-                v-for="(segment, i) in paragraph.segments"
-                :key="segment.id"
-                class="reading-segment"
-                :class="{
-                  unconfirmed: !segment.is_confirmed,
-                  marked: segment.is_marked,
-                  aimed: readingAimedSegmentId === segment.id,
-                }"
-                :data-reading-segment="segment.id"
-                tabindex="0"
-                @mouseenter="setReadingAim(segment.id)"
-                @mouseleave="onSegmentMouseLeave($event, segment.id)"
-                @focusin="setReadingAim(segment.id)"
-                @focusout="onSegmentFocusOut($event, segment.id)"
-                @keydown.enter="onReadingSegmentEnter"
-                ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
-                <span class="segment-text">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
-                <button
-                  type="button"
-                  tabindex="-1"
-                  class="mark-affordance"
-                  :aria-disabled="segment.is_marked ? 'true' : undefined"
-                  @click="dispatch('reading.mark_aimed')"
-                ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button></span
-              >
-            </p>
+              <template v-for="(run, runIndex) in paragraphRuns(chapter, paragraph)" :key="runIndex">
+                <p v-if="run.kind === 'text'" class="paragraph">
+                  <!--
+                    aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
+                    🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
+                    lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
+                    hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
+                    (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
+                    `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
+                    không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
+                    ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
+                    lơ lửng sau câu chót của mỗi đoạn. 🔵 Story 6.14 — "câu đầu" nay là câu đầu của
+                    RUN (mảnh `<p>` sau khi chẻ quanh ảnh), không của cả đoạn Rust.
+                    🔴 THÊM (Story 5.12, AC6) — `:class="{ unconfirmed: !segment.is_confirmed }"`: câu
+                    CHƯA xác nhận mang gạch chấm nhẹ, dấu hiệu đến từ `is_confirmed` trên dây.
+                  -->
+                  <span
+                    v-for="(segment, i) in run.segments"
+                    :key="segment.id"
+                    class="reading-segment"
+                    :class="{
+                      unconfirmed: !segment.is_confirmed,
+                      marked: segment.is_marked,
+                      aimed: readingAimedSegmentId === segment.id,
+                    }"
+                    :data-reading-segment="segment.id"
+                    tabindex="0"
+                    @mouseenter="setReadingAim(segment.id)"
+                    @mouseleave="onSegmentMouseLeave($event, segment.id)"
+                    @focusin="setReadingAim(segment.id)"
+                    @focusout="onSegmentFocusOut($event, segment.id)"
+                    @keydown.enter="onReadingSegmentEnter"
+                    ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
+                    <span class="segment-text">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
+                    <button
+                      type="button"
+                      tabindex="-1"
+                      class="mark-affordance"
+                      :aria-disabled="segment.is_marked ? 'true' : undefined"
+                      @click="dispatch('reading.mark_aimed')"
+                    ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button></span
+                  >
+                </p>
+                <!-- 🔵 Story 6.14 (FR42) — ảnh GIỮA hai câu của cùng một đoạn. -->
+                <figure v-else class="reading-figure">
+                  <ChapterImage
+                    :file-name="run.image.file_name"
+                    :assets-dir="readingAssetsDir"
+                    :source-url="run.image.source_url"
+                    :alt-text="run.image.alt_text ?? ''"
+                  />
+                  <!-- aura-allow-text: `caption_text` là bản dịch của Tác phẩm — DỮ LIỆU. -->
+                  <figcaption v-if="run.image.caption_text !== null && run.image.caption_text !== ''" class="reading-figure-caption">{{ run.image.caption_text }}</figcaption>
+                </figure>
+              </template>
+            </template>
           </template>
           <!-- aura-allow-text: `chapterEmptyNote()` tự đi qua t() bên trong. -->
           <p v-else class="chapter-note">{{ chapterEmptyNote(chapter) }}</p>
@@ -769,6 +864,28 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
 
 .paragraph {
   margin: 0 0 1em 0;
+}
+
+/*
+ * 🔵 Story 6.14 (FR42 · FR43) — ảnh + chú thích. `<figure>` không viền/nền — nó là một khối
+ * NỘI DUNG bình thường trong cột đọc, cùng `margin` dọc với `.paragraph` để nhịp đọc không đổi
+ * khi một ảnh chen vào giữa hai đoạn/hai câu.
+ */
+.reading-figure {
+  margin: 0 0 1em 0;
+}
+
+/*
+ * Chú thích — `on-surface-variant` + `ui-sm` (chữ PHỤ, không phải văn xuôi của Tác phẩm — cùng
+ * vai với khung giữ chỗ ảnh thiếu ở `ChapterImage.vue`), căn giữa dưới ảnh.
+ */
+.reading-figure-caption {
+  margin: 4px 0 0 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  text-align: center;
 }
 
 /* Câu CHƯA xác nhận (Story 5.12, AC6) — gạch chấm nhẹ dưới chân, không đổi màu chữ và

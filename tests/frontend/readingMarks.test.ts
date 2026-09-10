@@ -20,6 +20,8 @@ const SEGMENT = {
   is_marked: false,
 }
 
+// 🔵 THÊM Story 6.14 — `images`/`assets_dir`: `isReadingChapter`/`isReadingRun` đòi các
+// trường này CÓ MẶT, nếu không CẢ RUN bị từ chối.
 const RUN = {
   chapters: [
     {
@@ -28,9 +30,11 @@ const RUN = {
       chapter_title: 'Chương Hai',
       paragraphs: [{ segments: [SEGMENT] }],
       segment_count: 1,
+      images: [],
     },
   ],
   frontier: { kind: 'end-of-work', chapter: null },
+  assets_dir: '',
 }
 
 const MARK = {

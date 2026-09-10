@@ -150,6 +150,27 @@ export function isSegmentConfirmed(segment: ChapterSegment): boolean {
   return segment.status === 'confirmed'
 }
 
+/**
+ * Một ảnh đã phân giải vị trí, cho LƯỚI — khớp `commands::segment::ChapterAsset` phía Rust,
+ * `snake_case` trên dây. Story 6.14, FR42/FR43.
+ *
+ * ⚠️ `after_segment_id` là `id` của MỘT [`ChapterSegment`] trong CHÍNH Chương này — `null` ⇒
+ * ảnh đứng ở ĐẦU ô của câu ĐẦU TIÊN. Webview không tự tính vị trí này: Rust đã phân giải neo
+ * (`asset.anchor_after_segment_ord`, một VỊ TRÍ — AD-3 cấm dữ liệu gắn theo segment tham chiếu
+ * vị trí) thành `id` trước khi ra dây, cùng luật cấm đọc `ord` của `segmentNavigation.ts:138-142`.
+ */
+export type ChapterAsset = {
+  asset_id: number
+  /** Tên tệp TƯƠNG ĐỐI trong `assets/` — ghép với [`ChapterSegments.assets_dir`]. */
+  file_name: string
+  source_url: string | null
+  after_segment_id: number | null
+  /** `null` ⇒ ảnh trang trí, webview đặt `alt=""` (không bịa chữ). */
+  alt_text: string | null
+  /** `null` HOẶC chuỗi rỗng (chưa dịch) ⇒ không dựng khối chú thích (không chỗ trống). */
+  caption_text: string | null
+}
+
 /** Trọn bộ segment của Chương đang mở, kèm `chapter_id` của chính nó. */
 export type ChapterSegments = {
   chapter_id: number
@@ -161,6 +182,14 @@ export type ChapterSegments = {
    * SAI, cùng luật `chapter_done_count` của `config/library.ts::WorkRow`.
    */
   caret_segment_id: number | null
+  /** 🔵 **THÊM Story 6.14.** Ảnh của Chương này, đã phân giải vị trí. Rỗng ⇒ Chương 0 ảnh. */
+  assets: ChapterAsset[]
+  /**
+   * 🔵 **THÊM Story 6.14.** Đường dẫn TUYỆT ĐỐI tới `assets/` của Tác phẩm đang mở, MỘT lần
+   * cho cả Chương — webview ghép với `file_name` của từng [`ChapterAsset`] rồi đưa qua
+   * `convertFileSrc` (tiền lệ DUY NHẤT `src/tokens/fonts.ts:136`).
+   */
+  assets_dir: string
 }
 
 /**
@@ -168,6 +197,9 @@ export type ChapterSegments = {
  * (cùng mức chặt mà kho đã chấp nhận cho hình dạng này trước story), nhưng kiểm CHẶT
  * `caret_segment_id`: `number | null`, từ chối `undefined` — một trường vắng mặt trên dây là
  * hình dạng SAI, không phải "chưa biết".
+ *
+ * 🔵 **THÊM Story 6.14** — kiểm thêm `assets`/`assets_dir` cùng mức chặt: mảng có mặt, chuỗi
+ * có mặt. Không đào sâu từng `ChapterAsset` — cùng mức chặt đã chấp nhận cho `segments`.
  */
 function isChapterSegments(value: unknown): value is ChapterSegments {
   if (typeof value !== 'object' || value === null) return false
@@ -175,7 +207,9 @@ function isChapterSegments(value: unknown): value is ChapterSegments {
   return (
     typeof v.chapter_id === 'number' &&
     Array.isArray(v.segments) &&
-    (typeof v.caret_segment_id === 'number' || v.caret_segment_id === null)
+    (typeof v.caret_segment_id === 'number' || v.caret_segment_id === null) &&
+    Array.isArray(v.assets) &&
+    typeof v.assets_dir === 'string'
   )
 }
 

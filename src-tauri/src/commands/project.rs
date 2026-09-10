@@ -3834,6 +3834,43 @@ pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     use tauri::Manager as _;
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // THEM Story 6.14 (FR42/FR43, AD-23) -- CAP SCOPE DONG cho dung thu muc `.atproj` dang mo
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Anh cua Story 6.11 nam trong `<dir>/assets/`; webview doc chung qua `asset://` (CSP da
+    // cho san, `tauri.conf.json` KHONG doi mot byte -- nut that DUY NHAT la scope). AD-23 da
+    // chot san ve nay: "Scope dong cap luc chay chi khi nguoi dung chon qua hop thoai -- thu
+    // muc goc Library" -- day la NANG LUC CHUA DUNG cua ve do, khong phai mot bat bien bi doi,
+    // nen khong can AD moi (Design Notes spec 6.14).
+    //
+    // Cho nay la nut that CHUNG cua CA BON duong mo mot Tac pham (`create_work_from_text`,
+    // `create_work_from_file`, `confirm_import_with_encoding`, `open_work`) -- xem bon cho goi
+    // `replace_open_work(...)` trong `wire` ben duoi. Cap scope O DAY, mot lan, thay vi rai
+    // lai bon lan, dung khuon "mot nut that" da co cho `PendingImportState`/glossary ngay
+    // duoi day.
+    //
+    // Cap HEP hon muc AD-23 cho phep (ca thu muc goc Library) la co y: chi thu muc `.atproj`
+    // CU THE dang mo, khong phai ca goc Library -- hep hon thi khong can xin them.
+    //
+    // Loi cap scope KHONG chan luot mo Tac pham: day la mot cai gia da can (mot Tac pham mo
+    // duoc ma anh khong hien la mot khiem khuyet HIEN THI, khac han mot Tac pham khong mo
+    // duoc). Chi ghi chan doan (KHONG DAU, NFR16) -- `<img>` se truot va webview doi sang
+    // khung giu cho mang danh tinh (FR43), khong throw, khong trang trang.
+    // 🔴 HEP toi `<dir>/assets`, KHONG ca thu muc `.atproj` -- vong ra 2026-09-10. Cap ca
+    // `.atproj` phoi luon `project.db` ra `asset://` cho webview doc duoc, trong khi AD-1/AD-11
+    // dat MOI truy cap du lieu o Rust va `SECURITY-NOTES.md` da khai cung mot le do cho
+    // `$APPDATA` ("frontend khong co viec gi voi global.db"). Anh cua FR42/FR43 chi nam trong
+    // `assets/`, va do dung bang `ChapterSegments::assets_dir`/`ReadingRun::assets_dir` ma
+    // webview ghep duong dan -- nen cap dung chung mot thu muc do la du, va hep hon thi khong
+    // can xin them.
+    let assets_dir = new_work.dir.join("assets");
+    if let Err(err) = app.asset_protocol_scope().allow_directory(&assets_dir, true) {
+        eprintln!(
+            "project[scope] khong cap duoc asset_protocol_scope cho {}: {err}",
+            assets_dir.display()
+        );
+    }
+
     // Story 3.10b (AD-48) -- mo mot Tac pham KHAC lam `project.db` cua no doi hoan toan; mot
     // lo nhap Glossary dang TREO o tang Work (neu co) tro toi kho CU, va `RowPlanKind::
     // Conflict::existing_id` cua no khong con dung nghia o kho MOI. Don TRUOC khi swap, cung

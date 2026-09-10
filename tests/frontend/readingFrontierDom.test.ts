@@ -22,6 +22,7 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInv
 
 type SegmentFixture = { id: number; source_text: string; target_text: string; is_confirmed?: boolean }
 
+// 🔵 THÊM Story 6.14 — `images: []`: `isReadingChapter` đòi trường này CÓ MẶT.
 function chapterFixture(
   chapterId: number,
   ord: number,
@@ -37,6 +38,7 @@ function chapterFixture(
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
+    images: [],
     ...overrides,
   }
 }
@@ -76,6 +78,7 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: nextNotDoneFrontier({ chapter_ord: 2 }),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -95,6 +98,7 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: endOfWorkFrontier(),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -113,6 +117,7 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: nextNotDoneFrontier({ status: 'finished' }),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -148,6 +153,7 @@ describe('modes/ReadingMode.vue — .chapter-note của mỗi Chương nói đú
         chapterFixture(2, 2, [], { segment_count: 4 }),
       ],
       frontier: endOfWorkFrontier(),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -181,6 +187,7 @@ describe('modes/ReadingMode.vue — nút "Dịch tiếp" là một <button> th�
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: nextNotDoneFrontier(),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -214,6 +221,7 @@ describe('modes/ReadingMode.vue — .frontier-range phân biệt dãy MỘT Chư
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: endOfWorkFrontier(),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -234,6 +242,7 @@ describe('modes/ReadingMode.vue — .frontier-range phân biệt dãy MỘT Chư
         chapterFixture(2, 2, [[{ id: 2, source_text: 'c', target_text: 'd' }]]),
       ],
       frontier: endOfWorkFrontier(),
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')

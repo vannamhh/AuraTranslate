@@ -69,6 +69,26 @@ export type ReadingParagraph = {
 }
 
 /**
+ * Một ảnh đã phân giải vị trí, cho CHẾ ĐỘ ĐỌC — khớp `commands::segment::ReadingImage`,
+ * `snake_case` trên dây. Story 6.14, FR42/FR43.
+ *
+ * ⚠️ `after_segment_id` LUÔN khớp `id` của một [`ReadingSegment`] THẬT SỰ có mặt trong
+ * `ReadingChapter.paragraphs` (hoặc `null` ⇒ trước đoạn ĐẦU TIÊN) — Rust đã loại segment cắt
+ * bỏ VÀ segment mang vai khỏi tập "đủ điều kiện làm neo" trước khi tính giá trị này, nên
+ * webview không bao giờ cần tra một `id` không tồn tại trên trang.
+ */
+export type ReadingImage = {
+  asset_id: number
+  file_name: string
+  source_url: string | null
+  after_segment_id: number | null
+  /** Vào thuộc tính `alt` của `<img>` — KHÔNG BAO GIỜ hiện thành văn bản trên trang. */
+  alt_text: string | null
+  /** `null` HOẶC chuỗi rỗng (chưa dịch) ⇒ không dựng `<figcaption>` nào. */
+  caption_text: string | null
+}
+
+/**
  * Một Chương trong dãy đọc, đã gom đoạn — khớp `commands::segment::ReadingChapter`,
  * `snake_case` trên dây.
  *
@@ -76,6 +96,8 @@ export type ReadingParagraph = {
  * Rust trong CÙNG lượt đọc. Đây là dữ kiện GỠ nhánh `'empty-unknown'` cũ (xem
  * `readingState.ts`): `paragraphs.length === 0` cùng `segment_count === 0` ⇒ Chương thật sự
  * rỗng; `paragraphs.length === 0` cùng `segment_count > 0` ⇒ mọi câu đã cắt bỏ.
+ *
+ * `images` — **THÊM Story 6.14**: ảnh của Chương này, đã phân giải vị trí.
  */
 export type ReadingChapter = {
   chapter_id: number
@@ -84,6 +106,7 @@ export type ReadingChapter = {
   chapter_title: string | null
   paragraphs: ReadingParagraph[]
   segment_count: number
+  images: ReadingImage[]
 }
 
 /**
@@ -121,6 +144,11 @@ export type ReadingFrontier = {
 export type ReadingRun = {
   chapters: ReadingChapter[]
   frontier: ReadingFrontier
+  /**
+   * 🔵 **THÊM Story 6.14.** Đường dẫn TUYỆT ĐỐI tới `assets/` của Tác phẩm đang mở, MỘT lần
+   * cho CẢ LƯỢT ĐỌC — cùng lý lẽ `config/segment.ts::ChapterSegments.assets_dir`.
+   */
+  assets_dir: string
 }
 
 /** Ba trạng thái cho [`readReadingRun`], cùng khuôn `ReadOpenChapterResult`. */
@@ -191,7 +219,30 @@ function isReadingParagraphArray(value: unknown): value is ReadingParagraph[] {
   return Array.isArray(value) && value.every(isReadingParagraph)
 }
 
-/** Vị từ kiểm kiểu LÚC CHẠY cho `ReadingChapter` — kiểm MỌI trường, MỌI phần tử. */
+/** 🔵 **THÊM Story 6.14** — vị từ kiểm kiểu LÚC CHẠY cho `ReadingImage`. */
+function isReadingImage(value: unknown): value is ReadingImage {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ReadingImage>
+  return (
+    typeof v.asset_id === 'number' &&
+    typeof v.file_name === 'string' &&
+    (typeof v.source_url === 'string' || v.source_url === null) &&
+    (typeof v.after_segment_id === 'number' || v.after_segment_id === null) &&
+    (typeof v.alt_text === 'string' || v.alt_text === null) &&
+    (typeof v.caption_text === 'string' || v.caption_text === null)
+  )
+}
+
+function isReadingImageArray(value: unknown): value is ReadingImage[] {
+  return Array.isArray(value) && value.every(isReadingImage)
+}
+
+/**
+ * Vị từ kiểm kiểu LÚC CHẠY cho `ReadingChapter` — kiểm MỌI trường, MỌI phần tử.
+ *
+ * 🔴 **THÊM Story 6.14 — `images` phải nhận hình dạng mới, nếu không CẢ RUN bị từ chối và
+ * trang trắng** (cùng cảnh báo đã ghi ở đầu tệp cho `isReadingSegment`/`isReadingRun`).
+ */
 function isReadingChapter(value: unknown): value is ReadingChapter {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ReadingChapter>
@@ -200,7 +251,8 @@ function isReadingChapter(value: unknown): value is ReadingChapter {
     typeof v.chapter_ord === 'number' &&
     (typeof v.chapter_title === 'string' || v.chapter_title === null) &&
     isReadingParagraphArray(v.paragraphs) &&
-    typeof v.segment_count === 'number'
+    typeof v.segment_count === 'number' &&
+    isReadingImageArray(v.images)
   )
 }
 
@@ -237,11 +289,15 @@ function isReadingFrontier(value: unknown): value is ReadingFrontier {
   return v.chapter === null
 }
 
-/** Vị từ kiểm kiểu LÚC CHẠY cho toàn bộ `ReadingRun` — kiểm MỌI trường, MỌI phần tử. */
+/**
+ * Vị từ kiểm kiểu LÚC CHẠY cho toàn bộ `ReadingRun` — kiểm MỌI trường, MỌI phần tử.
+ *
+ * 🔴 **THÊM Story 6.14 — `assets_dir` phải nhận hình dạng mới, nếu không CẢ RUN bị từ chối.**
+ */
 function isReadingRun(value: unknown): value is ReadingRun {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ReadingRun>
-  return isReadingChapterArray(v.chapters) && isReadingFrontier(v.frontier)
+  return isReadingChapterArray(v.chapters) && isReadingFrontier(v.frontier) && typeof v.assets_dir === 'string'
 }
 
 /** Có cầu IPC thật hay chỉ là phiên `npm run dev` trong trình duyệt thường. */

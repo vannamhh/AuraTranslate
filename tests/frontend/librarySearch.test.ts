@@ -606,7 +606,9 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
       if (cmd === 'list_chapters') return Promise.resolve([])
       if (cmd === 'read_open_chapter_segments') {
-        return Promise.resolve({ chapter_id: 7, segments: [], caret_segment_id: null })
+        // 🔵 THÊM Story 6.14 — `assets`/`assets_dir`: `isChapterSegments` đòi các trường này
+        // CÓ MẶT, nếu không cả `loaded` bị từ chối.
+        return Promise.resolve({ chapter_id: 7, segments: [], caret_segment_id: null, assets: [], assets_dir: '' })
       }
       if (cmd === 'read_open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
@@ -706,6 +708,9 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
             role: null,
           })),
           caret_segment_id: caretSegmentId,
+          // 🔵 THÊM Story 6.14 — cùng lý do khối `read_open_chapter_segments` ngay trên.
+          assets: [],
+          assets_dir: '',
         })
       }
       if (cmd === 'read_open_chapter') return Promise.resolve(OPEN_CHAPTER_A)

@@ -33,6 +33,7 @@ function segment(overrides: Partial<{ id: number; source_text: string; target_te
   return { id: 1, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: false, ...overrides }
 }
 
+// 🔵 THÊM Story 6.14 — `images: []`: `isReadingChapter` đòi trường này CÓ MẶT.
 function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; segment_count: number }> = {}) {
   return {
     chapter_id: 1,
@@ -40,6 +41,7 @@ function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; c
     chapter_title: null,
     paragraphs: [{ segments: [segment()] }],
     segment_count: 1,
+    images: [],
     ...overrides,
   }
 }
@@ -66,6 +68,7 @@ describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapter({ chapter_id: 1 }), chapter({ chapter_id: 2, chapter_ord: 2 }), chapter({ chapter_id: 3, chapter_ord: 3 })],
       frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 4, chapter_ord: 4 }) },
+      assets_dir: '',
     })
     const state = await import('../../src/modes/readingState')
     await state.ensureReadingLoaded()
@@ -79,6 +82,7 @@ describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 1, chapter_ord: 1 }) },
+      assets_dir: '',
     })
     const state = await import('../../src/modes/readingState')
     await state.ensureReadingLoaded()
@@ -91,6 +95,7 @@ describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapter()],
       frontier: { kind: 'end-of-work', chapter: null },
+      assets_dir: '',
     })
     const state = await import('../../src/modes/readingState')
     await state.ensureReadingLoaded()
@@ -116,7 +121,7 @@ describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun
 
 describe('modes/readingState::openFrontierInWorkspace', () => {
   it('`frontier.chapter = null` (end-of-work) ⇒ không ném, ghi chẩn đoán, không gọi `openChapterById`/`setMode`', async () => {
-    mockInvoke.mockResolvedValueOnce({ chapters: [chapter()], frontier: { kind: 'end-of-work', chapter: null } })
+    mockInvoke.mockResolvedValueOnce({ chapters: [chapter()], frontier: { kind: 'end-of-work', chapter: null }, assets_dir: '' })
     const state = await import('../../src/modes/readingState')
     await state.ensureReadingLoaded()
 
@@ -133,6 +138,7 @@ describe('modes/readingState::openFrontierInWorkspace', () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 9 }) },
+      assets_dir: '',
     })
     mockOpenChapterById.mockResolvedValueOnce(false)
     const state = await import('../../src/modes/readingState')
@@ -149,6 +155,7 @@ describe('modes/readingState::openFrontierInWorkspace', () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 9 }) },
+      assets_dir: '',
     })
     mockOpenChapterById.mockResolvedValueOnce(true)
     const state = await import('../../src/modes/readingState')
@@ -174,6 +181,7 @@ describe('config/reading.ts::readReadingRun — bất biến kind ↔ chapter c�
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'end-of-work', chapter: frontierChapter() },
+      assets_dir: '',
     })
     const { readReadingRun } = await import('../../src/config/reading')
     const result = await readReadingRun()
@@ -186,6 +194,7 @@ describe('config/reading.ts::readReadingRun — bất biến kind ↔ chapter c�
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'next-not-done', chapter: null },
+      assets_dir: '',
     })
     const { readReadingRun } = await import('../../src/config/reading')
     const result = await readReadingRun()
@@ -198,6 +207,7 @@ describe('config/reading.ts::readReadingRun — bất biến kind ↔ chapter c�
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
       frontier: { kind: 'somehow-else', chapter: null },
+      assets_dir: '',
     })
     const { readReadingRun } = await import('../../src/config/reading')
     const result = await readReadingRun()

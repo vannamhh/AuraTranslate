@@ -34,15 +34,43 @@ qua CSSOM nên CSP không chặn. Không cần `'unsafe-inline'`.
 Nếu một story sau **buộc** phải mở lại `'unsafe-inline'`: ghi vào Completion Notes của
 story đó **thứ gì đã bị chặn và ở đâu**, đừng mở vì "cho chắc".
 
-## `assetProtocol.scope` — đúng hai mục, và vì sao không có `$APPDATA`
+## `assetProtocol.scope` — một mục TĨNH trong `tauri.conf.json`, và vì sao không có `$APPDATA`
+
+🔵 **SỬA TẠI CHỖ 2026-09-10 (Story 6.14).** Tiêu đề mục này từng ghi *"đúng hai mục"* — hết
+đúng từ khi `$RESOURCE/dict/**` bị gỡ (Story 1.9, Task 10, xem `config_invariants.rs:296-311`
+cho lượt gỡ đó): `scope` TĨNH trong `tauri.conf.json` hôm nay có **đúng một** mục
+(`$RESOURCE/fonts/**`). Story 6.14 thêm một hàng **ĐỘNG** vào bảng ba vùng AD-23 ngay dưới đây
+— nó KHÔNG sống trong `tauri.conf.json` nên không đổi con số "một mục" TĨNH đó, nhưng nó VẪN
+là `assetProtocol.scope` cùng một cơ chế, chỉ mở rộng LÚC CHẠY thay vì lúc build.
 
 AD-23 khai ba vùng nhưng **hai cơ chế cưỡng chế khác nhau**:
 
 | Vùng AD-23 | Ai chạm tới | Cưỡng chế bằng |
 |---|---|---|
-| `$RESOURCE/fonts/**` chỉ đọc | **frontend** nạp `@font-face` | `assetProtocol.scope` — framework cưỡng chế |
+| `$RESOURCE/fonts/**` chỉ đọc, TĨNH | **frontend** nạp `@font-face` | `assetProtocol.scope` (khai trong `tauri.conf.json`) — framework cưỡng chế |
+| `<.atproj đang mở>/assets/` chỉ đọc, ĐỘNG *(Story 6.14)* | **frontend** nạp ảnh (`<img src>` qua `asset://`, Story 6.11/6.14) | `assetProtocol.scope` (cấp lúc chạy qua `app.asset_protocol_scope().allow_directory(...)`, `commands::project::replace_open_work` — nút thắt CHUNG của bốn đường mở một Tác phẩm) — framework cưỡng chế |
 | `$RESOURCE/dict/**` chỉ đọc | **chỉ Rust** mở `.db` | kỷ luật mã Rust — **nghiệm thu bằng vắng mặt** |
 | `$APPDATA/**` đọc + ghi | **chỉ Rust** | kỷ luật mã Rust + AD-7, AD-11 — **nghiệm thu bằng vắng mặt** |
+
+🔵 **SỬA 2026-09-10 (vòng rà) — phạm vi hàng ĐỘNG thu HẸP.** Bản đầu cấp cả thư mục `.atproj`,
+tức phơi luôn `project.db` ra `asset://`. Ảnh của FR42/FR43 chỉ nằm trong `assets/`, và đó đúng
+bằng thứ `ChapterSegments::assets_dir`/`ReadingRun::assets_dir` đưa ra dây — nên grant nay trỏ
+`<dir>/assets`. Cùng lý lẽ đã dùng để giữ `$APPDATA` ngoài scope: *frontend không có việc gì với
+một tệp `.db`*.
+
+⚠️ **Chỗ yếu còn lại, ghi ra thay vì giấu (tiền lệ AD-41).** Không có lượt THU HỒI nào: mở Tác
+phẩm A rồi chuyển sang B thì `assets/` của A **vẫn** đọc được qua `asset://` tới hết phiên chạy —
+`grep forbid_directory src-tauri/src` = 0. Phạm vi runtime vì thế chỉ NỞ, không co. Đã ghi nợ có
+chủ (`deferred-work.md`); `forbid_directory` là danh sách CẤM có thứ tự ưu tiên cao hơn, nên thu
+hồi ngây thơ sẽ chặn luôn lượt mở LẠI A — đó là một quyết định phạm vi, không một dòng vá.
+
+**Vì sao hàng ĐỘNG không cần một AD mới.** AD-23 đã chốt sẵn vế này — *"Scope động cấp lúc
+chạy chỉ khi người dùng chọn qua hộp thoại — thư mục gốc Library"* — nên đây là một NĂNG LỰC
+CHƯA DỰNG của một bất biến đã có, không phải một bất biến bị đổi. Cấp cho đúng thư mục
+`.atproj` **đang mở** (không phải cả gốc Library mà AD-23 cho phép) là HẸP hơn mức AD-23 cho
+phép — hẹp hơn thì không cần xin thêm. `tauri.conf.json` không đổi một byte vì lượt này;
+`config_invariants.rs:313`/`:334` vẫn khoá scope TĨNH đúng một mục và cấm `$APPDATA`, không
+sửa dòng nào.
 
 > ⚠️ **Hàng `dict` từng bị ghi sai ở chính bảng này** (rà soát 2026-08-03): nó được xếp
 > vào cột *"framework cưỡng chế"*, mâu thuẫn với điều 3 ngay bên dưới. Rust mở `.db` bằng

@@ -721,6 +721,8 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         chapter_id: 1,
         segments: Vec::new(),
         caret_segment_id: None,
+        assets: Vec::new(),
+        assets_dir: "/tmp/x.atproj/assets".to_owned(),
     };
     let value = serde_json::to_value(&loaded).expect("ChapterSegments phải serialize được");
     let object = value.as_object().expect("phải serialize thành object");
@@ -740,6 +742,8 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         chapter_id: 1,
         segments: Vec::new(),
         caret_segment_id: Some(42),
+        assets: Vec::new(),
+        assets_dir: "/tmp/x.atproj/assets".to_owned(),
     };
     let value = serde_json::to_value(&with_value).expect("ChapterSegments phải serialize được");
     assert_eq!(
@@ -1163,6 +1167,16 @@ fn reading_wire_structs_keep_snake_case_field_names() {
                 }],
             }],
             segment_count: 1,
+            // **THÊM Story 6.14** — một ảnh, để `chapter_keys`/nội dung image dưới đây có
+            // ít nhất một mục thật đi qua serde.
+            images: vec![auratranslate_lib::commands::segment::ReadingImage {
+                asset_id: 9,
+                file_name: "9.jpg".to_owned(),
+                source_url: Some("https://example.test/9.jpg".to_owned()),
+                after_segment_id: Some(42),
+                alt_text: Some("mo ta".to_owned()),
+                caption_text: None,
+            }],
         }],
         frontier: auratranslate_lib::commands::segment::ReadingFrontier {
             kind: auratranslate_lib::commands::segment::ReadingFrontierKind::NextNotDone,
@@ -1173,6 +1187,8 @@ fn reading_wire_structs_keep_snake_case_field_names() {
                 status: "in_progress".to_owned(),
             }),
         },
+        // **THÊM Story 6.14**.
+        assets_dir: "/tmp/x.atproj/assets".to_owned(),
     };
     let value = serde_json::to_value(&run).expect("ReadingRun phải serialize được");
     let mut top_keys: Vec<&str> =
@@ -1180,7 +1196,7 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["chapters", "frontier"],
+        vec!["assets_dir", "chapters", "frontier"],
         "khoá trên dây của ReadingRun là snake_case. Nhận được: {top_keys:?}."
     );
 
@@ -1198,9 +1214,28 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     chapter_keys.sort_unstable();
     assert_eq!(
         chapter_keys,
-        vec!["chapter_id", "chapter_ord", "chapter_title", "paragraphs", "segment_count"],
+        vec!["chapter_id", "chapter_ord", "chapter_title", "images", "paragraphs", "segment_count"],
         "khoá trên dây của ReadingChapter là snake_case. Nhận được: {chapter_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    // **THÊM Story 6.14** — khoá trên dây của `ReadingImage`.
+    let image_value = chapter_value
+        .get("images")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("images phải mang ít nhất một mục cho ca test này");
+    let mut image_keys: Vec<&str> = image_value
+        .as_object()
+        .expect("một mục images phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    image_keys.sort_unstable();
+    assert_eq!(
+        image_keys,
+        vec!["after_segment_id", "alt_text", "asset_id", "caption_text", "file_name", "source_url"],
+        "khoá trên dây của ReadingImage là snake_case. Nhận được: {image_keys:?}."
     );
 
     let paragraph_value = chapter_value

@@ -36,7 +36,7 @@ import {
   setSegmentParagraphEnd,
   splitSegment,
 } from '../config/segment'
-import type { ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
+import type { ChapterAsset, ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
 // 🔵 THÊM Story 5.7 (AC4/AC6) — nhịp ghi RIÊNG cho vị trí làm việc của Chương, KHÔNG mang
@@ -64,6 +64,26 @@ const chapterId = shallowRef<number | null>(null)
 const loadError = shallowRef<IpcError | null>(null)
 const pending = ref(false)
 let requested = false
+
+/**
+ * 🔵 **THÊM Story 6.14 (FR42/FR43)** — ảnh của Chương đang mở + đường dẫn tuyệt đối tới
+ * `assets/` của Tác phẩm đang mở, cùng lượt đọc với [`segments`] (`readOpenChapterSegments`
+ * mang cả ba trong MỘT lượt IPC — không một lệnh phụ). Cùng khuôn `segments`: `shallowRef`,
+ * mảng/state MỚI ở mỗi lượt nạp, không sửa tại chỗ.
+ *
+ * ⚠️ **Giới hạn đã biết, ghi ra thay vì để người sau tưởng đã xét:** một lượt gộp/tách
+ * (`applyRegroup`) chỉ vá [`segments`], KHÔNG nạp lại `assets` — anchor của DB tự dịch chuyển
+ * đúng (schema.rs, ba đường tổ chức lại Chương đã giữ bất biến này), nhưng ẢNH CHỤP hiển thị
+ * ở đây có thể LỆCH vị trí cho tới lượt nạp Chương kế tiếp. §Never spec 6.14 cấm sửa
+ * `write_regroup`/luật gộp-tách; nạp lại `assets` sau MỖI lượt gộp/tách là việc NGOÀI phạm vi
+ * story này — ghi nợ, không vá tạm.
+ */
+const chapterAssets = shallowRef<readonly ChapterAsset[]>([])
+const assetsDir = shallowRef<string>('')
+/** Ảnh của Chương đang mở — xem [`chapterAssets`] cho giới hạn đã biết. */
+export const editorChapterAssets: DeepReadonly<Ref<readonly ChapterAsset[]>> = readonly(chapterAssets)
+/** Đường dẫn tuyệt đối tới `assets/` của Tác phẩm đang mở. `''` trước lượt nạp đầu tiên. */
+export const editorAssetsDir: DeepReadonly<Ref<string>> = readonly(assetsDir)
 
 /**
  * 🔴 **Số thứ tự lượt nạp** — cùng cơ chế và cùng lý do với `hanVietSequence` của
@@ -146,6 +166,10 @@ export async function ensureSegmentsLoaded(): Promise<void> {
   segments.value = loaded?.segments ?? []
   chapterId.value = loaded?.chapter_id ?? null
   loadError.value = error
+  // 🔵 THÊM Story 6.14 — cùng lượt IPC, cùng lý do `segments`: `''`/`[]` khi nạp trượt hoặc
+  // chạy ngoài Tauri, không phân biệt với "Chương 0 ảnh" (chỗ dùng phân biệt bằng `loadError`).
+  chapterAssets.value = loaded?.assets ?? []
+  assetsDir.value = loaded?.assets_dir ?? ''
 
   // 🔵 **THÊM Story 5.7 (AC4/AC5).** `caret_segment_id` là RUST QUYẾT — segment đã lưu vị
   // trí, segment đầu (Chương chưa từng mở / vị trí trỏ vào segment về hưu), hoặc `null`
@@ -599,6 +623,9 @@ export function resetEditorPanel(): void {
   pending.value = false
   caretSegmentId.value = null
   requested = false
+  // 🔵 THÊM Story 6.14 — ảnh/thư mục thuộc Tác phẩm VỪA BỊ THAY, cùng lý lẽ `segments` ngay trên.
+  chapterAssets.value = []
+  assetsDir.value = ''
 
   // 🔴 Tập chờ và mốc *"Đã lưu"* thuộc Tác phẩm VỪA BỊ THAY, nên chúng phải đi cùng nó.
   //

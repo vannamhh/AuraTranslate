@@ -71,9 +71,16 @@
 //! `commands::project::create_work`). `role` KHÔNG thuộc [`split::SplitSegment`] — nó là dữ
 //! kiện của TẦNG NHẬP (biết khối nào là ảnh/caption), không của bộ tách cấp câu.
 
+//! [`image`] — phân giải `asset.anchor_after_segment_ord` thành `id` của segment đứng ngay
+//! trước ảnh, cộng gắn `alt`/`caption` (Story 6.14, FR42/FR43). MỘT phép lọc "đủ điều kiện
+//! làm neo" (khác nhau giữa Lưới và Chế độ đọc) giải quyết mọi ca biên của §I/O Matrix — xem
+//! doc-comment đầu tệp cho cơ chế. [`image::strip_role_segments`] là chốt lọc RIÊNG (khác
+//! [`omit`]) loại segment mang vai khỏi dòng văn xuôi của Chế độ đọc.
+
 pub mod anchor;
 pub mod chapterpattern;
 pub mod encoding;
+pub mod image;
 pub mod import;
 pub mod normalize;
 pub mod omit;

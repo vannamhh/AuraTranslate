@@ -21,6 +21,8 @@ type SegmentFixture = {
   is_marked?: boolean
 }
 
+// 🔵 THÊM Story 6.14 — `images: []`: `isReadingChapter` đòi trường này CÓ MẶT, nếu không CẢ
+// RUN bị từ chối (`config/reading.ts`, cảnh báo 🔴 đầu tệp).
 function chapterFixture(chapterId: number, ord: number, paragraphs: SegmentFixture[][]) {
   return {
     chapter_id: chapterId,
@@ -28,6 +30,7 @@ function chapterFixture(chapterId: number, ord: number, paragraphs: SegmentFixtu
     chapter_title: `Chuong ${ord}`,
     paragraphs: paragraphs.map((segments) => ({ segments })),
     segment_count: paragraphs.reduce((sum, p) => sum + p.length, 0),
+    images: [],
   }
 }
 
@@ -66,6 +69,7 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
         ]),
       ],
       frontier: { kind: 'end-of-work', chapter: null },
+      assets_dir: '',
     })
 
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
@@ -93,6 +97,7 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
         chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'Cau mot.', is_confirmed: true, is_marked: false }]]),
       ],
       frontier: { kind: 'end-of-work', chapter: null },
+      assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
@@ -126,6 +131,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
         },
       ],
       frontier: { kind: 'end-of-work', chapter: null },
+      assets_dir: '',
     })
 
     const { readReadingRun } = await import('../../src/config/reading')
@@ -147,6 +153,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
         },
       ],
       frontier: { kind: 'end-of-work', chapter: null },
+      assets_dir: '',
     })
 
     const state = await import('../../src/modes/readingState')

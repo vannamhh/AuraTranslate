@@ -546,7 +546,9 @@ describe('panels/editorPanelState.ts::splitChapterHere — thân hàm, không ch
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'split_chapter_at_segment') return Promise.resolve(null)
       if (cmd === 'read_open_chapter_segments') {
-        return Promise.resolve({ chapter_id: 1, segments: [], caret_segment_id: null })
+        // 🔵 THÊM Story 6.14 — `assets`/`assets_dir`: `isChapterSegments` đòi các trường này
+        // CÓ MẶT, nếu không cả `loaded` bị từ chối.
+        return Promise.resolve({ chapter_id: 1, segments: [], caret_segment_id: null, assets: [], assets_dir: '' })
       }
       return Promise.resolve({ chapter_id: 1, source_text: '', source_lang: 'zh' })
     })

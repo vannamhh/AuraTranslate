@@ -73,6 +73,7 @@ import SourceHanViet from './SourceHanViet.vue'
 import { useSelectionSurface } from './selectionContract'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import type { DockviewPanelProps } from '../layout/panelProps'
+import type { ChapterAsset } from '../config/segment'
 import { t } from '../i18n'
 import { detectIsMac, dispatch } from '../commands'
 import {
@@ -94,8 +95,10 @@ import {
 } from './sourcePanelState'
 import {
   clearEditorCaretPlacement,
+  editorAssetsDir,
   editorCaretPlacement,
   editorCaretSegmentId,
+  editorChapterAssets,
   editorChapterId,
   editorConfirmError,
   editorEditedText,
@@ -109,6 +112,7 @@ import {
   setEditorCaret,
   setEditorSourceCut,
 } from './editorPanelState'
+import ChapterImage from '../ChapterImage.vue'
 // 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
 // là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
 // về từng hàng — xem doc-comment của cả hai tệp cho lý do chất nối và lý do KHÔNG gộp tập biên
@@ -287,6 +291,53 @@ const STATE_LABEL_KEYS: Readonly<Record<SegmentRuleValue, string>> = {
   'tm-rule': 'panel.grid.state_tm',
   none: 'panel.grid.state_untranslated',
   ornament: 'panel.grid.state_retired',
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔵 THÊM Story 6.14 (FR42 · FR43) — ẢNH ĐÚNG VỊ TRÍ + NHÃN VAI (nợ ③, deferred-work.md)
+// ═════════════════════════════════════════════════════════════════════════════════
+/**
+ * Nhãn vai của `role='alt'`/`role='caption'` — chỗ ĐẦU TIÊN ở webview đọc trường `role`
+ * (`ChapterSegment.role`, chở được từ Story 6.13, chưa nơi nào đọc trước story này). Chữ,
+ * không màu — cùng luật "phân biệt bằng độ lùi/nhãn chữ" đã dùng cho nhật ký domain.
+ */
+const ROLE_LABEL_KEYS: Readonly<Record<string, string>> = {
+  alt: 'panel.grid.role_alt',
+  caption: 'panel.grid.role_caption',
+}
+
+/**
+ * `s.id` của câu ĐẦU TIÊN trong `editorSegments` — neo `0` (không segment nào đứng trước ảnh)
+ * đặt ảnh vào ĐẦU ô của câu này, trước chữ (§Always spec 6.14). `null` khi Chương rỗng — vô
+ * hại, [`leadingImagesOf`] không bao giờ khớp `null`.
+ */
+const firstSegmentId = computed<number | null>(() => editorSegments.value[0]?.id ?? null)
+
+/**
+ * `after_segment_id → ChapterAsset[]` — nhóm sẵn MỘT lần cho cả lượt render thay vì lọc mảng
+ * `editorChapterAssets` ở mỗi ô (9.850 hàng × N ảnh là một phép `O(rows × assets)` không cần
+ * thiết). Hai ảnh cùng neo giữ đúng thứ tự Rust đã trả (`asset.id` tăng dần).
+ */
+const trailingImagesBySegmentId = computed(() => {
+  const map = new Map<number, ChapterAsset[]>()
+  for (const asset of editorChapterAssets.value) {
+    if (asset.after_segment_id === null) continue
+    const list = map.get(asset.after_segment_id) ?? []
+    list.push(asset)
+    map.set(asset.after_segment_id, list)
+  }
+  return map
+})
+
+/** Ảnh hiện Ở CUỐI ô nguyên văn của segment `id` — mọi neo `> 0` khớp đúng segment đó. */
+function trailingImagesOf(id: number): ChapterAsset[] {
+  return trailingImagesBySegmentId.value.get(id) ?? []
+}
+
+/** Ảnh hiện Ở ĐẦU ô nguyên văn — CHỈ cho câu đầu Chương, CHỈ ảnh mang neo `0`. */
+function leadingImagesOf(id: number): ChapterAsset[] {
+  if (id !== firstSegmentId.value) return []
+  return editorChapterAssets.value.filter((asset) => asset.after_segment_id === null)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1609,6 +1660,25 @@ const chapterId = computed(() => editorChapterId.value)
             @mouseup="onSourceCellMouseUp"
           >
             <!--
+              🔵 Story 6.14 (nợ ③) — NHÃN VAI, trước mọi nội dung khác của ô. `aria-hidden`
+              KHÔNG đặt: đây là chữ THẬT phân biệt hàng này với văn xuôi, không một hoạ tiết.
+              `s.role` không có `data-src-start` ⇒ vô hình với `sourceCutOffsetOf` (nó chỉ đọc
+              neo, không đếm mù toàn bộ ô — xem doc-comment `editorSegments.ts:282`).
+            -->
+            <span v-if="s.role !== null && ROLE_LABEL_KEYS[s.role] !== undefined" class="role-label" :data-role="s.role">{{ t(ROLE_LABEL_KEYS[s.role]!) }}</span>
+            <!--
+              🔵 Story 6.14 (FR42) — ảnh neo `0` đứng Ở ĐẦU ô của câu ĐẦU TIÊN, TRƯỚC chữ.
+              `<ChapterImage>` không có `data-src-start` ⇒ cùng lý do vô hình với cắt/Hán Việt.
+            -->
+            <figure v-for="asset in leadingImagesOf(s.id)" :key="'lead-' + asset.asset_id" class="grid-image">
+              <ChapterImage
+                :file-name="asset.file_name"
+                :assets-dir="editorAssetsDir"
+                :source-url="asset.source_url"
+                :alt-text="asset.alt_text ?? ''"
+              />
+            </figure>
+            <!--
               AC8 — Hán Việt sống TRONG ô nguyên văn, hai chế độ FR19, người dùng tự bật tắt.
               `surface-role="cell"` nhượng lượt đăng ký cho CỘT — xem `hanVietSurfaces.ts`.
             -->
@@ -1661,6 +1731,15 @@ const chapterId = computed(() => editorChapterId.value)
                 >{{ piece.text }}</span></template
               ></template
             >
+            <!-- 🔵 Story 6.14 (FR42) — ảnh SAU câu này, ở CUỐI ô, đúng neo hai ảnh cùng neo giữ nguyên thứ tự `asset.id`. -->
+            <figure v-for="asset in trailingImagesOf(s.id)" :key="asset.asset_id" class="grid-image">
+              <ChapterImage
+                :file-name="asset.file_name"
+                :assets-dir="editorAssetsDir"
+                :source-url="asset.source_url"
+                :alt-text="asset.alt_text ?? ''"
+              />
+            </figure>
           </div>
         </div>
 
@@ -2060,6 +2139,30 @@ const chapterId = computed(() => editorChapterId.value)
   text-decoration-color: var(--color-primary);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
+}
+
+/*
+ * 🔵 Story 6.14 (nợ ③) — NHÃN VAI. Chữ nhỏ, `on-surface-variant` (cùng vai "chữ thật" với số
+ * câu/nhãn trạng thái — Quyết định #9(a) đã cân cho hai cột đó, dùng lại ở đây), đứng thành
+ * một dòng riêng trước nguyên văn — `display: block` để nó không dính vào chữ đi ngay sau.
+ */
+.role-label {
+  display: block;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  line-height: var(--leading-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * 🔵 Story 6.14 (FR42) — ảnh TRONG ô nguyên văn. `<figure>` không viền/nền riêng — nó chỉ là
+ * một hộp gộp `<ChapterImage>` cho đúng ngữ nghĩa HTML (ảnh + chú thích tiềm năng), khoảng
+ * cách với chữ đứng cạnh đi qua `margin`. `max-width: 100%` lặp lại `<img>` của
+ * `ChapterImage.vue` — phòng khi `<figure>` tự thêm `min-width` mặc định của UA.
+ */
+.grid-image {
+  margin: 4px 0;
+  max-width: 100%;
 }
 
 /*

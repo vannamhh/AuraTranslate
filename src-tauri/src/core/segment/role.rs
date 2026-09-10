@@ -72,6 +72,37 @@ impl SegmentRole {
             SegmentRole::Caption => Self::CAPTION_STR,
         }
     }
+
+    /// Nghịch đảo của [`Self::as_str`] — **THÊM Story 6.14**, chỗ ĐẦU TIÊN đọc lại cột
+    /// `segment.role` sau khi ghi (mọi chỗ trước đó chỉ GHI). `None` cho chuỗi không khớp,
+    /// KHÔNG panic và KHÔNG đoán — cùng luật "so chuỗi qua kiểu đóng, không rải `==` tay"
+    /// mà module này đã giữ cho chiều ghi.
+    pub fn from_str(s: &str) -> Option<SegmentRole> {
+        match s {
+            Self::ALT_STR => Some(SegmentRole::Alt),
+            Self::CAPTION_STR => Some(SegmentRole::Caption),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod role_str_tests {
+    use super::SegmentRole;
+
+    #[test]
+    fn as_str_and_from_str_round_trip_for_every_variant() {
+        for role in [SegmentRole::Alt, SegmentRole::Caption] {
+            assert_eq!(SegmentRole::from_str(role.as_str()), Some(role));
+        }
+    }
+
+    #[test]
+    fn from_str_rejects_an_unknown_string() {
+        assert_eq!(SegmentRole::from_str(""), None);
+        assert_eq!(SegmentRole::from_str("Alt"), None);
+        assert_eq!(SegmentRole::from_str("captio"), None);
+    }
 }
 
 /// Một segment sẵn sàng ghi xuống bảng `segment` — văn xuôi (`role: None`) hoặc segment vai

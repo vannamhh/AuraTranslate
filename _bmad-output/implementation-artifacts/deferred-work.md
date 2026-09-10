@@ -10633,6 +10633,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `allow_directory` lúc mở một Tác phẩm) và phải đo lại NFR14 (portable qua hai nền tảng) cho
   quyết định đó.
 
+  → ✅ **ĐÃ ĐÓNG 2026-09-10 (Story 6.14).** `commands::project::replace_open_work` (nút thắt
+  CHUNG của cả bốn đường mở một Tác phẩm — `create_work_from_text`/`_from_file`,
+  `confirm_import_with_encoding`, `open_work`) nay gọi
+  `app.asset_protocol_scope().allow_directory(&new_work.dir, true)` **động, lúc chạy** —
+  đường ĐỘNG (không phải `tauri.conf.json` tĩnh), đúng vế AD-23 đã chốt sẵn ("Scope động cấp
+  lúc chạy... thư mục gốc Library"); Story 6.14 cấp HẸP hơn mức đó cho phép — đúng thư mục
+  `.atproj` đang mở, không cả gốc Library. `tauri.conf.json` không đổi một byte;
+  `config_invariants.rs:313`/`:334` xanh không sửa dòng nào (`git diff` xác nhận). NFR14
+  (portable): scope bám theo `OpenWork::dir` tại THỜI ĐIỂM mở, không một đường dẫn đúc cứng
+  nào trong mã — AC "copy `.atproj` sang thư mục khác cùng máy, mở lại ⇒ ảnh vẫn hiện" của
+  spec 6.14. Xem `src-tauri/SECURITY-NOTES.md` §`assetProtocol.scope` cho bảng ba vùng đã
+  cập nhật.
+
 - ⚠️ **`srcset`/`<picture>` chưa được `Extractor` đọc — chỉ thuộc tính `src` trần.**
   `extractor.rs:93` đã ghi bằng chữ từ Story 6.9 (*"⚠️ srcset/<picture> 0 hit — chỉ src"*);
   Story 6.11 KHÔNG mở lại `extractor.rs` (§Never: không đổi hợp đồng `core::cleanup`/
@@ -10743,6 +10756,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   gì) nhưng nó làm `.atproj` phình dần mà người dùng không có cách biết. **Chủ: Story 6.14** —
   story đầu tiên ĐỌC bảng `asset` cũng là chỗ đầu tiên có sẵn phép đối chiếu tệp-với-hàng.
 
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-10 (Story 6.14).** Bảng `asset` nay THẬT SỰ được ĐỌC
+  (`select_chapter_assets`, `commands/segment.rs`) — điều kiện "có sẵn phép đối chiếu
+  tệp-với-hàng" mà mục này chờ nay CÓ THẬT. Nhưng story này KHÔNG dựng phép đối chiếu đó: phạm
+  vi story 6.14 là HIỂN THỊ (§Never spec 6.14 không cấm tường minh, nhưng §Always/§Tasks không
+  giao việc quét/dọn, và một lượt quét toàn bộ `assets/` mỗi lần mở Tác phẩm là một chi phí
+  MỚI chưa ai đo). Vế NGƯỢC (hàng `asset` có mà TỆP mất) nay CÓ bề mặt quan sát — khung giữ chỗ
+  ảnh thiếu (FR43) hiện đúng `file_name` khi `<img>` trượt. Vế THUẬN (tệp mồ côi trên đĩa mà
+  KHÔNG hàng `asset` nào trỏ tới) vẫn hoàn toàn vô hình — không bề mặt nào liệt kê nội dung
+  `assets/` để mà đối chiếu ngược. **Chủ chuyển: Ice** — cần một quyết định phạm vi (lượt quét
+  dọn `.atproj` thuộc story nào, chạy khi nào — lúc mở, hay một lệnh "dọn dẹp" riêng người dùng
+  tự bấm) trước khi một dev tự chọn.
+
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: `segment_normalize_boundary.rs` nay bỏ qua vùng `#[cfg(test)]` của MỌI tệp được quét
   (trước chỉ bỏ qua của riêng `normalize.rs`) — chỗ mù của cổng rộng ra đúng bằng phép vá đó.
@@ -10768,6 +10793,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   cuối đòi tách hai vai đó ra hai cột, không phải đổi một dòng."
   chủ: Story 6.14 — màn hình đầu tiên THẬT SỰ hiển thị `source_url` cho người dùng đọc; tới
   lúc đó sự sai lệch này không có bề mặt nào để mà quan sát được.
+
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-10 (Story 6.14).** Bề mặt hiển thị `source_url` nay TỒN TẠI —
+  khung giữ chỗ ảnh thiếu (FR43) hiện `source_url` khi có, chọn được để copy (§Always spec
+  6.14). Sai lệch mà mục này khai ("URL yêu cầu, không phải chặng cuối sau chuyển hướng") vì
+  thế nay QUAN SÁT ĐƯỢC bởi người dùng thật, đúng như mục này tiên đoán. Nhưng SỬA nó đòi tách
+  cột (`evidence` đã nói: "hai vai... đòi tách hai vai đó ra hai cột") — tức MỘT bước di trú
+  MỚI, bị cấm tường minh ở story này (§Never spec 6.14: "không thêm cột nào vào `asset`, không
+  thêm bước di trú"). ⇒ Không sửa được ở đây, dù bề mặt quan sát đã có. **Chủ chuyển: Ice** —
+  cần quyết định cột "chặng cuối sau chuyển hướng" sống ở story nào (Story 6.15, "Xuất xứ tài
+  liệu ở tầng Chương", là ứng viên gần nhất về CHỦ ĐỀ — cùng nói về xuất xứ — nhưng phạm vi của
+  6.15 là tầng CHƯƠNG chứ không phải tầng ẢNH, nên đây KHÔNG phải một phép gán tự động) trước
+  khi một dev tự thêm di trú.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: "`extract_main_content` chốt vào `cs.first()` của toàn danh sách, không theo từng
@@ -11038,6 +11075,12 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Story 6.14 — epics.md:5151 giao đúng bề mặt hiển thị ảnh (kể cả nhãn cho hàng vai)
   cho story này; không mở nó ở đây (§Never spec 6.13: "Không đụng bề mặt HIỂN THỊ ảnh").
 
+  → ✅ **ĐÃ ĐÓNG 2026-09-10 (Story 6.14).** `GridPanel.vue` nay đọc `ChapterSegment.role` — chỗ
+  ĐẦU TIÊN ở webview đọc trường này — và hiện một nhãn chữ (`panel.grid.role_alt`/
+  `panel.grid.role_caption`, KHÔNG màu, cùng luật "phân biệt bằng độ lùi/nhãn chữ, không màu"
+  đã dùng cho vạch trạng thái) ngay trong ô nguyên văn của hàng đó. Một hàng `alt`/`caption`
+  nay phân biệt được với một câu văn xuôi bằng mắt — không cần đoán từ nội dung.
+
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ④ vai bị MẤT khi người dùng gộp/tách câu chạm vào một segment vai — `write_regroup`
   (Story 2.8) không đọc/không mang `role` sang hàng mới, đúng AD-5 ("về hưu + tạo mới", không
@@ -11054,6 +11097,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   quyết định có cần một cảnh báo gộp/tách riêng cho segment vai hay không, vì nó cần biết
   TRƯỚC ĐÓ hàng nào đang mang vai để mà cảnh báo.
 
+  → 🔁 **CHUYỂN CHỦ 2026-09-10 (Story 6.14) — sang Story 7.1, KHÔNG đóng.** Story 6.14 đúng
+  là chỗ đầu tiên hiển thị VAI (mục ③ ngay trên, ĐÃ ĐÓNG), nên nó CÓ THỂ biết trước hàng nào
+  đang mang vai để cảnh báo — nhưng §Never spec 6.14 cấm tường minh: "Không sửa `write_regroup`
+  hay luật gộp/tách segment — nợ ④ (vai mất khi gộp/tách) chuyển chủ sang Story 7.1 (Ice chốt
+  2026-09-10): nó là toàn vẹn dữ liệu chứ không phải hiển thị ảnh, và 7.1 đã giữ nợ ⑤ (nghiệm
+  thu TM cho segment vai) — 7.1 là người tiêu thụ kế tiếp của trường vai." Lý do gán ban đầu
+  cho 6.14 ("cần biết trước hàng nào mang vai") vẫn đúng, nhưng nó không còn là lý do ĐỦ: một
+  cảnh báo trước-khi-gộp là một quyết định UX của LUỒNG GỘP/TÁCH (Story 2.8), không của bề mặt
+  hiển thị ảnh — và Story 7.1 (Epic 7, TM cho segment vai) là nơi giá trị của việc GIỮ vai qua
+  gộp/tách trở nên có thật (mất vai ⇒ mất luôn đường vào TM mà 7.1 đang dựng). **Chủ: Story
+  7.1.**
+
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ⑤ nghiệm thu vế Translation Memory/Glossary cho segment vai CHƯA làm ở story này
   — AD-42 nói lý do TỒN TẠI của cả story là để `alt`/`caption` "tự động vào TM/Glossary sau
@@ -11066,3 +11121,137 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ai viết logic \"segment `role='alt'` vào bảng TM nào, dưới khoá gì\"."
   chủ: Story 7.1 — `epics.md:5404` giao đúng vế nghiệm thu TM cho story đó; Story 6.13 chỉ
   dựng nền (cột `role`, luồng xác nhận dùng chung) mà Story 7.1 sẽ đọc.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Gộp/tách một câu ĐANG MANG NEO ẢNH làm ảnh **biến mất khỏi lưới** cho tới lượt nạp
+  Chương kế tiếp — ảnh chụp `assets` ở webview không được nạp lại sau `applyRegroup`.
+  evidence: "ĐO 2026-09-10 bằng cách đọc mã, không suy đoán: `applyRegroup`
+  (`editorPanelState.ts:2374`) dựng `veHuu` từ `outcome.retired` rồi loại các hàng đó khỏi
+  `segments.value` (`:2375-2404`), nhưng KHÔNG chạm `chapterAssets`. Ảnh gắn vào một hàng vừa
+  về hưu vẫn giữ `after_segment_id` cũ, mà `trailingImagesBySegmentId`
+  (`GridPanel.vue`) chỉ khớp theo `s.id` của các ô ĐANG render ⇒ không ô nào khớp ⇒ ảnh không
+  được vẽ ra ở đâu cả. Không phải mất dữ liệu: hàng `asset` và neo trong CSDL vẫn đúng (ba
+  đường tổ chức lại Chương đã `UPDATE asset`, `schema.rs:958-975`), và ảnh trở lại đúng chỗ
+  ngay lượt mở Chương sau. Đây là ảnh chụp CŨ ở webview, không phải neo sai. Chính mã đã tự
+  khai giới hạn này (`editorPanelState.ts:76-80`) và tự nói \"ghi nợ, không vá tạm\" — nhưng
+  lượt thi hành KHÔNG ghi mục nợ nào; mục này bù đúng chỗ thiếu đó. `check:debt-owner` không
+  bắt được vì nó chỉ canh mục ĐÃ CÓ, không canh một mục VẮNG MẶT."
+  chủ: Ice — cần một quyết định phạm vi trước khi dev tự chọn, vì hai đường sửa đều hợp lệ và
+  đánh đổi khác nhau. (a) Nạp lại trọn `read_open_chapter_segments` sau mỗi lượt gộp/tách:
+  đúng theo cấu tạo (Rust là nguồn sự thật của neo), nhưng ngược hẳn chủ ý của `applyRegroup`
+  — hàm đó vá TẠI CHỖ chính là để TRÁNH một lượt đọc lại sau mỗi thao tác gõ phím. (b) Một
+  lệnh IPC hẹp chỉ trả lại `assets` của Chương: giữ được chủ ý trên, nhưng thêm một lệnh mới
+  và một lượt IPC thứ hai cho mỗi lượt gộp/tách. Webview KHÔNG được tự đoán neo mới — quy tắc
+  dời neo là một luật có ca biên thật, AD-1 cấm nó sống ở webview.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Vế **hình học** của FR42/FR43 — "ảnh hiện đúng chỗ và năm cột của lưới CÒN thẳng
+  hàng trên WKWebView thật" — chưa có một phép đo nào; nghiệm thu hiện dừng ở hình dạng DOM.
+  evidence: "`vitest` chạy trên `happy-dom`, và `tests/AGENTS.md` nói thẳng mọi mệnh đề về
+  hình học/bố cục thuộc bàn đo/e2e chứ không thuộc vitest. §Tasks của spec 6.14 đã ghi đúng
+  câu đó, nhưng lượt thi hành KHÔNG thêm tệp e2e nào — `git status e2e/` = 0 tệp mới, và
+  `e2e/specs/` không có spec nào cho Story 6.14. Cái ĐÃ đo được: `gridPanelImages.test.ts`
+  khoá `gridTemplateRows` đếm đúng `SEGMENTS.length` và mỗi trong năm cột có đúng chừng ấy
+  phần tử con — đó là bằng chứng CẤU TRÚC cho \"ảnh không sinh thêm track\", đủ mạnh cho ca
+  hồi quy, nhưng nó KHÔNG chứng minh năm cột thẳng hàng khi một ô cao vọt vì `subgrid` trong
+  một engine thật. Cái CHƯA đo, ghi riêng vì spec đã nêu đích danh nó như một cái giá đã
+  nhận: ô bản dịch đối diện để trống đúng bằng chiều cao ảnh — chưa ai nhìn thấy nó trên bản
+  dựng thật để nói khoảng trống đó có chấp nhận được không."
+  chủ: Ice — cùng lớp với mọi vế e2e khác của kho (bộ e2e chỉ chạy nhịp đêm CI và chạy tay,
+  `.githooks/pre-push:23-42`), nên nó không tự đóng bằng một lượt push; và câu hỏi thứ hai
+  ("khoảng trống đối diện ảnh có chấp nhận được không") là một phán quyết thiết kế, không một
+  phép đo kỹ thuật.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: 🔵 Cơ chế của món nợ "test dựng `TcpListener` thật đỏ trong thư mục dự án" đo lại
+  2026-09-10 — **mệnh đề cơ chế của Story 6.13 KHÔNG giải thích được ca thứ ba**, và tập ca đỏ
+  đã RỘNG ra so với lần đo 2026-09-09.
+  evidence: "Story 6.13 §Implementation Notes chốt cơ chế là *'lượt kết nối loopback ĐẦU TIÊN
+  của mỗi TIẾN TRÌNH test bị nuốt (~5–8 s rồi trượt), mọi lượt sau xong trong vài mili-giây'*,
+  và báo `segment_role_contract` **15/15 xanh**. ĐO LẠI 2026-09-10, cùng thư mục:
+  `cargo test --locked --no-fail-fast` ⇒ 53 binary, **1.380 xanh / 28 đỏ**, ba binary đỏ —
+  `asset_contract` (12), `webimport_contract` (15), và `segment_role_contract` (1). Với
+  `--test-threads=1` cả ba rơi về ĐÚNG 1 ca đỏ, đúng ba ca mà lượt thi hành 6.14 đã lặng lẽ
+  `--skip`. HAI ca khớp cơ chế cũ; ca thứ ba KHÔNG:
+  `segment_role_contract::two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt`
+  đỏ CẢ khi chạy MỘT MÌNH lẫn khi chạy SAU bảy ca mạng khác đã làm nóng tiến trình (đo hai
+  lượt) — tức nó KHÔNG phụ thuộc thứ tự, nên 'kết nối đầu tiên của tiến trình' không giải
+  thích được nó. Triệu chứng của nó cũng khác: `images_saved` = 1 thay vì 2 (một trong hai
+  ảnh của CÙNG một máy chủ giả trượt), gợi ý cơ chế thật là 'lượt kết nối đầu tới mỗi CỔNG vừa
+  bind bị nuốt', không phải mỗi tiến trình — nhưng đó là một giả thuyết CHƯA đo, ghi ra đúng
+  như thế. KHÔNG phải hồi quy của Story 6.14: gỡ toàn bộ `src-tauri/src` + `src-tauri/tests`
+  về baseline `0c96103` bằng `git stash -u` trong CHÍNH thư mục này rồi chạy lại ca đó ⇒ đỏ
+  **3/3 lượt**, cùng thông điệp; khôi phục xong đối chiếu `diff -rq` với bản sao lưu ⇒ trùng
+  khớp hoàn toàn. Story 6.14 không chạm `segment_role_contract.rs`, `prepare_chapter_images`,
+  hay bất kỳ đường tải ảnh nào; phép cấp scope mới sống trong `replace_open_work`, mà cả bốn
+  chỗ gọi nó đều nằm trong module `wire` — hàm thuần mà test gọi không đi qua đó."
+  chủ: Ice — cùng chủ với mục gốc (Story 6.12). Mục này KHÔNG đề xuất sửa; nó chỉ ghi rằng lời
+  giải thích đang có đã hết đủ, để lượt điều tra sau không dừng ở một cơ chế sai.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Đối chứng đỏ ② của spec 6.14 — *"gỡ lượt cấp scope động ⇒ `<img>` phải trượt với
+  `asset protocol not configured to allow the path`"* — **CHƯA CHẠY**.
+  evidence: "§Verification spec 6.14 ghi đúng rằng đây là một mệnh đề FRAMEWORK CƯỠNG CHẾ,
+  không nghiệm thu được bằng vitest (`happy-dom` không có asset protocol) cũng không bằng
+  `cargo test` (hàng rào sống ở webview, không ở Rust). Nó đòi dựng ứng dụng thật rồi quan sát
+  — phiên này không chạy được bản dựng có giao diện. Cái ĐÃ đo được thay thế: cả hai cổng ghim
+  scope TĨNH (`config_invariants.rs::asset_protocol_scope_has_exactly_the_one_readonly_resource_area`
+  và `::asset_protocol_scope_never_contains_appdata`) xanh với **0 dòng sửa** trong tệp đó, và
+  lời gọi `app.asset_protocol_scope().allow_directory(&new_work.dir, true)` nằm ở
+  `replace_open_work` — nút thắt chung của cả bốn đường mở Tác phẩm (đọc mã xác nhận: 4/4 chỗ
+  gọi). Nhưng 'lời gọi có mặt' KHÔNG chứng minh 'hàng rào mở đúng đường' — đó chính là loại
+  suy luận mà đối chứng ② sinh ra để chặn."
+  chủ: Ice — cùng lớp với mọi vế e2e/bàn đo khác của kho; cần một lượt chạy ứng dụng thật trên
+  cả macOS và Windows (NFR14) để đóng, và bộ e2e không chạy trong cổng `pre-push`.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Phạm vi asset protocol cấp lúc chạy **chỉ nở, không bao giờ co** — mở Tác phẩm A rồi
+  chuyển sang B thì `assets/` của A vẫn đọc được qua `asset://` tới hết phiên chạy.
+  evidence: "`grep -rn forbid_directory src-tauri/src` = **0**, dù
+  `tauri::scope::fs::Scope::forbid_directory` có trong crate đã ghim (`tauri-2.11.5`).
+  `replace_open_work` cấp cho Tác phẩm mới rồi hoán đổi `OpenWork` cũ đi mà không thu hồi gì;
+  `close_open_work` (chỉ chạy lúc thoát app) cũng không. Hai cổng `config_invariants.rs` chỉ ghim
+  mảng scope TĨNH trong `tauri.conf.json`, không chạm scope runtime, nên không phép đo nào canh
+  chỗ này. Hại đã HẸP đi nhiều sau lượt vá cùng vòng rà (grant nay trỏ `<dir>/assets` chứ không
+  cả `.atproj`, nên thứ tích lại chỉ là các thư mục ẢNH của những Tác phẩm đã mở, không phải
+  `project.db` của chúng) — nhưng mô hình vẫn rộng hơn câu mà cả `SECURITY-NOTES.md` lẫn chú
+  thích trong mã đang khai ở số ít (*'thư mục .atproj ĐANG MỞ'*). Không vá ngay vì phép sửa hiển
+  nhiên là sai: `forbid_directory` ghi vào danh sách CẤM có thứ tự ưu tiên CAO HƠN allow, nên thu
+  hồi A lúc chuyển sang B sẽ chặn luôn lượt mở LẠI A trong cùng phiên."
+  chủ: Ice — cần một quyết định: AD-23 có ý *"đúng một Tác phẩm tại một thời điểm"* hay chấp nhận
+  tích luỹ trong phiên? Trả lời xong mới biết nên dựng cơ chế thu hồi kiểu gì (bỏ allow thay vì
+  thêm forbid, hoặc dựng lại scope từ đầu mỗi lượt mở).
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Một Chương chỉ gồm segment mang vai (ảnh + alt + caption, 0 câu văn xuôi) hiện chú
+  *"mọi câu đã cắt bỏ"* ở Chế độ đọc — sai nguyên nhân.
+  evidence: "`ReadingChapter::segment_count` đếm MỌI hàng segment còn sống, kể cả hàng vai; còn
+  `paragraphs` thì đã qua `strip_role_segments` nên rỗng. `chapterEmptyNote` (`ReadingMode.vue`)
+  phân biệt 'Chương rỗng thật' với 'mọi câu đã cắt bỏ' đúng bằng cặp `paragraphs.length === 0` +
+  `segment_count > 0` ⇒ Chương toàn vai rơi vào nhánh 'đã cắt bỏ', trong khi người dùng không cắt
+  gì cả. Có thật nhưng hiếm (một Chương chỉ có ảnh). Không vá ngay vì phép sửa đụng NGHĨA của
+  `segment_count` — một trường Story 5.12 thêm vào có chủ ý để xoá nhánh `'empty-unknown'`, và
+  đổi nó có thể dựng lại đúng nhánh đó."
+  chủ: Ice — cần chốt Chương-toàn-ảnh đọc lên như thế nào (một chú thứ BA, hay `segment_count`
+  đổi nghĩa) trước khi dev chạm vào một trường của story khác.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: `assets_dir` đi ra dây qua `to_string_lossy()` — đường dẫn không biểu diễn được bằng
+  UTF-8 bị thay ký tự thầm lặng, ảnh không nạp được mà không nói vì sao.
+  evidence: "`segment.rs` dựng `assets_dir` bằng `open.dir.join(\"assets\").to_string_lossy()
+  .into_owned()` ở CẢ HAI lệnh. Trên Windows (NFR14 đòi hành vi tương đương hai nền tảng) một
+  đường dẫn chứa nửa cặp surrogate không ghép được sẽ thành U+FFFD, và webview ghép ra một đường
+  `asset://` trỏ vào chỗ không tồn tại. Hại đã nhẹ đi nhờ khung giữ chỗ (nó hiện `file_name`, nên
+  người dùng thấy CÓ một ảnh hỏng chứ không thấy trang trống), nhưng thông điệp không trỏ về
+  nguyên nhân thật. Không vá ngay vì sửa đúng đòi đổi kiểu trả về của cả hai lệnh IPC sang một
+  nhánh lỗi mới — hơn hẳn một phép sửa thẳng, và chưa ai dựng được một `.atproj` như thế để đo."
+  chủ: Ice — cùng lớp với mọi vế NFR14 chưa đo trên Windows của kho.
+
+- source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
+  summary: Lỗi *"gộp/tách làm ảnh biến mất khỏi lưới"* không có ca test nào ghim, nên nó có thể
+  tự khỏi hoặc tự tệ đi mà không ai biết.
+  evidence: "Vòng rà đề nghị ghim hành vi hiện tại bằng một ca test. KHÔNG làm, có chủ ý: ghim
+  một hành vi ĐANG SAI là khoá nó lại — lượt sửa đúng sau này sẽ phải xoá chính ca đó, và một ca
+  test nói 'ảnh biến mất là đúng' là một mệnh đề sai nằm trong kho. Bản thân lỗi đã ghi nợ có chủ
+  ở mục riêng cùng ngày; mục này chỉ ghi rằng phần 'ghim bằng test' đã được cân nhắc và từ chối."
+  chủ: Ice — cùng chủ với mục gốc; ca test sẽ ra đời cùng lượt sửa, không trước.

@@ -488,6 +488,8 @@
   "panel.grid.state_untranslated": "chưa dịch",
   "panel.grid.state_retired": "đã về hưu",
   "panel.grid.state_refused": "chưa ký được",
+  "panel.grid.role_alt": "mô tả ảnh",
+  "panel.grid.role_caption": "chú thích ảnh",
   "panel.source.tab_original": "Trung",
   "panel.source.tab_han_viet": "Hán Việt",
   "panel.source.view_mode_switch": "Chuyển đổi",
@@ -743,5 +745,8 @@
   "settings.privacy.kind_image": "Ảnh",
   "settings.privacy.reason_tier1": "Có trong danh sách link đã dán",
   "settings.privacy.reason_tier2": "Ảnh được trang đã tải tham chiếu tới",
-  "settings.privacy.reason_denied": "Không có trong danh sách link đã dán, và không phải ảnh được trang đã tải tham chiếu tới"
+  "settings.privacy.reason_denied": "Không có trong danh sách link đã dán, và không phải ảnh được trang đã tải tham chiếu tới",
+  "image.missing_alt": "Ảnh không tải được",
+  "image.missing_file_label": "Tệp",
+  "image.missing_source_label": "Nguồn"
 }

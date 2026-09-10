@@ -261,6 +261,52 @@ pub struct ChapterSegments {
     /// `editorCaretPlacement` đã có (`GridPanel.vue:1110`) chỉ ĐẶT caret vào đúng
     /// `segment.id` mà trường này nói, không tự tính "segment đầu" một lần nữa.
     pub caret_segment_id: Option<i64>,
+    /// **THÊM Story 6.14 (FR42/FR43)** — ảnh của Chương này, đã phân giải neo qua
+    /// [`crate::core::segment::image::resolve_chapter_images`] với quy tắc "đủ điều kiện làm
+    /// neo" của LƯỚI (`include_omitted = true, exclude_roles = false` — lưới không lọc cắt
+    /// bỏ, và một hàng `alt`/`caption` vẫn là một điểm neo hợp lệ). Rỗng cho MỌI Chương không
+    /// có hàng `asset` nào — Chương 0 ảnh render trùng đúng byte trước story này (§I/O Matrix).
+    pub assets: Vec<ChapterAsset>,
+    /// **THÊM Story 6.14** — đường dẫn TUYỆT ĐỐI tới `<dir>/assets` của Tác phẩm đang mở, MỘT
+    /// lần cho cả Chương (không lặp lại ở từng phần tử của [`Self::assets`]). Webview ghép
+    /// `assets_dir + '/' + file_name` rồi đưa qua `convertFileSrc` — tiền lệ DUY NHẤT
+    /// `src/tokens/fonts.ts:136`.
+    pub assets_dir: String,
+}
+
+/// Một ảnh đã phân giải vị trí, ra dây cho LƯỚI — Story 6.14, FR42/FR43.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterAsset {
+    pub asset_id: i64,
+    /// Tên tệp TƯƠNG ĐỐI trong `assets/` (`<uuid>.jpg|png|gif|webp`) — ghép với
+    /// [`ChapterSegments::assets_dir`] ở webview.
+    pub file_name: String,
+    /// `NULL` được — ảnh nhúng trực tiếp trong `.docx` không có URL nguồn (Story 6.12).
+    pub source_url: Option<String>,
+    /// `id` của segment đứng NGAY TRƯỚC ảnh trong ô nguyên văn của nó — `None` ⇒ đầu ô của
+    /// câu ĐẦU TIÊN của Chương (neo `0`).
+    pub after_segment_id: Option<i64>,
+    /// `target_text` của segment `role = 'alt'` đứng ngay sau neo — `None` ⇒ ảnh trang trí,
+    /// webview đặt `alt=""` (không bịa chữ).
+    pub alt_text: Option<String>,
+    /// `target_text` của segment `role = 'caption'` đứng ngay sau neo — `None`, hoặc chuỗi
+    /// RỖNG (chưa dịch), đều nghĩa là "không khối chú thích" ở tầng hiển thị.
+    pub caption_text: Option<String>,
+}
+
+impl From<crate::core::segment::image::ResolvedImage> for ChapterAsset {
+    fn from(r: crate::core::segment::image::ResolvedImage) -> Self {
+        ChapterAsset {
+            asset_id: r.asset_id,
+            file_name: r.file_name,
+            source_url: r.source_url,
+            after_segment_id: r.after_segment_id,
+            alt_text: r.alt_text,
+            caption_text: r.caption_text,
+        }
+    }
 }
 
 /// Chương không có trong `project.db` của Tác phẩm đang mở.
@@ -833,6 +879,32 @@ fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<V
     rows.collect::<SqlResult<Vec<ChapterSegment>>>()
 }
 
+/// **THÊM Story 6.14** — câu `SELECT` DUY NHẤT cho bảng `asset`, khuôn theo
+/// [`select_chapter_segments`] ngay trên: mọi chỗ cần hàng `asset` thô của một Chương gọi lại
+/// hàm này, không viết tay một câu `SELECT` thứ hai (cùng lý do `select_chapter_segments` đã
+/// ghi — `read_reading_run` cần gọi nó MỖI Chương trong cả một dãy).
+///
+/// `ORDER BY id` — không phải `anchor_after_segment_ord`: thứ tự HIỂN THỊ (hai ảnh cùng neo)
+/// là việc của [`crate::core::segment::image::resolve_chapter_images`], hàm này chỉ đọc thô.
+fn select_chapter_assets(
+    conn: ReadHandle<'_>,
+    chapter_id: i64,
+) -> SqlResult<Vec<crate::core::segment::image::RawAsset>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, file_name, source_url, anchor_after_segment_ord \
+         FROM asset WHERE chapter_id = ?1 ORDER BY id",
+    )?;
+    let rows = stmt.query_map([chapter_id], |row| {
+        Ok(crate::core::segment::image::RawAsset {
+            id: row.get(0)?,
+            file_name: row.get(1)?,
+            source_url: row.get(2)?,
+            anchor_after_segment_ord: row.get(3)?,
+        })
+    })?;
+    rows.collect::<SqlResult<Vec<_>>>()
+}
+
 /// Nạp trọn bộ segment của Chương **đang mở** — **hàm thuần, đây là thứ test gọi**.
 /// Story 2.2, AC13.
 ///
@@ -932,6 +1004,10 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     // cung mot du kien la hai nguon su that; ngay khi Chuong thu hai ton tai, ca hai tra ve
     // Chuong DAU mai mai va khong cong nao do. Nay ca hai deu HOI `OpenWork::chapter_id`.
     let chapter_id = open.chapter_id;
+    // **THÊM Story 6.14** — cấu tạo NGOÀI closure ghi: `assets_dir` không phụ thuộc ảnh chụp
+    // đọc, và `open.dir` không sống được bên trong closure `Store::read` (nó mượn `conn`,
+    // không `open`). `move` mang `PathBuf` này vào closure như một giá trị đã cấu tạo sẵn.
+    let assets_dir = open.dir.join("assets");
 
     let loaded = open.store.read(move |conn| {
         let segments = select_chapter_segments(conn, chapter_id)?;
@@ -968,10 +1044,26 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             None => segments.first().map(|s| s.id),
         };
 
+        // **THÊM Story 6.14** — hàng `asset` thô CÙNG lượt đọc này (không một `Store::read`
+        // thứ hai): một lượt gộp/tách chen giữa hai lượt đọc rời có thể làm `segments` và
+        // `assets` đến từ hai ảnh chụp khác nhau, cùng lý lẽ `caret_segment_id` đã ghi ở trên.
+        let raw_assets = select_chapter_assets(conn, chapter_id)?;
+        let assets: Vec<ChapterAsset> = crate::core::segment::image::resolve_chapter_images(
+            &segments,
+            &raw_assets,
+            true,  // include_omitted -- luoi khong loc cat bo (FR44).
+            false, // exclude_roles -- mot hang alt/caption van la mot o nguyen van binh thuong.
+        )
+        .into_iter()
+        .map(ChapterAsset::from)
+        .collect();
+
         Ok(ChapterSegments {
             chapter_id,
             segments,
             caret_segment_id,
+            assets,
+            assets_dir: assets_dir.to_string_lossy().into_owned(),
         })
     })?;
 
@@ -1147,6 +1239,46 @@ pub struct ReadingChapter {
     /// (`'empty-unknown'`) ở webview cùng lý do nó ra đời đã biến mất (§Design Notes của
     /// story: "một nhánh biến mất vì NGUYÊN NHÂN của nó biến mất").
     pub segment_count: i64,
+    /// **THÊM Story 6.14 (FR42/FR43)** — ảnh của Chương này, phân giải neo với quy tắc "đủ
+    /// điều kiện làm neo" của CHẾ ĐỘ ĐỌC (`include_omitted = false, exclude_roles = true` —
+    /// chỉ segment CÒN trong bản dịch VÀ không mang vai mới thật sự lên trang). `after_segment_id`
+    /// vì thế luôn khớp `id` của một [`ReadingSegment`] có mặt trong [`Self::paragraphs`]
+    /// (hoặc `None` ⇒ trước đoạn đầu tiên) — webview không cần tra cứu gì thêm để biết chèn
+    /// ảnh vào đâu.
+    pub images: Vec<ReadingImage>,
+}
+
+/// Một ảnh đã phân giải vị trí, ra dây cho CHẾ ĐỘ ĐỌC — Story 6.14, FR42/FR43.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReadingImage {
+    pub asset_id: i64,
+    /// Tên tệp TƯƠNG ĐỐI trong `assets/` — ghép với [`ReadingRun::assets_dir`] ở webview.
+    pub file_name: String,
+    pub source_url: Option<String>,
+    /// `id` của một [`ReadingSegment`] ĐÃ hiện trên trang (không cắt bỏ, không mang vai) —
+    /// `None` ⇒ ảnh đứng TRƯỚC đoạn đầu tiên của Chương.
+    pub after_segment_id: Option<i64>,
+    /// `target_text` của segment `role = 'alt'` — vào thuộc tính `alt` của `<img>`, KHÔNG BAO
+    /// GIỜ hiện thành văn bản trên trang (Design Notes spec 6.14). `None` ⇒ `alt=""`.
+    pub alt_text: Option<String>,
+    /// `target_text` của segment `role = 'caption'` — vào `<figcaption>`. `None` hoặc chuỗi
+    /// RỖNG (chưa dịch) đều nghĩa là "không dựng `<figcaption>` nào" (không chỗ trống).
+    pub caption_text: Option<String>,
+}
+
+impl From<crate::core::segment::image::ResolvedImage> for ReadingImage {
+    fn from(r: crate::core::segment::image::ResolvedImage) -> Self {
+        ReadingImage {
+            asset_id: r.asset_id,
+            file_name: r.file_name,
+            source_url: r.source_url,
+            after_segment_id: r.after_segment_id,
+            alt_text: r.alt_text,
+            caption_text: r.caption_text,
+        }
+    }
 }
 
 /// Vì sao dãy đọc DỪNG ở nơi nó dừng — **phân biệt được**, không một `Option` trần (cùng lý
@@ -1197,6 +1329,10 @@ pub struct ReadingFrontier {
 pub struct ReadingRun {
     pub chapters: Vec<ReadingChapter>,
     pub frontier: ReadingFrontier,
+    /// **THÊM Story 6.14** — đường dẫn TUYỆT ĐỐI tới `<dir>/assets` của Tác phẩm đang mở, MỘT
+    /// lần cho CẢ LƯỢT ĐỌC (không lặp lại ở từng `ReadingChapter`/`ReadingImage`) — cùng lý lẽ
+    /// [`ChapterSegments::assets_dir`].
+    pub assets_dir: String,
 }
 
 /// **Đọc một LƯỢT ĐỌC bắt đầu tại Chương đang mở** — hàm thuần, đây là thứ test gọi.
@@ -1229,6 +1365,9 @@ pub struct ReadingRun {
 pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let current_chapter_id = open.chapter_id;
+    // **THÊM Story 6.14** — cùng lý do `read_open_chapter_segments`: cấu tạo NGOÀI closure,
+    // `move` mang giá trị đã sẵn sàng vào trong.
+    let assets_dir = open.dir.join("assets");
 
     let found = open.store.read(move |conn| {
         let mut stmt = conn.prepare("SELECT id, ord, title, status FROM chapter ORDER BY ord, id")?;
@@ -1280,27 +1419,50 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
         for (chapter_id, chapter_ord, title, _status) in &rows[start..prefix_end] {
             let segments = select_chapter_segments(conn, *chapter_id)?;
             let segment_count = segments.len() as i64;
-            let paragraphs = crate::core::segment::reading::paragraphs_in_translation(&segments)
-                .into_iter()
-                .map(|group| ReadingParagraph {
-                    segments: group
-                        .into_iter()
-                        .map(|s| ReadingSegment {
-                            id: s.id,
-                            source_text: s.source_text.clone(),
-                            target_text: s.target_text.clone(),
-                            is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
-                            is_marked: marked_ids.contains(&s.id),
-                        })
-                        .collect(),
-                })
-                .collect();
+            // **THÊM Story 6.14** — segment mang VAI (`alt`/`caption`) bị loại khỏi dòng văn
+            // xuôi qua một chốt lọc RIÊNG (`image::strip_role_segments`), chạy SAU
+            // `paragraphs_in_translation` chứ không thay nó: ranh giới đoạn đã đúng vị trí từ
+            // lượt gom đó (kể cả khi ranh giới nằm trên chính một segment vai), nên đây chỉ
+            // bớt PHẦN TỬ chứ không tính lại gì. Xem doc-comment của hàm đó.
+            let paragraphs = crate::core::segment::image::strip_role_segments(
+                crate::core::segment::reading::paragraphs_in_translation(&segments),
+            )
+            .into_iter()
+            .map(|group| ReadingParagraph {
+                segments: group
+                    .into_iter()
+                    .map(|s| ReadingSegment {
+                        id: s.id,
+                        source_text: s.source_text.clone(),
+                        target_text: s.target_text.clone(),
+                        is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
+                        is_marked: marked_ids.contains(&s.id),
+                    })
+                    .collect(),
+            })
+            .collect();
+
+            // **THÊM Story 6.14** — ảnh của Chương này, quy tắc "đủ điều kiện làm neo" của
+            // CHẾ ĐỘ ĐỌC: chỉ segment CÒN trong bản dịch VÀ không mang vai (đúng tập vừa lên
+            // trang ở trên) mới đủ điều kiện — xem doc-comment `image::resolve_chapter_images`.
+            let raw_assets = select_chapter_assets(conn, *chapter_id)?;
+            let images: Vec<ReadingImage> = crate::core::segment::image::resolve_chapter_images(
+                &segments,
+                &raw_assets,
+                false, // include_omitted -- cau da cat bo khong len trang doc.
+                true,  // exclude_roles -- segment vai cung khong len trang doc.
+            )
+            .into_iter()
+            .map(ReadingImage::from)
+            .collect();
+
             chapters.push(ReadingChapter {
                 chapter_id: *chapter_id,
                 chapter_ord: *chapter_ord,
                 chapter_title: title.clone(),
                 paragraphs,
                 segment_count,
+                images,
             });
         }
 
@@ -1319,7 +1481,11 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
             ReadingFrontier { kind: ReadingFrontierKind::EndOfWork, chapter: None }
         };
 
-        Ok(Some(ReadingRun { chapters, frontier }))
+        Ok(Some(ReadingRun {
+            chapters,
+            frontier,
+            assets_dir: assets_dir.to_string_lossy().into_owned(),
+        }))
     })?;
 
     found.ok_or_else(|| chapter_not_found(current_chapter_id))
