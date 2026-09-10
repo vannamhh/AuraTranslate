@@ -1,14 +1,16 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-09-10 against 39ae75d. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
-## e2e/ — WebdriverIO trong webview thật
+## e2e/ — WebdriverIO in a real webview
 
-Vai duy nhất: hành vi trong WKWebView/WebView2 THẬT. Bộ này chạy ở NHỊP ĐÊM trên macOS (`schedule` 18:00 UTC = 01:00 giờ Ice, cộng `workflow_dispatch`) — KHÔNG ở `push`, không trong `pre-push`, và nửa Windows/WebView2 chưa từng chạy. Chạy tay: `npm run test:e2e`.
+One role only: behaviour in a REAL WKWebView/WebView2. This suite runs NIGHTLY on macOS (`schedule` 18:00 UTC = 01:00 Ice time, plus `workflow_dispatch`) — NOT on `push`, not in `pre-push`, and the Windows/WebView2 half has never run. Manual: `npm run test:e2e`.
 
 ## Known pitfalls
 
-- 🔴 Cấm `.click()` của driver, dùng `realClick()` ở `e2e/support/pointer.mjs`. Driver bắn `click` TRƯỚC `focusin` — ngược chuột thật — nên nó vừa cho ĐỎ sai nguyên nhân, vừa cho XANH trên một sản phẩm đang hỏng. Cưỡng chế bằng `no-restricted-syntax` trong `eslint.config.js`.
-- Mỗi spec mở một cửa sổ thật (~1,5 phút) và nó ghi vào `global.db` cùng thư mục gốc Library THẬT của người chạy nếu hai biến môi trường chuyển hướng không xuống được tiến trình con. `wdio.conf.mjs` có một phép tự kiểm DƯƠNG TÍNH — `global.db` phải nằm trong thư mục tạm — chạy trước khi xoá bất cứ gì. Đừng gỡ phép kiểm đó.
-- 🔴 Nhịp đêm ĐỎ không có nghĩa là sản phẩm hồi quy. Bốn đêm đầu (20–23/08) đỏ 2, và cả hai lượt đỏ chết ở CẦU IPC — `core.invoke not available after 5s` ⇒ fixture không tạo được Tác phẩm ⇒ lưới 0 hàng sau 30 s — trong khi job `check` xanh cả hai nền tảng cả bốn đêm. Đọc lỗi trước khi sửa một dòng sản phẩm; và đừng vá bằng `continue-on-error` hay một vòng chạy lại, cả hai biến job thành thứ không bao giờ đỏ. (Chủ: Ice từ 2026-08-24, `deferred-work.md`.)
+- 🔴 The driver's `.click()` is banned, use `realClick()` from `e2e/support/pointer.mjs`. The driver fires `click` BEFORE `focusin` — the reverse of a real mouse — so it both gives RED for the wrong reason and GREEN on a broken product. Enforced by `no-restricted-syntax` in `eslint.config.js`.
+- Each spec opens a real window (~1.5 min) and it writes to the runner's REAL `global.db` and Library root if the two redirect env vars fail to reach the child process. `wdio.conf.mjs` carries a POSITIVE self-check — `global.db` must sit inside the temp directory — that runs before anything is deleted. Do not remove that check.
+- Never assert an ABSOLUTE number against a SHARED resource — that is a claim about what the other specs did. `story-5-3-rescan` asserted `Đã lập chỉ mục 1` and the first full-suite run gave `Đã lập chỉ mục 22`; run alone it was green, so it read as an ordinary pass from the day it was written. Assert the DIFFERENCE against the moment before the action. For the same reason, a spec's scratch directory goes in its own temp dir, never the shared system temp — one crashed run's leftovers kill the next.
+- Activating a `<button>` from the keyboard does not work here: `focus()` in JS plus `browser.keys(['Enter'])` leaves the handler UNRUN, while `realClick` on the same button in the same session runs it. So the "by keyboard" half of an AC has no automated acceptance path — record the debt, don't round it up to passed.
+- 🔴 A red nightly does NOT mean the product regressed. The first four nights (20–23 Aug) were red twice, and both reds died at the IPC BRIDGE — `core.invoke not available after 5s` ⇒ the fixture could not create a Work ⇒ 0 rows in the grid after 30 s — while the `check` job was green on both platforms all four nights. Read the error before changing a line of product code; and don't patch it with `continue-on-error` or a retry loop, both of which turn the job into something that can never go red. (Owner: Ice since 2026-08-24, `deferred-work.md`.)
 
 <!-- /bmad:context -->

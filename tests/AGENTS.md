@@ -1,20 +1,21 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-09-10 against 39ae75d. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## tests/frontend/ — vitest
 
-Vai: hành vi của module thuần, mã đụng DOM, và `.vue`. Bốn đường nghiệm thu không chồng nhau — cổng tĩnh `scripts/check-*.mjs` (mệnh đề khai báo trên toàn cây) · `src-tauri/tests/**` (hợp đồng, ranh giới, bất biến cấu hình) · vitest · `e2e/**` (WKWebView/WebView2 thật). Trước khi viết một phép kiểm mới, hỏi: mệnh đề này đã có chủ ở đường nào chưa. Hai đường cùng canh một mệnh đề là hai nguồn sự thật.
+Role: behaviour of pure modules, DOM-touching code, and `.vue`. Four acceptance paths that do not overlap — static gates `scripts/check-*.mjs` (declarative claims across the whole tree) · `src-tauri/tests/**` (contracts, boundaries, config invariants) · vitest · `e2e/**` (real WKWebView/WebView2). Before writing a new check, ask: does this claim already have an owner on another path? Two paths guarding one claim is two sources of truth.
 
 ## Conventions that differ from defaults
 
-- `happy-dom` KHÔNG phải WebKit. Mọi mệnh đề về hình học, bố cục, hay engine thật thuộc bàn đo/e2e — không thuộc vitest.
-- Test sống ở `tests/frontend/**`, KHÔNG đồng vị trí trong `src/**`: bốn cổng đếm quần thể `src/**` và một tệp test đổ vào đó thổi phồng mẫu số, cộng hai va chạm (`check-i18n` Kiểm A đỏ với chữ tiếng Việt, `check-tokens` Kiểm B đỏ với màu viết thẳng).
-- `tsconfig.json` phải `include` cây test — một cây test không được kiểm kiểu là một cây test sẽ mục: nó vẫn chạy xanh trong khi kiểu của thứ nó kiểm đã đổi dưới chân.
-- Mọi vá `happy-dom` sống ở `tests/frontend/support/setup.ts`, mỗi mục kèm một dòng nói nó thiếu gì và AI ĐỌC NÓ. Danh sách đó là một món nợ đo được — hôm nay 3 mục, hai trong số đó đã không còn ai đọc.
-- Không `vi.useFakeTimers()` khi hàm đã nhận thời điểm qua tham số: bọc đồng hồ giả là đổi một bảo đảm lấy một thói quen.
+- `happy-dom` is NOT WebKit. Every claim about geometry, layout, or a real engine belongs to a probe or to e2e — not to vitest.
+- Tests live in `tests/frontend/**`, NOT co-located in `src/**`: four gates count the `src/**` population and a test file dropped in there inflates the denominator, plus two collisions (`check-i18n` Check A goes red on Vietnamese text, `check-tokens` Check B goes red on a hard-coded colour).
+- `tsconfig.json` must `include` the test tree — an unchecked test tree is a test tree that will rot: it keeps running green while the types of what it checks change underneath it.
+- Every `happy-dom` patch lives in `tests/frontend/support/setup.ts`, each entry carrying one line saying what it lacks, AND SOMEONE READS IT. That list is a measurable debt — 3 entries today, two of which no longer have a reader.
+- No `vi.useFakeTimers()` when the function already takes the timestamp as a parameter: wrapping a fake clock trades a guarantee for a habit.
+- `vitest.config.ts` sets `fileParallelism: false` deliberately, at a cost of 27 s → 99 s. It was measured: worker contention gave 5 red cases that were not about the code — baseline 822/822 green, 835 green + 5 red with the story, `--no-file-parallelism` 840/840 green, and the four red files run alone 42/42 green while none of them even loaded what the story touched. Before blaming a diff for a red here, re-run the file alone.
 
 ## Known pitfalls
 
-- 🔴 Đường sai rất rẻ và phải chặn bằng tay: thêm một `?.` vào MÃ SẢN PHẨM cho hết đỏ. Đó là một nhánh mà kiểu nói không bao giờ chạy — mã chết vĩnh viễn trong sản phẩm để phục vụ một bản mô phỏng. Khoảng thiếu của bản mô phỏng vá ở `setup.ts`; khuyết tật sản phẩm vá trong `src/`.
+- 🔴 The wrong path is very cheap and has to be blocked by hand: adding a `?.` to PRODUCTION CODE to clear a red. That is a branch the types say never runs — permanently dead code in the product, serving a mock. Gaps in the mock get patched in `setup.ts`; product defects get patched in `src/`.
 
 <!-- /bmad:context -->

@@ -1,20 +1,21 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-09-10 against 39ae75d. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
-## tools/dict-build/ — bộ dựng từ điển
+## tools/dict-build/ — the dictionary builder
 
-Workspace Rust ĐỘC LẬP, không phải thành viên của `src-tauri` và không có workspace cha. `rust-version 1.97.1` cố ý lệch với `src-tauri` (1.85) — đừng đồng bộ hai số. Nguồn thô ở `docs/dics/`.
+An INDEPENDENT Rust workspace, not a member of `src-tauri` and with no parent workspace. `rust-version 1.97.1` diverges from `src-tauri` (1.85) deliberately — do not sync the two numbers. Raw input in `docs/dics/`.
 
 ## Conventions that differ from defaults
 
-- 🔴 `dict-tran-van-chanh.db` phải ở lại một tệp `.db` RIÊNG. Trần Văn Chánh (1999) còn trong bản quyền — tác giả còn sống; giấy CC0 của người số hoá không xoá được bản quyền tác phẩm gốc. Lớp này đóng gói rời chính vì rủi ro đó: FR112 thực thi được bằng cách xoá đúng một tệp. Không gộp lớp, không "hợp nhất cho gọn", không đưa dữ liệu của nó vào `dict-core.db`. (`src-tauri/tests/dict_sources.rs::deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green` canh việc gỡ một lớp vẫn xanh — nó KHÔNG canh việc ai đó gộp lớp.)
-- 🔴 Đổi lược đồ ⇒ dựng lại CẢ BỐN tệp `.db` bằng `--layer all` ⇒ bốn SHA-256 mới trong `dict-manifest.toml` ⇒ một release mới. Đúng cả khi nguồn thô của một lớp không đổi một byte. Nguồn sự thật là `dict-manifest.toml` + `src/schema.rs`, KHÔNG phải `README.md` — README còn viết `--layer all` dựng *"đúng ba"* tệp và `src/build.rs::run_all` còn viết *"hai lớp gỡ rời"*, cả hai có trước khi `tran-van-chanh` được thêm.
-- Ba trường bắt buộc mỗi mục manifest: `url` · `sha256` · `source_version` — `source_version` là phiên bản NGUỒN THÔ, không phải phiên bản tệp `.db`. Không điền giá trị giả để "cho có".
-- `is_han` có hai bản chép CỐ Ý (`src/char_idx.rs` và `src-tauri/src/core/dict/mod.rs`) vì hai workspace không import chéo nhau được. Hai cổng canh: `dict_lookup.rs::han_ranges_are_verbatim_from_dict_build_char_idx` đọc tệp này như văn bản rồi so dải CJK, và `dict_boundary.rs::exactly_one_definition_of_is_han_exists_under_src_tauri`. Sửa một bên mà quên bên kia thì tra vào một `char_idx` chưa bao giờ lập chỉ mục ký tự đó ⇒ rỗng, không lỗi.
-- Chuỗi ở đây được miễn trừ CÓ TÊN khỏi `check:i18n` Kiểm A nên giữ dấu tiếng Việt thoải mái.
+- 🔴 `dict-tran-van-chanh.db` must stay a SEPARATE `.db` file. Trần Văn Chánh (1999) is still in copyright — the author is alive; the digitiser's CC0 grant cannot erase copyright in the underlying work. This layer ships detached precisely because of that risk: FR112 is enforceable by deleting exactly one file. Do not merge layers, do not "consolidate for tidiness", do not fold its data into `dict-core.db`. (`src-tauri/tests/dict_sources.rs::deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green` guards that removing a layer stays green — it does NOT guard against someone merging layers.)
+- 🔴 A schema change ⇒ rebuild ALL FOUR `.db` files with `--layer all` ⇒ four new SHA-256s in `dict-manifest.toml` ⇒ a new release. True even when a layer's raw input has not changed by a byte. The source of truth is `dict-manifest.toml` + `src/schema.rs`, NOT `README.md` — the README still says `--layer all` builds *"exactly three"* files and `src/build.rs::run_all` still says *"two detachable layers"*, both predating the addition of `tran-van-chanh`.
+- Three mandatory fields per manifest entry: `url` · `sha256` · `source_version` — `source_version` is the version of the RAW INPUT, not of the `.db` file. Never fill a placeholder value "just to have one".
+- `is_han` has two DELIBERATE copies (`src/char_idx.rs` and `src-tauri/src/core/dict/mod.rs`) because the two workspaces cannot import across each other. Two gates guard it: `dict_lookup.rs::han_ranges_are_verbatim_from_dict_build_char_idx` reads this file as text and compares the CJK ranges, and `dict_boundary.rs::exactly_one_definition_of_is_han_exists_under_src_tauri`. Fix one side and forget the other and a lookup hits a `char_idx` that never indexed that character ⇒ empty, no error.
+- Strings here carry a NAMED exemption from `check:i18n` Check A, so accented Vietnamese is fine.
+- `// dict-build:allow <token> — <reason>` on the line above a violation is read by `check:dict`; the em dash and a non-empty reason are both required by `ALLOW_RE`. These are code, not prose — never strip them.
 
 ## Known pitfalls
 
-- `npm run check:dict-manifest` chỉ kiểm HÌNH DẠNG — nó phải xanh trên một runner không có byte dữ liệu từ điển nào, nên nó không bao giờ mở tệp `.db`. Nó bắt được một lớp bị rơi mất (đòi đúng 3 `[[detachable]]`, đúng tên); nó KHÔNG bắt được dữ liệu bị trộn giữa các tệp.
+- `npm run check:dict-manifest` checks SHAPE only — it has to stay green on a runner holding no dictionary bytes, so it never opens a `.db` file. It catches a dropped layer (it demands exactly 3 `[[detachable]]` entries, by name); it does NOT catch data mixed between files.
 
 <!-- /bmad:context -->

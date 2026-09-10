@@ -1,33 +1,35 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-09-10 against 39ae75d. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## src/ — Vue 3 + TypeScript
 
-Frontend chỉ render và giữ state UI. Không quy tắc nghiệp vụ nào ở TypeScript (AD-1); ngoại lệ tường minh duy nhất là văn bản đang gõ trong Editor.
+The frontend only renders and holds UI state. No business rule lives in TypeScript (AD-1); the single explicit exception is the text currently being typed in the Editor.
 
 ## Conventions that differ from defaults
 
-- `invoke()` gửi tham số dạng **camelCase** dù hàm Rust nhận `snake_case` ⇒ viết `sourceLang`. NHƯNG trường của struct TRẢ VỀ giữ nguyên `snake_case` (`meta_schema_version`, `work_id`). Hai chiều khác nhau — đây là chỗ dễ sai nhất trên dây.
-- Adapter IPC ở `src/config/*.ts` KHÔNG BAO GIỜ ném: một `invoke`, một `try/catch`, trả hình dạng ba trạng thái `{ <giá trị> | null, error: IpcError | null }`. Tầng UI hiển thị lỗi bằng `tError()`, không bằng `try/catch`. (`shortcutsState.ts` không phải adapter — nó là state Vue gọi xuống `bootstrap.ts`.)
-- Luôn kiểm kiểu LÚC CHẠY cho dữ liệu qua dây. `IpcError` phía TS là một lời khai về dữ liệu đã đi qua IPC, không phải bảo đảm của trình biên dịch.
-- `verbatimModuleSyntax` bật ⇒ `import type` phải tường minh. vitest đặt `globals: false` ⇒ mỗi tệp test tự `import { describe, it, expect } from 'vitest'`.
-- `@click` trong `.vue` phải là ĐÚNG MỘT lời gọi `dispatch('<id>')` — không hàm khác, không mã nội tuyến (`check:commands` Kiểm A). Phím tắt và Auto-Lookup phát cùng một `dispatch(...)`: một lời gọi thẳng dựng đường thứ hai mà Kiểm A không nhìn thấy.
-- Command id dùng cùng văn phạm khoá chấm với khoá i18n (`review.accept_change`) — id trần sẽ bị hai giai đoạn cách nhau nhiều tháng đăng ký trùng và ghi đè nhau âm thầm.
-- Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó ghi chẩn đoán nêu đích danh rồi trả `false`. Đừng "vá" bằng cách tự chuyển chế độ: đó là đoán ý người dùng.
-- Màu VÀ cỡ chữ chỉ đến từ token; không bóng đổ, không gradient, không lớp nổi. `opacity` trung gian cần một miễn trừ CÓ TÊN.
-- Thư mục mang một khái niệm thì có `README.md` — hôm nay thiếu ở `src/config/` và `src/selftest/`.
+- `invoke()` sends parameters in **camelCase** even though the Rust function takes `snake_case` ⇒ write `sourceLang`. BUT the fields of the RETURNED struct stay `snake_case` (`meta_schema_version`, `work_id`). The two directions differ — this is the easiest thing on the wire to get wrong.
+- IPC adapters in `src/config/*.ts` NEVER throw: one `invoke`, one `try/catch`, returning the three-state shape `{ <value> | null, error: IpcError | null }`. The UI layer displays errors through `tError()`, not through `try/catch`. (`shortcutsState.ts` is not an adapter — it is Vue state calling down into `bootstrap.ts`.)
+- Always type-check data crossing the wire AT RUNTIME. `IpcError` on the TS side is a claim about data that already crossed IPC, not a compiler guarantee.
+- `verbatimModuleSyntax` is on ⇒ `import type` must be explicit. vitest sets `globals: false` ⇒ every test file imports its own `{ describe, it, expect } from 'vitest'`.
+- `@click` in a `.vue` must be EXACTLY ONE `dispatch('<id>')` call — no other function, no inline code (`check:commands` Check A). Shortcuts and Auto-Lookup emit the same `dispatch(...)`: a direct call builds a second path that Check A cannot see.
+- Command ids use the same dotted grammar as i18n keys (`review.accept_change`) — a bare id will be registered twice by two phases months apart and silently overwrite.
+- A function run from a keyboard chord NEVER throws — it logs a diagnostic naming the cause and returns `false`. Don't "fix" it by switching mode: that is guessing the user's intent.
+- An `⌥` chord must compare `event.code`, never `event.key` — `⌥W` produces `∑`, so `event.key === 'w'` is never true (`keys.ts` already names `Alt+M` → `µ`). If a counter-check for this comes back GREEN, suspect the mock before the test: raise it rather than changing the production predicate to match `happy-dom`.
+- ⚠️ `check:commands` has three MEASURED blind spots — don't read its green as coverage: Check A only watches `@click`, so an in-place edit committed through `@change` needs no registration; and seeding `keys: ['Space']` or `keys: ['Alt+w']` both pass, because the gate catches chord COLLISIONS, not whether a chord is safe. A bare `Space` as a global chord is unsafe: `isTypingZone` covers only `INPUT`/`TEXTAREA`/`SELECT`/`contenteditable`, so it would `preventDefault()` every `<button>` in the app.
+- Colour AND font size come only from tokens; no drop shadows, no gradients, no floating layers. An intermediate `opacity` needs a NAMED exemption.
+- A directory carrying a concept has a `README.md` — missing today in `src/config/` and `src/selftest/`.
 
 ## Known pitfalls
 
-- 🔴 `Ref` KHÔNG tự bóc trong khối `<script>`, chỉ trong `template`. `if (someRef)` chạy trên **đối tượng** nên luôn đúng, và vì là TypeScript hợp lệ nên `vue-tsc` im. Lỗi này đã lọt qua CHÍN trên chín cổng và là lý do cổng thứ mười (`check:lint`, có kiểu) ra đời.
-- 🔴 Năm tệp phải nạp được bằng **Node thuần** vì các cổng `import()` chúng để chạy phép kiểm HÀNH VI trên chính mã sản phẩm: `src/i18n/resolve.ts` (tệp này không import gì cả), `src/commands/{index,registry,focus}.ts`, `src/layout/writeSchedule.ts`. Cấm import GIÁ TRỊ từ `vue`/`dockview`; cấm `enum`, `namespace`, parameter property (`constructor(private x)`) — ba thứ đó sinh mã nên Node từ chối. Một dòng vi phạm giết ba phép kiểm cùng lúc. `src/layout/dockController.ts` tồn tại chính vì thế: `main.ts` tiêm hàm vào, không import ngược.
-- 🔴 Thứ tự khởi động trong `src/main.ts` là bắt buộc, cả ba mệnh đề: `applyTheme()` trước `mount()` (nếu không, mọi `var(--color-…)` rỗng ở lượt render đầu ⇒ một nháy trắng — và trên bản đóng gói nháy đó NGẮN HƠN máy dev, nên lỗi chỉ lộ ở máy người khác); `installCommands()` trước `mount()` (`dispatch` ném với id chưa đăng ký); `loadFonts()` khởi động trước `await loadBootstrapConfig()`.
-- Đăng ký command ở `main.ts`, KHÔNG trong `App.vue` — một lượt HMR dựng lại component sẽ gọi `installCommands()` lần hai và `register()` ném vì id trùng.
-- `onDidLayoutChange` của dockview bắn LIÊN TỤC trong lúc kéo sash: ghi một `putConfig` mỗi lần bắn thì một cú kéo 3 giây là hàng trăm job nối tiếp qua `store::Writer`. Không cổng nào đỏ vì chuyện đó — nó lộ ra ở Epic 2 dưới dạng *"gõ bị khựng"*. Mọi nhịp ghi đi qua `src/layout/writeSchedule.ts`.
-- Ba cặp hằng nhịp ghi (🔵 SỬA 2026-08-29, Story 5.7 — trước là "Hai cặp", nay thêm cặp thứ ba), chỉ MỘT mang bảo đảm AD-35: bố cục dùng `IDLE_MS 500`/`HARD_CAP_MS 5000` ở `layout/writeSchedule.ts` (không mang bảo đảm); Editor dùng `EDITOR_IDLE_MS 2000`/`EDITOR_HARD_CAP_MS 5000` ở `panels/editorFlush.ts` (có); vị trí làm việc của Chương dùng `POSITION_IDLE_MS 500`/`POSITION_HARD_CAP_MS 5000` ở `panels/positionFlush.ts` (không — mất một lượt ghi vị trí là mất MỘT LỜI NHẮC, không mất công việc). Dùng chung hình dạng, không dùng chung bảo đảm — đừng gộp ba cặp.
-- Hàm nhịp ghi không tự đọc `Date.now()`: mọi thời điểm đi vào qua tham số, để phép kiểm tất định và tức thời thay vì phải `sleep` thật.
-- Không cửa sổ OS thứ hai (AD-24): `addPopoutGroup` là đường duy nhất trong dockview gọi `window.open` — cấm. `check:layout` Kiểm C là một danh sách CHO PHÉP cho mọi thành viên `window`/`document` mà `src/**` chạm tới; thêm một cái tên là một quyết định phải viết ra.
-- Nội dung từ ngoài KHÔNG BAO GIỜ render thành HTML: không `v-html`, không tương đương (AD-16). Rust phân tích thành mô hình dữ liệu có cấu trúc; Vue render từ mô hình đó.
-- `src/selftest/**` cố ý không đi vào bản phát hành (`#[cfg(debug_assertions)]` phía Rust + `import()` động phía frontend) — không mã sản phẩm nào được import tĩnh từ đó.
+- 🔴 A `Ref` does NOT auto-unwrap inside a `<script>` block, only in `template`. `if (someRef)` runs on the **object** and is therefore always true, and because it is valid TypeScript, `vue-tsc` stays silent. This bug passed NINE gates out of nine and is the reason the tenth (`check:lint`, type-aware) exists.
+- 🔴 Five files must load under **plain Node**, because gates `import()` them to run BEHAVIOURAL checks against production code itself: `src/i18n/resolve.ts` (this file imports nothing at all), `src/commands/{index,registry,focus}.ts`, `src/layout/writeSchedule.ts`. No VALUE imports from `vue`/`dockview`; no `enum`, `namespace`, or parameter properties (`constructor(private x)`) — all three emit code, so Node rejects them. One offending line kills three checks at once. `src/layout/dockController.ts` exists for exactly this reason: `main.ts` injects functions into it rather than importing back.
+- 🔴 The startup order in `src/main.ts` is mandatory, all three clauses: `applyTheme()` before `mount()` (otherwise every `var(--color-…)` is empty on the first render ⇒ a white flash — and on a packaged build that flash is SHORTER than on a dev machine, so the bug only shows up on someone else's computer); `installCommands()` before `mount()` (`dispatch` throws on an unregistered id); `loadFonts()` starts before `await loadBootstrapConfig()`.
+- Register commands in `main.ts`, NOT in `App.vue` — an HMR round rebuilding the component calls `installCommands()` a second time and `register()` throws on the duplicate id.
+- dockview's `onDidLayoutChange` fires CONTINUOUSLY while a sash is dragged: writing one `putConfig` per fire turns a 3-second drag into hundreds of serialised jobs through `store::Writer`. No gate goes red for that — it surfaced in Epic 2 as *"typing stutters"*. Every write cadence goes through `src/layout/writeSchedule.ts`.
+- Three write-cadence constant pairs (🔵 FIXED 2026-08-29, Story 5.7 — previously "two pairs", now a third), only ONE of which carries the AD-35 guarantee: layout uses `IDLE_MS 500`/`HARD_CAP_MS 5000` in `layout/writeSchedule.ts` (no guarantee); the Editor uses `EDITOR_IDLE_MS 2000`/`EDITOR_HARD_CAP_MS 5000` in `panels/editorFlush.ts` (guaranteed); Chapter working position uses `POSITION_IDLE_MS 500`/`POSITION_HARD_CAP_MS 5000` in `panels/positionFlush.ts` (no — losing a position write loses ONE REMINDER, not work). Same shape, different guarantees — do not merge the three pairs.
+- Write-cadence functions never read `Date.now()` themselves: every timestamp arrives as a parameter, so checks are deterministic and instant instead of having to `sleep` for real.
+- No second OS window (AD-24): `addPopoutGroup` is dockview's only path that calls `window.open` — banned. `check:layout` Check C is an ALLOW-LIST of every `window`/`document` member `src/**` touches; adding a name is a decision that has to be written down.
+- External content is NEVER rendered as HTML: no `v-html`, no equivalent (AD-16). Rust parses it into a structured data model; Vue renders from that model.
+- `src/selftest/**` deliberately stays out of the release build (`#[cfg(debug_assertions)]` on the Rust side + dynamic `import()` on the frontend) — no production code may import statically from it.
 
 <!-- /bmad:context -->
