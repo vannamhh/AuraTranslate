@@ -31,8 +31,8 @@
  */
 import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter } from '../config/chapter'
-import type { ChapterDirection, ChapterRow } from '../config/chapter'
+import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter, updateChapterOrigin } from '../config/chapter'
+import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
 import { openWork } from '../config/library'
 import {
   editorChapterId,
@@ -88,6 +88,14 @@ export type ChapterReorgNotice = 'flush-failed' | 'still-dirty'
 const chapterReorgNotice = ref<ChapterReorgNotice | null>(null)
 const chapterReorgError = ref<IpcError | null>(null)
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 6.15 — XUẤT XỨ TÀI LIỆU Ở TẦNG CHƯƠNG (FR128/AD-43)
+// ─────────────────────────────────────────────────────────────────────────────
+/** Một lượt sửa xuất xứ đang bay — cờ RIÊNG, không mượn `chapterReorgBusy`: sửa xuất xứ
+ * không đụng `segment`/`ord` nên không cần lượt flush Editor mà `beginChapterReorg` gác. */
+const chapterOriginBusy = ref(false)
+const chapterOriginError = ref<IpcError | null>(null)
+
 export const libraryChapters: DeepReadonly<Ref<ChapterRow[]>> = readonly(chapters)
 export const libraryChaptersHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(chaptersHaveLoaded)
 export const libraryChaptersBusy: DeepReadonly<Ref<boolean>> = readonly(chaptersBusy)
@@ -99,6 +107,8 @@ export const libraryOpenWorkError: DeepReadonly<Ref<IpcError | null>> = readonly
 export const libraryChapterReorgBusy: DeepReadonly<Ref<boolean>> = readonly(chapterReorgBusy)
 export const libraryChapterReorgNotice: DeepReadonly<Ref<ChapterReorgNotice | null>> = readonly(chapterReorgNotice)
 export const libraryChapterReorgError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterReorgError)
+export const libraryChapterOriginBusy: DeepReadonly<Ref<boolean>> = readonly(chapterOriginBusy)
+export const libraryChapterOriginError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterOriginError)
 
 /**
  * Chương ĐANG CHỌN trong danh sách, hoặc `null` nếu con trỏ ngoài phạm vi (danh sách rỗng,
@@ -431,6 +441,32 @@ export async function mergeCurrentChapterUp(): Promise<void> {
 }
 
 /**
+ * **Sửa bốn ô xuất xứ của Chương ĐANG CHỌN** — Story 6.15, FR128/AD-43. No-op trên danh sách
+ * rỗng. Không đi qua `beginChapterReorg()` (không flush Editor) — xem doc-comment
+ * `chapterOriginBusy`.
+ *
+ * Gọi thẳng từ `@commit` của `ChapterOrigin.vue`, KHÔNG qua `dispatch('<id>')`: đây là một sự
+ * kiện MANG THAM SỐ (bốn trường vừa gõ), và `@change`/`@commit` (custom event của component
+ * con) nằm NGOÀI phạm vi Kiểm A của `check:commands` (chỉ canh `@click`).
+ */
+export async function saveCurrentChapterOrigin(edit: ChapterOriginEdit): Promise<void> {
+  const row = currentLibraryChapter.value
+  if (row === null) return
+  chapterOriginBusy.value = true
+  chapterOriginError.value = null
+
+  const { error } = await updateChapterOrigin(row.chapter_id, edit)
+  if (error !== null) {
+    chapterOriginError.value = error
+    chapterOriginBusy.value = false
+    return
+  }
+
+  await loadChapters()
+  chapterOriginBusy.value = false
+}
+
+/**
  * 🔴 Vứt toàn bộ state — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`. Dùng bởi bàn đo/test; sản phẩm không có chỗ gọi (khối này sống suốt phiên).
  */
@@ -449,6 +485,8 @@ export function resetLibraryChapters(): void {
   chapterReorgBusy.value = false
   chapterReorgNotice.value = null
   chapterReorgError.value = null
+  chapterOriginBusy.value = false
+  chapterOriginError.value = null
 }
 
 /** Hình dạng trả về của [`chapterWindow`] — chỉ số MẢNG (nửa mở `[start, end)`), cộng hai

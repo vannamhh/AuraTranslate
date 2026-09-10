@@ -42,11 +42,14 @@ import {
   previewImportEncodingFromText,
   reloadUrlImportItem,
   removeUrlImportItem,
+  setChapterOriginOverride,
   startUrlImport,
   tier2BlockConfirmRange,
   tier2BlockSetKept,
 } from './config/project'
 import type {
+  ChapterOriginEditFields,
+  ChapterOriginWire,
   ChapterPatternInput,
   ChapterPatternKindWire,
   ChapterSplitPreviewWire,
@@ -224,6 +227,27 @@ const chapterDetailLoading = ref(false)
 const chapterDetailError = ref<IpcError | null>(null)
 
 /**
+ * **THÊM (Story 6.15, FR128/AD-43)** — draft xuất xứ NGƯỜI DÙNG đã gõ, theo CHỈ SỐ Chương
+ * (khoá là `importPreviewChapterCursor` tại lúc gõ). Sống Ở PHÍA CLIENT, ĐỘC LẬP với
+ * `preview.value` (đã dựng EAGER cho cả năm ứng viên bảng mã TRƯỚC lượt gõ) — đây là điều
+ * kiện để chữ đã gõ "sống qua lượt đổi con trỏ và lượt đổi bảng mã" (§Tasks spec 6.15):
+ * `preview.value` không được TÍNH LẠI khi người dùng gõ (chỉ Rust-side
+ * `ChapterOriginOverridesState` mới được cập nhật, để `confirm_import_with_encoding` đọc lúc
+ * xác nhận — xem `commitImportPreviewChapterOrigin`), nên đọc thẳng `preview.value` sẽ hiện
+ * lại giá trị MÁY cũ mỗi khi đổi ứng viên. `Record`, không `Map` — Vue theo dõi thay đổi
+ * THUỘC TÍNH của object thường qua Proxy; gán `{ ...cũ, [i]: edit }` (không mutate tại chỗ)
+ * giữ đúng khuôn "một hàm reset* quét sạch state cấp module" (`check:panel-refs`).
+ */
+// 🔴 `| undefined` KHÔNG thừa: bản ghi này THƯA — chỉ Chương nào người dùng đã gõ mới có
+// khoá. Không có nó, kiểu khai rằng MỌI chỉ số đều tra ra một draft, nên phép kiểm
+// `draft !== undefined` ở `importPreviewCurrentChapterOrigin` thành "hai kiểu không giao nhau"
+// và `check:lint` đỏ — đúng chỗ phải sửa là KIỂU cho nó nói thật, không phải bỏ phép kiểm
+// (nó có thật lúc chạy) và không phải một `eslint-disable`. Tiền lệ: `commands/keys.ts:285`.
+const chapterOriginDrafts = ref<Record<number, ChapterOriginEditFields | undefined>>({})
+/** Lỗi RIÊNG của lượt ghi override xuất xứ gần nhất — cùng lý do `chapterDetailError`. */
+const chapterOriginError = ref<IpcError | null>(null)
+
+/**
  * **THÊM (Story 6.10)** — bộ lọc "cần xem" (`⌥W`), state HIỂN THỊ THUẦN — 0 lời gọi IPC (Rust
  * đã cấp sẵn `needs_review`/`review_causes` cho MỌI Chương). `true` ⇒ tầng 4 co về Chương
  * `needs_review === true`, danh sách mục URL co về mục hỏng — cùng thao tác, hai danh sách
@@ -321,6 +345,9 @@ export const importPreviewChapterDetailError: DeepReadonly<Ref<IpcError | null>>
   readonly(chapterDetailError)
 /** Bộ lọc "cần xem" (`⌥W`) đang bật hay không — Story 6.10. */
 export const importPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
+/** Lỗi RIÊNG của lượt ghi override xuất xứ gần nhất — Story 6.15. */
+export const importPreviewChapterOriginError: DeepReadonly<Ref<IpcError | null>> =
+  readonly(chapterOriginError)
 export const importPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const importPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
@@ -452,6 +479,65 @@ export const importPreviewSelectedChapters = computed<ChapterSplitPreviewWire | 
 })
 
 /**
+ * **THÊM (Story 6.15, FR128/AD-43)** — bốn ô xuất xứ HIỆU LỰC của Chương con trỏ đang chọn.
+ * Draft CLIENT (`chapterOriginDrafts`, nếu người dùng đã gõ cho ĐÚNG Chương này) LUÔN thắng
+ * giá trị MÁY của `importPreviewSelectedChapters` — draft là sự thật MỚI HƠN bất kể ứng viên
+ * bảng mã đang chọn là gì (xem doc-comment `chapterOriginDrafts`).
+ */
+export const importPreviewCurrentChapterOrigin = computed<ChapterOriginWire>(() => {
+  const draft = chapterOriginDrafts.value[chapterCursor.value]
+  if (draft !== undefined) {
+    // ⚠️ `str::trim()`, KHÔNG `=== ''` trần — khớp ĐÚNG luật ghi xuống đĩa
+    // (`commands/project.rs::trimmed_or_none`/`commands/chapter.rs::update_chapter_origin`):
+    // một ô chỉ toàn khoảng trắng cũng ghi `NULL`. Lệch quy tắc ở đây làm màn xem trước hiện
+    // một ô "có chữ" trong khi đĩa sẽ ghi `NULL` — hai nơi nói hai điều khác nhau về CÙNG một
+    // giá trị (lượt rà 2026-09-10).
+    return {
+      author: draft.author.trim() === '' ? null : draft.author,
+      site_name: draft.siteName.trim() === '' ? null : draft.siteName,
+      url: draft.url.trim() === '' ? null : draft.url,
+      published_at: draft.publishedAt.trim() === '' ? null : draft.publishedAt,
+      author_confirmed: true,
+      site_name_confirmed: true,
+      url_confirmed: true,
+      published_at_confirmed: true,
+    }
+  }
+  const entry = importPreviewSelectedChapters.value?.chapters[chapterCursor.value]
+  if (entry === undefined) {
+    return {
+      author: null,
+      site_name: null,
+      url: null,
+      published_at: null,
+      author_confirmed: false,
+      site_name_confirmed: false,
+      url_confirmed: false,
+      published_at_confirmed: false,
+    }
+  }
+  return entry.origin
+})
+
+/**
+ * Ghi một lượt sửa tay xuất xứ cho Chương con trỏ ĐANG CHỌN — cập nhật draft CLIENT NGAY (để
+ * `importPreviewCurrentChapterOrigin` phản ánh chữ vừa gõ tức thời, 0 chờ IPC), rồi đồng bộ
+ * xuống `ChapterOriginOverridesState` (Rust) để `confirm_import_with_encoding` đọc được LÚC
+ * XÁC NHẬN. Lỗi ghi Rust không xoá draft CLIENT — người dùng vẫn thấy đúng chữ họ gõ; họ chỉ
+ * mất đường LƯU XUỐNG ĐĨA nếu lỗi đó còn treo lúc xác nhận (`confirmError` sẽ nói).
+ */
+export async function commitImportPreviewChapterOrigin(edit: ChapterOriginEditFields): Promise<void> {
+  const index = chapterCursor.value
+  chapterOriginDrafts.value = { ...chapterOriginDrafts.value, [index]: edit }
+  chapterOriginError.value = null
+
+  const { error } = await setChapterOriginOverride(index, edit)
+  if (error !== null) {
+    chapterOriginError.value = error
+  }
+}
+
+/**
  * Khối tầng 2 (ranh giới bóc) hiện hành — Story 6.9. KHÁC ba computed theo-ứng-viên ở trên:
  * KHÔNG rơi về một trường `self_declared_*` — tầng 2 chỉ có nghĩa trên đường URL
  * (`extract_main_content` chỉ `true` ở đó, §Always spec 6.7/6.9), và đường đó LUÔN có ứng
@@ -551,6 +637,11 @@ async function openWith(
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  // Story 6.15 — đường tệp/dán tay KHÔNG BAO GIỜ bóc xuất xứ (`extract_main_content ==
+  // false`), nên dọn draft ở đây chỉ là VÒNG ĐỜI nhất quán (cùng lý do `chapterPatternText`
+  // ngay trên) — không mất chữ có nghĩa nào.
+  chapterOriginDrafts.value = {}
+  chapterOriginError.value = null
 
   const result = await call()
   if (mySequence !== sequence) return // Một lượt mở/huỷ MỚI đã vượt mặt lượt này.
@@ -676,6 +767,10 @@ export async function openImportPreviewFromUrls(
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  // Story 6.15 — danh sách URL HOÀN TOÀN MỚI, cùng lý do `Tier2BlockOverridesState` reset ở
+  // `start_url_import` phía Rust (chỉ số Chương cũ không còn khớp gì với danh sách mới).
+  chapterOriginDrafts.value = {}
+  chapterOriginError.value = null
 
   const result = await startUrlImport(urls, sourceLang)
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
@@ -766,6 +861,10 @@ export async function reloadImportPreviewUrlItem(index: number): Promise<void> {
     if (result.batch === null) return
     urlImportError.value = null
     applyUrlImportBatch(result.batch)
+    // Story 6.15 — cùng lý do `reset_chapter_origin_overrides` phía Rust ở
+    // `wire::reload_url_import_item`: nội dung (và có thể cả xuất xứ) của mục vừa tải lại có
+    // thể đã đổi — dọn TOÀN BỘ draft thay vì cố dịch chuyển từng chỉ số.
+    chapterOriginDrafts.value = {}
   } finally {
     urlImportBusy.value = false
   }
@@ -785,6 +884,9 @@ export async function removeImportPreviewUrlItem(index: number): Promise<void> {
     if (result.batch === null) return
     urlImportError.value = null
     applyUrlImportBatch(result.batch)
+    // Story 6.15 — bỏ một mục dời chỉ số của mọi mục đứng sau nó; cùng lý do
+    // `reload_url_import_item` ngay trên.
+    chapterOriginDrafts.value = {}
   } finally {
     urlImportBusy.value = false
   }
@@ -1490,6 +1592,11 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
+  // Story 6.15 — cùng kỷ luật "reset CHỈ SAU KHI Ok" mà `ChapterOriginOverridesState` phía
+  // Rust đã theo (`wire::confirm_import_with_encoding`): draft CLIENT sống qua mọi lượt
+  // trượt (thử lại một ứng viên khác không mất chữ đã gõ), chỉ dọn khi đã ghi THÀNH CÔNG.
+  chapterOriginDrafts.value = {}
+  chapterOriginError.value = null
   return { created: result.created, error: null }
 }
 
@@ -1573,4 +1680,6 @@ export function resetImportPreview(): void {
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  chapterOriginDrafts.value = {}
+  chapterOriginError.value = null
 }

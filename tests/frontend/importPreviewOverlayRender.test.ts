@@ -24,7 +24,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
-import type { EncodingCandidateWire, ImportEncodingPreview } from '../../src/config/project'
+import type { ChapterOriginWire, EncodingCandidateWire, ImportEncodingPreview } from '../../src/config/project'
+
+/** Story 6.15 — bốn trường xuất xứ RỖNG, dùng làm giá trị mặc định cho mọi fixture
+ * `ChapterSplitPreviewEntryWire` ở tệp này (không ca nào trong tệp cần một giá trị khác
+ * rỗng — các ca đọc `origin` sống ở `importPreviewChapterOrigin.test.ts`). */
+const ORIGIN_STUB: ChapterOriginWire = {
+  author: null,
+  site_name: null,
+  url: null,
+  published_at: null,
+  author_confirmed: false,
+  site_name_confirmed: false,
+  url_confirmed: false,
+  published_at_confirmed: false,
+}
+
 
 const previewTextMock = vi.fn()
 
@@ -53,7 +68,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
     chapters: {
       chapter_count: 1,
-      chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
+      chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }],
       broken_item_count: 0,
       needs_review_count: 0,
       clean_count: 1,
@@ -229,7 +244,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
         // đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới.
         self_declared_chapters: {
           chapter_count: 1,
-          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
+          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }],
           broken_item_count: 0,
           needs_review_count: 0,
           clean_count: 1,
@@ -496,6 +511,7 @@ function chaptersWithFlags(flags: boolean[]) {
       joined_line_count_in_chapter: null,
       needs_review: needsReview,
       review_causes: needsReview ? (['short_length'] as const).slice() : [],
+        origin: ORIGIN_STUB,
     })),
     broken_item_count: 0,
     needs_review_count: needs,

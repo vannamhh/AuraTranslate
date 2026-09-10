@@ -896,7 +896,7 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
 fn the_blocking_wires_run_off_the_main_thread() {
     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
-    let cases: [(&str, &str, &str); 17] = [
+    let cases: [(&str, &str, &str); 18] = [
         (
             "src/commands/glossary.rs",
             "pub fn glossary_export_tier(app: tauri::AppHandle",
@@ -988,6 +988,11 @@ fn the_blocking_wires_run_off_the_main_thread() {
             "pub fn split_chapter_at_segment(\n        app: tauri::AppHandle",
             "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot to chuc Chuong",
         ),
+        (
+            "src/commands/chapter.rs",
+            "pub fn update_chapter_origin(\n        app: tauri::AppHandle",
+            "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot ghi xuat xu, Story 6.15",
+        ),
     ];
 
     for (rel, sig, why) in cases {
@@ -1051,11 +1056,11 @@ fn the_blocking_wires_run_off_the_main_thread() {
     );
     assert_eq!(
         count_async_attrs("src/commands/chapter.rs"),
-        4,
-        "so `#[tauri::command(async)]` trong commands/chapter.rs phai DUNG 4 (bon vo CHAN o \
+        5,
+        "so `#[tauri::command(async)]` trong commands/chapter.rs phai DUNG 5 (nam vo CHAN o \
          `cases` tren: rename_chapter/move_chapter/merge_chapter_into_previous/ \
-         split_chapter_at_segment -- Story 5.8). Them mot vo chan moi thi them no vao `cases` \
-         CUNG LUOT."
+         split_chapter_at_segment -- Story 5.8 -- cong update_chapter_origin -- Story 6.15). \
+         Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
     );
 }
 

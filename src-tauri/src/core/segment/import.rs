@@ -495,6 +495,14 @@ pub struct ImportedChapter {
     /// [`super::pipeline::PipelineShape::Chapters`] (đã chia Chương từ đầu) con số của mỗi
     /// Chương là THẬT.
     pub joined_line_count: Option<usize>,
+    /// **THÊM 2026-09-10 (Story 6.15)** — xuất xứ tài liệu (FR128/AD-43) mà
+    /// [`super::pipeline::Step::ExtractMainContent`] vừa bóc cho Chương này (ba trường từ
+    /// HTML cộng URL yêu cầu, echo từ `label` — xem doc-comment
+    /// [`crate::core::webimport::origin`]). `None` khi bước 2 không chạy cho Chương này
+    /// (`extract_main_content == false` — đường tệp/dán tay). Một trang tách thành nhiều
+    /// Chương (mẫu phân tách khớp N lần) ⇒ MỌI Chương con mang CÙNG giá trị — xem doc-comment
+    /// `super::pipeline::Flow::origins`.
+    pub origin: Option<crate::core::webimport::ChapterOrigin>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/

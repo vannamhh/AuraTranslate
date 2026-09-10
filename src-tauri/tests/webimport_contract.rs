@@ -393,7 +393,7 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
     // Vị từ XEM — MỚI, bỏ qua mục hỏng, dựng được 4 Chương từ 4 mục OK.
     let view_shape = chapters_shape_for_view(&items)
         .expect("chapters_shape_for_view (vị từ XEM) phải dựng được từ 4 mục OK còn lại");
-    let preview = preview_import_encoding(&view_shape, "en", &[], None, &[], 0);
+    let preview = preview_import_encoding(&view_shape, "en", &[], None, &[], 0, &[]);
     assert!(!preview.candidates.is_empty(), "còn byte OK để dò -- dải ứng viên không được rỗng");
     let chapters_summary = preview.candidates[0]
         .chapters
@@ -1236,10 +1236,9 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(),
+        Vec::new(), &[],
         &domain_log_state,
-        None,
-    )
+        None)
     .expect("mot anh bi chan KHONG duoc lam trot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0, "chuyen huong ra ngoai tang 2 phai bi chan, khong co tep nao duoc luu");

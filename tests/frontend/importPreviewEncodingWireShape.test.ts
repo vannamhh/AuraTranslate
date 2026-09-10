@@ -27,6 +27,21 @@ function cleanupFor(text: string): Record<string, unknown> {
   return { text, spans: [], rules: [], window_truncated: false, final_text: text }
 }
 
+/** Bốn trường xuất xứ RỖNG, hình dạng THẬT của `commands::project::ChapterOriginWire`
+ * (Story 6.15). */
+function originStub(): Record<string, unknown> {
+  return {
+    author: null,
+    site_name: null,
+    url: null,
+    published_at: null,
+    author_confirmed: false,
+    site_name_confirmed: false,
+    url_confirmed: false,
+    published_at_confirmed: false,
+  }
+}
+
 /** Khối tách Chương tối giản, một Chương duy nhất — Story 6.6. Hình dạng THẬT của
  * `commands::project::ChapterSplitPreviewWire`. */
 function chaptersFor(title: string): Record<string, unknown> {
@@ -41,6 +56,7 @@ function chaptersFor(title: string): Record<string, unknown> {
         joined_line_count_in_chapter: null,
         needs_review: false,
         review_causes: [],
+        origin: originStub(),
       },
     ],
     broken_item_count: 0,
@@ -458,6 +474,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
                 joined_line_count_in_chapter: null,
                 needs_review: false,
                 review_causes: [],
+                origin: originStub(),
               },
               {
                 ord: 2,
@@ -467,6 +484,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
                 joined_line_count_in_chapter: null,
                 needs_review: false,
                 review_causes: [],
+                origin: originStub(),
               },
             ],
             broken_item_count: 0,

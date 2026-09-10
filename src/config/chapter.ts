@@ -104,6 +104,15 @@ export type ChapterRow = {
   title: string | null
   status: string
   segment_count: number
+  /**
+   * **THÊM (Story 6.15, FR128/AD-43)** — bốn cột xuất xứ `chapter.origin_*`. `null` ⇔
+   * "không tìm thấy" (chưa ai tìm/nhập) — MỘT nhãn duy nhất cho mọi Chương, kể cả Chương
+   * nhập từ tệp/dán tay nơi hệ thống chưa từng tìm (Ice chốt 2026-09-10).
+   */
+  origin_author: string | null
+  origin_site_name: string | null
+  origin_url: string | null
+  origin_published_at: string | null
 }
 
 /** Ba trạng thái, cùng khuôn [`ReadOpenChapterResult`]. */
@@ -122,6 +131,10 @@ export type OpenChapterResult = {
  * Vị từ kiểm kiểu **lúc chạy** cho một hàng `ChapterRow` — `IpcError` phía TS là một lời
  * khai về dữ liệu đã qua dây, không phải bảo đảm của trình biên dịch (`src/AGENTS.md`).
  */
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
 function isChapterRow(value: unknown): value is ChapterRow {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ChapterRow>
@@ -130,7 +143,11 @@ function isChapterRow(value: unknown): value is ChapterRow {
     typeof v.ord === 'number' &&
     (v.title === null || typeof v.title === 'string') &&
     typeof v.status === 'string' &&
-    typeof v.segment_count === 'number'
+    typeof v.segment_count === 'number' &&
+    isNullableString(v.origin_author) &&
+    isNullableString(v.origin_site_name) &&
+    isNullableString(v.origin_url) &&
+    isNullableString(v.origin_published_at)
   )
 }
 
@@ -392,5 +409,70 @@ export async function splitChapterAtSegment(segmentId: number): Promise<ChapterO
       `[chapter] không gọi được \`${CMD_SPLIT_CHAPTER_AT_SEGMENT}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { ok: null, error: null }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 6.15 — SỬA BỐN Ô XUẤT XỨ TỪ DANH SÁCH CHƯƠNG (FR128/AD-43)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Tên command trên dây — Story 6.15. Khớp `commands/chapter.rs::wire`. */
+const CMD_UPDATE_CHAPTER_ORIGIN = 'update_chapter_origin'
+
+/**
+ * Bốn trường xuất xứ NGƯỜI DÙNG gõ — chuỗi tự do, chuỗi rỗng nghĩa là "để trống" (Rust
+ * `str::trim()` rồi ghi `NULL` — cùng khuôn `title` của [`renameChapter`]).
+ */
+export type ChapterOriginEdit = {
+  author: string
+  siteName: string
+  url: string
+  publishedAt: string
+}
+
+/** Ba trạng thái cho [`updateChapterOrigin`] — cùng khuôn [`RenameChapterResult`]. */
+export type UpdateChapterOriginResult = {
+  chapters: ChapterRow[] | null
+  error: IpcError | null
+}
+
+/**
+ * **Sửa bốn ô xuất xứ của một Chương đã trên đĩa** — Story 6.15, FR128/AD-43. Không ném —
+ * cùng lý do và cùng khuôn [`renameChapter`].
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`/`author`/`siteName`/`url`/
+ * `publishedAt`.
+ */
+export async function updateChapterOrigin(
+  chapterId: number,
+  edit: ChapterOriginEdit,
+): Promise<UpdateChapterOriginResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_UPDATE_CHAPTER_ORIGIN, {
+      chapterId,
+      author: edit.author,
+      siteName: edit.siteName,
+      url: edit.url,
+      publishedAt: edit.publishedAt,
+    })
+    if (!isChapterRowArray(raw)) {
+      console.error(
+        `[chapter] \`${CMD_UPDATE_CHAPTER_ORIGIN}\` trả một hình dạng không phải ChapterRow[]: ${String(raw)}`,
+      )
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { chapters: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { chapters: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[chapter] \`${CMD_UPDATE_CHAPTER_ORIGIN}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_UPDATE_CHAPTER_ORIGIN}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { chapters: null, error: null }
   }
 }

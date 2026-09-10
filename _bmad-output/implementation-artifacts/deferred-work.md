@@ -10806,6 +10806,56 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   6.15 là tầng CHƯƠNG chứ không phải tầng ẢNH, nên đây KHÔNG phải một phép gán tự động) trước
   khi một dev tự thêm di trú.
 
+  → **KHÔNG NHẬN 2026-09-10 (Story 6.15) — ghi bằng chữ, không xoá đoạn trên.** *(Không mang ký
+  hiệu: mục này KHÔNG đóng, nó ở lại mở với chủ cũ, nên không dùng một trong ba dạng đóng đã
+  chốt. Bản đầu của dòng này mang `U+26AA` — đo 2026-09-10: ký hiệu đó có đúng MỘT lần khác
+  trong kho (`1-1-mui-tham-do-...md:336`, Story 1.1, nghĩa "Không áp dụng") và KHÔNG có trong
+  bảng ký hiệu `AGENTS.md`; hai nghĩa khác nhau cho một ký hiệu không định nghĩa ⇒ viết thành
+  chữ, đúng luật "đừng đúc một ký hiệu mới cho một quy ước mới".)* Ice chốt
+  cùng ngày (§Quyết định đã chốt spec 6.15): cột `chapter.origin_url` ghi đúng URL YÊU CẦU,
+  không phải chặng cuối sau chuyển hướng, và `Fetcher`/`fetcher.rs` **không đổi một dòng** vì
+  quyết định đó — cùng lập trường với `asset.source_url` mà mục này đang khai, nhưng KHÔNG
+  phải một lượt sửa cho mục này: `chapter.origin_url` là một cột MỚI, tầng CHƯƠNG, không chạm
+  `asset.source_url` (tầng ẢNH, §Never spec 6.15: "Không đụng tầng ẢNH"). Mục này ở lại
+  NGUYÊN TRẠNG 🟡, **chủ: Ice** — Story 6.15 không phải nơi quyết định "chặng cuối sau chuyển
+  hướng" của `asset.source_url` sống ở đâu, nó chỉ xác nhận rằng KHÔNG PHẢI ở đây.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Lượt áp bốn trường xuất xứ HÀNG LOẠT cho nhiều Chương một lúc — chưa có, cố ý.
+  Một Tác phẩm 30 Chương nhập từ tệp/dán tay (0 xuất xứ máy bóc) phải gõ tay 30 lần nếu người
+  dùng muốn điền đủ."
+  evidence: "§Quyết định đã chốt spec 6.15 (Ice, 2026-09-10): 'Chỉ per-Chương, không có lượt
+  áp hàng loạt — đúng nguyên văn AC.' `ChapterOriginOverridesState`/`update_chapter_origin`
+  (`commands/project.rs`, `commands/chapter.rs`) đều nhận ĐÚNG một Chương mỗi lượt gọi — không
+  tham số danh sách `chapter_id`, không lệnh `apply_to_range`."
+  chủ: Ice — story kế tiếp muốn mở lượt áp hàng loạt (ví dụ "áp site_name/author của Chương
+  đang chọn cho N Chương liền kề") cần quyết định UI trước (chọn dải theo `ord`? theo từng ô
+  riêng hay cả bốn ô cùng lúc?) — Ice quyết định lúc nhận việc, đúng vai đã chốt ở
+  §Quyết định spec 6.15.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Xem trước (`ChapterSplitPreviewEntryWire::origin`) chỉ hiện đúng override khi
+  Chương đó có mặt trong `origin_overrides` truyền TỪ RUST-SIDE STATE — ba trong bốn chỗ gọi
+  nội bộ của `cleanup_and_chapters_preview_for`/`build_chapter_split_preview_wire` (chi tiết
+  Chương lazy `chapter_detail_for_index`, nhánh tự khai UTF-8 của `verdict_and_candidates`)
+  cố ý truyền `&[]` vì chúng không lộ `chapters_wire` ra ngoài hoặc không bao giờ có xuất xứ
+  (`AlreadyText`) — không phải một lỗ, nhưng ghi ra để người sau không tưởng nhầm `&[]` ở đó
+  là quên truyền."
+  evidence: "`commands/project.rs::chapter_detail_for_index`/nhánh `self_declared_pair` của
+  `preview_import_encoding`."
+  chủ: không cần — hai chỗ đó không có bề mặt xuất xứ để mà hiện, ghi lại thuần tuý để tránh
+  một lượt 'sửa nhầm' sau này tưởng đó là thiếu sót.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Không suy tên báo/website từ host của URL, và không suy trường nào từ trường khác
+  — một ranh giới đã chốt (§Never), không phải một khoảng hở. Ghi lại CHỈ để nêu rõ cửa mở cho
+  tương lai: nếu Ice muốn bổ sung suy đoán từ host về sau, đó là MỘT nhãn trạng thái mới (ví
+  dụ 'suy từ tên miền'), không phải ghi thẳng vào `origin_site_name` như một giá trị bóc được
+  — xem §Design Notes spec 6.15 'Vì sao không suy tên báo từ host'."
+  evidence: "`core/webimport/origin.rs::extract_origin` không đọc `host_str()` ở bất kỳ nhánh
+  nào."
+  chủ: không cần chủ — đây là một ghi chú THIẾT KẾ, không một món nợ chờ đóng.
+
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: "`extract_main_content` chốt vào `cs.first()` của toàn danh sách, không theo từng
   Chương — một `PipelineShape::Chapters` lỡ TRỘN hình dạng (mục đầu `AlreadyText`, mục sau
@@ -11255,3 +11305,49 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   test nói 'ảnh biến mất là đúng' là một mệnh đề sai nằm trong kho. Bản thân lỗi đã ghi nợ có chủ
   ở mục riêng cùng ngày; mục này chỉ ghi rằng phần 'ghim bằng test' đã được cân nhắc và từ chối."
   chủ: Ice — cùng chủ với mục gốc; ca test sẽ ra đời cùng lượt sửa, không trước.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Nhãn ô rỗng *\"không tìm thấy\"* hiện bằng chữ nhỏ + màu phụ, KHÔNG nghiêng — trong
+  khi EXPERIENCE.md:331-336 đòi đích danh *chữ nghiêng*. Bốn ô xuất xứ vì thế lệch một mệnh đề
+  quy hoạch, ở đúng chỗ mà mệnh đề đó tồn tại để phân biệt (một nhãn trạng thái với một giá trị
+  người dùng đã gõ)."
+  evidence: "Đo 2026-09-10, hai lượt: (1) kho có 0 tiền lệ `font-style: italic` cho trạng thái
+  rỗng — hai lần dùng `italic` duy nhất là font Hán Việt ở `src/tokens/fonts.ts:65-67`; (2) một
+  lượt THÊM `font-style: italic` vào `.chapter-origin-input::placeholder` làm `check:tokens`
+  Kiểm B ĐỎ ngay — nguyên văn `src/ChapterOrigin.vue:161 — cỡ/họ chữ viết thẳng: font-style:
+  italic` — nên cổng xếp `font-style` cùng nhóm với cỡ/họ chữ, không phải một thuộc tính tự do.
+  Lượt thêm đó đã được GỠ LẠI, không giữ, và không đổi lấy một miễn trừ."
+  chủ: Ice — đóng vế này cần MỘT trong hai quyết định hệ thống thiết kế, không phải một dòng
+  CSS: đúc một token chữ nghiêng thật trong `src/tokens/` (kèm cặp face/size như mọi token
+  khác), hay cấp một miễn trừ CÓ TÊN cho `font-style` trong `check:tokens`. Cả hai đều mở một
+  cửa cho MỌI component sau này, nên không phải phán quyết của một story.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Bốn cờ `*_confirmed` của `ChapterOriginWire` khai là 'người dùng đã chạm ĐÚNG ô
+  đó', nhưng `ChapterOrigin.vue::commitField` luôn phát lại CẢ BỐN trường mỗi lượt sửa, nên
+  chạm một ô đánh dấu cả bốn là đã chạm — hợp đồng của chính trường đó không đứng."
+  evidence: "Vòng rà 1, mục 10 (2026-09-10). `commitField` dựng đủ bốn trường từ `props`;
+  `set_chapter_origin_override` nhận bốn `Option<String>` và frontend không bao giờ gửi `null`.
+  `grep` xác nhận **0** chỗ đọc `*_confirmed` hôm nay ⇒ chưa hại ai, đó là lý do nó chỉ là nợ
+  chứ không phải một lượt vá. ⚠️ Hại có tên ở tương lai — một trường KHÔNG bị chạm bị đóng
+  băng thành override, nên nếu giá trị máy đổi thì giá trị cũ thắng — nhưng vế 'giá trị máy có
+  đổi giữa các ứng viên bảng mã không' thì CHƯA ĐO. Phép đo cần: dựng một trang có
+  `og:site_name` chứa ký tự đa byte, chạy `preview_import_encoding` với hai ứng viên bảng mã
+  khác nhau, so hai giá trị `origin.site_name`."
+  chủ: Ice — sửa đúng đổi hình dạng draft (theo dõi từng ô đã chạm) CỘNG API `@commit` của
+  component dùng chung bởi hai bề mặt; cả hai đều vượt một lượt vá nhỏ, và nếu phép đo trên cho
+  thấy giá trị máy KHÔNG đổi giữa các ứng viên thì món này rớt xuống thuần tuý dọn hợp đồng.
+
+- source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
+  summary: "Không ca test nào chạy `chapter.origin_url` qua một lượt CHUYỂN HƯỚNG thật — quyết
+  định 'URL yêu cầu, không phải chặng cuối' được lập luận ba nơi nhưng chưa từng được đo
+  đầu-cuối."
+  evidence: "Vòng rà 1, mục 11 (2026-09-10). Mọi fixture của `chapter_origin_contract.rs` dùng
+  một URL trùng luôn với `label` duy nhất, nên mệnh đề 'không phải chặng cuối' không có phép đo
+  nào phân biệt được hai vế. ⚠️ Lý do KHÔNG đóng ngay trong story này: một ca như thế phải sống
+  trong bộ loopback (`webimport_contract.rs`), và bộ đó đang đỏ trên máy này — đo 2026-09-10:
+  `12 asset_contract + 1 segment_role_contract + 15 webimport_contract = 28` ca đỏ, TÁI LẬP
+  giống hệt trên `46f068f` cây sạch (`git stash` → chạy → `git stash pop`). Một ca mới thêm vào
+  đó không nghiệm thu xanh được ở đây, nên thêm nó là ghi một mệnh đề chưa ai kiểm."
+  chủ: Ice — cần quyết định đường nghiệm thu trước: sửa điều kiện làm bộ loopback xanh lại trên
+  máy này, hay chấp nhận ca đó chỉ được canh ở CI. Story nào nhận cũng phải nhận cùng câu hỏi.

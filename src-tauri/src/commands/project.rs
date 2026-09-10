@@ -359,6 +359,11 @@ pub fn create_work(
     cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
+    // 🔴 **THÊM 2026-09-10 (Story 6.15)** — xuất xứ NGƯỜI DÙNG đã gõ đè, theo CHỈ SỐ Chương của
+    // lượt nhập này — xem doc-comment [`ChapterOriginOverridesState`]. `&[]` (mọi chỗ gọi
+    // KHÔNG đi qua màn xem trước xuất xứ — `tests/**` cũ, `create_work_from_text`/`_from_file`)
+    // là "chưa ai sửa gì", CÙNG hành vi trước story này.
+    origin_overrides: &[Option<ChapterOriginOverride>],
     domain_log_state: &webimport::DomainLogState,
     // 🔴 **THÊM 2026-09-09 (Story 6.12)** — khối + ảnh nhúng của một `.docx`, đọc SẴN bởi
     // `import_file` (nó không đi qua `Step::ExtractMainContent`, đó là bóc HTML). `None` cho
@@ -451,6 +456,9 @@ pub fn create_work(
     // TRƯỚC khi di chuyển, không sau.
     let cleanup_rules_for_images = cleanup_rules.clone();
     let block_overrides_for_images = block_overrides.clone();
+    // 🔴 THÊM 2026-09-10 (Story 6.15) — bản CHÉP thành `Vec` sở hữu, `move` được vào closure
+    // ghi `'static` bên dưới (`origin_overrides` tham số chỉ là `&[..]`, không sống đủ lâu).
+    let origin_overrides_owned: Vec<Option<ChapterOriginOverride>> = origin_overrides.to_vec();
 
     let outcome = match run_pipeline(
         PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
@@ -673,11 +681,29 @@ pub fn create_work(
             // 🔵 SỬA 2026-09-05 (Story 6.6) — `title` bơm từ `chapter.title` (dòng khớp mẫu
             // phân tách, `None` cho Chương lời tựa hoặc khi không có mẫu) thay vì `NULL`
             // cứng.
+            //
+            // 🔴 THÊM 2026-09-10 (Story 6.15, FR128/AD-43) — bốn cột xuất xứ, ÁP override
+            // NGƯỜI DÙNG (nếu có, theo chỉ số Chương `i`) lên trên giá trị MÁY đã bóc
+            // (`chapter.origin`) — xem [`effective_origin_fields`]. Đường tệp/dán tay có
+            // `chapter.origin == None` VÀ `origin_overrides` rỗng ⇒ cả bốn cột `NULL`, KHÔNG
+            // BACKFILL, đúng §Always.
+            let (origin_author, origin_site_name, origin_url, origin_published_at) =
+                effective_origin_fields(chapter.origin.as_ref(), origin_overrides_owned.get(i).and_then(Option::as_ref));
             tx.execute(
-                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at, \
+                 origin_author, origin_site_name, origin_url, origin_published_at) \
                  VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
-                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-                (ord, &chapter.title, &chapter.source_text, LifecycleStatus::NotStarted.as_str()),
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?5, ?6, ?7, ?8)",
+                (
+                    ord,
+                    &chapter.title,
+                    &chapter.source_text,
+                    LifecycleStatus::NotStarted.as_str(),
+                    &origin_author,
+                    &origin_site_name,
+                    &origin_url,
+                    &origin_published_at,
+                ),
             )?;
 
             // `last_insert_rowid()` đọc **trong** giao dịch, ngay sau lượt chèn của chính
@@ -1361,6 +1387,7 @@ pub fn create_work_from_text(
         Vec::new(),
         None,
         Vec::new(),
+        &[],
         &std::sync::Mutex::new(Vec::new()),
         // Văn bản dán tay không bao giờ có một `DocxSidecar` — xem doc-comment kiểu đó.
         None,
@@ -1803,6 +1830,7 @@ pub fn create_work_from_file(
         Vec::new(),
         None,
         Vec::new(),
+        &[],
         &std::sync::Mutex::new(Vec::new()),
         docx_sidecar,
     )
@@ -2073,6 +2101,44 @@ pub struct ChapterSplitPreviewEntryWire {
     pub needs_review: bool,
     /// Danh mục nguyên nhân *cần xem* — RỖNG khi và chỉ khi `needs_review == false`.
     pub review_causes: Vec<ReviewCauseWire>,
+    /// **THÊM 2026-09-10 (Story 6.15, FR128/AD-43)** — bốn trường xuất xứ HIỆU LỰC (đã áp
+    /// [`ChapterOriginOverride`] của CHÍNH Chương này, nếu có) — xem [`ChapterOriginWire`].
+    pub origin: ChapterOriginWire,
+}
+
+/// Bốn trường xuất xứ trên dây, cộng bốn cờ `*_confirmed` — cùng triết lý [`BlockWire::confirmed`]:
+/// `true` ⇔ NGƯỜI DÙNG đã chạm ô đó ở màn xem trước (giá trị hiện ra là giá trị họ gõ, kể cả
+/// khi họ xoá trắng ⇒ `None` + `confirmed = true`); `false` ⇔ giá trị máy bóc (hoặc `None` nếu
+/// máy cũng chưa từng chạy).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterOriginWire {
+    pub author: Option<String>,
+    pub site_name: Option<String>,
+    pub url: Option<String>,
+    pub published_at: Option<String>,
+    pub author_confirmed: bool,
+    pub site_name_confirmed: bool,
+    pub url_confirmed: bool,
+    pub published_at_confirmed: bool,
+}
+
+impl ChapterOriginWire {
+    fn from_machine_and_override(
+        machine: Option<&crate::core::webimport::ChapterOrigin>,
+        over: Option<&ChapterOriginOverride>,
+    ) -> Self {
+        let (author, site_name, url, published_at) = effective_origin_fields(machine, over);
+        ChapterOriginWire {
+            author,
+            site_name,
+            url,
+            published_at,
+            author_confirmed: over.is_some_and(|o| o.author.is_some()),
+            site_name_confirmed: over.is_some_and(|o| o.site_name.is_some()),
+            url_confirmed: over.is_some_and(|o| o.url.is_some()),
+            published_at_confirmed: over.is_some_and(|o| o.published_at.is_some()),
+        }
+    }
 }
 
 /// Khối tách Chương của MỘT ứng viên/đường tự khai — tầng 4 (Story 6.6, FR14).
@@ -2134,6 +2200,7 @@ pub struct ChapterSplitPreviewWire {
 fn build_chapter_split_preview_wire(
     chapters: &[crate::core::segment::import::ImportedChapter],
     broken_item_count: usize,
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> ChapterSplitPreviewWire {
     let metrics: Vec<crate::core::segment::review::ChapterMetrics> = chapters
         .iter()
@@ -2158,6 +2225,10 @@ fn build_chapter_split_preview_wire(
             joined_line_count_in_chapter: m.joined_line_count,
             needs_review: verdict.needs_review,
             review_causes: verdict.causes.iter().map(|&cause| ReviewCauseWire::from(cause)).collect(),
+            origin: ChapterOriginWire::from_machine_and_override(
+                c.origin.as_ref(),
+                origin_overrides.get(i).and_then(Option::as_ref),
+            ),
         })
         .collect();
 
@@ -2338,7 +2409,7 @@ fn current_tier2_machine_kept(
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
 ) -> Option<Vec<bool>> {
-    let preview = url_import_encoding_preview(items, source_lang, cleanup_rules, &[])?;
+    let preview = url_import_encoding_preview(items, source_lang, cleanup_rules, &[], &[])?;
     let blocks = preview.candidates.iter().find_map(|c| c.blocks.as_ref())?;
     Some(blocks.blocks.iter().map(|b| b.kept).collect())
 }
@@ -2562,6 +2633,9 @@ pub fn cleanup_and_chapters_preview_for(
     block_overrides: &[Option<bool>],
     detail_chapter_index: usize,
     broken_item_count: usize,
+    // 🔴 THÊM 2026-09-10 (Story 6.15) — cùng khuôn `block_overrides` ngay trên, nhưng theo
+    // CHỈ SỐ CHƯƠNG (không giới hạn Chương đầu) — xem `ChapterOriginOverridesState`.
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> (CleanupPreviewWire, ChapterSplitPreviewWire, Option<ChapterBlocksPreviewWire>) {
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
@@ -2577,7 +2651,7 @@ pub fn cleanup_and_chapters_preview_for(
         }
     };
 
-    let chapters_wire = build_chapter_split_preview_wire(&chapters, broken_item_count);
+    let chapters_wire = build_chapter_split_preview_wire(&chapters, broken_item_count, origin_overrides);
     let detail_chapter = chapters.get(detail_chapter_index);
     // 🔴 SỬA (vòng rà đối kháng bước 4, P1) — `block_overrides` CHỈ có nghĩa cho đơn vị 0 của
     // `shape` GỐC (`PipelineInput::block_overrides` doc-comment: "Chỉ `units[0]` đọc trường
@@ -2741,6 +2815,7 @@ fn encoding_candidate_wire(
     extract_main_content: bool,
     block_overrides: &[Option<bool>],
     broken_item_count: usize,
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> EncodingCandidateWire {
     // `pipeline_window`/`normalized` đồng bộ `Some`/`None` với nhau (cả hai tính từ
     // CÙNG `decoded.as_ref()` bên trong `render_candidates`) — an toàn đọc `window_truncated`
@@ -2765,6 +2840,7 @@ fn encoding_candidate_wire(
                     block_overrides,
                     0,
                     broken_item_count,
+                    origin_overrides,
                 );
                 (Some(cleanup_wire), Some(chapters_wire), blocks_wire)
             }
@@ -2780,7 +2856,7 @@ fn encoding_candidate_wire(
                     std::collections::BTreeMap::new(),
                     window_truncated,
                 )),
-                Some(build_chapter_split_preview_wire(&[], broken_item_count)),
+                Some(build_chapter_split_preview_wire(&[], broken_item_count, &[])),
                 None,
             ),
         },
@@ -2832,6 +2908,7 @@ pub fn preview_import_encoding(
     chapter_pattern: Option<&ChapterPattern>,
     block_overrides: &[Option<bool>],
     broken_item_count: usize,
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> ImportEncodingPreview {
     // 🔵 **SỬA 2026-09-08 (Story 6.10a) — bỏ tham số `label` riêng, thêm `shape` (hình dạng
     // GỐC nguyên vẹn).** `label` từng cần thiết vì hình dạng nạp vào pipeline bị GÓI LẠI
@@ -2875,6 +2952,7 @@ pub fn preview_import_encoding(
                         extract_main_content,
                         block_overrides,
                         broken_item_count,
+                        origin_overrides,
                     )
                 })
                 .collect()
@@ -2944,6 +3022,9 @@ pub fn preview_import_encoding(
                     // Nhánh TỰ KHAI không bao giờ có mục URL để mà hỏng (xem doc-comment
                     // tham số `broken_item_count` ở `preview_import_encoding`) — `0` cố định.
                     0,
+                    // Nhánh TỰ KHAI luôn `AlreadyText` — `chapter.origin` luôn `None`, không
+                    // có gì để mà áp override lên (§Never spec 6.15: tầng 2 chưa mở ở đây).
+                    &[],
                 );
                 (cleanup, chapters)
             }
@@ -2958,7 +3039,7 @@ pub fn preview_import_encoding(
                     std::collections::BTreeMap::new(),
                     normalized.window_truncated,
                 ),
-                build_chapter_split_preview_wire(&[], 0),
+                build_chapter_split_preview_wire(&[], 0, &[]),
             ),
         }
     });
@@ -3098,6 +3179,9 @@ pub fn chapter_detail_for_index(
         // có ý nghĩa để mà truyền (0 an toàn, xem doc-comment tham số `broken_item_count` ở
         // `cleanup_and_chapters_preview_for`).
         0,
+        // `chapters_wire` ở đây chỉ đọc `chapter_count`, không lộ ra ngoài hàm này (xem doc-
+        // comment ngay trên) — xuất xứ không có nơi để mà hiện, `&[]` không mất gì.
+        &[],
     );
     if chapter_index >= chapters_wire.chapter_count {
         return None;
@@ -3197,6 +3281,10 @@ pub fn confirm_import_with_encoding(
     cleanup_rules: Vec<CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
+    // 🔴 **THÊM 2026-09-10 (Story 6.15)** — cùng kỷ luật `block_overrides` ngay trên: đọc
+    // `ChapterOriginOverridesState` NGAY LÚC XÁC NHẬN, reset chỉ ở lớp vỏ SAU KHI hàm này trả
+    // `Ok`.
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
     domain_log_state: &webimport::DomainLogState,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
@@ -3236,6 +3324,7 @@ pub fn confirm_import_with_encoding(
         cleanup_rules,
         chapter_pattern,
         block_overrides,
+        &origin_overrides,
         domain_log_state,
         docx_sidecar,
     )?;
@@ -3314,6 +3403,100 @@ pub type Tier2BlockOverridesState = std::sync::Mutex<Vec<Option<bool>>>;
 pub fn reset_block_overrides(state: &Tier2BlockOverridesState) {
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.clear();
+}
+
+/// **THÊM 2026-09-10 (Story 6.15)** — bốn trường xuất xứ người dùng đã gõ đè cho MỘT Chương ở
+/// màn xem trước, mỗi trường `Some(v)` ⇔ người dùng đã CHẠM ô đó (`v` rỗng sau khi cắt ⇒ họ đã
+/// xoá trắng, cột ghi `NULL`); `None` ⇔ chưa ai chạm, dùng nguyên giá trị máy bóc
+/// ([`crate::core::webimport::ChapterOrigin`]). Khác [`Tier2BlockOverridesState`] (chỉ đơn vị
+/// 0) — xuất xứ áp được cho MỌI Chương của lượt nhập URL, nên state bên dưới đánh chỉ số theo
+/// CHƯƠNG, không theo khối.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ChapterOriginOverride {
+    pub author: Option<String>,
+    pub site_name: Option<String>,
+    pub url: Option<String>,
+    pub published_at: Option<String>,
+}
+
+/// `field(value)` — cắt hai đầu, rỗng sau khi cắt ⇒ `None` (ô đã bị xoá trắng, cột ghi
+/// `NULL`) — khuôn dùng chung cho cả bốn trường của [`ChapterOriginOverride`].
+fn trimmed_or_none(value: &str) -> Option<String> {
+    let t = value.trim();
+    if t.is_empty() { None } else { Some(t.to_owned()) }
+}
+
+/// Áp một [`ChapterOriginOverride`] (nếu có) lên một
+/// [`crate::core::webimport::ChapterOrigin`] máy đã bóc (nếu có) — trả bốn `Option<String>`
+/// SẴN SÀNG bind vào câu `INSERT`. `override_field == Some(v)` LUÔN thắng (kể cả khi `v` rỗng
+/// ⇒ `NULL`, người dùng đã xoá trắng); `None` ⇒ dùng nguyên giá trị máy (hoặc `None` nếu máy
+/// cũng chưa từng chạy — đường tệp/dán tay).
+fn effective_origin_fields(
+    machine: Option<&crate::core::webimport::ChapterOrigin>,
+    over: Option<&ChapterOriginOverride>,
+) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+    // 🔴 SỬA (đo được, bàn đo `chapter_origin_contract.rs::a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value`)
+    // — bản đầu bọc `over.map(|o| &o.<field>)` dựng một `Option` LỒNG SAI: lớp NGOÀI chỉ nói
+    // "có một BẢN GHI override cho Chương này", không nói "TRƯỜNG NÀY đã bị chạm" — nên MỘT
+    // trường bị chạm (`author`) kéo theo BA trường còn lại (`site_name`/`url`/`published_at`,
+    // đang `None` = "chưa chạm") bị đọc NHẦM thành "đã chạm, giá trị rỗng" ⇒ mất giá trị MÁY
+    // của chúng. `over_field` ở đây PHẢI là `Option<String>` ĐÃ LÀM PHẲNG (một lớp DUY NHẤT):
+    // `None` ⇔ chưa chạm (dù `over` có mặt hay không) — chỉ khi đó mới rơi về giá trị máy.
+    let pick = |over_field: Option<String>, machine_field: Option<&String>| -> Option<String> {
+        match over_field {
+            Some(v) => trimmed_or_none(&v),
+            None => machine_field.cloned(),
+        }
+    };
+    (
+        pick(over.and_then(|o| o.author.clone()), machine.and_then(|m| m.author.as_ref())),
+        pick(over.and_then(|o| o.site_name.clone()), machine.and_then(|m| m.site_name.as_ref())),
+        pick(over.and_then(|o| o.url.clone()), machine.and_then(|m| m.url.as_ref())),
+        pick(
+            over.and_then(|o| o.published_at.clone()),
+            machine.and_then(|m| m.published_at.as_ref()),
+        ),
+    )
+}
+
+/// **THÊM 2026-09-10 (Story 6.15)** — cùng khuôn [`Tier2BlockOverridesState`], nhưng đánh chỉ
+/// số theo CHƯƠNG (vị trí trong `chapters: &[ImportedChapter]` của lượt nhập đang xem trước),
+/// không theo khối — xuất xứ là quyết định per-Chương (§Tasks spec 6.15), không giới hạn ở
+/// Chương đầu như tầng 2 khối. Rỗng == "chưa ai sửa gì", cùng lý lẽ `Tier2BlockOverridesState`.
+///
+/// **Reset khi nào — SÁU điểm, tất cả ở lớp vỏ `wire`:**
+/// `preview_import_encoding_from_text`/`_from_file` (mở một lượt XEM TRƯỚC MỚI — đường tệp/
+/// dán tay không bao giờ đọc override, nhưng dọn NGAY vẫn bắt buộc: không dòng này, một
+/// override còn treo từ một lượt nhập URL đã HUỶ [huỷ không tự dọn state Rust — xem
+/// `cancel_import_preview`] sống sót và bị `confirm_import_with_encoding` đọc nhầm vào Chương
+/// của lượt dán tay/tệp MỚI, đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm —
+/// bắt ở lượt rà 2026-09-10); `start_url_import` (danh sách HOÀN TOÀN MỚI);
+/// `reload_url_import_item`/`remove_url_import_item` (chỉ số Chương có thể đã dời — dọn TOÀN
+/// BỘ, xem §Spec Change Log spec 6.15 mục 2); và ngay SAU KHI [`confirm_import_with_encoding`]
+/// trả `Ok` (đã ghi xong, giữ lại là rác cho lượt kế) — KHÔNG TRƯỚC (một lượt xác nhận trượt
+/// giữ nguyên override để thử lại, cùng kỷ luật `PendingImportSourceState`).
+pub type ChapterOriginOverridesState = std::sync::Mutex<Vec<Option<ChapterOriginOverride>>>;
+
+/// Dọn sạch [`ChapterOriginOverridesState`] — cùng khuôn [`reset_block_overrides`]. **Hàm
+/// thuần, `pub`** để `tests/**` gọi được không cần `tauri::AppHandle`.
+pub fn reset_chapter_origin_overrides(state: &ChapterOriginOverridesState) {
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard.clear();
+}
+
+/// Ghi một [`ChapterOriginOverride`] vào chỉ số `chapter_index` của
+/// [`ChapterOriginOverridesState`], mở rộng vector (đệm `None`) nếu cần — **hàm thuần**, đây
+/// là thứ `tests/**` gọi; vỏ IPC ở `mod wire`.
+pub fn set_chapter_origin_override(
+    state: &ChapterOriginOverridesState,
+    chapter_index: usize,
+    over: ChapterOriginOverride,
+) {
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if guard.len() <= chapter_index {
+        guard.resize(chapter_index + 1, None);
+    }
+    guard[chapter_index] = Some(over);
 }
 
 /// Vị từ THUẦN — mục vừa sửa/tải lại/bỏ ở `index` có làm cấu trúc khối của Chương tầng 2
@@ -3601,10 +3784,19 @@ fn url_import_encoding_preview(
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     block_overrides: &[Option<bool>],
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> Option<ImportEncodingPreview> {
     let shape = chapters_shape_for_view(items)?;
     let broken_item_count = items.iter().filter(|it| it.error.is_some()).count();
-    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None, block_overrides, broken_item_count))
+    Some(preview_import_encoding(
+        &shape,
+        source_lang,
+        cleanup_rules,
+        None,
+        block_overrides,
+        broken_item_count,
+        origin_overrides,
+    ))
 }
 
 /// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
@@ -3622,10 +3814,20 @@ fn url_import_batch_wire(
     cleanup_rules: &[CleanupRule],
     block_overrides: &[Option<bool>],
     domain_log_domain_count: usize,
+    // 🔴 THÊM 2026-09-10 (Story 6.15) — cùng lý do `block_overrides` ngay trên: đường URL là
+    // đường DUY NHẤT `extract_main_content == true`, nên đây CŨNG là chỗ DUY NHẤT xuất xứ có
+    // gì để mà hiện.
+    origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> UrlImportBatchWire {
     UrlImportBatchWire {
         items: items.iter().map(UrlImportItemWire::from).collect(),
-        encoding_preview: url_import_encoding_preview(items, source_lang, cleanup_rules, block_overrides),
+        encoding_preview: url_import_encoding_preview(
+            items,
+            source_lang,
+            cleanup_rules,
+            block_overrides,
+            origin_overrides,
+        ),
         domain_log_domain_count,
     }
 }
@@ -4891,6 +5093,70 @@ pub mod wire {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.15 — trạng thái xuất xứ NGƯỜI DÙNG gõ đè, theo Chương —
+    // `ChapterOriginOverridesState`. Cùng khuôn hai hàm ngay trên.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Đọc bản sao HIỆN HÀNH của `ChapterOriginOverridesState` — best-effort RỖNG khi state
+    /// chưa được `.manage(...)`.
+    fn resolve_chapter_origin_overrides(app: &tauri::AppHandle) -> Vec<Option<super::ChapterOriginOverride>> {
+        use tauri::Manager as _;
+
+        match app.try_state::<super::ChapterOriginOverridesState>() {
+            Some(state) => {
+                let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                guard.clone()
+            }
+            None => {
+                eprintln!(
+                    "webimport[origin] ChapterOriginOverridesState chua duoc quan ly, roi ve 0 override"
+                );
+                Vec::new()
+            }
+        }
+    }
+
+    /// Dọn `ChapterOriginOverridesState` — best-effort.
+    fn reset_chapter_origin_overrides(app: &tauri::AppHandle) {
+        use tauri::Manager as _;
+
+        if let Some(state) = app.try_state::<super::ChapterOriginOverridesState>() {
+            super::reset_chapter_origin_overrides(&state);
+        }
+    }
+
+    /// Vỏ IPC — ghi một lượt sửa tay xuất xứ (một hoặc nhiều trong bốn ô) cho Chương thứ
+    /// `chapter_index` (0-based, vị trí trong danh sách Chương của lượt nhập ĐANG XEM TRƯỚC)
+    /// vào `ChapterOriginOverridesState`. **Không một quy tắc nào sống ở đây** — đọc
+    /// [`super::set_chapter_origin_override`].
+    ///
+    /// ⚠️ Bốn tham số Option: `None` ⇔ ô đó CHƯA bị chạm (dùng nguyên giá trị máy);
+    /// `Some(v)` ⇔ đã chạm, `v` rỗng sau khi cắt ⇒ cột ghi `NULL` lúc xác nhận. Frontend GỌI
+    /// LẠI lệnh này với TOÀN BỘ bốn trường mỗi lần một ô đổi (form "sửa tại chỗ" giữ trạng
+    /// thái bốn ô trong một draft duy nhất — xem `src/ChapterOrigin.vue`).
+    #[tauri::command]
+    pub fn set_chapter_origin_override(
+        app: tauri::AppHandle,
+        chapter_index: usize,
+        author: Option<String>,
+        site_name: Option<String>,
+        url: Option<String>,
+        published_at: Option<String>,
+    ) {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<super::ChapterOriginOverridesState>() else {
+            eprintln!("webimport[origin] ChapterOriginOverridesState chua duoc quan ly, bo qua luot sua");
+            return;
+        };
+        super::set_chapter_origin_override(
+            &state,
+            chapter_index,
+            super::ChapterOriginOverride { author, site_name, url, published_at },
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Story 6.8 (NFR19, AD-41) — nhật ký domain: nối bản ghi + đọc số domain phân biệt.
     // ─────────────────────────────────────────────────────────────────────────
     //
@@ -5189,6 +5455,13 @@ pub mod wire {
         // == false`), nên `&[]` không mất gì; dọn `Tier2BlockOverridesState` cho nhất quán
         // VÒNG ĐỜI của một lượt xem trước MỚI (xem doc-comment kiểu đó).
         reset_tier2_block_overrides(&app);
+        // 🔴 SỬA 2026-09-10 (Story 6.15, lượt rà) — dọn `ChapterOriginOverridesState` CÙNG lượt.
+        // Thiếu dòng này, một lượt gõ đè xuất xứ ở màn URL bị HUỶ rồi mở lại bằng dán tay/tệp
+        // vẫn ĐỌC ĐƯỢC override CŨ lúc `confirm_import_with_encoding` (state đó chỉ được đọc,
+        // không được RESET, ở lượt HUỶ — xem doc-comment `ChapterOriginOverridesState` mục
+        // "Reset khi nào") — bốn ô của một Chương dán tay/tệp thật sự sẽ mang xuất xứ của một
+        // lượt nhập URL đã bỏ, đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm.
+        reset_chapter_origin_overrides(&app);
         let preview = super::preview_import_encoding(
             &shape,
             &source_lang,
@@ -5198,6 +5471,9 @@ pub mod wire {
             // Đường tệp/dán tay — 0 mục URL để mà hỏng (§Always spec 6.10: "đường tệp/dán
             // tay truyền 0").
             0,
+            // Đường tệp/dán tay không bao giờ bóc xuất xứ (`extract_main_content == false`)
+            // — Story 6.15, cùng lý lẽ `&[]` của `block_overrides` ngay trên.
+            &[],
         );
         // Văn bản dán tay không bao giờ có một `DocxSidecar` (xem doc-comment kiểu đó).
         super::stash_pending_import_source(&state, shape, None);
@@ -5230,6 +5506,8 @@ pub mod wire {
         // Story 6.9 — cùng lý do nhánh DÁN VĂN BẢN ở trên: đường tệp KHÔNG BAO GIỜ bóc nội
         // dung chính (kể cả `.docx` — Story 6.12: nó không đi qua `dom_smoothie`).
         reset_tier2_block_overrides(&app);
+        // 🔴 SỬA 2026-09-10 (Story 6.15, lượt rà) — cùng lý do nhánh DÁN VĂN BẢN ở trên.
+        reset_chapter_origin_overrides(&app);
         let preview = super::preview_import_encoding(
             &shape,
             &source_lang,
@@ -5239,6 +5517,9 @@ pub mod wire {
             // Đường tệp/dán tay — 0 mục URL để mà hỏng (§Always spec 6.10: "đường tệp/dán
             // tay truyền 0").
             0,
+            // Đường tệp/dán tay không bao giờ bóc xuất xứ (`extract_main_content == false`)
+            // — Story 6.15, cùng lý lẽ `&[]` của `block_overrides` ngay trên.
+            &[],
         );
         super::stash_pending_import_source(&state, shape, docx_sidecar);
         Ok(preview)
@@ -5285,6 +5566,8 @@ pub mod wire {
         // xác nhận thành công (đường lỗi giữ nguyên override để người dùng thử lại một ứng
         // viên bảng mã khác mà không mất lượt sửa tay vừa làm).
         let block_overrides = resolve_tier2_block_overrides(&app);
+        // 🔴 **THÊM 2026-09-10 (Story 6.15)** — cùng kỷ luật `block_overrides` ngay trên.
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         // 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1 vòng rà đối kháng 3 lớp)** — nhật ký domain
         // của PHA ẢNH nay được PUSH THẲNG vào state THẬT của phiên chạy TỪ BÊN TRONG
@@ -5315,9 +5598,11 @@ pub mod wire {
             cleanup_rules,
             pattern,
             block_overrides,
+            origin_overrides,
             domain_log_state_ref,
         )?;
         reset_tier2_block_overrides(&app);
+        reset_chapter_origin_overrides(&app);
 
         // P6 (vòng rà đối kháng bước 4) — `create_work` VỪA thành công (dòng trên đã `?`
         // sớm trên lỗi): dọn `UrlImportItemsState` CÙNG kỷ luật với `PendingImportSourceState`
@@ -5395,13 +5680,17 @@ pub mod wire {
         // Story 6.9 — danh sách HOÀN TOÀN MỚI, dọn override CŨ trước khi dựng dây (xem
         // doc-comment `Tier2BlockOverridesState` mục "Reset khi nào").
         reset_tier2_block_overrides(&app);
+        // Story 6.15 — cùng lý do: danh sách MỚI, chỉ số Chương cũ không còn khớp gì.
+        reset_chapter_origin_overrides(&app);
         let block_overrides = resolve_tier2_block_overrides(&app);
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         let wire = super::url_import_batch_wire(
             &items,
             &source_lang,
             &cleanup_rules,
             &block_overrides,
             domain_log_domain_count(&app),
+            &origin_overrides,
         );
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -5452,13 +5741,19 @@ pub mod wire {
         if super::mutated_index_invalidates_tier2_blocks(index) {
             reset_tier2_block_overrides(&app);
         }
+        // Story 6.15 — một lượt tải LẠI đổi nội dung (và có thể cả xuất xứ) của ĐÚNG mục
+        // `index`; khác Tier2 (chỉ mục 0 có ý nghĩa), xuất xứ áp cho MỌI Chương — dọn TOÀN BỘ
+        // là lựa chọn AN TOÀN, không giữ một override có thể đã sai cho đúng chỉ số đó.
+        reset_chapter_origin_overrides(&app);
         let block_overrides = resolve_tier2_block_overrides(&app);
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         Ok(super::url_import_batch_wire(
             items,
             &source_lang,
             &cleanup_rules,
             &block_overrides,
             domain_log_domain_count(&app),
+            &origin_overrides,
         ))
     }
 
@@ -5494,13 +5789,18 @@ pub mod wire {
         if super::mutated_index_invalidates_tier2_blocks(index) {
             reset_tier2_block_overrides(&app);
         }
+        // Story 6.15 — bỏ một mục dời chỉ số của MỌI mục đứng sau nó; dọn TOÀN BỘ override
+        // xuất xứ thay vì cố dịch chuyển từng chỉ số, cùng lý lẽ `reload_url_import_item`.
+        reset_chapter_origin_overrides(&app);
         let block_overrides = resolve_tier2_block_overrides(&app);
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         Ok(super::url_import_batch_wire(
             items,
             &source_lang,
             &cleanup_rules,
             &block_overrides,
             domain_log_domain_count(&app),
+            &origin_overrides,
         ))
     }
 
@@ -5561,12 +5861,14 @@ pub mod wire {
             return Err(super::url_import_internal_error());
         };
         let block_overrides = resolve_tier2_block_overrides(&app);
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         Ok(super::url_import_batch_wire(
             items,
             &source_lang,
             &cleanup_rules,
             &block_overrides,
             domain_log_domain_count(&app),
+            &origin_overrides,
         ))
     }
 
@@ -5620,12 +5922,14 @@ pub mod wire {
             return Err(super::url_import_internal_error());
         };
         let block_overrides = resolve_tier2_block_overrides(&app);
+        let origin_overrides = resolve_chapter_origin_overrides(&app);
         Ok(super::url_import_batch_wire(
             items,
             &source_lang,
             &cleanup_rules,
             &block_overrides,
             domain_log_domain_count(&app),
+            &origin_overrides,
         ))
     }
 

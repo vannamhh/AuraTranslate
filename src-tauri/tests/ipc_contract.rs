@@ -668,6 +668,10 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
         title: None,
         status: "not_started".to_owned(),
         segment_count: 0,
+        origin_author: None,
+        origin_site_name: None,
+        origin_url: None,
+        origin_published_at: None,
     };
     let value = serde_json::to_value(&row).expect("ChapterRow phải serialize được");
     let mut keys: Vec<&str> =
@@ -675,7 +679,17 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["chapter_id", "ord", "segment_count", "status", "title"],
+        vec![
+            "chapter_id",
+            "ord",
+            "origin_author",
+            "origin_published_at",
+            "origin_site_name",
+            "origin_url",
+            "segment_count",
+            "status",
+            "title"
+        ],
         "khoá trên dây của ChapterRow là snake_case. Nhận được: {keys:?}. Nghi phạm số một: \
          `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
@@ -805,6 +819,142 @@ fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names
         );
     }
 }
+
+/// **THÊM Story 6.15 (FR128/AD-43).** `update_chapter_origin` phải CÓ MẶT trong
+/// `generate_handler![…]`, và năm tham số của nó phải đúng thứ `src/config/chapter.ts` gõ ở
+/// phía kia của dây — cùng lý lẽ và cùng khuôn
+/// [`the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names`] ngay
+/// trên.
+#[test]
+fn update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    assert!(
+        lib_src.contains("crate::commands::chapter::wire::update_chapter_origin"),
+        "`crate::commands::chapter::wire::update_chapter_origin` phai co mat trong \
+         generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" va \
+         KHONG cong nao do."
+    );
+
+    let chapter_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("chapter.rs");
+    let chapter_src = fs::read_to_string(&chapter_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", chapter_rs.display()));
+
+    for param in [
+        "chapter_id: i64",
+        "author: String",
+        "site_name: String",
+        "url: String",
+        "published_at: String",
+    ] {
+        assert!(
+            chapter_src.contains(param),
+            "vo IPC `update_chapter_origin` phai khai `{param}` -- doi ten tham so la doi DAY, \
+             va `src/config/chapter.ts` gui theo ten cu."
+        );
+    }
+}
+
+/// **THÊM Story 6.15 (FR128/AD-43, lượt rà 2026-09-10).** `set_chapter_origin_override` phải
+/// CÓ MẶT trong `generate_handler![…]`, và năm tham số của nó phải đúng thứ
+/// `src/config/project.ts` gõ ở phía kia của dây — cùng lý lẽ và cùng khuôn
+/// [`update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names`] ngay trên.
+#[test]
+fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    assert!(
+        lib_src.contains("crate::commands::project::wire::set_chapter_origin_override"),
+        "`crate::commands::project::wire::set_chapter_origin_override` phai co mat trong \
+         generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" va \
+         KHONG cong nao do."
+    );
+
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    for param in [
+        "chapter_index: usize",
+        "author: Option<String>",
+        "site_name: Option<String>",
+        "url: Option<String>",
+        "published_at: Option<String>",
+    ] {
+        assert!(
+            project_src.contains(param),
+            "vo IPC `set_chapter_origin_override` phai khai `{param}` -- doi ten/kieu tham so la \
+             doi DAY, va `src/config/project.ts` gui theo ten/kieu cu."
+        );
+    }
+}
+
+/// 🔴 **Hai vo XEM TRUOC phai DON `ChapterOriginOverridesState`, khong chi `Tier2BlockOverrides`.**
+/// Story 6.15, vong ra 1 muc 1/2 (2026-09-10).
+///
+/// ⚠️ **Vi sao mot phep quet MA NGUON chu khong mot ca goi that.** Vo `#[tauri::command]` doi
+/// mot `tauri::AppHandle`, ma crate test nay khong co `MockRuntime` (da ghi o
+/// `project_contract.rs:925`) -- nen KHONG ca nao goi duoc vo that. Ca dau tien viet cho lo
+/// hong nay (`chapter_origin_contract.rs::a_leftover_override_from_a_cancelled_url_preview_...`)
+/// TU GOI `reset_chapter_origin_overrides` roi khang dinh khong ro ri: DO 2026-09-10 bang phep
+/// go THAT -- binh luan ca sau `reset_chapter_origin_overrides(&app);` khoi CA SAU cho goi
+/// trong `mod wire` roi chay lai -- ca do van **15/15 XANH**. No canh chinh no, khong canh ban
+/// va. Phep quet duoi day thi do DUNG dong trong THAN vo, cung khuon
+/// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` da dung cho `(async)`.
+#[test]
+fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_preview() {
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    for wire in ["preview_import_encoding_from_text", "preview_import_encoding_from_file"] {
+        let signature = format!("pub fn {wire}(");
+        let start = src
+            .find(&signature)
+            .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong commands/project.rs"));
+        // Than vo = tu chu ky toi chu ky `pub fn` KE TIEP (hoac het tep).
+        let rest = &src[start + signature.len()..];
+        let end = rest.find("\n    pub fn ").unwrap_or(rest.len());
+        let body = &rest[..end];
+
+        // 🔴 Dem tren DONG MA, khong tren van ban tho: mot dong bi CHU THICH van con nguyen
+        // chuoi trong tep, nen `body.contains(...)` se xanh cho mot lot don da bi vo hieu hoa.
+        // Do 2026-09-10: phep doi chung dau tien cua chinh ca nay (chu thich sau dong goi roi
+        // chay lai) cho XANH -- day la ly do lop loc duoi day ton tai. Khuon loc chep tu
+        // `webimport_boundary.rs:89` (`code_lines`).
+        let code_has = |needle: &str| {
+            body.lines()
+                .map(str::trim_start)
+                .filter(|line| !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*"))
+                .any(|line| line.contains(needle))
+        };
+
+        assert!(
+            code_has("reset_tier2_block_overrides(&app);"),
+            "than vo `{wire}` phai con lot don `reset_tier2_block_overrides` (Story 6.9) --              neo cho khang dinh ngay duoi"
+        );
+        assert!(
+            code_has("reset_chapter_origin_overrides(&app);"),
+            "than vo `{wire}` PHAI don `ChapterOriginOverridesState` (Story 6.15). Thieu no,              mot override con treo tu mot lot nhap URL DA HUY se duoc              `confirm_import_with_encoding` doc lai va dong dau xuat xu cua lot web bi bo len \
+             Chuong cua mot Tac pham nhap tu TEP/DAN TAY -- pha hang I/O Matrix (Nhap tu \
+             file / dan tay ⇒ ca bon o khong tim thay). Khong cong nao khac do dieu nay."
+        );
+    }
+}
+
 
 /// **THÊM Story 6.3 (FR126).** Ba vỏ của màn xem trước bảng mã phải CÓ MẶT trong
 /// `generate_handler![…]`, và tham số của chúng phải đúng thứ `src/config/project.ts` gõ ở

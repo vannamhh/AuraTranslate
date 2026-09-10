@@ -38,6 +38,7 @@ fn a_very_short_chapter_among_ten_real_ones_is_flagged_short_length() {
         &[],
         0,
         0, // broken_item_count -- duong tay/dan tay, khong co muc hong.
+        &[],
     );
 
     assert_eq!(chapters_wire.chapter_count, 10);
@@ -73,6 +74,7 @@ fn a_very_long_chapter_among_ten_real_ones_is_not_flagged_short_length() {
         &[],
         0,
         0, // broken_item_count -- duong tay/dan tay, khong co muc hong.
+        &[],
     );
 
     assert_eq!(chapters_wire.chapter_count, 10);
@@ -95,8 +97,7 @@ fn fewer_than_four_chapters_makes_no_signal_participate_at_the_wire_level() {
     let shape = chapters_of(&["mot", "hai ba", "bon nam sau"]);
 
     let (_cleanup, chapters_wire, _blocks) = cleanup_and_chapters_preview_for(
-        shape, encoding_rs::UTF_8, None, "", "en", &[], false, false, &[], 0, 0,
-    );
+        shape, encoding_rs::UTF_8, None, "", "en", &[], false, false, &[], 0, 0, &[]);
 
     assert_eq!(chapters_wire.chapter_count, 3);
     assert!(
@@ -119,6 +120,7 @@ fn broken_item_count_is_added_by_rust_into_needs_review_never_into_clean() {
     let (_cleanup, chapters_wire, _blocks) = cleanup_and_chapters_preview_for(
         shape, encoding_rs::UTF_8, None, "", "en", &[], false, false, &[], 0,
         3, // ba muc URL hong cua CA lot nhap.
+        &[],
     );
 
     assert_eq!(chapters_wire.chapter_count, 6);
@@ -176,8 +178,7 @@ fn a_blob_with_a_chapter_pattern_excludes_the_two_signals_that_only_the_first_ch
         false,
         &[],
         0,
-        0,
-    );
+        0, &[]);
 
     assert_eq!(chapters_wire.chapter_count, 10);
     assert_eq!(chapters_wire.chapters[0].cleanup_match_count, Some(2), "tien de: ord=1 co bao cao THAT");

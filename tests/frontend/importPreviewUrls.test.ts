@@ -15,8 +15,28 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import type { ImportEncodingPreview, UrlImportBatchWire, UrlImportItemWire } from '../../src/config/project'
+import type {
+  ChapterOriginWire,
+  ImportEncodingPreview,
+  UrlImportBatchWire,
+  UrlImportItemWire,
+} from '../../src/config/project'
 import type { IpcError } from '../../src/i18n'
+
+/** Story 6.15 — bốn trường xuất xứ RỖNG, dùng làm giá trị mặc định cho mọi fixture
+ * `ChapterSplitPreviewEntryWire` ở tệp này (không ca nào trong tệp cần một giá trị khác
+ * rỗng — các ca đọc `origin` sống ở `importPreviewChapterOrigin.test.ts`). */
+const ORIGIN_STUB: ChapterOriginWire = {
+  author: null,
+  site_name: null,
+  url: null,
+  published_at: null,
+  author_confirmed: false,
+  site_name_confirmed: false,
+  url_confirmed: false,
+  published_at_confirmed: false,
+}
+
 
 const previewTextMock = vi.fn()
 const previewFileMock = vi.fn()
@@ -100,7 +120,7 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
     },
     self_declared_chapters: {
       chapter_count: chapterCount,
-      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] })),
+      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB })),
       broken_item_count: 0,
       needs_review_count: 0,
       clean_count: chapterCount,
@@ -464,7 +484,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" co danh sách mụ
         cleanup_match_count: 0,
         joined_line_count_in_chapter: null,
         needs_review: false,
-        review_causes: [],
+        review_causes: [], origin: ORIGIN_STUB,
       })),
       broken_item_count: 1,
       needs_review_count: 1,

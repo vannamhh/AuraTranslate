@@ -32,6 +32,10 @@ const CHAPTER_ROW_A = {
   title: 'Chuong Mot',
   status: 'not_started',
   segment_count: 10,
+  origin_author: null,
+  origin_site_name: null,
+  origin_url: null,
+  origin_published_at: null,
 }
 
 const CHAPTER_ROW_UNTITLED = {
@@ -40,6 +44,10 @@ const CHAPTER_ROW_UNTITLED = {
   title: null,
   status: 'in_progress',
   segment_count: 5,
+  origin_author: null,
+  origin_site_name: null,
+  origin_url: null,
+  origin_published_at: null,
 }
 
 const WORK_NONE_OPEN_ERROR = {
@@ -246,6 +254,10 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
       title: `Chuong ${i + 1}`,
       status: 'not_started',
       segment_count: 1,
+      origin_author: null,
+      origin_site_name: null,
+      origin_url: null,
+      origin_published_at: null,
     }))
     mockInvokeForChaptersMount(many)
 
@@ -483,7 +495,17 @@ describe('modes/libraryChapters.ts — ô nhập tên đi THEO Chương đang ch
 describe('modes/libraryChapters.ts::mergeCurrentChapterUp — con trỏ ở hàng ĐẦU (Story 5.8, lượt rà)', () => {
   it('🔴 con trỏ ở 0 ⇒ KHÔNG đọc nhầm hàng CUỐI làm "Chương liền trước" (`.at(-1)` vòng)', async () => {
     ketQuaFlush.value = 'clean'
-    const CHUONG_CUOI = { chapter_id: 9, ord: 3, title: 'Chuong Cuoi', status: 'done', segment_count: 2 }
+    const CHUONG_CUOI = {
+      chapter_id: 9,
+      ord: 3,
+      title: 'Chuong Cuoi',
+      status: 'done',
+      segment_count: 2,
+      origin_author: null,
+      origin_site_name: null,
+      origin_url: null,
+      origin_published_at: null,
+    }
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'list_chapters') return Promise.resolve([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED, CHUONG_CUOI])
       if (cmd === 'merge_chapter_into_previous') return Promise.resolve(null)
@@ -565,5 +587,155 @@ describe('panels/editorPanelState.ts::splitChapterHere — thân hàm, không ch
     // gì — ca này đỏ nếu thứ tự hai dòng ấy bị đảo.
     expect(editor.editorSplitChapterNotice.value).toBe('split')
     expect(mockInvoke.mock.calls.some((c) => c[0] === 'read_open_chapter_segments')).toBe(true)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.15 (FR128/AD-43) — xuất xứ tài liệu ở tầng Chương, sửa từ danh sách Chương.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const CHAPTER_ROW_WITH_ORIGIN = {
+  chapter_id: 1,
+  ord: 1,
+  title: 'Chuong Mot',
+  status: 'not_started',
+  segment_count: 10,
+  origin_author: 'Nguyen Van A',
+  origin_site_name: 'Bao Thi Du',
+  origin_url: 'https://example.test/bai-viet',
+  origin_published_at: '2026-09-10',
+}
+
+describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', () => {
+  it('lưu xong ⇒ danh sách được NẠP LẠI, hiện giá trị MỚI', async () => {
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    expect(state.libraryChapters.value[0]?.origin_author).toBe(null)
+
+    const daSua = { ...CHAPTER_ROW_A, origin_author: 'Tac Gia Moi' }
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue([daSua])
+
+    await state.saveCurrentChapterOrigin({ author: 'Tac Gia Moi', siteName: '', url: '', publishedAt: '' })
+
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'update_chapter_origin')).toBe(true)
+    // Đối chứng chỗ nối: một lượt `list_chapters` THẬT SỰ chạy SAU lượt ghi — cùng khuôn
+    // `renameCurrentChapter` ngay trên.
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'list_chapters')).toBe(true)
+    expect(state.libraryChapters.value[0]?.origin_author).toBe('Tac Gia Moi')
+    expect(state.libraryChapterOriginBusy.value).toBe(false)
+  })
+
+  it('tham số gửi đi đúng camelCase (`chapterId`/`author`/`siteName`/`url`/`publishedAt`)', async () => {
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    await state.saveCurrentChapterOrigin({
+      author: 'A',
+      siteName: 'B',
+      url: 'C',
+      publishedAt: 'D',
+    })
+
+    const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
+    expect(call?.[1]).toEqual({
+      chapterId: CHAPTER_ROW_A.chapter_id,
+      author: 'A',
+      siteName: 'B',
+      url: 'C',
+      publishedAt: 'D',
+    })
+  })
+
+  it('🔴 lỗi IPC ⇒ câu lỗi hiện ra và cờ bận được NHẢ (nút không kẹt vĩnh viễn)', async () => {
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    mockInvoke.mockReset()
+    mockInvoke.mockRejectedValue(WORK_NONE_OPEN_ERROR)
+    await state.saveCurrentChapterOrigin({ author: 'x', siteName: '', url: '', publishedAt: '' })
+
+    expect(state.libraryChapterOriginError.value?.code).toBe('work.none_open')
+    expect(state.libraryChapterOriginBusy.value).toBe(false)
+  })
+
+  it('danh sách rỗng (0 Chương đang chọn) ⇒ no-op, 0 lời gọi `update_chapter_origin`', async () => {
+    mockInvoke.mockResolvedValue([])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    mockInvoke.mockReset()
+    await state.saveCurrentChapterOrigin({ author: 'x', siteName: '', url: '', publishedAt: '' })
+
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'update_chapter_origin')).toBe(false)
+  })
+})
+
+describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15)', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('bốn ô hiện đúng giá trị của Chương đang chọn', async () => {
+    mockInvokeForChaptersMount([CHAPTER_ROW_WITH_ORIGIN])
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    const inputs = wrapper.findAll('.chapter-origin-input')
+    expect(inputs).toHaveLength(4)
+    const values = inputs.map((i) => (i.element as HTMLInputElement).value)
+    expect(values).toEqual([
+      CHAPTER_ROW_WITH_ORIGIN.origin_author,
+      CHAPTER_ROW_WITH_ORIGIN.origin_site_name,
+      CHAPTER_ROW_WITH_ORIGIN.origin_url,
+      CHAPTER_ROW_WITH_ORIGIN.origin_published_at,
+    ])
+  })
+
+  it('ô rỗng hiện placeholder "không tìm thấy", KHÔNG chữ nghiêng (quy ước chữ nhỏ + màu phụ)', async () => {
+    mockInvokeForChaptersMount([CHAPTER_ROW_A])
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    const input = wrapper.find('.chapter-origin-input')
+    expect(input.exists()).toBe(true)
+    expect((input.element as HTMLInputElement).value).toBe('')
+    expect((input.element as HTMLInputElement).placeholder).toBe('Không tìm thấy')
+  })
+
+  it('gõ đè rồi `change` ⇒ gọi `update_chapter_origin` với giá trị VỪA GÕ', async () => {
+    mockInvokeForChaptersMount([CHAPTER_ROW_A])
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+
+    const authorInput = wrapper.find('.chapter-origin-input')
+    await authorInput.setValue('Tac Gia Go Tay')
+    await wrapper.vm.$nextTick()
+
+    const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
+    expect(call?.[1]).toMatchObject({ chapterId: CHAPTER_ROW_A.chapter_id, author: 'Tac Gia Go Tay' })
   })
 })

@@ -1579,8 +1579,38 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// giá trị ĐÚNG cho chúng (chúng thực sự không có vai).
 pub const SEGMENT_ROLE_DDL: &str = "ALTER TABLE segment ADD COLUMN role TEXT;";
 
-/// Bộ di trú của `project.db`. Hôm nay **hai mươi** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5 · 6.11 · 6.13.
+/// Bốn cột xuất xứ tài liệu ở tầng `chapter` — bước di trú 21, Story 6.15, FR128/AD-43.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `NULL`-ABLE, KHÔNG `DEFAULT`, KHÔNG `CHECK`, KHÔNG `CREATE INDEX`, KHÔNG BACKFILL
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - **`NULL`-able, không `DEFAULT`**: SQLite chỉ đòi một `DEFAULT` không-`NULL` khi cột mới
+///   là `NOT NULL` — cả bốn cột này `NULL`-able là đúng NGỮ NGHĨA: một Chương nhập từ tệp/dán
+///   tay không có trang nào để mà tìm, và `NULL` khác một chuỗi rỗng.
+/// - **Không `CHECK`**: cùng khuôn `SEGMENT_ROLE_DDL` ngay trên — cưỡng chế (nếu có) là việc
+///   của tầng Rust, không phải DDL.
+/// - **Không `CREATE INDEX`**: chưa đường đọc nào lọc theo bốn cột này — cùng lý lẽ đã ghi cho
+///   `asset` ở Story 6.11.
+/// - **`origin_published_at` là `TEXT` tự do, KHÔNG một khuôn ngày cưỡng chế**: kho không có
+///   `chrono`/`time` (`Cargo.toml`), và một Chương nhập tay/dán tay ghi đúng nguyên văn ngày
+///   người dùng đọc được trên trang — ép một khuôn lên đó là chặn họ ghi thứ họ thấy.
+///
+/// ⚠️ **KHÔNG backfill** — cùng lý lẽ `SEGMENT_ROLE_DDL` đã ghi cho `role`: không có phép suy
+/// nào cho hàng CŨ. Mọi Chương có trước story này giữ cả bốn cột `NULL` — đúng nghĩa "chưa ai
+/// từng tìm", không phải một xấp xỉ.
+///
+/// 🔴 **URL bài gốc = URL YÊU CẦU, không phải chặng cuối sau chuyển hướng** (Ice chốt
+/// 2026-09-10) — `origin_url` ghi đúng link người dùng đã dán, đọc từ `Flow.labels` của
+/// pipeline, KHÔNG đọc `<link rel="canonical">` và KHÔNG đi qua `Fetcher`. `fetcher.rs` không
+/// đổi một dòng vì quyết định này.
+pub const CHAPTER_ORIGIN_DDL: &str = "\
+ALTER TABLE chapter ADD COLUMN origin_author TEXT;
+ALTER TABLE chapter ADD COLUMN origin_site_name TEXT;
+ALTER TABLE chapter ADD COLUMN origin_url TEXT;
+ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
+
+/// Bộ di trú của `project.db`. Hôm nay **hai mươi mốt** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5 · 6.11 · 6.13 · 6.15.
 ///
 /// 🔵 **CẬP NHẬT 2026-09-09 (Story 6.13) — sửa TẠI CHỖ, không chỉ nối chuỗi 🔵 phía dưới:**
 /// câu tiêu đề đổi từ *"mười chín bước..."* thành *"hai mươi bước"* ngay trên, và câu
@@ -1588,9 +1618,9 @@ pub const SEGMENT_ROLE_DDL: &str = "ALTER TABLE segment ADD COLUMN role TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi bước, và đích là phiên bản 21.** Số **4** bị **bỏ trống có chủ ý** — xem vết
-/// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]` tăng dần
+/// 🔴 **Hai mươi mốt bước, và đích là phiên bản 22.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]` tăng dần
 /// nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước
 /// nào bị bỏ qua.
 ///
@@ -1694,6 +1724,11 @@ pub const SEGMENT_ROLE_DDL: &str = "ALTER TABLE segment ADD COLUMN role TEXT;";
 /// [`SEGMENT_ROLE_DDL`] (cột `segment.role`, AD-42). Câu *"mười chín bước, đích là 20"* đã
 /// hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: `role` chỉ có
 /// ý nghĩa cho segment của một Tác phẩm cụ thể.
+///
+/// 🔵 **CẬP NHẬT 2026-09-10 (Story 6.15):** đích chuyển từ **21** lên **22** — bước
+/// [`CHAPTER_ORIGIN_DDL`] (bốn cột xuất xứ `chapter.origin_*`, FR128/AD-43). Câu *"hai mươi
+/// bước, đích là 21"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở
+/// [`GLOBAL_MIGRATIONS`]: xuất xứ chỉ có ý nghĩa cho Chương của một Tác phẩm cụ thể.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1879,6 +1914,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 21,
         sql: SEGMENT_ROLE_DDL,
+    },
+    // Story 6.15 -- bon cot xuat xu chapter.origin_* (FR128/AD-43). Xem doc-comment cua
+    // CHAPTER_ORIGIN_DDL.
+    // 22, khong phai 5 -- 5..21 da tieu.
+    Migration {
+        to_version: 22,
+        sql: CHAPTER_ORIGIN_DDL,
     },
 ];
 

@@ -548,10 +548,9 @@ fn importing_a_docx_with_an_image_leaves_the_domain_log_empty() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(),
+        Vec::new(), &[],
         &domain_log_state,
-        docx_sidecar,
-    )
+        docx_sidecar)
     .expect("tao Tac pham tu .docx co anh that bai");
 
     let log = domain_log_state.lock().unwrap_or_else(|e| e.into_inner());
@@ -591,10 +590,9 @@ fn an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_bein
         encoding_rs::UTF_8,
         Vec::new(),
         Some(pattern),
-        Vec::new(),
+        Vec::new(), &[],
         &domain_log_state,
-        docx_sidecar,
-    )
+        docx_sidecar)
     .expect("tao Tac pham tu .docx hai chuong that bai");
 
     assert_eq!(opened.images_saved, 1, "chi anh DUNG TRUOC ranh gioi (Chuong dau) duoc luu");

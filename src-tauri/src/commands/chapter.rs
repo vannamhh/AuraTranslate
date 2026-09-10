@@ -335,6 +335,13 @@ pub struct ChapterRow {
     /// Số segment **còn sống** (`retired_at IS NULL`) — cùng bộ lọc [`super::super::segment`]
     /// dùng cho lưới Editor, không đếm cả hàng đã về hưu.
     pub segment_count: i64,
+    /// **THÊM 2026-09-10 (Story 6.15, FR128/AD-43)** — bốn cột xuất xứ `chapter.origin_*`.
+    /// `None` ⇔ chưa tìm thấy/chưa ai nhập (Chương từ tệp/dán tay, hoặc trang web khai
+    /// thiếu). Không cưỡng chế khuôn nào — cột SQL là `TEXT` tự do.
+    pub origin_author: Option<String>,
+    pub origin_site_name: Option<String>,
+    pub origin_url: Option<String>,
+    pub origin_published_at: Option<String>,
 }
 
 /// **Liệt kê Chương của Tác phẩm đang mở** — hàm thuần, đây là thứ test gọi. Story 5.7,
@@ -359,7 +366,8 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
     let rows = store.read(|conn| {
         let mut stmt = conn.prepare(
             "SELECT c.id, c.ord, c.title, c.status, \
-             (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = c.id AND s.retired_at IS NULL) \
+             (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = c.id AND s.retired_at IS NULL), \
+             c.origin_author, c.origin_site_name, c.origin_url, c.origin_published_at \
              FROM chapter c ORDER BY c.ord, c.id",
         )?;
         let mapped = stmt.query_map([], |row| {
@@ -369,6 +377,10 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
                 title: row.get(2)?,
                 status: row.get(3)?,
                 segment_count: row.get(4)?,
+                origin_author: row.get(5)?,
+                origin_site_name: row.get(6)?,
+                origin_url: row.get(7)?,
+                origin_published_at: row.get(8)?,
             })
         })?;
         mapped.collect::<SqlResult<Vec<ChapterRow>>>()
@@ -534,6 +546,54 @@ pub fn rename_chapter(
             "UPDATE chapter SET title = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
              WHERE id = ?2",
             (title_value, chapter_id),
+        )
+    })?;
+
+    if touched == 0 {
+        return Err(chapter_not_found(chapter_id));
+    }
+
+    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
+    fetch_chapter_rows(&open.store)
+}
+
+/// **THÊM 2026-09-10 (Story 6.15, FR128/AD-43)** — sửa bốn ô xuất xứ của một Chương ĐÃ TRÊN
+/// ĐĨA, từ danh sách Chương. Hàm thuần, đây là thứ test gọi — vỏ IPC ở `mod wire`. Khuôn ĐẦY
+/// ĐỦ chép từ [`rename_chapter`] ngay trên (§Boundaries của story: "mọi lượt ghi vào `chapter`
+/// phải đi qua khuôn bốn bước `lifecycle::write_lifecycle_after_change`").
+///
+/// Mỗi trong bốn tham số `str::trim()` rồi rỗng ⇒ `NULL` (cột về "không tìm thấy"), cùng luật
+/// `title` của `rename_chapter` — không phải một luật MỚI riêng cho xuất xứ.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
+/// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có) — **0
+///   hàng `segment` nào bị chạm**, và bản thân `chapter` cũng khớp 0 hàng.
+pub fn update_chapter_origin(
+    open: Option<&mut OpenWork>,
+    chapter_id: i64,
+    author: &str,
+    site_name: &str,
+    url: &str,
+    published_at: &str,
+) -> Result<Vec<ChapterRow>, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+
+    fn trimmed_or_none(v: &str) -> Option<String> {
+        let t = v.trim();
+        if t.is_empty() { None } else { Some(t.to_owned()) }
+    }
+    let author_value = trimmed_or_none(author);
+    let site_name_value = trimmed_or_none(site_name);
+    let url_value = trimmed_or_none(url);
+    let published_at_value = trimmed_or_none(published_at);
+
+    let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
+             origin_published_at = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
+             WHERE id = ?5",
+            (author_value, site_name_value, url_value, published_at_value, chapter_id),
         )
     })?;
 
@@ -1203,6 +1263,31 @@ pub mod wire {
         let result = {
             let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             super::rename_chapter(guard.as_mut(), chapter_id, &title)
+        };
+        finish_with_reindex(&app, result)
+    }
+
+    /// Vỏ IPC của [`super::update_chapter_origin`]. Story 6.15 (FR128/AD-43).
+    ///
+    /// ⚠️ Tham số `invoke` đi camelCase (`chapterId`/`author`/`siteName`/`url`/`publishedAt`);
+    /// trường TRẢ VỀ (`ChapterRow`) giữ snake_case — hai quy ước KHÔNG trộn lẫn.
+    #[tauri::command(async)]
+    pub fn update_chapter_origin(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        author: String,
+        site_name: String,
+        url: String,
+        published_at: String,
+    ) -> Result<Vec<ChapterRow>, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::update_chapter_origin(None, chapter_id, &author, &site_name, &url, &published_at);
+        };
+        let result = {
+            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            super::update_chapter_origin(guard.as_mut(), chapter_id, &author, &site_name, &url, &published_at)
         };
         finish_with_reindex(&app, result)
     }

@@ -83,7 +83,18 @@ function runFixture(chapters: ReturnType<typeof chapterFixture>[], frontier: Ret
 }
 
 function chapterRow(overrides: Partial<{ chapter_id: number; ord: number; title: string | null; status: string; segment_count: number }> = {}) {
-  return { chapter_id: 1, ord: 1, title: 'Chuong Mot', status: 'in_progress', segment_count: 4, ...overrides }
+  return {
+    chapter_id: 1,
+    ord: 1,
+    title: 'Chuong Mot',
+    status: 'in_progress',
+    segment_count: 4,
+    origin_author: null,
+    origin_site_name: null,
+    origin_url: null,
+    origin_published_at: null,
+    ...overrides,
+  }
 }
 
 beforeEach(async () => {

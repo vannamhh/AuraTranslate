@@ -657,6 +657,9 @@ pub fn run() {
             // mang, chi doi state trong bo nho roi chay lai chuoi pipeline that.
             crate::commands::project::wire::tier2_block_set_kept,
             crate::commands::project::wire::tier2_block_confirm_range,
+            // Story 6.15 (FR128/AD-43) -- ghi mot luot sua tay xuat xu (bon o) vao
+            // ChapterOriginOverridesState, theo CHUONG -- khong async, 0 mang.
+            crate::commands::project::wire::set_chapter_origin_override,
             // Story 6.10a -- con tro *Chuong dang chon*: mot lenh IPC MOI dung lai chi tiet
             // tang 2/3 cho Chuong thu k khi con tro doi (`⌥←`/`⌥→`). Khong async -- byte da
             // tai song trong UrlImportItemsState (AD-41), chi chay lai chuoi pipeline trong
@@ -707,6 +710,9 @@ pub fn run() {
             crate::commands::chapter::wire::move_chapter,
             crate::commands::chapter::wire::merge_chapter_into_previous,
             crate::commands::chapter::wire::split_chapter_at_segment,
+            // Story 6.15 (FR128/AD-43) -- sua bon o xuat xu tu danh sach Chuong. `(async)`,
+            // cung khuon bon vo Story 5.8 ngay tren -- di qua finish_with_reindex.
+            crate::commands::chapter::wire::update_chapter_origin,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
             crate::commands::dict::wire::list_dict_sources,
@@ -1074,6 +1080,9 @@ fn open_work_slot(app: &tauri::App) {
     // thai "chua ai sua gi" -- khong can mot Option boc ngoai, xem doc-comment
     // Tier2BlockOverridesState.
     app.manage(crate::commands::project::Tier2BlockOverridesState::new(Vec::new()));
+    // Story 6.15 (FR128/AD-43) -- xuat xu NGUOI DUNG go de theo Chuong, song CANH
+    // Tier2BlockOverridesState -- cung ly do Vec RONG la trang thai "chua ai sua gi".
+    app.manage(crate::commands::project::ChapterOriginOverridesState::new(Vec::new()));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn

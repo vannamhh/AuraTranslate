@@ -70,10 +70,9 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
-    Vec::new(),
+    Vec::new(), &[],
 &std::sync::Mutex::new(Vec::new()),
-None,
-)
+None)
     .expect("tao OpenWork that bai")
 }
 
@@ -106,10 +105,9 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
-    Vec::new(),
+    Vec::new(), &[],
 &std::sync::Mutex::new(Vec::new()),
-None,
-)
+None)
     .expect("tao tac pham that bai");
 
     assert_eq!(read_source_text(&opened), "một đoạn văn nguyên vẹn");
@@ -145,10 +143,9 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(),
+    Vec::new(), &[],
 &std::sync::Mutex::new(Vec::new()),
-None,
-)
+None)
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -186,10 +183,9 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(),
+    Vec::new(), &[],
 &std::sync::Mutex::new(Vec::new()),
-None,
-)
+None)
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -400,7 +396,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang");
-    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None, &[], 0);
+    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None, &[], 0, &[]);
     let cleanup_on = preview_on
         .self_declared_cleanup
         .as_ref()
@@ -417,7 +413,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang sau khi tat");
-    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None, &[], 0);
+    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None, &[], 0, &[]);
     let cleanup_off = preview_off
         .self_declared_cleanup
         .as_ref()
@@ -454,7 +450,7 @@ fn pasted_text_with_zero_encoding_candidates_still_gets_a_full_cleanup_block() {
     .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("truoc xoa sau".to_owned()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
 
     assert!(preview.candidates.is_empty(), "duong AlreadyText phai cho 0 ung vien bang ma");
     let cleanup = preview
@@ -496,7 +492,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     let text = "dau truyen. quang cao. cuoi truyen.".to_owned();
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
 
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
     let cleanup = preview
         .self_declared_cleanup
         .as_ref()
@@ -514,9 +510,8 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
         "UTF-8",
         rules,
         None,
-        Vec::new(),
-    &std::sync::Mutex::new(Vec::new()),
-)
+        Vec::new(), Vec::new(),
+    &std::sync::Mutex::new(Vec::new()))
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -578,7 +573,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
     // "khối 0" nào ứng với nó để mà loại/giữ. Lượt 1 (KHÔNG override) chỉ để xác nhận khối 3
     // THẬT SỰ bị máy loại, nên ép nó GIỮ ở lượt 2 là một thay đổi QUAN SÁT ĐƯỢC (văn bản DÀI
     // HƠN), không phải một override vô hại trùng với máy đã quyết.
-    let baseline = preview_import_encoding(&shape_for_preview, "en", &[], None, &[], 0);
+    let baseline = preview_import_encoding(&shape_for_preview, "en", &[], None, &[], 0, &[]);
     let baseline_candidate = baseline
         .candidates
         .iter()
@@ -607,7 +602,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         .expect("index 3 phai nam trong tong so khoi that cua baseline");
 
     let preview_with_override =
-        preview_import_encoding(&shape_for_preview, "en", &[], None, &overrides, 0);
+        preview_import_encoding(&shape_for_preview, "en", &[], None, &overrides, 0, &[]);
     let candidate_with_override = preview_with_override
         .candidates
         .iter()
@@ -654,9 +649,8 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         "UTF-8",
         Vec::new(),
         None,
-        overrides,
-    &std::sync::Mutex::new(Vec::new()),
-)
+        overrides, Vec::new(),
+    &std::sync::Mutex::new(Vec::new()))
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -709,7 +703,7 @@ fn each_candidates_tier2_blocks_are_decoded_with_that_candidates_own_encoding_no
         label: "https://example.com/gbk-article".to_owned(),
     }]);
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
     let gbk_candidate = preview.candidates.iter().find(|c| c.label == "GBK").expect("phai co o GBK");
     let gbk_blocks = gbk_candidate
         .blocks
@@ -773,10 +767,9 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(),
+    Vec::new(), &[],
 &std::sync::Mutex::new(Vec::new()),
-None,
-)
+None)
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
          sau khi luat xoa sach no -- xem ghi chu tai cho khai bao ham test nay",
@@ -895,7 +888,7 @@ fn counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated() {
     let text = format!("QUANGCAO dau chuong.\n{filler}QUANGCAO cuoi chuong.\n");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -982,7 +975,7 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
             .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -1064,7 +1057,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     // Đường TỰ KHAI (1 lượt `run_pipeline` trên TOÀN văn bản).
     let shape_self_declared = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let t0 = std::time::Instant::now();
-    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[], 0);
+    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[], 0, &[]);
     let self_declared_elapsed = t0.elapsed();
     assert!(preview_self.self_declared_cleanup.is_some(), "tien de: nhanh tu khai phai co khoi");
 
@@ -1072,7 +1065,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     let shape_candidates =
         PipelineShape::Blob(ChapterInput::RawBytes { bytes: text.into_bytes(), label: String::new() });
     let t1 = std::time::Instant::now();
-    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[], 0);
+    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[], 0, &[]);
     let candidates_elapsed = t1.elapsed();
     assert_eq!(preview_candidates.candidates.len(), 5, "tien de: du nam o FR126");
 
@@ -1187,8 +1180,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         false,
         &[],
         0,
-        0,
-    );
+        0, &[]);
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
     let rule_wire = &cleanup_wire.rules[0];
@@ -1248,6 +1240,7 @@ fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the
         &[],
         2, // con trỏ ở Chương thứ BA (chỉ số 2), KHÔNG phải Chương 0
         0,
+        &[],
     );
 
     // Tóm tắt — MỌI Chương, không đổi vì con trỏ.
@@ -1297,6 +1290,7 @@ fn a_detail_chapter_index_past_the_new_chapter_count_falls_back_to_the_empty_det
         &[],
         5, // ngoai pham vi -- chi co 1 Chuong (chi so 0)
         0,
+        &[],
     );
     assert_eq!(chapters_wire.chapter_count, 1);
     assert!(blocks_wire.is_none());
@@ -1430,8 +1424,7 @@ fn chapter_detail_for_index_refuses_a_nonzero_index_on_a_blob_shape_even_when_a_
     // Tiền đề — mẫu THẬT SỰ tách `shape` (một đơn vị `Blob`) ra hai Chương, nên phép so biên
     // ở tầng ngoài (`chapter_index >= chapters_wire.chapter_count`) KHÔNG chặn được `1`.
     let (_, chapters_wire, _) = cleanup_and_chapters_preview_for(
-        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0, 0,
-    );
+        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0, 0, &[]);
     assert_eq!(chapters_wire.chapter_count, 2, "tien de: mau phai tach ra dung hai Chuong");
 
     assert!(
@@ -1500,9 +1493,8 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
         "UTF-8",
         rules,
         Some(pattern),
-        Vec::new(),
-    &std::sync::Mutex::new(Vec::new()),
-)
+        Vec::new(), Vec::new(),
+    &std::sync::Mutex::new(Vec::new()))
     .expect("xac nhan that bai");
 
     let written: Vec<(i64, String)> = opened
@@ -1566,7 +1558,7 @@ fn perf_probe_chapter_split_preview_on_two_thousand_chapters() {
     );
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0, &[]);
     let elapsed = t0.elapsed();
 
     let chapters =
@@ -1623,7 +1615,7 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
         label: "perf-5-candidates.txt".to_owned(),
     });
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0);
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0, &[]);
     let elapsed = t0.elapsed();
 
     assert_eq!(

@@ -477,6 +477,19 @@ struct Flow {
     /// `already_chaptered = true`, [`split_chapters_step`] return sớm, KHÔNG đụng trường này),
     /// con số của mỗi Chương là THẬT (bước 4 chạy trên TỪNG đơn vị riêng).
     joined_line_counts: Vec<Option<usize>>,
+    /// **THÊM 2026-09-10 (Story 6.15)** — xuất xứ tài liệu (FR128/AD-43) mà
+    /// [`Step::ExtractMainContent`] vừa bóc cho từng phần tử `units`, SONG SONG theo INDEX —
+    /// cùng khuôn `labels`/`blocks`. `None` = bước 2 không chạy cho đơn vị này
+    /// (`extract_main_content == false`, đường tệp/dán tay).
+    ///
+    /// 🔴 **KHÁC `labels`/`blocks` ở cách [`split_chapters_step`] xử lý khi nó THẬT SỰ tách một
+    /// đơn vị thành N.** Xuất xứ mô tả CẢ TRANG (không một khối/đoạn cụ thể nào), nên khi một
+    /// `Blob` bị tách thành N Chương, phần tử DUY NHẤT đang có (dù `Some` hay `None`) được
+    /// BROADCAST ra cả N — không reset về `vec![None; n]` như `labels`/`blocks` (những trường
+    /// đó mất Ý NGHĨA per-block sau khi tách; xuất xứ thì không, nó vẫn đúng cho mọi mảnh của
+    /// CÙNG một trang). Đây là cơ chế cho hàng I/O Matrix "Một trang tách thành nhiều Chương":
+    /// *"Cả 3 Chương nhận CÙNG bộ bốn trường của trang đó"*.
+    origins: Vec<Option<crate::core::webimport::ChapterOrigin>>,
 }
 
 /// Nhãn chẩn đoán của một [`ChapterInput`] — `RawBytes::label` nếu có (byte thô CHƯA giải
@@ -548,20 +561,21 @@ pub fn run_import_with_order(
         labels: initial_labels,
         blocks: vec![None; n],
         joined_line_counts: vec![None; n],
+        origins: vec![None; n],
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -583,10 +597,12 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts } =
+                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _ } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
+                        Vec::with_capacity(old_units.len());
+                    let mut origins: Vec<Option<crate::core::webimport::ChapterOrigin>> =
                         Vec::with_capacity(old_units.len());
                     for (index, (u, label)) in old_units.into_iter().zip(labels.iter()).enumerate() {
                         match u {
@@ -607,6 +623,11 @@ pub fn run_import_with_order(
                                 let joined = join_kept_blocks(&page_blocks, &effective_kept);
                                 units.push(Unit::Decoded(joined));
                                 blocks.push(Some(page_blocks));
+                                // 🔴 THÊM 2026-09-10 (Story 6.15) — bóc xuất xứ NGAY tại đây,
+                                // dùng ĐÚNG `label` (URL yêu cầu) mà bước bóc nội dung vừa
+                                // dùng. `Extractor` không chạm mạng — xem doc-comment
+                                // `core::webimport::origin`.
+                                origins.push(Some(crate::core::webimport::extract_origin(&html, label)));
                             }
                             // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 2)
                             // — giữ nguyên là phòng thủ cho một thứ tự SAI, cùng khuôn các
@@ -614,11 +635,12 @@ pub fn run_import_with_order(
                             other @ Unit::Undecoded { .. } => {
                                 units.push(other);
                                 blocks.push(None);
+                                origins.push(None);
                             }
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
+                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -635,6 +657,7 @@ pub fn run_import_with_order(
                     labels,
                     blocks,
                     joined_line_counts,
+                    origins,
                 } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
@@ -661,7 +684,7 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -676,7 +699,7 @@ pub fn run_import_with_order(
             // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
             // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _ } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut joined_line_counts = Vec::with_capacity(old_units.len());
@@ -701,7 +724,7 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref())?;
@@ -728,7 +751,8 @@ pub fn run_import_with_order(
         .zip(flow.chapter_titles)
         .zip(flow.blocks)
         .zip(flow.joined_line_counts)
-        .map(|(((((u, s), cleanup_report), title), blocks), joined_line_count)| -> Result<ImportedChapter, ImportError> {
+        .zip(flow.origins)
+        .map(|((((((u, s), cleanup_report), title), blocks), joined_line_count), origin)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -753,6 +777,7 @@ pub fn run_import_with_order(
                 title,
                 blocks,
                 joined_line_count,
+                origin,
             })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
@@ -1048,6 +1073,14 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Resu
     // cho lý do đầy đủ, và Design Notes spec 6.10 "Vì sao `Blob` không cho `ord = 1` con số
     // FR125, trong khi `cleanup` thì có").
     flow.joined_line_counts = vec![None; n];
+    // 🔴 **THÊM 2026-09-10 (Story 6.15) — BROADCAST, không reset.** Xuất xứ mô tả CẢ TRANG, và
+    // hình dạng `Blob` khởi tạo ĐÚNG MỘT đơn vị — nên `flow.origins` ở đây luôn có ĐÚNG MỘT
+    // phần tử (dù `Some` hay `None`, tuỳ `extract_main_content` có chạy hay không TRƯỚC bước
+    // này). Nhân bản giá trị DUY NHẤT đó ra cả N mảnh giữ đúng hàng I/O Matrix "Một trang tách
+    // thành nhiều Chương ⇒ cả N Chương nhận CÙNG bộ bốn trường" — xem doc-comment
+    // `Flow::origins` cho lý do đây là ĐÚNG cách xử, khác hẳn `labels`/`blocks` (reset ở trên).
+    let origin_for_all = flow.origins.into_iter().next().flatten();
+    flow.origins = vec![origin_for_all; n];
     Ok(flow)
 }
 

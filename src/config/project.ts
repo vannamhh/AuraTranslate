@@ -199,6 +199,20 @@ export type ChapterPatternInput = {
  * cạn"). */
 export type ReviewCauseWire = 'short_length' | 'high_cleanup_matches' | 'high_joined_lines' | 'not_measured'
 
+/** Bốn trường xuất xứ HIỆU LỰC (đã áp override, nếu có) của MỘT Chương — Story 6.15,
+ * FR128/AD-43. Khớp `commands::project::ChapterOriginWire`. `*_confirmed` cùng triết lý
+ * `BlockWire::confirmed`: `true` ⇔ NGƯỜI DÙNG đã chạm ô đó ở màn xem trước. */
+export type ChapterOriginWire = {
+  author: string | null
+  site_name: string | null
+  url: string | null
+  published_at: string | null
+  author_confirmed: boolean
+  site_name_confirmed: boolean
+  url_confirmed: boolean
+  published_at_confirmed: boolean
+}
+
 /** Một Chương trong khối tách Chương (tầng 4) — khớp
  * `commands::project::ChapterSplitPreviewEntryWire`. */
 export type ChapterSplitPreviewEntryWire = {
@@ -225,6 +239,8 @@ export type ChapterSplitPreviewEntryWire = {
   needs_review: boolean
   /** Danh mục nguyên nhân *cần xem* — RỖNG khi và chỉ khi `needs_review === false`. */
   review_causes: ReviewCauseWire[]
+  /** **THÊM Story 6.15** — bốn trường xuất xứ HIỆU LỰC của CHÍNH Chương này. */
+  origin: ChapterOriginWire
 }
 
 /** Thân một khối — khớp `commands::project::BlockBodyWire` (`#[serde(tag = "kind", rename_all
@@ -398,6 +414,25 @@ function isReviewCauseWire(value: unknown): value is ReviewCauseWire {
   )
 }
 
+function isNullableOriginField(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isChapterOriginWire(value: unknown): value is ChapterOriginWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterOriginWire>
+  return (
+    isNullableOriginField(v.author) &&
+    isNullableOriginField(v.site_name) &&
+    isNullableOriginField(v.url) &&
+    isNullableOriginField(v.published_at) &&
+    typeof v.author_confirmed === 'boolean' &&
+    typeof v.site_name_confirmed === 'boolean' &&
+    typeof v.url_confirmed === 'boolean' &&
+    typeof v.published_at_confirmed === 'boolean'
+  )
+}
+
 function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPreviewEntryWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ChapterSplitPreviewEntryWire>
@@ -409,7 +444,8 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
     (v.joined_line_count_in_chapter === null || typeof v.joined_line_count_in_chapter === 'number') &&
     typeof v.needs_review === 'boolean' &&
     Array.isArray(v.review_causes) &&
-    v.review_causes.every(isReviewCauseWire)
+    v.review_causes.every(isReviewCauseWire) &&
+    isChapterOriginWire(v.origin)
   )
 }
 
@@ -774,6 +810,74 @@ export async function tier2BlockConfirmRange(
   sourceLang: string,
 ): Promise<UrlImportBatchResult> {
   return callUrlImportBatch(CMD_TIER2_BLOCK_CONFIRM_RANGE, { start, end, total, sourceLang })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.15 (FR128/AD-43) — ghi một lượt sửa tay xuất xứ vào
+// `ChapterOriginOverridesState` (Rust), theo CHỈ SỐ Chương. Khớp
+// `commands::project::wire::set_chapter_origin_override`.
+//
+// 🔴 KHÁC hai lệnh tier2 ngay trên — lệnh này KHÔNG trả lại một `UrlImportBatchWire` tươi.
+// Khối `ChapterOrigin.vue` là bốn Ô NHẬP VĂN BẢN đơn giản, không cần Rust tính lại gì để
+// hiện (khác khối tầng 2, nơi `kept`/`confirmed` là kết quả một phép TÍNH trên `machine_kept`
+// mà chỉ Rust biết). `importPreviewState.ts` giữ draft NGAY Ở PHÍA CLIENT (sống qua lượt đổi
+// con trỏ/đổi bảng mã — không phụ thuộc một round-trip IPC nào); lệnh này chỉ ĐỒNG BỘ bản ghi
+// xuống Rust để `confirm_import_with_encoding` đọc được LÚC XÁC NHẬN.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CMD_SET_CHAPTER_ORIGIN_OVERRIDE = 'set_chapter_origin_override'
+
+/** Bốn trường xuất xứ người dùng vừa gõ — chuỗi tự do, cùng khuôn `ChapterOriginEdit` của
+ * `config/chapter.ts` (chuỗi rỗng = "để trống"). */
+export type ChapterOriginEditFields = {
+  author: string
+  siteName: string
+  url: string
+  publishedAt: string
+}
+
+/** Hai trạng thái — lệnh này không trả dữ liệu, chỉ `ok`/`error` (cùng khuôn
+ * `ChapterOrganiseResult` của `config/chapter.ts`). */
+export type SetChapterOriginOverrideResult = {
+  ok: true | null
+  error: IpcError | null
+}
+
+/**
+ * Ghi một lượt sửa tay xuất xứ cho Chương thứ `chapterIndex` (0-based, vị trí trong danh
+ * sách Chương của lượt nhập ĐANG XEM TRƯỚC) vào state Rust — không ném.
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterIndex`/`author`/`siteName`/`url`/
+ * `publishedAt`.
+ */
+export async function setChapterOriginOverride(
+  chapterIndex: number,
+  fields: ChapterOriginEditFields,
+): Promise<SetChapterOriginOverrideResult> {
+  try {
+    await invoke<void>(CMD_SET_CHAPTER_ORIGIN_OVERRIDE, {
+      chapterIndex,
+      author: fields.author,
+      siteName: fields.siteName,
+      url: fields.url,
+      publishedAt: fields.publishedAt,
+    })
+    return { ok: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { ok: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[project] \`${CMD_SET_CHAPTER_ORIGIN_OVERRIDE}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { ok: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[project] không gọi được \`${CMD_SET_CHAPTER_ORIGIN_OVERRIDE}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { ok: null, error: null }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

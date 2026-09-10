@@ -79,6 +79,8 @@ import {
   chapterWindow,
   currentLibraryChapter,
   libraryChapterCursor,
+  libraryChapterOriginBusy,
+  libraryChapterOriginError,
   libraryChapterReorgBusy,
   libraryChapterReorgError,
   libraryChapterReorgNotice,
@@ -90,7 +92,10 @@ import {
   libraryOpenWorkError,
   libraryOpenWorkNotice,
   loadChapters,
+  saveCurrentChapterOrigin,
 } from './libraryChapters'
+import type { ChapterOriginEdit } from '../config/chapter'
+import ChapterOrigin from '../ChapterOrigin.vue'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
 // 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
 // `match_kind` của mỗi hit; `role="status"` mở rộng tám nhánh (đọc thẳng `librarySearchStatusKey`,
@@ -1105,6 +1110,27 @@ watch(libraryChapterCursor, (cursor) => {
             </div>
           </div>
           <!--
+            🔴 Story 6.15 (FR128/AD-43) — xuất xứ tài liệu của Chương ĐANG CHỌN. Component
+            DÙNG CHUNG với `ImportPreviewOverlay.vue` (`../ChapterOrigin.vue`); ở đây `@commit`
+            gọi THẲNG `saveCurrentChapterOrigin` (ghi XUỐNG ĐĨA ngay), khác màn xem trước (ghi
+            vào draft, chưa xuống đĩa) — xem doc-comment `ChapterOrigin.vue` mục "MỘT BẢN CÀI
+            ĐẶT".
+          -->
+          <ChapterOrigin
+            v-if="currentLibraryChapter !== null"
+            :author="currentLibraryChapter.origin_author"
+            :site-name="currentLibraryChapter.origin_site_name"
+            :url="currentLibraryChapter.origin_url"
+            :published-at="currentLibraryChapter.origin_published_at"
+            :disabled="libraryChapterOriginBusy"
+            class="chapter-origin-block"
+            @commit="(edit: ChapterOriginEdit) => saveCurrentChapterOrigin(edit)"
+          />
+          <p v-if="libraryChapterOriginError !== null" class="error" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+            {{ tError(libraryChapterOriginError) }}
+          </p>
+          <!--
             Câu báo của một lượt tổ chức — cùng khuôn khối `libraryOpenWorkError` ngay trên, và
             cùng lý do: một lượt CHẶN vì tập chờ Editor chưa sạch KHÔNG phải một `IpcError`,
             nên nó đi qua `t()` chứ không qua `tError()`.
@@ -1753,6 +1779,11 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Story 6.15 — khối xuất xứ, cùng khoảng cách dọc với `.chapter-reorg` ngay trên. */
+.chapter-origin-block {
+  margin-top: 10px;
 }
 
 /* Story 5.7 — danh sách Chương, cùng khuôn `.open-work-block` (đường viền trên tách khối). */

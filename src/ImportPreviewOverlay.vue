@@ -26,9 +26,11 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
+import ChapterOrigin from './ChapterOrigin.vue'
 import {
   addImportPreviewCleanupRule,
   cancelImportPreviewCleanupDeletePending,
+  commitImportPreviewChapterOrigin,
   deleteImportPreviewCleanupRule,
   editImportPreviewCleanupRule,
   importPreview,
@@ -41,6 +43,7 @@ import {
   importPreviewChapterDetailError,
   importPreviewChapterDetailLoading,
   importPreviewChapterFilterActive,
+  importPreviewChapterOriginError,
   importPreviewChapterPatternError,
   importPreviewChapterPatternKind,
   importPreviewChapterPatternSending,
@@ -55,6 +58,7 @@ import {
   importPreviewConfirming,
   importPreviewDomainLogDomainCount,
   importPreviewEmptyReasonForTier,
+  importPreviewCurrentChapterOrigin,
   importPreviewIsOpen,
   importPreviewJumpToCleanupRulesSignal,
   importPreviewLastSubmittedFrom,
@@ -1045,6 +1049,26 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
             {{ tError(importPreviewChapterDetailError) }}
           </p>
+          <!--
+            🔴 Story 6.15 (FR128/AD-43) — xuất xứ tài liệu, ở ĐẦU Chương con trỏ. Component
+            DÙNG CHUNG với `LibraryMode.vue` (`ChapterOrigin.vue`); ở đây `@commit` ghi vào
+            DRAFT client + `ChapterOriginOverridesState` (Rust), chưa xuống đĩa — xuống đĩa
+            chỉ xảy ra lúc `confirmImportPreview()`.
+          -->
+          <ChapterOrigin
+            v-if="importPreviewLastSubmittedFrom === 'urls'"
+            :author="importPreviewCurrentChapterOrigin.author"
+            :site-name="importPreviewCurrentChapterOrigin.site_name"
+            :url="importPreviewCurrentChapterOrigin.url"
+            :published-at="importPreviewCurrentChapterOrigin.published_at"
+            :disabled="importPreviewConfirming"
+            class="ip-chapter-origin"
+            @commit="(edit) => commitImportPreviewChapterOrigin(edit)"
+          />
+          <p v-if="importPreviewChapterOriginError !== null" class="ip-tier2-range-notice" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(importPreviewChapterOriginError) }}
+          </p>
           <template v-if="importPreviewLastSubmittedFrom === 'urls'">
             <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier2_current_chapter_note') }}</p>
             <p
@@ -1728,6 +1752,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   padding: 0;
   list-style: none;
   border: 1px solid var(--color-outline);
+}
+
+/* Story 6.15 — khối xuất xứ, ở ĐẦU Chương con trỏ, cùng khoảng cách dưới với `.ip-tier2-counts`. */
+.ip-chapter-origin {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
 }
 
 /* Mốc `[` — vạch "Đầu vùng giữ" (mục 9, vòng rà bước 4). Cùng chữ `.ip-tier2-range-notice`
