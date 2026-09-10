@@ -967,7 +967,7 @@ fn every_store_exemption_still_matches_something_real_in_the_repo() {
 }
 
 /// Cụm đánh dấu đầu danh sách miễn trừ trong dòng luật của `AGENTS.md`.
-const EXEMPTION_CLAUSE_MARKER: &str = "Miễn trừ đủ tám mục";
+const EXEMPTION_CLAUSE_MARKER: &str = "Exactly eight exemptions";
 
 /// Mọi đoạn giữa hai dấu backtick trong `clause` — dùng để trích danh sách mà một CÂU của
 /// `AGENTS.md` thực sự liệt kê, tách khỏi thân test để
@@ -1053,7 +1053,7 @@ fn the_written_rule_and_the_enforced_exemption_list_name_the_same_eight_things()
 /// đúng khuôn đối chứng dương/âm mà mọi vị từ quét tĩnh khác trong tệp này phải có.
 #[test]
 fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
-    let seeded_nine = "Miễn trừ đủ tám mục, tất cả đặt tên cho KHO: `.atproj` · `project.db` · \
+    let seeded_nine = "Exactly eight exemptions, all naming the STORE: `.atproj` · `project.db` · \
                         `StoreKind::Project` · `ProjectStore` · `PROJECT_MIGRATIONS` · \
                         `commands/project.rs` · `ports/project_store.rs` · \
                         `tests/project_contract.rs` · `một-mục-thứ-chín-gieo-tay`. Cổng canh.";
@@ -1073,7 +1073,7 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
     );
 
     // Đối chứng ÂM: mệnh đề TÁM mục thật (không gieo) phải khớp đúng `STORE_EXEMPT`.
-    let clean_eight = "Miễn trừ đủ tám mục, tất cả đặt tên cho KHO: `.atproj` · `project.db` · \
+    let clean_eight = "Exactly eight exemptions, all naming the STORE: `.atproj` · `project.db` · \
                         `StoreKind::Project` · `ProjectStore` · `PROJECT_MIGRATIONS` · \
                         `commands/project.rs` · `ports/project_store.rs` · \
                         `tests/project_contract.rs`. Cổng canh.";
