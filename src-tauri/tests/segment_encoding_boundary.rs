@@ -211,6 +211,11 @@ fn the_chardetng_name_check_would_actually_flag_a_seeded_violation_and_ignore_cl
 // `confirm_import_with_encoding` (đường CÓ xem trước, Story 6.3). Một chỗ gọi THỨ TƯ xuất
 // hiện ở bất kỳ đâu là một đường ghi MỚI không ai ký — khuôn
 // `segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site`.
+//
+// 🔵 SỬA 2026-09-11 (Story 6.16) — từ BA lên BỐN, chỗ gọi thứ tư CÓ TÊN: `confirm_bilingual_import`
+// (đường xác nhận nhập song ngữ, cùng file `commands/project.rs`, cùng vai trò với
+// `confirm_import_with_encoding` — "điểm GHI duy nhất" cho đường `.csv`/`.tsv`, không phải
+// một đường ghi thứ hai không ai ký).
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// `code` gọi `create_work(...)` — vị từ THUẦN. Neo bằng `create_work(` (có dấu mở ngoặc)
@@ -223,7 +228,7 @@ fn line_calls_create_work(code: &str) -> bool {
 }
 
 #[test]
-fn create_work_has_exactly_three_named_product_call_sites_all_inside_commands_project() {
+fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_project() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -237,9 +242,10 @@ fn create_work_has_exactly_three_named_product_call_sites_all_inside_commands_pr
 
     assert_eq!(
         sites.len(),
-        3,
-        "ky vong DUNG BA cho goi san pham cua `create_work` (create_work_from_text, \
-         create_work_from_file, confirm_import_with_encoding), tim thay {}:\n{}",
+        4,
+        "ky vong DUNG BON cho goi san pham cua `create_work` (create_work_from_text, \
+         create_work_from_file, confirm_import_with_encoding, confirm_bilingual_import), \
+         tim thay {}:\n{}",
         sites.len(),
         sites.join("\n")
     );

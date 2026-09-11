@@ -57,7 +57,9 @@ import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
 // `src/commands/index.ts` giết Kiểm C/D/E.
 import {
+  bilingualFilePath,
   finishImportSubmission,
+  submitBilingualFilePath,
   submitFilePath,
   submitPastedText,
   submitPastedUrls,
@@ -80,6 +82,16 @@ import {
   toggleImportPreviewBlockKept,
   toggleImportPreviewChapterFilter,
 } from './importPreviewState'
+// ── Story 6.16 — nhập tài liệu song ngữ hai cột (FR115) ──────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `importPreviewState.ts`: `bilingualImportPreviewState.ts` là
+// một module Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts`. Module
+// RIÊNG — xem doc-comment đầu tệp đó cho lý do không dùng chung với `importPreviewState.ts`.
+import {
+  cancelBilingualImportPreview,
+  confirmBilingualImportPreview,
+  swapBilingualColumns,
+} from './bilingualImportPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `libraryRescan.ts` là một module Vue
@@ -437,6 +449,7 @@ async function boot(): Promise<void> {
       submitPastedText,
       submitFilePath,
       submitPastedUrls,
+      submitBilingualFilePath,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
       // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
       // qua `finishImportSubmission` — reset panel/nạp lại Chương chỉ chạy SAU khi Rust đã
@@ -451,6 +464,26 @@ async function boot(): Promise<void> {
         })()
       },
       cancelImportPreview,
+      // Story 6.16 — nhập tài liệu song ngữ hai cột (FR115). Cùng khuôn `confirmImportPreview`
+      // ngay trên (đóng vòng nộp form qua CHÍNH `finishImportSubmission` dùng chung — reset
+      // panel không khác gì theo nguồn nhập) — chỉ thêm một dòng riêng: `bilingualFilePath`
+      // không nằm trong bốn nhánh `importPreviewLastSubmittedFrom` mà `finishImportSubmission`
+      // đọc (module đó không biết về đường song ngữ), nên xoá Ô ĐÃ NỘP ở ngay đây.
+      confirmBilingualImportPreview: () => {
+        void (async () => {
+          const result = await confirmBilingualImportPreview()
+          if (result.created !== null || result.error !== null) {
+            finishImportSubmission(result.created, result.error)
+            if (result.created !== null) {
+              bilingualFilePath.value = ''
+            }
+          }
+        })()
+      },
+      cancelBilingualImportPreview,
+      swapBilingualColumns: () => {
+        void swapBilingualColumns()
+      },
       // Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Sáu hàm THUẦN, cùng cửa và cùng
       // lý do `cancelImportPreview` — không cần một closure `async` gói ở đây, kết quả IPC
       // đi ra qua các `ref` ở tầng module (cùng khuôn `rescanLibraryFolder`).

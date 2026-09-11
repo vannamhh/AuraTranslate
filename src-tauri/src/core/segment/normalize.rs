@@ -177,7 +177,7 @@ pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Norm
 /// 🔴 VÌ SAO TÁCH RIÊNG — Story 6.5
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔵 **SỬA 2026-09-09 (Story 6.13) — "bốn"/"thứ năm" đã hai lần hết đúng.** Cổng nay tên
-/// `tests/segment_normalize_boundary.rs::the_normalize_functions_have_exactly_six_named_product_call_sites`
+/// `tests/segment_normalize_boundary.rs::the_normalize_functions_have_exactly_eight_named_product_call_sites`
 /// và đếm ĐÚNG SÁU chỗ gọi sản phẩm của [`normalize`]/[`normalize_window`] (một trong
 /// `pipeline.rs`, ba trong `encoding.rs`, hai trong `anchor.rs` — Story 6.11 +
 /// Story 6.13). `commands::project` cần cắt cửa sổ AN TOÀN cho

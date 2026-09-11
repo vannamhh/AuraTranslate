@@ -1236,7 +1236,7 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &domain_log_state,
         None)
     .expect("mot anh bi chan KHONG duoc lam trot ca luot nhap");
@@ -1663,6 +1663,12 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
                 );
             }
             PipelineShape::Blob(_) => panic!("hai ham dung nay phai cho Chapters, khong Blob"),
+            // 🔵 THÊM 2026-09-11 (Story 6.16) — `PipelineShape` co them mot bien the moi
+            // (`Bilingual`); hai ham dung nay chi con duoc goi voi `Chapters` hom nay va se
+            // van vay sau story 6.16 (duong song ngu khong di qua `chapters_shape_*`).
+            PipelineShape::Bilingual { .. } => {
+                panic!("hai ham dung nay phai cho Chapters, khong Bilingual")
+            }
         }
     }
 

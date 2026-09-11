@@ -209,6 +209,10 @@ export type CommandDeps = {
   submitFilePath?: () => void
   /** Nộp `pastedUrls` hiện tại. Handler của `library.import_urls` (Story 6.7, FR122). */
   submitPastedUrls?: () => void
+  /** Nộp `bilingualFilePath` hiện tại. Handler của `library.import_bilingual` (Story 6.16,
+   * FR115) — mở màn xem trước RIÊNG (`bilingualImportPreviewState.ts`), không
+   * `importPreviewState.ts`. */
+  submitBilingualFilePath?: () => void
 
   // ── Story 6.3 — màn xem trước bảng mã (FR126) ───────────────────────────────────
   //
@@ -226,6 +230,22 @@ export type CommandDeps = {
   confirmImportPreview?: () => void
   /** Huỷ lượt xem trước — 0 lượt ghi. Handler của `import.preview.cancel`. */
   cancelImportPreview?: () => void
+
+  // ── Story 6.16 — nhập tài liệu song ngữ hai cột (FR115) ─────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `confirmImportPreview`/`cancelImportPreview`:
+  // state sống ở `src/bilingualImportPreviewState.ts`, module RIÊNG với `importPreviewState.ts`
+  // (xem doc-comment đầu tệp đó cho lý do).
+
+  /** Xác nhận lượt nhập song ngữ. Handler của `import.preview.bilingual_confirm` — `async`,
+   * kết quả TIÊU THỤ ở `main.ts` (đóng vòng nộp form qua `finishImportSubmission`, cùng khuôn
+   * `confirmImportPreview`). */
+  confirmBilingualImportPreview?: () => void
+  /** Huỷ lượt xem trước song ngữ — 0 lượt ghi. Handler của `import.preview.bilingual_cancel`. */
+  cancelBilingualImportPreview?: () => void
+  /** Đảo vai cột nguồn/đích. Handler của `import.preview.bilingual_swap_columns` — `async`,
+   * chạy lại preview trên byte ĐÃ CẤT (0 lượt đọc đĩa thêm). */
+  swapBilingualColumns?: () => void
 
   // ── Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123) ─────────────────────────
   //
@@ -1116,6 +1136,18 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.submitPastedUrls()
     },
   })
+  /** `library.import_bilingual` — Story 6.16 (FR115). Cố ý KHÔNG gán phím, cùng lý do ba lệnh
+   * `library.import_*` ngay trên. */
+  target.register({
+    id: 'library.import_bilingual',
+    labelKey: 'command.library.import_bilingual',
+    run: () => {
+      if (deps.submitBilingualFilePath === undefined) {
+        return portMissing('library.import_bilingual', 'submitBilingualFilePath')
+      }
+      deps.submitBilingualFilePath()
+    },
+  })
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════
@@ -1175,6 +1207,49 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.cancel', 'cancelImportPreview')
       }
       deps.cancelImportPreview()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.16 — NHẬP TÀI LIỆU SONG NGỮ HAI CỘT (FR115)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * Ba lệnh — xác nhận, huỷ, đảo cột. Đổi cột NGUỒN/ĐÍCH riêng lẻ và bật/tắt tiêu đề đi qua
+   * `<select>`/`<input type="checkbox">` + `@change` trong `BilingualImportPreviewOverlay.vue`
+   * (Kiểm A của `check:commands` chỉ canh `@click`) — cùng tiền lệ mẫu phân tách Chương của
+   * `ImportPreviewOverlay.vue`. Chỉ nút ĐẢO VAI (một `@click`) cần một lệnh riêng.
+   */
+  target.register({
+    id: 'import.preview.bilingual_confirm',
+    labelKey: 'command.import.preview.bilingual_confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmBilingualImportPreview === undefined) {
+        return portMissing('import.preview.bilingual_confirm', 'confirmBilingualImportPreview')
+      }
+      deps.confirmBilingualImportPreview()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_cancel',
+    labelKey: 'command.import.preview.bilingual_cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelBilingualImportPreview === undefined) {
+        return portMissing('import.preview.bilingual_cancel', 'cancelBilingualImportPreview')
+      }
+      deps.cancelBilingualImportPreview()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_swap_columns',
+    labelKey: 'command.import.preview.bilingual_swap_columns',
+    keys: undefined,
+    run: () => {
+      if (deps.swapBilingualColumns === undefined) {
+        return portMissing('import.preview.bilingual_swap_columns', 'swapBilingualColumns')
+      }
+      deps.swapBilingualColumns()
     },
   })
 

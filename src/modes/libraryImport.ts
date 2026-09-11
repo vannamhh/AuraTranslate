@@ -38,6 +38,7 @@ import {
   openImportPreviewFromText,
   openImportPreviewFromUrls,
 } from '../importPreviewState'
+import { bilingualImportPreviewIsOpen, openBilingualImportPreview } from '../bilingualImportPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import {
@@ -89,6 +90,13 @@ export const pastedText = ref('')
 
 /** Nội dung ô nhập đường dẫn (AC1 nhánh b — vá NFR17: đường bàn phím cho nhánh tệp). */
 export const filePath = ref('')
+
+/** **THÊM (Story 6.16, FR115)** — nội dung ô nhập đường dẫn của đường nhập SONG NGỮ
+ * (`.csv`/`.tsv`), tách khỏi [`filePath`]: hai đường đi tới hai màn xem trước RIÊNG
+ * (`ImportPreviewOverlay.vue` vs `BilingualImportPreviewOverlay.vue`, xem
+ * `bilingualImportPreviewState.ts`), và người dùng "đã chọn CHẾ ĐỘ song ngữ tường minh"
+ * (§Intent) đúng bằng việc gõ vào Ô NÀY thay vì ô kia. */
+export const bilingualFilePath = ref('')
 
 /**
  * **THÊM (Story 6.7, FR122)** — nội dung ô dán danh sách URL, MỖI DÒNG một link.
@@ -361,6 +369,20 @@ export async function submitFilePath(): Promise<void> {
   if (!(await beginSubmit())) return
   // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
   await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, path)
+  busy.value = false
+}
+
+/** **THÊM (Story 6.16, FR115)** — nhánh song ngữ (`.csv`/`.tsv`): mở màn xem trước RIÊNG
+ * (`bilingualImportPreviewState.ts::openBilingualImportPreview`), cùng khuôn `submitFilePath`
+ * nhưng canh `bilingualImportPreviewIsOpen` (state RIÊNG, không `importPreviewIsOpen`) — hai
+ * lớp phủ độc lập, một lượt mở lớp này không chặn lớp kia và ngược lại là đúng, vì `dispatch`
+ * chỉ cho phép MỘT trong hai lệnh submit chạy tại một thời điểm từ phía form (mỗi ô một nút). */
+export async function submitBilingualFilePath(): Promise<void> {
+  if (busy.value || bilingualImportPreviewIsOpen.value) return
+  const path = bilingualFilePath.value.trim()
+  if (path === '') return
+  if (!(await beginSubmit())) return
+  await openBilingualImportPreview(name.value, sourceLang.value, genre.value, path)
   busy.value = false
 }
 

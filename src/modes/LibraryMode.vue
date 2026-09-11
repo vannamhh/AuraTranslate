@@ -16,6 +16,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTe
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import type { WorkRow, WorkSortKey } from '../config/library'
 import {
+  bilingualFilePath,
   busy,
   createdWork,
   filePath,
@@ -1280,6 +1281,26 @@ watch(libraryChapterCursor, (cursor) => {
           @click="dispatch('library.import_file')"
         >
           {{ t('mode.library.submit_file') }}
+        </button>
+
+        <!--
+          Story 6.16 (FR115) — nhập tài liệu song ngữ hai cột (`.csv`/`.tsv`). Ô đường dẫn
+          RIÊNG với `filePath`: gõ vào ô này LÀ hành động "chọn chế độ song ngữ tường minh"
+          (§Intent) — không một hộp chọn chế độ riêng, cùng khuôn NFR17 của nhánh tệp thường
+          (ô + nút, không thao tác chuột-duy-nhất nào).
+        -->
+        <label class="field">
+          <span>{{ t('mode.library.field_bilingual_path') }}</span>
+          <input v-model="bilingualFilePath" type="text" autocomplete="off" />
+        </label>
+        <button
+          type="button"
+          class="btn"
+          data-bilingual-import-preview-open
+          :disabled="busy || bilingualFilePath.trim() === ''"
+          @click="dispatch('library.import_bilingual')"
+        >
+          {{ t('mode.library.submit_bilingual') }}
         </button>
 
         <!--

@@ -603,6 +603,24 @@ message_keys! {
     /// chỗ đây LUÔN xảy ra SAU khi thư mục + `project.db` đã dựng xong; câu báo riêng nói
     /// đúng PHA nào của lượt nhập vừa trượt.
     AssetWriteFailed => "err.asset.write_failed" [],
+
+    // ── Story 6.16 (FR115 · AD-39/AD-47) — nhập tài liệu song ngữ hai cột ────────────
+    //
+    // Bốn khoá — ba lỗi TỪ CHỐI TRỌN (0 hàng ghi) cộng một khoá cho lượt xác nhận bị khoá
+    // vì còn hàng lệch cặp (§Boundaries: "confirm refused while mismatches > 0, Rust-side").
+    /// Một ô mở dấu ngoặc kép nhưng không bao giờ đóng — cùng lớp lỗi
+    /// [`MessageKey::CleanupInvalidRegex`]'s sibling ở Glossary, nhưng đây LÀ một đường lỗi
+    /// người dùng thật (một tệp `.csv`/`.tsv` họ tự chọn), không phải lỗi lập trình.
+    ImportBilingualUnterminatedQuotedField => "err.import.bilingual_unterminated_quoted_field" ["row"],
+    /// Tệp có ít hơn hai cột — không có cột thứ hai để mà chọn vai nguồn/đích.
+    ImportBilingualTooFewColumns => "err.import.bilingual_too_few_columns" ["found"],
+    /// Xác nhận bị từ chối vì còn ít nhất một hàng lệch cặp (số câu nguồn khác số câu đích) —
+    /// khoá NÀY là phần Rust-side của "confirm bị khoá", không chỉ vô hiệu hoá nút ở webview
+    /// (§Design Notes spec 6.16: "vì sao xác nhận bị từ chối ở Rust, không chỉ ở nút").
+    ImportBilingualMismatchedRows => "err.import.bilingual_mismatched_rows" ["count"],
+    /// Đuôi tệp không phải `.csv`/`.tsv` — chế độ song ngữ chỉ nhận hai đuôi này (§Boundaries:
+    /// "Scope: .csv và .tsv only").
+    ImportBilingualUnsupportedFormat => "err.import.bilingual_unsupported_format" ["format"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

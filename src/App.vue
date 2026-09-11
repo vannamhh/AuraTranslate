@@ -70,6 +70,12 @@ import ImportPreviewOverlay from './ImportPreviewOverlay.vue'
 // (`data-settings-open`) VÀ từ dòng tóm tắt nhật ký domain ở chân `ImportPreviewOverlay`
 // (`settings.privacy.open`, mở THẲNG vào mục Quyền riêng tư) — hai cửa vào, một lớp phủ.
 import SettingsOverlay from './SettingsOverlay.vue'
+// Story 6.16 (FR115) — lớp phủ "Xem trước lượt nhập song ngữ", lớp phủ THỨ MƯỜI. Mở TỪ
+// `LibraryMode.vue` (nộp form, ô đường dẫn RIÊNG) — cùng luật "LibraryMode.vue không mở lớp
+// phủ" mà `ImportPreviewOverlay` đã theo. State RIÊNG với `ImportPreviewOverlay` (xem
+// doc-comment `bilingualImportPreviewState.ts`), nên đây là component RIÊNG, không một nhánh
+// mới trong component cũ.
+import BilingualImportPreviewOverlay from './BilingualImportPreviewOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -388,6 +394,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 6.3 · FR126 — cùng khuôn: lớp phủ tự quản `v-if` qua `importPreviewIsOpen`. -->
     <ImportPreviewOverlay />
+
+    <!-- Story 6.16 · FR115 — cùng khuôn: lớp phủ tự quản `v-if` qua `bilingualImportPreviewIsOpen`. -->
+    <BilingualImportPreviewOverlay />
 
     <!-- Story 6.8 · NFR19 — cùng khuôn: lớp phủ tự quản `v-if` qua `settingsOverlayIsOpen`. -->
     <SettingsOverlay />

@@ -236,6 +236,37 @@ pub enum ImportError {
         /// Chẩn đoán CHỈ cho log — không dấu (NFR16), không đi vào `IpcError`.
         detail: String,
     },
+    /// **THÊM 2026-09-11 (Story 6.16, FR115)** — [`super::pipeline::Step::DecodeEncoding`]
+    /// table-bang cho hình dạng [`super::pipeline::PipelineShape::Bilingual`] gặp một ô mở
+    /// dấu ngoặc kép nhưng không bao giờ đóng ([`super::bilingual::BilingualParseIssue::UnterminatedQuotedField`]).
+    /// Khác [`ImportError::InvalidPipelineOrder`]/[`ImportError::InvalidCleanupPattern`]:
+    /// đây LÀ một lỗi NGƯỜI DÙNG thật (một tệp `.csv`/`.tsv` họ tự chọn), không phải một lỗi
+    /// lập trình.
+    BilingualUnterminatedQuotedField {
+        /// Số dòng nơi ô mở ngoặc kép bắt đầu (1-based).
+        row: usize,
+    },
+    /// **THÊM 2026-09-11 (Story 6.16, FR115)** — tệp song ngữ có ít hơn hai cột. Từ chối
+    /// TRƯỚC khi có gì để xem trước (§I/O Matrix "Fewer than 2 columns").
+    BilingualTooFewColumns {
+        /// Số cột đếm được — hàng rộng nhất.
+        found: usize,
+    },
+    /// **THÊM 2026-09-11 (Story 6.16, FR115)** — lượt xác nhận bị từ chối vì còn ít nhất một
+    /// hàng lệch cặp (§Boundaries: "Mismatched row => confirm is locked", Rust-side, không
+    /// chỉ ở nút webview).
+    BilingualMismatchedRows {
+        /// Số hàng lệch cặp còn lại.
+        count: usize,
+    },
+    /// **THÊM 2026-09-11 (Story 6.16, FR115)** — đuôi tệp không phải `.csv`/`.tsv` trên
+    /// đường nhập song ngữ. Biến thể RIÊNG với [`ImportError::UnsupportedFormat`] (không tái
+    /// dùng nó): câu hiển thị đúng phải nêu đúng HAI đuôi được nhận ở đây, không phải ba đuôi
+    /// của đường văn xuôi.
+    BilingualUnsupportedFormat {
+        /// Phần mở rộng đọc được (không có dấu chấm).
+        format: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -277,6 +308,18 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::WebImportItemFailed { url, reason, detail } => {
                 write!(f, "import[webimport {url}]: {reason:?}: {detail}")
+            }
+            ImportError::BilingualUnterminatedQuotedField { row } => {
+                write!(f, "import[bilingual row {row}]: quoted field opened but never closed")
+            }
+            ImportError::BilingualTooFewColumns { found } => {
+                write!(f, "import[bilingual]: {found} column(s) found, need at least 2")
+            }
+            ImportError::BilingualMismatchedRows { count } => {
+                write!(f, "import[bilingual]: {count} mismatched row(s), confirm refused")
+            }
+            ImportError::BilingualUnsupportedFormat { format } => {
+                write!(f, "import[bilingual]: unsupported format {format:?}")
             }
         }
     }
@@ -404,6 +447,46 @@ impl From<ImportError> for IpcError {
                 // `ExtractionEmpty` — nhánh DUY NHẤT `ImportError` mang, không có mã HTTP.
                 web_import_item_failure_ipc_error(&url, reason, None)
             }
+            ImportError::BilingualUnterminatedQuotedField { row } => {
+                let mut params = BTreeMap::new();
+                params.insert("row".to_owned(), row.to_string());
+                IpcError::new(
+                    "import.bilingual_unterminated_quoted_field",
+                    MessageKey::ImportBilingualUnterminatedQuotedField,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualTooFewColumns { found } => {
+                let mut params = BTreeMap::new();
+                params.insert("found".to_owned(), found.to_string());
+                IpcError::new(
+                    "import.bilingual_too_few_columns",
+                    MessageKey::ImportBilingualTooFewColumns,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualMismatchedRows { count } => {
+                let mut params = BTreeMap::new();
+                params.insert("count".to_owned(), count.to_string());
+                IpcError::new(
+                    "import.bilingual_mismatched_rows",
+                    MessageKey::ImportBilingualMismatchedRows,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualUnsupportedFormat { format } => {
+                let mut params = BTreeMap::new();
+                params.insert("format".to_owned(), format);
+                IpcError::new(
+                    "import.bilingual_unsupported_format",
+                    MessageKey::ImportBilingualUnsupportedFormat,
+                    params,
+                    false,
+                )
+            }
         }
     }
 }
@@ -503,6 +586,13 @@ pub struct ImportedChapter {
     /// Chương (mẫu phân tách khớp N lần) ⇒ MỌI Chương con mang CÙNG giá trị — xem doc-comment
     /// `super::pipeline::Flow::origins`.
     pub origin: Option<crate::core::webimport::ChapterOrigin>,
+    /// **THÊM 2026-09-11 (Story 6.16, FR115)** — segment ĐÃ CẶP nguồn/đích của Chương này,
+    /// trên đường nhập song ngữ. `Some` chỉ khi hình dạng đầu vào là
+    /// [`super::pipeline::PipelineShape::Bilingual`]; `None` cho MỌI đường khác (không đổi
+    /// hành vi — §Always spec 6.16: đường nhập văn xuôi `.txt`/`.md`/`.docx` byte-identical).
+    /// Chỉ mang hàng CẶP ĐƯỢC (số câu nguồn = số câu đích) — một hàng lệch cặp không đóng
+    /// góp segment nào vào đây, nó chỉ có mặt trong [`super::pipeline::PipelineOutput::bilingual_mismatches`].
+    pub bilingual_segments: Option<Vec<super::bilingual::BilingualSegment>>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/
@@ -605,6 +695,58 @@ pub fn import_file(path: &Path) -> Result<(PipelineShape, Option<DocxSidecar>), 
         }),
         None,
     ))
+}
+
+/// **THÊM 2026-09-11 (Story 6.16, FR115)** — hai đuôi được nhận trên đường nhập song ngữ,
+/// RIÊNG với [`SUPPORTED_EXTENSIONS`] (§Boundaries: "Scope: .csv and .tsv only"; `.md`/
+/// `.docx` bảng biểu bị hoãn, chủ Ice, `deferred-work.md`).
+const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 2] = ["csv", "tsv"];
+
+/// Bước ĐẦU VÀO — nhánh song ngữ của FR115 (Story 6.16). Cùng khuôn [`import_file`]: từ chối
+/// theo phần mở rộng TRƯỚC khi mở tệp, hỏi kích thước TRƯỚC khi đọc, `std::fs::read` một
+/// lần — 0 chuỗi nào ghi xuống đĩa (§Boundaries: "0 bytes on disk before confirm").
+///
+/// 🔴 Trả về byte THÔ CHƯA giải mã, KHÔNG tự table-parse ở đây — cả giải mã LẪN table-parse
+/// là việc của [`super::pipeline::Step::DecodeEncoding`] (AD-39: *"table parsing happens
+/// right after decode, inside the chain, and re-runs on every encoding candidate"*). Hàm
+/// này chỉ quyết định đúng MỘT điều mà table-parse không tự suy được: dấu phân cách, từ
+/// CHÍNH đuôi tệp (`.csv` ⇒ dấu phẩy, `.tsv` ⇒ Tab — §Always: "Delimiter from the
+/// extension").
+pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        return Err(ImportError::MissingExtension { path: path.display().to_string() });
+    };
+    let ext = ext.to_ascii_lowercase();
+
+    if !BILINGUAL_SUPPORTED_EXTENSIONS.contains(&ext.as_str()) {
+        return Err(ImportError::BilingualUnsupportedFormat { format: ext });
+    }
+    let delimiter = match ext.as_str() {
+        "csv" => crate::core::glossary::exchange::Delimiter::Csv,
+        // `BILINGUAL_SUPPORTED_EXTENSIONS` has exactly two entries; the guard above already
+        // rejected everything else.
+        _ => crate::core::glossary::exchange::Delimiter::Tsv,
+    };
+
+    let size = std::fs::metadata(path)
+        .map_err(|e| ImportError::ReadFailed {
+            path: path.display().to_string(),
+            detail: e.to_string(),
+        })?
+        .len();
+    if size > MAX_IMPORT_BYTES {
+        return Err(ImportError::TooLarge { size, limit: MAX_IMPORT_BYTES });
+    }
+
+    let bytes = std::fs::read(path).map_err(|e| ImportError::ReadFailed {
+        path: path.display().to_string(),
+        detail: e.to_string(),
+    })?;
+
+    Ok(super::pipeline::PipelineShape::Bilingual {
+        input: ChapterInput::RawBytes { bytes, label: path.display().to_string() },
+        delimiter,
+    })
 }
 
 /// Từ chối một phần mở rộng chưa được nhận — **trước** khi mở tệp, không đọc một byte.

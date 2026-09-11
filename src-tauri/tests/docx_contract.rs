@@ -548,7 +548,7 @@ fn importing_a_docx_with_an_image_leaves_the_domain_log_empty() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &domain_log_state,
         docx_sidecar)
     .expect("tao Tac pham tu .docx co anh that bai");
@@ -590,7 +590,7 @@ fn an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_bein
         encoding_rs::UTF_8,
         Vec::new(),
         Some(pattern),
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &domain_log_state,
         docx_sidecar)
     .expect("tao Tac pham tu .docx hai chuong that bai");

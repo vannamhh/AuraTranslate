@@ -156,7 +156,7 @@ fn a_kept_image_gets_a_real_file_on_disk_and_an_asset_row_with_the_right_anchor(
     let items = vec![url_item("https://example.test/bai-mot", html_page_with_one_image(&img_url))];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Anh Giua Bai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Anh Giua Bai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
         .expect("tao Tac pham voi anh that bai");
 
     assert_eq!(opened.images_saved, 1, "dung mot anh GIU trong fixture");
@@ -196,7 +196,7 @@ fn an_image_without_alt_still_keeps_its_position() {
     let items = vec![url_item("https://example.test/bai-hai", html_page_with_one_image(&img_url))];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Anh Khong Alt", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Anh Khong Alt", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     assert_eq!(opened.images_saved, 1);
@@ -228,7 +228,7 @@ fn an_svg_response_is_rejected_writes_no_file_and_the_chapter_text_survives_inta
     // trước đây bắt được — bảng Quyền riêng tư khi đó khai "Tải thành công" cho một ảnh SVG
     // đã bị TỪ CHỐI.
     let domain_log_state: DomainLogState = Mutex::new(Vec::new());
-    let opened = create_work(&root, "Anh SVG", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &domain_log_state, None)
+    let opened = create_work(&root, "Anh SVG", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &domain_log_state, None)
         .expect("mot anh SVG bi tu choi khong duoc lam trot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0, "SVG la danh dau, khong phai anh raster — phai bi TU CHOI");
@@ -276,7 +276,7 @@ fn a_failed_image_fetch_does_not_fail_the_whole_import() {
     let items = vec![url_item("https://example.test/bai-hong", html_page_with_one_image(&img_url))];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Anh Hong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Anh Hong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
         .expect("mot anh mang loi KHONG duoc lam trot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0);
@@ -310,7 +310,7 @@ fn the_same_image_url_across_two_chapters_is_fetched_exactly_once_and_shares_one
     ];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Anh Trung URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Anh Trung URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     assert_eq!(opened.images_saved, 2, "hai VI TRI GIU, moi vi tri mot hang asset");
@@ -380,7 +380,7 @@ fn a_failing_image_url_reused_across_two_chapters_counts_two_failed_positions_fr
     ];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Anh Hong Trung URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Anh Hong Trung URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
         .expect("mot anh mang loi khong duoc lam trot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0);
@@ -587,7 +587,7 @@ fn an_oversized_image_response_is_cut_off_with_a_too_large_outcome_no_file_and_t
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &domain_log_state,
         None)
     .expect("mot anh vuot tran KHONG duoc lam trot ca luot nhap");
@@ -700,7 +700,7 @@ fn a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_a
     let items = vec![url_item("https://example.test/bai-dia-day", html_page_with_one_image(&img_url))];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let result = create_work(&root, "Dia Day", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &std::sync::Mutex::new(Vec::new()), None);
+    let result = create_work(&root, "Dia Day", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None);
 
     watcher.join().expect("luong canh panic");
     let _ = server.join();
@@ -854,7 +854,7 @@ fn a_later_image_write_failure_does_not_erase_the_domain_log_entry_of_an_earlier
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &domain_log_state,
         None);
 
@@ -927,7 +927,7 @@ fn create_work_computes_the_anchor_with_a_real_enabled_cleanup_rule_not_an_empty
         encoding_rs::UTF_8,
         cleanup_rules,
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("tao Tac pham voi luat lam sach BAT that bai");
@@ -994,7 +994,7 @@ fn create_work_counts_the_image_as_failed_not_a_panic_when_compute_anchor_self_c
         encoding_rs::UTF_8,
         cleanup_rules,
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("mot anh tinh neo that bai (compute_anchor Err) KHONG duoc lam trot ca luot nhap");
@@ -1061,7 +1061,7 @@ fn block_overrides_force_off_an_otherwise_kept_image_zero_connections_zero_file_
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        block_overrides, &[],
+        block_overrides, 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("ep tat mot anh khong duoc lam trot ca luot nhap");
@@ -1120,7 +1120,7 @@ fn block_overrides_force_on_an_otherwise_excluded_image_gets_fetched_and_gets_a_
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        block_overrides, &[],
+        block_overrides, 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("ep bat mot anh khong duoc lam trot ca luot nhap");
@@ -1192,7 +1192,7 @@ fn a_naturally_excluded_image_host_never_enters_tier_two_and_receives_zero_conne
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("mot anh bi may loai tu nhien khong duoc lam trot ca luot nhap");
@@ -1248,7 +1248,7 @@ fn an_image_at_the_end_of_the_chapter_anchors_after_every_segment() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("tao Tac pham voi anh o cuoi Chuong that bai");
@@ -1307,7 +1307,7 @@ fn two_images_in_one_chapter_each_get_their_own_file_and_their_own_correctly_ord
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("tao Tac pham voi hai anh trong mot Chuong that bai");
@@ -1375,7 +1375,7 @@ fn a_real_imported_image_survives_a_chapter_reorganisation_of_an_unrelated_chapt
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), &[],
+        Vec::new(), 0, 1, false, &[],
         &DomainLogState::new(Vec::new()),
         None)
     .expect("tao Tac pham voi hai Chuong, moi Chuong mot anh that bai");

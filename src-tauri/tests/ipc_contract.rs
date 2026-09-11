@@ -920,7 +920,14 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
     let src = fs::read_to_string(&project_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
 
-    for wire in ["preview_import_encoding_from_text", "preview_import_encoding_from_file"] {
+    // 🔵 SỬA 2026-09-11 (Story 6.16) — thêm vỏ xem trước song ngữ vào danh sách: nó cũng mở
+    // một lượt xem trước MỚI (đọc tệp `.csv`/`.tsv` rồi `stash_pending_import_source`), cùng
+    // nghĩa vụ dọn hai state override — xem doc-comment `wire::preview_bilingual_import_from_file`.
+    for wire in [
+        "preview_import_encoding_from_text",
+        "preview_import_encoding_from_file",
+        "preview_bilingual_import_from_file",
+    ] {
         let signature = format!("pub fn {wire}(");
         let start = src
             .find(&signature)
@@ -955,6 +962,85 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
     }
 }
 
+
+/// 🔴 **Story 6.16 — ba vo song ngu: dang ky theo TEN, doc luat lam sach, va vo DUNG LAI khong
+/// doc lai tep.** Them o buoc nghiem thu 2026-09-11.
+///
+/// ⚠️ Cung ly do quet MA NGUON nhu ca ngay tren: crate test khong co `MockRuntime`, nen khong
+/// ca nao goi duoc vo that. Ba dieu duoi day deu la mot DONG trong than vo ma go di van bien
+/// dich va van xanh o `bilingual_import_contract.rs` (ca do goi HAM THUAN):
+/// ① thieu dong dang ky o `lib.rs` ⇒ `invoke()` tra "command not found" chi khi nguoi dung bam;
+/// ② thieu `resolve_cleanup_rules(&app)` ⇒ luat nguoi dung da bat khong toi duong song ngu —
+///    dung trang thai ban dau cua story nay (hai cho goi truyen `Vec::new()`);
+/// ③ vo dung lai goi `import_bilingual_file` ⇒ moi lan doi cot DOC LAI TEP — trai Quyet dinh
+///    Ice "toggling rebuilds the preview in memory", cung la trang thai ban dau cua story nay.
+#[test]
+fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+    let wires = [
+        "preview_bilingual_import_from_file",
+        "rebuild_bilingual_import_preview",
+        "confirm_bilingual_import",
+    ];
+    for wire in wires {
+        let registered = format!("crate::commands::project::wire::{wire}");
+        assert!(
+            lib_src.lines().map(str::trim_start).filter(|l| !l.starts_with("//")).any(|l| l.contains(&registered)),
+            "`{registered}` phai co mat (khong bi chu thich) trong generate_handler! cua lib.rs"
+        );
+    }
+
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+    // Neo vao `pub mod wire {` — `confirm_bilingual_import` co HAI khoi `pub fn` cung ten (ham
+    // thuan o `super`, vo IPC o `wire`), cung bay ma ca Story 6.3 ben duoi da ghi.
+    let wire_mod_start = project_src
+        .find("\npub mod wire {")
+        .expect("commands/project.rs phai co `pub mod wire {`");
+    let wire_src = &project_src[wire_mod_start..];
+
+    let code_lines_of = |wire: &str| -> Vec<String> {
+        let signature = format!("pub fn {wire}(");
+        let start = wire_src
+            .find(&signature)
+            .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong `mod wire`"));
+        let rest = &wire_src[start + signature.len()..];
+        let end = rest.find("\n    pub fn ").unwrap_or(rest.len());
+        rest[..end]
+            .lines()
+            .map(str::trim_start)
+            .filter(|line| !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*"))
+            .map(str::to_owned)
+            .collect()
+    };
+
+    for wire in wires {
+        assert!(
+            code_lines_of(wire).iter().any(|l| l.contains("resolve_cleanup_rules(&app)")),
+            "than vo `{wire}` phai phan giai luat lam sach hai tang (`resolve_cleanup_rules(&app)`) — \
+             thieu no thi luat nguoi dung da bat khong bao gio toi duong song ngu"
+        );
+    }
+
+    let rebuild = code_lines_of("rebuild_bilingual_import_preview");
+    assert!(
+        rebuild.iter().any(|l| l.contains("p.shape.clone()")),
+        "vo dung lai phai clone `shape` tu `PendingImportSourceState` — neo cho hai khang dinh duoi"
+    );
+    for forbidden in ["import_bilingual_file", "stash_pending_import_source", "std::fs"] {
+        assert!(
+            !rebuild.iter().any(|l| l.contains(forbidden)),
+            "vo `rebuild_bilingual_import_preview` KHONG duoc goi `{forbidden}` — dung lai la tren \
+             byte DA CAT luc mo, khong doc lai tep (Quyet dinh Ice 2026-09-11)"
+        );
+    }
+}
 
 /// **THÊM Story 6.3 (FR126).** Ba vỏ của màn xem trước bảng mã phải CÓ MẶT trong
 /// `generate_handler![…]`, và tham số của chúng phải đúng thứ `src/config/project.ts` gõ ở

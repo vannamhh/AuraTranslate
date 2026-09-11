@@ -164,7 +164,7 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
     let items = vec![url_item("https://example.test/bai-1", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "AC1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "AC1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -229,7 +229,7 @@ fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
     let items = vec![url_item("https://example.test/bai-2", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Doi chung do 1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Doi chung do 1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     assert_eq!(opened.images_saved, 2, "ca hai anh phai tai duoc");
@@ -267,7 +267,7 @@ fn an_image_whose_asset_fetch_fails_still_gets_its_alt_segment() {
     let items = vec![url_item("https://example.test/bai-3", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Quyet dinh 2", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Quyet dinh 2", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     assert_eq!(opened.images_saved, 0, "cong khong ai nghe -- 0 anh tai duoc");
@@ -299,7 +299,7 @@ fn a_whitespace_only_alt_generates_no_role_segment() {
     let items = vec![url_item("https://example.test/bai-4", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Alt trang", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Alt trang", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -318,7 +318,7 @@ fn an_image_with_no_alt_attribute_generates_no_role_segment_and_does_not_shift_a
     let items = vec![url_item("https://example.test/bai-5", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Khong alt", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Khong alt", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -345,7 +345,7 @@ fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_
     let items = vec![url_item("https://example.test/bai-6", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Caption ba cau", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Caption ba cau", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -381,7 +381,7 @@ fn a_caption_with_no_preceding_kept_image_gets_no_role_and_the_chapter_still_imp
     let items = vec![url_item("https://example.test/bai-7", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Caption mo coi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Caption mo coi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("Chuong van phai nhap duoc du caption khong co anh so huu");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -426,7 +426,7 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
     let items = vec![url_item("https://example.test/bai-8", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Xac nhan caption", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Xac nhan caption", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let (caption_id, prose_id): (i64, i64) = opened
@@ -615,7 +615,7 @@ fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
     let items = vec![url_item("https://example.test/bai-gop-vai", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Gop segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Gop segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     // ── Tien de cua ca nay, khang dinh TRUOC khi gop ────────────────────────────────
@@ -720,7 +720,7 @@ fn two_adjacent_figcaptions_for_one_image_produce_exactly_one_caption_role_row()
     let items = vec![url_item("https://example.test/bai-hai-figcaption", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Hai figcaption mot anh", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Hai figcaption mot anh", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -767,7 +767,7 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
         enabled: true,
     }];
 
-    let opened = create_work(&root, "Cleanup xoa caption", "en", "", shape, encoding_rs::UTF_8, rules, None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Cleanup xoa caption", "en", "", shape, encoding_rs::UTF_8, rules, None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
@@ -808,7 +808,7 @@ fn splitting_a_role_bearing_segment_gives_new_rows_with_no_role_at_all() {
     let items = vec![url_item("https://example.test/bai-tach-vai", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Tach segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Tach segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let chapter_id = opened.chapter_id;
@@ -869,7 +869,7 @@ fn block_overrides_only_apply_to_chapter_zero_on_the_weave_path() {
     // Chuong, chi ap dung cho don vi DAU TIEN theo dung luat da co tu Story 6.9).
     let overrides = vec![None, None, None, Some(false)];
 
-    let opened = create_work(&root, "Nhieu chuong block_overrides", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, overrides, &[], &Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Nhieu chuong block_overrides", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, overrides, 0, 1, false, &[], &Mutex::new(Vec::new()), None)
         .expect("tao Tac pham that bai");
 
     let chapter_a_id = opened.chapter_id;

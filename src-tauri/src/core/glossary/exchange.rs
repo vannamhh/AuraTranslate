@@ -561,7 +561,14 @@ fn looks_like_iso8601_utc(s: &str) -> bool {
 /// dùng — hai tình huống khác hẳn nhau (một cái là lỗi cấu trúc, một cái là bình thường)
 /// không phân biệt được ở chỗ gọi. Cờ thứ ba tách hai ca đó ra: `true` ⇒ toàn bộ `text` đã
 /// bị NUỐT vào một ô đang mở, không phải một dòng logic hợp lệ.
-fn split_first_logical_line(text: &str, delimiter: Option<char>) -> (&str, &str, bool) {
+/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Nhập song ngữ (FR115)
+/// tái dùng đúng ba hàm tách dòng/ô này qua [`crate::core::segment::bilingual`] — NFR15
+/// (đo trước khi chốt kiến trúc): một tập con RFC 4180 THỨ HAI cho cùng một việc là một
+/// bản chép mà hai bản phải khớp nhau bằng kỷ luật, đúng lớp rủi ro NFR15 tồn tại để chặn.
+/// `core::segment::bilingual` KHÔNG viết vào tệp, KHÔNG biết đường dẫn (Story 3.10 AC5 quét
+/// `exchange.rs` chính nó, không quét chỗ gọi) — hàm CHỈ tách chữ, tính chất "module thuần"
+/// không đổi khi mở rộng khả kiến từ riêng tư sang `pub(crate)`.
+pub(crate) fn split_first_logical_line(text: &str, delimiter: Option<char>) -> (&str, &str, bool) {
     let is_field_boundary = |c: char| match delimiter {
         Some(d) => c == d,
         None => c == ',' || c == '\t',
@@ -642,7 +649,9 @@ fn count_line_breaks(s: &str) -> usize {
 /// NGAY, không tiếp tục dò các "hàng" phía sau (thứ đó chỉ là phần còn lại của ô đang mở,
 /// không phải dữ liệu). Đếm ranh giới dòng qua [`count_line_breaks`] thay vì chỉ đếm `\n`
 /// (mục ③).
-fn logical_lines(
+/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Xem doc-comment
+/// [`split_first_logical_line`] — cùng lý do NFR15, cùng lượt sửa.
+pub(crate) fn logical_lines(
     text: &str,
     delimiter: Option<char>,
     start_line: usize,
@@ -667,7 +676,9 @@ fn logical_lines(
 /// Tách MỘT dòng logic thành các ô theo `delimiter` — nháy kép mở/đóng một ô (chỉ khi nó
 /// đứng NGAY ĐẦU ô), nháy kép nhân đôi bên trong là một nháy kép thoát, dấu phân cách/xuống
 /// dòng bên trong một ô đang bọc là NỘI DUNG chứ không phải ranh giới.
-fn split_fields(line: &str, delimiter: char) -> Vec<String> {
+/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Xem doc-comment
+/// [`split_first_logical_line`] — cùng lý do NFR15, cùng lượt sửa.
+pub(crate) fn split_fields(line: &str, delimiter: char) -> Vec<String> {
     let mut fields = Vec::new();
     let mut field = String::new();
     let mut in_quotes = false;

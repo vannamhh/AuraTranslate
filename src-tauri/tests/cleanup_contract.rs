@@ -70,7 +70,7 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
-    Vec::new(), &[],
+    Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
 None)
     .expect("tao OpenWork that bai")
@@ -105,7 +105,7 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
-    Vec::new(), &[],
+    Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
 None)
     .expect("tao tac pham that bai");
@@ -143,7 +143,7 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(), &[],
+    Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
 None)
     .expect("tao tac pham that bai");
@@ -183,7 +183,7 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(), &[],
+    Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
 None)
     .expect("tao tac pham that bai");
@@ -767,7 +767,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         encoding_rs::UTF_8,
         vec![rule],
     None,
-    Vec::new(), &[],
+    Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
 None)
     .expect(

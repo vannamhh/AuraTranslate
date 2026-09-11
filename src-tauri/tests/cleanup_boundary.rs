@@ -326,10 +326,19 @@ fn the_forbidden_token_check_would_actually_flag_a_seeded_violation_and_ignore_c
 // một bộ test dày, tách một tham số MỚI ra khỏi nó là rủi ro không cần thiết). Cùng FILE đã
 // có tên (`core/segment/anchor.rs`) — `KNOWN_CLEANUP_APPLY_CALL_SITES` KHÔNG đổi, chỉ con số
 // TỔNG SỐ chỗ gọi đổi từ hai lên ba.
+//
+// 🔵 **SỬA 2026-09-11 (Story 6.16) — "ba" đã HẾT ĐÚNG, "bốn" thì đúng, CÙNG FILE đã có tên.**
+// Nhánh bilingual của `Step::CleanByRules` (`pipeline.rs`, hình dạng
+// `PipelineShape::Bilingual`) gọi `cleanup::apply` một lượt trong một vòng `for` chạy trên
+// CẢ HAI cột đã chọn (nguồn + đích) của mỗi hàng — một dòng mã nguồn THỨ HAI bên trong CHÍNH
+// `core/segment/pipeline.rs`, đứng cạnh chỗ gọi bước 3 cũ (đường `Blob`/`Chapters`, một lượt
+// mỗi đơn vị). `KNOWN_CLEANUP_APPLY_CALL_SITES` KHÔNG đổi (cùng tên file), chỉ con số TỔNG SỐ
+// chỗ gọi đổi từ ba lên bốn — §Always spec 6.16: "Cleanup and normalize run per cell, both
+// columns, never across rows" là ĐÚNG chỗ chỗ gọi thứ tư này tồn tại để làm.
 const KNOWN_CLEANUP_APPLY_CALL_SITES: [&str; 2] = ["core/segment/pipeline.rs", "core/segment/anchor.rs"];
 
 #[test]
-fn the_cleanup_apply_function_has_exactly_three_named_product_call_sites() {
+fn the_cleanup_apply_function_has_exactly_four_named_product_call_sites() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -355,11 +364,12 @@ fn the_cleanup_apply_function_has_exactly_three_named_product_call_sites() {
 
     assert_eq!(
         sites.len(),
-        3,
-        "kỳ vọng ĐÚNG BA chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs`, \
-         cộng `anchor::compute_anchor` chạy lại bước đó trên tiền tố — Story 6.11, cộng \
-         `anchor::compute_block_prefix_len` chạy lại CÙNG bước đó cho một khối bất kỳ — \
-         Story 6.13), tìm thấy {}:\n{}",
+        4,
+        "kỳ vọng ĐÚNG BỐN chỗ gọi sản phẩm của `cleanup::apply` (bước 3 của `pipeline.rs` trên \
+         đường `Blob`/`Chapters`, cộng nhánh bilingual CÙNG bước 3 nhưng trên CẢ HAI cột của \
+         mỗi hàng — Story 6.16, cộng `anchor::compute_anchor` chạy lại bước đó trên tiền tố — \
+         Story 6.11, cộng `anchor::compute_block_prefix_len` chạy lại CÙNG bước đó cho một \
+         khối bất kỳ — Story 6.13), tìm thấy {}:\n{}",
         sites.len(),
         sites.join("\n")
     );

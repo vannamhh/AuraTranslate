@@ -32,7 +32,9 @@ use crate::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
 use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
-use crate::core::segment::import::{ImportError, import_file, import_text, web_import_item_failure_ipc_error};
+use crate::core::segment::import::{
+    ImportError, import_bilingual_file, import_file, import_text, web_import_item_failure_ipc_error,
+};
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
 use crate::core::webimport::{self, WebImportItemFailureReason};
@@ -359,6 +361,13 @@ pub fn create_work(
     cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
+    // 🔴 **THÊM 2026-09-11 (Story 6.16, FR115)** — vai cột + cờ tiêu đề của đường nhập song
+    // ngữ. Tham số MỖI LƯỢT NHẬP, cùng khuôn `chapter_pattern` (không một state thứ ba —
+    // §Boundaries spec 6.16). Vô nghĩa (không đọc) khi `shape` không phải
+    // `PipelineShape::Bilingual`.
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
     // 🔴 **THÊM 2026-09-10 (Story 6.15)** — xuất xứ NGƯỜI DÙNG đã gõ đè, theo CHỈ SỐ Chương của
     // lượt nhập này — xem doc-comment [`ChapterOriginOverridesState`]. `&[]` (mọi chỗ gọi
     // KHÔNG đi qua màn xem trước xuất xứ — `tests/**` cũ, `create_work_from_text`/`_from_file`)
@@ -448,6 +457,11 @@ pub fn create_work(
     let chapter_urls: Vec<String> = match &shape {
         PipelineShape::Blob(c) => vec![chapter_input_page_url(c)],
         PipelineShape::Chapters(cs) => cs.iter().map(chapter_input_page_url).collect(),
+        // 🔴 **THÊM 2026-09-11 (Story 6.16)** — cùng lý do nhánh `Blob` ngay trên: đường song
+        // ngữ KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content` luôn `false` cho hình
+        // dạng này — nó không phải `PipelineShape::Chapters`), nên `prepare_chapter_images`
+        // không bao giờ đọc tới danh sách này; một phần tử rỗng không mất gì.
+        PipelineShape::Bilingual { .. } => vec![String::new()],
     };
     // `cleanup_rules`/`block_overrides` bị DI CHUYỂN vào `PipelineInput` ngay dưới — pha ảnh
     // (sau khi chuỗi chạy xong) cần lại đúng hai giá trị này để tính neo (bước 3/4 AD-39 lặp
@@ -465,7 +479,8 @@ pub fn create_work(
             .with_cleanup_rules(cleanup_rules)
             .with_chapter_pattern(chapter_pattern)
             .with_extract_main_content(extract_main_content)
-            .with_block_overrides(block_overrides),
+            .with_block_overrides(block_overrides)
+            .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -474,6 +489,16 @@ pub fn create_work(
             return Err(err.into());
         }
     };
+    // 🔴 **THÊM 2026-09-11 (Story 6.16) — từ chối Ở RUST, không chỉ ở nút webview.** §Boundaries:
+    // "Mismatched row ⇒ confirm is locked... Rust-side, not only UI". `create_work` là điểm
+    // gọi DUY NHẤT ghi `.atproj` (doc-comment đầu tệp) — canh Ở ĐÂY giữ đúng "không hàng nào
+    // ghi được khi còn lệch cặp" cho MỌI chỗ gọi, không riêng `confirm_bilingual_import`.
+    if !outcome.bilingual_mismatches.is_empty() {
+        let count = outcome.bilingual_mismatches.len();
+        store.close();
+        remove_folder(&dir);
+        return Err(crate::core::segment::import::ImportError::BilingualMismatchedRows { count }.into());
+    }
     let mut chapters = outcome.chapters;
 
     // 🔴 **THÊM 2026-09-09 (Story 6.12)** — khối + ảnh `.docx` gắn vào Chương ĐẦU TIÊN ở
@@ -689,6 +714,14 @@ pub fn create_work(
             // BACKFILL, đúng §Always.
             let (origin_author, origin_site_name, origin_url, origin_published_at) =
                 effective_origin_fields(chapter.origin.as_ref(), origin_overrides_owned.get(i).and_then(Option::as_ref));
+            // 🔴 **THÊM 2026-09-11 (Story 6.16, §Always)** — Chương của đường song ngữ khởi
+            // tạo `InProgress`, không `NotStarted`: nó tới với bản dịch SẴN CÓ (dù chưa xác
+            // nhận), khác một Chương văn xuôi vừa nhập chưa ai chạm tới.
+            let chapter_status = if chapter.bilingual_segments.is_some() {
+                LifecycleStatus::InProgress
+            } else {
+                LifecycleStatus::NotStarted
+            };
             tx.execute(
                 "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at, \
                  origin_author, origin_site_name, origin_url, origin_published_at) \
@@ -698,7 +731,7 @@ pub fn create_work(
                     ord,
                     &chapter.title,
                     &chapter.source_text,
-                    LifecycleStatus::NotStarted.as_str(),
+                    chapter_status.as_str(),
                     &origin_author,
                     &origin_site_name,
                     &origin_url,
@@ -710,7 +743,18 @@ pub fn create_work(
             // nó — `Store::write` giữ một writer duy nhất nối tiếp, nên không lượt chèn
             // nào khác chen được vào giữa hai dòng này.
             let chapter_id = tx.last_insert_rowid();
-            crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
+            // 🔴 **THÊM 2026-09-11 (Story 6.16, AD-47 ③)** — đường song ngữ ghi `target_text`
+            // + `translation_origin = bilingual_import` trong CÙNG một `INSERT`, qua hàm
+            // RIÊNG (§Always: "existing path unchanged") — không đi qua dệt vai (Quyết định 3
+            // spec 6.13 loại `.docx`; đường này CŨNG không có `blocks` để mà dệt).
+            match &chapter.bilingual_segments {
+                Some(segments) => {
+                    crate::commands::segment::insert_bilingual_segments(tx, chapter_id, segments)?;
+                }
+                None => {
+                    crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
+                }
+            }
 
             // 🔴 **THÊM 2026-09-08 (Story 6.11, FR127)** — hàng `asset` của CHÍNH Chương này,
             // CÙNG giao dịch với `chapter`/`segment` (§Always spec 6.11: "ghi SQL đi qua
@@ -1387,6 +1431,11 @@ pub fn create_work_from_text(
         Vec::new(),
         None,
         Vec::new(),
+        // Đường dán văn bản không bao giờ là `PipelineShape::Bilingual` — mặc định (0, 1,
+        // false) không bao giờ được đọc.
+        0,
+        1,
+        false,
         &[],
         &std::sync::Mutex::new(Vec::new()),
         // Văn bản dán tay không bao giờ có một `DocxSidecar` — xem doc-comment kiểu đó.
@@ -1830,6 +1879,11 @@ pub fn create_work_from_file(
         Vec::new(),
         None,
         Vec::new(),
+        // `import_file` never yields `PipelineShape::Bilingual` (that shape is
+        // `import_bilingual_file`'s alone) — defaults unread.
+        0,
+        1,
+        false,
         &[],
         &std::sync::Mutex::new(Vec::new()),
         docx_sidecar,
@@ -2557,7 +2611,7 @@ pub struct ImportEncodingPreview {
 /// `cleanup::apply` THỨ HAI
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔵 **SỬA 2026-09-09 (Story 6.13) — tên cổng đổi, "một" đã hai lần hết đúng.** Cổng nay tên
-/// `cleanup_boundary.rs::the_cleanup_apply_function_has_exactly_three_named_product_call_sites`
+/// `cleanup_boundary.rs::the_cleanup_apply_function_has_exactly_four_named_product_call_sites`
 /// (Story 6.11 thêm `anchor::compute_anchor`, Story 6.13 thêm `anchor::compute_block_prefix_len`
 /// — cả hai đều là bản chạy lại CÙNG bước 3 trên một TIỀN TỐ, không phải một lượt tính lại cho
 /// CHÍNH đoạn văn ở đây). Lý lẽ nguyên văn dưới đây (2026-09-06) không đổi: nó vẫn khoá đúng
@@ -2981,6 +3035,11 @@ pub fn preview_import_encoding(
             Some(ChapterInput::RawBytes { bytes, .. }) => verdict_and_candidates(bytes, true),
             Some(ChapterInput::AlreadyText(_)) | None => (self_declared_utf8(), Vec::new()),
         },
+        // 🔴 **THÊM 2026-09-11 (Story 6.16)** — đường song ngữ có màn xem trước RIÊNG
+        // (`preview_bilingual_import`), KHÔNG đi qua hàm này — cùng lý do `PipelineShape::Bilingual`
+        // không xuất hiện trên đường sản phẩm gọi `preview_import_encoding`. Phòng thủ kiểu,
+        // không phải một trạng thái người dùng gây ra được.
+        PipelineShape::Bilingual { .. } => (self_declared_utf8(), Vec::new()),
     };
 
     // 🔴 THÊM 2026-09-04 (Story 6.4, vá vòng rà 1, mục 1) — `candidates` RỖNG (tự khai
@@ -3130,6 +3189,11 @@ fn display_window_for_chapter(
         PipelineShape::Chapters(units) => {
             window_for_unit(units.get(chapter_index)?, encoding, source_lang)
         }
+        // 🔴 **THÊM 2026-09-11 (Story 6.16)** — đường song ngữ không dùng cơ chế con trỏ
+        // *Chương đang chọn* của Story 6.10a (hàng/Chương của nó không có "cửa sổ hiển thị"
+        // bảng mã theo nghĩa này) — phòng thủ kiểu, cùng lý do các nhánh `PipelineShape::Bilingual`
+        // khác trong tệp này.
+        PipelineShape::Bilingual { .. } => None,
     }
 }
 
@@ -3324,6 +3388,11 @@ pub fn confirm_import_with_encoding(
         cleanup_rules,
         chapter_pattern,
         block_overrides,
+        // `confirm_import_with_encoding` phục vụ đường văn xuôi/URL — không bao giờ mang
+        // `PipelineShape::Bilingual` (đường đó đi qua `confirm_bilingual_import`, hàm RIÊNG).
+        0,
+        1,
+        false,
         &origin_overrides,
         domain_log_state,
         docx_sidecar,
@@ -3332,6 +3401,283 @@ pub fn confirm_import_with_encoding(
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
     *guard = None;
 
+    Ok(opened)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.16 — Nhập tài liệu song ngữ hai cột (FR115, AD-39 · AD-37/46 · AD-47 ③)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 STATE TÁI DÙNG, KHÔNG MỘT HỘP THỨ BA
+// ─────────────────────────────────────────────────────────────────────────────
+// Vai cột (`source_column`/`target_column`) và cờ tiêu đề là tham số MỖI LƯỢT xem trước/xác
+// nhận, cùng khuôn `chapter_pattern` — KHÔNG một `Mutex<...>` mới cạnh
+// `Tier2BlockOverridesState`/`ChapterOriginOverridesState`. `PendingImportSourceState` (đã
+// có, Story 6.3) giữ nguyên vai trò: `stash_pending_import_source`/`cancel_import_preview`
+// dùng ĐƯỢC NGUYÊN cho `PipelineShape::Bilingual` — chỉ byte thô của tệp được cất, đổi vai
+// cột/tiêu đề không đọc lại đĩa (§I/O Matrix "Swap columns"/"Header checkbox on": "counts
+// rebuild"/"rebuilds the preview in memory").
+
+/// Một hàng lệch cặp trên dây — Story 6.16.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BilingualMismatchWire {
+    pub chapter_index: usize,
+    pub row_number: usize,
+    pub source_sentence_count: usize,
+    pub target_sentence_count: usize,
+}
+
+impl From<&crate::core::segment::bilingual::BilingualMismatch> for BilingualMismatchWire {
+    fn from(m: &crate::core::segment::bilingual::BilingualMismatch) -> Self {
+        BilingualMismatchWire {
+            chapter_index: m.chapter_index,
+            row_number: m.row_number,
+            source_sentence_count: m.source_sentence_count,
+            target_sentence_count: m.target_sentence_count,
+        }
+    }
+}
+
+/// Kết quả chạy TRỌN chuỗi bảy bước cho MỘT ứng viên bảng mã — Story 6.16. `chapter_count`/
+/// `pair_count`/`mismatches` đều RỖNG/0 khi ứng viên này "không ra chữ" trong cửa sổ bằng
+/// chứng (`preview == None`, cùng khuôn `EncodingCandidateWire`).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BilingualEncodingCandidateWire {
+    pub label: String,
+    pub encoding: String,
+    pub preview: Option<String>,
+    pub row_count: usize,
+    pub chapter_count: usize,
+    pub pair_count: usize,
+    pub mismatches: Vec<BilingualMismatchWire>,
+}
+
+/// Dải năm ứng viên trên dây — Story 6.16, cùng khuôn [`ImportEncodingPreview`].
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BilingualImportEncodingPreview {
+    pub confidence: ConfidenceWire,
+    pub selected_encoding: String,
+    pub candidates: Vec<BilingualEncodingCandidateWire>,
+    /// Tối đa [`crate::core::segment::pipeline::BILINGUAL_SAMPLE_ROW_CAP`] hàng đầu tiên
+    /// của bảng mã ĐANG CHỌN — mọi cột, để webview dựng thẻ chọn cột nguồn/đích với dữ liệu
+    /// THẬT thay vì tên cột suông. Rỗng khi tệp rỗng hoặc bảng mã đang chọn không ra chữ.
+    pub sample_rows: Vec<Vec<String>>,
+    /// Tổng số hàng của bảng mã ĐANG CHỌN — §I/O Matrix "Fewer than 2 columns" cũng lộ ra ở
+    /// đây khi chuỗi từ chối: `0` cùng `candidates` rỗng thân trong (chuỗi trả `Err`, không
+    /// một ứng viên nào chạy được tới cuối).
+    pub row_count: usize,
+    /// Số cột rộng nhất đếm được ở bảng mã ĐANG CHỌN — webview dùng để dựng danh sách lựa
+    /// chọn cột nguồn/đích (0-based, `0..column_count`). `0` khi tệp rỗng.
+    pub column_count: usize,
+}
+
+/// **Hàm thuần** — dò bảng mã VÀ chạy TRỌN chuỗi bảy bước cho MỖI ứng viên (AD-39: "table
+/// parsing happens right after decode, inside the chain, and re-runs on every encoding
+/// candidate"). Cùng khuôn [`preview_import_encoding`]: KHÔNG tự đọc gì, KHÔNG tự lưu
+/// state — vỏ `mod wire` cấp `shape` (đọc tệp MỘT LẦN ở `preview_bilingual_import_from_file`,
+/// hoặc clone từ ô đang chờ ở `rebuild_bilingual_import_preview`) rồi gọi hàm này.
+///
+/// `bilingual_source_column`/`bilingual_target_column`/`bilingual_has_header` là tham số MỖI
+/// LƯỢT gọi (xem §Design Notes đầu mục) — đổi cột/tiêu đề chỉ đòi gọi lại hàm này với
+/// CÙNG `shape` (byte thô không đổi), 0 lượt đọc đĩa thêm.
+///
+/// `cleanup_rules` — luật làm sạch đã phân giải hai tầng, cùng nguồn mà lượt xác nhận đọc lại
+/// lúc xác nhận (§Always spec 6.16: "Cleanup and normalize run per cell, both columns").
+///
+/// # Lỗi
+/// 🔵 **SỬA 2026-09-11 (Story 6.16, bước nghiệm thu)** — bản đầu nuốt MỌI `Err` của chuỗi
+/// bằng `.ok()`: một tệp một cột, hay một ô mở ngoặc kép không đóng, vẫn hiện một màn xem
+/// trước toàn số 0 với nút xác nhận BẬT, và lỗi chỉ lộ ra khi bấm xác nhận — trái hàng I/O
+/// Matrix "Fewer than 2 columns: Refused before preview". Nay hai lỗi HÌNH DẠNG BẢNG của ứng
+/// viên ĐANG CHỌN được trả lên (`import.bilingual_too_few_columns`,
+/// `import.bilingual_unterminated_quoted_field`); lỗi của các ứng viên KHÁC vẫn chỉ làm ứng
+/// viên đó rỗng, cùng khuôn dung thứ của [`preview_import_encoding`].
+pub fn preview_bilingual_import(
+    shape: &PipelineShape,
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
+) -> Result<BilingualImportEncodingPreview, IpcError> {
+    let PipelineShape::Bilingual { input, .. } = shape else {
+        // Chỉ `mod wire` dựng `shape` cho hàm này, luôn từ `import_bilingual_file` — nhánh
+        // này là phòng thủ kiểu (một lỗi lập trình, không một đường sản phẩm), không phải
+        // một trạng thái người dùng gây ra được.
+        return Ok(BilingualImportEncodingPreview {
+            confidence: ConfidenceWire::SelfDeclared,
+            selected_encoding: encoding_rs::UTF_8.name().to_owned(),
+            candidates: Vec::new(),
+            sample_rows: Vec::new(),
+            row_count: 0,
+            column_count: 0,
+        });
+    };
+    let bytes: &[u8] = match input {
+        ChapterInput::RawBytes { bytes, .. } => bytes,
+        // `import_bilingual_file` luôn dựng `RawBytes` — nhánh này không nên chạm trên
+        // đường sản phẩm, cùng lý lẽ nhánh `PipelineShape` không khớp ở trên.
+        ChapterInput::AlreadyText(_) => &[],
+    };
+    let verdict = encoding::detect(bytes);
+
+    let mut selected_sample_rows: Vec<Vec<String>> = Vec::new();
+    let mut selected_row_count = 0usize;
+    let mut selected_column_count = 0usize;
+    let mut selected_seen = false;
+    // Lỗi hình dạng bảng của ứng viên ĐANG CHỌN — xem mục "# Lỗi" của doc-comment.
+    let mut selected_refusal: Option<ImportError> = None;
+
+    let candidates: Vec<BilingualEncodingCandidateWire> = if bytes.is_empty() {
+        Vec::new()
+    } else {
+        encoding::render_candidates(bytes, source_lang)
+            .into_iter()
+            .map(|c| {
+                let is_selected = c.wire_id == verdict.encoding.name();
+                let result = encoding::encoding_for_wire_id(c.wire_id).map(|enc| {
+                    run_pipeline(
+                        PipelineInput::with_encoding(shape.clone(), enc, source_lang)
+                            .with_cleanup_rules(cleanup_rules.to_vec())
+                            .with_chapter_pattern(chapter_pattern.cloned())
+                            .with_bilingual_columns(
+                                bilingual_source_column,
+                                bilingual_target_column,
+                                bilingual_has_header,
+                            ),
+                    )
+                });
+                let outcome = match result {
+                    Some(Ok(o)) => Some(o),
+                    Some(Err(err)) => {
+                        if is_selected && selected_refusal.is_none() && is_bilingual_table_refusal(&err) {
+                            selected_refusal = Some(err);
+                        }
+                        None
+                    }
+                    None => None,
+                };
+
+                let (chapter_count, pair_count, mismatches, row_count, column_count) = match &outcome {
+                    Some(o) => {
+                        let pair_count: usize = o
+                            .chapters
+                            .iter()
+                            .filter_map(|c| c.bilingual_segments.as_ref())
+                            .map(|s| s.len())
+                            .sum();
+                        let mismatches: Vec<BilingualMismatchWire> =
+                            o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect();
+                        let column_count =
+                            o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
+                        (o.chapters.len(), pair_count, mismatches, o.bilingual_row_count, column_count)
+                    }
+                    None => (0, 0, Vec::new(), 0, 0),
+                };
+
+                if is_selected && !selected_seen {
+                    selected_seen = true;
+                    if let Some(o) = &outcome {
+                        selected_sample_rows = o.bilingual_sample_rows.clone();
+                        selected_row_count = row_count;
+                        selected_column_count = column_count;
+                    }
+                }
+
+                BilingualEncodingCandidateWire {
+                    label: c.label.to_owned(),
+                    encoding: c.wire_id.to_owned(),
+                    preview: c.preview,
+                    row_count,
+                    chapter_count,
+                    pair_count,
+                    mismatches,
+                }
+            })
+            .collect()
+    };
+
+    if let Some(err) = selected_refusal {
+        return Err(err.into());
+    }
+
+    Ok(BilingualImportEncodingPreview {
+        confidence: verdict.confidence.into(),
+        selected_encoding: verdict.encoding.name().to_owned(),
+        candidates,
+        sample_rows: selected_sample_rows,
+        row_count: selected_row_count,
+        column_count: selected_column_count,
+    })
+}
+
+/// Hai lỗi HÌNH DẠNG BẢNG mà màn xem trước song ngữ phải TỪ CHỐI thay vì hiện một dải số 0 —
+/// xem mục "# Lỗi" của [`preview_bilingual_import`].
+fn is_bilingual_table_refusal(err: &ImportError) -> bool {
+    matches!(
+        err,
+        ImportError::BilingualTooFewColumns { .. } | ImportError::BilingualUnterminatedQuotedField { .. }
+    )
+}
+
+/// **Hàm thuần** — lõi lượt xác nhận song ngữ: CLONE nguồn đang chờ từ
+/// [`PendingImportSourceState`] (tái dùng, xem §Design Notes đầu mục), gọi [`create_work`],
+/// dọn ô đang chờ khi và chỉ khi THÀNH CÔNG — cùng khuôn
+/// [`confirm_import_with_encoding`].
+///
+/// # Lỗi
+/// - `state` rỗng ⇒ `import.no_pending_source`;
+/// - `encoding_wire_id` không giải ngược được ⇒ `import.unrecognized_encoding`;
+/// - còn hàng lệch cặp ⇒ `import.bilingual_mismatched_rows` — [`create_work`] tự kiểm lại
+///   (Rust-side, §Boundaries), nên đây LUÔN đúng dù webview có quên gọi
+///   [`preview_bilingual_import`] lại sau lượt sửa cuối hay không.
+pub fn confirm_bilingual_import(
+    documents_root: &Path,
+    state: &PendingImportSourceState,
+    name: &str,
+    source_lang: &str,
+    genre: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
+) -> Result<OpenWork, IpcError> {
+    let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
+        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+    })?;
+
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+
+    let opened = create_work(
+        documents_root,
+        name,
+        source_lang,
+        genre,
+        shape,
+        chosen,
+        // 🔵 **SỬA 2026-09-11 (Story 6.16, bước nghiệm thu)** — bản đầu truyền `Vec::new()`
+        // ở đây VÀ ở màn xem trước, nên nhánh làm sạch theo ô của `Step::CleanByRules` chạy
+        // trên 0 luật: luật người dùng đã bật không bao giờ tới đường song ngữ (§Always spec
+        // 6.16: "Cleanup and normalize run per cell, both columns"). Vỏ `wire` phân giải hai
+        // tầng LÚC XÁC NHẬN, cùng kỷ luật `confirm_import_with_encoding`. Override khối và
+        // override xuất xứ vẫn rỗng: hai bề mặt đó không có trên màn xem trước song ngữ.
+        cleanup_rules,
+        chapter_pattern,
+        Vec::new(),
+        bilingual_source_column,
+        bilingual_target_column,
+        bilingual_has_header,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )?;
+
+    *guard = None;
     Ok(opened)
 }
 
@@ -5622,6 +5968,157 @@ pub mod wire {
             created,
             || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
         ))
+    }
+
+    /// Vỏ IPC — màn xem trước bảng mã của đường nhập song ngữ (Story 6.16, FR115). Cùng
+    /// khuôn `preview_import_encoding_from_file`: **không một quy tắc nào sống ở đây** — đọc
+    /// [`super::preview_bilingual_import`] và [`super::stash_pending_import_source`] (tái
+    /// dùng, KHÔNG một state thứ ba — §Design Notes đầu mục Story 6.16 của `commands::project`).
+    ///
+    /// Chỉ lượt MỞ đi qua vỏ này. Mọi lượt đổi cột, đảo vai, bật/tắt tiêu đề, sửa mẫu phân
+    /// tách sau đó đi qua `rebuild_bilingual_import_preview` — không đọc lại tệp.
+    ///
+    /// # Lỗi
+    /// - [`PendingImportSourceState`] chưa được quản lý ⇒ `import.no_pending_source`;
+    /// - đuôi tệp không phải `.csv`/`.tsv` ⇒ `import.bilingual_unsupported_format`;
+    /// - ứng viên bảng mã đang chọn gặp một ô mở ngoặc kép không bao giờ đóng, hoặc tệp có ít
+    ///   hơn hai cột ⇒ `import.bilingual_unterminated_quoted_field` /
+    ///   `import.bilingual_too_few_columns`, TỪ CHỐI trước khi có gì để xem trước, và ô đang
+    ///   chờ được dọn để không một nguồn CŨ nào nằm lại sau một lượt mở MỚI bị từ chối.
+    #[tauri::command]
+    pub fn preview_bilingual_import_from_file(
+        app: tauri::AppHandle,
+        path: String,
+        source_lang: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
+        source_column: usize,
+        target_column: usize,
+        has_header: bool,
+    ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+        let shape = super::import_bilingual_file(std::path::Path::new(&path))?;
+        // Cùng lý do `preview_import_encoding_from_file` dọn hai state này cho MỌI lượt xem
+        // trước MỚI, kể cả khi đường hiện tại không đọc chúng — vòng đời NHẤT QUÁN quan
+        // trọng hơn một lượt dọn thừa (xem doc-comment `Tier2BlockOverridesState`/
+        // `ChapterOriginOverridesState` mục "Reset khi nào").
+        reset_tier2_block_overrides(&app);
+        reset_chapter_origin_overrides(&app);
+        let cleanup_rules = resolve_cleanup_rules(&app);
+        let preview = match super::preview_bilingual_import(
+            &shape,
+            &source_lang,
+            &cleanup_rules,
+            pattern.as_ref(),
+            source_column,
+            target_column,
+            has_header,
+        ) {
+            Ok(preview) => preview,
+            Err(err) => {
+                super::cancel_import_preview(&state);
+                return Err(err);
+            }
+        };
+        super::stash_pending_import_source(&state, shape, None);
+        Ok(preview)
+    }
+
+    /// Vỏ IPC — DỰNG LẠI màn xem trước song ngữ trên nguồn ĐANG CHỜ (Story 6.16, FR115), cho
+    /// mọi lượt đổi cột nguồn/đích, đảo vai, bật/tắt tiêu đề, sửa mẫu phân tách.
+    ///
+    /// 🔴 **KHÔNG đọc tệp, KHÔNG cất lại nguồn, KHÔNG dọn override.** Quyết định Ice
+    /// 2026-09-11: *"toggling rebuilds the preview in memory"*. Bản đầu gọi lại
+    /// `preview_bilingual_import_from_file` với CÙNG `path` cho mọi lượt đổi — tức ĐỌC LẠI TỆP
+    /// mỗi lần, và một tệp bị sửa trên đĩa giữa hai lượt đổi cột sẽ lặng lẽ thay nguồn đang
+    /// xem trước. Vỏ này clone `shape` từ [`PendingImportSourceState`] — đúng byte mà lượt mở
+    /// đã đọc — rồi gọi lại [`super::preview_bilingual_import`]. Canh bằng
+    /// `ipc_contract.rs::the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file`.
+    ///
+    /// # Lỗi
+    /// - không có nguồn đang chờ ⇒ `import.no_pending_source`;
+    /// - lỗi hình dạng bảng của ứng viên đang chọn ⇒ như [`super::preview_bilingual_import`].
+    #[tauri::command]
+    pub fn rebuild_bilingual_import_preview(
+        app: tauri::AppHandle,
+        source_lang: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
+        source_column: usize,
+        target_column: usize,
+        has_header: bool,
+    ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+        let shape = {
+            let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+        super::preview_bilingual_import(
+            &shape,
+            &source_lang,
+            &cleanup_rules,
+            pattern.as_ref(),
+            source_column,
+            target_column,
+            has_header,
+        )
+    }
+
+    /// Vỏ IPC — xác nhận lượt nhập song ngữ (Story 6.16, FR115). Cùng khuôn
+    /// `confirm_import_with_encoding`: lõi là [`super::confirm_bilingual_import`] (điểm gọi
+    /// [`super::create_work`] cho đường này), vỏ chỉ phân giải thư mục gốc, gói kết quả, và
+    /// nối tiếp lượt tái lập chỉ mục.
+    ///
+    /// ⚠️ **KHÔNG spawn quét Glossary** — khác `confirm_import_with_encoding`: một Chương
+    /// song ngữ đã có bản dịch, quét ứng viên Glossary (Story 3.5, FR47) là nghĩa vụ của
+    /// đường văn xuôi (câu chưa dịch cần gợi ý thuật ngữ); không nằm trong Task list spec
+    /// 6.16, và spawn nó vào đây sẽ là một bề mặt MỚI không AC nào của story này canh.
+    #[tauri::command]
+    pub fn confirm_bilingual_import(
+        app: tauri::AppHandle,
+        name: String,
+        source_lang: String,
+        genre: String,
+        encoding: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
+        source_column: usize,
+        target_column: usize,
+        has_header: bool,
+    ) -> Result<CreatedWork, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+        let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
+        // Đọc hai tầng luật LÚC XÁC NHẬN — cùng kỷ luật `confirm_import_with_encoding`.
+        let cleanup_rules = resolve_cleanup_rules(&app);
+        let opened = super::confirm_bilingual_import(
+            &root,
+            &pending_state,
+            &name,
+            &source_lang,
+            &genre,
+            &encoding,
+            cleanup_rules,
+            pattern,
+            source_column,
+            target_column,
+            has_header,
+        )?;
+
+        let created = CreatedWork::from_open(&opened);
+        reindex_library(&app, &root);
+        replace_open_work(&app, opened);
+        Ok(created)
     }
 
     /// Vỏ IPC — mở lại một `.atproj` **đã có trên đĩa** (Story 5.7, FR12).

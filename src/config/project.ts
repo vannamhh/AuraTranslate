@@ -600,6 +600,207 @@ export async function confirmImportWithEncoding(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.16 — nhập tài liệu song ngữ hai cột (FR115, AD-39 · AD-37/46 · AD-47 ③). Khớp
+// `commands::project::{BilingualMismatchWire, BilingualEncodingCandidateWire,
+// BilingualImportEncodingPreview, wire::preview_bilingual_import_from_file,
+// wire::confirm_bilingual_import}`.
+//
+// 🔴 Vai cột (`sourceColumn`/`targetColumn`) và cờ tiêu đề (`hasHeader`) là tham số MỖI LƯỢT
+// gọi, cùng khuôn `chapterPattern`. Chỉ lượt MỞ gửi `path` (`previewBilingualImportFromFile`);
+// mọi lượt đổi cột/tiêu đề/mẫu sau đó gọi `rebuildBilingualImportPreview` — KHÔNG `path`, Rust
+// clone byte đã cất lúc mở, không đọc lại tệp.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Một hàng lệch cặp — khớp `commands::project::BilingualMismatchWire`. */
+export type BilingualMismatchWire = {
+  chapter_index: number
+  row_number: number
+  source_sentence_count: number
+  target_sentence_count: number
+}
+
+/** Kết quả chạy TRỌN chuỗi bảy bước cho MỘT ứng viên bảng mã — khớp
+ * `commands::project::BilingualEncodingCandidateWire`. */
+export type BilingualEncodingCandidateWire = {
+  label: string
+  encoding: string
+  preview: string | null
+  row_count: number
+  chapter_count: number
+  pair_count: number
+  mismatches: BilingualMismatchWire[]
+}
+
+/** Dải năm ứng viên — khớp `commands::project::BilingualImportEncodingPreview`. */
+export type BilingualImportEncodingPreview = {
+  confidence: ImportConfidence
+  selected_encoding: string
+  candidates: BilingualEncodingCandidateWire[]
+  /** Tối đa hai mươi hàng đầu tiên của bảng mã ĐANG CHỌN, MỌI cột — nguyên liệu cho thẻ chọn
+   * cột nguồn/đích. */
+  sample_rows: string[][]
+  row_count: number
+  column_count: number
+}
+
+/** Ba trạng thái, cùng khuôn `ImportEncodingPreviewResult`. */
+export type BilingualImportEncodingPreviewResult = {
+  preview: BilingualImportEncodingPreview | null
+  error: IpcError | null
+}
+
+const CMD_PREVIEW_BILINGUAL_FROM_FILE = 'preview_bilingual_import_from_file'
+const CMD_REBUILD_BILINGUAL_PREVIEW = 'rebuild_bilingual_import_preview'
+const CMD_CONFIRM_BILINGUAL_IMPORT = 'confirm_bilingual_import'
+
+function isBilingualMismatchWire(value: unknown): value is BilingualMismatchWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BilingualMismatchWire>
+  return (
+    typeof v.chapter_index === 'number' &&
+    typeof v.row_number === 'number' &&
+    typeof v.source_sentence_count === 'number' &&
+    typeof v.target_sentence_count === 'number'
+  )
+}
+
+function isBilingualEncodingCandidateWire(value: unknown): value is BilingualEncodingCandidateWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BilingualEncodingCandidateWire>
+  return (
+    typeof v.label === 'string' &&
+    typeof v.encoding === 'string' &&
+    (v.preview === null || typeof v.preview === 'string') &&
+    typeof v.row_count === 'number' &&
+    typeof v.chapter_count === 'number' &&
+    typeof v.pair_count === 'number' &&
+    Array.isArray(v.mismatches) &&
+    v.mismatches.every(isBilingualMismatchWire)
+  )
+}
+
+function isStringRow(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((cell) => typeof cell === 'string')
+}
+
+function isBilingualImportEncodingPreview(value: unknown): value is BilingualImportEncodingPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BilingualImportEncodingPreview>
+  return (
+    (v.confidence === 'self_declared' || v.confidence === 'high' || v.confidence === 'low') &&
+    typeof v.selected_encoding === 'string' &&
+    Array.isArray(v.candidates) &&
+    v.candidates.every(isBilingualEncodingCandidateWire) &&
+    Array.isArray(v.sample_rows) &&
+    v.sample_rows.every(isStringRow) &&
+    typeof v.row_count === 'number' &&
+    typeof v.column_count === 'number'
+  )
+}
+
+/** Nhánh TỆP của màn xem trước song ngữ (Story 6.16, FR115) — chỉ lượt MỞ. Mọi lượt đổi
+ * cột/tiêu đề/mẫu sau đó đi qua `rebuildBilingualImportPreview`, không gửi lại `path`. */
+export async function previewBilingualImportFromFile(
+  path: string,
+  sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
+  sourceColumn: number,
+  targetColumn: number,
+  hasHeader: boolean,
+): Promise<BilingualImportEncodingPreviewResult> {
+  try {
+    const preview = await invoke<BilingualImportEncodingPreview>(CMD_PREVIEW_BILINGUAL_FROM_FILE, {
+      path,
+      sourceLang,
+      chapterPattern,
+      sourceColumn,
+      targetColumn,
+      hasHeader,
+    })
+    if (!isBilingualImportEncodingPreview(preview)) {
+      console.error(
+        `[project] \`${CMD_PREVIEW_BILINGUAL_FROM_FILE}\` tra ve mot hinh dang khong dung BilingualImportEncodingPreview`,
+      )
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { preview, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { preview: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(
+        `[project] \`${CMD_PREVIEW_BILINGUAL_FROM_FILE}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${CMD_PREVIEW_BILINGUAL_FROM_FILE}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { preview: null, error: null }
+  }
+}
+
+/** Dựng lại màn xem trước song ngữ trên nguồn ĐANG CHỜ phía Rust (Story 6.16) — cho mọi lượt
+ * đổi cột, đảo vai, bật/tắt tiêu đề, sửa mẫu phân tách. KHÔNG gửi `path`: Rust clone byte đã
+ * cất lúc mở (`PendingImportSourceState`), không đọc lại tệp (Quyết định Ice 2026-09-11:
+ * "toggling rebuilds the preview in memory"). */
+export async function rebuildBilingualImportPreview(
+  sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
+  sourceColumn: number,
+  targetColumn: number,
+  hasHeader: boolean,
+): Promise<BilingualImportEncodingPreviewResult> {
+  try {
+    const preview = await invoke<BilingualImportEncodingPreview>(CMD_REBUILD_BILINGUAL_PREVIEW, {
+      sourceLang,
+      chapterPattern,
+      sourceColumn,
+      targetColumn,
+      hasHeader,
+    })
+    if (!isBilingualImportEncodingPreview(preview)) {
+      console.error(
+        `[project] \`${CMD_REBUILD_BILINGUAL_PREVIEW}\` tra ve mot hinh dang khong dung BilingualImportEncodingPreview`,
+      )
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { preview, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { preview: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(
+        `[project] \`${CMD_REBUILD_BILINGUAL_PREVIEW}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${CMD_REBUILD_BILINGUAL_PREVIEW}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { preview: null, error: null }
+  }
+}
+
+/** Xác nhận lượt nhập song ngữ (Story 6.16, FR115) — cùng hình dạng trả về `CreateWorkResult`.
+ * `sourceColumn`/`targetColumn`/`hasHeader` PHẢI là bộ ba mà lượt xem trước gần nhất vừa hiện. */
+export async function confirmBilingualImport(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  encoding: string,
+  chapterPattern: ChapterPatternInput | null,
+  sourceColumn: number,
+  targetColumn: number,
+  hasHeader: boolean,
+): Promise<CreateWorkResult> {
+  return callCreateWork(CMD_CONFIRM_BILINGUAL_IMPORT, {
+    name,
+    sourceLang,
+    genre,
+    encoding,
+    chapterPattern,
+    sourceColumn,
+    targetColumn,
+    hasHeader,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Story 6.5 — luật làm sạch lúc nhập (FR124, AD-18). Khớp `commands::cleanup::{
 // wire::cleanup_add_rule, wire::cleanup_edit_rule, wire::cleanup_delete_rule,
 // wire::cleanup_set_enabled }`.

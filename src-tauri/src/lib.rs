@@ -643,6 +643,13 @@ pub fn run() {
             crate::commands::project::wire::preview_import_encoding_from_text,
             crate::commands::project::wire::preview_import_encoding_from_file,
             crate::commands::project::wire::confirm_import_with_encoding,
+            // Story 6.16 (FR115) -- nhap tai lieu song ngu hai cot (.csv/.tsv): mot vo xem
+            // truoc (doc tep MOT LAN, cat vao PendingImportSourceState -- TAI DUNG, khong mot
+            // hop thu ba) cong mot vo xac nhan (clone tu o dang cho, goi `create_work`).
+            crate::commands::project::wire::preview_bilingual_import_from_file,
+            // Dung lai xem truoc tren nguon DANG CHO (doi cot/tieu de/mau) -- khong doc lai tep.
+            crate::commands::project::wire::rebuild_bilingual_import_preview,
+            crate::commands::project::wire::confirm_bilingual_import,
             // Story 6.7 (FR122) -- nhap tu URL bang danh sach link. Ba vo: tai tuan tu
             // (async), tai lai DUNG MOT muc (async), bo mot muc (khong async -- 0 mang).
             // Xac nhan TAI DUNG `confirm_import_with_encoding` o tren, khong mot vo moi.

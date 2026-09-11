@@ -162,6 +162,45 @@ pub(crate) fn insert_segments(
     Ok(())
 }
 
+/// **THÊM 2026-09-11 (Story 6.16, FR115/AD-47 ③)** — chèn segment ĐÃ CẶP nguồn/đích của
+/// đường nhập song ngữ. Hàm RIÊNG với [`insert_segments`] (không sửa hàm đó — §Always spec
+/// 6.16: "existing path unchanged"): câu `INSERT` ở đây khai THÊM cột `target_text`, đúng
+/// AD-47 ③ ("each segment's `target_text` and `translation_origin = bilingual_import` are
+/// written in the same INSERT"). Cùng khuôn `insert_segments`: nhận `&Transaction`, không
+/// `&Store` (AC13 — cùng giao dịch với hàng `chapter`), `prepare_cached` một lần.
+///
+/// `status` KHÔNG được khai ở đây — cùng lý do `insert_segments` không khai: `segment.status`
+/// đã có `DEFAULT 'draft'` (`SEGMENT_STATUS_AND_VERSION_DDL`), và `'draft'` LÀ giá trị đúng
+/// cho một hàng vừa nhập (§Always spec 6.16 — "status = 'draft'").
+pub(crate) fn insert_bilingual_segments(
+    tx: &Transaction<'_>,
+    chapter_id: i64,
+    segments: &[crate::core::segment::bilingual::BilingualSegment],
+) -> SqlResult<()> {
+    let mut stmt = tx.prepare_cached(
+        "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+         is_target_paragraph_end, translation_origin, target_text, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+    )?;
+    for (index, segment) in segments.iter().enumerate() {
+        let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
+        // AD-46 — cờ đích MIRROR cờ nguồn tại lúc nhập, cùng giá trị ghi vào CẢ hai cột
+        // (đúng khuôn `insert_segments`, không một nguồn sự thật thứ hai).
+        let paragraph_end = i64::from(segment.is_paragraph_end);
+        stmt.execute((
+            chapter_id,
+            ord,
+            &segment.source_text,
+            paragraph_end,
+            paragraph_end,
+            TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+            &segment.target_text,
+        ))?;
+    }
+    Ok(())
+}
+
 /// Một hàng `segment` đi ra qua dây — Story 2.2, AC13.
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.

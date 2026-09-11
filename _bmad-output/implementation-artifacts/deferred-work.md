@@ -4244,6 +4244,12 @@ mục nào mồ côi.
   vào** thì chưa — một cơ chế tương lai quên vế (b) của AD-47 ① *(đặt xuất xứ cùng lúc với mốc)*
   sẽ không làm ca nào ở đây đỏ. **Chủ: Epic 6 (FR115) · Epic 7 (FR58)** — hai cơ chế đầu tiên
   thật sự ghi một xuất xứ khác `self`.
+  → ✅ **VẾ Epic 6 (FR115) ĐÃ ĐÓNG 2026-09-11 (Story 6.16).**
+  `commands::segment::insert_bilingual_segments` là đường sản phẩm ĐẦU TIÊN ghi
+  `translation_origin = bilingual_import` cùng `target_text` trong CÙNG một `INSERT` — đúng
+  vế (b) của AD-47 ① mà bullet này đòi (mốc và xuất xứ cùng lúc, không một lượt ghi thứ hai).
+  `bilingual_import_contract.rs` (mới) đối chứng cả hai cột trên đường `create_work` thật, không
+  một fixture SQL viết tay. Vế Epic 7 (FR58) **vẫn mở**, giữ nguyên chủ.
 
 - 🔴 **Ba hàng còn lại của bảng AD-47 ③ chưa có mã, mỗi hàng một chủ.** Story 2.7 khai **giá
   trị** chúng sẽ dùng (`TRANSLATION_ORIGIN_*`) để bốn Epic sau không tự đặt tên riêng, nhưng nó
@@ -4260,6 +4266,11 @@ mục nào mồ côi.
   cài AD-47 ④ nguyên văn *(đồng ý ⇒ giữ · bất đồng ⇒ `other`)*, và `split_at` cho mọi mảnh
   **không phải mảnh đầu** một xuất xứ rỗng — một suy dẫn, không một luật mới: mảnh đó chưa có
   bản dịch nào để khai. Bốn hàng còn lại của bảng **vẫn hở**, giữ nguyên chủ.
+  → ✅ **HÀNG "Nhập song ngữ (FR115)" ĐÃ ĐÓNG 2026-09-11 (Story 6.16).**
+  `commands::segment::insert_bilingual_segments` ghi `translation_origin =
+  TRANSLATION_ORIGIN_BILINGUAL_IMPORT` cho MỌI segment đã cặp — đúng giá trị bảng này giao,
+  trong CÙNG `INSERT` với `target_text`. Ba hàng còn lại của bảng (Review Mode FR94, TM FR58,
+  đề xuất AI) **vẫn hở**, giữ nguyên chủ.
   ⚠️ Đóng ở lượt **code review** 2026-08-17, không ở lượt dev.
   🔴 Mỗi chủ phải làm **cả hai** vế của AD-47 ①: đặt **mốc** *và* đặt **xuất xứ**, trong cùng
   một thao tác. Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi *tôi dịch* cho chữ người dùng chưa
@@ -4380,6 +4391,18 @@ mục nào mồ côi.
   là lúc nạp **phiên panel**, hay lúc bắt đầu **vòng draft hiện tại**? Hai cách đọc đều đứng
   được, và chúng cho hai kết quả khác nhau ở đúng ca trên. **Chủ: Epic đầu tiên sinh ra một xuất
   xứ phi-`self`** *(Epic 6 FR115 hoặc Epic 4, tuỳ cái nào tới trước)*.
+  → 🔵 **KHÔNG NHẬN 2026-09-11 (Story 6.16) — tái giao Ice, đường nay ĐI TỚI ĐƯỢC.** Story 6.16
+  là Epic đầu tiên thật sự ghi một xuất xứ phi-`self` (`bilingual_import`, qua
+  `insert_bilingual_segments`) — mệnh đề "Epic đầu tiên... tuỳ cái nào tới trước" ở trên nay có
+  câu trả lời: FR115. Nhưng đường tới được KHÔNG có nghĩa món nợ này thuộc phạm vi 6.16: nó mô
+  tả một cạnh của Editor (mốc ghim theo phiên panel `editorPanelState.ts:795` so với xuất xứ đọc
+  SỐNG từ đĩa lúc ký `segment.rs:1493`) mà story này không chạm — Chương song ngữ mới nhập
+  `status = 'draft'`, chưa ai mở Editor để ký/sửa/hoàn tác trên nó, nên đường đi ba bước
+  (nạp → sửa → ký → sửa ngược → ký lại) mô tả ở trên chưa có cơ hội chạy trên một segment
+  `bilingual_import` cho tới khi người dùng thật sự mở Chương đó ra dịch tiếp. §Never spec 6.16
+  khoá bằng chữ: "no Editor-side change here". Câu hỏi cấu trúc ("xuất xứ lúc nạp = lúc nạp
+  phiên panel hay lúc bắt đầu vòng draft hiện tại?") vẫn là một quyết định của Ice, không một
+  dòng mã của story nào tới sau nó nữa. **Chủ: Ice.**
 
 - ⚠️ **Vế ĐỌC của danh mục đóng `translation_origin` không tồn tại** — phát hiện ở lượt rà
   2026-08-16, cả Blind Hunter lẫn Acceptance Auditor cùng chỉ vào nó độc lập. Doc-comment của
@@ -9160,6 +9183,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `noticeKey`/`tError()` nào nói "dán ít nhất một link trước". Vế "một thông điệp nói đúng
   chuyện gì xảy ra" (đúng nguyên văn nợ gốc) vẫn mở. **Chủ tiếp: story nào chạm lại form nhập
   URL kế tiếp** (ứng viên: Story 6.8 — allowlist domain, cũng chạm cùng form).
+  → ✅ **ĐÃ ĐÓNG 2026-09-11 (Story 6.16) — vế "ba đường nhập file, URL và song ngữ khác nhau
+  CHỈ ở bước đầu vào".** Đường thứ ba (FR115) nay cắm vào ĐÚNG chỗ Story 6.2 để trống:
+  `PipelineShape::Bilingual { input: ChapterInput, delimiter }` (biến thể MỚI, không sửa
+  `Blob`/`Chapters`) cấp `ChapterInput::RawBytes` y hệt hai đường kia; `PIPELINE_ORDER` không
+  đổi một bước. Khác biệt DUY NHẤT là bước 1 (`Step::DecodeEncoding`) table-parse NGAY sau
+  khi giải mã (`core::segment::bilingual::parse_rows`, tái dùng tokenizer RFC 4180 của
+  `core::glossary::exchange`, NFR15 — 0 crate thêm), và bước 5/7 nhóm HÀNG thay vì cắt VỊ TRÍ
+  trên văn bản — cả hai vẫn là những Chương/segment đi ra từ ĐÚNG bảy bước, không một chuỗi
+  song song. Ba đường giờ đối chiếu được thật: `segment_pipeline_boundary.rs` vẫn khoá đúng
+  MỘT chỗ gọi sản phẩm (`run_import`), và `bilingual_import_contract.rs` (mới) chạy toàn bộ
+  §I/O Matrix spec 6.16 qua ĐÚNG `create_work`. Vế "một thông điệp nói đúng chuyện gì xảy ra"
+  của URL rỗng (đoạn ngay trên) KHÔNG thuộc phạm vi story này — vẫn mở, chủ như cũ.
 - ⚠️ **"Màn xem trước luôn hiện kết quả sau TOÀN BỘ chuỗi" (AD-39 spine `:502`) chưa nghiệm thu
   được — bước xem trước có mặt trong thứ tự và đứng đúng chỗ (sau tách Chương, trước tách
   segment, `Step::Preview` trong `PIPELINE_ORDER`), nhưng thân nó RỖNG và chưa có bề mặt IPC/UI
@@ -11419,3 +11454,26 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ca đó xanh; trên CI `macos-26` chúng xanh sẵn. Câu hỏi đổi hình dạng, không đóng: một ca chuyển
   hướng đầu-cuối nay nghiệm thu được ở máy này khi LuLu có đường quyết, và ở CI. **Chủ: Ice** — vẫn
   cần chọn đường nghiệm thu.
+
+- source_spec: `spec-6-16-nhap-tai-lieu-song-ngu-hai-cot.md`
+  summary: "Bilingual import (FR115) does not read Markdown pipe tables (`.md`) — Story 6.16
+  ships `.csv`/`.tsv` only."
+  evidence: "Split at the token gate of Story 6.16 planning (2026-09-11): the four-format spec
+  measured 4 160 tokens (tiktoken `cl100k_base`) against a 1 600 budget and Ice chose to keep
+  `.csv`/`.tsv`. No Markdown table parser exists in the repo, and `.md` is already accepted as
+  prose (`src-tauri/src/core/segment/import.rs:67`), so this also needs a bilingual-mode route for
+  `.md` that leaves the prose path byte-identical. FR115 (`prd.md:371-379`) and Story 6.16 AC1
+  (`epics.md:5243`) still name `.md`."
+  **Chủ: Ice** — decide which story carries it (correct-course, or a follow-up story after 6.16).
+
+- source_spec: `spec-6-16-nhap-tai-lieu-song-ngu-hai-cot.md`
+  summary: "Bilingual import (FR115) does not read `.docx` tables — Story 6.16 ships
+  `.csv`/`.tsv` only."
+  evidence: "Same split as the entry above (2026-09-11, 4 160 tokens vs 1 600). The `.docx`
+  reader flattens every table cell into an independent paragraph block and drops row boundaries
+  (`src-tauri/src/core/docx/mod.rs:182-196`; rows live only in the private
+  `TableContent`/`RowContent`/`CellContent`, `:334-340`), so the reader must expose rows before
+  the bilingual pipeline shape of 6.16 can take `.docx`. `docx_boundary.rs:134` (zero panic
+  points, zero network tokens) applies to that change. Story 6.16 AC1 (`epics.md:5243`) still
+  names `.docx`."
+  **Chủ: Ice** — decide which story carries it (correct-course, or a follow-up story after 6.16).

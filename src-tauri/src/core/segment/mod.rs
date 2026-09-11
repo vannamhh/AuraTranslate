@@ -78,6 +78,7 @@
 //! [`omit`]) loại segment mang vai khỏi dòng văn xuôi của Chế độ đọc.
 
 pub mod anchor;
+pub mod bilingual;
 pub mod chapterpattern;
 pub mod encoding;
 pub mod image;

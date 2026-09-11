@@ -273,7 +273,7 @@ fn line_calls_a_normalize_function(code: &str) -> bool {
 }
 
 #[test]
-fn the_normalize_functions_have_exactly_six_named_product_call_sites() {
+fn the_normalize_functions_have_exactly_eight_named_product_call_sites() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -319,12 +319,21 @@ fn the_normalize_functions_have_exactly_six_named_product_call_sites() {
     // segment tại hai đầu một khối `Caption` (xem doc-comment hàm đó cho lý do KHÔNG refactor
     // `compute_anchor` để dùng chung). Cùng file đã có tên (`core/segment/anchor.rs`), chỉ
     // tổng số chỗ gọi đổi.
+    //
+    // 🔵 SỬA 2026-09-11 (Story 6.16) — từ SÁU lên TÁM: nhánh bilingual của
+    // `Step::NormalizeParagraphsAndWhitespace` (`pipeline.rs`, hình dạng
+    // `PipelineShape::Bilingual`) gọi `normalize::normalize` HAI LẦN — một dòng cho cột nguồn,
+    // một dòng RIÊNG cho cột đích (§Always spec 6.16: "Cleanup and normalize run per cell,
+    // both columns, never across rows" — hai cột là hai lượt gọi, không một lượt gộp). Hai
+    // dòng mã nguồn THỨ HAI và THỨ BA bên trong CHÍNH `core/segment/pipeline.rs`, cùng file đã
+    // có tên — `KNOWN` không đổi, chỉ tổng số chỗ gọi đổi từ sáu lên tám.
     assert_eq!(
         sites.len(),
-        6,
-        "kỳ vọng ĐÚNG 6 chỗ gọi sản phẩm của `normalize::normalize`/`normalize::normalize_window` \
-         (một ở `core/segment/pipeline.rs` bước 4, ba ở `core/segment/encoding.rs` — dải ứng \
-         viên cộng nhánh tự khai, hai ở `core/segment/anchor.rs` — Story 6.11 + Story 6.13), \
+        8,
+        "kỳ vọng ĐÚNG 8 chỗ gọi sản phẩm của `normalize::normalize`/`normalize::normalize_window` \
+         (một ở `core/segment/pipeline.rs` bước 4 đường Blob/Chapters, hai ở CÙNG file cho nhánh \
+         bilingual (cột nguồn + cột đích) — Story 6.16, ba ở `core/segment/encoding.rs` — dải \
+         ứng viên cộng nhánh tự khai, hai ở `core/segment/anchor.rs` — Story 6.11 + Story 6.13), \
          tìm thấy {}:\n{}",
         sites.len(),
         sites.join("\n")
