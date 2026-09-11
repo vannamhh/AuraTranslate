@@ -5516,6 +5516,21 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   `e2e/specs/attribution-focus.e2e.mjs` · chính tệp này). Cùng mã Rust, hai kết quả — đó là
   định nghĩa của chập chờn, không phải của hồi quy. **(Chủ: B7 — cùng chủ với mục cha ngay
   trên, vì đây là một điểm đo CỦA chính câu hỏi đó, không một câu hỏi mới.)**
+- 🔵 **ĐIỂM ĐO THỨ TƯ, 2026-09-11 — một ca THỨ HAI của `store_contract` đỏ trên `windows-2025`, cùng
+  chữ ký `busy`.** Run 34558233051 (`a81e3de`): ngoài ca WAL,
+  `an_idle_pause_triggers_one_passive_checkpoint` (`store_contract.rs:564`) đỏ với "một lượt
+  PASSIVE bị chặn (`busy != 0`)", chẩn đoán `store[global] wal_checkpoint(PASSIVE) blocked: busy=1
+  log=-1 checkpointed=-1`. Run 34553274876 (`b364309`) ngay trước chỉ đỏ ca WAL (16 xanh / 1 đỏ);
+  `git diff --stat b364309 a81e3de` = hai tệp, không tệp nào của tầng Store (`extractor.rs` chỉ đổi
+  chú thích · `tests/webimport_contract.rs`). Cùng mã Store, hai kết quả ⇒ chập chờn, cùng hình
+  dạng giả thuyết ⒜.
+  ⚠️ **Hệ quả phụ, đo trong cùng log:** `ci.yml` chạy `cargo test --locked` KHÔNG `--no-fail-fast`,
+  nên cargo dừng ở binary đỏ đầu tiên. Trên `windows-2025`, `store_contract` là binary thứ 48 và
+  là binary cuối cùng chạy; ba binary đứng sau theo thứ tự chữ cái (`webimport_boundary` ·
+  `webimport_contract` · `webimport_probe`) KHÔNG chạy. Suy từ cùng cơ chế: mọi lượt Windows đỏ ở
+  ca WAL (từ run 33833753206, 2026-09-04) đều dừng cùng chỗ, nên các mệnh đề AD-41/loopback của
+  Epic 6 chưa có một điểm đo Windows. **(Chủ: B7 — cùng chủ với mục cha, cùng cơ chế PASSIVE bị
+  chặn.)**
 - 🔴 **Vì sao nó là một món nợ chứ không một mục đã đóng:** `8a4a060` sửa một phép so **sai hình
   dạng** — nó đúng bất kể câu trên trả lời thế nào. Nhưng nếu câu trả lời là ⒝, thì có một hiệu
   ứng thật của lượt di trú lên nhịp WAL mà **không ai đo**, và nó sẽ lớn dần theo mỗi lượt thêm
@@ -10478,6 +10493,28 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   được: hoặc bỏ hàng đó, hoặc giữ nhánh UI như một hàng rào phòng thủ và ghi rõ nó là đường
   chết có chủ ý. *(Nêu ở vòng rà bước 4 của Story 6.9, lớp verification-gap.)*
 
+- 🔴 **Đối chứng đỏ ② của spec 6.9 MÙ với chính bộ chọn khối nó canh — đo 2026-09-11 bằng phép
+  GỠ.** §Verification spec 6.9 khai đối chứng ② là "văn bản ghép không rỗng và không ngắn hơn
+  đáng kể `text_content`" trên bảy mẫu bàn đo 6.1, và ca thi hành nó
+  (`extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items`) so bằng
+  `joined == text_content`. Đưa `TEXT_BLOCK_TAGS`/`BLOCK_SELECTOR` về bộ chọn vòng 1
+  (`p, img, figcaption`) ⇒ ca đó **XANH** trên cả bảy mẫu thật (unit test selector của lib đỏ cùng
+  lượt, nên không phải một build cũ). Hai cơ chế của `build_blocks` che nó: `exact_gap_before` là
+  TRỌN đoạn `text_content` giữa hai khối giữ liền nhau, nên chữ của heading/`li` không được chọn
+  vẫn lọt vào `joined`; và lưới an toàn (cùng lưới ở mục "Trang 0 khối" ngay trên) đẩy nguyên
+  `text_content` thành một khối, nên "không 0 khối" đúng sẵn cho trang 0 `<p>`.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-11 (`a81e3de`).** Cổng chạy mặc định nay hỏi ở tầng KHỐI, trên
+  fixture tự viết commit được:
+  `webimport_contract.rs::extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures`
+  — đỏ ở cả vế bài viết lẫn vế trang chủ khi gỡ bộ chọn như trên, xanh khi trả lại. Ca bảy mẫu
+  thật thành `#[ignore]` (bảy mẫu có bản quyền, không commit; CI run 34553274876 đỏ vì thiếu tệp).
+  **Còn hở:** (a) ca `#[ignore]` bảy mẫu vẫn chỉ so văn bản nên vẫn mù với bộ chọn trên dữ liệu
+  THẬT; (b) chữ trong phần tử KHÔNG thuộc `TEXT_BLOCK_TAGS` (ví dụ `td`, `dt`/`dd`) chỉ tới được
+  `joined` qua khoảng đệm, không thành một khối sửa được — CHƯA đếm trên trang thật; phép đo: đếm
+  các khối giữ có `exact_gap_before` mang ký tự không phải khoảng trắng trên bảy mẫu;
+  (c) §Verification spec 6.9 vẫn ghi đối chứng ② theo mệnh đề văn bản. **Chủ: Ice** — spec đã
+  `done`, sửa bản ghi của nó là quyết định của Ice.
+
 ## Deferred from: 6-10-bo-loc-can-xem (2026-09-08)
 
 - ⚠️ **`check-panel-refs.mjs::FILE_FLOOR = 39` đã lỗi thời — số THẬT hôm nay là 63 tệp `.ts`
@@ -10569,6 +10606,31 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tay**, đúng loại đánh đổi mà `AGENTS.md` bắt viết ra chứ không lặng lẽ làm; ③ giữ nguyên và
   chấp nhận rằng nghiệm thu nhóm ca này chỉ tin được trên CI Linux/Windows, kèm một dòng ghi
   ở `AGENTS.md` để người sau không mất một buổi truy nguyên như lượt này.
+  → ⚠️ **SỬA NGUYÊN NHÂN 2026-09-11 — không phải Application Firewall, mà là LuLu.** Chữ cũ ở
+  trên giữ nguyên; phép đo dưới đây lật TÊN nguyên nhân, không lật món nợ. Cùng 28 ca
+  (`asset_contract` 12 · `webimport_contract` 15 · `segment_role_contract` 1, mọi ca `Timeout`
+  tới `127.0.0.1`), mỗi lượt đổi đúng một biến:
+  ① tắt Application Firewall (`--getglobalstate` = State 0) ⇒ VẪN đỏ, và `git push` VẪN bị chặn;
+  ② ngắt Surfshark VPN (LuLu còn bật) ⇒ VẪN đỏ, `a_kept_image_…` 44,7 s;
+  ③ tắt LuLu (`preferences.plist` `disabled = true`) ⇒ XANH, và `pre-push` qua đủ 14 bước
+  (`b69a345..b364309`). Lượt push kế tiếp: LuLu tắt, Surfshark kết nối, firewall bật ⇒ vẫn xanh
+  (`b364309..a81e3de`).
+  Cơ chế đọc từ log `process CONTAINS "lulu"`: `invalid code signing information for
+  …/target/debug/deps/<binary>` rồi hàng loạt `No current verdict available`. LuLu ở
+  `passiveMode = 0`, `noIconMode = 1`, và tiến trình giao diện KHÔNG chạy ⇒ hộp thoại Allow/Block
+  không bao giờ hiện, kết nối treo tới hết `REQUEST_TIMEOUT`. `rules.plist` có luật cho các binary
+  test cũ theo TỪNG hash (ví dụ `webimport_probe-0040e12cc82364d1`) — nên lời giải thích khả dĩ
+  nhất cho "chạy lại cùng binary thì xanh" ở hai quan sát trên là một lượt bấm Allow xen giữa,
+  CHƯA đo. Hôm nay phép "chạy lại cùng binary" cho 12 đỏ cả hai lượt, và một binary CŨ
+  (`asset_contract-c34bf5bc3779af6a`, dựng trước commit 6.12) cũng đỏ đúng 12 ca ⇒ không phải mã.
+  Chưa giải thích được: một binary Rust tối giản chưa ký (`std::net`, không `reqwest`) chạy trọn
+  vòng loopback trong 18 ms dù LuLu cũng log nó.
+  Trên CI `macos-26` (run 34553274876) cả ba binary xanh phần loopback: `asset_contract` 19/19 ·
+  `segment_role_contract` 15/15 · `webimport_contract` 32/33 (ca đỏ duy nhất là ca fixture không
+  commit, không phải loopback).
+  Lựa chọn ① ở trên đổi nội dung theo nguyên nhân mới: cho LuLu một đường quyết (chạy giao diện
+  LuLu để bấm Allow — luật theo hash nên mỗi lượt biên dịch lại sẽ hỏi lại; hoặc bật
+  `passiveMode`); ② và ③ giữ nguyên. **Chủ: Ice.**
 
 ## Deferred from: spec-6-10-bo-loc-can-xem — vòng rà đối kháng bước 4 (2026-09-08)
 
@@ -11351,3 +11413,9 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đó không nghiệm thu xanh được ở đây, nên thêm nó là ghi một mệnh đề chưa ai kiểm."
   chủ: Ice — cần quyết định đường nghiệm thu trước: sửa điều kiện làm bộ loopback xanh lại trên
   máy này, hay chấp nhận ca đó chỉ được canh ở CI. Story nào nhận cũng phải nhận cùng câu hỏi.
+  → 🔵 **NỐI TIẾP 2026-09-11 — điều kiện làm bộ loopback đỏ trên máy này đã có tên: LuLu, không
+  phải mã và không phải Application Firewall** (phép đo ở §`6-10-bo-loc-can-xem`, mục
+  "`cargo test --locked` trên máy Ice CÓ LÚC đỏ…", dòng `→ ⚠️ SỬA NGUYÊN NHÂN`). Tắt LuLu thì 28
+  ca đó xanh; trên CI `macos-26` chúng xanh sẵn. Câu hỏi đổi hình dạng, không đóng: một ca chuyển
+  hướng đầu-cuối nay nghiệm thu được ở máy này khi LuLu có đường quyết, và ở CI. **Chủ: Ice** — vẫn
+  cần chọn đường nghiệm thu.
