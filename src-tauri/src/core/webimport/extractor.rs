@@ -38,7 +38,8 @@
 //!    tham lam gán nó vào đó, đẩy con trỏ vượt qua ~1920 ký tự nội dung THẬT đứng TRƯỚC —
 //!    30 đoạn văn thật liền sau đó không còn tìm thấy gì (con trỏ đã đi qua), bị gắn nhầm
 //!    `ornament`. Đối chứng đo: `extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items`
-//!    (`webimport_contract.rs`) đỏ ở đúng mẫu này trước bản vá. Đường sửa KHÔNG một hằng
+//!    (`webimport_contract.rs`, `#[ignore]` từ 2026-09-11 vì bảy mẫu không commit được) đỏ ở
+//!    đúng mẫu này trước bản vá. Đường sửa KHÔNG một hằng
 //!    ngưỡng: [`assign_matches_by_max_weight_order_preserving_dp`] tìm phép gán TOÀN CỤC tối
 //!    ưu — trong mọi cách gán mỗi khối vào MỘT trong các vị trí khớp CHÍNH XÁC của nó sao cho
 //!    thứ tự (theo chỉ số khối) được giữ và các dải không đè nhau, chọn cách gán TỐI ĐA HOÁ
@@ -573,6 +574,11 @@ fn assign_matches_by_max_weight_order_preserving_dp(
 // `TEXT_BLOCK_TAGS`/`BLOCK_SELECTOR`) chỉ được chạm GIÁN TIẾP qua bảy mẫu bàn đo 6.1 trong
 // `webimport_contract.rs` — đủ để bắt một hồi quy TRÊN BẢY MẪU ĐÓ, không đủ để khoá riêng
 // TỪNG quy tắc bằng một fixture tối giản, tự giải thích.
+// 🔴 ĐO 2026-09-11 — với riêng cặp `TEXT_BLOCK_TAGS`/`BLOCK_SELECTOR`, bảy mẫu đó KHÔNG bắt được
+// cả trên chính chúng. Đưa cặp này về bộ chọn vòng 1 (`p, img, figcaption`) thì ca bảy mẫu vẫn
+// XANH: `exact_gap_before` chở chữ của khối không được chọn vào `joined`, và lưới an toàn của
+// `build_blocks` đỡ trang 0 `<p>`. Cổng thật cho cặp này hỏi ở tầng KHỐI, trên fixture tự viết:
+// `webimport_contract.rs::extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures`.
 // ═════════════════════════════════════════════════════════════════════════════════
 #[cfg(test)]
 mod tests {

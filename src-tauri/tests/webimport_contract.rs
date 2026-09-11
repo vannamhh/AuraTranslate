@@ -1313,7 +1313,17 @@ fn fixture_text_content(html: &str, url: &str) -> String {
 /// cơ chế), và trên một trang TOÀN nhãn ngắn như thế này, phần "bỏ" đó cộng dồn thành gần một
 /// nửa. Không một hằng ngưỡng nào (60% hay khác) có nghĩa thật ở đây — ca này giữ ĐÚNG hai
 /// đối chứng mà spec đòi cho `a07` (không 0 khối, văn bản ghép không rỗng), không hơn.
+///
+/// ⚠️ **`#[ignore]` từ 2026-09-11 — ca này KHÔNG chạy được trên CI.** Bảy mẫu nằm trong
+/// `6-1-ban-do/fixtures/html/`, thư mục `6-1-ban-do/.gitignore` loại có chủ ý (README: "nội
+/// dung có bản quyền, không commit"). Lượt push đầu tiên đưa ca này lên CI (run `34553274876`)
+/// đỏ trên `macos-26` với `No such file or directory`; trên máy dev nó xanh chỉ vì cache có sẵn.
+/// Mệnh đề nó canh nay chạy MẶC ĐỊNH trên fixture tự viết ở
+/// [`extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures`];
+/// ca này ở lại làm bàn đo trên dữ liệu THẬT. Chạy tay:
+/// `cargo test --test webimport_contract -- --ignored extract_covers_all_seven`
 #[test]
+#[ignore = "ban do can bay trang HTML THAT o 6-1-ban-do/fixtures/html (gitignore vi co ban quyen), khong co tren CI"]
 fn extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items() {
     for name in ["a01.html", "a02.html", "a03.html", "a04.html", "a05.html", "a06.html", "a07.html"] {
         let html = fixture_html(name);
@@ -1338,6 +1348,196 @@ fn extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items
              text_content -- đây là AC 'trùng đúng đầu ra Story 6.7', không phải một sàn %"
         );
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Đối chứng đỏ ② trên fixture TỰ VIẾT, commit được — chạy mặc định, kể cả trên CI
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Trang BÀI VIẾT tự viết, không chép từ nguồn nào — cùng hình dạng a01-a06 mà ca `#[ignore]`
+/// ở trên đo: `h2`/`h3`, danh sách `<li>`, `blockquote`, `pre` xen giữa các `<p>`, cộng điều
+/// hướng và chân trang mà Readability phải loại.
+const HAND_WRITTEN_ARTICLE_HTML: &str = r#"<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Ghi chép về cách ủ trà xanh tại nhà</title></head>
+<body>
+<header>
+  <nav>
+    <ul>
+      <li><a href="/">Trang chủ</a></li>
+      <li><a href="/chuyen-muc/do-uong">Đồ uống</a></li>
+      <li><a href="/lien-he">Liên hệ</a></li>
+    </ul>
+  </nav>
+</header>
+<main>
+  <article>
+    <h1>Ghi chép về cách ủ trà xanh tại nhà</h1>
+    <p>Bài ghi chép này được viết riêng làm dữ liệu kiểm thử cho bộ bóc nội dung. Nội dung không chép từ bất kỳ trang nào; mọi con số trong bài chỉ là ví dụ minh hoạ, không phải lời khuyên.</p>
+    <h2>Chuẩn bị nước và ấm</h2>
+    <p>Nước dùng để ủ trà nên được đun sôi rồi để nguội bớt trong vài phút. Ấm được tráng qua bằng nước nóng để giữ nhiệt đều, tránh làm lá trà bị sốc nhiệt ở lượt rót đầu tiên.</p>
+    <ul>
+      <li>Một ấm sứ hoặc ấm đất nhỏ, dung tích vừa đủ cho hai chén.</li>
+      <li>Khoảng một thìa đầy lá trà khô cho mỗi lượt ủ.</li>
+      <li>Nước đã đun sôi và để nguội bớt chừng ba phút.</li>
+    </ul>
+    <h3>Vì sao không dùng nước đang sôi</h3>
+    <p>Nước quá nóng làm nước trà nhanh chát và mất mùi thơm nhẹ vốn có của lá. Người mới tập ủ trà thường chỉ nhận ra khác biệt này khi pha thử hai ấm cạnh nhau.</p>
+    <blockquote>Uống chậm một chén trà ngon còn hơn uống vội cả một ấm lớn.</blockquote>
+    <h2>Ghi lại từng lượt ủ</h2>
+    <p>Mỗi lượt ủ nên được ghi lại theo cùng một khuôn để về sau dễ so sánh. Bảng ghi dưới đây dùng ba cột đơn giản: lượt, thời gian ủ và nhận xét ngắn.</p>
+    <pre>luot 1 | 40 giay | thom nhe
+luot 2 | 60 giay | dam hon</pre>
+    <p>Sau vài tuần ghi chép đều đặn, người pha sẽ tự tìm được thời gian ủ hợp với khẩu vị của mình mà không cần dựa vào bất kỳ công thức cố định nào.</p>
+  </article>
+</main>
+<footer>
+  <p>Trang ghi chép cá nhân, dữ liệu kiểm thử tự viết.</p>
+</footer>
+</body>
+</html>
+"#;
+
+/// Trang CHỦ tự viết — cùng hình dạng a07: **0** thẻ `<p>`, nội dung chỉ gồm tiêu đề, mục danh
+/// sách và `div` lá mang nhãn ngắn.
+const HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML: &str = r#"<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Sổ tay đồ uống</title></head>
+<body>
+<div id="khung">
+  <div class="dau-trang">
+    <ul class="menu">
+      <li><a href="/">Trang chủ</a></li>
+      <li><a href="/tra">Trà</a></li>
+      <li><a href="/ca-phe">Cà phê</a></li>
+    </ul>
+  </div>
+  <div class="noi-dung">
+    <h2>Mới cập nhật</h2>
+    <ul class="danh-sach">
+      <li><a href="/tra/u-tra-xanh">Ghi chép về cách ủ trà xanh tại nhà</a> <span>2 giờ trước</span></li>
+      <li><a href="/tra/tra-o-long">Ba lượt ủ đầu tiên của một ấm trà ô long</a> <span>5 giờ trước</span></li>
+      <li><a href="/ca-phe/pha-phin">Pha cà phê phin chậm cho buổi sáng cuối tuần</a> <span>1 ngày trước</span></li>
+      <li><a href="/tra/tra-lanh">Làm trà lạnh từ lá trà khô trong tủ mát</a> <span>2 ngày trước</span></li>
+    </ul>
+    <h2>Đọc nhiều</h2>
+    <div class="the">
+      <h3>Cách chọn ấm cho người mới bắt đầu</h3>
+      <div class="tom-tat">Một chiếc ấm nhỏ bằng sứ trắng giúp nhìn rõ màu nước trà ở từng lượt ủ, nhờ vậy dễ nhận ra lúc nước bắt đầu đậm quá mức mong muốn.</div>
+    </div>
+    <div class="the">
+      <h3>Nước máy, nước lọc hay nước suối</h3>
+      <div class="tom-tat">So sánh ngắn ba loại nước quen thuộc khi dùng để ủ cùng một loại lá trà, với cùng nhiệt độ và cùng thời gian ủ cho mỗi lượt.</div>
+    </div>
+    <div class="the">
+      <h3>Bảo quản lá trà khô qua mùa nồm</h3>
+      <div class="tom-tat">Đựng lá trà trong hộp kín, tránh ánh nắng trực tiếp và tránh để gần các loại gia vị có mùi mạnh trong bếp.</div>
+    </div>
+  </div>
+  <div class="chan-trang">Sổ tay đồ uống, dữ liệu kiểm thử tự viết.</div>
+</div>
+</body>
+</html>
+"#;
+
+/// 🔴 **Đối chứng đỏ ② trên fixture tự viết** — cùng mệnh đề với
+/// [`extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items`] (bản đó
+/// cần bảy trang THẬT không commit được, nên `#[ignore]`): bộ chọn khối phủ heading/`li`/
+/// `blockquote`/`pre`, và một trang **0** `<p>` không cho 0 khối.
+///
+/// Tiền điều kiện được assert TRƯỚC, không mặc định: nếu chữ của heading/`li`/`blockquote`/`pre`
+/// KHÔNG có trong `text_content` thì phép so `joined == text_content` đúng sẵn ngay cả với bộ
+/// chọn vòng 1 (`p, img, figcaption`) — ca xanh mà không canh gì.
+#[test]
+fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures() {
+    for tag in ["<h2", "<h3", "<li", "<blockquote", "<pre"] {
+        assert!(HAND_WRITTEN_ARTICLE_HTML.contains(tag), "fixture bai viet phai co {tag}");
+    }
+    assert!(
+        !HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML.contains("<p"),
+        "fixture trang chu phai co DUNG 0 the <p> -- do chinh la hinh dang a07"
+    );
+
+    // ── Trang bài viết — trùng TỪNG KÝ TỰ với `text_content`, như a01-a06.
+    let url = "https://example.com/bai-viet-tu-viet";
+    let blocks = extract(HAND_WRITTEN_ARTICLE_HTML, url).unwrap_or_else(|e| panic!("bai viet: extract that bai: {e:?}"));
+    assert!(!blocks.is_empty(), "bai viet: phai cho it nhat mot khoi");
+
+    let text_content = fixture_text_content(HAND_WRITTEN_ARTICLE_HTML, url);
+    for must_survive in [
+        "Chuẩn bị nước và ấm",
+        "Vì sao không dùng nước đang sôi",
+        "Khoảng một thìa đầy lá trà khô cho mỗi lượt ủ.",
+        "Uống chậm một chén trà ngon còn hơn uống vội cả một ấm lớn.",
+        "luot 2 | 60 giay | dam hon",
+    ] {
+        assert!(
+            text_content.contains(must_survive),
+            "tien dieu kien: text_content cua Readability phai giu {must_survive:?} -- neu khong, \
+             phep so ben duoi dung san ca voi bo chon chi co <p>: {text_content:?}"
+        );
+    }
+
+    let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
+    let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+    assert_eq!(
+        joined, text_content,
+        "bai viet: van ban ghep tu khoi (0 override) phai trung DUNG TUNG KY TU voi text_content"
+    );
+
+    // 🔴 Phép so `joined == text_content` ở trên MÙ với bộ chọn khối. `exact_gap_before` là TRỌN
+    // đoạn `text_content` giữa hai khối giữ liền nhau, không chỉ khoảng trắng, nên chữ của một
+    // heading/`li` KHÔNG được chọn làm khối vẫn lọt vào `joined` qua khoảng đệm của `<p>` kế
+    // tiếp. Đo 2026-09-11 bằng phép GỠ: đưa `TEXT_BLOCK_TAGS`/`BLOCK_SELECTOR` về vòng 1
+    // (`p, img, figcaption`) thì ca này XANH khi chỉ có phép so văn bản — cả ca `#[ignore]` bảy
+    // mẫu thật ở trên cũng xanh. Mệnh đề về bộ chọn phải hỏi ở tầng KHỐI.
+    let kept = kept_text_bodies(&blocks);
+    for own_block in [
+        "Chuẩn bị nước và ấm",
+        "Vì sao không dùng nước đang sôi",
+        "Khoảng một thìa đầy lá trà khô cho mỗi lượt ủ.",
+        "Uống chậm một chén trà ngon còn hơn uống vội cả một ấm lớn.",
+    ] {
+        assert!(
+            kept.contains(&own_block),
+            "bai viet: {own_block:?} phai la MOT khoi dang giu cua CHINH NO -- bo chon khoi khong phu the do: {kept:?}"
+        );
+    }
+    assert!(
+        kept.iter().any(|t| t.starts_with("luot 1 | 40 giay")),
+        "bai viet: khoi <pre> phai la MOT khoi dang giu cua chinh no: {kept:?}"
+    );
+
+    // ── Trang chủ 0 `<p>` — hai đối chứng spec đòi cho a07: không 0 khối, văn bản không rỗng.
+    let url = "https://example.com/trang-chu-tu-viet";
+    let blocks = extract(HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML, url)
+        .unwrap_or_else(|e| panic!("trang chu: extract that bai: {e:?}"));
+    assert!(!blocks.is_empty(), "trang chu 0 <p>: phai cho it nhat mot khoi -- truoc ban va 6.9 no cho 0 khoi");
+    let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
+    let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+    assert!(!joined.trim().is_empty(), "trang chu 0 <p>: van ban ghep tu khoi dang giu khong duoc rong");
+
+    // 🔴 Hai assert trên cũng MÙ: khi không còn khối giữ nào, lưới an toàn của `build_blocks` đẩy
+    // NGUYÊN `text_content` thành một khối — "không 0 khối" đúng sẵn. Hỏi thẳng: lưới đó KHÔNG
+    // được là thứ đỡ trang này.
+    let home_text_content = fixture_text_content(HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML, url);
+    let kept = kept_text_bodies(&blocks);
+    assert!(
+        kept.len() >= 2 && !kept.contains(&home_text_content.as_str()),
+        "trang chu 0 <p>: phai co it nhat HAI khoi dang giu tu chinh bo chon, khong phai mot khoi luoi an toan chua nguyen text_content: {kept:?}"
+    );
+}
+
+/// Thân chữ của mọi khối `Paragraph`/`Caption` đang `machine_kept`, theo thứ tự tài liệu.
+fn kept_text_bodies(blocks: &[auratranslate_lib::core::webimport::Block]) -> Vec<&str> {
+    blocks
+        .iter()
+        .filter(|b| b.machine_kept)
+        .filter_map(|b| match &b.body {
+            BlockBody::Paragraph(t) | BlockBody::Caption(t) => Some(t.as_str()),
+            BlockBody::Image { .. } => None,
+        })
+        .collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
