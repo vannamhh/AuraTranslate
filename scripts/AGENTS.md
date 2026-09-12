@@ -5,6 +5,8 @@
 
 Thirteen `check:*` gates enforce declarative claims across the WHOLE TREE (*"no hard-coded colour anywhere"*) — a role no single test can carry. Adding a gate means editing THREE lists: `package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push`, and `check:gates` guards all three.
 
+⚠️ `test-story.mjs` lives here but is NOT a gate — it is the scoped dev loop (`npm run test:story <id>`), so none of the rules below apply to it and it must stay OUT of the three lists. It has no population floor and no self-check by design: it never issues a verdict, it only selects which tests to run. Nothing may depend on its exit code as a quality signal; `pre-push` remains the gate.
+
 ## Conventions that differ from defaults
 
 - The exit code is the verdict. No gate logs and carries on.
