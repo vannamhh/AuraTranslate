@@ -611,12 +611,34 @@ export async function confirmImportWithEncoding(
 // clone byte đã cất lúc mở, không đọc lại tệp.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Một hàng lệch cặp — khớp `commands::project::BilingualMismatchWire`. */
+/** Một hàng lệch cặp — khớp `commands::project::BilingualMismatchWire`. Mở rộng Story 6.17
+ * (FR116): bốn trường sau đủ dữ kiện để dựng màn quy nhóm mà không cần hỏi lại Rust cho mỗi
+ * lượt render — xem doc-comment cùng tên phía Rust (`core::segment::bilingual`). */
 export type BilingualMismatchWire = {
   chapter_index: number
   row_number: number
-  source_sentence_count: number
+  source_sentences: string[]
+  target_line: string
+  /** Số câu đích MÁY đã tách — Rust tính, KHÔNG suy từ `initial_cuts.length + 1` ở đây: hai
+   * con số đó lệch nhau đúng ở hàng "Skip blank target" (0 câu đích cho `initial_cuts = []`,
+   * và `0 + 1 = 1` là sai). Dùng trường này khi cần biết "còn bao nhiêu câu đích" của một
+   * hàng, ví dụ tổng số câu bị bỏ khi hàng đó được đánh dấu Skip. */
   target_sentence_count: number
+  candidate_positions: number[]
+  initial_cuts: number[]
+  proposed_cuts: number[]
+}
+
+/** Một lượt quy nhóm gửi lên Rust — khớp `commands::project::BilingualRegroupingWire`.
+ * `source_sentences`/`target_line` là ẢNH CHỤP echo lại NGUYÊN VẸN từ `BilingualMismatchWire`
+ * lúc nó được tạo — Rust so khớp lại với hàng THẬT trước khi áp (staleness check, Story
+ * 6.17). `cuts` bị Rust bỏ qua khi `kind === 'skip'`. */
+export type BilingualRegroupingInput = {
+  row_number: number
+  source_sentences: string[]
+  target_line: string
+  kind: 'cuts' | 'skip'
+  cuts: number[]
 }
 
 /** Kết quả chạy TRỌN chuỗi bảy bước cho MỘT ứng viên bảng mã — khớp
@@ -628,6 +650,11 @@ export type BilingualEncodingCandidateWire = {
   row_count: number
   chapter_count: number
   pair_count: number
+  /** Tổng câu đích của mọi hàng đã giải quyết bằng "Bỏ qua hàng này" (nguồn rỗng) khi ứng
+   * viên này chạy TRỌN chuỗi — Rust tính lại MỖI LƯỢT (cạnh `pair_count`), SỐNG SÓT qua chính
+   * hàng đã biến mất khỏi `mismatches` ngay khi được giải quyết. KHÔNG suy được từ
+   * `mismatches` — hàng Skip không còn ở đó nữa. */
+  skipped_target_sentence_count: number
   mismatches: BilingualMismatchWire[]
 }
 
@@ -653,14 +680,22 @@ const CMD_PREVIEW_BILINGUAL_FROM_FILE = 'preview_bilingual_import_from_file'
 const CMD_REBUILD_BILINGUAL_PREVIEW = 'rebuild_bilingual_import_preview'
 const CMD_CONFIRM_BILINGUAL_IMPORT = 'confirm_bilingual_import'
 
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((cell) => typeof cell === 'number')
+}
+
 function isBilingualMismatchWire(value: unknown): value is BilingualMismatchWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<BilingualMismatchWire>
   return (
     typeof v.chapter_index === 'number' &&
     typeof v.row_number === 'number' &&
-    typeof v.source_sentence_count === 'number' &&
-    typeof v.target_sentence_count === 'number'
+    isStringRow(v.source_sentences) &&
+    typeof v.target_line === 'string' &&
+    typeof v.target_sentence_count === 'number' &&
+    isNumberArray(v.candidate_positions) &&
+    isNumberArray(v.initial_cuts) &&
+    isNumberArray(v.proposed_cuts)
   )
 }
 
@@ -674,6 +709,7 @@ function isBilingualEncodingCandidateWire(value: unknown): value is BilingualEnc
     typeof v.row_count === 'number' &&
     typeof v.chapter_count === 'number' &&
     typeof v.pair_count === 'number' &&
+    typeof v.skipped_target_sentence_count === 'number' &&
     Array.isArray(v.mismatches) &&
     v.mismatches.every(isBilingualMismatchWire)
   )
@@ -716,6 +752,8 @@ export async function previewBilingualImportFromFile(
       sourceColumn,
       targetColumn,
       hasHeader,
+      // Lượt MỞ luôn bắt đầu 0 quy nhóm — chưa hàng lệch cặp nào từng hiện ra để mà sửa.
+      regroupings: [] as BilingualRegroupingInput[],
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(
@@ -747,6 +785,7 @@ export async function rebuildBilingualImportPreview(
   sourceColumn: number,
   targetColumn: number,
   hasHeader: boolean,
+  regroupings: BilingualRegroupingInput[],
 ): Promise<BilingualImportEncodingPreviewResult> {
   try {
     const preview = await invoke<BilingualImportEncodingPreview>(CMD_REBUILD_BILINGUAL_PREVIEW, {
@@ -755,6 +794,7 @@ export async function rebuildBilingualImportPreview(
       sourceColumn,
       targetColumn,
       hasHeader,
+      regroupings,
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(
@@ -787,6 +827,7 @@ export async function confirmBilingualImport(
   sourceColumn: number,
   targetColumn: number,
   hasHeader: boolean,
+  regroupings: BilingualRegroupingInput[],
 ): Promise<CreateWorkResult> {
   return callCreateWork(CMD_CONFIRM_BILINGUAL_IMPORT, {
     name,
@@ -797,6 +838,7 @@ export async function confirmBilingualImport(
     sourceColumn,
     targetColumn,
     hasHeader,
+    regroupings,
   })
 }
 

@@ -247,6 +247,31 @@ export type CommandDeps = {
    * chạy lại preview trên byte ĐÃ CẤT (0 lượt đọc đĩa thêm). */
   swapBilingualColumns?: () => void
 
+  // ── Story 6.17 — khớp câu trong từng cặp hàng lệch, trước khi ghi (FR116) ───────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa/cùng lý do sáu dep của Story 6.9 ngay dưới: `keys: undefined`, chỉ
+  // gọi được từ handler DOM cục bộ của `BilingualImportPreviewOverlay.vue`.
+
+  /** Chuyển tiêu điểm sang hàng lệch cặp kế tiếp (`↓`). Handler của
+   * `import.preview.bilingual_next_mismatch`. */
+  moveToNextBilingualMismatch?: () => void
+  /** Chuyển tiêu điểm sang hàng lệch cặp trước (`↑`). Handler của
+   * `import.preview.bilingual_previous_mismatch`. */
+  moveToPreviousBilingualMismatch?: () => void
+  /** Di caret sang điểm ứng viên TRƯỚC (`←`). Handler của `import.preview.bilingual_caret_left`. */
+  moveBilingualCaretLeft?: () => void
+  /** Di caret sang điểm ứng viên SAU (`→`). Handler của `import.preview.bilingual_caret_right`. */
+  moveBilingualCaretRight?: () => void
+  /** Bật/tắt chỗ cắt tại caret. Handler của `import.preview.bilingual_toggle_cut` — `async`,
+   * chạy lại preview (Rust re-validate). */
+  toggleBilingualCutAtCaret?: () => void
+  /** Áp đề xuất máy cho MỌI hàng lệch cặp đang liệt kê, một lượt. Handler của
+   * `import.preview.bilingual_accept_all_proposals` — `async`. */
+  acceptAllBilingualProposals?: () => void
+  /** "Bỏ qua hàng này" cho hàng đang lấy tiêu điểm. Handler của
+   * `import.preview.bilingual_skip_row` — `async`. */
+  skipActiveBilingualRow?: () => void
+
   // ── Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123) ─────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `cancelImportPreview`: state sống ở
@@ -1250,6 +1275,92 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.bilingual_swap_columns', 'swapBilingualColumns')
       }
       deps.swapBilingualColumns()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.17 — KHỚP CÂU TRONG TỪNG CẶP HÀNG LỆCH, TRƯỚC KHI GHI (FR116)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * Bảy lệnh, tất cả `keys: undefined` — cùng khuôn sáu lệnh Story 6.9 ngay dưới: một hợp âm
+   * toàn cục là không an toàn (`isTypingZone` không phủ `<button>`), nên `BilingualImportPreviewOverlay.vue`
+   * gắn một handler DOM cục bộ trên scrim và `dispatch()` từng id này.
+   */
+  target.register({
+    id: 'import.preview.bilingual_next_mismatch',
+    labelKey: 'command.import.preview.bilingual_next_mismatch',
+    keys: undefined,
+    run: () => {
+      if (deps.moveToNextBilingualMismatch === undefined) {
+        return portMissing('import.preview.bilingual_next_mismatch', 'moveToNextBilingualMismatch')
+      }
+      deps.moveToNextBilingualMismatch()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_previous_mismatch',
+    labelKey: 'command.import.preview.bilingual_previous_mismatch',
+    keys: undefined,
+    run: () => {
+      if (deps.moveToPreviousBilingualMismatch === undefined) {
+        return portMissing('import.preview.bilingual_previous_mismatch', 'moveToPreviousBilingualMismatch')
+      }
+      deps.moveToPreviousBilingualMismatch()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_caret_left',
+    labelKey: 'command.import.preview.bilingual_caret_left',
+    keys: undefined,
+    run: () => {
+      if (deps.moveBilingualCaretLeft === undefined) {
+        return portMissing('import.preview.bilingual_caret_left', 'moveBilingualCaretLeft')
+      }
+      deps.moveBilingualCaretLeft()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_caret_right',
+    labelKey: 'command.import.preview.bilingual_caret_right',
+    keys: undefined,
+    run: () => {
+      if (deps.moveBilingualCaretRight === undefined) {
+        return portMissing('import.preview.bilingual_caret_right', 'moveBilingualCaretRight')
+      }
+      deps.moveBilingualCaretRight()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_toggle_cut',
+    labelKey: 'command.import.preview.bilingual_toggle_cut',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleBilingualCutAtCaret === undefined) {
+        return portMissing('import.preview.bilingual_toggle_cut', 'toggleBilingualCutAtCaret')
+      }
+      deps.toggleBilingualCutAtCaret()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_accept_all_proposals',
+    labelKey: 'command.import.preview.bilingual_accept_all_proposals',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptAllBilingualProposals === undefined) {
+        return portMissing('import.preview.bilingual_accept_all_proposals', 'acceptAllBilingualProposals')
+      }
+      deps.acceptAllBilingualProposals()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_skip_row',
+    labelKey: 'command.import.preview.bilingual_skip_row',
+    keys: undefined,
+    run: () => {
+      if (deps.skipActiveBilingualRow === undefined) {
+        return portMissing('import.preview.bilingual_skip_row', 'skipActiveBilingualRow')
+      }
+      deps.skipActiveBilingualRow()
     },
   })
 

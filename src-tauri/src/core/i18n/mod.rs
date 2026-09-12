@@ -621,6 +621,12 @@ message_keys! {
     /// Đuôi tệp không phải `.csv`/`.tsv` — chế độ song ngữ chỉ nhận hai đuôi này (§Boundaries:
     /// "Scope: .csv và .tsv only").
     ImportBilingualUnsupportedFormat => "err.import.bilingual_unsupported_format" ["format"],
+
+    // ── Story 6.17 (FR116) — khớp câu trong từng cặp hàng lệch, trước khi ghi ──────────
+    /// Webview gửi "Bỏ qua hàng này" cho một hàng mà cả hai phía đều có câu — vi phạm hợp
+    /// đồng, không một trạng thái người dùng tạo ra được qua đường sản phẩm (§Never: "No skip
+    /// on a row whose two sides both have at least one sentence").
+    ImportBilingualSkipNotAllowed => "err.import.bilingual_skip_not_allowed" ["row"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

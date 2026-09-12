@@ -72,7 +72,7 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
     None,
     Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
-None)
+None, &[])
     .expect("tao OpenWork that bai")
 }
 
@@ -107,7 +107,7 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
     None,
     Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
-None)
+None, &[])
     .expect("tao tac pham that bai");
 
     assert_eq!(read_source_text(&opened), "một đoạn văn nguyên vẹn");
@@ -145,7 +145,7 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
     None,
     Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
-None)
+None, &[])
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -185,7 +185,7 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
     None,
     Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
-None)
+None, &[])
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -769,7 +769,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
     None,
     Vec::new(), 0, 1, false, &[],
 &std::sync::Mutex::new(Vec::new()),
-None)
+None, &[])
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
          sau khi luat xoa sach no -- xem ghi chu tai cho khai bao ham test nay",

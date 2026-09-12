@@ -1238,7 +1238,7 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
         None,
         Vec::new(), 0, 1, false, &[],
         &domain_log_state,
-        None)
+        None, &[])
     .expect("mot anh bi chan KHONG duoc lam trot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0, "chuyen huong ra ngoai tang 2 phai bi chan, khong co tep nao duoc luu");

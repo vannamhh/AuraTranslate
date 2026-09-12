@@ -11477,3 +11477,17 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   points, zero network tokens) applies to that change. Story 6.16 AC1 (`epics.md:5243`) still
   names `.docx`."
   **Chủ: Ice** — decide which story carries it (correct-course, or a follow-up story after 6.16).
+
+- source_spec: `spec-6-17-khop-cau-trong-tung-cap-hang.md`
+  summary: "`dict_boundary::the_webview_and_the_string_catalog_hardcode_no_source_identity`
+  panics on any non-UTF-8 file under `src/`, so a Finder `.DS_Store` turns the whole Rust suite
+  red."
+  evidence: "Pre-existing, not caused by Story 6.17: the test walks every file under the webview
+  directory and reads it with `fs::read_to_string(file).unwrap_or_else(|e| panic!(\"đọc {rel}:
+  {e}\"))` (`src-tauri/tests/dict_boundary.rs:966`). Measured 2026-09-12: a `src/.DS_Store`
+  written that day made `cargo test --locked` exit 101 — `dict_boundary` 15 passed / 1 failed,
+  and cargo stopped before the remaining binaries; deleting that one file restored green.
+  `.DS_Store` is git-ignored, so it never appears in a diff and the failure reads like a code
+  regression. Fix: skip dotfiles/non-UTF-8 in that walk, or fail with a named reason instead of
+  a panic."
+  **Chủ: Dev** — fix the walk in the next story that touches `dict_boundary.rs`.

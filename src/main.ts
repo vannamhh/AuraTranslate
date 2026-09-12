@@ -88,9 +88,16 @@ import {
 // một module Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts`. Module
 // RIÊNG — xem doc-comment đầu tệp đó cho lý do không dùng chung với `importPreviewState.ts`.
 import {
+  acceptAllBilingualProposals,
   cancelBilingualImportPreview,
   confirmBilingualImportPreview,
+  moveBilingualCaretLeft,
+  moveBilingualCaretRight,
+  moveToNextBilingualMismatch,
+  moveToPreviousBilingualMismatch,
+  skipActiveBilingualRow,
   swapBilingualColumns,
+  toggleBilingualCutAtCaret,
 } from './bilingualImportPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
@@ -483,6 +490,21 @@ async function boot(): Promise<void> {
       cancelBilingualImportPreview,
       swapBilingualColumns: () => {
         void swapBilingualColumns()
+      },
+      // Story 6.17 — khớp câu trong từng cặp hàng lệch, trước khi ghi (FR116). Bảy hàm,
+      // dispatch chỉ từ handler DOM cục bộ của `BilingualImportPreviewOverlay.vue`.
+      moveToNextBilingualMismatch,
+      moveToPreviousBilingualMismatch,
+      moveBilingualCaretLeft,
+      moveBilingualCaretRight,
+      toggleBilingualCutAtCaret: () => {
+        void toggleBilingualCutAtCaret()
+      },
+      acceptAllBilingualProposals: () => {
+        void acceptAllBilingualProposals()
+      },
+      skipActiveBilingualRow: () => {
+        void skipActiveBilingualRow()
       },
       // Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Sáu hàm THUẦN, cùng cửa và cùng
       // lý do `cancelImportPreview` — không cần một closure `async` gói ở đây, kết quả IPC

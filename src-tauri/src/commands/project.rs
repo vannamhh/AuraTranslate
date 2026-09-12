@@ -379,6 +379,11 @@ pub fn create_work(
     // mọi đường khác (dán tay, `.txt`/`.md`, URL). Xem doc-comment
     // [`crate::core::segment::import::DocxSidecar`] cho giới hạn "chỉ Chương đầu tiên".
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm câu đích người dùng đã làm cho các
+    // hàng lệch cặp của đường song ngữ. Tham số MỖI LƯỢT NHẬP, cùng khuôn `bilingual_source_column`
+    // (§Never: "regroupings travel as a per-call param, like chapter_pattern"), KHÔNG một
+    // `Mutex` override thứ ba. `&[]` cho mọi chỗ gọi không phải đường song ngữ.
+    regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -480,7 +485,8 @@ pub fn create_work(
             .with_chapter_pattern(chapter_pattern)
             .with_extract_main_content(extract_main_content)
             .with_block_overrides(block_overrides)
-            .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header),
+            .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header)
+            .with_bilingual_regroupings(regroupings.to_vec()),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -1440,6 +1446,9 @@ pub fn create_work_from_text(
         &std::sync::Mutex::new(Vec::new()),
         // Văn bản dán tay không bao giờ có một `DocxSidecar` — xem doc-comment kiểu đó.
         None,
+        // Đường dán văn bản không bao giờ là `PipelineShape::Bilingual` — 0 regrouping nào
+        // để mà đọc.
+        &[],
     )
 }
 
@@ -1887,6 +1896,8 @@ pub fn create_work_from_file(
         &[],
         &std::sync::Mutex::new(Vec::new()),
         docx_sidecar,
+        // `import_file` never yields `PipelineShape::Bilingual` — 0 regrouping to read.
+        &[],
     )
 }
 
@@ -3396,6 +3407,8 @@ pub fn confirm_import_with_encoding(
         &origin_overrides,
         domain_log_state,
         docx_sidecar,
+        // Đường văn xuôi/URL không bao giờ mang `PipelineShape::Bilingual` — 0 regrouping.
+        &[],
     )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
@@ -3419,13 +3432,21 @@ pub fn confirm_import_with_encoding(
 // cột/tiêu đề không đọc lại đĩa (§I/O Matrix "Swap columns"/"Header checkbox on": "counts
 // rebuild"/"rebuilds the preview in memory").
 
-/// Một hàng lệch cặp trên dây — Story 6.16.
+/// Một hàng lệch cặp trên dây — Story 6.16, mở rộng Story 6.17 (FR116) với đủ dữ kiện để
+/// webview dựng màn quy nhóm KHÔNG cần hỏi lại Rust: `source_sentences`/`target_line` cũng là
+/// ẢNH CHỤP webview echo lại nguyên vẹn trong [`BilingualRegroupingWire`] (staleness check của
+/// [`crate::core::segment::bilingual::resolve`]); `candidate_positions`/`initial_cuts`/
+/// `proposed_cuts` xem doc-comment các hàm cùng tên ở `core::segment::bilingual`.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BilingualMismatchWire {
     pub chapter_index: usize,
     pub row_number: usize,
-    pub source_sentence_count: usize,
+    pub source_sentences: Vec<String>,
+    pub target_line: String,
     pub target_sentence_count: usize,
+    pub candidate_positions: Vec<usize>,
+    pub initial_cuts: Vec<usize>,
+    pub proposed_cuts: Vec<usize>,
 }
 
 impl From<&crate::core::segment::bilingual::BilingualMismatch> for BilingualMismatchWire {
@@ -3433,8 +3454,48 @@ impl From<&crate::core::segment::bilingual::BilingualMismatch> for BilingualMism
         BilingualMismatchWire {
             chapter_index: m.chapter_index,
             row_number: m.row_number,
-            source_sentence_count: m.source_sentence_count,
+            source_sentences: m.source_sentences.clone(),
+            target_line: m.target_line.clone(),
             target_sentence_count: m.target_sentence_count,
+            candidate_positions: m.candidate_positions.clone(),
+            initial_cuts: m.initial_cuts.clone(),
+            proposed_cuts: m.proposed_cuts.clone(),
+        }
+    }
+}
+
+/// Một lượt quy nhóm trên dây — Story 6.17 (FR116). `kind`/`cuts` tách rời (không một enum
+/// gắn thẻ) — cùng khuôn phẳng [`ChapterPatternWire`] đã theo cho `kind`. `cuts` bị bỏ qua khi
+/// `kind == Skip` (webview gửi `[]`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub enum BilingualRegroupingKindWire {
+    #[serde(rename = "cuts")]
+    Cuts,
+    #[serde(rename = "skip")]
+    Skip,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BilingualRegroupingWire {
+    pub row_number: usize,
+    pub source_sentences: Vec<String>,
+    pub target_line: String,
+    pub kind: BilingualRegroupingKindWire,
+    pub cuts: Vec<usize>,
+}
+
+impl From<BilingualRegroupingWire> for crate::core::segment::bilingual::BilingualRegrouping {
+    fn from(w: BilingualRegroupingWire) -> Self {
+        use crate::core::segment::bilingual::{BilingualRegrouping, BilingualRegroupingAction};
+        let action = match w.kind {
+            BilingualRegroupingKindWire::Cuts => BilingualRegroupingAction::Cuts(w.cuts),
+            BilingualRegroupingKindWire::Skip => BilingualRegroupingAction::Skip,
+        };
+        BilingualRegrouping {
+            row_number: w.row_number,
+            source_sentences: w.source_sentences,
+            target_line: w.target_line,
+            action,
         }
     }
 }
@@ -3450,6 +3511,13 @@ pub struct BilingualEncodingCandidateWire {
     pub row_count: usize,
     pub chapter_count: usize,
     pub pair_count: usize,
+    /// **THÊM (vòng rà đối kháng, Story 6.17, FR116)** — tổng câu đích của mọi hàng đã giải
+    /// quyết bằng Skip (nguồn rỗng) khi ứng viên này chạy TRỌN chuỗi — §I/O Matrix "Skip
+    /// blank source": "count shown in preview". Cạnh `pair_count`, cùng lý do: cả hai đều là
+    /// một tổng TÍNH LẠI mỗi lượt chạy, không suy từ `mismatches` (hàng Skip đã biến mất khỏi
+    /// danh sách đó ngay khi được giải quyết — xem doc-comment
+    /// [`crate::core::segment::pipeline::PipelineOutput::bilingual_skipped_target_sentence_count`]).
+    pub skipped_target_sentence_count: usize,
     pub mismatches: Vec<BilingualMismatchWire>,
 }
 
@@ -3501,6 +3569,11 @@ pub fn preview_bilingual_import(
     bilingual_source_column: usize,
     bilingual_target_column: usize,
     bilingual_has_header: bool,
+    // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm câu đích đang chờ, tham số MỖI
+    // LƯỢT gọi cùng khuôn ba tham số vai cột/tiêu đề ngay trên. `preview_bilingual_import_from_file`
+    // (lượt MỞ đầu tiên) luôn truyền `&[]`; `rebuild_bilingual_import_preview` truyền lại danh
+    // sách hiện hành mỗi lượt người dùng sửa một chỗ cắt.
+    regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
 ) -> Result<BilingualImportEncodingPreview, IpcError> {
     let PipelineShape::Bilingual { input, .. } = shape else {
         // Chỉ `mod wire` dựng `shape` cho hàm này, luôn từ `import_bilingual_file` — nhánh
@@ -3546,7 +3619,8 @@ pub fn preview_bilingual_import(
                                 bilingual_source_column,
                                 bilingual_target_column,
                                 bilingual_has_header,
-                            ),
+                            )
+                            .with_bilingual_regroupings(regroupings.to_vec()),
                     )
                 });
                 let outcome = match result {
@@ -3560,22 +3634,30 @@ pub fn preview_bilingual_import(
                     None => None,
                 };
 
-                let (chapter_count, pair_count, mismatches, row_count, column_count) = match &outcome {
-                    Some(o) => {
-                        let pair_count: usize = o
-                            .chapters
-                            .iter()
-                            .filter_map(|c| c.bilingual_segments.as_ref())
-                            .map(|s| s.len())
-                            .sum();
-                        let mismatches: Vec<BilingualMismatchWire> =
-                            o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect();
-                        let column_count =
-                            o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
-                        (o.chapters.len(), pair_count, mismatches, o.bilingual_row_count, column_count)
-                    }
-                    None => (0, 0, Vec::new(), 0, 0),
-                };
+                let (chapter_count, pair_count, mismatches, row_count, column_count, skipped_target_sentence_count) =
+                    match &outcome {
+                        Some(o) => {
+                            let pair_count: usize = o
+                                .chapters
+                                .iter()
+                                .filter_map(|c| c.bilingual_segments.as_ref())
+                                .map(|s| s.len())
+                                .sum();
+                            let mismatches: Vec<BilingualMismatchWire> =
+                                o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect();
+                            let column_count =
+                                o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
+                            (
+                                o.chapters.len(),
+                                pair_count,
+                                mismatches,
+                                o.bilingual_row_count,
+                                column_count,
+                                o.bilingual_skipped_target_sentence_count,
+                            )
+                        }
+                        None => (0, 0, Vec::new(), 0, 0, 0),
+                    };
 
                 if is_selected && !selected_seen {
                     selected_seen = true;
@@ -3593,6 +3675,7 @@ pub fn preview_bilingual_import(
                     row_count,
                     chapter_count,
                     pair_count,
+                    skipped_target_sentence_count,
                     mismatches,
                 }
             })
@@ -3618,7 +3701,12 @@ pub fn preview_bilingual_import(
 fn is_bilingual_table_refusal(err: &ImportError) -> bool {
     matches!(
         err,
-        ImportError::BilingualTooFewColumns { .. } | ImportError::BilingualUnterminatedQuotedField { .. }
+        ImportError::BilingualTooFewColumns { .. }
+            | ImportError::BilingualUnterminatedQuotedField { .. }
+            // 🔴 THÊM 2026-09-12 (Story 6.17, FR116) — một `Skip` gửi sai (cả hai phía đều có
+            // câu) phải TỚI được webview như một lỗi typed, không bị nuốt cùng khuôn "ứng viên
+            // này không ra chữ" — xem §I/O Matrix "Skip refused".
+            | ImportError::BilingualSkipNotAllowed { .. }
     )
 }
 
@@ -3645,6 +3733,9 @@ pub fn confirm_bilingual_import(
     bilingual_source_column: usize,
     bilingual_target_column: usize,
     bilingual_has_header: bool,
+    // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm câu đích, cùng khuôn ba tham số vai
+    // cột/tiêu đề ngay trên (tham số MỖI LƯỢT, không state).
+    regroupings: Vec<crate::core::segment::bilingual::BilingualRegrouping>,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -3675,6 +3766,7 @@ pub fn confirm_bilingual_import(
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &regroupings,
     )?;
 
     *guard = None;
@@ -6016,6 +6108,9 @@ pub mod wire {
             source_column,
             target_column,
             has_header,
+            // Lượt MỞ luôn bắt đầu 0 quy nhóm — người dùng chưa thấy hàng lệch cặp nào để mà
+            // sửa.
+            &[],
         ) {
             Ok(preview) => preview,
             Err(err) => {
@@ -6049,6 +6144,10 @@ pub mod wire {
         source_column: usize,
         target_column: usize,
         has_header: bool,
+        // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm ĐANG có (mỗi lượt gõ một chỗ
+        // cắt gọi lại vỏ này, cùng khuôn `chapter_pattern`) — Rust re-validate TOÀN BỘ danh
+        // sách này ngay ở đây, đúng chữ "Rust re-validates every regrouping at rebuild".
+        regroupings: Vec<super::BilingualRegroupingWire>,
     ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
@@ -6060,6 +6159,8 @@ pub mod wire {
             guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?
         };
         let cleanup_rules = resolve_cleanup_rules(&app);
+        let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
+            regroupings.into_iter().map(Into::into).collect();
         super::preview_bilingual_import(
             &shape,
             &source_lang,
@@ -6068,6 +6169,7 @@ pub mod wire {
             source_column,
             target_column,
             has_header,
+            &resolved,
         )
     }
 
@@ -6091,6 +6193,10 @@ pub mod wire {
         source_column: usize,
         target_column: usize,
         has_header: bool,
+        // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm ĐANG có, cùng khuôn
+        // `rebuild_bilingual_import_preview` — "Rust re-validates every regrouping ... at
+        // confirm".
+        regroupings: Vec<super::BilingualRegroupingWire>,
     ) -> Result<CreatedWork, IpcError> {
         use tauri::Manager as _;
 
@@ -6101,6 +6207,8 @@ pub mod wire {
         let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         // Đọc hai tầng luật LÚC XÁC NHẬN — cùng kỷ luật `confirm_import_with_encoding`.
         let cleanup_rules = resolve_cleanup_rules(&app);
+        let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
+            regroupings.into_iter().map(Into::into).collect();
         let opened = super::confirm_bilingual_import(
             &root,
             &pending_state,
@@ -6113,6 +6221,7 @@ pub mod wire {
             source_column,
             target_column,
             has_header,
+            resolved,
         )?;
 
         let created = CreatedWork::from_open(&opened);

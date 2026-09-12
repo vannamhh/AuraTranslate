@@ -623,7 +623,7 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -704,7 +704,7 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         Some(pattern),
         Vec::new(), 0, 1, false, &[],
     &std::sync::Mutex::new(Vec::new()),
-    None)
+    None, &[])
     .expect("tao Tac pham voi mau phan tach that bai");
 
     let rows: Vec<(i64, i64, Option<String>, String, String)> = opened
@@ -805,7 +805,7 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     let shape = chapters_shape_if_all_ok(&items)
         .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
 
-    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None)
+    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
         .expect("tao Tac pham tu danh sach URL that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened

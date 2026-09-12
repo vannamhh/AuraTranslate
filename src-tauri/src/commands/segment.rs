@@ -172,6 +172,17 @@ pub(crate) fn insert_segments(
 /// `status` KHÔNG được khai ở đây — cùng lý do `insert_segments` không khai: `segment.status`
 /// đã có `DEFAULT 'draft'` (`SEGMENT_STATUS_AND_VERSION_DDL`), và `'draft'` LÀ giá trị đúng
 /// cho một hàng vừa nhập (§Always spec 6.16 — "status = 'draft'").
+///
+/// 🔵 **SỬA 2026-09-12 (Story 6.17, FR116) — `translation_origin` không còn HẰNG cho MỌI
+/// hàng.** Trước story này, mọi segment tới đây LUÔN mang một bản dịch thật (nguồn/đích cặp
+/// số câu bằng nhau) nên hằng `TRANSLATION_ORIGIN_BILINGUAL_IMPORT` đúng vô điều kiện. "Bỏ
+/// qua hàng này" (§Always spec 6.17: "the source sentences import untranslated (empty target,
+/// no `bilingual_import` origin)") giờ có thể đưa tới đây một segment với `target_text` RỖNG —
+/// và [`crate::core::segment::bilingual::split_source_text`]/`apply_cuts` không bao giờ sinh
+/// ra một mảnh rỗng cho đường CẶP ĐƯỢC (rỗng sau trim luôn bị từ chối ở đó), nên `target_text
+/// rỗng` là tín hiệu PHÂN BIỆT ĐƯỢC, không đoán: đúng và chỉ đúng cho một segment "chưa dịch"
+/// của lượt Bỏ qua. Origin đi theo tín hiệu đó — cùng hằng `TRANSLATION_ORIGIN_NONE` mà
+/// `insert_segments` (đường văn xuôi) đã dùng cho đúng ý nghĩa "chưa có bản dịch nào để khai".
 pub(crate) fn insert_bilingual_segments(
     tx: &Transaction<'_>,
     chapter_id: i64,
@@ -188,13 +199,15 @@ pub(crate) fn insert_bilingual_segments(
         // AD-46 — cờ đích MIRROR cờ nguồn tại lúc nhập, cùng giá trị ghi vào CẢ hai cột
         // (đúng khuôn `insert_segments`, không một nguồn sự thật thứ hai).
         let paragraph_end = i64::from(segment.is_paragraph_end);
+        let origin =
+            if segment.target_text.is_empty() { TRANSLATION_ORIGIN_NONE } else { TRANSLATION_ORIGIN_BILINGUAL_IMPORT };
         stmt.execute((
             chapter_id,
             ord,
             &segment.source_text,
             paragraph_end,
             paragraph_end,
-            TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+            origin,
             &segment.target_text,
         ))?;
     }

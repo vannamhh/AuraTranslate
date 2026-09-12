@@ -72,7 +72,7 @@
 //! [`run_import`] TRƯỚC khi mở giao dịch ghi — cùng lý do Quyết định #3 cũ của Story 1.15
 //! (AD-11 giữ MỘT writer duy nhất nối tiếp; CPU trong closure ghi chặn MỌI lượt ghi khác).
 
-use super::bilingual::{BilingualMismatch, BilingualRow, BilingualSegment};
+use super::bilingual::{BilingualMismatch, BilingualRegrouping, BilingualRow, BilingualSegment};
 use super::chapterpattern::ChapterPattern;
 use super::import::{ImportError, ImportedChapter};
 use super::normalize;
@@ -303,6 +303,13 @@ pub struct PipelineInput {
     /// hàng 1 bị bỏ TRƯỚC khi tách Chương (§Always: "row 1 is dropped before the chapter
     /// split"). Mặc định `false`.
     pub bilingual_has_header: bool,
+    /// **THÊM 2026-09-12 (Story 6.17, FR116)** — quyết định quy nhóm người dùng đã làm cho các
+    /// hàng lệch cặp, tham số MỖI LƯỢT xem trước/xác nhận — CÙNG khuôn `bilingual_source_column`
+    /// (§Never: "regroupings travel as a per-call param, like chapter_pattern"), KHÔNG một
+    /// `Mutex` override thứ ba. [`split_segments_step`] đọc trường này bằng `row_number`; một
+    /// mục không khớp hàng nào (hàng đã cặp được, hay số hàng không tồn tại) đơn giản không
+    /// bao giờ được đọc tới. Rỗng ⇒ hành vi CŨ y hệt (mọi hàng lệch cặp ở lại danh sách).
+    pub bilingual_regroupings: Vec<BilingualRegrouping>,
 }
 
 impl PipelineInput {
@@ -321,6 +328,7 @@ impl PipelineInput {
             bilingual_source_column: 0,
             bilingual_target_column: 1,
             bilingual_has_header: false,
+            bilingual_regroupings: Vec::new(),
         }
     }
 
@@ -347,6 +355,7 @@ impl PipelineInput {
             bilingual_source_column: 0,
             bilingual_target_column: 1,
             bilingual_has_header: false,
+            bilingual_regroupings: Vec::new(),
         }
     }
 
@@ -399,6 +408,15 @@ impl PipelineInput {
         self.bilingual_has_header = has_header;
         self
     }
+
+    /// **THÊM 2026-09-12 (Story 6.17, FR116)** — builder đính quy nhóm câu đích của đường
+    /// song ngữ, cùng khuôn năm builder trên (không sửa/xoá constructor cũ). Chỉ có ý nghĩa
+    /// khi `shape` là [`PipelineShape::Bilingual`]; mọi chỗ gọi khác giữ mặc định rỗng.
+    #[must_use]
+    pub fn with_bilingual_regroupings(mut self, regroupings: Vec<BilingualRegrouping>) -> Self {
+        self.bilingual_regroupings = regroupings;
+        self
+    }
 }
 
 /// Thủ công vì `encoding_rs::Encoding` không tự `Debug` — in TÊN NHÃN WHATWG
@@ -418,6 +436,7 @@ impl std::fmt::Debug for PipelineInput {
             .field("bilingual_source_column", &self.bilingual_source_column)
             .field("bilingual_target_column", &self.bilingual_target_column)
             .field("bilingual_has_header", &self.bilingual_has_header)
+            .field("bilingual_regroupings", &self.bilingual_regroupings)
             .finish()
     }
 }
@@ -449,6 +468,14 @@ pub struct PipelineOutput {
     /// ở webview (người dùng cần thấy nội dung TRƯỚC khi chọn cột nào là nguồn/đích). `[]`
     /// cho mọi hình dạng khác [`PipelineShape::Bilingual`].
     pub bilingual_sample_rows: Vec<Vec<String>>,
+    /// **THÊM (vòng rà đối kháng, Story 6.17, FR116)** — tổng số câu đích của mọi hàng đã
+    /// giải quyết bằng "Bỏ qua hàng này" (nguồn rỗng) trong CHÍNH lượt chạy này — con số "sẽ
+    /// bị bỏ nếu xác nhận ngay bây giờ" mà §I/O Matrix "Skip blank source" đòi ("count shown
+    /// in preview"). 🔴 **SỐNG SÓT qua chính hàng đã cặp/bị bỏ** — khác
+    /// [`BilingualMismatch::target_sentence_count`], vốn chỉ tồn tại trên hàng CÒN lệch cặp
+    /// và biến mất cùng hàng đó ngay khi nó được giải quyết. `0` cho mọi hình dạng khác
+    /// [`PipelineShape::Bilingual`].
+    pub bilingual_skipped_target_sentence_count: usize,
 }
 
 /// Xem [`PipelineOutput::bilingual_sample_rows`].
@@ -636,6 +663,7 @@ pub fn run_import_with_order(
         bilingual_source_column,
         bilingual_target_column,
         bilingual_has_header,
+        bilingual_regroupings,
     } = input;
 
     // `labels` phải được đọc TRƯỚC khi `ChapterInput` bị `Unit::from` tiêu thụ —
@@ -680,6 +708,12 @@ pub fn run_import_with_order(
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
+    // **THÊM (vòng rà đối kháng, Story 6.17)** — tổng số câu đích của mọi hàng
+    // [`Step::SplitSegments`] vừa giải quyết bằng Skip (nguồn rỗng). Biến CỤC BỘ, KHÔNG một
+    // trường `Flow` — cùng khuôn `bilingual_delimiter` ngay trên: chỉ bước 7 (bước CUỐI) từng
+    // gán nó, nên không có lý do bắt MỌI nhánh `match` khác destructure/tái dựng thêm một
+    // trường mà chúng không đọc. Đọc lại SAU vòng lặp, lúc lắp `PipelineOutput`.
+    let mut bilingual_skipped_target_sentence_count = 0usize;
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
@@ -933,14 +967,16 @@ pub fn run_import_with_order(
                 flow
             }
             Step::SplitSegments => {
-                let next = split_segments_step(
+                let (next, skipped_target_sentence_count) = split_segments_step(
                     flow,
                     &source_lang,
                     &cleanup_rules,
                     &block_overrides,
                     bilingual_source_column,
                     bilingual_target_column,
-                );
+                    &bilingual_regroupings,
+                )?;
+                bilingual_skipped_target_sentence_count = skipped_target_sentence_count;
                 trace.push(step);
                 next
             }
@@ -985,6 +1021,7 @@ pub fn run_import_with_order(
             bilingual_mismatches: flow.bilingual_mismatches,
             bilingual_row_count,
             bilingual_sample_rows,
+            bilingual_skipped_target_sentence_count,
         });
     }
 
@@ -1034,6 +1071,7 @@ pub fn run_import_with_order(
         bilingual_mismatches: Vec::new(),
         bilingual_row_count: 0,
         bilingual_sample_rows: Vec::new(),
+        bilingual_skipped_target_sentence_count: 0,
     })
 }
 
@@ -1528,27 +1566,22 @@ fn split_segments_step(
     block_overrides: &[Option<bool>],
     bilingual_source_column: usize,
     bilingual_target_column: usize,
-) -> Flow {
+    bilingual_regroupings: &[BilingualRegrouping],
+) -> Result<(Flow, usize), ImportError> {
     if let Some(mut groups) = flow.bilingual_chapters.take() {
         let mut mismatches = Vec::new();
+        // **THÊM (vòng rà đối kháng, Story 6.17)** — tổng câu đích của MỌI hàng vừa giải quyết
+        // bằng Skip (nguồn rỗng) trong CHÍNH lượt chạy này — đây là con số "sẽ bị bỏ nếu xác
+        // nhận ngay bây giờ", và nó phải SỐNG SÓT qua chính hàng đã biến mất khỏi
+        // `bilingual_mismatches` (khác `BilingualMismatch::target_sentence_count`, chỉ có
+        // trên hàng CÒN lệch cặp).
+        let mut skipped_target_sentence_count = 0usize;
         for (chapter_index, group) in groups.iter_mut().enumerate() {
             for row in &group.rows {
                 let source_cell = row.cells.get(bilingual_source_column).map(String::as_str).unwrap_or("");
                 let target_cell = row.cells.get(bilingual_target_column).map(String::as_str).unwrap_or("");
-                let source_segs = split_source_text(source_cell, source_lang);
-                let target_segs = split_source_text(target_cell, crate::core::dict::NATIVE_LANG);
+                let derived = super::bilingual::derive_row(source_cell, target_cell, source_lang);
 
-                if source_segs.len() != target_segs.len() {
-                    mismatches.push(BilingualMismatch {
-                        chapter_index,
-                        row_number: row.row_number,
-                        source_sentence_count: source_segs.len(),
-                        target_sentence_count: target_segs.len(),
-                    });
-                    continue;
-                }
-
-                let n = source_segs.len();
                 // 🔴 AD-37/AD-46, §Always — "Line breaks inside a cell never set a flag": bỏ
                 // qua HOÀN TOÀN `is_paragraph_end` mà `split_source_text` vừa tính từ nội dung
                 // ô (nó chỉ đọc `\n`/`\r` bên trong ô, không đọc gì về vị trí hàng). Cờ THẬT
@@ -1556,13 +1589,59 @@ fn split_segments_step(
                 // cuối của Chương, ghi đè lại `false` cho segment cuối Chương SAU vòng lặp
                 // (§Always: "last segment of a Chapter => both off"), cùng khuôn AC7 của
                 // `split_source_text`.
-                for (i, (s, t)) in source_segs.into_iter().zip(target_segs).enumerate() {
-                    let is_last_segment_of_row = i + 1 == n;
-                    group.segments.push(BilingualSegment {
-                        source_text: s.text,
-                        target_text: t.text,
-                        is_paragraph_end: is_last_segment_of_row,
-                    });
+                let push_pairs = |segments: &mut Vec<BilingualSegment>, pairs: Vec<(String, String)>| {
+                    let n = pairs.len();
+                    for (i, (s, t)) in pairs.into_iter().enumerate() {
+                        segments.push(BilingualSegment {
+                            source_text: s,
+                            target_text: t,
+                            is_paragraph_end: i + 1 == n,
+                        });
+                    }
+                };
+
+                if derived.source_sentences.len() == derived.target_sentences.len() {
+                    push_pairs(
+                        &mut group.segments,
+                        derived.source_sentences.into_iter().zip(derived.target_sentences).collect(),
+                    );
+                    continue;
+                }
+
+                // Story 6.17 (FR116) — một hàng lệch cặp có quy nhóm ĐANG CHỜ ⇒ thử áp nó
+                // TRƯỚC khi coi hàng là mismatch. `resolve` tự làm lại phép tách (đo trước khi
+                // tin) và tự so khớp ảnh chụp (staleness) — module này không lặp lại luật đó.
+                let resolution = match bilingual_regroupings.iter().find(|r| r.row_number == row.row_number) {
+                    Some(regrouping) => super::bilingual::resolve(source_cell, target_cell, source_lang, regrouping)
+                        .map_err(|err| ImportError::BilingualSkipNotAllowed { row_number: err.row_number })?,
+                    None => None,
+                };
+
+                match resolution {
+                    Some(super::bilingual::RegroupResolution::Paired(pairs)) => {
+                        push_pairs(&mut group.segments, pairs);
+                    }
+                    Some(super::bilingual::RegroupResolution::Skipped) => {
+                        skipped_target_sentence_count += derived.target_sentences.len();
+                    }
+                    None => {
+                        let candidate_positions =
+                            super::bilingual::candidate_positions(&derived.target_sentences, &derived.target_line);
+                        let initial_cuts = super::bilingual::machine_boundaries(&derived.target_sentences);
+                        let proposed_cuts =
+                            super::bilingual::propose_cuts(&derived.source_sentences, &derived.target_sentences);
+                        let target_sentence_count = derived.target_sentences.len();
+                        mismatches.push(BilingualMismatch {
+                            chapter_index,
+                            row_number: row.row_number,
+                            source_sentences: derived.source_sentences,
+                            target_line: derived.target_line,
+                            target_sentence_count,
+                            candidate_positions,
+                            initial_cuts,
+                            proposed_cuts,
+                        });
+                    }
                 }
             }
             // Segment CUỐI của Chương — tắt luôn, kể cả khi hàng cuối cùng cặp được (§Always:
@@ -1573,7 +1652,7 @@ fn split_segments_step(
         }
         flow.bilingual_chapters = Some(groups);
         flow.bilingual_mismatches = mismatches;
-        return flow;
+        return Ok((flow, skipped_target_sentence_count));
     }
 
     for (index, (unit, seg)) in flow.units.iter().zip(flow.segments.iter_mut()).enumerate() {
@@ -1593,5 +1672,5 @@ fn split_segments_step(
         };
         *seg = Some(computed);
     }
-    flow
+    Ok((flow, 0))
 }

@@ -32,6 +32,8 @@ import {
 import type {
   BilingualEncodingCandidateWire,
   BilingualImportEncodingPreview,
+  BilingualMismatchWire,
+  BilingualRegroupingInput,
   ChapterPatternInput,
   ChapterPatternKindWire,
   CreatedWork,
@@ -67,6 +69,19 @@ const hasHeader = ref(false)
  * hàng (Rust: `split_bilingual_chapters`). Rỗng ⇒ không mẫu, một Chương duy nhất. */
 const chapterPatternText = ref('')
 const chapterPatternKind = ref<ChapterPatternKindWire>('literal')
+
+/**
+ * **THÊM Story 6.17 (FR116)** — quy nhóm câu đích của mọi hàng lệch cặp người dùng ĐÃ làm,
+ * theo `row_number`. Rust re-validate TOÀN BỘ tập này ở mỗi `refresh()` (rebuild) — một mục
+ * không còn khớp hàng nào (đã cặp được, hoặc ảnh chụp cũ) đơn giản không đổi gì (§I/O Matrix
+ * "Unaffected regrouping"/"Stale regrouping"). Không lộ ra `readonly()` trực tiếp — mọi tầng
+ * ngoài đọc qua `bilingualImportPreviewActiveCuts`/`bilingualImportPreviewMismatches`.
+ */
+const regroupings = ref<Map<number, BilingualRegroupingInput>>(new Map())
+/** Hàng lệch cặp đang lấy tiêu điểm — `null` = hàng ĐẦU của danh sách hiện hành. */
+const activeMismatchRow = ref<number | null>(null)
+/** Vị trí caret (chỉ số KÝ TỰ UNICODE vào `target_line` của hàng đang lấy tiêu điểm). */
+const caretPosition = ref(0)
 
 let sequence = 0
 
@@ -106,6 +121,94 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
   )
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Story 6.17 (FR116) — quy nhóm câu đích trong từng hàng lệch cặp
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Danh sách hàng lệch cặp của ứng viên ĐANG CHỌN — rỗng khi chưa có preview. */
+export const bilingualImportPreviewMismatches = computed<readonly BilingualMismatchWire[]>(() => {
+  return bilingualImportPreviewSelectedCandidate.value?.mismatches ?? []
+})
+
+/** Hàng ĐANG lấy tiêu điểm — hàng ĐẦU của danh sách khi `activeMismatchRow` không còn khớp
+ * hàng nào (đã cặp được ở lượt trước, hoặc chưa từng chọn). `null` khi danh sách rỗng. */
+export const bilingualImportPreviewActiveMismatch = computed<BilingualMismatchWire | null>(() => {
+  const list = bilingualImportPreviewMismatches.value
+  if (list.length === 0) return null
+  return list.find((m) => m.row_number === activeMismatchRow.value) ?? list[0]
+})
+
+/** Vị trí 0-based của hàng đang lấy tiêu điểm trong danh sách — `-1` khi danh sách rỗng. */
+export const bilingualImportPreviewActiveMismatchIndex = computed<number>(() => {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null) return -1
+  return bilingualImportPreviewMismatches.value.findIndex((m) => m.row_number === active.row_number)
+})
+
+export const bilingualImportPreviewCaretPosition: DeepReadonly<Ref<number>> = readonly(caretPosition)
+
+function cutsForRow(mismatch: BilingualMismatchWire): number[] {
+  const existing = regroupings.value.get(mismatch.row_number)
+  return existing?.kind === 'cuts' ? existing.cuts : mismatch.initial_cuts
+}
+
+/** Tập cắt HIỆN HÀNH của hàng đang lấy tiêu điểm — khởi đầu là [`BilingualMismatchWire.initial_cuts`]
+ * (đúng cách máy đã tách), đổi khi người dùng bật/tắt một chỗ cắt. */
+export const bilingualImportPreviewActiveCuts = computed<number[]>(() => {
+  const active = bilingualImportPreviewActiveMismatch.value
+  return active === null ? [] : cutsForRow(active)
+})
+
+/** "Bỏ qua hàng này" chỉ hiện khi một trong hai phía có 0 câu (§Never: "No skip on a row
+ * whose two sides both have at least one sentence"). */
+export const bilingualImportPreviewCanSkipActiveRow = computed<boolean>(() => {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null) return false
+  return active.source_sentences.length === 0 || active.target_line === ''
+})
+
+/** Tổng số câu đích sẽ bị BỎ nếu xác nhận NGAY BÂY GIỜ — §I/O Matrix "Skip blank source":
+ * "Translation dropped, count shown in preview". Đọc THẲNG từ
+ * `BilingualEncodingCandidateWire.skipped_target_sentence_count` — Rust tính lại con số này
+ * MỖI LƯỢT chạy trọn chuỗi (cạnh `pair_count`), nên nó SỐNG SÓT qua chính hàng đã biến mất
+ * khỏi `mismatches` ngay khi được giải quyết bằng Skip.
+ *
+ * 🔴 SỬA (vòng rà đối kháng) — bản trước CỘNG DỒN `target_sentence_count` của các hàng còn
+ * trong `bilingualImportPreviewMismatches` mà quy nhóm hiện hành là Skip: một hàng Skip hợp
+ * lệ biến mất khỏi danh sách đó NGAY sau lượt rebuild kế tiếp, nên số hiện ra rồi rơi về 0
+ * đúng lúc lượt xác nhận đang chờ nó — trái §I/O Matrix. Trường trên KHÔNG suy từ danh sách
+ * mismatch, nên nó không có lỗ hổng đó. */
+export const bilingualImportPreviewSkippedTargetSentenceCount = computed<number>(() => {
+  return bilingualImportPreviewSelectedCandidate.value?.skipped_target_sentence_count ?? 0
+})
+
+/** Mọi điểm caret có thể dừng trên `target_line` của một hàng — hai đầu cộng
+ * `candidate_positions` (Rust cấp, AD-1: không luật kinh doanh nào tính lại ở đây). */
+function caretStops(mismatch: BilingualMismatchWire): number[] {
+  const length = [...mismatch.target_line].length
+  return [0, ...mismatch.candidate_positions, length]
+}
+
+function setRegroupingCuts(mismatch: BilingualMismatchWire, cuts: number[]): void {
+  regroupings.value.set(mismatch.row_number, {
+    row_number: mismatch.row_number,
+    source_sentences: mismatch.source_sentences,
+    target_line: mismatch.target_line,
+    kind: 'cuts',
+    cuts,
+  })
+}
+
+function setRegroupingSkip(mismatch: BilingualMismatchWire): void {
+  regroupings.value.set(mismatch.row_number, {
+    row_number: mismatch.row_number,
+    source_sentences: mismatch.source_sentences,
+    target_line: mismatch.target_line,
+    kind: 'skip',
+    cuts: [],
+  })
+}
+
 function chapterPatternWire(): ChapterPatternInput | null {
   const pattern = chapterPatternText.value
   if (pattern === '') return null
@@ -120,12 +223,18 @@ async function refresh(): Promise<void> {
   // Không chụp trước biến này thì dòng `selectedEncoding.value = result.preview.selected_encoding`
   // luôn GHI ĐÈ lượt chọn tay bằng bảng mã Rust tự dò — xác nhận sẽ giải mã SAI bảng mã.
   const keepEncoding = selectedEncoding.value
+  // Chụp TRƯỚC lượt gọi Rust — hàng đang lấy tiêu điểm và `target_line` của nó NGAY LÚC NÀY,
+  // để so sánh sau khi preview mới về (xem nhánh đặt lại caret cuối hàm).
+  const focusedBefore = bilingualImportPreviewActiveMismatch.value
+  const focusedRowNumber = focusedBefore?.row_number ?? null
+  const focusedTargetLineBefore = focusedBefore?.target_line ?? null
   const result = await rebuildBilingualImportPreview(
     pendingSourceLang.value,
     chapterPatternWire(),
     sourceColumn.value,
     targetColumn.value,
     hasHeader.value,
+    Array.from(regroupings.value.values()),
   )
   if (mySequence !== sequence) return // một lượt mở/huỷ/sửa MỚI đã vượt mặt lượt này
 
@@ -149,6 +258,21 @@ async function refresh(): Promise<void> {
     : result.preview.selected_encoding
   status.value = 'loaded'
   loadError.value = null
+
+  // Hàng đang lấy tiêu điểm vừa cặp được (biến mất khỏi danh sách) ⇒ caret của nó không còn
+  // nghĩa cho hàng KẾ mà `bilingualImportPreviewActiveMismatch` tự rơi về — đặt lại 0.
+  const stillFocused = bilingualImportPreviewMismatches.value.find((m) => m.row_number === focusedRowNumber)
+  if (stillFocused === undefined) {
+    caretPosition.value = 0
+    return
+  }
+  // 🔴 SỬA (vòng rà đối kháng) — hàng VẪN còn (cùng `row_number`) nhưng `target_line` đã đổi
+  // (đảo cột, bật/tắt tiêu đề) ⇒ caret cũ trỏ vào một chỉ số KÝ TỰ của một chuỗi KHÁC, không
+  // còn nghĩa; `candidate_positions` cũng đã đổi theo, nên bước caret kế tiếp sẽ nhảy lung
+  // tung (thường về cuối dòng mới). Đặt lại 0 — cùng lý do hàng biến mất khỏi danh sách.
+  if (stillFocused.target_line !== focusedTargetLineBefore) {
+    caretPosition.value = 0
+  }
 }
 
 /** Mở lớp phủ — nhánh DUY NHẤT của đường song ngữ (§Boundaries: chỉ `.csv`/`.tsv`, người
@@ -174,6 +298,9 @@ export async function openBilingualImportPreview(
   chapterPatternKind.value = 'literal'
   confirming.value = false
   confirmError.value = null
+  regroupings.value = new Map()
+  activeMismatchRow.value = null
+  caretPosition.value = 0
 
   const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false)
   if (mySequence !== sequence) return
@@ -258,6 +385,87 @@ export async function setBilingualChapterPattern(pattern: string, kind: ChapterP
   await refresh()
 }
 
+/** Chuyển tiêu điểm sang hàng lệch cặp KẾ TIẾP — Handler của
+ * `import.preview.bilingual_next_mismatch` (`↓`). Vòng tròn: hàng cuối → hàng đầu. */
+export function moveToNextBilingualMismatch(): void {
+  const list = bilingualImportPreviewMismatches.value
+  if (list.length === 0) return
+  const idx = bilingualImportPreviewActiveMismatchIndex.value
+  const from = idx === -1 ? 0 : idx
+  activeMismatchRow.value = list[(from + 1) % list.length].row_number
+  caretPosition.value = 0
+}
+
+/** Xem [`moveToNextBilingualMismatch`] — Handler của `import.preview.bilingual_previous_mismatch`
+ * (`↑`). */
+export function moveToPreviousBilingualMismatch(): void {
+  const list = bilingualImportPreviewMismatches.value
+  if (list.length === 0) return
+  const idx = bilingualImportPreviewActiveMismatchIndex.value
+  const from = idx === -1 ? 0 : idx
+  activeMismatchRow.value = list[(from - 1 + list.length) % list.length].row_number
+  caretPosition.value = 0
+}
+
+/** Di caret một điểm ứng viên — Handler của `import.preview.bilingual_caret_left` (`←`). */
+export function moveBilingualCaretLeft(): void {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null) return
+  const stops = caretStops(active)
+  const idx = stops.indexOf(caretPosition.value)
+  const from = idx === -1 ? stops.length - 1 : idx
+  caretPosition.value = stops[Math.max(0, from - 1)]
+}
+
+/** Xem [`moveBilingualCaretLeft`] — Handler của `import.preview.bilingual_caret_right` (`→`). */
+export function moveBilingualCaretRight(): void {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null) return
+  const stops = caretStops(active)
+  const idx = stops.indexOf(caretPosition.value)
+  const from = idx === -1 ? 0 : idx
+  caretPosition.value = stops[Math.min(stops.length - 1, from + 1)]
+}
+
+/** Bật/tắt chỗ cắt tại caret — Handler của `import.preview.bilingual_toggle_cut`. 0 lượt gọi
+ * Rust nếu caret không đứng trên một điểm ứng viên hợp lệ. */
+export async function toggleBilingualCutAtCaret(): Promise<void> {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null) return
+  const pos = caretPosition.value
+  if (!active.candidate_positions.includes(pos)) return
+  const current = cutsForRow(active)
+  const next = current.includes(pos) ? current.filter((c) => c !== pos) : [...current, pos].sort((a, b) => a - b)
+  setRegroupingCuts(active, next)
+  await refresh()
+}
+
+/** Áp đề xuất máy cho MỌI hàng lệch cặp hiện đang liệt kê, một lượt duy nhất — Handler của
+ * `import.preview.bilingual_accept_all_proposals` (§Always: "one command applies every
+ * proposal at once"). Hàng chỉ giải quyết được bằng Skip (một phía 0 câu) không nhận đề xuất
+ * — nó không có `Cuts` nào để mà đề xuất. */
+export async function acceptAllBilingualProposals(): Promise<void> {
+  const list = bilingualImportPreviewMismatches.value
+  let applied = false
+  for (const mismatch of list) {
+    if (mismatch.source_sentences.length === 0 || mismatch.target_line === '') continue
+    setRegroupingCuts(mismatch, mismatch.proposed_cuts)
+    applied = true
+  }
+  if (applied) await refresh()
+}
+
+/** "Bỏ qua hàng này" cho hàng đang lấy tiêu điểm — Handler của
+ * `import.preview.bilingual_skip_row`. 0 lượt gọi Rust khi hàng không đủ điều kiện bỏ qua
+ * (§Never: "No skip on a row whose two sides both have at least one sentence") — Rust vẫn
+ * canh lại mệnh đề này ở phía nó, đây chỉ tránh một lượt IPC vô ích. */
+export async function skipActiveBilingualRow(): Promise<void> {
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null || !bilingualImportPreviewCanSkipActiveRow.value) return
+  setRegroupingSkip(active)
+  await refresh()
+}
+
 /** Xác nhận — Handler của `import.preview.bilingual_confirm`. Trả `{created, error}` cùng
  * khuôn `confirmImportPreview`; `main.ts` tiêu thụ kết quả rồi gọi
  * `libraryImport.ts::finishImportSubmission` (dùng CHUNG với ba nhánh cũ — reset panel/nạp
@@ -282,6 +490,7 @@ export async function confirmBilingualImportPreview(): Promise<{
     sourceColumn.value,
     targetColumn.value,
     hasHeader.value,
+    Array.from(regroupings.value.values()),
   )
   if (mySequence !== sequence) return { created: null, error: null }
 
@@ -321,4 +530,7 @@ export function resetBilingualImportPreview(): void {
   hasHeader.value = false
   chapterPatternText.value = ''
   chapterPatternKind.value = 'literal'
+  regroupings.value = new Map()
+  activeMismatchRow.value = null
+  caretPosition.value = 0
 }

@@ -267,6 +267,15 @@ pub enum ImportError {
         /// Phần mở rộng đọc được (không có dấu chấm).
         format: String,
     },
+    /// **THÊM 2026-09-12 (Story 6.17, FR116)** — webview gửi `Skip` cho một hàng mà CẢ HAI
+    /// phía đều có ít nhất một câu. §Never: "No skip on a row whose two sides both have at
+    /// least one sentence" — [`super::bilingual::resolve`] trả `Err` thay vì âm thầm để hàng
+    /// nằm lại danh sách lệch cặp, vì đây là một vi phạm hợp đồng của webview, không một
+    /// trạng thái người dùng có thể tạo ra qua đường sản phẩm (nút chỉ hiện khi một phía = 0).
+    BilingualSkipNotAllowed {
+        /// Số hàng file (1-based) đã bị từ chối.
+        row_number: usize,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -320,6 +329,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::BilingualUnsupportedFormat { format } => {
                 write!(f, "import[bilingual]: unsupported format {format:?}")
+            }
+            ImportError::BilingualSkipNotAllowed { row_number } => {
+                write!(f, "import[bilingual row {row_number}]: skip not allowed, both sides have sentences")
             }
         }
     }
@@ -483,6 +495,16 @@ impl From<ImportError> for IpcError {
                 IpcError::new(
                     "import.bilingual_unsupported_format",
                     MessageKey::ImportBilingualUnsupportedFormat,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualSkipNotAllowed { row_number } => {
+                let mut params = BTreeMap::new();
+                params.insert("row".to_owned(), row_number.to_string());
+                IpcError::new(
+                    "import.bilingual_skip_not_allowed",
+                    MessageKey::ImportBilingualSkipNotAllowed,
                     params,
                     false,
                 )

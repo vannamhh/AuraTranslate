@@ -140,7 +140,7 @@ fn an_import_with_a_fully_declared_page_fills_all_four_columns_on_disk() {
         Vec::new(), 0, 1, false,
         &[],
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -177,7 +177,7 @@ fn a_page_missing_the_author_tag_leaves_only_that_column_null() {
         Vec::new(), 0, 1, false,
         &[],
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -214,7 +214,7 @@ fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_si
         Vec::new(), 0, 1, false,
         &[],
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("mot khoi JSON-LD sai cu phap KHONG duoc lam trot ca luot nhap");
 
     let (author, site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -330,7 +330,7 @@ fn a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value()
         Vec::new(), 0, 1, false,
         &overrides,
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let (author, site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -369,7 +369,7 @@ fn an_override_cleared_to_an_empty_string_stores_null_not_a_blank_string() {
         Vec::new(), 0, 1, false,
         &overrides,
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let (author, _site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -495,7 +495,7 @@ fn a_leftover_override_from_a_cancelled_url_preview_never_reaches_a_pasted_text_
         Vec::new(), 0, 1, false,
         &origin_overrides_at_confirm,
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
@@ -621,7 +621,7 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
         Vec::new(), 0, 1, false,
         &[],
         &Mutex::new(Vec::new()),
-        None)
+        None, &[])
     .expect("tao tac pham that bai");
 
     let chapter_ids: Vec<i64> = opened

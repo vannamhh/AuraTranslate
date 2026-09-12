@@ -550,7 +550,7 @@ fn importing_a_docx_with_an_image_leaves_the_domain_log_empty() {
         None,
         Vec::new(), 0, 1, false, &[],
         &domain_log_state,
-        docx_sidecar)
+        docx_sidecar, &[])
     .expect("tao Tac pham tu .docx co anh that bai");
 
     let log = domain_log_state.lock().unwrap_or_else(|e| e.into_inner());
@@ -592,7 +592,7 @@ fn an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_bein
         Some(pattern),
         Vec::new(), 0, 1, false, &[],
         &domain_log_state,
-        docx_sidecar)
+        docx_sidecar, &[])
     .expect("tao Tac pham tu .docx hai chuong that bai");
 
     assert_eq!(opened.images_saved, 1, "chi anh DUNG TRUOC ranh gioi (Chuong dau) duoc luu");
