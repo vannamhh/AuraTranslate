@@ -526,6 +526,153 @@ fn wait_until(deadline: Duration, mut check: impl FnMut() -> bool) -> bool {
     check()
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// AC5 — ca `the_wal_stops_growing_once_it_crosses_the_threshold`, hằng số + hạ tầng
+// dùng chung giữa ca tích hợp và hai ca giả lập ngay dưới nó.
+//
+// 🔵 **RESHAPE 2026-09-13 — spec `spec-ca-wal-do-tren-windows.md`.** Ba con số này từng
+// là hằng cục bộ bên trong thân test; đưa ra tệp để hai ca giả lập bắn cùng cấu hình
+// thay vì chép lại số. Xem doc-comment của [`wal_ceiling_holds`] cho lý do hình dạng đổi.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const WAL_TEST_THRESHOLD: u64 = 64 * 1024;
+const WAL_TEST_ROUNDS: usize = 20;
+const WAL_TEST_BLOB: usize = 32 * 1024;
+
+/// Trần của mệnh đề 2b (§`wal_ceiling_holds`) — theo NỀN TẢNG, không toàn cục. `3/4` trên
+/// Windows chốt bởi Ice 2026-08-11 vì `walRestartLog` không rơi nhịp trên nền đó
+/// (`core/store`, không đổi ở lượt vá này).
+///
+/// Mệnh đề 2a (§`wal_peak_did_not_rise`) **không có hằng nào** — dung sai của nó là 0.
+const WAL_CEILING_NUM: u64 = if cfg!(windows) { 3 } else { 1 };
+const WAL_CEILING_DEN: u64 = 4;
+
+/// Chờ cho `checkpoint_stats().frames_checkpointed` đứng yên qua ba lượt đọc liên tiếp
+/// (cách nhau 15 ms), rồi mới đọc kích cỡ `.db-wal` — có hạn chót.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO KHÔNG PHẢI `thread::sleep` MÙ — boundaries §Always của spec ngày 2026-09-13
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản trước đọc `.db-wal` sau một `sleep(100ms)` cố định kể từ lúc `threshold_triggered`
+/// vừa lật. `store_contract.rs` trên `macos-26` CI (lượt `32438371572` đã ghi trong
+/// `deferred-work.md`) cho thấy đỉnh **còn đang lớn** tại đúng điểm chụp đó: `after_first`
+/// giống hệt máy Ice (94.792 B) nhưng `after_second` lớn hơn tới 115.360 B trên CI — một
+/// điểm chụp SỚM không nói được đỉnh đã ổn định hay chưa. Đứng yên thật (frame đếm không
+/// đổi qua nhiều lượt đọc) là điều kiện để một phép so *"đỉnh không tăng"* có nghĩa: nếu
+/// điểm chụp còn giữa chừng một lượt checkpoint, "không tăng" chỉ vì ta chưa nhìn đủ lâu.
+fn settled_wal_len(store: &Store, wal: &Path, deadline: Duration) -> u64 {
+    let stop = Instant::now() + deadline;
+    let mut last = store.checkpoint_stats().frames_checkpointed;
+    let mut stable_polls = 0u32;
+    while stable_polls < 3 && Instant::now() < stop {
+        thread::sleep(Duration::from_millis(15));
+        let now = store.checkpoint_stats().frames_checkpointed;
+        if now == last {
+            stable_polls += 1;
+        } else {
+            last = now;
+            stable_polls = 0;
+        }
+    }
+    file_len(wal)
+}
+
+/// **Mệnh đề 2, tái hiệu chỉnh 2026-09-13 — tự hiệu chuẩn TRONG lượt chạy.**
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO HÌNH DẠNG CŨ CHẾT: `written` không đổi, đỉnh THẬT thì có
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hình dạng cũ: `after_second < written * NUM/DEN`, với `written = 2 * ROUNDS * BLOB`
+/// **cố định**. Mỗi di trú `core::store` thêm vào lược đồ (bảng/cột mới ở `Store::open`)
+/// nới `.db-wal` lên một hằng số CỘNG DỒN. Đo được 2026-09-13 (máy Ice, macOS, n = 1 mỗi
+/// cấu hình): cắt `GLOBAL_MIGRATIONS` về bộ 3 bước của `0dae624` ⇒ nền **53.592 B**, đỉnh
+/// **94.792 B** (trùng từng byte số đo 2026-08-11); trả lại bộ 7 bước của `HEAD` ⇒ nền
+/// **148.352 B**. Hiệu **94.760 B = đúng 23 frame** — toàn bộ bước nhảy nằm ở NỀN LƯỢC ĐỒ.
+/// Là **BỐN** bước thêm giữa hai mốc: `GLOSSARY_ENTRY_DDL` (v4, Story 3.1 — nặng nhất),
+/// `GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL` (v5), `LIBRARY_ORPHAN_DDL` (v6),
+/// `IMPORT_CLEANUP_RULE_DDL` (v7). Vì `written` đứng yên còn tử số cứ lớn theo mỗi epic
+/// thêm một di trú, tỉ lệ trôi lên **mãi mãi** — không phải một lần rồi thôi.
+///
+/// **Sửa:** trừ `before_writes` — `.db-wal` đo NGAY TRONG LƯỢT CHẠY NÀY, ngay sau khi mở
+/// kho và dựng bảng, TRƯỚC khi ca này ghi một byte dữ liệu nào — ra khỏi đỉnh trước khi so
+/// với `written`. `before_writes` gánh trọn phần lược đồ/di trú **hiện có tại thời điểm
+/// chạy**, nên khi một epic sau thêm một di trú mới, `before_writes` VÀ đỉnh đo được lớn
+/// lên CÙNG một lượng — phép trừ triệt tiêu nó.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỆNH ĐỀ NÀY NHÌN `after_first`, KHÔNG NHÌN `after_second` — và vì sao
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đây là vế bắt ca **phản ứng RẤT TRỄ**: cơ chế không checkpoint một lần nào suốt đợt
+/// một, để `after_first` đã kẹt ở gần trọn lượng đã ghi, rồi từ đó mới giữ phẳng. Mệnh đề
+/// 2a (`wal_peak_did_not_rise`) nhìn HIỆU SỐ hai đợt nên ca đó cho nó tăng trưởng = 0 và
+/// nó xanh OAN. Vế này bắt được vì nó nhìn MỨC TUYỆT ĐỐI của `after_first` (đã trừ nền)
+/// so với toàn bộ lượng ghi — xem ca giả lập
+/// `wal_ceiling_still_catches_a_mechanism_that_reacts_very_late`.
+///
+/// ⚠️ **Giá phải trả, Ice ký 2026-09-13 và khu trú ĐÚNG ở vế này:** phép trừ nền nới
+/// ngưỡng đỏ lên thêm đúng `before_writes` (hôm nay 148.352 B trên macOS), và phần nới đó
+/// LỚN DẦN theo mỗi di trú sau. Tức phần trôi không bị khử hẳn — nó chuyển từ *báo đỏ oan*
+/// thành *vùng mù*. Đổi lại, vế 2a bên dưới không có một byte dung sai nào, nên trục
+/// "phình tiếp" hoàn toàn sạch trôi. Hai vế, hai trục — không vế nào gánh cả hai.
+///
+/// Tách khỏi thân test để ca giả lập bắn được nó bằng số tự chọn, không cần một `Store`
+/// thật — đúng yêu cầu AC4 của spec: *"proven by a seeded check, not by argument"*.
+fn wal_ceiling_holds(
+    before_writes: u64,
+    after_first: u64,
+    written: u64,
+    ceiling_num: u64,
+    ceiling_den: u64,
+) -> Result<(), String> {
+    let grown = after_first.saturating_sub(before_writes);
+    let ceiling = written * ceiling_num / ceiling_den;
+    if grown < ceiling {
+        Ok(())
+    } else {
+        Err(format!(
+            "`.db-wal` đã ở {after_first} B ngay sau ĐỢT MỘT, tức lớn thêm {grown} B kể từ nền \
+             {before_writes} B (đo trước khi ca ghi byte nào), trong khi tổng đã ghi cả hai đợt \
+             mới là {written} B — trần {ceiling} B = {ceiling_num}/{ceiling_den}"
+        ))
+    }
+}
+
+/// **Mệnh đề 2a — ĐỈNH KHÔNG ĐƯỢC TĂNG, dung sai 0.** Quyết định Ice 2026-09-13: nền là
+/// đỉnh đo được sau đợt một, và đợt hai không được đẩy nó lên một byte nào.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO DUNG SAI 0, KHÔNG PHẢI `1/4` NHƯ BẢN 2026-08-19
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản trước cho đợt hai cộng thêm tới `1/4` lượng một đợt (163.840 B). Con số đó hiệu
+/// chuẩn trên **n = 2 máy**, và mọi dung sai dương đều là một chỗ để phần trôi trú lại.
+/// Tự tham chiếu trong cùng lượt chạy (`after_second` so với `after_first`) nên nó KHÔNG
+/// cần một mẫu số nào từ bên ngoài: siết về 0 không mất sức răn nào mà bỏ hẳn được một
+/// hằng số phải bảo trì.
+///
+/// ⚠️ **Bằng chứng đứng sau dung sai 0:** `windows-2025` CI, n = 7 đêm liên tiếp
+/// (2026-09-03 → 2026-09-13): `after_first == after_second` **từng byte** cả bảy lượt —
+/// đo bằng mã CŨ, nhưng đó là đúng đại lượng mệnh đề này so. macOS máy Ice, n = 3
+/// (2026-09-13): cũng bằng nhau từng byte tại mọi điểm chụp.
+///
+/// 🔴 **Rủi ro còn mở, có tên và có chủ:** `macos-26` CI từng ghi `after_second` lớn hơn
+/// `after_first` tới **115.360 B** (lượt `32438371572`). Số đó đo ở điểm chụp `sleep(100ms)`
+/// MÙ — đúng khuyết tật mà [`settled_wal_len`] sinh ra để sửa — nên nó KHÔNG bác được dung
+/// sai 0, mà cũng chưa chứng minh được dung sai 0 an toàn ở đó. §Always của spec cho phép
+/// một dung sai NẾU nó suy từ một phép đo có nêu tên runner; hôm nay chưa có phép đo nào
+/// như thế trên mã mới. Nếu `macos-26` đỏ ở đây, con số nó in ra CHÍNH LÀ phép đo đó —
+/// đừng nới theo phản xạ trước khi đọc nó.
+fn wal_peak_did_not_rise(after_first: u64, after_second: u64) -> Result<(), String> {
+    if after_second <= after_first {
+        Ok(())
+    } else {
+        Err(format!(
+            "`.db-wal` vẫn phình: đợt hai đẩy đỉnh từ {after_first} B lên {after_second} B, \
+             cộng thêm {} B — mệnh đề này không cho một byte nào",
+            after_second - after_first
+        ))
+    }
+}
+
 /// **Ca 6** — ghi rồi để rảnh quá `idle` ⇒ một lượt PASSIVE với `busy == 0` và
 /// `checkpointed > 0`.
 ///
@@ -588,13 +735,13 @@ fn an_idle_pause_triggers_one_passive_checkpoint() {
 #[test]
 fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     let dir = temp_dir("wal-threshold");
-    const THRESHOLD: u64 = 64 * 1024;
-    const ROUNDS: usize = 20;
-    const BLOB: usize = 32 * 1024;
+    let threshold = WAL_TEST_THRESHOLD;
+    let rounds = WAL_TEST_ROUNDS;
+    let blob = WAL_TEST_BLOB;
 
     // ⚠️ Ba con số dưới đây là **điều kiện để phép đo có nghĩa**, không phải sở thích:
     //
-    // - `BLOB` lớn hơn nửa `THRESHOLD` ⇒ chỉ hai lượt ghi là WAL vượt ngưỡng. Không có
+    // - `blob` lớn hơn nửa `threshold` ⇒ chỉ hai lượt ghi là WAL vượt ngưỡng. Không có
     //   điều đó thì ca này đo một cái ngưỡng chưa bao giờ chạm tới.
     // - `checkpoint_tick` **ngắn hơn hẳn** khoảng cách giữa hai lượt ghi ⇒ lượt checkpoint
     //   chép xong TRƯỚC lượt ghi kế tiếp. Đây là điều kiện để SQLite quay WAL về đầu tệp:
@@ -607,33 +754,37 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     let tuning = Tuning {
         checkpoint_tick: Duration::from_millis(3),
         idle_before_passive: Duration::from_secs(3600),
-        wal_threshold_bytes: THRESHOLD,
+        wal_threshold_bytes: threshold,
         ..Tuning::default()
     };
     let db = db_path(&dir);
+    let wal = sidecar(&db, "-wal");
     let store = Store::open(spec_with(&dir, tuning)).expect("mở kho");
 
     store
         .write(|tx| tx.execute_batch("CREATE TABLE bulk (id INTEGER PRIMARY KEY, payload BLOB)"))
         .expect("dựng bảng");
 
+    // `before_writes` — đỉnh `.db-wal` NGAY TRONG LƯỢT CHẠY NÀY, trước khi ca ghi một byte
+    // dữ liệu nào. Đây là nền để mệnh đề 2 (`wal_ceiling_holds`) trừ phần lược đồ/di trú
+    // ra khỏi đỉnh đo được — xem doc-comment của hàm đó cho lý do.
+    let before_writes = settled_wal_len(&store, &wal, Duration::from_millis(500));
+
     let gap = Duration::from_millis(10);
 
-    write_blobs(&store, ROUNDS, BLOB, gap);
+    write_blobs(&store, rounds, blob, gap);
     let crossed = wait_until(Duration::from_secs(5), || {
         store.checkpoint_stats().threshold_triggered > 0
     });
-    thread::sleep(Duration::from_millis(100));
-    let after_first = file_len(&sidecar(&db, "-wal"));
+    let after_first = settled_wal_len(&store, &wal, Duration::from_millis(500));
 
-    write_blobs(&store, ROUNDS, BLOB, gap);
-    thread::sleep(Duration::from_millis(100));
-    let after_second = file_len(&sidecar(&db, "-wal"));
+    write_blobs(&store, rounds, blob, gap);
+    let after_second = settled_wal_len(&store, &wal, Duration::from_millis(500));
 
     let stats = store.checkpoint_stats();
     assert!(
         crossed,
-        "`.db-wal` vượt ngưỡng {THRESHOLD} B mà không lượt checkpoint nào chạy TRƯỚC lúc \
+        "`.db-wal` vượt ngưỡng {threshold} B mà không lượt checkpoint nào chạy TRƯỚC lúc \
          rảnh. Đó là AC5 trượt: một phiên gõ liên tục không bao giờ rảnh, nên chỉ có vế \
          (a) thì WAL phình vô hạn. Stats: {stats:?}"
     );
@@ -643,131 +794,182 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     );
 
     // ═════════════════════════════════════════════════════════════════════════════
-    // 🔵 CODE REVIEW 2026-08-19 — HAI MỆNH ĐỀ ĐỔI CHỖ, và thứ tự LÀ một mệnh đề
+    // 🔵 RESHAPE 2026-09-13 — spec `spec-ca-wal-do-tren-windows.md`, tự hiệu chuẩn TRONG
+    // lượt chạy thay vì so với một `written` đứng yên. Lịch sử đầy đủ (2026-08-11 →
+    // 2026-08-19 → 2026-09-13) ở doc-comment của [`wal_ceiling_holds`]/[`wal_growth_holds`]
+    // — không chép lại ở đây để tránh một quyết định sống ở hai chỗ.
     // ═════════════════════════════════════════════════════════════════════════════
-    // Bản trước khẳng định *"chững lại"* TRƯỚC *"có trần"*. Hậu quả đo được: lượt CI
-    // `32212786258` trên `macos-26` panic ở *"chững lại"*, nên *"có trần"* — mệnh đề **mạnh
-    // hơn và ít phụ thuộc nhịp hơn**, theo đúng chữ của chú thích 2026-08-11 ngay dưới —
-    // **không bao giờ được đánh giá**. Người đọc lượt đỏ ấy không có đường nào biết bảo đảm
-    // thật còn đứng hay không; phải tính bằng tay mới thấy nó đứng, và đứng thoải mái
-    // *(210.152 / 327.680 = 64% trần)*.
     //
-    // 🔴 ⇒ Mệnh đề YẾU hơn đứng trước sẽ CHE mệnh đề mạnh ở **mọi** lượt đỏ. Thứ tự ở đây
-    // không phải gu trình bày — nó quyết định một lượt đỏ nói ra được điều gì. Trần đi trước.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Số đo — mỗi con số kèm PHÉP ĐO, NGÀY và CỠ QUẦN THỂ của nó
+    // ─────────────────────────────────────────────────────────────────────────────
+    // ⚠️ Hai nhóm dưới đây đo ở HAI điểm chụp KHÁC NHAU, đừng so thẳng với nhau:
     //
-    // ── Mệnh đề 2: CÓ TRẦN ──────────────────────────────────────────────────────
-    // Mệnh đề mạnh hơn và ít phụ thuộc nhịp hơn: tổng đã ghi là hai đợt, mà WAL phải giữ
-    // ở gần ngưỡng. Không có cơ chế của AC5 thì WAL ≈ toàn bộ lượng đã ghi.
+    // (A) Điểm chụp CŨ — `sleep(100ms)` mù, tức mọi số ghi trước 2026-09-13:
+    //   macOS (máy Ice, n = 1, 2026-09-13)   : after_first = after_second = 189.552 B
+    //   windows-2025 (CI, n = 7, 2026-09-03 → 2026-09-13): after_first = after_second =
+    //                                          984.712 B, GIỐNG HỆT từng byte cả bảy lượt.
+    //   Mốc 2026-08-11 để so: macOS 94.792 B · Windows 889.952 B.
+    //   ⇒ Cả hai nền tảng nhảy ĐÚNG +23 frame (94.760 B, 4.120 B/khung) — một nguyên nhân
+    //   chung, độc lập nền tảng.
     //
-    // ═════════════════════════════════════════════════════════════════════════════
-    // 🔴 TRẦN NỚI THEO NỀN TẢNG — Ice chốt 2026-08-11
-    // ═════════════════════════════════════════════════════════════════════════════
-    // Ca này đỏ trên `windows-2025` ngay lượt CI đầu tiên chạy được tới nó
-    // (`31469843146`, sau bản vá `STATUS_ENTRYPOINT_NOT_FOUND` — trước đó nhị phân test
-    // tích hợp chết ở khâu NẠP nên ca này chưa từng chạy trên Windows).
+    // (B) Điểm chụp MỚI — `settled_wal_len`, đo trên cây này 2026-09-13:
+    //   macOS (máy Ice, n = 2): nền = after_first = after_second = 148.352 B, tăng 0 B kể
+    //                           từ nền, 0 B giữa hai đợt.
+    //   windows-2025: CHƯA CÓ SỐ NÀO. Bộ bảy lượt ở (A) đo mã CŨ, không phải mã này —
+    //                 lượt `check (windows-2025)` kế tiếp mới là điểm đo đầu tiên.
     //
-    // Số đo, và đọc nó cho đúng vì hai mệnh đề của ca này KHÔNG cùng phán quyết:
-    //   `.db-wal` = 889.952 B · tổng đã ghi = 1.310.720 B · trần cũ = 327.680 B
-    //   CheckpointStats { threshold_triggered: 51, frames_checkpointed: 6392,
-    //                     passive_busy: 0, idle_triggered: 0, errors: 0 }
-    // - Mệnh đề 1 (*"chững lại"*) **ĐẠT**. Cơ chế AC5 CÓ chạy: 51 lượt theo ngưỡng,
-    //   6.392 frame đã chép, 0 lượt bị chặn, 0 lỗi, và `idle_triggered = 0` chứng minh
-    //   vế (a) không hề kích hoạt.
-    // - Chỉ mệnh đề 2 trượt: WAL đứng ở 67,9% lượng đã ghi thay vì dưới 25%.
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 🔴 NGUYÊN NHÂN +23 FRAME — ĐO ĐƯỢC, không suy ra từ việc đếm di trú
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Phép đo (máy Ice, macOS, 2026-09-13, n = 1 mỗi cấu hình): cắt `GLOBAL_MIGRATIONS`
+    // về đúng bộ 3 bước của `0dae624` (2026-08-11) rồi chạy lại ca này ⇒ nền **53.592 B**
+    // và đỉnh **94.792 B** — trùng TỪNG BYTE số đo 2026-08-11 ở (A). Trả lại bộ 7 bước của
+    // `HEAD` ⇒ nền **148.352 B**. Hiệu: **148.352 − 53.592 = 94.760 B = đúng 23 frame.**
+    // Tức toàn bộ bước nhảy nằm ở NỀN LƯỢC ĐỒ, trước khi ca này ghi một byte dữ liệu nào.
     //
-    // Nguyên nhân là `walRestartLog` của SQLite — nó chỉ quay WAL về đầu tệp khi một
-    // giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame`. Trên Windows nhịp đó không
-    // rơi vào nhau; frame vẫn được chép, tệp không bao giờ quay đầu.
+    // ⚠️ Là **BỐN** bước thêm giữa hai mốc, không phải ba (`GLOBAL_MIGRATIONS` đi 3 → 7):
+    // `GLOSSARY_ENTRY_DDL` (v4, Story 3.1 — bảng + unique index + trigger, bước NẶNG nhất
+    // trong bốn) · `GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL` (v5, Story 3.10) ·
+    // `LIBRARY_ORPHAN_DDL` (v6, Story 5.3) · `IMPORT_CLEANUP_RULE_DDL` (v7, Story 6.5).
+    // Phép đo trên gộp cả bốn; nó KHÔNG chia được 23 frame cho từng bước, và cũng không
+    // cần — mệnh đề 2b trừ trọn phần nền ra, không quan tâm bước nào tốn bao nhiêu.
     //
-    // ⚠️ Trần nới THEO NỀN TẢNG, KHÔNG nới toàn cục. Hạ trần chung xuống 3/4 sẽ vứt luôn
-    // bảo đảm chặt của macOS — nền tảng Ice phát triển hằng ngày — cho một khác biệt chỉ
-    // tồn tại ở nền tảng kia. Hằng dưới đây nói ra sự khác biệt đó thay vì giấu nó.
-    //
-    // ⚠️ **Trần Windows hiệu chuẩn trên ĐÚNG MỘT phép đo (n = 1).** 3/4 nằm giữa số đo
-    // (67,9%) và ngưỡng của *"cơ chế vắng mặt"* (≈100%), gần số đo hơn để nó còn bắt được
-    // hồi quy. Nếu một lượt CI sau vượt 75%, ĐỪNG nới tiếp theo phản xạ: hai số in ở dưới
-    // có mặt để lượt đó có dữ liệu thật mà cãi. Đường đóng thật sự là đo trên một máy
-    // Windows — món nợ A5 của retrospective Epic 1.
-    const WAL_CEILING_NUM: u64 = if cfg!(windows) { 3 } else { 1 };
-    const WAL_CEILING_DEN: u64 = 4;
-
-    let written = (2 * ROUNDS * BLOB) as u64;
+    // ⇒ KHÔNG phải hồi quy tầng Store, KHÔNG phải biến động runner — đúng câu hỏi mà
+    // `deferred-work.md` để ngỏ từ điểm đo thứ hai/ba/tư (2026-08-19 → 2026-09-11) dưới tên
+    // *"hồi quy tầng Store hay biến động runner?"*: câu trả lời là NEITHER.
+    let round_bytes = (rounds * blob) as u64;
+    let written = 2 * round_bytes;
+    let ceiling_verdict = wal_ceiling_holds(
+        before_writes,
+        after_first,
+        written,
+        WAL_CEILING_NUM,
+        WAL_CEILING_DEN,
+    );
+    let rise_verdict = wal_peak_did_not_rise(after_first, after_second);
+    // 🔴 Một nguồn duy nhất cho con số in ra VÀ cho phán quyết: chuỗi chẩn đoán lấy thẳng từ
+    // `Err` của hai hàm trên, không dựng lại bằng tay. Bản 2026-09-13 vòng một tính lại
+    // `ceiling`/`grown` ở đây một lần nữa để ghép câu thông báo, nên một lượt sửa công thức
+    // trong hàm có thể làm câu in ra nói khác phán quyết thật mà không cổng nào bắt.
+    let grown = after_first.saturating_sub(before_writes);
     let ceiling = written * WAL_CEILING_NUM / WAL_CEILING_DEN;
-
-    // ⚠️ `cargo test` NUỐT stdout của ca xanh, nên dòng dưới chỉ hiện khi ca này đỏ hoặc
-    // khi chạy `cargo test --test store_contract -- --nocapture`. Đó là cách lấy điểm đo
-    // thứ hai cho trần Windows mà KHÔNG phải chờ một lượt đỏ — ghi ở đây thay vì để người
-    // sau tự tìm ra.
-    println!(
-        "\n  WAL: {after_first} B sau đợt một -> {after_second} B sau đợt hai · tổng đã \
-         ghi {written} B · trần {ceiling} B ({WAL_CEILING_NUM}/{WAL_CEILING_DEN}) · \
-         {:.1}% lượng ghi",
-        (after_second as f64 / written as f64) * 100.0
-    );
-
-    assert!(
-        after_second < ceiling,
-        "`.db-wal` đang giữ {after_second} B (đợt một: {after_first} B) trong khi tổng đã \
-         ghi là {written} B, trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN} — tức \
-         nó lớn theo lượng ghi chứ không theo ngưỡng.\n\n\
-         ĐỪNG nới trần theo phản xạ: mệnh đề 1 (*chững lại*) ở ngay DƯỚI đã xanh hay chưa, \
-         và `threshold_triggered`/`frames_checkpointed` dưới đây nói cơ chế có chạy hay \
-         không. Hai câu đó phân biệt *một hồi quy của tầng Store* với *một trần hiệu chuẩn \
-         sai*. Stats: {stats:?}"
-    );
-
-    // ── Mệnh đề 1: CHỮNG LẠI ────────────────────────────────────────────────────
-    //
-    // Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại chỗ đó,
-    // tệp giữ nguyên cỡ và **ngừng lớn**. Xem ca 8.
-    //
-    // ═════════════════════════════════════════════════════════════════════════════
-    // 🔴 HÌNH DẠNG ĐỔI 2026-08-19 — phép so CŨ PHẠT chính cơ chế nó đo
-    // ═════════════════════════════════════════════════════════════════════════════
-    // Bản cũ: `after_second <= after_first * 2`. Nó **tự tham chiếu**, và đó là khuyết tật:
-    // `after_first` được chụp **đúng lúc cơ chế phản ứng lần đầu** *(ngay sau khi
-    // `threshold_triggered > 0`)*, nên nó nằm sát `THRESHOLD`. ⇒ **Cơ chế càng phản ứng
-    // nhanh, `after_first` càng nhỏ, và trần `×2` càng NGẶT.** Một lượt vá làm checkpoint
-    // nhanh hơn sẽ làm ca này ĐỎ. Không cổng nào bắt được kiểu ngược đời đó.
-    //
-    // ⚠️ **Đo, hai máy, cùng mã, cùng `after_first` = 94.792 B từng byte:**
-    //   · máy Ice (macOS): đợt hai -> **94.792 B** — WAL quay đầu trọn vẹn, lớn thêm **0 B**;
-    //   · `macos-26` CI:   đợt hai -> **210.152 B** — lớn thêm **115.360 B**.
-    //   Cả hai đều dưới trần của mệnh đề 2. Khác biệt là `walRestartLog` của SQLite: nó chỉ
-    //   quay WAL về đầu tệp khi một giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame`, và
-    //   nhịp đó rơi vào nhau hay không là chuyện của MÁY — chú thích 2026-08-11 ngay trên đã
-    //   ghi đúng hiện tượng này cho `windows-2025`.
-    //
-    // ⇒ Phép so mới đo **đợt hai cộng thêm bao nhiêu so với lượng nó GHI** — một hằng số, không
-    // một mẫu của chính nó. Không cơ chế nào thì đợt hai cộng gần đủ `ROUND_BYTES`; có cơ chế
-    // thì nó cộng một phần nhỏ. Hai điểm đo: **0%** (máy Ice) và **17,6%** (CI).
-    //
-    // 🔴 **Trần 1/4 KHÔNG phải một lượt nới** — nó là một trục KHÁC. Trần cũ ràng `after_second`
-    // vào `after_first`; trần này ràng **mức LỚN THÊM** vào lượng ghi. Mệnh đề 2 *(trần theo
-    // tổng lượng ghi)* **không bị chạm một chữ**, và nó vẫn là phép kiểm chặt nhất của ca này.
-    // Sức răn còn nguyên: không có cơ chế AC5, mức lớn thêm ≈ `ROUND_BYTES`, tức **4× vượt**.
-    //
-    // ⚠️ **n = 2 máy.** Hai điểm đo không vẽ được một phân bố. 1/4 nằm giữa số đo cao nhất
-    // (17,6%) và ngưỡng *"cơ chế vắng mặt"* (≈100%), gần số đo hơn để nó còn bắt được hồi quy —
-    // cùng lý lẽ và cùng tỉ lệ mà Ice đã ký cho mệnh đề 2 ngày 2026-08-11.
-    const GROWTH_NUM: u64 = 1;
-    const GROWTH_DEN: u64 = 4;
-    let round_bytes = (ROUNDS * BLOB) as u64;
     let growth = after_second.saturating_sub(after_first);
-    let growth_cap = round_bytes * GROWTH_NUM / GROWTH_DEN;
+
+    // ⚠️ `cargo test` NUỐT stdout của ca xanh, nên dòng dưới chỉ hiện khi ca này đỏ hoặc khi
+    // chạy `cargo test --test store_contract -- --nocapture`. Bốn con số này là TOÀN BỘ số
+    // liệu cần để phân biệt mệnh đề nào trượt và vì sao — ghi ở đây thay vì để người sau tự
+    // dựng lại bằng tay.
+    println!(
+        "\n  WAL: nền {before_writes} B (trước khi ghi) -> {after_first} B sau đợt một -> \
+         {after_second} B sau đợt hai · tổng đã ghi {written} B · [2b] đợt một lớn thêm {grown} B \
+         kể từ nền (trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN}, {:.1}%) · [2a] đợt hai \
+         đẩy đỉnh thêm {growth} B (dung sai 0)",
+        (grown as f64 / written as f64) * 100.0
+    );
+
+    // ── Mệnh đề 2b: CÓ TRẦN cho ĐỈNH ĐỢT MỘT ───────────────────────────────────
+    // Đứng trước vì nó là mệnh đề ít phụ thuộc nhịp hơn — thứ tự "trần trước" mà lượt review
+    // 2026-08-19 chốt: một mệnh đề yếu đứng trước sẽ che mệnh đề mạnh ở mọi lượt đỏ.
+    // Đây là vế DUY NHẤT bắt được ca "phản ứng rất trễ"; 2a bên dưới xanh oan ở ca đó.
     assert!(
-        growth <= growth_cap,
-        "`.db-wal` vẫn phình: đợt hai cộng thêm {growth} B trong khi nó chỉ ghi {round_bytes} B \
-         — trần {growth_cap} B ({GROWTH_NUM}/{GROWTH_DEN}). {after_first} B sau đợt một, \
-         {after_second} B sau đợt hai.\n\n\
-         ĐỌC HAI CÂU NÀY TRƯỚC KHI NỚI: mệnh đề 2 (*có trần*) ở ngay TRÊN đã xanh — nếu nó \
-         xanh thì WAL vẫn bị chặn theo ngưỡng, và chỗ hỏng nằm ở `walRestartLog` không rơi \
-         nhịp, KHÔNG ở tầng Store. Và `threshold_triggered`/`frames_checkpointed` dưới đây nói \
-         cơ chế có chạy hay không. Stats: {stats:?}"
+        ceiling_verdict.is_ok(),
+        "{}\n\n\
+         ĐỪNG nới trần theo phản xạ: mệnh đề 2a (*đỉnh không tăng*) ở ngay DƯỚI đã xanh hay chưa, \
+         và `threshold_triggered`/`frames_checkpointed` dưới đây nói cơ chế có chạy hay không. Nền \
+         `before_writes` ĐÃ được trừ ra, nên nếu vẫn đỏ thì KHÔNG phải vì một lượt di trú mới — \
+         đó là một hồi quy THẬT của tầng Store. Stats: {stats:?}",
+        ceiling_verdict.unwrap_err()
+    );
+
+    // ── Mệnh đề 2a: ĐỈNH KHÔNG TĂNG, dung sai 0 ─────────────────────────────────
+    // Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại chỗ đó,
+    // tệp giữ nguyên cỡ và **ngừng lớn**. Xem ca 8. Tự tham chiếu (`after_first`/`after_second`
+    // đo cùng lượt) nên nó không cần một mẫu số nào từ bên ngoài và không có chỗ cho phần
+    // trôi trú lại — vì thế Ice siết nó về 0 ngày 2026-09-13, bỏ hằng `1/4` của bản 2026-08-19.
+    assert!(
+        rise_verdict.is_ok(),
+        "{}\n\n\
+         ĐỌC HAI CÂU NÀY TRƯỚC KHI NỚI: mệnh đề 2b (*có trần*) ở ngay TRÊN đã xanh — nếu nó xanh \
+         thì WAL vẫn bị chặn theo ngưỡng, và chỗ hỏng nằm ở `walRestartLog` không rơi nhịp, \
+         KHÔNG ở tầng Store. Và `threshold_triggered`/`frames_checkpointed` dưới đây nói cơ chế \
+         có chạy hay không. Nếu đây là `macos-26`: con số vừa in CHÍNH LÀ phép đo mà §Always của \
+         spec đòi trước khi được phép đặt một dung sai — đọc nó, đừng nới theo phản xạ. \
+         Stats: {stats:?}",
+        rise_verdict.unwrap_err()
     );
 
     drop(store);
     cleanup(&dir);
+}
+
+/// **Ca giả lập, AC3 của `spec-ca-wal-do-tren-windows.md`** — "không cơ chế": WAL giữ
+/// nguyên đúng lượng đã ghi, không lượt checkpoint nào từng chạy. Bắn bằng số dựng sẵn
+/// thay vì chờ một hồi quy thật xảy ra — *"proven by a seeded check, not by argument"*.
+///
+/// Mệnh đề 2a bắt được vì đợt hai đẩy đỉnh lên nguyên một đợt ghi, mà dung sai của nó là 0.
+/// ⚠️ Mệnh đề 2b **KHÔNG** được yêu cầu bắt ca này trên mọi nền tảng: `after_first - nền` ở
+/// đây bằng `round_bytes` = 1/2 `written`, lọt qua trần 3/4 của Windows — đúng cái giá đã
+/// biết của trần rộng mà Ice ký 2026-08-11, không phải một khoảng trống mới. Ca "phản ứng
+/// rất trễ" ngay dưới mới là ca đo sức của 2b, và nó đặt đỉnh ở mức không trần nào bỏ lọt.
+#[test]
+fn wal_ceiling_still_catches_a_missing_checkpoint_mechanism() {
+    let round_bytes = (WAL_TEST_ROUNDS * WAL_TEST_BLOB) as u64;
+    let written = 2 * round_bytes;
+    let before_writes = 8_192u64; // nền lược đồ giả lập — nhỏ, không đổi kết luận
+    let after_first = before_writes + round_bytes; // đợt một: không checkpoint nào chạy
+    let after_second = before_writes + written; // đợt hai: cộng thêm nguyên một đợt nữa
+
+    assert!(
+        wal_peak_did_not_rise(after_first, after_second).is_err(),
+        "mệnh đề 2a phải bắt được: đợt hai đẩy đỉnh thêm nguyên {round_bytes} B, và dung sai \
+         của nó là 0"
+    );
+}
+
+/// **Ca giả lập, AC4 của `spec-ca-wal-do-tren-windows.md`** — "phản ứng rất trễ": đỉnh đã
+/// ở mức TỐI ĐA mà một cơ chế hoàn toàn vắng mặt để lại — trọn `written`, không một byte
+/// nào từng được checkpoint qua CẢ HAI đợt — rồi ĐỨNG YÊN từ đợt một sang đợt hai (tăng
+/// trưởng = 0), vì kể từ điểm đó cơ chế mới "kịp" giữ nó phẳng.
+///
+/// ⚠️ **Vì sao mốc là `written`, không phải `round_bytes` của riêng đợt một:** trần của
+/// mệnh đề 2b nới theo NỀN TẢNG (Windows 3/4 · macOS 1/4 của `written`). Trần 3/4 trên
+/// Windows đã CHỦ Ý đặt rộng — Ice ký 2026-08-11 — nên một đỉnh chỉ bằng `round_bytes`
+/// (≤ 1/2 `written`) lọt qua trần đó trên riêng nền tảng ấy: KHÔNG phải một khoảng trống
+/// mới, mà đúng cái giá đã biết của trần rộng (xem `deferred-work.md`, mục *"n = 2 máy"*).
+/// Ca giả lập này đo đúng điều AC4 đòi — *"còn bắt được"* — trên MỌI trần, bằng cách đặt
+/// đỉnh ở mức mà không trần nào (dù 1/4 hay 3/4) có thể bỏ lọt.
+///
+/// 🔴 **Đây là ca chứng minh hai mệnh đề không thừa nhau.** Mệnh đề 2a chỉ nhìn HIỆU SỐ hai
+/// đợt nên ở đây nó XANH OAN — và ca này khẳng định điều đó thật sự xảy ra: nếu 2a lại đỏ
+/// thì ca giả lập không đo đúng lỗ hổng nó tuyên bố đo, và cả lý lẽ "hai trục" sụp theo.
+/// Rồi nó khẳng định 2b vẫn bắt được, vì 2b nhìn MỨC TUYỆT ĐỐI của `after_first` (đã trừ
+/// nền) so với toàn bộ lượng ghi.
+#[test]
+fn wal_ceiling_still_catches_a_mechanism_that_reacts_very_late() {
+    let round_bytes = (WAL_TEST_ROUNDS * WAL_TEST_BLOB) as u64;
+    let written = 2 * round_bytes;
+    let before_writes = 8_192u64;
+    let after_first = before_writes + written; // đợt một: không checkpoint nào chạy, CẢ hai đợt
+    let after_second = after_first; // đợt hai: giữ y nguyên — tăng trưởng = 0
+
+    assert!(
+        wal_peak_did_not_rise(after_first, after_second).is_ok(),
+        "ca giả lập này phải làm mệnh đề 2a xanh OAN (tăng trưởng = 0) — nếu nó đỏ thì ca \
+         không đo đúng lỗ hổng đang kiểm, và lý lẽ \"hai trục\" của lượt 2026-09-13 sụp theo"
+    );
+    assert!(
+        wal_ceiling_holds(
+            before_writes,
+            after_first,
+            written,
+            WAL_CEILING_NUM,
+            WAL_CEILING_DEN
+        )
+        .is_err(),
+        "mệnh đề 2b phải bắt được: đỉnh đã bằng trọn cả hai đợt ghi ngay từ đợt một, dù tăng \
+         trưởng giữa hai đợt bằng 0 — đúng ca mà 2a một mình bỏ sót"
+    );
 }
 
 /// **Ca 8** — `close()` cắt `.db-wal` về 0 byte (hoặc xoá hẳn).

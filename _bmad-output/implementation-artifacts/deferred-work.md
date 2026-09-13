@@ -1653,6 +1653,65 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   `threshold_triggered`/`frames_checkpointed` là hai câu trả lời đó. Đường đóng thật sự vẫn
   là đo trên một máy Windows — **món nợ A5**.
 
+  → ✅ **ĐÓNG PHẦN "n = 1" 2026-09-13, và mệnh đề 2 được RESHAPE thay vì nới thêm lần nữa —
+  spec `spec-ca-wal-do-tren-windows.md`.** Ca này đỏ liên tục trên `windows-2025` từ
+  2026-09-03: `.db-wal` = **984.712 B**, GIỐNG HỆT từng byte qua **bảy** lượt đêm liên tiếp
+  (2026-09-03 → 2026-09-13) — n không còn là 1, là **7**, và cả bảy đồng nhất tuyệt đối.
+  macOS cục bộ (n = 1, 2026-09-13): **189.552 B** *(đo bằng test CŨ; điểm chụp mới cho
+  148.352 B — xem đoạn "Sửa" bên dưới trong chính mục này)*. Cả hai đều là bước nhảy đúng **+23 frame** (94.760 B, 4.120 B/khung) so với số
+  2026-08-11 (macOS 94.792 B · Windows 889.952 B) — MỘT nguyên nhân, độc lập nền tảng.
+  **Nguyên nhân ĐO ĐƯỢC, không phải đếm di trú rồi suy ra:** cắt `GLOBAL_MIGRATIONS` về đúng
+  bộ **3** bước của `0dae624` (2026-08-11, lượt chốt trần cũ) rồi chạy lại ca này trên máy Ice
+  (macOS, 2026-09-13) ⇒ nền `.db-wal` **53.592 B**, đỉnh **94.792 B** — trùng TỪNG BYTE số đo
+  2026-08-11. Trả lại bộ **7** bước của `HEAD` ⇒ nền **148.352 B**. Hiệu
+  **148.352 − 53.592 = 94.760 B = đúng 23 frame** — toàn bộ bước nhảy nằm ở NỀN LƯỢC ĐỒ, phát
+  sinh ở `Store::open` trước khi ca ghi một byte dữ liệu nào. ⚠️ Là **BỐN** bước thêm giữa hai
+  mốc, không phải ba: `GLOSSARY_ENTRY_DDL` (v4, Story 3.1 — bảng + unique index + trigger,
+  nặng nhất trong bốn), `GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL` (v5, Story 3.10),
+  `LIBRARY_ORPHAN_DDL` (v6, Story 5.3), `IMPORT_CLEANUP_RULE_DDL` (v7, Story 6.5) — xem
+  `core/store/schema.rs`. Phép đo gộp cả bốn và KHÔNG chia 23 frame cho từng bước; nó không
+  cần chia, vì bản vá trừ trọn phần nền ra. `written` trong assert là hằng số (`2*ROUNDS*BLOB`), nên mỗi di
+  trú thêm bảng cộng dồn vào tử số một phần trăm-điểm mà KHÔNG BAO GIỜ trừ ra: đúng lỗi cấu
+  trúc, không phải một hồi quy của tầng Store — cơ chế đo khoẻ như cũ ở cả hai nền tảng
+  (`threshold_triggered > 0`, `errors: 0`, tăng trưởng đợt-sang-đợt = 0 B ở cả ba số đo).
+  **Sửa — Ice chốt 2026-09-13, HAI mệnh đề trên HAI trục, không phải một mệnh đề gánh cả hai:**
+  `tests/store_contract.rs::the_wal_stops_growing_once_it_crosses_the_threshold` nay đo thêm
+  `before_writes` (`.db-wal` NGAY TRONG lượt chạy, trước khi ca ghi byte nào) và tách phán
+  quyết làm đôi:
+  - **2a `wal_peak_did_not_rise`** — `after_second <= after_first`, **dung sai 0**, bỏ hẳn hằng
+    `1/4` của bản 2026-08-19. Tự tham chiếu trong cùng lượt chạy nên KHÔNG có mẫu số ngoài và
+    không còn chỗ nào cho phần trôi trú lại. Bằng chứng đứng sau dung sai 0: Windows CI n = 7
+    đêm liên tiếp cho `after_first == after_second` từng byte; macOS máy Ice n = 3 cũng vậy.
+  - **2b `wal_ceiling_holds`** — `(after_first − before_writes) < written * NUM/DEN`, trần
+    `3/4`/`1/4` theo nền tảng **giữ nguyên**. Đây là vế DUY NHẤT bắt được ca *"phản ứng rất
+    trễ"* (đỉnh đã kẹt ở đợt một, tăng trưởng hai đợt = 0) — ca mà 2a xanh oan.
+
+  ⚠️ **Giá phải trả, khu trú ĐÚNG ở 2b và Ice ký nhận:** phép trừ nền nới ngưỡng đỏ của 2b
+  lên thêm đúng `before_writes` (hôm nay 148.352 B trên macOS), và phần nới đó LỚN DẦN theo
+  mỗi di trú sau. Phần trôi không bị khử hẳn — nó chuyển từ *báo đỏ oan* thành *vùng mù*. Đổi
+  lại trục "phình tiếp" (2a) sạch trôi tuyệt đối. **Đây là một món nợ còn mở, có chủ là Ice.**
+
+  Hai ca giả lập (`wal_ceiling_still_catches_a_missing_checkpoint_mechanism` ·
+  `wal_ceiling_still_catches_a_mechanism_that_reacts_very_late`) bắn số dựng sẵn, và phép đột
+  biến từng vế chứng minh chúng không thừa nhau: ép 2a luôn `Ok` ⇒ **chỉ** ca "không cơ chế"
+  đỏ; ép 2b luôn `Ok` ⇒ **chỉ** ca "phản ứng trễ" đỏ.
+
+  🔴 **CHƯA ĐO ĐƯỢC, đừng đọc mục này là đã xong Windows:** cả hình dạng 2a lẫn 2b **chưa từng
+  chạy trên `windows-2025` một lần nào**. Bộ bảy lượt đêm nói ở trên đo **mã CŨ**. Lượt
+  `check (windows-2025)` kế tiếp sau khi nhập nhánh mới là điểm đo đầu tiên của mã này — đọc
+  nó rồi mới được nói nửa Windows đã lành. Tương tự, `macos-26` từng ghi `after_second` lớn hơn
+  `after_first` tới **115.360 B** (lượt `32438371572`, đo ở điểm chụp `sleep(100ms)` mù); số đó
+  không bác được dung sai 0 nhưng cũng chưa chứng minh nó an toàn ở runner đó.
+
+  ⚠️ **Vế còn treo, không phải phần này đóng:** đường đóng thật của **món nợ A5** *(một máy
+  Windows thật, không phải runner CI)* vẫn mở cho các mục KHÁC nó đang gánh (Story 1.3 AC6/
+  AC7, WiX, bốn spec e2e WebView2 — xem mục *"Trọn phần Windows dời về CUỐI dự án"* ngay
+  dưới). Phần A5 gánh RIÊNG cho ca WAL này — *"cần một điểm đo Windows"* — nay đã có bảy điểm
+  đo *trên mã cũ*, đủ để đóng đúng câu hỏi đó: CI đã in một lượt Windows mỗi đêm suốt cửa sổ
+  2026-09-03 → 2026-09-13 (bảy lượt trong mười một ngày lịch; các đêm còn lại không có lượt
+  chạy nào được ghi). ⚠️ Những lượt ấy **ĐỎ** — chính ca này là thứ giữ job `check` đỏ; cái
+  *đồng nhất tuyệt đối* là **con số đo được**, không phải phán quyết xanh/đỏ.
+
 ## Deferred from: correct-course — rà soát tài liệu vs mã nguồn (2026-08-11)
 
 *Ice yêu cầu một lượt đối chiếu tài liệu với mã đã triển khai, không nêu trước chỗ nghi ngờ.
@@ -2162,7 +2221,14 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   - **Story 1.3** — AC6 (ba số `.msi` + hai dòng NFR6) · AC7 (thời gian tường, phút tính phí,
     cache lạnh/nóng) · Task 11 hàng 4 (`#[cfg(windows)] compile_error!` làm **chỉ** job Windows
     đỏ) · AC3/Task 4 (rào biên dịch C và WiX v3) · chiều âm của AC8 trên `windows-2025`;
-  - **Story 1.7 AC5** — trần WAL nới theo nền tảng, hiệu chuẩn trên **n = 1** điểm đo Windows;
+  - ~~**Story 1.7 AC5** — trần WAL nới theo nền tảng, hiệu chuẩn trên **n = 1** điểm đo
+    Windows~~ → ✅ **ĐÓNG 2026-09-13**, KHÔNG phải bằng máy vật lý mà bằng bảy lượt CI
+    `windows-2025` đêm (2026-09-03 → 2026-09-13), **đỏ** cả bảy nhưng in ra một con số đồng
+    nhất tuyệt đối (984.712 B mọi lượt) — n = 7, không còn n = 1. Mệnh đề 2 được tách làm hai
+    vế (2a dung sai 0 · 2b trừ nền lược đồ) thay vì nới trần lần nữa; xem mục đóng đầy đủ ở
+    khối *"AC5 của Story 1.7"* phía trên, kèm vùng mù của 2b còn treo.
+    🔴 Hình dạng MỚI chưa chạy trên `windows-2025` lần nào — bảy lượt trên là mã cũ.
+    Phần KHÁC của A5 (Story 1.3 AC6/AC7, WiX, e2e WebView2 — các dòng dưới) **vẫn mở**;
   - **AD-45 và hai móc chuyển hướng** (`$APPDATA`, thư mục gốc Library) — cả ba là mệnh đề
     **hai nền tảng** mới đo được một nửa; đường Windows đi Known Folder API, khác hẳn macOS;
   - **Bốn spec e2e** — chưa từng chạy trên WebView2 một lần nào;
@@ -5560,6 +5626,25 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   di trú. Đóng im lặng là để một hồi quy có thật đi qua dưới một bản vá bộ đo.
   **Chủ: Ice** *(chưa có lịch)*. Ràng buộc: cần **một** runner, hai cây nguồn — không phải một
   máy Windows, nên nó **không** nằm sau món nợ A5.
+
+  → ✅ **ĐÓNG 2026-09-13 — câu hỏi trả lời được KHÔNG CẦN "cùng một runner, hai cây nguồn",**
+  bằng một đường tách mạnh hơn: **hai runner khác nhau, CÙNG một bước nhảy.** Nếu ⒜ (biến
+  động runner/`busy`) là nguyên nhân, hai nền tảng không có lý do gì bước nhảy TRÙNG NHAU;
+  nếu ⒝ (di trú dịch nhịp WAL) là nguyên nhân, cả hai PHẢI nhảy cùng lượng vì cùng chạy cùng
+  `GLOBAL_MIGRATIONS`. Đo được: macOS 94.792 B → 189.552 B, Windows 889.952 B → 984.712 B —
+  cả hai đúng **+94.760 B (+23 frame, 4.120 B/khung)**, không sai một byte. Đây là ⒝, và chỉ
+  có thể là ⒝: một `busy` ngẫu nhiên của runner không tạo ra hai bước nhảy giống hệt nhau trên
+  hai hệ điều hành khác nhau. Windows n = 7 (2026-09-03 → 2026-09-13, đồng nhất tuyệt đối)
+  loại thêm khả năng đây là nhiễu — bảy lượt cùng một con số không phải chập chờn.
+  **Hệ quả cho mục cha:** hiệu ứng "lớn dần theo mỗi lượt thêm di trú" mà mục cha lo là CÓ
+  THẬT — **4** di trú mới (`GLOBAL_MIGRATIONS` 3 → 7) ⇒ +23 frame, đo trực tiếp bằng cách cắt
+  danh sách về bộ cũ rồi trả lại — và spec `spec-ca-wal-do-tren-windows.md` đã sửa, tách làm
+  hai vế: **2a** siết `after_second <= after_first` với dung sai 0 (sạch trôi tuyệt đối), và
+  **2b** trừ `before_writes` ra trước khi so với `written` (giữ được ca "phản ứng rất trễ",
+  đổi lại một vùng mù bằng đúng nền lược đồ — món nợ có chủ, ghi ở mục AC5 phía trên).
+  Một di trú kế tiếp vì thế không còn cộng dồn vào tỉ lệ được nữa. **(Đóng bởi story sửa
+  `store_contract.rs`, không phải B7 — B7 vẫn giữ nguyên phạm vi của nó: `busy` chặn PASSIVE
+  trên Windows, một câu hỏi KHÁC câu hỏi này.)**
 
 ⚠️ **Và ghi thẳng một chỗ yếu của chính bản vá `8a4a060`:** trần `1/4` cho *mức lớn thêm* hiệu
 chuẩn trên **n = 2 máy**. Hai điểm đo không vẽ được một phân bố. Ba lượt đột biến chứng minh nó
@@ -11551,3 +11636,42 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (18m51s, previously rejected on cost), a product-side test seam behind the `wdio` feature, or
   accepting the suite as solo-only and changing how CI runs it. All three are outside what the
   reverted spec allowed, so this needs a planning decision, not another patch.
+
+## Deferred from: spec-ca-wal-do-tren-windows (review round 1, 2026-09-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ca-wal-do-tren-windows.md`
+  summary: `settled_wal_len` returns a `.db-wal` length on deadline expiry with no signal
+    separating "settled" from "gave up while still moving", so it can silently reproduce the
+    very "captured too early" defect it was written to fix.
+  evidence: `store_contract.rs` — the poll loop exits on `Instant::now() >= stop` and falls
+    through to `file_len(wal)`; nothing distinguishes the two exits. The frozen §Always of the
+    spec required the capture point be chosen "so the peak has demonstrably stabilised", and a
+    silent give-up does not demonstrate it. Not patched here because the fix is a guard on a
+    state nobody has shown is reachable — no test drives `frames_checkpointed` past the 500 ms
+    deadline. What would settle it: either a seeded/faked `checkpoint_stats()` that keeps moving,
+    so the deadline branch can be exercised and a panic justified, or one CI observation where
+    the deadline is actually hit.
+  **Chủ: Ice** — cần một quyết định (cho phép panic khi không hội tụ, hay chấp nhận đọc mù) chứ
+  không phải một bản vá; và cần một lượt CI để biết hạn chót có bị chạm thật không.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ca-wal-do-tren-windows.md`
+  summary: `file_len` swallows a `fs::metadata` error as `0`, which would turn a transient stat
+    failure into a silently wrong WAL measurement for every test in the file.
+  evidence: `store_contract.rs` — `fs::metadata(path).map(|m| m.len()).unwrap_or(0)`. The helper
+    is **untouched by this story** and pre-dates it, and for `before_writes` a `0` makes the
+    assertion stricter (a loud false red) rather than a silent pass — so it is recorded, not
+    patched. What would settle it: decide whether any test in this file has a legitimate reason
+    to read a missing sidecar as `0`; if none, make the helper panic with the path and the error.
+  **Chủ: Ice** — helper dùng chung cho cả tệp, nên đổi nó là một quyết định ngoài phạm vi story
+  này; không story nào đang chạy được phép tự siết nó.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ca-wal-do-tren-windows.md`
+  summary: The seven `windows-2025` nightlies are cited by date and value but never by CI run ID,
+    breaking this file's own convention of naming every CI observation by its run.
+  evidence: Prior CI observations in this same file are cited as `32212786258`, `31469843146`,
+    `32438371572`, so a reader can open them; the seven runs behind the 984.712 B figure cannot
+    be opened from what is written. The run IDs were not available in the session that recorded
+    them. What would settle it: read the seven `check (windows-2025)` runs in that window and
+    write their IDs next to the number.
+  **Chủ: Ice** — cần quyền đọc lịch sử `check (windows-2025)` trên GitHub, thứ phiên dựng ca này
+  không có.
