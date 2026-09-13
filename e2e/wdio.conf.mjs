@@ -147,6 +147,36 @@
  *         độ chắc chắn của nó; ① một mình đã đủ để không đi đường này hôm nay.
  *    Đổi lại: 3 phút cho cả bộ, tuần tự, và không một lớp đỏ giả nào.
  *
+ * 🔴 **SỬA 2026-09-13 — câu "không một lớp đỏ giả nào" ngay trên đã bị chính phép đo LẬT, và
+ *    một mệnh đề đã lật không được phép đứng nguyên trong im lặng.** Lý do ① và ② ở trên vẫn
+ *    ĐÚNG — cả hai chỉ nói về HAI APP chạy SONG SONG đụng nhau. Chúng không nói gì về, và
+ *    không hề loại trừ, một lớp đỏ giả HOÀN TOÀN khác: MỘT app, chạy TUẦN TỰ, mang state cấp
+ *    module SỐNG SANG tệp spec kế tiếp theo THỜI GIAN.
+ *
+ *    Đo 2026-09-12: `npm run test:e2e` — 8 tệp spec, 15 ca đỏ trong lượt trọn bộ, và **12/15
+ *    ca đó XANH khi chạy MỘT MÌNH** (`story-5-3-rescan`: 7 đỏ trong lô, 7 xanh một mình,
+ *    2,8 s). Không một selector nào đổi, không một hồi quy sản phẩm nào. Nguyên nhân: một
+ *    `pid` duy nhất phục vụ cả 24 spec (đo trên hai phiên chạy) — trạng thái Chế độ đang mở,
+ *    lượt đọc đang dở, các singleton Library (works/rescan/search) đều là state cấp module
+ *    KHÔNG bị dọn giữa hai tệp spec, trừ năm module Panel mà `support/panelReset.mjs` đã đóng
+ *    từ Story 2.12.
+ *
+ *    ⚠️ **MỘT BẢN VÁ ĐÃ ĐƯỢC THỬ VÀ ĐÃ BỊ GỠ — đọc trước khi thử lại đúng đường ấy.** Ngày
+ *    2026-09-13 đã dựng: thêm bốn module Chế độ đọc/Library vào `PANEL_MODULES` của
+ *    `support/panelReset.mjs`, một lượt chuẩn hoá `setMode('library')`, và một lời gọi
+ *    `resetPanelState()` từ `before` hook dưới đây (mỗi tệp spec, không chỉ những spec đi qua
+ *    `openWorkspaceWithWork()`). Đo trên máy Ice, cây đứng yên, mỗi lượt một lần:
+ *      · mốc `f5feca0`         — 16 tệp xanh /  8 đỏ · 15 ca đỏ · 131 s
+ *      · có bản vá             — 12 tệp xanh / 12 đỏ · 20 ca đỏ · 389 s
+ *      · bản vá + `LOAD_CALLS` — 12 tệp xanh / 12 đỏ · 20 ca đỏ · 372 s
+ *    Vế chuẩn hoá chế độ CÓ chạy đúng (`story-5-6` hết câu *"khối Tác phẩm không có mặt"*),
+ *    nhưng bốn tệp đang xanh hoá đỏ và khoảng cách đầy-đủ/lẻ KHÔNG đóng: trên chính cây đã vá,
+ *    `story-5-6` và `story-5-11` vẫn XANH khi chạy một mình. Thêm `LOAD_CALLS` cho bốn module
+ *    ấy đổi đúng 17 giây và không một ca nào — tức giả thuyết *"dọn mà không nạp lại"* đã bị
+ *    bác cho lớp này, dù nó từng đúng cho năm module Panel năm 2026-08-18.
+ *    ⇒ Ice chốt 2026-09-13: trả cây về mốc, giữ lại phát hiện. Khuyết tật còn nguyên, có chủ
+ *    trong `deferred-work.md`. Đừng dựng lại bản vá trên mà không có một cơ chế MỚI đo được.
+ *
  * Chạy:  npm run test:e2e                                          (cả bộ, ~3 phút)
  *        npm run test:e2e -- --spec e2e/specs/<tên>.e2e.mjs        (một tệp, khi đang vá)
  *

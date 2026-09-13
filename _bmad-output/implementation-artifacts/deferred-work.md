@@ -11491,3 +11491,63 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   regression. Fix: skip dotfiles/non-UTF-8 in that walk, or fail with a named reason instead of
   a panic."
   **Chủ: Dev** — fix the walk in the next story that touches `dict_boundary.rs`.
+
+- source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
+  summary: "`story-5-4-lifecycle` (2 cases) and `story-5-5-progress` (1 case) drive the Library
+  import form through a submit button that no longer commits a Work, so they stay red even when
+  run alone."
+  evidence: "Split from G1 on 2026-09-12 (Ice chose Split): the two goals have different causes
+  and different fixes. G1 is harness isolation — 12 of the 15 failing cases are green when their
+  spec runs alone (measured 2026-09-12: `story-5-3-rescan` 7 red in the full run, 7 green in
+  2.8 s alone). These 3 cases are red on BOTH sides, so cross-spec leakage cannot be their
+  cause. Real cause: commit `d20fe67` `feat(story-6.3)` (2026-09-04) moved Work creation behind
+  the encoding-preview overlay — `submitPastedText` (`src/modes/libraryImport.ts:332-357`) now
+  only OPENS `ImportPreviewOverlay.vue`, and the write happens in `confirmImportPreview()`,
+  reachable only via `.ip-act-primary` → `dispatch('import.preview.confirm')`
+  (`src/ImportPreviewOverlay.vue:1512-1518`). Both specs were written 2026-08-28, before that
+  commit, and their helper `createWorkThroughForm` clicks an unqualified `form.$('button')`
+  (`story-5-4-lifecycle.e2e.mjs:68-74`, `story-5-5-progress.e2e.mjs:77-82`) — now the first
+  match is the preview-open button. No Work is created, so `watch(createdWork, …)`
+  (`LibraryMode.vue:165`, still present) never fires and the row legitimately never appears.
+  NOT a product regression. Fix direction: anchor the submit on `[data-import-preview-open]`,
+  then confirm through `.ip-act-primary`, waiting for the overlay to open and close — do NOT
+  reroute the helper to the raw `create_work_from_text` IPC, which would bypass the very step
+  Story 6.3 added and give a green suite that never touches it (`e2e/AGENTS.md`: this suite's
+  one role is behaviour in a REAL webview). Cannot be verified by a full-suite run until G1
+  lands: in the full run these two specs die earlier, at `.import-form`, from the mode leak."
+  **Chủ: Dev** — execute after G1 lands, verified by a full-suite `npm run test:e2e`.
+
+- source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
+  summary: "The e2e suite still gives false reds in a full run: one app process serves all 24
+  sequential specs, so module-level state carries across spec files. 12 of 15 failing cases are
+  green when their spec runs alone."
+  evidence: "Measured on Ice's machine 2026-09-12/13, still tree, one run each. Baseline
+  `f5feca0`: 16 spec files passed / 8 failed, 15 failing cases, 131 s; `story-5-3-rescan` is 7
+  red in the full run and 7 GREEN alone in 2.8 s. Removal experiment: `story-5-6-library-grid`
+  alone is green; put `story-5-13-reading-marks` (which ends in reading mode) immediately before
+  it and it goes red with the same message — so the cause is the predecessor, not the spec and
+  not machine load. Mechanism: ONE app pid across the whole run (measured: 1 pid, 2 WebDriver
+  sessions), so the leak is live in-process state, NOT `$APPDATA` — both redirect env vars are
+  read once at launch, which is why per-spec temp dirs cannot fix it and would require the
+  per-spec relaunch already rejected at 18m51s (`panelReset.mjs:31-36`).
+  🔴 AN ATTEMPTED FIX WAS BUILT AND REVERTED — do not rebuild it unchanged. Adding the four
+  Reading/Library modules to `PANEL_MODULES`, normalising `setMode('library')`, and calling
+  `resetPanelState()` from the `before` hook once per spec file gave 12 passed / 12 failed,
+  20 failing cases, 389 s; adding the matching `LOAD_CALLS` (`loadWorks`,
+  `loadOpenWorkLifecycle`, `loadChapters`, `ensureReadingLoaded`) changed it to 372 s and not a
+  single case. The mode half DID work (`story-5-6` lost its 'Library block absent' error) but
+  four green spec files went red and, decisively, the full-vs-solo gap stayed open: on the
+  patched tree `story-5-6` and `story-5-11` were still green when run alone. Two mechanism
+  hypotheses were refuted by measurement — the agent's ('onActivated reloads, so no LOAD_CALLS
+  needed') and the reviewer's ('reset without reload, the 2026-08-18 trap'). The remaining
+  symptom after the mode fix was a new shape: a Work created mid-spec never appears in the list
+  within 30 s (`story-5-5`/`5-6`/`5-7`), which is also G2's symptom.
+  A fourteenth gate (`scripts/check-reset-coverage.mjs`) was built and verified red on four
+  seeded violations, but it is coupled to the reset list and was reverted with it.
+  Closes the investigation step of AI-5 (`epic-5-retro-item-54-…` in `sprint-status.yaml`): the
+  'runner vs Ice's machine' axis is dead — local reproduces CI exactly (16/8 both) — and the
+  'full run vs single run' axis is confirmed as the real one."
+  **Chủ: Ice** — decide the mechanism before any further attempt: a per-spec app relaunch
+  (18m51s, previously rejected on cost), a product-side test seam behind the `wdio` feature, or
+  accepting the suite as solo-only and changing how CI runs it. All three are outside what the
+  reverted spec allowed, so this needs a planning decision, not another patch.

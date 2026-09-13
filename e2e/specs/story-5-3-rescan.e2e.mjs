@@ -110,7 +110,14 @@ describe('Story 5.3 · FR99 — quét lại thư mục trong cửa sổ thật',
 
   before(async () => {
     expect(libraryRoot).toBeDefined()
-    parkingLot = join(dirname(libraryRoot), 'e2e-parking-lot')
+    // 🔴 SỬA 2026-09-13 (spec e2e — cách ly trạng thái giữa các spec) — TÊN RIÊNG MỖI LƯỢT,
+    // không một chiếc lá CỐ ĐỊNH trong thư mục tạm hệ thống dùng chung. `AGENTS.md::Known
+    // pitfalls` đã ghi đúng lớp lỗi này cho ba con số tuyệt đối; đây là bản của nó cho một
+    // ĐƯỜNG DẪN dùng chung: một lượt chạy CRASH giữa chừng (trước `after()` kịp dọn `parkingLot`)
+    // để lại `.atproj` mồ côi trong `e2e-parking-lot`, và lượt SAU đọc thư mục đó thấy rác của
+    // lượt trước — đúng `ENOENT … rename … /T/e2e-parking-lot/` đã quan sát được. Mượn `WORK_NAME`
+    // (đã mang dấu `Date.now()`) làm hậu tố nên hai lượt chạy KHÔNG BAO GIỜ trỏ cùng một thư mục.
+    parkingLot = join(dirname(libraryRoot), `e2e-parking-lot-${WORK_NAME}`)
     mkdirSync(parkingLot, { recursive: true })
     workDir = join(libraryRoot, `${WORK_NAME}.atproj`)
   })
