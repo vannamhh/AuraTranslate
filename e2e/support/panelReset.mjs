@@ -23,6 +23,25 @@
  * - **(c) một phiên app mới mỗi spec** — lượt trọn bộ thứ chín **đã** mất 18m51s, và ba ca
  *   **đã** đụng trần `mochaOpts.timeout` 120 s.
  *
+ *   🔴 **SỬA 2026-09-14 — con số 18m51s ở trên đo một thứ KHÁC với "một phiên app mới mỗi
+ *   spec", và một quyết định đứng trên một con số đo sai đối tượng thì phải sửa lại, không
+ *   phải huỷ quyết định.** 18m51s là thời gian của lượt trọn bộ THỨ CHÍN ngày 2026-08-18
+ *   (`deferred-work.md`), chạy với MỘT phiên app duy nhất cho cả bộ, không hề relaunch. Chưa ai
+ *   đo tách con số đó ra theo nguyên nhân, nên tệp này không gán nó cho nguyên nhân nào. Điều
+ *   chắc chắn duy nhất: nó KHÔNG đo chi phí mở một tiến trình app mới mỗi tệp spec, vì lượt
+ *   đó không mở lần nào. Quyết định (c) ở trên đã loại một cơ chế bằng một con số chưa từng
+ *   đo đúng cơ chế đó.
+ *
+ *   Chi phí relaunch mỗi tệp spec, đo ngày 2026-09-14 trên cùng máy
+ *   (`spec-e2e-cach-ly-trang-thai-giua-cac-spec.md` §Verification, log giữ lại): cấu hình gốc
+ *   một phiên app, cả bộ 24 tệp spec, **155 giây**; relaunch cộng thư mục trắng mỗi tệp
+ *   **239-243 giây**. Chênh khoảng 85 giây, cỡ 3,5 giây mỗi tệp spec, trong đó giết app và
+ *   chờ nhả cổng chiếm khoảng 1 giây.
+ *   ⇒ Quyết định (c) VẪN đúng cho vai của TỆP NÀY — dọn state cấp module giữa hai Tác phẩm
+ *   TRONG một tệp spec vẫn là đường (b) — nhưng lý do loại "một phiên app mới mỗi spec" bằng
+ *   chi phí thì không đứng: kho này nay CÓ một phiên app mới mỗi tệp spec
+ *   (`wdio.conf.mjs::onWorkerEnd`).
+ *
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÀ VÌ SAO ĐƯỜNG NÀY LÀ **0 DÒNG MÃ SẢN PHẨM** — đo, không suy
  * ═════════════════════════════════════════════════════════════════════════════════

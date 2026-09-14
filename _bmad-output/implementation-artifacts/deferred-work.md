@@ -11601,6 +11601,13 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   one role is behaviour in a REAL webview). Cannot be verified by a full-suite run until G1
   lands: in the full run these two specs die earlier, at `.import-form`, from the mode leak."
   **Chủ: Dev** — execute after G1 lands, verified by a full-suite `npm run test:e2e`.
+  **G1 landed 2026-09-14: this item is now verifiable by a full run.** On the landed harness
+  (`e2e/wdio.conf.mjs::onWorkerEnd`), three consecutive full-suite runs on a still tree each
+  gave **22 passed / 2 failed**, and the failing cases were exactly these three:
+  `story-5-4-lifecycle` (2) and `story-5-5-progress` (1). Both specs now fail at the
+  Work-creation step described above ("hàng của Tác phẩm … không xuất hiện trong danh sách sau
+  30 giây") instead of dying earlier at `.import-form`, so the fix direction above can be
+  checked with `npm run test:e2e`.
 
 - source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
   summary: "The e2e suite still gives false reds in a full run: one app process serves all 24
@@ -11636,6 +11643,34 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (18m51s, previously rejected on cost), a product-side test seam behind the `wdio` feature, or
   accepting the suite as solo-only and changing how CI runs it. All three are outside what the
   reverted spec allowed, so this needs a planning decision, not another patch.
+
+  → ✅ **ĐÃ ĐÓNG 2026-09-14.** Ice chose the mechanism (decision 1a, `spec-e2e-cach-ly-trang-thai-
+  giua-cac-spec.md`): after every spec file the harness stops the app and points the next
+  launch at a fresh `$APPDATA` and Library root (`onWorkerEnd`/`onComplete` in
+  `e2e/wdio.conf.mjs`), harness-only, no `src`/`src-tauri` change. Verified 2026-09-14 on a
+  still tree with logs kept (that spec's §Verification, the **"Review loop 1, 2026-09-14"**
+  block specifically — NOT the two blocks above it, which verified the round-0 implementation
+  reverted in that same review loop and no longer describe the code): three consecutive full
+  runs at
+  **22 passed / 2 failed**, failing cases exactly G2; the ordered pair
+  `story-5-13-reading-marks` then `story-5-6-library-grid` green; the removal control (hook
+  unregistered) red on `story-5-6`; a seeded run that skipped the env write on two relaunches,
+  in a run that also had a failing spec file, named both dirs; a seeded run that skipped the
+  kill stopped with `SevereServiceError` before the second spec file started.
+
+  Two claims in the evidence above are refuted, corrected here rather than left standing:
+  - *"the leak is live in-process state, NOT `$APPDATA`"*: measured 2026-09-14, what carries
+    forward has three layers: frontend module and `<KeepAlive>` state, Rust in-process state
+    (`OpenWorkState`, the Library index), and on-disk state in the shared dirs (the mode
+    persisted in `global.db` and restored at `src/main.ts:946`). A relaunch that kept the dirs
+    measured 17 passed / 7 failed and left `story-5-6` red after `story-5-13`; relaunch plus
+    fresh dirs measured 22 / 2.
+  - *"a per-spec relaunch already rejected at 18m51s"*: 18m51s was the wall time of the ninth
+    full-suite run of 2026-08-18, with one app process for the whole run and no relaunch, so it
+    never measured relaunch cost; its breakdown by cause was never measured. Measured
+    2026-09-14 on the same machine: stock full suite 155 s, relaunch plus fresh dirs 239-243 s,
+    about 3.5 s more per spec file, of which stopping the app and releasing the port takes
+    about 1 s. Corrected in place in `e2e/support/panelReset.mjs`.
 
 ## Deferred from: spec-ca-wal-do-tren-windows (review round 1, 2026-09-13)
 
@@ -11675,3 +11710,48 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     write their IDs next to the number.
   **Chủ: Ice** — cần quyền đọc lịch sử `check (windows-2025)` trên GitHub, thứ phiên dựng ca này
   không có.
+
+## Deferred from: spec-e2e-cach-ly-trang-thai-giua-cac-spec (review loop 1, 2026-09-14)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
+  summary: The per-spec-file relaunch harness in `e2e/wdio.conf.mjs` has no automated,
+    repeatable check that `onComplete` keeps checking and deleting later dir pairs after an
+    earlier pair fails, or that `onWorkerEnd` failures surface as `SevereServiceError`.
+  evidence: No test imports `wdio.conf.mjs`; `vitest` covers `tests/frontend/**` only. Both
+    behaviours were proven once, by hand-seeded copies of the config (a mid-run env-write skip
+    that named two dirs in a red run, and a held port that aborted before the second spec file),
+    and those copies were deleted. A normal nightly never reaches either path, so a later edit
+    reintroducing "stop at the first failing pair" or a plain `throw` would stay green
+    everywhere. The gap class predates this spec: the 2026-08-11 `global.db` guard was also
+    verified only by a hand-seeded run. What would settle it: extract the per-pair guard loop
+    into a function a unit test can drive with fabricated pairs, or keep the seeded configs as a
+    runnable script.
+  **Chủ: Dev** — trong story kế tiếp đụng `e2e/wdio.conf.mjs`; phạm vi `vitest` và việc tách hàm
+  là quyết định của story đó, không phải của spec này.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
+  summary: `e2e/wdio.conf.mjs` imports `SevereServiceError` from `webdriverio`, which
+    `package.json` does not declare, and `@wdio/cli` recognises the error by `instanceof`.
+  evidence: Two copies are installed today: `node_modules/webdriverio` 9.30.1 (resolved by both
+    `@wdio/cli` and `wdio.conf.mjs`, so the abort works, proven by the held-port control) and
+    `node_modules/@wdio/tauri-service/node_modules/webdriverio` 9.30.0. If a future install nests
+    a copy under `@wdio/cli`, `runLauncherHook`'s `instanceof SevereServiceError`
+    (`node_modules/@wdio/cli/build/index.js:354-371`) stops matching and every hook failure is
+    swallowed again, silently. Declaring the dependency needs `package.json`, which that spec's
+    frozen Never clause excludes. What would settle it: declare `webdriverio` at the version
+    `@wdio/cli` pins, or add a load-time assertion that both resolve to the same module.
+  **Chủ: Ice** — đụng `package.json` và cửa rà gói phụ thuộc, nằm ngoài quyền của một spec
+  harness.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
+  summary: One prototype full run (E2, relaunch plus fresh dirs) had `story-5-7-open-chapter`
+    red with "Tác phẩm … không xuất hiện trong lưới sau 30 giây", and the cause was never named.
+  evidence: Green in run E, in 5 of 5 solo runs on the stock config, and in every later verified
+    full run of the landed harness. The spec clicks "Tải danh sách" once
+    (`e2e/specs/story-5-7-open-chapter.e2e.mjs:255`) and then waits 30 s with no re-click, so a
+    click that does not land leaves the grid unaware of the new Work. Every prototype relaunch
+    logged the port closed in about 1 s, so a slow shutdown is not the cause. What would settle
+    it: capture the next occurrence verbatim (nightly `e2e (macos-26)`), including whether the
+    list reload IPC ran.
+  **Chủ: Dev** — chẩn đoán ở lần tái xuất đầu tiên trên nightly; không đoán nguyên nhân trước khi
+  có nguyên văn.

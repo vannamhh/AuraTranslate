@@ -175,9 +175,53 @@
  *    ấy đổi đúng 17 giây và không một ca nào — tức giả thuyết *"dọn mà không nạp lại"* đã bị
  *    bác cho lớp này, dù nó từng đúng cho năm module Panel năm 2026-08-18.
  *    ⇒ Ice chốt 2026-09-13: trả cây về mốc, giữ lại phát hiện. Khuyết tật còn nguyên, có chủ
- *    trong `deferred-work.md`. Đừng dựng lại bản vá trên mà không có một cơ chế MỚI đo được.
+ *    trong `deferred-work.md`. Đừng dựng lại bản vá TRÊN (dọn state trong CÙNG một app) mà
+ *    không có một cơ chế MỚI đo được — mục ngay dưới đây LÀ cơ chế mới đó, và nó đi một
+ *    đường khác hẳn: không dọn state, mà GIẾT app cũ và dựng app mới trên thư mục trắng.
  *
- * Chạy:  npm run test:e2e                                          (cả bộ, ~3 phút)
+ * 🔴 **SỬA 2026-09-14 (`spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`, quyết định 1a-4a của
+ *    Ice) — con đường trên (dọn state cấp module) bị BỎ HẲN, không chỉ hoãn.** Ba lớp state
+ *    sống sót qua một tệp spec đo được cùng ngày: state module frontend + `<KeepAlive>`,
+ *    state Rust trong tiến trình (`OpenWorkState`, chỉ mục Library), và state trên đĩa
+ *    trong MỘT `$APPDATA`/gốc Library dùng chung. Dọn state JS (con đường 2026-09-13) không
+ *    chạm được hai lớp sau — đúng lý do `story-5-6`/`story-5-11` vẫn xanh một mình trong khi
+ *    bản vá đó không đóng khoảng cách đầy-đủ/lẻ.
+ *
+ *    Cơ chế mới, cắm ở `onWorkerEnd` dưới đây: sau MỖI tệp spec, giết đúng tiến trình app
+ *    đang nghe cổng WebDriver nhúng, đợi cổng đóng, rồi cấp một `$APPDATA` và gốc Library
+ *    MỚI cho lượt kế — `@wdio/tauri-service@1.3.0` tự hồi sinh app khi thấy cổng chết
+ *    (`ensureEmbeddedServersHealthy` → `restartEmbeddedServer` → `startEmbeddedDriver`, env
+ *    con dựng bằng `{ ...process.env, … }` NGAY LÚC SPAWN — nên ghi `process.env` trước khi
+ *    worker kế mở là đủ, không cần vá hay fork chính tauri-service). Kết quả: mỗi tệp spec
+ *    chạy trong một TIẾN TRÌNH MỚI trên hai THƯ MỤC TRẮNG, đúng như khi chạy một mình.
+ *
+ *    Số đo dựng quyết định (máy Ice, cây đứng yên tại `574c869`, các cấu hình thử là bản
+ *    sao NGOÀI kho, không đổi tệp này):
+ *      · cấu hình gốc, cả bộ (D)                       — 16 xanh /  8 đỏ ·          · 155 s
+ *      · relaunch mỗi tệp spec, DÙNG CHUNG thư mục (C) — 17 xanh /  7 đỏ ·          · 204 s
+ *      · relaunch + THƯ MỤC TRẮNG mỗi tệp spec (E)     — 22 xanh /  2 đỏ (đúng G2) · 254 s
+ *      · lặp lại E (E2)                                — 21 xanh /  3 đỏ (G2+`story-5-7`) · 280 s
+ *    Giết app giải phóng cổng 4445 trong khoảng 1 giây. Relaunch dùng-chung-thư-mục đóng
+ *    được state JS/Rust trong tiến trình nhưng KHÔNG đóng lớp đĩa — `story-5-6` vẫn đỏ. Chỉ
+ *    thư mục trắng, không relaunch, thì không dọn được state trong tiến trình (`OpenWorkState`,
+ *    chỉ mục Library dựng một lần lúc khởi động). Cần CẢ HAI.
+ *
+ *    ⚠️ **Quyết định 3a — cổng thứ mười bốn (gác reset) bị bỏ, không thay bằng một gác khác
+ *    canh chuyện dọn state.** Cơ chế reset không còn tồn tại ở lớp module nữa nên không có
+ *    gì để một gác kiểu đó canh; một relaunch mà NGỪNG relaunch thất bại LOUD (`onWorkerEnd`
+ *    ném `SevereServiceError` — loại lỗi DUY NHẤT mà `@wdio/cli` không nuốt, xem
+ *    `node_modules/@wdio/cli/build/index.js:354-371`), và hàng rào real-Library/`global.db`
+ *    ở `onComplete` (quyết định 2a) nay chạy trên MỌI cặp thư mục một app đã dùng, không chỉ
+ *    cặp đầu tiên — hai lớp đó cùng thay vai của cổng thứ mười bốn.
+ *
+ *    ⚠️ **Quyết định 4a — "xong" là BA lượt liên tiếp đúng 22/2 trên cây đứng yên.**
+ *    `story-5-4-lifecycle` (2 ca) và `story-5-5-progress` (1 ca) là G2 — đỏ khi chạy MỘT
+ *    MÌNH, không phải đỏ giả của bộ; `deferred-work.md` ghi nguyên nhân (nút submit đổi vai
+ *    ở Story 6.3) và có chủ. Số đo ba lượt liên tiếp của LƯỢT DỰNG này nằm ở §Verification
+ *    cuối tệp spec — đọc ở đó, đừng suy diễn từ bảng số 2026-09-14 phía trên: bảng đó đo
+ *    các CẤU HÌNH THỬ ngoài kho, không đo chính tệp này.
+ *
+ * Chạy:  npm run test:e2e                                          (cả bộ, ~4 phút)
  *        npm run test:e2e -- --spec e2e/specs/<tên>.e2e.mjs        (một tệp, khi đang vá)
  *
  * 🔵 **THÊM 2026-08-20 (lượt rà soát Story 3.3) — BỘ NÀY NAY CÓ MỘT CHỖ CHẠY TỰ ĐỘNG.**
@@ -192,7 +236,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { SevereServiceError } from 'webdriverio'
 import {
   crawlModuleGraph,
   describeBrokenGraph,
@@ -236,14 +281,35 @@ const LIBRARY_INDEX_DB_FILE = 'library-index.db'
 /** Thư mục con dưới `~/Documents/` — khớp `DOCUMENTS_SUBFOLDER` ở `commands/project.rs`. */
 const DOCUMENTS_SUBFOLDER = 'AuraTranslate'
 
-/** Thư mục tạm của lượt chạy này. `null` cho tới `onPrepare`. */
-let dataDir = null
+/**
+ * Cặp thư mục ĐANG được app con dùng ngay bây giờ. `null` cho tới `onPrepare`.
+ *
+ * 🔴 **Quyết định 1a — mỗi tệp spec chạy trên một cặp MỚI, không dùng chung một cặp cho cả
+ * lượt.** `onPrepare` cấp cặp đầu tiên; mỗi lần `onWorkerEnd` chạy (tức mỗi khi một tệp spec
+ * vừa xong), nó giết app đang dùng `currentPair`, đẩy `currentPair` đã xong vào `usedPairs`
+ * kèm `exitCode` của worker đó, rồi cấp một `currentPair` MỚI. `onComplete` xử lý cả
+ * `usedPairs` (mọi cặp một app THẬT SỰ đã dùng) lẫn `currentPair` còn sót lại lúc lượt chạy
+ * kết thúc (cặp cuối, `onWorkerEnd` đã cấp nhưng không tệp spec nào kịp dùng).
+ */
+let currentPair = null
 
-/** Thư mục gốc Library tạm của lượt chạy này. `null` cho tới `onPrepare`. */
-let libraryDir = null
+/**
+ * Dấu vân thư mục Library THẬT tại thời điểm `currentPair` BẮT ĐẦU được dùng — chụp lúc
+ * `onPrepare` cho cặp đầu, và lúc `onWorkerEnd` (NGAY SAU khi giết app cũ) cho mọi cặp sau.
+ * Xem `realLibrarySignature`.
+ */
+let currentRealLibraryBefore = null
 
-/** Dấu vân của thư mục Library THẬT, chụp lúc `onPrepare`. Xem `realLibrarySignature`. */
-let realLibraryBefore = null
+/**
+ * Mọi cặp thư mục một app THẬT SỰ đã chạy (spec đã thi hành xong trên đó), theo thứ tự dùng.
+ * Mỗi phần tử: `{ dataDir, libraryDir, realLibraryBefore, realLibraryAfter, exitCode }`.
+ *
+ * 🔴 **Quyết định 2a — `onComplete` canh MỌI phần tử ở đây, không chỉ cặp đầu tiên.** Bản
+ * trước-1a chỉ có một cặp cho cả lượt nên một hàng rào canh một lần là đủ; nay một lượt
+ * `npm run test:e2e` đi qua tới 24 cặp, và một cặp giữa lô lỡ rò ra Library thật (hay
+ * "xanh giả" vào `$APPDATA` thật) sẽ KHÔNG bị bắt nếu hàng rào chỉ nhìn cặp đầu hay cặp cuối.
+ */
+let usedPairs = []
 
 /** Đường dẫn thư mục Library THẬT của người chạy — thứ lượt e2e KHÔNG được chạm. */
 function realLibraryPath() {
@@ -382,6 +448,147 @@ if (!existsSync(APP_BIN)) {
   )
 }
 
+/**
+ * Cổng máy chủ WebDriver NHÚNG mà `@wdio/tauri-service@1.3.0` chạy trong chính webview.
+ *
+ * 🔴 Parse GIỐNG HỆT `getEmbeddedPort()` của chính tauri-service
+ * (`node_modules/@wdio/tauri-service/dist/esm/index.js:1811-1823`): `parseInt(envPort, 10)`
+ * rồi kiểm `Number.isNaN`, KHÔNG `Number(envPort)` — `Number()` đòi TOÀN BỘ chuỗi là số,
+ * còn `parseInt` dừng ở ký tự không-số đầu tiên, nên một giá trị dị dạng như `4445abc` cho
+ * hai kết quả khác nhau giữa hai cách parse (`parseInt` → 4445, `Number` → `NaN` → rơi về
+ * mặc định). Hàm gốc còn có một tầng ƯU TIÊN CAO HƠN — `options.embeddedPort` — nhưng
+ * `capabilities` ở tệp này (dưới `export const config`) không truyền `wdio:tauriServiceOptions`
+ * nào cả, nên tầng đó không bao giờ khớp ở đây; chỉ còn tầng biến môi trường rồi tới 4445.
+ * Đọc sai cổng thì `onWorkerEnd` giết NHẦM cổng — hoặc không giết được gì.
+ */
+function embeddedPort() {
+  const envPort = process.env.TAURI_WEBDRIVER_PORT
+  if (envPort) {
+    const port = parseInt(envPort, 10)
+    if (!Number.isNaN(port)) return port
+  }
+  return 4445
+}
+
+/**
+ * Danh sách pid đang NGHE (LISTEN) một cổng TCP, dùng `lsof`.
+ *
+ * 🔴 **`lsof` thoát mã 1 nghĩa là "không ai nghe"**, KHÔNG phải lỗi — đây là quy ước chuẩn
+ * của chính `lsof`, không phải suy đoán. Chỉ mã thoát khác 0/1, hay `spawnSync` không khởi
+ * chạy được tiến trình con, mới là lỗi HẠ TẦNG thật.
+ *
+ * @throws {SevereServiceError} khi `lsof` lỗi hạ tầng — cổng chờ tiến trình chết ở
+ *   `waitPortClosed` không được phép đọc nhầm một lỗi hạ tầng thành "cổng vẫn còn bận".
+ */
+function pidsListeningOnPort(port) {
+  const result = spawnSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { encoding: 'utf8' })
+  if (result.error) {
+    throw new SevereServiceError(
+      `lsof lỗi hạ tầng khi tìm pid nghe cổng ${port}: ${result.error.message}`,
+    )
+  }
+  if (result.status === 1) return [] // không ai nghe cổng này — quy ước của lsof, không phải lỗi
+  if (result.status !== 0) {
+    throw new SevereServiceError(
+      `lsof thoát mã ${result.status} khi tìm pid nghe cổng ${port} ` +
+        `(stderr: ${result.stderr?.trim() || '(rỗng)'}).`,
+    )
+  }
+  return result.stdout
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+}
+
+/**
+ * Dòng lệnh đầy đủ của một pid, dùng `ps -ww` để KHÔNG bị cắt ở cột hẹp mặc định.
+ *
+ * @returns {string | null} `null` nếu pid đã biến mất giữa `lsof` và `ps` (cửa sổ đua ở
+ *   ranh giới một lượt spec — thấp, không đáng một hàng rào riêng, xem Review Triage Log #3
+ *   của spec cách ly trạng thái).
+ * @throws {SevereServiceError} cho MỌI lỗi khác của `ps`.
+ */
+function processCommand(pid) {
+  const result = spawnSync('ps', ['-p', String(pid), '-ww', '-o', 'command='], {
+    encoding: 'utf8',
+  })
+  if (result.error) {
+    throw new SevereServiceError(`ps lỗi hạ tầng khi đọc lệnh của pid ${pid}: ${result.error.message}`)
+  }
+  if (result.status !== 0) return null // pid đã thoát giữa lsof và ps — coi như đã dọn xong
+  return result.stdout.trim()
+}
+
+/**
+ * Đợi cổng `port` hết ai nghe, tối đa `timeoutMs`.
+ *
+ * @throws {SevereServiceError} nếu cổng vẫn còn bị giữ sau `timeoutMs` — `SevereServiceError`
+ *   là loại lỗi DUY NHẤT mà `@wdio/cli` không nuốt trong một launcher hook
+ *   (`node_modules/@wdio/cli/build/index.js:354-371`), nên đây là cách DUY NHẤT một relaunch
+ *   ngừng có tác dụng sẽ dừng cả lượt chạy thay vì để spec kế tiếp lặng lẽ chạy trên app cũ.
+ */
+async function waitPortClosed(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (pidsListeningOnPort(port).length === 0) return
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  throw new SevereServiceError(
+    `Cổng ${port} vẫn còn bị giữ sau ${timeoutMs / 1000} giây — không thể chuyển sang tệp ` +
+      'spec kế tiếp một cách an toàn (nó sẽ tranh cổng với app vừa được hồi sinh, hoặc nối ' +
+      'nhầm vào app CŨ). Xem `onWorkerEnd` — đây KHÔNG phải một lỗi hạ tầng nên bỏ qua được.',
+  )
+}
+
+/**
+ * Giết đúng tiến trình app con đang nghe `port`, rồi đợi cổng đóng hẳn.
+ *
+ * 🔴 **Chỉ giết một pid mà cả HAI điều kiện đều đúng: nó đang LISTEN trên `port`, VÀ dòng
+ * lệnh của nó khớp `APP_BIN` chính xác hoặc `APP_BIN` theo sau bởi một khoảng trắng** (Review
+ * Triage Log #9: `startsWith(APP_BIN)` không biên, một tiến trình tên `APP_BIN` cộng hậu tố
+ * sẽ bị giết nhầm). Không có điều kiện thứ hai, `onWorkerEnd` có thể giết bất cứ tiến trình
+ * nào (kể cả của người dùng) tình cờ đang nghe đúng cổng đó — vi phạm thẳng §Always của spec:
+ * "never a process this run did not launch".
+ */
+async function killAppOnPort(port) {
+  const pids = pidsListeningOnPort(port)
+  for (const pid of pids) {
+    const command = processCommand(pid)
+    if (command === null) continue // đã thoát giữa lsof và ps
+    if (command !== APP_BIN && !command.startsWith(`${APP_BIN} `)) continue
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch (err) {
+      if (err.code !== 'ESRCH') {
+        throw new SevereServiceError(
+          `Không SIGTERM được pid ${pid} (đang nghe cổng ${port}, lệnh: ${command}): ${err.message}`,
+        )
+      }
+      // ESRCH — pid đã tự thoát trước khi kill tới nơi. Không phải lỗi.
+    }
+  }
+  await waitPortClosed(port, 15_000)
+}
+
+/**
+ * Cấp một `$APPDATA` và một gốc Library MỚI vào `process.env`, ghi đè cặp cũ.
+ *
+ * 🔴 Đủ chỉ đặt vào `process.env`: `startEmbeddedDriver` của tauri-service dựng env con bằng
+ * `{ ...process.env, … }` NGAY LÚC SPAWN (`node_modules/@wdio/tauri-service/dist/esm/index.js:1626`),
+ * nên biến mới chỉ có tác dụng cho tiến trình app SAU lần này — đúng lý do `killAppOnPort`
+ * phải chạy XONG (cổng đã đóng) trước khi hàm này được gọi, không sau.
+ *
+ * @returns {{ dataDir: string, libraryDir: string }} cặp thư mục vừa cấp
+ */
+function allocateFreshPair() {
+  const newDataDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-'))
+  process.env[DATA_DIR_ENV] = newDataDir
+  const newLibraryDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-library-'))
+  process.env[LIBRARY_ROOT_ENV] = newLibraryDir
+  return { dataDir: newDataDir, libraryDir: newLibraryDir }
+}
+
 export const config = {
   runner: 'local',
   specs: [join(REPO_ROOT, 'e2e', 'specs', '**', '*.e2e.mjs')],
@@ -403,15 +610,10 @@ export const config = {
     // Đặt vào `process.env` là đủ: bộ lái dựng env của app con bằng
     // `{ ...process.env, ...options.env, … }` (`@wdio/tauri-service`,
     // `startEmbeddedDriver`), nên biến này đi thẳng xuống tiến trình con.
-    dataDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-'))
-    process.env[DATA_DIR_ENV] = dataDir
-    console.log(`[e2e] $APPDATA của app con → ${dataDir}`)
-
-    // Bề mặt dữ liệu thật THỨ HAI — xem `LIBRARY_ROOT_ENV`.
-    libraryDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-library-'))
-    process.env[LIBRARY_ROOT_ENV] = libraryDir
-    realLibraryBefore = realLibrarySignature()
-    console.log(`[e2e] thư mục gốc Library → ${libraryDir}`)
+    currentPair = allocateFreshPair()
+    currentRealLibraryBefore = realLibrarySignature()
+    console.log(`[e2e] $APPDATA của app con → ${currentPair.dataDir}`)
+    console.log(`[e2e] thư mục gốc Library → ${currentPair.libraryDir}`)
 
     if (await devServerIsUp()) {
       console.log(`[e2e] ${DEV_URL} đã có người phục vụ — dùng lại, KHÔNG dựng thêm.`)
@@ -444,7 +646,55 @@ export const config = {
   },
 
   /**
-   * Tắt Vite, TỰ KIỂM thư mục dữ liệu, rồi mới xoá nó.
+   * Giết app con NGAY SAU khi một tệp spec xong, đợi cổng đóng, rồi cấp một `$APPDATA` và
+   * một gốc Library MỚI cho tệp spec kế — **Quyết định 1a** của spec cách ly trạng thái.
+   *
+   * 🔴 `@wdio/cli` chạy hook này qua `runLauncherHook`, hàm NUỐT mọi lỗi trừ
+   * `SevereServiceError` (`node_modules/@wdio/cli/build/index.js:354-371`) — một `throw new
+   * Error(...)` bình thường ở đây chỉ được LOG rồi lượt chạy tiếp tục như không có gì, tệp
+   * spec kế tiếp lặng lẽ chạy trên app CŨ và cặp thư mục CŨ. `killAppOnPort`/`waitPortClosed`
+   * tự ném đúng `SevereServiceError`, nhưng `realLibrarySignature()` (`existsSync`/`statSync`/
+   * `readdirSync`) và `allocateFreshPair()` (`mkdtempSync`) KHÔNG — cả hai có thể ném lỗi hạ
+   * tầng thô (quyền, đĩa đầy, một cuộc đua xoá thư mục). Một lỗi thô ở ĐÚNG chỗ này nguy hiểm
+   * hơn ở chỗ khác: nếu nó ném SAU khi cặp vừa xong đã vào `usedPairs` nhưng TRƯỚC khi
+   * `currentPair`/`process.env` được ghi đè, `process.env` đứng yên trên cặp ĐÃ ghi nhận là
+   * "đã dùng" — app hồi sinh sẽ chạy tiếp trên một cặp thư mục coi như đã nghỉ hưu. ⇒ BỌC
+   * TOÀN THÂN hàm trong try/catch, ném lại MỌI lỗi không phải `SevereServiceError` (giữ
+   * nguyên thông điệp gốc) — Task 1 đòi "mọi lỗi trong hook này", không chỉ lỗi của hai hàm
+   * `kill*`/`wait*`.
+   *
+   * Thứ tự bắt buộc, Review Triage Log #6: giết App → ĐỢI cổng đóng → CHỤP dấu vân biên
+   * (`realLibrarySignature`) → mới cấp cặp mới. Chụp dấu vân TRƯỚC khi giết sẽ gán nhầm một
+   * lượt ghi lúc app đang tắt cho cặp KẾ TIẾP.
+   */
+  onWorkerEnd: async (cid, exitCode) => {
+    if (currentPair === null) return // onPrepare chưa từng chạy — không có gì để đóng cặp
+
+    try {
+      await killAppOnPort(embeddedPort())
+
+      const finishedPair = currentPair
+      const realLibraryAfter = realLibrarySignature()
+      usedPairs.push({
+        dataDir: finishedPair.dataDir,
+        libraryDir: finishedPair.libraryDir,
+        realLibraryBefore: currentRealLibraryBefore,
+        realLibraryAfter,
+        exitCode,
+      })
+
+      currentPair = allocateFreshPair()
+      currentRealLibraryBefore = realLibraryAfter
+      console.log(`[e2e] app hồi sinh — $APPDATA → ${currentPair.dataDir}`)
+    } catch (err) {
+      if (err instanceof SevereServiceError) throw err
+      throw new SevereServiceError(err instanceof Error ? err.message : String(err))
+    }
+  },
+
+  /**
+   * Tắt Vite, rồi chạy MỌI hàng rào dữ liệu — TỰ KIỂM real-Library và `global.db` — trên
+   * MỌI cặp thư mục một app đã dùng, không chỉ cặp đầu (**Quyết định 2a**), rồi mới xoá.
    *
    * 🔴 Vì sao phải tự kiểm chứ không chỉ xoá: nếu móc chuyển hướng ngừng có tác dụng —
    * đổi tên biến, quên `--features wdio`, hay một bản `Cargo.toml` bỏ feature — thì app
@@ -452,29 +702,48 @@ export const config = {
    * kho mở được. Hình dạng hỏng đó không có triệu chứng nào ngoài một thư mục tạm rỗng.
    * Nên thư mục rỗng là một lượt ĐỎ, không phải một chi tiết bỏ qua được.
    *
-   * ⚠️ Chỉ khẳng định khi lượt chạy đã xanh (`exitCode === 0`). Một spec đỏ sớm có thể
-   * dừng trước khi app kịp tạo kho, và ném thêm một lỗi thứ hai ở đây chỉ che mất lỗi
-   * thật đầu tiên.
+   * ⚠️ Phép kiểm `global.db` chỉ khẳng định trên một cặp khi WORKER CỦA CHÍNH CẶP ĐÓ đã
+   * xanh (`pair.exitCode === 0`), không theo `exitCode` của cả lượt chạy — bộ này CÓ THỂ đỏ
+   * cấu trúc (G2, `story-5-4-lifecycle`/`story-5-5-progress`) trong khi từng cặp riêng lẻ
+   * vẫn ghi đúng chỗ; gác theo exitCode của cả lượt sẽ khiến phép kiểm này KHÔNG BAO GIỜ
+   * chạy trong khi G2 còn mở (Review Triage Log #1).
+   *
+   * ⚠️ Vòng lặp KHÔNG dừng ở lỗi đầu tiên: gom hết thất bại, xoá hết thư mục của MỌI cặp
+   * (dùng hay không), rồi mới ném một lỗi duy nhất nêu tên từng cặp lỗi — dừng sớm sẽ bỏ
+   * qua các cặp sau và làm rò thư mục của chúng (Review Triage Log #7).
    */
-  onComplete: (exitCode) => {
+  onComplete: () => {
     if (viteProcess !== null) {
       viteProcess.kill('SIGTERM')
       viteProcess = null
     }
 
-    // ── Hàng rào chiều ÂM: thư mục Library THẬT phải y nguyên ──────────────────────
-    if (realLibraryBefore !== null) {
-      const after = realLibrarySignature()
-      const before = realLibraryBefore
-      realLibraryBefore = null
-      if (libraryDir !== null) {
-        rmSync(libraryDir, { recursive: true, force: true })
-        libraryDir = null
-      }
-      if (after !== before) {
-        throw new Error(
-          `Thư mục Library THẬT của bạn đã ĐỔI trong lượt e2e này:\n  ${realLibraryPath()}\n` +
-            `  trước: ${before}\n  sau:   ${after}\n\n` +
+    // Cặp CUỐI CÙNG: `onWorkerEnd` đã cấp nó nhưng lượt chạy kết thúc trước khi một tệp spec
+    // nào kịp dùng nó (hoặc — lượt chạy có đúng MỘT tệp spec — nó là cặp `onPrepare` cấp và
+    // `onWorkerEnd` của tệp đó đã đóng nó vào `usedPairs` rồi; trường hợp đó `currentPair`
+    // vẫn khác `null` vì `onWorkerEnd` luôn cấp cặp KẾ TIẾP). Không worker nào chạy trên nó
+    // nên không có `exitCode` — hàng rào real-Library vẫn chạy, hàng rào `global.db` bỏ qua.
+    if (currentPair !== null) {
+      usedPairs.push({
+        dataDir: currentPair.dataDir,
+        libraryDir: currentPair.libraryDir,
+        realLibraryBefore: currentRealLibraryBefore,
+        realLibraryAfter: realLibrarySignature(),
+        exitCode: undefined,
+      })
+      currentPair = null
+    }
+
+    const failures = []
+
+    for (const pair of usedPairs) {
+      // ── Hàng rào chiều ÂM: thư mục Library THẬT phải y nguyên ────────────────────
+      if (pair.realLibraryBefore !== pair.realLibraryAfter) {
+        failures.push(
+          `Thư mục Library THẬT của bạn đã ĐỔI trong lượt e2e này, khi app chạy trên cặp\n` +
+            `  ${pair.dataDir}\n  ${pair.libraryDir}\n` +
+            `Đường dẫn thật: ${realLibraryPath()}\n` +
+            `  trước: ${pair.realLibraryBefore}\n  sau:   ${pair.realLibraryAfter}\n\n` +
             'Bộ e2e không được chạm vào đó. Nguyên nhân hay gặp:\n' +
             `  1. nhị phân dựng thiếu \`--features wdio\` ⇒ \`${LIBRARY_ROOT_ENV}\` không được đọc;\n` +
             '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
@@ -484,95 +753,102 @@ export const config = {
             'giả — chạy lại khi app đã đóng, đừng gỡ phép kiểm.',
         )
       }
-    }
 
-    if (dataDir === null) return
-
-    // ⚠️ KHÔNG nối định danh bundle vào đây. `app_data_dir()` của Tauri là
-    // `data_dir()/<identifier>`, nhưng biến môi trường THAY THẾ TRỌN kết quả đó — nên kho
-    // nằm thẳng trong `dataDir`. Bản đầu của phép kiểm này nối `com.auratranslate.desktop`
-    // vào và ĐỎ ở lượt chạy thật đầu tiên, dù móc chuyển hướng hoạt động đúng: băm của
-    // `global.db` thật giống hệt nhau trước và sau lượt chạy.
-    const storePath = join(dataDir, GLOBAL_DB_FILE)
-    const redirected = existsSync(storePath)
-
-    // ── Hàng rào chiều ĐỌC: `library-index.db` không được nhắc đường dẫn Library THẬT ──
-    //
-    // 🔴 PHÁN QUYẾT Ice 2026-08-27 — hàng rào ÂM ở trên (`realLibrarySignature`) chỉ canh
-    // chiều GHI (thư mục thật có mọc/mất mục hay không); nó KHÔNG canh chiều ĐỌC. Một lượt
-    // chạy đã lọt qua nó trong khi vẫn ĐỌC `~/Documents/AuraTranslate` thật và lập chỉ mục
-    // các Tác phẩm ở đó (xem mục nợ "Một lượt e2e ĐỎ chưa chẩn đoán được",
-    // `deferred-work.md`) — dấu vết mà hàng rào GHI không để lại, vì không byte nào bị ghi
-    // vào chính thư mục thật đó.
-    //
-    // Hàng rào DƯƠNG ở đây: đọc `library-index.db` (nằm trong `$APPDATA` tạm, CÙNG thư mục
-    // với `global.db`) DẠNG BYTE — không phân tích SQLite, không thêm phụ thuộc npm
-    // (`scripts/AGENTS.md`) — và FAIL cả lượt chạy nếu nội dung chứa chuỗi con đúng đường
-    // dẫn Library THẬT. SQLite lưu một cột `TEXT` dưới dạng UTF-8 thô ngay trong trang dữ
-    // liệu của tệp `.db`, nên một chuỗi con khớp byte-cho-byte là bằng chứng THẬT, không
-    // suy luận — đúng cách `atproj_path`/`library_orphan.atproj_path` (phán quyết Ice #1)
-    // sẽ mang nguyên văn đường dẫn nếu ứng dụng lỡ lập chỉ mục thư viện thật.
-    //
-    // ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:** hàng rào này chỉ bắt được đường dẫn ĐÃ ĐI
-    // VÀO chỉ mục (`library_work.atproj_path`, và nay cũng có thể là một hàng mồ côi trong
-    // `global.db` — nhưng đó là kho THỨ NHẤT, đã canh bởi hàng rào chữ ký ở trên qua cùng
-    // `redirected`). Một lượt chỉ ĐỌC thư mục thật mà không lập chỉ mục được gì (ví dụ gốc
-    // bị coi là rỗng vì một lỗi khác, hoặc ứng dụng đóng trước khi quét xong) vẫn LỌT qua
-    // đây — hàng rào canh DẤU VẾT còn lại trên đĩa, không canh hành vi ĐỌC tại đúng thời
-    // điểm nó xảy ra.
-    const indexPath = join(dataDir, LIBRARY_INDEX_DB_FILE)
-    let indexBytes = null
-    try {
-      indexBytes = readFileSync(indexPath)
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        // Chưa từng mở/lập chỉ mục trong lượt chạy này -- KHÔNG phải lỗi, bỏ qua êm.
-        indexBytes = null
-      } else {
-        // Lỗi HẠ TẦNG (quyền, đĩa hỏng, …) -- KHÔNG phải một phép kiểm ĐỎ. Phân biệt tường
-        // minh, đúng luật cổng của kho: một cổng đỏ vì hạ tầng phải NÓI RÕ đó là hạ tầng,
-        // không lẫn với một phát hiện thật (mã lỗi ${err.code} đi vào cảnh báo bên dưới để
-        // người đọc log không phải đoán).
-        console.warn(
-          `[e2e] không đọc được ${indexPath} để kiểm hàng rào chiều ĐỌC (${err.code}) -- ` +
-            'bỏ qua phép kiểm này, đây là lỗi HẠ TẦNG, không phải một phát hiện.',
-        )
-        indexBytes = null
+      // ── Hàng rào chiều ĐỌC: `library-index.db` không được nhắc đường dẫn Library THẬT ──
+      //
+      // 🔴 PHÁN QUYẾT Ice 2026-08-27 — hàng rào ÂM ở trên (`realLibrarySignature`) chỉ canh
+      // chiều GHI (thư mục thật có mọc/mất mục hay không); nó KHÔNG canh chiều ĐỌC. Một lượt
+      // chạy đã lọt qua nó trong khi vẫn ĐỌC `~/Documents/AuraTranslate` thật và lập chỉ mục
+      // các Tác phẩm ở đó (xem mục nợ "Một lượt e2e ĐỎ chưa chẩn đoán được",
+      // `deferred-work.md`) — dấu vết mà hàng rào GHI không để lại, vì không byte nào bị ghi
+      // vào chính thư mục thật đó.
+      //
+      // Hàng rào DƯƠNG ở đây: đọc `library-index.db` (nằm trong `$APPDATA` tạm, CÙNG thư mục
+      // với `global.db`) DẠNG BYTE — không phân tích SQLite, không thêm phụ thuộc npm
+      // (`scripts/AGENTS.md`) — và ghi nhận thất bại nếu nội dung chứa chuỗi con đúng đường
+      // dẫn Library THẬT. SQLite lưu một cột `TEXT` dưới dạng UTF-8 thô ngay trong trang dữ
+      // liệu của tệp `.db`, nên một chuỗi con khớp byte-cho-byte là bằng chứng THẬT, không
+      // suy luận — đúng cách `atproj_path`/`library_orphan.atproj_path` (phán quyết Ice #1)
+      // sẽ mang nguyên văn đường dẫn nếu ứng dụng lỡ lập chỉ mục thư viện thật.
+      //
+      // ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:** hàng rào này chỉ bắt được đường dẫn ĐÃ ĐI
+      // VÀO chỉ mục. Một lượt chỉ ĐỌC thư mục thật mà không lập chỉ mục được gì vẫn LỌT qua
+      // đây — hàng rào canh DẤU VẾT còn lại trên đĩa, không canh hành vi ĐỌC tại đúng thời
+      // điểm nó xảy ra.
+      const indexPath = join(pair.dataDir, LIBRARY_INDEX_DB_FILE)
+      let indexBytes = null
+      try {
+        indexBytes = readFileSync(indexPath)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          // Chưa từng mở/lập chỉ mục trên cặp này -- KHÔNG phải lỗi, bỏ qua êm.
+          indexBytes = null
+        } else {
+          // Lỗi HẠ TẦNG (quyền, đĩa hỏng, …) -- KHÔNG phải một phép kiểm ĐỎ.
+          console.warn(
+            `[e2e] không đọc được ${indexPath} để kiểm hàng rào chiều ĐỌC (${err.code}) -- ` +
+              'bỏ qua phép kiểm này, đây là lỗi HẠ TẦNG, không phải một phát hiện.',
+          )
+          indexBytes = null
+        }
       }
-    }
-    if (indexBytes !== null) {
-      const needle = Buffer.from(realLibraryPath(), 'utf8')
-      if (indexBytes.includes(needle)) {
-        rmSync(dataDir, { recursive: true, force: true })
-        dataDir = null
-        throw new Error(
-          `${LIBRARY_INDEX_DB_FILE} chứa đường dẫn Library THẬT của bạn:\n  ${realLibraryPath()}\n\n` +
-            'Nghĩa là ứng dụng đã ĐỌC và lập chỉ mục thư viện thật trong lượt e2e này, dù\n' +
-            'không byte nào bị GHI vào thư mục đó (hàng rào chữ ký ở trên không bắt được\n' +
-            'chiều này). Đây chính là dấu vết của "Một lượt e2e ĐỎ chưa chẩn đoán được"\n' +
-            '(`deferred-work.md`) — đọc mục đó trước khi sửa bất cứ dòng nào.\n\n' +
-            '⚠️ Giới hạn của chính hàng rào này: nó chỉ bắt đường dẫn ĐÃ ĐI VÀO chỉ mục —\n' +
-            'một lượt đọc thư mục thật mà không lập chỉ mục gì vẫn lọt qua.',
-        )
+      if (indexBytes !== null) {
+        const needle = Buffer.from(realLibraryPath(), 'utf8')
+        if (indexBytes.includes(needle)) {
+          failures.push(
+            `${indexPath} (${LIBRARY_INDEX_DB_FILE}) chứa đường dẫn Library THẬT của bạn:\n` +
+              `  ${realLibraryPath()}\n\n` +
+              'Nghĩa là ứng dụng đã ĐỌC và lập chỉ mục thư viện thật trong lượt e2e này, dù\n' +
+              'không byte nào bị GHI vào thư mục đó (hàng rào chữ ký ở trên không bắt được\n' +
+              'chiều này). Đây chính là dấu vết của "Một lượt e2e ĐỎ chưa chẩn đoán được"\n' +
+              '(`deferred-work.md`) — đọc mục đó trước khi sửa bất cứ dòng nào.',
+          )
+        }
       }
+
+      // ── Hàng rào chiều DƯƠNG: `global.db` phải NẰM trong `$APPDATA` tạm ───────────
+      //
+      // ⚠️ KHÔNG nối định danh bundle vào đây. `app_data_dir()` của Tauri là
+      // `data_dir()/<identifier>`, nhưng biến môi trường THAY THẾ TRỌN kết quả đó — nên kho
+      // nằm thẳng trong `dataDir`. Chỉ khẳng định khi WORKER CỦA CHÍNH CẶP NÀY đã xanh — một
+      // spec đỏ sớm có thể dừng trước khi app kịp tạo kho.
+      if (pair.exitCode === 0) {
+        const storePath = join(pair.dataDir, GLOBAL_DB_FILE)
+        if (!existsSync(storePath)) {
+          failures.push(
+            `Tệp spec chạy trên cặp ${pair.dataDir} xanh nhưng KHÔNG thấy ${GLOBAL_DB_FILE}\n` +
+              'trong đó.\n\n' +
+              'Phần lớn nguyên nhân nghĩa là app con đã ghi vào `$APPDATA` THẬT của bạn, không\n' +
+              'vào thư mục tạm — một lượt xanh ở đây là một lượt xanh giả. Theo thứ tự hay gặp:\n' +
+              `  1. nhị phân dựng THIẾU \`--features wdio\` ⇒ \`${DATA_DIR_ENV}\` không được đọc\n` +
+              '     (`npm run test:e2e` truyền sẵn; một lượt `cargo build` tay thì không);\n' +
+              '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
+              '  3. `open_global_store` thôi không đi qua `data_dir_override()` nữa;\n' +
+              '  4. `onWorkerEnd` không kịp giết app cũ trước khi ghi biến môi trường mới,\n' +
+              '     nên tệp spec này chạy trên `$APPDATA` của cặp TRƯỚC;\n' +
+              '  5. KHÔNG kho nào được mở cả — `open_global_store` (`src-tauri/src/lib.rs:899-\n' +
+              '     940`) chỉ `eprintln!` rồi `return` khi `create_dir_all` trên thư mục tạm\n' +
+              '     hay `Store::open` thất bại, nên app tiếp tục chạy KHÔNG store, không panic,\n' +
+              '     không rơi vào nhánh dữ liệu thật; xem log stderr của app cho dòng\n' +
+              '     `store[global] …`.\n\n' +
+              'Đừng bỏ phép kiểm này để cho xanh — nó là thứ duy nhất đứng giữa bộ đo và\n' +
+              'cấu hình thật của bạn.',
+          )
+        }
+      }
+
+      // Xoá dù cặp này có lỗi hay không — một cặp lỗi không được phép rò thư mục
+      // (Review Triage Log #7).
+      rmSync(pair.dataDir, { recursive: true, force: true })
+      rmSync(pair.libraryDir, { recursive: true, force: true })
     }
 
-    rmSync(dataDir, { recursive: true, force: true })
-    const usedDir = dataDir
-    dataDir = null
+    usedPairs = []
 
-    if (exitCode === 0 && !redirected) {
+    if (failures.length > 0) {
       throw new Error(
-        `Bộ e2e chạy xanh nhưng KHÔNG thấy ${GLOBAL_DB_FILE} trong ${usedDir}.\n\n` +
-          'Nghĩa là app con đã ghi vào `$APPDATA` THẬT của bạn, không vào thư mục tạm —\n' +
-          'và một lượt xanh ở đây là một lượt xanh giả. Ba nguyên nhân, theo thứ tự\n' +
-          'hay gặp:\n' +
-          `  1. nhị phân dựng THIẾU \`--features wdio\` ⇒ \`${DATA_DIR_ENV}\` không được đọc\n` +
-          '     (`npm run test:e2e` truyền sẵn; một lượt `cargo build` tay thì không);\n' +
-          '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
-          '  3. `open_global_store` thôi không đi qua `data_dir_override()` nữa.\n\n' +
-          'Đừng bỏ phép kiểm này để cho xanh — nó là thứ duy nhất đứng giữa bộ đo và\n' +
-          'cấu hình thật của bạn.',
+        `${failures.length} cặp thư mục thất bại hàng rào dữ liệu thật:\n\n` +
+          failures.join('\n\n═══════════════════════════════════════\n\n'),
       )
     }
   },
