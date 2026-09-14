@@ -36,6 +36,14 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
+// 🔵 SỬA (2026-09-14, G2 `deferred-work.md:11580-11610`) — `createWorkThroughForm` chuyển
+// sang `e2e/support/importForm.mjs` (dùng CHUNG với `story-5-5-progress.e2e.mjs`), vì Story
+// 6.3 (`d20fe67`) chèn màn xem trước bảng mã giữa cú bấm nộp và lượt ghi thật. Ca đầu dưới
+// đây VẪN canh đúng `watch(createdWork, …)` của `LibraryMode.vue:165` như doc-comment cũ của
+// hàm này từng khai — chỉ khác chỗ `createdWork` giờ được đặt SAU lượt XÁC NHẬN màn xem
+// trước, không sau cú bấm nộp; hàm dùng chung đi trọn cả hai bước đó trước khi trả về, nên
+// đối chứng cũ ("gỡ khối `watch` kia ⇒ ca đầu phải ĐỎ ở `waitEnabled`") vẫn đứng nguyên.
+import { createWorkThroughForm } from '../support/importForm.mjs'
 
 // ⚠️ TÊN NGẮN có chủ ý: ca đầu gõ tên này qua `setValue` trên form THẬT, và mỗi ký tự là một
 // lệnh WebDriver đi qua `ensureActiveWindowFocus` — một tên 30 ký tự đủ làm ca đó vượt trần
@@ -55,23 +63,6 @@ const WORKS_ROWS = '.works-block .works-grid .work-cell'
 
 const SET_OVERRIDE_PAUSED_BTN = '[data-lifecycle-action="set_override_paused"]'
 const CLEAR_OVERRIDE_BTN = '[data-lifecycle-action="clear_override"]'
-
-/**
- * Tạo một Tác phẩm qua **ĐÚNG FORM người dùng bấm** — không qua cầu IPC trần.
- *
- * 🔴 Ca đầu dùng đường này chứ không dùng [`createWork`], và đó là một quyết định: nó là
- * đường DUY NHẤT canh được bản vá 2026-08-28 ở `LibraryMode.vue` (`watch(createdWork, …)` tải
- * lại khối "Tác phẩm đang mở" sau khi tạo). Qua cầu IPC trần thì `createdWork` không đổi, nên
- * `watch` không bắn, và một lượt gỡ bản vá đó vẫn xanh — tức chỗ nối không có ai canh.
- * Đối chứng để chạy lại: gỡ khối `watch` kia ⇒ ca đầu phải ĐỎ ở `waitEnabled`.
- */
-async function createWorkThroughForm(name) {
-  const form = await $('.import-form')
-  await (await form.$('input[type="text"]')).setValue(name)
-  // Một ký tự là đủ: story này đo TRẠNG THÁI, không đo bộ tách câu. Xem ghi chú ở `WORK_NAME_A`.
-  await (await form.$('textarea')).setValue('x')
-  await realClick(await form.$('button'))
-}
 
 /** Tạo một Tác phẩm qua cầu IPC thật, cùng khuôn `story-5-3-rescan.e2e.mjs`. */
 async function createWork(name) {

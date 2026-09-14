@@ -64,6 +64,11 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
+// 🔵 SỬA (2026-09-14, G2 `deferred-work.md:11580-11610`) — `createWorkThroughForm` chuyển
+// sang `e2e/support/importForm.mjs` (dùng CHUNG với `story-5-4-lifecycle.e2e.mjs`): Story 6.3
+// (`d20fe67`) chèn màn xem trước bảng mã giữa cú bấm nộp và lượt ghi thật, nên bản cũ (bấm
+// `form.$('button')` không tên) bấm trúng nút MỞ màn xem trước rồi coi như đã có Tác phẩm.
+import { createWorkThroughForm } from '../support/importForm.mjs'
 
 // ⚠️ TÊN NGẮN có chủ ý — cùng lý lẽ đo được ở `story-5-4-lifecycle.e2e.mjs:33-36`: gõ qua
 // `setValue` trên form THẬT, mỗi ký tự là một lệnh WebDriver đi qua `ensureActiveWindowFocus`.
@@ -72,15 +77,6 @@ const WORK_NAME = `l5p${Date.now() % 1_000_000}`
 // Móc định danh, không `:nth-of-type` — cùng lý lẽ Story 5.4 (một lượt đổi thứ tự nút không
 // được phép làm spec bấm NHẦM nút mà vẫn xanh).
 const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
-
-/** Tạo một Tác phẩm qua **ĐÚNG FORM người dùng bấm** — không qua cầu IPC trần. */
-async function createWorkThroughForm(name) {
-  const form = await $('.import-form')
-  await (await form.$('input[type="text"]')).setValue(name)
-  // Một ký tự là đủ: story này đo TIẾN ĐỘ, không đo bộ tách câu.
-  await (await form.$('textarea')).setValue('x')
-  await realClick(await form.$('button'))
-}
 
 /**
  * Chụp TOÀN BỘ thứ spec này cần, trong **đúng một** lệnh WebDriver — cùng lý lẽ đo được ở

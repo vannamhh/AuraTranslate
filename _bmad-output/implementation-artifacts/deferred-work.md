@@ -11608,6 +11608,47 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Work-creation step described above ("hàng của Tác phẩm … không xuất hiện trong danh sách sau
   30 giây") instead of dying earlier at `.import-form`, so the fix direction above can be
   checked with `npm run test:e2e`.
+  → ✅ **ĐÃ ĐÓNG 2026-09-14** (`spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc.md`). Fix direction
+  above implemented as one shared helper, `e2e/support/importForm.mjs::createWorkThroughForm` —
+  fills the form, clicks the real paste-text submit (anchored on DOM structure: the button
+  immediately following the paste textarea's label, verified to also be the FIRST
+  `[data-import-preview-open]` in the form — throws naming the drift instead of guessing when
+  that invariant breaks), waits for `.ip-scrim .ip-act-primary` to enable, clicks it, waits for
+  `.ip-scrim` to close. Both specs now import it instead of each keeping a broken local copy.
+  Measured on a still tree, `6d68dce` + this change, same command
+  (`npm run test:e2e -- --spec … --spec …`), both figures the wdio `Spec Files` total: pair
+  alone **2 passed / 2 total in `00:00:11`** (before the fix, same command: **0 passed / 2
+  failed in `00:01:37`** — the 97 s already on record in this spec's Design Notes). Three
+  consecutive `npm run test:e2e` full runs: **24 passed / 24**
+  each (2:34, 2:37, 2:35). `watch(createdWork, …)` guard re-verified live: temporarily
+  disabling it in `src/modes/LibraryMode.vue` (then restored via `git checkout`) turned
+  `story-5-4-lifecycle` case 1 red at exactly its named message ("nút … vẫn tắt sau 30 giây —
+  … bản vá `watch(createdWork, …)`"), restored green. Layout-drift throw verified with an
+  untracked helper copy anchored on the URL textarea instead of the paste textarea: threw
+  naming the drift, `.ip-scrim` never opened. `git diff --stat -- src src-tauri package.json
+  .githooks .github e2e/wdio.conf.mjs` empty. `check:lint`, `check:gates`, `check:debt-owner`
+  all pass.
+  ⚠️ **Dated correction 2026-09-14 (orchestrator re-verification, logs outside the repo).** An
+  earlier sentence here said I/O-matrix rows 2 and 3 were both verified only "by mechanism",
+  because no harness-only input could force either state. That held for row 2 only, and the
+  helper copy it cited exercised only `waitConfirmEnabled`, never `waitOverlayClosed`.
+  Row 3 ("confirm rejected by Rust") was produced for real: an untracked spec made the run's
+  temp Library root read-only (`chmod 0555`, restored in `finally`) before calling the helper;
+  `create_work_folder`'s `create_dir` failed with a non-`AlreadyExists` error
+  (`src-tauri/src/core/library/atproj.rs:191-196`), the overlay stayed open, and the helper went
+  red after 30 s with `"errorText":"Không tạo được Tác phẩm trên đĩa — chưa có gì được ghi lại."`
+  in its message. Row 2 ("preview never confirmable") has no harness-only trigger on the paste
+  branch: names are sanitized, never rejected (`sanitize_name`, `atproj.rs:78-121`), and
+  `MAX_IMPORT_BYTES` guards files, not pasted text (`src-tauri/src/core/segment/import.rs:82`).
+  It was verified with an untracked helper copy whose confirm selector cannot match: red after
+  30 s with `{"confirmEnabled":false,"errorText":null,"scrimPresent":true}`. So the
+  `waitConfirmEnabled` message has never been observed carrying a real overlay error; the
+  `.ip-scrim .ip-error` read it shares with `waitOverlayClosed` has (row 3). Same session: the
+  whole 8-line `watch(createdWork, …)` block deleted (not just its body) turned
+  `story-5-4-lifecycle` case 1 red at its named message, restored green; three more consecutive
+  full runs gave 24 / 24 each (2:37, 2:34, 2:35).
+  **Chủ: Dev** — row 2 only: re-verify against a real preview-load error on the paste branch
+  if a later story adds one.
 
 - source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
   summary: "The e2e suite still gives false reds in a full run: one app process serves all 24
@@ -11755,3 +11796,17 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     list reload IPC ran.
   **Chủ: Dev** — chẩn đoán ở lần tái xuất đầu tiên trên nightly; không đoán nguyên nhân trước khi
   có nguyên văn.
+
+## Deferred from: spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc (review, 2026-09-14)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc.md`
+  summary: `e2e/support/workspace.mjs:19-20` still says the Library import form carries no `data-` hook, which has been false since Story 6.3 put `data-import-preview-open` on its three submit buttons.
+  evidence: `src/modes/LibraryMode.vue:1250`, `:1279`, `:1325` carry the attribute (product focus-return, `ImportPreviewOverlay.vue:483`); the comment predates Story 6.3 and this spec's diff does not touch it. The fixture's decision to create Works over IPC still stands on its other reason (every consumer measures something else), so only the factual sentence is stale.
+  **Chủ: Dev** — correct the sentence in the next story that touches `e2e/support/workspace.mjs`.
+
+## Deferred from: spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc (post-patch verification, 2026-09-14)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc.md`
+  summary: `editor-typing-flush.e2e.mjs:155` went red once in a full run: after `realClick` on the first target cell, `document.activeElement` carried no `data-segment-id`; the cause is not named.
+  evidence: Verbatim, run three of three consecutive `npm run test:e2e` on tree `6d68dce` plus the G2 patch, 2026-09-14 about 19:52 local: case "bấm chuột thật ⇒ vùng gõ lên đúng câu, gõ được, và chữ đi vào `project.db`" failed with `expect(received).toBe(expected)`, `Expected: "1"`, `Received: "null"` at `e2e/specs/editor-typing-flush.e2e.mjs:155:35`; the file's second case passed; suite 23 passed / 1 failed in `00:02:31`. The same spec file passed in the five other full runs that day on the same harness (worker `0-2` every time). Its block carries 6 `get_window_states not allowed` warnings and 6 `ensureActiveWindowFocus` stacks in all six runs, red and green alike, so they are not a signal. The G2 change cannot reach it: the spec creates its Work over IPC (`e2e/support/workspace.mjs`), does not import `e2e/support/importForm.mjs`, and runs third, in its own app process on fresh dirs. Machine load during that run was not recorded; `pre-push` ran right after, so a later load average says nothing. Not retried away (Ice, 2026-09-14). What would settle it: on the next occurrence, capture the `activeElement` tag and class and `document.hasFocus()` at the moment of the read, plus the load average at that time.
+  **Chủ: Dev** — chẩn đoán ở lần tái xuất tiếp theo; không gán nguyên nhân trước khi có thêm dữ kiện.
