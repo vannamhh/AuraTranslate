@@ -19,7 +19,7 @@
 //! báo thật; nó chỉ sống trong một dòng ghi nhận sự VẮNG MẶT có chủ ý của chính nó, Ice chốt
 //! 2026-08-06, xem `core/i18n/mod.rs`) mà tên cũng phải theo kịp đổi tên để khỏi nói dối. Không
 //! gì ngăn một họ định danh MỚI mọc lên theo cùng cách. Story 5.1 đổi ba họ thật đó sang tiền
-//! tố `Work` (xem `core/library/mod.rs`, `core/i18n/mod.rs`, `commands/project.rs`,
+//! tố `Work` (xem `core/library/mod.rs`, `core/i18n/mod.rs`, `commands/project/mod.rs`,
 //! `commands/chapter.rs`) và dựng cổng này để một `pub struct DocumentMeta` hay một
 //! `NovelStatus` tương lai không lặng lẽ lọt qua.
 //!
@@ -31,7 +31,7 @@
 //! ([`STORE_EXEMPT`]) là MỌI hình dạng mà chuỗi `project`/`Project` mang khi nó đặt tên cho
 //! cái KHO (`.atproj`/`project.db`) hay cổng của kho đó (`StoreKind::Project` ·
 //! `ProjectStore` · `PROJECT_MIGRATIONS`) hoặc chính TỆP thực thi những vai trò đó
-//! (`commands/project.rs` · `ports/project_store.rs` · `tests/project_contract.rs`) —
+//! (`commands/project/mod.rs` · `ports/project_store.rs` · `tests/project_contract.rs`) —
 //! không một mục nào đặt tên cho THỰC THỂ. Cổng dưới đây không được tự thêm một mục nào vào
 //! danh sách này; một vi phạm bắt được NGOÀI bốn họ định danh đã đổi ở story này là quyết
 //! định phạm vi của Ice, không phải một lượt vá tiện tay (xem Completion Notes của story).
@@ -110,7 +110,7 @@ const STORE_EXEMPT: [&str; 8] = [
     "StoreKind::Project",
     "ProjectStore",
     "PROJECT_MIGRATIONS",
-    "commands/project.rs",
+    "commands/project/mod.rs",
     "ports/project_store.rs",
     "tests/project_contract.rs",
 ];
@@ -182,7 +182,7 @@ fn walk(dir: &Path, exts: &[&str], out: &mut Vec<PathBuf>) {
 /// hình dạng Code Map của story dùng), nội dung ĐÃ BỎ COMMENT (để quét vi phạm theo dòng) và
 /// nội dung NGUYÊN VĂN (để [`every_store_exemption_still_matches_something_real_in_the_tree`]
 /// kiểm một chuỗi miễn trừ còn thật — kể cả khi nó chỉ còn sống trong một dòng chú thích, vd.
-/// `commands/project.rs`/`ports/project_store.rs`/`tests/project_contract.rs`, cả ba chỉ xuất
+/// `commands/project/mod.rs`/`ports/project_store.rs`/`tests/project_contract.rs`, cả ba chỉ xuất
 /// hiện dưới dạng TÊN TỆP được nhắc trong doc-comment, không một lần nào ở vị trí mã).
 struct ScannedFile {
     display: String,
@@ -914,7 +914,7 @@ fn an_enum_whose_name_merely_contains_store_kind_as_a_prefix_does_not_borrow_its
 /// phạm vi CỔNG CHÍNH để thoả ca này là sai hướng. Đây CHỈ là một sanity-check cho danh sách
 /// miễn trừ, không phải cổng.
 ///
-/// ⚠️ Ba miễn trừ ĐƯỜNG DẪN TỆP (`commands/project.rs`/`ports/project_store.rs`/
+/// ⚠️ Ba miễn trừ ĐƯỜNG DẪN TỆP (`commands/project/mod.rs`/`ports/project_store.rs`/
 /// `tests/project_contract.rs`) được kiểm bằng SỰ TỒN TẠI CỦA CHÍNH TỆP ĐÓ, không phải bằng
 /// việc một tệp KHÁC nhắc tới nó bằng chuỗi — đo 2026-08-27: `ports/project_store.rs` không
 /// được bất kỳ tệp `.rs`/`.ts`/`.vue` nào khác trong kho nhắc tới bằng chuỗi (chỉ các hồ sơ
@@ -925,7 +925,7 @@ fn an_enum_whose_name_merely_contains_store_kind_as_a_prefix_does_not_borrow_its
 #[test]
 fn every_store_exemption_still_matches_something_real_in_the_repo() {
     let file_path_exemptions: [&str; 3] =
-        ["commands/project.rs", "ports/project_store.rs", "tests/project_contract.rs"];
+        ["commands/project/mod.rs", "ports/project_store.rs", "tests/project_contract.rs"];
     let string_exemptions: [&str; 5] =
         [".atproj", "project.db", "StoreKind::Project", "ProjectStore", "PROJECT_MIGRATIONS"];
 

@@ -12201,3 +12201,108 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     làm không phải "cắt thêm `U+0085`" (quay lại đúng chỗ lệch BOM mà spec này vừa đóng theo
     chiều ngược) mà là cho `ChapterOrigin.vue` một nhãn placeholder RIÊNG cho "trường có ký tự
     ẩn, không phải trống" — một thay đổi UX, không phải một thay đổi luật cắt.
+
+## Deferred from: spec-ai-6-tach-commands-project-rs (scope split, 2026-09-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
+  summary: Nửa thứ hai của AI-6 — dựng (hay không dựng) một cổng ĐO KÍCH THƯỚC TỆP mà
+    `AGENTS.md:19` ghi nguyên văn là *"No gate measures file size today"*.
+  evidence: Cổng phạm vi step-01 của `bmad-build` tách AI-6 làm hai; Ice chốt 2026-09-15 làm
+    phép TÁCH TỆP trước. Hai nửa ship riêng được: phép tách chạm `src-tauri/src/commands/`,
+    còn cổng là một tệp mới trong `scripts/` theo đúng khuôn 13 tệp `check-*.mjs` đã có, cộng
+    một dòng trong `check-gates.mjs` — review riêng, merge riêng, không nửa nào chặn nửa kia.
+    Lý do làm SAU chứ không TRƯỚC là một phép đo, không phải một sở thích: `project.rs` hôm nay
+    **6.716 dòng** (không phải 6.630 như `AGENTS.md:19` và F6 retro Epic 6 ghi — tệp lớn thêm
+    86 dòng kể từ lượt đo đó), gấp 1,8× tệp lớn thứ nhì (`segment.rs`, 3.755) và chiếm 43% của
+    cả `commands/` (15.583 dòng). Mọi ngưỡng hợp lý đều làm cổng ĐỎ ngay ở commit đầu, nên dựng
+    trước buộc phải kèm một ngưỡng tạm — mà ngưỡng tạm chính là một món nợ mới. Dựng SAU thì
+    ngưỡng đặt được trên số THẬT sau khi tách.
+  **Chủ: Ice** — phần "có dựng hay không" là một quyết định sản phẩm, không phải một bản vá:
+    `AGENTS.md:19` nêu chi phí (9,4% chi phí token của các agent nặng, 377 Reads) nhưng KHÔNG
+    nêu một ngưỡng nào, và chưa có phép đo nào nói ngưỡng bao nhiêu là đúng cho kho này. Trước
+    khi dựng, cần một lượt đếm phân bố dòng trên toàn `src-tauri/src/` + `src/` để ngưỡng đến
+    từ quần thể thật chứ không từ một con số tròn.
+    🔵 **Vòng rà 1 (spec-ai-6 chặng 1) vặn lại chính câu trên:** gộp `src-tauri/src/` với `src/`
+    thành MỘT phân bố là trộn hai quần thể có kích thước tự nhiên khác hẳn nhau — mô-đun lệnh
+    Rust so với Vue SFC — nên một ngưỡng rút ra từ quần thể gộp có thể không hợp với bên nào.
+    Nếu dựng, hãy đếm HAI phân bố riêng và cân nhắc hai ngưỡng, hoặc nêu rõ vì sao một ngưỡng
+    chung là đúng. Đây là lời khuyên về việc Ice CHƯA bắt đầu, không phải một khuyết tật.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
+  summary: Chặng 2 của AI-6 — cắt phần THÂN của `commands/project.rs` (`:43-4550`, ~4.500 dòng)
+    theo mối quan tâm. Chặng 1 chỉ nhấc `wire` (1.267) và `#[cfg(test)] mod tests` (898) ra.
+  evidence: Cổng token của step-02 đo spec đầy đủ ở **3.268 token** (tiktoken `cl100k_base`),
+    2,04× trần 1.600 và 2.539 kể cả sau khi xoá Open Questions; Ice chốt 2026-09-15 chia hai
+    chặng. Chặng 1 cắt ở hai ranh giới trình biên dịch tự canh nên rủi ro hành vi bằng không;
+    phần thân thì không như vậy. Phép đo trên `1bfc6e2` bác tiền đề sáu mối quan tâm của retro
+    F6: chỉ **song ngữ** (`:3441-3774`, 334 dòng) là khối liền mạch tự chứa; **bảng mã, khối
+    tầng 2, xuất xứ Chương KHÔNG phải ba mối quan tâm trên đĩa** — chúng đan nhau trong một hệ
+    xem trước (`:1924-3274`, ~1.350 dòng) rồi đan lần hai ở `:3801-3989`. Retro còn bỏ sót một
+    hệ con: quét Glossary khi nhập (`:1467-1902`, ~400 dòng). Sáu hàm dùng chung nhiều mối quan
+    tâm mà chặng 2 phải đặt chỗ, kèm chỗ gọi đã đếm: `run_pipeline` (`:271-275`, gọi từ `:482`
+    · `:2711` · `:3614`), `resolve_chapter_pattern` (`:293-303`, 7 vỏ wire thuộc 4 mối quan
+    tâm), `cleanup_and_chapters_preview_for` (`:2689-2762`), `spawn_import_scan`
+    (`:1707-1857`, 3 vỏ), `effective_origin_fields` (`:3865-3891`, gọi từ `:722` và `:2195`),
+    `guarded_dict_layers` (`:1671-1681`).
+    🔵 **Hai việc chặng 2 phải nhớ, phát hiện ở vòng rà 1 của chặng 1:**
+    (a) **`STORE_EXEMPT` sẽ phải trỏ lại LẦN THỨ HAI.** Miễn trừ số 6 hiện là
+    `commands/project/mod.rs` (ở CẢ `AGENTS.md:56` lẫn mảng trong `naming_boundary.rs`, và một
+    ca test đối chiếu hai chỗ đó với nhau từng chữ). Chặng 2 dời mã thân RA KHỎI đúng tệp ấy,
+    nên nếu phần mang từ vựng `project` đi theo, cả hai chỗ phải sửa CÙNG LÚC.
+    (b) **Hai tệp `wire.rs`/`tests.rs` đang mang thụt lề 4 khoảng trắng thừa** kế thừa từ vỏ
+    `mod { … }` cũ. Cố ý để vậy: gỡ thụt lề sẽ phá tính byte-identical mà §Always của spec
+    chặng 1 bắt buộc và AC4 dùng làm bằng chứng. `cargo fmt` KHÔNG phải cổng ở kho này (không
+    có trong CI, `package.json`, hay hook) và cây vốn đã lệch **2.146 hunk** ở `1bfc6e2` — lượt
+    tách còn hạ xuống 2.114. Chặng 2 là chỗ đúng để dedent, vì lúc đó mã dời tiếp dù sao cũng
+    không còn so byte được với `1bfc6e2` nữa.
+  **Chủ: Ice** — chặng 2 KHÔNG chạy được như một lượt dọn thuần cơ học: muốn tách ba mối quan
+    tâm đang đan nhau thì phải viết lại hệ xem trước, mà tấm lưới duy nhất là 991 ca test và
+    không có spec hành vi nào cho hệ đó. Trước khi mở chặng 2, cần một quyết định của Ice về
+    việc nhận hay không nhận lượt viết lại ấy — nếu không nhận, chặng 2 thu về đúng ba khối
+    tách được (song ngữ 334 · nhập URL ~500 · tạo Tác phẩm + tải ảnh ~1.100) và tệp gốc dừng ở
+    khoảng 2.600 dòng thay vì nhỏ hơn.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
+  summary: Sau chặng 1, **45 lần nhắc tới `commands/project.rs` trong 28 tệp** trỏ vào một
+    đường dẫn KHÔNG CÒN TỒN TẠI — toàn bộ là doc-comment và chuỗi thông điệp, 0 lời khẳng định.
+  evidence: Chặng 1 chỉ nhận phạm vi các lần xuất hiện LOAD-BEARING (spec §Code Map nói rõ
+    "~47 load-bearing occurrences"), và luật §Never của chính spec cấm sửa thêm thứ tìm được
+    dọc đường. Đã kiểm từng chỗ còn lại: không chỗ nào là assert — chúng nằm ở `//`, `//!`,
+    `///`, hoặc trong chuỗi panic. Bằng chứng không phải suy luận: bộ test đầy đủ xanh
+    (1509/0/20) VÀ phép đột biến một `#[tauri::command]` thành `(async)` trong `wire.rs` làm
+    `config_invariants.rs` ĐỎ đúng hai ca rồi xanh lại khi hoàn tác — tức các hàng đã trỏ lại
+    còn canh thật. Phân bố ĐẦY ĐỦ (đếm lại ở vòng rà 1, sau khi một lớp rà chỉ ra bản đầu của
+    dòng này thiếu hẳn một rổ): **8 tệp** dưới `src-tauri/src/` (`commands/lifecycle.rs:8`,
+    `commands/segment.rs:94`, `core/glossary/exchange_io.rs:115`, `core/library/indexer.rs:1290`,
+    `core/library/meta.rs` ×3, `core/webimport/assets.rs:174`, `core/webimport/domain_log.rs:146`,
+    `lib.rs:1528`) · **13 tệp** dưới `src-tauri/tests/` · **3 tệp** dưới `e2e/` · **3 tệp
+    FRONTEND TypeScript** — `src/config/library.ts` (1), `src/config/project.ts` (2),
+    `src/importPreviewState.ts` (1) — và `AGENTS.md` (1). Tổng 45/28 giữ nguyên sau khi đếm lại;
+    chỗ sai của bản đầu là chữ "còn lại ở `src-tauri/tests/`", câu đó ngụ ý mọi thứ dư ra đều là
+    tệp test Rust, và bốn chỗ frontend rơi mất. ⚠️ Một số kèm SỐ DÒNG
+    (`commands/project.rs:1123` · `:265` · `:388` · `:1011`) — các số này vẫn đúng với
+    `project/mod.rs` vì 4.550 dòng đầu không đổi một byte, nhưng tên tệp thì sai.
+  **Chủ: Ice** — đây là loại sửa nên đi CÙNG chặng 2 chứ không riêng lẻ: chặng 2 sẽ dời tiếp
+    phần thân, nên một lượt sửa prose bây giờ phải làm lại lần nữa. Nếu Ice muốn sửa ngay, phạm
+    vi là 45 chỗ trong 28 tệp, thuần văn bản, không chạm mã chạy.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
+  summary: Hai con số trong `epic-6-retro-2026-09-15.md` §F6 và trong `AGENTS.md:19` sai so với
+    cây tại `1bfc6e2`, và chưa ai sửa ở nguồn.
+  evidence: F6 khai "vỏ `wire` mỏng: 15 lệnh" — đếm thật là **17** (9 plain + 8 `(async)`),
+    khớp cả 17 mục `generate_handler!` ở `lib.rs:716-764` lẫn hàng census
+    `("src/commands/project.rs", 9, 8, 6, "")` ở `config_invariants.rs:1415`. F6 cũng ghi
+    `create_work` chiếm `:354-1420`; thân hàm thật là `:354-853` (500 dòng) — khoảng `:854-1420`
+    là các hàm tải/ghi ảnh cộng `create_work_from_text`, tức F6 đang mô tả một CỤM mối quan tâm
+    chứ không phải một hàm. `AGENTS.md:19` ghi 6.630 dòng; thật là **6.716** (tệp lớn thêm 86
+    dòng sau AI-4 và AI-7).
+    🔵 **Vòng rà 1 bổ sung một tệp thứ BA mang cùng con số cũ**, mà bản đầu của mục này bỏ sót:
+    `_bmad-output/implementation-artifacts/agent-token-economics.md:117` (hàng bảng
+    `**src-tauri/src/commands/project.rs** (6.630 dòng) | 377 | 2,30 MB | 9,4%`) và `:125`
+    (*"không ai — người hay máy — giữ nổi bản đồ 6.630 dòng"*). Đây chính là tệp bằng chứng mà
+    con số 9,4% của `AGENTS.md:19` trích ra, nên một lượt đính chính chỉ chạm retro và
+    `AGENTS.md` sẽ để nguyên nguồn.
+  **Chủ: Ice** — spec chặng 1 sửa `AGENTS.md:19` vì nó mô tả đúng thứ chặng 1 thay đổi. Nhưng
+    một tệp retro ĐÃ KÝ thì không sửa bằng một bản vá của story; nếu muốn `epic-6-retro-2026-09-15.md`
+    và `agent-token-economics.md` nói đúng, đường đi là `bmad-correct-course` hoặc một ghi chú
+    đính chính có ngày, do Ice quyết.

@@ -251,8 +251,8 @@ fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_pro
     );
     for site in &sites {
         assert!(
-            site.starts_with("commands/project.rs"),
-            "chỗ gọi `create_work` phải ở `commands/project.rs` — tìm thấy ở đây thay vì đó: {site}"
+            site.starts_with("commands/project/mod.rs"),
+            "chỗ gọi `create_work` phải ở `commands/project/mod.rs` — tìm thấy ở đây thay vì đó: {site}"
         );
     }
 }

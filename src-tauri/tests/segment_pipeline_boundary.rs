@@ -228,8 +228,8 @@ fn run_import_is_the_one_product_call_site() {
         run_import_sites.join("\n")
     );
     assert!(
-        run_import_sites[0].starts_with("commands/project.rs"),
-        "chỗ gọi DUY NHẤT phải ở `commands/project.rs::create_work` — tìm thấy ở đây thay vì \
+        run_import_sites[0].starts_with("commands/project/mod.rs"),
+        "chỗ gọi DUY NHẤT phải ở `commands/project/mod.rs::create_work` — tìm thấy ở đây thay vì \
          đó:\n{}",
         run_import_sites[0]
     );

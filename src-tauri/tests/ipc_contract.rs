@@ -877,12 +877,13 @@ fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names(
          KHONG cong nao do."
     );
 
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for param in [
         "chapter_index: usize",
@@ -892,7 +893,7 @@ fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names(
         "published_at: Option<String>",
     ] {
         assert!(
-            project_src.contains(param),
+            wire_src.contains(param),
             "vo IPC `set_chapter_origin_override` phai khai `{param}` -- doi ten/kieu tham so la \
              doi DAY, va `src/config/project.ts` gui theo ten/kieu cu."
         );
@@ -913,12 +914,13 @@ fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names(
 /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` da dung cho `(async)`.
 #[test]
 fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_preview() {
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+        .join("project")
+        .join("wire.rs");
+    let src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     // 🔵 SỬA 2026-09-11 (Story 6.16) — thêm vỏ xem trước song ngữ vào danh sách: nó cũng mở
     // một lượt xem trước MỚI (đọc tệp `.csv`/`.tsv` rồi `stash_pending_import_source`), cùng
@@ -931,7 +933,7 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
         let signature = format!("pub fn {wire}(");
         let start = src
             .find(&signature)
-            .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong commands/project.rs"));
+            .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong commands/project/wire.rs"));
         // Than vo = tu chu ky toi chu ky `pub fn` KE TIEP (hoac het tep).
         let rest = &src[start + signature.len()..];
         let end = rest.find("\n    pub fn ").unwrap_or(rest.len());
@@ -992,18 +994,16 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
         );
     }
 
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    // `confirm_bilingual_import` co HAI khoi `pub fn` cung ten (ham thuan o `commands/project/mod.rs`,
+    // vo IPC o `commands/project/wire.rs`), cung bay ma ca Story 6.3 ben duoi da ghi -- doc thang
+    // `wire.rs` la du de tranh nham lan, khong can neo `pub mod wire {` nua.
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
-    // Neo vao `pub mod wire {` — `confirm_bilingual_import` co HAI khoi `pub fn` cung ten (ham
-    // thuan o `super`, vo IPC o `wire`), cung bay ma ca Story 6.3 ben duoi da ghi.
-    let wire_mod_start = project_src
-        .find("\npub mod wire {")
-        .expect("commands/project.rs phai co `pub mod wire {`");
-    let wire_src = &project_src[wire_mod_start..];
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     let code_lines_of = |wire: &str| -> Vec<String> {
         let signature = format!("pub fn {wire}(");
@@ -1082,21 +1082,17 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
     // vỏ mới đổi tên tham số trong khi một hàm KHÁC còn mang cùng token vẫn để cổng này
     // xanh. Neo vào ĐÚNG khối `pub fn <tên>(...)` của từng vỏ, khớp TOÀN BỘ danh sách tham
     // số (thứ tự + tên + kiểu), không chỉ một chuỗi con rời rạc.
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    // `confirm_import_with_encoding` có HAI khối `pub fn` cùng tên (hàm THUẦN ở
+    // `commands/project/mod.rs`, vỏ IPC ở `commands/project/wire.rs`) với danh sách tham số
+    // KHÁC HẲN nhau — đọc thẳng `wire.rs` là đủ để tránh khớp nhầm khối đầu tiên (hàm thuần),
+    // đúng bẫy mà đối chứng dương ngay dưới chứng minh được.
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
-
-    // 🔴 Neo vào `pub mod wire {` TRƯỚC khi bóc — `confirm_import_with_encoding` có HAI khối
-    // `pub fn` cùng tên trong tệp này (hàm THUẦN ở `super`, `:1076`, cộng vỏ IPC ở `wire`,
-    // `:2403`), với danh sách tham số KHÁC HẲN nhau. Tìm không neo sẽ khớp nhầm khối đầu
-    // tiên (hàm thuần) — đúng bẫy mà đối chứng dương ngay dưới chứng minh được.
-    let wire_mod_start = project_src
-        .find("\npub mod wire {")
-        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
-    let wire_src = &project_src[wire_mod_start..];
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for (fn_name, expected_params) in [
         // 🔵 SỬA 2026-09-04 (Story 6.4) — thêm tham số `source_lang: String` vào CẢ HAI vỏ
@@ -1121,11 +1117,11 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
             "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
     ] {
-        let params = fn_param_list(wire_src, fn_name);
+        let params = fn_param_list(&wire_src, fn_name);
         assert_eq!(
             normalize_param_list(&params),
             normalize_param_list(expected_params),
-            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project/wire.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
         );
     }
 }
@@ -1156,17 +1152,13 @@ fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
         "thieu `app.manage(crate::commands::project::UrlImportItemsState::new(None))` trong `lib.rs`          -- ba vo o tren roi vao nhanh state-chua-quan-ly."
     );
 
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
-
-    let wire_mod_start = project_src
-        .find("\npub mod wire {")
-        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
-    let wire_src = &project_src[wire_mod_start..];
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for (fn_name, expected_params) in [
         ("start_url_import", "app: tauri::AppHandle,\n        urls: Vec<String>,\n        source_lang: String,"),
@@ -1179,11 +1171,11 @@ fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
             "app: tauri::AppHandle,\n        index: usize,\n        source_lang: String,",
         ),
     ] {
-        let params = fn_param_list(wire_src, fn_name);
+        let params = fn_param_list(&wire_src, fn_name);
         assert_eq!(
             normalize_param_list(&params),
             normalize_param_list(expected_params),
-            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project/wire.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
         );
     }
 }
@@ -1221,17 +1213,13 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
         );
     }
 
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
-
-    let wire_mod_start = project_src
-        .find("\npub mod wire {")
-        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
-    let wire_src = &project_src[wire_mod_start..];
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for (fn_name, expected_params) in [
         ("list_domain_log", "app: tauri::AppHandle"),
@@ -1244,11 +1232,11 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
             "app: tauri::AppHandle,\n        start: usize,\n        end: usize,\n        total: usize,\n        source_lang: String,",
         ),
     ] {
-        let params = fn_param_list(wire_src, fn_name);
+        let params = fn_param_list(&wire_src, fn_name);
         assert_eq!(
             normalize_param_list(&params),
             normalize_param_list(expected_params),
-            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project/wire.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
         );
     }
 }
@@ -1267,25 +1255,21 @@ fn the_preview_chapter_detail_wire_is_registered_and_keeps_its_parameter_names()
         "`crate::commands::project::wire::preview_chapter_detail` phai co mat trong          generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" chi khi          nguoi dung bam nut."
     );
 
-    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
-        .join("project.rs");
-    let project_src = fs::read_to_string(&project_rs)
-        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+        .join("project")
+        .join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
-    let wire_mod_start = project_src
-        .find("\npub mod wire {")
-        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
-    let wire_src = &project_src[wire_mod_start..];
-
-    let params = fn_param_list(wire_src, "preview_chapter_detail");
+    let params = fn_param_list(&wire_src, "preview_chapter_detail");
     assert_eq!(
         normalize_param_list(&params),
         normalize_param_list(
             "app: tauri::AppHandle,\n        chapter_index: usize,\n        encoding: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,"
         ),
-        "vo `preview_chapter_detail` trong `pub mod wire` cua commands/project.rs khong con dung          danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts`          la cho duy nhat go lai theo dung ten/thu tu do."
+        "vo `preview_chapter_detail` trong `pub mod wire` cua commands/project/wire.rs khong con dung          danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts`          la cho duy nhat go lai theo dung ten/thu tu do."
     );
 }
 

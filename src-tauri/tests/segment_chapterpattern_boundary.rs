@@ -325,8 +325,8 @@ fn the_chapterpattern_compile_function_has_exactly_one_named_product_call_site()
         sites.join("\n")
     );
     assert!(
-        sites[0].starts_with("commands/project.rs"),
-        "chỗ gọi DUY NHẤT phải ở `commands/project.rs::resolve_chapter_pattern` — tìm thấy ở \
+        sites[0].starts_with("commands/project/mod.rs"),
+        "chỗ gọi DUY NHẤT phải ở `commands/project/mod.rs::resolve_chapter_pattern` — tìm thấy ở \
          đây thay vì đó: {}",
         sites[0]
     );

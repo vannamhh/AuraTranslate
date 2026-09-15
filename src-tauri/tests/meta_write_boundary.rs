@@ -225,7 +225,7 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 /// Ba tệp DUY NHẤT được phép nhắc `write_atomic(` — nơi hàm được khai, cộng hai chỗ gọi sản
 /// phẩm mà §Code Map của story đã liệt kê là "danh mục đóng".
 const WRITE_ATOMIC_EXEMPT: [&str; 3] =
-    ["core/library/meta.rs", "commands/project.rs", "commands/lifecycle.rs"];
+    ["core/library/meta.rs", "commands/project/mod.rs", "commands/lifecycle.rs"];
 
 /// Cố ý KHÔNG kèm dấu `.` phía trước: needle khớp CẢ chữ ký hàm
 /// (`pub fn write_atomic(&self, ...)`, chỗ hàm được KHAI) LẪN mọi lời gọi
@@ -241,7 +241,7 @@ fn only_the_three_closed_sites_may_name_write_atomic() {
         violations.is_empty(),
         "{} chỗ ngoài danh mục đóng {:?} nhắc `write_atomic(`:\n{}\n\n\
          §Never của story 5.5: 'không thêm một chỗ gọi ghi meta.json thứ ba' — hai chỗ đang có \
-         (`commands/project.rs`, `commands/lifecycle.rs`) là danh mục ĐÓNG.",
+         (`commands/project/mod.rs`, `commands/lifecycle.rs`) là danh mục ĐÓNG.",
         violations.len(),
         WRITE_ATOMIC_EXEMPT,
         violations.join("\n")
@@ -251,7 +251,7 @@ fn only_the_three_closed_sites_may_name_write_atomic() {
 #[test]
 fn commands_project_and_lifecycle_actually_call_write_atomic() {
     let root = src_root();
-    for rel in ["commands/project.rs", "commands/lifecycle.rs"] {
+    for rel in ["commands/project/mod.rs", "commands/lifecycle.rs"] {
         let file = root.join(rel);
         assert!(
             file_names_one_of_in_code(&file, &[WRITE_ATOMIC_NEEDLE]),
@@ -332,7 +332,7 @@ fn every_meta_file_exemption_matches_a_real_file() {
 // la cho doc `meta.json` THU BA, va no la mot chu MOI cua mon no ma Story 5.5 da ghi bang
 // chu ("story nay khong dung mot duong mo lai .atproj"). Xem khoi doc-comment dau tep.
 const WORK_META_READ_EXEMPT: [&str; 3] =
-    ["core/library/meta.rs", "core/library/indexer.rs", "commands/project.rs"];
+    ["core/library/meta.rs", "core/library/indexer.rs", "commands/project/mod.rs"];
 const WORK_META_READ_NEEDLE: &str = "WorkMeta::read";
 
 #[test]
@@ -374,10 +374,10 @@ fn core_library_indexer_actually_calls_work_meta_read() {
 /// canh một tập RỖNG.
 #[test]
 fn commands_project_actually_calls_work_meta_read() {
-    let file = src_root().join("commands/project.rs");
+    let file = src_root().join("commands/project/mod.rs");
     assert!(
         file_names_one_of_in_code(&file, &[WORK_META_READ_NEEDLE]),
-        "`commands/project.rs` không còn gọi `WorkMeta::read` — miễn trừ ở mệnh đề (c) đang \
+        "`commands/project/mod.rs` không còn gọi `WorkMeta::read` — miễn trừ ở mệnh đề (c) đang \
          canh một tập RỖNG, tức không còn kiểm gì cả."
     );
 }

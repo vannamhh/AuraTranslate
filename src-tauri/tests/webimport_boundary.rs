@@ -306,7 +306,7 @@ fn the_reqwest_allowlist_predicate_accepts_only_the_two_named_directories() {
         "ca ÂM: một module KHÁC không được cho qua"
     );
     assert!(
-        !path_is_allowed_for_reqwest("commands/project.rs"),
+        !path_is_allowed_for_reqwest("commands/project/mod.rs"),
         "ca ÂM: `commands::project` gọi XUỐNG `webimport::fetch`, không tự gõ `reqwest`"
     );
 }

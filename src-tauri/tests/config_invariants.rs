@@ -1051,7 +1051,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot ghi xuat xu, Story 6.15",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn create_work_from_text(\n        app: tauri::AppHandle",
             "quet TOAN BO goc Library: `reindex_library` -> `Indexer::rebuild(root)` duyet het \
              thu muc goc sau moi luot tao. KHONG phai mang -- hinh Blob de `blocks` rong nen \
@@ -1060,19 +1060,19 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
              tro `:702`, la dong khoi tao `Flow` DUNG CHUNG cho ca ba hinh)",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn create_work_from_file(\n        app: tauri::AppHandle",
             "doc TRON tep toi 100 MB (`MAX_IMPORT_BYTES`, `core/segment/import.rs:82`, kiem o \
              `:684`) cong giai nen `.docx`, roi tron pipeline va `reindex_library`",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn preview_import_encoding_from_file(\n        app: tauri::AppHandle",
             "cung tran 100 MB qua `import_file` -- doc TRON tep cong giai nen `.docx` ngay o \
              luot XEM TRUOC, truoc khi nguoi dung xac nhan bat cu dieu gi",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn confirm_import_with_encoding(\n        app: tauri::AppHandle",
             "MANG, TUAN TU: `create_work` -> `prepare_chapter_images:975` -> \
              `fetch_and_write_one_asset:1402` -> `webimport::fetch:1282`, moi anh cho toi \
@@ -1080,13 +1080,13 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
              chet la N x 20 giay, va suot khoang do vo nay giu khoa `PendingImportSourceState`",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn preview_bilingual_import_from_file(\n        app: tauri::AppHandle",
             "doc TRON tep toi 100 MB qua `import_bilingual_file` (`core/segment/import.rs:737` \
              -> `std::fs::read` o `:763`), cung tran `MAX_IMPORT_BYTES`",
         ),
         (
-            "src/commands/project.rs",
+            "src/commands/project/wire.rs",
             "pub fn confirm_bilingual_import(\n        app: tauri::AppHandle",
             "tron pipeline cong mot lo chen `segment` cong cac luot ghi dia, roi \
              `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
@@ -1281,7 +1281,7 @@ fn the_blocking_wires_gate_reads_more_than_one_file() {
          tep: {distinct_files:?}",
         distinct_files.len()
     );
-    for pinned in ["src/commands/chapter.rs", "src/commands/project.rs"] {
+    for pinned in ["src/commands/chapter.rs", "src/commands/project/wire.rs"] {
         assert!(
             distinct_files.contains(pinned),
             "`{pinned}` KHONG con hang nao trong `blocking_wire_cases()` -- tep nay duoc GHIM \
@@ -1412,7 +1412,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 11] = [
         0,
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
-    ("src/commands/project.rs", 9, 8, 6, ""),
+    ("src/commands/project/wire.rs", 9, 8, 6, ""),
     // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
     // do mang mot chu thich 🔴 o `:448-451` mau thuan voi bat ky loi khai "nhe" nao.
@@ -1580,10 +1580,10 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
 // để dựng một ca HÀNH VI. Đây là một cổng quét NGUỒN, đúng khuôn hai ca ngay trên.
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Cắt đúng THÂN HÀM `resolve_library_root` ra khỏi `commands/project.rs` -- không quét cả
+/// Cắt đúng THÂN HÀM `resolve_library_root` ra khỏi `commands/project/mod.rs` -- không quét cả
 /// tệp, để một chuỗi trùng tên ở một hàm KHÁC không làm ca này đỏ/xanh oan.
 fn resolve_library_root_body() -> String {
-    let path = manifest_dir().join("src/commands/project.rs");
+    let path = manifest_dir().join("src/commands/project/mod.rs");
     let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let start = text.find("pub fn resolve_library_root(").unwrap_or_else(|| {
         panic!("khong tim thay `pub fn resolve_library_root(` trong {}", path.display())
@@ -1648,7 +1648,7 @@ fn resolve_library_root_checks_the_e2e_override_before_the_configured_value_befo
         panic!(
             "thu tu uu tien trong `resolve_library_root` sai: {reason}. Bat bien duoc ghi trong \
              doc-comment cua chinh ham do va trong story 5.3 (§Always) -- xem \
-             `commands/project.rs::resolve_library_root`."
+             `commands/project/mod.rs::resolve_library_root`."
         )
     });
 }

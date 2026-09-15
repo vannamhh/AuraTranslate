@@ -1676,7 +1676,7 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
                 assert!(
                     cs.iter().all(|c| matches!(c, ChapterInput::RawBytes { .. })),
                     "MOI don vi phai la RawBytes -- mot danh sach TRON HINH DANG lam \
-                     `extract_main_content` (doc `cs.first()`, commands/project.rs) doc SAI \
+                     `extract_main_content` (doc `cs.first()`, commands/project/mod.rs) doc SAI \
                      cho cac muc sau: {cs:?}"
                 );
             }
