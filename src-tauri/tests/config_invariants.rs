@@ -926,68 +926,27 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
     }
 }
 
-/// 🔴 **Năm vỏ CHẶN phải chạy ngoài luồng chính — thiếu `(async)` là TREO ỨNG DỤNG.**
+/// Một hàng của [`blocking_wire_cases`]: `(đường dẫn tương đối, tiền tố chữ ký, vì sao vỏ đó
+/// CHẶN)`. Chữ ký giữ NGUYÊN xuống dòng và thụt lề, vì bốn trong các vỏ trùng tên với hàm
+/// thuần cùng tệp (`create_work_from_text` · `create_work_from_file` ·
+/// `confirm_import_with_encoding` · `confirm_bilingual_import`) và chỉ tham số đầu
+/// (`        app: tauri::AppHandle`, tám dấu cách) mới phân biệt được vỏ với lõi.
+type BlockingWireCase = (&'static str, &'static str, &'static str);
+
+/// 🔴 **MỘT nguồn sự thật cho danh sách vỏ CHẶN.**
+/// [`the_blocking_wires_run_off_the_main_thread`] đọc nó để kiểm thuộc tính;
+/// [`the_blocking_wires_gate_reads_more_than_one_file`] và
+/// [`every_command_bearing_file_is_classified_with_measured_attribute_counts`] DẪN XUẤT tập
+/// tệp / số hàng từ nó, không chép tay. Bản chép tay đã TRÔI một lần: danh sách tệp của ca
+/// thứ hai bỏ sót `commands/chapter.rs` suốt từ Story 5.8 tới 2026-09-15.
 ///
-/// 🔵 **MỞ RỘNG 2026-08-25 (vòng rà Epic 3) — ca này trước đây tên
-/// `the_dialog_wires_run_off_the_main_thread` và chỉ canh HAI vỏ hộp thoại.** Lượt rà tìm ra
-/// ba vỏ nữa cùng lớp lỗi mà Story 3.10b bỏ sót, nên danh sách mở từ 2 lên 5 và tên ca nói
-/// đúng mệnh đề nó canh. ⚠️ **MỘT ca, MỘT danh sách, MỘT con số** — không tách thành cổng thứ
-/// hai: `deferred-work.md` đã ghi đúng món nợ *"hai bản chép cây `src-tauri/src/**` kèm hai
-/// hằng sàn phải đồng bộ bằng tay"*, và một lượt xét lại rất dễ chỉ chạm một nửa.
-///
-/// **Tiêu chí một vỏ vào danh sách này — viết ra thay vì chọn từng ca:**
-/// ① nó **chặn** trên một lượt chờ (hộp thoại hệ điều hành, `WriteTicket::wait()`), hoặc
-/// ② chi phí của nó **scale theo kích thước tài liệu hoặc tập dữ liệu**.
-/// **TÁM** vỏ còn lại ở lại đồng bộ; đừng rải `(async)` cho chúng "cho nhất quán".
-///
-/// 🔵 **MỞ LẦN HAI 2026-08-25 (vòng rà bước 4), từ năm lên BẢY — và lý do đáng nhớ hơn hai vỏ.**
-/// Bản trước của chính doc-comment này khai *"Mười vỏ còn lại … tra/ghi MỘT hàng"*, một con số
-/// **chưa ai đếm**. Đếm thật: `core/glossary/store.rs` có **sáu** chỗ `load_tier` (nạp trọn bảng
-/// một tầng), và hai trong số đó nằm dưới vỏ vẫn đồng bộ — `glossary_lookup_term`
-/// (`resolve_term_for_quick_add:787`, chạy ở **mỗi lượt gõ**) và `glossary_list_entries`
-/// (`list_all_entries:922`). ⇒ Một story sinh ra để giết đúng lớp rot *"tiêu đề nói một số, bảng
-/// dưới nói số khác"* đã tái sản xuất nó ngay trong bản vá của chính nó.
-/// ⚠️ Con số **tám** ở trên thì ĐÃ đếm: tám vỏ đồng bộ còn lại không chạm một phép nạp trọn bảng
-/// nào (`load_tier` · `list_all_entries` · `pending_candidates`), truy từng thân hàm thuần
-/// 2026-08-25.
-///
-/// ⚠️ **GIỚI HẠN THẬT của cổng này và của chính bản vá — ghi ra thay vì làm tròn lên (bắt ở
-/// vòng rà 2026-08-25).** `(async)` đưa THÂN HÀM ra khỏi luồng chính, nhưng cả năm vỏ vẫn
-/// **giữ `MutexGuard` của `OpenWorkState` xuyên suốt** phần việc đó. Một vỏ ĐỒNG BỘ khác gọi
-/// `.lock()` trong cửa sổ ấy sẽ chặn **luồng chính** cho tới khi lượt kia xong ⇒ ca xấu nhất
-/// KHÔNG đổi; thứ đổi là ca thường (webview không phát thêm lệnh Glossary nào trong lúc đó thì
-/// nó vẽ bình thường, trước đây thì đứng hẳn). Và cổng này đọc **văn bản nguồn**: nó khẳng định
-/// thuộc tính CÓ MẶT, nó không chạy một phép đo luồng nào — một lượt chặn mới len vào qua một
-/// lời gọi lồng bên trong sẽ đi qua nó mà không một dòng đỏ. Cả hai vế đã ghi nợ có chủ ở
-/// `deferred-work.md`.
-///
-/// Tauri chạy một `#[tauri::command]` ĐỒNG BỘ trên luồng chính. `blocking_save_file()` /
-/// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ
-/// ⇒ bế tắc. Đo 2026-08-25 trên cửa sổ thật: macOS báo *"Open and Save Panel Service
-/// (auratranslate) (Not Responding)"*, ứng dụng đứng hẳn.
-///
-/// `#[tauri::command(async)]` trên một hàm đồng bộ cho `sync_threadpool`
-/// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`), tức một luồng khác luồng chính.
-///
-/// ⚠️ **Vì sao đây phải là một CỔNG chứ không một chú thích:** gỡ đúng bảy ký tự `(async)`
-/// đi qua trọn `cargo test`, trọn `npm run build`, và trọn mười một cổng — lỗi chỉ lộ ra
-/// khi một người thật bấm nút, dưới dạng một ứng dụng đứng, không dưới dạng một ca đỏ. Đây
-/// chính là lớp lỗi mà `AGENTS.md` gọi tên: một bộ test xanh không chứng minh chỗ nối được
-/// canh.
-///
-/// 🔵 **MỞ LẦN BA 2026-08-27 (Story 5.3) — danh sách `cases` đổi hình dạng, từ `(sig, why)`
-/// đọc trên MỘT tệp cứng thành `(tệp, sig, why)` đọc trên NHIỀU tệp.** Bản trước viết cứng
-/// `src/commands/glossary.rs` (`let path = manifest_dir().join("src/commands/glossary.rs")`)
-/// — một vỏ CHẶN ở tệp KHÁC không được canh, và Story 5.3 vừa tạo đúng một tệp như thế
-/// (`commands/library.rs`, ba vỏ CHẶN mới: hộp thoại chọn thư mục + hai lượt ghi qua
-/// `store::Writer` trên một thư viện có thể lớn). Hình dạng mới chép khuôn
-/// `the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied` ngay dưới —
-/// ca đó đã đọc nhiều hơn một tệp từ trước.
-#[test]
-fn the_blocking_wires_run_off_the_main_thread() {
+/// Toàn bộ lý lẽ — tiêu chí một vỏ vào danh sách, giới hạn thật của cổng, ba lần mở rộng —
+/// nằm ở doc-comment của [`the_blocking_wires_run_off_the_main_thread`], ca mà mảng này phục
+/// vụ; đừng chép nó xuống đây thành bản thứ hai.
+fn blocking_wire_cases() -> &'static [BlockingWireCase] {
     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
-    let cases: [(&str, &str, &str); 18] = [
+    &[
         (
             "src/commands/glossary.rs",
             "pub fn glossary_export_tier(app: tauri::AppHandle",
@@ -1084,9 +1043,138 @@ fn the_blocking_wires_run_off_the_main_thread() {
             "pub fn update_chapter_origin(\n        app: tauri::AppHandle",
             "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot ghi xuat xu, Story 6.15",
         ),
-    ];
+        (
+            "src/commands/project.rs",
+            "pub fn create_work_from_text(\n        app: tauri::AppHandle",
+            "quet TOAN BO goc Library: `reindex_library` -> `Indexer::rebuild(root)` duyet het \
+             thu muc goc sau moi luot tao. KHONG phai mang -- hinh Blob de `blocks` rong \
+             (`core/segment/pipeline.rs:702`) nen luot tai anh khong voi toi duoc",
+        ),
+        (
+            "src/commands/project.rs",
+            "pub fn create_work_from_file(\n        app: tauri::AppHandle",
+            "doc TRON tep toi 100 MB (`MAX_IMPORT_BYTES`, `core/segment/import.rs:82`, kiem o \
+             `:684`) cong giai nen `.docx`, roi tron pipeline va `reindex_library`",
+        ),
+        (
+            "src/commands/project.rs",
+            "pub fn preview_import_encoding_from_file(\n        app: tauri::AppHandle",
+            "cung tran 100 MB qua `import_file` -- doc TRON tep cong giai nen `.docx` ngay o \
+             luot XEM TRUOC, truoc khi nguoi dung xac nhan bat cu dieu gi",
+        ),
+        (
+            "src/commands/project.rs",
+            "pub fn confirm_import_with_encoding(\n        app: tauri::AppHandle",
+            "MANG, TUAN TU: `create_work` -> `prepare_chapter_images:975` -> \
+             `fetch_and_write_one_asset:1402` -> `webimport::fetch:1282`, moi anh cho toi \
+             `REQUEST_TIMEOUT` 20 giay (`core/webimport/fetcher.rs:85`) ⇒ N anh tren mot host \
+             chet la N x 20 giay, va suot khoang do vo nay giu khoa `PendingImportSourceState`",
+        ),
+        (
+            "src/commands/project.rs",
+            "pub fn preview_bilingual_import_from_file(\n        app: tauri::AppHandle",
+            "doc TRON tep toi 100 MB qua `import_bilingual_file` (`core/segment/import.rs:737` \
+             -> `std::fs::read` o `:763`), cung tran `MAX_IMPORT_BYTES`",
+        ),
+        (
+            "src/commands/project.rs",
+            "pub fn confirm_bilingual_import(\n        app: tauri::AppHandle",
+            "tron pipeline cong mot lo chen `segment` cong cac luot ghi dia, roi \
+             `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
+             (`core/segment/pipeline.rs:1011`) va `prepare_chapter_images` bo qua dung nhung \
+             Chuong do (`commands/project.rs:1011`, `let Some(blocks) = ... else { continue }`)",
+        ),
+    ]
+}
 
-    for (rel, sig, why) in cases {
+/// 🔴 **Mọi vỏ CHẶN có hàng trong [`blocking_wire_cases`] phải chạy ngoài luồng chính —
+/// thiếu `(async)` là TREO ỨNG DỤNG.** 🔵 **SỬA 2026-09-15 (AI-4)** — câu này từng mở bằng
+/// *"Năm vỏ CHẶN"*, con số của lần mở thứ nhất; mảng nay có **24** hàng. Câu mới cố ý KHÔNG
+/// mang số: nó đã cũ ba lần (2 → 5 → 7 → 18 → 24), và số duy nhất đáng tin là số đếm được từ
+/// chính mảng.
+///
+/// 🔵 **MỞ RỘNG 2026-08-25 (vòng rà Epic 3) — ca này trước đây tên
+/// `the_dialog_wires_run_off_the_main_thread` và chỉ canh HAI vỏ hộp thoại.** Lượt rà tìm ra
+/// ba vỏ nữa cùng lớp lỗi mà Story 3.10b bỏ sót, nên danh sách mở từ 2 lên 5 và tên ca nói
+/// đúng mệnh đề nó canh. ⚠️ **MỘT ca, MỘT danh sách, MỘT con số** — không tách thành cổng thứ
+/// hai: `deferred-work.md` đã ghi đúng món nợ *"hai bản chép cây `src-tauri/src/**` kèm hai
+/// hằng sàn phải đồng bộ bằng tay"*, và một lượt xét lại rất dễ chỉ chạm một nửa.
+///
+/// **Tiêu chí một vỏ vào danh sách này — viết ra thay vì chọn từng ca:**
+/// ① nó **chặn** trên một lượt chờ (hộp thoại hệ điều hành, `WriteTicket::wait()`), hoặc
+/// ② chi phí của nó **scale theo kích thước tài liệu hoặc tập dữ liệu**.
+/// Các vỏ còn lại ở lại đồng bộ; đừng rải `(async)` cho chúng "cho nhất quán".
+/// 🔵 **SỬA 2026-09-15 (AI-4)** — câu này từng nói **TÁM** vỏ còn lại, con số của lần mở thứ
+/// hai và chỉ đúng trong phạm vi `commands/glossary.rs` lúc đó. Đếm trên toàn cây sau lượt
+/// lật AI-4: **53** vỏ đồng bộ còn lại (`COMMAND_FILE_CENSUS`, 53 plain / 26 async). Đừng
+/// chép con số 53 đi đâu nữa — đọc nó từ bảng.
+///
+/// 🔵 **MỞ LẦN HAI 2026-08-25 (vòng rà bước 4), từ năm lên BẢY — và lý do đáng nhớ hơn hai vỏ.**
+/// Bản trước của chính doc-comment này khai *"Mười vỏ còn lại … tra/ghi MỘT hàng"*, một con số
+/// **chưa ai đếm**. Đếm thật: `core/glossary/store.rs` có **sáu** chỗ `load_tier` (nạp trọn bảng
+/// một tầng), và hai trong số đó nằm dưới vỏ vẫn đồng bộ — `glossary_lookup_term`
+/// (`resolve_term_for_quick_add:787`, chạy ở **mỗi lượt gõ**) và `glossary_list_entries`
+/// (`list_all_entries:922`). ⇒ Một story sinh ra để giết đúng lớp rot *"tiêu đề nói một số, bảng
+/// dưới nói số khác"* đã tái sản xuất nó ngay trong bản vá của chính nó.
+/// ⚠️ Con số **tám** (nay đã dời khỏi câu trên — xem 🔵 AI-4 ở đó) thì ĐÃ đếm, và phạm vi của
+/// nó là **`commands/glossary.rs` mà thôi**: tám vỏ đồng bộ còn lại CỦA TỆP ẤY không chạm một
+/// phép nạp trọn bảng nào (`load_tier` · `list_all_entries` · `pending_candidates`), truy
+/// từng thân hàm thuần 2026-08-25. Nó chưa bao giờ là một con số về toàn cây.
+///
+/// ⚠️ **GIỚI HẠN THẬT của cổng này và của chính bản vá — ghi ra thay vì làm tròn lên (bắt ở
+/// vòng rà 2026-08-25).** `(async)` đưa THÂN HÀM ra khỏi luồng chính, nhưng cả năm vỏ vẫn
+/// **giữ `MutexGuard` của `OpenWorkState` xuyên suốt** phần việc đó. Một vỏ ĐỒNG BỘ khác gọi
+/// `.lock()` trong cửa sổ ấy sẽ chặn **luồng chính** cho tới khi lượt kia xong ⇒ ca xấu nhất
+/// KHÔNG đổi; thứ đổi là ca thường (webview không phát thêm lệnh Glossary nào trong lúc đó thì
+/// nó vẽ bình thường, trước đây thì đứng hẳn). Và cổng này đọc **văn bản nguồn**: nó khẳng định
+/// thuộc tính CÓ MẶT, nó không chạy một phép đo luồng nào — một lượt chặn mới len vào qua một
+/// lời gọi lồng bên trong sẽ đi qua nó mà không một dòng đỏ. Cả hai vế đã ghi nợ có chủ ở
+/// `deferred-work.md`.
+///
+/// Tauri chạy một `#[tauri::command]` ĐỒNG BỘ trên luồng chính. `blocking_save_file()` /
+/// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ
+/// ⇒ bế tắc. Đo 2026-08-25 trên cửa sổ thật: macOS báo *"Open and Save Panel Service
+/// (auratranslate) (Not Responding)"*, ứng dụng đứng hẳn.
+///
+/// `#[tauri::command(async)]` trên một hàm đồng bộ cho `sync_threadpool`
+/// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`), tức một luồng khác luồng chính.
+///
+/// ⚠️ **Vì sao đây phải là một CỔNG chứ không một chú thích:** gỡ đúng bảy ký tự `(async)`
+/// đi qua trọn `cargo test`, trọn `npm run build`, và trọn mười một cổng — lỗi chỉ lộ ra
+/// khi một người thật bấm nút, dưới dạng một ứng dụng đứng, không dưới dạng một ca đỏ. Đây
+/// chính là lớp lỗi mà `AGENTS.md` gọi tên: một bộ test xanh không chứng minh chỗ nối được
+/// canh.
+///
+/// 🔵 **MỞ LẦN BA 2026-08-27 (Story 5.3) — danh sách `cases` đổi hình dạng, từ `(sig, why)`
+/// đọc trên MỘT tệp cứng thành `(tệp, sig, why)` đọc trên NHIỀU tệp.** Bản trước viết cứng
+/// `src/commands/glossary.rs` (`let path = manifest_dir().join("src/commands/glossary.rs")`)
+/// — một vỏ CHẶN ở tệp KHÁC không được canh, và Story 5.3 vừa tạo đúng một tệp như thế
+/// (`commands/library.rs`, ba vỏ CHẶN mới: hộp thoại chọn thư mục + hai lượt ghi qua
+/// `store::Writer` trên một thư viện có thể lớn). Hình dạng mới chép khuôn
+/// [`the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied`] (cùng tệp,
+/// xa hơn xuống dưới) — ca đó đã đọc nhiều hơn một tệp từ trước.
+///
+/// 🔵 **MỞ LẦN TƯ 2026-09-15 (AI-4), từ 18 lên 24 — và ba thay đổi về HÌNH DẠNG.**
+/// ① `commands/project.rs`, tệp có nhiều lời gọi mạng nhất Epic 6, chưa từng có một hàng nào
+/// ở đây; sáu vỏ nhập của nó vào danh sách. ② Mảng `cases` dọn ra [`blocking_wire_cases`] để
+/// ca "đọc nhiều hơn một tệp" DẪN XUẤT tập tệp thay vì chép tay (bản chép tay đã trôi: nó bỏ
+/// sót `chapter.rs`). ③ Ba assert đếm `(async)` theo tệp rời khỏi đây sang
+/// [`every_command_bearing_file_is_classified_with_measured_attribute_counts`], nơi giữ MỘT
+/// bảng số cho cả **mười một** tệp mang lệnh — ba con số viết cứng ở đây chỉ canh ba tệp và
+/// là bản sao thứ hai của cùng phép đo. Vế chiều ÂM ở lại, nhưng đọc số từ bảng đó.
+///
+/// 🔵 **SỬA 2026-09-15 (AI-4) — câu `sync_threadpool` phía trên là SAI, giữ lại và đính chính
+/// tại chỗ.** `(async)` trên một hàm đồng bộ KHÔNG đưa thân hàm vào một "sync threadpool":
+/// macro sinh `body_async` (`tauri-macros-2.6.3/src/command/wrapper.rs:361-396`) →
+/// `respond_async_serialized` (`tauri-2.11.5/src/ipc/mod.rs:343`) →
+/// `respond_async_serialized_inner` (`:371`) → `async_runtime::spawn` (`:375`) →
+/// **`tokio::spawn` trên runtime ĐA LUỒNG** (`async_runtime.rs:103-113`). Chuỗi
+/// `"sync_threadpool"` ở `wrapper.rs:264` chỉ được `tracing::debug_span!` ở `:278` đọc — một
+/// nhãn log, không điều khiển gì; `spawn_blocking` (`async_runtime.rs:290`) không nằm trên
+/// đường này. Kết luận của cổng không đổi (thân hàm rời luồng chính), chỉ tên cơ chế đổi.
+#[test]
+fn the_blocking_wires_run_off_the_main_thread() {
+    for &(rel, sig, why) in blocking_wire_cases() {
         let path = manifest_dir().join(rel);
         let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
@@ -1116,71 +1204,316 @@ fn the_blocking_wires_run_off_the_main_thread() {
         );
     }
 
-    // Doi chung chieu AM, THEO TUNG TEP: chuoi `(async)` phai di kem DUNG nam vo mong doi cua
-    // chinh tep do, khong roi rac cho khac -- neu mot lan sua tuong lai rai no khap noi thi ca
-    // test nay het canh dung thu. Dem theo DONG va bo dong chu thich -- `text.matches(...)` tran
-    // dem ca chuoi nam TRONG doc-comment cua chinh cac vo (chung noi ve `(async)`), nen no tra
-    // nhieu hon that. Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
-    let count_async_attrs = |rel: &str| -> usize {
-        let path = manifest_dir().join(rel);
-        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-        text.lines()
-            .map(str::trim_start)
-            .filter(|l| !l.starts_with("//"))
-            .filter(|l| l.starts_with("#[tauri::command(async)]"))
-            .count()
-    };
-
-    assert_eq!(
-        count_async_attrs("src/commands/glossary.rs"),
-        7,
-        "so `#[tauri::command(async)]` trong commands/glossary.rs phai DUNG 7 (bay vo CHAN o \
-         `cases` tren). Them mot vo chan moi thi them no vao `cases` CUNG LUOT, kem mot cau noi \
-         vi sao no dat tieu chi; con lai la mot lan rai thuoc tinh khong co ly do."
-    );
-    assert_eq!(
-        count_async_attrs("src/commands/library.rs"),
-        4,
-        "so `#[tauri::command(async)]` trong commands/library.rs phai DUNG 4 (bon vo CHAN o \
-         `cases` tren: library_rescan/library_choose_root/library_forget_orphan/library_search \
-         -- Story 5.9 them vo thu tu). Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
-    );
-    assert_eq!(
-        count_async_attrs("src/commands/chapter.rs"),
-        5,
-        "so `#[tauri::command(async)]` trong commands/chapter.rs phai DUNG 5 (nam vo CHAN o \
-         `cases` tren: rename_chapter/move_chapter/merge_chapter_into_previous/ \
-         split_chapter_at_segment -- Story 5.8 -- cong update_chapter_origin -- Story 6.15). \
-         Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
-    );
+    // Doi chung chieu AM, THEO TUNG TEP: TONG SO `(async)` cua tep phai dung bang so da khai,
+    // de mot lan sua tuong lai khong rai them thuoc tinh do khap tep ma khong ai biet.
+    //
+    // ⚠️ **No canh SO LUONG, khong canh DANH TINH.** Voi `project.rs` bang khai 8 `(async)`
+    // trong khi `cases` chi co 6 hang, nen DOI `(async)` tu mot vo sang mot vo khac cung tep
+    // van di qua vong nay. Thu bat duoc viec do la vong `cases` ngay TREN: no doc dong ngay
+    // truoc TUNG chu ky. Hai vong la hai menh de khac nhau, khong phai mot vong doi chung hai
+    // lan.
+    //
+    // 🔵 AI-4 -- con so KHONG con viet cung o day. No doc tu COMMAND_FILE_CENSUS, bang duy
+    // nhat giu phep dem cho ca muoi mot tep mang lenh; ba so cung truoc kia la ban sao thu hai
+    // cua cung phep do va chi phu ba tep. Ca nay va
+    // `every_command_bearing_file_is_classified_with_measured_attribute_counts` dung CHUNG
+    // `count_command_attrs`, nen mot cach viet thuoc tinh la se PANIC -- nhung vong nay chi
+    // doc NAM tep co hang trong `cases`, nen mot cach viet la o `cleanup.rs`/`config.rs`/
+    // `dict.rs`/`pinned.rs`/`segment.rs`/`lib.rs` chi panic o ca census, khong o day.
+    let case_files: std::collections::BTreeSet<&str> =
+        blocking_wire_cases().iter().map(|&(rel, _, _)| rel).collect();
+    for rel in case_files {
+        let (_, measured_async) = count_command_attrs(rel);
+        let declared = census_row(rel).unwrap_or_else(|| {
+            panic!(
+                "`{rel}` co hang trong `cases` nhung KHONG co trong COMMAND_FILE_CENSUS -- hai \
+                 danh sach da lech. Them tep vao bang do CUNG LUOT."
+            )
+        });
+        assert_eq!(
+            measured_async, declared.2,
+            "so `#[tauri::command(async)]` trong `{rel}` dem duoc {measured_async}, \
+             COMMAND_FILE_CENSUS khai {}. Them mot vo CHAN moi thi them no vao \
+             `blocking_wire_cases()` CUNG LUOT (kem mot cau noi vi sao no dat tieu chi) roi cap \
+             nhat bang; con lai la mot lan rai thuoc tinh khong co ly do.",
+            declared.2
+        );
+    }
 }
 
 /// **THÊM Story 5.3.** Đối chứng CHIỀU RỘNG của cổng ngay trên: nó phải THẬT SỰ đọc nhiều hơn
 /// một tệp, không chỉ chấp nhận cú pháp `(tệp, sig, why)` rồi vẫn ngầm trỏ về một tệp DUY
 /// NHẤT. Một cổng "mở rộng" mà tất cả các hàng của `cases` trỏ về CÙNG một tệp là một cổng
 /// vẫn MÙ với đúng tệp mà story này vừa tạo — bài học nguyên văn của
-/// `the_blocking_wires_run_off_the_main_thread`'s doc-comment (mở lần ba).
+/// [`the_blocking_wires_run_off_the_main_thread`]'s doc-comment (mở lần ba).
+///
+/// 🔵 **SỬA 2026-09-15 (AI-4) — tập tệp DẪN XUẤT từ [`blocking_wire_cases`], không chép tay
+/// nữa.** Bản chép tay ở đây đã TRÔI đúng lớp lỗi mà ca này sinh ra để bắt: nó liệt kê ba tệp
+/// và bỏ sót `commands/chapter.rs`, vốn có năm hàng trong `cases` — **bốn** từ Story 5.8
+/// (`rename_chapter` · `move_chapter` · `merge_chapter_into_previous` ·
+/// `split_chapter_at_segment`) và hàng thứ năm (`update_chapter_origin`) từ Story 6.15. Một danh sách
+/// chép tay dùng để chứng minh một danh sách khác không bị chép sai thì tự nó vô nghĩa.
+/// Hai tệp `chapter.rs` và `project.rs` được GHIM đích danh — `chapter.rs` vì nó là tệp đã
+/// rơi ra một lần, `project.rs` vì nó là tệp AI-4 vừa đưa vào và là tệp mà bảng đếm ở
+/// [`every_command_bearing_file_is_classified_with_measured_attribute_counts`] KHÔNG thể nói
+/// thay: bảng đó biết `project.rs` có 8 vỏ `(async)`, nó không biết vỏ NÀO.
 #[test]
 fn the_blocking_wires_gate_reads_more_than_one_file() {
-    let distinct_files: std::collections::BTreeSet<&str> = [
-        "src/commands/glossary.rs",
-        "src/commands/library.rs",
-        "src/commands/lifecycle.rs",
-    ]
-    .into_iter()
-    .collect();
+    let distinct_files: std::collections::BTreeSet<&str> =
+        blocking_wire_cases().iter().map(|&(rel, _, _)| rel).collect();
     assert!(
         distinct_files.len() > 1,
         "cong the_blocking_wires_run_off_the_main_thread phai doc NHIEU HON MOT tep -- nhan {} \
          tep: {distinct_files:?}",
         distinct_files.len()
     );
+    for pinned in ["src/commands/chapter.rs", "src/commands/project.rs"] {
+        assert!(
+            distinct_files.contains(pinned),
+            "`{pinned}` KHONG con hang nao trong `blocking_wire_cases()` -- tep nay duoc GHIM \
+             dich danh (xem doc-comment). Xoa het hang cua no nghia la go canh khoi dung cho \
+             da tung trot mot lan. Nhan duoc: {distinct_files:?}"
+        );
+    }
     for rel in distinct_files {
         assert!(
             manifest_dir().join(rel).is_file(),
             "`{rel}` khong ton tai -- danh sach tep cua cong nay da lech khoi thuc te"
         );
     }
+}
+
+/// Đếm thuộc tính `#[tauri::command…]` trong MỘT tệp nguồn, trả `(plain, async)`.
+///
+/// 🔴 **PHÂN LOẠI mọi dòng, và PANIC trên một cách viết lạ.** Bản trước (`count_async_attrs`,
+/// một closure sống trong [`the_blocking_wires_run_off_the_main_thread`]) chỉ đếm dòng bắt
+/// đầu bằng `#[tauri::command(async)]` và bỏ qua mọi thứ khác trong im lặng — nên một lệnh
+/// mới viết `#[tauri::command(rename_all = "snake_case")]` không làm đỏ một con số nào, và
+/// lời hứa của bảng đếm ("một lệnh mới làm cổng đỏ") là sai với mọi cách viết có tham số.
+/// Ở đây mọi dòng bắt đầu bằng `#[tauri::command` phải rơi vào ĐÚNG một trong hai cách viết
+/// đã biết; cách thứ ba dừng cả bộ test và nêu đích danh tệp cùng số dòng, để người đọc
+/// quyết định nó thuộc cột nào — thay vì để máy đoán.
+///
+/// Đếm theo DÒNG và bỏ dòng chú thích thuần, cùng luật `glossary_boundary.rs::code_lines`:
+/// `text.matches(...)` trần đếm cả chuỗi nằm TRONG doc-comment của chính các vỏ (chúng nói
+/// *về* `(async)`), nên nó trả nhiều hơn thật.
+fn count_command_attrs(rel: &str) -> (usize, usize) {
+    let path = manifest_dir().join(rel);
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    count_command_attrs_in(rel, &text)
+}
+
+fn count_command_attrs_in(rel: &str, text: &str) -> (usize, usize) {
+    let (mut plain, mut asyncs) = (0usize, 0usize);
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.starts_with("//") || !line.starts_with("#[tauri::command") {
+            continue;
+        }
+        match line {
+            "#[tauri::command]" => plain += 1,
+            "#[tauri::command(async)]" => asyncs += 1,
+            other => panic!(
+                "`{rel}:{}` mang mot cach viet thuoc tinh KHONG nam trong hai cach da biet \
+                 (`#[tauri::command]` / `#[tauri::command(async)]`): {other:?}\n\n\
+                 Bang COMMAND_FILE_CENSUS chia lenh thanh DUNG hai cot, nen mot cach viet thu \
+                 ba khong the vao bang ma khong co nguoi phan loai. Quyet dinh no chay tren \
+                 luong nao, roi mo rong ham nay CUNG LUOT -- dung im lang bo qua, vi do chinh \
+                 la lo hong bat o vong ra 1.",
+                i + 1
+            ),
+        }
+    }
+    (plain, asyncs)
+}
+
+/// Một hàng của [`COMMAND_FILE_CENSUS`]: `(đường dẫn tương đối, plain, async, số hàng trong
+/// [`blocking_wire_cases`], ghi chú)`.
+type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
+
+/// 🔴 **Mọi tệp MANG lệnh dưới `src-tauri/src/**`, kèm phép đếm ĐÃ ĐO — một dây bẫy, KHÔNG
+/// phải một lập luận an toàn.**
+///
+/// Đếm lại trên cây đã sửa, 2026-09-15 (AI-4), sau lượt lật sáu vỏ của `project.rs`:
+/// **53 plain / 26 async** trên **mười một** tệp. `commands/mod.rs` khai **mười** `pub mod`
+/// và KHÔNG mang lệnh nào, nên nó không có hàng ở đây.
+///
+/// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
+/// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
+/// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
+/// chính tệp đó mang một chú thích 🔴 ở `:448-451` nói rằng thời gian CPU trong closure ghi
+/// chặn MỌI lượt ghi khác của tiến trình — một lời khai "nhẹ" ở đây sẽ mâu thuẫn với nó.
+///
+/// **Cột `cases` giữ số hàng của tệp đó trong [`blocking_wire_cases`].** Không có nó, xoá một
+/// hàng `cases` đi qua mọi cổng: số `(async)` trong mã nguồn không đổi, nên phép đếm vẫn
+/// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
+/// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
+/// và không có hàng — đúng cái lỗ mà cột `async` bịt.
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 11] = [
+    ("src/commands/chapter.rs", 4, 5, 5, ""),
+    (
+        "src/commands/cleanup.rs",
+        5,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Nam vo doc/ghi luat lam sach; chua ai do chi phi cua chung tren \
+         mot bo luat lon.",
+    ),
+    (
+        "src/commands/config.rs",
+        3,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Ba vo doc/ghi cau hinh trong `global.db`.",
+    ),
+    (
+        "src/commands/dict.rs",
+        3,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
+         ai do no o TANG VO.",
+    ),
+    ("src/commands/glossary.rs", 8, 7, 7, ""),
+    ("src/commands/library.rs", 1, 4, 4, ""),
+    ("src/commands/lifecycle.rs", 1, 2, 2, ""),
+    (
+        "src/commands/pinned.rs",
+        3,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
+    ),
+    ("src/commands/project.rs", 9, 8, 6, ""),
+    // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
+    // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
+    // do mang mot chu thich 🔴 o `:448-451` mau thuan voi bat ky loi khai "nhe" nao.
+    ("src/commands/segment.rs", 14, 0, 0, ""),
+    (
+        "src/lib.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Hai vo: `confirm_exit_flush`, va `nfr_bench_mark_and_wait_phase` \
+         chi ton tai duoi `#[cfg(feature = \"nfr-bench\")]`. Phep dem nay doc VAN BAN NGUON nen \
+         no dem ca hai trong MOI ban dung, co hay khong co `--features nfr-bench` -- do la ly \
+         do cong nay cho cung mot phan quyet o ca hai ban dung.",
+    ),
+];
+
+fn census_row(rel: &str) -> Option<&'static CommandFileCensusRow> {
+    COMMAND_FILE_CENSUS.iter().find(|row| row.0 == rel)
+}
+
+/// 🔴 **Dây bẫy CẤU TRÚC: một lệnh mới, một cách viết lệnh mới, hay cả một tệp mới không thể
+/// đi qua trong im lặng.**
+///
+/// [`the_blocking_wires_run_off_the_main_thread`] canh theo DANH SÁCH: nó nói được vỏ NÀO
+/// phải `(async)`, nhưng nó mù với mọi TỆP không có hàng nào.
+///
+/// **Chứng minh bằng phép đo, và bằng một phép đo THẬT SỰ TÁCH được hai ca** — đo
+/// 2026-09-15: thêm một `#[tauri::command] pub fn ai4_probe_cleanup() {}` vào
+/// `commands/cleanup.rs` (0 hàng trong `cases`) ⇒ `the_blocking_wires_run_off_the_main_thread
+/// ... ok`, còn ca này `FAILED` với `cleanup.rs dem duoc 6 plain / 0 (async), … khai 5 plain
+/// / 0 (async)`.
+/// ⚠️ Phép đo được viết ở đây TRƯỚC đó — gỡ `(async)` khỏi `reload_url_import_item` — KHÔNG
+/// tách được hai ca: `project.rs` có hàng trong `cases`, nên vòng đối chứng chiều ÂM của cổng
+/// kia cũng đọc số của tệp đó từ bảng này và cũng đỏ. Nó vẫn là bằng chứng rằng bảng bắt được
+/// một hồi quy KHÔNG CÓ TÊN trong `cases`, nhưng nó không chứng minh được vế "cổng kia mù".
+///
+/// Ba lỗ mà ca này bịt: ① một lệnh mới trong một tệp đã phân loại; ② một cách viết thuộc
+/// tính lạ (`count_command_attrs` panic, nêu tệp và dòng); ③ cả một tệp `commands/*.rs` mới
+/// mang lệnh mà không ai khai.
+///
+/// ⚠️ **Nó KHÔNG chứng minh gì về an toàn luồng.** Nó đếm văn bản nguồn. Một vỏ `(async)` vẫn
+/// có thể giữ khoá xuyên suốt, và một lượt chặn mới len vào qua một lời gọi lồng bên trong đi
+/// qua nó không một dòng đỏ — cùng giới hạn đã ghi ở doc-comment cổng kia.
+#[test]
+fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
+    let mut rows_per_file: std::collections::BTreeMap<&str, usize> =
+        COMMAND_FILE_CENSUS.iter().map(|row| (row.0, 0usize)).collect();
+    for &(rel, _, _) in blocking_wire_cases() {
+        *rows_per_file.entry(rel).or_insert(0) += 1;
+    }
+
+    for &(rel, want_plain, want_async, want_rows, _) in &COMMAND_FILE_CENSUS {
+        let (plain, asyncs) = count_command_attrs(rel);
+        assert_eq!(
+            (plain, asyncs),
+            (want_plain, want_async),
+            "`{rel}` dem duoc {plain} plain / {asyncs} (async), COMMAND_FILE_CENSUS khai \
+             {want_plain} plain / {want_async} (async).\n\n\
+             Mot lenh MOI, hoac mot vo vua bi go/them `(async)`. Bang nay la mot day bay: no \
+             KHONG tu biet ai dung. Phan loai vo do -- neu no CHAN (chan tren mot luot cho, \
+             hoac chi phi scale theo kich thuoc tai lieu/tap du lieu) thi cho no `(async)` VA \
+             mot hang trong `blocking_wire_cases()`; neu khong thi sua con so o day va noi vi \
+             sao."
+        );
+        assert_eq!(
+            rows_per_file[rel], want_rows,
+            "`{rel}` co {} hang trong `blocking_wire_cases()`, COMMAND_FILE_CENSUS khai \
+             {want_rows}. Xoa mot hang `cases` khong lam doi mot con so `(async)` nao trong ma \
+             nguon, nen khong cot nao khac bat duoc -- cot nay bat.",
+            rows_per_file[rel]
+        );
+    }
+
+    // ③ Quet CA CAY -- mot vong dem DOC LAP voi bang tren, khong phai mot phep cong lai cac
+    // so vua assert. No tra loi hai cau: tep nao MANG lenh ma khong ai khai, va tong tren
+    // TOAN CAY co bang tong da khai khong.
+    //
+    // Dung lai `all_src_rust_files()` (Story 3.10b). 🔵 SUA 2026-09-15 (AI-4) -- cau truoc
+    // noi "ba ban chep", mot con so chua ai dem. Dem that 2026-09-15: **muoi chin** dinh
+    // nghia `fn walk(` trong `src-tauri/tests/**` (grep tren toan thu muc), khong phai ba.
+    // Ly le khong doi: dung lai, dung them ban nao nua.
+    let root = manifest_dir();
+    let files = all_src_rust_files();
+    // 🔴 SAN QUAN THE, cung khuon cho goi anh em o `:817` va `RS_FLOOR` cua
+    // `glossary_boundary.rs`: neu cay quet tra ve rong (sai duong dan, mot lan doi bo cuc),
+    // vong duoi khong tim thay gi va ca test XANH OAN -- dung lop "rong im lang" ma
+    // `AGENTS.md` goi la lop loi trung tam cua kho nay.
+    assert!(
+        files.len() >= RS_FLOOR_FOR_DIALOG_CHECK,
+        "chi tim thay {} tep .rs duoi src-tauri/src/** (san {RS_FLOOR_FOR_DIALOG_CHECK}) -- \
+         cay qua nho de la that. Phep quet duoi day se khong thay gi va ca test se xanh OAN.",
+        files.len()
+    );
+
+    let (mut tree_plain, mut tree_async) = (0usize, 0usize);
+    let mut unclassified: Vec<String> = Vec::new();
+    for path in files {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            // Windows tra `\`; bang tren viet `/`. Khong chuan hoa thi CI Windows do oan.
+            .replace('\\', "/");
+        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let (plain, asyncs) = count_command_attrs_in(&rel, &text);
+        tree_plain += plain;
+        tree_async += asyncs;
+        if plain + asyncs > 0 && census_row(&rel).is_none() {
+            unclassified.push(format!("{rel} ({plain} plain / {asyncs} async)"));
+        }
+    }
+    assert!(
+        unclassified.is_empty(),
+        "cac tep sau MANG `#[tauri::command…]` nhung khong co hang trong COMMAND_FILE_CENSUS: \
+         {unclassified:?}\n\n\
+         Mot tep lenh MOI khong duoc di qua trong im lang. Them hang cho no, kem phep dem thuc \
+         va -- neu no 0 `(async)` -- mot loi khai CO CHU theo D5 (chua do, ai se do), khong \
+         phai mot phan quyet an toan."
+    );
+    assert_eq!(
+        (tree_plain, tree_async),
+        (53, 26),
+        "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
+         53/26 (do lai 2026-09-15 sau luot lat sau vo cua project.rs).\n\n\
+         Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
+         nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
+         ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
+         cho, va ca hai con so can dem lai."
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

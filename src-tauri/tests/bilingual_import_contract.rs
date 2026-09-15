@@ -1200,3 +1200,83 @@ fn a_regrouping_survives_a_header_toggle_that_does_not_touch_its_row() {
 
     cleanup(&root);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// AI-4 — hai lượt xác nhận CHỒNG NHAU trên CÙNG một nguồn đang chờ
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Sinh đôi song ngữ của
+/// `segment_contract.rs::two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_not_two`**
+/// (vòng rà đối kháng 2, mục 14 — nhánh văn xuôi). Nhánh song ngữ mang ĐÚNG hình dạng ấy —
+/// `let mut guard = state.lock()` ở `project.rs:3744`, `shape` clone ra từ dưới khoá,
+/// `create_work`, rồi `*guard = None` ở `:3772` — nhưng chưa có ca nào canh nó: thu hẹp khoá
+/// lại thành "đọc-clone-rồi-thả, sau đó mới `create_work`" đi qua trọn bộ test.
+///
+/// **Vì sao ca này ra đời đúng lúc này (AI-4).** Trước AI-4 vỏ IPC
+/// `wire::confirm_bilingual_import` là `#[tauri::command]` trần, nên tauri chạy nó trên luồng
+/// chính và HAI lời gọi không thể chồng nhau — khoá rộng là một bất biến chưa ai kiểm được
+/// thiệt hại. AI-4 lật vỏ đó sang `#[tauri::command(async)]` (thân hàm chạy trên một luồng
+/// worker tokio), nên hai lời gọi IPC gần như cùng lúc nay CHẠY SONG SONG THẬT, và khoá rộng
+/// trở thành thứ duy nhất chắn giữa chúng.
+///
+/// Ca này gọi thẳng HÀM THUẦN qua hai luồng thật (`std::thread::scope`), không qua webview:
+/// đúng khuôn ca văn xuôi, và nó đo được chính mệnh đề về khoá mà `(async)` vừa đưa vào tầm.
+///
+/// **Đối chứng đỏ đã chạy (2026-09-15):** thu hẹp khoá trong `confirm_bilingual_import`
+/// thành đọc-clone-`drop(guard)`-rồi-`create_work` ⇒ ca này ĐỎ (hai lượt cùng `Ok`); trả
+/// khoá về hình dạng cũ ⇒ XANH lại.
+#[test]
+fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_one_work_not_two() {
+    let root = temp_dir("bilingual-confirm-race");
+    let csv = "Cau mot day.,Cau mot dich.\n";
+    let path = write_file(&root, "race.csv", csv.as_bytes());
+
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let state = pending_state();
+    stash_pending_import_source(&state, shape, None);
+
+    let results = std::thread::scope(|scope| {
+        let h1 = scope.spawn(|| {
+            confirm_bilingual_import(
+                &root, &state, "Race A", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
+                Vec::new(),
+            )
+        });
+        let h2 = scope.spawn(|| {
+            confirm_bilingual_import(
+                &root, &state, "Race B", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
+                Vec::new(),
+            )
+        });
+        [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
+    });
+
+    let successes = results.iter().filter(|r| r.is_ok()).count();
+    let failures: Vec<_> = results.iter().filter(|r| r.is_err()).collect();
+    assert_eq!(
+        successes, 1,
+        "ky vong DUNG MOT luot xac nhan song ngu thanh cong tu MOT nguon dang cho -- hai luot \
+         cung Ok nghia la khoa `PendingImportSourceState` da bi thu hep, va MOT nguon vua sinh \
+         ra HAI Tac pham. Nhan duoc: {results:?}"
+    );
+    assert_eq!(
+        failures.len(),
+        1,
+        "luot con lai phai bi tu choi (nguon dang cho da bi don): {results:?}"
+    );
+    for err in &failures {
+        let Err(e) = err else { unreachable!() };
+        assert_eq!(
+            e.code(),
+            "import.no_pending_source",
+            "luot thua phai bi tu choi vi HET nguon dang cho, khong phai vi mot ly do khac: {e:?}"
+        );
+    }
+
+    for r in results {
+        if let Ok(opened) = r {
+            drop(opened.store);
+        }
+    }
+    cleanup(&root);
+}

@@ -12013,3 +12013,111 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     Chủ với mọi mục Windows-chưa-đo khác trong tệp này.** Không một story nào tự nhận việc đo lại
     Windows trước khi bảng nghiệm thu đó mở.
   → 🔵 **SỬA 2026-09-15** — Story 6.18 gộp vào **Story 10.9** (`correct-course`). Việc thu hẹp về macOS là quyết định của *spec* 6.18, khi phần Windows còn đợi bảng nghiệm thu cuối dự án; tới Story 10.9 bảng ấy đã mở, nên spec 10.9 quyết lại. **Chủ: Ice** giữ nguyên cho tới lúc đó.
+
+## Deferred from: spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien (2026-09-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: Sáu vỏ nhập của `commands/project.rs` chuyển sang `#[tauri::command(async)]` mở ra
+    một tính chất RUNTIME mới mà spec này cố ý KHÔNG thiết kế: thân hàm nay chiếm một **luồng
+    worker tokio** thay vì luồng chính, và sáu vỏ ấy nay có thể **chồng lấn nhau** ở chỗ trước
+    đây phép nối tiếp trên luồng chính cấm điều đó.
+  evidence: D4 của spec (frozen, vòng 2). Cơ chế đã đối chiếu nguồn 2026-09-15:
+    `tauri-macros-2.6.3/src/command/wrapper.rs:361-396` (`body_async`) →
+    `tauri-2.11.5/src/ipc/mod.rs:343`/`:371`/`:375` → `async_runtime::spawn` →
+    `tokio::spawn`, và `async_runtime.rs:222` `default_runtime` dựng `TokioRuntime::new()`,
+    tức runtime ĐA LUỒNG. Hai vế chưa ai đo: ① `confirm_import_with_encoding` có thể giữ một
+    worker tokio tới N × 20 giây (`core/webimport/fetcher.rs:85` `REQUEST_TIMEOUT`) — không
+    ai đếm runtime có bao nhiêu worker, nên không ai biết bao nhiêu lượt nhập song song thì
+    cạn; ② hai lượt nhập chồng nhau nay cùng chạm `PendingImportSourceState` và
+    `OpenWorkState`, và trật tự giữa chúng chưa có ca test nào. Spec AI-4 chỉ dời chỗ CHỜ ra
+    khỏi luồng giao diện; nó **không** rút ngắn lượt chờ, và cổng của nó đọc văn bản nguồn nên
+    nó không đo được một phép nào ở đây.
+
+    🔴 **Vế ② nói cụ thể, vì nó ĐO ĐƯỢC và đã đo 2026-09-15.** Hai vỏ `confirm` nay `(async)`
+    giữ `MutexGuard` của `PendingImportSourceState` xuyên suốt `create_work`
+    (`project.rs:3744` → `*guard = None` ở `:3772` cho nhánh song ngữ; cùng hình dạng ở nhánh
+    văn xuôi). **BA vỏ ở lại ĐỒNG BỘ vẫn `.lock()` đúng ô ấy**, nên chúng chạy trên LUỒNG
+    CHÍNH và có thể đứng trọn N × 20 giây của vòng tải ảnh:
+    · `preview_import_encoding_from_text` (`:5908`) → `stash_pending_import_source` (`:3300`);
+    · `rebuild_bilingual_import_preview` (`:6203`) → `.lock()` thẳng;
+    · `remove_url_import_item` (`:6446`) → `sync_pending_from_url_items` →
+      `stash_pending_import_source`.
+    (Đã kiểm và LOẠI `tier2_block_confirm_range`: nó khoá `UrlImportItemsState` và
+    `Tier2BlockOverridesState`, không khoá ô này.)
+
+    ⚠️ **Chưa với tới được qua giao diện sản phẩm — và đó là lý do nó là NỢ chứ không phải
+    lỗi phải sửa ngay.** Frontend chốt cửa ở sáu chỗ gọi trong `src/importPreviewState.ts`
+    (`:853` · `:876` · `:931` · `:974` · `:1023` · `:1383`), mỗi chỗ mở bằng
+    `if (confirming.value …) return`. Đường duy nhất còn lại là một `internals.invoke` thô —
+    đúng lỗ mà chú thích sẵn có ở `project.rs:3372-3375` đã gọi tên: *"vòng chặn `confirming`
+    ở `importPreviewState.ts` là JS-side, không chắn được một lời gọi thô bỏ qua tầng đó"*.
+    Trước AI-4 lớp này không tồn tại theo nghĩa thời gian (mọi vỏ nối tiếp trên luồng chính);
+    sau AI-4 nó tồn tại, và cái chắn nó là một bất biến của FRONTEND, không một bất biến của
+    Rust. Không gate nào canh sáu chỗ gọi ấy.
+  **Chủ: Ice** — cùng chủ với món nợ ngân sách thời gian / tiến độ / huỷ giữa chừng của vòng
+    lặp ảnh (§*Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc*), vì đo cái này mà
+    không đo cái kia thì vô nghĩa.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: Tám vỏ đồng bộ nữa đã bị lượt điều tra AI-4 ĐÁNH DẤU là ứng viên nhưng nằm ngoài
+    phạm vi sáu vỏ được chọn — và **không một tài liệu nào của AI-4 nêu tên tám vỏ đó**.
+  evidence: D2 (revised) của spec, frozen: *"scope is six commands, chosen against a full
+    census of all 59 plain wires … The other 8 flagged wires become owned debt."* Con số tám
+    đến từ chính câu đó. Đã tìm: cả `spec-ai-4-…md` lẫn sidecar
+    `ai-4-loopback-1-history-2026-09-15.md` (gồm bảng triage 25 hàng) đều KHÔNG liệt kê tám
+    tên; bảng census duy nhất còn lại là census theo TỆP (53 plain / 26 async sau lượt sửa),
+    không theo vỏ. ⇒ Người nhận món nợ này phải CHẠY LẠI lượt sàng trên 53 vỏ đồng bộ còn
+    lại, không suy từ tệp nào. Spec AI-4 cấm mở rộng: *"This spec says nothing about the
+    safety of the other 53"* — nên không một con số nào ở đây được đọc thành một phán quyết
+    an toàn cho bất kỳ vỏ nào.
+  **Chủ: Dev** — ở story tiếp theo chạm bề mặt IPC của `commands/**`, chạy lại lượt sàng và
+    ghi tên tám vỏ vào chính mục này trước khi quyết lật hay không.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: Câu SAI *"`(async)` … cho `sync_threadpool`"* vẫn sống trong mã nguồn sản phẩm.
+    Spec AI-4 gọi tên hai chỗ; **đếm thật trên cây 2026-09-15 là SÁU chỗ, ở BA tệp**.
+    🔵 *(Sửa tại chỗ 2026-09-15, lượt nghiệm thu: bản đầu của mục này khai "NĂM chỗ, ở BA tệp"
+    và liệt kê sai. Nó tính doc-comment của `wire::start_url_import` — chỗ đó KHÔNG mang chuỗi `sync_threadpool`, và
+    câu cơ chế của nó đúng; khuyết tật ở đó là con số "17", đã có mục riêng ngay dưới. Và nó
+    BỎ SÓT hai dòng `core/webimport/mod.rs`. Cùng lớp lỗi "đếm, hoặc đừng viết con số" mà
+    chính mục này lập ra để sửa — lần này ở trong mục sửa.)*
+  evidence: `src/commands/glossary.rs:1301` và `:1375`; `src/commands/library.rs:597` và
+    `:643`; `src/core/webimport/mod.rs:22` và `:43` (*"`reqwest::blocking` SỐNG ĐƯỢC trong
+    `sync_threadpool`"* · *"sống được trong `sync_threadpool` của Tauri"* — phép đo Task 0
+    ngày 2026-09-06 VẪN ĐỨNG, chỗ sai chỉ là cái TÊN nó đặt cho nơi thân hàm chạy; khi sửa
+    đừng gỡ phép đo). Frozen Never của spec chỉ nêu
+    `glossary.rs:1301-1302` và `project.rs:6264-6266` (nay là `:6339` sau khi doc-comment mới
+    chèn vào) và CẤM sửa chúng trong lượt này — chúng vào kho từ Story 3.10b/5.3/6.7 và là nợ
+    có chủ của Ice. Hai chỗ `library.rs` và `glossary.rs:1375` chưa từng được nêu ở đâu; mục
+    này là chỗ đầu tiên đếm chúng. Câu đúng (đã đối chiếu nguồn, xem mục đầu của khối này):
+    thân hàm chạy trên một luồng worker **tokio**, `spawn_blocking` không nằm trên đường này,
+    và chuỗi `"sync_threadpool"` ở `wrapper.rs:264` chỉ là nhãn cho `tracing::debug_span!` ở
+    `:278`. Bản đính chính duy nhất đã viết nằm ở doc-comment của
+    `tests/config_invariants.rs::the_blocking_wires_run_off_the_main_thread` (🔵 2026-09-15) và
+    ở sáu doc-comment mới trong `project.rs` — không một chỗ nào trong sáu chỗ trên.
+  **Chủ: Ice** — sáu chỗ sửa CÙNG MỘT LƯỢT; sửa lẻ một chỗ tạo ra đúng cái bẫy "hai bản chép
+    phải đồng bộ bằng tay" mà tệp này đã ghi nợ ở chỗ khác. Không gate nào canh câu này.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: Doc-comment của `wire::start_url_import` trong `src/commands/project.rs` khai
+    *"khuôn đã có **17** tiền lệ"*. Con số đó đã cũ
+    trước AI-4 và AI-4 làm nó cũ thêm.
+  evidence: Đếm 2026-09-15 bằng chính `COMMAND_FILE_CENSUS` (ca
+    `every_command_bearing_file_is_classified_with_measured_attribute_counts`, chạy trên cây
+    đã sửa): **26** thuộc tính `#[tauri::command(async)]` trên toàn `src-tauri/src/**` (53
+    plain / 26 async, mười một tệp mang lệnh). Trừ chính vỏ mang chú thích đó
+    (`start_url_import`) thì tiền lệ là **25**, không phải 17. Câu ấy nằm ở
+    doc-comment của `wire::start_url_import` (dòng mở bằng *"`#[tauri::command(async)]` trên một hàm
+    ĐỒNG BỘ — khuôn đã có 17 tiền lệ"*); `:6340` là dòng mang con trỏ `library.rs:640`. 🔵
+    **Đã kiểm 2026-09-15 — con trỏ `library.rs:640` ĐÚNG**, không phải một câu hỏi để ngỏ:
+    dòng đó là *"🔴 **`(async)` KHÔNG PHẢI TRANG TRÍ — thiếu nó là TREO ỨNG DỤNG.**"*, mở
+    đúng khối doc-comment của `library_choose_root`. Chỉ con số 17 sai.
+    Spec AI-4 Never cấm sửa doc-comment này
+    (nó là nợ có chủ cùng gốc với mục ngay trên), nên con số ở lại sai cho tới lượt đó.
+  **Chủ: Ice** — sửa cùng lượt với mục `sync_threadpool` ngay trên; hai lỗi nằm trong cùng một
+    đoạn chú thích ba dòng. 🔵 Khi sửa, viết lại bằng một câu KHÔNG mang số đếm, hoặc trỏ
+    thẳng vào `COMMAND_FILE_CENSUS` — một con số chép tay ở đây sẽ cũ lần thứ ba.
+    🔵 *(2026-09-15, lượt nghiệm thu: mọi số dòng `project.rs:…` trong mục này đã được thay bằng
+    TÊN vỏ. Lý do đo được ngay trong một phiên: vòng rà đặt câu ấy ở `:6338`, agent đo lại thấy
+    `:6339`, và sau các patch của chính agent nó nằm ở `:6341` — ba con số cho một câu không đổi.
+    Trỏ bằng tên, không bằng dòng.)*

@@ -1,0 +1,317 @@
+diff --git a/src-tauri/src/commands/project.rs b/src-tauri/src/commands/project.rs
+index 555065d..028b810 100644
+--- a/src-tauri/src/commands/project.rs
++++ b/src-tauri/src/commands/project.rs
+@@ -5822,7 +5822,11 @@ pub mod wire {
+ 
+     /// Vỏ IPC của [`super::create_work_from_file`]. Cùng lý do "ở lại dù 0 chỗ gọi sản
+     /// phẩm" với `create_work_from_text` ngay trên — đọc doc-comment ở đó.
+-    #[tauri::command]
++    ///
++    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ, spec AI-4: [`super::create_work_from_file`]
++    /// đọc đĩa đồng bộ tới `MAX_IMPORT_BYTES` 100 MB (`core/segment/import.rs`) rồi giải nén
++    /// `.docx` — cả hai trên luồng chính nếu không có `(async)`.
++    #[tauri::command(async)]
+     pub fn create_work_from_file(
+         app: tauri::AppHandle,
+         name: String,
+@@ -5927,7 +5931,11 @@ pub mod wire {
+     ///   do nhánh DÁN VĂN BẢN ngay trên.
+     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`**, cùng lý do nhánh DÁN
+     /// VĂN BẢN ngay trên.
+-    #[tauri::command]
++    ///
++    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ, spec AI-4: cùng lý do
++    /// `create_work_from_file` — [`super::import_file`] đọc đĩa đồng bộ tới `MAX_IMPORT_BYTES`
++    /// 100 MB rồi giải nén `.docx` trên luồng chính nếu không có `(async)`.
++    #[tauri::command(async)]
+     pub fn preview_import_encoding_from_file(
+         app: tauri::AppHandle,
+         path: String,
+@@ -5980,7 +5988,13 @@ pub mod wire {
+     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`.** Xem trước và xác nhận
+     /// phải trùng từng byte (§Always spec 6.6) — frontend gửi lại CÙNG mẫu đã dùng ở lượt
+     /// xem trước gần nhất, không một cơ chế "nhớ mẫu" nào ở tầng Rust.
+-    #[tauri::command]
++    ///
++    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ, spec AI-4: [`super::create_work`] (qua
++    /// [`super::confirm_import_with_encoding`]) đi tới `prepare_chapter_images` →
++    /// `fetch_and_write_one_asset` → `webimport::fetch` — TUẦN TỰ, mỗi ảnh chờ tới
++    /// `REQUEST_TIMEOUT` 20 giây (`core/webimport/fetcher.rs`) — trên luồng chính nếu không có
++    /// `(async)`, trong khi vẫn giữ khoá `PendingImportSourceState`.
++    #[tauri::command(async)]
+     pub fn confirm_import_with_encoding(
+         app: tauri::AppHandle,
+         name: String,
+@@ -6182,7 +6196,10 @@ pub mod wire {
+     /// song ngữ đã có bản dịch, quét ứng viên Glossary (Story 3.5, FR47) là nghĩa vụ của
+     /// đường văn xuôi (câu chưa dịch cần gợi ý thuật ngữ); không nằm trong Task list spec
+     /// 6.16, và spawn nó vào đây sẽ là một bề mặt MỚI không AC nào của story này canh.
+-    #[tauri::command]
++    ///
++    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ, spec AI-4: cùng đường tới
++    /// `webimport::fetch` như `confirm_import_with_encoding` ngay trên.
++    #[tauri::command(async)]
+     pub fn confirm_bilingual_import(
+         app: tauri::AppHandle,
+         name: String,
+diff --git a/src-tauri/tests/config_invariants.rs b/src-tauri/tests/config_invariants.rs
+index 50cb30a..ab5b1b4 100644
+--- a/src-tauri/tests/config_invariants.rs
++++ b/src-tauri/tests/config_invariants.rs
+@@ -983,11 +983,14 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
+ /// `store::Writer` trên một thư viện có thể lớn). Hình dạng mới chép khuôn
+ /// `the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied` ngay dưới —
+ /// ca đó đã đọc nhiều hơn một tệp từ trước.
+-#[test]
+-fn the_blocking_wires_run_off_the_main_thread() {
++/// Danh sách `cases` dùng chung bởi `the_blocking_wires_run_off_the_main_thread` và
++/// `the_blocking_wires_gate_reads_more_than_one_file` -- MỘT nguồn sự thật cho "tệp nào đang
++/// được canh", để hai ca không lệch nhau như `chapter.rs` đã lệch trước Story AI-4 (danh sách
++/// tệp của ca thứ hai từng chép tay và bỏ sót `chapter.rs`).
++fn blocking_wire_cases() -> [(&'static str, &'static str, &'static str); 22] {
+     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
+     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
+-    let cases: [(&str, &str, &str); 18] = [
++    [
+         (
+             "src/commands/glossary.rs",
+             "pub fn glossary_export_tier(app: tauri::AppHandle",
+@@ -1084,7 +1087,37 @@ fn the_blocking_wires_run_off_the_main_thread() {
+             "pub fn update_chapter_origin(\n        app: tauri::AppHandle",
+             "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot ghi xuat xu, Story 6.15",
+         ),
+-    ];
++        (
++            "src/commands/project.rs",
++            "pub fn create_work_from_file(\n        app: tauri::AppHandle",
++            "doc dia dong bo toi MAX_IMPORT_BYTES 100 MB (core/segment/import.rs) roi giai nen \
++             `.docx` -- ca hai tren luong chinh, spec AI-4",
++        ),
++        (
++            "src/commands/project.rs",
++            "pub fn preview_import_encoding_from_file(\n        app: tauri::AppHandle",
++            "cung ly do `create_work_from_file` ngay tren -- doc dia toi 100 MB roi giai nen \
++             `.docx`, spec AI-4",
++        ),
++        (
++            "src/commands/project.rs",
++            "pub fn confirm_import_with_encoding(\n        app: tauri::AppHandle",
++            "duong toi `webimport::fetch` xuyen `create_work` -> `prepare_chapter_images` -> \
++             `fetch_and_write_one_asset`, TUAN TU, moi anh cho toi REQUEST_TIMEOUT 20s tren mot \
++             host chet, giu ca khoa PendingImportSourceState -- spec AI-4",
++        ),
++        (
++            "src/commands/project.rs",
++            "pub fn confirm_bilingual_import(\n        app: tauri::AppHandle",
++            "cung duong toi `webimport::fetch` nhu `confirm_import_with_encoding` ngay tren -- \
++             spec AI-4",
++        ),
++    ]
++}
++
++#[test]
++fn the_blocking_wires_run_off_the_main_thread() {
++    let cases = blocking_wire_cases();
+ 
+     for (rel, sig, why) in cases {
+         let path = manifest_dir().join(rel);
+@@ -1153,6 +1186,165 @@ fn the_blocking_wires_run_off_the_main_thread() {
+          split_chapter_at_segment -- Story 5.8 -- cong update_chapter_origin -- Story 6.15). \
+          Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
+     );
++    assert_eq!(
++        count_async_attrs("src/commands/project.rs"),
++        6,
++        "so `#[tauri::command(async)]` trong commands/project.rs phai DUNG 6 (hai tien le \
++         `start_url_import`/`reload_url_import_item` -- Story 6.7 -- cong bon vo CHAN spec AI-4: \
++         create_work_from_file/preview_import_encoding_from_file/confirm_import_with_encoding/ \
++         confirm_bilingual_import). Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
++    );
++}
++
++/// **D1 (spec AI-4, 2026-09-15) — bảng đếm plain/`(async)` trên MƯỜI HAI tệp mang command, đo
++/// lại TRÊN CÂY ĐÃ SỬA** (sau khi bốn thuộc tính của `project.rs` đã lật, theo đúng thứ tự D1
++/// yêu cầu — bảng viết SAU khi sửa, không phải trước). `project.rs` — tệp có nhiều lời gọi
++/// mạng nhất của cả epic — chưa từng nằm trong `blocking_wire_cases()` trước spec này; đây là
++/// tấm lưới chặn đúng lỗ hổng đó tái diễn: một command MỚI, hay một TỆP MỚI dưới
++/// `src/commands/**` khai `#[tauri::command]`, làm cổng đỏ cho tới khi một người phân loại nó.
++///
++/// Đếm bằng TEXT (dòng không bắt đầu `//`, cùng luật `count_async_attrs` phía trên), không
++/// build — đây KHÔNG phải một phép đo hành vi, chỉ là một phép đếm thuộc tính trên nguồn.
++/// Chính vì đếm trên văn bản nguồn, số không phụ thuộc `--features nfr-bench`: `lib.rs` mang
++/// HAI dòng `#[tauri::command]` trong nguồn dù một trong hai
++/// (`nfr_bench_mark_and_wait_phase`, `lib.rs:590`) chỉ tồn tại trong BẢN DỰNG dưới
++/// `#[cfg(feature = "nfr-bench")]` — bảng dưới đây đếm CẢ HAI một cách CÓ CHỦ ĐÍCH, không loại
++/// `lib.rs`, để một lượt sửa sau không "gọn" bảng bằng cách bớt dòng đó rồi vô tình làm số phụ
++/// thuộc build.
++#[test]
++fn the_blocking_wires_gate_count_table_covers_every_command_bearing_file() {
++    // (đường dẫn tương đối tới `src/`, plain, async, lý do NẾU 0 vỏ chặn trong tệp)
++    let table: [(&str, usize, usize, Option<&str>); 12] = [
++        ("commands/chapter.rs", 4, 5, None),
++        (
++            "commands/cleanup.rs",
++            5,
++            0,
++            Some("don dep quy tac Chuong/Glossary -- moi ham la mot lan doc/ghi mot hang, khong \
++                  co lan quet toan bang hay lan cho mang nao"),
++        ),
++        (
++            "commands/config.rs",
++            3,
++            0,
++            Some("doc/ghi cau hinh ung dung -- gia tri nho, khong co I/O ti le theo kich thuoc \
++                  tai lieu hay tap du lieu"),
++        ),
++        (
++            "commands/dict.rs",
++            3,
++            0,
++            Some("tra cuu tu dien qua chi muc da dung san -- khong mo hop thoai, khong quet toan \
++                  bang, khong goi mang"),
++        ),
++        ("commands/glossary.rs", 8, 7, None),
++        ("commands/library.rs", 1, 4, None),
++        ("commands/lifecycle.rs", 1, 2, None),
++        (
++            "commands/mod.rs",
++            0,
++            0,
++            Some("chi khai `pub mod` cho muoi mot tep con, khong mot dong `#[tauri::command]` \
++                  nao o day"),
++        ),
++        (
++            "commands/pinned.rs",
++            3,
++            0,
++            Some("ghim/bo ghim mot hang glossary_entry -- mot lan ghi mot hang, khong quet toan \
++                  bang"),
++        ),
++        ("commands/project.rs", 11, 6, None),
++        (
++            "commands/segment.rs",
++            14,
++            0,
++            Some("moi ham thao tac mot Segment/mot Chuong da xac dinh qua id -- khong lan nao \
++                  quet toan bo thu vien hay cho mang; Story 6.15 rieng cua chapter.rs moi cham \
++                  reindex toan Library"),
++        ),
++        (
++            "lib.rs",
++            2,
++            0,
++            Some("mot trong hai la `nfr_bench_mark_and_wait_phase` (lib.rs:590), CHI ton tai \
++                  duoi `#[cfg(feature = \"nfr-bench\")]` -- dem CA HAI vi day la quet van ban \
++                  nguon, khong phu thuoc feature build; cong kia `confirm_exit_flush` chi thao \
++                  tac mot co `AtomicBool`"),
++        ),
++    ];
++
++    let count_command_attrs = |rel: &str| -> (usize, usize) {
++        let path = manifest_dir().join("src").join(rel);
++        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
++        let mut plain = 0usize;
++        let mut r#async = 0usize;
++        for line in text.lines().map(str::trim_start).filter(|l| !l.starts_with("//")) {
++            if line.starts_with("#[tauri::command(async)]") {
++                r#async += 1;
++            } else if line.starts_with("#[tauri::command]") {
++                plain += 1;
++            }
++        }
++        (plain, r#async)
++    };
++
++    let mut classified: std::collections::BTreeSet<PathBuf> = std::collections::BTreeSet::new();
++    let mut total_plain = 0usize;
++    let mut total_async = 0usize;
++
++    for (rel, want_plain, want_async, zero_reason) in table {
++        let (plain, r#async) = count_command_attrs(rel);
++        assert_eq!(
++            (plain, r#async),
++            (want_plain, want_async),
++            "`{rel}`: dem duoc {plain} plain / {async} async, bang D1 khai {want_plain} plain / \
++             {want_async} async -- mot command da them/xoa/lat o tep nay ma bang D1 chua theo \
++             kip. Do lai va sua BANG, dung ha thap tieu chuan cho khop mot con so sai.",
++        );
++        assert!(
++            want_async > 0 || zero_reason.is_some(),
++            "`{rel}` co {want_plain} vo dong bo va 0 vo `(async)`, nhung khong mang ly do trong \
++             bang D1 -- moi tep 0-blocking phai neu ro vi sao KHONG mot vo nao trong no can chay \
++             ngoai luong chinh."
++        );
++        classified.insert(manifest_dir().join("src").join(rel));
++        total_plain += plain;
++        total_async += r#async;
++    }
++
++    assert_eq!(
++        total_plain, 55,
++        "tong so vo DONG BO dem duoc tren muoi hai tep la {total_plain}, bang D1 khai 55 -- \
++         mot command moi da them o dau do ma bang chua theo kip."
++    );
++    assert_eq!(
++        total_async, 24,
++        "tong so vo `(async)` dem duoc tren muoi hai tep la {total_async}, bang D1 khai 24 -- \
++         mot vo da lat/them ma bang chua theo kip."
++    );
++
++    // "Tep MOI" -- bat ky tep .rs nao duoi src/** mang it nhat mot dong `#[tauri::command...]`
++    // (khong tinh dong trong chu thich, da loc o tren) ma khong nam trong bang muoi hai tep o
++    // tren la mot tep CHUA PHAN LOAI. Tai dung `all_src_rust_files()` (dinh nghia phia tren) --
++    // khong dung mot bo quet thu tu.
++    for file in all_src_rust_files() {
++        let text = fs::read_to_string(&file).unwrap_or_else(|e| panic!("read {}: {e}", file.display()));
++        let has_command_attr = text
++            .lines()
++            .map(str::trim_start)
++            .filter(|l| !l.starts_with("//"))
++            .any(|l| l.starts_with("#[tauri::command"));
++        if has_command_attr && !classified.contains(&file) {
++            panic!(
++                "`{}` khai it nhat mot `#[tauri::command...]` nhung KHONG nam trong bang D1 muoi \
++                 hai tep cua `the_blocking_wires_gate_count_table_covers_every_command_bearing_file` \
++                 -- phan loai no (dong bo an toan, hay can `(async)`) roi them vao bang D1 CUNG \
++                 LUOT.",
++                file.display()
++            );
++        }
++    }
+ }
+ 
+ /// **THÊM Story 5.3.** Đối chứng CHIỀU RỘNG của cổng ngay trên: nó phải THẬT SỰ đọc nhiều hơn
+@@ -1160,21 +1352,25 @@ fn the_blocking_wires_run_off_the_main_thread() {
+ /// NHẤT. Một cổng "mở rộng" mà tất cả các hàng của `cases` trỏ về CÙNG một tệp là một cổng
+ /// vẫn MÙ với đúng tệp mà story này vừa tạo — bài học nguyên văn của
+ /// `the_blocking_wires_run_off_the_main_thread`'s doc-comment (mở lần ba).
++///
++/// 🔵 **SỬA spec AI-4** — danh sách tệp giờ ĐƯỢC SUY RA từ `blocking_wire_cases()` thay vì
++/// chép tay: bản chép tay trước đây đã lệch khỏi `cases` — thiếu `chapter.rs`, mà `cases` đã
++/// canh từ Epic 3 — và hai danh sách không còn cách nào tự trôi xa nhau lần nữa.
+ #[test]
+ fn the_blocking_wires_gate_reads_more_than_one_file() {
+-    let distinct_files: std::collections::BTreeSet<&str> = [
+-        "src/commands/glossary.rs",
+-        "src/commands/library.rs",
+-        "src/commands/lifecycle.rs",
+-    ]
+-    .into_iter()
+-    .collect();
++    let distinct_files: std::collections::BTreeSet<&str> =
++        blocking_wire_cases().into_iter().map(|(rel, _, _)| rel).collect();
+     assert!(
+         distinct_files.len() > 1,
+         "cong the_blocking_wires_run_off_the_main_thread phai doc NHIEU HON MOT tep -- nhan {} \
+          tep: {distinct_files:?}",
+         distinct_files.len()
+     );
++    assert!(
++        distinct_files.contains("src/commands/chapter.rs"),
++        "`chapter.rs` da bien mat khoi `blocking_wire_cases()` -- day chinh la lech da xay ra \
++         mot lan (danh sach chep tay cu thieu no)."
++    );
+     for rel in distinct_files {
+         assert!(
+             manifest_dir().join(rel).is_file(),

@@ -5789,7 +5789,27 @@ pub mod wire {
     /// một mệnh đề về ĐƯỜNG SẢN PHẨM (`src/**`), không phải về TOÀN BỘ bề mặt IPC — cổng
     /// canh nó là `tests/frontend/noProductPathBypassesEncodingPreview.test.ts` (quét
     /// `src/**`, không quét `e2e/**` — `e2e/**` được PHÉP đi tắt có chủ ý).
-    #[tauri::command]
+    ///
+    /// 🔴 **`#[tauri::command(async)]` trên một hàm ĐỒNG BỘ — CƠ CHẾ, viết một lần ở đây và
+    /// năm vỏ dưới trỏ về.** Macro sinh `body_async`
+    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:361-396`), bọc lời gọi đồng bộ trong
+    /// `async move { … }` rồi giao cho `respond_async_serialized`
+    /// (`tauri-2.11.5/src/ipc/mod.rs:343`) → `respond_async_serialized_inner` (`:371`) →
+    /// `async_runtime::spawn` (`:375`) → **`tokio::spawn` trên runtime ĐA LUỒNG**
+    /// (`async_runtime.rs:103-113`; `default_runtime` ở `:222` dựng `TokioRuntime::new()`).
+    /// ⇒ thân hàm chạy trên một **luồng worker tokio**, không phải luồng chính — đó là thứ gỡ
+    /// lượt treo cửa sổ. **KHÔNG** phải một "sync threadpool": `spawn_blocking`
+    /// (`async_runtime.rs:290`) không nằm trên đường này, và chuỗi `"sync_threadpool"` ở
+    /// `wrapper.rs:264` chỉ được `tracing::debug_span!` ở `:278` đọc — một nhãn log, không
+    /// điều khiển gì. Không đổi một dòng thân hàm; chỉ tham số phải `Send`, và vỏ này nhận
+    /// `AppHandle` cùng các giá trị sở hữu.
+    ///
+    /// **Vỏ này CHẶN vì:** `reindex_library` ngay dưới là một lượt quét TOÀN BỘ thư mục gốc
+    /// Library (`Indexer::rebuild(root)`), chạy sau mỗi lượt tạo. Không phải mạng: hình `Blob`
+    /// để `blocks` rỗng (`core/segment/pipeline.rs:702`) nên `prepare_chapter_images` không
+    /// với tới `webimport::fetch` từ đây. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn create_work_from_text(
         app: tauri::AppHandle,
         name: String,
@@ -5822,7 +5842,16 @@ pub mod wire {
 
     /// Vỏ IPC của [`super::create_work_from_file`]. Cùng lý do "ở lại dù 0 chỗ gọi sản
     /// phẩm" với `create_work_from_text` ngay trên — đọc doc-comment ở đó.
-    #[tauri::command]
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ ⇒ thân hàm chạy trên một **luồng
+    /// worker tokio** (`tokio::spawn`, KHÔNG phải `spawn_blocking`, không phải luồng chính) —
+    /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text` ngay trên.
+    ///
+    /// **Vỏ này CHẶN vì:** `import_file` đọc TRỌN tệp vào bộ nhớ, trần `MAX_IMPORT_BYTES` =
+    /// 100 MB (`core/segment/import.rs:82`, kiểm ở `:684`), cộng một lượt giải nén `.docx`;
+    /// rồi mới tới trọn pipeline và `reindex_library`. Đây là chi phí theo KÍCH THƯỚC TỆP,
+    /// khác hẳn lý do của `create_work_from_text` (theo kích thước THƯ VIỆN).
+    #[tauri::command(async)]
     pub fn create_work_from_file(
         app: tauri::AppHandle,
         name: String,
@@ -5927,7 +5956,16 @@ pub mod wire {
     ///   do nhánh DÁN VĂN BẢN ngay trên.
     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`**, cùng lý do nhánh DÁN
     /// VĂN BẢN ngay trên.
-    #[tauri::command]
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ ⇒ thân hàm chạy trên một **luồng
+    /// worker tokio** (`tokio::spawn`, KHÔNG phải `spawn_blocking`, không phải luồng chính) —
+    /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text`.
+    ///
+    /// **Vỏ này CHẶN vì:** cùng trần 100 MB của `import_file`
+    /// (`core/segment/import.rs:82`/`:684`) — đọc TRỌN tệp cộng giải nén `.docx` — nhưng ở
+    /// lượt XEM TRƯỚC, tức TRƯỚC khi người dùng xác nhận bất cứ điều gì; lượt treo rơi vào
+    /// đúng nhịp người dùng còn đang cân nhắc, không phải nhịp họ đã chấp nhận chờ.
+    #[tauri::command(async)]
     pub fn preview_import_encoding_from_file(
         app: tauri::AppHandle,
         path: String,
@@ -5980,7 +6018,22 @@ pub mod wire {
     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`.** Xem trước và xác nhận
     /// phải trùng từng byte (§Always spec 6.6) — frontend gửi lại CÙNG mẫu đã dùng ở lượt
     /// xem trước gần nhất, không một cơ chế "nhớ mẫu" nào ở tầng Rust.
-    #[tauri::command]
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ ⇒ thân hàm chạy trên một **luồng
+    /// worker tokio** (`tokio::spawn`, KHÔNG phải `spawn_blocking`, không phải luồng chính) —
+    /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text`.
+    ///
+    /// 🔴 **Vỏ này CHẶN vì MẠNG, TUẦN TỰ — vỏ nặng nhất của cả tệp.** `create_work` →
+    /// [`super::prepare_chapter_images`] (`:975`) → `fetch_and_write_one_asset` (`:1402`) →
+    /// `webimport::fetch` (`:1282`): một vòng lặp TUẦN TỰ, mỗi ảnh chờ tới `REQUEST_TIMEOUT`
+    /// = 20 giây (`core/webimport/fetcher.rs:85`). ⇒ một lượt nhập từ URL có N ảnh trên một
+    /// host chết đứng cửa sổ tới **N × 20 giây**, và suốt khoảng đó vỏ này còn GIỮ khoá
+    /// [`PendingImportSourceState`].
+    ///
+    /// ⚠️ `(async)` **không rút ngắn** lượt chờ đó — nó chỉ dời chỗ chờ khỏi luồng giao diện.
+    /// Ngân sách thời gian, tiến độ và huỷ giữa chừng cho vòng lặp ảnh là nợ CÓ CHỦ riêng
+    /// (`deferred-work.md`, Story 6.11, chủ Ice).
+    #[tauri::command(async)]
     pub fn confirm_import_with_encoding(
         app: tauri::AppHandle,
         name: String,
@@ -6077,7 +6130,17 @@ pub mod wire {
     ///   hơn hai cột ⇒ `import.bilingual_unterminated_quoted_field` /
     ///   `import.bilingual_too_few_columns`, TỪ CHỐI trước khi có gì để xem trước, và ô đang
     ///   chờ được dọn để không một nguồn CŨ nào nằm lại sau một lượt mở MỚI bị từ chối.
-    #[tauri::command]
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ ⇒ thân hàm chạy trên một **luồng
+    /// worker tokio** (`tokio::spawn`, KHÔNG phải `spawn_blocking`, không phải luồng chính) —
+    /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text`.
+    ///
+    /// **Vỏ này CHẶN vì:** [`super::import_bilingual_file`] (`core/segment/import.rs:737`)
+    /// gọi `std::fs::read` ở `:763` — đọc TRỌN tệp `.csv`/`.tsv` vào bộ nhớ, cùng trần
+    /// `MAX_IMPORT_BYTES` = 100 MB. Chỉ lượt MỞ đi qua đây; các lượt đổi cột/vai/tiêu đề sau
+    /// đó đi qua `rebuild_bilingual_import_preview` và KHÔNG đọc lại đĩa, nên đây là điểm
+    /// duy nhất của đường song ngữ trả giá đọc tệp.
+    #[tauri::command(async)]
     pub fn preview_bilingual_import_from_file(
         app: tauri::AppHandle,
         path: String,
@@ -6182,7 +6245,21 @@ pub mod wire {
     /// song ngữ đã có bản dịch, quét ứng viên Glossary (Story 3.5, FR47) là nghĩa vụ của
     /// đường văn xuôi (câu chưa dịch cần gợi ý thuật ngữ); không nằm trong Task list spec
     /// 6.16, và spawn nó vào đây sẽ là một bề mặt MỚI không AC nào của story này canh.
-    #[tauri::command]
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ ⇒ thân hàm chạy trên một **luồng
+    /// worker tokio** (`tokio::spawn`, KHÔNG phải `spawn_blocking`, không phải luồng chính) —
+    /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text`.
+    ///
+    /// **Vỏ này CHẶN vì:** trọn pipeline cộng một lô chèn `segment` hàng loạt cộng các lượt
+    /// ghi đĩa, rồi `reindex_library`.
+    ///
+    /// 🔵 **KHÔNG phải mạng** — một bản ghi trước đó nói ngược lại. Nhánh song ngữ dựng mọi
+    /// `ImportedChapter` với `blocks: None` (`core/segment/pipeline.rs:1011`, nhánh từ
+    /// `:986`), và [`super::prepare_chapter_images`] bỏ qua đúng những Chương đó (`:1011`,
+    /// `let Some(blocks) = &chapter.blocks else { continue }` — KHÔNG phải `:636-637`, chỗ đó
+    /// là vòng dệt của `create_work`, có thêm điều kiện `weave_this_import`)
+    /// ⇒ `webimport::fetch` không với tới được từ đây.
+    #[tauri::command(async)]
     pub fn confirm_bilingual_import(
         app: tauri::AppHandle,
         name: String,
