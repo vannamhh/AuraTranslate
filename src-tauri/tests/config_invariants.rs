@@ -643,6 +643,97 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
     }
 }
 
+/// Story 6.18 (task 2, Quyết định 5) — `nfr-bench` không được lọt vào `default`, và command
+/// bàn đo chỉ được đăng ký sau đúng một dòng gác `#[cfg(feature = "nfr-bench")]`.
+///
+/// 🔴 Không gate nào canh vế này trước hôm nay: `[features]` của `Cargo.toml` KHÔNG khai
+/// `default = [...]` (AGENTS.md, `src-tauri/AGENTS.md`), nên hôm nay ca này xanh chỉ vì
+/// KHÔNG AI đã thêm feature vào một mảng `default` chưa tồn tại — im lặng, không có gì
+/// cưỡng chế nó ở lại như vậy.
+///
+/// ⚠️ Đo tay 2026-09-14: gỡ `#[cfg(feature = "nfr-bench")]` khỏi CHÍNH dòng đăng ký trong
+/// `generate_handler!` (giữ nguyên dòng gác trên `mod nfr_bench` ở trên) làm `cargo test
+/// --locked` (bộ feature rỗng) ĐỎ ngay ở bước biên dịch (`E0433: cannot find module
+/// nfr_bench`), vì `mod nfr_bench` chính nó cũng đứng sau `cfg` riêng. Đó vẫn là một lượt
+/// ĐỎ hợp lệ cho AC — `cargo test --locked --test config_invariants` thoát khác 0 — nhưng
+/// nó đỏ ở LỖI BIÊN DỊCH của CẢ CRATE, không ở một assertion đọc được. Ca dưới đây bắt
+/// đúng lỗ hổng THẬT SỰ im lặng: ai đó thêm `nfr-bench` vào `default` (khiến `mod
+/// nfr_bench` biên dịch được dưới bộ feature mặc định) RỒI gỡ dòng gác trên chính lời gọi
+/// đăng ký — tổ hợp đó biên dịch sạch và phơi command ra bảng lệnh IPC thật; chỉ đọc mã
+/// mới bắt được nó.
+#[test]
+fn nfr_bench_is_absent_from_default_and_its_command_is_cfg_gated() {
+    let cargo_path = manifest_dir().join("Cargo.toml");
+    let cargo = fs::read_to_string(&cargo_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", cargo_path.display()));
+
+    // Vế 1 — `default = [...]` (nếu một ngày có ai thêm nó vào `[features]`) không được
+    // liệt `nfr-bench`. Quét khối từ dòng bắt đầu bằng `default = [` tới dòng đóng `]`, bỏ
+    // dòng chú thích, để một mô tả bằng văn xuôi nhắc tên feature không tự đỏ oan.
+    let mut in_default_array = false;
+    let mut default_block = String::new();
+    for line in cargo.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if !in_default_array {
+            if trimmed.starts_with("default") && trimmed.contains('[') {
+                in_default_array = true;
+                default_block.push_str(trimmed);
+                default_block.push('\n');
+                if trimmed.contains(']') {
+                    in_default_array = false;
+                }
+            }
+            continue;
+        }
+        default_block.push_str(trimmed);
+        default_block.push('\n');
+        if trimmed.contains(']') {
+            in_default_array = false;
+        }
+    }
+    assert!(
+        !default_block.contains("nfr-bench"),
+        "`Cargo.toml` liệt `nfr-bench` vào một mảng `default` -- bản phát hành thường sẽ \
+         mang command bàn đo. Giới hạn Ice ký 2026-09-02 (giữ nguyên qua Story 6.18 Quyết \
+         định 5): feature này KHÔNG được nằm trong `default`.\n{default_block}"
+    );
+
+    // Vế 2 — dòng đăng ký command trong `generate_handler!` phải có ĐÚNG một dòng gác
+    // `#[cfg(feature = "nfr-bench")]` ngay bên trên nó (bỏ dòng chú thích ở giữa).
+    let lib_path = manifest_dir().join("src/lib.rs");
+    let lib_src = fs::read_to_string(&lib_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", lib_path.display()));
+    const REGISTRATION: &str = "nfr_bench::nfr_bench_mark_and_wait_phase,";
+    const GUARD: &str = r#"#[cfg(feature = "nfr-bench")]"#;
+    let lines: Vec<&str> = lib_src.lines().collect();
+    let registration_line = lines
+        .iter()
+        .position(|line| line.trim() == REGISTRATION)
+        .unwrap_or_else(|| {
+            panic!(
+                "`src/lib.rs` không còn dòng đăng ký `{REGISTRATION}` trong \
+                 `generate_handler!` -- cập nhật `REGISTRATION` cho khớp hình dạng mới \
+                 CÙNG LƯỢT, không xoá ca này."
+            )
+        });
+    let nearest_substantive_line_above = lines[..registration_line]
+        .iter()
+        .rev()
+        .map(|earlier| earlier.trim())
+        .find(|t| !t.is_empty() && !t.starts_with("//"));
+    let guarded = nearest_substantive_line_above == Some(GUARD);
+    assert!(
+        guarded,
+        "dòng đăng ký `{REGISTRATION}` trong `generate_handler!` không có `{GUARD}` ngay \
+         trên nó -- bản mặc định (feature rỗng) sẽ phơi command bàn đo ra bảng lệnh IPC \
+         thật. Đây là lớp gác THỨ HAI, độc lập với `default` không mang feature: một dòng \
+         `cfg` bị xoá tay không đổi gì ở vế 1 phía trên."
+    );
+}
+
 /// Bộ lái e2e và mã Rust phải khai **cùng một** tên biến.
 ///
 /// 🔴 Đây là ca đắt nhất của nhóm này, vì chỗ trôi hỏng **IM LẶNG và theo hướng tệ nhất**:

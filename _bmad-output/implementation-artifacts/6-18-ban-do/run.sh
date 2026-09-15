@@ -1,6 +1,8 @@
 #!/bin/zsh
-# Một lượt đo truy nguyên được cho Story 5.14. Chỉ tạo dữ liệu dưới HOME có marker
-# `auratranslate-nfr-bench-`; trap luôn giết app và xoá HOME ấy.
+# Một lượt đo truy nguyên được cho Story 6.18 — NFR3/NFR4/NFR5 trên thư viện 5.000 Chương
+# THẬT (50 Tác phẩm × 100 Chương × 10 segment), dựng qua ĐÚNG đường sản phẩm
+# (`story_6_18_library.rs`), không phải fixture SQL thô của Story 5.14. Chỉ tạo dữ liệu dưới
+# HOME có marker `auratranslate-nfr-bench-`; trap luôn giết app và xoá HOME ấy.
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
@@ -17,8 +19,8 @@ die() {
 
 cd "$REPO"
 
-# Cây mã sản phẩm chỉ được lệch ở đúng móc feature-gated của bàn đo. Test đo và
-# tài liệu/tracking của chính story được phép bẩn vì lượt đo chạy trước commit.
+# Cây mã sản phẩm chỉ được lệch ở đúng móc feature-gated của bàn đo VÀ tài liệu/tracking của
+# chính story — lượt đo chạy trước commit (memory "Cây bẩn trước story → commit riêng").
 git diff --check
 git diff --cached --check
 typeset -a changed_paths
@@ -28,12 +30,11 @@ for changed in "${changed_paths[@]}"; do
   case "$changed" in
     src-tauri/Cargo.toml|src-tauri/src/lib.rs) ;;
     src-tauri/tests/library_index_contract.rs|src-tauri/tests/segment_contract.rs) ;;
-    # Story 6.18 (Quyết định 5) đổi tên `story-5-14-bench` thành `nfr-bench` VÀ tái dùng đúng
-    # command đó cho bàn đo của chính nó -- ba đường thêm dưới đây là artefact hợp lệ của lượt
-    # đổi tên đó, không phải cây bẩn.
     src-tauri/tests/config_invariants.rs|src-tauri/tests/story_6_18_library.rs) ;;
-    # Story 6.18 task 6 (debt probes) -- cùng lý do ngay trên: artefact hợp lệ của chính
-    # story đang chạy trên cây này, không phải cây bẩn.
+    src-tauri/tests/story_6_18_bench_transition.rs) ;;
+    # Story 6.18 task 6 (debt probes) -- ba tệp mang perf_probe_* mới và ca frontend
+    # `chaptersShowAll` mới; cùng lý do allowlist ở trên: artefact hợp lệ của chính story,
+    # không phải cây bẩn.
     src-tauri/tests/cleanup_contract.rs|src-tauri/tests/story_6_18_debt_probes.rs) ;;
     src-tauri/tests/webimport_contract.rs|tests/frontend/importPreviewChapters.test.ts) ;;
     _bmad-output/implementation-artifacts/spec-5-14-*.md) ;;
@@ -41,8 +42,10 @@ for changed in "${changed_paths[@]}"; do
     _bmad-output/implementation-artifacts/sprint-status.yaml) ;;
     _bmad-output/implementation-artifacts/deferred-work.md) ;;
     _bmad-output/implementation-artifacts/5-14-ban-do/*) ;;
+    _bmad-output/implementation-artifacts/6-18-ban-do/*) ;;
     _bmad-output/specs/spec-AuraTranslate/SPEC.md) ;;
     _bmad-output/specs/spec-AuraTranslate/requirements.md) ;;
+    _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md) ;;
     *) die "cây mã sản phẩm không sạch: $changed" ;;
   esac
 done
@@ -54,15 +57,12 @@ APPDATA="$BENCH_HOME/Library/Application Support/com.auratranslate.desktop"
 GLOBAL_DB="$APPDATA/global.db"
 ACTIVE_APP_PID=''
 ACTIVE_WEBKIT_EXPECTED=''
-# 🔴 Command feature-gated chi doc phase-file DUY NHAT nam trong HOME nhap. De no o
-# `$SCRATCH/phase.txt` dung la tach rieng hon, nhung vi pham rang buoc Ice ky 2026-09-02:
-# command khong duoc doc/ghi tep ngoai HOME nhap cua phep do.
+# 🔴 Command feature-gated chỉ đọc phase-file DUY NHẤT nằm trong HOME nhập — cùng ràng buộc
+# Ice ký 2026-09-02 mà Story 6.18 Quyết định 5 tái dùng nguyên qua tên `nfr-bench`.
 PHASE_STATE="$BENCH_HOME/.auratranslate-nfr-bench-phase"
 mkdir -p "$BENCH_HOME/Documents"
 
 # Scratch phải biến mất kể cả lượt đỏ, nhưng một lỗi harness không được biến mất cùng nó.
-# Log này bị `.gitignore` bằng `*.log`, bị ghi đè ở lượt kế và chỉ chứa stdout/stderr của
-# runner; nó không mang DB, fixture hay số liệu nào được dùng để kết luận.
 RUN_LOG="$SCRIPT_DIR/latest-run.log"
 exec >"$RUN_LOG" 2>&1
 
@@ -83,48 +83,107 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM HUP
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Hằng số quần thể — PHẢI khớp `story_6_18_library.rs` (spec 6.18 Quyết định 2)
+# ─────────────────────────────────────────────────────────────────────────────
+WORKS=50
+CHAPTERS_PER_WORK=100
+SEGMENTS_PER_CHAPTER=10
+TOTAL_CHAPTERS=$((WORKS * CHAPTERS_PER_WORK))
+TOTAL_SEGMENTS=$((TOTAL_CHAPTERS * SEGMENTS_PER_CHAPTER))
+TARGET_WORK_NAME='NFR Story 6.18 Work 00'
+
 NFR3_RAW="$SCRIPT_DIR/nfr3-raw.tsv"
-READING_RAW="$SCRIPT_DIR/reading-run-raw.tsv"
 STARTUP_RAW="$SCRIPT_DIR/startup-raw.tsv"
 MEMORY_RAW="$SCRIPT_DIR/memory-raw.tsv"
 TRANSITION_RAW="$SCRIPT_DIR/transition-raw.tsv"
-# Trần liveness của MỘT lượt chuyển pha. Mặc định cũ 600 s biến "chưa xong trong 600 s"
-# thành `die "không tới Reading"` — một mệnh đề về sản phẩm suy từ trần của bàn đo.
-# Nới để ĐO được con số thật; mọi lượt đều ghi elapsed vào `transition-raw.tsv` kể cả khi đỏ.
+# Trần liveness của MỘT lượt chuyển pha. Xem `5-14-ban-do/run.sh` cho lý do nới mặc định.
 PHASE_BUDGET_S="${AURA_NFR_BENCH_PHASE_BUDGET_SECS:-600}"
 export AURA_NFR_BENCH_PHASE_BUDGET_SECS="$PHASE_BUDGET_S"
-# Cho phép thu hẹp lượt chẩn đoán mà KHÔNG sửa mã: mặc định giữ nguyên 3 session, cả hai fixture.
-SESSION_LIST="${AURA_NFR_BENCH_SESSIONS:-1 2 3}"
+# §Always spec 6.18: NFR4 đòi ≥10 session. Cho phép thu hẹp lượt chẩn đoán mà KHÔNG sửa mã —
+# `summarize.mjs` vẫn đòi đúng 10 cho một report được coi là ĐẦY ĐỦ (không sơ bộ hơn nữa).
+SESSION_LIST="${AURA_NFR_BENCH_SESSIONS:-1 2 3 4 5 6 7 8 9 10}"
 FIXTURE_LIST="${AURA_NFR_BENCH_FIXTURES:-full frontier}"
-# 🔴 Không resume: số liệu cũ có thể được sinh bởi code/probe khác. Một lượt benchmark phải
-# tự chứa đủ ba session, nên xoá-và-đo-lại rẻ hơn một report trộn revision không truy nguyên.
-[[ "${AURA_NFR_BENCH_RESUME:-0}" != 1 ]] || die 'Story 5.14 từ chối AURA_NFR_BENCH_RESUME: chạy mới toàn bộ để giữ provenance'
+[[ "${AURA_NFR_BENCH_RESUME:-0}" != 1 ]] || die 'Story 6.18 từ chối AURA_NFR_BENCH_RESUME: chạy mới toàn bộ để giữ provenance'
 printf 'session\trecord\tcase\tquery\twarmups\tsamples\tp50_ms\tp95_ms\tp99_ms\tworst_ms\n' > "$NFR3_RAW"
-printf 'case\twarmups\tsamples\tp50_ms\tp95_ms\tp99_ms\tworst_ms\n' > "$READING_RAW"
 printf 'session\tfixture\ttemperature\telapsed_ms\tstatus\tnote\n' > "$STARTUP_RAW"
 printf 'session\tfixture\tphase\tsample\tapp_pid\twebkit_pids\tpid_count\tphys_footprint_bytes\trss_bytes\tstatus\tnote\n' > "$MEMORY_RAW"
 printf 'session\tfixture\ttransition\tbudget_s\telapsed_ms\tstatus\tnote\n' > "$TRANSITION_RAW"
 
-print '== NFR3: ba session release, năm ca tách biệt =='
+# ─────────────────────────────────────────────────────────────────────────────
+# Dựng thư viện 5.000 Chương THẬT qua đúng đường sản phẩm (task 3) — MỘT lần, xuất ra
+# `$LIBRARY_ROOT`. Không resume, cùng lý do NFR3/NFR4/NFR5 dưới đây: provenance.
+# ─────────────────────────────────────────────────────────────────────────────
+print '== dựng thư viện 6.18 (50 Tác phẩm x 100 Chương x 10 segment) qua product import =='
+build_log="$SCRATCH/library-build.log"
+AURA_6_18_EXPORT_LIBRARY_ROOT="$LIBRARY_ROOT" \
+  cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+    --test story_6_18_library -- --ignored --nocapture 2>&1 | tee "$build_log"
+grep -q '^test builds_the_6_18_library_through_product_import_and_lifecycle_code ... ok$' "$build_log" \
+  || die 'builder thư viện 6.18 không xanh'
+# Matrix row "Build library": "build time + peak RSS recorded" -- dòng `STORY_6_18_BUILD_STATS`
+# do chính builder in ra (audit 2026-09-14 P3, trước bản vá này không dòng nào ghi lại hai số
+# này). Thiếu dòng ⇒ `die` cùng chỗ, không lặng lẽ để `fixture.txt` thiếu trường.
+BUILD_STATS_LINE="$(grep '^STORY_6_18_BUILD_STATS\t' "$build_log" || true)"
+[[ -n "$BUILD_STATS_LINE" ]] || die 'builder không in STORY_6_18_BUILD_STATS -- build time/peak RSS chưa ghi lại'
+BUILD_WALL_MS="$(print -r -- "$BUILD_STATS_LINE" | awk -F '\t' '{ for (i=1;i<=NF;i++) if ($i ~ /^build_wall_ms=/) { split($i,a,"="); print a[2] } }')"
+BUILD_PEAK_RSS_KB="$(print -r -- "$BUILD_STATS_LINE" | awk -F '\t' '{ for (i=1;i<=NF;i++) if ($i ~ /^peak_rss_kb=/) { split($i,a,"="); print a[2] } }')"
+BUILD_PEAK_RSS_MB="$(print -r -- "$BUILD_STATS_LINE" | awk -F '\t' '{ for (i=1;i<=NF;i++) if ($i ~ /^peak_rss_mb=/) { split($i,a,"="); print a[2] } }')"
+[[ -n "$BUILD_WALL_MS" && -n "$BUILD_PEAK_RSS_KB" && -n "$BUILD_PEAK_RSS_MB" ]] \
+  || die "STORY_6_18_BUILD_STATS thiếu trường: $BUILD_STATS_LINE"
+
+print '== đọc lại quần thể ĐỘC LẬP với builder — §Always: kiểm trước bất kỳ lượt đo nào =='
+typeset -a project_dbs
+project_dbs=("${(@f)$(find "$LIBRARY_ROOT" -type f -name project.db -print)}")
+[[ "${#project_dbs[@]}" == "$WORKS" ]] || die "thư viện cần đúng $WORKS project.db, nhận ${#project_dbs[@]}"
+READ_CHAPTERS=0
+READ_LIVE_SEGMENTS=0
+READ_DONE=0
+READ_NOT_STARTED=0
+for db in "${project_dbs[@]}"; do
+  c="$(sqlite3 "file:$db?immutable=1" 'SELECT COUNT(*) FROM chapter;')"
+  live="$(sqlite3 "file:$db?immutable=1" 'SELECT COUNT(*) FROM segment WHERE retired_at IS NULL;')"
+  done_n="$(sqlite3 "file:$db?immutable=1" "SELECT COUNT(*) FROM chapter WHERE status='done';")"
+  not_started_n="$(sqlite3 "file:$db?immutable=1" "SELECT COUNT(*) FROM chapter WHERE status='not_started';")"
+  READ_CHAPTERS=$((READ_CHAPTERS + c))
+  READ_LIVE_SEGMENTS=$((READ_LIVE_SEGMENTS + live))
+  READ_DONE=$((READ_DONE + done_n))
+  READ_NOT_STARTED=$((READ_NOT_STARTED + not_started_n))
+done
+[[ "$READ_CHAPTERS" == "$TOTAL_CHAPTERS" && "$READ_LIVE_SEGMENTS" == "$TOTAL_SEGMENTS" ]] \
+  || die "quần thể đọc lại sai: works=${#project_dbs[@]} chapters=$READ_CHAPTERS segments=$READ_LIVE_SEGMENTS (kỳ vọng $WORKS/$TOTAL_CHAPTERS/$TOTAL_SEGMENTS)"
+[[ "$READ_DONE" == "$TOTAL_CHAPTERS" && "$READ_NOT_STARTED" == 0 ]] \
+  || die "trạng thái Chương lúc export sai: done=$READ_DONE not_started=$READ_NOT_STARTED (builder phải để lại trạng thái full sạch)"
+LIBRARY_BYTES="$(find "$LIBRARY_ROOT" -type f -exec stat -f '%z' {} + | awk '{ total += $1 } END { print total+0 }')"
+{
+  print "works=${#project_dbs[@]}"
+  print "chapters=$READ_CHAPTERS"
+  print "segments=$READ_LIVE_SEGMENTS"
+  print "library_bytes=$LIBRARY_BYTES"
+  print "library_MB=$(awk -v n="$LIBRARY_BYTES" 'BEGIN { printf "%.3f", n/1000000 }')"
+  print "library_MiB=$(awk -v n="$LIBRARY_BYTES" 'BEGIN { printf "%.3f", n/1048576 }')"
+  print "shape=50 Tác phẩm; 100 Chương/Tác phẩm; 10 segment/Chương; nhập qua confirm_bilingual_import + lifecycle::set_chapter_status + Indexer::rebuild"
+  print "build_wall_ms=$BUILD_WALL_MS"
+  print "build_peak_rss_kb=$BUILD_PEAK_RSS_KB"
+  print "build_peak_rss_mb=$BUILD_PEAK_RSS_MB"
+  print 'build_stats_note=ps -o rss= mau moi 20ms tren tien trinh cargo test builder, khong phai footprint; bao trum dung tu luc bat dau import den luc quan the full duoc kiem xong'
+} > "$SCRIPT_DIR/fixture.txt"
+
+print '== NFR3: ba session release, năm ca tách biệt, đọc thư viện 6.18 =='
 NFR3_BIN=''
 for session in 1 2 3; do
   log="$SCRATCH/nfr3-$session.log"
   if [[ "$session" == 1 ]]; then
-    # `--profile bench-release`, KHÔNG `--release`: xem khối `[profile.bench-release]`
-    # trong `src-tauri/Cargo.toml`. Dưới `release`, va chạm tên tệp đầu ra của
-    # `auratranslate_lib` làm lượt biên dịch này đỏ/xanh theo thứ tự cache chứ không
-    # theo mã. Bốn khoá tối ưu thừa kế nguyên; chỉ `panic` đổi, và test target vốn
-    # luôn là `unwind`.
-    cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
-      --test library_index_contract bench_p95_of_a_library_search_over_five_thousand_chapters \
-      -- --ignored --nocapture 2>&1 | tee "$log"
-    # Không `find | head`: Cargo in CHÍNH executable mà nó vừa chạy; lấy đường này buộc hai
-    # session sau cùng artifact bench-release, không thể rơi vào binary hash cũ còn trong deps/.
+    AURA_6_18_LIBRARY_ROOT="$LIBRARY_ROOT" \
+      cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+        --test library_index_contract bench_p95_of_a_library_search_over_the_story_6_18_library \
+        -- --ignored --nocapture 2>&1 | tee "$log"
     NFR3_BIN="$(awk -F '[()]' '/Running tests\/library_index_contract\.rs/ { path=$2 } END { print path }' "$log")"
     [[ -x "$NFR3_BIN" ]] || die "Cargo không in executable NFR3 vừa chạy: $NFR3_BIN"
   else
-    "$NFR3_BIN" bench_p95_of_a_library_search_over_five_thousand_chapters \
-      --exact --ignored --nocapture 2>&1 | tee "$log"
+    AURA_6_18_LIBRARY_ROOT="$LIBRARY_ROOT" \
+      "$NFR3_BIN" bench_p95_of_a_library_search_over_the_story_6_18_library \
+        --exact --ignored --nocapture 2>&1 | tee "$log"
   fi
   awk -F '\t' -v session="$session" '
     /^NFR3_CASE\t/ {
@@ -137,44 +196,28 @@ for session in 1 2 3; do
     || die "session NFR3 $session không có đúng năm ca"
 done
 
-print '== read_reading_run + export fixture đã tự kiểm quần thể =='
-reading_log="$SCRATCH/reading-run.log"
-AURA_5_14_EXPORT_LIBRARY_ROOT="$LIBRARY_ROOT" \
-  cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
-    --test segment_contract bench_reading_run_over_five_thousand_chapters \
-    -- --ignored --nocapture 2>&1 | tee "$reading_log"
-awk -F '\t' '
-  /^READING_RUN_CASE\t/ {
-    for (i=3; i<=NF; i++) { split($i, a, "="); value[a[1]]=substr($i, index($i, "=")+1) }
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $2, value["warmups"], value["samples"], value["p50_ms"], value["p95_ms"], value["p99_ms"], value["worst_ms"]
-    delete value
-  }
-' "$reading_log" >> "$READING_RAW"
-[[ "$(($(wc -l < "$READING_RAW") - 1))" == 2 ]] || die 'không có đủ hai số read_reading_run'
+# Thư viện đã "full" sạch từ builder — NFR3_BIN cũng cần một binary chuyển trạng thái riêng,
+# dựng MỘT lần ở đây để hai lượt chuyển đổi sau (mỗi lượt full/frontier) không build lại.
+TRANSITION_BIN=''
+set_target_work_status() {
+  local target_status="$1"
+  local log="$SCRATCH/transition-$target_status-$RANDOM.log"
+  if [[ -z "$TRANSITION_BIN" ]]; then
+    AURA_6_18_LIBRARY_ROOT="$LIBRARY_ROOT" AURA_6_18_BENCH_TARGET_STATUS="$target_status" \
+      cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+        --test story_6_18_bench_transition -- --ignored --nocapture 2>&1 | tee "$log"
+    TRANSITION_BIN="$(awk -F '[()]' '/Running tests\/story_6_18_bench_transition\.rs/ { path=$2 } END { print path }' "$log")"
+    [[ -x "$TRANSITION_BIN" ]] || die "Cargo không in executable transition vừa chạy: $TRANSITION_BIN"
+  else
+    AURA_6_18_LIBRARY_ROOT="$LIBRARY_ROOT" AURA_6_18_BENCH_TARGET_STATUS="$target_status" \
+      "$TRANSITION_BIN" toggles_the_frontier_work_between_full_and_frontier_through_product_lifecycle_code \
+        --exact --ignored --nocapture 2>&1 | tee "$log"
+  fi
+  grep -q "verdict=matches_target" "$log" \
+    || die "chuyển trạng thái Tác phẩm đích sang $target_status không khớp (không phải sqlite3 UPDATE — §Always cấm SQL ghi ở đường dựng, xem log $log)"
+}
 
-typeset -a project_dbs
-project_dbs=("${(@f)$(find "$LIBRARY_ROOT" -type f -name project.db -print)}")
-[[ "${#project_dbs[@]}" == 1 ]] || die "fixture cần đúng một project.db, nhận ${#project_dbs[@]}"
-PROJECT_DB="${project_dbs[1]}"
-CHAPTERS="$(sqlite3 "file:$PROJECT_DB?immutable=1" 'SELECT COUNT(*) FROM chapter;')"
-SEGMENTS="$(sqlite3 "file:$PROJECT_DB?immutable=1" 'SELECT COUNT(*) FROM segment WHERE retired_at IS NULL;')"
-WORKS="$(find "$LIBRARY_ROOT" -mindepth 1 -maxdepth 1 -type d -name '*.atproj' | wc -l | tr -d ' ')"
-[[ "$WORKS" == 1 && "$CHAPTERS" == 5000 && "$SEGMENTS" == 50000 ]] \
-  || die "quần thể fixture sai: works=$WORKS chapters=$CHAPTERS segments=$SEGMENTS"
-FIXTURE_BYTES="$(find "$LIBRARY_ROOT" -type f -exec stat -f '%z' {} + | awk '{ total += $1 } END { print total+0 }')"
-PROJECT_DB_BYTES="$(stat -f '%z' "$PROJECT_DB")"
-{
-  print "works=$WORKS"
-  print "chapters=$CHAPTERS"
-  print "segments=$SEGMENTS"
-  print "fixture_bytes=$FIXTURE_BYTES"
-  print "fixture_MB=$(awk -v n="$FIXTURE_BYTES" 'BEGIN { printf "%.3f", n/1000000 }')"
-  print "fixture_MiB=$(awk -v n="$FIXTURE_BYTES" 'BEGIN { printf "%.3f", n/1048576 }')"
-  print "project_db_bytes=$PROJECT_DB_BYTES"
-  print "shape=one synthetic Work; 5000 chapters; 10 live confirmed segments/chapter"
-} > "$SCRIPT_DIR/fixture.txt"
-
-print '== app release + probe production =='
+print '== app release + probe production + lớp từ điển thật =='
 "$SCRIPT_DIR/build.sh" 2>&1 | tee "$SCRATCH/build.log"
 [[ -x "$APP_BIN" ]] || die "thiếu app release: $APP_BIN"
 
@@ -184,8 +227,6 @@ set_phase() {
     library|reading-full|reading-frontier|back-library|discard) ;;
     *) die "pha harness ngoài danh mục: $phase" ;;
   esac
-  # Đổi file nguyên tử: command poll 20 ms, nên một `>` trực tiếp có thể để nó đọc đúng
-  # khoảnh khắc rỗng rồi phán phase hỏng. `mv` cùng HOME nháp là rename nguyên tử trên APFS.
   local next="$PHASE_STATE.next-$$"
   printf '%s\n' "$phase" > "$next"
   mv -f "$next" "$PHASE_STATE"
@@ -198,11 +239,6 @@ monotonic_ns() {
 }
 
 webkit_pids() {
-  # `command=` làm dòng của CHÍNH `awk` chứa literal `com.apple.WebKit.` rồi tự nhận PID
-  # ngắn ngủi ấy là WebKit. `comm=` chỉ chở executable path: đã đối chứng trên macOS 15.7.9
-  # nó trả đúng ba XPC WebContent/GPU/Networking và không thể tự khớp awk/zsh.
-  # `comm` so theo THỨ TỰ TỪ ĐIỂN; hai đầu vào phải cùng `LC_ALL=C sort`, không `sort -n`.
-  # `sort -n` đã làm các PID cũ (623, 3472, …) bị báo nhầm là mới và cộng thành 3,6 GB.
   ps -axo pid=,comm= | awk 'index($0, "com.apple.WebKit.") { print $1 }' | LC_ALL=C sort -u
 }
 
@@ -274,7 +310,14 @@ launch_to_usable() {
   [[ "$temperature" != cold ]] || clear_library_index
   webkit_pids > "$baseline"
   started_ns="$(monotonic_ns)"
-  HOME="$BENCH_HOME" "$APP_BIN" >> "$app_log" 2>&1 &
+  # Ba biến môi trường đúng Quyết định 5/task 5: tên Tác phẩm đích, số Tác phẩm grid phải
+  # mang, và số segment kỳ vọng ở pha `reading-full` — tất cả đọc bởi `nfr_bench` (lib.rs),
+  # KHÔNG hardcode "5.14 Fixture"/50.000 như bản gốc Story 5.14.
+  HOME="$BENCH_HOME" \
+    AURA_NFR_BENCH_WORK_NAME="$TARGET_WORK_NAME" \
+    AURA_NFR_BENCH_WORKS="$WORKS" \
+    AURA_NFR_BENCH_READING_FULL_SEGMENTS="$((CHAPTERS_PER_WORK * SEGMENTS_PER_CHAPTER))" \
+    "$APP_BIN" >> "$app_log" 2>&1 &
   ACTIVE_APP_PID=$!
   if ! marker="$(wait_marker '__nfr_bench_usable__' 180)"; then
     printf '%s\t%s\t%s\t\tunknown\tusable marker vắng hoặc invalid\n' "$session" "$fixture" "$temperature" >> "$STARTUP_RAW"
@@ -283,11 +326,20 @@ launch_to_usable() {
   fi
   ended_ns="$(monotonic_ns)"
   elapsed="$(awk -v a="$started_ns" -v b="$ended_ns" 'BEGIN { printf "%.3f", (b-a)/1000000 }')"
-  node -e 'const v=JSON.parse(process.argv[1]); if(v.works!==1 || v.work_name!=="5.14 Fixture") process.exit(2)' "$marker" \
-    || die "usable marker không khớp fixture: $marker"
+  node -e 'const v=JSON.parse(process.argv[1]); if(v.works!==Number(process.argv[2]) || v.work_name!==process.argv[3]) process.exit(2)' \
+    "$marker" "$WORKS" "$TARGET_WORK_NAME" \
+    || die "usable marker không khớp thư viện 6.18: $marker"
+  # §Always spec 6.18: "The run is invalid unless the probe reads a loaded-layer count > 0
+  # before the first sample" — HARNESS từ chối ở đây, trước mẫu NFR5 đầu tiên (§I/O Matrix
+  # "Red controls": "Layers stripped ... Harness refuses before sampling"). Command chia sẻ
+  # `nfr-bench` không tự chặn (5.14 vẫn hợp lệ với 0 lớp, lịch sử) -- xem `lib.rs` nhánh
+  # `"usable"`.
+  node -e 'const v=JSON.parse(process.argv[1]); if(!(Number(v.layers) > 0)) process.exit(2)' "$marker" \
+    || die "0 lớp từ điển đã nạp trước mẫu đầu tiên — refusal đặt tên: dict layers stripped or resource_dir() wrong, marker=$marker"
   kill -0 "$ACTIVE_APP_PID" 2>/dev/null || die 'app chết ngay sau usable'
-  printf '%s\t%s\t%s\t%s\tok\tpre-spawn tới marker grid có đúng fixture\n' \
-    "$session" "$fixture" "$temperature" "$elapsed" >> "$STARTUP_RAW"
+  printf '%s\t%s\t%s\t%s\tok\tpre-spawn tới marker grid có đủ %s Tác phẩm + %s lớp từ điển\n' \
+    "$session" "$fixture" "$temperature" "$elapsed" "$WORKS" \
+    "$(node -e 'console.log(JSON.parse(process.argv[1]).layers)' "$marker")" >> "$STARTUP_RAW"
 
   if [[ "$keep_alive" == yes ]]; then
     ACTIVE_BASELINE="$baseline"
@@ -295,8 +347,6 @@ launch_to_usable() {
     new_webkit_pids "$ACTIVE_BASELINE" > "$ACTIVE_WEBKIT_EXPECTED"
     [[ -s "$ACTIVE_WEBKIT_EXPECTED" ]] || die 'usable không sinh WebKit mới; app PID đơn lẻ bị từ chối'
   else
-    # Thả command chờ của app cold trước khi giết tiến trình; response tới WebContent đã
-    # chết không được dùng làm một marker, nên runner đặt pha discard rồi mới đóng.
     set_phase discard
     stop_app
     set_phase library
@@ -357,23 +407,23 @@ sample_phase() {
   done
   ended_ns="$(monotonic_ns)"
   elapsed_ms=$(( (ended_ns - started_ns) / 1000000 ))
-  # 15.000 ms là một suy đoán của harness, không phải ngưỡng NFR: lượt 2026-09-02 đo 10 mẫu
-  # Library đủ PID/footprint nhưng hết 15.095 ms chỉ vì `/usr/bin/footprint` bị máy khác tranh
-  # CPU. 60.000 ms chỉ là trần liveness để một tiến trình thật sự treo không giữ lượt đo mãi;
-  # nó không nới bất kỳ phán quyết nào vì từng hàng vẫn phải `ok`, đủ 4 PID và đủ 10 mẫu.
   [[ "$elapsed_ms" -lt 60000 ]] \
     || die "pha $session/$fixture/$phase mất ${elapsed_ms} ms, vượt trần liveness 60.000 ms"
 }
 
 measure_memory_session() {
-  local session="$1" fixture="$2" baseline="$3" marker expected_status
+  local session="$1" fixture="$2" baseline="$3" marker expected_status expected_segments expected_frontier
   expected_status=content
-  [[ "$fixture" != frontier ]] || expected_status=frontier-only
+  expected_segments=$((CHAPTERS_PER_WORK * SEGMENTS_PER_CHAPTER))
+  expected_frontier=end-of-work
+  if [[ "$fixture" == frontier ]]; then
+    expected_status=frontier-only
+    expected_segments=0
+    expected_frontier=next-not-done
+  fi
 
   sample_phase "$session" "$fixture" library "$baseline" "$ACTIVE_WEBKIT_EXPECTED"
   set_phase "reading-$fixture"
-  # Bấm giờ lượt chuyển pha và ghi elapsed vào `transition-raw.tsv` ở CẢ hai nhánh. Một lượt
-  # đỏ mà không để lại con số thì lần sau vẫn chỉ biết "vượt trần", đúng chỗ hổng của lượt 19:15.
   local t0_ns t1_ns t_ms
   t0_ns="$(monotonic_ns)"
   if marker="$(wait_marker '__nfr_bench_reading__' "$PHASE_BUDGET_S")"; then
@@ -389,9 +439,8 @@ measure_memory_session() {
     die "session $session/$fixture: Reading chưa xong trong ${t_ms} ms (trần ${PHASE_BUDGET_S} s)"
   fi
   node -e 'const v=JSON.parse(process.argv[1]); if(v.status!==process.argv[2] || v.segments!==Number(process.argv[3]) || v.frontier!==process.argv[4]) process.exit(2)' \
-    "$marker" "$expected_status" "$([[ "$fixture" == full ]] && print 50000 || print 0)" \
-    "$([[ "$fixture" == full ]] && print end-of-work || print next-not-done)" \
-    || die "Reading marker sai fixture $fixture: $marker"
+    "$marker" "$expected_status" "$expected_segments" "$expected_frontier" \
+    || die "Reading marker sai fixture $fixture: $marker (kỳ vọng status=$expected_status segments=$expected_segments frontier=$expected_frontier)"
   sample_phase "$session" "$fixture" reading "$baseline" "$ACTIVE_WEBKIT_EXPECTED"
   set_phase back-library
   t0_ns="$(monotonic_ns)"
@@ -407,32 +456,19 @@ measure_memory_session() {
       "$session" "$fixture" "$PHASE_BUDGET_S" "$t_ms" >> "$TRANSITION_RAW"
     die "session $session/$fixture: quay lại Library chưa xong trong ${t_ms} ms (trần ${PHASE_BUDGET_S} s)"
   fi
-  node -e 'const v=JSON.parse(process.argv[1]); if(v.works!==1 || v.work_name!=="5.14 Fixture") process.exit(2)' "$marker" \
+  node -e 'const v=JSON.parse(process.argv[1]); if(v.works!==Number(process.argv[2]) || v.work_name!==process.argv[3]) process.exit(2)' \
+    "$marker" "$WORKS" "$TARGET_WORK_NAME" \
     || die "Library marker sai fixture $fixture: $marker"
   sample_phase "$session" "$fixture" back_library_keepalive "$baseline" "$ACTIVE_WEBKIT_EXPECTED"
   stop_app
 }
 
-set_fixture_status() {
-  local target_status="$1"
-  [[ "$target_status" == done || "$target_status" == not_started ]] \
-    || die "status fixture ngoài danh mục: $target_status"
-  [[ "$PROJECT_DB" == /tmp/auratranslate-nfr-bench-* ]] || die "từ chối sửa DB ngoài HOME nháp: $PROJECT_DB"
-  local changed
-  changed="$(sqlite3 "$PROJECT_DB" "UPDATE chapter SET status='$target_status', updated_at='2026-09-01T00:00:00.000Z'; \
-    SELECT COUNT(*) FROM chapter WHERE status='$target_status';")"
-  [[ "$changed" == 5000 ]] \
-    || die "không đặt đủ 5.000 Chương về $target_status"
-}
-
 print "== NFR4/NFR5: session [$SESSION_LIST] x fixture [$FIXTURE_LIST], trần pha ${PHASE_BUDGET_S}s =="
 for session in ${=SESSION_LIST}; do
   if [[ "$FIXTURE_LIST" == *full* ]]; then
-  set_fixture_status done
+  set_target_work_status done
   launch_to_usable "$session" full cold no
   launch_to_usable "$session" full warm yes
-  # Baseline bằng tập hiện tại làm hiệu WebKit rỗng: ca phải đỏ, chứng minh PID app đơn lẻ
-  # không thể lọt thành một mẫu hợp lệ. Hàng tự kiểm bị bỏ khỏi dữ liệu đo ngay sau đó.
   webkit_pids > "$SCRATCH/all-webkit-now.txt"
   : > "$SCRATCH/empty-webkit.txt"
   sample_memory_once "$session" full app_pid_only_guard 0 "$SCRATCH/all-webkit-now.txt" "$SCRATCH/empty-webkit.txt"
@@ -443,11 +479,16 @@ for session in ${=SESSION_LIST}; do
   fi
 
   if [[ "$FIXTURE_LIST" == *frontier* ]]; then
-  set_fixture_status not_started
+  set_target_work_status not_started
   launch_to_usable "$session" frontier warm yes
   measure_memory_session "$session" frontier "$ACTIVE_BASELINE"
   fi
 done
+
+# Thư viện trên đĩa (scratch, sắp bị `trap` xoá) kết thúc ở trạng thái "full" — cùng nghệ
+# thuật `story_6_18_library.rs` để lại, không thiết yếu vì cả cây sắp mất, nhưng rẻ và nhất
+# quán nếu ai đó gắn `AURA_6_18_EXPORT_LIBRARY_ROOT` ra ngoài SCRATCH để soi tay.
+[[ "$FIXTURE_LIST" != *frontier* ]] || set_target_work_status done
 
 ENDED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 {
@@ -456,15 +497,17 @@ ENDED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   print "baseline_commit=$(git rev-parse HEAD)"
   print "working_diff_sha256=$( { git diff --binary HEAD; git ls-files --others --exclude-standard | LC_ALL=C sort | while IFS= read -r item; do printf '%s\\0' "$item"; shasum -a 256 "$item"; done; } | shasum -a 256 | awk '{print $1}')"
   print "release_app_sha256=$(shasum -a 256 "$APP_BIN" | awk '{print $1}')"
-  print 'product_tree_guard=only Story 5.14 tests/artifacts/tracking plus feature-gated phase command allowed'
+  print 'product_tree_guard=only Story 6.18 (and 5.14 history) tests/artifacts/tracking plus feature-gated phase command allowed'
   print 'profile=release'
-  print 'sessions=3'
+  print "sessions_nfr3=3"
+  print "sessions_nfr4_nfr5=$SESSION_LIST"
   print 'nfr3_warmups_per_case=10'
   print 'nfr3_samples_per_case=200'
   print 'nfr5_idle_samples_per_phase=10'
   print "phase_liveness_budget_s=$PHASE_BUDGET_S"
-  print "sessions_run=$SESSION_LIST"
   print "fixtures_run=$FIXTURE_LIST"
+  print "library_shape=${WORKS} works x ${CHAPTERS_PER_WORK} chapters x ${SEGMENTS_PER_CHAPTER} segments = ${TOTAL_CHAPTERS} chapters / ${TOTAL_SEGMENTS} segments"
+  print "reading_target_work=$TARGET_WORK_NAME"
   print "os=$(sw_vers -productName) $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
   print "model=$(sysctl -n hw.model)"
   print "cpu=$(sysctl -n machdep.cpu.brand_string)"
@@ -482,7 +525,8 @@ ENDED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   print 'startup_clock=python time.monotonic_ns; end after usable marker persisted'
   print 'memory_primary=/usr/bin/footprint phys_footprint bytes summed over app + new WebKit PIDs'
   print 'memory_countercheck=ps RSS KiB multiplied by 1024, same PID set'
-  print 'phase_control=feature-gated Tauri command persists a whitelisted marker then native-evals product tabs/DOM from HOME/.auratranslate-nfr-bench-phase; full proves content+50000 segments+end-of-work, frontier proves frontier-only+0 segments+next-not-done; absent from default build; no network/CSP/ATS override'
+  print 'phase_control=feature-gated Tauri command persists a whitelisted marker then native-evals product tabs/DOM from HOME/.auratranslate-nfr-bench-phase; usable requires grid to hold all 50 real Works incl. reading target, plus loaded-layer count > 0; full proves content+1000 segments+end-of-work, frontier proves frontier-only+0 segments+next-not-done; absent from default build; no network/CSP/ATS override'
+  print 'status_transitions=lifecycle::set_chapter_status per Chapter + Indexer::rebuild via story_6_18_bench_transition.rs, no raw SQL UPDATE against project.db (unlike the 5.14 harness this superseded)'
 } > "$SCRIPT_DIR/environment.txt"
 
 node "$SCRIPT_DIR/summarize.mjs"

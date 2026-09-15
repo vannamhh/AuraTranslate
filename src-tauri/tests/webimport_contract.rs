@@ -1678,3 +1678,66 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
     let view_shape = chapters_shape_for_view(&items).expect("vi tu XEM phai dung duoc voi muc hong xen giua");
     assert_homogeneous_raw_bytes(&view_shape);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Debt probe — Story 6.18 task 6: "Mỗi link dựng một `reqwest::blocking::Client` MỚI"
+// (deferred-work.md, cụm "Deferred from: 6-7…", Chủ Story 6.18) — chi phí đo TRÊN danh sách
+// LỚN (100 và 1.000 link), không suy tuyến tính từ N=20 của `perf_probe_twenty_links…`
+// (Ice cấm suy tuyến tính, ghi ngay tại ca đó).
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// `#[ignore]` — cùng lý lẽ `perf_probe_twenty_links…` phía trên nhưng nặng hơn 5×/50× số
+// luồng server cục bộ; không phải một cổng `cargo test --locked` mặc định. Chạy tay:
+//   cargo test --locked --test webimport_contract -- --ignored --nocapture client_per_link
+fn perf_probe_client_per_link_cost(n: usize) {
+    fn tiny_html_page(i: usize) -> String {
+        format!(
+            "<html><head><title>Bai {i}</title></head><body><article><h1>Tieu de {i}</h1>\
+             <p>Mot doan van ban ngan de vuot nguong do dai toi thieu cho khoi noi dung, \
+             khong phai menu hay quang cao xung quanh no, danh cho lien ket thu {i}.</p>\
+             </article></body></html>"
+        )
+    }
+
+    let mut ports = Vec::with_capacity(n);
+    for i in 0..n {
+        let (port, _handle) = spawn_once(move |mut stream| {
+            let _ = stream.write_all(ok_html_response(&tiny_html_page(i)).as_bytes());
+        });
+        ports.push(port);
+    }
+    // Cùng khoảng nghỉ đã đo cần thiết ở `perf_probe_twenty_links…` (luồng server đầu tiên
+    // của một loạt `spawn_once` liên tiếp cần thời gian THẬT để hệ điều hành lên lịch).
+    thread::sleep(Duration::from_millis(200));
+    let urls: Vec<String> = ports.iter().map(|p| format!("http://127.0.0.1:{p}/a")).collect();
+
+    let t0 = std::time::Instant::now();
+    let (items, _log) = fetch_url_import_items(urls);
+    let elapsed = t0.elapsed();
+
+    let ok_count = items.iter().filter(|it| it.error.is_none()).count();
+    let per_link_ms = elapsed.as_secs_f64() * 1000.0 / n as f64;
+
+    println!(
+        "PERF_PROBE_CLIENT_PER_LINK\tn={n}\tok={ok_count}\ttotal_ms={:.1}\tper_link_ms={per_link_ms:.2}",
+        elapsed.as_secs_f64() * 1000.0
+    );
+    // ⚠️ Cùng cảnh báo tải máy của `perf_probe_twenty_links…` áp dụng ở đây — con số `ms`
+    // không đáng tin như một "tốc độ", chỉ đáng tin như bằng chứng CHIỀU TĂNG (n=100 so
+    // n=1.000) của chi phí dựng-Client-mới-mỗi-link. Xem §Implementation Notes spec 6.18 cho
+    // con số thật đo được và verdict.
+    assert_eq!(ok_count, n, "moi trong so {n} link phai tai OK -- mot muc hong lam do sai lech");
+    assert!(elapsed.as_secs_f64() < 300.0, "{n} link cuc bo mat qua 300s -- nghi treo that");
+}
+
+#[test]
+#[ignore = "nang: dung n luong server cuc bo + n lan goi Client moi -- khong phai mot cong mac dinh"]
+fn perf_probe_client_per_link_cost_on_one_hundred_links() {
+    perf_probe_client_per_link_cost(100);
+}
+
+#[test]
+#[ignore = "nang: dung 1000 luong server cuc bo + 1000 lan goi Client moi -- khong phai mot cong mac dinh"]
+fn perf_probe_client_per_link_cost_on_one_thousand_links() {
+    perf_probe_client_per_link_cost(1_000);
+}

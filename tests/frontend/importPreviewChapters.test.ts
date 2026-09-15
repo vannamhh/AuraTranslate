@@ -1324,3 +1324,51 @@ describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ
     state.resetImportPreview()
   })
 })
+
+/**
+ * **Debt probe — Story 6.18 task 6.** `deferred-work.md`, cụm "Deferred from: 6-10…", Chủ
+ * Story 6.18: *"Bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá — chưa ai đo ở quy mô nghìn
+ * Chương."* `chaptersShowAll` trả `true` khi lọc bật (bất kể số hàng còn lại), và
+ * `chapterEntriesRendered` bỏ co gọn ba-đầu/`⋯`/ba-cuối khi đó — số hàng `<li>` trên DOM
+ * bằng đúng số Chương còn lại sau lọc.
+ *
+ * ⚠️ **Đây KHÔNG phải bàn đo "render trong release app"** mà spec 6.18 task 6 đòi —
+ * `happy-dom` là một mô phỏng DOM trong Node, không phải WKWebView thật (chính
+ * `vitest.config.ts` ghi rõ điều này ở khối "VAI CỦA BỘ CHẠY NÀY"). Ca này đo được ĐÚNG một
+ * nửa của món nợ (số hàng thật sự render KHÔNG ảo hoá ở quy mô 1.000 Chương) và một con số
+ * THỜI GIAN MOUNT phía JS/happy-dom — bằng chứng, không phải verdict cuối cùng; số đo trên
+ * WKWebView thật vẫn cần Story 6.18 task 7 (release app thật).
+ */
+describe('importPreviewState — chaptersShowAll ở quy mô 1.000 Chương (debt probe Story 6.18)', () => {
+  it('lọc bật + 1.000 Chương đều needs_review — DOM giữ ĐỦ 1.000 hàng, không ảo hoá, không `⋯`', async () => {
+    const CHAPTER_COUNT = 1_000
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({
+      preview: preview({ candidates: [candidateWithChapters('UTF-8', Array(CHAPTER_COUNT).fill(true))] }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(CHAPTER_COUNT)
+
+    const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
+    const t0 = performance.now()
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const mountMs = performance.now() - t0
+
+    expect(wrapper.find('.ip-chapters-ellipsis').exists()).toBe(false)
+    const rows = wrapper.findAll('.ip-chapters-entry')
+    expect(rows).toHaveLength(CHAPTER_COUNT)
+
+    console.log(
+      `[chaptersShowAll debt probe] ${CHAPTER_COUNT} Chuong, loc bat, khong ao hoa -- ` +
+        `${rows.length} hang <li> that su tren DOM, mount+nextTick (happy-dom) = ${mountMs.toFixed(1)} ms`,
+    )
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})

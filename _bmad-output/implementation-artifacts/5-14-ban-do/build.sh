@@ -23,7 +23,7 @@ const bundles = fs.readdirSync(assets).filter((name) => /^index-.*\.js$/.test(na
 if (bundles.length !== 1) throw new Error(`cần đúng một bundle index, nhận ${JSON.stringify(bundles)}`)
 const bundle = path.join(assets, bundles[0])
 const source = fs.readFileSync(bundle, 'utf8')
-if (source.includes('__5_14_alive__')) throw new Error('bundle đã có probe Story 5.14')
+if (source.includes('__nfr_bench_alive__')) throw new Error('bundle đã có probe Story 5.14')
 const probe = fs.readFileSync(probePath, 'utf8')
 fs.writeFileSync(bundle, `${source}\n;/* BÀN ĐO STORY 5.14 — KHÔNG VÀO MÃ SẢN PHẨM */\n${probe}\n`)
 process.stdout.write(`đã nối ${probePath} vào ${bundle}\n`)
@@ -36,7 +36,7 @@ touch src-tauri/windows-app-manifest.xml src-tauri/build.rs
 print '== build Tauri release =='
 # Feature rỗng chỉ thêm command đọc tệp pha có marker dưới `/tmp`; bản dựng mặc định không
 # có command này. Không nới CSP/ATS và không mở một cổng loopback trong app đo.
-npx tauri build --bundles app --features story-5-14-bench --config '{"build":{"beforeBuildCommand":""}}'
+npx tauri build --bundles app --features nfr-bench --config '{"build":{"beforeBuildCommand":""}}'
 
 APP="$REPO/src-tauri/target/release/bundle/macos/AuraTranslate.app"
 [[ -x "$APP/Contents/MacOS/auratranslate" ]] || { print -u2 "không có app release ở $APP"; exit 1; }

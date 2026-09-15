@@ -8045,8 +8045,8 @@ fn bench_reading_run_over_five_thousand_chapters() {
     if let Some(export_root) = std::env::var_os("AURA_5_14_EXPORT_LIBRARY_ROOT").map(PathBuf::from) {
         let raw = export_root.to_string_lossy();
         assert!(
-            raw.contains("auratranslate-5-14-"),
-            "đích export phải là HOME nháp có marker auratranslate-5-14-, nhận {raw}"
+            raw.contains("auratranslate-nfr-bench-"),
+            "đích export phải là HOME nháp có marker auratranslate-nfr-bench-, nhận {raw}"
         );
         if export_root.exists() {
             assert!(

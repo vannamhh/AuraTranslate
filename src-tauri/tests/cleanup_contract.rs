@@ -1644,3 +1644,73 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
     drop(global);
     cleanup_dir(&root);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Debt probe — Story 6.18 task 6: "`chapter_detail_for_index` chạy lại TRỌN `classify()`
+// ... ở MỖI lượt dời con trỏ, chỉ để đọc `chapter_count` rồi vứt phần còn lại"
+// (deferred-work.md, cụm "Deferred from: 6-10a…", Chủ Story 6.18) — cùng cỡ 2.000 Chương với
+// `perf_probe_chapter_split_preview_on_two_thousand_chapters` ngay trên, nhưng đo đường LAZY
+// (`chapter_detail_for_index`, `⌥←`/`⌥→`) thay vì đường EAGER (`preview_import_encoding`) mà
+// bàn đo cũ chưa chạm tới — đúng khoảng trống mà §Implementation Notes spec 6.18 task 4 ghi
+// ("bàn đo 2.000 Chương hiện có đo đường EAGER").
+// ═════════════════════════════════════════════════════════════════════════════════
+#[test]
+fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two_thousand_chapters() {
+    let root = temp_dir("perf-probe-2000-chapters-cursor-moves");
+    let global = open_global(&root);
+    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "QUANGCAO", CleanupRuleKind::Literal)
+        .expect("them luat do that bai");
+    let rules =
+        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
+            .expect("phan giai hai tang");
+
+    // `display_window_for_chapter` chỉ chấp nhận `chapter_index != 0` cho biến thể
+    // `PipelineShape::Chapters` (`Blob` mang ĐÚNG MỘT đơn vị, doc-comment tại chỗ) — đúng
+    // hình dạng đường URL THẬT (`⌥←`/`⌥→` của Story 6.10a chỉ sống trên đường đó), không phải
+    // đường tự khai/dán tay (`Blob`) mà hai ca `perf_probe_chapter_split_preview_*` phía trên
+    // đo. KHÔNG một mẫu phân tách nào ở đây — mỗi Chương đã là một đơn vị riêng.
+    const CHAPTER_COUNT: usize = 2_000;
+    let units: Vec<ChapterInput> = (0..CHAPTER_COUNT)
+        .map(|i| ChapterInput::AlreadyText(format!("Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.")))
+        .collect();
+    let source_bytes: usize = units
+        .iter()
+        .map(|u| match u {
+            ChapterInput::AlreadyText(t) => t.len(),
+            ChapterInput::RawBytes { bytes, .. } => bytes.len(),
+        })
+        .sum();
+    let shape = PipelineShape::Chapters(units);
+
+    // Một lượt dời con trỏ (một lượt gọi) — chi phí CÔ LẬP.
+    let t0 = std::time::Instant::now();
+    let (one_call_detail, _blocks) =
+        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, None, "en", &rules, false, &[])
+            .expect("Chuong 0 phai co chi tiet");
+    let one_call = t0.elapsed();
+    assert!(one_call_detail.final_text.contains("noi dung ngan cua chuong nay"));
+    assert!(!one_call_detail.final_text.contains("QUANGCAO"), "luat lam sach phai xoa QUANGCAO");
+
+    // BẢY lượt dời con trỏ liên tiếp (`⌥→` × 7, chỉ số 0..7) — hình dạng thật của người dùng
+    // đọc lướt qua các Chương của một lượt nhập lớn.
+    const MOVES: usize = 7;
+    let t1 = std::time::Instant::now();
+    for i in 0..MOVES {
+        let (detail, _blocks) =
+            chapter_detail_for_index(&shape, i, encoding_rs::UTF_8, None, "en", &rules, false, &[])
+                .unwrap_or_else(|| panic!("Chuong {i} phai co chi tiet"));
+        assert!(detail.final_text.contains("noi dung ngan cua chuong nay"));
+    }
+    let seven_moves = t1.elapsed();
+
+    eprintln!(
+        "[perf_probe_chapter_detail_for_index_cursor_moves] nguon {source_bytes} byte, \
+         {CHAPTER_COUNT} Chuong (PipelineShape::Chapters, duong URL that), 1 luat literal — \
+         mot_lan_doi_con_tro={one_call:?} {MOVES}_lan_doi_con_tro_lien_tiep={seven_moves:?} \
+         trung_binh_moi_lan={:?}",
+        seven_moves / MOVES as u32
+    );
+
+    drop(global);
+    cleanup_dir(&root);
+}

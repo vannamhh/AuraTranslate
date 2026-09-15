@@ -3345,6 +3345,67 @@ fn the_widened_flag_always_equals_mode_exact_and_effective_mode_lenient() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Debt probe — Story 6.18 task 6: "Mỗi thao tác vòng đời/tổ chức Chương nay MỞ `project.db`
+// của MỌI Tác phẩm trong thư viện" (deferred-work.md, cụm "Deferred from: 5-9…", Chủ Story
+// 6.18) — đo 2026-08-29 chỉ có MỘT `.atproj` (50.000 segment, 2.180,9 ms); "hình dạng thật
+// (hàng trăm `.atproj`) chưa đo". Ca này đọc THẲNG thư viện THẬT mà
+// `story_6_18_library.rs::builds_the_6_18_library_through_product_import_and_lifecycle_code`
+// đã export (50 `.atproj` riêng biệt, KHÔNG một fixture tổng hợp) — chưa tới "hàng trăm"
+// nhưng là quy mô THẬT lớn nhất kho này có hôm nay, xa hơn 50× so với bằng chứng cũ.
+//
+// Chạy tay, SAU khi builder đã export (cùng biến môi trường `AURA_6_18_LIBRARY_ROOT` mà bàn
+// đo NFR3 dưới đây dùng):
+//   AURA_6_18_LIBRARY_ROOT=<documents_root> \
+//     cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+//       --test library_index_contract rebuild_cost_across_fifty_real_atproj_files \
+//       -- --ignored --nocapture
+// ═════════════════════════════════════════════════════════════════════════════════
+#[test]
+#[ignore = "ban do chay tay Story 6.18: doc thu vien 5.000 Chuong that, khong phai mot cong"]
+fn rebuild_cost_across_fifty_real_atproj_files_not_just_the_one_atproj_of_the_2026_08_29_measurement() {
+    use std::time::Instant;
+
+    let raw_root = std::env::var("AURA_6_18_LIBRARY_ROOT").unwrap_or_else(|_| {
+        panic!(
+            "thiếu AURA_6_18_LIBRARY_ROOT -- chạy `story_6_18_library.rs` trước và trỏ biến \
+             này vào `documents_root` nó in ra"
+        )
+    });
+    let root = PathBuf::from(&raw_root);
+    assert!(
+        raw_root.contains("auratranslate-nfr-bench-"),
+        "AURA_6_18_LIBRARY_ROOT phải trỏ vào một HOME nháp mang marker auratranslate-nfr-bench-"
+    );
+    let global_path = root.join("..").join("global.db");
+    assert!(global_path.exists(), "khong thay global.db canh {} -- builder chua chay", root.display());
+    let global = Store::open(StoreSpec::global(global_path)).expect("mo global.db that");
+    let index_path = root.join("..").join("library-index.db");
+    let indexer = Indexer::open(index_path).expect("mo chi muc da export");
+
+    // Lượt rebuild ĐẦU (khởi động lại tiến trình đo) — cùng đường
+    // `reindex_after_lifecycle_write` gọi sau MỖI thao tác vòng đời rời rạc.
+    let t0 = Instant::now();
+    let outcome = indexer.rebuild(&root, Some(&global)).expect("rebuild that");
+    let elapsed = t0.elapsed();
+
+    assert_eq!(outcome.text_skipped.len(), 0, "khong duoc bo qua Tac pham nao: {:?}", outcome.text_skipped);
+    let works_count = indexer.list_works(WorkQuery::default()).expect("liet ke").works.len();
+    assert_eq!(works_count, 50, "thu vien phai dung 50 Tac pham");
+
+    let per_atproj_ms = elapsed.as_secs_f64() * 1000.0 / works_count as f64;
+    eprintln!(
+        "[rebuild_cost_across_fifty_real_atproj_files] works={works_count} tong_thoi_gian={elapsed:?} \
+         trung_binh_moi_atproj_ms={per_atproj_ms:.2} -- doi_chung 2026-08-29: 2.180,9 ms cho MOT \
+         .atproj 50.000 segment (rebuild toan bo tu 0 Tac pham); o day 50 Tac pham x 1.000 \
+         segment/Tac pham, cung TONG 50.000 segment nhung chia lam 50 lan mo-doc-dong project.db \
+         rieng biet thay vi MOT"
+    );
+
+    drop(indexer);
+    drop(global);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // BÀN ĐO p95 — Story 5.9, AC cuối ("đo và ghi lại p95 để đối chiếu ngưỡng NFR3")
 // ═════════════════════════════════════════════════════════════════════════════════
 //
@@ -3838,4 +3899,282 @@ fn every_match_kind_variant_has_a_distinct_non_empty_wire_string() {
         vec!["exact", "lenient"],
         "hai bien the phai la hai chuoi PHAN BIET nhau, dung hinh dang da khai"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// BÀN ĐO p95 — Story 6.18, task 4 (thay `bench_p95_of_a_library_search_over_five_thousand_chapters`)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 `#[ignore]` LÀ MỘT QUYẾT ĐỊNH — cùng lý lẽ bàn đo Story 5.14 ngay trên: thời gian đo
+// MÃ CỘNG MÁY, một cổng chập chờn bị học cách bỏ qua. Ca này KHÔNG tự dựng fixture: nó đọc
+// THẲNG chỉ mục mà `story_6_18_library.rs::builds_the_6_18_library_through_product_import_and_lifecycle_code`
+// đã export ra đĩa qua ĐÚNG đường sản phẩm (50 Tác phẩm × 100 Chương × 10 segment, mọi
+// segment mang cùng từ vựng NFR3 5.14 đã dùng — xem doc-comment đầu tệp đó). Chạy tay, SAU
+// khi builder đã export:
+//
+//     AURA_6_18_LIBRARY_ROOT=<documents_root do builder in ra> \
+//       cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+//         --test library_index_contract bench_p95_of_a_library_search_over_the_story_6_18_library \
+//         -- --ignored --nocapture
+//
+// ⚠️ **Con số ở đây THAY THẾ, không cộng thêm**, bản sơ bộ của Story 5.14 phía trên (một
+// `.atproj` tổng hợp bằng SQL thô) — Epic 5 retro F5 gọi đúng con số đó "không phải một con
+// số về sản phẩm"; ca này đọc một thư viện dựng qua `confirm_bilingual_import` +
+// `lifecycle::set_chapter_status` + `Indexer::rebuild` thật, trải trên 50 `project.db` riêng
+// biệt — hình dạng quét ĐÚNG với một thư viện thật, thứ 5.14 không có.
+#[test]
+#[ignore = "ban do chay tay Story 6.18: doc thu vien 5.000 Chuong that, khong phai mot cong"]
+fn bench_p95_of_a_library_search_over_the_story_6_18_library() {
+    use std::time::Instant;
+
+    const EXPECTED_SEGMENTS: usize = 50_000;
+    const WARMUPS_PER_CASE: usize = 10;
+    const RUNS_PER_CASE: usize = 200;
+    const LIMIT: usize = 50;
+
+    #[derive(Clone, Copy)]
+    struct BenchCase {
+        name: &'static str,
+        query: &'static str,
+        requested_mode: SearchMode,
+        effective_mode: SearchMode,
+        widened: bool,
+        field: SearchField,
+    }
+
+    fn assert_case_shape(
+        case: BenchCase,
+        report: &auratranslate_lib::core::library::indexer::SearchReport,
+    ) {
+        assert_eq!(report.indexed_segments, EXPECTED_SEGMENTS, "{}: quần thể chỉ mục sai — builder chưa export đủ, hoặc export cũ chưa `rebuild` lại", case.name);
+        assert_eq!(report.mode, case.requested_mode, "{}: mode yêu cầu sai", case.name);
+        assert_eq!(report.effective_mode, case.effective_mode, "{}: mode hiệu lực sai", case.name);
+        assert_eq!(report.widened, case.widened, "{}: cờ tự nới sai", case.name);
+        assert!(
+            report.hits.iter().all(|hit| hit.field == case.field),
+            "{}: hit lọt sang nửa văn bản khác",
+            case.name
+        );
+    }
+
+    fn nearest_rank(sorted: &[f64], quantile: f64) -> f64 {
+        assert!(!sorted.is_empty(), "phân vị không có mẫu");
+        let rank = (quantile * sorted.len() as f64).ceil() as usize;
+        sorted[rank.saturating_sub(1).min(sorted.len() - 1)]
+    }
+
+    let raw_root = std::env::var("AURA_6_18_LIBRARY_ROOT").unwrap_or_else(|_| {
+        panic!(
+            "thiếu AURA_6_18_LIBRARY_ROOT -- chạy `story_6_18_library.rs` trước và trỏ biến \
+             này vào `documents_root` nó in ra (dòng `STORY_6_18_POPULATION\\tstate=final_export`)"
+        )
+    });
+    let root = PathBuf::from(&raw_root);
+    assert!(
+        raw_root.contains("auratranslate-nfr-bench-"),
+        "AURA_6_18_LIBRARY_ROOT phải trỏ vào một HOME nháp mang marker \
+         auratranslate-nfr-bench-, nhận {raw_root}"
+    );
+    let index_path = root.join("..").join("library-index.db");
+    assert!(
+        index_path.exists(),
+        "không thấy library-index.db cạnh {} -- builder chưa `Indexer::rebuild` hoặc \
+         AURA_6_18_LIBRARY_ROOT trỏ sai chỗ",
+        root.display()
+    );
+    let indexer = Indexer::open(index_path).expect("mở chỉ mục đã export");
+
+    // Ca "brown fox number {gc}-{s}" của builder là DUY NHẤT toàn thư viện đúng với MỘT cặp
+    // (gc, s) -- (2500, 5) rơi giữa quần thể 5.000 Chương, không ở biên, cùng tinh thần chọn
+    // "3210-7" của bản 5.14.
+    let cases = [
+        BenchCase {
+            name: "target_exact_truncated",
+            query: "má của tôi",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Target,
+        },
+        BenchCase {
+            name: "source_han_truncated",
+            query: "分久必合",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Source,
+        },
+        BenchCase {
+            name: "source_latin_unique",
+            query: "brown fox number 2500-5",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Source,
+        },
+        BenchCase {
+            name: "target_auto_widen_truncated",
+            query: "ma cua toi",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Lenient,
+            widened: true,
+            field: SearchField::Target,
+        },
+        BenchCase {
+            name: "target_explicit_lenient_truncated",
+            query: "ma cua toi",
+            requested_mode: SearchMode::Lenient,
+            effective_mode: SearchMode::Lenient,
+            widened: false,
+            field: SearchField::Target,
+        },
+    ];
+
+    let mut worst_p95 = 0.0_f64;
+    for case in cases {
+        for _ in 0..WARMUPS_PER_CASE {
+            let report = indexer.search(case.query, LIMIT, case.requested_mode).expect("search warm-up");
+            assert_case_shape(case, &report);
+        }
+
+        let mut samples_ms = Vec::with_capacity(RUNS_PER_CASE);
+        for _ in 0..RUNS_PER_CASE {
+            let started = Instant::now();
+            let report = indexer.search(case.query, LIMIT, case.requested_mode).expect("search mẫu");
+            let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+            assert_case_shape(case, &report);
+            samples_ms.push(elapsed_ms);
+        }
+        samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("mẫu không có NaN"));
+        let p50 = nearest_rank(&samples_ms, 0.50);
+        let p95 = nearest_rank(&samples_ms, 0.95);
+        let p99 = nearest_rank(&samples_ms, 0.99);
+        let worst = *samples_ms.last().expect("đã có 200 mẫu");
+        worst_p95 = worst_p95.max(p95);
+        println!(
+            "NFR3_CASE\t{}\tquery={}\twarmups={}\tsamples={}\tp50_ms={:.6}\tp95_ms={:.6}\tp99_ms={:.6}\tworst_ms={:.6}",
+            case.name,
+            case.query,
+            WARMUPS_PER_CASE,
+            RUNS_PER_CASE,
+            p50,
+            p95,
+            p99,
+            worst
+        );
+    }
+
+    println!(
+        "NFR3_SUMMARY\tworks=50\tchapters=5000\tsegments={EXPECTED_SEGMENTS}\tworst_case_p95_ms={worst_p95:.6}\tthreshold_ms=500\tprofile=bench-release\tverdict=story_6_18_final\tsupersedes=story_5_14_preliminary"
+    );
+
+    drop(indexer);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Debt probe — Story 6.18 task 6, entry "Trần ứng viên của nhánh `trigram` sắp theo
+// (work_id, chapter_ord, segment_ord), không theo khả năng khớp" (`deferred-work.md`,
+// cụm "Deferred from: 5-9-tim-kiem-full-text-xuyen-library — vòng review").
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// KHÔNG cần thư viện 5.000 Chương thật — cùng lý lẽ Story 5.9's own fixture cluster ngay
+// trên (`write_atproj_with_real_project_db`): câu hỏi ở đây là về HÌNH DẠNG của câu SQL
+// (`ORDER BY s.work_id, s.chapter_ord, s.segment_ord LIMIT <ceiling>`, xác minh RỒI mới cắt
+// còn `limit`), không về khối lượng 5.000 Chương cụ thể — một fixture nhỏ, nhanh, KHÔNG
+// `#[ignore]` (chạy trong `cargo test --locked` mặc định) chứng minh được đúng cơ chế.
+//
+// Thử NHIỀU biến thể "dương tính giả" thủ công (chuỗi Latin xáo trộn mang đủ hai trigram
+// của truy vấn nhưng không liền mạch) TRƯỚC khi viết ca này — cả `sqlite3` CLI lẫn Python
+// `sqlite3` nhúng (3.53.4, cùng bản `rusqlite` "bundled" ghim ở Cargo.toml) đều cho THẲNG 0
+// hàng: tokenizer `trigram` của SQLite ghép cụm truy vấn thành một PHRASE ở tầng token (hai
+// trigram liền kề PHẢI xuất hiện ở offset liền kề trong tài liệu), nên nó không dễ bị lừa
+// bằng "xáo trộn hai đầu" như suy diễn ban đầu — không có bằng chứng nào cho một dương tính
+// giả THẬT ở mức trigram trong ca này. ⇒ Ca dưới đây chứng minh đúng cơ chế THẬT bằng
+// ứng viên THẬT (mọi hàng đều khớp XÁC MINH): khi số hàng khớp THẬT ở các work_id sắp
+// TRƯỚC đã vượt trần, `LIMIT <ceiling>` ở SQL không bao giờ ĐỌC tới hàng của work_id sắp
+// SAU — dù hàng đó cũng khớp thật 100%. Dương tính giả (nếu có trong dữ liệu thật) chỉ làm
+// trần bị ăn NHANH HƠN, không đổi cơ chế; ca thật ở đây là biên dưới trung thực của cùng lỗi.
+#[test]
+fn true_matches_piling_up_at_an_early_work_id_starve_a_later_work_ids_real_match_before_it_is_ever_read() {
+    let dir = temp_dir("search-trigram-ceiling-starvation");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    const LIMIT: usize = 50; // DEFAULT_SEARCH_LIMIT thật, không một con số nhỏ tiện tay.
+    // `search_source_text` nhận `limit + 1` (Bẫy 11 guard), rồi tính
+    // `search_candidate_ceiling(limit + 1) = (limit + 1) * 50`. Dựng NHIỀU HƠN con số đó ở
+    // work_id sắp TRƯỚC để `LIMIT <ceiling>` của SQL ăn hết trước khi đọc tới work_id sau.
+    let ceiling = ((LIMIT + 1) * 50) as usize;
+    let early_matches = ceiling + 50; // biên an toàn phía trên trần.
+    let needle = "zzqqfindme";
+
+    // `write_atproj_with_real_project_db` đòi `&'static str` cho từng ô -- `leak_str` biến
+    // một `String` sinh động thành `&'static str` cho riêng phạm vi một lượt test (không phải
+    // một bản vá cho mã sản phẩm), cùng khuôn các fixture khác của tệp này khi cần nội dung
+    // SINH RA thay vì literal.
+    fn leak_str(s: String) -> &'static str {
+        Box::leak(s.into_boxed_str())
+    }
+
+    let early_segments: Vec<(&'static str, &'static str)> = (0..early_matches)
+        .map(|i| (leak_str(format!("noise{i} {needle} filler{i}")), "target irrelevant"))
+        .collect();
+    let (_early_dir, early_store) = write_atproj_with_real_project_db(
+        &root,
+        "AAA-Early",
+        "id-aaa-early-starves-the-ceiling",
+        "AAA Early",
+        vec![(Some("C1"), "irrelevant", early_segments)],
+    );
+    drop(early_store);
+
+    let (_late_dir, late_store) = write_atproj_with_real_project_db(
+        &root,
+        "ZZZ-Late",
+        "id-zzz-late-real-match-never-read",
+        "ZZZ Late",
+        vec![(Some("C1"), "irrelevant", vec![(leak_str(format!("only copy of {needle} here")), "target irrelevant")])],
+    );
+    drop(late_store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, needle, LIMIT, SearchMode::Exact);
+
+    assert_eq!(
+        report.indexed_segments,
+        early_matches + 1,
+        "tien de: quan the phai dung {early_matches} + 1 segment that khop"
+    );
+    assert!(
+        report.truncated,
+        "voi {early_matches} khop that o work_id sap TRUOC, co UNG VIEN CON LAI o work sau -- \
+         report.truncated PHAI bao dung"
+    );
+    assert!(
+        report.hits.iter().all(|h| h.work_id == "id-aaa-early-starves-the-ceiling"),
+        "MOI hit tra ve deu tu work_id sap TRUOC -- work_id sap SAU (co that mot khop) khong \
+         mot hit nao lot vao trang dau, du no khop 100%: {:?}",
+        report.hits.iter().map(|h| (&h.work_id, &h.snippet)).collect::<Vec<_>>()
+    );
+    assert!(
+        report.hits.iter().all(|h| h.work_id != "id-zzz-late-real-match-never-read"),
+        "khop THAT cua work_id sap SAU khong duoc xuat hien -- no chua bao gio duoc SQL doc \
+         toi, khong phai bi loai vi xac minh sai"
+    );
+
+    eprintln!(
+        "[trigram_ceiling_starvation] ceiling={ceiling} early_real_matches={early_matches} \
+         limit={LIMIT} total_indexed={} report.total={} report.truncated={} \
+         verdict=structural_confirmed_at_realistic_limit -- work_id sap SAU KHONG BAO GIO xuat \
+         hien o trang dau du khop that 100%; report.truncated=true la tin hieu DUY NHAT nguoi \
+         goi co (khong co duong tim theo tung Tac pham hom nay, no la mon no kien truc rieng \
+         cua Epic 5)",
+        report.indexed_segments,
+        report.total,
+        report.truncated
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
 }

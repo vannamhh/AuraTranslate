@@ -258,15 +258,16 @@ pub const DRAG_LEAVE_EVENT: &str = "aura://file-drag-leave";
 const DICT_RESOURCE_DIR: &str = "dict";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bàn đo release Story 5.14 — bề mặt TẠM, bị loại khỏi bản phát hành thường.
+// Bàn đo release `nfr-bench` (gốc Story 5.14, đổi tên trung tính Story 6.18 Quyết định 5)
+// — bề mặt TẠM, bị loại khỏi bản phát hành thường.
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Ice cho phép 2026-09-02 một command feature-gated để bàn đo có thể điều khiển đúng app
 // release (khong wdio/debug). Hai dieu giu no khong thanh duong san pham:
 //
-// 1. `story-5-14-bench` khong nam trong `default`, nen `generate_handler!` cua ban phat
+// 1. `nfr-bench` khong nam trong `default`, nen `generate_handler!` cua ban phat
 //    hanh thuong khong co ten command nay.
-// 2. Command tu choi moi phase-file nam ngoai HOME nhap `/tmp/auratranslate-5-14-*/home`.
+// 2. Command tu choi moi phase-file nam ngoai HOME nhap `/tmp/auratranslate-nfr-bench-*/home`.
 //    No chi doc mot tep ten co dinh trong HOME do, va chi ghi marker vao `global.db` cung
 //    HOME. Khong mo cong, khong them dependency, khong doi CSP/ATS, khong cham thu vien that.
 //
@@ -274,8 +275,8 @@ const DICT_RESOURCE_DIR: &str = "dict";
 // bam tab THAT cua san pham, doi DOM THAT dat dung dang roi goi LAI command de xac nhan. Marker
 // `reading` mang dem DOM 50.000/0, vi mot marker chi "da sang Reading" khong chung minh duoc
 // full-run va frontier da tach rieng (review 2026-09-02, spec 5.14).
-#[cfg(feature = "story-5-14-bench")]
-mod story_5_14_bench {
+#[cfg(feature = "nfr-bench")]
+mod nfr_bench {
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
     use std::thread;
@@ -286,19 +287,67 @@ mod story_5_14_bench {
     use crate::core::scope;
     use crate::core::store::Store;
 
-    const PHASE_FILE: &str = ".auratranslate-5-14-phase";
-    const SCRATCH_PREFIX: &str = "auratranslate-5-14-";
-    const MARKER_PREFIX: &str = "__5_14_";
+    const PHASE_FILE: &str = ".auratranslate-nfr-bench-phase";
+    const SCRATCH_PREFIX: &str = "auratranslate-nfr-bench-";
+    const MARKER_PREFIX: &str = "__nfr_bench_";
     const MARKER_SUFFIX: &str = "__";
     const MAX_MARKER_VALUE_BYTES: usize = 16 * 1024;
+    /// Tên Tác phẩm mặc định — lịch sử Story 5.14 (một fixture SQL thô, một Tác phẩm duy
+    /// nhất). Story 6.18 Quyết định 5 tổng quát hoá: `AURA_NFR_BENCH_WORK_NAME` cho bàn đo
+    /// khác trỏ đúng Tác phẩm của NÓ mà không sửa mã — 6.18 tự mở "NFR Story 6.18 Work 00"
+    /// (Tác phẩm mà `story_6_18_library.rs` cũng đưa về `not_started` cho hình dạng
+    /// frontier, xem doc-comment tệp đó).
+    const DEFAULT_WORK_NAME: &str = "5.14 Fixture";
+    /// Số segment kỳ vọng ở Reading pha `full`, lịch sử Story 5.14 (một Tác phẩm tổng hợp
+    /// 50.000 segment). `AURA_NFR_BENCH_READING_FULL_SEGMENTS` cho 6.18 (một Tác phẩm thật
+    /// 100 Chương × 10 segment = 1.000, xem Design Notes "Reading runs over the open Work
+    /// only") nạp đúng giá trị của NÓ mà không sửa mã.
+    const DEFAULT_READING_FULL_SEGMENTS: usize = 50_000;
     /// Trần liveness của bộ điều phối pha. 600 s là mặc định cũ; biến môi trường cho phép
     /// bàn đo nới nó khi đang ĐO chính thời gian một pha, thay vì để một `die` ở 600 s biến
     /// "chưa xong trong 600 s" thành "không tới Reading" — hai mệnh đề khác nhau.
-    /// Chỉ đọc trong build có feature `story-5-14-bench`.
+    /// Chỉ đọc trong build có feature `nfr-bench`.
     const PHASE_WAIT_BUDGET_DEFAULT_SECS: u64 = 600;
 
+    /// Đọc `AURA_NFR_BENCH_WORK_NAME`, mặc định [`DEFAULT_WORK_NAME`] — giữ 5.14 chạy y
+    /// nguyên không cần đặt biến môi trường mới.
+    fn bench_target_work_name() -> String {
+        std::env::var("AURA_NFR_BENCH_WORK_NAME").unwrap_or_else(|_| DEFAULT_WORK_NAME.to_owned())
+    }
+
+    /// Đọc `AURA_NFR_BENCH_WORKS`, mặc định 1 — số Tác phẩm mà lượt quay lại Library
+    /// (`back-library`) phải thấy TRONG grid trước khi chấp nhận marker. Story 5.14: một
+    /// fixture tổng hợp, đúng 1. Story 6.18: 50, đặt qua biến môi trường của `run.sh`.
+    fn bench_target_work_count() -> usize {
+        std::env::var("AURA_NFR_BENCH_WORKS")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(1)
+    }
+
+    /// Đọc `AURA_NFR_BENCH_READING_FULL_SEGMENTS`, mặc định [`DEFAULT_READING_FULL_SEGMENTS`].
+    /// Một giá trị không phải số nguyên dương bị bỏ qua (đọc như vắng mặt), không panic —
+    /// cùng khuôn khoan dung của `phase_wait_budget`.
+    fn bench_reading_full_segments() -> usize {
+        std::env::var("AURA_NFR_BENCH_READING_FULL_SEGMENTS")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(DEFAULT_READING_FULL_SEGMENTS)
+    }
+
+    /// Số lớp từ điển đã nạp — tín hiệu §Always spec 6.18 đòi trước mẫu ĐẦU TIÊN ("The run
+    /// is invalid unless the probe reads a loaded-layer count > 0"). Đọc qua state đã
+    /// `app.manage(...)` ở `open_dict_layers`, không tự quét `$RESOURCE` lần hai.
+    fn loaded_layer_count(app: &tauri::AppHandle) -> usize {
+        app.try_state::<crate::core::dict::DictLayers>()
+            .map(|layers| layers.layers().len())
+            .unwrap_or(0)
+    }
+
     fn phase_wait_budget() -> Duration {
-        let secs = std::env::var("AURA_5_14_PHASE_BUDGET_SECS")
+        let secs = std::env::var("AURA_NFR_BENCH_PHASE_BUDGET_SECS")
             .ok()
             .and_then(|raw| raw.parse::<u64>().ok())
             .filter(|secs| *secs > 0)
@@ -308,21 +357,21 @@ mod story_5_14_bench {
 
     fn bench_home() -> Result<PathBuf, String> {
         let raw_home: OsString = std::env::var_os("HOME")
-            .ok_or_else(|| "story-5-14 HOME is absent".to_owned())?;
+            .ok_or_else(|| "nfr-bench HOME is absent".to_owned())?;
         let home = PathBuf::from(raw_home);
         let canonical_home = home
             .canonicalize()
-            .map_err(|err| format!("story-5-14 cannot canonicalize HOME: {err}"))?;
+            .map_err(|err| format!("nfr-bench cannot canonicalize HOME: {err}"))?;
         let scratch = canonical_home
             .parent()
-            .ok_or_else(|| "story-5-14 HOME has no scratch parent".to_owned())?;
+            .ok_or_else(|| "nfr-bench HOME has no scratch parent".to_owned())?;
         let scratch_name = scratch
             .file_name()
             .and_then(|name| name.to_str())
-            .ok_or_else(|| "story-5-14 scratch name is not utf-8".to_owned())?;
+            .ok_or_else(|| "nfr-bench scratch name is not utf-8".to_owned())?;
         if !scratch_name.starts_with(SCRATCH_PREFIX) {
             return Err(format!(
-                "story-5-14 refuses HOME outside scratch prefix: {}",
+                "nfr-bench refuses HOME outside scratch prefix: {}",
                 canonical_home.display()
             ));
         }
@@ -333,22 +382,22 @@ mod story_5_14_bench {
         let home = bench_home()?;
         let path = home.join(PHASE_FILE);
         let metadata = std::fs::symlink_metadata(&path)
-            .map_err(|err| format!("story-5-14 cannot inspect phase file: {err}"))?;
+            .map_err(|err| format!("nfr-bench cannot inspect phase file: {err}"))?;
         if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
-            return Err("story-5-14 phase file must be one regular file under scratch HOME".to_owned());
+            return Err("nfr-bench phase file must be one regular file under scratch HOME".to_owned());
         }
         Ok(path)
     }
 
     fn read_phase(path: &Path) -> Result<String, String> {
         let raw = std::fs::read_to_string(path)
-            .map_err(|err| format!("story-5-14 cannot read phase file: {err}"))?;
+            .map_err(|err| format!("nfr-bench cannot read phase file: {err}"))?;
         let phase = raw.trim();
         match phase {
             "library" | "reading-full" | "reading-frontier" | "back-library" | "discard" => {
                 Ok(phase.to_owned())
             }
-            _ => Err(format!("story-5-14 phase is outside the reviewed state machine: {phase:?}")),
+            _ => Err(format!("nfr-bench phase is outside the reviewed state machine: {phase:?}")),
         }
     }
 
@@ -357,39 +406,40 @@ mod story_5_14_bench {
             "usable" | "invalid" | "reading" | "back_library" => {
                 Ok(format!("{MARKER_PREFIX}{marker}{MARKER_SUFFIX}"))
             }
-            _ => Err(format!("story-5-14 marker is outside the reviewed allowlist: {marker:?}")),
+            _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
         }
     }
 
     fn put_marker(app: &tauri::AppHandle, marker: &str, value: &str) -> Result<(), String> {
         if value.len() > MAX_MARKER_VALUE_BYTES {
-            return Err("story-5-14 marker exceeds the reviewed byte limit".to_owned());
+            return Err("nfr-bench marker exceeds the reviewed byte limit".to_owned());
         }
         serde_json::from_str::<serde_json::Value>(value)
-            .map_err(|err| format!("story-5-14 marker is not JSON: {err}"))?;
+            .map_err(|err| format!("nfr-bench marker is not JSON: {err}"))?;
         let store = app
             .try_state::<Store>()
-            .ok_or_else(|| "story-5-14 global store was not managed".to_owned())?;
+            .ok_or_else(|| "nfr-bench global store was not managed".to_owned())?;
         scope::save_value(&store, "app_config", &marker_key(marker)?, value)
-            .map_err(|err| format!("story-5-14 cannot persist marker: {err}"))
+            .map_err(|err| format!("nfr-bench cannot persist marker: {err}"))
     }
 
     fn open_the_one_fixture_through_product_wire(app: &tauri::AppHandle) -> Result<(), String> {
+        let target_name = bench_target_work_name();
         let indexer = app
             .try_state::<crate::core::library::indexer::Indexer>()
-            .ok_or_else(|| "story-5-14 library index was not managed".to_owned())?;
+            .ok_or_else(|| "nfr-bench library index was not managed".to_owned())?;
         let report = indexer
             .list_works(crate::core::library::indexer::WorkQuery::default())
-            .map_err(|err| format!("story-5-14 cannot list indexed fixture: {err}"))?;
+            .map_err(|err| format!("nfr-bench cannot list indexed fixture: {err}"))?;
         let ids: Vec<&str> = report
             .works
             .iter()
-            .filter(|work| work.name == "5.14 Fixture")
+            .filter(|work| work.name == target_name)
             .map(|work| work.work_id.as_str())
             .collect();
         let [work_id] = ids.as_slice() else {
             return Err(format!(
-                "story-5-14 requires exactly one indexed 5.14 Fixture, found {}",
+                "nfr-bench requires exactly one indexed {target_name:?}, found {}",
                 ids.len()
             ));
         };
@@ -397,7 +447,7 @@ mod story_5_14_bench {
         // trong harness. Do đọc từ Library và Reading phản ánh cùng luồng thực tế.
         crate::commands::project::wire::open_work(app.clone(), (*work_id).to_owned())
             .map(|_| ())
-            .map_err(|err| format!("story-5-14 cannot open indexed fixture: {err:?}"))
+            .map_err(|err| format!("nfr-bench cannot open indexed fixture: {err:?}"))
     }
 
     fn eval_reading(
@@ -407,7 +457,7 @@ mod story_5_14_bench {
     ) -> Result<(), String> {
         let window = app
             .get_webview_window(super::MAIN_WINDOW_LABEL)
-            .ok_or_else(|| "story-5-14 main window is absent".to_owned())?;
+            .ok_or_else(|| "nfr-bench main window is absent".to_owned())?;
         let script = format!(
             r#"(function pollStory514Reading() {{
   const tabs = document.querySelectorAll('.mode-tab');
@@ -421,7 +471,7 @@ mod story_5_14_bench {
       segments === {expected_segments} && frontier instanceof HTMLElement) {{
     const bridge = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
     if (typeof bridge === 'function') {{
-      bridge('story_5_14_mark_and_wait_phase', {{
+      bridge('nfr_bench_mark_and_wait_phase', {{
         marker: 'reading',
         value: JSON.stringify({{ status: '{expected_status}', segments, frontier: frontier.dataset.readingFrontierKind }}),
         after: 'ack',
@@ -434,42 +484,58 @@ mod story_5_14_bench {
         );
         window
             .eval(&script)
-            .map_err(|err| format!("story-5-14 cannot evaluate Reading DOM probe: {err}"))
+            .map_err(|err| format!("nfr-bench cannot evaluate Reading DOM probe: {err}"))
     }
 
     fn eval_back_library(app: &tauri::AppHandle) -> Result<(), String> {
         let window = app
             .get_webview_window(super::MAIN_WINDOW_LABEL)
-            .ok_or_else(|| "story-5-14 main window is absent".to_owned())?;
-        let script = r#"(function pollStory514Library() {
+            .ok_or_else(|| "nfr-bench main window is absent".to_owned())?;
+        let target_name = bench_target_work_name();
+        let expected_works = bench_target_work_count();
+        // Mã hoá bằng `serde_json` thay vì nối chuỗi trần: tên Tác phẩm đi vào literal JS,
+        // và một dấu nháy đơn/backslash trong tên (không xảy ra hôm nay, nhưng không giả định)
+        // không được phép thoát khỏi literal đó.
+        let target_name_json = serde_json::to_string(&target_name)
+            .map_err(|err| format!("nfr-bench cannot encode target work name: {err}"))?;
+        let script = format!(
+            r#"(function pollNfrBenchLibrary() {{
   const tabs = document.querySelectorAll('.mode-tab');
   const tab = tabs.item(0);
-  if (!(tab instanceof HTMLElement)) { setTimeout(pollStory514Library, 25); return; }
-  if (!tab.classList.contains('on')) { tab.click(); }
+  if (!(tab instanceof HTMLElement)) {{ setTimeout(pollNfrBenchLibrary, 25); return; }}
+  if (!tab.classList.contains('on')) {{ tab.click(); }}
   const grid = document.querySelector('[data-library-grid]');
   const cells = grid ? grid.querySelectorAll('[data-library-work-cell]') : [];
-  const name = cells.length === 1 ? cells[0].querySelector('.work-name') : null;
-  if (name instanceof HTMLElement && name.textContent.trim() === '5.14 Fixture') {
+  const targetName = {target_name_json};
+  let found = null;
+  if (cells.length === {expected_works}) {{
+    for (const cell of cells) {{
+      const name = cell.querySelector('.work-name');
+      if (name instanceof HTMLElement && name.textContent.trim() === targetName) {{ found = name; break; }}
+    }}
+  }}
+  if (found instanceof HTMLElement) {{
     const bridge = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
-    if (typeof bridge === 'function') {
-      bridge('story_5_14_mark_and_wait_phase', {
+    if (typeof bridge === 'function') {{
+      bridge('nfr_bench_mark_and_wait_phase', {{
         marker: 'back_library',
-        value: JSON.stringify({ works: cells.length, work_name: name.textContent.trim() }),
+        value: JSON.stringify({{ works: cells.length, work_name: found.textContent.trim() }}),
         after: 'ack',
-      }).catch(function () {});
-    }
+      }}).catch(function () {{}});
+    }}
     return;
-  }
-  setTimeout(pollStory514Library, 25);
-})();"#;
+  }}
+  setTimeout(pollNfrBenchLibrary, 25);
+}})();"#,
+        );
         window
-            .eval(script)
-            .map_err(|err| format!("story-5-14 cannot evaluate Library DOM probe: {err}"))
+            .eval(&script)
+            .map_err(|err| format!("nfr-bench cannot evaluate Library DOM probe: {err}"))
     }
 
     /// 🔴 Vòng chờ này KHÔNG được chạy trên luồng phục vụ command.
     ///
-    /// Đo 2026-09-02: khi `story_5_14_mark_and_wait_phase` (một `pub fn` đồng bộ) gọi thẳng
+    /// Đo 2026-09-02: khi `nfr_bench_mark_and_wait_phase` (một `pub fn` đồng bộ) gọi thẳng
     /// hàm này, lời gọi `usable` của probe giữ luôn luồng ấy suốt cả trần. `eval_reading` bơm
     /// được script, nhưng script phải `invoke` NGƯỢC LẠI mới đánh dấu được — mà lời gọi thứ
     /// hai không bao giờ tới lượt. Nó tự khoá, và vì nút thắt nằm TRƯỚC lượt dựng DOM nên hỏng
@@ -484,7 +550,7 @@ mod story_5_14_bench {
         loop {
             if started.elapsed() > budget {
                 return Err(format!(
-                    "story-5-14 phase controller exceeded the {}-second liveness budget",
+                    "nfr-bench phase controller exceeded the {}-second liveness budget",
                     budget.as_secs()
                 ));
             }
@@ -492,11 +558,11 @@ mod story_5_14_bench {
             if phase != last_phase {
                 match phase.as_str() {
                     "library" => {}
-                    "reading-full" => eval_reading(app, "content", 50_000)?,
+                    "reading-full" => eval_reading(app, "content", bench_reading_full_segments())?,
                     "reading-frontier" => eval_reading(app, "frontier-only", 0)?,
                     "back-library" => eval_back_library(app)?,
                     "discard" => return Ok("discard".to_owned()),
-                    _ => return Err("story-5-14 phase escaped allowlist after validation".to_owned()),
+                    _ => return Err("nfr-bench phase escaped allowlist after validation".to_owned()),
                 }
                 last_phase = phase;
             }
@@ -522,7 +588,7 @@ mod story_5_14_bench {
     /// Command duy nhat cua feature bench. `after = ack` chi duoc phep cho marker do script
     /// native tao; `usable` la loi goi duy nhat duoc phep giu mo state machine cua runner.
     #[tauri::command]
-    pub fn story_5_14_mark_and_wait_phase(
+    pub fn nfr_bench_mark_and_wait_phase(
         app: tauri::AppHandle,
         marker: String,
         value: String,
@@ -532,10 +598,22 @@ mod story_5_14_bench {
         match marker.as_str() {
             "usable" => {
                 if after != "library" || read_phase(&path)? != "library" {
-                    return Err("story-5-14 usable marker may start only from the library phase".to_owned());
+                    return Err("nfr-bench usable marker may start only from the library phase".to_owned());
                 }
                 open_the_one_fixture_through_product_wire(&app)?;
-                put_marker(&app, &marker, &value)?;
+                // §Always spec 6.18: "invalid unless the probe reads a loaded-layer count > 0
+                // before the first sample" — ghi con số vào CHÍNH marker mà harness đã đọc để
+                // xác nhận usable, để `run.sh` từ chối trước mẫu đầu tiên bằng đúng giá trị
+                // sản phẩm đã nạp, không một lượt IPC dò thêm. Không tự chặn Ở ĐÂY: 5.14 vẫn
+                // chạy 0 lớp (lịch sử), và §I/O Matrix gọi đây là HARNESS từ chối, không phải
+                // command.
+                let layer_count = loaded_layer_count(&app);
+                let mut augmented: serde_json::Value = serde_json::from_str(&value)
+                    .map_err(|err| format!("nfr-bench usable marker is not JSON: {err}"))?;
+                if let serde_json::Value::Object(ref mut map) = augmented {
+                    map.insert("layers".to_owned(), serde_json::json!(layer_count));
+                }
+                put_marker(&app, &marker, &augmented.to_string())?;
                 // Trả về NGAY để luồng command rảnh phục vụ lời gọi `reading`/`back_library`
                 // mà script native sắp phát. Bộ điều phối pha sống trên luồng riêng của nó.
                 spawn_phase_controller(app.clone(), path);
@@ -543,26 +621,26 @@ mod story_5_14_bench {
             }
             "invalid" => {
                 if after != "done" {
-                    return Err("story-5-14 invalid marker must terminate its probe".to_owned());
+                    return Err("nfr-bench invalid marker must terminate its probe".to_owned());
                 }
                 put_marker(&app, &marker, &value)?;
                 Ok("done".to_owned())
             }
             "reading" => {
                 if after != "ack" {
-                    return Err("story-5-14 Reading marker may only acknowledge native DOM".to_owned());
+                    return Err("nfr-bench Reading marker may only acknowledge native DOM".to_owned());
                 }
                 put_marker(&app, &marker, &value)?;
                 Ok("ack".to_owned())
             }
             "back_library" => {
                 if after != "ack" {
-                    return Err("story-5-14 Library marker may only acknowledge native DOM".to_owned());
+                    return Err("nfr-bench Library marker may only acknowledge native DOM".to_owned());
                 }
                 put_marker(&app, &marker, &value)?;
                 Ok("ack".to_owned())
             }
-            _ => Err(format!("story-5-14 marker is outside the reviewed allowlist: {marker:?}")),
+            _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
         }
     }
 }
@@ -827,10 +905,11 @@ pub fn run() {
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
-            // Ice cho phep 2026-09-02: command chi co trong feature bench release cua Story
-            // 5.14. Ban mac dinh khong mang ten nay, mot cong moi, hay dependency moi.
-            #[cfg(feature = "story-5-14-bench")]
-            story_5_14_bench::story_5_14_mark_and_wait_phase,
+            // Ice cho phep 2026-09-02 (Story 5.14), doi ten trung tinh Story 6.18 Quyet dinh
+            // 5: command chi co trong feature bench release `nfr-bench`. Ban mac dinh khong
+            // mang ten nay, mot cong moi, hay dependency moi.
+            #[cfg(feature = "nfr-bench")]
+            nfr_bench::nfr_bench_mark_and_wait_phase,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

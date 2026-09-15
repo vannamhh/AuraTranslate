@@ -8783,6 +8783,17 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     biết chi phí CPU của bảng thứ ba có chấp nhận được không trước khi chốt.
     **(Chủ: Ice — `AGENTS.md:15` đòi trình cả hai phương án kèm số đo, không tự chọn rồi đi
     tiếp; đây là một quyết định kiến trúc mới, không một dòng vá của story kế tiếp.)**
+    🔵 **SỐ NỀN 2026-09-14 (Story 6.18, task 6) — chưa phải phán quyết, chỉ là số Ice cần để
+    cân nhắc.** Chưa dựng bảng `char_idx` thứ ba nào (đúng phạm vi §Never spec 6.18: "no new
+    crate", và thêm một bảng/chỉ mục MỚI vào `library-index.db` là một quyết định kiến trúc,
+    không phải việc của story ĐO này) — số dưới đây là ĐƯỜNG NỀN của chi phí `rebuild` HÔM NAY
+    (hai chỉ mục FTS5, không có bảng thứ ba), để Ice có gì mà so khi cân nhắc thêm bảng thứ ba:
+    trên thư viện THẬT 50 Tác phẩm × 1.000 segment (50.000 segment tổng), `Indexer::rebuild` mất
+    **1,285 s** (≈25,71 ms/`.atproj`) — xem mục "Mỗi thao tác vòng đời/tổ chức Chương nay MỞ
+    `project.db` của MỌI Tác phẩm" ở cụm "Deferred from: 5-9…" phía trên cho phép đo đầy đủ. Một
+    bảng đảo ngược `(ký tự, rowid)` thứ ba sẽ CỘNG THÊM vào đường nền 1,285 s này ở mỗi lượt
+    `rebuild` — mức cộng thêm cụ thể vẫn CHƯA đo (đòi thật sự dựng bảng đó, ngoài phạm vi story
+    này).
 
 - 🟡 **Chế độ khoan dung dấu (bỏ qua phân biệt dấu tiếng Việt khi tìm) — câu mời đã có TRÊN
   MÀN HÌNH, chưa có cửa bấm phía sau nó.**
@@ -8885,6 +8896,19 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⇒ Đo ở Story 6.18 cùng lượt với p95; nếu có thật thì `truncated` (đã có trên dây từ lượt rà
     này) là chỗ báo ra, không phải một con số 0 im lặng.
     **(Chủ: Story 6.18 — cùng phép đo, cùng điều kiện tiền đề.)**
+    → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO, khuyết tật XÁC NHẬN THẬT bằng ứng
+    viên THẬT (không cần dương tính giả).** Ca mới
+    `library_index_contract.rs::true_matches_piling_up_at_an_early_work_id_starve_a_later_work_ids_real_match_before_it_is_ever_read`
+    dựng 2.600 hàng khớp THẬT ở một `work_id` sắp TRƯỚC (vượt trần `search_candidate_ceiling(51)
+    = 2.550`) cộng một hàng khớp THẬT ở `work_id` sắp SAU, `limit=50` (giá trị sản phẩm thật —
+    không một con số nhỏ tiện tay), rồi gọi `Indexer::search` thật: **0** hit nào của work_id sắp
+    SAU lọt vào trang đầu, dù nó khớp 100% — hàng đó CHƯA BAO GIỜ được SQL `LIMIT <ceiling>` đọc
+    tới, không phải bị `verify_substring` loại. `report.truncated == true` — tín hiệu DUY NHẤT
+    người gọi có hôm nay (không có đường tìm theo TỪNG Tác phẩm, đó là món nợ kiến trúc riêng của
+    Epic 5). Dương tính giả (nếu có trong dữ liệu thật) chỉ làm trần bị ăn NHANH HƠN — ca này là
+    biên dưới trung thực của cùng lỗi, không phải toàn bộ mức độ tệ nhất có thể. **Verdict: khuyết
+    tật CÓ THẬT, đo được, không phải suy đoán — sửa (tìm theo work_id, hoặc sắp ứng viên theo khả
+    năng khớp thay vì thứ tự kho) là một quyết định kiến trúc mới, Chủ: Ice.**
 
 - ⚠️ **Mỗi thao tác vòng đời/tổ chức Chương nay MỞ `project.db` của MỌI Tác phẩm trong thư
   viện, không chỉ Tác phẩm vừa sửa.**
@@ -8901,6 +8925,19 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⇒ Đường tối ưu hiển nhiên — chỉ thu hoạch lại Tác phẩm có `updated_at` mới — **bị chặn**
     bởi món nợ `updated_at` (chủ Story 5.6), xem mục ngay trên trong cụm trước.
     **(Chủ: Story 6.18 — phép đo trên thư viện thật là điều kiện để biết có phải sửa hay không.)**
+    → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO trên 50 `.atproj` THẬT (thư viện
+    50×100×10 của task 3/4, không một fixture).** Ca mới
+    `library_index_contract.rs::rebuild_cost_across_fifty_real_atproj_files_not_just_the_one_atproj_of_the_2026_08_29_measurement`,
+    profile `bench-release`: `Indexer::rebuild` toàn bộ 50 `.atproj` (50.000 segment tổng, chia
+    1.000 segment/Tác phẩm) mất **1,285 s**, ≈**25,71 ms/`.atproj`**. Đối chứng: mốc 2026-08-29 đo
+    MỘT `.atproj` 50.000 segment mất **2.180,9 ms** — tức 50 lượt mở-đọc-đóng `project.db` RIÊNG
+    BIỆT (50 × 25,71 ms = 1.285 ms) hôm nay **RẺ HƠN** một lượt harvest 50.000 segment gộp trong
+    MỘT `.atproj`. **Verdict: ở quy mô 50 Tác phẩm, chi phí mở/đóng nhiều `project.db` KHÔNG phải
+    một vấn đề — không đáng sửa hôm nay.** Câu hỏi "hàng trăm `.atproj`" của mục gốc vẫn còn mở
+    (50 chưa phải "hàng trăm"), nhưng xu hướng đo được (chi phí gần TUYẾN TÍNH theo số Tác phẩm,
+    không có dấu hiệu chi phí cận biên tăng khi số lượng `.atproj` tăng từ 1 lên 50) không gợi ý
+    một khuyết tật đang chờ ở quy mô lớn hơn. Không mở một story sửa mới — giữ nguyên đường hiện
+    tại.
 
 - ⚠️ **Một lượt `INSERT` hỏng khi ghi hàng văn bản của MỘT Tác phẩm làm trượt cả lượt `rebuild`
   của toàn thư viện — trong khi một lượt ĐỌC hỏng thì chỉ bỏ qua đúng Tác phẩm đó.**
@@ -9811,6 +9848,25 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   trên thư viện 5.000 Chương thật) — đo cùng lượt với những chi phí khác của chuỗi nhập, kết
   luận rồi mới quyết có đáng tối ưu (ví dụ: một lượt `contains('\r')` gác trước hai lượt
   `replace`) hay không.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO, "không đáng kể" HẾT ĐÚNG.** Ca mới
+  `story_6_18_debt_probes.rs::perf_probe_normalize_two_pass_replace_cost_on_a_ten_megabyte_crlf_free_chapter`
+  trên 10 MB văn bản KHÔNG mang `\r` (hình dạng ĐA SỐ), profile `dev` (debug, lượt đo đầu): hai
+  lượt `.replace()` không điều kiện chiếm **141,7 ms**, tức **72,3%** của toàn bộ chi phí
+  `normalize()` (195,9 ms); gác `text.contains('\r')` trước đó chỉ tốn **1,03 ms** (99,3% rẻ hơn).
+  → 🔵 **SỬA LẠI 2026-09-14 (audit P3) — số debug ở trên KHÔNG PHẢI con số cuối cùng, §Always đòi
+  `--profile bench-release`.** Đo lại đúng lệnh
+  `cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml --test
+  story_6_18_debt_probes -- --nocapture perf_probe_normalize_two_pass_replace_cost_on_a_ten_megabyte_crlf_free_chapter`,
+  máy MacBookPro16,1/macOS 15.7.9/16 lõi, commit `7863afbd7ea9a23c3db77b8cf0f1959172eb880e`,
+  2026-09-14, rustc 1.98.1, load average lúc chạy ~5,2: hai lượt `.replace()` **23,37 ms**, tức
+  **62,0%** của toàn `normalize()` (**37,66 ms**); gác `contains('\r')` **1,05 ms** — **95,5% rẻ
+  hơn** hai lượt `replace()`. **Verdict GIỮ NGUYÊN so với bản debug** (tỉ trọng 62,0% so với 72,3%
+  debug — cùng bậc độ lớn, không lật hướng): đề xuất của mục gốc (gác `contains('\r')` trước hai
+  lượt `replace`) vẫn ĐÁNG làm, số release xác nhận cùng hướng số debug, chỉ chênh tỉ trọng do
+  chi phí NỀN của `normalize()` co lại nhiều hơn chi phí hai lượt `replace()` dưới tối ưu hoá
+  release. Không tự sửa ở đây (§Never spec 6.18: "no product optimization") — fix, nếu Ice chốt
+  làm, cần một owner MỚI, CHƯA ĐẶT TÊN ở đây (không phải Story 6.18, phạm vi story này là ĐO;
+  Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
 
 - ⚠️ **Ghi chú peak-RSS 100 MB (`deferred-work.md`, mục Story 1.15 cũ — "chưa ai đo đỉnh RSS
   thật cho một tệp 100 MB đi hết chuỗi") chưa tính lượt QUÉT MỚI mà bước 4 thêm vào.** Bước 4
@@ -9820,6 +9876,27 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   RSS cũ (nếu có) không phản ánh chi phí này. **Chủ: Story 6.18** — cùng lượt đo lại
   NFR3/NFR4/NFR5, đo luôn đỉnh RSS thật của TOÀN chuỗi bảy bước (không riêng bước 4) trên thư
   viện 5.000 Chương, không suy từ số cũ của Story 1.15.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO trên MỘT Chương thật ở trần
+  `MAX_IMPORT_BYTES`, profile `dev` (debug, lượt đo đầu).** Ca mới
+  `story_6_18_debt_probes.rs::peak_rss_of_the_whole_seven_step_import_chain_on_a_max_import_bytes_chapter`
+  (`#[ignore]`, chạy tay): tệp nguồn thật **104.853.588 byte** (~100 MB) trên đĩa →
+  `create_work_from_file` (đọc tệp → bảy bước pipeline → ghi SQLite thật) → **990.233 segment**,
+  **33,0 s**, đỉnh RSS tiến trình **~1.007,2 MB** (mẫu `ps -o rss=` mỗi 20 ms, ⇒ **~10,07×** kích
+  thước nguồn) — số debug, ⚠️ KHÔNG PHẢI con số cuối cùng, §Always đòi `--profile bench-release`.
+  → 🔵 **SỬA LẠI 2026-09-14 (audit P3) — đo lại đúng profile.** Lệnh
+  `cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml --test
+  story_6_18_debt_probes -- --ignored --nocapture peak_rss`, máy MacBookPro16,1/macOS
+  15.7.9/16 lõi, commit `7863afbd7ea9a23c3db77b8cf0f1959172eb880e`, 2026-09-14, rustc 1.98.1, load
+  average lúc chạy ~4,9: cùng tệp nguồn **104.853.588 byte**, **990.233 segment** (khớp debug),
+  **9,153 s** (≈**3,6×** nhanh hơn debug), đỉnh RSS tiến trình **1.002.620 KB (~979,1 MB)** — ⇒
+  **~9,79×** kích thước nguồn. **Verdict GIỮ NGUYÊN bậc độ lớn so với debug** (~9,79× release so
+  với ~10,07× debug — cùng bậc ~10×, đỉnh RSS TUYỆT ĐỐI hầu như không đổi dù thời gian chạy giảm
+  ~3,6×, đúng như dự đoán: cấu trúc dữ liệu peak (~990 nghìn segment cùng sống trong bộ nhớ một
+  lúc) không co lại dưới tối ưu hoá tốc độ). Đỉnh RSS ~10× kích thước nguồn ở trần 100 MB (tức
+  ~1 GB tại chính giới hạn) là một con số ĐÁNG CHÚ Ý cho A6/A7/A8 (ngân sách bộ nhớ), NAY ĐÃ đo
+  trên `bench-release`, không còn cần một lượt đo lại profile nữa. Không tự sửa ở đây; owner của
+  một fix (nếu Ice chốt cần): MỚI, CHƯA ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict
+  re-đo).
 
 - ⚠️ **Chín tệp vitest mang ca phụ thuộc TẢI MÁY — đỏ giả khi máy bận, và điều đó CÓ SẴN
   trước Story 6.4.** Đo 2026-09-05 bằng phép đối chứng cùng tải: cây story ở load 215-237 cho
@@ -10251,6 +10328,28 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   242-286 ms đã ghi, nên chưa biết nó đáng kể hay không — nêu ra như một hình dạng đáng xét lại,
   KHÔNG như một khuyết tật đã chứng minh. **Chủ: Story 6.18** — lượt đo lại ba ngưỡng NFR trên
   thư viện 5.000 Chương thật là chỗ đầu tiên con số này có nghĩa.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO, "chưa biết đáng kể hay không" HẾT
+  ĐÚNG.** Ca mới `story_6_18_debt_probes.rs::perf_probe_match_starts_recompiles_the_regex_every_call`
+  trên 2.000 Chương (cùng cỡ với bàn đo xem trước hiện có), 7 lượt gọi/lượt tải (đúng số doc-
+  comment món nợ nêu), profile `dev` (debug, lượt đo đầu): 7 lượt `match_starts` THẬT mất
+  **46,26 ms**; 7 lượt QUÉT trên một `Regex` biên dịch MỘT LẦN (đối chứng "nếu có cache") mất
+  **33,53 ms** — chênh **12,73 ms**, tức **~27,5%** của 7 lượt gọi thật là chi phí biên dịch lại.
+  → 🔵 **SỬA LẠI 2026-09-14 (audit P3) — số debug ở trên KHÔNG PHẢI con số cuối cùng, §Always đòi
+  `--profile bench-release`.** Đo lại đúng lệnh
+  `cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml --test
+  story_6_18_debt_probes -- --nocapture perf_probe_match_starts_recompiles_the_regex_every_call`,
+  máy MacBookPro16,1/macOS 15.7.9/16 lõi, commit `7863afbd7ea9a23c3db77b8cf0f1959172eb880e`,
+  2026-09-14, rustc 1.98.1, load average lúc chạy ~5,2: một lượt gọi **993,2 µs**; 7 lượt
+  `match_starts` THẬT **3,534 ms**; 7 lượt QUÉT trên `Regex` biên dịch một lần **1,589 ms** —
+  chênh **1,945 ms**, tức **~55,0%** của 7 lượt gọi thật là chi phí biên dịch lại. **Verdict: tỉ
+  trọng KHÔNG lật hướng nhưng đổi bậc — 55,0% release CAO HƠN 27,5% debug, không thấp hơn** (bậc độ
+  lớn tổng của 7 lượt gọi giảm mạnh: 46,26 ms debug → 3,53 ms release, ~13×, nhưng phần "quét nếu
+  có cache" giảm nhanh hơn phần "biên dịch lại", nên PHẦN TRĂM biên dịch lại chiếm nhiều hơn, không
+  ít hơn, dưới tối ưu hoá release). Vẫn ĐÁNG KỂ theo tỉ lệ (>10%), và ở quy mô tuyệt đối 7 lượt gọi
+  thật giờ dưới 4 ms trên 2.000 Chương — một cache `Regex` (khoá theo chuỗi mẫu, tái dùng qua các
+  lượt `match_starts` của cùng `ChapterPattern`) vẫn đáng làm theo tỉ lệ, dù tác động tuyệt đối với
+  người dùng đã nhỏ đi nhiều so với số debug ban đầu gợi ý. Không tự sửa ở đây; owner của fix: MỚI,
+  CHƯA ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — tách phạm vi ở bước định tuyến (2026-09-06)
 
@@ -10455,6 +10554,21 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hình dạng không phụ thuộc wall-clock cho hai ca đó, hoặc một phép đo trên runner CI thật
   trước khi tin bộ này ổn định. **Chủ: Story 6.18** — lượt đo lại ba ngưỡng NFR là chỗ đầu tiên
   hành vi dưới tải có một bàn đo thật.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ THỬ, KHÔNG tái lập được trên máy phiên
+  này; mục VẪN MỞ, không đóng bằng suy luận.** Cả bốn ca (`a_response_that_is_not_html_…`,
+  `an_oversized_body_…`, `a_response_advertising_far_more_…`, `a_blocked_cross_host_redirect_…`)
+  chạy **5 lượt liên tiếp trên máy RẢNH** (load average ~4,7-5,3, MacBookPro16,1 16 lõi — cùng máy
+  vật lý với lượt đỏ gốc, đã kiểm lại bằng `sysctl`, sửa 2026-09-14 P3 audit: một bản nháp trước
+  gọi sai đây là "container phiên này") và **5 lượt liên tiếp trong khi một `cargo build --release`
+  khác chạy nền** (load average ~5,1-5,4) — **10/10 xanh**, không một lượt đỏ nào, ~0,58-0,66 s mỗi
+  lượt cả hai điều kiện. ⚠️ **Không đủ để đóng mục**: tải đạt được ở lượt này (load ~5 trên cùng 16
+  lõi) THẤP HƠN nhiều so với tải của lượt đỏ gốc 2026-09-07 (load 19-30, cũng trên 16 lõi) — cùng
+  máy, tải khác nhau, không phải hai máy khác nhau; một lượt không tái lập ở tải THẤP HƠN không
+  chứng minh nguyên nhân đã mất (đúng bài học `AGENTS.md`: "kiểm điều kiện đo trước
+  khi lật quyết định"). **Verdict: rủi ro CI vẫn có thật, chưa đo được trên chính runner CI (đúng
+  đề xuất gốc) — cần một lượt đo trên GitHub Actions runner thật, không phải máy phát triển cục bộ
+  (kể cả máy này), trước khi coi mục này đã đóng.** Chủ giữ nguyên Story 6.18 / Ice cho lượt đo CI
+  kế tiếp.
 
 - ⚠️ **Mỗi link dựng một `reqwest::blocking::Client` MỚI — một luồng hệ điều hành cộng một
   runtime tokio cho MỖI URL.** Đo 2026-09-07 (`perf_probe_twenty_links…`): tổng ~5,0 s cho 20
@@ -10462,6 +10576,25 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tạo client chứ không phải chờ mạng. Chưa đo trên danh sách lớn. Dùng LẠI một client cho cả
   lượt nhập là hình dạng hiển nhiên hơn, nhưng nó chạm chính sách chuyển hướng (mỗi URL có một
   `origin_host` riêng) nên không phải một dòng sửa. **Chủ: Story 6.18.**
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO trên danh sách LỚN, cả hai cỡ Code Map
+  đòi (100 và 1.000).** Hai ca mới `webimport_contract.rs::perf_probe_client_per_link_cost_on_one_hundred_links`
+  / `_on_one_thousand_links` (`#[ignore]`, `--release`, máy phiên này): **N=100** → tổng **49,0
+  ms**, **0,49 ms/link**; **N=1.000** → tổng **342,2 ms**, **0,34 ms/link**.
+  → 🔵 **SỬA LẠI 2026-09-14 (audit P3) — `--release` KHÔNG PHẢI profile §Always đòi cho bench Rust;
+  hồ sơ Story 5.14 tự ghi build `--release` không xác định thứ tự ở đây.** Đo lại đúng lệnh
+  `cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml --test
+  webimport_contract -- --ignored --nocapture perf_probe_client_per_link_cost_on_one_hundred_links
+  perf_probe_client_per_link_cost_on_one_thousand_links`, máy MacBookPro16,1/macOS 15.7.9/16 lõi,
+  commit `7863afbd7ea9a23c3db77b8cf0f1959172eb880e`, 2026-09-14, rustc 1.98.1, load average lúc
+  chạy ~4,7: **N=100** → tổng **53,3 ms**, **0,53 ms/link**; **N=1.000** → tổng **453,4 ms**,
+  **0,45 ms/link**. Cả hai vẫn dưới 1 ms/link, KHÔNG tăng theo N (1.000 link vẫn RẺ HƠN/link so
+  với 100) — cùng hình dạng với số `--release`, chênh lệch nhỏ (0,53 vs 0,49; 0,45 vs 0,34 ms/link)
+  nằm trong biên độ đo giữa hai lượt chạy khác nhau, không phải một xu hướng ngược. **Verdict GIỮ
+  NGUYÊN: ở quy mô 100-1.000 link, chi phí dựng `Client` mới mỗi link KHÔNG phải một điểm nghẽn —
+  không đáng sửa hôm nay.** Số đo N=20 cũ (2026-09-06/07, hàng ms/link cao hơn nhiều) bị nhiễu bởi
+  tải máy đúng như chính ca đó đã tự cảnh báo ("không con số ms nào từ phiên đo đó được phép chép
+  ra ngoài"); số N=100/1.000 ở đây đo trên máy không chia sẻ tải nặng — không mở một story sửa
+  mới.
 
 ## Deferred from: 6-8-allowlist-mang-hai-tang-va-nhat-ky-domain (2026-09-07)
 
@@ -10787,6 +10920,26 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   cùng bề mặt và cùng loại phép đo; gom vào đó rẻ hơn dựng một bàn đo riêng bây giờ.
   🔵 Cùng họ với món nợ 6.10a *"mỗi lượt dời con trỏ clone byte của N Chương hai lần"* — hai
   mục nên được đo CÙNG một lượt, vì chúng nằm trên đúng một đường.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO, "CHƯA CÓ SỐ ĐO" HẾT ĐÚNG.** Ca mới
+  `cleanup_contract.rs::perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two_thousand_chapters`,
+  trên `PipelineShape::Chapters` 2.000 Chương THẬT (đường URL, không phải `Blob` mà hai bàn đo
+  EAGER cũ dùng): profile `dev` (debug, lượt đo đầu) MỘT lượt dời con trỏ mất **36,53 ms**; 7 lượt
+  liên tiếp mất **249,52 ms**, trung bình **35,65 ms/lượt**.
+  → 🔵 **SỬA LẠI 2026-09-14 (audit P3) — con số debug ở trên KHÔNG PHẢI con số cuối cùng, §Always
+  đòi `--profile bench-release`.** Đo lại đúng lệnh
+  `cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml --test
+  cleanup_contract -- --nocapture perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two_thousand_chapters`,
+  máy MacBookPro16,1/macOS 15.7.9/16 lõi, commit `7863afbd7ea9a23c3db77b8cf0f1959172eb880e`,
+  2026-09-14, rustc 1.98.1, load average lúc chạy ~6,8: một lượt dời con trỏ **7,23 ms**; 7 lượt
+  liên tiếp **43,05 ms**, trung bình **6,15 ms/lượt** — thấp hơn số debug khoảng **5,8×**. **Verdict
+  LẬT so với bản debug: KHÔNG còn "NGƯỜI DÙNG CẢM NHẬN ĐƯỢC" ở số release** (6,15 ms/lượt nằm dưới
+  hầu hết ngưỡng "cảm nhận được" thường dùng, và xa ngưỡng debug đã nêu >30 ms) — con số debug đã
+  phóng đại chi phí thật khoảng 5-6 lần cho trường hợp này. Chi phí O(N Chương) vẫn còn (không phải
+  hằng số), tức tăng theo cỡ thư viện; ở 2.000 Chương/2.000 dòng release đã rẻ, nhưng chưa đo ở cỡ
+  thư viện 5.000+ Chương thật. Đánh đổi CÓ CHỦ của spec 6.10a (đúng vị trí Chương 0 cho
+  `block_overrides`) vẫn đứng. **Không tự sửa** — nếu Ice vẫn muốn cắt `shape` xuống đúng Chương
+  cần (giữ đúng ngữ nghĩa `block_overrides`) dù verdict đã nhẹ hơn, việc đó cần một owner MỚI, CHƯA
+  ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
 
 - ⚠️ **Bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá — chưa ai đo ở quy mô nghìn Chương.**
   `chaptersShowAll` trả `true` ngay khi bộ lọc bật, không xét số hàng CÒN LẠI sau lọc. Đây là
@@ -10797,6 +10950,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ⚠️ Chưa có phép đo nào, và trần số Chương một mẫu phân tách sinh ra cũng đang là một món nợ mở
   riêng. **Chủ: Story 6.18** — cùng lý do mục trên: nó là câu hỏi về quy mô thật, phải đo trên
   thư viện thật chứ không trên fixture tổng hợp.
+  → 🔵 **CẬP NHẬT 2026-09-14 (Story 6.18, task 6) — ĐÃ ĐO nửa "không ảo hoá", nửa "release app
+  thật" VẪN MỞ.** Ca mới `tests/frontend/importPreviewChapters.test.ts` (describe "chaptersShowAll
+  ở quy mô 1.000 Chương"): 1.000 Chương đều `needs_review`, lọc bật ⇒ `chaptersShowAll = true` ⇒
+  DOM giữ ĐỦ **1.000** hàng `<li>` (xác nhận: không ảo hoá, đúng như thiết kế CÓ CHỦ của spec
+  6.10), 0 `⋯`. Thời gian mount+`$nextTick` (`happy-dom`) = **390,3 ms**. ⚠️ **Đây KHÔNG phải số đo
+  "release app thật" mà Code Map đòi** — `happy-dom` là một mô phỏng DOM trong Node, không phải
+  WKWebView (chính `vitest.config.ts` ghi rõ giới hạn này) — 390,3 ms là bằng chứng phía JS/Vue
+  (dựng cây ảo + patch DOM), không đo layout/paint/reflow của engine thật. **Verdict: nửa "row
+  count không ảo hoá ở quy mô nghìn Chương" ĐÃ XÁC NHẬN THẬT** (1.000 `<li>` thật trên DOM, đúng
+  mối lo mục gốc nêu); **nửa "render time trên WKWebView thật" vẫn cần Story 6.18 task 7** (release
+  app) hoặc một bàn đo e2e riêng. 390,3 ms phía happy-dom là tín hiệu SƠ BỘ đáng lo (không phải số
+  cuối cùng) cho một cơ chế ảo hoá/giới hạn số hàng — fix, nếu Ice chốt cần, là việc của một story
+  MỚI.
 
 ## Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc (2026-09-08)
 
@@ -11810,3 +11976,26 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   summary: `editor-typing-flush.e2e.mjs:155` went red once in a full run: after `realClick` on the first target cell, `document.activeElement` carried no `data-segment-id`; the cause is not named.
   evidence: Verbatim, run three of three consecutive `npm run test:e2e` on tree `6d68dce` plus the G2 patch, 2026-09-14 about 19:52 local: case "bấm chuột thật ⇒ vùng gõ lên đúng câu, gõ được, và chữ đi vào `project.db`" failed with `expect(received).toBe(expected)`, `Expected: "1"`, `Received: "null"` at `e2e/specs/editor-typing-flush.e2e.mjs:155:35`; the file's second case passed; suite 23 passed / 1 failed in `00:02:31`. The same spec file passed in the five other full runs that day on the same harness (worker `0-2` every time). Its block carries 6 `get_window_states not allowed` warnings and 6 `ensureActiveWindowFocus` stacks in all six runs, red and green alike, so they are not a signal. The G2 change cannot reach it: the spec creates its Work over IPC (`e2e/support/workspace.mjs`), does not import `e2e/support/importForm.mjs`, and runs third, in its own app process on fresh dirs. Machine load during that run was not recorded; `pre-push` ran right after, so a later load average says nothing. Not retried away (Ice, 2026-09-14). What would settle it: on the next occurrence, capture the `activeElement` tag and class and `document.hasFocus()` at the moment of the read, plus the load average at that time.
   **Chủ: Dev** — chẩn đoán ở lần tái xuất tiếp theo; không gán nguyên nhân trước khi có thêm dữ kiện.
+
+## Deferred from: spec-6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that (2026-09-14)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that.md`
+  summary: NFR3/NFR4/NFR5 (A6/A7/A8) get re-measured on this spec's 5,000-Chapter library, but
+    macOS only (Ice's own Decision, 2026-09-14) — Windows never gets its own number here, and no
+    place this spec writes a verdict may imply one. This knowingly narrows the epic AC "trên cả
+    macOS lẫn Windows" for as long as it stands.
+  evidence: The spec's own frozen §Decisions: "macOS only; Windows becomes owned debt. Q4 closes
+    on the macOS verdicts. Every place a verdict is written says 'macOS', and one
+    `deferred-work.md` entry carries the Windows re-measurement, owner Ice, pointing at the
+    end-of-project Windows acceptance (2026-08-12 decision, retro item B7)." This is that entry.
+    Task 6 of the same spec measured all eleven "Chủ: Story 6.18" debt probes and the NFR3
+    trigram-ceiling probe on macOS only (MacBookPro16,1, macOS 15.7.9, 16 logical CPUs — the same
+    machine Story 5.14 measured on; corrected 2026-09-14 P3 audit — an earlier draft wrongly called
+    this "a sandboxed container"); none of those numbers, and none of A6/A7/A8's eventual macOS
+    verdicts, may be read as saying anything about
+    Windows — `[profile.release]` is frozen the same on both platforms, but WebView2 vs WKWebView
+    memory behaviour (NFR5), disk/filesystem cost (NFR4 cold start), and SQLite build flags can
+    all differ in ways this spec never measured.
+  **Chủ: Ice — bảng nghiệm thu Windows cuối dự án, B7 (`epic-2-retro-2026-08-18.md:378`), cùng
+    Chủ với mọi mục Windows-chưa-đo khác trong tệp này.** Không một story nào tự nhận việc đo lại
+    Windows trước khi bảng nghiệm thu đó mở.
