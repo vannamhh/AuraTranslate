@@ -857,7 +857,14 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 /// Sàn quần thể RIÊNG cho ca trên — cùng khuôn `RS_FLOOR` của `glossary_boundary.rs`
 /// (dải 80–85% số thật). Đo 2026-08-25 (Story 3.10b, `find src-tauri/src -name "*.rs" |
 /// wc -l`): **55** tệp `.rs` dưới `src-tauri/src/**`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 44;
+///
+/// 🔵 **ĐO LẠI 2026-09-15 (AI-4, vòng rà 3): 80 tệp.** Hằng số cũ `44` là **55%** của quần
+/// thể hôm nay, tức nó vi phạm chính luật 80–85% mà doc-comment này khai — một phép quét có
+/// thể mất 45% cây mà vẫn xanh. Đây không phải lỗi của lượt đo 2026-08-25; quần thể lớn thêm
+/// 25 tệp kể từ đó và không ai đo lại sàn. ⚠️ Sàn đi theo quần thể, nên nó **phải được đo
+/// lại**, không phải để yên: `find src-tauri/src -name "*.rs" | wc -l`, rồi lấy 80–85%.
+/// 80 × 0,82 ≈ 65.
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 65;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -1047,8 +1054,10 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "src/commands/project.rs",
             "pub fn create_work_from_text(\n        app: tauri::AppHandle",
             "quet TOAN BO goc Library: `reindex_library` -> `Indexer::rebuild(root)` duyet het \
-             thu muc goc sau moi luot tao. KHONG phai mang -- hinh Blob de `blocks` rong \
-             (`core/segment/pipeline.rs:702`) nen luot tai anh khong voi toi duoc",
+             thu muc goc sau moi luot tao. KHONG phai mang -- hinh Blob de `blocks` rong nen \
+             luot tai anh khong voi toi duoc (buoc rot `blocks` chi chay tren duong HTML/URL, \
+             `core/segment/pipeline.rs:1554-1560`; 🔵 SUA 2026-09-15 vong ra 3 -- cho nay tung \
+             tro `:702`, la dong khoi tao `Flow` DUNG CHUNG cho ca ba hinh)",
         ),
         (
             "src/commands/project.rs",
@@ -1089,9 +1098,14 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
 
 /// 🔴 **Mọi vỏ CHẶN có hàng trong [`blocking_wire_cases`] phải chạy ngoài luồng chính —
 /// thiếu `(async)` là TREO ỨNG DỤNG.** 🔵 **SỬA 2026-09-15 (AI-4)** — câu này từng mở bằng
-/// *"Năm vỏ CHẶN"*, con số của lần mở thứ nhất; mảng nay có **24** hàng. Câu mới cố ý KHÔNG
-/// mang số: nó đã cũ ba lần (2 → 5 → 7 → 18 → 24), và số duy nhất đáng tin là số đếm được từ
-/// chính mảng.
+/// *"Năm vỏ CHẶN"*, con số của lần mở thứ nhất. Câu mới cố ý KHÔNG mang số: con số ấy đã cũ
+/// **bốn** lần (2 → 5 → 7 → 18 → 24 là bốn bước chuyển), và số duy nhất đáng tin là số đếm
+/// được từ chính mảng — `COMMAND_FILE_CENSUS` giữ nó ở cột thứ tư và assert nó, nên không
+/// dòng văn xuôi nào cần chép lại.
+/// 🔵 **SỬA 2026-09-15 (vòng rà 3)** — câu này vừa tuyên bố "cố ý KHÔNG mang số" vừa viết
+/// **24** ba chữ sau đó, tức là tự dựng lại đúng cái nguồn thứ hai mà nó nói đang gỡ bỏ; và
+/// nó đếm "ba lần" trên một dãy năm phần tử, trong khi doc-comment ngay dưới gọi lượt này là
+/// *MỞ LẦN TƯ*. Đã bỏ con số khỏi văn xuôi và sửa ba thành bốn.
 ///
 /// 🔵 **MỞ RỘNG 2026-08-25 (vòng rà Epic 3) — ca này trước đây tên
 /// `the_dialog_wires_run_off_the_main_thread` và chỉ canh HAI vỏ hộp thoại.** Lượt rà tìm ra
@@ -1313,6 +1327,20 @@ fn count_command_attrs_in(rel: &str, text: &str) -> (usize, usize) {
         match line {
             "#[tauri::command]" => plain += 1,
             "#[tauri::command(async)]" => asyncs += 1,
+            // 🔵 SUA 2026-09-15 (AI-4, vong ra 3) -- nhanh nay truoc do khai MOI dong khong
+            // khop la "mot cach viet thuoc tinh la". Do 2026-09-15: `#[tauri::command] pub fn
+            // f() {}` la Rust HOP LE voi thuoc tinh QUEN, chi khac o cho no khong dung mot
+            // minh tren dong; thong diep cu gui nguoi doc di tim mot dang thuoc tinh Tauri
+            // khong ton tai. Tach hai ca ra, vi cach sua cua chung khac nhau.
+            other if other.starts_with("#[tauri::command]") || other.starts_with("#[tauri::command(async)]") => {
+                panic!(
+                    "`{rel}:{}` co thuoc tinh lenh KHONG dung mot minh tren dong: {other:?}\n\n\
+                     Cach viet thuoc tinh thi QUEN -- phan duoi dong moi la van de. \
+                     `count_command_attrs_in` phan loai theo DONG, nen mot chu ky (hoac mot \
+                     chu thich) nam cung dong lam lech CA HAI cot. Dua chu ky xuong dong duoi.",
+                    i + 1
+                )
+            }
             other => panic!(
                 "`{rel}:{}` mang mot cach viet thuoc tinh KHONG nam trong hai cach da biet \
                  (`#[tauri::command]` / `#[tauri::command(async)]`): {other:?}\n\n\
@@ -1412,10 +1440,21 @@ fn census_row(rel: &str) -> Option<&'static CommandFileCensusRow> {
 /// phải `(async)`, nhưng nó mù với mọi TỆP không có hàng nào.
 ///
 /// **Chứng minh bằng phép đo, và bằng một phép đo THẬT SỰ TÁCH được hai ca** — đo
-/// 2026-09-15: thêm một `#[tauri::command] pub fn ai4_probe_cleanup() {}` vào
-/// `commands/cleanup.rs` (0 hàng trong `cases`) ⇒ `the_blocking_wires_run_off_the_main_thread
-/// ... ok`, còn ca này `FAILED` với `cleanup.rs dem duoc 6 plain / 0 (async), … khai 5 plain
-/// / 0 (async)`.
+/// 2026-09-15: thêm vào `commands/cleanup.rs` (0 hàng trong `cases`) một vỏ mới, **thuộc tính
+/// và chữ ký trên HAI dòng**:
+/// ```ignore
+/// #[tauri::command]
+/// pub fn ai4_probe_cleanup() {}
+/// ```
+/// ⇒ `the_blocking_wires_run_off_the_main_thread ... ok`, còn ca này `FAILED` với
+/// `cleanup.rs dem duoc 6 plain / 0 (async), … khai 5 plain / 0 (async)`.
+///
+/// 🔵 **SỬA 2026-09-15 (vòng rà 3) — phép đo ghi ở đây trước đó viết vỏ thăm dò trên MỘT
+/// dòng (`#[tauri::command] pub fn ai4_probe_cleanup() {}`), và như thế nó KHÔNG tái lập
+/// được kết quả vừa nêu.** Đo lại cả hai cách viết: dạng một dòng cũng làm ca này đỏ, nhưng
+/// đỏ ở lỗ ② (`… KHONG dung mot minh tren dong`, `count_command_attrs_in` panic), **không
+/// phải** ở lỗ ① (phép so số). Tức là lỗ ① chưa từng có một phép đo hợp lệ đứng sau nó cho
+/// tới lượt rà này. Một phép đối chứng đỏ ở SAI nhánh không chứng minh nhánh kia.
 /// ⚠️ Phép đo được viết ở đây TRƯỚC đó — gỡ `(async)` khỏi `reload_url_import_item` — KHÔNG
 /// tách được hai ca: `project.rs` có hàng trong `cases`, nên vòng đối chứng chiều ÂM của cổng
 /// kia cũng đọc số của tệp đó từ bảng này và cũng đỏ. Nó vẫn là bằng chứng rằng bảng bắt được
@@ -1436,7 +1475,25 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
         *rows_per_file.entry(rel).or_insert(0) += 1;
     }
 
-    for &(rel, want_plain, want_async, want_rows, _) in &COMMAND_FILE_CENSUS {
+    for &(rel, want_plain, want_async, want_rows, why) in &COMMAND_FILE_CENSUS {
+        // 🔵 THEM 2026-09-15 (AI-4, vong ra 3) -- cot `why` truoc do bi huy vao `_`, nen
+        // KHONG assert nao doc no. Doc-comment cua bang khai rang mot tep 0 `(async)` phai
+        // mang mot LOI KHAI CO CHU (D5) va rang `segment.rs` co y de TRONG; ca hai menh de
+        // ay khong co gi cuong che. Mot hang 0-async moi voi `""` di qua trong im lang.
+        // `segment.rs` la ngoai le DUY NHAT va duoc neu dich danh, de mot ngoai le thu hai
+        // phai di qua cho nay.
+        if want_async == 0 {
+            let deliberately_empty = rel == "src/commands/segment.rs";
+            assert_eq!(
+                why.is_empty(),
+                deliberately_empty,
+                "`{rel}` co 0 `(async)`. D5 doi mot LOI KHAI CO CHU o cot `why` (chua ai do, \
+                 va day la nguoi nhan trach nhiem do) -- tru `src/commands/segment.rs`, co y \
+                 de TRONG vi chinh tep do mang chu thich 🔴 mau thuan voi mot loi khai \"nhe\". \
+                 Hang nay dang {}.",
+                if why.is_empty() { "TRONG" } else { "co ghi chu" }
+            );
+        }
         let (plain, asyncs) = count_command_attrs(rel);
         assert_eq!(
             (plain, asyncs),

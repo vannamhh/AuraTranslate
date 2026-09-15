@@ -1,10 +1,19 @@
 # AI-4 — loopback 1 history (2026-09-15)
 
 Sidecar for `spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`. Moved out of the spec so the
-actionable half stays readable; nothing here was deleted or edited. The code these notes
-describe was reverted at the loopback — the diff is kept at
-`ai-4-implementation-2026-09-15.patch`. The *conclusions* that must survive re-derivation
-live in the spec's `## Spec Change Log`, not here.
+actionable half stays readable. The code these notes describe was reverted at the loopback —
+the diff is kept at `ai-4-implementation-2026-09-15.patch`, which is a **dead historical
+artifact, not a restorable state** (see the note at the head of that file). The *conclusions*
+that must survive re-derivation live in the spec's `## Spec Change Log`, not here.
+
+🔵 **AMENDED 2026-09-15 (review round 3).** This header previously read "nothing here was
+deleted or edited". That is an exemption `AGENTS.md:51` does not grant: *a claim that stops
+being true gets FIXED IN PLACE with 🔵 and a date; don't delete it, and don't let it quietly
+lie.* The rule has no carve-out for history files, and one sentence here was asserting — in
+the present tense, as a verified manual check — the exact false premise this whole change
+exists to refute. **Nothing is deleted from this file; refuted claims are struck through and
+answered in place.** Preserving a record faithfully and letting it keep lying are not the
+same thing.
 
 ---
 
@@ -62,7 +71,9 @@ Each of the four names exactly the one signature reverted, and `diff` against th
 
 **`.githooks/pre-push`**: run standalone (`sh .githooks/pre-push`), all eleven gates + `test` + `build` + `cargo test` green, 230s. 🔴 Per `AGENTS.md`, this is Ice's macOS only — it says nothing about the Windows half or about UTC; the CI run must still be read before this spec is declared done.
 
-**Manual check re-verified**: `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-macros-2.6.3/src/command/wrapper.rs:264` reads `ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",` — confirms a plain `fn` with `(async)` routes to `sync_threadpool`, the premise the whole fix rests on.
+**Manual check re-verified**: `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-macros-2.6.3/src/command/wrapper.rs:264` reads `ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",` — ~~confirms a plain `fn` with `(async)` routes to `sync_threadpool`, the premise the whole fix rests on.~~
+
+> 🔵 **FALSE — corrected in place 2026-09-15 (review round 3), per `AGENTS.md:51`.** Reading that string is not evidence about execution. `kind` is consumed at exactly one place, `wrapper.rs:278`, inside `tracing::debug_span!` — it is a **log label and controls nothing**. The executing path is `body_async` (`wrapper.rs:361-396`) → `respond_async_serialized` (`ipc/mod.rs:343`) → `async_runtime::spawn` (`:375`) → `tokio::spawn` on the **multi-threaded runtime** (`async_runtime.rs:103-113`). `spawn_blocking` (`async_runtime.rs:290`) is not on this path. The refutation is finding 1 of the pass-1 table below; this sentence is corrected here as well because a `grep` for `sync_threadpool` lands on **this line**, not on the table twenty lines down, and because `deferred-work.md`'s census of surviving copies is scoped to `src/` and therefore never counted this one. The fix and its whole point survive — the mechanism is a tokio worker thread, not a blocking pool.
 
 **Matrix audit, run by the orchestrator (2026-09-15).** Two matrix rows — *Gate, new command* and *Gate, new file* — had no run behind them in the implementation report, and they are the two rows that justify D1 existing at all. A count table nobody has seen fire is decoration. Both were closed by seeding the actual violation, not by reading the code:
 

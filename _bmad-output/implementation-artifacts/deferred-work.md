@@ -12048,7 +12048,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     ⚠️ **Chưa với tới được qua giao diện sản phẩm — và đó là lý do nó là NỢ chứ không phải
     lỗi phải sửa ngay.** Frontend chốt cửa ở sáu chỗ gọi trong `src/importPreviewState.ts`
     (`:853` · `:876` · `:931` · `:974` · `:1023` · `:1383`), mỗi chỗ mở bằng
-    `if (confirming.value …) return`. Đường duy nhất còn lại là một `internals.invoke` thô —
+    `if (confirming.value …) return`.
+    🔵 **SỬA 2026-09-15 (vòng rà 3) — "sáu" là một con số CHƯA KHAI PHẠM VI.** `grep -n
+    'if (confirming.value' src/importPreviewState.ts` trả **mười một** rào, không phải sáu:
+    sáu chỗ nêu trên, cộng `:1424` · `:1441` · `:1466` · `:1501` (bốn rào của đường làm sạch,
+    mỗi rào kèm một cờ `cleanup*`) và `:1624`. Sáu chỗ nêu trên có thể vẫn là đúng sáu chỗ
+    **fronting ba vỏ còn trần** — nhưng lập luận "không với tới được qua giao diện sản phẩm"
+    chỉ đúng nếu phép liệt kê ấy đầy đủ, và ở đây **không có tiêu chí nào được viết ra** cho
+    việc rào nào chắn vỏ nào. Ai đóng món nợ này phải khai tiêu chí trước, rồi mới đếm lại.
+    Đường duy nhất còn lại là một `internals.invoke` thô —
     đúng lỗ mà chú thích sẵn có ở `project.rs:3372-3375` đã gọi tên: *"vòng chặn `confirming`
     ở `importPreviewState.ts` là JS-side, không chắn được một lời gọi thô bỏ qua tầng đó"*.
     Trước AI-4 lớp này không tồn tại theo nghĩa thời gian (mọi vỏ nối tiếp trên luồng chính);
@@ -12121,3 +12129,32 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     TÊN vỏ. Lý do đo được ngay trong một phiên: vòng rà đặt câu ấy ở `:6338`, agent đo lại thấy
     `:6339`, và sau các patch của chính agent nó nằm ở `:6341` — ba con số cho một câu không đổi.
     Trỏ bằng tên, không bằng dòng.)*
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: Bốn trong sáu vỏ vừa lật `(async)` chưa có ca nào canh chồng lấn — và lý do hoãn ghi ở
+    vòng rà 2 ("kho chưa dựng được `MockRuntime`") là SAI.
+  evidence: Vòng rà 2 hoãn cả họ chồng lấn với lý do "cần một harness invoke đồng thời, mà kho
+    hôm nay không dựng được (không có `MockRuntime`)". Chính diff này bác lý do đó: ca mới
+    `bilingual_import_contract.rs::two_concurrent_bilingual_confirms_…` lái HÀM THUẦN qua
+    `std::thread::scope`, hai luồng thật, **không cần runtime tauri nào** — đúng khuôn ca văn xuôi
+    có sẵn ở `segment_contract.rs:9012`. Rào chắn thật vì thế không phải năng lực kỹ thuật mà là
+    phạm vi: bốn vỏ còn lại (`preview_import_encoding_from_file`, `confirm_import_with_encoding`,
+    `preview_bilingual_import_from_file`, và cặp `create_work_*`) cần bốn ca cùng hình dạng, mỗi
+    ca một bất biến riêng — `preview_*` chạm `stash_pending_import_source` không khoá nào trải từ
+    đọc tới stash (`project.rs:5979-6001`), `create_work_*` chạm `reindex_library`. Đó là bề mặt
+    test MỚI, không phải một bản vá nhỏ, nên nó ở đây chứ không trong diff này. ⚠️ Đừng chép lại
+    lý do "không có `MockRuntime`": nó đã bị chính kho bác.
+  **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
+  summary: `wire::create_work_from_file` không có MỘT lời gọi nào trong toàn kho — nó vừa được lật
+    `(async)` cùng năm vỏ kia mà không ai gọi nó.
+  evidence: Đo 2026-09-15 (vòng rà 3): `grep -rn create_work_from_file src/ e2e/` trả **ba** dòng,
+    cả ba là CHÚ THÍCH (`src/config/project.ts:119`, `:126`, `src/panels/GridPanel.vue:196`).
+    Adapter TS đã bị xoá (chính `project.ts:119-134` ghi lại việc xoá), và `e2e/` có **0** chỗ
+    `invoke('create_work_from_file')` — trong khi vỏ sinh đôi `create_work_from_text` có **10**.
+    ⚠️ Lớp `verification-gap` của vòng rà này khai rằng CẢ HAI vỏ đều có người gọi trong e2e; phép
+    đếm cho thấy chỉ một vỏ có. Câu hỏi để đóng: vỏ Rust này còn nên tồn tại không, hay `project.ts`
+    (nơi đã ghi "VỎ RUST KHÔNG bị xoá") đang giữ một bề mặt IPC không ai dùng. Không sửa trong
+    AI-4 vì xoá một vỏ IPC là một quyết định sản phẩm, không phải một bản vá của vòng rà.
+  **Chủ: Ice**

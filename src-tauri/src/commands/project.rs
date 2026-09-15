@@ -5806,9 +5806,14 @@ pub mod wire {
     ///
     /// **Vỏ này CHẶN vì:** `reindex_library` ngay dưới là một lượt quét TOÀN BỘ thư mục gốc
     /// Library (`Indexer::rebuild(root)`), chạy sau mỗi lượt tạo. Không phải mạng: hình `Blob`
-    /// để `blocks` rỗng (`core/segment/pipeline.rs:702`) nên `prepare_chapter_images` không
-    /// với tới `webimport::fetch` từ đây. Cổng canh:
-    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    /// để `blocks` rỗng nên `prepare_chapter_images` không với tới `webimport::fetch` từ đây.
+    /// 🔵 **SỬA 2026-09-15 (vòng rà 3)** — câu này từng trỏ `core/segment/pipeline.rs:702`.
+    /// Dòng ấy là `blocks: vec![None; n]` trong khởi tạo `Flow` DÙNG CHUNG, mà cả ba hình
+    /// (`Blob`, `Chapters`, `Bilingual`) đều đi qua như nhau (`match` ở `:680-692`) — nên nó
+    /// không phân biệt được `Blob` với đường URL và không đỡ được kết luận. Lý do ĐÚNG: bước
+    /// rót `blocks` chỉ chạy trên đường HTML/URL (`Step::ExtractMainContent`), nói rõ tại
+    /// `pipeline.rs:1554-1560`. Kết luận không đổi, chỉ chỗ trỏ đổi.
+    /// Cổng canh: `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
     #[tauri::command(async)]
     pub fn create_work_from_text(
         app: tauri::AppHandle,

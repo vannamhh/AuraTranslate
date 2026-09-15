@@ -1235,14 +1235,31 @@ fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
+    // 🔵 THEM 2026-09-15 (AI-4, vong ra 3) -- truoc do hai `spawn` chay khong co diem hen, nen
+    // ket qua cua ca nay phu thuoc vao lich dinh thoi: neu luong 1 kip xong `create_work` va
+    // don o nho TRUOC khi luong 2 doc no, mot cay ĐA HONG van cho dung mot `Ok` + mot
+    // `import.no_pending_source` -- chinh hai menh de ca nay assert -- va ca nay XANH.
+    //
+    // ⚠️ **PHEP DO, khong phai mot suy luan.** Do 2026-09-15 tren macOS cua Ice, cay da hong
+    // (khoa `PendingImportSourceState` thu hep thanh doc-clone-`drop`-roi-`create_work`):
+    //   CO `Barrier`    : 10/10 luot DO
+    //   KHONG `Barrier` : 10/10 luot DO
+    // Tuc la o day `Barrier` KHONG bien mot luot xanh gia thanh do -- kich ban xanh gia da
+    // KHONG tai lap duoc tren may nay. No van duoc giu lai vi no go su phu thuoc ay bang CAU
+    // TRUC: 10/10 tren mot macOS nhan roi khong noi gi ve mot runner Windows dang tai nang,
+    // noi hai `spawn` de bi noi tiep hon nhieu. Day la bao hiem CO LY DO, khong phai mot
+    // khuyet tat da do -- dung trich no nhu bang chung rang ca nay tung xanh gia.
+    let gate = std::sync::Barrier::new(2);
     let results = std::thread::scope(|scope| {
         let h1 = scope.spawn(|| {
+            gate.wait();
             confirm_bilingual_import(
                 &root, &state, "Race A", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
                 Vec::new(),
             )
         });
         let h2 = scope.spawn(|| {
+            gate.wait();
             confirm_bilingual_import(
                 &root, &state, "Race B", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
                 Vec::new(),

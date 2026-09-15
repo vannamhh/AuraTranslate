@@ -1,3 +1,15 @@
+AI-4 loopback-1 implementation diff — DEAD HISTORICAL ARTIFACT, NOT A RESTORABLE STATE.
+
+🔵 Header added 2026-09-15 (review round 3). This is the code that was REVERTED at loopback 1
+and then re-derived from the spec. Every literal below is superseded by the shipped tree:
+this file says `[(&'static str, &'static str, &'static str); 22]` (shipped: 24 rows),
+`count_async_attrs("src/commands/project.rs") == 6` (shipped: the shared counter, 9 plain /
+8 async), and a twelve-file table declaring 55/24 (shipped: eleven files, 53/26).
+
+Do NOT apply it, and do not read a `blocking_wire_cases` or `COMMAND_FILE_CENSUS` hit in this
+file as live code — a grep for either symbol lands here. The live definitions are in
+`src-tauri/tests/config_invariants.rs`. Kept only as the record of what loopback 1 built.
+
 diff --git a/src-tauri/src/commands/project.rs b/src-tauri/src/commands/project.rs
 index 555065d..028b810 100644
 --- a/src-tauri/src/commands/project.rs
