@@ -12158,3 +12158,46 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     (nơi đã ghi "VỎ RUST KHÔNG bị xoá") đang giữ một bề mặt IPC không ai dùng. Không sửa trong
     AI-4 vì xoá một vỏ IPC là một quyết định sản phẩm, không phải một bản vá của vòng rà.
   **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-7-mot-ham-cat-khop-trim-cua-javascript.md`
+  summary: Ba nơi cắt CÙNG hình dạng `trimmed_or_none` cho cột `title` (không phải
+    `ChapterOrigin`) vẫn dùng `str::trim()` trần, chưa lật sang luật cắt khớp JS `.trim()`.
+  evidence: D2 chốt phạm vi spec AI-7 là RIÊNG bốn cột `ChapterOrigin`
+    (`origin_author` · `origin_site_name` · `origin_url` · `origin_published_at`), không phải
+    "mọi thân hàm trim-hoặc-`None`" — census đếm được SÁU bản chép giống hệt trong toàn kho,
+    ba cái đã gộp về `chapter_origin_trim_or_none` ở lượt này, ba cái CÒN LẠI ghi cột `title`:
+    `commands/chapter.rs:542` (`rename_chapter`), `core/segment/pipeline.rs:1429`,
+    `core/segment/pipeline.rs:1508`. Ba nơi này có JS đối chiếu RIÊNG của chúng (không phải
+    `importPreviewCurrentChapterOrigin`), và CHƯA có phép đo nào xác nhận liệu chỗ lệch
+    `U+FEFF`/`U+0085` có tồn tại ở đường `title` hay không — spec AI-7 §Boundaries cấm đụng
+    ba nơi này khi chưa đo.
+  **Chủ: Ice** — trước khi gộp, đo lại y hệt cách D1 đã đo cho `ChapterOrigin` (đối chiếu tập
+    ký tự hai máy JS với `str::trim()` của Rust cho ĐÚNG đường JS mà `title` đối chiếu), vì
+    không có gì đảm bảo cùng một hình dạng thân hàm thì cùng một luật cắt là đúng.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ai-7-mot-ham-cat-khop-trim-cua-javascript.md`
+  summary: D1 (luật cắt bốn cột `ChapterOrigin` nay khớp Y HỆT tập của JS `.trim()`) mở một hệ
+    quả CHỦ Ý, chưa đóng: một ô xuất xứ CHỈ mang `U+0085` (NEL) không còn bị cắt thành `NULL`
+    nữa — nó ghi VERBATIM xuống đĩa, và render thành một hộp trống KHÔNG nhãn, đúng triệu
+    chứng Story 6.15 AC4 nhưng qua một ký tự khác với BOM.
+  evidence: Đo 2026-09-15 (spec AI-7 §Design Notes) trên mọi mã `0x0..=0x10FFFF`: cả V8 lẫn
+    JavaScriptCore đồng thuận `U+0085` KHÔNG nằm trong tập `.trim()` cắt — cả hai nửa (Rust
+    sau bản vá, và JS vốn đã vậy) vì thế đồng thuận GIỮ nó làm nội dung. `chapter_origin_contract.rs::an_override_cleared_to_whitespace_only_values_matches_the_io_matrix`
+    và `clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_io_matrix`
+    ghim hành vi này (hàng "chi NEL") để một lượt "đồng bộ lại với `str::trim()`" trong tương
+    lai bị bắt ĐỎ ngay. Cái CHƯA đo là TẦN SUẤT: có bao nhiêu trang thật ngoài đời để lại một
+    `U+0085` cô lập trong `<meta>`/JSON-LD khiến người dùng thấy hộp trống không nhãn này.
+  **Chủ: Ice** — **Phương pháp đo (chưa chạy):** kho không có một corpus trang thật nào để quét
+    ngoại tuyến — mọi test ở đây (`chapter_origin_contract.rs`, `webimport_contract.rs`) dùng
+    byte HTML GÕ TAY (`ChapterInput::RawBytes`/`UrlImportItem::raw`), 0 mạng thật, và AD-41
+    chặn mọi truy cập mạng ngoài đúng luồng nhập URL thật của người dùng — không có đường nào
+    tải hàng loạt trang thật để đếm offline mà không phá chính ranh giới đó. Cách đo DUY NHẤT
+    khả dụng hôm nay là đếm TRỰC TIẾP trong một lượt nhập URL THẬT: thêm một bộ đếm tạm (hoặc
+    một dòng `tracing` có cấu trúc) ngay tại `extract_origin`/`chapter_origin_trim_or_none`,
+    ghi lại mỗi lần giá trị TRƯỚC khi cắt bằng ĐÚNG một `U+0085` (không kèm ký tự nào khác) và
+    SAU khi cắt vẫn còn nguyên — rồi chạy một phiên nhập URL thật (một mẻ link thật, không
+    phải fixture) và đọc số lần khớp trên tổng số Chương nhập được. Nếu con số đó (một tỉ lệ
+    trên một mẻ nhập thật, không phải một số tuyệt đối trên một mẫu tự chọn) đáng kể, việc cần
+    làm không phải "cắt thêm `U+0085`" (quay lại đúng chỗ lệch BOM mà spec này vừa đóng theo
+    chiều ngược) mà là cho `ChapterOrigin.vue` một nhãn placeholder RIÊNG cho "trường có ký tự
+    ẩn, không phải trống" — một thay đổi UX, không phải một thay đổi luật cắt.

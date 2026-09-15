@@ -61,6 +61,7 @@ pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogOutcome, Domain
 pub use extractor::{Block, BlockBody, ExtractError, extract};
 pub use fetcher::{FetchError, FetchedPage, MAX_RESPONSE_BYTES, REQUEST_TIMEOUT, fetch, looks_like_html};
 pub use origin::{ChapterOrigin, extract_origin};
+pub(crate) use origin::{chapter_origin_trim, chapter_origin_trim_or_none};
 
 /// Lý do một MỤC trong danh sách URL nhập thất bại — tám nhánh, đúng tám lý do phân biệt
 /// được của I/O Matrix spec 6.7 (`err.import.web_*`, `core::i18n`). Trái với [`FetchError`]/

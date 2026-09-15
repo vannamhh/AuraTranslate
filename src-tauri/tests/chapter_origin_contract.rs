@@ -342,42 +342,72 @@ fn a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value()
     cleanup(&dir);
 }
 
-/// Ô bị người dùng XOÁ TRẮNG (override `Some("")`) phải ghi `NULL`, không phải một chuỗi rỗng
-/// — cùng luật `str::trim()` của `rename_chapter`.
+/// AI-7 — bảng đầy đủ của §I/O Matrix spec AI-7 cho đường override ở màn xem trước: ô
+/// override chỉ mang khoảng trắng/BOM/NEL phải khớp ĐÚNG luật cắt của JS `.trim()`
+/// (`webimport::chapter_origin_trim`), không còn `str::trim()` trần.
+///
+/// 🔴 Đối chứng đỏ — spec AI-7 §Tasks mục 1: hàng "chỉ BOM" (và cặp NEL bên dưới, hệ quả D1)
+/// PHẢI đỏ trước khi `commands::project::trimmed_or_none` cũ đổi sang cắt theo tập của JS —
+/// `str::trim()` hôm đó giữ nguyên `U+FEFF` (không nằm trong `White_Space` của Unicode) nên
+/// cột ghi `Some("\u{FEFF}")` thay vì `NULL`, và ngược lại cắt mất `U+0085` mà lẽ ra phải giữ
+/// verbatim. Đo lại: `cargo test --locked --test chapter_origin_contract` trên cây trước bản
+/// vá cho `left: Some("\u{feff}") right: None` ở đúng hàng "chỉ BOM".
 #[test]
-fn an_override_cleared_to_an_empty_string_stores_null_not_a_blank_string() {
-    let root = temp_dir("override-cleared");
-    let items = vec![url_item("https://example.test/bai-viet", &html_full_origin(""))];
-    let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
+fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
+    let cases: &[(&str, &str, Option<&str>)] = &[
+        ("chuoi rong", "", None),
+        ("chi dau cach ASCII", "   ", None),
+        ("chi BOM -- seam do duoc 2026-09-07", "\u{FEFF}", None),
+        ("BOM cong chu that -- chi hai dau bi cat", "\u{FEFF}Tấn Giang", Some("Tấn Giang")),
+        ("BOM o giua la NOI DUNG, khong bi cat", "Tấn\u{FEFF}Giang", Some("Tấn\u{FEFF}Giang")),
+        ("khoang trang hon hop hai dau", "\t\u{00A0}x\u{2028} ", Some("x")),
+        ("chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL", "\u{0085}", Some("\u{0085}")),
+        ("NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS", "\u{0085}Tấn Giang", Some("\u{0085}Tấn Giang")),
+    ];
 
-    let overrides = vec![Some(ChapterOriginOverride {
-        author: Some("   ".to_owned()),
-        site_name: None,
-        url: None,
-        published_at: None,
-    })];
+    // Gom MỌI hàng lệch rồi assert MỘT LẦN sau vòng lặp — một hàng đỏ không được che các
+    // hàng khác (AI-7, vòng rà). `assert_eq!` bên trong vòng lặp sẽ panic ở hàng đầu tiên
+    // lệch và không bao giờ chạy tới hàng NEL phía dưới.
+    let mut failures: Vec<String> = Vec::new();
 
-    let opened = create_work(
-        &root,
-        "Xoa Trang Luc Xac Nhan",
-        "en",
-        "",
-        shape,
-        encoding_rs::UTF_8,
-        Vec::new(),
-        None,
-        Vec::new(), 0, 1, false,
-        &overrides,
-        &Mutex::new(Vec::new()),
-        None, &[])
-    .expect("tao tac pham that bai");
+    for (label, input, expected) in cases {
+        let root = temp_dir("override-matrix");
+        let items = vec![url_item("https://example.test/bai-viet", &html_full_origin(""))];
+        let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
 
-    let (author, _site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
-    assert_eq!(author, None, "o da xoa trang phai ve NULL, khong phai chuoi rong/khoang trang");
+        let overrides = vec![Some(ChapterOriginOverride {
+            author: Some((*input).to_owned()),
+            site_name: None,
+            url: None,
+            published_at: None,
+        })];
 
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
+        let opened = create_work(
+            &root,
+            "Ma Tran Xoa Trang",
+            "en",
+            "",
+            shape,
+            encoding_rs::UTF_8,
+            Vec::new(),
+            None,
+            Vec::new(), 0, 1, false,
+            &overrides,
+            &Mutex::new(Vec::new()),
+            None, &[])
+        .expect("tao tac pham that bai");
+
+        let (author, _site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
+        if author.as_deref() != *expected {
+            failures.push(format!("hang '{label}' (input {input:?}): duoc {author:?}, ky vong {expected:?}"));
+        }
+
+        let dir = opened.dir.clone();
+        drop(opened);
+        cleanup(&dir);
+    }
+
+    assert!(failures.is_empty(), "cac hang lech khoi I/O Matrix:\n{}", failures.join("\n"));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -571,28 +601,51 @@ fn updating_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_touches
     cleanup(&dir);
 }
 
-/// Ô xoá trắng ở danh sách Chương cũng phải về `NULL`, không chuỗi rỗng — cùng luật màn xem
-/// trước.
+/// AI-7 — bảng đầy đủ của §I/O Matrix spec AI-7 cho đường sửa ở danh sách Chương
+/// (`update_chapter_origin`), cùng khuôn ma trận với `an_override_cleared_to_whitespace_only_values_matches_the_io_matrix`
+/// ở trên. Chứng minh hai đường (xem trước / danh sách) đồng thuận trên CÙNG một luật cắt.
 #[test]
-fn clearing_a_field_to_empty_from_the_chapter_list_stores_null() {
-    let root = temp_dir("clear-from-list");
-    let mut opened = create_work_from_text(&root, "Xoa Trang Danh Sach", "en", "", "Noi dung.".to_owned())
-        .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_io_matrix() {
+    let cases: &[(&str, &str, Option<&str>)] = &[
+        ("chuoi rong", "", None),
+        ("chi dau cach ASCII", "   ", None),
+        ("chi BOM -- seam do duoc 2026-09-07", "\u{FEFF}", None),
+        ("BOM cong chu that -- chi hai dau bi cat", "\u{FEFF}Tấn Giang", Some("Tấn Giang")),
+        ("BOM o giua la NOI DUNG, khong bi cat", "Tấn\u{FEFF}Giang", Some("Tấn\u{FEFF}Giang")),
+        ("khoang trang hon hop hai dau", "\t\u{00A0}x\u{2028} ", Some("x")),
+        ("chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL", "\u{0085}", Some("\u{0085}")),
+        ("NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS", "\u{0085}Tấn Giang", Some("\u{0085}Tấn Giang")),
+    ];
 
-    update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "")
-        .expect("dat tac gia lan dau that bai");
-    let (author, ..) = read_chapter_origin(&opened.store, chapter_id);
-    assert_eq!(author.as_deref(), Some("Tac Gia"));
+    // Gom MỌI hàng lệch rồi assert MỘT LẦN sau vòng lặp — cùng lý do với ca ma trận ở đường
+    // xem trước ngay trên: một `assert_eq!` bên trong vòng lặp che các hàng phía sau hàng
+    // đỏ đầu tiên.
+    let mut failures: Vec<String> = Vec::new();
 
-    update_chapter_origin(Some(&mut opened), chapter_id, "   ", "", "", "")
-        .expect("xoa trang tac gia that bai");
-    let (author_after, ..) = read_chapter_origin(&opened.store, chapter_id);
-    assert_eq!(author_after, None, "xoa trang (chi khoang trang) phai ve NULL");
+    for (label, input, expected) in cases {
+        let root = temp_dir("clear-from-list-matrix");
+        let mut opened = create_work_from_text(&root, "Xoa Trang Danh Sach", "en", "", "Noi dung.".to_owned())
+            .expect("tao tac pham that bai");
+        let chapter_id = opened.chapter_id;
 
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
+        update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "")
+            .expect("dat tac gia lan dau that bai");
+
+        update_chapter_origin(Some(&mut opened), chapter_id, input, "", "", "")
+            .expect("cap nhat tac gia that bai");
+        let (author_after, ..) = read_chapter_origin(&opened.store, chapter_id);
+        if author_after.as_deref() != *expected {
+            failures.push(format!(
+                "hang '{label}' (input {input:?}): duoc {author_after:?}, ky vong {expected:?}"
+            ));
+        }
+
+        let dir = opened.dir.clone();
+        drop(opened);
+        cleanup(&dir);
+    }
+
+    assert!(failures.is_empty(), "cac hang lech khoi I/O Matrix:\n{}", failures.join("\n"));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

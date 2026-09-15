@@ -186,6 +186,17 @@ describe('libraryImport — hai con số trước khi bấm nút là 0 lời g�
     expect(totalIpcCalls()).toBe(0)
   })
 
+  it('dòng CHỈ có U+0085 (NEL) SỐNG SÓT và đếm 1 — JS `.trim()` không cắt NEL, khớp AC5 spec AI-7', async () => {
+    const { libraryImport } = await freshState()
+    const NEL = String.fromCodePoint(0x0085)
+
+    libraryImport.pastedUrls.value = NEL
+
+    expect(libraryImport.pastedUrlLines.value).toEqual([NEL])
+    expect(libraryImport.pastedUrlCount.value).toBe(1)
+    expect(totalIpcCalls()).toBe(0)
+  })
+
   it('ô rỗng ⇒ đếm 0, và nút coi như khoá (submitPastedUrls no-op)', async () => {
     const { libraryImport } = await freshState()
 

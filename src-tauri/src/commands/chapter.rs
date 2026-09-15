@@ -38,6 +38,7 @@ use std::sync::{Arc, Mutex};
 use crate::commands::project::OpenWork;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{SqlResult, Store, Transaction};
+use crate::core::webimport;
 
 /// Chương **đang mở**, đọc từ `OpenWorkState` — không phải một hàng chọn được (Epic 2).
 ///
@@ -565,6 +566,13 @@ pub fn rename_chapter(
 /// Mỗi trong bốn tham số `str::trim()` rồi rỗng ⇒ `NULL` (cột về "không tìm thấy"), cùng luật
 /// `title` của `rename_chapter` — không phải một luật MỚI riêng cho xuất xứ.
 ///
+/// 🔵 **2026-09-15 (spec AI-7)** — câu ngay trên không còn đúng: mỗi trong bốn tham số nay đi
+/// qua [`webimport::chapter_origin_trim_or_none`], rỗng sau khi cắt ⇒ `NULL` (cột về "không
+/// tìm thấy") — nhưng KHÔNG còn "cùng luật `title`" nữa. `title` vẫn dùng `str::trim()` trần;
+/// bốn cột xuất xứ dùng luật cắt riêng khớp JS `.trim()` (`White_Space ∖ {U+0085} ∪ {U+FEFF}`)
+/// vì đây là trường người dùng đối chiếu với một màn xem trước chạy JS, không phải một tiêu
+/// đề gõ tại chỗ. Xem doc-comment `core::webimport::origin::is_chapter_origin_trim_char`.
+///
 /// # Lỗi
 /// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
 /// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có) — **0
@@ -579,14 +587,10 @@ pub fn update_chapter_origin(
 ) -> Result<Vec<ChapterRow>, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
 
-    fn trimmed_or_none(v: &str) -> Option<String> {
-        let t = v.trim();
-        if t.is_empty() { None } else { Some(t.to_owned()) }
-    }
-    let author_value = trimmed_or_none(author);
-    let site_name_value = trimmed_or_none(site_name);
-    let url_value = trimmed_or_none(url);
-    let published_at_value = trimmed_or_none(published_at);
+    let author_value = webimport::chapter_origin_trim_or_none(author);
+    let site_name_value = webimport::chapter_origin_trim_or_none(site_name);
+    let url_value = webimport::chapter_origin_trim_or_none(url);
+    let published_at_value = webimport::chapter_origin_trim_or_none(published_at);
 
     let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
         tx.execute(

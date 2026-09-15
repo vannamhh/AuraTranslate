@@ -45,7 +45,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-15-2026 13:02'
+last_updated: '09-15-2026 20:27'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -875,7 +875,7 @@ action_items:
       vao config_invariants.rs::the_blocking_wires_run_off_the_main_thread, hoac doi
       cong tu danh sach tay sang quet src/commands/**"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
   - id: "epic-6-retro-item-62-ai-7-gop-trimmed_or_none-project-rs-3862"
     epic: 6
@@ -884,7 +884,7 @@ action_items:
       vao chapter_origin_contract.rs va importPreviewChapterOrigin.test.ts. Do 2026-09-15
       tren app that: Rust ghi U+FEFF xuong origin_author, WKWebView coi la rong"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
   - id: "epic-6-retro-item-63-ai-9-chay-bmad-correct-course-dua-story"
     epic: 6

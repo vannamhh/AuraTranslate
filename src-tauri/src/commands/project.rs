@@ -3857,13 +3857,6 @@ pub struct ChapterOriginOverride {
     pub published_at: Option<String>,
 }
 
-/// `field(value)` — cắt hai đầu, rỗng sau khi cắt ⇒ `None` (ô đã bị xoá trắng, cột ghi
-/// `NULL`) — khuôn dùng chung cho cả bốn trường của [`ChapterOriginOverride`].
-fn trimmed_or_none(value: &str) -> Option<String> {
-    let t = value.trim();
-    if t.is_empty() { None } else { Some(t.to_owned()) }
-}
-
 /// Áp một [`ChapterOriginOverride`] (nếu có) lên một
 /// [`crate::core::webimport::ChapterOrigin`] máy đã bóc (nếu có) — trả bốn `Option<String>`
 /// SẴN SÀNG bind vào câu `INSERT`. `override_field == Some(v)` LUÔN thắng (kể cả khi `v` rỗng
@@ -3882,7 +3875,7 @@ fn effective_origin_fields(
     // `None` ⇔ chưa chạm (dù `over` có mặt hay không) — chỉ khi đó mới rơi về giá trị máy.
     let pick = |over_field: Option<String>, machine_field: Option<&String>| -> Option<String> {
         match over_field {
-            Some(v) => trimmed_or_none(&v),
+            Some(v) => webimport::chapter_origin_trim_or_none(&v),
             None => machine_field.cloned(),
         }
     };
@@ -4106,8 +4099,19 @@ fn fetch_url_import_item(url: &str, allowlist: &webimport::Allowlist) -> (UrlImp
 ///
 /// ⇒ Cắt thêm `U+FEFF`. Không mở rộng gì khác: ba ký tự còn lại đã khớp, và một phép cắt RỘNG
 /// HƠN JS lại tạo ra chỗ lệch theo chiều ngược lại.
+///
+/// 🔵 **2026-09-15 (spec AI-7, D1)** — câu kết luận TRÊN không còn đúng nguyên văn: hàm này
+/// nay dựng trên [`webimport::chapter_origin_trim`], luật cắt CHUNG cho bốn cột
+/// `ChapterOrigin` — và luật đó KHÔNG dừng ở "thêm `U+FEFF`", nó còn BỎ `U+0085` (NEL) khỏi
+/// tập cắt, vì JS `.trim()` không coi NEL là khoảng trắng còn `str::trim()`/`is_whitespace`
+/// của Rust thì có. Đây là một phép mở rộng RỘNG HƠN ba ký tự đã đo hôm 2026-09-07 — nhưng
+/// vẫn đúng hướng cảnh báo của câu trên ("một phép cắt RỘNG HƠN JS lại tạo chỗ lệch NGƯỢC"):
+/// D1 đo lại toàn bộ 0x0..=0x10FFFF trên cả hai máy JS trước khi mở rộng, nên tập mới KHÔNG
+/// rộng hơn JS — nó ĐÚNG BẰNG JS. Một dòng dán chỉ có `U+0085` trước bản vá này được `N link`
+/// đếm là 0 mục (bị cắt oan) trong khi `pastedUrlLines` phía JS giữ nó là 1 dòng — chính chỗ
+/// lệch NGƯỢC CHIỀU mà D1 đóng, xem `webimport_contract.rs`.
 fn trim_like_the_paste_box(line: &str) -> &str {
-    line.trim_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}')
+    webimport::chapter_origin_trim(line)
 }
 
 /// 🔵 **Story 6.8** — chữ ký đổi: trả kèm nhật ký domain của CẢ lượt (`log`), và tự dựng

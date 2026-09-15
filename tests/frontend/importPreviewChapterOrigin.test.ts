@@ -192,14 +192,35 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
     })
   })
 
-  it('gõ chỉ TOÀN khoảng trắng ⇒ hiện `null` (khớp luật ghi đĩa `str::trim()`, không phải một ô "có chữ")', async () => {
+  // AI-7 — bảng đầy đủ của §I/O Matrix spec AI-7: `.trim()` GỐC của JS (không mock, không tái
+  // hiện) là THAM CHIẾU cho luật cắt phía Rust — mỗi hàng ở đây phải khớp ĐÚNG hàng cùng tên ở
+  // `chapter_origin_contract.rs::an_override_cleared_to_whitespace_only_values_matches_the_io_matrix`.
+  const FEFF = String.fromCodePoint(0xfeff)
+  const NEL = String.fromCodePoint(0x0085)
+  const NBSP = String.fromCodePoint(0x00a0)
+  const LINE_SEPARATOR = String.fromCodePoint(0x2028)
+
+  it.each([
+    ['chuoi rong', '', true],
+    ['chi dau cach ASCII', '   ', true],
+    ['chi BOM -- seam do duoc 2026-09-07', FEFF, true],
+    ['BOM cong chu that -- chi hai dau bi cat', FEFF + 'Tấn Giang', false],
+    ['BOM o giua la NOI DUNG, khong bi cat', 'Tấn' + FEFF + 'Giang', false],
+    ['khoang trang hon hop hai dau', '\t' + NBSP + 'x' + LINE_SEPARATOR + ' ', false],
+    ['chi NEL -- seam NGUOC, D1: JS .trim() khong cat NEL', NEL, false],
+    ['NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS', NEL + 'Tấn Giang', false],
+  ] as const)('%s ⇒ author null=%s (khớp `.trim()` gốc JS)', async (_label, input, expectNull) => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
 
-    await state.commitImportPreviewChapterOrigin({ author: '   ', siteName: '', url: '', publishedAt: '' })
+    await state.commitImportPreviewChapterOrigin({ author: input, siteName: '', url: '', publishedAt: '' })
 
-    expect(state.importPreviewCurrentChapterOrigin.value.author).toBeNull()
+    if (expectNull) {
+      expect(state.importPreviewCurrentChapterOrigin.value.author).toBeNull()
+    } else {
+      expect(state.importPreviewCurrentChapterOrigin.value.author).not.toBeNull()
+    }
   })
 
   it('draft SỐNG QUA lượt đổi bảng mã (đổi ứng viên KHÔNG thổi bay chữ đã gõ)', async () => {

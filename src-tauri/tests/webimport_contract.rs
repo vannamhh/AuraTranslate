@@ -887,6 +887,24 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
     );
 }
 
+/// AI-7, D1 — chỗ lệch NGƯỢC CHIỀU: một dòng dán CHỈ có `U+0085` (NEL) phải sinh ĐÚNG MỘT
+/// mục, khớp `pastedUrlLines` phía JS (`.trim()` gốc của JS KHÔNG cắt NEL, nên dòng đó không
+/// rỗng, `N link` đếm nó là 1). Trước bản vá `trim_like_the_paste_box` cắt bằng
+/// `char::is_whitespace()`, mà `U+0085` NẰM trong `White_Space` của Unicode nên dòng bị cắt
+/// thành rỗng và bị lọc bỏ — `N link` (JS) và `N Chương` (Rust) lệch nhau đúng MỘT, đối xứng
+/// ngược với ca BOM ngay trên.
+#[test]
+fn a_next_line_character_only_pasted_line_still_produces_exactly_one_item_matching_pasted_url_lines() {
+    let (items, _log) = fetch_url_import_items(vec!["\u{0085}".to_owned()]);
+    assert_eq!(
+        items.len(),
+        1,
+        "một dòng CHỈ có U+0085 phải sinh ĐÚNG một mục — JS `.trim()` không cắt NEL nên \
+         `pastedUrlLines` đếm nó là 1 dòng; Rust đếm khác đi là chính chỗ lệch NGƯỢC CHIỀU mà \
+         D1 đóng. Nhận: {items:?}"
+    );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // P2 (vòng rà đối kháng bước 4) — trần số chặng chuyển hướng, dưới một host ĐƯỢC allowlist
 // ═════════════════════════════════════════════════════════════════════════════════

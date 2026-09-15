@@ -53,9 +53,52 @@ impl ChapterOrigin {
     }
 }
 
-/// Cắt hai đầu, rỗng sau khi cắt coi như vắng (`None`) — khuôn dùng CHUNG cho mọi trường text.
-fn present(raw: &str) -> Option<String> {
-    let trimmed = raw.trim();
+/// AI-7 — luật CẮT chung cho bốn cột `ChapterOrigin` (`origin_author` · `origin_site_name` ·
+/// `origin_url` · `origin_published_at`), MỘT khai báo DUY NHẤT cho cả hai hình dạng
+/// (`&str` ở [`chapter_origin_trim`], `Option<String>` ở [`chapter_origin_trim_or_none`]) —
+/// mọi chỗ trong kho cắt một trong bốn cột này đi qua đây, không tự viết `str::trim()`.
+///
+/// **KHÔNG PHẢI lớp `White_Space` 25 mã của `GLOSSARY_ENTRY_DDL`** (`store/schema.rs:305-323`
+/// · `core/cleanup/store.rs:140` · `core/segment/normalize.rs:88` ·
+/// `glossary_contract.rs:287-325`, ghép với `str::trim()` có chủ ý theo `src-tauri/AGENTS.md`).
+/// Đây là một lớp KHÁC cho một thực thể KHÁC — cũng 25 mã, nhưng đổi CHỖ: bỏ `U+0085` (NEL,
+/// Rust coi là `White_Space`, JS thì không), thêm `U+FEFF` (BOM/zero-width no-break space, JS
+/// coi là khoảng trắng khi `.trim()`, Rust thì không). Đừng "đồng bộ" hai lớp này.
+///
+/// **Đo 2026-09-15, mọi mã `0x0..=0x10FFFF`, cả hai máy JS** (V8 qua `node`, và vì ứng dụng
+/// chạy WKWebView chứ không phải `node`, thêm JavaScriptCore qua `osascript -l JavaScript`) —
+/// **hai máy JS cho ĐÚNG một tập**, nên nửa `vitest` và nửa ứng dụng đã đóng gói đo CÙNG một
+/// luật:
+/// ```text
+/// Rust str::trim()  (25):  0009 000A 000B 000C 000D 0020 0085 00A0 1680 2000‥200A 2028 2029 202F 205F 3000
+/// JS   .trim()      (25):  0009 000A 000B 000C 000D 0020      00A0 1680 2000‥200A 2028 2029 202F 205F 3000 FEFF
+/// Difference: JS-only {FEFF} · Rust-only {0085}
+/// ```
+/// JSC đối chứng, nguyên văn: `85=keep FEFF=TRIM 9=TRIM 20=TRIM A0=TRIM 200B=keep 180E=keep 2028=TRIM`.
+///
+/// `U+200B` (zero-width space) không bị cắt bởi bên nào — nó là NỘI DUNG trên cả hai máy, một
+/// luật khác đã sở hữu nó (`core/glossary/exchange.rs:503 ZERO_WIDTH_CHARS`); hàm này không
+/// đụng tới nó.
+///
+/// **Hệ quả đã nhận, không thiết kế để tránh (D1, spec AI-7):** một ô CHỈ mang `U+0085` không
+/// còn thành `NULL` nữa — cả hai nửa (Rust lẫn JS) đồng thuận GIỮ nó làm nội dung, nên không
+/// còn một chỗ lệch NGẦM, nhưng ô đó render thành một hộp trống KHÔNG nhãn (đúng triệu chứng
+/// Story 6.15 AC4, qua một ký tự khác). Tần suất trong thực tế CHƯA ĐO — ghi nợ ở
+/// `deferred-work.md`, không đóng bởi spec này.
+fn is_chapter_origin_trim_char(c: char) -> bool {
+    (c.is_whitespace() && c != '\u{0085}') || c == '\u{FEFF}'
+}
+
+/// Hình dạng `&str` của luật cắt AI-7 — xem doc-comment [`is_chapter_origin_trim_char`].
+pub(crate) fn chapter_origin_trim(value: &str) -> &str {
+    value.trim_matches(is_chapter_origin_trim_char)
+}
+
+/// Hình dạng `Option<String>` của luật cắt AI-7 — cắt hai đầu, rỗng sau khi cắt coi như vắng
+/// (`None`) — khuôn dùng CHUNG cho cả bốn cột `ChapterOrigin`. Xem doc-comment
+/// [`is_chapter_origin_trim_char`].
+pub(crate) fn chapter_origin_trim_or_none(value: &str) -> Option<String> {
+    let trimmed = chapter_origin_trim(value);
     if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) }
 }
 
@@ -66,7 +109,7 @@ fn meta_content(document: &HtmlDocument, attr: &str, value: &str) -> Option<Stri
     let selector = format!("meta[{attr}='{value}']");
     for node in document.select(&selector).nodes() {
         if let Some(content) = node.attr("content") {
-            if let Some(v) = present(&content) {
+            if let Some(v) = chapter_origin_trim_or_none(&content) {
                 return Some(v);
             }
         }
@@ -116,8 +159,10 @@ fn json_ld_string_field(obj: &serde_json::Value, key: &str) -> Option<String> {
 
 fn json_ld_string_or_named(value: &serde_json::Value) -> Option<String> {
     match value {
-        serde_json::Value::String(s) => present(s),
-        serde_json::Value::Object(map) => map.get("name").and_then(|n| n.as_str()).and_then(present),
+        serde_json::Value::String(s) => chapter_origin_trim_or_none(s),
+        serde_json::Value::Object(map) => {
+            map.get("name").and_then(|n| n.as_str()).and_then(chapter_origin_trim_or_none)
+        }
         serde_json::Value::Array(items) => items.iter().find_map(json_ld_string_or_named),
         _ => None,
     }
@@ -177,11 +222,11 @@ pub fn extract_origin(html: &str, url: &str) -> ChapterOrigin {
                 .nodes()
                 .first()
                 .and_then(|n| n.attr("datetime"))
-                .and_then(|v| present(&v))
+                .and_then(|v| chapter_origin_trim_or_none(&v))
         })
         .map(|v| truncate_iso_date(&v));
 
-    ChapterOrigin { author, site_name, url: present(url), published_at }
+    ChapterOrigin { author, site_name, url: chapter_origin_trim_or_none(url), published_at }
 }
 
 #[cfg(test)]
@@ -253,6 +298,62 @@ mod tests {
         let html = r#"<html><head><meta name="author" content="   "></head></html>"#;
         let origin = extract_origin(html, "");
         assert_eq!(origin.author, None);
+    }
+
+    /// AI-7 — le seam đo được 2026-09-07/2026-09-15: một `<meta>` chỉ mang `U+FEFF` (BOM)
+    /// phải đọc như VẮNG, khớp JS `.trim()`, qua ĐÚNG đường `meta_content`.
+    #[test]
+    fn a_meta_tag_holding_only_a_byte_order_mark_is_read_as_absent() {
+        let html = "<html><head><meta name=\"author\" content=\"\u{FEFF}\"></head></html>";
+        let origin = extract_origin(html, "");
+        assert_eq!(origin.author, None, "meta_content phai coi BOM la vang, dung luat cat cua JS .trim()");
+    }
+
+    /// AI-7, D1 (chiều ngược) — một `<meta>` chỉ mang `U+0085` (NEL) phải GIỮ VERBATIM, vì cả
+    /// hai máy JS đều KHÔNG cắt NEL bằng `.trim()`. Qua ĐÚNG đường `meta_content`.
+    #[test]
+    fn a_meta_tag_holding_only_a_next_line_character_is_kept_verbatim() {
+        let html = "<html><head><meta name=\"author\" content=\"\u{0085}\"></head></html>";
+        let origin = extract_origin(html, "");
+        assert_eq!(
+            origin.author,
+            Some("\u{0085}".to_owned()),
+            "meta_content phai GIU NEL lam noi dung, khong cat thanh vang"
+        );
+    }
+
+    /// AI-7 — cùng seam BOM, nhưng qua đường JSON-LD, cả hai nhánh của `json_ld_string_or_named`:
+    /// `author` là một CHUỖI TRẦN (nhánh `Value::String`), `publisher` là một OBJECT mang
+    /// `name` (nhánh `Value::Object`). Không `<meta>` nào trong tài liệu — cô lập đúng đường
+    /// JSON-LD, không để `meta_content` che lấp seam.
+    #[test]
+    fn a_json_ld_field_holding_only_a_byte_order_mark_is_read_as_absent_on_both_shapes() {
+        let html = "<html><head><script type=\"application/ld+json\">\
+             {\"author\":\"\u{FEFF}\",\"publisher\":{\"name\":\"\u{FEFF}\"}}\
+             </script></head></html>";
+        let origin = extract_origin(html, "");
+        assert_eq!(origin.author, None, "nhanh Value::String phai coi BOM la vang");
+        assert_eq!(origin.site_name, None, "nhanh Value::Object (qua .name) phai coi BOM la vang");
+    }
+
+    /// AI-7, D1 (chiều ngược) — cùng seam NEL, qua ĐÚNG hai nhánh của `json_ld_string_or_named`
+    /// như ca BOM ngay trên, không `<meta>` nào để cô lập đường JSON-LD.
+    #[test]
+    fn a_json_ld_field_holding_only_a_next_line_character_is_kept_verbatim_on_both_shapes() {
+        let html = "<html><head><script type=\"application/ld+json\">\
+             {\"author\":\"\u{0085}\",\"publisher\":{\"name\":\"\u{0085}\"}}\
+             </script></head></html>";
+        let origin = extract_origin(html, "");
+        assert_eq!(
+            origin.author,
+            Some("\u{0085}".to_owned()),
+            "nhanh Value::String phai GIU NEL lam noi dung"
+        );
+        assert_eq!(
+            origin.site_name,
+            Some("\u{0085}".to_owned()),
+            "nhanh Value::Object (qua .name) phai GIU NEL lam noi dung"
+        );
     }
 
     #[test]
