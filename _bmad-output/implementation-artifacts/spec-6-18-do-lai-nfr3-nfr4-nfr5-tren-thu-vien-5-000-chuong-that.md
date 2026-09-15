@@ -11,6 +11,18 @@ context:
   - '{project-root}/src-tauri/AGENTS.md'
 ---
 
+> 🔵 **2026-09-15 — Story 6.18 gộp vào Story 10.9** qua `bmad-correct-course`
+> (`_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-15.md`), quyết định của Ice.
+> Khoá `6-18-…` đã gỡ khỏi `sprint-status.yaml`; AC chuyển sang Story 10.9 trong `epics.md`.
+>
+> Spec này **giữ nguyên** và là đầu vào của Story 10.9, cùng với `6-18-ban-do/`, ba tệp
+> `src-tauri/tests/story_6_18_*.rs` và feature `nfr-bench` — không làm lại, không đổi tên.
+> Còn thiếu: **task 7** (chạy đo trên máy nhàn rỗi) và **task 8** (ghi phán quyết sau khi Ice ký).
+>
+> ⚠️ Trạng thái để nguyên `in-progress`: không có giá trị nào nghĩa là "tạm gác", và ghi `done`
+> thì sai sự thật. Hệ quả đã biết: `bmad-build` sẽ còn liệt kê spec này là spec đang làm
+> (`step-01-clarify-and-route.md:31`) cho tới khi Story 10.9 chạy.
+
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
 
 ## Intent

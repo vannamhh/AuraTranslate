@@ -26,7 +26,10 @@ Bề mặt đầu tiên người dùng chạm vào sản phẩm — nơi bảng 
 - Story 6.15: Xuất xứ tài liệu ở tầng Chương
 - Story 6.16: Nhập tài liệu song ngữ hai cột
 - Story 6.17: Khớp câu trong từng cặp hàng
-- Story 6.18: Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật
+- Story 6.18: Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật — 🔵 *(gộp vào **Story 10.9** ngày 2026-09-15 qua `correct-course`)*
+- Story 6.6b: Nhập nhiều tệp cùng lúc — 🔵 *(thêm 2026-09-15)*
+- Story 6.7b: Thêm Chương vào Tác phẩm có sẵn — 🔵 *(thêm 2026-09-15)*
+- Story 6.16b: Bộ lọc "cần xem" cho bản xem trước song ngữ — 🔵 *(thêm 2026-09-15)*
 
 ## Requirements & Constraints
 
@@ -60,4 +63,4 @@ Bề mặt đầu tiên người dùng chạm vào sản phẩm — nơi bảng 
 - Story 6.1 đi trước 6.3, 6.9 và phần HTTP của 6.7/6.8. Story 6.2 là nền cho mọi story nguồn khác.
 - Story 6.7 là điều kiện cho 6.8 (allowlist) và 6.11 (tải ảnh); 6.8 lại là điều kiện để 6.11 tải ảnh qua tầng 2 hợp lệ.
 - Story 6.9, 6.6, 6.3, 6.5 nuôi dữ liệu vào 6.10a, và 6.10a là nền bắt buộc cho 6.10. 6.11 là nền cho 6.13, 6.14; 6.12 cấp năng lực đếm đoạn trong ô bảng — điều kiện cho một cổng kiểm ở Epic 8.
-- Story 6.16 phụ thuộc mẫu phân tách của 6.6, là điều kiện cho 6.17; 6.18 phụ thuộc đường nhập hàng loạt 6.6/6.7; 6.13 là điều kiện để alt-text/caption tự động vào TM ở Epic 7 và Glossary.
+- Story 6.16 phụ thuộc mẫu phân tách của 6.6, là điều kiện cho 6.17; 6.18 phụ thuộc đường nhập hàng loạt 6.6/6.7 🔵 *(6.18 gộp vào Story 10.9 ngày 2026-09-15; 6.6b nối tiếp 6.6, 6.7b thuộc tầng Library và không phụ thuộc đường URL, 6.16b nối tiếp 6.16 + 6.10)*; 6.13 là điều kiện để alt-text/caption tự động vào TM ở Epic 7 và Glossary.

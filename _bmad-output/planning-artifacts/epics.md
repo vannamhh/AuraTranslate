@@ -779,7 +779,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR129 ⇄ | Epic 6 ⇄ Epic 7 | Caption là Segment vai `caption` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
 | FR130 | Epic 8 | Chọn cách xuất ảnh: link gốc hay file ảnh |
 | FR131 | Epic 8 | Khối ghi nguồn, mặc định tắt |
-| FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch*. **Nền (đường dữ liệu theo từng Chương): Story 6.10a · bộ lọc: Story 6.10** 🔵 *(tách 2026-09-08 qua `correct-course`, cùng khuôn tách theo TẦNG của lượt 3.4b)* |
+| FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch*. **Nền (đường dữ liệu theo từng Chương): Story 6.10a · bộ lọc: Story 6.10** 🔵 *(tách 2026-09-08 qua `correct-course`, cùng khuôn tách theo TẦNG của lượt 3.4b)* · **vế song ngữ: Story 6.16b** 🔵 *(thêm 2026-09-15 qua `correct-course`)* |
 
 **Tổng kiểm:** 132/132 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **12** · Epic 4: **14** · Epic 5: 17 · Epic 6: **16** · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
 
@@ -791,9 +791,9 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 |---|---|---|
 | NFR1 Auto-Lookup p95 < 100 ms | Epic 1 | Đóng `[A1]` — backend chỉ tiêu 0,05 ms, phần còn lại là IPC + render |
 | NFR2 Auto-save không gai trễ | Epic 2 | Đo cùng lúc với NFR18 |
-| NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A6]` / Q4 — đóng ở Story 6.18, không đóng ở Epic 5 |
-| NFR4 Khởi động < 3 s | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A7]` / Q4 — như NFR3 |
-| NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A8]` / Q4 — như NFR3 |
+| NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 *(sơ bộ)* · **Epic 10 *(đóng)*** | `[A6]` / Q4 — đóng ở **Story 10.9**, không đóng ở Epic 5. 🔵 *(dời 2026-09-15 qua `correct-course`: Story 6.18 gộp vào Story 10.9)* |
+| NFR4 Khởi động < 3 s | Epic 5 *(sơ bộ)* · **Epic 10 *(đóng)*** | `[A7]` / Q4 — như NFR3 |
+| NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 *(sơ bộ)* · **Epic 10 *(đóng)*** | `[A8]` / Q4 — như NFR3 |
 | NFR6 Kích thước bản cài **≤ 400.000.000 byte** *(payload sản phẩm; WebView2 Runtime nhúng nằm ngoài — sửa 2026-08-03, trần nâng 2026-08-05)* | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1 (Story 1.1, xong) · nửa Windows đo ở **Story 1.3** · đối chiếu tổng ở **Story 1.9** · 🔄 **đo lại với hai lớp gỡ rời ở Story 1.10 (xong): 343.991.430 byte, ĐẠT trần mới** · **hai lớp gỡ rời còn lại phải đo TRƯỚC khi hứa đóng gói** *(story nối tiếp 1.10)* · nghiệm thu cuối ở Epic 10 |
 | NFR7 Tra cứu offline 100% | Epic 1 | |
 | NFR8 Chỉ mục chính phân biệt dấu | Epic 1 (từ điển) · Epic 5 (Library) | AD-27 áp cho cả hai chỉ mục |
@@ -927,7 +927,7 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 - **AD-32 khác AD-5 một cách cố ý:** gộp/tách **Chương** chỉ đổi `chapter_id` và `ord`; `segment.id`, lịch sử phiên bản và trạng thái xác nhận **giữ nguyên**. Cài FR15 như "tạo lại segment" sẽ phá sạch những Chương đã dịch xong.
 - **AD-5:** chỗ đánh dấu FR119 trỏ tới segment đã về hưu **ở lại, không bị xoá im lặng** — hiện kèm ghi chú *câu này đã đổi*.
 - ⚠️ **Q4 không đóng được ở epic này — và đó là thiết kế, không phải chỗ hở.** Điều kiện đóng `[A6] [A7] [A8]` là *"đo trên thư viện thật **5.000 Chương**"*. Nhưng **không có đường nào tạo ra 5.000 Chương trước Epic 6** — đường nhập tối thiểu của Epic 1 chỉ dán tay từng Chương. Sinh dữ liệu giả đo được **tốc độ** nhưng không đo được thứ NFR8 tồn tại để bảo vệ: phân bố dấu tiếng Việt thật (`má / ma / mà / mả / mã / mạ`). Cùng lớp vấn đề áp cho **bảng chờ Glossary của Epic 3** — màn hình thiết kế cho hàng trăm dòng chỉ hỏng ở quy mô thật.
-  🔵 **Sửa 2026-08-13 — mệnh đề *"ba đường xử lý, chưa chọn"* ở đây đã hết đúng.** Đường *(b)* (*dời việc đo NFR3/4/5 xuống sau Epic 6*) đã được chọn và **đã viết ra**: **Story 6.18** — *"Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật"* — mang AC ghi thẳng *"đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương"*. Thân tài liệu đã đi trước dòng tóm tắt này từ lúc Epic 6 được viết; dòng cũ đang mời người đọc tưởng một rủi ro còn treo trong khi nó đã có chủ. ⇒ **Story 5.14 ghi số sơ bộ trên thư viện nhỏ; Story 6.18 đóng Q4.** Ở thứ tự thực thi chốt 2026-08-13 (`5 → 6`), hai story này nằm **liền kề nhau** — gần hơn thứ tự cũ, không xa hơn.
+  🔵 **Sửa 2026-08-13 — mệnh đề *"ba đường xử lý, chưa chọn"* ở đây đã hết đúng.** Đường *(b)* (*dời việc đo NFR3/4/5 xuống sau Epic 6*) đã được chọn và **đã viết ra**: **Story 6.18** — *"Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật"* — mang AC ghi thẳng *"đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương"*. Thân tài liệu đã đi trước dòng tóm tắt này từ lúc Epic 6 được viết; dòng cũ đang mời người đọc tưởng một rủi ro còn treo trong khi nó đã có chủ. ⇒ **Story 5.14 ghi số sơ bộ trên thư viện nhỏ; Story 6.18 đóng Q4.** Ở thứ tự thực thi chốt 2026-08-13 (`5 → 6`), hai story này nằm **liền kề nhau** — gần hơn thứ tự cũ, không xa hơn. 🔵 **2026-09-15 — Story 6.18 gộp vào Story 10.9** qua `correct-course` (`sprint-change-proposal-2026-09-15.md`); vế *"hai story này nằm liền kề nhau"* đã hết đúng, và Q4 nay đóng ở nghiệm thu cuối.
 - FR11 giao thoa với đặc tả typography của `EXPERIENCE.md` (ba mức Thoáng/Cân/Đặc, sàn giãn dòng 1.66) — PRD bàn giao mục này có chủ ý.
 
 ---
@@ -938,7 +938,8 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 
 **FRs covered:** FR13 *(hoàn thiện nhánh `.docx`)*, FR14, FR42, FR43, FR44, FR45, FR115, FR116, FR122, FR123, FR124, FR125, FR126, FR127, FR128, FR129, FR132
 
-**NFRs:** NFR12 *(điểm ra mạng thứ ba)*, NFR19, **NFR3 · NFR4 · NFR5** *(đóng ở Story 6.18 — Epic 5 chỉ đo sơ bộ vì chưa có đường tạo 5.000 Chương)*
+**NFRs:** NFR12 *(điểm ra mạng thứ ba)*, NFR19
+🔵 *(2026-09-15 qua `correct-course` — **NFR3 · NFR4 · NFR5 dời sang Epic 10**, Story 10.9: Story 6.18 gộp vào đó. Epic 5 vẫn chỉ đo sơ bộ.)*
 
 **Ghi chú cài đặt:**
 - **AD-39 là xương sống của epic này:** một pipeline, **cùng thứ tự cho mọi nguồn**. Ca hỏng cụ thể nhất và dễ viết test nhất — đặt bước tách Chương **trước** bước giải mã bảng mã: mẫu chạy trên chữ rác, cả file 40 MB ra **đúng một Chương**, không lỗi nào được ném.
@@ -953,7 +954,7 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 
 > **Thứ tự story đã đổi 2026-08-03, và epic có thêm một story.** *Đọc `.docx`* chuyển từ vị trí 7 xuống **Story 6.12**, sau *Ảnh tải về `.atproj`* (**Story 6.11**) — vì `.docx` có ảnh và phải đi vào **đường xử lý tài sản** do story ảnh mở ra. Các story 6.7–6.11 dồn lên một bậc. Xoay xuống thay vì hoán vị, vì đường xử lý tài sản lại cần `Fetcher` của *Nhập từ URL* (**Story 6.7**) — hoán vị thẳng sẽ đẩy story ảnh lên trước cả đường tải, tạo ra một phụ thuộc tiến mới.
 >
-> **Story 6.18** *(đo lại NFR3, NFR4, NFR5)* là story mới: Story 5.14 ở Epic 5 **không thể** hoàn thành mục đích của nó vì Epic 5 chưa có đường nào tạo ra 5.000 Chương — nhập hàng loạt (FR14) nằm ở chính epic này. Trước bổ sung này, phép đo *"phải chạy lại sau Epic 6"* là một lời nhắc không có chủ. **Q4 của PRD đã được sửa** từ *"Giai đoạn 3"* thành *"sau Giai đoạn 3b"* cho khớp.
+> **Story 6.18** *(đo lại NFR3, NFR4, NFR5)* là story mới: Story 5.14 ở Epic 5 **không thể** hoàn thành mục đích của nó vì Epic 5 chưa có đường nào tạo ra 5.000 Chương — nhập hàng loạt (FR14) nằm ở chính epic này. Trước bổ sung này, phép đo *"phải chạy lại sau Epic 6"* là một lời nhắc không có chủ. **Q4 của PRD đã được sửa** từ *"Giai đoạn 3"* thành *"sau Giai đoạn 3b"* cho khớp. 🔵 *(2026-09-15: Story 6.18 **gộp vào Story 10.9** qua `correct-course`; Q4 đóng ở nghiệm thu cuối, Giai đoạn 7.)*
 
 ### Epic 7: Translation Memory — không dịch lại, không tra lại thứ đã dịch
 
@@ -1014,7 +1015,7 @@ Một người dịch phổ thông tải bản cài từ GitHub Releases, đối
 
 **FRs covered:** FR105, FR106, FR107, FR108, FR109, FR110, FR111, FR112
 
-**NFRs:** NFR6 *(nghiệm thu cuối)*, NFR14 *(nghiệm thu cuối)*, NFR15 *(rà toàn bộ)*
+**NFRs:** NFR6 *(nghiệm thu cuối)*, NFR14 *(nghiệm thu cuối)*, NFR15 *(rà toàn bộ)*, **NFR3 · NFR4 · NFR5** *(đóng Q4 — Story 10.9)* 🔵 *(gộp từ Story 6.18 ngày 2026-09-15 qua `correct-course`)*
 
 **Ghi chú cài đặt:**
 - **Chuỗi ràng buộc nối tiếp, đừng vô tình gỡ một mắt xích:** không kinh phí → không ký số → niềm tin phải đến từ nơi khác → build công khai + checksum (FR106, FR107) → **và cấm cơ chế tự cập nhật** (FR111). Một cơ chế tự cập nhật trên bản không ký số là **đường tấn công thật**.
@@ -4432,7 +4433,7 @@ So that tôi không mất chỗ nào mà cũng không đứt phiên đọc.
 
 ### Story 5.14: Đo NFR3, NFR4, NFR5 và ghi lại trạng thái ba ngưỡng tạm
 
-**Covers:** NFR3 · NFR4 · NFR5 *(đo **sơ bộ** — phép đo nghiệm thu ở Story 6.18)*
+**Covers:** NFR3 · NFR4 · NFR5 *(đo **sơ bộ** — phép đo nghiệm thu ở Story 6.18 🔵 gộp vào **Story 10.9** ngày 2026-09-15)*
 
 As a chủ dự án,
 I want có số đo thật thay vì ba giả định,
@@ -4461,6 +4462,7 @@ So that tôi biết ngưỡng nào cần hiệu chỉnh và ngưỡng nào **ch�
 **When** báo cáo
 **Then** nêu tường minh rằng phép đo đầy đủ **phải chạy lại sau Epic 6**
 **And** phép chạy lại đó là **Story 6.18**, có chủ và có nghiệm thu riêng — không phải một lời nhắc trôi nổi
+🔵 *(2026-09-15: Story 6.18 gộp vào **Story 10.9** qua `correct-course`. Mệnh đề "có chủ, có nghiệm thu riêng" không đổi, chỉ đổi chỗ.)*
 
 **Given** dữ liệu sinh giả dùng để đo tốc độ
 **When** dùng
@@ -4721,13 +4723,54 @@ So that tôi không phát hiện ra 14 chương sai sau khi đã dịch 200 chư
 **When** ở bất kỳ thời điểm nào
 **Then** **không có gì ghi xuống đĩa**
 
-**Given** người dùng chọn nhiều file cùng lúc
-**When** nhập
-**Then** mỗi file thành một Chương hoặc được tách tiếp theo mẫu, theo lựa chọn của người dùng
+🔵 *(AC "người dùng chọn nhiều file cùng lúc — mỗi file thành một Chương hoặc được tách tiếp theo mẫu, theo lựa chọn của người dùng" **chuyển sang Story 6.6b** ngày 2026-09-15 qua `correct-course` — `sprint-change-proposal-2026-09-15.md`. Ice tách nó khỏi Story 6.6 ngày 2026-09-05 (`deferred-work.md:10076-10103`). AC không mất, nó đổi chỗ.)*
 
 **Given** người dùng xác nhận
 **When** nhập chạy
 **Then** các Chương vào Library ở trạng thái **Chưa bắt đầu**
+
+---
+
+### Story 6.6b: Nhập nhiều tệp cùng lúc
+
+**Covers:** FR14 *(vế "chọn nhiều file cùng lúc" — vế tách theo mẫu ở Story 6.6)*
+**Thừa kế AC cắt ngang:** Story 6.10a *(dữ liệu theo từng Chương)* · Story 6.10 *(FR132, "cần xem")*
+
+> 🔵 *(Thêm 2026-09-15 qua `correct-course` — `sprint-change-proposal-2026-09-15.md`, mục AI-9 của
+> retro Epic 6. AC gốc là AC7 của Story 6.6, Ice tách ra ngày 2026-09-05. Vế *"đứng NGAY SAU 6.6 và
+> TRƯỚC 6.7"* trong sổ nợ đã hết đúng: 6.7 → 6.17 xong mà không cần nó.)*
+
+As a người dịch có một thư mục mỗi tệp một chương,
+I want đưa nhiều tệp vào một lần và soát chúng trong cùng một màn xem trước,
+So that tôi không nhập từng tệp một, và không tệp nào bị bỏ lại im lặng.
+
+**Acceptance Criteria:**
+
+**Given** người dùng đưa vào N tệp cùng lúc (N > 1)
+**When** nhập
+**Then** mỗi tệp thành một Chương, **hoặc** được tách tiếp theo mẫu phân tách — theo lựa chọn của người dùng
+
+**Given** N tệp
+**When** màn xem trước dựng
+**Then** mọi tệp đều có mặt — không tệp nào bị bỏ ngoài màn xem trước chỉ kèm một thông báo
+
+**Given** một lượt nhập N tệp
+**When** màn xem trước hiển thị
+**Then** đây là *"một lần nhập nhiều Chương"* theo đúng nghĩa AC đầu của Story 6.10: hai con số *cần xem · sạch* và `⌥W` áp nguyên
+**And** mỗi Chương mang dữ liệu của **chính nó** (Story 6.10a)
+
+**Given** màn xem trước chưa được xác nhận
+**When** ở bất kỳ thời điểm nào
+**Then** **không có gì ghi xuống đĩa**
+
+**Given** người dùng xác nhận
+**When** nhập chạy
+**Then** các Chương vào Library ở trạng thái **Chưa bắt đầu**
+
+**Ghi chú cài đặt** *(đo 2026-09-15, HEAD `1eb781b`)*:
+- Đường thả tệp **đã** nhận đủ N đường dẫn: Rust phát cả danh sách (`lib.rs:1334-1336`), TS lấy `paths[0]` (`libraryImport.ts:448`) và hiện `mode.library.drop_only_first` khi N > 1 (`:454`). Bẫy `MutexGuard` ở `deferred-work.md:10091-10094` chỉ áp nếu story thêm một hộp thoại (AD-48).
+- ⚠️ Hai câu hỏi chốt ở spec, không chốt ở đây: (a) một bảng mã cho cả lượt hay mỗi tệp một — Story 6.7 chốt *"một"* cho URL vì cùng một site, lý do đó không mặc nhiên đúng cho tệp; (b) một tệp không đọc được thì giữ chỗ và khoá xác nhận như link hỏng (Story 6.10a) hay khác.
+- Chạy sau AI-4 của retro Epic 6: AI-4 chuyển `confirm_import_with_encoding` sang `async`, và story này đẩy N tệp qua đúng lệnh đó.
 
 ---
 
@@ -4747,7 +4790,8 @@ So that công cụ local-first của tôi không âm thầm biến thành một 
 
 **Given** danh sách link
 **When** người dùng chọn đích
-**Then** tạo Tác phẩm mới, **hoặc** thêm Chương vào một Tác phẩm sẵn có
+**Then** tạo Tác phẩm mới
+🔵 *(Vế **"hoặc thêm Chương vào một Tác phẩm sẵn có"** chuyển sang **Story 6.7b** ngày 2026-09-15 qua `correct-course` — `sprint-change-proposal-2026-09-15.md`. Ice tách nó khỏi Story 6.7 ngày 2026-09-06 (`deferred-work.md:10354-10386`). AC không mất, nó đổi chỗ.)*
 
 **Given** ô dán link
 **When** hiển thị
@@ -4770,6 +4814,54 @@ So that công cụ local-first của tôi không âm thầm biến thành một 
 **Given** người dùng chưa bấm nút tải
 **When** quan sát lưu lượng mạng
 **Then** **không có lời gọi nào**
+
+---
+
+### Story 6.7b: Thêm Chương vào Tác phẩm có sẵn
+
+**Covers:** FR122 *(vế "thêm Chương vào Tác phẩm sẵn có" — vế tạo Tác phẩm mới ở Story 6.7)*
+**Thừa kế AC cắt ngang:** Story 6.7 *(hai con số N link · sẽ tạo N Chương; không tự tìm link)* · Story 6.10a · Story 6.10 *(FR132)* · Story 5.4 *(trạng thái suy ra)*
+
+> 🔵 *(Thêm 2026-09-15 qua `correct-course` — `sprint-change-proposal-2026-09-15.md`, mục AI-9 của
+> retro Epic 6. Năng lực thuộc **tầng Library**, không thuộc riêng đường URL: dựng xong thì đường
+> tệp và đường dán tay dùng lại được. Không phụ thuộc Story 6.6b theo chiều nào.)*
+
+As a người dịch đang theo một bộ truyện ra chương mới mỗi tuần,
+I want dán link các chương mới vào đúng Tác phẩm tôi đang dịch,
+So that bộ truyện của tôi không vỡ thành nhiều Tác phẩm rời chỉ vì tôi nhập làm nhiều đợt.
+
+**Acceptance Criteria:**
+
+**Given** ô dán link
+**When** người dùng chọn đích
+**Then** chọn được **Tác phẩm mới** hoặc **một Tác phẩm sẵn có** trong Library
+
+**Given** đích là một Tác phẩm sẵn có
+**When** xác nhận
+**Then** các Chương mới được thêm vào **chính Tác phẩm đó** — không Tác phẩm mới nào được tạo
+**And** Chương cũ của Tác phẩm **không đổi một byte**: segment, bản dịch, lịch sử, trạng thái
+
+**Given** đích là một Tác phẩm sẵn có
+**When** màn xem trước áp luật làm sạch
+**Then** luật tầng Tác phẩm là luật của **Tác phẩm đích**, không phải của Tác phẩm đang mở
+**And** nếu một Tác phẩm khác đang mở cùng lúc, luật của nó **không** chạm lượt nhập này
+
+**Given** Chương mới được thêm
+**When** tạo
+**Then** mặc định **Chưa bắt đầu**, và trạng thái Tác phẩm suy lại theo Story 5.4
+**And** một ghi đè thủ công trạng thái Tác phẩm **giữ nguyên**
+
+**Given** màn xem trước chưa được xác nhận
+**When** ở bất kỳ thời điểm nào
+**Then** **không có gì ghi xuống đĩa** — kể cả xuống `.atproj` của Tác phẩm đích
+
+**Ghi chú cài đặt** *(đo 2026-09-15, HEAD `1eb781b`)*:
+- Năng lực chưa có một dòng nào: grep `add_chapter|append_chapter|import_chapter|addChapter|appendChapter` trên `src-tauri/src` và `src` = **0 tệp**. Hai lệnh xác nhận đều gọi `create_work` (`project.rs:3392`, `:3747`), và `create_work` (`:354`) không nhận Tác phẩm đích. Bề mặt ĐỌC đã có: `library_list_works` (`commands/library.rs:682`).
+- `store_for_tier` phân giải tầng Tác phẩm từ `OpenWorkState` — Tác phẩm **đang mở** (`deferred-work.md:10059-10064`). Đó là lý do AC thứ ba tồn tại: đính luật của Tác phẩm khác vào lượt nhập là đúng lớp lỗi mà FR124 sinh ra để chặn.
+- Chỉ mục Library có **một đường ghi duy nhất** (AD-44): Chương thêm vào phải đi qua đường đó. Dev kiểm lại lúc soạn spec; nếu phải đổi một bất biến thì **dừng và giao Winston**, không tự soạn `AD`.
+- ⚠️ Ba câu hỏi chốt ở spec, không chốt ở đây: (a) Chương mới nối cuối hay chọn vị trí (Story 5.8 cho sắp lại sau khi nhập); (b) `work.source_lang` là một cột — lượt nhập lấy ngôn ngữ của Tác phẩm đích hay hỏi lại; (c) đường tệp, dán tay, song ngữ có nghiệm thu trong story này không, hay chỉ đường URL mà FR122 đòi.
+- Mockup `web-import.html:198-208` vẽ bộ chọn đích cùng cột phải với tên Tác phẩm và ngôn ngữ nguồn; Story 6.7 dựng cột đó chỉ với *"Tác phẩm mới"*.
+- Story này **không** nhận mục `deferred-work.md:10056-10074` (bề mặt soạn luật tầng Tác phẩm, chủ Ice). Nó chỉ đòi **nửa đọc** của tầng ấy phải đúng Tác phẩm.
 
 ---
 
@@ -5234,6 +5326,9 @@ So that nghĩa vụ ghi nguồn không phụ thuộc vào trí nhớ của tôi 
 
 **Covers:** FR115
 
+> 🔵 *(2026-09-15 — FR132 (bộ lọc "cần xem", Story 6.10) **không** được story này thừa kế; vế song
+> ngữ nằm ở **Story 6.16b**. Chỗ lệch lộ ra ở retro Epic 6, phát hiện F4.)*
+
 As a người biên tập,
 I want đưa một bản dịch do người khác làm vào công cụ mà không mất bản dịch đó,
 So that tôi biên tập lại nó trong môi trường của mình thay vì trong một file Word.
@@ -5321,40 +5416,75 @@ So that một lần khớp im lặng không đẩy bản dịch lệch đi một
 
 ---
 
-### Story 6.18: Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật
+### Story 6.16b: Bộ lọc "cần xem" cho bản xem trước song ngữ
 
-**Covers:** NFR3 · NFR4 · NFR5 *(nghiệm thu — đóng A6, A7, Q4)*
+**Covers:** FR132 *(đường song ngữ — đường đơn ngữ ở Story 6.10a + Story 6.10)*
+**Thừa kế AC cắt ngang:** Story 6.10 *(toàn bộ, trừ hai nguyên nhân không áp được)* · Story 6.10a *(dữ liệu theo từng Chương)*
 
-As a chủ dự án,
-I want ba ngưỡng tạm được đo lại trên một thư viện 5.000 Chương dựng bằng chính đường nhập của sản phẩm,
-So that Q4 đóng được bằng số đo chứ không bằng phán đoán.
+> 🔵 *(Thêm 2026-09-15 qua `correct-course` — `sprint-change-proposal-2026-09-15.md`, mục AI-5 của
+> retro Epic 6, Ice chọn phương án (A). Story 6.16 dựng một lần nhập nhiều Chương cho song ngữ sau
+> khi Story 6.10 đã có, và không spec nào của hai bên hỏi AC đầu của 6.10 có áp lên đường mới
+> không — retro Epic 6, phát hiện F4.)*
+
+As a người biên tập nhập một bộ truyện song ngữ năm mươi Chương,
+I want thấy ngay Chương nào luật làm sạch hay bước chuẩn hoá đã đụng mạnh tay,
+So that tôi không bấm xác nhận mù chỉ vì tệp này do người khác dịch.
 
 **Acceptance Criteria:**
 
-**Given** đường nhập hàng loạt (FR14) đã tồn tại ở epic này
-**When** dựng bộ dữ liệu đo
-**Then** tạo được một thư viện **5.000 Chương** bằng **chính đường nhập của sản phẩm**, không bằng một script nhét thẳng vào database
-**And** đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương
+**Given** một lần nhập song ngữ nhiều Chương
+**When** hiển thị màn xem trước
+**Then** đầu màn hình luôn hiện **hai con số**: *`N` Chương cần xem* và *`M` Chương sạch*
 
-**Given** thư viện 5.000 Chương
-**When** đo
-**Then** ghi lại **p95 tìm kiếm full-text** (NFR3), **thời gian khởi động tới lúc Library dùng được** (NFR4), và **bộ nhớ khi nhàn rỗi** (NFR5)
-**And** đo trên **cả macOS lẫn Windows**
+**Given** một Chương song ngữ
+**When** phân loại
+**Then** dùng **cùng** phép phân loại của Story 6.10 trên ba tín hiệu có nghĩa với đường này: **độ dài** · **luật làm sạch xoá quá nhiều** · **số dòng bị bước chuẩn hoá nối lại**
+**And** hai nguyên nhân *bóc ra ngắn bất thường* và *link hỏng* **không áp** — đường này không có bước bóc nội dung và không có link
 
-**Given** số đo và ba ngưỡng tạm A6, A7, A8
-**When** đối chiếu
-**Then** mỗi ngưỡng nhận **đúng một** trong ba kết luận: **giữ nguyên** · **sửa thành số đo được** · **vượt quá xa nên là thay đổi tầng PRD cần chủ dự án quyết**
-**And** kết luận được ghi vào PRD, không chỉ ghi trong một lần chạy
+**Given** một Chương *cần xem*
+**When** hiển thị
+**Then** nêu rõ **nguyên nhân nào** khiến nó được xếp vào nhóm đó
 
-**Given** Story 5.14 đã ghi số sơ bộ trên thư viện nhỏ
-**When** story này hoàn tất
-**Then** kết quả ở đây **thay thế** số đó
-**And** Story 5.14 được đánh dấu rõ là phép đo **sơ bộ**, không phải phép đo nghiệm thu
+**Given** một dấu hiệu **không đo được** cho một Chương
+**When** phân loại
+**Then** Chương đó **không** được xếp vào nhóm *sạch* dựa trên dấu hiệu ấy
+**And** trạng thái *không đo được* **phân biệt được** với *đã đo và sạch*
 
-**Given** ba kết luận đã ghi
-**When** hoàn tất
-**Then** **Q4 đóng**
-**And** không còn ngưỡng nào của NFR3, NFR4, NFR5 mang nhãn ngưỡng tạm
+**Given** phím `⌥W`
+**When** bấm trên màn song ngữ
+**Then** lọc về **chỉ nhóm cần xem**
+
+**Given** bảng mã được đoán với độ tin cậy thấp
+**When** màn song ngữ hiển thị
+**Then** cờ tin cậy thấp **cấp lượt nhập** hiện ra, ngoài hai con số — quyết định ① của Story 6.10
+
+**Given** một lượt nhập song ngữ và **không thao tác tay nào**
+**When** xác nhận
+**Then** byte ghi xuống `.atproj` **trùng đúng** kết quả trước story này — story này đổi thứ **xem được**, không đổi thứ **ghi xuống**
+
+**Ghi chú cài đặt** *(đo 2026-09-15, HEAD `1eb781b`)*:
+- Hai tín hiệu bị **TÍNH RỒI VỨT**, đúng hình dạng Story 6.10 đã sửa cho đường đơn ngữ: làm sạch từng ô giữ `cleaned.text` (`pipeline.rs:895`), chuẩn hoá từng ô giữ `.text` (`:949`, `:952`); mỗi `ImportedChapter` song ngữ mang `cleanup_report: None` và `joined_line_count: None` (`:1006-1012`).
+- Màn song ngữ **không có danh sách Chương**: chỉ một `chapter_count` theo từng ứng viên bảng mã (`BilingualImportPreviewOverlay.vue:414`), và `BilingualImportEncodingPreview` (`project.rs:3526-3541`) có sáu trường, không trường nào là Chương. Màn đơn ngữ dựng `ChapterSplitPreviewWire` rồi gọi `review::classify` (`:2265-2278`). ⇒ Phần lớn khối lượng là dựng danh sách Chương; nếu spec đo thấy quá lớn thì **tách theo TẦNG** như 6.10a/6.10.
+- Kiểu dữ liệu đã chở `confidence` (`project.rs:3527`); giao diện song ngữ nhắc nó **0 lần**.
+- ⚠️ Ba câu hỏi chốt ở spec, không chốt ở đây: (a) tín hiệu làm sạch và nối dòng đếm trên cột nguồn, cột đích, hay cả hai — hôm nay **cả hai cột** đều bị làm sạch và chuẩn hoá; (b) một hàng lệch số câu chưa nối tay (Story 6.17) có là nguyên nhân *cần xem* thứ sáu không — đó là quyết định sản phẩm, AC hôm nay không có; (c) `mockups/bilingual-import.html` nhắc "cần xem" 0 lần — theo khuôn màn đơn ngữ, hay giao UX vẽ trước.
+
+---
+
+### Story 6.18: Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật
+
+> 🔵 **GỘP VÀO STORY 10.9 ngày 2026-09-15** qua `correct-course` —
+> `sprint-change-proposal-2026-09-15.md`, quyết định của Ice (câu hỏi mở 1 của retro Epic 6).
+> Năm khối AC của story này **chuyển nguyên văn sang Story 10.9**, chỉ sửa *"ở epic này"* thành
+> *"ở Epic 6"*. AC không mất, nó đổi chỗ.
+>
+> Phần việc đã làm là **đầu vào** của Story 10.9, không làm lại và không đổi tên: task 1–6 của
+> `spec-6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that.md`, bộ đo
+> `implementation-artifacts/6-18-ban-do/`, ba tệp `src-tauri/tests/story_6_18_*.rs`, và feature
+> `nfr-bench`. Còn thiếu: **task 7** (chạy đo trên máy nhàn rỗi — chưa lần nào một `.app` được mở
+> bằng `6-18-ban-do/run.sh`) và **task 8** (ghi phán quyết vào PRD/SPEC sau khi Ice ký).
+>
+> Việc thu hẹp phép đo về **chỉ macOS** là quyết định trong *spec* 6.18, khi phần Windows còn đợi
+> bảng nghiệm thu cuối dự án (B7). Tới Story 10.9 bảng ấy đã mở, nên spec của 10.9 quyết lại.
 
 ---
 
@@ -6998,7 +7128,7 @@ So that một khiếu nại không biến thành một đợt sửa mã nguồn.
 
 ### Story 10.9: Nghiệm thu cuối các ngưỡng phi chức năng
 
-**Covers:** nghiệm thu cuối toàn bộ NFR1–NFR19
+**Covers:** nghiệm thu cuối toàn bộ NFR1–NFR19 · **NFR3 · NFR4 · NFR5** *(đóng A6, A7, A8 và Q4 — gộp từ Story 6.18 ngày 2026-09-15)*
 
 As a chủ dự án,
 I want một cổng cuối kiểm lại những ngưỡng chỉ đo được khi sản phẩm đã đủ,
@@ -7041,3 +7171,33 @@ So that v1 phát hành với bằng chứng chứ không với giả định.
 **Given** nghĩa vụ ngoài mã nguồn
 **When** hoàn thành v1
 **Then** **thông báo cho tác giả Đặng Thế Kiệt** — đề nghị tường minh trong thư đồng ý, và là điều kiện của phép sử dụng
+
+> 🔵 *(Năm khối AC dưới đây **gộp từ Story 6.18** ngày 2026-09-15 qua `correct-course` —
+> `sprint-change-proposal-2026-09-15.md`. Giữ nguyên văn, chỉ sửa *"ở epic này"* thành *"ở Epic 6"*.
+> Đầu vào đã có: task 1–6 của `spec-6-18-…md`, bộ đo `6-18-ban-do/`, ba tệp `story_6_18_*.rs`,
+> feature `nfr-bench`.)*
+
+**Given** đường nhập hàng loạt (FR14) đã tồn tại ở Epic 6
+**When** dựng bộ dữ liệu đo
+**Then** tạo được một thư viện **5.000 Chương** bằng **chính đường nhập của sản phẩm**, không bằng một script nhét thẳng vào database
+**And** đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương
+
+**Given** thư viện 5.000 Chương
+**When** đo
+**Then** ghi lại **p95 tìm kiếm full-text** (NFR3), **thời gian khởi động tới lúc Library dùng được** (NFR4), và **bộ nhớ khi nhàn rỗi** (NFR5)
+**And** đo trên **cả macOS lẫn Windows**
+
+**Given** số đo và ba ngưỡng tạm A6, A7, A8
+**When** đối chiếu
+**Then** mỗi ngưỡng nhận **đúng một** trong ba kết luận: **giữ nguyên** · **sửa thành số đo được** · **vượt quá xa nên là thay đổi tầng PRD cần chủ dự án quyết**
+**And** kết luận được ghi vào PRD, không chỉ ghi trong một lần chạy
+
+**Given** Story 5.14 đã ghi số sơ bộ trên thư viện nhỏ
+**When** phép đo này hoàn tất
+**Then** kết quả ở đây **thay thế** số đó
+**And** Story 5.14 được đánh dấu rõ là phép đo **sơ bộ**, không phải phép đo nghiệm thu
+
+**Given** ba kết luận đã ghi
+**When** hoàn tất
+**Then** **Q4 đóng**
+**And** không còn ngưỡng nào của NFR3, NFR4, NFR5 mang nhãn ngưỡng tạm

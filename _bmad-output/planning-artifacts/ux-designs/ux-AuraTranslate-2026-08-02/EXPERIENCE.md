@@ -139,7 +139,9 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 **Trạng thái bảng mã** *(2026-08-03)* — ba giá trị: **nguồn tự khai** (`.docx`, hoặc HTTP có `charset` tin được) · **tự đoán, tin cậy cao** · **tự đoán, tin cậy thấp**. Chỉ giá trị thứ ba mở dải đối chiếu năm ứng viên. Không có trạng thái lỗi: một file đọc sai bảng mã **không hỏng**, nó chỉ ra chữ không đọc được — và đó là thứ mắt phân xử, không phải thứ hệ thống phán quyết.
 
-**Trạng thái một Chương trong lần nhập nhiều link** — **sạch** hoặc **cần xem**. *Cần xem* gom **năm** nguyên nhân: bảng mã tin cậy thấp · phần bóc ra ngắn bất thường so với trung vị các Chương khác · luật làm sạch xoá quá nhiều · **số dòng bị bước chuẩn hoá nối lại cao bất thường so với trung vị các Chương khác** · link hỏng. Bộ đếm ở đầu màn xem trước luôn hiện cả hai con số.
+**Trạng thái một Chương trong một lần nhập nhiều Chương** — **sạch** hoặc **cần xem**. *Cần xem* gom **năm** nguyên nhân: bảng mã tin cậy thấp · phần bóc ra ngắn bất thường so với trung vị các Chương khác · luật làm sạch xoá quá nhiều · **số dòng bị bước chuẩn hoá nối lại cao bất thường so với trung vị các Chương khác** · link hỏng. Bộ đếm ở đầu màn xem trước luôn hiện cả hai con số.
+
+> 🔵 *(Sửa 2026-09-15 qua `correct-course` — "lần nhập nhiều link" đã hẹp hơn AC Story 6.10, vốn áp cho **mọi** lần nhập nhiều Chương: tệp, dán tay, URL. Story 6.16b mở sang đường song ngữ. Nguyên nhân *link hỏng* chỉ có nghĩa trên đường URL, và *bóc ra ngắn bất thường* chỉ trên đường có bước bóc nội dung.)*
 
 > 🔵 *(Nới 2026-09-08 qua `correct-course` — thêm nguyên nhân thứ năm, khớp UX-DR29 trong `epics.md` và FR132 trong `prd.md`. Một Chương **không đo được** một dấu hiệu thì không được đếm là *sạch* dựa trên dấu hiệu ấy: AD-39 đặt bước chuẩn hoá và bước làm sạch TRƯỚC bước tách Chương, nên trên đường tệp/dán tay chỉ Chương đầu có số đếm thật. Màn hình phải phân biệt được **chưa đo** với **đã đo và sạch**.)*
 

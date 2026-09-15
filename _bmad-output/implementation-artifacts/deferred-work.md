@@ -8869,6 +8869,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     RÕ là sơ bộ — đúng §Never của story ("Không đổi ngưỡng NFR3 và không khai NFR3 là đạt").
     ⇒ Story 6.18 là phép đo đủ điều kiện — nó có đường sinh 5.000 Chương thật qua sản phẩm.
     **(Chủ: Story 6.18 — đã có tên trong `epics.md`, không cần Ice chọn lại.)**
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 ## Deferred from: 5-9-tim-kiem-full-text-xuyen-library — vòng review (2026-08-29)
 
@@ -8909,6 +8910,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     biên dưới trung thực của cùng lỗi, không phải toàn bộ mức độ tệ nhất có thể. **Verdict: khuyết
     tật CÓ THẬT, đo được, không phải suy đoán — sửa (tìm theo work_id, hoặc sắp ứng viên theo khả
     năng khớp thay vì thứ tự kho) là một quyết định kiến trúc mới, Chủ: Ice.**
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Mỗi thao tác vòng đời/tổ chức Chương nay MỞ `project.db` của MỌI Tác phẩm trong thư
   viện, không chỉ Tác phẩm vừa sửa.**
@@ -8938,6 +8940,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     không có dấu hiệu chi phí cận biên tăng khi số lượng `.atproj` tăng từ 1 lên 50) không gợi ý
     một khuyết tật đang chờ ở quy mô lớn hơn. Không mở một story sửa mới — giữ nguyên đường hiện
     tại.
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Một lượt `INSERT` hỏng khi ghi hàng văn bản của MỘT Tác phẩm làm trượt cả lượt `rebuild`
   của toàn thư viện — trong khi một lượt ĐỌC hỏng thì chỉ bỏ qua đúng Tác phẩm đó.**
@@ -9073,6 +9076,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     không phải mã. Cùng hình dạng đã có tên: một lượt đo mang theo cả tải máy, không riêng mã.
     **(Chủ: Story 6.18 — đo lại với máy rảnh và cỡ mẫu đủ để median có nghĩa; đây là điều kiện để
     A7 hiệu chỉnh được, không phải một con số để chốt hôm nay.)**
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Bàn đo 5.14 chưa có ca nào bắt được CHÍNH NÓ: một khoá chờ tự gây đã lọt qua vòng review
   2026-09-02 rồi ăn trọn hai lượt đo.**
@@ -9423,6 +9427,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   thật (tệp `.txt`/`.md` thật, không phải văn bản UTF-8 mã hoá lại) vào
   `src-tauri/tests/fixtures/encoding/` (thư mục CHƯA tồn tại) trước khi bàn đo chạy được.
   **Chủ: Ice.**
+  → 🔵 **SỬA 2026-09-15** — đường dẫn ở trên SAI. Bàn đo đọc `_bmad-output/implementation-artifacts/6-1-ban-do/fixtures/encoding/` (`webimport_probe.rs:67-72`, `:262`), không phải `src-tauri/tests/fixtures/encoding/`; chép tệp vào đường cũ thì bàn đo vẫn báo 0 mẫu. Thư mục `fixtures/` bị `.gitignore` của `6-1-ban-do/` loại trừ, nên mẫu chỉ sống trên máy chạy đo. Mục này TRÙNG phép đo với mục ở `:9193` — đóng một thì đóng cả hai. **Chủ: Ice** giữ nguyên.
 
 - ⚠️ **Nhánh "nguồn tự khai" bảng mã qua `charset` của HTTP (`Content-Type` header/`<meta
   charset>`) CHƯA có đường nhập nào để nghiệm thu.** `core::segment::encoding::Confidence::SelfDeclared`
@@ -9867,6 +9872,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   release. Không tự sửa ở đây (§Never spec 6.18: "no product optimization") — fix, nếu Ice chốt
   làm, cần một owner MỚI, CHƯA ĐẶT TÊN ở đây (không phải Story 6.18, phạm vi story này là ĐO;
   Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Ghi chú peak-RSS 100 MB (`deferred-work.md`, mục Story 1.15 cũ — "chưa ai đo đỉnh RSS
   thật cho một tệp 100 MB đi hết chuỗi") chưa tính lượt QUÉT MỚI mà bước 4 thêm vào.** Bước 4
@@ -9897,6 +9903,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   trên `bench-release`, không còn cần một lượt đo lại profile nữa. Không tự sửa ở đây; owner của
   một fix (nếu Ice chốt cần): MỚI, CHƯA ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict
   re-đo).
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Chín tệp vitest mang ca phụ thuộc TẢI MÁY — đỏ giả khi máy bận, và điều đó CÓ SẴN
   trước Story 6.4.** Đo 2026-09-05 bằng phép đối chứng cùng tải: cây story ở load 215-237 cho
@@ -10101,6 +10108,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `epics.md`/`sprint-status.yaml`. 🔴 Thêm nó vào hai tệp đó là một mục quy hoạch còn thiếu, tức
   phải đi qua `correct-course`, không phải một dòng dev tự thêm — cho tới lúc đó mục này mang
   chủ trên GIẤY, và Ice là người kích hoạt lượt ấy.
+  → 🔵 **SỬA 2026-09-15** — Story 6.6b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Vế *"đứng NGAY SAU 6.6 và TRƯỚC 6.7"* đã hết đúng: 6.7 → 6.17 xong mà không cần nó. Tiền đề ② ③ chỉ áp nếu story chọn một hộp thoại — đường THẢ TỆP đã phát đủ N đường dẫn (`lib.rs:1334-1336`), phía TS mới là chỗ lấy `paths[0]` (`libraryImport.ts:448`).
 
 ## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach (2026-09-05)
 
@@ -10350,6 +10358,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   lượt `match_starts` của cùng `ChapterPattern`) vẫn đáng làm theo tỉ lệ, dù tác động tuyệt đối với
   người dùng đã nhỏ đi nhiều so với số debug ban đầu gợi ý. Không tự sửa ở đây; owner của fix: MỚI,
   CHƯA ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — tách phạm vi ở bước định tuyến (2026-09-06)
 
@@ -10384,6 +10393,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   không phải một dòng dev tự thêm — cho tới lúc đó mục này mang chủ trên GIẤY, và Ice là người
   kích hoạt lượt ấy. ⚠️ Sổ này nay mang **HAI** mục cùng hình dạng đó (6.6b và 6.7b); một lượt
   `correct-course` xử được cả hai.
+  → 🔵 **SỬA 2026-09-15** — Story 6.7b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Ba tiền đề đo lại trên `1eb781b` vẫn đúng; số dòng đã trôi: `confirm_import_with_encoding` ở `project.rs:3349` (gọi `create_work` ở `:3392`), ba vỏ `create_work*` ở `:354`, `:1421`, `:1871`.
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link (2026-09-06)
 
@@ -10569,6 +10579,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đề xuất gốc) — cần một lượt đo trên GitHub Actions runner thật, không phải máy phát triển cục bộ
   (kể cả máy này), trước khi coi mục này đã đóng.** Chủ giữ nguyên Story 6.18 / Ice cho lượt đo CI
   kế tiếp.
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 - ⚠️ **Mỗi link dựng một `reqwest::blocking::Client` MỚI — một luồng hệ điều hành cộng một
   runtime tokio cho MỖI URL.** Đo 2026-09-07 (`perf_probe_twenty_links…`): tổng ~5,0 s cho 20
@@ -10595,6 +10606,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tải máy đúng như chính ca đó đã tự cảnh báo ("không con số ms nào từ phiên đo đó được phép chép
   ra ngoài"); số N=100/1.000 ở đây đo trên máy không chia sẻ tải nặng — không mở một story sửa
   mới.
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 ## Deferred from: 6-8-allowlist-mang-hai-tang-va-nhat-ky-domain (2026-09-07)
 
@@ -10963,6 +10975,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   app) hoặc một bàn đo e2e riêng. 390,3 ms phía happy-dom là tín hiệu SƠ BỘ đáng lo (không phải số
   cuối cùng) cho một cơ chế ảo hoá/giới hạn số hàng — fix, nếu Ice chốt cần, là việc của một story
   MỚI.
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
 ## Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc (2026-09-08)
 
@@ -11999,3 +12012,4 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Ice — bảng nghiệm thu Windows cuối dự án, B7 (`epic-2-retro-2026-08-18.md:378`), cùng
     Chủ với mọi mục Windows-chưa-đo khác trong tệp này.** Không một story nào tự nhận việc đo lại
     Windows trước khi bảng nghiệm thu đó mở.
+  → 🔵 **SỬA 2026-09-15** — Story 6.18 gộp vào **Story 10.9** (`correct-course`). Việc thu hẹp về macOS là quyết định của *spec* 6.18, khi phần Windows còn đợi bảng nghiệm thu cuối dự án; tới Story 10.9 bảng ấy đã mở, nên spec 10.9 quyết lại. **Chủ: Ice** giữ nguyên cho tới lúc đó.

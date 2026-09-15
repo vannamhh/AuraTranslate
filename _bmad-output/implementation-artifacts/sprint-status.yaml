@@ -9,6 +9,10 @@
 #   sprint-status xu ly thu tu khoi the nao. Nguon su that cho trinh tu la cot "Thu tu" trong
 #   build-sequence.md va epics.md §Epic List.
 #   Chi tiet: planning-artifacts/sprint-change-proposal-2026-08-13b-thu-tu-epic.md
+#   🔵 DO 2026-09-15 — ve "chua do hai skill xu ly thu tu khoi the nao" nay DA DO mot nua:
+#   `sprint_plan.py status` de xuat story `in-progress` DAU TIEN, roi `backlog` DAU TIEN, theo
+#   THU TU DOC cua tep (sprint_plan.py:565-576) — nen no se de xuat 4-2 truoc 6-6b. Thu tu thuc
+#   thi van phai doc tu build-sequence.md, epics.md §Epic List va ghi chu tung khoi duoi day.
 
 # STATUS DEFINITIONS:
 # ==================
@@ -41,7 +45,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '2026-09-14'
+last_updated: '09-15-2026 13:02'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -143,29 +147,40 @@ development_status:
   epic-5-retrospective: done
 
   epic-6: in-progress
-  6-1-mũi-thăm-dò-ba-lựa-chọn-thư-viện: review
-  6-2-pipeline-nhập-một-chuỗi-thứ-tự-cố-định-dùng-chung-mọi-nguồn: review
-  6-3-bảng-mã-phát-hiện-và-dải-đối-chiếu-năm-bản-dựng-thật: review
-  6-4-chuẩn-hoá-xuống-dòng-và-khoảng-trắng: review
-  6-5-luật-làm-sạch-lộ-ra-và-hiện-thứ-sắp-xoá: review
-  6-6-tách-chương-theo-mẫu-phân-tách: review
-  6-7-nhập-từ-url-bằng-danh-sách-link: review
-  6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain: review
-  6-9-bóc-nội-dung-chính-và-sửa-ranh-giới-bằng-bàn-phím: review
+  6-1-mũi-thăm-dò-ba-lựa-chọn-thư-viện: done
+  6-2-pipeline-nhập-một-chuỗi-thứ-tự-cố-định-dùng-chung-mọi-nguồn: done
+  6-3-bảng-mã-phát-hiện-và-dải-đối-chiếu-năm-bản-dựng-thật: done
+  6-4-chuẩn-hoá-xuống-dòng-và-khoảng-trắng: done
+  6-5-luật-làm-sạch-lộ-ra-và-hiện-thứ-sắp-xoá: done
+  6-6-tách-chương-theo-mẫu-phân-tách: done
+  6-6b-nhập-nhiều-tệp-cùng-lúc: backlog
+  6-7-nhập-từ-url-bằng-danh-sách-link: done
+  6-7b-thêm-chương-vào-tác-phẩm-có-sẵn: backlog
+  6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain: done
+  6-9-bóc-nội-dung-chính-và-sửa-ranh-giới-bằng-bàn-phím: done
   # 2026-09-08 THEM 6-10a qua correct-course (sprint-change-proposal-2026-09-08-story-6-10.md).
   #   Thu tu thi hanh: 6-10a -> 6-10. Id `6-10` GIU NGUYEN vi "Story 6.10" dang duoc tham chieu
   #   30 lan, trong do 8 lan o bon spec da done va frozen. Ice chot phuong an (a) 2026-09-08.
-  6-10a-xem-trước-theo-từng-chương-và-điều-hướng-chương: review
-  6-10-bộ-lọc-cần-xem: review
-  6-11-ảnh-tải-về-atproj-neo-vị-trí-và-url-gốc: review
-  6-12-đọc-docx: review
-  6-13-alt-text-và-caption-là-hai-segment-mang-trường-vai: review
-  6-14-hiển-thị-ảnh-đúng-vị-trí: review
-  6-15-xuất-xứ-tài-liệu-ở-tầng-chương: review
-  6-16-nhập-tài-liệu-song-ngữ-hai-cột: review
-  6-17-khớp-câu-trong-từng-cặp-hàng: review
-  6-18-đo-lại-nfr3-nfr4-nfr5-trên-thư-viện-5-000-chương-thật: in-progress
-  epic-6-retrospective: optional
+  6-10a-xem-trước-theo-từng-chương-và-điều-hướng-chương: done
+  6-10-bộ-lọc-cần-xem: done
+  6-11-ảnh-tải-về-atproj-neo-vị-trí-và-url-gốc: done
+  6-12-đọc-docx: done
+  6-13-alt-text-và-caption-là-hai-segment-mang-trường-vai: done
+  6-14-hiển-thị-ảnh-đúng-vị-trí: done
+  6-15-xuất-xứ-tài-liệu-ở-tầng-chương: done
+  6-16-nhập-tài-liệu-song-ngữ-hai-cột: done
+  6-17-khớp-câu-trong-từng-cặp-hàng: done
+  # 2026-09-15 correct-course (planning-artifacts/sprint-change-proposal-2026-09-15.md):
+  #   THEM 6-6b, 6-7b, 6-16b (retro Epic 6 muc AI-9 va AI-5). GO khoa 6-18: Story 6.18 GOP VAO
+  #   Story 10.9 (Epic 10) theo quyet dinh cua Ice; spec-6-18 giu `in-progress` lam dau vao,
+  #   khong lam lai va khong doi ten (`6-18-ban-do/`, `story_6_18_*.rs`, feature `nfr-bench`).
+  #   Retro Epic 6 da chay 2026-09-15 TRUOC luot them nay, nen `epic-6-retrospective: done`
+  #   khong noi gi ve ba story moi.
+  #   Thu tu thi hanh: AI-4 -> AI-7 -> tach commands/project.rs (AI-6, spec chinh le ngoai
+  #   epics.md) -> 6-6b -> 6-7b -> 6-16b -> Epic 4. Ba story khong phu thuoc nhau; thu tu giua
+  #   chung xep theo id va doi duoc.
+  6-16b-bộ-lọc-cần-xem-cho-bản-xem-trước-song-ngữ: backlog
+  epic-6-retrospective: done
 
   epic-7: backlog
   7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản: backlog
@@ -219,6 +234,10 @@ development_status:
   10-6-hướng-dẫn-cài-đặt-có-ảnh-chụp-màn-hình: backlog
   10-7-cập-nhật-chỉ-kiểm-tra-và-thông-báo: backlog
   10-8-chính-sách-gỡ-bỏ-dữ-liệu: backlog
+  # 2026-09-15 correct-course: 10-9 GOP Story 6.18 (NFR3/NFR4/NFR5, dong A6/A7/A8 va Q4).
+  #   Nam khoi AC cua 6.18 da chuyen sang muc Story 10.9 trong epics.md. Dau vao da co:
+  #   task 1-6 cua spec-6-18-...md, `6-18-ban-do/`, ba tep `story_6_18_*.rs`, feature `nfr-bench`.
+  #   Con thieu: task 7 (chay do tren may nhan roi) va task 8 (ghi phan quyet sau khi Ice ky).
   10-9-nghiệm-thu-cuối-các-ngưỡng-phi-chức-năng: backlog
   epic-10-retrospective: optional
 
@@ -769,7 +788,7 @@ action_items:
       tu choi found < MINIMUM bang mot bien the SkipReason co ten, dung khuon core/dict/layer.rs::MINIMUM_SCHEMA_VERSION.
       Kem ca doi chung do cho chieu CU o library_index_contract.rs, doi xung voi :2490"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-52-ai-3-noi-rebuildoutcome-text_skipped-len"
     epic: 5
@@ -777,7 +796,7 @@ action_items:
       src/ = 0. Man hinh tim kiem phai phan biet \"da tim, khong khop\" voi \"N/M
       Tac pham chua vao chi muc\" (AD-44 muc 4)"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-53-ai-4-quyet-hinh-dang-lam-tuoi-chi-muc-ti"
     epic: 5
@@ -794,7 +813,7 @@ action_items:
       tach duoc \"luot day du vs luot le\" khoi \"runner vs may Ice\". Mot spec chay
       le da xanh nen khong dung lam bang chung"
     owner: "Dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-55-ai-6-ghi-gioi-han-0-lop-tu-dien-vao-5-14"
     epic: 5
@@ -802,7 +821,7 @@ action_items:
       them so lop nap duoc vao tap truong moi truong cua ban do, va chuyen tiep dieu
       kien sang Story 6.18"
     owner: "Dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-56-ai-7-anh-xa-5-commit-khong-ten-story-95b"
     epic: 5
@@ -810,7 +829,7 @@ action_items:
       a27e58f/ff90e2a=5.14) vao mot bang trong epic-5-context.md. Khong viet lai lich
       su. Ghi vao quy uoc kho rang tieu de commit la giao dien may doc"
     owner: "Dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-57-ai-8-sua-cau-da-het-dung-trong-5-6-luoi"
     epic: 5
@@ -837,3 +856,91 @@ action_items:
     owner: "Ice"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-6-retro-item-60-ai-1-dung-cong-trang-thai-ma-ai-9-retro"
+    epic: 6
+    action: "AI-1 — Dung cong trang thai ma AI-9 retro Epic 5 da doi: review khong
+      ghi chung commit voi ma story; pre-push tu choi dua story len done khi luot
+      schedule gan nhat tren origin do ma deferred-work.md khong co dong mang run
+      ID cua luot do. Viec ngay: ghi hai luot do sau va WAL (34780086488, 34898445729,
+      store_contract.rs:890) vao so no cua spec-ca-wal-do-tren-windows, day 3 commit
+      local roi doc luot schedule ke tiep"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-61-ai-4-chuyen-confirm_import_with_encoding"
+    epic: 6
+    action: "AI-4 — Chuyen confirm_import_with_encoding va confirm_bilingual_import
+      (commands/project.rs:5984, :6186) sang #[tauri::command(async)]: pha anh goi
+      webimport::fetch tuan tu, toi 20 s moi anh, tren luong chinh. Them hai hang
+      vao config_invariants.rs::the_blocking_wires_run_off_the_main_thread, hoac doi
+      cong tu danh sach tay sang quet src/commands/**"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-62-ai-7-gop-trimmed_or_none-project-rs-3862"
+    epic: 6
+    action: "AI-7 — Gop trimmed_or_none (project.rs:3862, chapter.rs:582) va trim_like_the_paste_box
+      (project.rs:4109) thanh mot ham cat khop String.prototype.trim(); them ca U+FEFF
+      vao chapter_origin_contract.rs va importPreviewChapterOrigin.test.ts. Do 2026-09-15
+      tren app that: Rust ghi U+FEFF xuong origin_author, WKWebView coi la rong"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-63-ai-9-chay-bmad-correct-course-dua-story"
+    epic: 6
+    action: "AI-9 — Chay bmad-correct-course dua Story 6.6b (nhap nhieu tep) va 6.7b
+      (them Chuong vao Tac pham co san) vao epics.md + sprint-status.yaml; hien chi
+      co trong deferred-work.md:10100 va :10382, va ve '6.6b dung truoc 6.7' da het
+      dung"
+    owner: "Ice"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-64-ai-2-mot-moc-e2e-thay-hop-thoai-chon-tep"
+    epic: 6
+    action: "AI-2 — Mot moc e2e thay hop thoai chon tep (khuon hai lop AD-45), roi
+      moi nguon tep cua Epic 6 mot spec: .txt GBK co mau Chuong, .docx co bang va
+      anh, .csv song ngu co hang lech. Epic 6 them 0 spec e2e"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-65-ai-3-luot-nghiem-thu-tay-co-chu-cho-cac"
+    epic: 6
+    action: "AI-3 — Luot nghiem thu tay co chu cho cac muc spec tu ghi CHUA LAM: .docx
+      hong tren ban --release; .atproj chep sang may khac van du anh; vi tri anh that
+      o luoi va Che do doc; mot luot nhap URL that co anh o host cham (do luon AI-4)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-66-ai-5-quyet-fr132-cho-song-ngu-dung-bo-lo"
+    epic: 6
+    action: "AI-5 — Quyet FR132 cho song ngu: dung bo loc can-xem cho ban xem truoc
+      song ngu nhieu Chuong, hoac ghi vao AC Story 6.10 rang FR132 chi phu duong don
+      ngu (qua correct-course). Hom nay pipeline.rs:1006-1012 dat ca hai tin hieu
+      None va khong spec nao quyet"
+    owner: "Ice"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-67-ai-6-tach-commands-project-rs-2-044-6-63"
+    epic: 6
+    action: "AI-6 — Tach commands/project.rs (2.044 -> 6.630 dong trong Epic 6, sau
+      moi quan tam) trong mot story co chu; quyet co dung cong do kich thuoc tep ma
+      AGENTS.md:19 ghi la chua co"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-68-ai-8-hoa-giai-quy-uoc-tieu-de-commit-sua"
+    epic: 6
+    action: "AI-8 — Hoa giai quy uoc tieu de commit: sua AGENTS.md:54 theo thuc hanh
+      (story-6.x) va ghi rang retro goi git_evidence.py --stories bang dang cham (khop
+      24/38, dang gach 0/38); hoac giu luat va dung hook commit-msg"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-6-retro-item-69-ai-10-dong-mui-tham-do-bang-ma-cap-fixtu"
+    epic: 6
+    action: "AI-10 — Dong mui tham do bang ma: cap fixture GBK/Big5 that vao 6-1-ban-do/fixtures/encoding/
+      roi chay webimport_probe.rs:260, hoac ha tieu chi do do chinh xac thanh no co
+      chu trong epics.md qua correct-course"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
