@@ -172,6 +172,21 @@ message_keys! {
     /// `ImportUnsupportedFormat` với `format` rỗng (nó cho ra một câu vỡ). Code review
     /// 2026-08-06.
     ImportMissingExtension => "err.import.missing_extension" ["path"],
+    /// **THÊM 2026-09-15 (Story 6.6b)** — `import_files` nhận một danh sách RỖNG — hàng ma
+    /// trận I/O "Empty list": từ chối TRƯỚC khi mở bất kỳ tệp nào. Frontend không bao giờ gửi
+    /// một danh sách rỗng (§I/O Matrix) — nhánh này là lưới an toàn tầng Rust, cùng lớp
+    /// "không panic, không rỗng-im-lặng" mà `ImportError::InvalidPipelineOrder` đã theo, khác
+    /// ở chỗ nhánh NÀY có thể chạm được từ một chỗ gọi Rust khác bỏ qua frontend (`tests/**`),
+    /// nên nó có khoá THẬT, không `Unknown`.
+    ImportEmptyFileList => "err.import.empty_file_list" [],
+    /// **THÊM 2026-09-15 (Story 6.6b)** — một tệp bên trong một đợt nhập NHIỀU tệp (N > 1)
+    /// không phải `.txt`/`.md` (§Decisions: "A batch is .txt/.md only" — `.docx`/`.csv`/`.tsv`
+    /// đều rơi vào đây, cùng một lý do: mỗi định dạng đó đòi một cơ chế riêng — sidecar ảnh
+    /// cho `.docx`, bảng hai cột cho `.csv`/`.tsv` — mà một đợt N tệp không có chỗ chở). Mục
+    /// này vẫn giữ CHỖ trong danh sách kèm lý do riêng; đợt nhập MỘT tệp (N = 1) không đi qua
+    /// nhánh này (`.docx`/`.csv`/`.tsv` đơn tệp không đổi hành vi — §Always). `format` là phần
+    /// mở rộng đọc được, dữ liệu chứ không phải câu (AD-21).
+    ImportBatchUnsupportedFormat => "err.import.batch_unsupported_format" ["format"],
     /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `size`/`limit` là
     /// **số byte thô**: dữ liệu, không phải câu (AD-21).
     ImportTooLarge => "err.import.too_large" ["size", "limit"],

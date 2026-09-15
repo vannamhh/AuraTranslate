@@ -19,12 +19,14 @@ import {
   bilingualFilePath,
   busy,
   createdWork,
+  effectiveFilePaths,
   filePath,
   genre,
   isDragOver,
   lastError,
   name,
   noticeKey,
+  onFilePathInput,
   pastedText,
   pastedUrlCount,
   pastedUrls,
@@ -1271,13 +1273,18 @@ watch(libraryChapterCursor, (cursor) => {
 
         <label class="field">
           <span>{{ t('mode.library.field_path') }}</span>
-          <input v-model="filePath" type="text" autocomplete="off" />
+          <input
+            :value="filePath"
+            type="text"
+            autocomplete="off"
+            @input="onFilePathInput(($event.target as HTMLInputElement).value)"
+          />
         </label>
         <button
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || filePath.trim() === ''"
+          :disabled="busy || effectiveFilePaths.length === 0"
           @click="dispatch('library.import_file')"
         >
           {{ t('mode.library.submit_file') }}

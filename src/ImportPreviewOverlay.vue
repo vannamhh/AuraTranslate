@@ -59,6 +59,9 @@ import {
   importPreviewDomainLogDomainCount,
   importPreviewEmptyReasonForTier,
   importPreviewCurrentChapterOrigin,
+  importPreviewFileImportBusy,
+  importPreviewFileImportError,
+  importPreviewFileItems,
   importPreviewIsOpen,
   importPreviewJumpToCleanupRulesSignal,
   importPreviewLastSubmittedFrom,
@@ -74,6 +77,7 @@ import {
   importPreviewUrlImportBusy,
   importPreviewUrlImportError,
   importPreviewUrlItems,
+  removeImportPreviewFileItem,
   removeImportPreviewUrlItem,
   reloadImportPreviewUrlItem,
   selectImportPreviewCandidate,
@@ -548,6 +552,15 @@ function onRemoveUrlItem(index: number): void {
 }
 
 /**
+ * **THÊM (Story 6.6b)** — bỏ MỘT tệp khỏi danh sách đang mở. Cùng lý do `onRemoveUrlItem`
+ * ngay trên: `index` không diễn đạt được qua `dispatch('<id>')`, nên thao tác mang tham số
+ * đi qua `@submit`, KHÔNG `@click` (`check:commands` Kiểm A chỉ canh `@click`).
+ */
+function onRemoveFileItem(index: number): void {
+  void removeImportPreviewFileItem(index)
+}
+
+/**
  * 🔴 Vòng rà đối kháng 2, mục 4 — CHẶN THỊ GIÁC, lớp phòng thủ THỨ HAI. Lớp CHÍNH sống ở
  * `importPreviewState.ts::cancelImportPreview` (no-op khi `importPreviewConfirming`) — hàm
  * đó đóng cửa sổ đua triệt để, bất kể tầng `.vue` có gọi tới hay không. Chặn ở đây chỉ để
@@ -908,6 +921,84 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             role="status"
           >
             {{ t('mode.library.preview.url_list_none_broken') }}
+          </p>
+        </section>
+
+        <!--
+          ═══════════ Danh sách mục-theo-tệp (Story 6.6b, FR14 mở rộng) ═══════════
+          LUÔN hiện khi lượt đang mở đến từ nhánh TỆP — kể cả N = 1 (§Always spec 6.6b: "one
+          shape to reason about"), kể cả khi TOÀN BỘ mục đã OK (người dùng vẫn cần thấy/soát
+          lại danh sách trước khi xác nhận, cùng lý do đường URL ngay trên). Vị trí GIỮ NGUYÊN,
+          cùng khuôn đường URL — một mục hỏng không bị đẩy xuống cuối.
+        -->
+        <section v-if="importPreviewLastSubmittedFrom === 'file'" class="ip-tier ip-url-list" aria-labelledby="ip-file-list-title">
+          <!--
+            🔴 SỬA 2026-09-16 (vòng rà đối kháng 2, mục 9/G8) — bản trước dùng thẳng
+            `file_list_title` với `count: importPreviewFileItems.length` VÔ ĐIỀU KIỆN. Tiết lộ
+            được bằng cửa sổ hở: `openImportPreviewFromFile` reset `fileImportItems` về `[]`
+            VÀ set `lastSubmittedFrom = 'file'` ĐỒNG BỘ, TRƯỚC khi `await` lệnh IPC — nếu lớp
+            phủ đang `status === 'loaded'` từ một lượt TRƯỚC (mở lại/đổi nguồn trong khi lớp phủ
+            còn mở), tiêu đề của bản CŨ tạm khai "Danh sách tệp (0)" trong đúng khoảng đang chờ
+            IPC trả lời — đọc như "không tệp nào được thả", không phải "đang tải". Cùng lý do,
+            một lượt N = 1 thất bại (`import_files` trả `Err` toàn cục — §Always: N = 1 giữ
+            nguyên hành vi `fatal Err` của đường một-tệp cũ) cũng để `fileImportItems` RỖNG.
+            Đếm 0 chỉ đúng khi THẬT SỰ có 0 tệp để đếm; đổi sang một tiêu đề không mang số khi
+            danh sách rỗng — xem `tests/frontend/importPreviewFiles.test.ts` cho ca dựng lại
+            cửa sổ hở này.
+          -->
+          <h3 id="ip-file-list-title" class="ip-tier-title">
+            <!-- aura-allow-text: KẾT QUẢ của `t()` — chọn giữa HAI khoá đã dịch bằng một điều
+                 kiện thuần, không chuỗi hiển thị nào ngoài `t()`. -->
+            {{
+              importPreviewFileItems.length > 0
+                ? t('mode.library.preview.file_list_title', { count: String(importPreviewFileItems.length) })
+                : t('mode.library.preview.file_list_title_failed')
+            }}
+          </h3>
+          <p v-if="importPreviewFileImportError !== null" class="ip-status ip-error" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(importPreviewFileImportError) }}
+          </p>
+          <ul class="ip-url-items">
+            <!--
+              Cùng khuôn danh sách URL ngay trên — `v-if` trên `<li>` BÊN TRONG `<template
+              v-for>`, chỉ số `i` giữ NGUYÊN vị trí thật trong `importPreviewFileItems` cho
+              `onRemoveFileItem(i)`.
+            -->
+            <template v-for="(item, i) in importPreviewFileItems" :key="i">
+              <li
+                v-if="!importPreviewChapterFilterActive || !item.ok"
+                class="ip-url-item"
+                :class="{ 'ip-url-item-broken': !item.ok }"
+              >
+                <!-- aura-allow-text: DỮ LIỆU (vị trí 1-based trong danh sách, KHÔNG markup — AD-16). -->
+                <span class="ip-url-position">{{ i + 1 }}</span>
+                <!-- aura-allow-text: DỮ LIỆU (đường dẫn tệp người dùng đã chọn). -->
+                <span class="ip-url-address">{{ item.path }}</span>
+                <span v-if="item.ok" class="ip-url-ok">{{ t('mode.library.preview.file_item_ok') }}</span>
+                <span v-else-if="item.error !== null" class="ip-url-reason" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(item.error) }}
+                </span>
+                <form class="ip-url-action-form" @submit.prevent="onRemoveFileItem(i)">
+                  <button
+                    type="submit"
+                    class="ip-url-remove"
+                    :disabled="importPreviewConfirming || importPreviewFileImportBusy"
+                    :aria-label="t('mode.library.preview.file_item_remove_aria_label', { path: item.path })"
+                  >
+                    {{ t('mode.library.preview.file_item_remove') }}
+                  </button>
+                </form>
+              </li>
+            </template>
+          </ul>
+          <p
+            v-if="importPreviewChapterFilterActive && importPreviewFileItems.every((item) => item.ok)"
+            class="ip-tier-empty-reason"
+            role="status"
+          >
+            {{ t('mode.library.preview.file_list_none_broken') }}
           </p>
         </section>
 
@@ -1448,6 +1539,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <span v-else class="ip-chapters-title ip-chapters-title-none">
                     {{ t('mode.library.preview.chapters_no_title') }}
                   </span>
+                  <!--
+                    **THÊM (Story 6.6b)** — tên tệp NGUỒN của Chương này, chỉ có mặt trên
+                    đường N tệp (`row.entry.source_file` là `null` cho MỌI đường khác — xem
+                    doc-comment `ChapterSplitPreviewEntryWire::source_file`).
+                  -->
+                  <span v-if="row.entry.source_file !== null" class="ip-chapters-source-file">
+                    <!-- aura-allow-text: DỮ LIỆU (đường dẫn tệp, KHÔNG markup — AD-16). -->
+                    {{ row.entry.source_file }}
+                  </span>
                   <span class="ip-chapters-length">
                     {{ t('mode.library.preview.chapters_length', { count: String(row.entry.length) }) }}
                   </span>
@@ -1479,6 +1579,20 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         này — một mục hỏng còn lại (không phải TẤT CẢ) vẫn hiện đủ bốn tầng cho các mục OK,
         nhưng nút vẫn khoá.
       -->
+      <!--
+        **THÊM (Story 6.6b)** — đường TỆP đến cùng một trạng thái RỖNG (`preview === null`,
+        `status === 'loaded'`) qua một lý do KHÁC URL: `encoding_preview: null` khi còn mục
+        hỏng (§Decisions spec 6.6b), không phải "0 mục OK nào". Câu URL nhắc "bỏ HOẶC tải
+        lại" — đường tệp KHÔNG có hành động tải lại (§Decisions: chỉ bỏ rồi xem lại), nên câu
+        RIÊNG tránh hứa một nút không tồn tại.
+      -->
+      <p
+        v-else-if="importPreviewLastSubmittedFrom === 'file'"
+        class="ip-tier-empty-reason ip-url-locked-reason"
+        role="status"
+      >
+        {{ t('mode.library.preview.file_list_locked') }}
+      </p>
       <p v-else class="ip-tier-empty-reason ip-url-locked-reason" role="status">
         {{ t('mode.library.preview.url_list_locked') }}
       </p>
@@ -1512,7 +1626,12 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         <button
           type="button"
           class="ip-act ip-act-primary"
-          :disabled="importPreviewConfirming || !importPreviewCanConfirm || importPreviewUrlImportBusy"
+          :disabled="
+            importPreviewConfirming ||
+            !importPreviewCanConfirm ||
+            importPreviewUrlImportBusy ||
+            importPreviewFileImportBusy
+          "
           @click="dispatch('import.preview.confirm')"
         >
           {{ t('command.import.preview.confirm') }}
@@ -2182,6 +2301,18 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   color: var(--color-on-surface-variant);
+}
+
+/* Story 6.6b — tên tệp nguồn, cùng khuôn `.ip-chapters-length` (nhãn phụ, cùng cấp). */
+.ip-chapters-source-file {
+  flex: none;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
 }
 
 .ip-chapters-ellipsis {

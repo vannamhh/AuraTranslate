@@ -58,6 +58,8 @@ import type {
   CleanupRuleTierWire,
   CreatedWork,
   EncodingCandidateWire,
+  FileImportBatchWire,
+  FileImportItemWire,
   ImportEncodingPreview,
   ImportEncodingPreviewResult,
   NormalizedPreviewWire,
@@ -112,7 +114,7 @@ const pendingGenre = ref('')
  */
 // 🔵 SỬA 2026-09-06 (Story 6.7) — biến thể thứ BA, `'urls'`. Danh sách URL là một nhánh "đã
 // mở lượt xem trước" mới, khác `'text'`/`'file'` ở chỗ nguồn KHÔNG sống trong
-// `pendingText`/`pendingPath` — nó sống ở `urlImportItems` (mỗi mục giữ trạng thái RIÊNG,
+// `pendingText`/`pendingPaths` — nó sống ở `urlImportItems` (mỗi mục giữ trạng thái RIÊNG,
 // không phải MỘT chuỗi/đường dẫn duy nhất).
 const lastSubmittedFrom = ref<'text' | 'file' | 'urls' | null>(null)
 
@@ -126,12 +128,15 @@ const lastSubmittedFrom = ref<'text' | 'file' | 'urls' | null>(null)
  * `lastSubmittedFrom`.
  */
 const pendingText = ref<string | null>(null)
-const pendingPath = ref<string | null>(null)
+/** 🔵 **SỬA 2026-09-15 (Story 6.6b) — `string | null` → `string[]`.** N tệp là MỘT lượt nhập
+ * đang chờ (§Always spec 6.6b), nên một danh sách (kể cả N = 1) thay cho một chuỗi trần —
+ * mảng rỗng ⇔ chưa mở lượt tệp nào, cùng khuôn `urlImportItems`. */
+const pendingPaths = ref<string[]>([])
 
 /**
- * **THÊM (Story 6.7)** — ô THỨ BA, song song với `pendingText`/`pendingPath` — danh sách
+ * **THÊM (Story 6.7)** — ô THỨ BA, song song với `pendingText`/`pendingPaths` — danh sách
  * mục-theo-link của lượt nhập URL đang mở. Mỗi mục mang vị trí (INDEX trong mảng), URL, và
- * kết quả (`ok`/`error`) — khác `pendingText`/`pendingPath` (một GIÁ TRỊ trần), đây là N giá
+ * kết quả (`ok`/`error`) — khác `pendingText`/`pendingPaths` (một GIÁ TRỊ trần), đây là N giá
  * trị SONG SONG với hình dạng `PipelineShape::Chapters` phía Rust.
  *
  * 🔴 **Đây là dữ liệu ĐÃ TẢI, không phải `pastedUrls`** (ô đó sống ở `libraryImport.ts`, chỉ
@@ -139,12 +144,24 @@ const pendingPath = ref<string | null>(null)
  * chỉ có giá trị SAU khi người dùng đã bấm nút tải (`openImportPreviewFromUrls` đã chạy).
  */
 const urlImportItems = ref<UrlImportItemWire[]>([])
+/** **THÊM (Story 6.6b)** — danh sách mục-theo-tệp của lượt nhập N tệp đang mở, song song với
+ * `pendingPaths` — cùng khuôn `urlImportItems`, nhưng KHÔNG một state Rust thứ hai đứng sau
+ * nó (§Design Notes spec 6.6b "Vì sao không state thứ hai cho mục tệp": một tệp đọc lại
+ * được, nên đây là dữ liệu DẪN XUẤT ở mỗi lượt gọi `previewImportEncodingFromFile`, không
+ * phải một kho sống giữa hai lượt gọi phía Rust). */
+const fileImportItems = ref<FileImportItemWire[]>([])
 /** Cờ "đang gửi" của tải-lại/bỏ MỘT mục — TÁCH khỏi `opening` (mở CẢ lượt) và bốn cờ CRUD
  * luật làm sạch (ngữ nghĩa khác hẳn: đây là thao tác trên MỘT MỤC trong danh sách URL). */
 const urlImportBusy = ref(false)
 /** Lỗi hạ tầng của lượt tải-lại/bỏ một mục (ví dụ cầu IPC vắng giữa chừng) — KHÁC lỗi CỦA
  * TỪNG MỤC (đã nằm trong `item.error`, hiển thị inline trên hàng của chính nó). */
 const urlImportError = ref<IpcError | null>(null)
+/** **THÊM (Story 6.6b)** — cờ "đang gửi" của lượt BỎ một tệp khỏi danh sách đang mở, cùng
+ * khuôn `urlImportBusy`. Tách khỏi mọi cờ CRUD/`opening` khác cùng lý do `urlImportBusy` đã
+ * tách. */
+const fileImportBusy = ref(false)
+/** Lỗi hạ tầng của lượt bỏ một tệp gần nhất — cùng khuôn `urlImportError`. */
+const fileImportError = ref<IpcError | null>(null)
 /** 🔵 **THÊM Story 6.8 (NFR19)** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY, đọc
  * thẳng từ `UrlImportBatchWire.domain_log_domain_count` của lượt tải/tải-lại/bỏ GẦN NHẤT
  * (xem doc-comment [`applyUrlImportBatch`]). Chân màn hiện dòng *"Đã gọi N domain · xem"*
@@ -358,6 +375,13 @@ export const importPreviewChapterPatternError: DeepReadonly<Ref<IpcError | null>
 /** Danh sách mục-theo-link của lượt nhập URL đang mở — rỗng khi `lastSubmittedFrom !==
  * 'urls'`. Xem doc-comment [`urlImportItems`]. */
 export const importPreviewUrlItems: DeepReadonly<Ref<UrlImportItemWire[]>> = readonly(urlImportItems)
+/** **THÊM (Story 6.6b)** — danh sách mục-theo-tệp của lượt nhập N tệp đang mở — rỗng khi
+ * `lastSubmittedFrom !== 'file'`. Xem doc-comment [`fileImportItems`]. */
+export const importPreviewFileItems: DeepReadonly<Ref<FileImportItemWire[]>> = readonly(fileImportItems)
+/** `true` ⇔ đang bay một lượt BỎ một tệp khỏi danh sách đang mở — Story 6.6b. */
+export const importPreviewFileImportBusy: DeepReadonly<Ref<boolean>> = readonly(fileImportBusy)
+/** Lỗi hạ tầng của lượt bỏ một tệp gần nhất — Story 6.6b. */
+export const importPreviewFileImportError: DeepReadonly<Ref<IpcError | null>> = readonly(fileImportError)
 /** 🔵 **THÊM Story 6.8 (NFR19)** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY, tại
  * thời điểm lượt tải/tải-lại/bỏ GẦN NHẤT trả lời. `0` ⇔ chưa gọi mạng lần nào TRONG lượt
  * xem trước này (không nhất thiết `0` của cả phiên — một Tác phẩm trước đó có thể đã gọi
@@ -385,7 +409,13 @@ export const importPreviewUrlListHasBrokenItem = computed<boolean>(() => {
  * NGAY CẢ KHI còn mục hỏng, nên đọc nó để khoá nút là ĐÚNG lỗi mà §Always story 6.10a cấm
  * ("trộn vị từ XEM với vị từ GHI"). Đường URL đọc thẳng [`importPreviewUrlListHasBrokenItem`]
  * (đã có sẵn từ Story 6.7, tính CỤC BỘ trên `urlImportItems[].ok` — không đọc `preview`);
- * đường tệp/dán tay không có khái niệm "mục hỏng", giữ nguyên `preview !== null`.
+ * đường dán tay không có khái niệm "mục hỏng", giữ nguyên `preview !== null`.
+ *
+ * 🔵 **THÊM (Story 6.6b)** — đường TỆP KHÔNG cần một nhánh riêng như `'urls'`. §Decisions
+ * spec 6.6b đặt `encoding_preview: null` làm điều kiện ĐỦ để khoá xác nhận, và
+ * [`applyFileImportBatch`]/[`openImportPreviewFromFile`] đã ánh xạ điều đó thẳng vào
+ * `preview.value = null` — nhánh mặc định `preview.value !== null` NGAY DƯỚI vì thế đã đúng
+ * cho `'file'` mà không cần đọc `fileImportItems` riêng, khác hẳn `'urls'`.
  */
 export const importPreviewCanConfirm = computed<boolean>(() => {
   if (lastSubmittedFrom.value === 'urls') return !importPreviewUrlListHasBrokenItem.value
@@ -589,9 +619,13 @@ export function importPreviewEmptyReasonForTier(tier: 2): 'story_6_9' {
 
 type PreviewCall = () => ReturnType<typeof previewImportEncodingFromText>
 
+// 🔵 SỬA 2026-09-15 (Story 6.6b) — `from: 'text' | 'file'` hẹp lại còn `'text'`. Nhánh TỆP
+// (`openImportPreviewFromFile`) nay tự thân, KHÔNG còn gọi hàm này (cùng lý do nhánh `'urls'`
+// đã tự thân từ Story 6.7 — xem doc-comment ở đó) vì `previewImportEncodingFromFile` trả một
+// hình dạng KHÁC `PreviewCall` giả định.
 async function openWith(
   call: PreviewCall,
-  from: 'text' | 'file',
+  from: 'text',
   name: string,
   sourceLang: string,
   genre: string,
@@ -677,7 +711,7 @@ export async function openImportPreviewFromText(
   text: string,
 ): Promise<void> {
   pendingText.value = text
-  pendingPath.value = null
+  pendingPaths.value = []
   await openWith(
     () => previewImportEncodingFromText(text, sourceLang, null),
     'text',
@@ -687,22 +721,105 @@ export async function openImportPreviewFromText(
   )
 }
 
-/** Mở màn xem trước — nhánh TỆP. Gọi từ handler tiêm của `library.import_file`. */
+/**
+ * Mở màn xem trước — nhánh TỆP (Story 6.3; mở rộng N tệp Story 6.6b, FR14). `paths` mang MỌI
+ * đường dẫn đã dán/thả, theo ĐÚNG thứ tự — kể cả khi chỉ có một tệp (§Always spec 6.6b: "one
+ * shape to reason about").
+ *
+ * ⚠️ **KHÔNG tái dùng `openWith`** — cùng lý do [`openImportPreviewFromUrls`] không tái dùng
+ * được nó: `previewImportEncodingFromFile` nay trả [`FileImportBatchResult`] (`items` CỘNG
+ * một `encoding_preview` CÓ THỂ `null` khi còn mục hỏng), không còn một `ImportEncodingPreviewResult`
+ * trần mà `openWith` giả định.
+ */
 export async function openImportPreviewFromFile(
   name: string,
   sourceLang: string,
   genre: string,
-  path: string,
+  paths: string[],
 ): Promise<void> {
-  pendingPath.value = path
+  if (opening.value) return
+
+  opening.value = true
+  sequence += 1
+  const mySequence = sequence
+
+  lastSubmittedFrom.value = 'file'
+  pendingName.value = name
+  pendingSourceLang.value = sourceLang
+  pendingGenre.value = genre
   pendingText.value = null
-  await openWith(
-    () => previewImportEncodingFromFile(path, sourceLang, null),
-    'file',
-    name,
-    sourceLang,
-    genre,
-  )
+  pendingPaths.value = paths
+  confirming.value = false
+  confirmError.value = null
+  cleanupActionError.value = null
+  cleanupAdding.value = false
+  cleanupSavingEdit.value = false
+  cleanupDeleting.value = false
+  cleanupToggling.value = false
+  cleanupDeletePendingKey.value = null
+  stripForcedOpen.value = false
+  chapterPatternText.value = ''
+  chapterPatternKind.value = 'literal'
+  chapterPatternSending.value = false
+  chapterPatternError.value = null
+  pendingChapterPatternEdit = null
+  fileImportItems.value = []
+  fileImportBusy.value = false
+  fileImportError.value = null
+  urlImportItems.value = []
+  domainLogDomainCount.value = 0
+  urlImportBusy.value = false
+  urlImportError.value = null
+  blockFocusedIndex.value = 0
+  blockRangeStart.value = null
+  blockRangeMissingStartNotice.value = false
+  blockToggling.value = false
+  blockRangeConfirming.value = false
+  blockActionError.value = null
+  jumpToCleanupRulesSignal.value = 0
+  chapterCursor.value = 0
+  chapterFilterActive.value = false
+  chapterDetailCleanup.value = null
+  chapterDetailBlocks.value = null
+  chapterDetailLoading.value = false
+  chapterDetailError.value = null
+  chapterOriginDrafts.value = {}
+  chapterOriginError.value = null
+
+  const result = await previewImportEncodingFromFile(paths, sourceLang, null)
+  if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
+
+  opening.value = false
+  overlayOpen.value = true
+
+  if (result.error !== null) {
+    status.value = 'error'
+    loadError.value = result.error
+    preview.value = null
+    selectedEncoding.value = null
+    return
+  }
+  if (result.batch === null) {
+    status.value = 'ipc_unavailable'
+    loadError.value = null
+    preview.value = null
+    selectedEncoding.value = null
+    return
+  }
+
+  fileImportItems.value = result.batch.items
+  // §Decisions spec 6.6b — `encoding_preview: null` là điều kiện ĐỦ để khoá xác nhận; lớp phủ
+  // VẪN mở để người dùng thấy danh sách mục và sửa (bỏ tệp hỏng rồi xem lại) — cùng thái độ
+  // mà đường URL đã theo cho ca "còn mục hỏng".
+  if (result.batch.encoding_preview === null) {
+    preview.value = null
+    selectedEncoding.value = null
+  } else {
+    preview.value = result.batch.encoding_preview
+    selectedEncoding.value = result.batch.encoding_preview.selected_encoding
+  }
+  status.value = 'loaded'
+  loadError.value = null
 }
 
 /**
@@ -735,7 +852,7 @@ export async function openImportPreviewFromUrls(
   pendingSourceLang.value = sourceLang
   pendingGenre.value = genre
   pendingText.value = null
-  pendingPath.value = null
+  pendingPaths.value = []
   confirming.value = false
   confirmError.value = null
   cleanupActionError.value = null
@@ -750,6 +867,9 @@ export async function openImportPreviewFromUrls(
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  fileImportItems.value = []
+  fileImportBusy.value = false
+  fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
   urlImportBusy.value = false
@@ -836,7 +956,7 @@ function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startU
     preview.value = null
     selectedEncoding.value = null
     // THÊM (Story 6.10a) — 0 Chương hợp lệ để mà xem, kẹp con trỏ về 0 + dọn chi tiết lazy.
-    syncChapterCursorAfterUrlBatch()
+    syncChapterCursorAfterBatchChange()
     return
   }
   preview.value = batch.encoding_preview
@@ -844,7 +964,7 @@ function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startU
     ? keepEncoding
     : batch.encoding_preview.selected_encoding
   // THÊM (Story 6.10a) — số Chương có thể đã đổi dưới chân con trỏ (tải lại/bỏ một mục URL).
-  syncChapterCursorAfterUrlBatch()
+  syncChapterCursorAfterBatchChange()
 }
 
 /** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — I/O Matrix spec 6.7: "đúng 1 lời gọi mạng".
@@ -1039,7 +1159,7 @@ export function selectImportPreviewCandidate(encoding: string): void {
  * Token của lượt gọi [`loadImportPreviewChapterDetail`] GẦN NHẤT — **THÊM (vòng rà đối
  * kháng bước 4, P3)**. TÁCH khỏi `sequence` (ô đó mang nghĩa "phiên xem trước": mở/huỷ/xác
  * nhận) vì hai lượt gọi chi tiết CHO CÙNG index (đổi ứng viên bảng mã hai lần liên tiếp, hoặc
- * một lượt `syncChapterCursorAfterUrlBatch` xen vào giữa một lượt đổi ứng viên) không đổi
+ * một lượt `syncChapterCursorAfterBatchChange` xen vào giữa một lượt đổi ứng viên) không đổi
  * `sequence` — bản trước so `chapterCursor.value !== index`, thứ KHÔNG phân biệt được hai
  * lượt gọi cùng index, nên lượt trả về SAU CÙNG thắng bất kể nó cũ hơn.
  */
@@ -1048,7 +1168,7 @@ let chapterDetailRequestToken = 0
 /**
  * Dựng lại chi tiết tầng 2/3 cho Chương thứ `index` — **Story 6.10a**, chỗ gọi sản phẩm là
  * [`moveImportPreviewChapterCursor`]/[`selectImportPreviewCandidate`] (đổi ứng viên khi con
- * trỏ khác 0)/[`syncChapterCursorAfterUrlBatch`]. Chương 0 đọc THẲNG từ `candidate.cleanup`/
+ * trỏ khác 0)/[`syncChapterCursorAfterBatchChange`]. Chương 0 đọc THẲNG từ `candidate.cleanup`/
  * `.blocks` (đã có sẵn EAGER) — hàm này chỉ DỌN hai ô override, KHÔNG gọi Rust.
  *
  * 🔴 **CHỈ hoạt động trên đường URL** (`lastSubmittedFrom === 'urls'`) — lệnh
@@ -1205,12 +1325,17 @@ export function toggleImportPreviewChapterFilter(): void {
 }
 
 /**
- * Giữ con trỏ Chương trong phạm vi hợp lệ SAU một lượt dựng lại xem trước đường URL (tải
- * lại/bỏ một mục, đặt/gỡ override tầng 2) — số Chương có thể đổi dưới chân con trỏ. Chỉ số
+ * Giữ con trỏ Chương trong phạm vi hợp lệ SAU một lượt dựng lại xem trước đường URL HOẶC
+ * đường TỆP (tải lại/bỏ một mục, đặt/gỡ override tầng 2, hoặc — Story 6.6b — bất kỳ lượt dựng
+ * lại nào của [`applyFileImportBatch`]) — số Chương có thể đổi dưới chân con trỏ. Chỉ số
  * VƯỢT QUÁ bị KẸP về Chương CUỐI (danh sách rỗng ⇒ về 0) — luôn dựng lại chi tiết cho vị trí
  * cuối cùng, kể cả khi vị trí không đổi (dữ liệu bảng mã/khối phía dưới có thể đã đổi).
+ *
+ * 🔵 **SỬA 2026-09-15 (Story 6.6b) — đổi tên từ `syncChapterCursorAfterUrlBatch`.** Hàm này tự
+ * nó luôn thuần đọc [`importPreviewSelectedChapters`] (không có gì "chỉ URL" trong thân nó) —
+ * tên cũ chỉ phản ánh chỗ gọi ĐẦU TIÊN của nó, và đường TỆP nay cần đúng cơ chế này.
  */
-function syncChapterCursorAfterUrlBatch(): void {
+function syncChapterCursorAfterBatchChange(): void {
   const chapters = importPreviewSelectedChapters.value
   const count = chapters?.chapter_count ?? 0
   if (count === 0) {
@@ -1241,36 +1366,138 @@ function chapterPatternWire(): ChapterPatternInput | null {
 }
 
 /**
- * Lõi DÙNG CHUNG của mọi lượt "tải lại xem trước bằng ĐÚNG nguồn đang treo" — **THÊM (Story
- * 6.5, mở rộng Story 6.6)**. Gửi lại `chapterPatternWire()` HIỆN HÀNH ở MỌI lượt gọi (dù do
- * một lượt CRUD luật làm sạch hay một lượt sửa mẫu kích hoạt) — hai tầng không trôi khỏi
- * nhau: sửa luật không được âm thầm làm rớt mẫu đang gõ, và ngược lại. `null` khi chưa mở
- * lượt xem trước nào (không có gì để tải lại).
+ * Lõi DÙNG CHUNG của mọi lượt "tải lại xem trước bằng ĐÚNG nguồn đang treo", nhánh DÁN VĂN
+ * BẢN — **THÊM (Story 6.5, mở rộng Story 6.6)**. Gửi lại `chapterPatternWire()` HIỆN HÀNH ở
+ * MỌI lượt gọi (dù do một lượt CRUD luật làm sạch hay một lượt sửa mẫu kích hoạt) — hai tầng
+ * không trôi khỏi nhau: sửa luật không được âm thầm làm rớt mẫu đang gõ, và ngược lại. `null`
+ * khi chưa mở lượt xem trước nào, hoặc khi nguồn đang mở KHÔNG phải văn bản dán tay (không có
+ * gì để tải lại theo đường này).
+ *
+ * 🔵 **SỬA 2026-09-15 (Story 6.6b) — hết còn xử lý nhánh `'file'`.** `previewImportEncodingFromFile`
+ * nay trả [`FileImportBatchResult`] (`items[]` cộng một `encoding_preview` CÓ THỂ `null`) —
+ * một hình dạng KHÁC `ImportEncodingPreviewResult` trần mà hàm này giả định, cùng lý do nhánh
+ * `'urls'` đã tách riêng từ Story 6.7. [`runFileImportPreviewReload`] ngay dưới là đường dành
+ * cho `'file'`, hai chỗ gọi ([`reloadImportPreviewAfterRuleChange`]/
+ * [`reloadImportPreviewAfterChapterPatternChange`]) thử đường đó TRƯỚC.
  */
 async function runImportPreviewReload(): Promise<{ result: ImportEncodingPreviewResult; mySequence: number } | null> {
   const from = lastSubmittedFrom.value
   if (from === null) return null // chưa mở lượt xem trước nào — không có gì để tải lại
 
   // 🔴 **THÊM (Story 6.7)** — nhánh URL KHÔNG có một lệnh "tải lại xem trước, giữ nguyên byte
-  // đã tải" (thân hàm dưới đây chỉ biết `previewImportEncodingFromText`/`_from_file`, hai
-  // lệnh nhận lại NGUYÊN VĂN dán tay/đường dẫn — URL không có "nguyên văn" kiểu đó, N link
-  // đã tải sống trong `UrlImportItemsState` phía Rust). Một lượt CRUD luật làm sạch hay sửa
-  // mẫu phân tách trong lúc xem một lượt URL vì thế KHÔNG dựng lại xem trước — GIỚI HẠN THẬT,
-  // ghi ra thay vì giả vờ nó hoạt động: người dùng sửa luật làm sạch trong khi màn URL đang mở
-  // sẽ không thấy khối làm sạch cập nhật cho tới lượt xác nhận thật (luật vẫn được NẠP LẠI
-  // đúng lúc xác nhận, `confirm_import_with_encoding` luôn đọc luật NGAY LÚC XÁC NHẬN — chỉ
-  // riêng BẢN XEM TRƯỚC không tự làm mới).
-  if (from === 'urls') return null
+  // đã tải" (thân hàm dưới đây chỉ biết `previewImportEncodingFromText` — hàm nhận lại
+  // NGUYÊN VĂN dán tay; URL không có "nguyên văn" kiểu đó, N link đã tải sống trong
+  // `UrlImportItemsState` phía Rust). Một lượt CRUD luật làm sạch hay sửa mẫu phân tách trong
+  // lúc xem một lượt URL vì thế KHÔNG dựng lại xem trước — GIỚI HẠN THẬT, ghi ra thay vì giả
+  // vờ nó hoạt động: người dùng sửa luật làm sạch trong khi màn URL đang mở sẽ không thấy khối
+  // làm sạch cập nhật cho tới lượt xác nhận thật (luật vẫn được NẠP LẠI đúng lúc xác nhận,
+  // `confirm_import_with_encoding` luôn đọc luật NGAY LÚC XÁC NHẬN — chỉ riêng BẢN XEM TRƯỚC
+  // không tự làm mới).
+  if (from === 'urls' || from === 'file') return null
 
   sequence += 1
   const mySequence = sequence
   const pattern = chapterPatternWire()
 
-  const result =
-    from === 'text'
-      ? await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value, pattern)
-      : await previewImportEncodingFromFile(pendingPath.value ?? '', pendingSourceLang.value, pattern)
+  const result = await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value, pattern)
   return { result, mySequence }
+}
+
+/**
+ * Lõi DÙNG CHUNG của mọi lượt "tải lại xem trước bằng ĐÚNG nguồn đang treo", nhánh TỆP —
+ * **THÊM (Story 6.6b)**. Cùng khuôn [`runImportPreviewReload`] (bump `sequence` MỘT LẦN, gửi
+ * lại `chapterPatternWire()` hiện hành), khác Ở HÌNH DẠNG TRẢ VỀ — `previewImportEncodingFromFile`
+ * trả một [`FileImportBatchResult`], không một `ImportEncodingPreviewResult` trần, nên chỗ gọi
+ * cần đọc CẢ `items[]` (để cập nhật [`fileImportItems`]) lẫn `encoding_preview`. `null` khi
+ * `lastSubmittedFrom !== 'file'` — không có gì để tải lại theo đường này.
+ */
+async function runFileImportPreviewReload(): Promise<
+  { batch: FileImportBatchWire | null; error: IpcError | null; mySequence: number } | null
+> {
+  if (lastSubmittedFrom.value !== 'file') return null
+
+  sequence += 1
+  const mySequence = sequence
+  const pattern = chapterPatternWire()
+  const result = await previewImportEncodingFromFile(pendingPaths.value, pendingSourceLang.value, pattern)
+  return { batch: result.batch, error: result.error, mySequence }
+}
+
+/**
+ * Áp dụng một [`FileImportBatchWire`] MỚI dựng (từ [`openImportPreviewFromFile`] hoặc
+ * [`runFileImportPreviewReload`]) vào state — cùng khuôn [`applyUrlImportBatch`]. Cố giữ
+ * nguyên ứng viên đang chọn nếu nó vẫn còn trong dải mới; `encoding_preview === null` (còn
+ * mục hỏng) KHÔNG lật `status` sang lỗi — lớp phủ vẫn `'loaded'`, chỉ `preview`/`selectedEncoding`
+ * về `null` (§Decisions spec 6.6b: điều kiện ĐỦ để khoá xác nhận, không phải một trạng thái
+ * lỗi hạ tầng).
+ */
+function applyFileImportBatch(batch: FileImportBatchWire): void {
+  const keepEncoding = selectedEncoding.value
+  fileImportItems.value = batch.items
+  blockRangeMissingStartNotice.value = false
+  if (batch.encoding_preview === null) {
+    preview.value = null
+    selectedEncoding.value = null
+    syncChapterCursorAfterBatchChange()
+    status.value = 'loaded'
+    loadError.value = null
+    return
+  }
+  preview.value = batch.encoding_preview
+  selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
+    ? keepEncoding
+    : batch.encoding_preview.selected_encoding
+  syncChapterCursorAfterBatchChange()
+  status.value = 'loaded'
+  loadError.value = null
+}
+
+/**
+ * Bỏ MỘT tệp ở vị trí `index` khỏi danh sách đang mở — **THÊM (Story 6.6b)**.
+ *
+ * 🔴 **Không một lệnh Rust riêng — khác [`removeImportPreviewUrlItem`].** §Decisions spec
+ * 6.6b: *"Removal needs no new command: drop the path from paths and call the same preview
+ * wire again, because a file can be re-read"* — đường URL cần một lệnh riêng
+ * (`remove_url_import_item`) vì byte HTML đã tải KHÔNG được phép tải lại (cấm re-fetch); một
+ * tệp cục bộ thì luôn đọc lại được, nên hàm này chỉ đơn giản gọi LẠI
+ * [`previewImportEncodingFromFile`] (cùng lệnh IPC, cùng `preview_import_encoding_from_file`)
+ * với `pendingPaths` đã bỏ ĐÚNG một đường dẫn.
+ */
+export async function removeImportPreviewFileItem(index: number): Promise<void> {
+  if (confirming.value || fileImportBusy.value || lastSubmittedFrom.value !== 'file') return
+  const current = pendingPaths.value
+  if (index < 0 || index >= current.length) return
+  const next = [...current.slice(0, index), ...current.slice(index + 1)]
+
+  fileImportBusy.value = true
+  sequence += 1
+  const mySequence = sequence
+  try {
+    const result = await previewImportEncodingFromFile(next, pendingSourceLang.value, chapterPatternWire())
+    if (mySequence !== sequence) return // một lượt mở/huỷ/tải lại MỚI đã vượt mặt lượt này
+    // 🔴 SỬA 2026-09-16 (phản biện) — `pendingPaths.value = next` KHÔNG còn đứng TRƯỚC hai
+    // nhánh lỗi ngay dưới. Đứng trước đó làm `pendingPaths` (nguồn mà lượt gọi KẾ TIẾP —
+    // xác nhận, hoặc một lượt bỏ khác — đọc) ngắn hơn NGAY LẬP TỨC dù `fileImportItems`/
+    // `preview` vẫn còn hiện batch CŨ (lượt gọi vừa trượt không viết gì vào hai ref đó): bỏ
+    // tệp CUỐI CÙNG gửi `paths = []` ⇒ `import_files` trả `EmptyFileList` ⇒ `preview.value`
+    // vẫn khác `null` (còn nguyên batch cũ) ⇒ xác nhận ghi ĐÚNG tệp người dùng vừa bỏ; một
+    // lượt bỏ THỨ HAI cũng đọc sai chỉ số vì `pendingPaths`/`fileImportItems` đã lệch nhau.
+    // Chỉ gán khi lượt gọi THÀNH CÔNG THẬT SỰ (dưới `result.batch === null` một dòng) — đúng
+    // lúc `fileImportItems`/`preview` cũng đổi CÙNG LÚC qua `applyFileImportBatch`.
+    if (result.error !== null) {
+      fileImportError.value = result.error
+      return
+    }
+    if (result.batch === null) return
+    pendingPaths.value = next
+    fileImportError.value = null
+    applyFileImportBatch(result.batch)
+    // Story 6.15 — bỏ một mục dời chỉ số của mọi mục đứng sau nó; cùng lý do
+    // `removeImportPreviewUrlItem` ngay trên dọn draft xuất xứ.
+    chapterOriginDrafts.value = {}
+  } finally {
+    fileImportBusy.value = false
+  }
 }
 
 /**
@@ -1285,6 +1512,43 @@ async function reloadImportPreviewAfterRuleChange(): Promise<void> {
   // đứng trên MỘT hàng khác — danh sách sắp được dựng lại từ đầu, một khoá cũ trỏ vào một
   // luật có thể đã đổi hình dạng không nên tiếp tục hiện "bấm lại để xoá thật".
   cleanupDeletePendingKey.value = null
+
+  // **THÊM (Story 6.6b)** — thử đường TỆP trước, cùng thứ tự mà
+  // [`reloadImportPreviewAfterChapterPatternChange`] theo.
+  //
+  // 🔴 **Gác BẰNG MỘT PHÉP KIỂM ĐỒNG BỘ, không bằng `await runFileImportPreviewReload()` rồi
+  // đọc `null`.** `await` LUÔN nhường ít nhất một tick vi-mô cho bộ đệm sự kiện — kể cả khi
+  // await một `Promise` ĐÃ GIẢI QUYẾT SẴN (`runFileImportPreviewReload` trả `null` ngay lập
+  // tức cho `lastSubmittedFrom !== 'file'`, nhưng đó VẪN là một `async function`, và `await`
+  // trên nó vẫn tốn một tick). Với nhánh `'text'`, tick thừa đó chen VÀO GIỮA lúc
+  // `setImportPreviewChapterPattern`/CRUD luật gọi hàm này và lúc [`runImportPreviewReload`]
+  // thật sự GỌI `previewImportEncodingFromText(...)` — phá đúng bất biến mà
+  // `importPreviewChapters.test.ts::"một @change thứ hai đến trong lúc lượt đầu còn bay ĐƯỢC
+  // XẾP HÀNG"` khoá: lời gọi IPC đầu tiên phải xảy ra ĐỒNG BỘ (cùng vi-tác vụ) với lượt gọi
+  // hàm cấp cao, để một `expect(...).toHaveBeenCalledTimes(1)` ngay sau đó, KHÔNG `await`,
+  // vẫn thấy đúng. `lastSubmittedFrom.value === 'file'` là một phép đọc THUẦN, 0 tick.
+  if (lastSubmittedFrom.value === 'file') {
+    const fileOutcome = await runFileImportPreviewReload()
+    if (fileOutcome === null) return // vô hại — chỉ chạm khi `lastSubmittedFrom` đổi GIỮA hai dòng, bất khả trong JS đơn luồng
+    if (fileOutcome.mySequence !== sequence) return
+    if (fileOutcome.error !== null) {
+      if (fileOutcome.error.code === CHAPTER_PATTERN_INVALID_CODE) {
+        chapterPatternError.value = fileOutcome.error
+        return
+      }
+      status.value = 'error'
+      loadError.value = fileOutcome.error
+      return
+    }
+    chapterPatternError.value = null
+    if (fileOutcome.batch === null) {
+      status.value = 'ipc_unavailable'
+      loadError.value = null
+      return
+    }
+    applyFileImportBatch(fileOutcome.batch)
+    return
+  }
 
   const keepEncoding = selectedEncoding.value
   const outcome = await runImportPreviewReload()
@@ -1331,6 +1595,29 @@ async function reloadImportPreviewAfterRuleChange(): Promise<void> {
  * đây KHÔNG đụng `status`/`loadError`/`preview` — chỉ báo lỗi RIÊNG qua `chapterPatternError`.
  */
 async function reloadImportPreviewAfterChapterPatternChange(): Promise<void> {
+  // **THÊM (Story 6.6b)** — cùng thứ tự thử đường TỆP trước, cùng gác ĐỒNG BỘ (không phải
+  // `await runFileImportPreviewReload()` rồi đọc `null`) mà [`reloadImportPreviewAfterRuleChange`]
+  // theo — xem doc-comment CHI TIẾT ở đó cho lý do một tick vi-mô thừa phá vỡ đối chứng
+  // "lời gọi IPC đầu tiên đồng bộ" của `importPreviewChapters.test.ts`.
+  if (lastSubmittedFrom.value === 'file') {
+    const fileOutcome = await runFileImportPreviewReload()
+    if (fileOutcome === null) return
+    if (fileOutcome.mySequence !== sequence) return
+    if (fileOutcome.error !== null) {
+      // 🔴 KHÔNG đụng `status`/`loadError`/`preview` — xem doc-comment hàm này.
+      chapterPatternError.value = fileOutcome.error
+      return
+    }
+    chapterPatternError.value = null
+    if (fileOutcome.batch === null) {
+      status.value = 'ipc_unavailable'
+      loadError.value = null
+      return
+    }
+    applyFileImportBatch(fileOutcome.batch)
+    return
+  }
+
   const keepEncoding = selectedEncoding.value
   const outcome = await runImportPreviewReload()
   if (outcome === null) return
@@ -1532,7 +1819,14 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
     confirming.value ||
     chapterPatternSending.value ||
     !importPreviewCanConfirm.value ||
-    selectedEncoding.value === null
+    selectedEncoding.value === null ||
+    // 🔴 SỬA 2026-09-16 (phản biện) — `removeImportPreviewFileItem` đã chặn CHÍNH NÓ khi
+    // `confirming` (chiều "xác nhận rồi mới bỏ" đã đóng), nhưng chiều NGƯỢC LẠI hở: một lượt
+    // xác nhận bấm ĐÚNG lúc một lượt bỏ tệp đang bay đọc một Ô ĐANG CHỜ mà chính lượt bỏ đó
+    // sắp CẤT ĐÈ hoặc DỌN (tuỳ thành/bại) — cùng lớp cửa đua mà `importPreviewUrlImportBusy`
+    // đã đóng cho đường URL (xem P5, `ImportPreviewOverlay.vue`), chỉ khác chưa có cho đường
+    // TỆP.
+    fileImportBusy.value
   ) {
     return { created: null, error: null }
   }
@@ -1576,7 +1870,7 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   pendingGenre.value = ''
   stripForcedOpen.value = false
   pendingText.value = null
-  pendingPath.value = null
+  pendingPaths.value = []
   cleanupActionError.value = null
   cleanupAdding.value = false
   cleanupSavingEdit.value = false
@@ -1588,6 +1882,9 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  fileImportItems.value = []
+  fileImportBusy.value = false
+  fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
   urlImportBusy.value = false
@@ -1651,7 +1948,7 @@ export function resetImportPreview(): void {
   stripForcedOpen.value = false
   lastSubmittedFrom.value = null
   pendingText.value = null
-  pendingPath.value = null
+  pendingPaths.value = []
   cleanupActionError.value = null
   cleanupAdding.value = false
   cleanupSavingEdit.value = false
@@ -1663,6 +1960,9 @@ export function resetImportPreview(): void {
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  fileImportItems.value = []
+  fileImportBusy.value = false
+  fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
   urlImportBusy.value = false

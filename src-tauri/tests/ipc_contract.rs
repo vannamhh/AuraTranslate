@@ -1108,9 +1108,13 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
             "preview_import_encoding_from_text",
             "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
+        // 🔵 SỬA 2026-09-15 (Story 6.6b) — tham số `path: String` đổi thành `paths:
+        // Vec<String>`: reason "parameter retyped to a list", KHÔNG một lời nới lỏng — N = 1
+        // vẫn build đúng `PipelineShape::Blob` y hệt hôm nay (§Always spec 6.6b), kiểu trả
+        // cũng đổi rộng ra thành `FileImportBatchWire` (envelope per-item cho MỌI N).
         (
             "preview_import_encoding_from_file",
-            "app: tauri::AppHandle,\n        path: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
+            "app: tauri::AppHandle,\n        paths: Vec<String>,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
         (
             "confirm_import_with_encoding",

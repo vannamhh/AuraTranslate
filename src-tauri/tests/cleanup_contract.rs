@@ -1526,6 +1526,158 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — "xem trước = xác nhận" byte-for-byte MỖI Chương, ở N TỆP (PipelineShape::Files)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **I/O Matrix spec 6.6b "Preview equals confirm"** — cùng khuôn
+/// `preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapters` ngay
+/// trên, nhưng N Chương đến từ N TỆP (`PipelineShape::Files`), không từ một mẫu phân tách áp
+/// lên MỘT `Blob`. `source_text` mà `confirm_import_with_encoding` GHI XUỐNG cho mỗi Chương
+/// phải giống HỆT TỪNG BYTE với văn bản mà chuỗi pipeline ĐỘC LẬP tạo ra cho CÙNG đầu vào.
+#[test]
+fn preview_and_confirm_agree_byte_for_byte_when_n_chapters_come_from_n_files() {
+    let root = temp_dir("preview-confirm-agree-n-files");
+    let global = open_global(&root);
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "quang cao",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
+
+    let units = vec![
+        ChapterInput::AlreadyText("quang cao dau. noi dung tep mot.".to_owned()),
+        ChapterInput::AlreadyText("noi dung tep hai, khong co gi de xoa.".to_owned()),
+        ChapterInput::AlreadyText("noi dung tep ba. quang cao cuoi.".to_owned()),
+    ];
+
+    // Tính ĐỘC LẬP (không qua `commands::project`) văn bản mà chuỗi pipeline THẬT sẽ tạo ra
+    // cho CÙNG đầu vào — đây là "sự thật" mà cả preview lẫn confirm phải khớp.
+    let expected = {
+        let shape = PipelineShape::Files(units.clone());
+        let input = PipelineInput::default_shaped(shape, "en").with_cleanup_rules(rules.clone());
+        run_import(input).expect("chuoi doc lap khong duoc loi")
+    };
+    assert_eq!(expected.chapters.len(), 3, "tien de: 3 tep phai cho ra dung 3 Chuong");
+
+    let shape = PipelineShape::Files(units);
+    let state: PendingImportSourceState = std::sync::Mutex::new(None);
+    stash_pending_import_source(&state, shape, None);
+    let opened = confirm_import_with_encoding(
+        &root,
+        &state,
+        "Preview Confirm N Tep",
+        "en",
+        "",
+        "UTF-8",
+        rules,
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect("xac nhan that bai");
+
+    let written: Vec<(i64, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT ord, source_text FROM chapter ORDER BY ord")?;
+            let mut rows_iter = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows_iter.next()? {
+                out.push((row.get::<_, i64>(0)?, row.get::<_, String>(1)?));
+            }
+            Ok(out)
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(written.len(), expected.chapters.len());
+    for (i, (ord, source_text)) in written.iter().enumerate() {
+        assert_eq!(*ord, i as i64 + 1);
+        assert_eq!(
+            source_text, &expected.chapters[i].source_text,
+            "Chuong thu {i} (tep thu {i}) ghi xuong phai giong HET TUNG BYTE voi chuoi \
+             pipeline doc lap -- xem truoc va xac nhan phai cung chay run_pipeline tren CUNG \
+             dau vao PipelineShape::Files"
+        );
+    }
+
+    drop(opened.store);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+/// **THÊM 2026-09-16 (Story 6.6b, phản biện)** — không mẫu ⇒ ánh xạ `chapter_index` ↔ đơn vị
+/// của `PipelineShape::Files` là PHÉP ĐỒNG NHẤT (`chapter_detail_for_index` gọi thẳng
+/// `commands::project::display_window_for_chapter`, nhánh `Files` với `chapter_pattern: None`
+/// đọc `units.get(chapter_index)` trực tiếp) — Chương thứ *i* phải trả về chi tiết THẬT của
+/// CHÍNH tệp thứ *i*, không phải `None`. Đây là hành trình CHÍNH của story (N tệp, không mẫu,
+/// mỗi tệp một Chương) mà `⌥←`/`⌥→` (Story 6.10a) đi qua.
+#[test]
+fn chapter_detail_for_index_on_a_files_batch_with_no_pattern_returns_that_units_own_window() {
+    let unit_a = "Noi dung tep A, khong lien quan gi toi B hay C.".to_owned();
+    let unit_b = "Noi dung tep B, hoan toan khac A va C.".to_owned();
+    let unit_c = "Noi dung tep C, cung khac not.".to_owned();
+    let shape = PipelineShape::Files(vec![
+        ChapterInput::AlreadyText(unit_a.clone()),
+        ChapterInput::AlreadyText(unit_b.clone()),
+        ChapterInput::AlreadyText(unit_c.clone()),
+    ]);
+
+    let (cleanup_a, blocks_a) =
+        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, None, "en", &[], false, &[])
+            .expect("Chuong 0 (don vi A) phai co chi tiet THAT, khong None");
+    assert_eq!(cleanup_a.final_text, unit_a, "Chuong 0 phai tra dung cua so cua DON VI A");
+    assert!(blocks_a.is_none(), "extract_main_content == false -- khong co tang 2");
+
+    let (cleanup_b, _) =
+        chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, None, "en", &[], false, &[])
+            .expect("Chuong 1 (don vi B) phai co chi tiet THAT, khong None");
+    assert_eq!(
+        cleanup_b.final_text, unit_b,
+        "Chuong 1 phai tra dung cua so cua DON VI B, khong phai cua A hay C -- day la doi \
+         chung cho \"khong Chuong nao muon so cua don vi khac\" (§Always spec 6.6b)"
+    );
+
+    let (cleanup_c, _) =
+        chapter_detail_for_index(&shape, 2, encoding_rs::UTF_8, None, "en", &[], false, &[])
+            .expect("Chuong 2 (don vi C) phai co chi tiet THAT, khong None");
+    assert_eq!(cleanup_c.final_text, unit_c, "Chuong 2 phai tra dung cua so cua DON VI C");
+
+    assert!(
+        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[]).is_none(),
+        "chi so ngoai pham vi phai tra None, khong doan mot don vi khac"
+    );
+}
+
+/// **THÊM 2026-09-16 (Story 6.6b, phản biện)** — ca ÂM của ca ngay trên: CÓ mẫu phân tách,
+/// ánh xạ `chapter_index` ↔ mảnh KHÔNG còn là phép đồng nhất (một đơn vị có thể bị tách thành
+/// k > 1 mảnh, và ranh giới đó chỉ tính được SAU khi so mẫu) — nhánh `Files` phải TỪ CHỐI
+/// (`None`), không đoán, đúng nợ CÓ CHỦ đã hẹp lại còn đúng ca này trong `deferred-work.md`.
+#[test]
+fn chapter_detail_for_index_on_a_files_batch_with_a_pattern_returns_none_not_a_guess() {
+    use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
+
+    let shape = PipelineShape::Files(vec![ChapterInput::AlreadyText("Tep A, mot dong.".to_owned())]);
+    let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
+
+    assert!(
+        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
+            .is_none(),
+        "co mau: anh xa chapter_index <-> manh KHONG con la phep dong nhat -- phai tra None, \
+         khong doan mot cua so co the sai"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // Story 6.6 — ĐO, ĐỪNG KHAI: xem trước nay chạy chuỗi kèm tách Chương (Task list spec 6.6)
 // ═════════════════════════════════════════════════════════════════════════════════
 

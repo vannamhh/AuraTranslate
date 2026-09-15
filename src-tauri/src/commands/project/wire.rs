@@ -1,7 +1,7 @@
     use super::{
-        ImportEncodingPreview, IpcError, OpenWork, OpenWorkState, PendingImportSourceState,
-        Tier2BlockOverridesState, no_pending_import_source, replace_open_work,
-        resolve_library_root, spawn_import_scan,
+        FileImportBatchWire, ImportEncodingPreview, IpcError, OpenWork, OpenWorkState,
+        PendingImportSourceState, Tier2BlockOverridesState, cancel_import_preview,
+        no_pending_import_source, replace_open_work, resolve_library_root, spawn_import_scan,
     };
     use crate::core::cleanup::CleanupRule;
     use crate::core::i18n::MessageKey;
@@ -505,13 +505,27 @@
         Ok(preview)
     }
 
-    /// Vỏ IPC — nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). [`import_file`] đọc
-    /// byte thô ĐÚNG MỘT LẦN ở đây; `confirm_import_with_encoding` CLONE từ
-    /// [`PendingImportSourceState`], không đọc lại đĩa.
+    /// Vỏ IPC — nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126; mở rộng N tệp Story
+    /// 6.6b, FR14). [`super::import_files`] đọc byte thô ĐÚNG MỘT LẦN mỗi tệp ở đây;
+    /// `confirm_import_with_encoding` CLONE từ [`PendingImportSourceState`], không đọc lại
+    /// đĩa.
+    ///
+    /// 🔵 **SỬA 2026-09-15 (Story 6.6b) — tham số đổi từ `path: String` sang `paths:
+    /// Vec<String>`, kiểu trả đổi từ `ImportEncodingPreview` sang [`FileImportBatchWire`].**
+    /// Đây là hình dạng DÂY MỚI của vỏ này — một envelope PER-ITEM cho MỌI N (kể cả N = 1,
+    /// §Always spec 6.6b: "one shape to reason about"), thay vì trả thẳng
+    /// `ImportEncodingPreview`. `paths` rỗng ⇒ [`super::import_files`] trả
+    /// `Err(ImportError::EmptyFileList)`, đi thẳng qua `?` (I/O Matrix "Empty list"). Một mục
+    /// KHÔNG đọc được (quyền, quá cỡ, `.docx`/`.csv`/`.tsv` bên trong một batch N > 1) không
+    /// làm hỏng cả lượt — nó ở lại trong `items` với lý do riêng, và `encoding_preview`
+    /// chuyển `None` (điều kiện ĐỦ để khoá xác nhận, §Decisions).
     ///
     /// # Lỗi
     /// - [`PendingImportSourceState`] chưa được quản lý ⇒ `import.no_pending_source`, cùng lý
     ///   do nhánh DÁN VĂN BẢN ngay trên.
+    /// - `paths` rỗng ⇒ `import.empty_file_list` (`?` từ [`super::import_files`]).
+    /// - `paths.len() == 1` và tệp đó không đọc được ⇒ lỗi TOÀN CỤC của chính tệp đó (không
+    ///   có "phần còn lại" để mà giữ — §Always spec 6.6b: N = 1 y hệt hôm nay).
     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`**, cùng lý do nhánh DÁN
     /// VĂN BẢN ngay trên.
     ///
@@ -520,43 +534,55 @@
     /// chuỗi dẫn chứng đầy đủ ở doc-comment `create_work_from_text`.
     ///
     /// **Vỏ này CHẶN vì:** cùng trần 100 MB của `import_file`
-    /// (`core/segment/import.rs:82`/`:684`) — đọc TRỌN tệp cộng giải nén `.docx` — nhưng ở
-    /// lượt XEM TRƯỚC, tức TRƯỚC khi người dùng xác nhận bất cứ điều gì; lượt treo rơi vào
-    /// đúng nhịp người dùng còn đang cân nhắc, không phải nhịp họ đã chấp nhận chờ.
+    /// (`core/segment/import.rs:82`/`:684`) — đọc TRỌN MỖI tệp cộng giải nén `.docx` khi
+    /// N = 1 — nhưng ở lượt XEM TRƯỚC, tức TRƯỚC khi người dùng xác nhận bất cứ điều gì; lượt
+    /// treo rơi vào đúng nhịp người dùng còn đang cân nhắc, không phải nhịp họ đã chấp nhận
+    /// chờ.
     #[tauri::command(async)]
     pub fn preview_import_encoding_from_file(
         app: tauri::AppHandle,
-        path: String,
+        paths: Vec<String>,
         source_lang: String,
         chapter_pattern: Option<super::ChapterPatternWire>,
-    ) -> Result<ImportEncodingPreview, IpcError> {
+    ) -> Result<FileImportBatchWire, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
-        let (shape, docx_sidecar) = super::import_file(std::path::Path::new(&path))?;
+        // 🔴 SỬA 2026-09-16 (phản biện) — `import_files` trượt (danh sách rỗng, hoặc MỘT
+        // đường dẫn không đọc được ở N = 1) KHÔNG còn thoát bằng `?` trần. `?` trả lỗi TRƯỚC
+        // khi chạm `state` — một `PipelineShape` đã cất từ một lượt xem trước TRƯỚC ĐÓ (còn
+        // hợp lệ, `PendingImportSourceState` chưa từng dọn) sống sót qua lượt gọi TRƯỢT này và
+        // vẫn xác nhận được, dù màn hình vừa báo lỗi. Dọn Ô ĐANG CHỜ trên đường lỗi này, cùng
+        // khuôn `cancel_import_preview` ở nhánh "còn mục hỏng" ngay dưới.
+        let outcome = match super::import_files(&paths) {
+            Ok(outcome) => outcome,
+            Err(err) => {
+                cancel_import_preview(&state);
+                return Err(err.into());
+            }
+        };
         // Story 6.9 — cùng lý do nhánh DÁN VĂN BẢN ở trên: đường tệp KHÔNG BAO GIỜ bóc nội
         // dung chính (kể cả `.docx` — Story 6.12: nó không đi qua `dom_smoothie`).
         reset_tier2_block_overrides(&app);
         // 🔴 SỬA 2026-09-10 (Story 6.15, lượt rà) — cùng lý do nhánh DÁN VĂN BẢN ở trên.
         reset_chapter_origin_overrides(&app);
-        let preview = super::preview_import_encoding(
-            &shape,
-            &source_lang,
-            &cleanup_rules,
-            pattern.as_ref(),
-            &[],
-            // Đường tệp/dán tay — 0 mục URL để mà hỏng (§Always spec 6.10: "đường tệp/dán
-            // tay truyền 0").
-            0,
-            // Đường tệp/dán tay không bao giờ bóc xuất xứ (`extract_main_content == false`)
-            // — Story 6.15, cùng lý lẽ `&[]` của `block_overrides` ngay trên.
-            &[],
-        );
-        super::stash_pending_import_source(&state, shape, docx_sidecar);
-        Ok(preview)
+
+        // 🔵 SỬA 2026-09-16 (phản biện) — quyết định "mọi mục OK / khoá / cất" nay sống trong
+        // [`super::build_file_import_batch_wire`] (hàm THUẦN, `tests/**` gọi được không cần
+        // `tauri::AppHandle`) thay vì chỉ ở đây.
+        let (batch, all_ok) =
+            super::build_file_import_batch_wire(&outcome, &source_lang, &cleanup_rules, pattern.as_ref());
+        if all_ok {
+            super::stash_pending_import_source(&state, outcome.shape, outcome.docx_sidecar);
+        } else {
+            // Một mục hỏng: không có gì hợp lệ để mà cất — dọn ô đang chờ, cùng khuôn
+            // `sync_pending_from_url_items` (đường URL) khi còn mục hỏng.
+            cancel_import_preview(&state);
+        }
+        Ok(batch)
     }
 
     /// Vỏ IPC — xác nhận lượt nhập với bảng mã đã chọn (Story 6.3, FR126). **Không một quy

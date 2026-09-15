@@ -131,6 +131,16 @@ pub enum ImportError {
         /// Đường dẫn tệp.
         path: String,
     },
+    /// **THÊM 2026-09-15 (Story 6.6b)** — [`import_files`] nhận `paths` RỖNG. Xem doc-comment
+    /// [`crate::core::i18n::MessageKey::ImportEmptyFileList`].
+    EmptyFileList,
+    /// **THÊM 2026-09-15 (Story 6.6b)** — một tệp bên trong một batch N > 1 không phải
+    /// `.txt`/`.md` (§Decisions "A batch is .txt/.md only"). Xem doc-comment
+    /// [`crate::core::i18n::MessageKey::ImportBatchUnsupportedFormat`].
+    BatchUnsupportedFormat {
+        /// Phần mở rộng đọc được (không có dấu chấm).
+        format: String,
+    },
     /// Tệp vượt [`MAX_IMPORT_BYTES`].
     TooLarge {
         /// Kích thước thật, tính bằng byte.
@@ -294,6 +304,12 @@ impl std::fmt::Display for ImportError {
             ImportError::MissingExtension { path } => {
                 write!(f, "import[{path}]: no file extension")
             }
+            ImportError::EmptyFileList => {
+                write!(f, "import: empty file list")
+            }
+            ImportError::BatchUnsupportedFormat { format } => {
+                write!(f, "import[batch]: unsupported format {format:?}")
+            }
             ImportError::TooLarge { size, limit } => {
                 write!(f, "import: file is {size} bytes, limit is {limit}")
             }
@@ -386,6 +402,22 @@ impl From<ImportError> for IpcError {
                 IpcError::new(
                     "import.missing_extension",
                     MessageKey::ImportMissingExtension,
+                    params,
+                    false,
+                )
+            }
+            ImportError::EmptyFileList => IpcError::new(
+                "import.empty_file_list",
+                MessageKey::ImportEmptyFileList,
+                BTreeMap::new(),
+                false,
+            ),
+            ImportError::BatchUnsupportedFormat { format } => {
+                let mut params = BTreeMap::new();
+                params.insert("format".to_owned(), format);
+                IpcError::new(
+                    "import.batch_unsupported_format",
+                    MessageKey::ImportBatchUnsupportedFormat,
                     params,
                     false,
                 )
@@ -615,6 +647,16 @@ pub struct ImportedChapter {
     /// Chỉ mang hàng CẶP ĐƯỢC (số câu nguồn = số câu đích) — một hàng lệch cặp không đóng
     /// góp segment nào vào đây, nó chỉ có mặt trong [`super::pipeline::PipelineOutput::bilingual_mismatches`].
     pub bilingual_segments: Option<Vec<super::bilingual::BilingualSegment>>,
+    /// **THÊM 2026-09-15 (Story 6.6b)** — tên/đường dẫn tệp NGUỒN của Chương này, đọc từ
+    /// [`super::pipeline::Flow::labels`] ở cuối [`super::pipeline::run_import_with_order`].
+    /// `None` khi nhãn rỗng — đúng MỌI hình dạng KHÁC [`super::pipeline::PipelineShape::Files`]
+    /// hôm nay (`Blob`/`Bilingual` chưa từng mang một nhãn có nghĩa; `Chapters`/URL mang nhãn
+    /// nhưng chỉ dùng NỘI BỘ cho `Step::ExtractMainContent`, không lộ ra tầng hiển thị qua
+    /// trường này — xem `commands::project::chapter_input_page_url` cho đường ĐÓ). Trên
+    /// [`super::pipeline::PipelineShape::Files`], `Some(path)` cho MỌI Chương — kể cả khi một
+    /// tệp bị mẫu phân tách cắt thành k > 1 mảnh (mọi mảnh của CÙNG một tệp mang CÙNG
+    /// `source_file`, §Always spec 6.6b: "pieces keep unit i's label").
+    pub source_file: Option<String>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/
@@ -717,6 +759,108 @@ pub fn import_file(path: &Path) -> Result<(PipelineShape, Option<DocxSidecar>), 
         }),
         None,
     ))
+}
+
+/// **THÊM 2026-09-15 (Story 6.6b)** — kết quả BỌC của [`import_files`]: hình dạng để nạp
+/// thẳng vào chuỗi ([`PipelineShape::Blob`] khi N = 1, [`PipelineShape::Files`] khi N > 1),
+/// `DocxSidecar` (chỉ CÓ THỂ `Some` khi N = 1 — §Decisions "A batch is .txt/.md only", nên
+/// N > 1 luôn `None`), cộng một mục PER-ITEM cho từng đường dẫn trong `paths` — theo ĐÚNG thứ
+/// tự đã gửi, kể cả khi N = 1 (§Always: "the file wire's envelope returns the per-item batch
+/// shape for every N, N = 1 included").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilesImportOutcome {
+    pub shape: PipelineShape,
+    pub docx_sidecar: Option<DocxSidecar>,
+    pub items: Vec<FileImportItem>,
+}
+
+/// Một mục của [`FilesImportOutcome::items`] — copy hình dạng của mục danh sách URL
+/// (`commands::project::UrlImportItem`, `mod.rs:3963-3981` của Code Map spec 6.6b): `path`
+/// GIỮ ĐÚNG vị trí trong `paths` dù thành công hay không, `error` mang [`ImportError`] ĐẦY ĐỦ
+/// khi mục này thất bại — asymmetry với URL: một tệp CÓ THỂ đọc lại (không cấm re-fetch như
+/// URL), nên không có trường `raw`/byte đã đọc để mà giữ ở đây; `import_files` gọi lại từ đầu
+/// mỗi lượt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileImportItem {
+    pub path: String,
+    pub error: Option<ImportError>,
+}
+
+/// **THÊM 2026-09-15 (Story 6.6b)** — nhánh N tệp của AC1: đường DUY NHẤT
+/// `wire::preview_import_encoding_from_file` gọi, dù `paths` mang một hay nhiều tệp
+/// (§Always: "one shape to reason about"). N = 1 uỷ quyền THẲNG cho [`import_file`] (giữ
+/// nguyên `Blob` cộng `DocxSidecar` — hành vi đơn-tệp KHÔNG đổi một byte, §Always spec 6.6b),
+/// và một lỗi ở N = 1 vẫn là `Err` TOÀN CỤC như hôm nay (không có "phần còn lại" nào để mà giữ
+/// khi chỉ có một tệp). N > 1: phần mở rộng bị từ chối TRƯỚC khi mở tệp (tái dùng
+/// [`reject_unsupported_extension`] qua [`import_file`], cùng thứ tự AC8 đã theo), MỘT
+/// `.docx`/`.csv`/`.tsv` bên trong batch trở thành một mục lỗi RIÊNG
+/// ([`ImportError::BatchUnsupportedFormat`], §Decisions), và một lần đọc/kích thước trượt
+/// ([`ImportError::ReadFailed`]/[`ImportError::TooLarge`]) cũng trở thành một mục lỗi —
+/// KHÔNG BAO GIỜ một `Err` làm hỏng cả lượt (§Decisions "An unreadable file keeps its place,
+/// locks confirm, and can be removed").
+///
+/// Danh sách RỖNG bị từ chối TRƯỚC KHI mở bất kỳ tệp nào (I/O Matrix "Empty list") —
+/// [`ImportError::EmptyFileList`], không phải một `PipelineShape::Files(vec![])` im lặng.
+pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError> {
+    if paths.is_empty() {
+        return Err(ImportError::EmptyFileList);
+    }
+
+    if paths.len() == 1 {
+        let (shape, docx_sidecar) = import_file(Path::new(&paths[0]))?;
+        return Ok(FilesImportOutcome {
+            shape,
+            docx_sidecar,
+            items: vec![FileImportItem { path: paths[0].clone(), error: None }],
+        });
+    }
+
+    let mut inputs: Vec<ChapterInput> = Vec::with_capacity(paths.len());
+    let mut items: Vec<FileImportItem> = Vec::with_capacity(paths.len());
+    for p in paths {
+        let path = Path::new(p);
+        if let Err(e) = reject_batch_unsupported_extension(path) {
+            items.push(FileImportItem { path: p.clone(), error: Some(e) });
+            continue;
+        }
+        match import_file(path) {
+            // `reject_batch_unsupported_extension` above already narrowed the extension to
+            // `.txt`/`.md` — `import_file` on either of those two always returns `Blob`
+            // carrying `RawBytes` (it only ever produces `AlreadyText` for `.docx`, refused
+            // above), never a `DocxSidecar`.
+            Ok((PipelineShape::Blob(input), _)) => {
+                inputs.push(input);
+                items.push(FileImportItem { path: p.clone(), error: None });
+            }
+            Ok((PipelineShape::Chapters(_) | PipelineShape::Bilingual { .. } | PipelineShape::Files(_), _)) => {
+                unreachable!("import_file only ever returns PipelineShape::Blob")
+            }
+            Err(e) => {
+                items.push(FileImportItem { path: p.clone(), error: Some(e) });
+            }
+        }
+    }
+
+    Ok(FilesImportOutcome { shape: PipelineShape::Files(inputs), docx_sidecar: None, items })
+}
+
+/// Từ chối một phần mở rộng KHÔNG phải `.txt`/`.md` trên đường N > 1 tệp — RIÊNG với
+/// [`reject_unsupported_extension`] (đó vẫn từ chối/chấp nhận đúng ba đuôi của đường MỘT tệp,
+/// KHÔNG đụng — §Always spec 6.6b: "Single-file .docx ... untouched"). `.docx` tự nó là một
+/// đuôi HỢP LỆ của [`import_file`] — không chặn nó Ở ĐÂY thì `import_file` sẽ ĐỌC nó thành
+/// công và nuốt mất chính chỗ hở mà §Decisions "A batch is .txt/.md only" đóng (một `.docx`
+/// trong batch cần một `DocxSidecar` PER-UNIT, ngoài phạm vi story — xem `deferred-work.md`).
+/// Không phần mở rộng nào ⇒ [`ImportError::MissingExtension`] (tái dùng, không một hạng lỗi
+/// thứ hai cho cùng một sự thật).
+fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        return Err(ImportError::MissingExtension { path: path.display().to_string() });
+    };
+    let ext = ext.to_ascii_lowercase();
+    if ext == "txt" || ext == "md" {
+        return Ok(());
+    }
+    Err(ImportError::BatchUnsupportedFormat { format: ext })
 }
 
 /// **THÊM 2026-09-11 (Story 6.16, FR115)** — hai đuôi được nhận trên đường nhập song ngữ,

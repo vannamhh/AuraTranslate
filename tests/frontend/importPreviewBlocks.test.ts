@@ -122,7 +122,7 @@ function previewWithBlocks(blocks: BlockWire[]): ImportEncodingPreview {
         cleanup: { text: 'noi dung', spans: [], rules: [], window_truncated: false, final_text: 'noi dung' },
         chapters: {
           chapter_count: 1,
-          chapters: [{ ord: 1, title: null, length: 8, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }],
+          chapters: [{ ord: 1, title: null, length: 8, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }],
           broken_item_count: 0,
           needs_review_count: 0,
           clean_count: 1,

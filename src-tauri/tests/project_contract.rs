@@ -24,7 +24,7 @@ use auratranslate_lib::commands::chapter::{
 };
 use auratranslate_lib::commands::project::{
     ChapterPatternWire, OpenWork, Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState,
-    block_overrides_for_range, chapters_shape_if_all_ok,
+    block_overrides_for_range, build_file_import_batch_wire, chapters_shape_if_all_ok,
     clear_url_import_items_after_successful_confirm, create_work, create_work_from_file,
     create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
     resolve_chapter_pattern, set_block_override,
@@ -33,7 +33,9 @@ use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
 use auratranslate_lib::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
-use auratranslate_lib::core::segment::import::{import_file, import_text};
+use auratranslate_lib::core::segment::import::{
+    FileImportItem, FilesImportOutcome, ImportError, import_file, import_text,
+};
 use auratranslate_lib::core::segment::pipeline::{
     ChapterInput, PipelineInput, PipelineShape, run_import,
 };
@@ -756,6 +758,150 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
 
     drop(opened);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — N tệp nhập cùng lúc (FR14 mở rộng, `PipelineShape::Files`)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **I/O Matrix spec 6.6b "Confirm a large batch"** — 200 tệp xác nhận CÙNG lúc phải cho ra
+/// đúng 200 hàng `chapter`, `ord` 1..200 LIÊN TỤC, MỌI hàng `not_started`, và segment tồn tại
+/// cho MỌI Chương — cùng khuôn `create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_more_than_one`
+/// ngay trên, chỉ đổi hình dạng đầu vào từ `Chapters` sang `Files` và N từ 3 lên 200.
+#[test]
+fn create_work_writes_a_two_hundred_file_batch_with_continuous_ord_and_every_row_not_started() {
+    let root = temp_dir("files-200-batch");
+
+    const FILE_COUNT: usize = 200;
+    let units: Vec<ChapterInput> = (1..=FILE_COUNT)
+        .map(|i| ChapterInput::AlreadyText(format!("Noi dung tep so {i}.")))
+        .collect();
+    let shape = PipelineShape::Files(units);
+
+    let opened = create_work(
+        &root, "Hai Tram Tep", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None,
+        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+    )
+    .expect("tao Tac pham voi 200 tep that bai");
+
+    let rows: Vec<(i64, i64, String, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT id, ord, source_text, status FROM chapter ORDER BY ord")?;
+            let mut rows_iter = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows_iter.next()? {
+                out.push((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ));
+            }
+            Ok(out)
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(rows.len(), FILE_COUNT, "phai co dung {FILE_COUNT} hang chapter, mot cho moi tep");
+    for (i, (id, ord, source_text, status)) in rows.iter().enumerate() {
+        assert_eq!(*ord, i as i64 + 1, "chapter id={id} phai mang ord = {} (lien tuc tu 1)", i + 1);
+        assert_eq!(status, "not_started", "chapter id={id} ord={ord} phai mang status not_started");
+        assert_eq!(source_text, &format!("Noi dung tep so {}.", i + 1), "chapter id={id} phai giu dung noi dung cua CHINH tep thu {}", i + 1);
+    }
+
+    for (chapter_id, ord, _, _) in &rows {
+        let seg_count: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row("SELECT COUNT(*) FROM segment WHERE chapter_id = ?1", [chapter_id], |row| row.get(0))
+            })
+            .expect("dem segment that bai");
+        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+    }
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// **I/O Matrix spec 6.6b "Confirm a large batch"**, vế "Any failure rolls the whole .atproj
+/// back" — một đơn vị KHÔNG giải mã được (byte GBK khai bảng mã UTF-8) đứng giữa một batch N
+/// tệp phải làm CẢ lượt `create_work` trượt, và 0 thư mục `.atproj` nào được để lại — cùng
+/// khuôn đối chứng `create_work` đã có cho `Blob` (dòng "khong thu muc .atproj nao duoc tao
+/// khi noi dung khong phai UTF-8" ở trên), áp cho hình dạng `Files`.
+#[test]
+fn a_files_batch_rolls_back_completely_when_one_unit_is_undecodable() {
+    let root = temp_dir("files-batch-rollback");
+
+    let bad_bytes: Vec<u8> = vec![0xC3, 0x28]; // khong hop le voi UTF-8
+    let shape = PipelineShape::Files(vec![
+        ChapterInput::AlreadyText("Tep dau tien, doc duoc.".to_owned()),
+        ChapterInput::RawBytes { bytes: bad_bytes, label: "tep-hong.txt".to_owned() },
+        ChapterInput::AlreadyText("Tep thu ba, doc duoc.".to_owned()),
+    ]);
+
+    let err = create_work(
+        &root, "Batch Hong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None,
+        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+    )
+    .expect_err("mot don vi khong giai ma duoc phai lam ca luot xac nhan truot");
+    assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
+
+    let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
+    assert!(
+        entries.is_empty(),
+        "0 thu muc .atproj nao duoc de lai khi mot don vi trong batch khong giai ma duoc -- \
+         hai tep con lai (doc duoc) khong duoc phep ghi mot phan xuong dia"
+    );
+
+    cleanup(&root);
+}
+
+/// **THÊM 2026-09-16 (phản biện)** — `build_file_import_batch_wire` (hàm THUẦN, lõi của
+/// quyết định "mọi mục OK / khoá / cất" §Decisions spec 6.6b) chạy được KHÔNG cần
+/// `tauri::AppHandle`, trên một `FilesImportOutcome` DỰNG TAY mang đúng MỘT mục hỏng — trước
+/// bản vá này, quyết định đó chỉ sống TRONG vỏ IPC (`wire::preview_import_encoding_from_file`)
+/// và không `tests/**` nào CHẠY được nó, chỉ so được văn bản mã nguồn.
+#[test]
+fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_when_all_ok() {
+    let ok_err: Option<ImportError> = None;
+    let broken_err = Some(ImportError::ReadFailed { path: "b.txt".to_owned(), detail: "khong doc duoc".to_owned() });
+
+    let outcome_with_broken = FilesImportOutcome {
+        shape: PipelineShape::Files(vec![
+            ChapterInput::AlreadyText("noi dung a".to_owned()),
+            ChapterInput::AlreadyText("noi dung c".to_owned()),
+        ]),
+        docx_sidecar: None,
+        items: vec![
+            FileImportItem { path: "a.txt".to_owned(), error: ok_err.clone() },
+            FileImportItem { path: "b.txt".to_owned(), error: broken_err },
+            FileImportItem { path: "c.txt".to_owned(), error: ok_err.clone() },
+        ],
+    };
+    let (batch, all_ok) = build_file_import_batch_wire(&outcome_with_broken, "en", &[], None);
+    assert!(!all_ok, "mot muc hong phai lam all_ok = false");
+    assert!(batch.encoding_preview.is_none(), "encoding_preview phai None khi con muc hong -- §Decisions");
+    assert_eq!(batch.items.len(), 3, "items phai giu du ca ba vi tri, ke ca muc hong");
+    assert!(!batch.items[1].ok, "muc hong (b.txt) phai mang ok = false");
+    assert!(batch.items[0].ok && batch.items[2].ok, "hai muc con lai phai mang ok = true");
+
+    let outcome_all_ok = FilesImportOutcome {
+        shape: PipelineShape::Files(vec![
+            ChapterInput::AlreadyText("noi dung a".to_owned()),
+            ChapterInput::AlreadyText("noi dung c".to_owned()),
+        ]),
+        docx_sidecar: None,
+        items: vec![
+            FileImportItem { path: "a.txt".to_owned(), error: ok_err.clone() },
+            FileImportItem { path: "c.txt".to_owned(), error: ok_err },
+        ],
+    };
+    let (batch_ok, all_ok2) = build_file_import_batch_wire(&outcome_all_ok, "en", &[], None);
+    assert!(all_ok2, "khong muc nao hong phai lam all_ok = true");
+    assert!(batch_ok.encoding_preview.is_some(), "encoding_preview phai Some khi moi muc OK");
+    assert_eq!(batch_ok.items.len(), 2);
+    assert!(batch_ok.items.iter().all(|it| it.ok));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

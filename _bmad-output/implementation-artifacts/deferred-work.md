@@ -10109,6 +10109,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   phải đi qua `correct-course`, không phải một dòng dev tự thêm — cho tới lúc đó mục này mang
   chủ trên GIẤY, và Ice là người kích hoạt lượt ấy.
   → 🔵 **SỬA 2026-09-15** — Story 6.6b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Vế *"đứng NGAY SAU 6.6 và TRƯỚC 6.7"* đã hết đúng: 6.7 → 6.17 xong mà không cần nó. Tiền đề ② ③ chỉ áp nếu story chọn một hộp thoại — đường THẢ TỆP đã phát đủ N đường dẫn (`lib.rs:1334-1336`), phía TS mới là chỗ lấy `paths[0]` (`libraryImport.ts:448`).
+  → ✅ **ĐÃ ĐÓNG 2026-09-15 (Story 6.6b).** AC7 nay dựng xong: `PipelineShape::Files` (`core/segment/pipeline.rs`), `import_files` (`core/segment/import.rs`), `preview_import_encoding_from_file` nhận `paths: Vec<String>` cộng envelope `FileImportBatchWire` (`commands/project/{mod,wire}.rs`), và tầng hiển thị (`src/importPreviewState.ts`, `src/modes/libraryImport.ts`, `src/ImportPreviewOverlay.vue`) giữ NGUYÊN mọi đường dẫn đã thả/gõ, cho người dùng chọn "mỗi tệp một Chương" (không mẫu) hoặc "tách tiếp theo mẫu" (mẫu phân tách vẫn áp được lên từng tệp, per-unit) — đúng nguyên văn AC7. Không hộp thoại `blocking_pick_files` nào được dựng (bẫy `MutexGuard` ở tiền đề ③ không bị chạm) — kéo-thả và ô nhập đường dẫn vẫn là hai đường vào duy nhất.
 
 ## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach (2026-09-05)
 
@@ -12306,3 +12307,81 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     một tệp retro ĐÃ KÝ thì không sửa bằng một bản vá của story; nếu muốn `epic-6-retro-2026-09-15.md`
     và `agent-token-economics.md` nói đúng, đường đi là `bmad-correct-course` hoặc một ghi chú
     đính chính có ngày, do Ice quyết.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-6b-nhap-nhieu-tep-cung-luc.md`
+  summary: Một `.docx` bên trong một batch N > 1 tệp bị từ chối per-item (`BatchUnsupportedFormat`)
+    thay vì được nhập kèm ảnh nhúng — §Decisions của spec 6.6b chốt xuất xưởng KHÔNG per-unit
+    `DocxSidecar`, một năng lực chưa dựng, không phải một chỗ lệch spec.
+  evidence: "A batch is .txt/.md only" (§Decisions) — lý do nguyên văn spec ghi: một
+    `DocxSidecar` hôm nay chỉ gắn được vào Chương ĐẦU TIÊN của TOÀN lượt nhập
+    (`core::segment::import::DocxSidecar`, `commands::project::create_work` tham số
+    `docx_sidecar: Option<DocxSidecar>`, một ô DUY NHẤT không phải `Vec`), và
+    `weave_this_import = docx_sidecar.is_none()` (`commands/project/mod.rs:629`) tắt việc dệt ảnh
+    cho CẢ LƯỢT NHẬP nếu chỉ một tệp trong N tệp là `.docx` — im lặng mất ảnh của N-1 tệp còn lại
+    nếu không chặn. Để nhận `.docx` trong một batch cần: `DocxSidecar` đổi hình dạng từ MỘT ô
+    sang MỘT ô MỖI Chương (`Vec<Option<DocxSidecar>>` hoặc tương đương), `create_work`'s vòng lặp
+    ghi Chương (`:710` trở đi) áp đúng sidecar theo INDEX thay vì đọc một ô toàn cục, và
+    `weave_this_import` chuyển từ MỘT cờ CẢ LƯỢT sang MỘT cờ MỖI CHƯƠNG — ba thay đổi hình dạng,
+    không phải một bản vá tại chỗ, và cả ba chạm đúng bất biến "một `DocxSidecar` per import" mà
+    Story 6.11 (pha ảnh)/6.13 (`anchor::compute_block_prefix_len`)/6.14 dựa lên.
+  **Chủ: Ice** — cần một story riêng đo lại `anchor::compute_anchor`/`compute_block_prefix_len`
+    (Story 6.13) trên hình dạng "N sidecar, mỗi Chương một sidecar hoặc none" trước khi đổi kiểu
+    `DocxSidecar`; ngoài phạm vi spec 6.6b (§Boundaries: "No new pipeline step... this story
+    widens existing shells").
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-6b-nhap-nhieu-tep-cung-luc.md`
+  summary: Con trỏ *Chương đang chọn* (`⌥←`/`⌥→`, Story 6.10a) không dựng được chi tiết LAZY
+    (tầng 2/3) cho `PipelineShape::Files` — `display_window_for_chapter` trả `None` VÔ ĐIỀU KIỆN
+    cho hình dạng này, không phải một trạng thái đo được rồi báo sai.
+  evidence: "`core/segment/pipeline.rs`::`display_window_for_chapter`, nhánh `PipelineShape::Files(_)
+    => None`. Hàm này chạy TRƯỚC pipeline, trên byte thô của TỪNG tệp — một đơn vị `Files` có
+    thể bị mẫu phân tách cắt thành k > 1 mảnh (`split_chapters_step_files`), và ranh giới đó chỉ
+    tính được SAU khi giải mã, nên ánh xạ `chapter_index` (chỉ số Chương ĐẦU RA) về đúng
+    tệp/mảnh đòi lặp lại chính phép tách của bước 5 Ở TẦNG NÀY — một cơ chế con trỏ N-tệp đúng
+    đắn chưa tồn tại. Không phải một hồi quy: tầng 4 (title/length/review — cái ⌥←/⌥→ chủ yếu
+    cần) đã EAGER cho MỌI Chương qua `build_chapter_split_preview_wire`, không đọc hàm này;
+    `Blob` cũng đã tự giới hạn `chapter_index != 0 => None` từ trước (cùng lớp thận trọng, không
+    phải một tiêu chuẩn story 6.6b hạ thấp).
+  **Chủ: Ice** — một story sau cần quyết định: (a) chấp nhận giới hạn này vĩnh viễn (tầng 4 đã
+    đủ dữ kiện cho phần lớn nhu cầu), hoặc (b) dựng một cơ chế tách-lại-để-định-vị cho `Files`
+    (chi phí O(N tệp) mỗi lượt dời con trỏ, cùng đánh đổi mà `chapter_detail_for_index` đã chấp
+    nhận cho đường khác — xem §Design Notes spec 6.10a).
+  → 🟡 **SỬA 2026-09-16 (phản biện, dev) — câu evidence gốc SAI cho vế KHÔNG mẫu; vế đó nay
+    ĐÓNG, chỉ vế CÓ mẫu còn mở.** `chapter_detail_for_index` đã luôn nhận `chapter_pattern` làm
+    tham số (`commands/project/mod.rs:3329`, có từ Story 6.10a) — `display_window_for_chapter`
+    nay đọc nó: khi `chapter_pattern == None`, `split_unit_for_files` (bước 5) trả ĐÚNG MỘT
+    mảnh cho MỖI đơn vị, nên `chapter_index ↔ đơn vị` là PHÉP ĐỒNG NHẤT, không phải một suy
+    đoán — 0 lượt tách lại bước 5 cần thiết, `units.get(chapter_index)` là một phép tra cứu
+    ĐÚNG. Đây chính là hành trình CHÍNH của story (N tệp, không mẫu, mỗi tệp một Chương) mà
+    `⌥←`/`⌥→` giờ dựng được chi tiết THẬT — xem
+    `cleanup_contract.rs::chapter_detail_for_index_on_a_files_batch_with_no_pattern_returns_that_units_own_window`.
+    Vế CÒN MỞ hẹp lại ĐÚNG ca CÓ mẫu: một đơn vị có thể bị `split_on_positions` tách thành
+    k > 1 mảnh, và ranh giới đó chỉ tính được SAU khi so mẫu — hàm chạy TRƯỚC pipeline nên vẫn
+    trả `None` cho ca đó (đối chứng ÂM:
+    `cleanup_contract.rs::chapter_detail_for_index_on_a_files_batch_with_a_pattern_returns_none_not_a_guess`).
+    Quyết định (a)/(b) ở trên giờ chỉ áp cho ca CÓ mẫu.
+  → 🟡 **SỬA 2026-09-16 (vòng rà đối kháng 2, mục 6, dev) — bản SỬA ngay trên vẫn nói QUÁ,
+    kể cả đã hẹp đúng phạm vi Rust.** `display_window_for_chapter` trả cửa sổ THẬT cho ca
+    KHÔNG mẫu là **nền đúng, không tự nó mở hành trình** — con trỏ `⌥←`/`⌥→` không bao giờ
+    CHẠM tới nền đó hôm nay, ở CẢ HAI ca (có mẫu hay không), vì hai cửa chặn KHÁC nhau, đứng
+    TRƯỚC bất kỳ nhánh hình dạng nào:
+    ① `loadImportPreviewChapterDetail` (`src/importPreviewState.ts:1206`) mở đầu bằng
+    `if (lastSubmittedFrom.value !== 'urls') return` — một lượt nhập nộp từ đường TỆP
+    (`lastSubmittedFrom === 'file'`) không bao giờ gọi tới lệnh IPC `preview_chapter_detail`,
+    bất kể `chapterCursor` đổi thế nào; đây là RETURN SỚM NHẤT trên đường gọi, đứng trước cả
+    khi Rust có cơ hội nhận `chapter_index`.
+    ② Dù cửa ① không đứng đó, `wire::preview_chapter_detail` (`commands/project/wire.rs:1225`)
+    tự nó CHỈ đọc `UrlImportItemsState` (`app.try_state::<super::UrlImportItemsState>()`,
+    `:1234`) — không có nhánh nào đọc `PendingImportSourceState`/`FilesImportOutcome`, nên
+    hàm không có ĐƯỜNG NÀO để mà nạp một `PipelineShape::Files` vào `display_window_for_chapter`
+    cho dù cửa ① được nới. Vỏ IPC này dựng RIÊNG cho hình dạng URL (§AD-39 hai lớp: hàm thuần
+    `display_window_for_chapter` đã nhận `chapter_pattern` từ Story 6.10a, nhưng KHÔNG có vỏ
+    `#[tauri::command]` nào truyền vào nó một `PipelineShape::Files` — nền đúng đó là CODE
+    CHẾT trên đường sản phẩm hôm nay).
+    ⇒ Kết luận đúng: hành trình con trỏ Chương LAZY cho `Files` **KHÔNG khả dụng ở CẢ HAI ca**
+    (có mẫu lẫn không mẫu) — khác câu "vế không-mẫu đã đóng" ở bản SỬA ngay trên, vốn chỉ đúng
+    ở TẦNG HÀM THUẦN (`display_window_for_chapter`/`cleanup_contract.rs`), không đúng ở tầng
+    người dùng THẬT sờ tới được (`importPreviewState.ts` + `wire.rs`). Quyết định (a)/(b) ở
+    mục gốc phía trên vẫn đứng, nhưng áp cho **cả hai** ca, không chỉ ca có mẫu — mở cả cửa ①
+    và ② là hai thay đổi hình dạng riêng (một sửa vị từ TS, một vỏ IPC mới đọc
+    `PendingImportSourceState`), không phải một bản vá tại chỗ.

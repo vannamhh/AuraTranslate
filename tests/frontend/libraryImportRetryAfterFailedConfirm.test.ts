@@ -48,16 +48,19 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
 
     nhap.filePath.value = '/tmp/gbk.txt'
     previewFileMock.mockResolvedValue({
-      preview: {
-        confidence: 'low',
-        selected_encoding: 'Big5',
-        candidates: [
-          { label: 'UTF-8', encoding: 'UTF-8', preview: null },
-          { label: 'GB18030', encoding: 'gb18030', preview: '萧炎' },
-          { label: 'GBK', encoding: 'GBK', preview: '萧炎' },
-          { label: 'Big5', encoding: 'Big5', preview: '達鍁' },
-          { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣' },
-        ],
+      batch: {
+        items: [{ path: '/tmp/gbk.txt', ok: true, error: null }],
+        encoding_preview: {
+          confidence: 'low',
+          selected_encoding: 'Big5',
+          candidates: [
+            { label: 'UTF-8', encoding: 'UTF-8', preview: null },
+            { label: 'GB18030', encoding: 'gb18030', preview: '萧炎' },
+            { label: 'GBK', encoding: 'GBK', preview: '萧炎' },
+            { label: 'Big5', encoding: 'Big5', preview: '達鍁' },
+            { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣' },
+          ],
+        },
       },
       error: null,
     })

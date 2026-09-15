@@ -95,16 +95,22 @@ beforeEach(() => {
 describe('importPreviewState — importPreviewSelectedNormalized hiện đúng bản dựng của ứng viên đang chọn', () => {
   it('mặc định là bản chuẩn hoá của ứng viên Rust đã chọn (GBK)', async () => {
     const state = await freshState()
-    previewFileMock.mockResolvedValue({ preview: fivecandidatePreview(), error: null })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', '/tmp/gbk.txt')
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      error: null,
+    })
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
 
     expect(state.importPreviewSelectedNormalized.value).toEqual(normalized('萧炎bản GBK', 3, 0, false))
   })
 
   it('đổi ứng viên đổi NGAY bản dựng + hai số đếm, 0 lời gọi IPC thêm', async () => {
     const state = await freshState()
-    previewFileMock.mockResolvedValue({ preview: fivecandidatePreview(), error: null })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', '/tmp/gbk.txt')
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      error: null,
+    })
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
 
     const ipcCallsBefore =
       previewTextMock.mock.calls.length + previewFileMock.mock.calls.length + confirmMock.mock.calls.length
@@ -122,8 +128,11 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
 
   it('phạm vi cửa sổ (`window_truncated`) đổi theo đúng ứng viên đang chọn', async () => {
     const state = await freshState()
-    previewFileMock.mockResolvedValue({ preview: fivecandidatePreview(), error: null })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', '/tmp/gbk.txt')
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      error: null,
+    })
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
 
     // GBK (mặc định): cửa sổ KHÔNG bị cắt.
     expect(state.importPreviewSelectedNormalized.value?.window_truncated).toBe(false)
@@ -139,8 +148,11 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
 
   it('ứng viên "không ra chữ" (`normalized: null`) đọc ra `null`, không panic/undefined ngầm', async () => {
     const state = await freshState()
-    previewFileMock.mockResolvedValue({ preview: fivecandidatePreview(), error: null })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', '/tmp/gbk.txt')
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      error: null,
+    })
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
 
     state.selectImportPreviewCandidate('UTF-8')
 

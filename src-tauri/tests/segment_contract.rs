@@ -10,6 +10,14 @@
 //! 2. **Drop `Store`/`OpenWork` TRƯỚC khi xoá thư mục** — Windows từ chối xoá tệp đang mở.
 //! 3. Không `sleep` dài.
 //! 4. Không ca nào treo khi nó trượt.
+//!
+//! **THÊM 2026-09-16 (Story 6.6b, phản biện)** — `#[path]` nạp [`fixtures_docx`] làm MODULE,
+//! cùng khuôn `docx_contract.rs` (xem doc-comment đầu `fixtures_docx.rs`): cách CHIA SẺ mã
+//! DUY NHẤT giữa hai binary test độc lập, dùng để dựng một `.docx` THẬT (không dựng tay một
+//! `ChapterInput`) cho ca "N = 1 giữ nguyên `DocxSidecar`".
+#[path = "fixtures_docx.rs"]
+#[allow(dead_code)] // tệp này chỉ dùng `plain()` — sáu fixture còn lại phục vụ `docx_contract.rs`
+mod fixtures_docx;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,7 +41,7 @@ use auratranslate_lib::commands::segment::{
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
-use auratranslate_lib::core::segment::import::ImportError;
+use auratranslate_lib::core::segment::import::{ImportError, import_file, import_files};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::normalize;
 use auratranslate_lib::core::segment::pipeline::{
@@ -9515,6 +9523,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 needs_review: true,
                 review_causes: vec![ReviewCauseWire::HighCleanupMatches],
                 origin: Default::default(),
+                source_file: None,
             },
             ChapterSplitPreviewEntryWire {
                 ord: 2,
@@ -9525,6 +9534,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 needs_review: true,
                 review_causes: vec![ReviewCauseWire::NotMeasured],
                 origin: Default::default(),
+                source_file: None,
             },
             ChapterSplitPreviewEntryWire {
                 ord: 3,
@@ -9535,6 +9545,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 needs_review: false,
                 review_causes: vec![],
                 origin: Default::default(),
+                source_file: None,
             },
         ],
     };
@@ -9578,10 +9589,13 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
             // 🔵 THEM (Story 6.15, 2026-09-10) — bon o xuat xu tai lieu cua CHINH Chuong nay
             // (FR128/AD-43), da ap override nguoi dung go de. Bay ten truong → TAM.
             &"origin".to_owned(),
+            // 🔵 SUA 2026-09-15 (Story 6.6b) — them `source_file`: reason "widened return
+            // type", KHONG mot loi long long ky vong — tam truong → TAM.
+            &"source_file".to_owned(),
         ]),
-        "ChapterSplitPreviewEntryWire phai serialize DUNG tam ten truong nay (Story 6.10 them \
+        "ChapterSplitPreviewEntryWire phai serialize DUNG chin ten truong nay (Story 6.10 them \
          `joined_line_count_in_chapter`/`needs_review`/`review_causes`; Story 6.15 them \
-         `origin`)"
+         `origin`; Story 6.6b them `source_file`)"
     );
     assert_eq!(first.get("ord"), Some(&serde_json::Value::Number(1.into())));
     assert_eq!(first.get("title"), Some(&serde_json::Value::String("Chương 1: Mở Đầu".to_owned())));
@@ -9785,4 +9799,476 @@ fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_rend
         utf8_en.text, utf8_zh.text,
         "hai nhanh ngon ngu phai cho ra hai chuoi KHAC NHAU -- day noi phai that su chay toi day"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — nhập N tệp cùng lúc (FR14 mở rộng, `PipelineShape::Files`)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Ba mệnh đề của I/O & Edge-Case Matrix spec 6.6b được thử ở tầng chuỗi/`import_files` tại
+// đây (per-unit isolation cấp Chương sống ở `segment_files_boundary.rs`, khuôn "một tệp
+// chưa tách" — `Files`/`Blob`/`import_files` N=1 — sống cạnh nhau vì chúng CÙNG một cơ chế
+// nạp): "N text files, no pattern" · "N files + pattern" · "One file" (Blob, N = 1, không đổi).
+
+fn cleanup_rule_matching(id: i64, pattern: &str) -> auratranslate_lib::core::cleanup::CleanupRule {
+    auratranslate_lib::core::cleanup::CleanupRule {
+        tier: auratranslate_lib::core::cleanup::CleanupRuleTier::Global,
+        id,
+        pattern: pattern.to_owned(),
+        kind: auratranslate_lib::core::cleanup::CleanupRuleKind::Literal,
+        enabled: true,
+    }
+}
+
+/// **I/O Matrix spec 6.6b "N text files, no pattern"** — 3 tệp, không mẫu phân tách ⇒ 3
+/// Chương, mỗi Chương mang báo cáo làm sạch VÀ số nối dòng CỦA CHÍNH tệp đó (không phải một
+/// con số dùng chung/hoán đổi — mệnh đề đầy đủ nằm ở `segment_files_boundary.rs`; ca này khoá
+/// thêm `title`/`source_file` mà tệp đó không canh).
+#[test]
+fn n_files_with_no_pattern_yield_n_chapters_each_with_its_own_report_and_source_file() {
+    let units = vec![
+        ChapterInput::RawBytes { bytes: b"noi dung tep mot, khong co gi de xoa.".to_vec(), label: "mot.txt".to_owned() },
+        ChapterInput::RawBytes { bytes: b"QC noi dung tep hai.".to_vec(), label: "hai.txt".to_owned() },
+        ChapterInput::RawBytes { bytes: b"noi dung tep ba, mot dong duy nhat.".to_vec(), label: "ba.txt".to_owned() },
+    ];
+    let rules = vec![cleanup_rule_matching(1, "QC")];
+    let input = PipelineInput::default_shaped(PipelineShape::Files(units), "en").with_cleanup_rules(rules);
+    let outcome = run_import(input).expect("3 tep hop le phai chay qua duoc chuoi bay buoc");
+
+    assert_eq!(outcome.chapters.len(), 3, "3 tep, khong mau phan tach, phai cho ra dung 3 Chuong");
+    for (i, c) in outcome.chapters.iter().enumerate() {
+        assert_eq!(c.cleanup_report.is_some(), true, "moi Chuong (k == 1) phai mang bao cao CUA CHINH no, khong None -- chuong {i}");
+    }
+    let matches: Vec<usize> = outcome
+        .chapters
+        .iter()
+        .map(|c| c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()).unwrap_or(0))
+        .collect();
+    assert_eq!(matches, vec![0, 1, 0], "so khop luat lam sach phai la so THAT cua TUNG tep -- chi tep hai co \"QC\"");
+
+    assert_eq!(
+        outcome.chapters.iter().map(|c| c.source_file.as_deref()).collect::<Vec<_>>(),
+        vec![Some("mot.txt"), Some("hai.txt"), Some("ba.txt")],
+        "moi Chuong phai giu dung ten tep NGUON cua CHINH no, theo dung thu tu da nhap"
+    );
+
+    // "Một tệp một dòng" (I/O Matrix "A one-line file") — title = None qua title_line_of, vì
+    // day KHONG di qua split_on_positions (khong mau), ma di qua nhanh whole-file cua
+    // split_unit_for_files: title = title_line_of(&text), va mot van ban MOT dong luon None.
+    for c in &outcome.chapters {
+        assert_eq!(c.title, None, "khong mau phan tach: moi Chuong (k == 1) title = None (mot dong duy nhat)");
+    }
+}
+
+/// **THÊM 2026-09-16 (phản biện)** — `source_file` phải là `None` cho MỌI hình dạng KHÁC
+/// `PipelineShape::Files`, kể cả khi `label` của đơn vị đó KHÔNG rỗng. Đo được TRƯỚC bản vá
+/// này: `Blob(RawBytes{label: "/Users/.../chuong-001.txt"})` không mẫu trả
+/// `source_file: Some("/Users/.../chuong-001.txt")`, và `Chapters` (đường URL) trả
+/// `Some("https://example.com/...")` — cả hai đường này PHẢI giữ nguyên hành vi cũ (§Always:
+/// N=1 unchanged; URL không thuộc phạm vi story 6.6b). Nguồn sự thật là HÌNH DẠNG khai báo
+/// (`Flow::is_files`), không phải "nhãn có rỗng hay không".
+#[test]
+fn source_file_stays_none_on_blob_and_chapters_even_when_the_unit_carries_a_real_label() {
+    let blob_shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: b"noi dung mot tep don, khong qua mau phan tach.".to_vec(),
+        label: "/Users/ice/Documents/chuong-001.txt".to_owned(),
+    });
+    let blob_outcome = run_import(PipelineInput::default_shaped(blob_shape, "en"))
+        .expect("Blob khong mau phai chay qua duoc chuoi bay buoc");
+    assert_eq!(blob_outcome.chapters.len(), 1);
+    assert_eq!(
+        blob_outcome.chapters[0].source_file, None,
+        "Blob (duong tep DON, khong qua import_files) khong duoc mang source_file, du label khong rong"
+    );
+
+    let chapters_shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: b"noi dung mot Chuong tu URL.".to_vec(),
+        label: "https://example.com/bai-viet".to_owned(),
+    }]);
+    let chapters_outcome = run_import(PipelineInput::default_shaped(chapters_shape, "en"))
+        .expect("Chapters phai chay qua duoc chuoi bay buoc");
+    assert_eq!(chapters_outcome.chapters.len(), 1);
+    assert_eq!(
+        chapters_outcome.chapters[0].source_file, None,
+        "Chapters (duong URL) khong duoc mang source_file -- URL khong phai pham vi story 6.6b"
+    );
+}
+
+/// **I/O Matrix spec 6.6b "N files + pattern"** — 2 tệp, mỗi tệp khớp mẫu 3 lần ⇒ 6 Chương,
+/// tiêu đề đến từ dòng khớp, báo cáo làm sạch chỉ gắn vào mảnh ĐẦU của MỖI tệp,
+/// `joined_line_count` là `None` cho CẢ 6 (k > 1 ở CẢ hai tệp), và `source_file` giữ nguyên
+/// cho MỌI mảnh của CÙNG một tệp.
+#[test]
+fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_count_when_k_greater_than_one()
+ {
+    let unit_a = "Tep A - Phan 1: Mo Dau\n\nQC noi dung mot A.\n\nTep A - Phan 2: Giua\n\nnoi dung hai A.\n\nTep A - Phan 3: Ket\n\nnoi dung ba A.";
+    let unit_b = "Tep B - Phan 1: Mo Dau\n\nnoi dung mot B. QC. QC.\n\nTep B - Phan 2: Giua\n\nnoi dung hai B.\n\nTep B - Phan 3: Ket\n\nnoi dung ba B.";
+    let units = vec![
+        ChapterInput::RawBytes { bytes: unit_a.as_bytes().to_vec(), label: "tep-a.txt".to_owned() },
+        ChapterInput::RawBytes { bytes: unit_b.as_bytes().to_vec(), label: "tep-b.txt".to_owned() },
+    ];
+    let rules = vec![cleanup_rule_matching(1, "QC")];
+    let pattern = ChapterPattern::regex(r"^Tep [AB] - Phan \d+:.*$");
+    let input = PipelineInput::default_shaped(PipelineShape::Files(units), "en")
+        .with_cleanup_rules(rules)
+        .with_chapter_pattern(Some(pattern));
+    let outcome = run_import(input).expect("2 tep, mau khop 3 lan moi tep, phai chay qua duoc");
+
+    assert_eq!(outcome.chapters.len(), 6, "2 tep x 3 lan khop = 6 Chuong");
+
+    let titles: Vec<Option<&str>> = outcome.chapters.iter().map(|c| c.title.as_deref()).collect();
+    assert_eq!(
+        titles,
+        vec![
+            Some("Tep A - Phan 1: Mo Dau"),
+            Some("Tep A - Phan 2: Giua"),
+            Some("Tep A - Phan 3: Ket"),
+            Some("Tep B - Phan 1: Mo Dau"),
+            Some("Tep B - Phan 2: Giua"),
+            Some("Tep B - Phan 3: Ket"),
+        ],
+        "tieu de phai la dong khop mau, DUNG THU TU: 3 mau cua tep A truoc, roi 3 mau cua tep B"
+    );
+
+    // joined_line_count: None cho CA 6 (k > 1 o CA hai don vi).
+    for (i, c) in outcome.chapters.iter().enumerate() {
+        assert_eq!(c.joined_line_count, None, "k > 1 (mau tach them) phai cho joined_line_count = None -- chuong {i}");
+    }
+
+    // cleanup_report: CHI mang o mang DAU cua MOI don vi (chuong 0 va chuong 3), None o bon
+    // mang con lai -- khong bao gio bi hoan doi giua hai don vi.
+    let report_counts: Vec<Option<usize>> = outcome
+        .chapters
+        .iter()
+        .map(|c| c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum::<usize>()))
+        .collect();
+    assert_eq!(
+        report_counts,
+        vec![Some(1), None, None, Some(2), None, None],
+        "bao cao lam sach chi gan vao manh DAU cua MOI don vi (chuong 0 cua tep A: 1 lan \"QC\"; \
+         chuong 3 cua tep B: 2 lan \"QC\") -- bon manh con lai phai None, khong lap lai so cua manh dau"
+    );
+
+    // source_file: moi manh cua CUNG mot tep phai giu DUNG ten tep do -- khong bi xoa ve rong
+    // (khac `Blob`) va khong bi tron sang tep khac.
+    let source_files: Vec<Option<&str>> = outcome.chapters.iter().map(|c| c.source_file.as_deref()).collect();
+    assert_eq!(
+        source_files,
+        vec![
+            Some("tep-a.txt"), Some("tep-a.txt"), Some("tep-a.txt"),
+            Some("tep-b.txt"), Some("tep-b.txt"), Some("tep-b.txt"),
+        ],
+        "ca ba manh cua tep-a.txt phai giu DUNG ten tep-a.txt, ca ba manh cua tep-b.txt phai giu DUNG ten tep-b.txt"
+    );
+}
+
+/// **I/O Matrix spec 6.6b "One file"** — `import_files` với ĐÚNG MỘT đường dẫn `.txt` phải xây
+/// `PipelineShape::Blob` giống HỆT [`import_file`] gọi trực tiếp. Ca `.docx` (giữ
+/// `DocxSidecar`) là một I/O Matrix RIÊNG — xem
+/// [`import_files_with_exactly_one_path_keeps_the_docx_sidecar_when_the_one_file_is_docx`]
+/// ngay dưới; hai định dạng đi qua hai nhánh khác nhau của `import_file`
+/// (`RawBytes`/`AlreadyText`), nên một ca `.txt` không CHỨNG MINH được ca `.docx`.
+#[test]
+fn import_files_with_exactly_one_path_builds_the_same_blob_as_import_file() {
+    let root = temp_dir("import-files-n1");
+    let path = root.join("mot-tep.txt");
+    fs::write(&path, "noi dung mot tep duy nhat.").unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
+
+    let direct = import_file(&path).expect("import_file phai thanh cong");
+    let via_files = import_files(&[path.display().to_string()]).expect("import_files N=1 phai thanh cong");
+
+    assert_eq!(via_files.shape, direct.0, "N = 1 phai xay DUNG Blob giong HET import_file truc tiep");
+    assert_eq!(via_files.docx_sidecar, direct.1, "N = 1 phai giu DOCX sidecar giong HET import_file truc tiep");
+    assert_eq!(via_files.items.len(), 1);
+    assert!(via_files.items[0].error.is_none(), "tep doc duoc phai la mot muc OK");
+    assert_eq!(via_files.items[0].path, path.display().to_string());
+
+    cleanup(&root);
+}
+
+/// **I/O Matrix spec 6.6b "Single `.docx` or single `.csv`" — vế `.docx`.** `import_files` với
+/// ĐÚNG MỘT đường dẫn `.docx` THẬT (dựng bằng `fixtures_docx::plain()`, cùng khuôn
+/// `docx_contract.rs` — không dựng tay một `ChapterInput::AlreadyText`) phải xây
+/// `PipelineShape::Blob(ChapterInput::AlreadyText(..))` VÀ giữ `DocxSidecar` giống HỆT
+/// [`import_file`] gọi trực tiếp — đúng hành trình mà dây tệp (`wire::preview_import_encoding_from_file`)
+/// nay đi qua CHO MỌI N, kể cả N = 1 (§Always: "the file wire's envelope returns the per-item
+/// batch shape for every N, N = 1 included"). Ca này đóng đúng lỗ mà một lượt sửa sau có thể
+/// mở lại ÂM THẦM nếu chính sách `.txt`/`.md`-only của batch N > 1 lỡ bị áp nhầm cho N = 1.
+#[test]
+fn import_files_with_exactly_one_path_keeps_the_docx_sidecar_when_the_one_file_is_docx() {
+    let root = temp_dir("import-files-n1-docx");
+    let path = root.join("mot-tep.docx");
+    fs::write(&path, fixtures_docx::plain()).unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
+
+    let direct = import_file(&path).expect("import_file phai thanh cong tren .docx hop le");
+    assert!(
+        matches!(direct.0, PipelineShape::Blob(ChapterInput::AlreadyText(_))),
+        "tien de phep do: import_file phai xay AlreadyText cho .docx, khong RawBytes"
+    );
+    assert!(direct.1.is_some(), "tien de phep do: .docx phai mang mot DocxSidecar THAT");
+
+    let via_files = import_files(&[path.display().to_string()]).expect("import_files N=1 tren .docx phai thanh cong");
+
+    assert_eq!(
+        via_files.shape, direct.0,
+        "N = 1 tren .docx phai xay DUNG Blob(AlreadyText) giong HET import_file truc tiep"
+    );
+    assert_eq!(
+        via_files.docx_sidecar, direct.1,
+        "N = 1 tren .docx phai giu DOCX sidecar giong HET import_file truc tiep -- day la dung \
+         hanh vi ma §Always \"Single-file .docx ... untouched\" hua"
+    );
+    assert_eq!(via_files.items.len(), 1);
+    assert!(via_files.items[0].error.is_none(), "tep .docx doc duoc phai la mot muc OK");
+
+    cleanup(&root);
+}
+
+/// **I/O Matrix spec 6.6b "Empty list"** — `paths = []` bị từ chối TRƯỚC KHI mở bất kỳ tệp
+/// nào, bằng một lỗi CÓ KIỂU, không panic.
+#[test]
+fn import_files_refuses_an_empty_list_before_opening_any_file() {
+    let err = import_files(&[]).expect_err("danh sach rong phai bi tu choi");
+    assert_eq!(err, ImportError::EmptyFileList);
+}
+
+/// **I/O Matrix spec 6.6b "A file cannot be read"** + **"`.docx`/`.csv`/`.tsv` inside a
+/// batch"** — trong một batch N > 1, một tệp KHÔNG tồn tại (đọc trượt) và một tệp `.docx`
+/// (định dạng chỉ được nhận cho N = 1) đều trở thành một MỤC LỖI riêng, giữ đúng vị trí, còn
+/// hai tệp `.txt` còn lại VẪN nằm trong hình dạng `Files` xây được -- một mục hỏng KHÔNG BAO
+/// GIỜ làm cả lượt trượt thành `Err` (khác N = 1).
+#[test]
+fn import_files_keeps_unreadable_and_batch_unsupported_items_in_place_without_failing_the_whole_batch() {
+    let root = temp_dir("import-files-batch-errors");
+    let ok_a = root.join("ok-a.txt");
+    let ok_b = root.join("ok-b.md");
+    let docx_path = root.join("mot-tep.docx");
+    let missing_path = root.join("khong-ton-tai.txt");
+    fs::write(&ok_a, "noi dung a").unwrap_or_else(|e| panic!("ghi {}: {e}", ok_a.display()));
+    fs::write(&ok_b, "noi dung b").unwrap_or_else(|e| panic!("ghi {}: {e}", ok_b.display()));
+    // 0 byte hop le cua mot .docx that -- chi can ton tai tren dia de vuot qua buoc reject
+    // theo DUOI truoc khi cham noi dung; batch tu choi no vi DUOI, khong doc no.
+    fs::write(&docx_path, b"khong quan trong noi dung").unwrap_or_else(|e| panic!("ghi {}: {e}", docx_path.display()));
+
+    let paths = vec![
+        ok_a.display().to_string(),
+        missing_path.display().to_string(),
+        docx_path.display().to_string(),
+        ok_b.display().to_string(),
+    ];
+    let outcome = import_files(&paths).expect("mot muc hong khong duoc lam ca luot import_files tra Err");
+
+    assert_eq!(outcome.items.len(), 4, "items phai giu DUNG vi tri cho CA BON duong dan da gui");
+    assert!(outcome.items[0].error.is_none(), "ok-a.txt phai la mot muc OK");
+    assert!(outcome.items[1].error.is_some(), "duong dan khong ton tai phai la mot muc LOI");
+    assert!(outcome.items[2].error.is_some(), "mot tep .docx trong batch N > 1 phai la mot muc LOI");
+    assert_eq!(
+        outcome.items[2].error.as_ref().map(|e| matches!(e, ImportError::BatchUnsupportedFormat { .. })),
+        Some(true),
+        ".docx trong batch phai tu choi bang ImportError::BatchUnsupportedFormat, khong mot hang loi khac"
+    );
+    assert!(outcome.items[3].error.is_none(), "ok-b.md phai la mot muc OK");
+
+    match outcome.shape {
+        PipelineShape::Files(units) => {
+            assert_eq!(units.len(), 2, "chi hai muc OK (ok-a.txt, ok-b.md) duoc dua vao hinh dang Files");
+        }
+        other => panic!("N > 1 phai xay PipelineShape::Files, khong {other:?}"),
+    }
+    assert_eq!(outcome.docx_sidecar, None, "batch N > 1 khong bao gio mang mot DocxSidecar (chi N = 1 moi co)");
+
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — ĐO, ĐỪNG KHAI: một lượt xem trước cho một batch 200 tệp
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **ĐO, đừng khai (§Tasks spec 6.6b).** Mốc TRƯỚC story (Story 6.6, `cleanup_contract.rs::perf_probe_chapter_split_preview_on_two_thousand_chapters`,
+/// đo 2026-09-05): 6 lượt `run_pipeline` trên MỘT Chương 440 KB, ~13-17 ms/lượt. Ca này đo
+/// đường MỚI của story 6.6b — MỘT lượt `preview_import_encoding` (đúng hàm mà
+/// `wire::preview_import_encoding_from_file` gọi ở lượt xem trước THẬT) trên
+/// `PipelineShape::Files` với 200 tệp thật (I/O Matrix "Confirm a large batch" dùng cùng N).
+///
+/// 🔴 **Đo LÚC nào, đo GÌ — ghi rõ để không ai đọc nhầm con số:** build debug
+/// (`cargo test`, không `--release`), CPU cộng dồn (không loại phần "máy đứng yên" —
+/// AGENTS.md ghi macOS của Ice tốn ~204 ms/spawn tiến trình KHÔNG-ký, nhưng đây là MỘT lượt
+/// gọi hàm THUẦN trong CÙNG một tiến trình test, không spawn gì — khuyết tật đó không áp ở
+/// đây). Batch: 200 tệp `RawBytes`, mỗi tệp ~2,18 KB văn bản tiếng Anh lặp lại (tổng đo được
+/// ~437 KB — CÙNG cỡ batch với Chương đơn 440 KB của mốc cũ, để so được; xem `total_bytes` in
+/// ra ngay trong `eprintln!` bên dưới, KHÔNG một con số khai tay), cộng MỘT luật làm sạch
+/// literal khớp một lần mỗi tệp (đường thật KHÔNG BAO GIỜ nhập 0 luật đã lưu).
+#[test]
+fn perf_probe_file_batch_preview_on_two_hundred_files() {
+    let rules = vec![cleanup_rule_matching(1, "QC")];
+
+    const FILE_COUNT: usize = 200;
+    let mut unit_text = String::new();
+    // 24 dòng/tệp × 200 tệp — probe tự in `total_bytes` thật ngay dưới (`eprintln!`), không
+    // con số khai tay ở đây: lượt đo 2026-09-16 in ra 436.600 B, cùng cỡ mốc cũ 440 KB để so
+    // được (bản trước, 20 dòng/tệp, chỉ ra 364.600 B — thấp hơn mốc cũ gần 17%, xem SỬA ở
+    // doc-comment ngay trên).
+    for i in 0..24 {
+        unit_text.push_str(&format!(
+            "Dong noi dung so {i} cua tep, du dai de mo phong mot doan van ban that su, khong qua ngan."
+        ));
+        unit_text.push('\n');
+    }
+    unit_text.push_str("QC ghi chu quang cao o cuoi tep.\n");
+
+    let units: Vec<ChapterInput> = (0..FILE_COUNT)
+        .map(|i| ChapterInput::RawBytes { bytes: unit_text.as_bytes().to_vec(), label: format!("tep-{i}.txt") })
+        .collect();
+    let total_bytes: usize = units
+        .iter()
+        .map(|u| match u {
+            ChapterInput::RawBytes { bytes, .. } => bytes.len(),
+            ChapterInput::AlreadyText(t) => t.len(),
+        })
+        .sum();
+    let shape = PipelineShape::Files(units);
+
+    let started = std::time::Instant::now();
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
+    let elapsed = started.elapsed();
+
+    // Tiền đề của phép đo: batch phải THẬT SỰ chạy hết 200 Chương qua chuỗi (không rơi về
+    // nhánh rỗng/ngắn mạch nào) -- nếu không, con số đo được là của một đường KHÁC.
+    let chapter_count = preview
+        .candidates
+        .first()
+        .and_then(|c| c.chapters.as_ref())
+        .map(|c| c.chapter_count)
+        .unwrap_or(0);
+    assert_eq!(chapter_count, FILE_COUNT, "tien de phep do: ca 200 Chuong phai xuat hien trong ung vien dau");
+
+    eprintln!(
+        "[perf-probe 2026-09-16] preview_import_encoding trên PipelineShape::Files, {FILE_COUNT} tệp \
+         (~{total_bytes} byte tổng, build debug, cargo test): {elapsed:?}"
+    );
+}
+
+/// **I/O Matrix spec 6.6b "Files disagree on detected encoding"** — một tệp ASCII thuần (dò
+/// ra UTF-8) đứng cạnh một tệp GBK thật (dò ra GBK) trong CÙNG một batch phải làm phán quyết
+/// tin cậy của CẢ BATCH rơi về `Low` — mở dải năm ứng viên — dù dải năm ô vẫn dựng từ ĐÚNG một
+/// tệp đại diện (tệp đầu, §Always: "one encoding for the whole batch"). Không bao giờ âm thầm
+/// chọn bảng mã của tệp #1 mà không cho người dùng biết các tệp còn lại bất đồng.
+#[test]
+fn a_files_batch_whose_units_detect_different_encodings_reports_low_confidence() {
+    let ascii_unit = ChapterInput::RawBytes {
+        bytes: b"Chapter One. This is a plain ascii paragraph with enough real content to look like a genuine chapter file, not a two-word fixture."
+            .to_vec(),
+        label: "ascii.txt".to_owned(),
+    };
+    let (gbk_bytes, _, had_errors) = encoding_rs::GBK.encode(
+        "第一章 起源\n萧炎在东临村口的一处石壁上练习着最基础的吐纳法门，神情专注，气息悠长。",
+    );
+    assert!(!had_errors, "fixture phai ma hoa GBK sach");
+    let gbk_unit = ChapterInput::RawBytes { bytes: gbk_bytes.into_owned(), label: "gbk.txt".to_owned() };
+
+    // Tien de: hai don vi phai THAT SU do ra hai bang ma khac nhau, khong thi ca nay khong
+    // kiem duoc gi ca.
+    let ChapterInput::RawBytes { bytes: ascii_bytes_ref, .. } = &ascii_unit else { unreachable!() };
+    let ChapterInput::RawBytes { bytes: gbk_bytes_ref, .. } = &gbk_unit else { unreachable!() };
+    let ascii_verdict = auratranslate_lib::core::segment::encoding::detect(ascii_bytes_ref);
+    let gbk_verdict = auratranslate_lib::core::segment::encoding::detect(gbk_bytes_ref);
+    assert_ne!(
+        ascii_verdict.encoding, gbk_verdict.encoding,
+        "tien de phep do: hai tep phai do ra hai bang ma THAT SU khac nhau"
+    );
+
+    let shape = PipelineShape::Files(vec![ascii_unit, gbk_unit]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
+
+    assert_eq!(
+        preview.confidence,
+        ConfidenceWire::Low,
+        "hai tep bat dong ve bang ma phai ep phan quyet CA BATCH ve Low, du tep dau tu no tin cay cao"
+    );
+    assert_eq!(preview.candidates.len(), 5, "dai nam o van dung tu DUNG mot tep dai dien (tep dau)");
+}
+
+/// **Vòng rà đối kháng 2026-09-16, mục 5** — tệp ĐẦU 0 byte không còn kéo cả preview vào
+/// nhánh "0 ứng viên" (tự khai) như thể CẢ BATCH tự khai — đại diện phải là đơn vị ĐẦU TIÊN
+/// thật sự CÓ byte, không phải `units.first()` theo nghĩa đen. Đo: batch 3 tệp, tệp #0 rỗng,
+/// tệp #1 và #2 có chữ ASCII thật — preview vẫn phải chở đủ NĂM ứng viên (dò trên tệp #1),
+/// và tầng 4 (`candidates.first().chapters.chapter_count`) phải đếm đủ BA Chương — một cho
+/// mỗi tệp, kể cả tệp #0 rỗng — không phải MỘT Chương như khi cả batch bị coi là tự khai.
+#[test]
+fn a_files_batch_whose_first_file_is_empty_still_detects_on_the_first_nonempty_file() {
+    let empty_unit = ChapterInput::RawBytes { bytes: Vec::new(), label: "empty.txt".to_owned() };
+    let ascii_unit_1 = ChapterInput::RawBytes {
+        bytes: b"Chapter One. Plain ascii content, long enough to detect with confidence.".to_vec(),
+        label: "one.txt".to_owned(),
+    };
+    let ascii_unit_2 = ChapterInput::RawBytes {
+        bytes: b"Chapter Two. More plain ascii content for the second real file.".to_vec(),
+        label: "two.txt".to_owned(),
+    };
+    let shape = PipelineShape::Files(vec![empty_unit, ascii_unit_1, ascii_unit_2]);
+
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
+
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "tep #0 rong khong duoc keo ca batch ve nhanh tu khai (0 ung vien) -- dai phai du NAM o, do tren tep #1"
+    );
+    assert_ne!(
+        preview.confidence,
+        ConfidenceWire::SelfDeclared,
+        "dai dien phai la tep #1 (co byte that), khong phai tep #0 rong"
+    );
+    let chapter_count = preview
+        .candidates
+        .first()
+        .and_then(|c| c.chapters.as_ref())
+        .map(|c| c.chapter_count)
+        .unwrap_or(0);
+    assert_eq!(chapter_count, 3, "tang 4 phai dem du BA Chuong -- mot cho moi tep, ke ca tep #0 rong");
+}
+
+/// **Vòng rà đối kháng 2026-09-16, mục 7** — vòng lặp bất đồng giờ chỉ hỏi `encoding::detect`
+/// trên các đơn vị KHÁC đại diện, không hỏi lại đúng câu `verdict_and_candidates` vừa trả lời
+/// trên CHÍNH đơn vị đại diện lần thứ hai. Đo bằng ca DƯƠNG: một batch mà MỌI tệp thật sự dò
+/// ra CÙNG một bảng mã (không có bất đồng) phải giữ nguyên tin cậy THẬT của tệp đại diện
+/// (không bị ép xuống `Low` bởi một phép so sánh dư thừa với chính nó).
+#[test]
+fn a_files_batch_whose_units_all_agree_on_encoding_keeps_its_real_confidence() {
+    let unit_1 = ChapterInput::RawBytes {
+        bytes: b"Chapter One. Plain ascii content, long enough to detect with confidence."
+            .to_vec(),
+        label: "one.txt".to_owned(),
+    };
+    let unit_2 = ChapterInput::RawBytes {
+        bytes: b"Chapter Two. More plain ascii content for the second real file, same encoding."
+            .to_vec(),
+        label: "two.txt".to_owned(),
+    };
+    let unit_3 = ChapterInput::RawBytes {
+        bytes: b"Chapter Three. A third plain ascii file, still the same encoding as the rest."
+            .to_vec(),
+        label: "three.txt".to_owned(),
+    };
+
+    // Tien de: ca ba tep phai THAT SU do ra CUNG mot bang ma, khong thi ca nay khong kiem
+    // duoc gi ca.
+    let ChapterInput::RawBytes { bytes: b1, .. } = &unit_1 else { unreachable!() };
+    let ChapterInput::RawBytes { bytes: b2, .. } = &unit_2 else { unreachable!() };
+    let ChapterInput::RawBytes { bytes: b3, .. } = &unit_3 else { unreachable!() };
+    let v1 = auratranslate_lib::core::segment::encoding::detect(b1);
+    let v2 = auratranslate_lib::core::segment::encoding::detect(b2);
+    let v3 = auratranslate_lib::core::segment::encoding::detect(b3);
+    assert_eq!(v1.encoding, v2.encoding, "tien de phep do: ba tep phai dong thuan bang ma");
+    assert_eq!(v1.encoding, v3.encoding, "tien de phep do: ba tep phai dong thuan bang ma");
+
+    let shape = PipelineShape::Files(vec![unit_1, unit_2, unit_3]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
+
+    assert_eq!(
+        preview.confidence,
+        ConfidenceWire::High,
+        "ba tep dong thuan bang ma khong duoc ep xuong Low boi mot phep so sanh voi CHINH tep dai dien"
+    );
+    assert_eq!(preview.candidates.len(), 5, "dai nam o van dung tu tep dai dien");
 }

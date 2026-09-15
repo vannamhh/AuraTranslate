@@ -78,8 +78,8 @@ function chapters(over: Partial<ChapterSplitPreviewWire> = {}): ChapterSplitPrev
   return {
     chapter_count: 2,
     chapters: [
-      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
     ],
     broken_item_count: 0,
     needs_review_count: 0,
@@ -133,7 +133,7 @@ function candidateWithChapters(encoding: string, flags: boolean[]): EncodingCand
         joined_line_count_in_chapter: null,
         needs_review: needsReview,
         review_causes: needsReview ? (['short_length'] as const).slice() : [],
-        origin: ORIGIN_STUB,
+        origin: ORIGIN_STUB, source_file: null,
       })),
       broken_item_count: 0,
       needs_review_count: needs,
@@ -179,7 +179,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
             encoding: 'GBK',
             chapters: chapters({
               chapter_count: 1,
-              chapters: [{ ord: 1, title: null, length: 5, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }],
+              chapters: [{ ord: 1, title: null, length: 5, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }],
             }),
           }),
         ],
@@ -220,7 +220,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       preview: preview({
         confidence: 'self_declared',
         candidates: [],
-        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }] }),
+        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }] }),
       }),
       error: null,
     })
@@ -406,7 +406,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       preview: preview({
         candidates: [
           candidate({
-            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }] }),
+            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }] }),
           }),
         ],
       }),
@@ -431,9 +431,9 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
             chapters: chapters({
               chapter_count: 3,
               chapters: [
-                { ord: 1, title: 'Dai', length: 4000, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-                { ord: 2, title: 'Ngan Bat Thuong', length: 40, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-                { ord: 3, title: 'Dai Nua', length: 3800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+                { ord: 1, title: 'Dai', length: 4000, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+                { ord: 2, title: 'Ngan Bat Thuong', length: 40, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+                { ord: 3, title: 'Dai Nua', length: 3800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
               ],
             }),
           }),
@@ -459,7 +459,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
 
   it('N > 6 Chương ⇒ khung nhìn mặc định chỉ hiện ba đầu, `⋯`, ba cuối', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
-    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB }))
+    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }))
     previewTextMock.mockResolvedValue({
       preview: preview({
         candidates: [candidate({ chapters: chapters({ chapter_count: 9, chapters: many }) })],
@@ -548,7 +548,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
                   cleanup_match_count: 0,
                   joined_line_count_in_chapter: 0,
                   needs_review: true,
-                  review_causes: ['short_length'], origin: ORIGIN_STUB,
+                  review_causes: ['short_length'], origin: ORIGIN_STUB, source_file: null,
                 },
                 {
                   ord: 2,
@@ -557,7 +557,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
                   cleanup_match_count: 99,
                   joined_line_count_in_chapter: 0,
                   needs_review: true,
-                  review_causes: ['high_cleanup_matches'], origin: ORIGIN_STUB,
+                  review_causes: ['high_cleanup_matches'], origin: ORIGIN_STUB, source_file: null,
                 },
                 {
                   ord: 3,
@@ -566,7 +566,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
                   cleanup_match_count: 0,
                   joined_line_count_in_chapter: 99,
                   needs_review: true,
-                  review_causes: ['high_joined_lines'], origin: ORIGIN_STUB,
+                  review_causes: ['high_joined_lines'], origin: ORIGIN_STUB, source_file: null,
                 },
                 {
                   ord: 4,
@@ -575,7 +575,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
                   cleanup_match_count: null,
                   joined_line_count_in_chapter: 0,
                   needs_review: true,
-                  review_causes: ['not_measured'], origin: ORIGIN_STUB,
+                  review_causes: ['not_measured'], origin: ORIGIN_STUB, source_file: null,
                 },
               ],
             }),
@@ -620,9 +620,9 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
                   cleanup_match_count: 0,
                   joined_line_count_in_chapter: 0,
                   needs_review: true,
-                  review_causes: ['short_length'], origin: ORIGIN_STUB,
+                  review_causes: ['short_length'], origin: ORIGIN_STUB, source_file: null,
                 },
-                { ord: 2, title: 'C2', length: 500, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+                { ord: 2, title: 'C2', length: 500, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
               ],
             }),
           }),
@@ -655,9 +655,9 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
             chapters: chapters({
               chapter_count: 3,
               chapters: [
-                { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-                { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-                { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+                { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+                { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+                { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
               ],
               needs_review_count: 0,
               clean_count: 3,
@@ -696,7 +696,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
         cleanup_match_count: 0,
         joined_line_count_in_chapter: 0,
         needs_review: false,
-        review_causes: [], origin: ORIGIN_STUB,
+        review_causes: [], origin: ORIGIN_STUB, source_file: null,
       })),
       broken_item_count: 0,
       needs_review_count: 0,
@@ -760,9 +760,9 @@ function threeChapters(): ChapterSplitPreviewWire {
   return {
     chapter_count: 3,
     chapters: [
-      { ord: 1, title: 'Chuong 1', length: 100, cleanup_match_count: 1, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-      { ord: 2, title: 'Chuong 2', length: 200, cleanup_match_count: 2, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-      { ord: 3, title: 'Chuong 3', length: 300, cleanup_match_count: 3, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+      { ord: 1, title: 'Chuong 1', length: 100, cleanup_match_count: 1, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+      { ord: 2, title: 'Chuong 2', length: 200, cleanup_match_count: 2, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+      { ord: 3, title: 'Chuong 3', length: 300, cleanup_match_count: 3, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
     ],
     broken_item_count: 0,
     needs_review_count: 0,
@@ -1106,7 +1106,7 @@ function mixedChapters(): ChapterSplitPreviewWire {
         cleanup_match_count: 0,
         joined_line_count_in_chapter: 0,
         needs_review: true,
-        review_causes: ['short_length'], origin: ORIGIN_STUB,
+        review_causes: ['short_length'], origin: ORIGIN_STUB, source_file: null,
       },
       {
         ord: 2,
@@ -1115,7 +1115,7 @@ function mixedChapters(): ChapterSplitPreviewWire {
         cleanup_match_count: 0,
         joined_line_count_in_chapter: 0,
         needs_review: false,
-        review_causes: [], origin: ORIGIN_STUB,
+        review_causes: [], origin: ORIGIN_STUB, source_file: null,
       },
       {
         ord: 3,
@@ -1124,7 +1124,7 @@ function mixedChapters(): ChapterSplitPreviewWire {
         cleanup_match_count: 0,
         joined_line_count_in_chapter: 0,
         needs_review: false,
-        review_causes: [], origin: ORIGIN_STUB,
+        review_causes: [], origin: ORIGIN_STUB, source_file: null,
       },
     ],
     broken_item_count: 0,
@@ -1186,9 +1186,9 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
     const threeRealChaptersOneBrokenLink: ChapterSplitPreviewWire = {
       chapter_count: 3,
       chapters: [
-        { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-        { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
-        { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB },
+        { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+        { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+        { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
       ],
       broken_item_count: 1,
       needs_review_count: 1, // TU link hong -- KHONG Chuong nao needs_review that.

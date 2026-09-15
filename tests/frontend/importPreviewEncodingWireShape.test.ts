@@ -57,6 +57,7 @@ function chaptersFor(title: string): Record<string, unknown> {
         needs_review: false,
         review_causes: [],
         origin: originStub(),
+        source_file: null,
       },
     ],
     broken_item_count: 0,
@@ -272,14 +273,74 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     expect(result.preview?.self_declared_normalized?.text).toBe('da dan')
   })
 
-  it('nhánh TỆP dùng CHUNG bộ phân giải — payload hợp lệ đi qua thật', async () => {
-    mockInvoke.mockResolvedValue(validWirePreview())
+  // 🔵 SỬA 2026-09-15 (Story 6.6b) — envelope MỚI (`FileImportBatchWire`), reason "widened
+  // return type": vỏ Rust nay trả `{ items[], encoding_preview }` cho MỌI N (kể cả N = 1),
+  // không còn một `ImportEncodingPreview` trần — payload mock đổi theo, KHÔNG một lời lỏng
+  // lẻo nào ở guard bên dưới (đối chứng "guard bác payload thiếu trường" ngay dưới không đổi).
+  it('nhánh TỆP dùng CHUNG bộ phân giải — payload hợp lệ (envelope batch) đi qua thật', async () => {
+    mockInvoke.mockResolvedValue({
+      items: [{ path: '/tmp/gbk.txt', ok: true, error: null }],
+      encoding_preview: validWirePreview(),
+    })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile('/tmp/gbk.txt', 'zh', null)
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
 
     expect(result.error).toBeNull()
-    expect(result.preview?.candidates).toHaveLength(5)
+    expect(result.batch?.items).toEqual([{ path: '/tmp/gbk.txt', ok: true, error: null }])
+    expect(result.batch?.encoding_preview?.candidates).toHaveLength(5)
+  })
+
+  // **THÊM (Story 6.6b)** — payload thiếu `items` (trường bắt buộc của envelope batch) phải
+  // bác CẢ payload, cùng khuôn mọi guard "thiếu trường" khác của tệp này.
+  it('payload TỆP thiếu `items` (trường bắt buộc của envelope batch) bị bác', async () => {
+    mockInvoke.mockResolvedValue({ encoding_preview: validWirePreview() })
+    const { previewImportEncodingFromFile } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
+
+    expect(result.batch).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  // **THÊM (Story 6.6b)** — một mục trong `items[]` thiếu `ok` (kiểu sai hình dạng) phải bác
+  // CẢ payload — cùng lớp lỗi "kiểm kiểu lúc chạy hờ hững" mà mọi guard mảng khác của tệp này
+  // đã đóng.
+  it('payload TỆP với một mục `items[]` thiếu `ok` bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      items: [{ path: '/tmp/gbk.txt', error: null }],
+      encoding_preview: null,
+    })
+    const { previewImportEncodingFromFile } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
+
+    expect(result.batch).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  // **THÊM (Story 6.6b)** — `encoding_preview: null` (một mục hỏng khoá xác nhận) là một
+  // payload HỢP LỆ, không phải một lý do để bác — cùng khuôn `UrlImportBatchWire` khi mục
+  // hỏng khoá nút xác nhận.
+  it('payload TỆP với `encoding_preview: null` (mục hỏng, khoá xác nhận) vẫn đi qua thật', async () => {
+    mockInvoke.mockResolvedValue({
+      items: [
+        { path: '/tmp/a.txt', ok: true, error: null },
+        {
+          path: '/tmp/b.txt',
+          ok: false,
+          error: { code: 'io.read_failed', message_key: 'err.io.read_failed', params: {}, retryable: false },
+        },
+      ],
+      encoding_preview: null,
+    })
+    const { previewImportEncodingFromFile } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromFile(['/tmp/a.txt', '/tmp/b.txt'], 'zh', null)
+
+    expect(result.error).toBeNull()
+    expect(result.batch?.items).toHaveLength(2)
+    expect(result.batch?.encoding_preview).toBeNull()
   })
 
   // ── Story 6.5 — khối làm sạch (tầng 3) trên dây ──────────────────────────────────
@@ -475,6 +536,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
                 needs_review: false,
                 review_causes: [],
                 origin: originStub(),
+                source_file: null,
               },
               {
                 ord: 2,
@@ -485,6 +547,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
                 needs_review: false,
                 review_causes: [],
                 origin: originStub(),
+                source_file: null,
               },
             ],
             broken_item_count: 0,
@@ -641,10 +704,10 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    await previewImportEncodingFromFile('/tmp/x.txt', 'zh', { pattern: '第.*章', kind: 'regex' })
+    await previewImportEncodingFromFile(['/tmp/x.txt'], 'zh', { pattern: '第.*章', kind: 'regex' })
 
     expect(mockInvoke).toHaveBeenCalledWith('preview_import_encoding_from_file', {
-      path: '/tmp/x.txt',
+      paths: ['/tmp/x.txt'],
       sourceLang: 'zh',
       chapterPattern: { pattern: '第.*章', kind: 'regex' },
     })

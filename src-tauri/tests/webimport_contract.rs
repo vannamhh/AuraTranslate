@@ -1687,6 +1687,10 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
             PipelineShape::Bilingual { .. } => {
                 panic!("hai ham dung nay phai cho Chapters, khong Bilingual")
             }
+            // 🔵 THÊM 2026-09-15 (Story 6.6b) — `PipelineShape` co them mot bien the moi
+            // (`Files`); hai ham dung nay chi con duoc goi voi `Chapters` hom nay (duong N
+            // tep khong di qua `chapters_shape_*` -- no di qua `import_files`).
+            PipelineShape::Files(_) => panic!("hai ham dung nay phai cho Chapters, khong Files"),
         }
     }
 

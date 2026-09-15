@@ -33,7 +33,8 @@ use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
 use crate::core::segment::import::{
-    ImportError, import_bilingual_file, import_file, import_text, web_import_item_failure_ipc_error,
+    ImportError, import_bilingual_file, import_file, import_files, import_text,
+    web_import_item_failure_ipc_error,
 };
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
@@ -467,6 +468,17 @@ pub fn create_work(
         // dạng này — nó không phải `PipelineShape::Chapters`), nên `prepare_chapter_images`
         // không bao giờ đọc tới danh sách này; một phần tử rỗng không mất gì.
         PipelineShape::Bilingual { .. } => vec![String::new()],
+        // 🔴 SỬA 2026-09-16 (vòng rà đối kháng 2, mục 10/G9) — bản trước map thật
+        // `chapter_input_page_url` qua từng đơn vị, mang đường dẫn hệ thống tệp THẬT ở arity
+        // N-đơn-vị, trong khi một mẫu phân tách có thể cho ra > N Chương đầu ra — vector lệch
+        // arity với thứ nó SẼ được đọc theo (chỉ số Chương, không phải chỉ số đơn vị) NẾU có
+        // ngày một đường đọc nó xuất hiện, và tới lúc đó một đường dẫn cục bộ bị đọc nhầm
+        // thành URL trang. Cùng lý do nhánh `Bilingual`/`Blob` ngay trên: đường `Files` KHÔNG
+        // BAO GIỜ bóc nội dung chính (`extract_main_content` luôn `false` trên đường tệp —
+        // §Always spec 6.6b không đổi luật đó), nên `prepare_chapter_images` không bao giờ đọc
+        // tới danh sách này hôm nay — đổi sang MỘT ô rỗng, đúng khuôn `Bilingual` ngay trên,
+        // gỡ hẳn mối nguy arity thay vì chỉ canh nó.
+        PipelineShape::Files(_) => vec![String::new()],
     };
     // `cleanup_rules`/`block_overrides` bị DI CHUYỂN vào `PipelineInput` ngay dưới — pha ảnh
     // (sau khi chuỗi chạy xong) cần lại đúng hai giá trị này để tính neo (bước 3/4 AD-39 lặp
@@ -2169,6 +2181,12 @@ pub struct ChapterSplitPreviewEntryWire {
     /// **THÊM 2026-09-10 (Story 6.15, FR128/AD-43)** — bốn trường xuất xứ HIỆU LỰC (đã áp
     /// [`ChapterOriginOverride`] của CHÍNH Chương này, nếu có) — xem [`ChapterOriginWire`].
     pub origin: ChapterOriginWire,
+    /// **THÊM 2026-09-15 (Story 6.6b)** — tên/đường dẫn tệp NGUỒN của Chương này, echo thẳng
+    /// từ [`crate::core::segment::import::ImportedChapter::source_file`]. `None` cho MỌI
+    /// hình dạng KHÁC [`PipelineShape::Files`] hôm nay — xem doc-comment trường đó cho lý do
+    /// đầy đủ. Tầng hiển thị (`ImportPreviewOverlay.vue`) hiện trường này làm nhãn "tệp nguồn"
+    /// của mỗi hàng Chương khi có mặt.
+    pub source_file: Option<String>,
 }
 
 /// Bốn trường xuất xứ trên dây, cộng bốn cờ `*_confirmed` — cùng triết lý [`BlockWire::confirmed`]:
@@ -2294,6 +2312,7 @@ fn build_chapter_split_preview_wire(
                 c.origin.as_ref(),
                 origin_overrides.get(i).and_then(Option::as_ref),
             ),
+            source_file: c.source_file.clone(),
         })
         .collect();
 
@@ -2540,6 +2559,75 @@ pub struct ImportEncodingPreview {
     /// **THÊM 2026-09-05 (Story 6.6)** — khối tách Chương (tầng 4) cho nhánh TỰ KHAI, cùng
     /// điều kiện `Some`/`None` với [`Self::self_declared_normalized`].
     pub self_declared_chapters: Option<ChapterSplitPreviewWire>,
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — nhập N tệp cùng lúc (FR14 mở rộng)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Hình dạng DÂY copy KHUÔN của `UrlImportItemWire`/`UrlImportBatchWire` (§Decisions: "Copy
+// the URL item shape") — nhưng KHÔNG một state thứ hai (`FileImportItemsState`): một tệp có
+// thể ĐỌC LẠI (khác byte HTML đã tải qua mạng), nên `items` là DẪN XUẤT ở mỗi lượt gọi
+// `wire::preview_import_encoding_from_file`, không phải một Mutex sống giữa hai lượt gọi (xem
+// §Design Notes "Vì sao không state thứ hai cho mục tệp").
+
+/// Hình dạng DÂY của một [`crate::core::segment::import::FileImportItem`] — vị trí là INDEX
+/// trong `Vec` (frontend giữ nguyên thứ tự đã gửi), `error` mang `IpcError` ĐẦY ĐỦ để frontend
+/// dịch bằng `tError()`, cùng khuôn [`UrlImportItemWire`].
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct FileImportItemWire {
+    pub path: String,
+    pub ok: bool,
+    pub error: Option<IpcError>,
+}
+
+impl From<&crate::core::segment::import::FileImportItem> for FileImportItemWire {
+    fn from(item: &crate::core::segment::import::FileImportItem) -> Self {
+        FileImportItemWire {
+            path: item.path.clone(),
+            ok: item.error.is_none(),
+            error: item.error.clone().map(IpcError::from),
+        }
+    }
+}
+
+/// Kết quả trả về của `wire::preview_import_encoding_from_file` — danh sách mục theo ĐÚNG thứ
+/// tự `paths` cộng xem trước bảng mã, cho MỌI N (kể cả N = 1, §Always spec 6.6b: "one shape to
+/// reason about"). `encoding_preview: None` là điều kiện ĐỦ để khoá nút xác nhận — khác
+/// [`UrlImportBatchWire`] (ở đó `items` hỏng vẫn để lại `encoding_preview: Some(..)` cho các
+/// mục CÒN TỐT), đường tệp đơn giản hơn: MỘT mục hỏng khoá TOÀN BỘ lượt xem trước (§Decisions:
+/// "encoding_preview: None as the single sufficient condition for a locked confirm — the
+/// display tier never derives that itself").
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FileImportBatchWire {
+    pub items: Vec<FileImportItemWire>,
+    pub encoding_preview: Option<ImportEncodingPreview>,
+}
+
+/// **THÊM 2026-09-16 (phản biện) — hàm THUẦN, tách khỏi `wire::preview_import_encoding_from_file`.**
+/// Toàn bộ quyết định "mọi mục OK / khoá / cất" mà §Decisions spec 6.6b đòi (`encoding_preview:
+/// None` là điều kiện ĐỦ để khoá xác nhận) từng chỉ sống TRONG vỏ IPC — không `tests/**` nào
+/// gọi được nó không qua `tauri::AppHandle`, và mọi ca test đặt tên vỏ đó chỉ so văn bản mã
+/// nguồn (không CHẠY nó). Đúng khuôn hai lớp `src-tauri/AGENTS.md`: hàm này nhận
+/// `&FilesImportOutcome` VỪA ĐỌC (không tự đọc đĩa, không tự cất/dọn state) — chỗ gọi ở `mod
+/// wire` chịu trách nhiệm CẢ HAI việc đó.
+///
+/// Trả `(FileImportBatchWire, bool)` — `bool` thứ hai là *"outcome.shape có nên được CẤT vào
+/// PendingImportSourceState hay không"*: `true` ⇔ mọi mục `items[]` đều `ok` (chính điều kiện
+/// mà `encoding_preview` cũng dùng, tính CHUNG một lần — không hai chỗ hỏi CÙNG một câu bằng
+/// hai cách).
+pub fn build_file_import_batch_wire(
+    outcome: &crate::core::segment::import::FilesImportOutcome,
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
+) -> (FileImportBatchWire, bool) {
+    let all_ok = outcome.items.iter().all(|it| it.error.is_none());
+    let encoding_preview = all_ok.then(|| {
+        preview_import_encoding(&outcome.shape, source_lang, cleanup_rules, chapter_pattern, &[], 0, &[])
+    });
+    let items = outcome.items.iter().map(FileImportItemWire::from).collect();
+    (FileImportBatchWire { items, encoding_preview }, all_ok)
 }
 
 /// Chạy chuỗi pipeline thật trên `shape` — **TOÀN Chương, KHÔNG cắt cửa sổ** — để tính khối
@@ -3051,6 +3139,56 @@ pub fn preview_import_encoding(
         // không xuất hiện trên đường sản phẩm gọi `preview_import_encoding`. Phòng thủ kiểu,
         // không phải một trạng thái người dùng gây ra được.
         PipelineShape::Bilingual { .. } => (self_declared_utf8(), Vec::new()),
+        // **THÊM 2026-09-15 (Story 6.6b) — dò TRÊN TỪNG tệp, so sánh phán quyết.** §Decisions:
+        // "One encoding for the whole batch, detected on EVERY file." Dải năm ô/bản dựng thật
+        // vẫn dựng từ ĐÚNG MỘT tệp đại diện (tệp ĐẦU — cùng khuôn `Chapters` ngay trên: một
+        // bảng mã cho cả danh sách, `verdict_and_candidates` đã nạp THẲNG `shape` đủ N đơn vị
+        // vào `encoding_candidate_wire` qua closure bên ngoài) — vế ĐỔI là phán quyết tin cậy:
+        // khi MỘT tệp bất kỳ (kể cả tệp đầu) tự dò ra một bảng mã KHÁC bảng mã đại diện, phán
+        // quyết bị ép xuống `LowGuess` (⇒ `ConfidenceWire::Low`, mở dải năm ứng viên) — không
+        // bao giờ âm thầm chọn bảng mã của tệp #1 mà không cho người dùng biết các tệp còn lại
+        // bất đồng.
+        PipelineShape::Files(units) => {
+            // 🔴 SỬA 2026-09-16 (phản biện) — đại diện là đơn vị ĐẦU TIÊN CÓ BYTE, không
+            // literally `units.first()`. Đo được: một batch 3 tệp mà tệp ĐẦU 0 byte cho
+            // `candidates = 0`, `confidence = SelfDeclared`, KHÔNG tầng 4, và
+            // `self_declared_chapters = Some(1)` — xem trước khai MỘT Chương cho BA tệp trong
+            // khi xác nhận ghi BA, phá đúng hàng ma trận đông lạnh "Preview equals confirm"
+            // bằng một lượt đếm THIẾU trong im lặng. `unwrap_or(0)` (không tệp nào có byte —
+            // mọi tệp 0 byte) giữ nguyên hành vi CŨ (đơn vị 0), đúng ca duy nhất mà "0 byte" là
+            // sự thật của CẢ batch, không phải của MỘT tệp lẻ loi.
+            let representative_index = units
+                .iter()
+                .position(|u| matches!(u, ChapterInput::RawBytes { bytes, .. } if !bytes.is_empty()))
+                .unwrap_or(0);
+            let representative_bytes: &[u8] = match units.get(representative_index) {
+                Some(ChapterInput::RawBytes { bytes, .. }) => bytes,
+                // Bất khả trên đường sản phẩm (`import_files` chỉ đưa `.txt`/`.md` vào
+                // `Files`, luôn `RawBytes`) — phòng thủ kiểu cho `tests/**`.
+                Some(ChapterInput::AlreadyText(_)) | None => &[],
+            };
+            let (mut verdict, candidates) = verdict_and_candidates(representative_bytes, false);
+            // 🔴 SỬA 2026-09-16 (phản biện) — MỘT nguồn sự thật cho bảng mã của đơn vị đại
+            // diện: `verdict.encoding` (từ `verdict_and_candidates` ngay trên, tức
+            // `encoding::detect(representative_bytes)`) — không hỏi lại `encoding::detect`
+            // trên CHÍNH đơn vị đó lần thứ hai bằng cách lặp nó trong vòng `disagreement`
+            // (bản trước lặp qua CẢ `units`, kể cả đơn vị đại diện, hỏi lại đúng câu
+            // `verdict_and_candidates` vừa trả lời). Chỉ những đơn vị KHÁC đơn vị đại diện mới
+            // cần một lượt `detect` của riêng chúng để so.
+            let disagreement = units.iter().enumerate().any(|(i, u)| {
+                if i == representative_index {
+                    return false;
+                }
+                match u {
+                    ChapterInput::RawBytes { bytes, .. } => encoding::detect(bytes).encoding != verdict.encoding,
+                    ChapterInput::AlreadyText(_) => false,
+                }
+            });
+            if disagreement {
+                verdict.confidence = encoding::Confidence::LowGuess;
+            }
+            (verdict, candidates)
+        }
     };
 
     // 🔴 THÊM 2026-09-04 (Story 6.4, vá vòng rà 1, mục 1) — `candidates` RỖNG (tự khai
@@ -3158,11 +3296,16 @@ fn self_declared_source_text(shape: &PipelineShape) -> &str {
 /// `None` khi `chapter_index` ngoài phạm vi, hoặc bảng mã đã chọn "không ra chữ" trên cửa sổ
 /// bằng chứng của CHÍNH Chương đó (byte hỏng/chỉ toàn khoảng trắng) — chỗ gọi coi đó là
 /// "không có gì để hiện", không đoán.
+///
+/// 🔵 **THÊM 2026-09-16 (Story 6.6b, phản biện) — tham số `chapter_pattern`.** Nhánh `Files`
+/// ngay dưới đọc nó để biết ánh xạ `chapter_index` → đơn vị có phải PHÉP ĐỒNG NHẤT hay không
+/// — xem doc-comment nhánh đó.
 fn display_window_for_chapter(
     shape: &PipelineShape,
     chapter_index: usize,
     encoding: &'static encoding_rs::Encoding,
     source_lang: &str,
+    chapter_pattern: Option<&ChapterPattern>,
 ) -> Option<(String, bool)> {
     fn window_for_unit(
         unit: &ChapterInput,
@@ -3205,6 +3348,32 @@ fn display_window_for_chapter(
         // bảng mã theo nghĩa này) — phòng thủ kiểu, cùng lý do các nhánh `PipelineShape::Bilingual`
         // khác trong tệp này.
         PipelineShape::Bilingual { .. } => None,
+        // 🔵 **SỬA 2026-09-16 (Story 6.6b, phản biện) — không còn `None` VÔ ĐIỀU KIỆN.**
+        //
+        // ─────────────────────────────────────────────────────────────────────────────
+        // 🔴 KHÔNG MẪU ⇒ ÁNH XẠ `chapter_index` ↔ ĐƠN VỊ LÀ PHÉP ĐỒNG NHẤT, KHÔNG PHẢI ĐOÁN
+        // ─────────────────────────────────────────────────────────────────────────────
+        // `split_unit_for_files` (bước 5 CỦA `Files`) trả ĐÚNG MỘT mảnh cho MỖI đơn vị khi
+        // `chapter_pattern` là `None` — không nhánh nào khác thay đổi số đơn vị TRƯỚC bước 5
+        // (bước 1-4 lặp per-unit, giữ nguyên N). Vì thế, trên đường KHÔNG mẫu, Chương thứ
+        // `chapter_index` CHÍNH LÀ đơn vị thứ `chapter_index` — `units.get(chapter_index)` là
+        // MỘT PHÉP TRA CỨU ĐÚNG, cùng khuôn `PipelineShape::Chapters` ngay trên (nơi ánh xạ
+        // luôn đồng nhất, N đơn vị = N Chương). Đây chính là hành trình CHÍNH của story: N tệp,
+        // không mẫu, mỗi tệp một Chương (§Always: "Story 6.10a holds per chapter: no Chapter
+        // borrows another unit's number, at any tier") — trả `None` vô điều kiện ở đây từng
+        // phá đúng dòng đó cho hành trình chính, không chỉ một cạnh hiếm.
+        //
+        // CÓ mẫu: một đơn vị CÓ THỂ bị tách thành k > 1 mảnh (`split_on_positions` bên trong
+        // `split_unit_for_files`), và ranh giới đó chỉ tính được SAU khi giải mã + so mẫu —
+        // hàm này chạy TRƯỚC pipeline, trên byte thô của TỪNG tệp, nên ánh xạ `chapter_index`
+        // (chỉ số Chương ĐẦU RA) về đúng tệp/mảnh đòi lặp lại chính phép so mẫu đó Ở TẦNG NÀY.
+        // Nhánh này VẪN `None` — nợ CÓ CHỦ hẹp lại đúng ca này (`deferred-work.md`), không phải
+        // phạm vi story này. Tier 4 (title/length/review) không đọc hàm này — nó đã EAGER cho
+        // MỌI Chương, kể cả khi có mẫu.
+        PipelineShape::Files(units) => match chapter_pattern {
+            None => window_for_unit(units.get(chapter_index)?, encoding, source_lang),
+            Some(_) => None,
+        },
     }
 }
 
@@ -3237,7 +3406,7 @@ pub fn chapter_detail_for_index(
     block_overrides: &[Option<bool>],
 ) -> Option<(CleanupPreviewWire, Option<ChapterBlocksPreviewWire>)> {
     let (window, window_truncated) =
-        display_window_for_chapter(shape, chapter_index, encoding, source_lang)?;
+        display_window_for_chapter(shape, chapter_index, encoding, source_lang, chapter_pattern)?;
     let (cleanup_wire, chapters_wire, blocks_wire) = cleanup_and_chapters_preview_for(
         shape.clone(),
         encoding,

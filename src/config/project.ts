@@ -241,6 +241,10 @@ export type ChapterSplitPreviewEntryWire = {
   review_causes: ReviewCauseWire[]
   /** **THÊM Story 6.15** — bốn trường xuất xứ HIỆU LỰC của CHÍNH Chương này. */
   origin: ChapterOriginWire
+  /** **THÊM Story 6.6b** — tên/đường dẫn tệp NGUỒN của Chương này, `null` cho MỌI đường nhập
+   * KHÁC N tệp (`PipelineShape::Files`) hôm nay. Tầng hiển thị dùng trường này để hiện "tệp
+   * nguồn" cạnh mỗi hàng Chương khi có mặt. */
+  source_file: string | null
 }
 
 /** Thân một khối — khớp `commands::project::BlockBodyWire` (`#[serde(tag = "kind", rename_all
@@ -445,7 +449,11 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
     typeof v.needs_review === 'boolean' &&
     Array.isArray(v.review_causes) &&
     v.review_causes.every(isReviewCauseWire) &&
-    isChapterOriginWire(v.origin)
+    isChapterOriginWire(v.origin) &&
+    // Story 6.6b — thiếu vế `null` thì một Chương không mang `source_file` (mọi đường nhập
+    // KHÁC N tệp) có `undefined` lọt qua Kiểm TYPE, đúng bẫy mọi trường tuỳ chọn khác trong
+    // tệp này đã bị bắt.
+    (v.source_file === null || typeof v.source_file === 'string')
   )
 }
 
@@ -574,14 +582,88 @@ export async function previewImportEncodingFromText(
   return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text, sourceLang, chapterPattern })
 }
 
-/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). Tham số `sourceLang`/`chapterPattern`
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.6b — nhập N tệp cùng lúc (FR14 mở rộng). Khớp
+// `commands::project::{FileImportItemWire, FileImportBatchWire, wire::preview_import_encoding_from_file}`.
+//
+// 🔵 **SỬA 2026-09-15 — tham số `path: string` đổi thành `paths: string[]`, kiểu trả đổi từ
+// `ImportEncodingPreviewResult` sang [`FileImportBatchResult`].** Envelope PER-ITEM cho MỌI N
+// (kể cả N = 1, §Always spec 6.6b: "one shape to reason about") — cùng khuôn
+// [`UrlImportBatchWire`] ngay trên, nhưng ĐƠN GIẢN HƠN: `encoding_preview: null` LÀ điều kiện
+// ĐỦ để khoá xác nhận (khác đường URL, nơi vị từ khoá đọc RIÊNG `items[].ok`).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Một mục trong danh sách tệp — khớp `commands::project::FileImportItemWire`. */
+export type FileImportItemWire = {
+  path: string
+  ok: boolean
+  error: IpcError | null
+}
+
+/** Kết quả `previewImportEncodingFromFile` — khớp `commands::project::FileImportBatchWire`.
+ * `encoding_preview === null` là điều kiện ĐỦ để biết nút xác nhận phải khoá — tầng hiển thị
+ * KHÔNG tự suy luận điều đó từ `items[]` (§Decisions spec 6.6b). */
+export type FileImportBatchWire = {
+  items: FileImportItemWire[]
+  encoding_preview: ImportEncodingPreview | null
+}
+
+/** Ba trạng thái, cùng khuôn `UrlImportBatchResult`. */
+export type FileImportBatchResult = {
+  batch: FileImportBatchWire | null
+  error: IpcError | null
+}
+
+function isFileImportItemWire(value: unknown): value is FileImportItemWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<FileImportItemWire>
+  return (
+    typeof v.path === 'string' &&
+    typeof v.ok === 'boolean' &&
+    // Thiếu vế `null` thì một mục lỗi mang `error: undefined` lọt qua Kiểm TYPE này, đúng
+    // bẫy mà `isUrlImportItemWire` đã bị bắt cho hình dạng anh em của nó.
+    (v.error === null || isIpcError(v.error))
+  )
+}
+
+function isFileImportBatchWire(value: unknown): value is FileImportBatchWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<FileImportBatchWire>
+  return (
+    Array.isArray(v.items) &&
+    v.items.every(isFileImportItemWire) &&
+    (v.encoding_preview === null || isImportEncodingPreview(v.encoding_preview))
+  )
+}
+
+async function callFileImportBatch(cmd: string, args: Record<string, unknown>): Promise<FileImportBatchResult> {
+  try {
+    const batch = await invoke<FileImportBatchWire>(cmd, args)
+    if (!isFileImportBatchWire(batch)) {
+      console.error(`[project] \`${cmd}\` tra ve mot hinh dang khong dung FileImportBatchWire`)
+      return { batch: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { batch, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { batch: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { batch: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { batch: null, error: null }
+  }
+}
+
+/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126; mở rộng N tệp Story 6.6b, FR14).
+ * `paths` GIỮ NGUYÊN thứ tự đã gửi — MỌI N, kể cả N = 1. Tham số `sourceLang`/`chapterPattern`
  * — xem doc-comment [`previewImportEncodingFromText`]. */
 export async function previewImportEncodingFromFile(
-  path: string,
+  paths: string[],
   sourceLang: string,
   chapterPattern: ChapterPatternInput | null,
-): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path, sourceLang, chapterPattern })
+): Promise<FileImportBatchResult> {
+  return callFileImportBatch(CMD_PREVIEW_FROM_FILE, { paths, sourceLang, chapterPattern })
 }
 
 /** Xác nhận lượt nhập với bảng mã đã chọn — cùng hình dạng trả về `CreateWorkResult`

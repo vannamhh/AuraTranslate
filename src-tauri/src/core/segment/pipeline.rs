@@ -212,6 +212,23 @@ pub enum PipelineShape {
         input: ChapterInput,
         delimiter: crate::core::glossary::exchange::Delimiter,
     },
+    /// **THÊM 2026-09-15 (Story 6.6b, FR14 mở rộng)** — N tệp `.txt`/`.md` rời, mỗi tệp một
+    /// đơn vị NGAY TỪ ĐẦU — khác [`PipelineShape::Chapters`] (đã chia Chương, [`Step::SplitChapters`]
+    /// BỎ QUA hoàn toàn): ở đây bước 5 VẪN CHẠY, chỉ chạy TRÊN TỪNG đơn vị riêng thay vì trên
+    /// một khối gộp — mỗi tệp có thể bị mẫu phân tách tách tiếp thành nhiều Chương con
+    /// (`split_chapters_step_files`).
+    ///
+    /// 🔵 **SỬA 2026-09-16 (phản biện) — "N = 1 KHÔNG đi qua nhánh này" đã HẾT ĐÚNG, đây là**
+    /// **một câu về CHỖ GỌI, không về KIỂU.** `Vec<ChapterInput>` không cấm 0 hay 1 phần tử —
+    /// `core::segment::import::import_files`, chỗ xây DUY NHẤT (`segment_files_boundary.rs`),
+    /// lọc mục HỎNG khỏi batch N > 1 TRƯỚC khi xây `Files` (§Decisions: một mục hỏng không làm
+    /// TRƯỢT cả batch), nên `Files(vec![])` (mọi mục đều hỏng) và `Files(vec![một đơn vị])`
+    /// (N-1 mục hỏng, đúng một mục OK) là hai giá trị THẬT mà chính `import_files` tạo ra trên
+    /// đường sản phẩm — `Files` giữ N ĐƠN VỊ CÒN LẠI sau khi lọc, không phải N ĐƯỜNG DẪN đã
+    /// gửi. Bất biến "N = 1 ĐƯỜNG DẪN ⇒ `Blob`" (§Always spec 6.6b) là một quyết định của
+    /// `import_files` khi `paths.len() == 1` — nó SỐNG ở đó, không phải một ràng buộc của kiểu
+    /// này hay của bộ chạy tiêu thụ nó.
+    Files(Vec<ChapterInput>),
 }
 
 /// Đầu vào ĐẦY ĐỦ của [`run_import`]/[`run_import_with_order`] — hình dạng cộng những gì
@@ -518,6 +535,13 @@ struct Flow {
     /// là hình dạng "đã chia Chương" và không được đem đi tách lại, dù độ dài quan sát được
     /// trùng với độ dài của một `Blob` chưa tách).
     already_chaptered: bool,
+    /// **THÊM 2026-09-15 (Story 6.6b)** — `true` khi hình dạng đầu vào GỐC là
+    /// [`PipelineShape::Files`] — [`split_chapters_step`] rẽ theo TRƯỜNG NÀY để chọn nhánh
+    /// per-unit ([`split_chapters_step_files`]) thay vì nhánh whole-blob của `Blob`, cùng khuôn
+    /// `already_chaptered` (HÌNH DẠNG khai báo, không suy từ `units.len()`). `already_chaptered`
+    /// vẫn `false` cho hình dạng này — bước 5 CHẠY (không bị bỏ qua như `Chapters`), chỉ chạy
+    /// khác cách.
+    is_files: bool,
     /// **THÊM 2026-09-05 (Story 6.5)** — báo cáo [`Step::CleanByRules`] cho từng phần tử
     /// `units`, SONG SONG theo INDEX — cùng khuôn `segments`. `None` = chưa có báo cáo (bước
     /// 3 chưa chạy, hoặc đơn vị này là `Unit::Undecoded` khi bước 3 chạy). Reset về
@@ -672,23 +696,31 @@ pub fn run_import_with_order(
     // `bilingual_delimiter` — biến cục bộ, KHÔNG một trường `Flow` (cùng khuôn `source_lang`/
     // `cleanup_rules`/`chapter_pattern`: không đổi qua các bước, nên bắt trong closure của
     // vòng lặp là đủ, không cần thêm một chỗ để mà destructure/tái dựng mỗi nhánh `match`).
-    let (initial_units, initial_labels, already_chaptered, bilingual_delimiter): (
+    let (initial_units, initial_labels, already_chaptered, is_files, bilingual_delimiter): (
         Vec<Unit>,
         Vec<String>,
+        bool,
         bool,
         Option<crate::core::glossary::exchange::Delimiter>,
     ) = match shape {
         PipelineShape::Blob(c) => {
             let label = label_of(&c);
-            (vec![Unit::from(c)], vec![label], false, None)
+            (vec![Unit::from(c)], vec![label], false, false, None)
         }
         PipelineShape::Chapters(cs) => {
             let labels: Vec<String> = cs.iter().map(label_of).collect();
-            (cs.into_iter().map(Unit::from).collect(), labels, true, None)
+            (cs.into_iter().map(Unit::from).collect(), labels, true, false, None)
         }
         PipelineShape::Bilingual { input, delimiter } => {
             let label = label_of(&input);
-            (vec![Unit::from(input)], vec![label], false, Some(delimiter))
+            (vec![Unit::from(input)], vec![label], false, false, Some(delimiter))
+        }
+        // **THÊM 2026-09-15 (Story 6.6b)** — N tệp, mỗi tệp một đơn vị NGAY TỪ ĐẦU, nhãn GIỮ
+        // NGUYÊN (khác `Blob`, nơi bước 5 xoá nhãn về rỗng) — pieces phía sau kế thừa nhãn của
+        // ĐÚNG đơn vị đã sinh ra chúng (§Always spec 6.6b).
+        PipelineShape::Files(cs) => {
+            let labels: Vec<String> = cs.iter().map(label_of).collect();
+            (cs.into_iter().map(Unit::from).collect(), labels, false, true, None)
         }
     };
     let n = initial_units.len();
@@ -696,6 +728,7 @@ pub fn run_import_with_order(
         units: initial_units,
         segments: vec![None; n],
         already_chaptered,
+        is_files,
         cleanup_reports: vec![None; n],
         chapter_titles: vec![None; n],
         labels: initial_labels,
@@ -717,7 +750,7 @@ pub fn run_import_with_order(
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
@@ -768,7 +801,7 @@ pub fn run_import_with_order(
                     None => None,
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -790,7 +823,7 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
+                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
@@ -833,7 +866,7 @@ pub fn run_import_with_order(
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -845,6 +878,7 @@ pub fn run_import_with_order(
                     units: old_units,
                     segments,
                     already_chaptered,
+                    is_files,
                     cleanup_reports: _,
                     chapter_titles,
                     labels,
@@ -901,7 +935,7 @@ pub fn run_import_with_order(
                     None => None,
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -916,7 +950,7 @@ pub fn run_import_with_order(
             // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
             // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut joined_line_counts = Vec::with_capacity(old_units.len());
@@ -955,7 +989,7 @@ pub fn run_import_with_order(
                     rows
                 });
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref(), bilingual_source_column)?;
@@ -1012,6 +1046,10 @@ pub fn run_import_with_order(
                     joined_line_count: None,
                     origin: None,
                     bilingual_segments: Some(group.segments),
+                    // Đường song ngữ mang ĐÚNG MỘT đơn vị đầu vào (`PipelineShape::Bilingual`)
+                    // — không có khái niệm "tệp nào trong N tệp" để mà hiện, cùng lý do
+                    // `origin`/`blocks` cũng `None` ở nhánh này.
+                    source_file: None,
                 }
             })
             .collect();
@@ -1025,6 +1063,11 @@ pub fn run_import_with_order(
         });
     }
 
+    // 🔴 SỬA 2026-09-16 (phản biện) — `is_files` chốt NGAY ĐÂY, TRƯỚC khi `flow.units`/`labels`
+    // bị tiêu thụ, vì `ImportedChapter::source_file` chỉ được phép có giá trị trên hình dạng
+    // `Files` (xem lý do dưới). Bắt trước đây, không đọc `flow.is_files` sau vòng lặp: `flow`
+    // đã bị `.units.into_iter()` di chuyển từng phần từ dòng ngay dưới.
+    let is_files = flow.is_files;
     let chapters: Vec<ImportedChapter> = flow
         .units
         .into_iter()
@@ -1034,7 +1077,26 @@ pub fn run_import_with_order(
         .zip(flow.blocks)
         .zip(flow.joined_line_counts)
         .zip(flow.origins)
-        .map(|((((((u, s), cleanup_report), title), blocks), joined_line_count), origin)| -> Result<ImportedChapter, ImportError> {
+        // **THÊM 2026-09-15 (Story 6.6b)** — `labels` chảy vào kết quả CÔNG KHAI lần đầu tiên
+        // ở đây: `ImportedChapter::source_file` là chỗ DUY NHẤT `Flow::labels` còn sống sau
+        // khi bước 7 chạy xong.
+        //
+        // 🔴 **SỬA 2026-09-16 (phản biện) — `label` không rỗng KHÔNG đủ để suy ra `Files`.**
+        // Bản trước chỉ hỏi `label.is_empty()`, nhưng `Blob(ChapterInput::RawBytes{label,..})`
+        // (đường tệp ĐƠN — `.txt`/`.md` KHÔNG qua mẫu phân tách) và `Chapters` (đường URL) đều
+        // giữ một `label` THẬT KHÔNG rỗng (đường dẫn tuyệt đối/URL) — đo được: `run_import`
+        // trên `Blob(RawBytes{label: "/Users/…/chuong-001.txt"})` không mẫu từng trả
+        // `source_file: Some("/Users/…/chuong-001.txt")`, và trên `Chapters` từng trả
+        // `Some("https://example.com/…")` — hai đường mà story này PHẢI để nguyên (§Always:
+        // "N=1 unchanged"; đường URL không thuộc phạm vi story). Gán CÙNG dòng còn cho ra một
+        // Chương KHÔNG NHẤT QUÁN với chính nó: `Blob` KHÔNG mẫu trả `Some(label)`, `Blob` CÓ
+        // mẫu (đi qua nhánh `split_chapters_step` xoá nhãn về `""`, xem đó) trả `None` — hai
+        // trạng thái của CÙNG một đường nhập tệp đơn. Đúng nguồn sự thật duy nhất là HÌNH DẠNG
+        // (`is_files`, chốt Ở TRÊN), không phải "nhãn có rỗng hay không" — cùng luật
+        // `Flow::already_chaptered` đã theo (rẽ theo hình dạng khai báo, không suy từ dữ liệu
+        // quan sát được).
+        .zip(flow.labels)
+        .map(|(((((((u, s), cleanup_report), title), blocks), joined_line_count), origin), label)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -1061,6 +1123,7 @@ pub fn run_import_with_order(
                 joined_line_count,
                 origin,
                 bilingual_segments: None,
+                source_file: if is_files && !label.is_empty() { Some(label) } else { None },
             })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
@@ -1295,6 +1358,16 @@ fn split_chapters_step(
     if flow.already_chaptered {
         return Ok(flow);
     }
+
+    // **THÊM 2026-09-15 (Story 6.6b)** — hình dạng `PipelineShape::Files` (N > 1 tệp) tách
+    // TỪNG đơn vị RIÊNG, khác nhánh `Blob` ngay dưới (ĐÚNG MỘT đơn vị, gộp cả tài liệu làm
+    // một). Nhánh này thay THẾ HOÀN TOÀN logic bên dưới cho hình dạng đó — kể cả khi `pattern
+    // == None` (nhánh `Blob` return sớm ở dưới khi không có mẫu; `Files` vẫn phải chạy để gán
+    // `title` bằng dòng đầu cho mỗi tệp, §Decisions spec 6.6b).
+    if flow.is_files {
+        return split_chapters_step_files(flow, pattern);
+    }
+
     let Some(pattern) = pattern else {
         return Ok(flow);
     };
@@ -1388,6 +1461,114 @@ fn split_chapters_step(
     Ok(flow)
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bước 5 — nhánh [`PipelineShape::Files`] (Story 6.6b)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Bước 5, nhánh [`PipelineShape::Files`] — MỖI đơn vị (mỗi tệp) tách RIÊNG, không gộp N đơn
+/// vị coi như một khối duy nhất (khác nhánh `Blob` ngay trên: ở đó [`Flow::already_chaptered`]
+/// `== false` LUÔN đi cùng ĐÚNG MỘT đơn vị). Với đơn vị *i* cho ra *k* mảnh (§Always spec
+/// 6.6b):
+/// - mảnh giữ NHÃN của CHÍNH đơn vị *i* — khác `Blob`, nơi nhãn bị xoá về rỗng (đường `Files`
+///   luôn có một tên tệp thật đáng giữ, đường `Blob` chưa từng mang một nhãn có nghĩa);
+/// - báo cáo làm sạch (`cleanup_report`) của đơn vị *i* gắn vào mảnh ĐẦU TIÊN của RIÊNG đơn vị
+///   đó — khác `Blob`, nơi MỘT báo cáo của toàn blob gắn vào Chương 1 của TOÀN LƯỢT NHẬP (đọc
+///   doc-comment `split_chapters_step` "VÌ SAO GẮN LẠI VÀO CHƯƠNG ĐẦU" — lý lẽ đó áp cho một
+///   tài liệu duy nhất; ở đây MỖI đơn vị có báo cáo THẬT của riêng nó, bước 3 đã lặp `apply`
+///   một lần MỖI ĐƠN VỊ, cùng lý lẽ `PipelineShape::Chapters` dùng);
+/// - `joined_line_count` giữ nguyên số THẬT khi `k == 1` (tệp không bị tách thêm — số đó là
+///   của CHÍNH tệp này, không đơn vị nào khác đóng góp), và trở thành `None` cho MỌI mảnh khi
+///   `k > 1` (không có cách chia số nối dòng đo trên TOÀN tệp — trước bước tách — theo ranh
+///   giới k mảnh, cùng lý lẽ `Blob` dùng cho `joined_line_counts` — xem doc-comment
+///   `Flow::joined_line_counts`);
+/// - xuất xứ (`origins`) broadcast BÊN TRONG chính đơn vị đó (mọi mảnh của ĐÚNG đơn vị *i*
+///   nhận cùng giá trị), KHÔNG lan sang đơn vị khác — đường `Files` không bao giờ chạy
+///   [`Step::ExtractMainContent`] thật (`extract_main_content` luôn `false` trên đường tệp),
+///   nên `origin` luôn `None` trên sản phẩm hôm nay; quy tắc broadcast-trong-đơn-vị vẫn được
+///   viết ra tường minh vì hàm này là seam công khai cho `tests/**`.
+///
+/// Một Chương chưa-bị-tách-thêm (`k == 1`, dù vì không có mẫu HAY mẫu không khớp CHÍNH đơn vị
+/// này) được TITLE bằng dòng đầu của nó qua [`title_line_of`] ([`split_unit_for_files`]) — khác
+/// hẳn `Blob`, nơi một khối chưa tách giữ `title = None` vĩnh viễn (§Decisions spec 6.6b "A
+/// whole-file Chapter is titled by its first line").
+fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Result<Flow, ImportError> {
+    let old_units = std::mem::take(&mut flow.units);
+    let old_labels = std::mem::take(&mut flow.labels);
+    let old_cleanup_reports = std::mem::take(&mut flow.cleanup_reports);
+    let old_joined_line_counts = std::mem::take(&mut flow.joined_line_counts);
+    let old_origins = std::mem::take(&mut flow.origins);
+
+    let mut units: Vec<Unit> = Vec::new();
+    let mut labels: Vec<String> = Vec::new();
+    let mut cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>> = Vec::new();
+    let mut chapter_titles: Vec<Option<String>> = Vec::new();
+    let mut joined_line_counts: Vec<Option<usize>> = Vec::new();
+    let mut origins: Vec<Option<crate::core::webimport::ChapterOrigin>> = Vec::new();
+
+    for ((((unit, label), unit_report), unit_joined), unit_origin) in old_units
+        .into_iter()
+        .zip(old_labels)
+        .zip(old_cleanup_reports)
+        .zip(old_joined_line_counts)
+        .zip(old_origins)
+    {
+        let pieces: Vec<(Unit, Option<String>)> = match unit {
+            Unit::Decoded(text) => split_unit_for_files(&text, pattern)?,
+            // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 5) — giữ nguyên là
+            // phòng thủ cho một thứ tự SAI, cùng khuôn mọi nhánh `Unit::Undecoded` khác trong
+            // module này. `Files` không có ca AD-39 riêng để bảo toàn (đó là dụng cụ đo của
+            // `Blob`, §Design Notes spec 6.6b "Vì sao nhánh byte ở lại literal" chỉ nói về
+            // `Blob`), nên một no-op an toàn — không panic, không mất byte — là đủ.
+            other @ Unit::Undecoded { .. } => vec![(other, None)],
+        };
+        let k = pieces.len();
+        for (piece_index, (piece_unit, title)) in pieces.into_iter().enumerate() {
+            units.push(piece_unit);
+            labels.push(label.clone());
+            chapter_titles.push(title);
+            cleanup_reports.push(if piece_index == 0 { unit_report.clone() } else { None });
+            joined_line_counts.push(if k == 1 { unit_joined } else { None });
+            origins.push(unit_origin.clone());
+        }
+    }
+
+    let n = units.len();
+    flow.units = units;
+    flow.segments = vec![None; n];
+    flow.labels = labels;
+    flow.cleanup_reports = cleanup_reports;
+    flow.chapter_titles = chapter_titles;
+    flow.blocks = vec![None; n];
+    flow.joined_line_counts = joined_line_counts;
+    flow.origins = origins;
+    Ok(flow)
+}
+
+/// Tách MỘT đơn vị (một tệp) của hình dạng [`PipelineShape::Files`] — dùng bởi
+/// [`split_chapters_step_files`]. Có mẫu VÀ mẫu khớp ít nhất một lần: uỷ quyền THẲNG cho
+/// [`split_on_positions`] (Code Map spec 6.6b: "reused unchanged") — cùng cơ chế tách-theo-
+/// VỊ-TRÍ, cùng luật giữ tiêu đề, cùng Chương lời tựa `title = None` mà `Blob` dùng. Không mẫu,
+/// HOẶC mẫu không khớp gì trong CHÍNH văn bản này: khác `Blob` (trả `title = None`), đường
+/// `Files` title hoá bằng [`title_line_of`] áp lên TOÀN văn bản — §Decisions spec 6.6b "A
+/// whole-file Chapter is titled by its first line", cùng hàm `title_line_of` mà nhánh khớp
+/// dùng bên trong, "not a second rule".
+fn split_unit_for_files(text: &str, pattern: Option<&ChapterPattern>) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
+    if let Some(p) = pattern {
+        let starts = p
+            .match_starts(text)
+            .map_err(|e| ImportError::InvalidChapterPattern { detail: e.to_string() })?;
+        // 🔴 SỬA 2026-09-16 (phản biện) — TÁI DÙNG `starts` đã tính ở trên, không gọi
+        // `split_on_positions` (nó tự tính `match_starts` LẦN THỨ HAI trên CÙNG `text`+`pattern`).
+        // `ChapterPattern::match_starts` biên dịch lại regex MỖI LƯỢT GỌI — hai lượt gọi nghĩa
+        // là hai lần biên dịch + hai lượt quét cho mỗi tệp trên đường có mẫu. `pieces_from_match_starts`
+        // là phần THÂN dùng chung mà `split_on_positions` cũng gọi, sau khi TỰ nó tính `starts`.
+        if !starts.is_empty() {
+            return Ok(pieces_from_match_starts(text, &starts));
+        }
+    }
+    Ok(vec![(Unit::Decoded(text.to_owned()), title_line_of(text))])
+}
+
 /// **THÊM 2026-09-11 (Story 6.16)** — nhóm `rows` thành Chương theo mẫu phân tách, áp lên
 /// cột NGUỒN của TỪNG hàng (`bilingual_source_column`). Không mẫu ⇒ một Chương duy nhất
 /// (`title = None`), cùng khuôn [`split_on_positions`]. Có mẫu: hàng NÀO khớp mở một Chương
@@ -1468,7 +1649,14 @@ fn split_on_positions(text: &str, pattern: &ChapterPattern) -> Result<Vec<(Unit,
     if starts.is_empty() {
         return Ok(vec![(Unit::Decoded(text.to_owned()), None)]);
     }
+    Ok(pieces_from_match_starts(text, &starts))
+}
 
+/// Thân dựng mảnh của [`split_on_positions`], tách RIÊNG — **THÊM 2026-09-16 (phản biện)** —
+/// để [`split_unit_for_files`] tái dùng ĐÚNG `starts` nó đã tự tính (hỏi rỗng hay không) thay
+/// vì gọi `split_on_positions` rồi để hàm đó tính `match_starts` LẦN THỨ HAI trên cùng
+/// `text`+`pattern`. `starts` KHÔNG rỗng — cả hai chỗ gọi đã gác điều đó trước khi tới đây.
+fn pieces_from_match_starts(text: &str, starts: &[usize]) -> Vec<(Unit, Option<String>)> {
     let mut pieces = Vec::with_capacity(starts.len() + 1);
     if starts[0] > 0 {
         pieces.push((Unit::Decoded(text[..starts[0]].to_owned()), None));
@@ -1478,7 +1666,7 @@ fn split_on_positions(text: &str, pattern: &ChapterPattern) -> Result<Vec<(Unit,
         let piece = &text[start..end];
         pieces.push((Unit::Decoded(piece.to_owned()), title_line_of(piece)));
     }
-    Ok(pieces)
+    pieces
 }
 
 /// Tiêu đề HIỂN THỊ của một Chương vừa tách — dòng ĐẦU của `piece` (dòng chứa vị trí khớp),

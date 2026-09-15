@@ -253,17 +253,23 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
 
   it('sửa luật THÀNH CÔNG ⇒ gọi cleanupEditRule rồi tải lại', async () => {
     const state = await freshState()
-    previewFileMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', '/tmp/x.txt')
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/x.txt', ok: true, error: null }], encoding_preview: preview() },
+      error: null,
+    })
+    await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/x.txt'])
     previewFileMock.mockClear()
 
     cleanupEditRuleMock.mockResolvedValue({ ok: true, error: null })
-    previewFileMock.mockResolvedValue({ preview: preview(), error: null })
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/x.txt', ok: true, error: null }], encoding_preview: preview() },
+      error: null,
+    })
 
     await state.editImportPreviewCleanupRule('global', 1, 'mau moi', 'literal')
 
     expect(cleanupEditRuleMock).toHaveBeenCalledWith('global', 1, 'mau moi', 'literal')
-    expect(previewFileMock).toHaveBeenCalledWith('/tmp/x.txt', 'en')
+    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/x.txt'], 'en')
   })
 
   it('xoá luật là HAI NHỊP — nhịp một chỉ đổi trạng thái, KHÔNG gọi IPC; nhịp hai (gọi lại đúng luật) mới ghi thật rồi tải lại', async () => {

@@ -45,7 +45,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-15-2026 20:27'
+last_updated: '09-16-2026 01:54'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -153,7 +153,7 @@ development_status:
   6-4-chuẩn-hoá-xuống-dòng-và-khoảng-trắng: done
   6-5-luật-làm-sạch-lộ-ra-và-hiện-thứ-sắp-xoá: done
   6-6-tách-chương-theo-mẫu-phân-tách: done
-  6-6b-nhập-nhiều-tệp-cùng-lúc: backlog
+  6-6b-nhập-nhiều-tệp-cùng-lúc: review
   6-7-nhập-từ-url-bằng-danh-sách-link: done
   6-7b-thêm-chương-vào-tác-phẩm-có-sẵn: backlog
   6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain: done

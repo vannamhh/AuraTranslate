@@ -82,6 +82,7 @@ function chaptersWithOrigin(origins: ChapterOriginWire[]): ChapterSplitPreviewWi
       needs_review: false,
       review_causes: [],
       origin: o,
+      source_file: null,
     })),
     broken_item_count: 0,
     needs_review_count: 0,

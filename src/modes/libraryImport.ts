@@ -91,6 +91,43 @@ export const pastedText = ref('')
 /** Nội dung ô nhập đường dẫn (AC1 nhánh b — vá NFR17: đường bàn phím cho nhánh tệp). */
 export const filePath = ref('')
 
+/**
+ * **THÊM (Story 6.6b, FR14 mở rộng)** — danh sách N đường dẫn vừa được KÉO-THẢ, giữ NGUYÊN
+ * tất cả (không còn chỉ tệp đầu — xem [`wireDragDropOnce`]). Rỗng khi chưa thả gì, hoặc khi
+ * người dùng vừa GÕ vào [`filePath`] ([`onFilePathInput`] dọn ô này — §Always spec 6.6b: "a
+ * dropped list wins while it is non-empty, and typing in the path field clears it").
+ *
+ * `filePath` (ô nhập một dòng) và ô này là HAI NGUỒN của cùng một nhánh nhập — chỉ
+ * [`effectiveFilePaths`] mới là "sự thật" mà [`submitFilePath`] gửi đi; không đọc thẳng ô
+ * nào riêng lẻ ở chỗ gọi khác.
+ */
+export const droppedFilePaths = ref<string[]>([])
+
+/**
+ * Danh sách đường dẫn THỰC SỰ sẽ được gửi khi bấm nút "Nhập" — **THÊM (Story 6.6b)**. Đúng
+ * MỘT luật ưu tiên (§Always spec 6.6b): `droppedFilePaths` THẮNG khi nó không rỗng; ô gõ tay
+ * ([`filePath`]) chỉ được đọc khi danh sách thả rỗng. Không bao giờ CẢ HAI nguồn cùng góp
+ * phần — đúng nghĩa "một luật ưu tiên, không hai nguồn sự thật" mà §Always đòi.
+ */
+export const effectiveFilePaths = computed<string[]>(() => {
+  if (droppedFilePaths.value.length > 0) return droppedFilePaths.value
+  const typed = filePath.value.trim()
+  return typed === '' ? [] : [typed]
+})
+
+/**
+ * Gọi từ `@input` của ô đường dẫn tệp (`LibraryMode.vue`) — **THÊM (Story 6.6b)**, KHÔNG còn
+ * `v-model="filePath"` trần. Một GÕ THẬT của người dùng phải dọn [`droppedFilePaths`] (§Always
+ * spec 6.6b: "typing in the path field clears it") — cùng lượt, không một `watch()` rời (một
+ * `watch(filePath, ...)` không phân biệt được "vừa gõ" khỏi "vừa bị lượt thả GÁN giá trị hiển
+ * thị", xem [`wireDragDropOnce`]).
+ */
+export function onFilePathInput(value: string): void {
+  filePath.value = value
+  droppedFilePaths.value = []
+  noticeKey.value = null
+}
+
 /** **THÊM (Story 6.16, FR115)** — nội dung ô nhập đường dẫn của đường nhập SONG NGỮ
  * (`.csv`/`.tsv`), tách khỏi [`filePath`]: hai đường đi tới hai màn xem trước RIÊNG
  * (`ImportPreviewOverlay.vue` vs `BilingualImportPreviewOverlay.vue`, xem
@@ -321,6 +358,9 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
       pastedText.value = ''
     } else if (importPreviewLastSubmittedFrom.value === 'file') {
       filePath.value = ''
+      // Story 6.6b — cùng lượt xoá, cùng lý do: một danh sách thả cũ không được sống sót qua
+      // một lượt tạo Tác phẩm đã thành công (lượt kế tiếp bắt đầu SẠCH).
+      droppedFilePaths.value = []
     } else if (importPreviewLastSubmittedFrom.value === 'urls') {
       // 🔵 THÊM Story 6.7 — cùng lý lẽ hai nhánh trên, ba biến thể `'text'`/`'file'`/`'urls'`.
       pastedUrls.value = ''
@@ -357,18 +397,19 @@ export async function submitPastedText(): Promise<void> {
   busy.value = false
 }
 
-/** Nhánh tệp — mở màn xem trước bảng mã cho `filePath` hiện tại (ô nhập đường dẫn, bàn phím
- * **hoặc** kéo-thả — Story 6.3, NFR17 giữ nguyên). */
+/** Nhánh tệp — mở màn xem trước bảng mã cho [`effectiveFilePaths`] hiện tại (ô nhập đường
+ * dẫn, bàn phím **hoặc** kéo-thả N tệp — Story 6.3, NFR17 giữ nguyên; mở rộng N tệp Story
+ * 6.6b, FR14). */
 export async function submitFilePath(): Promise<void> {
   // Cùng lý do và cùng khoá với `submitPastedText` (mục 9) — `importPreviewIsOpen` phủ
   // đúng cửa sổ THẬT (mở → huỷ/xác nhận xong), `busy` chỉ phủ tới lúc màn xem trước MỞ.
   if (busy.value || importPreviewIsOpen.value) return
-  const path = filePath.value.trim()
-  if (path === '') return
+  const paths = effectiveFilePaths.value
+  if (paths.length === 0) return
   // ⚠️ Cùng lý do và cùng chốt với `submitPastedText`.
   if (!(await beginSubmit())) return
   // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
-  await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, path)
+  await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, paths)
   busy.value = false
 }
 
@@ -445,13 +486,21 @@ export function wireDragDropOnce(): void {
     // `Drop` là sự kiện CUỐI của một chuỗi — không còn gì lơ lửng nữa.
     isDragOver.value = false
 
-    const first = paths[0]
-    if (typeof first !== 'string' || first.length === 0) return
+    // 🔵 SỬA 2026-09-15 (Story 6.6b) — giữ NGUYÊN tất cả, không còn chỉ tệp đầu
+    // (`mode.library.drop_only_first` đã RETIRE — khoá bị XOÁ khỏi `vi.json`, thay bằng
+    // `mode.library.drop_multiple_files`; `vi.json` là một object khoá→chuỗi PHẲNG, không có
+    // bình luận để mà tra — 🔴 SỬA 2026-09-16, vòng rà đối kháng 2, mục 11: câu cũ trỏ sai
+    // vào một "mục lịch sử" không tồn tại). Lọc phần tử rỗng phòng thủ; thứ tự GIỮ NGUYÊN như
+    // hệ điều hành gửi (§Always spec 6.6b không đòi sắp lại).
+    const valid = paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+    if (valid.length === 0) return
 
-    filePath.value = first
-    // Thả nhiều tệp: lấy tệp đầu và **NÓI RA**, không im lặng vứt phần còn lại. Nhập
-    // hàng loạt là Epic 6.
-    noticeKey.value = paths.length > 1 ? 'mode.library.drop_only_first' : null
+    droppedFilePaths.value = valid
+    // Một tệp: giữ đúng hành vi CŨ — điền thẳng vào ô đường dẫn, người dùng vẫn sửa được bằng
+    // bàn phím (NFR17). N tệp: ô đường dẫn không có chỗ để hiện N đường dẫn có nghĩa — để
+    // trống, `droppedFilePaths` (không phải ô này) là nguồn thật (`effectiveFilePaths`).
+    filePath.value = valid.length === 1 ? valid[0] : ''
+    noticeKey.value = valid.length > 1 ? 'mode.library.drop_multiple_files' : null
   })
 }
 

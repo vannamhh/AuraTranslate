@@ -103,7 +103,10 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
     const state = await import('../../src/importPreviewState')
 
     nhap.filePath.value = '/tmp/a.txt'
-    previewFileMock.mockResolvedValue({ preview: preview(), error: null })
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/a.txt', ok: true, error: null }], encoding_preview: preview() },
+      error: null,
+    })
     await nhap.submitFilePath()
 
     expect(state.importPreviewIsOpen.value).toBe(true)
@@ -124,7 +127,10 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
     const state = await import('../../src/importPreviewState')
 
     nhap.filePath.value = '/tmp/a.txt'
-    previewFileMock.mockResolvedValue({ preview: preview(), error: null })
+    previewFileMock.mockResolvedValue({
+      batch: { items: [{ path: '/tmp/a.txt', ok: true, error: null }], encoding_preview: preview() },
+      error: null,
+    })
     await nhap.submitFilePath()
     expect(state.importPreviewIsOpen.value).toBe(true)
     expect(state.importPreviewLastSubmittedFrom.value).toBe('file')
