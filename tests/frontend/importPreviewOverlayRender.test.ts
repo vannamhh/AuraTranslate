@@ -125,7 +125,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   ] as const)('confidence=%s dựng đúng chip "%s"', async (confidence, expectedText) => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview({ confidence }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('.ip-confidence-chip').text()).toContain(expectedText)
@@ -143,7 +143,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   it('tầng 2 rỗng (đường dán văn bản) dựng đúng lý do MỚI — không bóc, không phải "chưa dựng"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const reasons = wrapper.findAll('.ip-tier-empty-reason')
@@ -175,7 +175,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
@@ -202,7 +202,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
       preview: preview({ candidates: [candidate({ preview: null, normalized: null, cleanup: null })] }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
@@ -253,7 +253,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
@@ -280,7 +280,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', '   ')
+    await state.openImportPreviewFromText('Ten', 'en', '', '   ', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
@@ -310,7 +310,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
       prevImportPreviewChapter: prevMock,
     })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -329,7 +329,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
     const nextMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ nextImportPreviewChapter: nextMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -348,7 +348,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
     const nextMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ nextImportPreviewChapter: nextMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -369,7 +369,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
       nextImportPreviewChapter: nextChapterMock,
     })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -392,7 +392,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
       prevImportPreviewChapter: prevMock,
     })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -429,7 +429,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
     const toggleMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -446,7 +446,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
     const toggleMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -465,7 +465,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
     const toggleMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -482,7 +482,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
     const toggleMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -538,7 +538,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
       preview: preview({ candidates: [candidate({ chapters: chaptersWithFlags(flags) })] }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
@@ -577,7 +577,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 

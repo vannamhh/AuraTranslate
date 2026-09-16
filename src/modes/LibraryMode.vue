@@ -19,17 +19,28 @@ import {
   bilingualFilePath,
   busy,
   createdWork,
+  destinationExistingWorkAvailable,
+  destinationLibraryGenuinelyEmpty,
+  destinationMode,
+  destinationPending,
+  destinationWorkId,
+  destinationWorks,
+  destinationWorksError,
   effectiveFilePaths,
   filePath,
   genre,
   isDragOver,
   lastError,
+  loadDestinationWorks,
   name,
   noticeKey,
   onFilePathInput,
   pastedText,
   pastedUrlCount,
   pastedUrls,
+  pickedDestinationWork,
+  setDestinationMode,
+  setDestinationWorkId,
   sourceLang,
   unwireDragDrop,
   wireDragDropOnce,
@@ -128,6 +139,11 @@ onMounted(() => {
   // không lặp lại gì thêm, nhưng đặt nó ở `onMounted` khớp đúng vòng đời "một lần" của
   // `wireDragDropOnce()` (tự chốt idempotent, nhưng ý định code phải khớp cơ chế).
   wireDragDropOnce()
+  // 🔴 THÊM (Story 6.7b) — tải TRƯỚC khi người dùng chạm radio "Tác phẩm đã có": I/O Matrix
+  // "Empty Library" đòi điều khiển NÓI vì sao ngay từ đầu, không chỉ sau lượt bấm đầu tiên
+  // (`destinationExistingWorkAvailable` đọc `destinationWorksHaveLoaded`/`destinationWorks`
+  // — cả hai còn ở trạng thái "chưa biết" cho tới khi lượt này về).
+  void loadDestinationWorks()
 })
 onBeforeUnmount(() => {
   releaseFocus('mode.library')
@@ -1224,22 +1240,93 @@ watch(libraryChapterCursor, (cursor) => {
       </template>
 
       <form class="import-form" @submit.prevent>
+        <!--
+          🔴 STORY 6.7b (FR122 nửa hai) — "Đưa vào": Tác phẩm mới, hoặc thêm Chương vào
+          cuối một Tác phẩm sẵn có. Khớp mockup `web-import.html:198-207` — đứng NGAY TRƯỚC
+          `Tên Tác phẩm`/`Ngôn ngữ nguồn` trong cùng cột, vì đích quyết định GIÁ TRỊ của hai
+          ô đó (Decision 2 — kế thừa, không dò). Chỉ ba nút nộp đơn ngữ (dán/tệp/URL) đọc
+          đích này — nút song ngữ (`submitBilingualFilePath`) không đổi (Decision 1).
+        -->
+        <!-- 🔵 SỬA (vòng rà, mục B7) — `<fieldset>`/`<legend>` thay `<div>`/`<span>` trần: hai
+             radio bên dưới cùng một nhóm ngữ nghĩa (chọn ĐÚNG MỘT đích), và trước bản sửa này
+             không có gì nói với trình đọc màn hình rằng chúng đi cùng nhau. -->
+        <fieldset class="field field-group" data-import-destination>
+          <legend>{{ t('mode.library.field_destination') }}</legend>
+
+          <label class="radio-field">
+            <input
+              type="radio"
+              name="import-destination-mode"
+              value="new"
+              :checked="destinationMode === 'new'"
+              @change="setDestinationMode('new')"
+            />
+            <span class="radio-copy">
+              <span class="radio-title">{{ t('mode.library.destination_new_work') }}</span>
+              <span class="radio-desc">{{ t('mode.library.destination_new_work_desc') }}</span>
+            </span>
+          </label>
+
+          <label class="radio-field">
+            <input
+              type="radio"
+              name="import-destination-mode"
+              value="existing"
+              :checked="destinationMode === 'existing'"
+              :disabled="!destinationExistingWorkAvailable"
+              @change="setDestinationMode('existing')"
+            />
+            <span class="radio-copy">
+              <span class="radio-title">{{ t('mode.library.destination_existing_work') }}</span>
+              <span class="radio-desc">{{ t('mode.library.destination_existing_work_desc') }}</span>
+            </span>
+          </label>
+
+          <!-- I/O Matrix spec 6.7b "Empty Library" — nói vì sao, không chỉ khoá im lặng.
+               🔵 SỬA (vòng rà, mục E6) — trước bản sửa này canh `!destinationExistingWorkAvailable`,
+               đúng CẢ khi Library rỗng thật LẪN khi lượt tải vừa lỗi, nên câu "Library trống" và
+               câu lỗi thật hiện CÙNG LÚC, nói dối về lý do. `destinationLibraryGenuinelyEmpty`
+               loại trừ lẫn nhau với dải lỗi ngay dưới. -->
+          <p v-if="destinationLibraryGenuinelyEmpty" class="hint" role="status">
+            {{ t('mode.library.destination_empty_library') }}
+          </p>
+          <p v-if="destinationWorksError !== null" class="hint hint-error" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(destinationWorksError) }}
+          </p>
+
+          <label v-if="destinationMode === 'existing'" class="field" data-import-destination-picker>
+            <span>{{ t('mode.library.destination_pick_label') }}</span>
+            <select
+              :value="destinationWorkId ?? ''"
+              @change="setDestinationWorkId(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>{{ t('mode.library.destination_pick_placeholder') }}</option>
+              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
+              <option v-for="w in destinationWorks" :key="w.work_id" :value="w.work_id">{{ w.name }}</option>
+            </select>
+          </label>
+        </fieldset>
+
         <label class="field">
           <span>{{ t('mode.library.field_name') }}</span>
-          <input v-model="name" type="text" autocomplete="off" />
+          <input v-if="pickedDestinationWork === null" v-model="name" type="text" autocomplete="off" />
+          <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
         </label>
 
         <label class="field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <select v-model="sourceLang">
+          <select v-if="pickedDestinationWork === null" v-model="sourceLang">
             <option value="zh">{{ t('mode.library.lang_zh') }}</option>
             <option value="en">{{ t('mode.library.lang_en') }}</option>
           </select>
+          <input v-else :value="pickedDestinationWork.source_lang" type="text" autocomplete="off" disabled />
         </label>
 
         <label class="field">
           <span>{{ t('mode.library.field_genre') }}</span>
-          <input v-model="genre" type="text" autocomplete="off" />
+          <input v-if="pickedDestinationWork === null" v-model="genre" type="text" autocomplete="off" />
+          <input v-else :value="pickedDestinationWork.genre" type="text" autocomplete="off" disabled />
         </label>
 
         <label class="field">
@@ -1250,10 +1337,12 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || pastedText.trim() === ''"
+          :disabled="busy || pastedText.trim() === '' || destinationPending"
           @click="dispatch('library.import_text')"
         >
-          {{ t('mode.library.submit_text') }}
+          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
+               tử ba ngôi. -->
+          {{ destinationMode === 'existing' ? t('mode.library.submit_text_append') : t('mode.library.submit_text') }}
         </button>
 
         <!--
@@ -1284,10 +1373,12 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || effectiveFilePaths.length === 0"
+          :disabled="busy || effectiveFilePaths.length === 0 || destinationPending"
           @click="dispatch('library.import_file')"
         >
-          {{ t('mode.library.submit_file') }}
+          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
+               tử ba ngôi. -->
+          {{ destinationMode === 'existing' ? t('mode.library.submit_file_append') : t('mode.library.submit_file') }}
         </button>
 
         <!--
@@ -1330,10 +1421,12 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || pastedUrlCount === 0"
+          :disabled="busy || pastedUrlCount === 0 || destinationPending"
           @click="dispatch('library.import_urls')"
         >
-          {{ t('mode.library.submit_urls') }}
+          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
+               tử ba ngôi. -->
+          {{ destinationMode === 'existing' ? t('mode.library.submit_urls_append') : t('mode.library.submit_urls') }}
         </button>
       </form>
 
@@ -1459,6 +1552,59 @@ watch(libraryChapterCursor, (cursor) => {
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   padding: 6px 8px;
+}
+
+/* 🔴 STORY 6.7b — "Đưa vào" (radio đích + picker Tác phẩm đã có). */
+.field-group {
+  gap: 8px;
+  /* 🔵 SỬA (vòng rà, mục B7) — `.field-group` nay là một `<fieldset>` (nhóm ngữ nghĩa hai
+     radio), không còn `<div>`. Reset viền/margin/padding mặc định của trình duyệt cho
+     `<fieldset>`: dự án không dùng viền/khoảng cách nào ngoài token thiết kế. */
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.field-group legend {
+  padding: 0;
+  margin: 0;
+}
+
+.radio-field {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.radio-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio-title {
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.radio-desc {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.hint {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+.hint-error {
+  color: var(--color-error);
 }
 
 .btn {

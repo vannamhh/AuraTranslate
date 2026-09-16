@@ -49,7 +49,7 @@ Nếu A8 đúng là vượt xa, phán quyết tầng PRD sẽ rơi vào lúc ph�
 - **PRD:** hàng NFR3 (`:844`), `[A6]` (`:1105`), **Q4** (`:1150`) — thay đổi **thời điểm** đóng Q4, không thay đổi ngưỡng.
 - **SPEC:** `SPEC.md:125` (A13, hai chỗ đã cũ), `SPEC.md:131` (Q4), `requirements.md:405`, `:411`. `risks.md` không đổi.
 - **UX:** `EXPERIENCE.md:142` đang định nghĩa "cần xem" chỉ cho *"lần nhập nhiều link"* — hẹp hơn AC Story 6.10 từ trước lượt này.
-- **Kiến trúc:** không `AD` mới. Dev kiểm lại AD-44 khi soạn spec 6.7b; nếu phải đổi một bất biến thì dừng và giao Winston.
+- **Kiến trúc:** không `AD` mới. Dev kiểm lại AD-8 (🔵 **SỬA 2026-09-16 (Story 6.7b) — trích dẫn sai, sửa `AD-44` → `AD-8`**: `Indexer::rebuild` là người viết `library-index.db` DUY NHẤT theo AD-8, khớp `src-tauri/AGENTS.md:54` và `epics.md:4861` — ba tài liệu nay đồng thuận) khi soạn spec 6.7b; nếu phải đổi một bất biến thì dừng và giao Winston.
 - **Sổ nợ:** 11 mục mang `Chủ: Story 6.18`; hai mục nợ bảng mã, một trong đó ghi sai đường dẫn.
 - **Mã nguồn:** không đổi tên gì. `story_6_18_*.rs` (3 tệp), `lib.rs`, feature `nfr-bench`, thư mục `6-18-ban-do/` giữ nguyên — tên là lịch sử, và là đầu vào của Story 10.9.
 

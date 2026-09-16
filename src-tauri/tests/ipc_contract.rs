@@ -1104,9 +1104,15 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         // 🔵 SỬA 2026-09-05 (Story 6.6) — thêm tham số `chapter_pattern:
         // Option<ChapterPatternWire>` vào CẢ BA vỏ: mẫu phân tách Chương là tham số MỖI LƯỢT
         // NHẬP (§Always spec 6.6), gửi lại ở MỌI lượt xem trước VÀ xác nhận.
+        // 🔴 SỬA 2026-09-16 (Story 6.7b, Phase 4) — tham số CUỐI `destination: Option<String>`
+        // thêm vào cả `preview_import_encoding_from_text`/`_from_file` (AC3: màn xem trước cần
+        // biết ĐÍCH để phân giải đúng tầng Work của luật làm sạch — `resolve_cleanup_rules_for`).
+        // `confirm_import_with_encoding` KHÔNG đổi (đọc đích qua `PendingImportSourceState`,
+        // xem Implementation Notes Phase 2 "2026-09-16 correction" — chữ ký của nó ở đây không
+        // đổi so với trước story).
         (
             "preview_import_encoding_from_text",
-            "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
+            "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,\n        destination: Option<String>,",
         ),
         // 🔵 SỬA 2026-09-15 (Story 6.6b) — tham số `path: String` đổi thành `paths:
         // Vec<String>`: reason "parameter retyped to a list", KHÔNG một lời nới lỏng — N = 1
@@ -1114,7 +1120,7 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         // cũng đổi rộng ra thành `FileImportBatchWire` (envelope per-item cho MỌI N).
         (
             "preview_import_encoding_from_file",
-            "app: tauri::AppHandle,\n        paths: Vec<String>,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
+            "app: tauri::AppHandle,\n        paths: Vec<String>,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,\n        destination: Option<String>,",
         ),
         (
             "confirm_import_with_encoding",
@@ -1165,7 +1171,16 @@ fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for (fn_name, expected_params) in [
-        ("start_url_import", "app: tauri::AppHandle,\n        urls: Vec<String>,\n        source_lang: String,"),
+        // 🔴 SỬA 2026-09-16 (Story 6.7b, Phase 4) — tham số CUỐI `destination: Option<String>`
+        // thêm vào `start_url_import` (mở một phiên URL MỚI ⇒ đích là giá trị người dùng vừa
+        // chọn, Quyết định 1). `reload_url_import_item`/`remove_url_import_item` KHÔNG đổi —
+        // chúng tinh chỉnh một danh sách ĐÃ có đích, đọc lại đích đã cất qua
+        // `current_pending_destination` thay vì nhận tham số mới (xem Implementation Notes
+        // Phase 2 "2026-09-16 correction").
+        (
+            "start_url_import",
+            "app: tauri::AppHandle,\n        urls: Vec<String>,\n        source_lang: String,\n        destination: Option<String>,",
+        ),
         (
             "reload_url_import_item",
             "app: tauri::AppHandle,\n        index: usize,\n        source_lang: String,",
@@ -1624,4 +1639,173 @@ fn reading_mark_wire_fields_stay_snake_case() {
             "target_text",
         ]
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.7b, Phase 4 (coordinator review 2026-09-16) — nêm cho vỏ của khuôn bốn bước
+// (`reindex_library(&app, &root)`) ở `wire.rs`: đối chứng đỏ ① (§Verification) đo được 0 ca
+// đỏ khi gỡ dòng đó ở nhánh APPEND — không test nào gọi được `wire::confirm_import_with_
+// encoding` (không `tauri::test`/`MockRuntime` harness trong kho), nên một lần xoá dòng gọi
+// TẠI CHÍNH VỎ không bị bắt bởi bất kỳ ca nào. Cổng này canh SỰ CÓ MẶT của nguồn (không canh
+// HÀNH VI lúc chạy), cùng khuôn `ipc_contract.rs::the_three_bilingual_import_wires_are_
+// registered_read_cleanup_rules_and_rebuild_never_reads_the_file` (containment trên nguồn) +
+// `webimport_boundary.rs::code_lines`/`text_before_first_cfg_test_line` (lọc chú thích).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Dòng gọi CHÍNH XÁC của bước 4 — cả năm chỗ trong `wire.rs` (`:499`, `:545`, `:837`,
+/// `:905`, `:1102`) mang ĐÚNG cùng một chuỗi này (đo lại 2026-09-16, sau Phase 1-4).
+const REINDEX_LIBRARY_CALL_LINE: &str = "reindex_library(&app, &root);";
+
+/// Dòng KHÔNG phải chú thích — cùng khuôn `webimport_boundary.rs::code_lines`.
+fn code_lines(text: &str) -> impl Iterator<Item = &str> {
+    text.lines().map(str::trim).filter(|code| {
+        !code.is_empty()
+            && !code.starts_with("//")
+            && !code.starts_with("/*")
+            && !code.starts_with("* ")
+            && !code.starts_with("*/")
+    })
+}
+
+/// Đếm số dòng MÃ THẬT (đã lọc chú thích) trùng NGUYÊN VĂN [`REINDEX_LIBRARY_CALL_LINE`] — một
+/// dòng bị COMMENT ra (`// reindex_library(&app, &root);`) không được đếm là còn mặt, dù
+/// chuỗi vẫn CÓ MẶT trong văn bản — đúng cái bẫy "gỡ giả" mà `AGENTS.md:68` gọi tên, và một
+/// `str::contains`/`grep` trần sẽ bị nó lừa.
+fn count_reindex_library_calls(text: &str) -> usize {
+    code_lines(text).filter(|&code| code == REINDEX_LIBRARY_CALL_LINE).count()
+}
+
+/// Cắt thân MỘT `pub fn` trong `mod wire` — từ đúng chữ ký `pub fn {fn_name}(` tới NGAY TRƯỚC
+/// khối `pub fn` kế tiếp (hoặc hết tệp) — cùng khuôn `code_lines_of` (đóng cục bộ trong
+/// [`the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names`]
+/// ngay trên), tổng quát hoá thành một hàm dùng lại được cho nhiều ca.
+fn wire_fn_body<'a>(wire_src: &'a str, fn_name: &str) -> &'a str {
+    let signature = format!("pub fn {fn_name}(");
+    let start = wire_src
+        .find(&signature)
+        .unwrap_or_else(|| panic!("khong tim thay vo `{fn_name}` trong `mod wire`"));
+    let rest = &wire_src[start..];
+    let end = rest[signature.len()..]
+        .find("\n    pub fn ")
+        .map(|offset| offset + signature.len())
+        .unwrap_or(rest.len());
+    &rest[..end]
+}
+
+fn read_wire_rs() -> String {
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project")
+        .join("wire.rs");
+    fs::read_to_string(&wire_rs).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()))
+}
+
+/// **THÊM 2026-09-16 (Story 6.7b, coordinator review)** — cả NĂM chỗ gọi bước 4
+/// (`reindex_library(&app, &root)`) trong `mod wire` phải CÒN MẶT: `create_work_from_text`
+/// (`:499`), `create_work_from_file` (`:545`), `confirm_import_with_encoding` — HAI chỗ, nhánh
+/// Tác phẩm MỚI (`:837`) và nhánh APPEND (`:905`) — và `confirm_bilingual_import` (`:1102`).
+/// Xoá (hoặc COMMENT ra) BẤT KỲ một trong năm phải làm ca này đỏ — đối chứng đo 2026-09-16,
+/// bảng năm lượt gỡ ở Implementation Notes của spec 6.7b.
+///
+/// 🔴 **Vì sao neo THEO TỪNG SEAM, không chỉ đếm tổng** — `confirm_import_with_encoding` mang
+/// HAI trong năm chỗ gọi; một phép đếm tổng bằng 5 không nói được CHỖ NÀO chết nếu một chỗ mất
+/// trong khi một chỗ khác vô tình được thêm ở đâu đó khác trong `mod wire` (tổng vẫn là 5, ca
+/// vẫn xanh — đúng bẫy "một khẳng định đúng trên cả hai nhánh không canh nhánh nào",
+/// `AGENTS.md:68`). Bổ đôi thân hàm CHUNG (`confirm_import_with_encoding`) tại đúng dòng chú
+/// thích neo `"// Đường APPEND (Story 6.7b)"` — ranh giới THẬT giữa nhánh Tác phẩm MỚI và
+/// nhánh APPEND, không phải một số dòng đoán chừng. Sàn quần thể (tổng = 5 trên TOÀN VĂN
+/// `wire.rs`) chạy CỘNG THÊM, không thay thế, năm phép neo — phòng một chùm khác len lỏi vào
+/// `mod wire` mà năm seam neo ở trên không biết tới.
+#[test]
+fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
+    let wire_src = read_wire_rs();
+
+    let create_from_text = wire_fn_body(&wire_src, "create_work_from_text");
+    let create_from_file = wire_fn_body(&wire_src, "create_work_from_file");
+    let confirm = wire_fn_body(&wire_src, "confirm_import_with_encoding");
+    let bilingual = wire_fn_body(&wire_src, "confirm_bilingual_import");
+
+    const APPEND_BRANCH_ANCHOR: &str = "// Đường APPEND (Story 6.7b)";
+    let append_split = confirm.find(APPEND_BRANCH_ANCHOR).unwrap_or_else(|| {
+        panic!(
+            "khong tim thay neo `{APPEND_BRANCH_ANCHOR}` trong than `confirm_import_with_encoding` \
+             -- neo doi khi ranh gioi giua nhanh Tac pham MOI va nhanh APPEND doi vi tri/loi van, \
+             sua lai neo nay theo dung ranh gioi that roi chay lai"
+        )
+    });
+    let new_work_branch = &confirm[..append_split];
+    let append_branch = &confirm[append_split..];
+
+    for (seam, body, expected) in [
+        ("create_work_from_text (:499)", create_from_text, 1),
+        ("create_work_from_file (:545)", create_from_file, 1),
+        ("confirm_import_with_encoding, nhanh Tac pham MOI (:837)", new_work_branch, 1),
+        ("confirm_import_with_encoding, nhanh APPEND (:905)", append_branch, 1),
+        ("confirm_bilingual_import (:1102)", bilingual, 1),
+    ] {
+        let found = count_reindex_library_calls(body);
+        assert_eq!(
+            found, expected,
+            "seam `{seam}` phai mang DUNG {expected} loi goi `{REINDEX_LIBRARY_CALL_LINE}` -- tim \
+             thay {found}. Buoc 4 (Indexer::rebuild qua reindex_library) mat o day lam library-\
+             index.db noi doi im lang sau lan ghi ke tiep qua seam nay (src-tauri/AGENTS.md:54)."
+        );
+    }
+
+    let total = count_reindex_library_calls(&wire_src);
+    assert_eq!(
+        total, 5,
+        "tong so loi goi `{REINDEX_LIBRARY_CALL_LINE}` trong toan bo wire.rs phai la DUNG 5 -- tim \
+         thay {total}. Mot con so khac 5 la mot chum da xuat hien/bien mat o dau do trong `mod \
+         wire` ma nam seam neo o tren khong biet toi."
+    );
+}
+
+/// Đối chứng dương/âm cho [`count_reindex_library_calls`] — khuôn `webimport_boundary.rs::
+/// the_content_parsing_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code`.
+/// Chứng minh vị từ THẬT SỰ bắt được một dòng bị COMMENT ra (chuỗi vẫn CÓ MẶT trong văn bản,
+/// nhưng không còn là MÃ) — cái bẫy `AGENTS.md:68` gọi tên nguyên văn, và một `str::contains`
+/// trần sẽ bị nó lừa.
+#[test]
+fn count_reindex_library_calls_is_not_fooled_by_a_commented_out_line() {
+    let clean = "fn confirm() {\n    reindex_library(&app, &root);\n    Ok(())\n}\n";
+    assert_eq!(count_reindex_library_calls(clean), 1, "ca DUONG -- mot dong MA THAT phai duoc dem");
+
+    let commented = "fn confirm() {\n    // reindex_library(&app, &root);\n    Ok(())\n}\n";
+    assert_eq!(
+        count_reindex_library_calls(commented),
+        0,
+        "ca AM (bay 'go gia') -- mot dong bi COMMENT RA khong duoc dem la con mat, du chuoi van \
+         CO MAT trong van ban -- day chinh la loai loi ma AGENTS.md:68 goi ten"
+    );
+
+    let doc_commented = "fn confirm() {\n    /// reindex_library(&app, &root);\n    Ok(())\n}\n";
+    assert_eq!(
+        count_reindex_library_calls(doc_commented),
+        0,
+        "ca AM thu hai -- chu thich TAI LIEU (`///`) cung khong duoc dem"
+    );
+
+    let unrelated = "fn other() {\n    do_something_else();\n    reindex_library(&app, &different_root);\n}\n";
+    assert_eq!(
+        count_reindex_library_calls(unrelated),
+        0,
+        "ca AM thu ba -- mot loi goi GAN GIONG (tham so khac) khong duoc dem la khop, danh cho mot \
+         lan sua tay lam sai tham so ma khong xoa han dong goi"
+    );
+}
+
+/// Đối chứng dương/âm cho [`wire_fn_body`] — chứng minh hàm cắt ĐÚNG khối, không lấn sang hàm
+/// kế tiếp, cùng khuôn `fn_param_list_would_actually_bind_to_the_right_function_block`.
+#[test]
+fn wire_fn_body_stops_before_the_next_pub_fn_and_does_not_bleed_into_it() {
+    let src = "    pub fn foo(a: i32) {\n        reindex_library(&app, &root);\n    }\n\n    pub fn bar(b: i32) {\n        reindex_library(&app, &root);\n    }\n";
+
+    let foo = wire_fn_body(src, "foo");
+    assert_eq!(count_reindex_library_calls(foo), 1, "than `foo` phai mang DUNG 1 loi goi cua CHINH no");
+    assert!(!foo.contains("fn bar"), "than `foo` khong duoc lan sang `bar`");
+
+    let bar = wire_fn_body(src, "bar");
+    assert_eq!(count_reindex_library_calls(bar), 1, "than `bar` phai mang DUNG 1 loi goi cua CHINH no");
 }

@@ -134,6 +134,22 @@ const pendingText = ref<string | null>(null)
 const pendingPaths = ref<string[]>([])
 
 /**
+ * **THÊM (Story 6.7b, FR122 nửa hai)** — đích của phiên nhập ĐANG MỞ: `null` ⇒ Tác phẩm MỚI
+ * (hành vi hôm nay, không đổi), `work_id` ⇒ thêm Chương vào cuối một Tác phẩm sẵn có. Đặt
+ * ĐÚNG MỘT LẦN ở lượt MỞ (`openImportPreviewFromText`/`…FromFile`/`…FromUrls`, tham số
+ * `destinationWorkId` do `libraryImport.ts` cấp — đó là nơi radio "Tác phẩm mới/đã có" sống,
+ * §Decisions spec 6.7b: "không screen nào cho đổi đích giữa phiên").
+ *
+ * 🔴 **Phải được gửi lại NGUYÊN VẸN ở MỌI lượt tải lại xem trước** (`runImportPreviewReload`/
+ * `runFileImportPreviewReload`/`removeImportPreviewFileItem`) — Rust
+ * (`stash_pending_import_source_for`) ghi đè TOÀN BỘ đích mỗi lượt gọi
+ * `preview_import_encoding_from_text`/`_from_file`, không hợp nhất; bỏ sót tham số này ở một
+ * lượt tải lại (ví dụ do bật/tắt một luật làm sạch) sẽ ÂM THẦM đưa đích của phiên về Tác
+ * phẩm mới ngay ở lượt tải lại KẾ TIẾP.
+ */
+const pendingDestinationWorkId = ref<string | null>(null)
+
+/**
  * **THÊM (Story 6.7)** — ô THỨ BA, song song với `pendingText`/`pendingPaths` — danh sách
  * mục-theo-link của lượt nhập URL đang mở. Mỗi mục mang vị trí (INDEX trong mảng), URL, và
  * kết quả (`ok`/`error`) — khác `pendingText`/`pendingPaths` (một GIÁ TRỊ trần), đây là N giá
@@ -333,6 +349,18 @@ export const importPreviewStripForcedOpen: DeepReadonly<Ref<boolean>> = readonly
  * (xem doc-comment [`lastSubmittedFrom`] cho lý do ô này sống ở đây). */
 export const importPreviewLastSubmittedFrom: DeepReadonly<Ref<'text' | 'file' | 'urls' | null>> =
   readonly(lastSubmittedFrom)
+/** **THÊM (Story 6.7b)** — đích ĐÃ CHỐT của phiên đang mở, để `ImportPreviewOverlay.vue`
+ * hiện một dòng ĐỌC (Decision 2: "adopted... shown read-only") — không một điều khiển đổi
+ * đích nào đọc/ghi ô này (xem doc-comment [`pendingDestinationWorkId`] cho lý do). */
+export const importPreviewDestinationWorkId: DeepReadonly<Ref<string | null>> = readonly(pendingDestinationWorkId)
+/** **THÊM (Story 6.7b)** — tên/ngôn ngữ nguồn/thể loại ĐÃ CHỐT của phiên đang mở, cùng lý do
+ * `importPreviewDestinationWorkId` ngay trên: `libraryImport.ts` đã tính đúng ba giá trị này
+ * TRƯỚC khi mở màn xem trước (giá trị gõ tay khi đích = Tác phẩm mới, giá trị của ĐÍCH khi
+ * đích = một Tác phẩm sẵn có, §Never: không đổi tên/thể loại/ngôn ngữ của đích) — lớp phủ chỉ
+ * ĐỌC LẠI ba ô này, không tính lại. */
+export const importPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
+export const importPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
+export const importPreviewPendingGenre: DeepReadonly<Ref<string>> = readonly(pendingGenre)
 export const importPreviewCleanupActionError: DeepReadonly<Ref<IpcError | null>> =
   readonly(cleanupActionError)
 export const importPreviewCleanupAdding: DeepReadonly<Ref<boolean>> = readonly(cleanupAdding)
@@ -629,6 +657,7 @@ async function openWith(
   name: string,
   sourceLang: string,
   genre: string,
+  destinationWorkId: string | null,
 ): Promise<void> {
   if (opening.value) return
 
@@ -642,6 +671,11 @@ async function openWith(
   pendingName.value = name
   pendingSourceLang.value = sourceLang
   pendingGenre.value = genre
+  // **THÊM (Story 6.7b)** — chốt CÙNG LÚC với ba ô trên, cùng khuôn: `libraryImport.ts` đã
+  // tính đúng `name`/`sourceLang`/`genre`/`destinationWorkId` (giá trị gõ tay HOẶC giá trị
+  // của đích, tuỳ radio đang chọn) TRƯỚC khi hàm này chạy — xem doc-comment
+  // [`pendingDestinationWorkId`].
+  pendingDestinationWorkId.value = destinationWorkId
   confirming.value = false
   confirmError.value = null
   cleanupActionError.value = null
@@ -703,21 +737,27 @@ async function openWith(
   loadError.value = null
 }
 
-/** Mở màn xem trước — nhánh DÁN VĂN BẢN. Gọi từ handler tiêm của `library.import_text`. */
+/** Mở màn xem trước — nhánh DÁN VĂN BẢN. Gọi từ handler tiêm của `library.import_text`.
+ *
+ * 🔴 THÊM 2026-09-16 (Story 6.7b) — tham số `destinationWorkId`: `libraryImport.ts` đã phân
+ * giải đích (radio + picker "Tác phẩm đã có") TRƯỚC lượt gọi này — xem doc-comment
+ * [`pendingDestinationWorkId`]. */
 export async function openImportPreviewFromText(
   name: string,
   sourceLang: string,
   genre: string,
   text: string,
+  destinationWorkId: string | null,
 ): Promise<void> {
   pendingText.value = text
   pendingPaths.value = []
   await openWith(
-    () => previewImportEncodingFromText(text, sourceLang, null),
+    () => previewImportEncodingFromText(text, sourceLang, null, destinationWorkId),
     'text',
     name,
     sourceLang,
     genre,
+    destinationWorkId,
   )
 }
 
@@ -730,12 +770,16 @@ export async function openImportPreviewFromText(
  * được nó: `previewImportEncodingFromFile` nay trả [`FileImportBatchResult`] (`items` CỘNG
  * một `encoding_preview` CÓ THỂ `null` khi còn mục hỏng), không còn một `ImportEncodingPreviewResult`
  * trần mà `openWith` giả định.
+ *
+ * 🔴 THÊM 2026-09-16 (Story 6.7b) — tham số `destinationWorkId`, cùng lý do doc-comment
+ * [`openImportPreviewFromText`].
  */
 export async function openImportPreviewFromFile(
   name: string,
   sourceLang: string,
   genre: string,
   paths: string[],
+  destinationWorkId: string | null,
 ): Promise<void> {
   if (opening.value) return
 
@@ -747,6 +791,7 @@ export async function openImportPreviewFromFile(
   pendingName.value = name
   pendingSourceLang.value = sourceLang
   pendingGenre.value = genre
+  pendingDestinationWorkId.value = destinationWorkId
   pendingText.value = null
   pendingPaths.value = paths
   confirming.value = false
@@ -786,7 +831,7 @@ export async function openImportPreviewFromFile(
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
 
-  const result = await previewImportEncodingFromFile(paths, sourceLang, null)
+  const result = await previewImportEncodingFromFile(paths, sourceLang, null, destinationWorkId)
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
@@ -834,12 +879,18 @@ export async function openImportPreviewFromFile(
  * lại phần khởi tạo của `openWith` một cách có chủ ý — xem doc-comment `UrlImportBatchWire`
  * ở `config/project.ts` cho lý do hai hình dạng không gộp được vào MỘT hàm chung mà không
  * làm `openWith` mất khả năng đọc.
+ *
+ * 🔴 THÊM 2026-09-16 (Story 6.7b) — tham số `destinationWorkId`. Đây là LẦN DUY NHẤT phiên
+ * URL đặt được đích: không lệnh Rust nào cho phép đổi đích của một phiên URL đã tải (xem
+ * doc-comment [`startUrlImport`] ở `config/project.ts`) — `libraryImport.ts` phải phân giải
+ * đích TRƯỚC khi gọi hàm này.
  */
 export async function openImportPreviewFromUrls(
   name: string,
   sourceLang: string,
   genre: string,
   urls: string[],
+  destinationWorkId: string | null,
 ): Promise<void> {
   if (opening.value) return
 
@@ -851,6 +902,7 @@ export async function openImportPreviewFromUrls(
   pendingName.value = name
   pendingSourceLang.value = sourceLang
   pendingGenre.value = genre
+  pendingDestinationWorkId.value = destinationWorkId
   pendingText.value = null
   pendingPaths.value = []
   confirming.value = false
@@ -892,7 +944,7 @@ export async function openImportPreviewFromUrls(
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
 
-  const result = await startUrlImport(urls, sourceLang)
+  const result = await startUrlImport(urls, sourceLang, destinationWorkId)
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
@@ -1399,7 +1451,14 @@ async function runImportPreviewReload(): Promise<{ result: ImportEncodingPreview
   const mySequence = sequence
   const pattern = chapterPatternWire()
 
-  const result = await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value, pattern)
+  const result = await previewImportEncodingFromText(
+    pendingText.value ?? '',
+    pendingSourceLang.value,
+    pattern,
+    // **THÊM (Story 6.7b)** — gửi lại NGUYÊN VẸN, xem doc-comment [`pendingDestinationWorkId`]:
+    // bỏ sót tham số này ở một lượt tải lại làm Rust âm thầm đưa đích về Tác phẩm mới.
+    pendingDestinationWorkId.value,
+  )
   return { result, mySequence }
 }
 
@@ -1419,7 +1478,13 @@ async function runFileImportPreviewReload(): Promise<
   sequence += 1
   const mySequence = sequence
   const pattern = chapterPatternWire()
-  const result = await previewImportEncodingFromFile(pendingPaths.value, pendingSourceLang.value, pattern)
+  const result = await previewImportEncodingFromFile(
+    pendingPaths.value,
+    pendingSourceLang.value,
+    pattern,
+    // **THÊM (Story 6.7b)** — cùng lý do dòng tương ứng ở `runImportPreviewReload`.
+    pendingDestinationWorkId.value,
+  )
   return { batch: result.batch, error: result.error, mySequence }
 }
 
@@ -1473,7 +1538,13 @@ export async function removeImportPreviewFileItem(index: number): Promise<void> 
   sequence += 1
   const mySequence = sequence
   try {
-    const result = await previewImportEncodingFromFile(next, pendingSourceLang.value, chapterPatternWire())
+    const result = await previewImportEncodingFromFile(
+      next,
+      pendingSourceLang.value,
+      chapterPatternWire(),
+      // **THÊM (Story 6.7b)** — cùng lý do `runFileImportPreviewReload`.
+      pendingDestinationWorkId.value,
+    )
     if (mySequence !== sequence) return // một lượt mở/huỷ/tải lại MỚI đã vượt mặt lượt này
     // 🔴 SỬA 2026-09-16 (phản biện) — `pendingPaths.value = next` KHÔNG còn đứng TRƯỚC hai
     // nhánh lỗi ngay dưới. Đứng trước đó làm `pendingPaths` (nguồn mà lượt gọi KẾ TIẾP —
@@ -1945,6 +2016,9 @@ export function resetImportPreview(): void {
   pendingName.value = ''
   pendingSourceLang.value = ''
   pendingGenre.value = ''
+  // **THÊM (Story 6.7b)** — 48ᵗʰ ô, cùng khuôn ba ô trên: quét bằng `resetImportPreview()`
+  // như `check:panel-refs` đòi cho mọi ô nhớ cấp module mới.
+  pendingDestinationWorkId.value = null
   stripForcedOpen.value = false
   lastSubmittedFrom.value = null
   pendingText.value = null

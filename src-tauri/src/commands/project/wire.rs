@@ -18,6 +18,14 @@
     /// Lỗi (kho vắng mặt, `ScopeResolver::apply_merge` từ chối) rơi về **0 luật** kèm chẩn
     /// đoán — cùng khuôn `resolve_configured_library_root`: luật làm sạch là một tiện ích
     /// bổ trợ, một sự cố ở đây không được phép làm cả màn xem trước sập.
+    ///
+    /// ⚠️ **KHÔNG mang khái niệm đích** — dùng nguyên hàm này (không đổi chữ ký, cùng lý do
+    /// `tests/ipc_contract.rs::the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file`
+    /// khoá đúng literal `resolve_cleanup_rules(&app)` bên trong ba vỏ song ngữ) cho MỌI chỗ
+    /// gọi chưa có khái niệm "đích" (song ngữ, và các vỏ tinh chỉnh một lượt nhập URL đã mở:
+    /// `reload_url_import_item`/`remove_url_import_item`/`tier2_block_*`/
+    /// `preview_chapter_detail`). Ba đường đơn ngữ CÓ đích (Story 6.7b, Quyết định 1) gọi
+    /// [`resolve_cleanup_rules_for`] ngay dưới thay vì hàm này.
     fn resolve_cleanup_rules(app: &tauri::AppHandle) -> Vec<CleanupRule> {
         use tauri::Manager as _;
 
@@ -35,6 +43,112 @@
             Some(open) => resolve_cleanup_rules_against(&open.scope, global, Some(&open.store)),
             None => resolve_cleanup_rules_against(&ScopeResolver::global_only(), global, None),
         }
+    }
+
+    /// **THÊM 2026-09-16 (Story 6.7b, AC3)** — luật làm sạch cho một chỗ gọi CÓ khái niệm
+    /// đích (ba đường đơn ngữ của Quyết định 1: `preview_import_encoding_from_text/_from_file`,
+    /// `start_url_import`, và `confirm_import_with_encoding`). `Some(work_id)` ⇒ tầng Tác
+    /// phẩm phân giải từ ĐÍCH đó, KHÔNG từ `OpenWorkState` — xem
+    /// [`resolve_cleanup_rules_for_destination`]. `None` (đích = Tác phẩm MỚI) uỷ thác
+    /// NGUYÊN VẸN cho [`resolve_cleanup_rules`] ở trên — giữ đúng hành vi hôm nay: hợp nhất
+    /// luật của bất kỳ Tác phẩm nào đang mở. Đó là một khiếm khuyết ĐÃ BIẾT cho đích "Tác
+    /// phẩm mới" (`deferred-work.md:10063-10081`), không phải điều story này sửa — story chỉ
+    /// mở nửa ĐỌC cho đích LÀ một Tác phẩm có sẵn (§Never: "This story needs only the read
+    /// half").
+    fn resolve_cleanup_rules_for(app: &tauri::AppHandle, destination: Option<&str>) -> Vec<CleanupRule> {
+        use tauri::Manager as _;
+
+        let Some(work_id) = destination else {
+            return resolve_cleanup_rules(app);
+        };
+        let global_state = app.try_state::<Store>();
+        let Some(global) = global_state.as_deref() else {
+            eprintln!("cleanup[rules] global.db chua duoc quan ly, roi ve 0 luat");
+            return Vec::new();
+        };
+        resolve_cleanup_rules_for_destination(app, global, work_id)
+    }
+
+    /// Story 6.7b (AC3) — tầng Tác phẩm cho MỘT đích cụ thể, KHÔNG từ `OpenWorkState`. Tái
+    /// dùng `Store` đang mở nếu đích TRÙNG Tác phẩm đang mở (không mở lần hai cùng một
+    /// `project.db` — `src-tauri/AGENTS.md:30`); ngược lại mở TẠM qua [`super::open_work`]
+    /// (giữ nguyên kiểm `db_path.exists()` của nó trước khi chạm `Store::open` — đúng
+    /// doc-comment `open_work`, không ghi đĩa cho một đích chưa từng có `project.db`) rồi
+    /// ĐÓNG NGAY sau khi đọc xong — đây chỉ là một lượt ĐỌC cho màn xem trước, không phải một
+    /// lượt GHI, nên không có lý do giữ kết nối đó sống lâu hơn lượt gọi này.
+    ///
+    /// Lỗi (không có trong chỉ mục, `project.db` không mở được, …) rơi về **0 luật** kèm chẩn
+    /// đoán — cùng triết lý `resolve_cleanup_rules`. Lỗi CỨNG (từ chối xác nhận thật sự) cho
+    /// một đích đã biến mất sống ở chỗ khác: [`super::open_work`] được gọi LẠI, nghiêm túc, ở
+    /// `confirm_import_with_encoding` lúc xác nhận.
+    /// 🔵 **SỬA 2026-09-16 (Story 6.7b, Phase 4)** — thân hàm nay CHỈ lo phần KHÔNG THUẦN
+    /// (lấy `open`/`destination` ra khỏi `OpenWorkState`/`Indexer`); quyết định "tầng Work của
+    /// AI thắng" chuyển hẳn vào [`super::resolve_work_tier_cleanup_rules_for_destination`] — lõi
+    /// THUẦN mà `tests/cleanup_contract.rs` gọi thẳng không cần `AppHandle`. Hành vi cho MỌI
+    /// chỗ gọi sản phẩm không đổi (đọc CẢ HAI nhánh trước/sau sửa: khớp `open` ⇒ tái dùng store
+    /// đang mở; không khớp/không mở gì ⇒ mở tạm qua `Indexer`+`open_work` rồi đóng ngay).
+    fn resolve_cleanup_rules_for_destination(
+        app: &tauri::AppHandle,
+        global: &Store,
+        work_id: &str,
+    ) -> Vec<CleanupRule> {
+        use tauri::Manager as _;
+
+        let report_err = |detail: std::fmt::Arguments| {
+            eprintln!("cleanup[rules] {detail}");
+            Vec::new()
+        };
+
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open_ref: Option<&OpenWork> = guard.as_ref().and_then(|g| g.as_ref());
+
+        if let Some(open) = open_ref {
+            if open.meta.work_id == work_id {
+                return super::resolve_work_tier_cleanup_rules_for_destination(open, Some(open), global)
+                    .unwrap_or_else(|err| report_err(format_args!("phan giai that bai, roi ve 0 luat: {err}")));
+            }
+        }
+
+        let Some(indexer) = app.try_state::<Indexer>() else {
+            return report_err(format_args!("Indexer chua duoc quan ly, roi ve 0 luat cho dich {work_id}"));
+        };
+        let indexed = match indexer.find_work(work_id) {
+            Ok(found) => found,
+            Err(err) => {
+                return report_err(format_args!("khong doc duoc chi muc cho dich {work_id}: {err}"));
+            }
+        };
+        let opened = match super::open_work(work_id, indexed.as_ref()) {
+            Ok(opened) => opened,
+            Err(err) => {
+                return report_err(format_args!("khong mo duoc dich {work_id}: {err:?}"));
+            }
+        };
+        let rules = super::resolve_work_tier_cleanup_rules_for_destination(&opened, open_ref, global)
+            .unwrap_or_else(|err| {
+                eprintln!("cleanup[rules] phan giai that bai, roi ve 0 luat: {err}");
+                Vec::new()
+            });
+        opened.store.close();
+        rules
+    }
+
+    /// **THÊM 2026-09-16 (Story 6.7b, AC3)** — đích ĐANG CẤT của phiên xem trước hiện tại
+    /// (nếu có), best-effort `None` khi [`PendingImportSourceState`] chưa được quản lý —
+    /// cùng triết lý mọi state Tauri vắng mặt khác trong tệp này: một vỏ TINH CHỈNH giữa
+    /// phiên (đổi override khối tầng 2, dời con trỏ Chương xem trước) không được phép sập vì
+    /// thiếu dây, nó chỉ rơi về hành vi hôm nay (tầng Tác phẩm từ `OpenWorkState`). Dùng bởi
+    /// `tier2_block_set_kept`/`tier2_block_confirm_range`/`preview_chapter_detail` —
+    /// `reload_url_import_item`/`remove_url_import_item` đã giữ sẵn `pending_state` nên đọc
+    /// thẳng qua [`super::current_pending_destination`] mà không cần hàm này.
+    fn pending_destination(app: &tauri::AppHandle) -> Option<String> {
+        use tauri::Manager as _;
+
+        app.try_state::<PendingImportSourceState>()
+            .and_then(|state| super::current_pending_destination(&state))
     }
 
     fn resolve_cleanup_rules_against(
@@ -462,19 +576,26 @@
     /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`.** Mẫu phân tách Chương
     /// là tham số MỖI LƯỢT NHẬP (§Always spec 6.6) — KHÔNG lưu ở đâu cả giữa hai lượt gọi,
     /// frontend gửi lại nó ở MỌI lượt xem trước/xác nhận (`src/importPreviewState.ts`).
+    /// 🔴 **THÊM 2026-09-16 (Story 6.7b, FR122 nửa hai) — tham số `destination`.**
+    /// `None` ⇒ đích Tác phẩm MỚI (hành vi hôm nay, KHÔNG đổi một byte — AC "New Work
+    /// (regression)"); `Some(work_id)` ⇒ luật làm sạch tầng Tác phẩm phân giải từ ĐÍCH đó,
+    /// không từ `OpenWorkState` (AC3). Chỉ ảnh hưởng màn xem trước hiển thị — xác nhận đọc
+    /// LẠI đích của chính nó, không tin tham số này (§Always: mọi tham số per-call của vỏ
+    /// này đều nạp lại lúc xác nhận, cùng khuôn `cleanup_rules`/`chapter_pattern`).
     #[tauri::command]
     pub fn preview_import_encoding_from_text(
         app: tauri::AppHandle,
         text: String,
         source_lang: String,
         chapter_pattern: Option<super::ChapterPatternWire>,
+        destination: Option<String>,
     ) -> Result<ImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
         let shape = super::import_text(text);
         // Story 6.9 — đường dán văn bản KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content
         // == false`), nên `&[]` không mất gì; dọn `Tier2BlockOverridesState` cho nhất quán
@@ -501,7 +622,7 @@
             &[],
         );
         // Văn bản dán tay không bao giờ có một `DocxSidecar` (xem doc-comment kiểu đó).
-        super::stash_pending_import_source(&state, shape, None);
+        super::stash_pending_import_source_for(&state, shape, None, destination);
         Ok(preview)
     }
 
@@ -538,19 +659,22 @@
     /// N = 1 — nhưng ở lượt XEM TRƯỚC, tức TRƯỚC khi người dùng xác nhận bất cứ điều gì; lượt
     /// treo rơi vào đúng nhịp người dùng còn đang cân nhắc, không phải nhịp họ đã chấp nhận
     /// chờ.
+    /// 🔴 **THÊM 2026-09-16 (Story 6.7b) — tham số `destination`**, cùng lý do nhánh DÁN
+    /// VĂN BẢN (`preview_import_encoding_from_text`).
     #[tauri::command(async)]
     pub fn preview_import_encoding_from_file(
         app: tauri::AppHandle,
         paths: Vec<String>,
         source_lang: String,
         chapter_pattern: Option<super::ChapterPatternWire>,
+        destination: Option<String>,
     ) -> Result<FileImportBatchWire, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
         // 🔴 SỬA 2026-09-16 (phản biện) — `import_files` trượt (danh sách rỗng, hoặc MỘT
         // đường dẫn không đọc được ở N = 1) KHÔNG còn thoát bằng `?` trần. `?` trả lỗi TRƯỚC
         // khi chạm `state` — một `PipelineShape` đã cất từ một lượt xem trước TRƯỚC ĐÓ (còn
@@ -576,7 +700,7 @@
         let (batch, all_ok) =
             super::build_file_import_batch_wire(&outcome, &source_lang, &cleanup_rules, pattern.as_ref());
         if all_ok {
-            super::stash_pending_import_source(&state, outcome.shape, outcome.docx_sidecar);
+            super::stash_pending_import_source_for(&state, outcome.shape, outcome.docx_sidecar, destination);
         } else {
             // Một mục hỏng: không có gì hợp lệ để mà cất — dọn ô đang chờ, cùng khuôn
             // `sync_pending_from_url_items` (đường URL) khi còn mục hỏng.
@@ -617,6 +741,30 @@
     /// ⚠️ `(async)` **không rút ngắn** lượt chờ đó — nó chỉ dời chỗ chờ khỏi luồng giao diện.
     /// Ngân sách thời gian, tiến độ và huỷ giữa chừng cho vòng lặp ảnh là nợ CÓ CHỦ riêng
     /// (`deferred-work.md`, Story 6.11, chủ Ice).
+    ///
+    /// 🔴 **THÊM 2026-09-16 (Story 6.7b, FR122 nửa hai) — đích đọc từ
+    /// `PendingImportSourceState`, KHÔNG một tham số riêng.** `None` (phiên đang treo nhắm
+    /// Tác phẩm MỚI, hoặc không có gì đang treo) ⇒ hành vi hôm nay KHÔNG đổi một byte (AC
+    /// "New Work (regression)"): nhánh này gọi lại ĐÚNG [`super::confirm_import_with_encoding`]
+    /// / `create_work` như trước story này. `Some(work_id)` ⇒ đường APPEND: phân giải đích qua
+    /// `OpenWorkState` nếu nó TRÙNG Tác phẩm đang mở (tái dùng `Store`, không mở kết nối ghi
+    /// thứ hai tới cùng `project.db` — `src-tauri/AGENTS.md:30`), ngược lại qua
+    /// [`super::open_work`] (đúng khuôn `wire::open_work` ngay dưới) — rồi gọi
+    /// [`super::confirm_append_import_with_encoding`]. Đích được đọc LẠI ở đây qua
+    /// [`super::current_pending_destination`] (không phải một cache của lớp gọi) và
+    /// [`super::open_work`]/`Indexer::find_work` chạy LẠI, nghiêm túc — đích có thể đã biến
+    /// mất giữa lượt xem trước và lượt xác nhận này (§I/O Matrix "Destination vanished") —
+    /// trả lỗi CÓ TÊN (`library.work_not_indexed`/`work.open_failed`/`work.meta_too_new` —
+    /// tái dùng nguyên vẹn, không đúc khoá mới, xem Implementation Notes).
+    ///
+    /// ⚠️ **Vì sao KHÔNG một tham số `destination`/`destination_work_id` riêng cho vỏ này** —
+    /// xem doc-comment [`super::PendingImportSource::destination_work_id`]: đích của một
+    /// phiên là bất biến trong suốt phiên (không màn hình nào cho đổi đích giữa chừng), và
+    /// NĂM vỏ khác của cùng phiên (`reload_url_import_item`/`remove_url_import_item`/
+    /// `tier2_block_set_kept`/`tier2_block_confirm_range`/`preview_chapter_detail`) cũng cần
+    /// đúng giá trị này để dựng lại màn xem trước đang hiện — nó thuộc về state CỦA PHIÊN,
+    /// không phải tham số của một LƯỢT GỌI, và đọc nó ở đây theo đúng nguồn đó thay vì một
+    /// tham số riêng vừa tránh trùng lặp vừa tránh một chỗ hai nguồn có thể lệch nhau.
     #[tauri::command(async)]
     pub fn confirm_import_with_encoding(
         app: tauri::AppHandle,
@@ -631,10 +779,11 @@
         let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
+        let destination_work_id = super::current_pending_destination(&pending_state);
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         // 🔴 Nạp luật NGAY LÚC XÁC NHẬN, không tái dùng bộ đã nạp lúc xem trước — luật có
         // thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác (§Always spec 6.5).
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination_work_id.as_deref());
         // 🔴 **THÊM 2026-09-07 (Story 6.9) — đúng cái vòng rà 1 đã hụt.** Đọc
         // `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN (cùng kỷ luật `cleanup_rules` ở trên),
         // truyền NGUYÊN VẸN xuống `create_work` — state đó chỉ RESET ở dưới, SAU KHI `?` đã
@@ -663,40 +812,143 @@
             eprintln!("webimport[domain_log] DomainLogState chua duoc quan ly - dung kho tam");
             &fallback_domain_log_state
         });
-        let opened = super::confirm_import_with_encoding(
-            &root,
-            &pending_state,
-            &name,
-            &source_lang,
-            &genre,
-            &encoding,
-            cleanup_rules,
-            pattern,
-            block_overrides,
-            origin_overrides,
-            domain_log_state_ref,
-        )?;
+
+        let Some(work_id) = destination_work_id else {
+            // Đường Tác phẩm MỚI — KHÔNG đổi so với trước Story 6.7b.
+            let opened = super::confirm_import_with_encoding(
+                &root,
+                &pending_state,
+                &name,
+                &source_lang,
+                &genre,
+                &encoding,
+                cleanup_rules,
+                pattern,
+                block_overrides,
+                origin_overrides,
+                domain_log_state_ref,
+            )?;
+            reset_tier2_block_overrides(&app);
+            reset_chapter_origin_overrides(&app);
+            if let Some(items_state) = app.try_state::<super::UrlImportItemsState>() {
+                super::clear_url_import_items_after_successful_confirm(&items_state);
+            }
+            let created = CreatedWork::from_open(&opened);
+            reindex_library(&app, &root);
+            let work_id = opened.meta.work_id.clone();
+            let chapter_id = opened.chapter_id;
+            let scan_source_lang = source_lang.clone();
+            replace_open_work(&app, opened);
+            return Ok(super::keep_committed_import_when_scan_spawn_fails(
+                created,
+                || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+            ));
+        };
+
+        // Đường APPEND (Story 6.7b) — tái dùng `Store` đang mở nếu đích TRÙNG Tác phẩm đang
+        // mở; ngược lại phân giải qua chỉ mục, đúng khuôn [`open_work`] ngay dưới. `state`
+        // vắng mặt (lỗi lắp dây `lib.rs`) đọc như "không Work nào đang mở" — rơi thẳng xuống
+        // nhánh mở-mới, KHÔNG một lỗi riêng (best-effort, cùng triết lý mọi state vắng mặt
+        // khác trong tệp này).
+        let open_state = app.try_state::<OpenWorkState>();
+        let already_open = open_state.as_ref().is_some_and(|state| {
+            let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.as_ref().is_some_and(|open| open.meta.work_id == work_id)
+        });
+
+        let created = if already_open {
+            let state = open_state.as_ref().expect("already_open vua xac nhan Some o tren");
+            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            // 🔴 SUA 2026-09-16 (vong ra) — khoa da NHA giua lan kiem tra `already_open` o tren
+            // va lan khoa lai nay; `replace_open_work` co the doi Tac pham dang mo trong luc
+            // do (5 cho goi o wire.rs, lenh async chay tren threadpool). Kiem lai
+            // `work_id` NGAY SAU khi khoa lai thay vi tin `already_open`; mot lech (Tac pham
+            // khac, hoac khong con Tac pham nao) tra ve mot loi co ten thay vi `.expect()`
+            // (fatal duoi `panic = "abort"`, src-tauri/AGENTS.md).
+            let Some(open) = guard.as_mut().filter(|open| open.meta.work_id == work_id) else {
+                return Err(crate::core::library::WorkError::OpenFailed {
+                    name: work_id.clone(),
+                    detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
+                        .to_string(),
+                }
+                .into());
+            };
+            super::confirm_append_import_with_encoding(
+                open,
+                &pending_state,
+                &source_lang,
+                &encoding,
+                cleanup_rules,
+                pattern,
+                block_overrides,
+                origin_overrides,
+                domain_log_state_ref,
+            )?;
+            CreatedWork::from_open(open)
+        } else {
+            let Some(indexer) = app.try_state::<Indexer>() else {
+                return Err(indexer_is_missing());
+            };
+            // Đọc LẠI chỉ mục ở đây, nghiêm túc (không đường tắt) — đích có thể đã biến mất
+            // giữa lượt xem trước và lượt xác nhận này (§I/O Matrix "Destination vanished").
+            //
+            // 🔵 SỬA 2026-09-16 (Ice) — `open_destination_for_append`, không `open_work`
+            // thẳng: một `project.db` HỎNG phải nổi lên bằng `work.open_failed` (nêu tên
+            // Tác phẩm người dùng vừa chọn), không bằng mã tầng-kho `store.open_failed`.
+            // Xem doc-comment của hàm đó.
+            let indexed = indexer.find_work(&work_id)?;
+            let mut opened = super::open_destination_for_append(&work_id, indexed.as_ref())?;
+            // 🔵 SUA 2026-09-16 (vong ra, B9) — goi thang `confirm_append_import_with_encoding_
+            // indexed` thay vi tu soan `confirm_append_import_with_encoding` roi mot loi goi
+            // `reindex_library` RIENG: nhanh nay khong giu bat ky khoa `OpenWorkState` nao
+            // (`opened` la mot `Store` vua mo rieng tu chi muc, khong tu mot `MutexGuard`), nen
+            // goi ham *_indexed truc tiep KHONG keo dai thoi gian giu mot khoa nao qua luot quet
+            // dia toan Library — ly do doc-comment cua ham do neu de KHONG dung no (kéo dai thoi
+            // gian giu `OpenWorkState`) khong ap dung o nhanh nay. Truoc ban sua nay, ham
+            // *_indexed khong co cho goi san xuat nao (B9, vong ra 2026-09-16): 1 dinh nghia +
+            // 6 cho goi tests, 0 cho goi src — ca canh no chi chung minh mot ham song song,
+            // khong chung minh gi ve duong san pham that.
+            let global = app.try_state::<Store>();
+            super::confirm_append_import_with_encoding_indexed(
+                &mut opened,
+                &pending_state,
+                &source_lang,
+                &encoding,
+                cleanup_rules,
+                pattern,
+                block_overrides,
+                origin_overrides,
+                domain_log_state_ref,
+                Some(indexer.inner()),
+                global.as_deref(),
+                &root,
+            )?;
+            let created = CreatedWork::from_open(&opened);
+            replace_open_work(&app, opened);
+            created
+        };
+
         reset_tier2_block_overrides(&app);
         reset_chapter_origin_overrides(&app);
-
-        // P6 (vòng rà đối kháng bước 4) — `create_work` VỪA thành công (dòng trên đã `?`
-        // sớm trên lỗi): dọn `UrlImportItemsState` CÙNG kỷ luật với `PendingImportSourceState`
-        // (chỉ dọn khi thành công). Best-effort: state vắng mặt là một lỗi lắp dây ở
-        // `lib.rs`, không phải lý do để báo hỏng một Tác phẩm VỪA tạo xong thành công.
         if let Some(items_state) = app.try_state::<super::UrlImportItemsState>() {
             super::clear_url_import_items_after_successful_confirm(&items_state);
         }
-
-        let created = CreatedWork::from_open(&opened);
-        reindex_library(&app, &root);
-        let work_id = opened.meta.work_id.clone();
-        let chapter_id = opened.chapter_id;
-        let scan_source_lang = source_lang.clone();
-        replace_open_work(&app, opened);
-        Ok(super::keep_committed_import_when_scan_spawn_fails(
-            created,
-            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
-        ))
+        // 🔵 SUA 2026-09-16 (vong ra, B9) — nhanh DA MO o tren giu nguyen `confirm_append_
+        // import_with_encoding` tho + mot loi goi `reindex_library` RIENG o day, dung sau khi
+        // `MutexGuard` cua `OpenWorkState` da nha (dung kỷ luat "nha khoa truoc buoc 4" ma
+        // `confirm_append_import_with_encoding_indexed`'s doc-comment tu neu ten — goi ham do
+        // TRONG nhanh DA MO se keo dai thoi gian giu khoa qua luot quet dia). Nhanh KHONG MO o
+        // tren da tu reindex ben trong `_indexed`, nen KHONG goi lai o day — tranh mot luot quet
+        // dia thua.
+        if already_open {
+            reindex_library(&app, &root);
+        }
+        // Story 6.7b — không spawn quét Glossary trên đường APPEND: `Chương đang mở` (điểm
+        // `spawn_import_scan` nhắm tới) KHÔNG đổi (§I/O Matrix "open editor state stays
+        // valid"), nên rescan nó không nói gì về nội dung MỚI vừa thêm. Bề mặt "quét Glossary
+        // cho Chương mới thêm" là nợ có chủ, chưa mở ở story này (không AC nào của Phase 2
+        // đòi nó) — xem Implementation Notes.
+        Ok(created)
     }
 
     /// Vỏ IPC — màn xem trước bảng mã của đường nhập song ngữ (Story 6.16, FR115). Cùng
@@ -765,6 +1017,7 @@
                 return Err(err);
             }
         };
+        // Đường song ngữ ngoài phạm vi đích (Decision 1, spec 6.7b) — luôn New Work.
         super::stash_pending_import_source(&state, shape, None);
         Ok(preview)
     }
@@ -925,11 +1178,18 @@
     /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ — khuôn đã có 17 tiền lệ
     /// (`library.rs:640`) để `reqwest::blocking` (gọi tuần tự, có thể mất tới N × 20 giây)
     /// không chặn luồng chính (Task 0 — xem `core::webimport` doc-comment cho phép đo).
+    ///
+    /// 🔴 **THÊM 2026-09-16 (Story 6.7b) — tham số `destination`**, cùng lý do nhánh DÁN VĂN
+    /// BẢN/TỆP (`preview_import_encoding_from_text`) — đây là mục thứ ba trong BA đường đơn
+    /// ngữ của Quyết định 1. `reload_url_import_item`/`remove_url_import_item` (mục hỏng/bỏ
+    /// một mục của CÙNG danh sách này) không nhận lại tham số này — chúng chỉ tinh chỉnh một
+    /// danh sách đã có đích, không mở một lượt mới.
     #[tauri::command(async)]
     pub fn start_url_import(
         app: tauri::AppHandle,
         urls: Vec<String>,
         source_lang: String,
+        destination: Option<String>,
     ) -> Result<super::UrlImportBatchWire, IpcError> {
         use tauri::Manager as _;
 
@@ -939,11 +1199,12 @@
         let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         let (items, log_entries) = super::fetch_url_import_items(urls);
         append_domain_log(&app, log_entries);
-        super::sync_pending_from_url_items(&pending_state, &items);
+        // Phiên MỚI — đích là giá trị người dùng vừa chọn, cất ngay từ đây (Story 6.7b).
+        super::sync_pending_from_url_items(&pending_state, &items, destination);
         // Story 6.9 — danh sách HOÀN TOÀN MỚI, dọn override CŨ trước khi dựng dây (xem
         // doc-comment `Tier2BlockOverridesState` mục "Reset khi nào").
         reset_tier2_block_overrides(&app);
@@ -981,7 +1242,13 @@
         let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        // 🔴 **THÊM 2026-09-16 (Story 6.7b, AC3)** — đọc đích ĐANG CÓ TRƯỚC khi làm gì khác:
+        // đây là GIỮA một phiên đã mở (đích không đổi ở vỏ này, chỉ danh sách đổi), nên đích
+        // phải đọc lại từ chính state của phiên chứ không tin `OpenWorkState`. Đọc TRƯỚC
+        // `sync_pending_from_url_items` (dưới) vì lượt đó có thể DỌN state nếu danh sách sau
+        // khi tải lại còn mục hỏng — đọc sau sẽ có lúc thấy `None` sai.
+        let destination = super::current_pending_destination(&pending_state);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(items) = guard.as_mut() else {
@@ -1002,7 +1269,8 @@
             Vec::new()
         };
         append_domain_log(&app, log_entries);
-        super::sync_pending_from_url_items(&pending_state, items);
+        // Cùng đích ĐÃ ĐỌC ở trên — một lượt tải lại không đổi đích của phiên.
+        super::sync_pending_from_url_items(&pending_state, items, destination);
         // Story 6.9 — CHỈ mục 0 (Chương tầng 2 đang hiển thị) làm override cũ SAI Ý NGHĨA khi
         // tải lại — xem doc-comment `Tier2BlockOverridesState` mục "Reset khi nào".
         if super::mutated_index_invalidates_tier2_blocks(index) {
@@ -1040,7 +1308,9 @@
         let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        // Cùng lý lẽ `reload_url_import_item` — đọc đích của phiên TRƯỚC khi có thể bị dọn.
+        let destination = super::current_pending_destination(&pending_state);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(items) = guard.as_mut() else {
@@ -1050,7 +1320,7 @@
             return Err(super::url_import_internal_error());
         }
         items.remove(index);
-        super::sync_pending_from_url_items(&pending_state, items);
+        super::sync_pending_from_url_items(&pending_state, items, destination);
         // Story 6.9 — cùng lý do `reload_url_import_item`: chỉ mục 0 làm cấu trúc khối của
         // Chương tầng 2 khác đi.
         if super::mutated_index_invalidates_tier2_blocks(index) {
@@ -1102,7 +1372,8 @@
         let Some(overrides_state) = app.try_state::<Tier2BlockOverridesState>() else {
             return Err(super::url_import_internal_error());
         };
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let destination = pending_destination(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         {
             let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1164,7 +1435,8 @@
         let Some(overrides_state) = app.try_state::<Tier2BlockOverridesState>() else {
             return Err(super::url_import_internal_error());
         };
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let destination = pending_destination(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         {
             let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1239,7 +1511,8 @@
             return Err(super::url_import_internal_error());
         };
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
-        let cleanup_rules = resolve_cleanup_rules(&app);
+        let destination = pending_destination(&app);
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
         let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(items) = guard.as_ref() else {

@@ -126,7 +126,7 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b)', () => {
 
     await nhap.submitFilePath()
 
-    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt'], 'zh', null)
+    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt'], 'zh', null, null)
   })
 
   // ─────────────────────────────────────────────────────────────────────────────

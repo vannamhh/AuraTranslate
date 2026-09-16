@@ -151,7 +151,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('mặc định phản ánh xuất xứ MÁY đã bóc của Chương con trỏ đang chọn (Chương 0)', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     expect(state.importPreviewCurrentChapterOrigin.value).toEqual(
       origin({ author: 'Nguyen Van A', site_name: 'Bao Thi Du', url: 'https://a.example/1', published_at: '2026-09-10' }),
@@ -161,7 +161,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('Chương khai thiếu ⇒ trường vắng là `null` ("không tìm thấy" phía hiển thị)', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
@@ -175,7 +175,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('gõ đè ⇒ draft THẮNG giá trị máy NGAY, và ghi xuống `ChapterOriginOverridesState` qua IPC', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     await state.commitImportPreviewChapterOrigin({
       author: 'Nguoi Dung Go Tay',
@@ -213,7 +213,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   ] as const)('%s ⇒ author null=%s (khớp `.trim()` gốc JS)', async (_label, input, expectNull) => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     await state.commitImportPreviewChapterOrigin({ author: input, siteName: '', url: '', publishedAt: '' })
 
@@ -237,7 +237,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
       }),
     }
     startUrlImportMock.mockResolvedValue({ batch: withSecondCandidate, error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     await state.commitImportPreviewChapterOrigin({
       author: 'Chu Da Go',
@@ -255,7 +255,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('draft theo TỪNG Chương — dời con trỏ sang Chương khác rồi quay lại vẫn giữ đúng chữ đã gõ ở mỗi Chương', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     await state.commitImportPreviewChapterOrigin({ author: 'Chuong Khong', siteName: '', url: '', publishedAt: '' })
 
@@ -278,7 +278,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('huỷ lớp phủ ⇒ draft bị dọn sạch (0 Tác phẩm được tạo, cùng hàng I/O Matrix)', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
     await state.commitImportPreviewChapterOrigin({ author: 'Se Bi Huy', siteName: '', url: '', publishedAt: '' })
 
     state.cancelImportPreview()
@@ -289,11 +289,11 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
   it('mở lượt xem trước MỚI (URL khác) ⇒ draft của lượt CŨ không rò sang', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
     await state.commitImportPreviewChapterOrigin({ author: 'Cua Lot Cu', siteName: '', url: '', publishedAt: '' })
 
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten Khac', 'en', '', ['https://b.example/1', 'https://b.example/2'])
+    await state.openImportPreviewFromUrls('Ten Khac', 'en', '', ['https://b.example/1', 'https://b.example/2'], null)
 
     expect(state.importPreviewCurrentChapterOrigin.value.author).toBe('Nguyen Van A')
   })
@@ -310,7 +310,7 @@ describe('ImportPreviewOverlay.vue — khối xuất xứ (mount thật, Story 6
   it('hiện ĐÚNG bốn ô, giá trị khớp Chương con trỏ đang chọn, chỉ trên đường URL', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     wrapper = mount(ImportPreviewOverlay)
     await wrapper.vm.$nextTick()
@@ -323,7 +323,7 @@ describe('ImportPreviewOverlay.vue — khối xuất xứ (mount thật, Story 6
   it('gõ đè rồi `change` ⇒ ghi vào draft VÀ gọi `setChapterOriginOverride`', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoChapters(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     wrapper = mount(ImportPreviewOverlay)
     await wrapper.vm.$nextTick()

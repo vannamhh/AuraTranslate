@@ -864,6 +864,292 @@ pub fn create_work(
     Ok(OpenWork { dir, store, scope, meta, chapter_id, images_saved, images_failed })
 }
 
+/// **Hàm thuần** — Story 6.7b (FR122, nửa hai: "hoặc thêm Chương vào một Tác phẩm sẵn có").
+/// Em sinh của [`create_work`]: ghi thêm N Chương vào một Tác phẩm ĐÃ CÓ, tại
+/// `ord = MAX(ord)+1`, tái dùng ĐÚNG khuôn chèn chapter/segment/asset của `create_work`
+/// (`:722-795`) TRONG MỘT giao dịch.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 KHÁC `create_work` Ở ĐÚNG MỘT ĐIỂM SỐNG CÒN — KHÔNG TẠO, KHÔNG XOÁ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hàm này nhận `open: &mut OpenWork` ĐÃ MỞ SẴN — chỗ gọi (`wire::confirm_import_with_encoding`)
+/// chịu trách nhiệm phân giải: tái dùng `Store` đang mở trong `OpenWorkState` nếu đích trùng
+/// Tác phẩm đang mở, hoặc [`open_work`] nếu không (`src-tauri/AGENTS.md:30` — không bao giờ
+/// mở HAI kết nối ghi tới cùng một `project.db`). Không `create_work_folder`, không
+/// `Store::open`, không `INSERT INTO work` — và **không một nhánh lỗi nào gọi
+/// `remove_folder`**: một Tác phẩm người dùng đã sở hữu từ trước không được phép biến mất vì
+/// một lượt nhập TIẾP THEO trượt (§Never spec 6.7b: "thất bại là để Tác phẩm nguyên như cũ,
+/// không bao giờ là xoá"). Một lỗi ở BẤT KỲ bước nào bên dưới để `open` NGUYÊN VẸN như trước
+/// khi hàm này chạy — bước SQL rollback tự nhiên qua `Store::write` khi closure trả `Err`
+/// (không có transaction nào commit nửa chừng).
+///
+/// ⚠️ Ảnh (nếu có) được TẢI và GHI TỆP TRƯỚC giao dịch SQL (cùng thứ tự `create_work`) — một
+/// lỗi SAU bước đó (transaction thất bại) có thể để lại tệp `assets/` không hàng `asset` nào
+/// trỏ tới, vì `remove_folder` KHÔNG chạy ở đây để dọn nó. Đây là đánh đổi CÓ CHỦ Ý của chính
+/// §Never (không xoá đè lên "không tạo" là an toàn hơn), ghi lại ở Implementation Notes chứ
+/// không lặng lẽ bỏ qua.
+///
+/// Không đụng `open.chapter_id`: Chương đang mở trong trình biên soạn giữ nguyên (§I/O Matrix
+/// spec 6.7b "Destination is the open Work ... open editor state stays valid").
+/// `open.images_saved`/`open.images_failed` được GHI ĐÈ bằng số của ĐÚNG lượt gọi này (cùng
+/// ngữ nghĩa "số của lượt gọi NÀY" mà `create_work` đã theo, không phải một bộ đếm luỹ kế
+/// qua nhiều lượt append).
+///
+/// Chỉ phục vụ BA đường đơn ngữ (dán/tệp/URL, Quyết định 1 spec 6.7b) — không tham số
+/// `bilingual_*`/`regroupings`: `shape` không bao giờ là `PipelineShape::Bilingual` trên
+/// đường gọi này (đường song ngữ đi qua `confirm_bilingual_import`, không đổi).
+///
+/// Trả về số Chương đã ghi thêm (`chapters.len()`), để chỗ gọi log/hiển thị không phải đếm lại.
+///
+/// # Lỗi
+/// Y hệt [`create_work`] (bilingual mismatch/0 Chương/N vượt `i64`/pha ảnh/SQL) — chỉ khác ở
+/// việc dọn dẹp: **không** `remove_folder` ở bất kỳ nhánh nào.
+pub fn append_chapters_to_work(
+    open: &mut OpenWork,
+    source_lang: &str,
+    shape: PipelineShape,
+    encoding: &'static encoding_rs::Encoding,
+    cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+    domain_log_state: &webimport::DomainLogState,
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+) -> Result<usize, IpcError> {
+    let source_lang_owned = source_lang.to_owned();
+
+    // Cùng điều kiện `create_work` dùng cho `extract_main_content`/`chapter_urls` — xem
+    // doc-comment ở đó cho lý lẽ đầy đủ (mục D6/G9 của các vòng rà đối kháng).
+    let extract_main_content = matches!(
+        &shape,
+        PipelineShape::Chapters(cs) if matches!(cs.first(), Some(ChapterInput::RawBytes { .. }))
+    );
+    let chapter_urls: Vec<String> = match &shape {
+        PipelineShape::Blob(c) => vec![chapter_input_page_url(c)],
+        PipelineShape::Chapters(cs) => cs.iter().map(chapter_input_page_url).collect(),
+        PipelineShape::Bilingual { .. } => vec![String::new()],
+        PipelineShape::Files(_) => vec![String::new()],
+    };
+    let cleanup_rules_for_images = cleanup_rules.clone();
+    let block_overrides_for_images = block_overrides.clone();
+    let origin_overrides_owned: Vec<Option<ChapterOriginOverride>> = origin_overrides.to_vec();
+
+    let outcome = run_pipeline(
+        PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
+            .with_cleanup_rules(cleanup_rules)
+            .with_chapter_pattern(chapter_pattern)
+            .with_extract_main_content(extract_main_content)
+            .with_block_overrides(block_overrides)
+            // Duong nay khong bao gio mang PipelineShape::Bilingual -- 0 cot/0 regrouping,
+            // cung khuon `confirm_import_with_encoding`.
+            .with_bilingual_columns(0, 1, false)
+            .with_bilingual_regroupings(Vec::new()),
+    )?;
+    if !outcome.bilingual_mismatches.is_empty() {
+        let count = outcome.bilingual_mismatches.len();
+        return Err(
+            crate::core::segment::import::ImportError::BilingualMismatchedRows { count }.into(),
+        );
+    }
+    let mut chapters = outcome.chapters;
+
+    if let Some(sidecar) = &docx_sidecar {
+        if let Some(first) = chapters.first_mut() {
+            first.blocks = Some(sidecar.blocks.clone());
+        }
+    }
+
+    if extract_main_content && chapters.len() != chapter_urls.len() {
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: format!(
+                "bat bien 1:1 giua chapters ({}) va chapter_urls ({}) da vo -- loi lap trinh, \
+                 khong phai dieu kien nguoi dung gay ra",
+                chapters.len(),
+                chapter_urls.len()
+            ),
+        }
+        .into());
+    }
+    if chapters.is_empty() {
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: "pipeline nhap tra ve 0 Chuong -- khong co gi de them".to_owned(),
+        }
+        .into());
+    }
+    if i64::try_from(chapters.len()).is_err() {
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: format!("so Chuong ({}) vuot i64 -- khong the ghi cot ord", chapters.len()),
+        }
+        .into());
+    }
+
+    let docx_images: &[crate::core::docx::DocxImage] =
+        docx_sidecar.as_ref().map(|s| s.images.as_slice()).unwrap_or(&[]);
+    let image_prep = prepare_chapter_images(
+        &open.dir,
+        &chapters,
+        &chapter_urls,
+        &block_overrides_for_images,
+        &cleanup_rules_for_images,
+        &source_lang_owned,
+        domain_log_state,
+        docx_images,
+    )?;
+    let ImagePrepOutcome { saved: mut saved_assets, images_saved, images_failed } = image_prep;
+
+    // Det vai segment giong het `create_work` (`:630-696`) -- xem doc-comment o do cho ly le
+    // day du (Story 6.13).
+    let weave_this_import = docx_sidecar.is_none();
+    let mut final_segments: Vec<Vec<crate::core::segment::role::WovenSegment>> =
+        Vec::with_capacity(chapters.len());
+    let mut shifted_anchors: std::collections::HashMap<(usize, usize), i64> =
+        std::collections::HashMap::new();
+    for (i, chapter) in chapters.iter().enumerate() {
+        match &chapter.blocks {
+            Some(blocks) if weave_this_import => {
+                let overrides_for_unit: &[Option<bool>] =
+                    if i == 0 { &block_overrides_for_images } else { &[] };
+                let effective_kept = crate::core::segment::pipeline::effective_kept_for_blocks(
+                    blocks,
+                    overrides_for_unit,
+                );
+                let woven = crate::core::segment::role::weave_chapter_segments(
+                    blocks,
+                    &effective_kept,
+                    &chapter.segments,
+                    &chapter.source_text,
+                    &cleanup_rules_for_images,
+                    &source_lang_owned,
+                );
+                for (block_index, anchor) in woven.shifted_anchor_by_block {
+                    shifted_anchors.insert((i, block_index), anchor);
+                }
+                final_segments.push(woven.segments);
+            }
+            _ => {
+                final_segments.push(
+                    chapter
+                        .segments
+                        .iter()
+                        .cloned()
+                        .map(crate::core::segment::role::WovenSegment::from)
+                        .collect(),
+                );
+            }
+        }
+    }
+    for saved in &mut saved_assets {
+        if let Some(&shifted) = shifted_anchors.get(&(saved.chapter_index, saved.block_index)) {
+            saved.anchor_after_segment_ord = shifted;
+        }
+    }
+    let final_segments = final_segments;
+    let saved_assets = saved_assets;
+    let appended_count = chapters.len();
+
+    // 🔴 Bước 1 của khuôn bốn bước AD-8 (`ARCHITECTURE-SPINE.md:133`) — CHỈ SQL, MỘT giao
+    // dịch. `MAX(ord)` đọc TRONG CÙNG giao dịch với lượt chèn — `Store::write` giữ một writer
+    // duy nhất nối tiếp (AD-11), nên không lượt ghi nào khác chen được vào giữa lượt đọc và
+    // lượt chèn của chính giao dịch này (§Always spec 6.7b: "New Chapters take ord =
+    // MAX(ord) + 1 upward"). KHÔNG `INSERT INTO work` — Tác phẩm đã có hàng đó từ lượt tạo.
+    let write_result = open.store.write(move |tx: &Transaction<'_>| {
+        let base_ord: i64 =
+            tx.query_row("SELECT COALESCE(MAX(ord), 0) FROM chapter", [], |row| row.get(0))?;
+
+        for (i, chapter) in chapters.iter().enumerate() {
+            let ord = base_ord + i as i64 + 1;
+            let (origin_author, origin_site_name, origin_url, origin_published_at) =
+                effective_origin_fields(
+                    chapter.origin.as_ref(),
+                    origin_overrides_owned.get(i).and_then(Option::as_ref),
+                );
+            // §Always spec 6.7b — Chuong moi luon NotStarted: duong nay khong bao gio mang
+            // chapter.bilingual_segments (shape khong bao gio la Bilingual, xem doc-comment
+            // ham nay), khac `create_work` noi nhanh do con duoc doc toi.
+            let chapter_status = LifecycleStatus::NotStarted;
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at, \
+                 origin_author, origin_site_name, origin_url, origin_published_at) \
+                 VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?5, ?6, ?7, ?8)",
+                (
+                    ord,
+                    &chapter.title,
+                    &chapter.source_text,
+                    chapter_status.as_str(),
+                    &origin_author,
+                    &origin_site_name,
+                    &origin_url,
+                    &origin_published_at,
+                ),
+            )?;
+
+            let chapter_id = tx.last_insert_rowid();
+            crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
+
+            for saved in saved_assets.iter().filter(|s| s.chapter_index == i) {
+                tx.execute(
+                    "INSERT INTO asset (chapter_id, file_name, source_url, \
+                     anchor_after_segment_ord, byte_len, content_type, created_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                    (
+                        chapter_id,
+                        &saved.file_name,
+                        &saved.source_url,
+                        saved.anchor_after_segment_ord,
+                        saved.byte_len,
+                        &saved.content_type,
+                    ),
+                )?;
+            }
+        }
+
+        Ok(())
+    });
+    write_result?;
+
+    // Story 6.7b -- dem HANG cua chinh lot append nay (khong cong don qua nhieu lot goi), cung
+    // ngu nghia OpenWork::images_saved/images_failed ma create_work da theo: "so anh cua lot
+    // goi NAY", khong phai luy ke ca doi song OpenWork.
+    open.images_saved = images_saved;
+    open.images_failed = images_failed;
+
+    Ok(appended_count)
+}
+
+/// **THÊM 2026-09-16 (Story 6.7b, Phase 4)** — lõi THUẦN của việc chọn tầng Tác phẩm cho
+/// MỘT đích cụ thể (AC3), tách khỏi `wire::resolve_cleanup_rules_for_destination` để
+/// `tests/cleanup_contract.rs` gọi được THẲNG, không cần `tauri::AppHandle` — kho này không
+/// mang `tauri::test`/`MockRuntime` (đo lại 2026-09-16, xem Implementation Notes "Phase 1 —
+/// Measurement 2's method corrected"). Vỏ `wire::resolve_cleanup_rules_for_destination` chịu
+/// trách nhiệm lấy `destination`/`open` ra khỏi `OpenWorkState`/`Indexer` rồi gọi hàm này;
+/// hàm này không đọc bất kỳ state Tauri nào.
+///
+/// Nhận CẢ `destination` LẪN `open` (Tác phẩm đang mở, nếu có) TƯỜNG MINH — không tự suy
+/// `work_id` từ đâu khác. Khi `open` trùng `destination` (cùng `work_id`), TÁI DÙNG store của
+/// `open` (không mở lần hai cùng `project.db` — `src-tauri/AGENTS.md:30`, cũng là store DUY
+/// NHẤT tồn tại nếu đích đang là Tác phẩm mở); mọi trường hợp khác — kể cả `open` là MỘT Tác
+/// phẩm KHÁC đích, hoặc không có gì đang mở — dùng store của CHÍNH `destination`. Đây đúng
+/// mệnh đề §Always spec 6.7b "Work-tier cleanup rules resolve from the DESTINATION Work",
+/// không phải từ bất kỳ Tác phẩm nào tình cờ đang mở.
+///
+/// 🔴 Đối chứng (Implementation Notes Phase 1 correction, 2026-09-16): BỎ tham số
+/// `destination` (hoặc đổi thân hàm để luôn dùng `open` khi có mặt) quay lại ĐÚNG khiếm
+/// khuyết AC3 đang canh — chỗ gọi trong `cleanup_contract.rs` mất chỗ tham chiếu `destination`
+/// nên KHÔNG BIÊN DỊCH; nếu thay bằng một bản luôn ưu tiên `open`, ca mismatched-Work đi ĐỎ vì
+/// trả về luật của Tác phẩm SAI (`open`/X) cho một đích khác (W).
+pub fn resolve_work_tier_cleanup_rules_for_destination(
+    destination: &OpenWork,
+    open: Option<&OpenWork>,
+    global: &Store,
+) -> Result<Vec<CleanupRule>, crate::core::cleanup::CleanupStoreError> {
+    let work = match open {
+        Some(o) if o.meta.work_id == destination.meta.work_id => o,
+        _ => destination,
+    };
+    crate::core::cleanup::resolve_two_tiers(&work.scope, global, Some(&work.store))
+}
+
 /// Trích URL của một [`ChapterInput`] cho [`prepare_chapter_images`] — URL của TRANG chứa
 /// ảnh, không phải một nhãn chẩn đoán chung chung.
 ///
@@ -1940,6 +2226,28 @@ pub struct PendingImportSource {
     /// đường khác. `confirm_import_with_encoding` CLONE trường này y hệt `shape` — cùng
     /// vòng đời (giữ nguyên trên đường lỗi, dọn chỉ khi `create_work` thành công).
     pub docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    /// **THÊM 2026-09-16 (Story 6.7b, FR122 nửa hai)** — `work_id` của Tác phẩm ĐÍCH,
+    /// `None` ⇔ đích Tác phẩm MỚI. Cất tại lượt MỞ một phiên xem trước (ba đường đơn ngữ:
+    /// dán/tệp/URL — Quyết định 1), sống suốt phiên (kể cả qua `reload`/`remove một mục URL`,
+    /// đổi override khối tầng 2, dời con trỏ Chương xem trước — mọi thao tác đó gọi lại
+    /// [`stash_pending_import_source`]/[`sync_pending_from_url_items`] với CÙNG giá trị này,
+    /// không phải một giá trị mới), và đọc lại y nguyên lúc xác nhận qua
+    /// [`current_pending_destination`].
+    ///
+    /// 🔴 **VÌ SAO Ở ĐÂY, KHÔNG PHẢI MỘT THAM SỐ MỖI-LƯỢT-GỌI RIÊNG (đổi ý sau lượt rà đầu).**
+    /// Bản đầu của story này truyền đích như một tham số riêng cho MỖI vỏ cần nó — đúng khuôn
+    /// `chapter_pattern`/`cleanup_rules` (nạp lại lúc xác nhận, không tin cache). Khuôn đó gãy
+    /// đúng lúc NĂM vỏ giữa phiên (`reload_url_import_item`/`remove_url_import_item`/
+    /// `tier2_block_set_kept`/`tier2_block_confirm_range`/`preview_chapter_detail`) cũng cần
+    /// đúng giá trị đó để dựng LẠI màn xem trước đang hiện — không vỏ nào trong năm vỏ đó
+    /// nhận một tham số "đích" từ frontend hôm nay, và việc thêm nó vào cả năm chỉ để chuyển
+    /// tiếp một giá trị KHÔNG ĐỔI trong suốt phiên là chép năm lần một thứ vốn chỉ có MỘT giá
+    /// trị đúng cho cả phiên. Khác `cleanup_rules` (luật có thể đổi GIỮA hai lượt gọi qua một
+    /// cài đặt khác), đích của MỘT phiên xem trước là bất biến theo cấu trúc: không màn hình
+    /// nào cho phép đổi đích giữa chừng một phiên (chọn đích là bước ĐẦU, trước khi xem
+    /// trước bắt đầu). Vì thế nó thuộc về state CỦA PHIÊN, không phải tham số của LƯỢT GỌI —
+    /// cùng lớp với `shape` chính nó.
+    pub destination_work_id: Option<String>,
 }
 
 /// Kiểu state Tauri quản lý — `None` == không lượt xem trước nào đang treo, cùng khuôn
@@ -3466,8 +3774,44 @@ pub fn stash_pending_import_source(
     // `preview_import_encoding_from_text` và mọi đường KHÁC truyền `None`.
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
 ) {
+    stash_pending_import_source_for(state, shape, docx_sidecar, None);
+}
+
+/// **Hàm thuần** — [`stash_pending_import_source`] cộng đích. **THÊM 2026-09-16 (Story
+/// 6.7b)** — xem doc-comment [`PendingImportSource::destination_work_id`]. Tách khỏi
+/// [`stash_pending_import_source`] (thay vì thêm tham số vào chính nó) để giữ chữ ký GỐC ổn
+/// định cho mọi chỗ gọi chưa mang khái niệm đích — 35+ lời gọi trực tiếp trong `tests/**`
+/// (`cleanup_contract.rs`/`bilingual_import_contract.rs`/`segment_contract.rs`/
+/// `project_contract.rs`/`story_6_18_library.rs`) đi thẳng vào hàm thuần này (đúng khuôn hai
+/// lớp — không cần `tauri::AppHandle`), và thêm một tham số bắt buộc vào nó sẽ là một lượt
+/// đổi DÂY phá vỡ TOÀN BỘ những chỗ gọi đó, không liên quan gì tới đích của story này. Cùng
+/// lý lẽ đúng khuôn `resolve_cleanup_rules`/`resolve_cleanup_rules_for` (`wire.rs`): hàm GỐC
+/// giữ nguyên chữ ký, hàm MỚI cộng thêm.
+///
+/// Ba lượt MỞ phiên (dán/tệp/URL) truyền giá trị người dùng vừa chọn; mọi lượt gọi lại TRONG
+/// một phiên đã mở (đổi mục URL, đổi override) phải truyền LẠI giá trị ĐÃ CÓ trong state —
+/// đọc qua [`current_pending_destination`] trước khi gọi hàm này — không phải một giá trị
+/// mới, nếu không đích sẽ "quên" giữa hai lượt gọi giữa phiên.
+pub fn stash_pending_import_source_for(
+    state: &PendingImportSourceState,
+    shape: PipelineShape,
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    destination_work_id: Option<String>,
+) {
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    *guard = Some(PendingImportSource { shape, docx_sidecar });
+    *guard = Some(PendingImportSource { shape, docx_sidecar, destination_work_id });
+}
+
+/// **Hàm thuần** — đích ĐANG CẤT của lượt xem trước hiện tại (Story 6.7b), nếu có. `None` khi
+/// không có lượt xem trước nào đang treo, hoặc phiên đang treo nhắm Tác phẩm MỚI. Chỉ ĐỌC,
+/// không đổi gì trong `state`. Dùng bởi các vỏ giữa phiên (dựng lại dây sau reload/remove một
+/// mục URL, đổi override khối tầng 2, dời con trỏ Chương xem trước) và bởi
+/// `confirm_import_with_encoding` để biết đích mà không cần frontend gửi lại một tham số
+/// riêng cho lượt xác nhận (xem doc-comment [`PendingImportSource::destination_work_id`] cho
+/// lý do đổi từ "tham số mỗi lượt gọi" sang "state của phiên").
+pub fn current_pending_destination(state: &PendingImportSourceState) -> Option<String> {
+    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard.as_ref().and_then(|p| p.destination_work_id.clone())
 }
 
 /// **Hàm thuần** — dọn ô đang chờ.
@@ -3584,6 +3928,131 @@ pub fn confirm_import_with_encoding(
     *guard = None;
 
     Ok(opened)
+}
+
+/// **Hàm thuần** — lõi của lượt xác nhận đường APPEND (Story 6.7b, FR122 nửa hai). Cùng
+/// khuôn [`confirm_import_with_encoding`] ngay trên (giải `encoding_wire_id`, CLONE nguồn
+/// đang chờ, dọn ô đang chờ CHỈ KHI thành công), nhưng gọi [`append_chapters_to_work`] +
+/// [`crate::commands::lifecycle::write_lifecycle_after_change`] — bước 1-2-3 của khuôn bốn
+/// bước AD-8 (`ARCHITECTURE-SPINE.md:133`) — thay vì [`create_work`]. Bước 4
+/// (`reindex_after_lifecycle_write`) chạy Ở LỚP VỎ, sau khi khoá `OpenWorkState` (nếu đích
+/// trùng Tác phẩm đang mở) đã nhả — cùng kỷ luật
+/// `commands::lifecycle::wire::set_chapter_status`.
+///
+/// `open` là đích ĐÃ PHÂN GIẢI — chỗ gọi (`wire::confirm_import_with_encoding`) chịu trách
+/// nhiệm lấy nó ra (tái dùng `OpenWorkState` hoặc [`open_work`], xem doc-comment
+/// [`append_chapters_to_work`]).
+///
+/// # Lỗi
+/// Y hệt [`confirm_import_with_encoding`] cộng lỗi của [`append_chapters_to_work`]/
+/// `write_lifecycle_after_change`; KHÔNG một nhánh nào xoá `open` (§Never spec 6.7b) — một
+/// lỗi để `open` NGUYÊN VẸN, ô đang chờ GIỮ NGUYÊN để thử lại với một ứng viên bảng mã khác.
+pub fn confirm_append_import_with_encoding(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<(), IpcError> {
+    let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
+        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+    })?;
+
+    // Cùng lý lẽ khoá xuyên suốt của `confirm_import_with_encoding` ngay trên (vòng rà đối
+    // kháng 2, mục 14) — giữ NGUYÊN một `MutexGuard` cho trọn phần đọc-rồi-ghi.
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
+
+    append_chapters_to_work(
+        open,
+        source_lang,
+        shape,
+        chosen,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        &origin_overrides,
+        domain_log_state,
+        docx_sidecar,
+    )?;
+
+    // Thanh cong -- don o dang cho, VAN duoi CUNG mot khoa da giu tu dau ham.
+    *guard = None;
+    drop(guard);
+
+    // Buoc 2-3 cua khuon bon buoc AD-8 -- cap nhat open.meta tai cho.
+    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
+    Ok(())
+}
+
+/// **THÊM 2026-09-16 (Story 6.7b, Phase 4 — vòng rà của coordinator, đối chứng đỏ ① của
+/// đường APPEND)** — [`confirm_append_import_with_encoding`] CỘNG bước 4, đúng khuôn
+/// [`crate::commands::lifecycle::set_chapter_status_indexed`]/
+/// `crate::commands::chapter::merge_chapter_into_previous_indexed`: hàm THUẦN, không
+/// `AppHandle`, để `tests/**` gọi được thẳng và chứng minh bước 4 THẬT SỰ chạy sau một lượt
+/// xác nhận append thành công — không phải một lượt `Indexer::rebuild` do chính test tự gọi
+/// rời (đúng cái bẫy "tự reindex thì không canh gì" mà correction của Phase 1 đã gọi tên,
+/// áp lại cho bước 4 thay vì AC3).
+///
+/// Uỷ thác TRỌN quyết định "chỉ reindex khi ghi thành công" cho
+/// [`crate::commands::lifecycle::finish_lifecycle_write`] — vị từ `is_ok()` khai ĐÚNG MỘT
+/// CHỖ, dùng chung với mọi `*_indexed` khác trong kho, không một bản chép tay thứ hai.
+///
+/// ⚠️ **Giới hạn ghi thẳng, không giấu**: đây là seam THUẦN cho `tests/**`, cùng vai trò
+/// `set_chapter_status_indexed` đã giữ từ trước.
+///
+/// 🔵 **SỬA 2026-09-16 (vòng rà, mục B9) — câu dưới đây từng đúng, hết đúng từ bản sửa này.**
+/// Bản viết đầu nói hàm này "KHÔNG phải hàm mà `wire::confirm_import_with_encoding` gọi theo
+/// đúng tên" ở CẢ HAI nhánh — đo lại: điều đó chỉ đúng cho nhánh Tác phẩm ĐANG MỞ (giữ một
+/// `MutexGuard` của `OpenWorkState` suốt lượt ghi, nên gọi hàm NÀY ở đó sẽ kéo dài thời gian
+/// giữ khoá qua một lượt quét đĩa toàn Library, đúng lớp rủi ro mà `wire::set_chapter_status`'s
+/// doc-comment đã ghi tên — nhánh đó VẪN tự soạn `confirm_append_import_with_encoding` rồi một
+/// lời gọi `reindex_library` RIÊNG, SAU khi khoá đã nhả). Nhánh CÒN LẠI (đích chưa mở — `Store`
+/// vừa mở riêng từ chỉ mục, không một `MutexGuard` nào đang giữ) không mang rủi ro đó, và từ
+/// bản sửa 2026-09-16 (B9: hàm này trước đó có 1 định nghĩa + 6 chỗ gọi test + **0** chỗ gọi
+/// sản phẩm — case canh nó chỉ chứng minh một hàm song song, không chứng minh gì về đường sản
+/// phẩm thật) gọi ĐÚNG hàm này, xem `wire::confirm_import_with_encoding`. Một mutation xoá dòng
+/// gọi `reindex_library(&app, &root)` ở nhánh Tác phẩm ĐANG MỞ vẫn KHÔNG bị hàm này/case dùng
+/// nó bắt được — không đường nào trong `tests/**` gọi được thẳng một vỏ `#[tauri::command]`
+/// (không `tauri::test`/`MockRuntime` trong kho, đo lại ở Phase 1). Cái hàm này ĐÓNG là seam
+/// "bước 4 của đường append CÓ TỒN TẠI và THẬT SỰ cập nhật chỉ mục" — seam mà trước Phase 4
+/// KHÔNG tồn tại ở BẤT KỲ hình dạng nào cho đường append (khác hẳn
+/// `set_chapter_status`/`merge_chapter_into_previous`, cả hai đã có `*_indexed` từ trước).
+pub fn confirm_append_import_with_encoding_indexed(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
+    domain_log_state: &webimport::DomainLogState,
+    indexer: Option<&crate::core::library::indexer::Indexer>,
+    global: Option<&Store>,
+    root: &std::path::Path,
+) -> Result<(), IpcError> {
+    crate::commands::lifecycle::finish_lifecycle_write(
+        confirm_append_import_with_encoding(
+            open,
+            state,
+            source_lang,
+            encoding_wire_id,
+            cleanup_rules,
+            chapter_pattern,
+            block_overrides,
+            origin_overrides,
+            domain_log_state,
+        ),
+        indexer,
+        global,
+        root,
+    )
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -4367,11 +4836,21 @@ pub fn chapters_shape_for_view(items: &[UrlImportItem]) -> Option<PipelineShape>
 /// DỌN ô đang chờ (một lượt `confirm_import_with_encoding` kế tiếp trả `no_pending_source`
 /// — nút xác nhận khoá THẬT, không chỉ khoá ở tầng hiển thị). Toàn bộ mục OK ⇒ GHI ĐÈ ô đang
 /// chờ bằng [`PipelineShape::Chapters`] mới dựng từ CHÍNH danh sách này.
-fn sync_pending_from_url_items(pending: &PendingImportSourceState, items: &[UrlImportItem]) {
+///
+/// 🔴 **THÊM 2026-09-16 (Story 6.7b)** — tham số `destination_work_id`. `start_url_import`
+/// (mở phiên) truyền giá trị NGƯỜI DÙNG vừa chọn; `reload_url_import_item`/
+/// `remove_url_import_item` (giữa phiên, danh sách đổi nhưng đích thì KHÔNG) đọc giá trị
+/// HIỆN CÓ qua [`current_pending_destination`] rồi truyền LẠI nguyên vẹn — xem doc-comment
+/// [`PendingImportSource::destination_work_id`] cho lý lẽ đầy đủ.
+fn sync_pending_from_url_items(
+    pending: &PendingImportSourceState,
+    items: &[UrlImportItem],
+    destination_work_id: Option<String>,
+) {
     match chapters_shape_if_all_ok(items) {
         // Đường URL không bao giờ mang một `DocxSidecar` (đó là đường tệp `.docx`, Story
         // 6.12) — `None` cố định.
-        Some(shape) => stash_pending_import_source(pending, shape, None),
+        Some(shape) => stash_pending_import_source_for(pending, shape, None, destination_work_id),
         None => cancel_import_preview(pending),
     }
 }
@@ -4614,6 +5093,38 @@ pub fn open_work(
     // (`pending_domain_log`) da bi GO hoan toan khoi OpenWork tu luot sua B1 (domain_log_state
     // nay la mot tham so ngoai, khong con la mot truong tra ve) -- chi con HAI truong that.
     Ok(OpenWork { dir, store, scope, meta, chapter_id, images_saved: 0, images_failed: 0 })
+}
+
+/// Giải đích cho đường APPEND (Story 6.7b) — bọc [`open_work`], KHÔNG thay hành vi của nó.
+///
+/// 🔵 **THÊM 2026-09-16 (Ice, qua vòng rà) — sửa MÃ, không sửa ma trận.** Đo được: một
+/// `project.db` HỎNG (tệp còn đó, nội dung không còn là một CSDL SQLite hợp lệ) đi qua
+/// `Store::open`'s `PRAGMA user_version` trước khi `open_work` kịp phân biệt loại lỗi, nên
+/// nó trả về `StoreError::OpenFailed`/`store.open_failed`/`MessageKey::StoreOpenFailed` — một
+/// mã tầng-kho, không nêu tên Tác phẩm. Ice chốt: trên đường APPEND, câu báo phải gọi đúng
+/// tên Tác phẩm người dùng VỪA CHỌN làm đích, nên một đích hỏng phải nổi lên bằng
+/// [`crate::core::library::WorkError::OpenFailed`] (`work.open_failed`) — không phải mã kho.
+///
+/// Đây là lý do hàm này tồn tại thay vì sửa `open_work`: `open_work` còn một chỗ gọi KHÁC
+/// (`wire::open_work`, Story 5.7, "mở lại một `.atproj` đã có trên đĩa" từ Library) mà mã
+/// kho vẫn đúng ngữ cảnh — đổi tại nguồn sẽ đổi cả câu báo của đường đó, thứ Ice không yêu
+/// cầu. Chỉ đường APPEND đổi.
+///
+/// `meta.json` schema quá mới vẫn đi qua KHÔNG ĐỔI — `open_work` đã trả
+/// [`crate::core::library::WorkError::MetaTooNew`] cho ca đó trước khi `Store::open` bao giờ
+/// chạy, nên hàm này không có gì để bọc lại ở đó.
+pub fn open_destination_for_append(
+    work_id: &str,
+    indexed: Option<&crate::core::library::indexer::IndexedWork>,
+) -> Result<OpenWork, IpcError> {
+    open_work(work_id, indexed).map_err(|err| {
+        if err.code() == "store.open_failed" {
+            let name = indexed.map(|w| w.name.clone()).unwrap_or_else(|| work_id.to_owned());
+            crate::core::library::WorkError::OpenFailed { name, detail: format!("{err:?}") }.into()
+        } else {
+            err
+        }
+    })
 }
 
 /// Kiểu state Tauri quản lý — Tác phẩm đang mở, hoặc chưa mở gì (Task 7).

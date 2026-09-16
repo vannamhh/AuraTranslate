@@ -140,7 +140,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null, null)
 
     expect(result.error).toBeNull()
     expect(result.preview).not.toBeNull()
@@ -161,7 +161,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -178,7 +178,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -192,7 +192,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -210,7 +210,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -233,7 +233,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -247,7 +247,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(payload)
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -266,7 +266,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('da dan', 'en', null)
+    const result = await previewImportEncodingFromText('da dan', 'en', null, null)
 
     expect(result.error).toBeNull()
     expect(result.preview?.candidates).toHaveLength(0)
@@ -284,7 +284,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null, null)
 
     expect(result.error).toBeNull()
     expect(result.batch?.items).toEqual([{ path: '/tmp/gbk.txt', ok: true, error: null }])
@@ -297,7 +297,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue({ encoding_preview: validWirePreview() })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null, null)
 
     expect(result.batch).toBeNull()
     expect(result.error).not.toBeNull()
@@ -313,7 +313,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null)
+    const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null, null)
 
     expect(result.batch).toBeNull()
     expect(result.error).not.toBeNull()
@@ -336,7 +336,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile(['/tmp/a.txt', '/tmp/b.txt'], 'zh', null)
+    const result = await previewImportEncodingFromFile(['/tmp/a.txt', '/tmp/b.txt'], 'zh', null, null)
 
     expect(result.error).toBeNull()
     expect(result.batch?.items).toHaveLength(2)
@@ -366,7 +366,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -398,7 +398,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -410,7 +410,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(payload)
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -455,7 +455,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('quang cao abc', 'en', null)
+    const result = await previewImportEncodingFromText('quang cao abc', 'en', null, null)
 
     expect(result.error).toBeNull()
     const cleanup = result.preview?.candidates[0]?.cleanup
@@ -488,7 +488,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -500,7 +500,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(payload)
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -564,7 +564,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.error).toBeNull()
     const chapters = result.preview?.candidates[0]?.chapters
@@ -598,7 +598,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -625,7 +625,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -667,7 +667,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en', null)
+    const result = await previewImportEncodingFromText('x', 'en', null, null)
 
     expect(result.error).toBeNull()
     const blocks = result.preview?.candidates[0]?.blocks?.blocks
@@ -691,12 +691,13 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    await previewImportEncodingFromText('van ban', 'en', null)
+    await previewImportEncodingFromText('van ban', 'en', null, null)
 
     expect(mockInvoke).toHaveBeenCalledWith('preview_import_encoding_from_text', {
       text: 'van ban',
       sourceLang: 'en',
       chapterPattern: null,
+      destination: null,
     })
   })
 
@@ -704,12 +705,13 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    await previewImportEncodingFromFile(['/tmp/x.txt'], 'zh', { pattern: '第.*章', kind: 'regex' })
+    await previewImportEncodingFromFile(['/tmp/x.txt'], 'zh', { pattern: '第.*章', kind: 'regex' }, null)
 
     expect(mockInvoke).toHaveBeenCalledWith('preview_import_encoding_from_file', {
       paths: ['/tmp/x.txt'],
       sourceLang: 'zh',
       chapterPattern: { pattern: '第.*章', kind: 'regex' },
+      destination: null,
     })
   })
 })

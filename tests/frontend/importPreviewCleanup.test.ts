@@ -115,7 +115,7 @@ describe('importPreviewState — importPreviewSelectedCleanup', () => {
   it('mặc định là khối làm sạch của ứng viên Rust đã chọn', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     expect(state.importPreviewSelectedCleanup.value).toEqual(cleanup())
   })
@@ -138,7 +138,7 @@ describe('importPreviewState — importPreviewSelectedCleanup', () => {
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     const ipcCallsBefore =
       previewTextMock.mock.calls.length + previewFileMock.mock.calls.length + confirmMock.mock.calls.length
@@ -159,7 +159,7 @@ describe('importPreviewState — importPreviewSelectedCleanup', () => {
       preview: preview({ candidates: [candidate({ preview: null, normalized: null, cleanup: null })] }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     expect(state.importPreviewSelectedCleanup.value).toBeNull()
   })
@@ -174,7 +174,7 @@ describe('importPreviewState — importPreviewSelectedCleanup', () => {
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     expect(state.importPreviewSelectedCandidate.value).toBeNull()
     expect(state.importPreviewSelectedCleanup.value?.text).toBe('van ban dan tay')
@@ -185,7 +185,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('thêm luật THÀNH CÔNG ⇒ gọi cleanupAddRule rồi TẢI LẠI xem trước bằng ĐÚNG văn bản đã dán', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
     previewTextMock.mockClear()
 
     cleanupAddRuleMock.mockResolvedValue({ ok: true, error: null })
@@ -217,7 +217,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
       ],
     })
     previewTextMock.mockResolvedValue({ preview: twoCandidatesPreview, error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     // Người dùng CHỌN TAY một ứng viên KHÁC mặc định (GBK, khác 'UTF-8' mà Rust chọn).
     state.selectImportPreviewCandidate('GBK')
@@ -239,7 +239,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('thêm luật TRƯỢT (mẫu rỗng/regex hỏng) ⇒ hiện lỗi, KHÔNG tải lại xem trước', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
     previewTextMock.mockClear()
 
     const err = { code: 'cleanup.invalid_regex', message_key: 'err.cleanup.invalid_regex', params: {}, retryable: false }
@@ -257,7 +257,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
       batch: { items: [{ path: '/tmp/x.txt', ok: true, error: null }], encoding_preview: preview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/x.txt'])
+    await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/x.txt'], null)
     previewFileMock.mockClear()
 
     cleanupEditRuleMock.mockResolvedValue({ ok: true, error: null })
@@ -275,7 +275,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('xoá luật là HAI NHỊP — nhịp một chỉ đổi trạng thái, KHÔNG gọi IPC; nhịp hai (gọi lại đúng luật) mới ghi thật rồi tải lại', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     cleanupDeleteRuleMock.mockResolvedValue({ ok: true, error: null })
@@ -295,7 +295,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('xoá luật — gọi một (tier, id) KHÁC ở nhịp một huỷ luôn nhịp chờ của luật trước, không ghi gì', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
     cleanupDeleteRuleMock.mockResolvedValue({ ok: true, error: null })
 
@@ -311,7 +311,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('bật/tắt luật là MỘT LƯỢT GHI THẬT (§Always spec 6.5) — gọi cleanupSetEnabled rồi tải lại', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     cleanupSetEnabledMock.mockResolvedValue({ ok: true, error: null })
@@ -330,7 +330,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('mẫu phân tách HỎNG còn đứng trong ô + một lượt bật/tắt luật làm sạch KHÔNG được sụp cả lớp phủ (vòng rà đối kháng 3, mục 2)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     const chapterPatternErr = {
@@ -365,7 +365,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('dựng văn bản đánh dấu — mảnh bị luật BẬT phủ mang class gạch ngang, mảnh còn lại thì không', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const struck = wrapper.findAll('.ip-cleanup-struck')
@@ -380,7 +380,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('danh sách luật hiện đúng mẫu, nhãn tầng, và hai số đếm', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const ruleRow = wrapper.find('.ip-cleanup-rule')
@@ -395,7 +395,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('tắt tick của một luật gọi `cleanupSetEnabled(tier, id, false)`', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
     cleanupSetEnabledMock.mockResolvedValue({ ok: true, error: null })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
 
@@ -411,7 +411,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('nộp form "thêm luật mới" gọi `cleanupAddRule` với đúng mẫu/hình dạng/tầng đã chọn', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
     cleanupAddRuleMock.mockResolvedValue({ ok: true, error: null })
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
 
@@ -428,7 +428,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('nộp form xoá của một luật là HAI NHỊP — nộp lần một chỉ đổi nhãn nút, nộp lần hai (cùng hàng) mới gọi `cleanupDeleteRule(tier, id)`', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
     cleanupDeleteRuleMock.mockResolvedValue({ ok: true, error: null })
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ cleanup: cleanup({ rules: [] }) })] }), error: null })
 
@@ -454,7 +454,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
   it('bấm "Sửa" mở form nội tuyến; nộp "Lưu" gọi `cleanupEditRule` với văn bản/hình dạng vừa sửa', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'dau quang cao cuoi', null)
 
     // Form ĐẦU TIÊN trong hai `.ip-cleanup-action-form` của hàng là "sửa" (xem template).
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })

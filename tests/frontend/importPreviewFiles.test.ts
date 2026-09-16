@@ -163,19 +163,19 @@ describe('importPreviewState — openImportPreviewFromFile giữ đúng thứ t�
     const paths = ['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.md']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
 
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     expect(state.importPreviewFileItems.value.map((it) => it.path)).toEqual(paths)
     expect(state.importPreviewFileItems.value.every((it) => it.ok)).toBe(true)
     expect(state.importPreviewLastSubmittedFrom.value).toBe('file')
-    expect(previewFileMock).toHaveBeenCalledWith(paths, 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith(paths, 'en', null, null)
   })
 
   it('N = 1 đi qua ĐÚNG cùng envelope batch (§Always: "one shape to reason about")', async () => {
     const { state } = await freshState()
     previewFileMock.mockResolvedValue({ batch: batchAllOk(['/tmp/mot.txt']), error: null })
 
-    await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/mot.txt'])
+    await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/mot.txt'], null)
 
     expect(state.importPreviewFileItems.value).toEqual([{ path: '/tmp/mot.txt', ok: true, error: null }])
     expect(state.importPreview.value).not.toBeNull()
@@ -188,7 +188,7 @@ describe('importPreviewState — một mục hỏng khoá TOÀN BỘ bốn tần
     const paths = ['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt']
     previewFileMock.mockResolvedValue({ batch: batchWithOneBroken(paths, 1), error: null })
 
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     expect(state.importPreviewFileItems.value.length).toBe(3)
     expect(state.importPreviewFileItems.value[1]?.ok).toBe(false)
@@ -203,7 +203,7 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt']
     previewFileMock.mockResolvedValue({ batch: batchWithOneBroken(paths, 1), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     expect(state.importPreviewCanConfirm.value).toBe(false)
     previewFileMock.mockClear()
 
@@ -212,7 +212,7 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     await state.removeImportPreviewFileItem(1)
 
     expect(previewFileMock).toHaveBeenCalledTimes(1)
-    expect(previewFileMock).toHaveBeenCalledWith(remaining, 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith(remaining, 'en', null, null)
     expect(state.importPreviewFileItems.value.map((it) => it.path)).toEqual(remaining)
     expect(state.importPreviewFileItems.value.every((it) => it.ok)).toBe(true)
     expect(state.importPreview.value).not.toBeNull()
@@ -230,7 +230,7 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     previewFileMock.mockClear()
 
     const infraError = { code: 'io.read_failed', message_key: 'err.io.read_failed', params: {}, retryable: false }
@@ -250,14 +250,14 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     await state.removeImportPreviewFileItem(2)
 
     expect(previewFileMock).toHaveBeenCalledTimes(1)
-    expect(previewFileMock).toHaveBeenCalledWith([paths[0], paths[1]], 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith([paths[0], paths[1]], 'en', null, null)
   })
 
   it('bỏ TỆP CUỐI CÙNG (paths rỗng ⇒ import_files trả EmptyFileList) không xoá batch đang hiện, và lượt bỏ lại vẫn gửi đúng tệp cuối', async () => {
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     previewFileMock.mockClear()
 
     // Bỏ mục 1 -- thanh cong, con lai dung mot tep.
@@ -277,7 +277,7 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     previewFileMock.mockResolvedValue({ batch: null, error: emptyListError })
     await state.removeImportPreviewFileItem(0)
 
-    expect(previewFileMock).toHaveBeenCalledWith([], 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith([], 'en', null, null)
     // Man hinh KHONG duoc trong rong -- batch mot-tep TRUOC lượt bỏ này vẫn phải còn nguyên,
     // và preview van con song (khong bi wipe boi mot loi ma khong ai viet gi vao no).
     expect(state.importPreviewFileImportError.value).toEqual(emptyListError)
@@ -289,7 +289,7 @@ describe('importPreviewState — bỏ một tệp hỏng: đúng MỘT vòng IPC
     previewFileMock.mockClear()
     previewFileMock.mockResolvedValue({ batch: batchAllOk([]), error: null })
     await state.removeImportPreviewFileItem(0)
-    expect(previewFileMock).toHaveBeenCalledWith([], 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith([], 'en', null, null)
   })
 })
 
@@ -298,7 +298,7 @@ describe('importPreviewState — phản biện 2026-09-16: xác nhận là no-op
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     expect(state.importPreviewCanConfirm.value).toBe(true)
 
     let resolveRemove!: (value: { batch: { items: unknown[]; encoding_preview: unknown }; error: null }) => void
@@ -328,7 +328,7 @@ describe('importPreviewState — đổi ứng viên bảng mã trên N tệp: 0 
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
 
     const before = previewFileMock.mock.calls.length
@@ -345,14 +345,14 @@ describe('importPreviewState — hai con số + ⌥W hoạt động đúng trên
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt', '/tmp/d.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     // fiveCandidatePreview mặc định needsReviewCount = 0 -- dựng lại thủ công một ứng viên có
     // Chương cần xem để bài kiểm có ý nghĩa.
     previewFileMock.mockResolvedValue({
       batch: { items: paths.map((p) => fileItem(p, true)), encoding_preview: fiveCandidatePreview(4, 2) },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(2)
     expect(state.importPreviewSelectedChapters.value?.clean_count).toBe(2)
@@ -370,7 +370,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -391,7 +391,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchWithOneBroken(paths, 1), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -412,7 +412,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchWithOneBroken(paths, 1), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -430,7 +430,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     await wrapper.vm.$nextTick()
 
     expect(previewFileMock).toHaveBeenCalledTimes(1)
-    expect(previewFileMock).toHaveBeenCalledWith([paths[0]], 'en', null)
+    expect(previewFileMock).toHaveBeenCalledWith([paths[0]], 'en', null, null)
 
     wrapper.unmount()
   })
@@ -441,7 +441,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     // Lượt MỞ ĐẦU — thành công, `status` lật "loaded", danh sách có 1 tệp.
     const paths1 = ['/tmp/a.txt']
     previewFileMock.mockResolvedValueOnce({ batch: batchAllOk(paths1), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths1)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths1, null)
     expect(state.importPreviewStatus.value).toBe('loaded')
 
     // Lượt MỞ THỨ HAI — `openImportPreviewFromFile` reset `fileImportItems` về [] ĐỒNG BỘ
@@ -453,7 +453,7 @@ describe('ImportPreviewOverlay.vue — nhánh TỆP dựng được không vỡ,
     })
     previewFileMock.mockReturnValueOnce(secondPromise)
     const paths2 = ['/tmp/b.txt', '/tmp/c.txt']
-    const openPromise = state.openImportPreviewFromFile('Ten', 'en', '', paths2)
+    const openPromise = state.openImportPreviewFromFile('Ten', 'en', '', paths2, null)
 
     // NGAY LÚC NÀY: `lastSubmittedFrom === 'file'` (đã set đồng bộ), `fileImportItems === []`
     // (đã reset đồng bộ), `status` VẪN "loaded" (của lượt TRƯỚC) — đúng cửa sổ hở G8 canh: chỉ
@@ -479,7 +479,7 @@ describe('importPreviewState — resetImportPreview vứt sạch state của nh�
     const { state } = await freshState()
     const paths = ['/tmp/a.txt', '/tmp/b.txt']
     previewFileMock.mockResolvedValue({ batch: batchAllOk(paths), error: null })
-    await state.openImportPreviewFromFile('Ten', 'en', '', paths)
+    await state.openImportPreviewFromFile('Ten', 'en', '', paths, null)
     expect(state.importPreviewFileItems.value.length).toBe(2)
 
     state.cancelImportPreview()

@@ -23,12 +23,16 @@ use auratranslate_lib::commands::chapter::{
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
 use auratranslate_lib::commands::project::{
-    ChapterPatternWire, OpenWork, Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState,
-    block_overrides_for_range, build_file_import_batch_wire, chapters_shape_if_all_ok,
-    clear_url_import_items_after_successful_confirm, create_work, create_work_from_file,
-    create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
-    resolve_chapter_pattern, set_block_override,
+    ChapterPatternWire, OpenWork, PendingImportSourceState, Tier2BlockOverridesState,
+    UrlImportItem, UrlImportItemsState, append_chapters_to_work, block_overrides_for_range,
+    build_file_import_batch_wire, chapters_shape_if_all_ok,
+    clear_url_import_items_after_successful_confirm, confirm_append_import_with_encoding,
+    confirm_append_import_with_encoding_indexed, create_work, create_work_from_file,
+    create_work_from_text,
+    mutated_index_invalidates_tier2_blocks, reset_block_overrides, resolve_chapter_pattern,
+    set_block_override, stash_pending_import_source,
 };
+use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
@@ -4492,4 +4496,891 @@ fn created_work_images_saved_and_images_failed_stay_snake_case_on_the_wire() {
         object.get("imagesSaved").is_none() && object.get("imagesFailed").is_none(),
         "KHONG duoc co khoa camelCase — CreatedWork khong duoc mang #[serde(rename_all = ...)]"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.7b, Phase 4 — đường APPEND: thêm Chương vào MỘT Tác phẩm đã có (FR122 nửa hai)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Bốn ca dưới đây đo đúng bốn hàng của §I/O & Edge-Case Matrix: "Append, happy path",
+// "Old rows untouched", "Status re-derivation"/"Status override set", và "Destination
+// unreadable". Hàng "Preview not confirmed"/"Destination is the open Work"/"Cleanup tier" đã
+// có phép đo riêng ở nơi khác (Phase 2's own measurements; `cleanup_contract.rs` cho tier).
+
+/// Ảnh chụp TOÀN BỘ một hàng `chapter` — mọi cột kể cả bốn cột xuất xứ (Story 6.10) — dùng để
+/// đối chiếu "hàng CŨ không đổi một byte nào" của đường APPEND (§Always spec 6.7b).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ChapterSnapshot {
+    id: i64,
+    ord: i64,
+    title: Option<String>,
+    source_text: String,
+    status: String,
+    created_at: String,
+    updated_at: String,
+    origin_author: Option<String>,
+    origin_site_name: Option<String>,
+    origin_url: Option<String>,
+    origin_published_at: Option<String>,
+}
+
+/// 🔵 **SỬA 2026-09-16 (audit độ phủ ma trận)** — chữ ký ĐỔI từ `&OpenWork` sang `&Store`:
+/// ca "Destination unreadable" mới (dưới đây) cần chụp ảnh Chương của một `project.db` MỞ
+/// LẠI RIÊNG (không qua `open_work`, vì `open_work` chính là hàm đang bị từ chối trong ca đó)
+/// — không có `OpenWork` nào để mà truyền. Hai chỗ gọi cũ (`&opened`) đổi thành `&opened.store`.
+fn snapshot_chapters(store: &Store) -> Vec<ChapterSnapshot> {
+    store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, ord, title, source_text, status, created_at, updated_at, \
+                 origin_author, origin_site_name, origin_url, origin_published_at \
+                 FROM chapter ORDER BY id",
+            )?;
+            let mapped = stmt.query_map([], |row| {
+                Ok(ChapterSnapshot {
+                    id: row.get(0)?,
+                    ord: row.get(1)?,
+                    title: row.get(2)?,
+                    source_text: row.get(3)?,
+                    status: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                    origin_author: row.get(7)?,
+                    origin_site_name: row.get(8)?,
+                    origin_url: row.get(9)?,
+                    origin_published_at: row.get(10)?,
+                })
+            })?;
+            mapped.collect::<SqlResult<Vec<ChapterSnapshot>>>()
+        })
+        .expect("chup anh toan bo hang chapter that bai")
+}
+
+/// Dựng một Tác phẩm ĐÍCH với `m` Chương đã có sẵn, qua ĐÚNG `create_work` (không chèn thẳng
+/// SQL) — để bốn cột xuất xứ/segment của "hàng CŨ" mang đúng hình dạng một Tác phẩm người
+/// dùng thật đã nhập, không phải một fixture rút gọn tay.
+fn create_destination_work(root: &Path, name: &str, m: usize) -> OpenWork {
+    let shape = PipelineShape::Chapters(
+        (1..=m).map(|i| ChapterInput::AlreadyText(format!("Chuong cu so {i}. Cau hai."))).collect(),
+    );
+    create_work(
+        root, name, "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1,
+        false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+    )
+    .expect("dung Tac pham dich that bai")
+}
+
+/// §I/O Matrix "Append, happy path" — `ord` mới bắt đầu từ `MAX(ord cũ) + 1`, đúng THỨ TỰ
+/// màn xem trước đã cho thấy, mọi hàng mới `NotStarted`, và segment tồn tại cho MỖI Chương
+/// mới — cùng khuôn `create_work_writes_every_chapter_and_its_segments_when_the_pipeline_
+/// yields_more_than_one` nhưng cho đường APPEND thay vì đường TẠO MỚI.
+#[test]
+fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_for_each() {
+    let root = temp_dir("append-ord-not-started");
+    let mut opened = create_destination_work(&root, "Dich Co San", 3);
+
+    let new_shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText("Chuong moi bon. Cau mot.".to_owned()),
+        ChapterInput::AlreadyText("Chuong moi nam. Cau mot.".to_owned()),
+    ]);
+    let appended_count = append_chapters_to_work(
+        &mut opened,
+        "en",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect("them Chuong that bai");
+    assert_eq!(appended_count, 2, "phai bao dung SO Chuong vua them");
+
+    let rows: Vec<(i64, i64, String, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT id, ord, source_text, status FROM chapter ORDER BY ord")?;
+            let mapped =
+                stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?;
+            mapped.collect::<SqlResult<Vec<(i64, i64, String, String)>>>()
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(rows.len(), 5, "3 Chuong cu cong 2 Chuong moi phai la 5 hang");
+    // 🔴 THÊM (Phase 4, coordinator) — `chapter` KHÔNG mang UNIQUE tren `ord` (`schema.rs:1029`,
+    // co chu y), nen ord trung nhau la BIEU DIEN DUOC; day la phep kiem RE tien de "khong hai
+    // Chuong nao cung ord sau mot luot append" ma khong doi hinh dang ca nay.
+    let distinct_ords: std::collections::HashSet<i64> = rows.iter().map(|(_, ord, _, _)| *ord).collect();
+    assert_eq!(
+        distinct_ords.len(),
+        rows.len(),
+        "khong hai Chuong nao (cu lan moi) duoc phep cung mang mot ord sau mot luot append"
+    );
+    assert_eq!(rows[3].1, 4, "Chuong moi dau tien phai mang ord = MAX(ord cu) + 1 = 4");
+    assert_eq!(rows[4].1, 5, "Chuong moi thu hai phai mang ord = 5, dung THU TU xem truoc");
+    assert_eq!(rows[3].2, "Chuong moi bon. Cau mot.");
+    assert_eq!(rows[4].2, "Chuong moi nam. Cau mot.");
+    for (id, ord, _, status) in rows.iter().skip(3) {
+        assert_eq!(status, "not_started", "Chuong moi id={id} ord={ord} phai mang status not_started");
+    }
+    for (chapter_id, ord, _, _) in rows.iter().skip(3) {
+        let seg_count: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row("SELECT COUNT(*) FROM segment WHERE chapter_id = ?1", [chapter_id], |row| {
+                    row.get(0)
+                })
+            })
+            .expect("dem segment that bai");
+        assert!(seg_count > 0, "Chuong moi ord={ord} (id={chapter_id}) phai co segment");
+    }
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// §I/O Matrix "Old rows untouched" — mọi hàng `chapter`/`segment` ĐÃ CÓ TRƯỚC phải giống hệt
+/// TỪNG CỘT sau một lượt append, `ord` và bốn cột xuất xứ tính cả — đúng khuôn `merging_two_
+/// chapters_changes_only_chapter_id_and_ord_on_every_segment_column` (chụp trước/sau, không
+/// suy luận). 🔴 Đây là mệnh đề CHỊU LỰC của §Always spec 6.7b "Existing chapter and segment
+/// rows ... must be byte-identical before and after" — không phải chỉ "ord mới đúng".
+#[test]
+fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
+    let root = temp_dir("append-old-rows-untouched");
+    let mut opened = create_destination_work(&root, "Dich Giu Nguyen", 2);
+
+    let before_chapters = snapshot_chapters(&opened.store);
+    let before_segments = snapshot_segments(&opened);
+    assert_eq!(before_chapters.len(), 2, "fixture phai co dung 2 Chuong cu");
+    assert!(!before_segments.is_empty(), "fixture phai co it nhat mot segment cu de ma doi chieu");
+
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi ba.".to_owned())]);
+    append_chapters_to_work(
+        &mut opened,
+        "en",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect("them Chuong that bai");
+
+    let after_chapters = snapshot_chapters(&opened.store);
+    let after_segments = snapshot_segments(&opened);
+
+    let before_chapter_ids: std::collections::HashSet<i64> =
+        before_chapters.iter().map(|c| c.id).collect();
+    let after_old_chapters: Vec<ChapterSnapshot> =
+        after_chapters.into_iter().filter(|c| before_chapter_ids.contains(&c.id)).collect();
+    assert_eq!(
+        before_chapters, after_old_chapters,
+        "moi hang chapter DA CO TRUOC phai giu nguyen TUNG cot, ke ca ord va bon cot xuat xu, \
+         sau mot luot append -- day la phep GHI, chi duoc THEM hang, khong duoc SUA hang cu"
+    );
+
+    let before_segment_ids: std::collections::HashSet<i64> =
+        before_segments.iter().map(|s| s.id).collect();
+    let after_old_segments: Vec<SegmentSnapshot> =
+        after_segments.into_iter().filter(|s| before_segment_ids.contains(&s.id)).collect();
+    assert_eq!(
+        before_segments, after_old_segments,
+        "moi hang segment DA CO TRUOC phai giu nguyen TUNG cot sau mot luot append"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// §I/O Matrix "Status re-derivation" — Tác phẩm ĐÍCH đang `Done` nhận thêm Chương
+/// `NotStarted` phải tái dựng về `InProgress` (`derive_work_status`: không phải toàn `Done`,
+/// không phải toàn `NotStarted` ⇒ `InProgress`). **Hai Tác phẩm trong fixture** (§Tasks:
+/// "so 'the right Work changed' is distinguishable from 'a Work changed'") — X nhận lượt
+/// append, Y đứng cạnh KHÔNG bị đụng tới; nếu bản vá tương lai lỡ tái dựng SAI Tác phẩm (đúng
+/// lớp lỗi mismatched-Work mà AC3 canh, nhưng ở TRỤC status thay vì trục cleanup), Y sẽ đổi
+/// thay vì X, và ca này bắt được điều đó — một khẳng định "X đổi" một mình không phân biệt
+/// được hai khả năng đó.
+#[test]
+fn status_re_derives_to_in_progress_after_append_and_only_on_the_right_work() {
+    let root = temp_dir("append-status-rederive");
+
+    let mut x = create_destination_work(&root, "Dich Da Xong", 2);
+    let x_chapter_ids: Vec<i64> = x
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord")?;
+            let mapped = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            mapped.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc id Chuong X that bai");
+    for id in &x_chapter_ids {
+        set_chapter_status_directly(&x, *id, "done");
+    }
+    // `set_chapter_status_directly` ghi thang SQL, khong tu chay khuon bon buoc -- dung lai
+    // meta.json THU CONG truoc khi do, dung khuon `merging_two_chapters_leaves_the_smaller_
+    // chapter_count_in_the_library_index` o tren.
+    let x_meta = WorkMeta::rebuild_from_store(&x.store).expect("rebuild_from_store X");
+    x_meta.write_atomic(&x.dir).expect("write_atomic X");
+    x.meta = x_meta;
+    assert_eq!(x.meta.status.as_deref(), Some("done"), "fixture X phai la Done TRUOC luot append");
+
+    let mut y = create_destination_work(&root, "Khong Lien Quan Y", 2);
+    let y_chapter_ids: Vec<i64> = y
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord")?;
+            let mapped = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            mapped.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc id Chuong Y that bai");
+    for id in &y_chapter_ids {
+        set_chapter_status_directly(&y, *id, "done");
+    }
+    let y_meta = WorkMeta::rebuild_from_store(&y.store).expect("rebuild_from_store Y");
+    y_meta.write_atomic(&y.dir).expect("write_atomic Y");
+    y.meta = y_meta;
+    assert_eq!(y.meta.status.as_deref(), Some("done"), "fixture Y (khong lien quan) cung phai la Done");
+
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
+    stash_pending_import_source(&pending, new_shape, None);
+    confirm_append_import_with_encoding(
+        &mut x,
+        &pending,
+        "en",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect("xac nhan append vao X that bai");
+
+    assert_eq!(
+        x.meta.status.as_deref(),
+        Some("in_progress"),
+        "X co Chuong Done CU lan Chuong NotStarted MOI -- derive_work_status phai tra InProgress"
+    );
+
+    let y_meta_after = WorkMeta::read(&y.dir).expect("doc lai meta.json Y sau luot append vao X");
+    assert_eq!(
+        y_meta_after.status.as_deref(),
+        Some("done"),
+        "Y KHONG duoc goi toi boi luot append vao X -- trang thai cua no phai dung nguyen Done"
+    );
+
+    drop(x);
+    drop(y);
+    cleanup(&root);
+}
+
+/// §I/O Matrix "Status override set" — `work.status_override` phải THẮNG cả sau một lượt
+/// append thêm Chương `NotStarted` (thứ mà, KHÔNG có ghi đè, sẽ tái dựng trạng thái — ca ngay
+/// trên đã chứng minh điều đó). `meta.rs:390-395` là chỗ nhánh ghi đè thắng; ca này nghiệm
+/// thu nó THỰC SỰ thắng trên đường APPEND, không chỉ trên đường set_work_status_override đơn
+/// độc mà `lifecycle_contract.rs` đã canh.
+#[test]
+fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
+    let root = temp_dir("append-status-override-survives");
+    let mut opened = create_destination_work(&root, "Ghi De Trang Thai", 1);
+
+    set_work_status_override(Some(&mut opened), Some("paused")).expect("dat status_override that bai");
+    assert_eq!(opened.meta.status.as_deref(), Some("paused"));
+    assert!(opened.meta.status_is_override);
+
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
+    stash_pending_import_source(&pending, new_shape, None);
+    confirm_append_import_with_encoding(
+        &mut opened,
+        &pending,
+        "en",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect("xac nhan append that bai");
+
+    assert_eq!(
+        opened.meta.status.as_deref(),
+        Some("paused"),
+        "status_override phai THANG ngay ca sau mot luot append them Chuong NotStarted"
+    );
+    assert!(opened.meta.status_is_override, "co ghi de van phai bao status_is_override = true");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// §I/O Matrix "Destination unreadable" — đích mất `project.db` (đĩa mạng chưa gắn, xoá tay,
+/// một lượt đồng bộ dở dang) phải bị TỪ CHỐI bằng lỗi CÓ TÊN, KHÔNG âm thầm tạo lại
+/// `project.db` rỗng (`Store::open` mang `SQLITE_OPEN_CREATE`), và KHÔNG một byte nào của
+/// `meta.json` bị đụng — cùng khuôn `opening_a_work_with_a_newer_meta_schema_is_refused_
+/// without_touching_a_single_byte` (Story 5.7), áp cho đường gọi MỚI mà Story 6.7b mở
+/// (`wire::confirm_import_with_encoding`'s nhánh APPEND, `wire.rs:882-883`, gọi `open_work`
+/// theo ĐÚNG thứ tự tái hiện dưới đây). Vế "0 rows written" ở đây là một mệnh đề TẦNG KIỂU,
+/// không phải một suy luận: `confirm_append_import_with_encoding` đòi một `&mut OpenWork`
+/// SỐNG — không có giá trị nào như vậy tồn tại trên nhánh `Err` của `open_work`, nên chương
+/// trình không thể gọi nó (không biên dịch được nếu cố), không cần một quan sát runtime nào
+/// thêm để chứng minh "chưa từng chạy tới đó".
+#[test]
+fn confirm_append_is_refused_and_writes_zero_rows_when_the_destination_project_db_has_vanished() {
+    let root = temp_dir("append-destination-db-vanished");
+    let opened = create_destination_work(&root, "Mat Project Db", 1);
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened); // dong Store TRUOC khi xoa project.db -- Windows tu choi xoa tep dang mo.
+
+    fs::remove_file(dir.join("project.db"))
+        .expect("xoa project.db de mo phong 'khong doc duoc' that bai");
+    let meta_bytes_before = fs::read(dir.join("meta.json")).expect("doc meta.json truoc luot tu choi");
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("project.db vang mat phai bi tu choi, khong duoc mo duoc");
+    assert_eq!(err.code(), "work.open_failed");
+    assert_eq!(err.message_key(), MessageKey::WorkOpenFailed);
+
+    assert!(
+        !dir.join("project.db").exists(),
+        "mot lan mo bi tu choi KHONG duoc am tham tao lai project.db qua SQLITE_OPEN_CREATE -- \
+         doc-comment cua open_work da ghi ro day chinh la dieu kiem `db_path.exists()` no dung de canh"
+    );
+    let meta_bytes_after = fs::read(dir.join("meta.json")).expect("doc meta.json sau luot tu choi");
+    assert_eq!(
+        meta_bytes_before, meta_bytes_after,
+        "mot lan mo bi tu choi khong duoc ghi mot byte nao vao meta.json cua Tac pham dich"
+    );
+
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 2026-09-16 — audit độ phủ ma trận: bốn hàng của §I/O & Edge-Case Matrix spec 6.7b không
+// có ca nào canh trước bốn ca dưới đây. Xem "## Implementation Notes" của spec cho phép đo
+// đầy đủ (đối chứng đỏ/xanh của từng ca).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix "Destination is the open Work" — NỬA GHI. `cleanup_contract.rs`'s
+/// `resolving_cleanup_rules_when_the_destination_is_the_open_work_still_returns_its_own_rules`
+/// đã chứng minh nửa ĐỌC (chọn đúng luật khi đích trùng Tác phẩm đang mở); ca này chứng minh
+/// nửa GHI: lượt append THẬT SỰ thành công trong khi W đang nằm trong `OpenWorkState` — TÁI
+/// DÙNG đúng `Store` đó (`src-tauri/AGENTS.md:30`: không một kết nối ghi thứ hai nào tới cùng
+/// `project.db` — bằng chứng ở đây là CẤU TRÚC: `OpenWorkState` chỉ giữ đúng MỘT `OpenWork`,
+/// và toàn bộ ca không gọi `open_work`/`Store::open` một lần nào), và sau lượt append, handle
+/// đang mở vẫn DÙNG ĐƯỢC (§I/O Matrix "open editor state stays valid"): `chapter_id` không
+/// đổi, và một lượt đọc MỚI qua CHÍNH `Store` đó vẫn trả đúng số Chương.
+#[test]
+fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_stays_usable() {
+    let root = temp_dir("append-into-open-work-state");
+    let opened = create_destination_work(&root, "Dang Mo San", 2);
+    let work_id = opened.meta.work_id.clone();
+    let original_chapter_id = opened.chapter_id;
+
+    // W là Tác phẩm ĐANG MỞ — `OpenWorkState` thật (chỉ một `Mutex` trần, không cần
+    // `AppHandle` — xem doc-comment kiểu này ở `mod.rs`), giữ đúng MỘT `OpenWork`.
+    let state: auratranslate_lib::commands::project::OpenWorkState = std::sync::Mutex::new(Some(opened));
+
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi mot.".to_owned())]);
+    stash_pending_import_source(&pending, new_shape, None);
+
+    {
+        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let open = guard.as_mut().expect("OpenWorkState phai dang giu dung W");
+        confirm_append_import_with_encoding(
+            open,
+            &pending,
+            "en",
+            "UTF-8",
+            Vec::new(),
+            None,
+            Vec::new(),
+            Vec::new(),
+            &std::sync::Mutex::new(Vec::new()),
+        )
+        .expect("append vao chinh Tac pham dang mo (trong OpenWorkState) phai thanh cong");
+    }
+
+    // Handle đang mở vẫn DÙNG ĐƯỢC sau lượt append — đọc lại qua CHÍNH `Store` đã nằm trong
+    // `OpenWorkState` suốt từ đầu, không một `Store` thứ hai nào được mở.
+    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let open = guard.as_ref().expect("Tac pham phai con dang mo sau luot append");
+    assert_eq!(open.meta.work_id, work_id, "van dung W -- khong Tac pham nao khac duoc mo len");
+    assert_eq!(
+        open.chapter_id, original_chapter_id,
+        "Chuong dang mo trong trinh bien soan khong duoc doi boi mot luot append"
+    );
+    let chapter_count: i64 = open
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0)))
+        .expect("dem chapter qua CHINH Store dang giu trong OpenWorkState that bai");
+    assert_eq!(chapter_count, 3, "2 Chuong cu cong 1 Chuong moi -- doc qua dung Store da tai dung");
+    drop(guard);
+
+    let opened = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
+        .expect("OpenWorkState phai con giu Tac pham de dong");
+    drop(opened);
+    cleanup(&root);
+}
+
+/// §I/O Matrix "Preview not confirmed" — dán một xem trước cho MỘT đích CÓ SẴN rồi đóng nó
+/// mà KHÔNG xác nhận: `project.db`, `meta.json` và `library-index.db` của đích phải giữ
+/// nguyên NỘI DUNG. So sánh qua hai lượt đọc trong khi HAI Store đã ĐÓNG hẳn (checkpoint +
+/// truncate WAL xong) ở cả trước lẫn sau — không so `mtime` (hạt mịn theo giây/timing) và
+/// không so byte thô trong khi một Store còn MỞ (luồng checkpoint chạy định kỳ có thể đổi
+/// byte của CHÍNH tệp chính dù nội dung logic không đổi, cho một kết quả dương giả).
+#[test]
+fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
+    let root = temp_dir("append-preview-not-confirmed");
+    let side = temp_dir("append-preview-not-confirmed-side");
+
+    let opened = create_destination_work(&root, "Xem Truoc Chua Xac Nhan", 2);
+    let work_id = opened.meta.work_id.clone();
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    opened.store.close();
+    drop(opened);
+
+    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let global = Store::open(StoreSpec::global(side.join("global.db")))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    indexer.close();
+    global.close();
+
+    let project_db_before = fs::read(dir.join("project.db")).expect("doc project.db truoc");
+    let meta_before = fs::read(dir.join("meta.json")).expect("doc meta.json truoc");
+    let library_index_before =
+        fs::read(side.join("library-index.db")).expect("doc library-index.db truoc");
+
+    // Mô phỏng một màn xem trước THẬT cho đích này: dán lại (`stash_pending_import_source`,
+    // thuần trong bộ nhớ) VÀ đọc luật tầng Work cho đích qua ĐÚNG hàm xem trước dùng
+    // (`resolve_work_tier_cleanup_rules_for_destination`, mở lại `project.db` qua `open_work`
+    // đúng khuôn `wire` làm khi đích KHÔNG phải Tác phẩm đang mở) — cả hai đều là ĐỌC, không
+    // GHI. Người dùng ĐÓNG màn xem trước ở đây -- không bao giờ gọi một hàm `confirm_*` nào.
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText("Chuong se KHONG bao gio duoc ghi.".to_owned()),
+    ]);
+    stash_pending_import_source(&pending, new_shape, None);
+
+    let reopened = auratranslate_lib::commands::project::open_work(&work_id, Some(&indexed))
+        .expect("mo lai dich de doc luat xem truoc that bai");
+    let global_for_read = Store::open(StoreSpec::global(side.join("global.db")))
+        .unwrap_or_else(|e| panic!("mo lai global.db that bai: {e}"));
+    let _rules = auratranslate_lib::commands::project::resolve_work_tier_cleanup_rules_for_destination(
+        &reopened,
+        None,
+        &global_for_read,
+    )
+    .expect("doc luat tang Work cho man xem truoc that bai");
+    global_for_read.close();
+    reopened.store.close();
+    drop(reopened);
+
+    let project_db_after = fs::read(dir.join("project.db")).expect("doc project.db sau");
+    let meta_after = fs::read(dir.join("meta.json")).expect("doc meta.json sau");
+    let library_index_after =
+        fs::read(side.join("library-index.db")).expect("doc library-index.db sau");
+
+    assert_eq!(
+        project_db_before, project_db_after,
+        "project.db cua dich phai giu NGUYEN NOI DUNG khi man xem truoc chua duoc xac nhan"
+    );
+    assert_eq!(
+        meta_before, meta_after,
+        "meta.json cua dich phai giu NGUYEN NOI DUNG khi man xem truoc chua duoc xac nhan"
+    );
+    assert_eq!(
+        library_index_before, library_index_after,
+        "library-index.db phai giu NGUYEN NOI DUNG khi man xem truoc chua duoc xac nhan"
+    );
+
+    cleanup(&root);
+    cleanup(&side);
+}
+
+/// §I/O Matrix "Destination unreadable" — `meta.json` của đích mang một schema MỚI HƠN ứng
+/// dụng này hiểu, HOẶC chính `project.db` bị HỎNG — cả hai đều phải bị TỪ CHỐI bằng một lỗi
+/// CÓ TÊN qua ĐÚNG đường giải đích mà nhánh APPEND của `wire::confirm_import_with_encoding`
+/// đi qua TRƯỚC KHI `confirm_append_import_with_encoding` bao giờ được gọi
+/// (`indexer.find_work(&work_id)?` rồi `open_destination_for_append(&work_id,
+/// indexed.as_ref())?`) — xem doc-comment của
+/// `confirm_append_is_refused_and_writes_zero_rows_when_the_destination_project_db_has_vanished`
+/// ngay trên cho lý lẽ đầy đủ vì sao gọi thẳng hàm giải đích ở đây CHÍNH LÀ đo đúng đường
+/// giải đích của APPEND, không phải một phép đo gián tiếp.
+///
+/// `opening_a_work_with_a_newer_meta_schema_is_refused_without_touching_a_single_byte`
+/// và `opening_a_work_whose_folder_has_vanished_is_a_named_open_failed_error` (Story 5.7) đã
+/// pin `WorkMetaTooNew`/`WorkOpenFailed` cho `open_work` KHÔNG ngữ cảnh nào khác; ca này pin
+/// LẠI đúng mệnh đề đó NGAY TRONG ngữ cảnh một đích CÓ SẴN M Chương (`create_destination_work`,
+/// không phải một Tác phẩm rỗng dựng tay), và khẳng định CẢ M Chương đó còn nguyên vẹn sau
+/// lần từ chối — không chỉ "meta.json không đổi".
+///
+/// 🔵 **SỬA 2026-09-16 (Ice, qua vòng rà) — sửa MÃ, không sửa ma trận.** Đo được LẦN ĐẦU: một
+/// `project.db` HỎNG (tệp còn đó, nội dung không còn là một CSDL SQLite hợp lệ) đi qua
+/// `Store::open`'s `PRAGMA user_version` TRƯỚC khi `open_work` kịp phân biệt loại lỗi, nên rơi
+/// vào `StoreError::OpenFailed`/`store.open_failed`/`MessageKey::StoreOpenFailed` — một mã
+/// TẦNG-KHO, không nêu tên Tác phẩm — đo bằng một probe ném rồi bỏ (`Store::open` thẳng lên
+/// một `project.db` bị ghi đè bằng rác, 2026-09-16). Ice chốt: sửa CHỖ NÀY, không sửa câu ma
+/// trận — trên đường APPEND, câu báo phải gọi đúng tên Tác phẩm người dùng VỪA CHỌN. Sub-case
+/// (b) dưới giờ gọi `open_destination_for_append` (bọc `open_work`, xem doc-comment hàm đó) —
+/// nó bắt đúng mã `store.open_failed` và đổi lại thành `WorkError::OpenFailed`/
+/// `work.open_failed`, mang tên Tác phẩm. Sub-case (a) — `meta.json` schema quá mới — đi qua
+/// wrapper đó KHÔNG ĐỔI kết quả: `open_work` đã trả `WorkMetaTooNew` trước khi `Store::open`
+/// bao giờ chạy, wrapper không có gì để bọc lại ở nhánh đó.
+#[test]
+fn confirm_append_is_refused_with_a_named_message_key_when_the_destination_is_unreadable() {
+    // (a) meta.json mang một schema MỚI HƠN ứng dụng này hiểu -- reuse WorkMetaTooNew.
+    let root_a = temp_dir("append-destination-meta-too-new");
+    let opened_a = create_destination_work(&root_a, "Meta Qua Moi", 2);
+    let indexed_a = indexed_work_from(&opened_a);
+    let dir_a = opened_a.dir.clone();
+    let chapters_before_a = snapshot_chapters(&opened_a.store);
+    drop(opened_a);
+
+    let mut future_meta = WorkMeta::read(&dir_a).expect("doc meta.json that bai");
+    future_meta.meta_schema_version = META_SCHEMA_VERSION + 1;
+    future_meta.write_atomic(&dir_a).expect("ghi meta.json phien ban tuong lai that bai");
+
+    let err_a = auratranslate_lib::commands::project::open_destination_for_append(
+        &indexed_a.work_id,
+        Some(&indexed_a),
+    )
+    .expect_err("meta.json phien ban moi hon phai bi tu choi ngay ca tren duong giai dich cua APPEND");
+    assert_eq!(err_a.code(), "work.meta_too_new");
+    assert_eq!(err_a.message_key(), MessageKey::WorkMetaTooNew, "loi tu choi phai mang mot MessageKey CO TEN");
+
+    let store_a = Store::open(StoreSpec::project(dir_a.join("project.db")))
+        .expect("mo lai project.db (rieng, chi de doi chieu) that bai");
+    let chapters_after_a = snapshot_chapters(&store_a);
+    store_a.close();
+    assert_eq!(
+        chapters_before_a, chapters_after_a,
+        "ca M Chuong cu cua dich phai con nguyen ven sau mot lan tu choi vi meta.json qua moi"
+    );
+    cleanup(&root_a);
+
+    // (b) chính project.db bị HỎNG (không phải vắng mặt -- tệp còn đó, nội dung không còn là
+    // một CSDL SQLite hợp lệ) -- vẫn phải là một lỗi CÓ TÊN, không phải một panic.
+    let root_b = temp_dir("append-destination-db-corrupt");
+    let opened_b = create_destination_work(&root_b, "Kho Bi Hong", 2);
+    let indexed_b = indexed_work_from(&opened_b);
+    let dir_b = opened_b.dir.clone();
+    opened_b.store.close();
+    drop(opened_b); // đóng Store TRƯỚC khi ghi đè tệp -- Windows từ chối ghi tệp đang mở.
+
+    let db_path_b = dir_b.join("project.db");
+    let meta_before_b = fs::read(dir_b.join("meta.json")).expect("doc meta.json truoc luot tu choi");
+    fs::write(&db_path_b, b"khong phai mot tep SQLite hop le, chi la rac")
+        .expect("ghi de project.db bang rac that bai");
+
+    let err_b = auratranslate_lib::commands::project::open_destination_for_append(
+        &indexed_b.work_id,
+        Some(&indexed_b),
+    )
+    .expect_err("project.db hong phai bi tu choi, khong duoc mo duoc va cang khong duoc panic");
+    assert_eq!(
+        err_b.code(),
+        "work.open_failed",
+        "tren duong APPEND, mot dich HONG phai noi len bang ten Tac pham (WorkError::OpenFailed), \
+         khong bang ma tang-kho store.open_failed -- Ice chot 2026-09-16, xem open_destination_for_append"
+    );
+    assert_eq!(err_b.message_key(), MessageKey::WorkOpenFailed, "loi tu choi phai mang mot MessageKey CO TEN");
+    assert_eq!(
+        err_b.params().get("name").map(String::as_str),
+        Some("Kho Bi Hong"),
+        "cau bao phai neu dung ten Tac pham nguoi dung VUA CHON lam dich, khong phai mot ma kho chung chung"
+    );
+
+    let meta_after_b = fs::read(dir_b.join("meta.json")).expect("doc meta.json sau luot tu choi");
+    assert_eq!(
+        meta_before_b, meta_after_b,
+        "mot lan tu choi vi project.db hong khong duoc ghi mot byte nao vao meta.json cua dich"
+    );
+
+    cleanup(&root_b);
+}
+
+/// §I/O Matrix "Write fails mid-append" — hàng RỦI RO CAO NHẤT của story: một lỗi giao dịch
+/// SAU KHI một phần lượt ghi đã chạy phải làm giao dịch rollback TRỌN VẸN, để W nguyên vẹn
+/// với các Chương CŨ còn nguyên, và — mệnh đề §Never chịu lực nhất của spec 6.7b — KHÔNG một
+/// lần xoá thư mục nào xảy ra (khác hẳn `create_work`'s 10 điểm `remove_folder`, một điểm
+/// trong đó chạy SAU KHI giao dịch đã commit).
+///
+/// Ép giao dịch của CHÍNH `append_chapters_to_work` thất bại giữa chừng bằng một cơ chế
+/// KHÔNG cần sửa sản phẩm: `PRAGMA max_page_count` đặt một ngân sách trang THẤP lên chính
+/// kết nối ghi (một pragma phiên, không phải một cột lược đồ) NGAY TRƯỚC lượt append — ba
+/// Chương mới, mỗi Chương vài trăm câu, chắc chắn cần nhiều trang hơn ngân sách +3 trang
+/// (12 KB) so với dung lượng ĐÃ CÓ, nên SQLite trả `SQLITE_FULL` giữa lượt ghi (sau khi một
+/// số câu `INSERT segment` đã chạy thật cho Chương đầu) và toàn bộ giao dịch rollback đúng
+/// hợp đồng của `Store::write` ("mỗi job là MỘT giao dịch — Ok ⇒ commit, Err ⇒ rollback,
+/// không có đường để một job commit nửa chừng").
+#[test]
+fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_intact_and_removes_no_folder()
+ {
+    let root = temp_dir("append-mid-transaction-failure");
+    let mut opened = create_destination_work(&root, "Giao Dich Do Vo", 2);
+    let dir = opened.dir.clone();
+    let before_chapters = snapshot_chapters(&opened.store);
+    assert_eq!(before_chapters.len(), 2, "fixture phai co dung 2 Chuong cu");
+
+    let current_pages: i64 = opened
+        .store
+        .read(|conn| conn.query_row("PRAGMA page_count", [], |row| row.get(0)))
+        .expect("doc page_count truoc khi gioi han that bai");
+    let page_budget = current_pages + 3;
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute_batch(&format!("PRAGMA max_page_count = {page_budget};")))
+        .expect("dat max_page_count that bai");
+
+    let big_chapter = |marker: &str| -> String {
+        std::iter::repeat_n(format!("Cau van rat dai de choan nhieu trang dia, {marker}. "), 300)
+            .collect::<String>()
+    };
+    let new_shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText(big_chapter("mot")),
+        ChapterInput::AlreadyText(big_chapter("hai")),
+        ChapterInput::AlreadyText(big_chapter("ba")),
+    ]);
+
+    let err = append_chapters_to_work(
+        &mut opened,
+        "en",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        vec![None, None, None],
+        &[None, None, None],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect_err("mot giao dich vuot ngan sach trang PHAI truot, khong duoc am tham thanh cong");
+    assert!(
+        err.code().starts_with("store."),
+        "loi phai la mot loi kho CO TEN (SQLITE_FULL qua Store::write): {}",
+        err.code()
+    );
+
+    // 1) Rollback TRỌN VẸN -- không một Chương MỚI nào ở lại, dù một phần của giao dịch đã
+    //    thành công (một vài `INSERT segment`) trước khi chạm ngân sách.
+    let chapter_count: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0)))
+        .expect("dem chapter sau loi that bai");
+    assert_eq!(
+        chapter_count, 2,
+        "giao dich phai rollback TRON VEN -- khong Chuong MOI nao duoc giu lai sau mot loi giua chung"
+    );
+
+    // 2) W còn nguyên với Chương CŨ nguyên vẹn.
+    let after_chapters = snapshot_chapters(&opened.store);
+    assert_eq!(
+        before_chapters, after_chapters,
+        "hai hang Chuong CU phai giu nguyen tung cot sau mot giao dich that bai"
+    );
+
+    // 3) KHÔNG một lần xoá thư mục nào xảy ra (§Never spec 6.7b).
+    assert!(dir.exists(), "thu muc .atproj cua Tac pham dich khong duoc bi xoa boi mot loi append");
+    assert!(dir.join("project.db").exists(), "project.db cua dich khong duoc bi xoa boi mot loi append");
+    assert!(dir.join("meta.json").exists(), "meta.json cua dich khong duoc bi xoa boi mot loi append");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Story 6.7b, Phase 4 — đối chứng đỏ ① của coordinator: gỡ bước 4
+/// (`reindex_after_lifecycle_write`, gọi qua [`confirm_append_import_with_encoding_indexed`])
+/// khỏi đường APPEND phải làm MỘT ca đỏ. Đo 2026-08-27 đã ghi **0** ca đỏ cho đúng phép gỡ
+/// này trên 34 nhị phân — mệnh đề `src-tauri/AGENTS.md:54` canh là: một lượt ghi MỚI vào
+/// `chapter`/`segment` mà bỏ qua `Indexer::rebuild` làm chỉ mục tìm kiếm NÓI DỐI im lặng —
+/// vẫn thấy đúng tập Chương CŨ, không bao giờ thấy Chương vừa thêm. Ca này đo ĐÚNG mệnh đề
+/// đó qua CẢ HAI cửa sổ chỉ mục: `library_work.chapter_count` VÀ tìm kiếm toàn văn.
+///
+/// 🔴 Gọi [`confirm_append_import_with_encoding_indexed`] — hàm THUẦN đã CHỨA bước 4 bên
+/// trong (uỷ thác cho `commands::lifecycle::finish_lifecycle_write`) — KHÔNG tự gọi
+/// `Indexer::rebuild`/`reindex_after_lifecycle_write` rời sau đó: một ca tự reindex thì
+/// không canh gì (đúng bẫy mà correction Phase 1 đã gọi tên cho AC3, áp lại ở đây cho bước 4).
+#[test]
+fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter_count_and_full_text_search() {
+    let root = temp_dir("append-reaches-library-index");
+    let side = temp_dir("append-reaches-library-index-side");
+    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let global = Store::open(StoreSpec::global(side.join("global.db")))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+
+    let mut opened = create_work_from_text(
+        &root,
+        "Chi Muc Sau Append",
+        "en",
+        "",
+        "Chuong dau tien, khong co gi dac biet o day.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+    let work_id = opened.meta.work_id.clone();
+
+    // Trang thai TRUOC -- dua vao chi muc mot lan de co moc so sanh, dung khuon
+    // `merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index`.
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+
+    let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
+        indexer
+            .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
+            .unwrap_or_else(|e| panic!("list_works: {e}"))
+            .works
+            .into_iter()
+            .find(|w| w.work_id == work_id)
+            .map(|w| w.chapter_count)
+    };
+    assert_eq!(chapter_count_of(&indexer), Some(1), "truoc luot append, chi muc phai mang dung 1 Chuong");
+
+    let marker = "unikatni_tu_khoa_chuong_moi_them_6_7b";
+    let search_marker = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
+        indexer
+            .search(marker, 20, auratranslate_lib::core::library::indexer::SearchMode::Exact)
+            .unwrap_or_else(|e| panic!("search: {e}"))
+    };
+    assert_eq!(
+        search_marker(&indexer).total,
+        0,
+        "tu khoa cua Chuong CHUA TUNG duoc them khong duoc khop gi ca truoc luot append"
+    );
+
+    // Duong APPEND THAT -- qua PendingImportSourceState + confirm_append_import_with_encoding_indexed,
+    // KHONG chen thang SQL. Chuong moi mang marker duy nhat de tim kiem toan van phan biet
+    // duoc "Chuong CU da co" voi "Chuong MOI vua them".
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(format!(
+        "Chuong moi mang tu khoa {marker} de tim kiem toan van tim thay."
+    ))]);
+    stash_pending_import_source(&pending, new_shape, None);
+
+    confirm_append_import_with_encoding_indexed(
+        &mut opened,
+        &pending,
+        "en",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+        Some(&indexer),
+        Some(&global),
+        &root,
+    )
+    .unwrap_or_else(|e| panic!("confirm_append_import_with_encoding_indexed: {e:?}"));
+
+    assert_eq!(
+        chapter_count_of(&indexer),
+        Some(2),
+        "sau luot append, library_work.chapter_count phai theo kip NGAY -- neu ca nay xanh trong \
+         khi buoc 4 da bi go thi cho noi khong co ai canh"
+    );
+
+    let after = search_marker(&indexer);
+    assert!(
+        after.total >= 1,
+        "tim kiem toan van PHAI thay tu khoa cua Chuong vua them ngay sau luot append -- \
+         mot chi muc khong dua vao van con thay dung tap Chuong CU, khong bao gio thay Chuong MOI"
+    );
+    assert!(
+        after.hits.iter().any(|h| h.work_id == work_id),
+        "hit tim kiem phai thuoc DUNG Tac pham dich, khong phai mot Tac pham khac tinh co co mat"
+    );
+
+    drop(opened);
+    indexer.close();
+    global.close();
+    cleanup(&root);
+    cleanup(&side);
+}
+
+/// Đối chứng dương/âm cho ca ngay trên — chứng minh ca đó ĐỎ THẬT khi bước 4 bị gỡ, không
+/// chỉ trông giống một cổng canh. Gọi thẳng [`confirm_append_import_with_encoding`] (KHÔNG
+/// qua `_indexed`, tức bỏ qua bước 4 y hệt phép gỡ mà coordinator đã làm ở tầng vỏ) rồi khẳng
+/// định `library_work.chapter_count`/tìm kiếm toàn văn vẫn đứng ở trạng thái CŨ — đúng mô tả
+/// "0 ca đỏ" mà đo 2026-08-27 từng ghi cho lớp lỗi này.
+#[test]
+fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_measures() {
+    let root = temp_dir("append-skip-step-four-stale-index");
+    let side = temp_dir("append-skip-step-four-stale-index-side");
+    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let global = Store::open(StoreSpec::global(side.join("global.db")))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+
+    let mut opened = create_work_from_text(&root, "Chi Muc Dung Yen", "en", "", "Chuong dau tien.".to_owned())
+        .expect("tao tac pham that bai");
+    let work_id = opened.meta.work_id.clone();
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+
+    let marker = "tu_khoa_bi_bo_qua_khong_dua_vao_chi_muc";
+    let pending = PendingImportSourceState::new(None);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(format!(
+        "Chuong moi mang {marker} nhung KHONG duoc reindex."
+    ))]);
+    stash_pending_import_source(&pending, new_shape, None);
+
+    // Cùng bước 1-3, KHÔNG bước 4 -- tái hiện đúng phép gỡ của coordinator (bỏ lời gọi
+    // reindex sau lượt xác nhận append) tại tầng hàm thuần này.
+    confirm_append_import_with_encoding(
+        &mut opened,
+        &pending,
+        "en",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .unwrap_or_else(|e| panic!("confirm_append_import_with_encoding: {e:?}"));
+
+    let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
+        indexer
+            .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
+            .unwrap_or_else(|e| panic!("list_works: {e}"))
+            .works
+            .into_iter()
+            .find(|w| w.work_id == work_id)
+            .map(|w| w.chapter_count)
+    };
+    assert_eq!(
+        chapter_count_of(&indexer),
+        Some(1),
+        "khong reindex ⇒ chi muc phai DUNG YEN o so Chuong CU, du project.db that su co 2 Chuong roi"
+    );
+
+    let after = indexer
+        .search(marker, 20, auratranslate_lib::core::library::indexer::SearchMode::Exact)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(
+        after.total, 0,
+        "khong reindex ⇒ tim kiem toan van KHONG duoc thay tu khoa cua Chuong vua them -- \
+         chi muc noi doi im lang dung nhu AGENTS.md:54 mo ta"
+    );
+
+    drop(opened);
+    indexer.close();
+    global.close();
+    cleanup(&root);
+    cleanup(&side);
 }

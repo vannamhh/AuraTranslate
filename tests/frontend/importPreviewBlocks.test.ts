@@ -164,7 +164,7 @@ describe('importPreviewState — điều hướng J/K kẹp biên, không vòng 
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     expect(state.importPreviewSelectedBlocks.value?.blocks).toHaveLength(3)
     expect(state.importPreviewBlockFocusedIndex.value).toBe(0)
@@ -189,7 +189,7 @@ describe('importPreviewState — Space gọi tier2BlockSetKept với ĐÚNG tham
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const flippedBlocks = [
       block({ body: { kind: 'paragraph', text: 'khung dieu huong' }, kept: true, confirmed: true }),
@@ -210,7 +210,7 @@ describe('importPreviewState — Space gọi tier2BlockSetKept với ĐÚNG tham
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const err = { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false }
     tier2BlockSetKeptMock.mockResolvedValue({ batch: null, error: err })
@@ -227,7 +227,7 @@ describe('importPreviewState — [ ] đặt dải MỘT LƯỢT, "]" trước "[
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     expect(state.importPreviewBlockRangeMissingStartNotice.value).toBe(false)
     await state.confirmImportPreviewBlockRange()
@@ -240,7 +240,7 @@ describe('importPreviewState — [ ] đặt dải MỘT LƯỢT, "]" trước "[
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     state.markImportPreviewBlockRangeStart()
     expect(state.importPreviewBlockRangeStart.value).toBe(0)
@@ -271,7 +271,7 @@ describe('importPreviewState — mảng khối CO LẠI kéo blockFocusedIndex/b
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     // Đưa tiêu điểm tới khối CUỐI (2) và đặt mốc `[` ở đó.
     state.nextImportPreviewBlock()
@@ -298,7 +298,7 @@ describe('importPreviewState — mảng khối CO LẠI kéo blockFocusedIndex/b
     const state = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     state.nextImportPreviewBlock()
     state.markImportPreviewBlockRangeStart()
@@ -363,7 +363,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
       preview: previewWithBlocks(THREE_BLOCKS),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -402,7 +402,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
     const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
 
     previewTextMock.mockResolvedValue({ preview: previewWithBlocks(THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -436,7 +436,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -461,7 +461,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
       nextImportPreviewBlock: nextMock,
     })
     previewTextMock.mockResolvedValue({ preview: previewWithBlocks(THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -485,7 +485,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
     const toggleMock = vi.fn()
     const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewBlockKept: toggleMock })
     previewTextMock.mockResolvedValue({ preview: previewWithBlocks(THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -510,7 +510,7 @@ describe('ImportPreviewOverlay.vue — dãy khối render đúng ba vạch lề 
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()

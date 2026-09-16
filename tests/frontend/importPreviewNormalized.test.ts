@@ -99,7 +99,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     expect(state.importPreviewSelectedNormalized.value).toEqual(normalized('萧炎bản GBK', 3, 0, false))
   })
@@ -110,7 +110,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     const ipcCallsBefore =
       previewTextMock.mock.calls.length + previewFileMock.mock.calls.length + confirmMock.mock.calls.length
@@ -132,7 +132,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     // GBK (mặc định): cửa sổ KHÔNG bị cắt.
     expect(state.importPreviewSelectedNormalized.value?.window_truncated).toBe(false)
@@ -152,7 +152,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     state.selectImportPreviewCandidate('UTF-8')
 
@@ -175,7 +175,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       preview: selfDeclaredPreview(normalized('van ban da dan roi chuan hoa', 2, 1, false)),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     expect(state.importPreviewSelectedCandidate.value).toBeNull()
     expect(state.importPreviewSelectedNormalized.value).toEqual(
@@ -189,7 +189,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
       preview: selfDeclaredPreview(normalized('x', 0, 0, false)),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const ipcCallsBefore =
       previewTextMock.mock.calls.length + previewFileMock.mock.calls.length + confirmMock.mock.calls.length

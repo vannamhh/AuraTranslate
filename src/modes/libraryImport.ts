@@ -52,6 +52,8 @@ import { resetSegmentHistory } from '../panels/segmentHistoryState'
 // lẽ `resetEditorPanel` đã ghi ở `finishSubmit` bên dưới.
 import { resetReading, resetReadingToc } from './readingState'
 import type { CreatedWork } from '../config/project'
+import { listLibraryWorks } from '../config/library'
+import type { WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
 
 /** Khớp `src-tauri/src/lib.rs::DRAG_DROP_EVENT`. */
@@ -84,6 +86,121 @@ export const sourceLang = ref<'zh' | 'en'>('zh')
 
 /** Thể loại — tự do, rỗng hợp lệ. */
 export const genre = ref('')
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 6.7b (FR122 nửa hai) — "ĐƯA VÀO": Tác phẩm mới, hoặc thêm Chương vào cuối một
+// Tác phẩm sẵn có. Khớp mockup `web-import.html:198-207` — radio + picker sống CẠNH
+// `name`/`sourceLang`/`genre`, cùng một cột, vì đích phải chốt TRƯỚC lượt gọi
+// `openImportPreviewFromText`/`…FromFile`/`…FromUrls`: `sourceLang` gửi ở NGAY LƯỢT MỞ ĐẦU
+// TIÊN đã phải là ngôn ngữ CỦA ĐÍCH khi đích là một Tác phẩm sẵn có (Decision 2 — "adopted,
+// không dò"), và nhánh URL không có lệnh Rust nào cho phép đổi đích SAU lượt `start_url_import`
+// đầu (xem doc-comment `startUrlImport` ở `config/project.ts`) — nên đích PHẢI chốt Ở ĐÂY,
+// không phải một điều khiển sống bên trong `ImportPreviewOverlay.vue` sau khi đã mở.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Chế độ đích đang chọn — `'new'` (mặc định, hành vi hôm nay không đổi) hoặc `'existing'`
+ * (đã chọn radio "Tác phẩm đã có" nhưng CÓ THỂ chưa chọn Tác phẩm nào trong picker —
+ * [`destinationWorkId`] mới là đích THẬT SỰ sẽ gửi đi). */
+export const destinationMode = ref<'new' | 'existing'>('new')
+
+/** Đích đã CHỌN trong picker — `null` khi `destinationMode === 'new'` HOẶC khi đang ở
+ * `'existing'` mà chưa chọn Tác phẩm nào (picker còn ở mục giữ chỗ). Đây là giá trị THẬT gửi
+ * cho `openImportPreviewFromText`/`…FromFile`/`…FromUrls` (`config/project.ts` gọi nó
+ * `destinationWorkId`, khớp `destination: Option<String>` phía Rust). */
+export const destinationWorkId = ref<string | null>(null)
+
+/** Toàn bộ Library, KHÔNG lọc — cùng lời gọi `listLibraryWorks()` mà `libraryWorks.ts` dùng
+ * cho lưới, nhưng KHÔNG tái dùng `libraryWorks.ts::libraryWorks` (ref đó đã bị lọc theo bộ
+ * lọc trạng thái/lĩnh vực/ngôn ngữ đang chọn trên lưới — dùng nó cho picker này sẽ làm một
+ * Tác phẩm biến mất khỏi danh sách đích chỉ vì người dùng đang lọc lưới theo một tiêu chí
+ * không liên quan, đúng lớp lỗi AD-1 cấm cho `genres`/`source_langs`). */
+export const destinationWorks = ref<WorkRow[]>([])
+
+/** Đã tải picker lần nào trong phiên này chưa — cùng lý do `worksHaveLoaded` của
+ * `libraryWorks.ts`: "Library trống" chỉ được nói SAU một lượt tải, không phải trước nó. */
+export const destinationWorksHaveLoaded = ref(false)
+
+/** Lỗi hạ tầng của lượt tải picker gần nhất — cùng khuôn `lastError` (tách riêng vì đây là
+ * lỗi của MỘT lượt đọc phụ, không phải lỗi của lượt nộp form). */
+export const destinationWorksError = ref<IpcError | null>(null)
+
+/** Tác phẩm ĐANG CHỌN trong picker, tra trong [`destinationWorks`] — `null` khi
+ * `destinationWorkId === null`. */
+export const pickedDestinationWork = computed<WorkRow | null>(() => {
+  if (destinationWorkId.value === null) return null
+  return destinationWorks.value.find((w) => w.work_id === destinationWorkId.value) ?? null
+})
+
+/** Ngôn ngữ nguồn THẬT SỰ gửi đi — Decision 2 (spec 6.7b): **được kế thừa** từ đích khi đích
+ * là một Tác phẩm sẵn có (không dò, không hỏi lại — `work.source_lang` bất biến sau khi tạo,
+ * §Never), giá trị gõ tay [`sourceLang`] chỉ dùng khi đích là Tác phẩm mới. */
+export const effectiveSourceLang = computed<string>(() => pickedDestinationWork.value?.source_lang ?? sourceLang.value)
+
+/** Tên Tác phẩm THẬT SỰ hiện/gửi — §Never spec 6.7b: không đổi tên của đích, nên khi đích là
+ * một Tác phẩm sẵn có, đây là tên CỦA ĐÍCH — ô gõ tay [`name`] bị bỏ qua (Rust cũng bỏ qua nó
+ * ở đường APPEND, xem Implementation Notes Phase 2 spec 6.7b). */
+export const effectiveName = computed<string>(() => pickedDestinationWork.value?.name ?? name.value)
+
+/** Thể loại THẬT SỰ hiện/gửi — cùng lý do [`effectiveName`]. */
+export const effectiveGenre = computed<string>(() => pickedDestinationWork.value?.genre ?? genre.value)
+
+/** Radio "Tác phẩm đã có" chọn được hay không — I/O Matrix spec 6.7b "Empty Library": Library
+ * rỗng ⇒ chỉ còn Tác phẩm mới, và điều khiển phải NÓI vì sao (không chỉ khoá im lặng). */
+export const destinationExistingWorkAvailable = computed<boolean>(
+  () => !destinationWorksHaveLoaded.value || destinationWorks.value.length > 0,
+)
+
+/** **THÊM (vòng rà, mục E6)** — Library RỖNG thật (đã tải xong, 0 Tác phẩm, KHÔNG có lỗi) —
+ * tách khỏi [`destinationExistingWorkAvailable`]: predicate đó dùng CHUNG cho `:disabled` của
+ * radio (nơi "rỗng" và "lỗi" đều hợp lý khoá lại) lẫn cho hint "Library trống", nên một lượt
+ * tải LỖI (danh sách rơi về `[]`, `destinationWorksHaveLoaded = true`) khiến CẢ hai câu — "Library
+ * trống" và câu lỗi thật — cùng hiện một lúc, nói dối về lý do. Hint "Library trống" chỉ được
+ * hiện khi ĐÃ tải xong, danh sách thật sự rỗng, VÀ không có lỗi — một danh sách rỗng và một
+ * lượt tải trượt phải nói hai câu khác nhau. */
+export const destinationLibraryGenuinelyEmpty = computed<boolean>(
+  () =>
+    destinationWorksHaveLoaded.value &&
+    destinationWorks.value.length === 0 &&
+    destinationWorksError.value === null,
+)
+
+/** Tải (hoặc tải lại) danh sách Tác phẩm cho picker — gọi khi `LibraryMode.vue` mount, khi
+ * người dùng chọn radio "Tác phẩm đã có" (lần đầu, hoặc lại sau một lượt tải trượt — mục E7),
+ * và sau một lượt nhập thành công (mục B5, xem [`finishImportSubmission`]) — best-effort, cùng
+ * triết lý mọi lượt đọc phụ khác trong module này — một lượt trượt không được chặn form chính. */
+export async function loadDestinationWorks(): Promise<void> {
+  const { report, error } = await listLibraryWorks()
+  if (error !== null) {
+    destinationWorksError.value = error
+    destinationWorksHaveLoaded.value = true
+    return
+  }
+  destinationWorks.value = report?.works ?? []
+  destinationWorksError.value = null
+  destinationWorksHaveLoaded.value = true
+}
+
+/** Đổi chế độ đích — gọi từ `@change` của hai radio (LibraryMode.vue), KHÔNG một `@click` kèm
+ * tham số (§Never spec 6.7b: "reached by Tab, committed through `@change`/`@submit`"). Quay
+ * về `'new'` xoá LUÔN Tác phẩm đã chọn — không để một `work_id` cũ sống sót dưới một radio
+ * đã đổi ý. */
+export function setDestinationMode(mode: 'new' | 'existing'): void {
+  destinationMode.value = mode
+  if (mode === 'new') {
+    destinationWorkId.value = null
+    return
+  }
+  // 🔵 SỬA (vòng rà, mục E7) — trước bản sửa này chỉ tải khi CHƯA từng tải
+  // (`!destinationWorksHaveLoaded`), nên một lượt tải TRƯỢT đặt `destinationWorksHaveLoaded =
+  // true` khoá picker im lặng cho hết phiên: không lối vào nào gọi lại `loadDestinationWorks()`
+  // nữa. Thử lại khi CHƯA từng tải, HOẶC lượt gần nhất đã lỗi.
+  if (!destinationWorksHaveLoaded.value || destinationWorksError.value !== null) void loadDestinationWorks()
+}
+
+/** Chọn một Tác phẩm trong picker — gọi từ `@change` của `<select>`. */
+export function setDestinationWorkId(workId: string): void {
+  destinationWorkId.value = workId
+}
 
 /** Nội dung ô dán văn bản (AC1 nhánh a). */
 export const pastedText = ref('')
@@ -365,8 +482,31 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
       // 🔵 THÊM Story 6.7 — cùng lý lẽ hai nhánh trên, ba biến thể `'text'`/`'file'`/`'urls'`.
       pastedUrls.value = ''
     }
+
+    // 🔵 THÊM (vòng rà, mục B5) — [`destinationWorks`] chỉ tải MỘT LẦN ở `onMounted`
+    // (`loadDestinationWorks`), nên một Tác phẩm vừa tạo TRONG CHÍNH phiên này (kể cả một lượt
+    // append lên chính nó) không bao giờ hiện ra làm đích cho lượt nộp KẾ TIẾP mà không cần
+    // remount toàn Chế độ. Tải lại NGAY sau một lượt tạo/append THÀNH CÔNG — best-effort, cùng
+    // triết lý mọi lượt đọc phụ khác trong module này, không chặn form chính nếu trượt.
+    void loadDestinationWorks()
   }
 }
+
+/** **THÊM (Story 6.7b)** — radio "Tác phẩm đã có" chọn nhưng picker CHƯA chọn Tác phẩm nào
+ * (HOẶC HỢP LỆ): ba hàm nộp dưới đây từ chối đi tiếp thay vì gửi một đích không hợp lệ âm
+ * thầm đọc thành "Tác phẩm mới" (đúng radio đang hiện chọn ngược lại). `LibraryMode.vue` đọc
+ * CÙNG ô này cho `:disabled` của ba nút nộp đơn ngữ — một nguồn sự thật, không hai phép kiểm
+ * lệch nhau giữa nút bị khoá thị giác và hàm thật sự chặn.
+ *
+ * 🔵 SỬA (vòng rà, mục E4/E5) — trước bản sửa này chỉ kiểm `destinationWorkId.value === null`,
+ * nên MỘT id còn sống trong ref nhưng KHÔNG CÒN trong [`destinationWorks`] (Tác phẩm vừa bị
+ * xoá/đổi tên khỏi Library giữa lúc chọn và lúc nộp) lẫn chuỗi `''` mà mục giữ chỗ bị vô hiệu
+ * hoá của `LibraryMode.vue` phát ra đều KHÁC `null` — cả hai lọt qua guard và gửi đi như một
+ * đích thật. [`pickedDestinationWork`] đã tra đúng cả ba trường hợp CHƯA CHỌN/ID LẠ/CHUỖI RỖNG
+ * về `null`; kiểm nó thay vì `destinationWorkId` trực tiếp đóng cả hai lỗ cùng lúc. */
+export const destinationPending = computed<boolean>(
+  () => destinationMode.value === 'existing' && pickedDestinationWork.value === null,
+)
 
 /** Nhánh dán văn bản — mở màn xem trước bảng mã cho `pastedText` hiện tại (Story 6.3). */
 export async function submitPastedText(): Promise<void> {
@@ -387,13 +527,24 @@ export async function submitPastedText(): Promise<void> {
   // là một command đã đăng ký, và một lối vào tương lai (palette, phím tắt) sẽ đi thẳng
   // qua đây mà không đi qua thuộc tính DOM nào.
   if (pastedText.value.trim() === '') return
+  // 🔴 THÊM (Story 6.7b) — xem doc-comment [`destinationPending`].
+  if (destinationPending.value) return
   // ⚠️ `beginSubmit` trả `false` khi bản dịch cũ chưa chạm WAL — đi tiếp là mất nó im lặng.
   if (!(await beginSubmit())) return
   // 🔵 SỬA Story 6.3 — KHÔNG còn `createWorkFromText` ở đây: nộp form mở màn xem trước bảng
   // mã (`ImportPreviewOverlay.vue`); tạo Tác phẩm thật chỉ xảy ra sau khi người dùng bấm
   // "Xác nhận" trong đó — [`finishImportSubmission`] đóng vòng lúc đó, không ở đây.
   // `openImportPreviewFromText` tự chốt nhánh `'text'` (`importPreviewState.ts`).
-  await openImportPreviewFromText(name.value, sourceLang.value, genre.value, pastedText.value)
+  // 🔴 THÊM (Story 6.7b) — `effectiveName`/`effectiveSourceLang`/`effectiveGenre` thay
+  // `name`/`sourceLang`/`genre` trần: khi đích là một Tác phẩm sẵn có, ba ô ĐÃ KẾ THỪA giá
+  // trị của đích (Decision 2, §Never) — xem doc-comment ba hàm đó.
+  await openImportPreviewFromText(
+    effectiveName.value,
+    effectiveSourceLang.value,
+    effectiveGenre.value,
+    pastedText.value,
+    destinationWorkId.value,
+  )
   busy.value = false
 }
 
@@ -406,10 +557,18 @@ export async function submitFilePath(): Promise<void> {
   if (busy.value || importPreviewIsOpen.value) return
   const paths = effectiveFilePaths.value
   if (paths.length === 0) return
+  // 🔴 THÊM (Story 6.7b) — xem doc-comment [`destinationPending`].
+  if (destinationPending.value) return
   // ⚠️ Cùng lý do và cùng chốt với `submitPastedText`.
   if (!(await beginSubmit())) return
   // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
-  await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, paths)
+  await openImportPreviewFromFile(
+    effectiveName.value,
+    effectiveSourceLang.value,
+    effectiveGenre.value,
+    paths,
+    destinationWorkId.value,
+  )
   busy.value = false
 }
 
@@ -434,9 +593,19 @@ export async function submitPastedUrls(): Promise<void> {
   if (busy.value || importPreviewIsOpen.value) return
   const urls = pastedUrlLines.value
   if (urls.length === 0) return
+  // 🔴 THÊM (Story 6.7b) — xem doc-comment [`destinationPending`]; ĐẶC BIỆT quan trọng ở
+  // nhánh này — không lệnh Rust nào cho phép đặt lại đích của một phiên URL sau lượt gọi
+  // NGAY DƯỚI ĐÂY (xem doc-comment `startUrlImport` ở `config/project.ts`).
+  if (destinationPending.value) return
   if (!(await beginSubmit())) return
   // `openImportPreviewFromUrls` tự chốt nhánh `'urls'` (`importPreviewState.ts`).
-  await openImportPreviewFromUrls(name.value, sourceLang.value, genre.value, urls)
+  await openImportPreviewFromUrls(
+    effectiveName.value,
+    effectiveSourceLang.value,
+    effectiveGenre.value,
+    urls,
+    destinationWorkId.value,
+  )
   busy.value = false
 }
 

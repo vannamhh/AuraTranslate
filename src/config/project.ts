@@ -573,13 +573,26 @@ async function callPreviewImportEncoding(
  *
  * 🔵 THÊM 2026-09-05 (Story 6.6) — tham số `chapterPattern`: mẫu phân tách Chương là tham số
  * MỖI LƯỢT NHẬP (§Always spec 6.6) — KHÔNG lưu ở đâu cả giữa hai lượt nhập, gửi lại `null`
- * khi người dùng chưa gõ mẫu nào. */
+ * khi người dùng chưa gõ mẫu nào.
+ *
+ * 🔴 THÊM 2026-09-16 (Story 6.7b, FR122 nửa hai) — tham số `destinationWorkId`. Khớp
+ * `wire::preview_import_encoding_from_text`'s `destination: Option<String>`. `null` ⇒ đích
+ * Tác phẩm MỚI (hành vi hôm nay, không đổi một byte); `work_id` ⇒ luật làm sạch tầng Tác
+ * phẩm phân giải từ ĐÍCH đó (AC3). Rust re-stash giá trị này ở MỌI lượt gọi — chỗ gọi (kể cả
+ * một lượt tải lại sau khi bật/tắt luật làm sạch) phải gửi lại ĐÚNG giá trị đang treo, không
+ * được bỏ trống, nếu không đích của phiên sẽ bị âm thầm reset về Tác phẩm mới. */
 export async function previewImportEncodingFromText(
   text: string,
   sourceLang: string,
   chapterPattern: ChapterPatternInput | null,
+  destinationWorkId: string | null,
 ): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text, sourceLang, chapterPattern })
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, {
+    text,
+    sourceLang,
+    chapterPattern,
+    destination: destinationWorkId,
+  })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -656,14 +669,21 @@ async function callFileImportBatch(cmd: string, args: Record<string, unknown>): 
 }
 
 /** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126; mở rộng N tệp Story 6.6b, FR14).
- * `paths` GIỮ NGUYÊN thứ tự đã gửi — MỌI N, kể cả N = 1. Tham số `sourceLang`/`chapterPattern`
- * — xem doc-comment [`previewImportEncodingFromText`]. */
+ * `paths` GIỮ NGUYÊN thứ tự đã gửi — MỌI N, kể cả N = 1. Tham số
+ * `sourceLang`/`chapterPattern`/`destinationWorkId` — xem doc-comment
+ * [`previewImportEncodingFromText`]. */
 export async function previewImportEncodingFromFile(
   paths: string[],
   sourceLang: string,
   chapterPattern: ChapterPatternInput | null,
+  destinationWorkId: string | null,
 ): Promise<FileImportBatchResult> {
-  return callFileImportBatch(CMD_PREVIEW_FROM_FILE, { paths, sourceLang, chapterPattern })
+  return callFileImportBatch(CMD_PREVIEW_FROM_FILE, {
+    paths,
+    sourceLang,
+    chapterPattern,
+    destination: destinationWorkId,
+  })
 }
 
 /** Xác nhận lượt nhập với bảng mã đã chọn — cùng hình dạng trả về `CreateWorkResult`
@@ -1089,9 +1109,19 @@ async function callUrlImportBatch(cmd: string, args: Record<string, unknown>): P
 
 /** Tải TUẦN TỰ đúng thứ tự đã dán — `urls` đã TRIM/lọc dòng rỗng ở tầng gọi
  * (`libraryImport.ts::submitPastedUrls`), Rust lọc lại lần nữa cho chắc (phòng thủ kép,
- * không phải kỳ vọng trùng lặp công việc). */
-export async function startUrlImport(urls: string[], sourceLang: string): Promise<UrlImportBatchResult> {
-  return callUrlImportBatch(CMD_START_URL_IMPORT, { urls, sourceLang })
+ * không phải kỳ vọng trùng lặp công việc).
+ *
+ * 🔴 THÊM 2026-09-16 (Story 6.7b) — tham số `destinationWorkId`, cùng lý do doc-comment
+ * [`previewImportEncodingFromText`]. Đây là LẦN DUY NHẤT phiên URL có thể đặt đích: không có
+ * lệnh Rust nào cho phép đổi đích của một phiên URL đã tải (`reload`/`removeUrlImportItem`
+ * đọc lại đích ĐÃ CÓ phía Rust, không nhận một giá trị mới) — đích phải đúng NGAY LẦN GỌI
+ * NÀY. */
+export async function startUrlImport(
+  urls: string[],
+  sourceLang: string,
+  destinationWorkId: string | null,
+): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_START_URL_IMPORT, { urls, sourceLang, destination: destinationWorkId })
 }
 
 /** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — đúng 1 lời gọi mạng. */

@@ -214,7 +214,7 @@ describe('importPreviewState — openImportPreviewFromUrls giữ đúng thứ t�
     const urls = ['https://a.example/1', 'https://b.example/2', 'https://c.example/3']
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
 
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     expect(state.importPreviewUrlItems.value.map((it) => it.url)).toEqual(urls)
     expect(state.importPreviewUrlItems.value.every((it) => it.ok)).toBe(true)
@@ -229,7 +229,7 @@ describe('importPreviewState — openImportPreviewFromUrls giữ đúng thứ t�
     const urls = ['https://a.example/1', 'https://b.example/2', 'https://c.example/3']
     startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1), error: null })
 
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     expect(state.importPreviewUrlItems.value[1]?.ok).toBe(false)
     // 🔵 Story 6.10a — vị từ XEM bỏ qua mục hỏng, `importPreview` khác `null` (2 Chương OK).
@@ -251,7 +251,7 @@ describe('importPreviewState — bỏ một mục: N−1 link · N−1 Chương,
     const { state } = await freshState()
     const urls = ['https://a.example/1', 'https://b.example/2', 'https://c.example/3']
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
     expect(state.importPreviewUrlItems.value.length).toBe(3)
     expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(3)
 
@@ -274,7 +274,7 @@ describe('importPreviewState — tải lại một mục: đúng MỘT vòng IPC
     const { state } = await freshState()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
     expect(state.importPreviewUrlItems.value[1]?.ok).toBe(false)
 
     const before = {
@@ -306,7 +306,7 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -324,7 +324,7 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -349,7 +349,7 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
       batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: urls.length },
       error: null,
     })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -368,7 +368,7 @@ describe('ImportPreviewOverlay.vue — P5 (vòng rà đối kháng bước 4): n
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -407,7 +407,7 @@ describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký do
     // `domain_log_domain_count: 0` mô phỏng đúng "danh sách toàn mục hỏng ngay từ InvalidUrl"
     // — 0 lời gọi mạng thật ra tới, 0 bản ghi nhật ký.
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls, 0), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -428,7 +428,7 @@ describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký do
       batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: 2 },
       error: null,
     })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
     expect(state.importPreview.value).toBeNull() // tiền điều kiện: đúng "bốn tầng biến mất"
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
@@ -450,7 +450,7 @@ describe('importPreviewState — resetImportPreview vứt sạch state của nh�
     const { state } = await freshState()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
     expect(state.importPreviewUrlItems.value.length).toBe(1)
 
     state.cancelImportPreview()
@@ -504,7 +504,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" co danh sách mụ
     }
     startUrlImportMock.mockResolvedValue({ batch, error: null })
 
-    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
     expect(wrapper.findAll('.ip-url-item').length).toBe(5)

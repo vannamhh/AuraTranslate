@@ -24,7 +24,8 @@ use auratranslate_lib::commands::cleanup::{
 use auratranslate_lib::commands::project::{
     BlockBodyWire, OpenWork, PendingImportSourceState, chapter_detail_for_index,
     cleanup_and_chapters_preview_for, confirm_import_with_encoding, create_work,
-    preview_import_encoding, set_block_override, stash_pending_import_source,
+    preview_import_encoding, resolve_work_tier_cleanup_rules_for_destination, set_block_override,
+    stash_pending_import_source,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -856,6 +857,97 @@ fn choosing_the_work_tier_with_no_work_open_is_refused() {
     .expect_err("chon tang Work khi chua mo Tac pham phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::CleanupWorkTierUnavailable);
 
+    drop(global);
+    cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.7b, Phase 4 (AC3) — tầng Tác phẩm của luật làm sạch phải phân giải từ ĐÍCH của
+// một lượt nhập, KHÔNG từ bất kỳ Tác phẩm nào tình cờ đang mở — ca "mismatched-Work" mà
+// Phase 1's Measurement 2 đo thấy KHÔNG một cổng nào canh trước story này.
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Đối chứng đỏ (Implementation Notes, "Phase 1 — Measurement 2's method corrected"): gọi
+// thẳng `core::cleanup::resolve_two_tiers` với scope/store của CHÍNH đích W là một phép đo
+// TRƠ — nó trả đúng luật của W dù khiếm khuyết AC3 có tồn tại hay không, vì nó không đi qua
+// hàm CHỌN store nào cả. Ca dưới đây gọi
+// [`resolve_work_tier_cleanup_rules_for_destination`] — lõi THUẦN Story 6.7b tách ra khỏi
+// `wire::resolve_cleanup_rules_for_destination` — với CẢ `destination` (W) LẪN `open` (Tác
+// phẩm KHÁC, X, "tình cờ đang mở"), đúng hình dạng chỗ gọi thật truyền vào. Nếu hàm bỏ qua
+// `destination` mà dùng luôn `open` (khiếm khuyết AC3 canh), ca này ĐỎ vì thấy luật CỦA X.
+
+/// AC3 — đích W, một Tác phẩm KHÁC X đang mở: màn xem trước áp luật Toàn cục + luật của W,
+/// và KHÔNG một luật nào của X lọt qua.
+#[test]
+fn resolving_cleanup_rules_for_a_destination_applies_global_plus_the_destinations_own_rules_not_the_open_works()
+ {
+    let root = temp_dir("ac3-mismatched-destination");
+    let global = open_global(&root);
+    let x_open = open_work_real(&root); // "Tac pham dang mo" — KHONG phai dich cua luot nhap nay.
+    let w_open = open_work_real(&root); // Dich THAT cua luot nhap nay.
+
+    cleanup_add_rule(
+        Some(&global),
+        Some(&x_open),
+        CleanupRuleTier::Work,
+        "CHI_TREN_X",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat tang Work cho X that bai");
+    cleanup_add_rule(
+        Some(&global),
+        Some(&w_open),
+        CleanupRuleTier::Work,
+        "CHI_TREN_W",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat tang Work cho W (dich) that bai");
+
+    let rules = resolve_work_tier_cleanup_rules_for_destination(&w_open, Some(&x_open), &global)
+        .expect("phan giai luat cho dich W that bai");
+
+    assert!(
+        rules.iter().any(|r| r.tier == CleanupRuleTier::Work && r.pattern == "CHI_TREN_W"),
+        "luat tang Work CUA DICH (W) phai co mat: {rules:?}"
+    );
+    assert!(
+        !rules.iter().any(|r| r.pattern == "CHI_TREN_X"),
+        "luat tang Work cua X (dang mo, nhung KHONG PHAI dich) KHONG duoc lot qua: {rules:?}"
+    );
+
+    drop(x_open.store);
+    drop(w_open.store);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+/// Đối chứng dương cho ca trên — khi `open` TRÙNG `destination` (đích chính là Tác phẩm đang
+/// mở, §I/O Matrix "Destination is the open Work"), luật của CHÍNH nó phải có mặt — chứng
+/// minh hàm không đơn giản luôn bỏ qua `open` một cách vô điều kiện.
+#[test]
+fn resolving_cleanup_rules_when_the_destination_is_the_open_work_still_returns_its_own_rules() {
+    let root = temp_dir("ac3-destination-is-open");
+    let global = open_global(&root);
+    let w_open = open_work_real(&root);
+
+    cleanup_add_rule(
+        Some(&global),
+        Some(&w_open),
+        CleanupRuleTier::Work,
+        "CUA_CHINH_NO",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
+
+    let rules = resolve_work_tier_cleanup_rules_for_destination(&w_open, Some(&w_open), &global)
+        .expect("phan giai luat khi dich la Tac pham dang mo that bai");
+
+    assert!(
+        rules.iter().any(|r| r.pattern == "CUA_CHINH_NO"),
+        "dich TRUNG Tac pham dang mo van phai thay luat cua CHINH no: {rules:?}"
+    );
+
+    drop(w_open.store);
     drop(global);
     cleanup_dir(&root);
 }

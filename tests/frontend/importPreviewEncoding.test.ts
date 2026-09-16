@@ -206,7 +206,7 @@ describe('importPreviewState — dải MỞ (hiển thị) đúng khi và chỉ 
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
 
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
 
     expect(state.importPreviewIsOpen.value).toBe(true)
     expect(state.importPreviewStatus.value).toBe('loaded')
@@ -223,7 +223,7 @@ describe('importPreviewState — dải MỞ (hiển thị) đúng khi và chỉ 
       error: null,
     })
 
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     expect(state.importPreviewStatus.value).toBe('loaded')
     expect(state.importPreview.value?.confidence).toBe('low')
@@ -241,7 +241,7 @@ describe('importPreviewState — dải MỞ (hiển thị) đúng khi và chỉ 
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: selfDeclaredPreview(), error: null })
 
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     expect(state.importPreview.value?.confidence).toBe('self_declared')
     expect(state.importPreview.value?.candidates).toHaveLength(0)
@@ -253,7 +253,7 @@ describe('importPreviewState — buộc mở dải bằng `E` (`openImportPrevie
   it('tin cậy CAO ⇒ `E` mở được dải (dữ liệu đã có sẵn, không gọi IPC)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
     expect(state.importPreviewStripIsOpen.value).toBe(false)
 
     const ipcCallsBefore = previewTextMock.mock.calls.length
@@ -266,7 +266,7 @@ describe('importPreviewState — buộc mở dải bằng `E` (`openImportPrevie
   it('nguồn tự khai ⇒ `E` là no-op (0 ứng viên, không có gì để mở)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: selfDeclaredPreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     state.openImportPreviewCandidatePicker()
 
@@ -276,7 +276,7 @@ describe('importPreviewState — buộc mở dải bằng `E` (`openImportPrevie
   it('một lượt mở PREVIEW MỚI xoá cờ buộc-mở của lượt trước', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
     state.openImportPreviewCandidatePicker()
     expect(state.importPreviewStripIsOpen.value).toBe(true)
 
@@ -284,7 +284,7 @@ describe('importPreviewState — buộc mở dải bằng `E` (`openImportPrevie
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: highConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten2', 'en', '', ['/tmp/x.txt'])
+    await state.openImportPreviewFromFile('Ten2', 'en', '', ['/tmp/x.txt'], null)
 
     expect(state.importPreviewStripIsOpen.value).toBe(false)
   })
@@ -297,7 +297,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     // Mặc định là ứng viên Rust đã chọn (GBK).
     expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
@@ -321,7 +321,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     state.selectImportPreviewCandidate('shift_jis-khong-co-trong-dai')
 
@@ -334,7 +334,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
     expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
 
     let resolveConfirm!: (value: { created: unknown; error: null }) => void
@@ -370,7 +370,7 @@ describe('importPreviewState — xác nhận', () => {
   it('thành công đóng lớp phủ và trả về Tác phẩm vừa tạo', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
 
     const created = { meta: { work_id: 'w1', name: 'Ten' }, folder: '/tmp/Ten.atproj' }
     confirmMock.mockResolvedValue({ created, error: null })
@@ -393,7 +393,7 @@ describe('importPreviewState — xác nhận', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
 
     const err = { code: 'import.undecodable_bytes', message_key: 'err.import.undecodable_bytes', params: {}, retryable: false }
     confirmMock.mockResolvedValue({ created: null, error: err })
@@ -415,7 +415,7 @@ describe('importPreviewState — xác nhận', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
     expect(state.importPreviewLastSubmittedFrom.value).toBe('file')
 
     // Lượt 1 — chọn nhầm, TRƯỢT.
@@ -440,7 +440,7 @@ describe('importPreviewState — xác nhận', () => {
   it('🔴 vòng rà đối kháng 3, mục 3 — xác nhận bị CHẶN trong lúc một lượt tải lại mẫu Chương còn đang bay', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
     previewTextMock.mockClear()
 
     let resolvePatternReload!: (value: { preview: ImportEncodingPreview; error: null }) => void
@@ -473,7 +473,7 @@ describe('importPreviewState — huỷ (defect #5, vòng rà 1)', () => {
       batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
-    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'])
+    await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
     expect(state.importPreviewIsOpen.value).toBe(true)
 
     state.cancelImportPreview()
@@ -498,7 +498,7 @@ describe('importPreviewState — huỷ (defect #5, vòng rà 1)', () => {
     // trong khi `.atproj` đã nằm thật trên đĩa và `OpenWorkState` đã trỏ vào nó.
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii', null)
 
     // Lượt xác nhận BẮT ĐẦU nhưng CHƯA VỀ — mô phỏng "Rust đang chạy create_work".
     let resolveConfirm!: (value: { created: unknown; error: null }) => void
@@ -530,7 +530,7 @@ describe('importPreviewState — huỷ (defect #5, vòng rà 1)', () => {
   it('`resetImportPreview()` xoá mọi ô nhớ cấp module (check:panel-refs Kiểm A)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     state.openImportPreviewCandidatePicker()
     expect(state.importPreviewStripIsOpen.value).toBe(true)
 
@@ -553,7 +553,7 @@ describe('importPreviewState — ba trạng thái tải, khuôn glossaryImportSt
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: null, error: null })
 
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     expect(state.importPreviewIsOpen.value).toBe(true)
     expect(state.importPreviewStatus.value).toBe('ipc_unavailable')
@@ -564,7 +564,7 @@ describe('importPreviewState — ba trạng thái tải, khuôn glossaryImportSt
     const err = { code: 'x', message_key: 'err.unknown', params: {}, retryable: false }
     previewTextMock.mockResolvedValue({ preview: null, error: err })
 
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     expect(state.importPreviewStatus.value).toBe('error')
     expect(state.importPreviewLoadError.value).toEqual(err)

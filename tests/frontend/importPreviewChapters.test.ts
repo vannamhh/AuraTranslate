@@ -163,7 +163,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
   it('mặc định là khối tách Chương của ứng viên Rust đã chọn', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     expect(state.importPreviewSelectedChapters.value).toEqual(chapters())
   })
@@ -186,7 +186,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const ipcCallsBefore =
       previewTextMock.mock.calls.length + previewFileMock.mock.calls.length + confirmMock.mock.calls.length
@@ -209,7 +209,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     expect(state.importPreviewSelectedChapters.value).toBeNull()
   })
@@ -224,7 +224,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'van ban dan tay', null)
 
     expect(state.importPreviewSelectedCandidate.value).toBeNull()
     expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(1)
@@ -235,7 +235,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
   it('mẫu MỚI ⇒ đúng MỘT vòng IPC, gửi {pattern, kind} đúng hình dạng', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: chapters({ chapter_count: 3 }) })] }), error: null })
@@ -243,7 +243,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
     await state.setImportPreviewChapterPattern('第.*章', 'regex')
 
     expect(previewTextMock).toHaveBeenCalledTimes(1)
-    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', { pattern: '第.*章', kind: 'regex' })
+    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', { pattern: '第.*章', kind: 'regex' }, null)
     expect(state.importPreviewChapterPatternText.value).toBe('第.*章')
     expect(state.importPreviewChapterPatternKind.value).toBe('regex')
     expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(3)
@@ -252,7 +252,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
   it('mẫu KHÔNG đổi (cùng text, cùng kind) ⇒ 0 lời gọi IPC', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     await state.setImportPreviewChapterPattern('', 'literal') // giá trị mặc định lúc mở, không đổi gì
@@ -267,7 +267,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
       candidates: [candidate({ encoding: 'UTF-8' }), candidate({ encoding: 'GBK', label: 'GBK' })],
     })
     previewTextMock.mockResolvedValue({ preview: twoCandidatesPreview, error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     state.selectImportPreviewCandidate('GBK')
     expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
@@ -281,7 +281,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
   it('mẫu regex hỏng ⇒ GIỮ NGUYÊN kết quả CŨ, chỉ báo lỗi RIÊNG — không lật status/preview', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     const err = {
@@ -305,7 +305,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
   it('một `@change` thứ hai đến trong lúc lượt đầu còn bay ĐƯỢC XẾP HÀNG, không biến mất (vòng rà đối kháng 3, mục 4)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
 
     let resolveFirst!: (value: { preview: ImportEncodingPreview; error: null }) => void
@@ -333,8 +333,8 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
     // Lượt hai không hề biến mất — nó tự chạy NGAY sau khi lượt đầu xong, đúng MỘT lời gọi
     // IPC thêm, với ĐÚNG giá trị SAU CÙNG người dùng đã gõ.
     expect(previewTextMock).toHaveBeenCalledTimes(2)
-    expect(previewTextMock).toHaveBeenNthCalledWith(1, 'x', 'en', { pattern: 'mau-mot', kind: 'literal' })
-    expect(previewTextMock).toHaveBeenNthCalledWith(2, 'x', 'en', { pattern: 'mau-hai', kind: 'literal' })
+    expect(previewTextMock).toHaveBeenNthCalledWith(1, 'x', 'en', { pattern: 'mau-mot', kind: 'literal' }, null)
+    expect(previewTextMock).toHaveBeenNthCalledWith(2, 'x', 'en', { pattern: 'mau-hai', kind: 'literal' }, null)
     expect(state.importPreviewChapterPatternText.value).toBe('mau-hai')
     expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(5)
     expect(state.importPreviewChapterPatternSending.value).toBe(false)
@@ -343,7 +343,7 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
   it('xoá sạch ô mẫu (rỗng) ⇒ vẫn MỘT vòng IPC, gửi `chapterPattern: null`', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     await state.setImportPreviewChapterPattern('Chuong', 'literal')
     previewTextMock.mockClear()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
@@ -351,31 +351,31 @@ describe('importPreviewState — setImportPreviewChapterPattern', () => {
     await state.setImportPreviewChapterPattern('', 'literal')
 
     expect(previewTextMock).toHaveBeenCalledTimes(1)
-    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', null)
+    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', null, null)
   })
 
   it('ô CHỈ CÓ khoảng trắng gửi `chapterPattern: null` — cùng quy ước `.trim()` của hai ô luật làm sạch (vòng rà đối kháng 3, mục 5)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
 
     await state.setImportPreviewChapterPattern('   ', 'literal')
 
     expect(previewTextMock).toHaveBeenCalledTimes(1)
-    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', null)
+    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', null, null)
   })
 
   it('mở một lượt xem trước MỚI reset mẫu về rỗng — KHÔNG nhớ mẫu giữa hai lượt nhập (§Ask First spec 6.6)', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     await state.setImportPreviewChapterPattern('Chuong', 'literal')
     expect(state.importPreviewChapterPatternText.value).toBe('Chuong')
 
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten Khac', 'en', '', 'y')
+    await state.openImportPreviewFromText('Ten Khac', 'en', '', 'y', null)
 
     expect(state.importPreviewChapterPatternText.value).toBe('')
     expect(state.importPreviewChapterPatternKind.value).toBe('literal')
@@ -387,7 +387,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
   it('hiện số Chương nhận ra, ord, title, độ dài', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('.ip-chapters-count').text()).toContain('2')
@@ -412,7 +412,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('.ip-chapters-title-none').exists()).toBe(true)
@@ -441,7 +441,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     // Mặc định — thứ tự NGUYÊN VĂN (N ≤ 6 nên hiện trọn, không cắt).
@@ -466,7 +466,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const rows = wrapper.findAll('.ip-chapters-entry')
@@ -484,7 +484,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
   it('gõ mẫu rồi rời ô (`@change`) gọi lại xem trước với ĐÚNG {pattern, kind}', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
 
@@ -492,7 +492,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     await wrapper.find('.ip-chapters-pattern-input').setValue('Chuong')
     await wrapper.find('.ip-chapters-pattern-input').trigger('change')
 
-    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', { pattern: 'Chuong', kind: 'literal' })
+    expect(previewTextMock).toHaveBeenCalledWith('x', 'en', { pattern: 'Chuong', kind: 'literal' }, null)
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -501,7 +501,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
   it('mẫu hỏng hiện thông báo lỗi RIÊNG mà KHÔNG xoá danh sách Chương đang hiện', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
     previewTextMock.mockClear()
     previewTextMock.mockResolvedValue({
       preview: null,
@@ -584,7 +584,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const rows = wrapper.findAll('.ip-chapters-entry')
@@ -630,7 +630,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(state.importPreviewChapterCursor.value).toBe(0) // Chuong 0 la con tro mac dinh.
@@ -668,7 +668,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('.ip-chapter-filter-note').text()).toBe('Chưa đủ Chương để so')
@@ -712,7 +712,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       },
       error: null,
     })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({
       detail: { cleanup: { text: '', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: null },
       error: null,
@@ -834,7 +834,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('mặc định con trỏ ở Chương 0, đọc thẳng chi tiết của ứng viên (0 lời gọi IPC lazy)', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
 
     expect(state.importPreviewChapterCursor.value).toBe(0)
     expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 0')
@@ -846,7 +846,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('⌥→ dời con trỏ sang Chương 1, dựng chi tiết LAZY qua đúng một lời gọi IPC', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
 
     state.nextImportPreviewChapter()
@@ -863,7 +863,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('P4 (vòng rà đối kháng bước 4) — luôn gửi chapterPattern: null, kể cả khi ô mẫu đang gõ khác rỗng', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     // Ô mẫu phân tách ĐANG GÕ khác rỗng — đường eager (`url_import_encoding_preview` phía
     // Rust) truyền `chapter_pattern: None` CỨNG cho MỌI ứng viên trên đường URL bất kể ô này;
     // lệnh lazy phải khớp NGUYÊN VĂN, không được gửi mẫu đang gõ.
@@ -881,7 +881,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('P2 (vòng rà đối kháng bước 4) — lỗi phải DỌN chi tiết đang hiện, không giữ Chương cũ dưới nhãn Chương mới', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -906,7 +906,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('P2 (vòng rà đối kháng bước 4) — trạng thái CŨ (detail: null) cũng phải DỌN chi tiết đang hiện', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -927,7 +927,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('P3 (vòng rà đối kháng bước 4) — hai lượt gọi CÙNG index, lượt ĐẦU resolve SAU lượt SAU: dữ liệu hiện ra phải là của lượt SAU', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoCandidates(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
 
     let resolveFirst!: (v: { detail: ChapterDetailWire | null; error: null }) => void
     let resolveSecond!: (v: { detail: ChapterDetailWire | null; error: null }) => void
@@ -961,7 +961,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('dừng ở Chương cuối — không kêu, không lời gọi IPC', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('x'), error: null })
 
     state.nextImportPreviewChapter() // 0 -> 1
@@ -983,7 +983,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('dừng ở Chương đầu — ⌥← ở Chương 0 đứng yên, không lời gọi IPC', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
 
     state.prevImportPreviewChapter()
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -997,7 +997,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('lớp phủ đã đóng — dời con trỏ là no-op tuyệt đối', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     state.resetImportPreview() // đóng lớp phủ, cursor về 0
 
     state.nextImportPreviewChapter()
@@ -1018,7 +1018,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('đường tệp/dán tay (N > 1 do mẫu phân tách) — con trỏ KHÔNG đi đâu được: `Blob` chỉ có MỘT báo cáo làm sạch, ở `ord = 1`', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null }) // N = 2, đường text
-    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     state.nextImportPreviewChapter()
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -1032,7 +1032,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('AC — đổi ứng viên bảng mã khi con trỏ ở Chương k > 0: hiện Chương k, KHÔNG nhảy về Chương 0', async () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoCandidates(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     expect(state.importPreviewSelectedEncoding.value).toBe('UTF-8')
 
     // Dời con trỏ sang Chương 1 (chỉ số 1) trên ứng viên UTF-8.
@@ -1060,7 +1060,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
   it('DOM THẬT — dời con trỏ đổi `aria-selected`/`aria-activedescendant` của tầng 4, đúng khuôn `blocksList`', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
@@ -1138,7 +1138,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
   it('mặc định bộ lọc TẮT', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     expect(state.importPreviewChapterFilterActive.value).toBe(false)
 
@@ -1148,7 +1148,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
   it('bật rồi tắt lại — bấm hai lần đảo trạng thái, 0 lời gọi IPC', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     state.toggleImportPreviewChapterFilter()
     expect(state.importPreviewChapterFilterActive.value).toBe(true)
@@ -1163,7 +1163,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
     const state = await freshState()
     const allClean = chapters() // fixture mac dinh cua tep nay: hai Chuong, ca hai `needs_review: false`
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: allClean })] }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
     expect(allClean.needs_review_count).toBe(0) // tien de cua fixture
 
     expect(() => state.toggleImportPreviewChapterFilter()).not.toThrow()
@@ -1212,7 +1212,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
       },
       error: null,
     })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c', 'd'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c', 'd'], null)
     expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(1)
     expect(state.importPreviewSelectedChapters.value?.any_signal_participated).toBe(false)
 
@@ -1233,7 +1233,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
       },
       error: null,
     })
-    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({
       detail: { cleanup: { text: '', spans: [], rules: [], window_truncated: false, final_text: 'chuong 1' }, blocks: null },
       error: null,
@@ -1256,7 +1256,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
   it('lớp phủ ĐÃ ĐÓNG — bật lọc không đổi gì', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
     state.cancelImportPreview()
 
     state.toggleImportPreviewChapterFilter()
@@ -1266,12 +1266,12 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
   it('một lượt mở MỚI (huỷ + mở lại) reset cờ lọc về TẮT', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
     state.toggleImportPreviewChapterFilter()
     expect(state.importPreviewChapterFilterActive.value).toBe(true)
 
     state.cancelImportPreview()
-    await state.openImportPreviewFromText('Ten2', 'en', '', 'noi dung khac')
+    await state.openImportPreviewFromText('Ten2', 'en', '', 'noi dung khac', null)
 
     expect(state.importPreviewChapterFilterActive.value).toBe(false)
 
@@ -1309,7 +1309,7 @@ describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ
       },
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     state.toggleImportPreviewChapterFilter()
     expect(state.importPreviewChapterFilterActive.value).toBe(true)
@@ -1347,7 +1347,7 @@ describe('importPreviewState — chaptersShowAll ở quy mô 1.000 Chương (deb
       preview: preview({ candidates: [candidateWithChapters('UTF-8', Array(CHAPTER_COUNT).fill(true))] }),
       error: null,
     })
-    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
 
     state.toggleImportPreviewChapterFilter()
     expect(state.importPreviewChapterFilterActive.value).toBe(true)

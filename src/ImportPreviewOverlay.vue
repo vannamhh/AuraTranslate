@@ -56,6 +56,7 @@ import {
   importPreviewCleanupToggling,
   importPreviewConfirmError,
   importPreviewConfirming,
+  importPreviewDestinationWorkId,
   importPreviewDomainLogDomainCount,
   importPreviewEmptyReasonForTier,
   importPreviewCurrentChapterOrigin,
@@ -66,6 +67,8 @@ import {
   importPreviewJumpToCleanupRulesSignal,
   importPreviewLastSubmittedFrom,
   importPreviewLoadError,
+  importPreviewPendingName,
+  importPreviewPendingSourceLang,
   importPreviewSelectedBlocks,
   importPreviewSelectedCandidate,
   importPreviewSelectedChapters,
@@ -799,6 +802,16 @@ watch(importPreviewBlockFocusedIndex, (index) => {
   })
 })
 
+/** **THÊM (Story 6.7b)** — nhãn hiển thị của `importPreviewPendingSourceLang` — hai mã khớp
+ * `LibraryMode.vue` (`mode.library.lang_zh`/`lang_en`); một mã khác (không nên xảy ra —
+ * `work.source_lang` chỉ nhận hai giá trị này, `LibraryMode.vue::sourceLang`) hiện NGUYÊN
+ * VĂN thay vì rơi vào một khoá dịch sai. */
+const destinationSourceLangLabel = computed<string>(() => {
+  if (importPreviewPendingSourceLang.value === 'zh') return t('mode.library.lang_zh')
+  if (importPreviewPendingSourceLang.value === 'en') return t('mode.library.lang_en')
+  return importPreviewPendingSourceLang.value
+})
+
 /** `R` — cuộn + đặt tiêu điểm sang tầng 3 (§Spec Change Log spec 6.9). */
 const cleanupTierSection = useTemplateRef<HTMLElement>('cleanupTierSection')
 watch(importPreviewJumpToCleanupRulesSignal, () => {
@@ -833,6 +846,27 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           {{ t('command.import.preview.cancel') }}
         </button>
       </header>
+
+      <!--
+        🔴 STORY 6.7b (FR122 nửa hai, Decision 2) — dòng ĐỌC, không một điều khiển đổi đích:
+        đích đã CHỐT ở `LibraryMode.vue` TRƯỚC lượt mở này (xem doc-comment
+        `pendingDestinationWorkId` ở `importPreviewState.ts` cho lý do không có radio sống ở
+        đây — `sourceLang` gửi lúc mở đã phải là ngôn ngữ CỦA ĐÍCH, và phiên URL không có
+        đường Rust nào cho phép đổi đích sau lượt tải đầu). Ngôn ngữ nguồn hiện Ở ĐÂY luôn
+        là giá trị ĐÃ KẾ THỪA khi đích là một Tác phẩm sẵn có (Decision 2: "adopted, shown
+        read-only").
+      -->
+      <p class="ip-destination" role="status">
+        <span v-if="importPreviewDestinationWorkId === null">
+          {{ t('mode.library.preview.destination_new_work') }}
+        </span>
+        <span v-else>
+          {{ t('mode.library.preview.destination_existing_work', { name: importPreviewPendingName }) }}
+        </span>
+        <span class="ip-destination-lang">
+          {{ t('mode.library.preview.destination_source_lang', { lang: destinationSourceLangLabel }) }}
+        </span>
+      </p>
 
       <p v-if="importPreviewStatus === 'unknown'" class="ip-status" role="status">
         {{ t('mode.library.preview.loading') }}
@@ -1710,6 +1744,22 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* 🔴 STORY 6.7b — dòng ĐỌC "đích của phiên" ngay dưới header. */
+.ip-destination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-panel-inline);
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-destination-lang {
   color: var(--color-on-surface-variant);
 }
 

@@ -10395,6 +10395,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   kích hoạt lượt ấy. ⚠️ Sổ này nay mang **HAI** mục cùng hình dạng đó (6.6b và 6.7b); một lượt
   `correct-course` xử được cả hai.
   → 🔵 **SỬA 2026-09-15** — Story 6.7b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Ba tiền đề đo lại trên `1eb781b` vẫn đúng; số dòng đã trôi: `confirm_import_with_encoding` ở `project.rs:3349` (gọi `create_work` ở `:3392`), ba vỏ `create_work*` ở `:354`, `:1421`, `:1871`.
+  → ✅ **ĐÓNG 2026-09-16 (Story 6.7b, Phase 2-4, `spec-6-7b-them-chuong-vao-tac-pham-co-san.md`).**
+  Năng lực đã dựng: `commands::project::append_chapters_to_work` (sibling THUẦN của `create_work`,
+  không `remove_folder` ở bất kỳ nhánh lỗi nào) + `confirm_append_import_with_encoding` (bước 1-3
+  của khuôn bốn bước AD-8) + `wire::confirm_import_with_encoding` phân giải đích qua
+  `PendingImportSourceState`/`current_pending_destination` (tái dùng `OpenWorkState` khi đích
+  trùng Tác phẩm đang mở, hoặc `open_work` khi không) — đóng đúng năng lực mục này nêu ("một lệnh
+  GHI mới ở Rust, một adapter TS mới, một bề mặt chọn đích"). Bề mặt chọn đích sống ở
+  `LibraryMode.vue`'s `import-form` (không phải `ImportPreviewOverlay.vue` như mockup gợi ý —
+  xem Implementation Notes Phase 3 của spec, mục "Placement decision", cho lý do đo được). Ba
+  đường đơn ngữ (dán/tệp/URL) đều đi qua; đường song ngữ (`confirm_bilingual_import`) CHƯA đóng
+  — xem mục mới ngay dưới đây (Chủ: Story 6.16b), đúng ranh giới Quyết định 1 của spec 6.7b đã
+  vạch từ đầu.
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link (2026-09-06)
 
@@ -12385,3 +12397,62 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mục gốc phía trên vẫn đứng, nhưng áp cho **cả hai** ca, không chỉ ca có mẫu — mở cả cửa ①
     và ② là hai thay đổi hình dạng riêng (một sửa vị từ TS, một vỏ IPC mới đọc
     `PendingImportSourceState`), không phải một bản vá tại chỗ.
+
+## Deferred from: 6-7b-them-chuong-vao-tac-pham-co-san (2026-09-16)
+
+- ⚠️ **Đường nhập song ngữ hai cột (`confirm_bilingual_import`, `wire.rs:847`) luôn TẠO một Tác
+  phẩm mới — không có bề mặt "thêm vào một Tác phẩm sẵn có" cho đường này.** Quyết định 1 của
+  spec 6.7b khoanh phạm vi story ở BA đường đơn ngữ (dán/tệp/URL), loại đường song ngữ ra vì
+  Story 6.16b đã xếp hàng đứng sau chính màn hình đó — hai story không được sửa cùng một màn
+  giữa chừng. `resolve_cleanup_rules`/`resolve_cleanup_rules_for` (`wire.rs:21-70`) cố ý giữ ba
+  vỏ song ngữ (`preview_bilingual_import_from_file`, `rebuild_bilingual_import_preview`,
+  `confirm_bilingual_import`) ở nhánh MỘT THAM SỐ cũ, không đổi — đo được bằng
+  `the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file`
+  (`tests/ipc_contract.rs`) vẫn xanh không đổi qua trọn bốn phase của story 6.7b.
+  **Chủ: Story 6.16b** — màn hình song ngữ đã có story riêng đứng sau; đóng cửa "thêm vào Tác
+  phẩm sẵn có" cho đường này là việc của story đó, không phải một lượt vá thêm vào 6.7b.
+
+- ⚠️ **Một batch nhập vào một Tác phẩm sẵn có mà đích khác ngôn ngữ với `work.source_lang`
+  bị tách câu theo LUẬT SAI — và không màn hình nào nói ra điều đó.** Quyết định 2 của spec
+  6.7b: `source_lang` được KẾ THỪA từ đích (`effectiveSourceLang` ở `src/modes/libraryImport.ts`,
+  đọc `pickedDestinationWork.source_lang`), không dò/không hỏi lại — chấp nhận vì
+  `work.source_lang` bất biến sau khi tạo (một `INSERT` duy nhất,
+  `commands/project/mod.rs:701`, không `UPDATE` nào trong repo) nên kế thừa là hành vi MẠCH LẠC
+  DUY NHẤT, và đường nhập không có tín hiệu nào để phát hiện lệch ngôn ngữ mà báo. Hệ quả: dán
+  một chương tiếng Anh vào một Tác phẩm `source_lang = "zh"` khiến pipeline tách câu theo luật
+  tiếng Trung lên văn bản tiếng Anh (và ngược lại) — `core/segment/pipeline.rs` chọn bộ tách
+  câu theo ĐÚNG tham số `source_lang` này, không đọc lại nội dung để kiểm.
+  **Chủ: Ice** — cần một quyết định sản phẩm: có nên thêm một tín hiệu cảnh báo "văn bản trông
+  không giống ngôn ngữ của Tác phẩm đích" trước khi xác nhận hay không, và nếu có thì tín hiệu
+  đó dựa trên gì (dò ngôn ngữ bằng heuristic, hay để người dùng tự nhận ra qua bản xem trước).
+  Không tự quyết ở đây — spec 6.7b Quyết định 2 chỉ ghi lại hệ quả, không chọn hướng sửa.
+
+- ⚠️ **Không có lượt quét Glossary nào chạy trên đường APPEND cho các Chương vừa thêm.**
+  `confirm_import_with_encoding`'s nhánh Tác phẩm MỚI gọi `spawn_import_scan` trên Chương ĐẦU
+  TIÊN của Tác phẩm vừa tạo (`wire.rs:836-845`); nhánh APPEND (`wire.rs:905-915`) không spawn
+  gì cả, vì id Chương rẻ nhất có sẵn ở đó — `open.chapter_id` — là con trỏ Chương ĐANG MỞ của
+  trình soạn (§I/O Matrix spec 6.7b: "Destination is the open Work ⇒ open editor state stays
+  valid"), KHÔNG phải một trong các Chương MỚI vừa append; quét lại nó chỉ rà lại văn bản CŨ,
+  không nói gì về nội dung mới. Hệ quả: các thuật ngữ trong batch vừa thêm vào một Tác phẩm sẵn
+  có không bao giờ được đề xuất vào Glossary tự động — người dùng phải tự mở từng Chương mới để
+  Glossary quét được (nếu cơ chế quét-khi-mở tồn tại) hoặc bỏ lỡ hoàn toàn.
+  **Chủ: Ice** — cần một quyết định sản phẩm: có quét Glossary cho các Chương vừa append hay
+  không, và nếu có thì quét Chương nào (một Chương mới đại diện, hay toàn bộ N Chương mới) và
+  quét lúc nào (ngay sau append, hay khi người dùng mở từng Chương). Không tự quyết ở đây —
+  spec 6.7b không có AC nào đòi lượt quét này, và `append_chapters_to_work`'s doc-comment chỉ
+  ghi lại khoảng trống, không chọn hướng sửa.
+
+- ⚠️ **Một lỗi giao dịch SQL giữa chừng trên đường APPEND (sau khi ảnh đã tải và ghi xuống
+  `assets/`) để lại tệp ảnh mồ côi trên đĩa — cùng lớp rủi ro đã ghi cho `create_work`
+  (`spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`, mục "Tệp ảnh mồ côi ở lại trong
+  `assets/` vĩnh viễn", Chủ chuyển: Ice), nhưng KHÔNG thể đóng cùng cách.**
+  `append_chapters_to_work` tải và ghi ảnh xuống `assets/` TRƯỚC giao dịch SQL (cùng thứ tự
+  `create_work` dùng); nếu giao dịch sau đó lỗi (một `CHECK` bị lọc trước giao dịch, hoặc đĩa
+  đầy giữa chừng), giao dịch rollback toàn bộ nhưng KHÔNG hàng `asset` nào tồn tại để trỏ tới
+  tệp đã ghi. Khác `create_work`, hàm này bị §Never spec 6.7b cấm tường minh gọi
+  `remove_folder`/xoá bất cứ gì trên lỗi (đúng: Tác phẩm là của người dùng, không phải một thư
+  mục vừa tạo) — nên đường "dọn tệp vừa ghi khi giao dịch lỗi" mà `create_work` có thể chọn
+  KHÔNG áp dụng được ở đây, ngay cả khi được quyết định làm. **Chủ: Ice** — cùng người đã nhận
+  mục tổng quát ở spec 6.11; cần một quyết định phạm vi CHUNG cho cả hai đường (một lượt quét
+  đối chiếu `assets/` với bảng `asset` trên toàn `.atproj`, chạy khi nào) trước khi một dev tự
+  chọn — xem mục 6.11 để không mở hai hướng giải quyết khác nhau cho cùng một lớp lỗi.
