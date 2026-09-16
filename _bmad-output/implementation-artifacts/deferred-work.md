@@ -10407,6 +10407,10 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đường đơn ngữ (dán/tệp/URL) đều đi qua; đường song ngữ (`confirm_bilingual_import`) CHƯA đóng
   — xem mục mới ngay dưới đây (Chủ: Story 6.16b), đúng ranh giới Quyết định 1 của spec 6.7b đã
   vạch từ đầu.
+  → 🔵 SỬA 2026-09-16 — Story 6.16b THẬT (`spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`)
+  đã dùng chỗ đứng đó cho bộ lọc "cần xem" (FR132), KHÔNG cho năng lực "thêm vào Tác phẩm sẵn
+  có" — tiền đề "story kế tiếp của màn hình song ngữ sẽ đóng mục này" đã hết đúng. Chủ mới ghi
+  ở mục "Deferred from: 6-7b…" ngay dưới (cùng ngày SỬA).
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link (2026-09-06)
 
@@ -12409,8 +12413,11 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `confirm_bilingual_import`) ở nhánh MỘT THAM SỐ cũ, không đổi — đo được bằng
   `the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file`
   (`tests/ipc_contract.rs`) vẫn xanh không đổi qua trọn bốn phase của story 6.7b.
-  **Chủ: Story 6.16b** — màn hình song ngữ đã có story riêng đứng sau; đóng cửa "thêm vào Tác
-  phẩm sẵn có" cho đường này là việc của story đó, không phải một lượt vá thêm vào 6.7b.
+  **Chủ: Ice** — 🔵 SỬA 2026-09-16 — Story 6.16b THẬT (`spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`)
+  đã dùng chỗ đứng đó cho bộ lọc "cần xem" của tầng tách Chương (FR132, retro Epic 6 mục F4),
+  KHÔNG cho năng lực "thêm vào Tác phẩm sẵn có". Mục này CHƯA có story nào nhận — cần một mục
+  quy hoạch mới (đi qua `correct-course`, cùng khuôn 6.6b/6.7b trước đó) trước khi một story kế
+  tiếp có thể đóng nó.
 
 - ⚠️ **Một batch nhập vào một Tác phẩm sẵn có mà đích khác ngôn ngữ với `work.source_lang`
   bị tách câu theo LUẬT SAI — và không màn hình nào nói ra điều đó.** Quyết định 2 của spec
@@ -12456,3 +12463,89 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mục tổng quát ở spec 6.11; cần một quyết định phạm vi CHUNG cho cả hai đường (một lượt quét
   đối chiếu `assets/` với bảng `asset` trên toàn `.atproj`, chạy khi nào) trước khi một dev tự
   chọn — xem mục 6.11 để không mở hai hướng giải quyết khác nhau cho cùng một lớp lỗi.
+
+## Deferred from: 6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu (2026-09-16)
+
+- ⚠️ **`node`/`npm` liên kết Homebrew trên máy này (Ice's Mac) đứng gãy, độc lập với story —
+  đo được trên `node --version` trần, không chỉ trên lệnh của story.** `dyld: Library not
+  loaded: /usr/local/opt/simdutf/lib/libsimdutf.35.dylib`, tham chiếu từ
+  `/usr/local/Cellar/merve/1.2.2_2/lib/libmerve.1.2.2.dylib` (`node` (26.8.2) tự liên kết thẳng
+  `libmerve.1.dylib` — `otool -L /usr/local/Cellar/node/26.8.2/bin/node` liệt nó). Đo lại
+  (`otool -L .../libmerve.1.2.2.dylib` cho `.35`; `ls /usr/local/opt/simdutf/lib/` cho ĐÚNG
+  `.36.*`; `ls /usr/local/Cellar/simdutf/*/lib/` cho CẢ hai keg `9.1.1` (có `.35`) và `9.2.0`
+  (có `.36`)) lộ ra bản trước SAI ở hai chỗ: (1) `.35` không "không còn tồn tại" — nó VẪN nằm
+  trong keg `9.1.1`, chỉ là `/usr/local/opt/simdutf` (symlink `opt` — con đường `merve` liên
+  kết tới, không phải đường Cellar tuyệt đối) đã trỏ sang keg `9.2.0`, nên chỉ `.36` còn ĐI TỚI
+  ĐƯỢC qua đường đó; (2) `brew reinstall node` không sửa được gì — `node` liên kết `libmerve.1.dylib`
+  qua một đường ABI ổn định (`opt/merve`, không ghim phiên bản), nên cài lại `node` không đổi
+  `merve` nào được nạp; thủ phạm giữ tham chiếu `.35` chết là CHÍNH `libmerve.1.2.2.dylib` (cài
+  22/08, trước lượt `simdutf` 9.1.1→9.2.0), không phải `node`. Không phải hộp cát Claude Code
+  (đo lại với `dangerouslyDisableSandbox: true`, vẫn cùng lỗi) — một lượt `brew upgrade simdutf`
+  trước đó, không kéo theo lượt build lại `merve`, đã làm gãy liên kết; không liên quan gì tới
+  story này. Vòng làm việc này tránh được nó bằng `fnm` (đã cài sẵn, độc lập với Homebrew node):
+  `eval "$(fnm env)" && fnm use v22.22.2`. **Chủ: Ice** — cần `brew reinstall merve` (build lại
+  `libmerve` để nó liên kết `.36` hiện hành, không phải `node`) để `npm`/`pre-push` chạy lại
+  bình thường mà không cần vòng qua `fnm` mỗi lần.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: Bộ lọc "cần xem" có thể kẹt BẬT mà không còn nút nào tắt — trên CẢ HAI màn xem trước,
+    đơn ngữ (Story 6.10) lẫn song ngữ (6.16b), không phải chỗ lệch riêng của đường song ngữ.
+  evidence: Ba lớp rà 2026-09-16 cùng gán cho 6.16b; đối chứng nói không phải. Dải chip nằm trong
+    `<template v-if="…any_signal_participated">` ở CẢ `ImportPreviewOverlay.vue` lẫn
+    `BilingualImportPreviewOverlay.vue`; cả hai chỉ đặt lại cờ lọc ở các đường MỞ lớp phủ
+    (`importPreviewState.ts:703/826/937`, `bilingualImportPreviewState.ts:319`), không ở đường
+    dựng lại; và `importPreviewChapters.test.ts:1314` khẳng định CÓ CHỦ Ý rằng bộ lọc SỐNG SÓT qua
+    lượt đổi ứng viên. Vậy đổi sang một ứng viên có `any_signal_participated === false` khi lọc
+    đang bật ⇒ chip biến mất, danh sách lọc ra rỗng, chỉ còn `⌥W` (không nhìn thấy được) để gỡ.
+    Sửa ở một màn mà không sửa màn kia là làm hai màn lệch nhau; cần một quyết định chung.
+    **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: `split_bilingual_chapters` zip ba vector song song và index `bilingual_row_*[i]` trực
+    tiếp — lệch độ dài thì hàng đuôi BIẾN MẤT im lặng (zip) hoặc panic giữa lượt nhập (index).
+  evidence: Bất biến hiện ĐÚNG — cả ba vector được cấp kích thước cùng lúc ở `Step::DecodeEncoding`
+    (`pipeline.rs`, sau khi bỏ hàng tiêu đề), và ba bước sau chỉ đổi NỘI DUNG ô, không đổi số hàng;
+    `bilingual_rows` cũng chỉ được gán trong đúng bước đó. Nên chưa ai chỉ ra được đường tới trạng
+    thái xấu, và vì thế không vá trong story này. Ghi lại vì HẬU QUẢ — hàng nội dung mất không một
+    tiếng động — đúng là lớp lỗi mà cả Epic 6 tồn tại để chặn. Thứ sẽ giải quyết: hoặc một
+    `debug_assert_eq!` ba độ dài, hoặc chở hai tín hiệu BÊN TRONG `BilingualRow` để lệch trở thành
+    không biểu diễn được. **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: Danh sách Chương song ngữ KHÔNG co gọn (đơn ngữ co >6 mục thành ba-đầu/`⋯`/ba-cuối), và
+    khối tách Chương nay đi kèm CẢ NĂM ứng viên bảng mã — chi phí ở quy mô nghìn Chương chưa đo.
+  evidence: `bilingualChapterEntriesRendered` render mọi Chương; `ImportPreviewOverlay.vue`
+    có `chapterEntriesRendered` co gọn. Chưa đo trên tệp song ngữ nhiều Chương thật. Liên đới:
+    món nợ "bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá" của đường đơn ngữ vẫn mở, và ca
+    1.000 Chương trong `importPreviewChapters.test.ts` tự khai là bằng chứng trên `happy-dom`,
+    KHÔNG phải phán quyết trên WKWebView thật. Nên đo cả hai màn một lượt. **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: Nút chip lọc không mang `aria-pressed` (thiếu ở CẢ HAI màn), và danh sách Chương song
+    ngữ giữ vạch "Chương đang chọn" mà không có hợp đồng `role="listbox"`/`aria-activedescendant`
+    như màn đơn ngữ.
+  evidence: `grep -c aria-pressed` = 0 ở cả `ImportPreviewOverlay.vue` lẫn
+    `BilingualImportPreviewOverlay.vue` ⇒ chép lại, không phải mới rơi. Vế con trỏ thì LỆCH thật:
+    `bilingualImportPreviewChapterCursor` vẽ `.bip-chapters-entry-current` nhưng story này không
+    có `⌥←`/`⌥→`, nên vạch ấy người dùng không dời được và trình đọc màn hình không thấy. Hai lối
+    ra: nối hợp đồng a11y, hoặc bỏ vạch con trỏ khỏi màn song ngữ cho tới khi có điều hướng
+    Chương. Là quyết định UX, không phải một lượt vá. **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: Lỗi đường ống KHÔNG-phải-hỏng-bảng ở ứng viên ĐANG CHỌN bị nuốt im lặng — không nhãn
+    nào hiện, và nay cả khối "cần xem" cũng biến mất cùng.
+  evidence: `mod.rs:4272-4277` chỉ đặt `selected_refusal` khi `is_bilingual_table_refusal(&err)`;
+    mọi `Err` khác (ví dụ `InvalidCleanupPattern` từ một luật làm sạch hỏng) cho `outcome = None`
+    không một lời. Có TRƯỚC story này — nhánh ấy vốn đã cho `chapter_count`/`pair_count` về 0 lặng
+    lẽ; 6.16b chỉ thêm một thứ nữa vào danh sách biến mất, không tạo ra chỗ nuốt. Thứ sẽ giải
+    quyết: nới vị từ, hoặc hiện dòng "chưa đủ dữ liệu" khi `chapters === null` mà `preview !== null`.
+    **Chủ: Ice**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
+  summary: `bilingual_source_column == bilingual_target_column` ở lời gọi Rust trần đếm ĐÔI cả hai
+    tín hiệu mới — giao diện chặn được, wire thì không.
+  evidence: Không tới được từ màn hình: `setBilingualSourceColumn:355`/`setBilingualTargetColumn:365`
+    HOÁN ĐỔI vai thay vì cho trùng — chính bản vá EC-3 của Story 6.16. Chỗ hở chỉ còn ở wire công
+    khai, và nó CÓ TRƯỚC 6.16b (6.16 đã phân loại một lần cho hậu quả `target_text == source_text`);
+    story này chỉ thêm hậu quả thứ hai lên cùng một gốc. Thứ sẽ giải quyết: một nhánh từ chối ở
+    `preview_bilingual_import`, đóng cả hai hậu quả một lượt. **Chủ: Ice**

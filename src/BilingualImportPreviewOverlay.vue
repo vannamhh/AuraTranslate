@@ -13,7 +13,7 @@
 //
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
 // Không `v-html` ở bất kỳ đâu (AD-16) — mọi ô mẫu là DỮ LIỆU văn bản thô từ Rust.
-import { nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
@@ -25,6 +25,8 @@ import {
   bilingualImportPreviewCanConfirm,
   bilingualImportPreviewCanSkipActiveRow,
   bilingualImportPreviewCaretPosition,
+  bilingualImportPreviewChapterCursor,
+  bilingualImportPreviewChapterFilterActive,
   bilingualImportPreviewConfirmError,
   bilingualImportPreviewConfirming,
   bilingualImportPreviewHasHeader,
@@ -43,7 +45,12 @@ import {
   setBilingualSourceColumn,
   setBilingualTargetColumn,
 } from './bilingualImportPreviewState'
-import type { BilingualMismatchWire, ChapterPatternKindWire } from './config/project'
+import type {
+  BilingualMismatchWire,
+  ChapterPatternKindWire,
+  ChapterSplitPreviewEntryWire,
+  ReviewCauseWire,
+} from './config/project'
 
 /** Cắt `line` tại `cuts` (chỉ số KÝ TỰ UNICODE, KHÔNG byte — `Array.from` để tách theo CODE
  * POINT, cùng đơn vị Rust dùng qua `chars()`) — DỰNG HIỂN THỊ thuần, không quyết định gì:
@@ -100,6 +107,38 @@ function sampleCellFor(index: number): string {
   const rows = bilingualImportPreview.value?.sample_rows ?? []
   if (rows.length === 0) return ''
   return rows[0][index] ?? ''
+}
+
+/**
+ * **THÊM Story 6.16b (FR132)** — khối tách Chương (tầng 4, Story 6.6/6.10) của ứng viên ĐANG
+ * CHỌN, TÁI DÙNG nguyên `ChapterSplitPreviewWire` mà đường tệp/dán tay/URL đã dùng qua
+ * `BilingualEncodingCandidateWire.chapters` (§Approach spec 6.16b: "reuse, do not rebuild").
+ */
+const bilingualChaptersWire = computed(() => bilingualImportPreviewSelectedCandidate.value?.chapters ?? null)
+
+/** Danh sách Chương RENDER được — lọc theo bộ lọc "cần xem" khi đang bật, KHÔNG sắp xếp lại/co
+ * gọn (khác `ImportPreviewOverlay.vue::chapterEntriesRendered` — đường song ngữ chưa có
+ * "sắp theo độ dài", ngoài phạm vi story này). */
+const bilingualChapterEntriesRendered = computed<ChapterSplitPreviewEntryWire[]>(() => {
+  const wire = bilingualChaptersWire.value
+  if (wire === null) return []
+  return bilingualImportPreviewChapterFilterActive.value ? wire.chapters.filter((c) => c.needs_review) : wire.chapters
+})
+
+/** Bốn nhãn nguyên nhân *cần xem*, `switch` cạn — bản sao NGUYÊN VĂN của
+ * `ImportPreviewOverlay.vue::reviewCauseMessageKey` (§Design Notes spec 6.16b: mirror, không
+ * chia sẻ một hàm giữa hai module đã cố ý tách rời — Story 6.16). */
+function reviewCauseMessageKey(cause: ReviewCauseWire): string {
+  switch (cause) {
+    case 'short_length':
+      return 'mode.library.preview.review_cause_short_length'
+    case 'high_cleanup_matches':
+      return 'mode.library.preview.review_cause_high_cleanup_matches'
+    case 'high_joined_lines':
+      return 'mode.library.preview.review_cause_high_joined_lines'
+    case 'not_measured':
+      return 'mode.library.preview.review_cause_not_measured'
+  }
 }
 
 function onSourceColumnChange(event: Event): void {
@@ -205,6 +244,47 @@ function onMismatchKeydown(event: KeyboardEvent): void {
   }
 }
 
+/**
+ * **THÊM Story 6.16b (FR132)** — Handler DOM CỤC BỘ THỨ HAI trên `.bip-scrim`, cho `⌥W` (bộ
+ * lọc "cần xem"). Bản sao NGUYÊN VĂN của `ImportPreviewOverlay.vue::onChapterFilterKeydown`.
+ *
+ * 🔴 **`event.code === 'KeyW'`, KHÔNG `event.key`.** Trên macOS `⌥W` gõ ra `∑` — `event.key`
+ * sẽ KHÔNG BAO GIỜ là `'w'` (§Always spec 6.16b, cùng lý lẽ đã ghi ở song sinh đơn ngữ).
+ *
+ * 🔴 **KHÔNG nới [`onMismatchKeydown`]** (nó đã từ chối MỌI hợp âm `Alt` ở dòng đầu, §Never
+ * spec 6.16b) — mỗi handler tự gác vị từ của chính mình, gọi cả hai qua [`onScrimKeydown`]
+ * ngay dưới.
+ */
+function onBilingualChapterFilterKeydown(event: KeyboardEvent): void {
+  if (!event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.code !== 'KeyW') return
+
+  const target = event.target
+  const isFormField =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLButtonElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  if (isFormField) return
+
+  if (event.repeat) return
+
+  event.preventDefault()
+  dispatch('import.preview.bilingual_chapter_filter_toggle')
+}
+
+/**
+ * Điểm nối DUY NHẤT của scrim tới hai handler độc lập ngay trên — Vue chỉ cho MỘT `@keydown`
+ * trần trên một phần tử, nên đây là một hàm TỔNG HỢP thuần tuý gọi cả hai theo thứ tự, KHÔNG
+ * đọc/ghi gì của riêng nó (khuôn `ImportPreviewOverlay.vue::onScrimKeydown`). `onMismatchKeydown`
+ * KHÔNG bị nới — nó vẫn từ chối mọi hợp âm `Alt` ở chính nó, đúng như trước bản vá này.
+ */
+function onScrimKeydown(event: KeyboardEvent): void {
+  onMismatchKeydown(event)
+  onBilingualChapterFilterKeydown(event)
+}
+
 /** 🔴 Trả tiêu điểm về chỗ cũ — khuôn và lý lẽ chép từ `ImportPreviewOverlay.vue`. */
 let returnFocusTo: HTMLElement | null = null
 
@@ -268,7 +348,7 @@ function trapTab(event: KeyboardEvent): void {
     class="bip-scrim"
     @keydown.esc="onEscapeCancel"
     @keydown.tab="trapTab($event)"
-    @keydown="onMismatchKeydown"
+    @keydown="onScrimKeydown"
   >
     <section ref="panel" class="bip-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="bip-head">
@@ -415,6 +495,84 @@ function trapTab(event: KeyboardEvent): void {
               ·
               {{ t('mode.library.preview.bilingual_pair_count', { count: String(bilingualImportPreviewSelectedCandidate.pair_count) }) }}
             </p>
+
+            <!--
+              ═══════ Bộ lọc "cần xem" của tầng tách Chương (Story 6.16b, FR132) ═══════
+              🔴 TÁI DÙNG nguyên khối `ChapterSplitPreviewWire` — hai con số
+              `needs_review_count`/`clean_count` đọc THẲNG từ dây, không tính lại ở đây (AD-1).
+              Cùng khuôn `ImportPreviewOverlay.vue` §chip "cần xem"/"sạch".
+            -->
+            <div v-if="bilingualChaptersWire !== null" class="bip-chapter-filter-bar">
+              <template v-if="bilingualChaptersWire.any_signal_participated">
+                <button
+                  type="button"
+                  class="bip-chapter-filter-chip bip-chapter-filter-chip-needs-review"
+                  :class="{ 'bip-chapter-filter-chip-active': bilingualImportPreviewChapterFilterActive }"
+                  :disabled="bilingualChaptersWire.needs_review_count === 0 && !bilingualImportPreviewChapterFilterActive"
+                  @click="dispatch('import.preview.bilingual_chapter_filter_toggle')"
+                >
+                  <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+                  {{
+                    t('mode.library.preview.chapter_filter_chip_needs_review', {
+                      count: String(bilingualChaptersWire.needs_review_count),
+                    })
+                  }}
+                </button>
+                <span class="bip-chapter-filter-chip bip-chapter-filter-chip-clean">
+                  {{
+                    t('mode.library.preview.chapter_filter_chip_clean', {
+                      count: String(bilingualChaptersWire.clean_count),
+                    })
+                  }}
+                </span>
+                <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
+                     phải câu văn cần dịch, cùng khuôn `ImportPreviewOverlay.vue`. -->
+                <kbd class="bip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
+                <p v-if="bilingualChaptersWire.needs_review_count === 0" class="bip-chapter-filter-note">
+                  {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
+                </p>
+              </template>
+              <p v-else class="bip-chapter-filter-note" role="status">
+                {{ t('mode.library.preview.chapter_filter_insufficient_data') }}
+              </p>
+            </div>
+
+            <!-- Cờ bảng mã tin cậy thấp — NGOÀI hai con số cần xem/sạch, đọc độ tin cậy CỦA CẢ
+                 LƯỢT NHẬP (không phải của riêng ứng viên đang chọn), cùng khuôn monolingual. -->
+            <p v-if="bilingualImportPreview?.confidence === 'low'" class="bip-chapter-filter-low-confidence" role="status">
+              {{ t('mode.library.preview.chapter_filter_low_confidence_warning') }}
+            </p>
+
+            <ul v-if="bilingualChaptersWire !== null" class="bip-chapters-list" :aria-label="t('mode.library.preview.tier4_title')">
+              <li
+                v-for="entry in bilingualChapterEntriesRendered"
+                :key="entry.ord"
+                class="bip-chapters-entry"
+                :class="{
+                  'bip-chapters-entry-current': entry.ord - 1 === bilingualImportPreviewChapterCursor,
+                  'bip-chapters-entry-needs-review': entry.needs_review,
+                }"
+              >
+                <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
+                <span class="bip-chapters-ord">{{ entry.ord }}</span>
+                <span v-if="entry.title !== null" class="bip-chapters-title">
+                  <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
+                  {{ entry.title }}
+                </span>
+                <span v-else class="bip-chapters-title bip-chapters-title-none">
+                  {{ t('mode.library.preview.chapters_no_title') }}
+                </span>
+                <span class="bip-chapters-length">
+                  {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                </span>
+                <span v-if="entry.needs_review" class="bip-chapters-needs-review-badge">
+                  {{ t('mode.library.preview.chapters_needs_review_badge') }}
+                  <span v-for="cause in entry.review_causes" :key="cause" class="bip-chapters-review-cause">
+                    {{ t(reviewCauseMessageKey(cause)) }}
+                  </span>
+                </span>
+              </li>
+            </ul>
 
             <p v-if="bilingualImportPreviewSkippedTargetSentenceCount > 0" class="bip-counts" role="status">
               <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tổng câu đích của các
@@ -725,6 +883,146 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Story 6.16b — chip "N cần xem · M sạch" + cờ tin cậy thấp, cùng khuôn
+   `ImportPreviewOverlay.vue` §`.ip-chapter-filter-*`. */
+.bip-chapter-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+}
+
+.bip-chapter-filter-chip {
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-outline);
+  background: none;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+button.bip-chapter-filter-chip {
+  cursor: pointer;
+}
+
+button.bip-chapter-filter-chip:disabled {
+  cursor: default;
+}
+
+.bip-chapter-filter-chip-needs-review {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.bip-chapter-filter-chip-active {
+  border-width: 2px;
+}
+
+.bip-chapter-filter-key {
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface-variant);
+}
+
+.bip-chapter-filter-note {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.bip-chapter-filter-low-confidence {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-error);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-error);
+}
+
+/* Story 6.16b — danh sách Chương của tầng tách Chương, cùng khuôn
+   `ImportPreviewOverlay.vue` §`.ip-chapters-*` (không sắp theo độ dài/co gọn — ngoài phạm vi
+   story này). */
+.bip-chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bip-chapters-entry {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-outline);
+  border-left: 2px solid transparent;
+}
+
+.bip-chapters-entry-current {
+  border-left-color: var(--color-primary);
+}
+
+.bip-chapters-entry-needs-review {
+  border-top-color: var(--color-error);
+  border-right-color: var(--color-error);
+  border-bottom-color: var(--color-error);
+}
+
+.bip-chapters-ord {
+  flex: none;
+  min-width: 3ch;
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface-variant);
+  text-align: right;
+}
+
+.bip-chapters-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bip-chapters-title-none {
+  color: var(--color-on-surface-variant);
+}
+
+.bip-chapters-length {
+  flex: none;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+.bip-chapters-needs-review-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  flex: none;
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-error);
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-error);
+}
+
+.bip-chapters-review-cause {
   color: var(--color-on-surface-variant);
 }
 

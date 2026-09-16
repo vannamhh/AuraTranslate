@@ -218,6 +218,7 @@
   "command.import.preview.bilingual_confirm": "Xác nhận nhập song ngữ",
   "command.import.preview.bilingual_cancel": "Huỷ",
   "command.import.preview.bilingual_swap_columns": "Đổi vai hai cột",
+  "command.import.preview.bilingual_chapter_filter_toggle": "Bật hoặc tắt bộ lọc Chương cần xem",
   "command.import.preview.bilingual_next_mismatch": "Chỗ lệch kế tiếp",
   "command.import.preview.bilingual_previous_mismatch": "Chỗ lệch trước",
   "command.import.preview.bilingual_caret_left": "Di caret sang trái",

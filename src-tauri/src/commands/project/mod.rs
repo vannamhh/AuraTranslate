@@ -4157,6 +4157,22 @@ pub struct BilingualEncodingCandidateWire {
     /// [`crate::core::segment::pipeline::PipelineOutput::bilingual_skipped_target_sentence_count`]).
     pub skipped_target_sentence_count: usize,
     pub mismatches: Vec<BilingualMismatchWire>,
+    /// **THÊM (Story 6.16b)** — khối tách Chương (tầng 4, Story 6.6/6.10), tính bằng CHÍNH
+    /// [`build_chapter_split_preview_wire`] mà đường tệp/dán tay/URL đã dùng (§Approach spec
+    /// 6.16b: "reuse, do not rebuild") — không một hàng rào Tukey thứ hai. `broken_item_count`
+    /// LUÔN `0` (đường song ngữ không có khái niệm mục hỏng, §Always spec 6.16b). `origin_overrides`
+    /// LUÔN rỗng (`&[]`) — màn xem trước song ngữ không có bề mặt sửa xuất xứ.
+    ///
+    /// 🔴 **`None` ⇔ `outcome` (chạy `run_pipeline` cho CHÍNH ứng viên này) là `None`/`Err` —
+    /// KHÔNG chỉ khi `preview == None`.** Hai điều kiện KHÔNG đồng bộ: `preview` chỉ nói "bảng
+    /// mã này ra chữ được trên cửa sổ bằng chứng" (`encoding::render_candidates`), còn
+    /// `run_pipeline` chạy TRỌN bảy bước (kể cả table-parse) trên TOÀN văn bản — một ứng viên
+    /// có thể ra chữ được (`preview: Some`) mà vẫn hỏng ở bước bảng (`TooFewColumns`,
+    /// `UnterminatedQuotedField`) hoặc bất kỳ lỗi `run_pipeline` nào khác của CHÍNH ứng viên
+    /// đó, cho `chapters: None` trong khi `preview` vẫn `Some` — xem
+    /// `a_table_parse_failure_on_a_non_selected_candidate_leaves_its_chapters_none_others_unaffected`
+    /// (`bilingual_import_contract.rs`).
+    pub chapters: Option<ChapterSplitPreviewWire>,
 }
 
 /// Dải năm ứng viên trên dây — Story 6.16, cùng khuôn [`ImportEncodingPreview`].
@@ -4272,7 +4288,7 @@ pub fn preview_bilingual_import(
                     None => None,
                 };
 
-                let (chapter_count, pair_count, mismatches, row_count, column_count, skipped_target_sentence_count) =
+                let (chapter_count, pair_count, mismatches, row_count, column_count, skipped_target_sentence_count, chapters_wire) =
                     match &outcome {
                         Some(o) => {
                             let pair_count: usize = o
@@ -4285,6 +4301,11 @@ pub fn preview_bilingual_import(
                                 o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect();
                             let column_count =
                                 o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
+                            // **THÊM (Story 6.16b)** — tầng 4 (Story 6.10), TÍNH LẠI trên CHÍNH
+                            // lượt chạy chuỗi thật vừa dựng `o.chapters` ở trên (không một lượt
+                            // `run_pipeline` thứ hai). `broken_item_count = 0`, `origin_overrides
+                            // = &[]` — xem doc-comment `BilingualEncodingCandidateWire::chapters`.
+                            let chapters_wire = build_chapter_split_preview_wire(&o.chapters, 0, &[]);
                             (
                                 o.chapters.len(),
                                 pair_count,
@@ -4292,9 +4313,10 @@ pub fn preview_bilingual_import(
                                 o.bilingual_row_count,
                                 column_count,
                                 o.bilingual_skipped_target_sentence_count,
+                                Some(chapters_wire),
                             )
                         }
-                        None => (0, 0, Vec::new(), 0, 0, 0),
+                        None => (0, 0, Vec::new(), 0, 0, 0, None),
                     };
 
                 if is_selected && !selected_seen {
@@ -4315,6 +4337,7 @@ pub fn preview_bilingual_import(
                     pair_count,
                     skipped_target_sentence_count,
                     mismatches,
+                    chapters: chapters_wire,
                 }
             })
             .collect()

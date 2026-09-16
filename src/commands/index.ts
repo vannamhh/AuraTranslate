@@ -246,6 +246,10 @@ export type CommandDeps = {
   /** Đảo vai cột nguồn/đích. Handler của `import.preview.bilingual_swap_columns` — `async`,
    * chạy lại preview trên byte ĐÃ CẤT (0 lượt đọc đĩa thêm). */
   swapBilingualColumns?: () => void
+  /** **THÊM Story 6.16b (FR132)** — bật/tắt bộ lọc "cần xem" của tầng tách Chương song ngữ.
+   * Handler của `import.preview.bilingual_chapter_filter_toggle` (`⌥W`) — 0 lượt IPC, state
+   * hiển thị thuần, cùng khuôn `toggleImportPreviewChapterFilter`. */
+  toggleBilingualImportPreviewChapterFilter?: () => void
 
   // ── Story 6.17 — khớp câu trong từng cặp hàng lệch, trước khi ghi (FR116) ───────
   //
@@ -1275,6 +1279,20 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.bilingual_swap_columns', 'swapBilingualColumns')
       }
       deps.swapBilingualColumns()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_chapter_filter_toggle',
+    labelKey: 'command.import.preview.bilingual_chapter_filter_toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleBilingualImportPreviewChapterFilter === undefined) {
+        return portMissing(
+          'import.preview.bilingual_chapter_filter_toggle',
+          'toggleBilingualImportPreviewChapterFilter',
+        )
+      }
+      deps.toggleBilingualImportPreviewChapterFilter()
     },
   })
 

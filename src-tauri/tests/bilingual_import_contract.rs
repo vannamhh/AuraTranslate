@@ -18,8 +18,9 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{
-    BilingualMismatchWire, BilingualRegroupingWire, PendingImportSourceState, cancel_import_preview,
-    confirm_bilingual_import, preview_bilingual_import, stash_pending_import_source,
+    BilingualMismatchWire, BilingualRegroupingWire, PendingImportSourceState, ReviewCauseWire,
+    cancel_import_preview, confirm_bilingual_import, preview_bilingual_import,
+    stash_pending_import_source,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -597,6 +598,7 @@ fn the_bilingual_import_encoding_preview_wire_shape_keeps_snake_case_field_names
                 initial_cuts: vec![],
                 proposed_cuts: vec![4],
             }],
+            chapters: None,
         }],
         sample_rows: vec![vec!["a".to_owned(), "b".to_owned()]],
         row_count: 1,
@@ -631,6 +633,7 @@ fn the_bilingual_import_encoding_preview_wire_shape_keeps_snake_case_field_names
             &"pair_count".to_owned(),
             &"skipped_target_sentence_count".to_owned(),
             &"mismatches".to_owned(),
+            &"chapters".to_owned(),
         ]),
         "src/config/project.ts::BilingualEncodingCandidateWire doc dung tung ten truong nay"
     );
@@ -1295,5 +1298,316 @@ fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_
             drop(opened.store);
         }
     }
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.16b — bộ lọc "cần xem" cho bản xem trước song ngữ (FR132, tầng 4 TÁI DÙNG qua
+// `build_chapter_split_preview_wire`, đúng đường sản phẩm `preview_bilingual_import`).
+// review.rs::tests và segment_contract.rs đã canh RIÊNG hai hàng ma trận thuần-toán học
+// ("một tín hiệu suy biến" — `a_degenerate_iqr_excludes_only_that_signal`) không lặp lại
+// ở đây; `classify` không bị đụng (spec §Boundaries: 0 dòng).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// I/O Matrix "Table parse fails for a candidate" — một ứng viên (KHÔNG phải ứng viên đang
+/// chọn) không ra bảng hợp lệ (`TooFewColumns`) không kéo cả lượt xem trước xuống: `chapters`
+/// của ĐÚNG ứng viên đó là `None`, ứng viên đang chọn vẫn có khối tách Chương thật.
+///
+/// Tệp ASCII thuần: bốn ứng viên byte-đơn-vị (UTF-8/GB18030/GBK/Big5) giải mã GIỐNG HỆT nhau
+/// (đúng "phép biểu quyết cùng một chuỗi", `encoding.rs` đầu tệp) nên ứng viên đang chọn (tự
+/// đoán UTF-8, tin cậy cao) ra bảng hợp lệ hai cột — nhưng UTF-16LE giải mã CÙNG dải byte ASCII
+/// đó ra một chuỗi CJK vô nghĩa (`encoding.rs:25`: `b"abcd"` → `扡摣`, không lỗi, không panic)
+/// mà không dấu phẩy ASCII nào còn sống sót qua phép ghép cặp byte — đúng một cột, dưới hai.
+#[test]
+fn a_table_parse_failure_on_a_non_selected_candidate_leaves_its_chapters_none_others_unaffected() {
+    let root = temp_dir("candidate-table-parse-fails");
+    let csv = "Cau nguon mot,Cau dich mot\nCau nguon hai,Cau dich hai\n";
+    let path = write_file(&root, "ascii-hai-cot.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[])
+        .expect("mot ung vien hong KHONG duoc keo ca luot xem truoc xuong khi no khong phai ung vien dang chon");
+
+    assert_eq!(preview.selected_encoding, "UTF-8", "tien de: tep ASCII thuan tu doan UTF-8, tin cay cao");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    assert!(selected.chapters.is_some(), "ung vien dang chon van phai co khoi tach Chuong that");
+
+    let utf16 = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == "UTF-16LE")
+        .expect("dai nam ung vien luon co UTF-16LE");
+    assert!(
+        utf16.chapters.is_none(),
+        "UTF-16LE giai ma ASCII ra chuoi khong con dau phay -- table-parse phai that bai, chapters phai None"
+    );
+
+    cleanup(&root);
+}
+
+/// I/O Matrix "Ten bilingual Chapters, all three signals measurable" + "One Chapter unusually
+/// short" — mười Chương THẬT trên đường sản phẩm, mỗi Chương hai hàng (tiêu đề + nội dung) để
+/// `length` (cột NGUỒN của cả hai hàng cộng lại) tản rộng thật, cùng quy ước
+/// `review_contract.rs::a_very_short_chapter_among_ten_real_ones_is_flagged_short_length`.
+#[test]
+fn ten_bilingual_chapters_show_chip_counts_and_flag_the_short_one() {
+    let root = temp_dir("chip-short");
+    let mut csv = String::new();
+    for i in 0..10 {
+        let content_source = if i == 9 { "x".repeat(5) } else { "a".repeat(500 + i * 20) };
+        csv.push_str(&format!("CHUONG {:02},dich tieu de {i}\n", i + 1));
+        csv.push_str(&format!("{content_source},dich noi dung {i}\n"));
+    }
+    let path = write_file(&root, "muoi-chuong.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 10);
+    assert!(chapters_wire.any_signal_participated, "10 Chuong voi length tan rong phai co hang rao");
+    let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
+    assert!(last.needs_review, "Chuong cuc ngan phai la CAN XEM");
+    assert!(last.review_causes.contains(&ReviewCauseWire::ShortLength));
+    assert_eq!(chapters_wire.needs_review_count, 1);
+    assert_eq!(chapters_wire.clean_count, 9);
+    assert_eq!(chapters_wire.broken_item_count, 0, "duong song ngu khong co khai niem muc hong");
+
+    cleanup(&root);
+}
+
+/// I/O Matrix "Cleanup rules hit only the target column" (Decision 2) — luật làm sạch chỉ
+/// khớp ở CỘT ĐÍCH, cột nguồn 0 chỗ khớp; Chương vẫn bị gắn `high_cleanup_matches` vì Decision
+/// 2 cộng CẢ HAI cột vào một tổng. Đối chứng cho chính rule đó: nếu tổng bị co về CHỈ cột
+/// nguồn (Decision 2 gãy), `cleanup_match_count` của mọi Chương tụt về `Some(0)`, tín hiệu suy
+/// biến (IQR = 0), và Chương thứ mười không còn bị gắn cờ — cả hai assert dưới đây đỏ.
+#[test]
+fn cleanup_matches_only_in_the_target_column_still_flags_the_chapter() {
+    let root = temp_dir("cleanup-target-only");
+    let mut csv = String::new();
+    let counts = [1usize, 2, 3, 4, 5, 6, 7, 8, 9, 200];
+    for (i, &count) in counts.iter().enumerate() {
+        csv.push_str(&format!("CHUONG {:02},de\n", i + 1));
+        let target = "QUANGCAO ".repeat(count);
+        csv.push_str(&format!("Noi dung nguon khong doi.,{target}\n"));
+    }
+    let path = write_file(&root, "cleanup-dich.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+    let rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "QUANGCAO".to_owned(),
+        kind: CleanupRuleKind::Literal,
+        enabled: true,
+    };
+
+    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 1, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 10);
+    for (i, chapter) in chapters_wire.chapters.iter().enumerate() {
+        assert_eq!(
+            chapter.cleanup_match_count,
+            Some(counts[i]),
+            "Chuong {i}: tong phai bang DUNG so QUANGCAO o cot dich -- cot nguon 0 cho khop"
+        );
+    }
+    let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
+    assert!(last.needs_review, "200 cho khop o cot dich phai vuot hang rao");
+    assert!(last.review_causes.contains(&ReviewCauseWire::HighCleanupMatches));
+    assert!(
+        !last.review_causes.contains(&ReviewCauseWire::ShortLength),
+        "length khong doi giua cac Chuong -- suy bien, khong duoc gan co"
+    );
+    assert_eq!(chapters_wire.needs_review_count, 1);
+    assert_eq!(chapters_wire.clean_count, 9);
+
+    cleanup(&root);
+}
+
+/// I/O Matrix "Normalize joins lines only in the target column" (Decision 2) — dòng bị NỐI
+/// chỉ ở CỘT ĐÍCH (cột nguồn nguyên một dòng, 0 lần nối); Chương vẫn bị gắn `high_joined_lines`.
+#[test]
+fn joined_lines_only_in_the_target_column_still_flags_the_chapter() {
+    let root = temp_dir("joined-target-only");
+    let mut csv = String::new();
+    // So dong moi o dich = i + 2 (2..=10 dong -> noi 1..=9 lan, tan rong that); Chuong thu
+    // muoi 51 dong -> noi 50 lan, vuot han chin Chuong con lai.
+    let line_counts = [2usize, 3, 4, 5, 6, 7, 8, 9, 10, 51];
+    for (i, &n) in line_counts.iter().enumerate() {
+        csv.push_str(&format!("CHUONG {:02},de\n", i + 1));
+        let lines: Vec<String> = (0..n).map(|k| format!("dong {k}")).collect();
+        let target_cell = format!("\"{}\"", lines.join("\n"));
+        csv.push_str(&format!("Noi dung nguon khong doi.,{target_cell}\n"));
+    }
+    let path = write_file(&root, "noi-dong-dich.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 10);
+    for (i, chapter) in chapters_wire.chapters.iter().enumerate() {
+        assert_eq!(
+            chapter.joined_line_count_in_chapter,
+            Some(line_counts[i] - 1),
+            "Chuong {i}: so lan noi phai bang DUNG (so dong - 1) cua cot dich -- cot nguon 0 lan noi"
+        );
+    }
+    let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
+    assert!(last.needs_review);
+    assert!(last.review_causes.contains(&ReviewCauseWire::HighJoinedLines));
+    assert_eq!(chapters_wire.needs_review_count, 1);
+    assert_eq!(chapters_wire.clean_count, 9);
+
+    cleanup(&root);
+}
+
+/// I/O Matrix "Cleanup count `null` for one Chapter, fence live" + "Chapter missing both
+/// optional signals" — một Chương THIẾU HẲN cột đích (hàng cụt cột: bảng khai ba cột nhưng
+/// Chương này chỉ có hai) trong khi chín Chương còn lại đủ ba cột VÀ tản rộng thật ở cột đích
+/// (hàng rào SỐNG). Chương cụt cột phải là CẦN XEM với `not_measured`, KHÔNG BAO GIỜ sạch, và
+/// `not_measured` chỉ xuất hiện ĐÚNG MỘT LẦN dù CẢ HAI tín hiệu cùng thiếu (bất biến thứ hai
+/// của `ReviewVerdict`, xem `core::segment::review.rs`).
+#[test]
+fn a_chapter_missing_the_target_column_entirely_is_not_measured_never_clean() {
+    let root = temp_dir("ragged-column");
+    let mut csv = String::new();
+    for i in 0..9 {
+        csv.push_str(&format!("CHUONG {:02},junk,de\n", i + 1));
+        let target = "QUANGCAO ".repeat(i + 1);
+        csv.push_str(&format!("Noi dung nguon khong doi.,junk,{target}\n"));
+    }
+    // Chuong thu muoi -- CUT COT: chi hai cot (0, 1), cot dich (chi so 2) khong ton tai o CA
+    // HAI hang cua no (tieu de lan noi dung).
+    csv.push_str("CHUONG 10,junk\n");
+    csv.push_str("Noi dung nguon khong doi.,junk\n");
+
+    let path = write_file(&root, "cut-cot.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+    let rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "QUANGCAO".to_owned(),
+        kind: CleanupRuleKind::Literal,
+        enabled: true,
+    };
+
+    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 2, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 10);
+    assert!(chapters_wire.any_signal_participated, "chin Chuong con lai tan rong that o cot dich");
+    let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
+    assert_eq!(last.cleanup_match_count, None, "Chuong cut cot dich khong do duoc luat lam sach");
+    assert_eq!(last.joined_line_count_in_chapter, None, "cung ly do -- cot dich khong ton tai de do");
+    assert!(last.needs_review, "gia tri null duoi mot hang rao TON TAI phai la CAN XEM");
+    assert_eq!(
+        last.review_causes,
+        vec![ReviewCauseWire::NotMeasured],
+        "NotMeasured phai xuat hien DUNG MOT LAN du hai tin hieu cung thieu"
+    );
+    for (i, chapter) in chapters_wire.chapters.iter().enumerate().take(9) {
+        assert!(!chapter.needs_review, "Chuong {i}: du du lieu, khong duoc gan co oan");
+    }
+    assert_eq!(chapters_wire.needs_review_count, 1);
+    assert_eq!(chapters_wire.clean_count, 9);
+
+    cleanup(&root);
+}
+
+/// I/O Matrix "Fewer than four Chapters" — dưới bốn Chương thật, không tín hiệu nào tham gia,
+/// và không Chương nào bị phán "cần xem"/"sạch" theo một hàng rào không tồn tại.
+#[test]
+fn fewer_than_four_bilingual_chapters_makes_no_signal_participate() {
+    let root = temp_dir("fewer-than-four");
+    let csv = "CHUONG MOT,mot\nCHUONG HAI,hai ba\nCHUONG BA,bon nam sau\n";
+    let path = write_file(&root, "ba-chuong-ngan.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 3);
+    assert!(
+        !chapters_wire.any_signal_participated,
+        "N = 3 phai bao 'chua du Chuong de so', khong tin hieu nao duoc tham gia"
+    );
+    for chapter in &chapters_wire.chapters {
+        assert!(!chapter.needs_review, "khong tin hieu nao tham gia thi khong Chuong nao bi phan");
+    }
+
+    cleanup(&root);
+}
+
+/// `broken_item_count` truyền `0` trên đường song ngữ — I/O Matrix nêu tên riêng vì đây là
+/// nơi §Always spec 6.16b buộc hằng số đó, khác đường URL (Story 6.10) truyền số mục hỏng
+/// thật. Đối chứng: nếu tham số đổi thành khác `0`, `needs_review_count` cộng thêm sai.
+#[test]
+fn broken_item_count_is_always_zero_on_the_bilingual_path() {
+    let root = temp_dir("broken-zero");
+    let long = "b".repeat(500);
+    let mut csv = String::new();
+    for i in 0..6 {
+        csv.push_str(&format!("CHUONG {i},de\n"));
+        csv.push_str(&format!("{long},dich\n"));
+    }
+    let path = write_file(&root, "sau-chuong.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let pattern = ChapterPattern::literal("CHUONG");
+
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+        .expect("xem truoc phai thanh cong");
+    let selected = preview
+        .candidates
+        .iter()
+        .find(|c| c.encoding == preview.selected_encoding)
+        .expect("ung vien dang chon phai co mat trong dai");
+    let chapters_wire = selected.chapters.as_ref().expect("duong co mau phai co khoi tach Chuong");
+
+    assert_eq!(chapters_wire.chapter_count, 6);
+    assert_eq!(chapters_wire.broken_item_count, 0, "duong song ngu khong co khai niem muc hong URL");
+    assert_eq!(chapters_wire.needs_review_count, 0, "khong tin hieu nao gan co that tren tap nay");
+    assert_eq!(chapters_wire.clean_count, 6);
+
     cleanup(&root);
 }

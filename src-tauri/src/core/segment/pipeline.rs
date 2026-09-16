@@ -625,6 +625,21 @@ struct Flow {
     /// câu để đếm) và cho MỌI hình dạng khác. Đọc ở cuối [`run_import_with_order`] để lắp
     /// [`PipelineOutput::bilingual_mismatches`].
     bilingual_mismatches: Vec<BilingualMismatch>,
+    /// **THÊM (Story 6.16b)** — báo cáo làm sạch của MỖI HÀNG của `bilingual_rows`, SONG SONG
+    /// theo INDEX (kích thước gán tại [`Step::DecodeEncoding`] ngay sau khi `bilingual_rows`
+    /// ổn định, cùng lúc trường đó được gán) — rỗng cho MỌI hình dạng khác
+    /// [`PipelineShape::Bilingual`]. Gán tại [`Step::CleanByRules`]: `per_rule_counts` của HAI
+    /// cột nguồn/đích đã chọn CỘNG DỒN vào MỘT báo cáo (Story 6.16b, Decision 2 — "summed over
+    /// both columns"), dùng THẬT `core::cleanup::apply` trên từng ô, không bịa số. `None` ở một
+    /// hàng ⇔ hàng đó THIẾU ÍT NHẤT MỘT trong hai cột đã chọn (hàng cụt cột — một tổng "cả hai
+    /// cột" không thể tự xưng đầy đủ khi một nửa không tồn tại để mà đo) — KHÁC `Some(report)`
+    /// với `per_rule_counts` rỗng (đo được TRỌN, không luật nào khớp).
+    bilingual_row_cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>>,
+    /// **THÊM (Story 6.16b)** — cùng khuôn `bilingual_row_cleanup_reports`, cho số LẦN
+    /// [`normalize::normalize`] đã NỐI hai dòng làm một của MỖI HÀNG, cộng dồn qua HAI cột đã
+    /// chọn. Gán tại [`Step::NormalizeParagraphsAndWhitespace`]. `None` cùng điều kiện trên
+    /// (thiếu ít nhất một trong hai cột).
+    bilingual_row_joined_line_counts: Vec<Option<usize>>,
 }
 
 /// Một Chương của đường nhập song ngữ — bookkeeping NỘI BỘ của [`Flow`], không lộ ra ngoài
@@ -638,6 +653,15 @@ struct BilingualChapterGroup {
     rows: Vec<BilingualRow>,
     /// Điền bởi [`split_segments_step`] — chỉ mang hàng CẶP ĐƯỢC, theo đúng thứ tự hàng.
     segments: Vec<BilingualSegment>,
+    /// **THÊM (Story 6.16b)** — báo cáo làm sạch CỦA CHÍNH Chương này, gộp từ
+    /// `Flow::bilingual_row_cleanup_reports` của mọi hàng thuộc nhóm (cùng lý lẽ Decision 2:
+    /// tổng qua HAI cột, không phân theo cột). `None` khi nhóm 0 hàng, HOẶC khi ÍT NHẤT một
+    /// hàng của nhóm không đo được (§tầng ② doc-comment `core::segment::review` — một Chương
+    /// không thể tự xưng "đã đo trọn" khi một phần của nó chưa ai đo).
+    cleanup_report: Option<crate::core::cleanup::CleanupReport>,
+    /// Cùng khuôn `cleanup_report`, cho số lần NỐI dòng — gộp từ
+    /// `Flow::bilingual_row_joined_line_counts`.
+    joined_line_count: Option<usize>,
 }
 
 /// Nhãn chẩn đoán của một [`ChapterInput`] — `RawBytes::label` nếu có (byte thô CHƯA giải
@@ -738,6 +762,8 @@ pub fn run_import_with_order(
         bilingual_rows: None,
         bilingual_chapters: None,
         bilingual_mismatches: Vec::new(),
+        bilingual_row_cleanup_reports: Vec::new(),
+        bilingual_row_joined_line_counts: Vec::new(),
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
@@ -750,7 +776,7 @@ pub fn run_import_with_order(
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports: _, bilingual_row_joined_line_counts: _ } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
@@ -800,8 +826,15 @@ pub fn run_import_with_order(
                     }
                     None => None,
                 };
+                // **THÊM (Story 6.16b)** — kích thước gán NGAY khi `bilingual_rows` ổn định
+                // (sau khi bỏ tiêu đề, nếu có) — hai bước sau (3, 4) chỉ GÁN vào các ô đã có
+                // sẵn, không đẩy thêm phần tử.
+                let (bilingual_row_cleanup_reports, bilingual_row_joined_line_counts) = match &bilingual_rows {
+                    Some(rows) => (vec![None; rows.len()], vec![None; rows.len()]),
+                    None => (Vec::new(), Vec::new()),
+                };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -823,7 +856,7 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
+                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
@@ -866,7 +899,7 @@ pub fn run_import_with_order(
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -888,6 +921,8 @@ pub fn run_import_with_order(
                     bilingual_rows,
                     bilingual_chapters,
                     bilingual_mismatches,
+                    mut bilingual_row_cleanup_reports,
+                    bilingual_row_joined_line_counts,
                 } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
@@ -917,25 +952,46 @@ pub fn run_import_with_order(
                 // columns, never across rows." CHỈ hai cột đã chọn (nguồn/đích) được chạm —
                 // một cột khác chưa từng được chọn không đi tới đâu cả, giữ nguyên đúng như
                 // đọc từ đĩa.
+                //
+                // 🔴 **THÊM (Story 6.16b)** — báo cáo của MỖI hàng (`bilingual_row_cleanup_reports[i]`)
+                // được GÁN ngay tại đây, KHÔNG còn vứt (§Always spec 6.16b, Decision 2: "summed
+                // over both columns" — `per_rule_counts` của cả hai ô CỘNG DỒN vào một báo cáo).
+                // `None` ⇔ hàng đó THIẾU ÍT NHẤT MỘT trong hai cột đã chọn (hàng cụt cột) —
+                // tổng "cả hai cột" không thể tự xưng đầy đủ khi một nửa của nó không tồn tại
+                // để mà đo (§tầng ② doc-comment `core::segment::review`); ô nào CÓ mặt vẫn được
+                // làm sạch bình thường (không đổi byte ghi xuống lúc xác nhận), chỉ KHÔNG được
+                // tính vào tổng của hàng. KHÁC `Some(report)` với `per_rule_counts` rỗng (đo
+                // được TRỌN, không luật nào khớp).
                 let bilingual_rows = match bilingual_rows {
                     Some(mut rows) => {
-                        for row in &mut rows {
+                        for (i, row) in rows.iter_mut().enumerate() {
+                            let both_present = row.cells.get(bilingual_source_column).is_some()
+                                && row.cells.get(bilingual_target_column).is_some();
+                            let mut merged: Option<crate::core::cleanup::CleanupReport> = None;
                             for &col in &[bilingual_source_column, bilingual_target_column] {
                                 if let Some(cell) = row.cells.get_mut(col) {
                                     let cleaned = crate::core::cleanup::apply(cell, &cleanup_rules)
                                         .map_err(|e| ImportError::InvalidCleanupPattern {
                                             detail: e.to_string(),
                                         })?;
+                                    let report = merged.get_or_insert_with(|| crate::core::cleanup::CleanupReport {
+                                        matches: Vec::new(),
+                                        per_rule_counts: std::collections::BTreeMap::new(),
+                                    });
+                                    for (key, count) in cleaned.per_rule_counts {
+                                        *report.per_rule_counts.entry(key).or_insert(0) += count;
+                                    }
                                     *cell = cleaned.text;
                                 }
                             }
+                            bilingual_row_cleanup_reports[i] = if both_present { merged } else { None };
                         }
                         Some(rows)
                     }
                     None => None,
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -950,7 +1006,7 @@ pub fn run_import_with_order(
             // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
             // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, mut bilingual_row_joined_line_counts } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut joined_line_counts = Vec::with_capacity(old_units.len());
@@ -977,19 +1033,33 @@ pub fn run_import_with_order(
                 // Story 6.16, §Always — cùng luật `Step::CleanByRules`: CHỈ hai cột đã chọn,
                 // KHÔNG BAO GIỜ xuyên hàng (mỗi ô chuẩn hoá ĐỘC LẬP). Cột đích chuẩn hoá theo
                 // ngôn ngữ đích CỐ ĐỊNH (`prd.md:18`), không theo `source_lang`.
+                //
+                // 🔴 **THÊM (Story 6.16b)** — `bilingual_row_joined_line_counts[i]` được GÁN
+                // ngay tại đây, cùng luật `bilingual_row_cleanup_reports` ở bước 3: cộng dồn
+                // `joined_lines` của HAI cột (Decision 2). `None` ⇔ hàng đó THIẾU ÍT NHẤT MỘT
+                // trong hai cột đã chọn — cùng lý lẽ bước 3, không mặc định hoá nửa thiếu
+                // thành 0.
                 let bilingual_rows = bilingual_rows.map(|mut rows| {
-                    for row in &mut rows {
+                    for (i, row) in rows.iter_mut().enumerate() {
+                        let both_present = row.cells.get(bilingual_source_column).is_some()
+                            && row.cells.get(bilingual_target_column).is_some();
+                        let mut total = 0usize;
                         if let Some(cell) = row.cells.get_mut(bilingual_source_column) {
-                            *cell = normalize::normalize(cell, &source_lang).text;
+                            let normalized = normalize::normalize(cell, &source_lang);
+                            total += normalized.joined_lines;
+                            *cell = normalized.text;
                         }
                         if let Some(cell) = row.cells.get_mut(bilingual_target_column) {
-                            *cell = normalize::normalize(cell, crate::core::dict::NATIVE_LANG).text;
+                            let normalized = normalize::normalize(cell, crate::core::dict::NATIVE_LANG);
+                            total += normalized.joined_lines;
+                            *cell = normalized.text;
                         }
+                        bilingual_row_joined_line_counts[i] = if both_present { Some(total) } else { None };
                     }
                     rows
                 });
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref(), bilingual_source_column)?;
@@ -1040,10 +1110,14 @@ pub fn run_import_with_order(
                 ImportedChapter {
                     source_text,
                     segments: Vec::new(),
-                    cleanup_report: None,
+                    // 🔴 **SỬA (Story 6.16b)** — không còn hằng `None`. Hai tín hiệu này giờ
+                    // ĐÃ ĐO qua `Step::CleanByRules`/`Step::NormalizeParagraphsAndWhitespace`
+                    // (cộng dồn theo hàng ở `Flow::bilingual_row_*`) rồi gộp theo nhóm ở
+                    // `split_bilingual_chapters` — xem doc-comment `BilingualChapterGroup`.
+                    cleanup_report: group.cleanup_report,
                     title: group.title,
                     blocks: None,
-                    joined_line_count: None,
+                    joined_line_count: group.joined_line_count,
                     origin: None,
                     bilingual_segments: Some(group.segments),
                     // Đường song ngữ mang ĐÚNG MỘT đơn vị đầu vào (`PipelineShape::Bilingual`)
@@ -1350,8 +1424,15 @@ fn split_chapters_step(
     // THẾ HOÀN TOÀN logic bên dưới cho hình dạng đó — `flow.units`/`flow.already_chaptered`
     // vẫn là placeholder của MỘT đơn vị ban đầu, không đọc nữa từ đây trở đi.
     if let Some(rows) = flow.bilingual_rows.take() {
-        flow.bilingual_chapters =
-            Some(split_bilingual_chapters(rows, pattern, bilingual_source_column)?);
+        let row_cleanup_reports = std::mem::take(&mut flow.bilingual_row_cleanup_reports);
+        let row_joined_line_counts = std::mem::take(&mut flow.bilingual_row_joined_line_counts);
+        flow.bilingual_chapters = Some(split_bilingual_chapters(
+            rows,
+            row_cleanup_reports,
+            row_joined_line_counts,
+            pattern,
+            bilingual_source_column,
+        )?);
         return Ok(flow);
     }
 
@@ -1578,17 +1659,25 @@ fn split_unit_for_files(text: &str, pattern: Option<&ChapterPattern>) -> Result<
 /// vứt, cùng lý lẽ `split_on_positions`.
 fn split_bilingual_chapters(
     rows: Vec<BilingualRow>,
+    row_cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>>,
+    row_joined_line_counts: Vec<Option<usize>>,
     pattern: Option<&ChapterPattern>,
     bilingual_source_column: usize,
 ) -> Result<Vec<BilingualChapterGroup>, ImportError> {
     let Some(pattern) = pattern else {
-        return Ok(vec![BilingualChapterGroup { title: None, rows, segments: Vec::new() }]);
+        let cleanup_report =
+            aggregate_row_signal(row_cleanup_reports.into_iter(), merge_cleanup_reports);
+        let joined_line_count =
+            aggregate_row_signal(row_joined_line_counts.into_iter(), |a, b| a + b);
+        return Ok(vec![BilingualChapterGroup { title: None, rows, segments: Vec::new(), cleanup_report, joined_line_count }]);
     };
 
     let mut groups: Vec<BilingualChapterGroup> = Vec::new();
     let mut current: Option<BilingualChapterGroup> = None;
 
-    for row in rows {
+    for ((row, cleanup_measured), joined_measured) in
+        rows.into_iter().zip(row_cleanup_reports).zip(row_joined_line_counts)
+    {
         let cell = row.cells.get(bilingual_source_column).map(String::as_str).unwrap_or("");
         let starts = pattern
             .match_starts(cell)
@@ -1596,9 +1685,23 @@ fn split_bilingual_chapters(
 
         if starts.is_empty() {
             match current.as_mut() {
-                Some(group) => group.rows.push(row),
+                Some(group) => {
+                    group.rows.push(row);
+                    group.cleanup_report =
+                        merge_optional(group.cleanup_report.take(), cleanup_measured, merge_cleanup_reports);
+                    group.joined_line_count =
+                        merge_optional(group.joined_line_count, joined_measured, |a, b| a + b);
+                }
                 // Hàng TRƯỚC khớp đầu tiên — Chương lời tựa, `title = None` (§Always).
-                None => current = Some(BilingualChapterGroup { title: None, rows: vec![row], segments: Vec::new() }),
+                None => {
+                    current = Some(BilingualChapterGroup {
+                        title: None,
+                        rows: vec![row],
+                        segments: Vec::new(),
+                        cleanup_report: cleanup_measured,
+                        joined_line_count: joined_measured,
+                    })
+                }
             }
             continue;
         }
@@ -1608,7 +1711,13 @@ fn split_bilingual_chapters(
         }
         let trimmed = cell.trim();
         let title = if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) };
-        current = Some(BilingualChapterGroup { title, rows: vec![row], segments: Vec::new() });
+        current = Some(BilingualChapterGroup {
+            title,
+            rows: vec![row],
+            segments: Vec::new(),
+            cleanup_report: cleanup_measured,
+            joined_line_count: joined_measured,
+        });
     }
     if let Some(group) = current.take() {
         groups.push(group);
@@ -1616,10 +1725,64 @@ fn split_bilingual_chapters(
     if groups.is_empty() {
         // 0 hàng nào cả (tệp rỗng sau khi bỏ tiêu đề) — vẫn một Chương, 0 hàng, đúng khuôn
         // "Chương 0 segment" mà mọi đường nhập khác đã chấp nhận (`split_source_text` trả
-        // `Vec` rỗng cho văn bản rỗng).
-        groups.push(BilingualChapterGroup { title: None, rows: Vec::new(), segments: Vec::new() });
+        // `Vec` rỗng cho văn bản rỗng) — và đúng nghĩa "không có gì để đo" của hai trường
+        // dưới (§I/O Matrix spec 6.16b "Chapter missing both optional signals").
+        groups.push(BilingualChapterGroup {
+            title: None,
+            rows: Vec::new(),
+            segments: Vec::new(),
+            cleanup_report: None,
+            joined_line_count: None,
+        });
     }
     Ok(groups)
+}
+
+/// Gộp báo cáo làm sạch của HAI hàng thành MỘT — cộng dồn `per_rule_counts` theo khoá luật;
+/// `matches` của kết quả LUÔN rỗng — `a.matches` bị XOÁ TƯỜNG MINH ở đây (không chỉ "vốn đã
+/// rỗng" ở mọi chỗ gọi hôm nay), `b.matches` bị bỏ (vị trí trong một ô KHÔNG có nghĩa khi ghép
+/// nhiều ô lại — xem doc-comment `BilingualChapterGroup::cleanup_report`, không nơi nào đọc
+/// `matches` của báo cáo Chương song ngữ).
+fn merge_cleanup_reports(
+    mut a: crate::core::cleanup::CleanupReport,
+    b: crate::core::cleanup::CleanupReport,
+) -> crate::core::cleanup::CleanupReport {
+    a.matches.clear();
+    for (key, count) in b.per_rule_counts {
+        *a.per_rule_counts.entry(key).or_insert(0) += count;
+    }
+    a
+}
+
+/// Gộp MỘT tín hiệu "có thể đo được" của HAI HÀNG ĐÃ THUỘC CÙNG một Chương — `None` nếu MỘT
+/// TRONG HAI phía chưa đo được (§tầng ② doc-comment `core::segment::review`: một Chương không
+/// được tự xưng "đã đo trọn" khi một phần của nó chưa ai đo — không mặc định hoá phần thiếu
+/// thành 0). Dùng khi MỞ RỘNG một nhóm đã có ít nhất một hàng; hàng ĐẦU TIÊN của một nhóm lấy
+/// thẳng giá trị của chính nó, không qua hàm này (xem chỗ gọi ở [`split_bilingual_chapters`]).
+fn merge_optional<T>(acc: Option<T>, next: Option<T>, merge: impl FnOnce(T, T) -> T) -> Option<T> {
+    match (acc, next) {
+        (Some(a), Some(b)) => Some(merge(a, b)),
+        _ => None,
+    }
+}
+
+/// Gộp tín hiệu của MỌI hàng thuộc MỘT Chương thành một giá trị — dùng cho nhánh "không mẫu"
+/// của [`split_bilingual_chapters`] (một Chương DUY NHẤT mang MỌI hàng). `None` khi RỖNG (0
+/// hàng) hoặc khi ÍT NHẤT một hàng không đo được — cùng luật [`merge_optional`], áp cho một
+/// DÃY thay vì một CẶP.
+fn aggregate_row_signal<T>(
+    values: impl Iterator<Item = Option<T>>,
+    merge: impl Fn(T, T) -> T,
+) -> Option<T> {
+    let mut acc: Option<T> = None;
+    for value in values {
+        let value = value?;
+        acc = Some(match acc {
+            Some(existing) => merge(existing, value),
+            None => value,
+        });
+    }
+    acc
 }
 
 /// Tách `text` tại VỊ TRÍ khớp của `pattern` — Chương thứ *i* là dải nửa-mở

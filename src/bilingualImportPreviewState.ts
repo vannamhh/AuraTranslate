@@ -83,6 +83,19 @@ const activeMismatchRow = ref<number | null>(null)
 /** Vị trí caret (chỉ số KÝ TỰ UNICODE vào `target_line` của hàng đang lấy tiêu điểm). */
 const caretPosition = ref(0)
 
+/**
+ * **THÊM Story 6.16b (FR132)** — bộ lọc "cần xem" của tầng tách Chương, TÁI DÙNG con số Rust
+ * đã cộng sẵn (`ChapterSplitPreviewWire.needs_review_count`/`.clean_count`/`.any_signal_participated`)
+ * qua `BilingualEncodingCandidateWire.chapters` — state HIỂN THỊ THUẦN, 0 lời gọi IPC, cùng
+ * khuôn `importPreviewState.ts::chapterFilterActive`.
+ */
+const chapterFilterActive = ref(false)
+/** Con trỏ Chương ĐANG CHỌN trong danh sách tầng tách Chương (0-based) — cùng khuôn
+ * `importPreviewState.ts::chapterCursor`. Không có cặp phím `⌥←`/`⌥→` di con trỏ này trên
+ * đường song ngữ (ngoài phạm vi story) — trường này chỉ đổi khi bộ lọc BẬT dời nó tới Chương
+ * "cần xem" đầu tiên, xem `toggleBilingualImportPreviewChapterFilter`. */
+const chapterCursor = ref(0)
+
 let sequence = 0
 
 export const bilingualImportPreviewIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
@@ -99,6 +112,8 @@ export const bilingualImportPreviewHasHeader: DeepReadonly<Ref<boolean>> = reado
 export const bilingualImportPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const bilingualImportPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
+export const bilingualImportPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
+export const bilingualImportPreviewChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterCursor)
 
 /** Ứng viên bảng mã ĐANG CHỌN — `null` khi chưa có `preview` hoặc không ứng viên nào khớp
  * `selectedEncoding` (không nên xảy ra trên đường sản phẩm, phòng thủ kiểu). */
@@ -301,6 +316,8 @@ export async function openBilingualImportPreview(
   regroupings.value = new Map()
   activeMismatchRow.value = null
   caretPosition.value = 0
+  chapterFilterActive.value = false
+  chapterCursor.value = 0
 
   const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false)
   if (mySequence !== sequence) return
@@ -375,6 +392,37 @@ export function selectBilingualEncoding(wireId: string): void {
   if (preview.value === null) return
   if (!preview.value.candidates.some((c) => c.encoding === wireId)) return
   selectedEncoding.value = wireId
+}
+
+/**
+ * **THÊM Story 6.16b (FR132)** — bật/tắt bộ lọc "cần xem" của tầng tách Chương. Handler của
+ * `import.preview.bilingual_chapter_filter_toggle` (`⌥W`, cùng phím monolingual đã dùng).
+ *
+ * TẮT một bộ lọc đang bật LUÔN được phép. BẬT bị chặn khi `needs_review_count === 0` HOẶC
+ * `!any_signal_participated` — cùng lý lẽ `importPreviewState.ts::toggleImportPreviewChapterFilter`:
+ * `needs_review_count` cộng cả vế link hỏng (`0` trên đường song ngữ, §Always spec 6.16b) NÊN ở
+ * đây vế đó không áp, nhưng điều kiện vẫn đọc CẢ hai cờ để không khoá cứng vào giả định "link
+ * hỏng luôn 0" của HÔM NAY.
+ */
+export function toggleBilingualImportPreviewChapterFilter(): void {
+  if (!overlayOpen.value) return
+  if (chapterFilterActive.value) {
+    chapterFilterActive.value = false
+    return
+  }
+  const chapters = bilingualImportPreviewSelectedCandidate.value?.chapters ?? null
+  if (chapters === null || chapters.needs_review_count === 0 || !chapters.any_signal_participated) return
+  chapterFilterActive.value = true
+  // Chương đang chọn (con trỏ) vừa bị lọc khỏi DOM (nó SẠCH) — dời con trỏ tới Chương CẦN XEM
+  // đầu tiên, cùng khuôn `importPreviewState.ts::toggleImportPreviewChapterFilter`.
+  const currentIsClean =
+    chapterCursor.value >= 0 &&
+    chapterCursor.value < chapters.chapters.length &&
+    !chapters.chapters[chapterCursor.value].needs_review
+  if (currentIsClean) {
+    const firstNeedsReview = chapters.chapters.findIndex((c) => c.needs_review)
+    if (firstNeedsReview !== -1) chapterCursor.value = firstNeedsReview
+  }
 }
 
 /** Gửi mẫu phân tách Chương mới rồi chạy lại preview — `@change` của ô nhập mẫu (không dispatch
@@ -533,4 +581,6 @@ export function resetBilingualImportPreview(): void {
   regroupings.value = new Map()
   activeMismatchRow.value = null
   caretPosition.value = 0
+  chapterFilterActive.value = false
+  chapterCursor.value = 0
 }

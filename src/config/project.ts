@@ -758,6 +758,16 @@ export type BilingualEncodingCandidateWire = {
    * `mismatches` — hàng Skip không còn ở đó nữa. */
   skipped_target_sentence_count: number
   mismatches: BilingualMismatchWire[]
+  /** **THÊM Story 6.16b** — khối tách Chương (tầng 4, Story 6.6/6.10), TÁI DÙNG nguyên hình
+   * dạng `ChapterSplitPreviewWire` mà đường tệp/dán tay/URL đã dùng — không một kiểu song
+   * ngữ riêng.
+   *
+   * 🔴 `null` ⇔ lượt chạy TRỌN chuỗi bảy bước phía Rust cho CHÍNH ứng viên này thất bại (bảng
+   * mã "không ra chữ" LÀ một trong các lý do, KHÔNG PHẢI lý do duy nhất) — một ứng viên có thể
+   * mang `preview` khác `null` (ra chữ được trên cửa sổ bằng chứng) mà vẫn cho `chapters: null`
+   * nếu bước bảng thất bại (quá ít cột, ô mở ngoặc kép không đóng) hay bất kỳ lỗi chuỗi nào
+   * khác của riêng ứng viên đó. Không suy `chapters` từ `preview` — đọc thẳng trường này. */
+  chapters: ChapterSplitPreviewWire | null
 }
 
 /** Dải năm ứng viên — khớp `commands::project::BilingualImportEncodingPreview`. */
@@ -813,7 +823,10 @@ function isBilingualEncodingCandidateWire(value: unknown): value is BilingualEnc
     typeof v.pair_count === 'number' &&
     typeof v.skipped_target_sentence_count === 'number' &&
     Array.isArray(v.mismatches) &&
-    v.mismatches.every(isBilingualMismatchWire)
+    v.mismatches.every(isBilingualMismatchWire) &&
+    // 🔴 Story 6.16b — thiếu vế `null` thì `undefined` (backend cũ chưa nâng cấp) lọt qua
+    // Kiểm TYPE này y hệt bẫy đã vá cho `EncodingCandidateWire.chapters` ở trên.
+    (v.chapters === null || isChapterSplitPreviewWire(v.chapters))
   )
 }
 

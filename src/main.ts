@@ -98,6 +98,7 @@ import {
   skipActiveBilingualRow,
   swapBilingualColumns,
   toggleBilingualCutAtCaret,
+  toggleBilingualImportPreviewChapterFilter,
 } from './bilingualImportPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
@@ -506,6 +507,9 @@ async function boot(): Promise<void> {
       skipActiveBilingualRow: () => {
         void skipActiveBilingualRow()
       },
+      // Story 6.16b — bộ lọc "cần xem" của tầng tách Chương song ngữ (`⌥W`). Hàm THUẦN, cùng
+      // cửa và cùng lý do `toggleImportPreviewChapterFilter` ngay dưới.
+      toggleBilingualImportPreviewChapterFilter,
       // Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Sáu hàm THUẦN, cùng cửa và cùng
       // lý do `cancelImportPreview` — không cần một closure `async` gói ở đây, kết quả IPC
       // đi ra qua các `ref` ở tầng module (cùng khuôn `rescanLibraryFolder`).
