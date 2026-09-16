@@ -28,6 +28,20 @@
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
 // Không `v-html` (AD-16) — domain là DỮ LIỆU văn bản thô, không markup.
 import { nextTick, useTemplateRef, watch } from 'vue'
+import {
+  AI_CONFIG_FIELDS,
+  aiConfigDraft,
+  aiConfigFieldWire,
+  aiConfigIsSaving,
+  aiConfigLoadError,
+  aiConfigLoading,
+  aiConfigSaveErrorFor,
+  clearAiConfigOverride,
+  isAiConfigValueValid,
+  saveAiConfigField,
+  setAiConfigDraft,
+} from './aiConfigState'
+import type { AiConfigField } from './config/aiconfig'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
@@ -120,6 +134,61 @@ function onSelectSection(section: SettingsSection): void {
 function formatCallTime(atEpochMs: number): string {
   return new Date(atEpochMs).toLocaleTimeString()
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 4.2 — "AI VÀ MÔ HÌNH" (FR68), mục THỨ NHẤT của lớp phủ có thân thật
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Năm ô, mỗi ô một `<form>` riêng cho Lưu — `<form>` KHÔNG lồng nhau (HTML cấm): nút
+// "Trả về kế thừa" (chỉ hiện khi trường đang ghi đè ở tầng Tác phẩm) là một `<form>` THỨ HAI
+// đứng CẠNH, không bên trong. Cùng khuôn `ImportPreviewOverlay.vue::onStartEditCleanupRule`/
+// `onDeleteCleanupRule`: handler cục bộ nhận THAM SỐ (`field`), không một `dispatch('<id>')`
+// — `check:commands` Kiểm A chỉ canh `@click`, không canh `@submit` (`src/AGENTS.md`).
+function aiConfigFieldLabelKey(field: AiConfigField): string {
+  return `settings.ai_config.field_${field}`
+}
+
+function aiConfigFieldInvalidKey(field: AiConfigField): string {
+  return `settings.ai_config.invalid_${field}`
+}
+
+/**
+ * Bốn trạng thái, không hai — vòng rà bắt được ca `shadowed === null` khi Work ghi đè một
+ * trường mà Global CHƯA có gì (câu cũ nội suy `{value}` từ `shadowed ?? ''` ra một câu cụt
+ * "...đang là "), và ca một trường CHƯA cấu hình ở tầng nào cũng không được đọc là "Kế thừa
+ * Toàn cục" (không có gì để kế thừa). `wire.value === ''` là tín hiệu tin được cho "chưa cấu
+ * hình ở đâu cả": mọi validator (Rust lẫn TS) từ chối chuỗi rỗng sau khi trim cho cả năm
+ * trường, nên một tầng đã lưu THẬT không bao giờ mang `value === ''`.
+ */
+function aiConfigStatusKey(field: AiConfigField): string {
+  const wire = aiConfigFieldWire(field)
+  if (wire === null || wire.value === '') return 'settings.ai_config.status_unset'
+  if (wire.tier === 'work') {
+    return wire.shadowed === null
+      ? 'settings.ai_config.status_overridden_no_global'
+      : 'settings.ai_config.status_overridden'
+  }
+  return 'settings.ai_config.status_inherited'
+}
+
+/** `true` cho cả hai trạng thái GHI ĐÈ — dùng để tô `.mark-over` thay vì lặp lại điều kiện
+ * `tier === 'work'` ở hai chỗ (nhãn CHỮ và màu là hai lớp, UX-DR42/DR27). */
+function aiConfigIsOverridden(field: AiConfigField): boolean {
+  return aiConfigFieldWire(field)?.tier === 'work'
+}
+
+function onAiConfigInput(field: AiConfigField, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement) setAiConfigDraft(field, target.value)
+}
+
+function onSaveAiConfigField(field: AiConfigField): void {
+  void saveAiConfigField(field)
+}
+
+function onClearAiConfigOverride(field: AiConfigField): void {
+  void clearAiConfigOverride(field)
+}
 </script>
 
 <template>
@@ -157,7 +226,82 @@ function formatCallTime(atEpochMs: number): string {
         </nav>
 
         <div class="set-main">
-          <template v-if="settingsSectionHasBody(settingsActiveSection)">
+          <template v-if="settingsActiveSection === 'ai_and_model'">
+            <!-- ═══════════════════ AI và mô hình (FR68, Story 4.2) ═══════════════════ -->
+            <h3 class="set-h2">{{ t('settings.nav.ai_and_model') }}</h3>
+            <p class="set-h2s">{{ t('settings.ai_config.intro') }}</p>
+
+            <p v-if="aiConfigLoadError !== null" class="set-empty" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+              {{ tError(aiConfigLoadError) }}
+            </p>
+            <p v-else-if="aiConfigLoading" class="set-empty" role="status">
+              {{ t('settings.ai_config.loading') }}
+            </p>
+            <template v-else>
+              <div v-for="field in AI_CONFIG_FIELDS" :key="field" class="ai-field">
+                <!-- Nút Lưu là `type="submit"` của FORM NÀY — form đi qua ĐÚNG MỘT handler,
+                     cùng khuôn `GlossarySettingsOverlay.vue`. -->
+                <form class="ai-field-form" @submit.prevent="onSaveAiConfigField(field)">
+                  <label class="ai-field-label">
+                    <span>{{ t(aiConfigFieldLabelKey(field)) }}</span>
+                    <input
+                      class="ai-field-input"
+                      autocomplete="off"
+                      :value="aiConfigDraft(field)"
+                      :disabled="aiConfigIsSaving(field)"
+                      @input="onAiConfigInput(field, $event)"
+                    />
+                  </label>
+
+                  <p class="ai-field-status">
+                    <span :class="aiConfigIsOverridden(field) ? 'mark-over' : 'mark-inh'">
+                      {{
+                        t(aiConfigStatusKey(field), {
+                          value: aiConfigFieldWire(field)?.shadowed ?? '',
+                        })
+                      }}
+                    </span>
+                  </p>
+
+                  <!-- "Chưa cấu hình" KHÔNG phải một lỗi (quy tắc chung của Epic 4) — một ô
+                       trống lúc mới mở mục không được hiện câu từ chối; chỉ hiện SAU khi
+                       người dùng đã gõ gì đó mà giá trị đó không hợp lệ. -->
+                  <p
+                    v-if="aiConfigDraft(field) !== '' && !isAiConfigValueValid(field, aiConfigDraft(field))"
+                    class="ai-field-alert"
+                  >
+                    {{ t(aiConfigFieldInvalidKey(field)) }}
+                  </p>
+                  <p v-else-if="aiConfigSaveErrorFor(field) !== null" class="ai-field-alert" role="alert">
+                    <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                    {{ tError(aiConfigSaveErrorFor(field)!) }}
+                  </p>
+
+                  <button
+                    type="submit"
+                    class="ai-field-save"
+                    :disabled="!isAiConfigValueValid(field, aiConfigDraft(field)) || aiConfigIsSaving(field)"
+                  >
+                    {{ t('settings.ai_config.save') }}
+                  </button>
+                </form>
+
+                <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — `<form>` không lồng nhau được trong HTML.
+                     Chỉ hiện khi trường ĐANG ghi đè ở tầng Tác phẩm. -->
+                <form
+                  v-if="aiConfigFieldWire(field)?.tier === 'work'"
+                  class="ai-field-clear-form"
+                  @submit.prevent="onClearAiConfigOverride(field)"
+                >
+                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                    {{ t('settings.ai_config.clear_override') }}
+                  </button>
+                </form>
+              </div>
+            </template>
+          </template>
+          <template v-else-if="settingsSectionHasBody(settingsActiveSection)">
             <!-- ═══════════════════ Quyền riêng tư — nhật ký domain (AD-41, NFR19) ═══════════════════ -->
             <h3 class="set-h2">{{ t('settings.privacy.title') }}</h3>
             <p class="set-h2s">{{ t('settings.privacy.intro') }}</p>
@@ -396,5 +540,85 @@ function formatCallTime(atEpochMs: number): string {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 2) 0;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.ai-field:first-child {
+  padding-top: 0;
+}
+
+.ai-field-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-panel-inline);
+}
+
+.ai-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  flex: 1 1 260px;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-field-input {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5);
+  border: 1px solid var(--color-outline);
+  background: var(--color-background);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+  color: var(--color-on-surface);
+}
+
+.ai-field-save,
+.ai-field-clear {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-outline);
+  background: none;
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.ai-field-clear-form {
+  margin: 0;
+}
+
+.ai-field-status {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* 🔴 Nhãn ghi đè/kế thừa bằng CHỮ, không màu một mình (UX-DR42/DR27) — màu ở đây chỉ là lớp
+   thứ hai, cùng khuôn `.set-tag`. */
+.mark-over {
+  color: var(--color-primary);
+}
+
+.mark-inh {
+  color: var(--color-on-surface-variant);
+}
+
+.ai-field-alert {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-error);
 }
 </style>

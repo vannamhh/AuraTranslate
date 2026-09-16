@@ -867,9 +867,9 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
-         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 (4 la so da chay)"
+         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 (4 la so da chay)"
     );
 }
 
@@ -941,8 +941,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 5..22 phai da chay tren mot tep dung o phien ban 4"
+        23,
+        "buoc 5..23 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -1107,8 +1107,8 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 6..22 phai chay tren mot tep dung o phien ban 5"
+        23,
+        "buoc 6..23 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -1181,10 +1181,12 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Menh de cua ca nay KHONG doi mot chu.
     // 🔵 CAP NHAT 2026-09-10 (Story 6.15): dich 20 → 21 → 22 — buoc 22 (bon cot
     // chapter.origin_*, FR128/AD-43). Menh de cua ca nay KHONG doi mot chu.
+    // 🔵 CAP NHAT 2026-09-16 (Story 4.2): dich 22 → 23 — buoc 23 (ai_config, FR68).
+    // Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        22,
-        "mot `project.db` moi phai dung o phien ban 22 (Story 6.15 them bon cot chapter.origin_*)"
+        23,
+        "mot `project.db` moi phai dung o phien ban 23 (Story 4.2 them bang ai_config)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1309,8 +1311,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 7..22 phai chay tren mot tep dung o phien ban 6"
+        23,
+        "buoc 7..23 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1611,8 +1613,8 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 10..22 phai chay tren mot tep dung o phien ban 9"
+        23,
+        "buoc 10..23 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1725,8 +1727,8 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 8..22 phai chay tren mot tep dung o phien ban 7"
+        23,
+        "buoc 8..23 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1936,8 +1938,8 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 9..22 phai chay tren mot tep dung o phien ban 8"
+        23,
+        "buoc 9..23 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -2056,9 +2058,14 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// (`CHAPTER_ORIGIN_DDL`) nay là bước thật; một fixture dừng ở 22 không còn mới hơn app —
 /// `Store::open` thật sẽ không TỪ CHỐI nó nữa (22 == 22, không còn `22 > 22`). `STEP_TWENTYTWO`
 /// → `STEP_TWENTYTHREE`; mảng lên `[Migration; 22]`; bước giả lên `to_version: 23`.
+///
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2) — fixture nâng từ 23 lên 24.** Bước 23
+/// (`AI_CONFIG_DDL`) nay là bước thật; một fixture dừng ở 23 không còn mới hơn app —
+/// `Store::open` thật sẽ không TỪ CHỐI nó nữa (23 == 23, không còn `23 > 23`). `STEP_TWENTYTHREE`
+/// → `STEP_TWENTYFOUR`; mảng lên `[Migration; 23]`; bước giả lên `to_version: 24`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_TWENTYTHREE: [Migration; 22] = [
+    static STEP_TWENTYFOUR: [Migration; 23] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2080,9 +2087,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[18],
         PROJECT_MIGRATIONS[19],
         PROJECT_MIGRATIONS[20],
-        // Mot buoc 23 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[21],
+        // Mot buoc 24 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 23,
+            to_version: 24,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2091,18 +2099,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_TWENTYTHREE,
+        migrations: &STEP_TWENTYFOUR,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 23");
-    assert_eq!(future.schema_version(), 23);
+    .expect("dung fixture o phien ban 24");
+    assert_eq!(future.schema_version(), 24);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 23 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 24 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -5874,8 +5882,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // FR128/AD-43) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        22,
-        "buoc 11..22 phai chay tren mot tep dung o phien ban 10"
+        23,
+        "buoc 11..23 phai chay tren mot tep dung o phien ban 10"
     );
 
     let after: Vec<(i64, String, String)> = migrated

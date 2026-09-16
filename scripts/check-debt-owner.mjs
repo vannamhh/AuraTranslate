@@ -188,9 +188,12 @@ const BLOCK_START_RE = /^## /
  *  ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** đây vẫn là một danh sách CỤM
  *  ĐÓNG, tức vẫn thua một cách nói mới chưa ai nghĩ ra ("để ngỏ", "tính sau", …). Vị từ đúng
  *  hoàn toàn phải là danh sách CHO PHÉP (tên story/epic/người), không phải danh sách CẤM —
- *  đổi chiều nó là một quyết định về sổ nợ, `Chủ: Ice`. */
+ *  đổi chiều nó là một quyết định về sổ nợ, `Chủ: Ice`.
+ *  🔵 **SỬA 2026-09-16 (nghiệm thu Story 4.2) — thêm `chưa phân`.** Đo được: ba mục `Chủ: chưa
+ *  phân` trong sổ nợ THẬT (Story 4.2), không khớp nhánh nào ở trên ⇒ bị chấm có chủ oan. Cả ba
+ *  đã sửa lại thành `Chủ: Ice` cùng lượt vá này; cụm thêm vào đây là lưới chống tái phát. */
 const NEGATIVE_OWNER_RE =
-  /^(chưa gán|chưa có|chưa cần|chưa ai|không ai|chưa chốt|trống)\b/iu
+  /^(chưa gán|chưa có|chưa cần|chưa ai|không ai|chưa chốt|trống|chưa phân)\b/iu
 
 /** Tìm mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục; trả về có ít nhất MỘT chủ THẬT. */
 function detectOwner(text) {

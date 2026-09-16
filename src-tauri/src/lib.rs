@@ -902,6 +902,12 @@ pub fn run() {
             crate::commands::glossary::wire::glossary_open_import_preview,
             crate::commands::glossary::wire::glossary_confirm_import,
             crate::commands::glossary::wire::glossary_cancel_import,
+            // Story 4.2 -- cau hinh nha cung cap AI (FR68, AD-18). Ba vo: doc nam truong hai
+            // tang da phan giai · ghi mot truong o mot tang (gia tri kiem TRUOC khi mo giao
+            // dich) · tra mot truong tang Tac pham ve ke thua.
+            crate::commands::aiconfig::wire::ai_config_get,
+            crate::commands::aiconfig::wire::ai_config_save_field,
+            crate::commands::aiconfig::wire::ai_config_clear_override,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

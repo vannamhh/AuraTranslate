@@ -72,7 +72,21 @@ const AI_FLOOR: usize = 1;
 /// đo LẠI, không chép: **44** (80%, dưới khuôn 80–85% mà `scope_boundary.rs`/
 /// `matching_boundary.rs`/`glossary_boundary.rs` đã dùng) — bắt một cây bị cắt mất, không
 /// bắt việc thêm tệp mới.
-const SRC_RS_FLOOR: usize = 44;
+///
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2) — 44 chống lại một quần thể thật 82 đã ngừng là một
+/// tripwire.** Đo lần đầu tại Story 4.2 (trước khi module `core::aiconfig`/`commands::aiconfig`
+/// ra đời): **82** tệp `.rs` dưới `src-tauri/src/**`.
+///
+/// 🔵 **SỬA TẠI CHỖ, cùng ngày — 65 (80% của 82) tính trên quần thể TRƯỚC ba tệp của chính
+/// story này, không phải quần thể cây sẽ MANG hằng số này.** Sàn phải đúng 80–85% của cây
+/// SAU khi story đóng (nó sống cùng ba tệp mới `core/aiconfig/mod.rs`,
+/// `core/aiconfig/store.rs`, `commands/aiconfig.rs`), không phải một ảnh chụp giữa chừng.
+/// Đo lại SAU khi ba tệp đó tồn tại: **85** tệp `.rs`. Sàn đúng là **68** (85 × 80% = 68,0 —
+/// tròn, không cần làm tròn lên/xuống), không 65 (65/85 = 76,5%, DƯỚI dải 80–85% mà chính
+/// đoạn văn này trích dẫn). Đóng nửa đã đo được của món nợ được giao (`deferred-work.md`:
+/// "21 hằng floor khác trên 18 tệp `tests/*.rs` đã trôi cùng kiểu — đếm lại 2026-09-16 THẮNG
+/// ước lượng '22 trên 16' viết lúc lập kế hoạch — ghi nợ riêng, không sửa ở đây").
+const SRC_RS_FLOOR: usize = 68;
 
 /// Hai chuỗi BARE (không tiền tố `use `) mà chỉ `core/ai/**` được phép mang ở **vị trí mã**.
 ///

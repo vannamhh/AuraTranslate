@@ -1366,6 +1366,11 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// **53 plain / 26 async** trên **mười một** tệp. `commands/mod.rs` khai **mười** `pub mod`
 /// và KHÔNG mang lệnh nào, nên nó không có hàng ở đây.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2)** — `commands/aiconfig.rs` MỚI ra đời (ba vỏ, cùng
+/// khuôn `commands/cleanup.rs`: `mod wire` lồng trong CÙNG tệp, không đường `.rs` riêng). Đếm
+/// lại: **56 plain / 26 async** trên **mười hai** tệp. `commands/mod.rs` nay khai **mười một**
+/// `pub mod`.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1377,7 +1382,15 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
 /// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
 /// và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 11] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 12] = [
+    (
+        "src/commands/aiconfig.rs",
+        3,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Ba vo doc/ghi cau hinh nha cung cap AI hai tang; chua ai do chi \
+         phi cua chung tren mot cau hinh lon.",
+    ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
         "src/commands/cleanup.rs",
@@ -1563,9 +1576,10 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (53, 26),
+        (56, 26),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         53/26 (do lai 2026-09-15 sau luot lat sau vo cua project.rs).\n\n\
+         56/26 (do lai 2026-09-16, Story 4.2 them `commands/aiconfig.rs` -- ba vo plain \
+         moi).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

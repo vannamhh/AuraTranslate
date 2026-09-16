@@ -8149,6 +8149,20 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Story 4.2 — story đầu tiên thêm mã thật vào `core/ai/`. Ảnh chụp nền tiếp theo:
     đo lại số dòng mã/số tệp của `core/ai/` và chạy `ai_boundary.rs` trên cây đó — còn xanh
     hay không, và `AI_FLOOR`/`SRC_RS_FLOOR` có cần nâng.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-16 (Story 4.2), bằng phép đo — KHÔNG bằng mã mới trong `core/ai/`.**
+    Đo lại trên cây sau khi Story 4.2 xong: `core/ai/mod.rs` vẫn đúng 10 dòng, 100%
+    doc-comment, 0 dòng mã, 0 chỗ gọi — Story 4.2 cố ý KHÔNG chạm `core/ai/` (§Intent:
+    "no code in core/ai/", đóng đúng luôn dự đoán ngược mà chính spec 4.2 nêu ra rồi tự bác:
+    *"đây cũng phủ nhận một dự đoán trước đó rằng Story 4.2 sẽ là story đầu tiên đưa mã thật
+    vào `core/ai/` — nó không đưa gì cả"*). `AI_FLOOR` giữ nguyên **1** — đúng, vì quần thể
+    `core/ai/**` không đổi. `src-tauri/src/**` đo được **85** tệp `.rs` (từ 55 lúc Story 4.1
+    đóng, qua Epic 5/6, cộng ba tệp Story 4.2 vừa thêm: `core/aiconfig/mod.rs`,
+    `core/aiconfig/store.rs`, `commands/aiconfig.rs`) — `SRC_RS_FLOOR` nâng **44 → 68**
+    (85 × 80% = 68,0, tính trên quần thể SAU khi ba tệp trên đã tồn tại — một lượt đo đầu
+    tiên dùng nhầm quần thể 82 TRƯỚC ba tệp đó, cho 65 (76,5% của 85, dưới dải 80–85%); sửa
+    tại chỗ trong `ai_boundary.rs` cùng ngày). `cargo test --test ai_boundary` xanh cả sáu ca, KHÔNG sửa
+    `FORBIDDEN_BARE_TOKENS`/vị từ miễn trừ. Vế "đã chạy trên Epic 5/6" đóng cùng lượt — xem
+    mục ngay dưới.
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **Chiều ĐƯỢC PHÉP của AD-13 — `ai/` đọc `glossary/`/`tm/`/`segment/` — chưa được
@@ -8178,6 +8192,15 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (`sprint-status.yaml` quyết định thời điểm).
     **(Chủ: Story 4.2 — chạy lại `ai_boundary.rs` trên cây SAU khi Epic 5 và Epic 6 đã đóng,
     xác nhận `SRC_RS_FLOOR` phản ánh đúng quần thể mới và không tệp Epic 5/6 nào lọt miễn trừ.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-16 (Story 4.2).** `cargo test --test ai_boundary` chạy THẬT trên cây
+    hiện có (Epic 5 và Epic 6 đã đóng, cộng ba tệp mới của Story 4.2) — sáu ca xanh, gồm
+    `the_scanned_tree_and_the_ai_module_are_both_large_enough_to_be_real` (sàn quần thể) và
+    `no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module` (cổng thật, quét TRỌN
+    `src-tauri/src/**` — đã bao mọi tệp Epic 5/6 về mặt cơ chế, không cần sửa gì thêm ở chính
+    tệp test, đúng như evidence đã dự đoán). `SRC_RS_FLOOR` nâng 44 → 68 phản ánh quần thể
+    thật 85 (xem mục ngay trên cho số đo đầy đủ và cho lượt sửa tại chỗ 65 → 68). Không tệp
+    Epic 5/6 nào lọt miễn trừ —
+    `is_inside_ai_module` chỉ khớp `core/ai/**`, không đổi.
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **Điểm mù có tên — một `pub use ai::Foo;` thêm vào `core/mod.rs` cho module khác
@@ -8194,6 +8217,14 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Story 4.2 — quyết định có cần một cổng quét "0 `pub use` nào re-export từ `ai::`
     ở bất kỳ đâu trong `src-tauri/src/**`" hay không, một khi `ai/` bắt đầu có kiểu/hàm thật
     để người ta muốn re-export.)**
+  → 🟡 **Quyết định 2026-09-16 (Story 4.2): CHƯA CẦN — điều kiện kích hoạt vẫn chưa xảy ra,
+    chủ giữ nguyên cho story kế tiếp thật sự chạm nó.** `core/ai/mod.rs` vẫn 0 dòng mã (xem
+    mục đóng ở trên) — Story 4.2 không thêm kiểu/hàm nào vào `ai/` để mà có thứ đáng
+    re-export, nên tiền đề *"một khi `ai/` bắt đầu có kiểu/hàm thật"* chưa tới. Dựng cổng bây
+    giờ là dựng một cơ chế canh một bề mặt chưa tồn tại — đúng lớp mà Story 1.7 §Completion
+    Notes #3 cấm. **Chủ chuyển sang câu chuyện chung của Epic 4 — story ĐẦU TIÊN thêm `pub`
+    kiểu/hàm vào `core/ai/mod.rs`/`core/ai/**`** (đo tại thời điểm đó xem có `pub use` nào
+    re-export hay không trước khi quyết định dựng cổng).
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **Hai rủi ro mở của Story 4.1 chưa có lực cưỡng chế** — `walk()` chưa từng chạy trên
@@ -12549,3 +12580,165 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     khai, và nó CÓ TRƯỚC 6.16b (6.16 đã phân loại một lần cho hậu quả `target_text == source_text`);
     story này chỉ thêm hậu quả thứ hai lên cùng một gốc. Thứ sẽ giải quyết: một nhánh từ chối ở
     `preview_bilingual_import`, đóng cả hai hậu quả một lượt. **Chủ: Ice**
+
+## Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: **AC "kiểm tra kết nối" không dựng — cần một lượt gọi mạng thật ra khỏi
+    `core/ai/`, và AD-13 cấm mọi file ngoài `core/ai/**` gõ tên module đó (không miễn trừ cho
+    `lib.rs`/`commands/`).**
+  evidence: Story 4.2 chỉ dựng `core/aiconfig/` (đọc/ghi hai tầng, validate hình dạng giá
+    trị) — không `TranslationProvider` nào được khai (AD-2 khoá số cổng ở ba, `ai/` là
+    "chưa khai, Epic 4" cho tới lúc có chỗ gọi thật đầu tiên), không `reqwest`/`keyring` nào
+    trong `core/ai/` (đo 2026-09-16: `core/ai/mod.rs` vẫn 10 dòng, 0 dòng mã). Một AC "bấm
+    nút, gọi thật tới endpoint, báo kết nối được hay không" đòi CHÍNH lượt gọi đó sống ở
+    `core/ai/` — nới gate một story sau khi Story 4.1 vừa dựng nó là đúng thứ AD-13 tồn tại
+    để chặn.
+    **(Chủ: Story 4.8 — "Dịch một segment với kết quả chảy dần", chỗ gọi provider THẬT ĐẦU
+    TIÊN của toàn Epic 4 theo `epic-4-context.md` §Cross-Story Dependencies. Story đó khai
+    `TranslationProvider` (AD-2) và đường gọi mạng thật vào `core/ai/`; "kiểm tra kết nối" là
+    một biến thể rẻ của đúng lượt gọi đó, không phải một cơ chế thứ hai.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: **FR65 (BYOK — khoá API) không có trường nào trong `ai_config` — khoá API không đi
+    qua bảng cấu hình này ở bất kỳ tầng nào.**
+  evidence: FR67/NFR11 khoá khoá API sống TRONG keychain hệ điều hành qua crate `keyring`
+    gọi TRỰC TIẾP từ Rust (AD-29) — không bao giờ qua IPC, và frontend chỉ biết "đã cấu
+    hình/chưa cấu hình". `ai_config` (bảng `(key, value)` phẳng, giá trị luôn là chuỗi ghi
+    thẳng xuống `global.db`/`project.db`) là ĐÚNG hình dạng SAI cho một bí mật — một khoá API
+    nhập ở đây không có chỗ nào khác ngoài một bảng cấu hình dạng văn bản thuần, đúng thứ
+    NFR11 cấm. FR65 vì thế dời trọn sang Story 4.3, đi CÙNG cơ chế keychain thay vì tách làm
+    hai lượt (một lượt thêm trường rồi một lượt sau mới nối nó vào keychain).
+    **(Chủ: Story 4.3 — "API key trong keychain", dựng cả cơ chế `keyring` LẪN trường nhập
+    khoá cùng lượt, đúng khuôn "story dựng đường ghi đầu tiên sở hữu luôn cơ chế".)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: **21 hằng floor sàn quần thể (ngoài hai hằng `ai_boundary.rs` chính story này vừa
+    nâng) đã trôi khỏi quần thể thật, đo được trên 18 tệp `tests/*.rs` — tất cả còn dưới
+    khuôn 80–85% mà chính chúng tự đặt ra lúc dựng.**
+  evidence: Đo 2026-09-16, cùng tiêu chí `all_rust_sources()`/`all_src_rust_files()` mà mỗi
+    hằng tự khai trong thông báo lỗi của nó ("dưới `src-tauri/src/**`" cho hằng RS, "dưới
+    `src/**`" cho hằng frontend) — quần thể THẬT hôm nay: **85** tệp `.rs` dưới
+    `src-tauri/src/**`, **93** tệp `.ts`/`.vue` dưới `src/**`. Loại hai hằng `=1` canh MỘT
+    THƯ MỤC CON cụ thể (`DICT_FLOOR`, `MATCHING_FLOOR` — cùng lớp với `AI_FLOOR`, không phải
+    sàn quần thể toàn cây nên không "trôi" theo nghĩa này) khỏi bảng dưới:
+
+    | Hằng | Tệp | Sàn hiện tại | Quần thể thật | Tỉ lệ |
+    |---|---|---|---|---|
+    | `SRC_RS_FLOOR` | `docx_boundary.rs` | 50 | 85 | 58,8% |
+    | `SRC_RS_FLOOR` | `cleanup_boundary.rs` | 50 | 85 | 58,8% |
+    | `RS_FLOOR_FOR_DIALOG_CHECK` | `config_invariants.rs` | 65 | 85 | 76,5% |
+    | `SRC_TAURI_RS_FLOOR` | `dict_boundary.rs` | 61 | 140 | 43,6% |
+    | `SRC_ONLY_RS_FLOOR` | `dict_boundary.rs` | 43 | 85 | 50,6% |
+    | `RS_FLOOR` | `glossary_boundary.rs` | 44 | 85 | 51,8% |
+    | `SRC_RS_FLOOR` | `matching_boundary.rs` | 43 | 85 | 50,6% |
+    | `RS_FLOOR` | `library_index_boundary.rs` | 44 | 85 | 51,8% |
+    | `SRC_RS_FLOOR` | `segment_pipeline_boundary.rs` | 50 | 85 | 58,8% |
+    | `SRC_RS_FLOOR` | `segment_encoding_boundary.rs` | 50 | 85 | 58,8% |
+    | `RUST_FLOOR` | `naming_boundary.rs` | 44 | 85 | 51,8% |
+    | `FRONTEND_FLOOR` | `naming_boundary.rs` | 58 | 93 | 62,4% |
+    | `RS_FLOOR` | `meta_write_boundary.rs` | 46 | 85 | 54,1% |
+    | `RS_FLOOR` | `store_boundary.rs` | 43 | 85 | 50,6% |
+    | `SRC_RS_FLOOR` | `segment_chapterpattern_boundary.rs` | 50 | 85 | 58,8% |
+    | `SRC_RS_FLOOR` | `segment_boundary.rs` | 43 | 85 | 50,6% |
+    | `WEBVIEW_FLOOR` | `segment_boundary.rs` | 56 | 93 | 60,2% |
+    | `RS_FLOOR` | `scope_boundary.rs` | 43 | 85 | 50,6% |
+    | `SRC_RS_FLOOR` | `segment_files_boundary.rs` | 50 | 85 | 58,8% |
+    | `SRC_RS_FLOOR` | `segment_normalize_boundary.rs` | 50 | 85 | 58,8% |
+    | `SRC_RS_FLOOR` | `webimport_boundary.rs` | 50 | 85 | 58,8% |
+
+    Hai mươi mốt hằng, không hai mươi hai — đếm lại đúng bảng trên (§Intent của spec 4.2 nói
+    "22", con số đó là ước lượng lúc lập kế hoạch, chưa đo; bảng này là số ĐO THẬT ngay
+    trước khi trình bản ghi nợ, và đếm lại thắng ước lượng). Trải trên **18** tệp phân biệt
+    (`config_invariants.rs` không phải `*_boundary.rs` — nếu chỉ đếm đúng họ tên tệp đó thì
+    còn **20** hằng trên **17** tệp). `SRC_TAURI_RS_FLOOR` (`dict_boundary.rs`) tự khai quét
+    **`src-tauri/{src,tests}/**`** — quần thể của nó vì thế là **140** (85 dưới `src/**` +
+    55 dưới `tests/**`, đo cùng ngày), không 85 như mọi hàng `SRC_RS_FLOOR`/`RS_FLOOR` khác
+    trong bảng; sàn 61 trên quần thể đó là **43,6%**, và đó là hàng TRÔI NẶNG NHẤT bảng —
+    không phải một hàng giữa bảng. Không hằng nào còn đạt khuôn 80–85% mà chính lớp hằng
+    này tự đặt ra (`SRC_RS_FLOOR` của chính `ai_boundary.rs`, vừa nâng ở story này, là ví dụ
+    mới nhất của khuôn đó) — thấp nhất **43,6%** (`SRC_TAURI_RS_FLOOR`), cao nhất 76,5%. Đây
+    là bằng chứng ĐO ĐƯỢC cho
+    lời khai ở §Intent của spec 4.2; không hằng nào trong bảng bị sửa ở story này — nâng một
+    sàn không phải câu chuyện của chính nó là hạ nó thấp hơn quần thể thật (không hằng nào ở
+    đây làm vậy), nhưng story 4.2 chỉ có nhiệm vụ với hai hằng của chính `ai_boundary.rs`.
+    **(Chủ: Ice — quyết định giữa (a) đo lại và nâng cả hai mươi mốt hằng một
+    lượt, tốn một PR riêng chạm mười tám tệp test không mang logic sản phẩm nào, hay (b) dựng
+    một phép kiểm CHUNG tính tỉ lệ sàn/quần thể thật cho mọi hằng `*_FLOOR`/`*RS_FLOOR` cùng
+    lúc và đỏ khi bất kỳ hằng nào tụt dưới một ngưỡng chung — cùng lựa chọn (b) mà mục nợ gốc
+    của Story 4.1 đã nêu (`deferred-work.md`, "Sàn quần thể của bảy tệp `*_boundary.rs` là
+    ảnh chụp gõ tay") và chưa ai chọn.)**
+
+    🔵 **Nối thêm 2026-09-16, lượt nghiệm thu của người điều phối — phép loại trừ ở trên
+    đúng về LỚP nhưng làm rơi mất hằng trôi NẶNG NHẤT của cả kho.** Bảng trên cố ý bỏ ba sàn
+    thư mục con (`DICT_FLOOR`, `MATCHING_FLOOR`, `AI_FLOOR`) vì chúng không phải sàn quần thể
+    toàn cây. Lý do đó hợp lệ, nhưng hệ quả là một khuyết tật ĐÃ ĐO ĐƯỢC biến thành một chỗ
+    trống. Đo 2026-09-16: `core/dict/` có **5** tệp `.rs` thật còn `dict_boundary.rs:36` khai
+    `DICT_FLOOR = 1` ⇒ **20%** — thấp hơn MỌI hàng trong bảng (thấp nhất ở đó là 50,6%).
+    `MATCHING_FLOOR = 1`/thật 1 và `AI_FLOOR = 1`/thật 1 thì đúng, nên vấn đề nằm ở đúng một
+    hằng chứ không ở cả lớp. Hệ quả thật: `dict_boundary.rs` sẽ vẫn xanh khi bốn trong năm tệp
+    của `core/dict/` biến mất. Phương án (b) ở trên phải phủ CẢ hai lớp sàn — một phép kiểm chỉ
+    tính sàn toàn cây sẽ để `DICT_FLOOR` lọt đúng như bảng này vừa để nó lọt.
+    **(Chủ: Ice — cùng quyết định với mục trên.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: 🔴 **Tầng ghi của màn cấu hình AI được suy từ CHẾ ĐỘ GIAO DIỆN, không hỏi
+    `OpenWorkState` — và hai thứ đó không tương đương.**
+  evidence: `src/settingsState.ts` tính tầng đích bằng `currentMode.value !== 'library'` và
+    tự khai lý do *"`workspace`/`reading` chỉ vào được sau khi một Tác phẩm đã mở"*. Chiều đó
+    đúng; chiều NGƯỢC LẠI thì không, và không ai kiểm nó. Đo 2026-09-16: `OpenWorkState` chỉ
+    bị xoá ở `lib.rs::close_open_work`, và hàm đó chỉ được gọi trong nhánh
+    `tauri::RunEvent::Exit` (`lib.rs:952`). KHÔNG có lệnh IPC nào đóng Tác phẩm — năm chỗ
+    `*guard = None` còn lại trong `commands/project/mod.rs` đều dọn state NHẬP LIỆU
+    (`PendingImportSourceState`, `UrlImportItemsState`), không phải Tác phẩm đang mở. ⇒ sau
+    khi mở một Tác phẩm bất kỳ, `OpenWorkState` giữ `Some` tới hết phiên, kể cả lúc giao diện
+    đã về Library.
+    Hệ quả: về Library rồi sửa cấu hình AI thì lượt ghi rơi vào `global.db` trong khi backend
+    vẫn đang giữ đúng Tác phẩm đó. Không mất dữ liệu, không AC nào hỏng — một yêu cầu ghi lệch
+    tầng bị `store_for_tier` từ chối chứ không ghi bừa. Thứ hỏng là một MỆNH ĐỀ: §Design Notes
+    của story khai *"editing the Global default while a Work is open has no path in this screen
+    — close the Work, edit, reopen"*, và cả hai vế đều sai (đường đó CÓ, còn "đóng Tác phẩm"
+    là thao tác người dùng không làm được). Đã đính chính tại chỗ bằng 🔵, giữ nguyên văn chỗ sai.
+    Rủi ro còn lại là một chỗ nối KHÔNG AI CANH: ngày nào đó có lệnh đóng Tác phẩm, hoặc
+    Library tới được bằng một tín hiệu khác, proxy sẽ lệch khỏi authority mà **không ca nào đỏ**.
+    **(Chủ: Ice — quyết giữa (a) đọc tầng từ authority: cho `ai_config_get` trả
+    luôn `work_tier_available` lấy từ `OpenWorkState` và để giao diện dùng số đó thay cho
+    `currentMode`, hay (b) giữ proxy nhưng dựng một ca khoá mệnh đề "mode `library` ⟺
+    `OpenWorkState` là `None`" để nó đỏ ngay ngày mệnh đề đó hết đúng. Ghi chú: hôm nay
+    mệnh đề (b) ĐANG SAI, nên (b) đòi thêm một lệnh đóng Tác phẩm trước.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: **Luật hợp lệ của cấu hình AI tồn tại hai bản chép tay (Rust và TypeScript) mà
+    không phép kiểm nào bắt lúc chúng lệch nhau — và chúng ĐÃ lệch một lần rồi.**
+  evidence: `core::aiconfig::validate_temperature`/`validate_max_tokens`/`validate_endpoint`
+    và `isAiConfigValueValid` trong `src/aiConfigState.ts` diễn đạt cùng một luật ở hai ngôn
+    ngữ. Đây không phải rủi ro lý thuyết: vòng rà 1 của story 4.2 bắt được bản TS dùng
+    `/^-?\d+(\.\d+)?$/` trong khi Rust dùng `parse::<f64>()`, nên `.5`, `5.`, `1e-1`, `+0.5`
+    bị giao diện từ chối dù backend nhận — một giá trị hợp lệ KHÔNG nhập được qua giao diện.
+    Đã vá bằng cách nới regex cho khớp ngữ pháp `f64::from_str`, nhưng **bản vá đó không dựng
+    thêm lực nào giữ hai bên đồng bộ** — lần lệch tiếp theo sẽ lọt hệt lần này. Cả hai bộ test
+    hôm nay đều kiểm mỗi bên RIÊNG, bằng ca tự viết ở mỗi phía, nên hai bên xanh đồng thời
+    trong khi bất đồng ý.
+    Phương án rẻ nhất nhìn thấy được: một bảng ca dùng chung (JSON) mà cả `aiconfig` phía Rust
+    lẫn vitest cùng đọc, mỗi dòng là `(trường, chuỗi vào, hợp lệ?)`. Việc này cần một fixture
+    dùng chung và một đường nạp ở cả hai bộ chạy — quá một lượt sửa trực tiếp, nên không tiện
+    tay dựng trong lượt vá.
+    **(Chủ: Ice — quyết có dựng bảng ca dùng chung cho `aiconfig` ngay, hay đợi tới story đầu
+    tiên thêm trường thứ sáu vào cấu hình AI, lúc chi phí lệch nhau hiện rõ hơn.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: **Khuôn "đọc từ authority" mà mục nợ `settingsState.ts` để ngỏ thì kho ĐÃ CÓ và đã
+    chạy — `work_tier_available` của `commands/glossary.rs`.**
+  evidence: Nối tiếp mục nợ 🔴 về việc tầng ghi của màn cấu hình AI suy từ
+    `currentMode !== 'library'`. Mục đó trình hai phương án cho Ice và gọi (a) "đọc tầng từ
+    authority" như một thứ phải thiết kế. Lượt rà chỉ ra nó **không phải** thứ phải thiết kế:
+    `commands/glossary.rs` đã trả `work_tier_available: bool` tính thẳng từ `OpenWorkState`
+    NGAY TRONG cùng lời gọi IPC, và doc-comment của nó khai rõ luật — webview phải học "có
+    Tác phẩm mở không" từ chính lời gọi đã đọc `OpenWorkState`, không suy ra bằng đường khác.
+    Ba mô-đun state phía frontend đang tiêu thụ nó (`glossaryQueueState`, `glossaryManageState`,
+    `glossaryQuickAddState`). `ai_config_get` đã cầm sẵn `open: Option<&OpenWork>` nhưng
+    `AiConfigFieldWire` không mang cờ nào, nên frontend phải tự dựng lại từ `currentMode`.
+    ⇒ Phương án (a) là lượt ÁP DỤNG một khuôn đã có test ở chỗ khác, không phải một thiết kế
+    mới — điều này làm nó rẻ hơn hẳn so với cách mục nợ gốc mô tả. Ghi ra để người xử mục kia
+    không phải đi tìm lại.
+    **(Chủ: Ice — cùng quyết định với mục nợ `settingsState.ts` ở trên.)**

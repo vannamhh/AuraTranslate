@@ -642,6 +642,22 @@ message_keys! {
     /// đồng, không một trạng thái người dùng tạo ra được qua đường sản phẩm (§Never: "No skip
     /// on a row whose two sides both have at least one sentence").
     ImportBilingualSkipNotAllowed => "err.import.bilingual_skip_not_allowed" ["row"],
+
+    // ── Story 4.2 (FR68, AD-18) — ba khoá, cấu hình nhà cung cấp AI ─────────────────
+    //
+    // Bề mặt IPC `commands::aiconfig` (đọc hai tầng đã phân giải · ghi một trường · trả một
+    // trường về kế thừa). `store.open_failed`/`store.write_failed` (đã có) phủ mọi lỗi KHO
+    // thô; ba khoá dưới đây phủ đúng ba sự thật không khoá kho nào nói được.
+    /// Một trường không qua được kiểm tra của chính nó (khoảng nhiệt độ, số nguyên dương, URL
+    /// tuyệt đối) — từ chối TRƯỚC khi mở bất kỳ giao dịch nào. `field` là tên trường
+    /// (`AiConfigField::as_str()`) — dữ liệu, không phải câu.
+    AiConfigInvalidValue => "err.ai_config.invalid_value" ["field"],
+    /// Ghi (hoặc trả về kế thừa) một trường ở tầng Tác phẩm khi chưa có Tác phẩm nào đang mở.
+    AiConfigWorkTierUnavailable => "err.ai_config.work_tier_unavailable" [],
+    /// `ScopeResolver::apply_override` từ chối bên trong
+    /// `core::aiconfig::store::AiConfigStoreError::Scope` — lỗi LẬP TRÌNH, không nên xảy ra
+    /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `CleanupScopeError`/`GlossaryScopeError`.
+    AiConfigScopeError => "err.ai_config.scope_error" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

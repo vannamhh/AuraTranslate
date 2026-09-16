@@ -4,6 +4,7 @@
 //! là từ vựng sản phẩm và không xuất hiện trong tên module (Consistency Conventions).
 
 pub mod ai;
+pub mod aiconfig;
 pub mod cleanup;
 pub mod dict;
 pub mod docx;

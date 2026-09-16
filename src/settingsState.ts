@@ -29,9 +29,11 @@
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { loadAiConfigSection } from './aiConfigState'
 import { listDomainLog } from './config/project'
 import type { DomainLogEntryWire, DomainLogOutcomeWire } from './config/project'
 import type { IpcError } from './i18n'
+import { currentMode } from './modes/modeState'
 
 /** Mười một mục nav, ĐÚNG thứ tự hiện (xem §quyết định TẠM ở doc-comment đầu tệp). */
 export type SettingsSection =
@@ -89,10 +91,12 @@ export function settingsSectionLabelKey(section: SettingsSection): string {
   }
 }
 
-/** Mục nào hôm nay có THÂN thật — chỉ `privacy` (Story 6.8). Mười mục còn lại rỗng có tên
- * chủ, khuôn `tier_empty_story_6_9`. */
+/**
+ * Mục nào hôm nay có THÂN thật — `privacy` (Story 6.8) và `ai_and_model` (Story 4.2, FR68).
+ * Chín mục còn lại rỗng có tên chủ, khuôn `tier_empty_story_6_9`.
+ */
 export function settingsSectionHasBody(section: SettingsSection): boolean {
-  return section === 'privacy'
+  return section === 'privacy' || section === 'ai_and_model'
 }
 
 /**
@@ -289,11 +293,18 @@ async function loadDomainLog(): Promise<void> {
   if (result.entries !== null) domainLogEntries.value = result.entries
 }
 
+/** Tác phẩm đang mở hay không, đọc từ `currentMode !== 'library'` (`workspace`/`reading` chỉ
+ * vào được sau khi một Tác phẩm đã mở) — xem §Tầng đích ở đầu `aiConfigState.ts`. */
+function loadAiConfig(): void {
+  void loadAiConfigSection(currentMode.value !== 'library')
+}
+
 /** Handler thật của `settings.open` — mở lớp phủ vào mục ĐANG CHỌN gần nhất (mặc định
- * `privacy`, mục duy nhất có thân hôm nay). */
+ * `privacy`). */
 export function openSettings(): void {
   overlayOpen.value = true
   if (activeSection.value === 'privacy') void loadDomainLog()
+  if (activeSection.value === 'ai_and_model') loadAiConfig()
 }
 
 /** Handler thật của `settings.privacy.open` — mở lớp phủ THẲNG vào Quyền riêng tư, bất kể
@@ -311,6 +322,7 @@ export function openSettingsToPrivacy(): void {
 export function selectSettingsSection(section: SettingsSection): void {
   activeSection.value = section
   if (section === 'privacy') void loadDomainLog()
+  if (section === 'ai_and_model') loadAiConfig()
 }
 
 /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải (mở lại không cần tải lại NGAY, cùng khuôn

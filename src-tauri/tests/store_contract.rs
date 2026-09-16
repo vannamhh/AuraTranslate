@@ -1096,6 +1096,10 @@ fn spec_with_migrations(dir: &Path, migrations: &'static [Migration]) -> StoreSp
 /// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5): bước 7 thêm bảng `import_cleanup_rule` (tầng Global
 /// của luật làm sạch, AD-18/FR124) ⇒ target là 7.** Câu *"sáu bước, đích là 6"* đã hết đúng,
 /// sửa tại chỗ — đúng cơ chế được thiết kế để đỏ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2): bước 8 thêm bảng `ai_config` (cấu hình nhà cung cấp
+/// AI, FR68) ⇒ target là 8.** Câu *"bảy bước, đích là 7"* đã hết đúng, sửa tại chỗ — đúng cơ
+/// chế được thiết kế để đỏ.
 #[test]
 fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let dir = temp_dir("fresh-migrate");
@@ -1103,11 +1107,12 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        7,
-        "`GLOBAL_MIGRATIONS` có bảy bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
+        8,
+        "`GLOBAL_MIGRATIONS` có tám bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
          Story 1.20 `pinned_entry` · Story 3.1 `glossary_entry` · Story 3.10 gia tri \
          term_origin thu tu · phan quyet Ice #1 bang library_orphan · Story 6.5 bang \
-         import_cleanup_rule), nên một database mới phải kết thúc ở phiên bản 7"
+         import_cleanup_rule · Story 4.2 bang ai_config), nên một database mới phải kết thúc \
+         ở phiên bản 8"
     );
 
     let (rows, versions, app_version, applied_at) = store
@@ -1128,11 +1133,11 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 7, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(rows, 8, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
     assert_eq!(
         versions,
-        vec![1, 2, 3, 4, 5, 6, 7],
-        "cả bảy bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
+        vec![1, 2, 3, 4, 5, 6, 7, 8],
+        "cả tám bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
          *sổ nói chưa chạy mà lược đồ thì đã*"
     );
     assert_eq!(app_version, env!("CARGO_PKG_VERSION"));
@@ -1212,7 +1217,8 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         .expect("đọc user_version");
     // 🔵 5 → 6 (2026-08-27, phán quyết Ice #1, Story 5.3) — bước 6 thêm `library_orphan`.
     // 🔵 6 → 7 (2026-09-05, Story 6.5) — bước 7 thêm `import_cleanup_rule`.
-    assert_eq!(on_disk, 7);
+    // 🔵 7 → 8 (2026-09-16, Story 4.2) — bước 8 thêm `ai_config`.
+    assert_eq!(on_disk, 8);
 
     drop(store);
     cleanup(&dir);

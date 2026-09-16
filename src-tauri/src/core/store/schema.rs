@@ -618,7 +618,11 @@ CREATE TABLE library_orphan (
 /// Bộ di trú của `global.db`. Hôm nay **bảy** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10 ·
 /// phán quyết Ice #1 (Story 5.3, 2026-08-27) · 6.5 (2026-09-05).
 ///
-/// 🔴 **Bảy bước, và đích là phiên bản 7.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2):** đích chuyển từ **7** lên **8** — bước
+/// [`AI_CONFIG_DDL`] (tầng Global của cấu hình nhà cung cấp AI, FR68, CÙNG một hằng với bước
+/// 23 của `project.db`). Câu *"bảy bước, đích là 7"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔴 **Tám bước, và đích là phiên bản 8.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -688,6 +692,12 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 7,
         sql: IMPORT_CLEANUP_RULE_DDL,
+    },
+    // Story 4.2 -- tang Global cua cau hinh nha cung cap AI (FR68): bang ai_config, CUNG mot
+    // hang voi buoc 23 cua project.db. Xem doc-comment cua AI_CONFIG_DDL.
+    Migration {
+        to_version: 8,
+        sql: AI_CONFIG_DDL,
     },
 ];
 
@@ -866,6 +876,41 @@ CREATE TABLE import_cleanup_rule (
                           || char(8200) || char(8201) || char(8202)
                           || char(8232) || char(8233) || char(8239) || char(8287)
                           || char(12288)) <> '')
+);";
+
+/// Lược đồ bảng `ai_config` — **bước song sinh MỚI** ở CẢ HAI kho (`global.db` bước 8,
+/// `project.db` bước 23) — Story 4.2, FR68, `core/scope/kinds.rs:175`
+/// (`ScopeKind::AiConfig => "ai_config" : Semantics::Override`).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT HẰNG, HAI CHỖ GỌI — cùng khuôn `GLOSSARY_ENTRY_DDL`/`IMPORT_CLEANUP_RULE_DDL`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `ScopeKind::AiConfig` khai `Semantics::Override`, **theo từng trường** (Ice ký
+/// 2026-08-04, xem doc-comment `kinds.rs:169-174`) — không phải cả struct. Vì thế bảng lưu
+/// một hàng cho MỘT trường (`key = "provider"|"endpoint"|"model"|"temperature"|"max_tokens"`,
+/// xem `core::aiconfig::AiConfigField`), cùng hình dạng `(key, value)` với `config_value`
+/// nhưng RIÊNG: `CONFIG_VALUE_DDL` phục vụ ba loại `GlobalOnly` — một loại `Override` không
+/// ghi vào đó được (`core::scope::store::save_value` từ chối mọi loại khác `GlobalOnly`).
+///
+/// **Không cột `tier`** — cùng lý do `CONFIG_VALUE_DDL`/`GLOSSARY_ENTRY_DDL`: mỗi tầng sống
+/// trong `Store` riêng của nó (`global.db`/`project.db` của `.atproj` đang mở), và
+/// `ScopeResolver::apply_override` chỉ phân giải ĐÚNG khi cả hai tầng trả về CÙNG một hình
+/// dạng hàng — một cột tầng ở đây là mời một hàng `tier = 'work'` lạc vào `global.db`.
+///
+/// **Không `CHECK` liệt `key`** — cùng lý do `CONFIG_VALUE_DDL`: phép cưỡng chế thật nằm ở
+/// kiểu đóng `AiConfigField` phía Rust; một `CHECK` liệt năm chuỗi là bản chép thứ hai phải
+/// đồng bộ bằng tay mỗi khi có trường mới.
+///
+/// **Giá trị luôn là `TEXT`** — kể cả `temperature`/`max_tokens` (số) — khớp mọi bảng cấu
+/// hình khác của dự án (§Always spec 4.2). Kiểm tra hình dạng (khoảng số, số nguyên dương,
+/// URL tuyệt đối) là việc của `core::aiconfig::validate_field`, một hàm THUẦN mỗi trường,
+/// chạy TRƯỚC khi chạm SQL — không phải `CHECK`, vì cột này phục vụ NĂM khoá khác hình dạng
+/// nhau và một `CHECK` chung không biểu diễn được gì hữu ích cho cả năm.
+pub const AI_CONFIG_DDL: &str = "\
+CREATE TABLE ai_config (
+  key        TEXT NOT NULL PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );";
 
 /// Lược đồ bảng `asset` — **bước 20 của `project.db`**, Story 6.11, FR127.
@@ -1618,7 +1663,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi mốt bước, và đích là phiên bản 22.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi hai bước, và đích là phiên bản 23.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]` tăng dần
 /// nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước
@@ -1729,6 +1774,10 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// [`CHAPTER_ORIGIN_DDL`] (bốn cột xuất xứ `chapter.origin_*`, FR128/AD-43). Câu *"hai mươi
 /// bước, đích là 21"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở
 /// [`GLOBAL_MIGRATIONS`]: xuất xứ chỉ có ý nghĩa cho Chương của một Tác phẩm cụ thể.
+///
+/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2):** đích chuyển từ **22** lên **23** — bước
+/// [`AI_CONFIG_DDL`] (tầng Tác phẩm của cấu hình nhà cung cấp AI, FR68, CÙNG một hằng với
+/// bước 8 của `global.db`). Câu *"hai mươi mốt bước, đích là 22"* đã hết đúng, sửa tại chỗ.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1921,6 +1970,12 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 22,
         sql: CHAPTER_ORIGIN_DDL,
+    },
+    // Story 4.2 -- tang Tac pham cua cau hinh nha cung cap AI (FR68): bang ai_config, CUNG
+    // mot hang voi buoc 8 cua global.db. Xem doc-comment cua AI_CONFIG_DDL.
+    Migration {
+        to_version: 23,
+        sql: AI_CONFIG_DDL,
     },
 ];
 

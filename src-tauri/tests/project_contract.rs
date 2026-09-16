@@ -1733,12 +1733,16 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 10] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 11] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
     // Chuong da co, khong phai mot container giua Work va Chapter.
     "asset",
+    // Story 4.2 (FR68) -- cau hinh nha cung cap AI, hai tang (Semantics::Override), CUNG vai
+    // voi `import_cleanup_rule`: mot bang cau hinh khoa-gia-tri phang, khong tham chieu
+    // chapter_id/work_id nao va khong phai mot container giua Work va Chapter.
+    "ai_config",
     "chapter_position",
     "glossary_candidate",
     "glossary_entry",
