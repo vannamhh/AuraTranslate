@@ -3,6 +3,17 @@
  *
  * ⚠️ Cùng khuôn `glossarySettings.test.ts`: `config/aiconfig.ts` là biên IPC, giả lập bằng
  * `vi.mock`, không gọi `@tauri-apps/api` thật.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 `workTierAvailable` ĐẾN TỪ MOCK CỦA `aiConfigGet()`, KHÔNG một tham số của
+ * `loadAiConfigSection` — đối chứng khuyết tật `currentMode !== 'library'`
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Trước bản vá này, `loadAiConfigSection(isWorkOpen: boolean)` nhận tầng từ CHỖ GỌI
+ * (`settingsState.ts` tính bằng `currentMode.value !== 'library'` — một proxy chế độ UI
+ * KHÔNG tương đương `OpenWorkState` phía Rust). `loadAiConfigSection` giờ KHÔNG còn tham số:
+ * mọi ca dưới đây điều khiển tầng ghi bằng CÁCH DUY NHẤT còn lại — trường
+ * `workTierAvailable` của giá trị `aiConfigGetMock` trả về, đúng như `config/aiconfig.ts`
+ * đọc nó từ `AiConfigGetWire.work_tier_available` (Rust).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -31,7 +42,7 @@ beforeEach(() => {
   aiConfigGetMock.mockReset()
   aiConfigSaveFieldMock.mockReset()
   aiConfigClearOverrideMock.mockReset()
-  aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), error: null })
+  aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: false, error: null })
   aiConfigSaveFieldMock.mockResolvedValue(null)
   aiConfigClearOverrideMock.mockResolvedValue(null)
 })
@@ -111,18 +122,19 @@ describe('isAiConfigValueValid — hàm THUẦN, đọc lại đúng ràng buộ
   })
 })
 
-describe('loadAiConfigSection', () => {
+describe('loadAiConfigSection — không tham số, workIsOpen lấy từ response', () => {
   it('nạp năm trường vào draft, xoá lỗi cũ', async () => {
     aiConfigGetMock.mockResolvedValue({
       fields: [
         { field: 'provider', value: 'anthropic', tier: 'global', shadowed: null },
         { field: 'endpoint', value: 'https://api.anthropic.com', tier: 'global', shadowed: null },
       ],
+      workTierAvailable: false,
       error: null,
     })
     const { loadAiConfigSection, aiConfigDraft, aiConfigLoadError } = await freshState()
 
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
 
     expect(aiConfigDraft('provider')).toBe('anthropic')
     expect(aiConfigDraft('endpoint')).toBe('https://api.anthropic.com')
@@ -132,19 +144,52 @@ describe('loadAiConfigSection', () => {
 
   it('lượt đọc trượt ⇒ lỗi hiện qua aiConfigLoadError', async () => {
     const err = { code: 'store.open_failed', message_key: 'err.store.open_failed', params: {}, retryable: false }
-    aiConfigGetMock.mockResolvedValue({ fields: null, error: err })
+    aiConfigGetMock.mockResolvedValue({ fields: null, workTierAvailable: false, error: err })
     const { loadAiConfigSection, aiConfigLoadError } = await freshState()
 
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
 
     expect(aiConfigLoadError.value).toEqual(err)
   })
+
+  it('workTierAvailable: true trong response ⇒ aiConfigWorkIsOpen đọc true', async () => {
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: true, error: null })
+    const { loadAiConfigSection, aiConfigWorkIsOpen } = await freshState()
+
+    await loadAiConfigSection()
+
+    expect(aiConfigWorkIsOpen.value).toBe(true)
+  })
+
+  it('workTierAvailable: false trong response ⇒ aiConfigWorkIsOpen đọc false', async () => {
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: false, error: null })
+    const { loadAiConfigSection, aiConfigWorkIsOpen } = await freshState()
+
+    await loadAiConfigSection()
+
+    expect(aiConfigWorkIsOpen.value).toBe(false)
+  })
+
+  it('lượt đọc trượt ⇒ aiConfigWorkIsOpen KHÔNG bị ghi đè bằng một cờ rác của lượt trượt', async () => {
+    const err = { code: 'store.open_failed', message_key: 'err.store.open_failed', params: {}, retryable: false }
+    // Lượt ĐẦU thành công với work_tier_available: true; lượt SAU trượt — workIsOpen phải giữ
+    // nguyên giá trị của lượt thành công gần nhất, không bị một lượt trượt kéo về false.
+    aiConfigGetMock.mockResolvedValueOnce({ fields: emptyFields(), workTierAvailable: true, error: null })
+    aiConfigGetMock.mockResolvedValueOnce({ fields: null, workTierAvailable: false, error: err })
+    const { loadAiConfigSection, aiConfigWorkIsOpen } = await freshState()
+
+    await loadAiConfigSection()
+    expect(aiConfigWorkIsOpen.value).toBe(true)
+
+    await loadAiConfigSection()
+    expect(aiConfigWorkIsOpen.value).toBe(true)
+  })
 })
 
-describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi theo trạng thái Tác phẩm', () => {
+describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi theo work_tier_available của response', () => {
   it('giá trị không hợp lệ ⇒ 0 lượt aiConfigSaveField', async () => {
     const { loadAiConfigSection, setAiConfigDraft, saveAiConfigField } = await freshState()
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
     setAiConfigDraft('temperature', '3')
 
     await saveAiConfigField('temperature')
@@ -152,9 +197,10 @@ describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi t
     expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
   })
 
-  it('không Tác phẩm nào mở ⇒ lưu tầng global', async () => {
+  it('response mang work_tier_available: false ⇒ lưu tầng global', async () => {
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: false, error: null })
     const { loadAiConfigSection, setAiConfigDraft, saveAiConfigField } = await freshState()
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
     setAiConfigDraft('provider', 'anthropic')
 
     await saveAiConfigField('provider')
@@ -163,9 +209,10 @@ describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi t
     expect(aiConfigSaveFieldMock).toHaveBeenCalledWith('global', 'provider', 'anthropic')
   })
 
-  it('có Tác phẩm đang mở ⇒ lưu tầng work', async () => {
+  it('response mang work_tier_available: true ⇒ lưu tầng work — KHÔNG một tín hiệu chế độ UI nào khác tham gia', async () => {
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: true, error: null })
     const { loadAiConfigSection, setAiConfigDraft, saveAiConfigField } = await freshState()
-    await loadAiConfigSection(true)
+    await loadAiConfigSection()
     setAiConfigDraft('endpoint', 'https://local.example.com')
 
     await saveAiConfigField('endpoint')
@@ -178,7 +225,7 @@ describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi t
     const err = { code: 'ai_config.invalid_value', message_key: 'err.ai_config.invalid_value', params: { field: 'temperature' }, retryable: false }
     aiConfigSaveFieldMock.mockResolvedValue(err)
     const { loadAiConfigSection, setAiConfigDraft, saveAiConfigField, aiConfigSaveErrorFor } = await freshState()
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
     setAiConfigDraft('temperature', '0.7')
 
     await saveAiConfigField('temperature')
@@ -188,7 +235,7 @@ describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi t
 
   it('lượt lưu THÀNH CÔNG ⇒ đọc lại năm trường (aiConfigGet gọi thêm một lần)', async () => {
     const { loadAiConfigSection, setAiConfigDraft, saveAiConfigField } = await freshState()
-    await loadAiConfigSection(false)
+    await loadAiConfigSection()
     aiConfigGetMock.mockClear()
     setAiConfigDraft('model', 'claude')
 
@@ -200,8 +247,9 @@ describe('saveAiConfigField — re-validate trước khi gọi IPC, tầng ghi t
 
 describe('clearAiConfigOverride', () => {
   it('gọi aiConfigClearOverride đúng một lần rồi đọc lại', async () => {
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: true, error: null })
     const { loadAiConfigSection, clearAiConfigOverride } = await freshState()
-    await loadAiConfigSection(true)
+    await loadAiConfigSection()
     aiConfigGetMock.mockClear()
 
     await clearAiConfigOverride('endpoint')
@@ -214,8 +262,9 @@ describe('clearAiConfigOverride', () => {
   it('lượt xoá TRƯỢT ⇒ IpcError hiện qua aiConfigSaveErrorFor(field)', async () => {
     const err = { code: 'ai_config.work_tier_unavailable', message_key: 'err.ai_config.work_tier_unavailable', params: {}, retryable: false }
     aiConfigClearOverrideMock.mockResolvedValue(err)
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: true, error: null })
     const { loadAiConfigSection, clearAiConfigOverride, aiConfigSaveErrorFor } = await freshState()
-    await loadAiConfigSection(true)
+    await loadAiConfigSection()
 
     await clearAiConfigOverride('endpoint')
 
@@ -227,6 +276,7 @@ describe('resetAiConfigSection', () => {
   it('vứt draft/lỗi/trạng thái tải về mặc định', async () => {
     aiConfigGetMock.mockResolvedValue({
       fields: [{ field: 'provider', value: 'anthropic', tier: 'global', shadowed: null }],
+      workTierAvailable: true,
       error: null,
     })
     const {
@@ -237,8 +287,9 @@ describe('resetAiConfigSection', () => {
       aiConfigWorkIsOpen,
     } = await freshState()
 
-    await loadAiConfigSection(true)
+    await loadAiConfigSection()
     expect(aiConfigDraft('provider')).toBe('anthropic')
+    expect(aiConfigWorkIsOpen.value).toBe(true)
 
     resetAiConfigSection()
 

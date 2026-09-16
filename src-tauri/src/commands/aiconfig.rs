@@ -91,8 +91,33 @@ impl AiConfigFieldWire {
     }
 }
 
-/// Đọc năm trường, hai tầng đã phân giải — **hàm thuần**. Luôn trả đủ năm trường
-/// (`AiConfigField::ALL`), kể cả trường chưa ai cấu hình.
+/// Phong bì trả lời của [`ai_config_get`] — **không chỉ một `Vec<AiConfigFieldWire>` trần**,
+/// và đó là chủ ý.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO `work_tier_available` ĐI CÙNG, KHÔNG PHẢI MỘT TRUY VẤN RIÊNG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cùng lý do `commands::glossary::QuickAddLookup` (xem doc-comment của struct đó): webview
+/// phải học "có Tác phẩm nào đang mở không" **ngay trong đúng lượt gọi đã đọc
+/// `OpenWorkState`**, không phải suy từ một tín hiệu UI khác (`currentMode`). Trước bản vá
+/// này, `settingsState.ts::loadAiConfig` tính tầng ghi bằng `currentMode.value !== 'library'`
+/// — một proxy chế độ giao diện KHÔNG tương đương `OpenWorkState`: `close_open_work` (duy
+/// nhất xoá `OpenWorkState`) chỉ chạy ở nhánh `RunEvent::Exit`, không IPC nào đóng một Tác
+/// phẩm, nên `OpenWorkState` có thể còn `Some` trong khi `currentMode` đã quay lại
+/// `'library'`. Trường `work_tier_available` ở đây đóng đúng lỗ đó: nó tính TRỰC TIẾP từ
+/// `Option<&OpenWork>` của lượt gọi này, không đi qua chế độ UI.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AiConfigGetWire {
+    /// `true` ⇔ có một Tác phẩm đang mở, tức tầng [`AiConfigTier::Work`] dùng được cho lượt
+    /// `ai_config_save_field` tiếp theo.
+    pub work_tier_available: bool,
+    /// Năm trường, hai tầng đã phân giải — luôn đủ [`AiConfigField::ALL`], kể cả trường chưa
+    /// ai cấu hình.
+    pub fields: Vec<AiConfigFieldWire>,
+}
+
+/// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` — **hàm thuần**. Luôn
+/// trả đủ năm trường (`AiConfigField::ALL`), kể cả trường chưa ai cấu hình.
 ///
 /// # Lỗi
 /// - `global.db` vắng mặt ⇒ `store.open_failed`;
@@ -100,16 +125,18 @@ impl AiConfigFieldWire {
 pub fn ai_config_get(
     global: Option<&Store>,
     open: Option<&OpenWork>,
-) -> Result<Vec<AiConfigFieldWire>, IpcError> {
+) -> Result<AiConfigGetWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
     let resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
 
-    Ok(AiConfigField::ALL
+    let fields = AiConfigField::ALL
         .iter()
         .map(|&field| AiConfigFieldWire::from_resolved(field, resolved.get(field.as_str())))
-        .collect())
+        .collect();
+
+    Ok(AiConfigGetWire { work_tier_available: open.is_some(), fields })
 }
 
 /// Ghi một trường ở tầng `tier` — **hàm thuần**. Giá trị được kiểm bằng
@@ -152,7 +179,7 @@ pub fn ai_config_clear_override(open: Option<&OpenWork>, field: AiConfigField) -
 /// ⚠️ Tên command trên dây LÀ tên hàm — ba vỏ dưới đây mang ĐÚNG tên ba hàm thuần ở
 /// `super::`, không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
 pub mod wire {
-    use super::{AiConfigField, AiConfigFieldWire, AiConfigTier};
+    use super::{AiConfigField, AiConfigGetWire, AiConfigTier};
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
@@ -160,7 +187,7 @@ pub mod wire {
     /// `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho: `app.manage(store)`
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy.
     #[tauri::command]
-    pub fn ai_config_get(app: tauri::AppHandle) -> Result<Vec<AiConfigFieldWire>, IpcError> {
+    pub fn ai_config_get(app: tauri::AppHandle) -> Result<AiConfigGetWire, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();

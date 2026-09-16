@@ -12680,6 +12680,32 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     của `core/dict/` biến mất. Phương án (b) ở trên phải phủ CẢ hai lớp sàn — một phép kiểm chỉ
     tính sàn toàn cây sẽ để `DICT_FLOOR` lọt đúng như bảng này vừa để nó lọt.
     **(Chủ: Ice — cùng quyết định với mục trên.)**
+    → 🟡 **ĐÓNG MỘT PHẦN 2026-09-16 (Ice duyệt).** `DICT_FLOOR` nâng **1 → 4** (4/5 = 80,0%)
+    tại `dict_boundary.rs`. Đối chứng: sàn 4 ⇒ 16/16 xanh; sàn 6 (trên quần thể thật 5) ⇒
+    ĐÚNG MỘT ca đỏ, `the_scanned_tree_is_large_enough_to_be_real`, 15 ca kia xanh. ⚠️ Phép
+    đối chứng đó chứng minh khẳng định SỐNG và đọc quần thể thật; nó KHÔNG mô phỏng việc xoá
+    4 tệp (xoá thật sẽ gãy biên dịch, cho một lượt đỏ vì lý do khác).
+    Và doc-comment cũ của `DICT_FLOOR` biện minh cho số 1 bằng câu *"đúng khuôn `RS_FLOOR`
+    của `store_boundary.rs`"* — câu đó **đọc sai chính tiền lệ nó trỏ tới**: `store_boundary.rs`
+    có đúng một hằng và đã nâng hai lần theo đúng lý do đang xảy ra ở đây (20/26 ~77% → 34/42
+    81,0%, kèm câu *"sàn 20 trên 42 tệp (47,6%) không còn canh được 'cây bị cắt' nữa"* → 43/53
+    81,1%). Giữ nguyên văn câu sai ở tệp, nối 🔵 bên cạnh.
+    `MATCHING_FLOOR = 1` và `AI_FLOOR = 1` KHÔNG đổi — quần thể thật của cả hai đều là 1.
+
+    🔵 **Quyết định của Ice 2026-09-16 cho phần CÒN LẠI: chọn phương án (b), và tách thành
+    một story riêng — không nhét vào Epic 4.** Không chọn (a) *"đo lại và nâng cả 21 hằng một
+    lượt"*: nó chạm 17–18 tệp test không mang logic sản phẩm và **độ bền bằng không** — chúng
+    trôi lại ngay story sau.
+    🔴 **Điều kiện thiết kế bắt buộc của (b), rút ra từ chính lỗi bảng này vừa mắc:** các hằng
+    KHÔNG đếm cùng một quần thể. Đo được ba gốc khác nhau — `src-tauri/src/**` = 85 ·
+    `src-tauri/{src,tests}/**` = 140 (`SRC_TAURI_RS_FLOOR`) · frontend `src/**` = 93
+    (`FRONTEND_FLOOR`/`WEBVIEW_FLOOR`) — cộng lớp sàn thư mục con (`DICT_FLOOR`,
+    `MATCHING_FLOOR`, `AI_FLOOR`). Một phép kiểm chung giả định MỘT quần thể duy nhất sẽ tái
+    tạo **đúng** lỗi mà bảng trên vừa mắc với `SRC_TAURI_RS_FLOOR`. Nên (b) phải bắt mỗi hằng
+    **tự khai gốc quần thể của nó**, rồi mới tính tỉ lệ.
+    ⚠️ Đây là một thiết kế **chưa chạy thử**. Trước khi nhận nó, chạy chính nó trên đúng khuyết
+    tật nó sắp canh — gieo một hằng tụt dưới ngưỡng và xem nó có đỏ không.
+    **(Chủ: Ice — xếp lịch story; nội dung và điều kiện đã chốt ở trên.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: 🔴 **Tầng ghi của màn cấu hình AI được suy từ CHẾ ĐỘ GIAO DIỆN, không hỏi
@@ -12742,3 +12768,31 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mới — điều này làm nó rẻ hơn hẳn so với cách mục nợ gốc mô tả. Ghi ra để người xử mục kia
     không phải đi tìm lại.
     **(Chủ: Ice — cùng quyết định với mục nợ `settingsState.ts` ở trên.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
+  summary: 🔴 **Không có lệnh ĐÓNG Tác phẩm — và sau bản vá "đọc tầng từ authority", hệ quả
+    của việc thiếu nó trở thành thứ người dùng gặp được: mở một Tác phẩm xong thì KHÔNG còn
+    đường sửa cấu hình AI tầng Global cho tới khi khởi động lại ứng dụng.**
+  evidence: Đo 2026-09-16: `lib.rs::close_open_work` là chỗ DUY NHẤT xoá `OpenWorkState`, và
+    nó chỉ được gọi trong nhánh `tauri::RunEvent::Exit`. Năm chỗ `*guard = None` còn lại ở
+    `commands/project/mod.rs` đều dọn state NHẬP LIỆU. Không lệnh IPC nào đóng một Tác phẩm.
+    ⇒ `OpenWorkState` giữ `Some` tới hết phiên.
+    Bản vá đã duyệt (mục 2, 2026-09-16) cho `ai_config_get` trả `work_tier_available` tính
+    thẳng từ `OpenWorkState`, đúng khuôn `commands::glossary::QuickAddLookup`. Bản vá ĐÚNG —
+    đối chứng: ghim `work_tier_available: false` ⇒ đúng một ca Rust đỏ
+    (`work_tier_available_tracks_open_work_state_not_a_ui_proxy`, 9 ca kia xanh); ghim
+    `workIsOpen = false` ⇒ 4 ca vitest đỏ, gồm ca khoá tầng ghi của đường Lưu.
+    Nhưng nó làm lộ ra một hệ quả mà proxy cũ đang CHE: trước đây về Library thì
+    `currentMode !== 'library'` đọc `false` và lượt ghi rơi vào Global — một đường tới Global
+    vẫn tồn tại, nhưng nó SAI (Rust vẫn giữ Tác phẩm mở). Nay tầng ghi khớp authority, nên
+    đường sai đó biến mất và **không có đường đúng nào thay thế**: sau khi mở một Tác phẩm,
+    mọi lượt Lưu ghi tầng Tác phẩm cho tới khi thoát ứng dụng.
+    ⚠️ Cách sửa SAI mà người sau dễ chọn: cho màn hình đọc lại `currentMode` để "cho phép sửa
+    Global khi ở Library". Đó là khôi phục đúng khuyết tật vừa vá. Cái thiếu là một lệnh ĐÓNG
+    Tác phẩm (hoặc một bộ chọn tầng tường minh trên màn Cài đặt), không phải một tín hiệu UI.
+    Phạm vi rộng hơn cấu hình AI: mọi miền hai tầng đọc `OpenWorkState` đều thừa hưởng mệnh đề
+    "một Tác phẩm đã mở thì mở tới lúc thoát".
+    **(Chủ: Ice — quyết giữa (a) thêm một lệnh đóng Tác phẩm (đụng vòng đời `OpenWork`,
+    `Store::close`, và cả `PendingImportState` như `close_open_work` đang làm), hay (b) một bộ
+    chọn tầng tường minh trên màn Cài đặt (hẹp hơn, nhưng mockup `settings.html` không vẽ nó và
+    nó thành bề mặt UI mới).)**

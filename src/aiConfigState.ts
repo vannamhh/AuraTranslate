@@ -3,15 +3,34 @@
  * kinds.rs:175` (`ScopeKind::AiConfig`, ghi đè THEO TỪNG TRƯỜNG, Ice ký 2026-08-04).
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 TẦNG ĐÍCH CỦA LƯỢT LƯU THEO TRẠNG THÁI Ứng dụng, KHÔNG MỘT THANH CHUYỂN PHẠM VI RIÊNG
+ * 🔴 TẦNG ĐÍCH CỦA LƯỢT LƯU THEO `OpenWorkState` PHÍA RUST, KHÔNG MỘT PROXY CHẾ ĐỘ UI
  * ─────────────────────────────────────────────────────────────────────────────
  * Không có Tác phẩm nào đang mở ⇒ mọi lượt Lưu ghi tầng **Global** (không nơi nào khác để
  * ghi). Một Tác phẩm đang mở ⇒ mọi lượt Lưu ghi tầng **Tác phẩm** — đúng hành động "ghi đè
- * cấu hình cho Tác phẩm này đang mở". `workIsOpen` đọc `currentMode !== 'library'`
- * (`modes/modeState.ts`): `workspace`/`reading` chỉ vào được sau khi một Tác phẩm đã mở.
- * Sửa GIÁ TRỊ GLOBAL trong khi một Tác phẩm đang mở không có đường trong màn hình này ở
- * story này — đóng Tác phẩm rồi sửa. Ghi nợ có chủ, không phải một chỗ sót
- * (`deferred-work.md`).
+ * cấu hình cho Tác phẩm này đang mở". `workIsOpen` đọc `AiConfigGetWire.work_tier_available`
+ * của LƯỢT `ai_config_get` GẦN NHẤT (`config/aiconfig.ts::aiConfigGet`) — trường đó tính
+ * TRỰC TIẾP từ `OpenWorkState` phía Rust trong CHÍNH lượt gọi đó, cùng khuôn
+ * `commands::glossary::QuickAddLookup`.
+ *
+ * Trước bản vá này, `workIsOpen` được TRUYỀN VÀO từ `currentMode.value !== 'library'`
+ * (`settingsState.ts` gọi `loadAiConfigSection(currentMode.value !== 'library')`) — một PROXY
+ * chế độ giao diện, KHÔNG tương đương `OpenWorkState`: `lib.rs::close_open_work` (duy nhất
+ * xoá `OpenWorkState`) chỉ chạy ở nhánh `RunEvent::Exit`, không IPC nào đóng một Tác phẩm, nên
+ * `OpenWorkState` có thể còn `Some` (tầng Work vẫn dùng được) trong khi `currentMode` đã quay
+ * lại `'library'` — lượt Lưu khi đó ghi NHẦM tầng Global dù Rust vẫn coi một Tác phẩm đang mở.
+ * `loadAiConfigSection` vì thế KHÔNG còn nhận tham số — không còn đường nào để một tín hiệu UI
+ * lọt vào quyết định tầng ghi.
+ *
+ * 🔴 **HỆ QUẢ CỦA BẢN VÁ, nói ra thay vì để ai đó gặp rồi đoán.** Vì `OpenWorkState` sống tới
+ * lúc THOÁT ứng dụng, sau khi đã mở một Tác phẩm bất kỳ thì `work_tier_available` còn `true`
+ * suốt phiên — kể cả khi giao diện đã về Library. Nghĩa là từ lúc đó, MỌI lượt Lưu ở màn này
+ * ghi tầng Tác phẩm, và **không còn đường nào sửa giá trị Global cho tới khi khởi động lại**.
+ * Trước bản vá vẫn có một đường, nhưng là đường SAI: về Library thì proxy đọc `false` và lượt
+ * ghi rơi vào Global trong khi Rust vẫn giữ Tác phẩm đó mở. Bản vá làm tầng ghi khớp
+ * authority, và đúng vì thế nó làm lộ ra rằng cái thiếu thật sự là một lệnh ĐÓNG Tác phẩm —
+ * không phải một tín hiệu UI khác. Đừng "sửa" chỗ này bằng cách đọc lại `currentMode`.
+ * Câu cũ ở đây từng viết *"đóng Tác phẩm rồi sửa"*; đó là một thao tác người dùng KHÔNG làm
+ * được, và nó mâu thuẫn với chính đoạn ngay trên. Ghi nợ có chủ (`deferred-work.md`).
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 KHÔNG THANH CHUYỂN PHẠM VI DẠNG NÚT — khác `CleanupRuleTier`/`GlossaryTier`
@@ -146,15 +165,15 @@ function isAbsoluteHttpUrl(trimmed: string): boolean {
 
 /**
  * Đọc lại năm trường — gọi mỗi lần mục `ai_and_model` trở thành mục ĐANG CHỌN (khuôn
- * `loadDomainLog` của `settingsState.ts`). `isWorkOpen` đến từ `currentMode !== 'library'`
- * ở nơi gọi (`SettingsOverlay.vue`) — tệp này không tự `import` `modes/modeState.ts` để giữ
- * nó độc lập với vòng đời chế độ, cùng lý lẽ `glossarySettingsState.ts` không tự đọc
- * `OpenWorkState`.
+ * `loadDomainLog` của `settingsState.ts`). **Không tham số** — cùng lý do doc-comment §Tầng
+ * đích ở đầu tệp: `workIsOpen` lấy từ `result.workTierAvailable` (chính lượt `aiConfigGet` NÀY
+ * đọc), không nhận từ chỗ gọi. Tệp này không tự `import` `modes/modeState.ts`, cùng lý lẽ
+ * `glossarySettingsState.ts` không tự đọc `OpenWorkState` — khác biệt duy nhất: nó cũng KHÔNG
+ * nhận một xấp xỉ của trạng thái đó qua tham số nữa.
  */
-export async function loadAiConfigSection(isWorkOpen: boolean): Promise<void> {
+export async function loadAiConfigSection(): Promise<void> {
   const mine = ++sequence
   loading.value = true
-  workIsOpen.value = isWorkOpen
   const result = await aiConfigGet()
   if (mine !== sequence) return // một lượt tải MỚI đã vượt mặt lượt này
   loading.value = false
@@ -166,6 +185,7 @@ export async function loadAiConfigSection(isWorkOpen: boolean): Promise<void> {
   loadError.value = null
   if (result.fields === null) return
 
+  workIsOpen.value = result.workTierAvailable
   resolvedFields.value = result.fields
   const next = emptyDrafts()
   for (const wire of result.fields) next[wire.field] = wire.value
@@ -196,7 +216,7 @@ export async function saveAiConfigField(field: AiConfigField): Promise<void> {
     return
   }
 
-  await loadAiConfigSection(workIsOpen.value)
+  await loadAiConfigSection()
 }
 
 /**
@@ -217,7 +237,7 @@ export async function clearAiConfigOverride(field: AiConfigField): Promise<void>
     return
   }
 
-  await loadAiConfigSection(workIsOpen.value)
+  await loadAiConfigSection()
 }
 
 /**

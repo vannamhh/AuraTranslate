@@ -33,7 +33,6 @@ import { loadAiConfigSection } from './aiConfigState'
 import { listDomainLog } from './config/project'
 import type { DomainLogEntryWire, DomainLogOutcomeWire } from './config/project'
 import type { IpcError } from './i18n'
-import { currentMode } from './modes/modeState'
 
 /** Mười một mục nav, ĐÚNG thứ tự hiện (xem §quyết định TẠM ở doc-comment đầu tệp). */
 export type SettingsSection =
@@ -293,10 +292,13 @@ async function loadDomainLog(): Promise<void> {
   if (result.entries !== null) domainLogEntries.value = result.entries
 }
 
-/** Tác phẩm đang mở hay không, đọc từ `currentMode !== 'library'` (`workspace`/`reading` chỉ
- * vào được sau khi một Tác phẩm đã mở) — xem §Tầng đích ở đầu `aiConfigState.ts`. */
+/** Đọc lại mục AI và mô hình — `aiConfigState.ts::loadAiConfigSection` tự tính tầng ghi từ
+ * `work_tier_available` của chính lượt `ai_config_get` nó gọi (§Tầng đích ở đầu
+ * `aiConfigState.ts`); tệp này không còn truyền vào một tín hiệu chế độ UI nào (trước đây là
+ * `currentMode !== 'library'` — một proxy KHÔNG tương đương `OpenWorkState`, xem doc-comment
+ * kia). */
 function loadAiConfig(): void {
-  void loadAiConfigSection(currentMode.value !== 'library')
+  void loadAiConfigSection()
 }
 
 /** Handler thật của `settings.open` — mở lớp phủ vào mục ĐANG CHỌN gần nhất (mặc định

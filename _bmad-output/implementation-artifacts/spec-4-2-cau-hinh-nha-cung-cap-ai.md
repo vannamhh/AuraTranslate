@@ -64,7 +64,19 @@ carrying overridden and inherited fields side by side.
 - An invalid value is rejected before any write, and the rejection crosses IPC as an
   `IpcError` whose `message_key` is a new entry in the closed `message_keys!` catalogue.
 - Settings-overlay nav buttons are `<form @submit.prevent>` + `type="submit"`, never bare
-  `@click`. Every action is a registered command with a literal id.
+  `@click`. ~~Every action is a registered command with a literal id.~~
+  🔵 **Narrowed 2026-09-16 on Ice's approval — the struck clause was unsatisfiable, and this
+  is the only place in the repo that claimed it.** Every action **reachable without an
+  argument** is a registered command with a literal id; a per-item action that needs a
+  parameter follows the established `ImportPreviewOverlay.vue::onDeleteCleanupRule` shape —
+  a form submit calling a local handler. Reason, verified at the declaration site:
+  `src/commands/registry.ts:51` declares `run: () => void`, so a registered command cannot
+  carry the `field` argument these actions need. What the narrowing gives up is a bindable
+  shortcut and a command-palette entry, not keyboard access — the submit buttons are still
+  reachable by Tab + Enter. No new gate: `check:commands` Check A watches `@click` only (a
+  blind spot `src/AGENTS.md:18` already documents), and a gate policing `@submit` would flag
+  every correct use of the established shape. The original wording is struck rather than
+  deleted, per this repo's rule about keeping the wrong text visible.
 - UI strings are new flat keys in `vi.json` under an `ai_config.`/`settings.` prefix, voiced
   as UX-DR47 requires (no `chúng tôi`, no `bạn`).
 

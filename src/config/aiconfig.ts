@@ -30,6 +30,21 @@ export type AiConfigFieldWire = {
   shadowed: string | null
 }
 
+/**
+ * Hình dạng `AiConfigGetWire` phía Rust — phong bì, KHÔNG một `AiConfigFieldWire[]` trần.
+ *
+ * ⚠️ `work_tier_available` tính TRỰC TIẾP từ `OpenWorkState` trong CHÍNH lượt gọi này (cùng
+ * lý do `commands/glossary.rs::QuickAddLookup`) — đây là nguồn thật DUY NHẤT cho "có Tác
+ * phẩm đang mở không" ở dải AI và mô hình. `aiConfigState.ts` KHÔNG được suy trạng thái đó từ
+ * `currentMode`/`modes/modeState.ts` (chế độ UI có thể quay về `'library'` trong khi
+ * `OpenWorkState` phía Rust vẫn `Some` — không IPC nào đóng một Tác phẩm ngoài
+ * `RunEvent::Exit`).
+ */
+type AiConfigGetWire = {
+  work_tier_available: boolean
+  fields: AiConfigFieldWire[]
+}
+
 function isIpcError(value: unknown): value is IpcError {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<IpcError>
@@ -58,19 +73,27 @@ const CMD_GET = 'ai_config_get'
 const CMD_SAVE_FIELD = 'ai_config_save_field'
 const CMD_CLEAR_OVERRIDE = 'ai_config_clear_override'
 
-/** Đọc năm trường, hai tầng đã phân giải. Không ném. `fields: null` khi lượt gọi trượt. */
-export async function aiConfigGet(): Promise<{ fields: AiConfigFieldWire[] | null; error: IpcError | null }> {
+/**
+ * Đọc năm trường, hai tầng đã phân giải, cộng `workTierAvailable`. Không ném. `fields: null`
+ * khi lượt gọi trượt (`workTierAvailable` khi đó là `false` — không có gì để đọc, chỗ gọi
+ * PHẢI kiểm `error`/`fields` trước khi dùng `workTierAvailable`).
+ */
+export async function aiConfigGet(): Promise<{
+  fields: AiConfigFieldWire[] | null
+  workTierAvailable: boolean
+  error: IpcError | null
+}> {
   try {
-    const fields = await invoke<AiConfigFieldWire[]>(CMD_GET)
-    return { fields, error: null }
+    const wire = await invoke<AiConfigGetWire>(CMD_GET)
+    return { fields: wire.fields, workTierAvailable: wire.work_tier_available, error: null }
   } catch (err) {
-    if (isIpcError(err)) return { fields: null, error: err }
+    if (isIpcError(err)) return { fields: null, workTierAvailable: false, error: err }
     if (hasIpcBridge()) {
       console.error(`[aiconfig] \`${CMD_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
-      return { fields: null, error: UNKNOWN_IPC_ERROR }
+      return { fields: null, workTierAvailable: false, error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aiconfig] không gọi được \`${CMD_GET}\` — chạy ngoài Tauri? ${String(err)}`)
-    return { fields: null, error: null }
+    return { fields: null, workTierAvailable: false, error: null }
   }
 }
 

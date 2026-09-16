@@ -33,7 +33,22 @@ const DICT_DIR: &str = "core/dict";
 /// `RS_FLOOR` của `store_boundary.rs`: nó bắt một cây **bị cắt**, không bắt việc thêm
 /// tệp. *"Cây rỗng đọc thành sạch"* — một đường dẫn gõ sai làm `walk` khớp 0 tệp và cổng
 /// này xanh mà không kiểm gì cả, ngay ngày nó ra đời.
-const DICT_FLOOR: usize = 1;
+///
+/// 🔵 **NÂNG 2026-09-16 (lượt rà Story 4.2, Ice duyệt) — 1 → 4, và câu viện khuôn ở trên
+/// đọc SAI chính tiền lệ nó trỏ tới.** Đo: `src/core/dict/**` nay có **5** tệp `.rs`, nên
+/// sàn 1 là **20%** — `core/dict/` mất 4 trong 5 tệp mà cổng này vẫn xanh.
+///
+/// `store_boundary.rs` không hề giữ một sàn ở tỉ lệ thấp; nó có đúng một hằng và đã nâng
+/// hai lần theo đúng lý do đang xảy ra ở đây: Story 1.8 đặt 20/26 (~77%), Story 2.1 nâng
+/// lên 34/42 (81,0%) với câu ghi thẳng *"sàn 20 trên 42 tệp (47,6%) không còn canh được
+/// 'cây bị cắt' nữa: mất hơn nửa cây vẫn xanh"*, Story 3.7 nâng tiếp 43/53 (81,1%). Vậy
+/// khuôn được viện là **giữ ở ~80% và nâng khi quần thể lớn lên** — không phải "để yên ở 1".
+/// Câu cũ giữ nguyên văn ở trên thay vì xoá, để chỗ đọc sai còn kiểm được.
+///
+/// **Sàn mới 4/5 = 80,0%.** Giới hạn thật của phép nâng này, ghi ra thay vì để người sau
+/// tưởng nhiều hơn: nó canh quần thể `core/dict/**` bị cắt, nó KHÔNG nói gì về 23 hằng sàn
+/// còn lại của kho — chúng vẫn trôi và có mục nợ riêng.
+const DICT_FLOOR: usize = 4;
 
 /// Ba token bị cấm ở **vị trí mã** dưới `core/dict/**`.
 ///

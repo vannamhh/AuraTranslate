@@ -92,7 +92,7 @@ fn no_configuration_anywhere_renders_every_field_empty_from_global() {
     let root = temp_dir("no-config");
     let global = open_global(&root);
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     assert_eq!(fields.len(), AiConfigField::ALL.len(), "phai tra du nam truong, ke ca truong chua cau hinh");
 
     for field in AiConfigField::ALL {
@@ -127,7 +127,7 @@ fn global_only_every_field_resolves_from_global() {
             .unwrap_or_else(|e| panic!("luu {} that bai: {e:?}", field.as_str()));
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     for field in AiConfigField::ALL {
         let wire = field_wire(&fields, *field);
         assert_eq!(wire.tier, AiConfigTierWire::Global, "moi truong phai tu Global khi khong Tac pham nao mo");
@@ -172,7 +172,7 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
     )
     .expect("luu endpoint work that bai");
 
-    let fields = ai_config_get(Some(&global), Some(&opened)).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), Some(&opened)).expect("doc ai_config that bai").fields;
 
     let endpoint = field_wire(&fields, AiConfigField::Endpoint);
     assert_eq!(endpoint.tier, AiConfigTierWire::Work, "endpoint phai den tu Work");
@@ -214,7 +214,7 @@ fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
         .expect("phai bi tu choi khi khong Tac pham nao dang mo");
     assert_eq!(err.message_key(), MessageKey::AiConfigWorkTierUnavailable);
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     assert_eq!(field_wire(&fields, AiConfigField::Endpoint).value, "", "0 luot ghi duoc phep xay ra");
 
     drop(global);
@@ -237,7 +237,7 @@ fn temperature_out_of_range_is_rejected_before_any_write() {
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     assert_eq!(field_wire(&fields, AiConfigField::Temperature).value, "", "khong gia tri nao duoc ghi");
 
     drop(global);
@@ -256,7 +256,7 @@ fn max_tokens_not_a_positive_integer_is_rejected_before_any_write() {
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     assert_eq!(field_wire(&fields, AiConfigField::MaxTokens).value, "", "khong gia tri nao duoc ghi");
 
     drop(global);
@@ -275,7 +275,7 @@ fn endpoint_not_an_absolute_url_is_rejected_before_any_write() {
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
+    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
     assert_eq!(field_wire(&fields, AiConfigField::Endpoint).value, "", "khong gia tri nao duoc ghi");
 
     drop(global);
@@ -297,12 +297,12 @@ fn clearing_a_work_override_returns_the_field_to_inherited() {
     ai_config_save_field(Some(&global), Some(&opened), AiConfigTier::Work, AiConfigField::Endpoint, "https://local.example.com")
         .expect("luu endpoint work that bai");
 
-    let before = ai_config_get(Some(&global), Some(&opened)).expect("doc truoc khi xoa");
+    let before = ai_config_get(Some(&global), Some(&opened)).expect("doc truoc khi xoa").fields;
     assert_eq!(field_wire(&before, AiConfigField::Endpoint).tier, AiConfigTierWire::Work);
 
     ai_config_clear_override(Some(&opened), AiConfigField::Endpoint).expect("xoa ghi de that bai");
 
-    let after = ai_config_get(Some(&global), Some(&opened)).expect("doc sau khi xoa");
+    let after = ai_config_get(Some(&global), Some(&opened)).expect("doc sau khi xoa").fields;
     let endpoint = field_wire(&after, AiConfigField::Endpoint);
     assert_eq!(endpoint.tier, AiConfigTierWire::Global, "sau khi xoa, truong phai phan giai lai tu Global");
     assert_eq!(endpoint.value, "https://api.anthropic.com");
@@ -348,12 +348,41 @@ fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
         images_failed: opened.images_failed,
     };
 
-    let fields = ai_config_get(Some(&global), Some(&reopened)).expect("doc sau khi mo lai");
+    let fields = ai_config_get(Some(&global), Some(&reopened)).expect("doc sau khi mo lai").fields;
     let model = field_wire(&fields, AiConfigField::Model);
     assert_eq!(model.tier, AiConfigTierWire::Work, "tang Tac pham phai phan giai duoc o phien MOI");
     assert_eq!(model.value, "llama3");
 
     drop(reopened.store);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Hàng 10 — `work_tier_available` bám `OpenWorkState`, KHÔNG một proxy chế độ UI
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Đối chứng trực tiếp cho khuyết tật đã đo (xem doc-comment `AiConfigGetWire`): trước bản vá
+/// này, `src/settingsState.ts` suy "có Tác phẩm đang mở không" từ `currentMode !== 'library'`
+/// — một proxy UI KHÔNG tương đương `OpenWorkState` (`close_open_work` chỉ chạy ở
+/// `RunEvent::Exit`, không IPC nào đóng một Tác phẩm). Ca này khoá `work_tier_available` vào
+/// ĐÚNG MỘT nguồn: tham số `Option<&OpenWork>` của chính lượt gọi — `None` ⇒ `false`, `Some`
+/// ⇒ `true`, không phụ thuộc gì khác. Không test nào TRƯỚC bản vá này gọi trực tiếp đến
+/// trường này — đây là lỗ hở "0 phép kiểm nào sẽ đỏ nếu tín hiệu tầng bị sai" mà lượt vá phải
+/// đóng.
+#[test]
+fn work_tier_available_tracks_open_work_state_not_a_ui_proxy() {
+    let root = temp_dir("work-tier-available");
+    let global = open_global(&root);
+
+    let closed = ai_config_get(Some(&global), None).expect("doc khi chua mo Tac pham nao");
+    assert!(!closed.work_tier_available, "chua mo Tac pham nao ⇒ work_tier_available phai false");
+
+    let opened = open_work_real(&root);
+    let with_work = ai_config_get(Some(&global), Some(&opened)).expect("doc khi da mo Tac pham");
+    assert!(with_work.work_tier_available, "co Tac pham dang mo ⇒ work_tier_available phai true");
+
+    drop(opened.store);
     drop(global);
     cleanup_dir(&root);
 }
