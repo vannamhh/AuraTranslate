@@ -1,6 +1,17 @@
 # Epic 4 Context: AI mở & Smart RAG Injector
 
-<!-- Compiled from planning artifacts. Edit freely. Regenerate with compile-epic-context if planning docs change. -->
+<!-- Compiled from planning artifacts, then HAND-MERGED. Edit freely.
+     Do NOT regenerate by overwriting: a plain recompile has twice produced the same two
+     reversals, because both facts sit outside what the compiler is allowed to read.
+       1. "`TranslationProvider` is NOT declared yet" — a CODE fact (`src/ports/mod.rs:10`
+          says `chưa khai`, and there is no `translation_provider.rs`). AD-2 names the three
+          ALLOWED ports, which a compiler reads as "declared". compile-epic-context forbids
+          documenting anything derivable from the codebase, so it can never carry this line.
+       2. "FR20 (sync scrolling) was retracted; the gap is Epic 4's debt" — `EXPERIENCE.md:194`
+          still describes FR20 as live, and a compiler takes it at face value. The retraction
+          is at `epics.md:104-106` (Ice signed 2026-08-14).
+     Regenerate into a scratch path, diff against this file, and merge only verified additions. -->
+
 
 ## Goal
 
@@ -38,6 +49,7 @@ The translator configures one AI provider — their own API key (BYOK) or a loca
 - **Two-tier configuration:** AI provider settings live at the Global tier and are overridable per Work, resolved through `ScopeResolver` with override semantics — the same two-tier shape `glossary/` already established. A per-Work override survives closing and reopening an `.atproj`: the reopen path rebuilds the Work tier, so a consumer sees Work-tier values in a later session, not only in the session that created them.
 - **`TranslationProvider` port (AD-2) is NOT declared yet** — the ports module lists exactly three allowed ports and records this one as "not yet declared, Epic 4"; there is no trait, no implementation, no call site. Epic 4 both declares it and plugs in the first implementation. A fourth port would require a new AD, not an inline decision.
 - **Two-tier vocabulary already reserves `ai_config` with Override semantics**, and the binding decision recorded alongside it is that the override is **per field** (a map of field key → value, the shape `glossary/` uses), not whole-struct replacement. The generic `config_value` table serves only global-only kinds, so an Override kind cannot be written through it — AI config needs its own table, and the migration rule is that each story owns the migration step for the table it needs, added in the same story.
+- **AD-18 declares two-tier semantics per data type, and the Prompt row is the thin one.** Its table gives Glossary "override — Work tier wins per term", AI config "override — **per field, not per struct**", TM "merge", import-cleaning rules "merge". The Prompt row (FR69) says only **"override"** with no granularity stated — unlike the AI-config row directly beneath it, which spells its granularity out. So whether a Work-tier prompt set replaces a same-named Global set as a whole, or field-by-field, is **an open decision, not a recorded one**. Story 4.4 has to settle it and record it; do not read the bare "override" as "whole-set".
 - **AD-21 error shape:** errors crossing IPC carry `{ code, message_key, params, retryable }`; the displayed string resolves from `vi.json`. This is the shape a failed connection test must produce, not an ad-hoc string.
 - **AD-47③ provenance:** when an AI result is promoted into the Editor via `⌘⇧↵`, its provenance is recorded as "translated by someone else", not as the user's own translation.
 - **The single door onto Glossary data** is `core::glossary::entries_eligible_for_injection(resolver, global, work)` — pending-confirmation entries are never injected, and `load_tier`/`insert_entry`/`confirm_translation` are barred outside `core/glossary/**` by an existing boundary test. Its cost has not been measured: it scans and clones both Glossary tables on every call, i.e. once per sentence translated, and its return value drops the source-tier label while `id` is only unique within one `Store`. Story 4.6 must measure before wiring it into a hot path, and may need its own data shape rather than that return value.
@@ -48,6 +60,7 @@ The translator configures one AI provider — their own API key (BYOK) or a loca
 - AI state is always exactly one of five values: not configured · generating (streaming) · done · error · cancelled. "Not configured" is explicitly not an error — the app runs fully without AI (FR77), so the panel just invites configuration.
 - Error copy never blames the user — "the provider did not respond," never "you entered the wrong key."
 - The prompt inspector separates user-authored prompt text from dynamically injected content, shows which Glossary terms were inserted with their confirmed translations, and summarizes how many were injected.
+- Two mockups in `planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/mockups/` cover this epic and both exist on disk: `prompt-library.html` (Stories 4.4–4.5) and `prompt-inspector.html` (Story 4.7). They are reference, not specification — where a mockup and a signed decision disagree, the decision wins.
 - Narrow-window layout (Story 4.12) has a fixed panel-sacrifice order (AI Translation yields first, Lookup retreats to the status bar next, Original|Translation never yields) and four breakpoints; only the numbers are calibrated on real hardware, separately per layout preset since they compress differently. Values go into `[A11]` of SPEC.md, closing Q9.
 
 ## Cross-Story Dependencies
