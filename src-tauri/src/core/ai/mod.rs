@@ -14,3 +14,11 @@
 //! `core/aiconfig/keychain.rs`: bí mật khoá API là một domain CẤU HÌNH hai tầng (cùng
 //! `core/aiconfig/mod.rs`, §Intent spec 4.3), không phải logic dịch — `core/ai/` (Story
 //! 4.8) sẽ ĐỌC khoá qua `core::aiconfig`, không tự mở keychain.
+//!
+//! 🔵 THÊM 2026-09-17 (Story 4.6) — [`rag`], dòng mã ĐẦU TIÊN của module này. Smart RAG
+//! Injector: [`rag::gather_glossary_context`] (tạp, một lượt gọi Glossary) +
+//! [`rag::assemble_prompt`] (thuần, AD-14) — xem doc-comment của `rag` cho hình dạng đầy đủ.
+//! `core/mod.rs:6` giữ nguyên `pub mod ai;` TRẦN — KHÔNG thêm `pub use ai::…` ở đó
+//! (`tests/ai_boundary.rs::core_mod_rs_declares_the_ai_module_bare_with_no_reexport`).
+
+pub mod rag;

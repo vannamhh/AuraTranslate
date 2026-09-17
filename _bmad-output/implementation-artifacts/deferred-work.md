@@ -5841,6 +5841,20 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   trong kết quả, không trường nào phân biệt được — chỗ gọi nào khoá theo `id` sẽ đụng nhau,
   và không ai đọc được một thuật ngữ đến từ tầng nào (thứ `mockups/glossary-manage.html:169`
   đã vẽ). **Chủ: Epic 4** — đọc mục này trước khi thiết kế hình dạng dữ liệu vào `RagInjector`.
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-09-17 (Story 4.6), SỬA TẠI CHỖ 2026-09-18 (rà soát) — mục vẫn MỞ
+  cho `entries_eligible_for_injection` chính nó.** `RagInjector` không gọi hàm này (Decision 5
+  của spec 4.6 chuyển cửa sang `confirmed_terms_for_injection`, một hàm MỚI). Bản đầu của lượt
+  đóng này viết *"hai kiểu mới của cửa đó mang `tier` tường minh"* — ĐÚNG ở cửa
+  (`core::glossary::store::{GlossaryInjectionTerm, SuppressedByPendingOverlap}`) nhưng SAI ở
+  chỗ nó ngụ ý đã đúng luôn cho tầng `RagInjector` đọc: bản đầu của ledger
+  (`core::ai::rag::{InjectedGlossaryTerm, SuppressedGlossaryTerm}`) chỉ mang
+  `source_term`/`translation`, ĐÁNH RƠI đúng `tier` (và `start`/`end`) mà cửa đã tính — rà
+  soát 2026-09-18 bắt được. Sửa CÙNG NGÀY: cả bốn kiểu (hai ở cửa, hai ở ledger) nay đều mang
+  `start`/`end`/`tier`, và phép so trùng lặp khoá theo `source_term` (không theo `id`) — đúng
+  thứ mục này đòi, ở ĐÚNG tầng Story 4.7 đọc (ledger), không chỉ ở cửa.
+  `entries_eligible_for_injection` vẫn giữ nguyên khiếm khuyết ban đầu (đánh rơi tầng, `id`
+  không duy nhất) — nó chỉ không còn đường sản phẩm nào gọi tới nữa; xem mục mới cuối
+  `## Deferred from: 4-6-…` cho phần đó.
 
 - ⚠️ **`GLOSSARY_ONLY_SURFACE` khớp định danh TRẦN (`insert_entry` · `confirm_translation`
   · `load_tier`) như chuỗi con, trên toàn `src-tauri/src/**`.** Chính doc-comment của
@@ -5881,6 +5895,28 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   `resolve.rs` lấy làm ví dụ) và một lượt gọi cho MỖI câu được dịch, đây là đường nóng của
   Epic 4. Chưa đo, nên chưa gọi nó là vấn đề — nhưng phải đo trước khi `RagInjector` chạy
   thật. **Chủ: Epic 4** — đo trước, rồi quyết cache theo phiên hay đổi chữ ký.
+  → 🟡 **ĐO ĐƯỢC 2026-09-17 (Story 4.6), SỬA TẠI CHỖ 2026-09-18 (rà soát) — quần thể đo hẹp
+  hơn câu đã viết, quyết định cache VẪN MỞ.**
+  `core::ai::rag::gather_glossary_context` (đường TRỌN GÓI mỗi câu, gọi
+  `confirmed_terms_for_injection` — hàm KHÁC `entries_eligible_for_injection` nhưng cùng hình
+  dạng chi phí: `load_tier` + một lượt `clone()` cho mỗi mục resolved) đo trên **500** mục
+  **tầng Global** gieo sẵn cộng một thuật ngữ khớp thật trong câu, `work: None` (KHÔNG mở Tác
+  phẩm nào — `resolve_and_match` chỉ gọi `load_tier(global)`, KHÔNG gọi `work.map(load_tier)`
+  vì `work` là `None`; bản đầu của mục này viết "nạp lại TOÀN BỘ hai tầng" — SAI, chỉ MỘT
+  tầng được nạp trên quần thể đã đo), **200** lượt gọi, bản DEBUG, hai lượt đo liên tiếp trên
+  cây yên tĩnh, con số NGUYÊN VĂN probe in ra (không quy đổi dấu thập phân — tệp này dùng `.`
+  làm dấu phân cách nghìn ở chỗ khác, nên `6,633ms` đọc nhầm được thành *"6633 ms"*):
+  **`per_call=6.531582ms`** rồi **`per_call=6.682072ms`**
+  (`perf_probe_gather_glossary_context_whole_per_sentence_path_on_a_matching_sentence`,
+  `tests/ai_rag_contract.rs`). Đây là con số DEBUG — bản RELEASE (`opt-level = "s"`,
+  `lto`) sẽ thấp hơn nhưng KHÔNG đo ở đây (`AGENTS.md`: một con số phải nói build nào đo
+  ra nó). Với một Tác phẩm dịch hàng trăm câu, việc `load_tier` nạp lại (ít nhất) một tầng ở
+  MỖI câu là chi phí thật, không suy đoán nữa; chi phí của nhánh HAI tầng (`work: Some(..)`)
+  chưa được đo — narrower hơn câu bản đầu đã viết. **Chủ: Story 4.8 (phần còn lại)** (chỗ gọi
+  sản phẩm ĐẦU TIÊN của `gather_glossary_context`, và chỗ đầu tiên biết tần suất gọi thật của
+  một phiên dịch) — quyết cache theo phiên (nạp tầng MỘT LẦN, dùng lại cho mọi câu của cùng
+  một Tác phẩm đang mở) hay đổi chữ ký để nhận dữ liệu đã nạp sẵn từ chỗ gọi; đo thêm nhánh
+  hai tầng (Work đang mở) trước khi quyết, vì con số ở đây chưa nói gì về nhánh đó.
 
 - ⚠️ **`pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay
   khẳng định phiên bản 4, tức bước `glossary_entry`, không phải bước `pinned_entry` mà tên
@@ -8178,6 +8214,17 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     dòng mã `ai/` nào gọi xuống `glossary/` để tự làm chứng.
     **(Chủ: Story 4.6 — dựng `RagInjector`, chỗ đầu tiên `ai/` thật sự gọi xuống `glossary/`;
     xác nhận lúc đó rằng `glossary_boundary.rs` bắt đúng nếu `ai/` lách qua bề mặt cấm.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-17 (Story 4.6), CHỨNG MINH được, không phải chỉ đo.** `core::ai::rag`
+    nay gọi thật `core::glossary::confirmed_terms_for_injection` (cửa MỚI, không phải
+    `entries_eligible_for_injection` như evidence dự đoán — xem Decision 5 của spec 4.6 cho
+    lý do cửa cũ không đủ). Ca dương thật đã chạy, không suy luận: seed `load_tier` bên
+    TRONG nhóm `use crate::core::glossary::{` nhiều dòng của `rag.rs` (hình dạng THẬT mà
+    `rustfmt` xuống dòng cho nhóm ≥3 tên) rồi chạy
+    `cargo test --test ai_boundary --test glossary_boundary` — CẢ HAI cổng đỏ, mỗi cổng nêu
+    đúng tên `load_tier` tại đúng dòng. Gỡ seed, cả hai lại xanh. Vế "chiều ĐƯỢC PHÉP của
+    AD-13" giờ có ca dương thật; `tests/ai_boundary.rs::no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four`
+    còn khoá thêm bốn tên duy nhất được phép (cửa, kiểu trả về, `GlossaryError`,
+    `match_lang_for_source_lang`).
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **AC ranh giới của `ai_boundary.rs` mới canh được Epic 1–3 (55 tệp hôm nay);
@@ -12949,6 +12996,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Story 4.6 — story dựng `RagInjector`, tức story đầu tiên thật sự CHÈN nội dung vào
     các marker này. Nó quyết `{{chapter_context}}` có vào `ALL` hay không, và nếu có thì "hai
     câu trước và hai câu sau" lấy ở đâu.)**
+  → ✅ **ĐÃ QUYẾT 2026-09-17 (Story 4.6), Ice ký — VĨNH VIỄN đứng ngoài, không "chờ tới khi có
+    ai dùng nó" nữa.** Decision 1 của spec 4.6: `PromptVariable::ALL` giữ nguyên BA tên.
+    Thêm `{{chapter_context}}` sẽ ép một tham số THỨ TƯ (câu lân cận) vào chữ ký
+    `RagInjector` mà story này có nhiệm vụ ĐÓNG BĂNG, đẩy trách nhiệm cấp câu lân cận sang
+    Story 4.8, và tốn token BYOK cho bốn câu phụ mỗi lượt gọi — không AC/FR nào đòi, và
+    chính mockup đã đánh dấu *chưa dùng*. `core::ai::rag::assemble_prompt` xác nhận hành vi:
+    `{{chapter_context}}` vẫn đọc ra như một token lạ, giữ NGUYÊN VĂN trong prompt, và được
+    gọi tên trong `InjectionLedger::unknown_markers`
+    (`tests/ai_rag_contract.rs::chapter_context_is_still_outside_the_ratified_vocabulary`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **Hàng Toàn cục BỊ CHE chỉ hiển thị được, không thao tác được — nó không mang `id`
@@ -13035,3 +13091,62 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — quyết CÓ đáng xây xuất-nhiều-bộ hay không, và nếu có thì trả lời cả bốn câu
     trên trước khi một story sau viết mã. Không chặn Story 4.5: một bộ mỗi lượt đã đóng trọn
     AC của story này.)**
+
+## Deferred from: 4-6-smart-rag-injector-la-mot-ham-thuan (2026-09-17)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
+  summary: **`entries_eligible_for_injection` trở lại ĐÚNG số chỗ gọi sản phẩm nó có TRƯỚC
+    khi Epic 4 tồn tại: 0.**
+  evidence: §Code Map của spec 4.6 nói thẳng: *"entries_eligible_for_injection — no longer
+    this story's door... record in deferred-work.md that it is back to zero product callers
+    and who owns that."* Đo được (`grep -rn "entries_eligible_for_injection" src-tauri/src/`
+    ngoài `core/glossary/**`): **0** chỗ gọi — chỉ còn MỘT lời nhắc trong doc-comment của
+    `core/promptset/store.rs:61` (giải thích một lý do thiết kế khác, không phải một lời
+    gọi). `core::ai::rag` gọi `confirmed_terms_for_injection` (hàm MỚI của Story 4.6,
+    Decision 5) thay vì hàm này — `entries_eligible_for_injection` được dựng ở Epic 3 làm
+    "cửa duy nhất" cho Epic 4, nhưng khi Epic 4 thật sự tới, chữ ký của nó không đủ (không
+    trả `raw_matches` để Decision 4 dò được "mục chờ chốt che mục đã chốt", không mang
+    `tier`). Hàm vẫn còn TÁM chỗ gọi test (`glossary_contract.rs`) và giữ nguyên khiếm
+    khuyết đã ghi ở mục *"`Vec<GlossaryEntry>` trả ra đánh rơi nhãn tầng"* phía trên (§Deferred
+    from: 3-1-…) — khiếm khuyết đó không còn đường sản phẩm nào chạm tới nữa, nhưng hàm vẫn
+    `pub`, vẫn biên dịch, vẫn có thể bị một chỗ gọi TƯƠNG LAI dùng nhầm thay vì
+    `confirmed_terms_for_injection`.
+    **(Chủ: Ice — quyết định XOÁ hàm (không chỗ gọi sản phẩm nào từ Epic 3 tới nay, chỉ
+    test) hay GIỮ làm hàm phơi-để-nghiệm-thu (khuôn `list_all_entries`) là quyết định của
+    Ice, không phải một lượt dọn dẹp tiện tay trong story này — spec 4.6 cấm mọi thay đổi
+    ngoài Code Map của nó.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
+  summary: **Phép tái cấu trúc dùng chung làm đường LƯỚI clone mọi mục đã phân giải ở mỗi lần
+    mở Chương, và không ai đo con số đó.**
+  evidence: `resolve_and_match` (`core/glossary/store.rs`) trả `Vec<(GlossaryTier,
+    GlossaryEntry)>`; trước story này `marks_for_source_text` MƯỢN (`&GlossaryEntry`) chứ không
+    nhân bản. Story 4.6 dựng bàn đo cho đường tiêm prompt (`perf_probe_gather_glossary_context…`,
+    500 hàng, ~6,5 ms/lượt bản debug) nhưng KHÔNG có bàn đo nào cho đường mở Chương, nên khoản
+    hồi quy này là THẬT về cơ chế và CHƯA CÓ SỐ — đúng thứ `AGENTS.md` cấm gọi tên bằng suy luận.
+    Bản vá đúng là để `resolve_and_match` trả tham chiếu kèm bản đồ sở hữu, hoặc chỉ clone những
+    mục THẮNG trọng tài; cả hai là phép tái cấu trúc vòng đời, không phải một sửa trực tiếp.
+    **(Chủ: Story 10.9 — story đo NFR trên thư viện thật, nơi đã có bàn đo cho đường mở Chương;
+    đo TRƯỚC rồi quyết, đừng vá mù.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
+  summary: **"Đúng MỘT truy vấn Glossary mỗi câu" mới được canh bằng phép đếm CHUỖI trong mã
+    nguồn — một vòng lặp quanh chỗ gọi duy nhất vẫn đọc ra một lần.**
+  evidence: `ai_boundary.rs::the_glossary_injection_door_is_called_at_most_once_under_core_ai`
+    đếm số lần định danh đi kèm `(` trong văn bản tệp đã nối, nay khẳng định `== 1` (nửa
+    "không lời gọi nào" đã đóng ở lượt rà soát 2). Nhưng `for` bọc quanh chỗ gọi đó, hay một hàm
+    phụ gọi nó một lần cho MỖI thuật ngữ, đều giữ phép đếm ở 1 trong khi số truy vấn thật nhân
+    lên N lần — đúng ngân sách mà `deferred-work.md:5882` đòi kiểm soát. Đóng đúng cách cần một
+    bộ đếm truy vấn ở tầng `Store`, thứ `Store` hôm nay không phơi ra.
+    **(Chủ: Story 4.8 — chỗ gọi sản phẩm ĐẦU TIÊN, và chỗ đầu tiên tần suất gọi thật đo được.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
+  summary: **Thân prompt dùng CRLF để sót một ký tự `\r` mồ côi khi một dòng marker bị gỡ và
+    phép co dòng trống chạy.**
+  evidence: `expand_prompt_body` (`core/ai/rag.rs`) tách dòng bằng `'\n'`, nên với thân CRLF mỗi
+    dòng còn đuôi `\r`. Đường tới đây là thật, không lý thuyết: Story 4.5 dựng phép NHẬP
+    `.prompt.md` từ tệp, và một tệp soạn trên Windows mang CRLF. Hệ quả nằm ở chữ GỬI CHO NHÀ
+    CUNG CẤP, nên nó không phải chuyện thẩm mỹ — nhưng mọi con số và mọi lượt chạy của story này
+    đều trên macOS, và mệnh đề Windows của kho này đọc từ CI chứ không đọc từ đây.
+    **(Chủ: Story 4.8 — story đầu tiên thật sự gửi prompt đi, và là chỗ một thân CRLF gây hậu
+    quả nhìn thấy được.)**

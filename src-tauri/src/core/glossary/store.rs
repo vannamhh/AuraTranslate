@@ -1310,11 +1310,74 @@ fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
     selected
 }
 
+/// Nửa DÙNG CHUNG của `marks_for_source_text`/[`confirmed_terms_for_injection`] — Story 4.6,
+/// Decision 5 của spec (*"resolve → find_terms → arbitrate → convert spans" chỉ SỐNG ở một
+/// chỗ"*). Tra hai tầng qua `ScopeResolver::apply_override` (**không lọc** `is_confirmed`),
+/// gọi [`find_terms`] (AD-17) MỘT LẦN trên tập đã phân giải — nhưng **KHÔNG** phân xử chồng
+/// nhau: đó là việc của [`resolve_overlaps`], và chỗ gọi tự chạy nó trên `raw_matches` trả về
+/// đây, đúng MỘT hàm phân xử cho cả hai đường (`marks_for_source_text` cần thêm bước Hán
+/// Việt trước khi quy đổi span; [`confirmed_terms_for_injection`] cần cả `raw_matches` GỐC để
+/// dò "mục đã chốt thua một mục chờ chốt" — Decision 4 — nên không thể trả sẵn bản ĐÃ phân
+/// xử cho cả hai).
+///
+/// `payload[i]` khoá theo đúng vị trí `i` mà `resolved.values()` duyệt tới — `term_index` của
+/// mỗi [`TermMatch`] trong `raw_matches` trỏ vào vị trí này.
+///
+/// # Lỗi
+/// [`GlossaryError::Store`] nếu một trong hai lượt [`load_tier`] thất bại (kể cả kho không
+/// mở được — I/O Matrix *"`Store` đóng giữa chừng ⇒ lỗi mang `message_key`, KHÔNG
+/// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
+/// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
+fn resolve_and_match(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+    text: &str,
+    lang: MatchLang,
+) -> Result<(Vec<(GlossaryTier, GlossaryEntry)>, Vec<TermMatch>), GlossaryError> {
+    // Cùng lưới `entries_eligible_for_injection`/`resolve_term_for_quick_add` — hai trường
+    // của cùng một `OpenWork` không được tách rời nhau trên đường xuống đây.
+    debug_assert_eq!(
+        resolver.has_work_tier(),
+        work.is_some(),
+        "resolve_and_match -- resolver.has_work_tier()={} nhung work.is_some()={}",
+        resolver.has_work_tier(),
+        work.is_some()
+    );
+
+    let global_tier = load_tier(global)?;
+    let work_tier = work.map(load_tier).transpose()?;
+
+    let resolved =
+        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+
+    // `payload[i]` la (tang, muc) cua khoa thu `i` cua `resolved` -- CUNG mot thu tu voi
+    // `terms` duoi day, vi ca hai deu duyet DUNG MOT lan tren cung mot BTreeMap. `term_index`
+    // cua `TermMatch` tro vao vi tri nay. Nhan BAN SAO (khong tham chieu muon `resolved`) de
+    // ca hai chu goi deu nhan gia tri SO HUU, khong vuong vao doi song cua `resolved` cuc bo.
+    let payload: Vec<(GlossaryTier, GlossaryEntry)> = resolved
+        .values()
+        .map(|resolved_entry| {
+            let tier = match resolved_entry.tier() {
+                ScopeTier::Global => GlossaryTier::Global,
+                ScopeTier::Work => GlossaryTier::Work,
+            };
+            (tier, resolved_entry.value().clone())
+        })
+        .collect();
+    let terms: Vec<&str> = resolved.keys().map(String::as_str).collect();
+
+    let raw_matches = find_terms(text, &terms, lang);
+
+    Ok((payload, raw_matches))
+}
+
 /// **Hàm phơi ra THỨ TƯ** của `core::glossary` — Story 3.4, FR50/FR51. Tra hai tầng qua
 /// `ScopeResolver::apply_override` (**không lọc** `is_confirmed` — cùng lý do
 /// [`resolve_term_for_quick_add`]: một mục *chờ chốt* vẫn phải ra dấu, mang cờ phân biệt),
 /// rồi gọi [`find_terms`] (AD-17) trên tập thuật ngữ đã phân giải và quy đổi span
-/// byte → điểm mã **một lần, ở đúng một chỗ** (§Design Notes).
+/// byte → điểm mã **một lần, ở đúng một chỗ** (§Design Notes) — qua [`resolve_and_match`],
+/// nửa dùng chung với [`confirmed_terms_for_injection`] (Story 4.6, Decision 5).
 ///
 /// 🔴 **Không lọc `is_confirmed`** — khác hẳn [`entries_eligible_for_injection`]. Mục chờ
 /// chốt vẫn được đánh dấu (I/O Matrix: *"Mục chờ chốt ⇒ Có dấu, `is_confirmed=false`,
@@ -1327,10 +1390,7 @@ fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
 /// chính phép khớp.
 ///
 /// # Lỗi
-/// [`GlossaryError::Store`] nếu một trong hai lượt [`load_tier`] thất bại (kể cả kho không
-/// mở được — I/O Matrix *"`Store` đóng giữa chừng ⇒ lỗi mang `message_key`, KHÔNG
-/// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
-/// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
+/// Xem [`resolve_and_match`].
 ///
 /// 🔵 **THÊM 2026-08-24 (Story 3.7, FR113)** — `layers`/`disabled` thêm để đề xuất âm Hán
 /// Việt tính được TRONG CÙNG lượt mở Chương, không một vòng IPC thứ hai. Chỉ các mục **CHỜ
@@ -1347,38 +1407,7 @@ pub fn marks_for_source_text(
     layers: &DictLayers,
     disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryMark>, GlossaryError> {
-    // Cùng lưới `entries_eligible_for_injection`/`resolve_term_for_quick_add` — hai trường
-    // của cùng một `OpenWork` không được tách rời nhau trên đường xuống đây.
-    debug_assert_eq!(
-        resolver.has_work_tier(),
-        work.is_some(),
-        "marks_for_source_text -- resolver.has_work_tier()={} nhung work.is_some()={}",
-        resolver.has_work_tier(),
-        work.is_some()
-    );
-
-    let global_tier = load_tier(global)?;
-    let work_tier = work.map(load_tier).transpose()?;
-
-    let resolved =
-        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
-
-    // `payload[i]` la (source_term, tang, muc) cua khoa thu `i` cua `resolved` -- CUNG mot
-    // thu tu voi `terms` duoi day, vi ca hai deu duyet DUNG MOT lan tren cung mot BTreeMap.
-    // `term_index` cua `TermMatch` tro vao vi tri nay.
-    let payload: Vec<(GlossaryTier, &GlossaryEntry)> = resolved
-        .values()
-        .map(|resolved_entry| {
-            let tier = match resolved_entry.tier() {
-                ScopeTier::Global => GlossaryTier::Global,
-                ScopeTier::Work => GlossaryTier::Work,
-            };
-            (tier, resolved_entry.value())
-        })
-        .collect();
-    let terms: Vec<&str> = resolved.keys().map(String::as_str).collect();
-
-    let raw_matches = find_terms(text, &terms, lang);
+    let (payload, raw_matches) = resolve_and_match(resolver, global, work, text, lang)?;
     let selected = resolve_overlaps(raw_matches);
 
     // 🔵 THÊM 2026-08-24 (Story 3.7) — gom `source_term` của các mục CHỜ CHỐT trong tập ĐÃ
@@ -1386,7 +1415,7 @@ pub fn marks_for_source_text(
     // đã bị một span dài hơn đè lên là công vô ích, nó không bao giờ ra dấu.
     let pending_terms: Vec<&str> = selected
         .iter()
-        .map(|m| payload[m.term_index].1)
+        .map(|m| &payload[m.term_index].1)
         .filter(|entry| !entry.is_confirmed())
         .map(|entry| entry.source_term.as_str())
         .collect();
@@ -1401,7 +1430,7 @@ pub fn marks_for_source_text(
     let marks = selected
         .into_iter()
         .map(|m| {
-            let (tier, entry) = payload[m.term_index];
+            let (tier, entry) = &payload[m.term_index];
             let is_confirmed = entry.is_confirmed();
             // Mục ĐÃ CHỐT không đi qua `suggest_han_viet_batch` -- gán thẳng
             // `NotRequested` (§Design Notes của Story 3.7: một đề xuất cho mục đã có bản
@@ -1430,7 +1459,7 @@ pub fn marks_for_source_text(
             GlossaryMark {
                 start: byte_to_codepoint(&boundaries, m.span.start),
                 end: byte_to_codepoint(&boundaries, m.span.end),
-                tier,
+                tier: *tier,
                 is_confirmed,
                 translation: entry.translation.clone(),
                 // 🔵 THÊM 2026-08-22 (Story 3.6) — `entry` là `&GlossaryEntry` đã phân giải,
@@ -1446,6 +1475,167 @@ pub fn marks_for_source_text(
         .collect();
 
     Ok(marks)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.6 — CỬA DUY NHẤT vào dữ liệu Glossary cho `core::ai::rag` (AD-36, Decision 5)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một cặp thuật ngữ ĐÃ CHỐT sống sót qua phân xử chồng nhau — sẵn sàng cho lượt tiêm của
+/// `core::ai::rag::assemble_prompt` (Story 4.6). Span là ĐIỂM MÃ, cùng đơn vị
+/// [`GlossaryMark`] dùng — phép so "lưới và ledger nói cùng một điều" (AC của story) không
+/// cần quy đổi đơn vị.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlossaryInjectionTerm {
+    /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm) trong câu đã truyền vào
+    /// [`confirmed_terms_for_injection`].
+    pub start: usize,
+    /// Vị trí ĐIỂM MÃ kết thúc (không bao gồm).
+    pub end: usize,
+    /// Tầng thắng (AD-18).
+    pub tier: GlossaryTier,
+    /// Khoá ghi thật của mục — cùng lý do [`GlossaryMark::source_term`].
+    pub source_term: String,
+    /// Bản dịch đã chốt — luôn `Some` ở tầng dữ liệu (`is_confirmed()` xác nhận), nên kiểu ở
+    /// đây là `String` trần: không một `.unwrap_or_default()` nào cần đứng giữa "không thể
+    /// xảy ra" và "rỗng thật" (khác pha review Pass 1 #11 bắt được ở
+    /// `entries_eligible_for_injection`).
+    pub translation: String,
+}
+
+/// Một mục ĐÃ CHỐT thua phân xử chồng nhau TRƯỚC MỘT MỤC CHỜ CHỐT — Decision 4 của spec
+/// 4.6. Mục này KHÔNG được chèn (mục thắng — chờ chốt — cũng không, vì nó bị lọc ở
+/// [`confirmed_terms_for_injection`]), nhưng ledger (`core::ai::rag::InjectionLedger`) phải
+/// gọi tên nó, không để nó lặng lẽ vắng mặt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SuppressedByPendingOverlap {
+    /// Khoá ghi thật của mục đã chốt bị che.
+    pub source_term: String,
+    /// Tầng của mục đã chốt bị che.
+    pub tier: GlossaryTier,
+    /// Bản dịch đã chốt của mục bị che — mang theo để Story 4.7 vẽ được *"considered but not
+    /// injected"* không cần tra lại.
+    pub translation: String,
+    /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm) của span mục bị che — cùng đơn vị
+    /// [`GlossaryInjectionTerm::start`]/[`GlossaryMark::start`], để đối chiếu với lưới.
+    pub start: usize,
+    /// Vị trí ĐIỂM MÃ kết thúc (không bao gồm).
+    pub end: usize,
+}
+
+/// Kết quả của [`confirmed_terms_for_injection`] — TRỌN những gì `core::ai::rag` cần để dựng
+/// ledger, không hơn.
+///
+/// 🔴 **KHÔNG `#[derive(Default)]` — rà soát 2026-09-18.** `GlossaryInjectionOutcome::default()`
+/// (`injected: vec![]`, `suppressed_by_pending_overlap: vec![]`) byte-giống hệt kết quả của
+/// một câu ĐÃ HỎI mà không khớp gì — đúng trạng thái mà `GlossaryInjectionStatus::NotAsked`/
+/// `Asked` (kiểu `enum` cạnh nó ở `core::ai::rag`) tồn tại để KHÔNG collapse với nhau. Một
+/// `Default` ở đây là một cửa sau: `result.unwrap_or_default()` lặng lẽ biến MỘT lỗi Glossary
+/// thành "đã hỏi, rỗng" thay vì để lỗi đó truyền lên đúng như I/O Matrix đòi.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlossaryInjectionOutcome {
+    /// Các cặp sẵn sàng tiêm vào prompt, theo thứ tự xuất hiện trong câu (Decision 2).
+    pub injected: Vec<GlossaryInjectionTerm>,
+    /// Xem [`SuppressedByPendingOverlap`].
+    pub suppressed_by_pending_overlap: Vec<SuppressedByPendingOverlap>,
+}
+
+/// **Cửa DUY NHẤT** vào dữ liệu Glossary cho `core::ai::rag` (Story 4.6, Decision 5 —
+/// đóng `deferred-work.md` mục *"AD-13's allowed direction has never had a positive
+/// case"*). `ai/` gọi đúng hàm này, đúng MỘT lần cho mỗi câu, và không tự phân xử gì —
+/// mọi phần "resolve → find_terms → arbitrate" đã chạy XONG khi kết quả trả về đây.
+///
+/// 🔴 **Vì sao Decision 4 (arbitrate TRƯỚC, lọc `is_confirmed` SAU) tự nhiên đúng ở đây, không
+/// cần một luật thứ hai:** [`resolve_and_match`] không lọc `is_confirmed` — nó trả TOÀN BỘ
+/// `raw_matches` (đã chốt lẫn chờ chốt), và [`resolve_overlaps`] phân xử qua đúng tập đó,
+/// giống hệt [`marks_for_source_text`]. Một mục *chờ chốt* dài hơn che một mục *đã chốt* ngắn
+/// hơn thì mục đã chốt **không có trong `selected`** (winner của `resolve_overlaps`) — lọc
+/// `is_confirmed` NGAY SAU chỉ còn giữ những cặp đã chốt mà `resolve_overlaps` thật sự chọn.
+/// Không đường nào trong hàm này lọc `is_confirmed` TRƯỚC phân xử.
+///
+/// # Lỗi
+/// Xem [`resolve_and_match`].
+pub fn confirmed_terms_for_injection(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+    text: &str,
+    lang: MatchLang,
+) -> Result<GlossaryInjectionOutcome, GlossaryError> {
+    let (payload, raw_matches) = resolve_and_match(resolver, global, work, text, lang)?;
+    let selected = resolve_overlaps(raw_matches.clone());
+    let boundaries = codepoint_boundaries(text);
+
+    let injected: Vec<GlossaryInjectionTerm> = selected
+        .iter()
+        .filter_map(|m| {
+            let (tier, entry) = &payload[m.term_index];
+            // `is_confirmed()` LÀ VỊ TỪ DUY NHẤT định nghĩa "đã chốt" (doc-comment đầu
+            // `entry.rs`) -- không tự hỏi `translation.is_some()` một cách khác ở đây.
+            if !entry.is_confirmed() {
+                return None;
+            }
+            let Some(translation) = entry.translation.clone() else {
+                unreachable!("is_confirmed() vua xac nhan translation.is_some()")
+            };
+            Some(GlossaryInjectionTerm {
+                start: byte_to_codepoint(&boundaries, m.span.start),
+                end: byte_to_codepoint(&boundaries, m.span.end),
+                tier: *tier,
+                source_term: entry.source_term.clone(),
+                translation,
+            })
+        })
+        .collect();
+
+    // Decision 4 -- mot muc DA CHOT o trong `raw_matches` (tuc THAT co khop trong cau) nhung
+    // KHONG o trong `selected` (bi `resolve_overlaps` loai), va khoang no chiem GIAO voi it
+    // nhat MOT nguoi thang ma nguoi thang do la mot muc CHUA chot -- day dung Decision 4:
+    // "mot muc chua chot che mot muc da chot". Bao cho ledger goi ten, khong de no lang le
+    // vang mat. Mot muc da chot thua truoc MOT muc da chot khac (hang "Overlapping confirmed
+    // terms" cua ma tran) khong roi vao day -- do la phan xu binh thuong, khong can bao rieng.
+    let mut suppressed: Vec<SuppressedByPendingOverlap> = Vec::new();
+    let mut reported: BTreeSet<(usize, usize, usize)> = BTreeSet::new();
+    for candidate in &raw_matches {
+        let (tier, entry) = &payload[candidate.term_index];
+        if !entry.is_confirmed() {
+            continue; // ban than la mot muc cho chot -- khong the la ben BI che
+        }
+        let Some(translation) = entry.translation.clone() else {
+            unreachable!("is_confirmed() vua xac nhan translation.is_some()")
+        };
+
+        let is_winner = selected
+            .iter()
+            .any(|s| s.term_index == candidate.term_index && s.span == candidate.span);
+        if is_winner {
+            continue;
+        }
+
+        let loses_to_a_pending_winner = selected
+            .iter()
+            .any(|winner| {
+                let overlaps = winner.span.start < candidate.span.end
+                    && candidate.span.start < winner.span.end;
+                overlaps && !payload[winner.term_index].1.is_confirmed()
+            });
+        if !loses_to_a_pending_winner {
+            continue;
+        }
+
+        let key = (candidate.term_index, candidate.span.start, candidate.span.end);
+        if reported.insert(key) {
+            suppressed.push(SuppressedByPendingOverlap {
+                source_term: entry.source_term.clone(),
+                tier: *tier,
+                translation,
+                start: byte_to_codepoint(&boundaries, candidate.span.start),
+                end: byte_to_codepoint(&boundaries, candidate.span.end),
+            });
+        }
+    }
+
+    Ok(GlossaryInjectionOutcome { injected, suppressed_by_pending_overlap: suppressed })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

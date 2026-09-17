@@ -260,6 +260,23 @@
 //! ⇒ Số biến thể `ParseIssue` theo đó lên CHÍN (bảy + `UnterminatedQuotedField` +
 //!    `DuplicateColumn`), và `core/i18n/mod.rs` mang đúng chín khoá phân tích tương ứng.
 
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 4.6) — CỬA DUY NHẤT vào Glossary cho `core::ai::rag`, AD-36
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - `store::resolve_and_match` — private (`fn`, không `pub`/`pub(super)`/`pub(crate)`; không
+//!   liên kết intra-doc được từ đây, đúng lý do nó không đứng trong ngoặc `[…]`), nửa DÙNG
+//!   CHUNG mà [`store::marks_for_source_text`] và [`store::confirmed_terms_for_injection`]
+//!   cùng gọi: tra hai tầng KHÔNG lọc `is_confirmed`, gọi `find_terms` một lần. Trả
+//!   `raw_matches` CHƯA phân xử — chỗ gọi tự chạy `resolve_overlaps` (CŨNG private, không
+//!   `pub(super)`, không phơi ra ngoài `store.rs`) để giữ đúng MỘT hàm phân xử cho cả hai
+//!   đường.
+//! - [`store::confirmed_terms_for_injection`] — HÀM PHƠI RA THỨ MƯỜI BA, cửa DUY NHẤT Epic 4
+//!   được gọi (Decision 5 của spec 4.6). Trả [`store::GlossaryInjectionOutcome`]: các cặp
+//!   ĐÃ CHỐT sống sót qua phân xử chồng nhau ([`store::GlossaryInjectionTerm`]) CỘNG danh
+//!   sách mục đã chốt bị một mục CHỜ CHỐT che (Decision 4,
+//!   [`store::SuppressedByPendingOverlap`]) — `core::ai::rag` không tự phân xử gì, chỉ dựng
+//!   ledger từ đúng kết quả này.
+//!
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
@@ -287,10 +304,11 @@ pub use scan::{DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_cont
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
-    GlossaryError, add_manual_term, classify_import_rows, confirm_pending_translation,
-    confirm_translation, delete_manual_term, entries_eligible_for_injection, export_tier,
-    import_into_tier, insert_manual_entry, list_all_entries, load_tier, marks_for_source_text,
-    match_lang_for_source_lang, promote_to_global, resolve_term_for_quick_add,
-    update_manual_term, warm_jieba_for_source_lang,
+    GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, SuppressedByPendingOverlap,
+    add_manual_term, classify_import_rows, confirm_pending_translation, confirm_translation,
+    confirmed_terms_for_injection, delete_manual_term, entries_eligible_for_injection,
+    export_tier, import_into_tier, insert_manual_entry, list_all_entries, load_tier,
+    marks_for_source_text, match_lang_for_source_lang, promote_to_global,
+    resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

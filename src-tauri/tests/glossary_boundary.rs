@@ -468,8 +468,11 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
         violations.is_empty(),
         "{} chỗ ngoài `{GLOSSARY_DIR}` gọi thẳng một hàm phơi dữ liệu THÔ của Glossary:\n{}\n\n\
          `load_tier` trả CẢ mục chờ chốt; `insert_manual_entry`/`confirm_translation` ghi \
-         thẳng không qua điều kiện chèn. Module khác chỉ được gọi \
-         `core::glossary::entries_eligible_for_injection` — đúng MỘT hàm phơi ra, theo AD-36.",
+         thẳng không qua điều kiện chèn. Module khác gọi qua một hàm ĐÃ LỌC thay vì các hàm \
+         này — `core::ai::rag` (Story 4.6) gọi `core::glossary::confirmed_terms_for_injection` \
+         (cửa của nó, cưỡng chế thêm ở `tests/ai_boundary.rs`); các module khác gọi \
+         `core::glossary::entries_eligible_for_injection` (AD-36, hôm nay 0 chỗ gọi sản phẩm —\
+         xem `deferred-work.md`, §Deferred from: 4-6-…).",
         violations.len(),
         violations.join("\n")
     );

@@ -64,7 +64,12 @@ impl PromptVariable {
         }
     }
 
-    fn from_token(token: &str) -> Option<Self> {
+    /// 🔵 **THÊM 2026-09-18 (Story 4.6, rà soát) — `pub(crate)`, không còn `fn` riêng của
+    /// module.** `core::ai::rag::expand_prompt_body` cần đúng phép tra này (token → biến số
+    /// đã ratify) để mở rộng marker; trước bản vá này nó tự chép lại thân hàm bằng
+    /// `PromptVariable::ALL.iter().copied().find(...)` — một bản chép tay THỨ HAI, đúng thứ
+    /// doc-comment của [`PromptVariable::ALL`] cam kết không tồn tại trong kho.
+    pub(crate) fn from_token(token: &str) -> Option<Self> {
         PromptVariable::ALL.iter().copied().find(|v| v.as_str() == token)
     }
 }

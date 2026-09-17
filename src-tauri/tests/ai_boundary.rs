@@ -535,3 +535,313 @@ fn the_three_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbour
     assert_eq!(statement_of("pub mod ai; // AD-13"), "pub mod ai;");
     assert_eq!(statement_of("pub mod ai;"), "pub mod ai;");
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.6 — bề mặt `core::glossary` ĐƯỢC PHÉP dưới `core/ai/**`: đúng BỐN tên
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 VÌ SAO GATE NÀY THAY THẾ MỘT VỊ TỪ CŨ ĐỌC TỪNG DÒNG
+// ─────────────────────────────────────────────────────────────────────────────
+// Pass 1 (2026-09-17, rà soát loop 0 của spec 4.6) đo được ba khuyết tật trên một vị từ đầu
+// tiên (`names_after_glossary_double_colon`, đã xoá): nó quét TỪNG DÒNG, nên
+// `use crate::core::glossary::{` với dấu `}` đóng KHÔNG nằm trên cùng dòng làm nhánh
+// `else { continue }` bỏ qua toàn bộ nhóm — **0 tên được thu** trên chính hình dạng mà
+// `rustfmt` xuống dòng cho một nhóm `use` từ ba tên trở lên (đo được: seed một tên cấm bên
+// TRONG nhóm nhiều dòng của `rag.rs` để `cargo test --test ai_boundary --test glossary_boundary`
+// vẫn 100% xanh). Gate dưới đây nối MỌI dòng MÃ (bỏ comment) của một tệp thành MỘT khối
+// (`joined_code`, cùng khuôn `glossary_boundary.rs::commands_glossary_calls_the_new_quick_add_surface_not_the_forbidden_one`)
+// RỒI MỚI quét — một `\n` bên trong `{...}` không còn là vấn đề vì nó chỉ là MỘT ký tự nữa
+// trong chuỗi đã nối.
+
+/// Năm tên `core::glossary` được PHÉP xuất hiện dưới `core/ai/**` — Decision 5 của spec 4.6:
+/// cửa DUY NHẤT (`confirmed_terms_for_injection`), kiểu nó trả về
+/// (`GlossaryInjectionOutcome`), kiểu lỗi của nó (`GlossaryError`), hàm suy `MatchLang`
+/// (`match_lang_for_source_lang` — không nằm trên `GLOSSARY_ONLY_SURFACE` của
+/// `glossary_boundary.rs`, cùng khuôn `commands::glossary` đã dùng), và `GlossaryTier` (rà
+/// soát 2026-09-18 — ledger của `core::ai::rag` phải mang lại `tier` mà cửa đã tính, để Story
+/// 4.7 và AC "lưới/ledger cùng span" đọc được nó tại ledger, không chỉ tại cửa). Bất kỳ tên
+/// nào khác — kể cả nằm TRONG một nhóm `use …glossary::{` nhiều dòng, kể cả chỉ xuất hiện
+/// trong chính lời `use` mà không có lời gọi bare nào theo sau, kể cả một glob `glossary::*`
+/// — là một đường thứ hai vào dữ liệu Glossary, đúng thứ Decision 5 cấm.
+const ALLOWED_GLOSSARY_NAMES_UNDER_AI: [&str; 5] = [
+    "confirmed_terms_for_injection",
+    "GlossaryInjectionOutcome",
+    "GlossaryError",
+    "match_lang_for_source_lang",
+    "GlossaryTier",
+];
+
+/// Nối mọi dòng MÃ (bỏ dòng bắt đầu bằng `//`) của một khối văn bản thành MỘT chuỗi.
+///
+/// 🔴 **BẮT BUỘC cho gate này**: xem §Vì sao ở đầu cụm — một nhóm `use …glossary::{` nhiều
+/// dòng đọc TỪNG DÒNG độc lập không bao giờ thấy hết nhóm.
+fn joined_code(text: &str) -> String {
+    let mut out = String::new();
+    for (_, line) in code_lines(text) {
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
+/// Định danh hợp lệ về CÚ PHÁP Rust: chữ/số ASCII hoặc `_`.
+fn is_ident_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Trích MỌI định danh xuất hiện ngay sau `glossary::` trong `joined` (đã nối toàn văn qua
+/// [`joined_code`] — KHÔNG còn ranh giới dòng nào để mà mất dấu) — cả hình dạng MỘT tên
+/// (`glossary::confirmed_terms_for_injection(..)`, `use …glossary::load_tier;`), hình dạng
+/// NHÓM `{a, b, c}` của `use` (KỂ CẢ khi nhóm đó có `\n` THẬT bên trong `{...}`, đúng khuyết
+/// tật Pass 1 đo được), lẫn glob `glossary::*` (được ghi lại thành tên `"*"`, một tên KHÔNG
+/// BAO GIỜ khớp bốn tên hợp lệ — một glob TỰ NÓ đã là vi phạm, vì nó phơi MỌI tên tương lai
+/// của module kia, không riêng bốn tên đã ký).
+///
+/// ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:**
+/// - Không theo dõi `use … as alias;` rồi `alias::name(..)` — bí danh cho cả MODULE (không
+///   phải bí danh một tên) làm chuỗi `glossary::` biến mất khỏi chính lời gọi sau đó. Không
+///   tệp nào trong cây hôm nay viết vậy; nếu có ngày nào đó viết, đây là một khoảng trống có
+///   tên, không phải một khoảng trống bị giấu.
+/// - `joined` (qua [`joined_code`]/[`code_lines`]) chỉ bỏ dòng MÃ bắt đầu bằng `//` — một
+///   chú thích ĐUÔI DÒNG (`let x = 1; // glossary::load_tier`) hay một khối `/* … */` nhắc
+///   tên cấm vẫn còn nguyên trong `joined`, nên gate THẬT ([`no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four`])
+///   sẽ đỏ KHÔNG VÌ MỘT VI PHẠM THẬT — một đỏ OAN, không phải một đỏ bỏ sót. Cùng giới hạn
+///   `code_lines` đã mang từ mọi tệp `*_boundary.rs` khác trong kho; sửa đòi một bộ tách
+///   chú thích thật (không còn là so chuỗi), ngoài phạm vi rà soát này.
+/// - Một nhóm LỒNG (`use …::{a, b::{c}}`) dừng ở dấu `}` ĐẦU TIÊN gặp được — `inner` sẽ chỉ
+///   là `"a, b::{c"`, thiếu dấu đóng của nhóm ngoài; hình dạng này không xuất hiện trong kho
+///   hôm nay (Glossary tái xuất phẳng ở gốc module, không lồng theo `store::{...}`), nên đây
+///   là một khoảng trống có tên, không phải một khoảng trống đã kiểm.
+fn glossary_names_named(joined: &str) -> Vec<String> {
+    const ANCHOR: &str = "glossary::";
+    let mut out = Vec::new();
+    let mut search_from = 0usize;
+    let bytes = joined.as_bytes();
+
+    while let Some(rel) = joined[search_from..].find(ANCHOR) {
+        let after_anchor = search_from + rel + ANCHOR.len();
+        let mut i = after_anchor;
+        while i < bytes.len() && (bytes[i] as char).is_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            break;
+        }
+
+        if bytes[i] == b'*' {
+            // Glob `use …glossary::*;` -- tu no la vi pham (phoi MOI ten tuong lai cua module
+            // kia), ghi lai thanh mot "ten" khong bao gio khop bon ten hop le.
+            out.push("*".to_owned());
+            search_from = i + 1;
+        } else if bytes[i] == b'{' {
+            let Some(close_rel) = joined[i + 1..].find('}') else {
+                break; // nhom khong khep -- dung quet, dung khuon `scan_markers` cho `{{` mo coi
+            };
+            let inner = &joined[i + 1..i + 1 + close_rel];
+            for item in inner.split(',') {
+                let Some(raw_name) = item.split_whitespace().next() else { continue };
+                let name: String = raw_name.chars().filter(|c| is_ident_char(*c)).collect();
+                if !name.is_empty() && name != "self" {
+                    out.push(name);
+                }
+            }
+            search_from = i + 1 + close_rel + 1;
+        } else {
+            let start = i;
+            let mut j = i;
+            while j < bytes.len() && is_ident_char(bytes[j] as char) {
+                j += 1;
+            }
+            let name = &joined[start..j];
+            if !name.is_empty() && name != "self" {
+                out.push(name.to_owned());
+            }
+            search_from = if j > after_anchor { j } else { after_anchor + 1 };
+        }
+    }
+
+    out
+}
+
+/// 🔴 Cổng THẬT — chỉ năm tên trong [`ALLOWED_GLOSSARY_NAMES_UNDER_AI`] được phép xuất hiện
+/// sau `glossary::` dưới `core/ai/**`.
+#[test]
+fn no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four() {
+    let files = all_rust_sources();
+    let mut violations: Vec<String> = Vec::new();
+    let mut total_names_collected = 0usize;
+    let mut ai_files = 0usize;
+
+    for (rel, text) in &files {
+        if !is_inside_ai_module(rel) {
+            continue;
+        }
+        ai_files += 1;
+        let joined = joined_code(text);
+        let names = glossary_names_named(&joined);
+        total_names_collected += names.len();
+        for name in names {
+            if !ALLOWED_GLOSSARY_NAMES_UNDER_AI.contains(&name.as_str()) {
+                violations.push(format!("{rel}  {name}"));
+            }
+        }
+    }
+
+    assert!(ai_files > 0, "không tệp nào khớp `{AI_DIR}` — đường dẫn miễn trừ đã lệch");
+
+    // Đối chứng dương: phép quét phải THẬT SỰ thu được ít nhất một tên — cùng đối chứng mà
+    // Pass 1 đòi ("assert the scan actually collected a non-zero number of names"). `rag.rs`
+    // gọi `confirmed_terms_for_injection` thật; 0 tên nghĩa là phép quét đang mù, đúng khuyết
+    // tật vị từ cũ mắc phải.
+    assert!(
+        total_names_collected > 0,
+        "phép quét KHÔNG thu được một tên `core::glossary` nào dưới `core/ai/**` — đây đúng \
+         khuyết tật Pass 1 đo được (vị từ cũ đọc từng dòng, không bao giờ thấy hết một nhóm \
+         `use` nhiều dòng). `core::ai::rag` phải gọi `confirmed_terms_for_injection` thật."
+    );
+
+    assert!(
+        violations.is_empty(),
+        "{} tên `core::glossary` NGOÀI năm tên được phép xuất hiện dưới `core/ai/**`:\n{}\n\n\
+         Decision 5 của spec 4.6: `core::ai::rag` chỉ được gọi ĐÚNG MỘT cửa vào Glossary \
+         (`confirmed_terms_for_injection`), kiểu nó trả về (`GlossaryInjectionOutcome`), \
+         `GlossaryError`, `match_lang_for_source_lang`, và `GlossaryTier`. Bất kỳ tên nào \
+         khác là một đường thứ hai vào dữ liệu Glossary.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// 🔴 Đối chứng dương — vị từ [`glossary_names_named`] thu được TÊN CẤM bên trong một nhóm
+/// `use …glossary::{` THẬT NHIỀU DÒNG (dấu `\n` thật bên trong `{...}`, đúng hình dạng
+/// `rustfmt` xuống dòng cho một nhóm từ ba tên trở lên) — chính khuyết tật Pass 1 đo được.
+#[test]
+fn the_glossary_names_scan_actually_collects_a_genuine_multi_line_use_group() {
+    let joined = joined_code(
+        "use crate::core::glossary::{\n    confirmed_terms_for_injection,\n    load_tier,\n};\n",
+    );
+    assert!(
+        joined.contains('\n'),
+        "tien de: `joined` phai con giu mot `\\n' THAT ben trong nhom `{{...}}` -- neu khong \
+         ca nay khong con nghiem thu dung khuyet tat Pass 1"
+    );
+
+    let names = glossary_names_named(&joined);
+    assert_eq!(
+        names,
+        vec!["confirmed_terms_for_injection".to_owned(), "load_tier".to_owned()],
+        "mot nhom `use` NHIEU DONG phai duoc quet HET -- day dung khuyet tat Pass 1: vi tu \
+         dong cu khong bao gio thay het mot nhom nhu the nay"
+    );
+}
+
+/// Đối chứng ÂM — một dòng sạch (không `glossary::` nào) và một lời gọi CÙNG tên trong CHÍNH
+/// module `core::glossary` (tự mình gọi mình, không mang tiền tố `glossary::`) không bị bắt
+/// oan; và bốn tên hợp lệ không bị báo vi phạm khi chúng LÀ bốn tên được phép.
+#[test]
+fn the_glossary_names_scan_does_not_flag_allowed_names_or_unrelated_code() {
+    let clean = joined_code("let x = 1 + 2;\nfn stub() {}\n");
+    assert!(glossary_names_named(&clean).is_empty());
+
+    let allowed = joined_code(
+        "use crate::core::glossary::{\n    confirmed_terms_for_injection,\n    GlossaryInjectionOutcome,\n    GlossaryError,\n    match_lang_for_source_lang,\n    GlossaryTier,\n};\n",
+    );
+    let names = glossary_names_named(&allowed);
+    for name in &names {
+        assert!(
+            ALLOWED_GLOSSARY_NAMES_UNDER_AI.contains(&name.as_str()),
+            "{name:?} phai la mot trong nam ten duoc phep"
+        );
+    }
+    assert_eq!(names.len(), 5);
+}
+
+/// Đối chứng dương — glob `use crate::core::glossary::*;` phải bị bắt là một vi phạm (tên
+/// `"*"`, không khớp bất kỳ tên nào trong năm tên hợp lệ).
+#[test]
+fn a_glob_import_of_the_glossary_module_is_flagged_as_a_violation() {
+    let joined = joined_code("use crate::core::glossary::*;\n");
+    let names = glossary_names_named(&joined);
+    assert_eq!(names, vec!["*".to_owned()]);
+    assert!(
+        !ALLOWED_GLOSSARY_NAMES_UNDER_AI.contains(&"*"),
+        "\"*\" khong duoc phep khop bat ky ten hop le nao -- glob tu no la vi pham"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.6 — cửa Glossary được GỌI (invocation) tối đa MỘT LẦN dưới `core/ai/**`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Đếm số LỜI GỌI (tên đứng ngay trước `(`, sau khi bỏ khoảng trắng, và không đứng liền sau
+/// một ký tự định danh khác — neo biên trái) của `name` trong `joined`. Một lời `use …name;`
+/// KHÔNG mang `(` ngay sau tên nên KHÔNG được tính — "gọi tối đa một lần" nói về LỜI GỌI,
+/// không phải lời NHẬP.
+fn count_calls(joined: &str, name: &str) -> usize {
+    let mut count = 0usize;
+    let mut search_from = 0usize;
+    let bytes = joined.as_bytes();
+
+    while let Some(rel) = joined[search_from..].find(name) {
+        let at = search_from + rel;
+        let before_ok = at == 0 || !is_ident_char(bytes[at - 1] as char);
+        let after = &joined[at + name.len()..];
+        let after_ok = before_ok && after.trim_start().starts_with('(');
+        if after_ok {
+            count += 1;
+        }
+        search_from = at + name.len();
+    }
+
+    count
+}
+
+/// 🔴 Cổng THẬT — `confirmed_terms_for_injection` được GỌI tối đa MỘT LẦN trên toàn bộ
+/// `core/ai/**`. Rationale (spec 4.6): *"exactly one query" là một AC mà không gì cưỡng chế
+/// hôm nay; một chỗ gọi thứ hai để mọi bộ test khác xanh*.
+#[test]
+fn the_glossary_injection_door_is_called_at_most_once_under_core_ai() {
+    const DOOR: &str = "confirmed_terms_for_injection";
+    let files = all_rust_sources();
+    let mut total_calls = 0usize;
+
+    for (rel, text) in &files {
+        if !is_inside_ai_module(rel) {
+            continue;
+        }
+        total_calls += count_calls(&joined_code(text), DOOR);
+    }
+
+    // 🔴 `== 1`, không `<= 1` — rà soát 2026-09-18. `<= 1` cho `0` qua: xoá chỗ gọi DUY NHẤT
+    // (`gather_glossary_context`) làm gate này XANH trong khi cả module `rag` mất khả năng
+    // gom dữ liệu Glossary — một hồi quy nặng hơn "gọi hai lần" mà `<= 1` không thấy.
+    assert_eq!(
+        total_calls, 1,
+        "`{DOOR}` được GỌI {total_calls} lần dưới `core/ai/**` -- Decision 5 đòi ĐÚNG MỘT \
+         truy vấn Glossary cho mỗi câu (không nhiều hơn MỘT, và không ÍT hơn MỘT — 0 lần \
+         nghĩa là chỗ gọi sản phẩm duy nhất đã biến mất)."
+    );
+}
+
+/// Đối chứng dương + âm cho [`count_calls`] — chứng minh nó đếm LỜI GỌI, không đếm lời NHẬP,
+/// và sẽ bắt được một lần gọi thứ hai nếu ai đó thêm vào.
+#[test]
+fn the_call_counter_counts_invocations_not_imports_and_would_flag_a_second_call_site() {
+    let import_only = joined_code("use crate::core::glossary::confirmed_terms_for_injection;\n");
+    assert_eq!(
+        count_calls(&import_only, "confirmed_terms_for_injection"),
+        0,
+        "mot loi NHAP khong mang `(` ngay sau ten -- khong duoc tinh la mot loi GOI"
+    );
+
+    let one_call = "let a = confirmed_terms_for_injection(r, g, w, s, l)?;\n";
+    assert_eq!(count_calls(&joined_code(one_call), "confirmed_terms_for_injection"), 1);
+
+    let two_calls = format!("{one_call}let b = confirmed_terms_for_injection(r, g, w, s, l)?;\n");
+    assert_eq!(
+        count_calls(&joined_code(&two_calls), "confirmed_terms_for_injection"),
+        2,
+        "ca DUONG THAT: hai loi GOI phai duoc dem la hai, khong phai mot"
+    );
+}
