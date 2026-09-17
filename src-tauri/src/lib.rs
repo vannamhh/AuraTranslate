@@ -923,6 +923,16 @@ pub fn run() {
             crate::commands::promptset::wire::prompt_set_rename,
             crate::commands::promptset::wire::prompt_set_update_body,
             crate::commands::promptset::wire::prompt_set_delete,
+            // Story 4.5 -- xuat/nhap mot bo prompt qua tep `.prompt.md` (FR79, NFR9, AD-48).
+            // Bon vo: xuat (mot nhip, mo hop thoai LUU) · mo-va-xem-truoc mot luot nhap (nhip
+            // mot, mo hop thoai CHON -- KHONG hoi tang truoc, phan loai san cho CA HAI tang,
+            // ke hoach o lai Rust trong PendingPromptImportState) · xac nhan (nhip hai, nhan
+            // tang nguoi dung chon o man xem truoc cong quyet dinh va cham) · huy lo dang
+            // treo. Khong mot lenh fs:*/dialog:* nao phoi ra JavaScript.
+            crate::commands::promptset::wire::prompt_set_export,
+            crate::commands::promptset::wire::prompt_set_open_import_preview,
+            crate::commands::promptset::wire::prompt_set_confirm_import,
+            crate::commands::promptset::wire::prompt_set_cancel_import,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
@@ -1167,6 +1177,10 @@ fn open_work_slot(app: &tauri::App) {
     // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
     // xem close_open_work.
     app.manage(crate::commands::glossary::PendingImportState::new(None));
+    // Story 4.5 (AD-48) -- lo nhap bo prompt dang TREO giua nhip mot va nhip hai. Quan ly
+    // canh OpenWorkState cung ly do PendingImportState cua Glossary ngay tren -- nua Tac
+    // pham cua lo (neu co) phai chet cung Tac pham dang mo no, xem close_open_work.
+    app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
@@ -1295,6 +1309,11 @@ fn close_open_work(handle: &tauri::AppHandle) {
             &pending,
             crate::core::glossary::GlossaryTier::Work,
         );
+    }
+    // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt: chi ha `work_kind` ve `None`
+    // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).
+    if let Some(pending) = handle.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
     }
 
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {

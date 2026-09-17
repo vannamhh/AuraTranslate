@@ -17,10 +17,14 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
+use std::path::Path;
+
 use crate::commands::project::OpenWork;
 use crate::core::i18n::IpcError;
+use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKind};
 use crate::core::promptset::{
-    MarkerWarnings, PromptSetTier, PromptVariable, ResolvedPromptSet, create, delete, rename,
+    ImportOutcome, MarkerWarnings, PromptSetError, PromptSetTier, PromptVariable, ResolvedPromptSet,
+    create, delete, exchange, exchange_io, import_into_tier, load_one, load_prompt_set_tier, rename,
     resolve_two_tiers, update_body,
 };
 use crate::core::scope::ScopeResolver;
@@ -94,11 +98,23 @@ pub struct PromptSetWire {
     /// tồn tại ở một tầng, hoặc khi `tier == PromptSetTierWire::Global`.
     /// `prompt-library.html:134` ("bị prompt cùng tên ở trên che").
     pub shadowed_body: Option<String>,
+    /// 🔵 **THÊM Story 4.5, Quyết định #3.** `id` THẬT của hàng Global bị che — cùng điều
+    /// kiện `None`/`Some` với `shadowed_body`. Cho phép màn hình vẽ hàng đó như một hàng
+    /// CHỌN ĐƯỢC (`tier: "global"`, `id` này) thay vì một dòng chỉ-hiển-thị, đóng
+    /// `deferred-work.md:12947-12968`.
+    pub shadowed_id: Option<i64>,
 }
 
 impl From<ResolvedPromptSet> for PromptSetWire {
     fn from(r: ResolvedPromptSet) -> Self {
-        Self { id: r.id, name: r.name, body: r.body, tier: r.tier.into(), shadowed_body: r.shadowed_body }
+        Self {
+            id: r.id,
+            name: r.name,
+            body: r.body,
+            tier: r.tier.into(),
+            shadowed_body: r.shadowed_body,
+            shadowed_id: r.shadowed_id,
+        }
     }
 }
 
@@ -237,15 +253,308 @@ pub fn prompt_set_delete(
     Ok(())
 }
 
-/// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.5 (FR79, NFR9, AD-48) — xuất/nhập một bộ prompt qua tệp `.prompt.md`
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Bốn vỏ mới: xuất (một nhịp, mở hộp thoại LƯU) · mở-và-xem-trước một lượt nhập (nhịp một,
+// mở hộp thoại CHỌN — KHÔNG hỏi tầng trước khi đọc tệp, xem doc-comment
+// `prompt_set_open_import_preview`) · xác nhận (nhịp hai, nhận tầng người dùng chọn Ở MÀN
+// XEM TRƯỚC cộng quyết định va chạm) · huỷ lô đang treo. Không một lệnh `fs:*`/`dialog:*` nào
+// phơi ra JavaScript — webview chỉ dispatch bốn lệnh này (`capabilities/main.json` không đổi,
+// §Always spec 4.5).
+
+/// Tên tệp mặc định của lượt xuất — `<tên bộ>.prompt.md` (Quyết định #2: "the filename
+/// defaulted from the set name"). Không sanitize ký tự đặc biệt của `name` — nằm ngoài phạm
+/// vi I/O Matrix của story này; hộp thoại hệ điều hành là nơi người dùng sửa nếu tên mang một
+/// ký tự tên tệp không hợp lệ trên máy họ.
+fn default_export_file_name(name: &str) -> String {
+    format!("{name}.prompt.md")
+}
+
+/// Xuất bộ `(tier, id)` ra `path` — **hàm thuần, đây là thứ test gọi**. Một NHỊP. Thao tác
+/// trên hàng THẬT theo `id` (không qua [`resolve_two_tiers`]) — Quyết định #3: một bộ Global
+/// đang bị che vẫn xuất được, đúng như chính nó, qua `(tier: Global, id: shadowed_id)`.
 ///
-/// ⚠️ Tên command trên dây LÀ tên hàm — năm vỏ dưới đây mang ĐÚNG tên năm hàm thuần ở
-/// `super::`, không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - `tier == Work` mà chưa mở Tác phẩm nào ⇒ `prompt_set.work_tier_unavailable`;
+/// - `(tier, id)` không khớp hàng nào ⇒ `prompt_set.not_found`;
+/// - ghi tệp thất bại ⇒ `prompt_set.export_write_failed`, **0** tệp cụt để lại
+///   (`write_export_file` dọn `.tmp` ở cả hai nhánh lỗi).
+pub fn prompt_set_export(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: PromptSetTier,
+    id: i64,
+    path: &Path,
+) -> Result<(), IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let store = crate::core::promptset::store::store_for_tier(global_store, open.map(|w| &w.store), tier)?;
+    let row = load_one(store, id)?;
+    let contents = exchange::render(&row.name, &row.body);
+    exchange_io::write_export_file(path, &contents)?;
+    Ok(())
+}
+
+/// Lô nhập đang TREO giữa nhịp một (mở + xem trước) và nhịp hai (xác nhận) — AD-48 §Rule ①:
+/// nội dung tệp KHÔNG BAO GIỜ đi ra webview, `name`/`body` đã phân tích Ở LẠI RUST. Không mang
+/// `tier` — khác [`crate::commands::glossary::PendingImport`] — vì Quyết định của spec 4.5
+/// (I/O Matrix "Import picks the tier") đặt lượt CHỌN TẦNG ở màn xem trước, SAU khi tệp đã
+/// đọc xong, không trước như Glossary; phân loại vì thế được tính SẴN cho CẢ HAI tầng ngay ở
+/// nhịp một, và nhịp hai chỉ chọn nhánh nào đã có.
+#[derive(Debug)]
+pub struct PendingPromptImport {
+    /// Đường dẫn tệp đã đọc — chỉ để chẩn đoán, KHÔNG đọc lại ở nhịp hai.
+    pub path: std::path::PathBuf,
+    pub parsed: ParsedPromptSet,
+    /// Phân loại so với tầng Toàn cục — LUÔN có (tầng Toàn cục luôn sẵn khi `global.db` đã
+    /// mở).
+    pub global_kind: PlanKind,
+    /// Phân loại so với tầng Tác phẩm — `None` khi không có Tác phẩm nào đang mở lúc XEM
+    /// TRƯỚC (I/O Matrix "Import with no Work open ... Work option absent").
+    pub work_kind: Option<PlanKind>,
+}
+
+/// Kiểu state Tauri quản lý cho [`PendingPromptImport`] — `None` == không lô nào đang treo,
+/// cùng khuôn `commands::glossary::PendingImportState`.
+pub type PendingPromptImportState = std::sync::Mutex<Option<PendingPromptImport>>;
+
+/// Dọn nửa TÁC PHẨM của lô đang treo (nếu có) khi Tác phẩm đóng/đổi — cùng lý do
+/// `commands::glossary::clear_pending_import_for_tier`, nhưng CHỈ hạ `work_kind` về `None`
+/// thay vì xoá TRỌN lô: nửa Toàn cục của lô (nếu người dùng định nhập vào đó) vẫn còn dùng
+/// được, không phụ thuộc Tác phẩm nào.
+pub fn clear_pending_prompt_import_work_tier(pending: &PendingPromptImportState) {
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(batch) = guard.as_mut() {
+        batch.work_kind = None;
+    }
+}
+
+/// Hình dạng "mô hình đã kiểm" của phân loại MỘT tầng cho màn hình xem trước.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PromptImportTierPreviewWire {
+    /// `"new"` · `"identical"` · `"conflict"`.
+    pub kind: &'static str,
+    /// `Some` chỉ khi `kind == "conflict"` — thân ĐANG CÓ trong kho, để người dùng so trước
+    /// khi quyết định.
+    pub existing_body: Option<String>,
+}
+
+impl From<&PlanKind> for PromptImportTierPreviewWire {
+    fn from(kind: &PlanKind) -> Self {
+        match kind {
+            PlanKind::New => Self { kind: "new", existing_body: None },
+            PlanKind::Identical => Self { kind: "identical", existing_body: None },
+            PlanKind::Conflict { existing_body, .. } => {
+                Self { kind: "conflict", existing_body: Some(existing_body.clone()) }
+            }
+        }
+    }
+}
+
+/// Hình dạng "mô hình đã kiểm" của màn hình xem trước lượt nhập — AD-48 §Rule ①: `name`/`body`
+/// đi trên dây như dữ liệu ĐÃ PHÂN TÍCH (khớp cách Glossary gửi `file_translation` của một
+/// hàng bất đồng), không phải byte thô của tệp.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PromptImportPreviewWire {
+    pub file_name: String,
+    pub name: String,
+    pub body: String,
+    pub warnings: PromptSetWarningsWire,
+    pub global: PromptImportTierPreviewWire,
+    /// `None` ⇔ không có Tác phẩm nào đang mở — Work option ABSENT, không một tuỳ chọn bị vô
+    /// hiệu hoá rỗng (I/O Matrix).
+    pub work: Option<PromptImportTierPreviewWire>,
+}
+
+/// Mở-và-xem-trước lượt nhập (nhịp MỘT) — **hàm thuần theo nghĩa không chạm `AppHandle` hay
+/// hộp thoại**: `path` đã được vỏ `wire` chọn xong.
+///
+/// 🔴 **KHÔNG nhận `tier`** — khác `glossary_open_import_preview`. I/O Matrix spec 4.5
+/// "Import picks the tier: User chooses Global or Work at preview" đặt lượt chọn tầng SAU khi
+/// tệp đã đọc, nên hàm này phân loại `(name, body)` so với CẢ HAI tầng đang có ngay bây giờ,
+/// giữ cả hai kết quả trong `pending` để nhịp hai chọn đúng nhánh mà không phải đọc/phân tích
+/// lại tệp.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - đọc tệp (kích thước/UTF-8/hạ tầng) ⇒ ba khoá tương ứng — **0** lô nào được giữ lại;
+/// - phân tích hỏng ⇒ `IpcError` gộp MỌI dòng hỏng (`issues_to_ipc_error` — AC4: "every
+///   problem is reported with its line number") — **0** lô nào được giữ lại.
+pub fn prompt_set_open_import_preview(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingPromptImportState,
+    path: &Path,
+) -> Result<PromptImportPreviewWire, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+
+    let text = exchange_io::read_import_file(path)?;
+    let parsed = exchange::parse(&text).map_err(issues_to_ipc_error)?;
+    let warnings = crate::core::promptset::scan_markers(&parsed.body);
+
+    let global_existing = load_prompt_set_tier(global_store)?;
+    let global_kind = exchange::classify(&parsed.name, &parsed.body, &global_existing);
+
+    let work_kind = match open {
+        None => None,
+        Some(w) => {
+            let work_existing = load_prompt_set_tier(&w.store)?;
+            Some(exchange::classify(&parsed.name, &parsed.body, &work_existing))
+        }
+    };
+
+    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let preview = PromptImportPreviewWire {
+        file_name,
+        name: parsed.name.clone(),
+        body: parsed.body.clone(),
+        warnings: warnings.into(),
+        global: PromptImportTierPreviewWire::from(&global_kind),
+        work: work_kind.as_ref().map(PromptImportTierPreviewWire::from),
+    };
+
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingPromptImport { path: path.to_owned(), parsed, global_kind, work_kind });
+
+    Ok(preview)
+}
+
+/// **Hàm thuần** — tách khỏi chỗ gọi, khác chủ ý với
+/// `commands::glossary::first_issue_or_unknown` (cụm F ①, spec 3.10b, "hành vi hôm nay, không
+/// đổi" — `spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md:52`): Glossary chỉ đưa lỗi ĐẦU
+/// TIÊN ra `IpcError` cho một tệp N-hàng có thể mang hàng trăm lỗi. AC4 spec 4.5 lại đòi
+/// nguyên văn *"every problem is reported with its line number"* cho MỘT tệp `.prompt.md` —
+/// và vì khối metadata chỉ có ĐÚNG BA dòng cố định (tối đa BA `ParseIssue`), gộp TOÀN BỘ vào
+/// MỘT câu là rẻ và không cần cắt bớt như trường hợp Glossary. Đúng MỘT issue vẫn dùng khoá
+/// RIÊNG của issue đó (câu tự nhiên hơn, và giữ nguyên hành vi/test đã có cho ca đơn); NHIỀU
+/// hơn một issue dùng khoá gộp `PromptSetImportMalformed`, liệt kê MỌI dòng hỏng.
+///
+/// Ca `issues` rỗng (bất biến `parse()` luôn kèm ít nhất một `ParseIssue` khi trả `Err` đã vỡ)
+/// vẫn có một phép kiểm CHẠY ĐƯỢC thay vì một lời khai, cùng lý do hàm gốc nó tách ra từ.
+pub fn issues_to_ipc_error(issues: Vec<exchange::ParseIssue>) -> IpcError {
+    if issues.is_empty() {
+        eprintln!(
+            "prompt_set[import_preview] bat bien vo: Err(issues) voi issues RONG (0 loi) -- \
+             parse() phai luon kem it nhat mot ParseIssue khi tra Err"
+        );
+        return IpcError::new(
+            "prompt_set.import_parse_issues_empty",
+            crate::core::i18n::MessageKey::Unknown,
+            std::collections::BTreeMap::new(),
+            false,
+        );
+    }
+
+    if issues.len() == 1 {
+        let only = issues.into_iter().next().expect("kiem len() == 1 ngay tren");
+        eprintln!("prompt_set[import_preview] 1 loi phan tich: {only}");
+        return IpcError::from(only);
+    }
+
+    let issue_count = issues.len();
+    let mut lines: Vec<&'static str> = issues.iter().map(exchange::ParseIssue::line).collect();
+    lines.sort_unstable();
+    lines.dedup();
+    eprintln!(
+        "prompt_set[import_preview] {issue_count} loi phan tich, dong hong: {}",
+        lines.join(", ")
+    );
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("lines".to_owned(), lines.join(", "));
+    IpcError::new(
+        "prompt_set.import_malformed",
+        crate::core::i18n::MessageKey::PromptSetImportMalformed,
+        params,
+        false,
+    )
+}
+
+/// Hình dạng trên dây của [`ImportOutcome`] — Story 4.5.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptImportOutcomeWire {
+    Inserted,
+    Updated,
+    Skipped,
+}
+
+impl From<ImportOutcome> for PromptImportOutcomeWire {
+    fn from(o: ImportOutcome) -> Self {
+        match o {
+            ImportOutcome::Inserted { .. } => PromptImportOutcomeWire::Inserted,
+            ImportOutcome::Updated { .. } => PromptImportOutcomeWire::Updated,
+            ImportOutcome::Skipped => PromptImportOutcomeWire::Skipped,
+        }
+    }
+}
+
+/// Xác nhận lượt nhập (nhịp HAI) — `tier` là tầng người dùng chọn Ở MÀN XEM TRƯỚC (không lấy
+/// lại từ `pending`, nó không mang tầng — xem doc-comment [`PendingPromptImport`]); `decision`
+/// chỉ có ý nghĩa khi tầng đó phân loại `Conflict`.
+///
+/// 🔴 **Kế hoạch chỉ dọn khỏi `pending` khi giao dịch THÀNH CÔNG** — lỗi giữa chừng (kể cả
+/// `ImportStaleConflict`) GIỮ LẠI lô để người dùng thử lại.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - không có lô nào đang treo ⇒ `prompt_set.no_pending_import`;
+/// - `tier == Work` mà lô không mang phân loại Tác phẩm (chưa mở Tác phẩm lúc xem trước, hoặc
+///   Tác phẩm đã đóng từ đó) ⇒ `prompt_set.work_tier_unavailable` — **0** lượt ghi;
+/// - thân/`name` đích đã đổi dưới chân người dùng giữa hai nhịp ⇒
+///   `prompt_set.import_stale_conflict`, lô GIỮ LẠI.
+pub fn prompt_set_confirm_import(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingPromptImportState,
+    tier: PromptSetTier,
+    decision: Option<ConflictDecision>,
+) -> Result<PromptImportOutcomeWire, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(batch) = guard.as_ref() else {
+        return Err(IpcError::from(PromptSetError::NoPendingImport));
+    };
+
+    let kind = match tier {
+        PromptSetTier::Global => &batch.global_kind,
+        PromptSetTier::Work => match &batch.work_kind {
+            Some(k) => k,
+            None => return Err(IpcError::from(PromptSetError::WorkTierUnavailable)),
+        },
+    };
+
+    match import_into_tier(global_store, open.map(|w| &w.store), tier, &batch.parsed, kind, decision) {
+        Ok(outcome) => {
+            *guard = None; // Chi don LO khi giao dich THANH CONG.
+            Ok(outcome.into())
+        }
+        Err(e) => Err(IpcError::from(e)), // Lo GIU LAI -- `guard` khong bi cham.
+    }
+}
+
+/// Huỷ lô đang treo — **0** lượt ghi, không lỗi kể cả khi không có lô nào.
+pub fn prompt_set_cancel_import(pending: &PendingPromptImportState) {
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = None;
+}
+
+/// Chín vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+///
+/// ⚠️ Tên command trên dây LÀ tên hàm — mọi vỏ dưới đây mang ĐÚNG tên hàm thuần ở `super::`,
+/// không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
 pub mod wire {
-    use super::{PromptSetCreateWire, PromptSetListWire, PromptSetTier, PromptSetWarningsWire};
+    use super::{
+        ConflictDecision, PendingPromptImportState, PromptImportOutcomeWire, PromptImportPreviewWire,
+        PromptSetCreateWire, PromptSetError, PromptSetListWire, PromptSetTier, PromptSetWarningsWire,
+        default_export_file_name,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
+    use tauri_plugin_dialog::DialogExt as _;
 
     /// `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho: `app.manage(store)`
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy.
@@ -322,5 +631,165 @@ pub mod wire {
         };
         let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_delete(global.as_deref(), guard.as_ref(), tier, id)
+    }
+
+    // ── Story 4.5 — hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (AD-48) ──────────
+
+    /// Cùng vai `commands::glossary::wire::work_tier_is_open` — khoá mở rồi đóng NGAY trong
+    /// một biểu thức, không một biến `guard` nào sống ra khỏi nó.
+    fn work_tier_is_open(app: &tauri::AppHandle) -> bool {
+        use tauri::Manager as _;
+        app.try_state::<OpenWorkState>()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some())
+            .unwrap_or(false)
+    }
+
+    /// Tên hiện tại của bộ `(Global, id)` — chỉ để gợi ý tên tệp mặc định của hộp thoại LƯU.
+    /// Không đòi `OpenWorkState`, không `.lock()` nào ở đây.
+    fn global_row_name(global: Option<&Store>, id: i64) -> Option<String> {
+        crate::core::promptset::load_one(global?, id).ok().map(|p| p.name)
+    }
+
+    /// Cùng vai `global_row_name`, tầng Tác phẩm — hàm TỰ CHỨA (`.lock()` của nó không sống
+    /// ra khỏi hàm này), cùng lý do `work_tier_is_open` ngay trên: gọi nó từ thân
+    /// `prompt_set_export` không để lại một `.lock()` nào TRƯỚC hộp thoại trong CHÍNH thân
+    /// hàm đó — điều kiện để `the_open_work_mutex_guard_in_the_promptset_dialog_wires_is_
+    /// acquired_after_the_blocking_call_not_before` (`config_invariants.rs`) đọc đúng.
+    fn work_row_name(app: &tauri::AppHandle, id: i64) -> Option<String> {
+        use tauri::Manager as _;
+        let work_state = app.try_state::<OpenWorkState>()?;
+        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let open = guard.as_ref()?;
+        crate::core::promptset::load_one(&open.store, id).ok().map(|p| p.name)
+    }
+
+    /// Vỏ IPC của [`super::prompt_set_export`] — mở hộp thoại LƯU rồi gọi hàm thuần.
+    ///
+    /// 🔴 **P1 — cùng khuôn `commands::glossary::wire::glossary_export_tier`.** Kiểm `Store`
+    /// có mặt và (`tier == Work` ⇒ Tác phẩm đang mở) TRƯỚC khi mở hộp thoại; `OpenWorkState`
+    /// khoá LẦN THỨ HAI, MỚI, SAU khi hộp thoại đóng — không tái dùng giá trị đã đọc trước
+    /// dialog. Tên gợi ý cho hộp thoại đọc qua `global_row_name`/`work_row_name` — hai hàm TỰ
+    /// CHỨA ở trên — nên `.lock()` DUY NHẤT xuất hiện trong chính thân hàm này là lượt khoá
+    /// SAU `blocking_save_file()`.
+    ///
+    /// `#[tauri::command(async)]` — thiếu nó là TREO ứng dụng, cùng lý do đã đo ở
+    /// `glossary_export_tier` (`blocking_save_file()` chặn vòng lặp sự kiện mà chính hộp
+    /// thoại đang chờ).
+    #[tauri::command(async)]
+    pub fn prompt_set_export(
+        app: tauri::AppHandle,
+        tier: PromptSetTier,
+        id: i64,
+    ) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(IpcError::from(super::store_is_missing()));
+        }
+        if tier == PromptSetTier::Work && !work_tier_is_open(&app) {
+            return Err(IpcError::from(PromptSetError::WorkTierUnavailable));
+        }
+
+        let name_hint = match tier {
+            PromptSetTier::Global => global_row_name(global.as_deref(), id),
+            PromptSetTier::Work => work_row_name(&app, id),
+        }
+        .unwrap_or_default();
+
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("Prompt", &["md"])
+            .set_file_name(default_export_file_name(&name_hint))
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard =
+            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        super::prompt_set_export(global.as_deref(), open, tier, id, &path)?;
+        Ok(Some(path.display().to_string()))
+    }
+
+    /// Vỏ IPC của [`super::prompt_set_open_import_preview`] — mở hộp thoại CHỌN rồi gọi hàm
+    /// thuần. Nhịp MỘT của lượt nhập. **KHÔNG nhận `tier`** — xem doc-comment
+    /// `super::PendingPromptImport`.
+    ///
+    /// `#[tauri::command(async)]` — cùng lý do `prompt_set_export` (`blocking_pick_file()`
+    /// chặn vòng lặp sự kiện).
+    #[tauri::command(async)]
+    pub fn prompt_set_open_import_preview(
+        app: tauri::AppHandle,
+    ) -> Result<Option<PromptImportPreviewWire>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(IpcError::from(super::store_is_missing()));
+        }
+        if app.try_state::<PendingPromptImportState>().is_none() {
+            eprintln!(
+                "prompt_set[import_preview] PendingPromptImportState chua duoc quan ly -- loi cau hinh setup()"
+            );
+            return Err(IpcError::from(PromptSetError::NoPendingImport));
+        }
+
+        let Some(picked) = app.dialog().file().add_filter("Prompt", &["md"]).blocking_pick_file() else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard =
+            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        let Some(pending) = app.try_state::<PendingPromptImportState>() else {
+            return Err(IpcError::from(PromptSetError::NoPendingImport));
+        };
+
+        let preview = super::prompt_set_open_import_preview(global.as_deref(), open, pending.inner(), &path)?;
+        Ok(Some(preview))
+    }
+
+    /// Vỏ IPC của [`super::prompt_set_confirm_import`] — nhịp HAI của lượt nhập. KHÔNG mở hộp
+    /// thoại, KHÔNG `(async)` — một giao dịch MỘT hàng là tức thời, khác lượt ghi hàng loạt
+    /// của `glossary_confirm_import`.
+    #[tauri::command]
+    pub fn prompt_set_confirm_import(
+        app: tauri::AppHandle,
+        tier: PromptSetTier,
+        decision: Option<ConflictDecision>,
+    ) -> Result<PromptImportOutcomeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard =
+            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        let Some(pending) = app.try_state::<PendingPromptImportState>() else {
+            return Err(IpcError::from(PromptSetError::NoPendingImport));
+        };
+
+        super::prompt_set_confirm_import(global.as_deref(), open, pending.inner(), tier, decision)
+    }
+
+    /// Vỏ IPC của [`super::prompt_set_cancel_import`] — huỷ lô đang treo.
+    #[tauri::command]
+    pub fn prompt_set_cancel_import(app: tauri::AppHandle) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if let Some(pending) = app.try_state::<PendingPromptImportState>() {
+            super::prompt_set_cancel_import(pending.inner());
+        }
+        Ok(())
     }
 }

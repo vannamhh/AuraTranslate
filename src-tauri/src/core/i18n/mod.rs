@@ -702,6 +702,43 @@ message_keys! {
     /// `core::promptset::store::PromptSetError::Scope` — lỗi LẬP TRÌNH, không nên xảy ra
     /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `AiConfigScopeError`/`GlossaryScopeError`.
     PromptSetScopeError => "err.prompt_set.scope_error" [],
+
+    // ── Story 4.5 (FR79, NFR9, AD-48) — tám khoá MỚI, ba tái dùng ────────────────────
+    //
+    // Hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (`.prompt.md`) — cùng khuôn Story
+    // 3.10b của Glossary. Ba ca I/O mượn khoá CHUNG với `core::segment::import`/
+    // `core::glossary` (`ImportTooLarge`/`ImportNotUtf8`/`IoReadFailed`) vì câu ĐÚNG là câu
+    // chung, không câu riêng của domain này.
+    /// Dòng 1 của tệp `.prompt.md` không đúng `---` — `core::promptset::exchange::ParseIssue::
+    /// MissingOpeningDelimiter`. `line` luôn `"1"`.
+    PromptSetImportMissingOpeningDelimiter =>
+        "err.prompt_set.import_missing_opening_delimiter" ["line"],
+    /// Dòng 2 không bắt đầu bằng `name:` — `ParseIssue::MissingNameField`. `line` luôn `"2"`.
+    PromptSetImportMissingNameField => "err.prompt_set.import_missing_name_field" ["line"],
+    /// Dòng 2 mang `name:` nhưng giá trị rỗng/toàn khoảng trắng — `ParseIssue::BlankName`.
+    /// `line` luôn `"2"`.
+    PromptSetImportBlankName => "err.prompt_set.import_blank_name" ["line"],
+    /// Dòng 3 không đúng `---` — `ParseIssue::MissingClosingDelimiter`. `line` luôn `"3"`.
+    PromptSetImportMissingClosingDelimiter =>
+        "err.prompt_set.import_missing_closing_delimiter" ["line"],
+    /// **SỬA khi kiểm chứng AC4 (2026-09-17)**: tệp hỏng ở NHIỀU HƠN MỘT trong ba dòng đầu —
+    /// AC4 spec 4.5 đòi "every problem is reported with its line number", nên `lines` liệt kê
+    /// TOÀN BỘ số dòng hỏng (sắp tăng dần, nối bằng ", "), không chỉ dòng đầu tiên tìm được.
+    /// Đúng MỘT issue vẫn dùng khoá RIÊNG của issue đó ở trên — khoá này chỉ dùng khi
+    /// `issues.len() > 1` (`commands::promptset::issues_to_ipc_error`).
+    PromptSetImportMalformed => "err.prompt_set.import_malformed" ["lines"],
+    /// Ghi tệp xuất thất bại (hệ điều hành từ chối, hết dung lượng, …). `path` là đường dẫn
+    /// người dùng vừa chọn — dữ liệu, không phải câu.
+    PromptSetExportWriteFailed => "err.prompt_set.export_write_failed" ["path"],
+    /// `FilePath::into_path()` của `tauri-plugin-dialog` trả lỗi — hộp thoại trả về một giá
+    /// trị không quy đổi được thành `PathBuf`. Không tham số.
+    PromptSetDialogPathInvalid => "err.prompt_set.dialog_path_invalid" [],
+    /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn.
+    PromptSetNoPendingImport => "err.prompt_set.no_pending_import" [],
+    /// `TakeTheirs` so lạc quan trượt — thân của hàng đích đã đổi (hoặc chính hàng đã biến
+    /// mất, hoặc `name` vừa bị một lượt ghi khác chiếm ở nhánh `New`) giữa nhịp xem trước và
+    /// nhịp xác nhận. `name` là tên bộ đang nhập — dữ liệu, không phải câu.
+    PromptSetImportStaleConflict => "err.prompt_set.import_stale_conflict" ["name"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

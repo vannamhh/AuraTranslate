@@ -915,6 +915,15 @@ export type CommandDeps = {
    * `prompt.library.close`. */
   closePromptLibrary?: () => void
 
+  // ── Story 4.5 — hộp thoại chọn tệp nối vào nhập một bộ prompt (AD-48) ───────────
+  /** Mở hộp thoại CHỌN rồi đọc/xem-trước một lượt nhập — KHÔNG nhận tầng (tầng chọn Ở MÀN
+   * XEM TRƯỚC, khác Glossary). Handler của `prompt.import.open`. */
+  openPromptImportPreview?: () => void
+  /** Xác nhận lượt nhập đang xem trước. Handler của `prompt.import.confirm`. */
+  confirmPromptImportPreview?: () => void
+  /** Huỷ lượt nhập đang xem trước. Handler của `prompt.import.cancel`. */
+  cancelPromptImportPreview?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -3294,6 +3303,52 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('prompt.library.close', 'closePromptLibrary')
       }
       deps.closePromptLibrary()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.5 — HỘP THOẠI CHỌN TỆP NỐI VÀO NHẬP MỘT BỘ PROMPT (AD-48)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Ba lệnh, KHÔNG hợp âm mặc định — cùng khuôn bốn lệnh xuất/nhập Glossary (Story 3.10b):
+   * mở hộp thoại là một thao tác bấm nút, không phải một thao tác gõ phím. `dispatch()` là
+   * chỗ DUY NHẤT frontend chạm tới chúng. `prompt.library.export_selected` KHÔNG có mặt ở
+   * đây — Xuất mang tham số (`tier`, `id` của hàng đang chọn) nên nó là một `<form>+submit`
+   * gọi hàm cục bộ trong `PromptLibraryOverlay.vue`, cùng khuôn Đổi tên/Sửa thân/Xoá của
+   * chính màn đó, không một command id.
+   */
+  target.register({
+    id: 'prompt.import.open',
+    labelKey: 'command.prompt.import.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openPromptImportPreview === undefined) {
+        return portMissing('prompt.import.open', 'openPromptImportPreview')
+      }
+      deps.openPromptImportPreview()
+    },
+  })
+  target.register({
+    id: 'prompt.import.confirm',
+    labelKey: 'command.prompt.import.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmPromptImportPreview === undefined) {
+        return portMissing('prompt.import.confirm', 'confirmPromptImportPreview')
+      }
+      deps.confirmPromptImportPreview()
+    },
+  })
+  target.register({
+    id: 'prompt.import.cancel',
+    labelKey: 'command.prompt.import.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelPromptImportPreview === undefined) {
+        return portMissing('prompt.import.cancel', 'cancelPromptImportPreview')
+      }
+      deps.cancelPromptImportPreview()
     },
   })
 

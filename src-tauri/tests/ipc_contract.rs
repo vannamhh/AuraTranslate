@@ -1838,16 +1838,18 @@ fn the_aiconfig_key_wires_are_registered() {
     }
 }
 
-/// **THÊM Story 4.4, Phase 2.** Năm vỏ `commands::promptset::wire::*` phải CÓ MẶT trong
-/// `generate_handler![…]` — cùng lý lẽ và cùng khuôn
+/// **THÊM Story 4.4, Phase 2; MỞ RỘNG Story 4.5.** Chín vỏ `commands::promptset::wire::*`
+/// phải CÓ MẶT trong `generate_handler![…]` — cùng lý lẽ và cùng khuôn
 /// [`the_aiconfig_key_wires_are_registered`] ngay trên: `ipc_contract.rs:1824` (doc-comment
 /// của test đó) tự ghi rằng cổng này là một danh sách gõ tay THEO TỪNG DOMAIN, không phải
 /// một phép quét chung — một domain mới không có gì canh nó trừ khi một sibling được thêm
-/// vào. `prompt_set_contract.rs` (Phase 3) gọi thẳng năm hàm thuần
-/// (`commands::promptset::prompt_set_*`), không đi qua `wire::`, nên xoá một dòng đăng ký ở
-/// đây khỏi `lib.rs` để `cargo test --locked` VẪN xanh trong khi nút bấm tương ứng vỡ trên
-/// một bản dựng thật — đúng lỗ mà spec 4.4's AC2 đặt tên ("Given the whole repository ...
-/// when `generate_handler!` loses any one prompt-set line, then a Rust case goes red").
+/// vào. Năm vỏ Phase 2 gọi thẳng năm hàm thuần qua `prompt_set_contract.rs`; bốn vỏ Story
+/// 4.5 (xuất/mở-xem-trước/xác nhận/huỷ lượt nhập) gọi thẳng qua
+/// `prompt_set_exchange_contract.rs` — cả hai không đi qua `wire::`, nên xoá một dòng đăng ký
+/// ở đây khỏi `lib.rs` để `cargo test --locked` VẪN xanh trong khi nút bấm tương ứng vỡ trên
+/// một bản dựng thật — đúng lỗ mà spec 4.4's AC2 (nhắc lại nguyên văn ở AC2 spec 4.5) đặt tên
+/// ("Given the whole repository ... when `generate_handler!` loses any one prompt-set line,
+/// then a Rust case goes red").
 #[test]
 fn the_prompt_set_wires_are_registered() {
     let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
@@ -1860,6 +1862,11 @@ fn the_prompt_set_wires_are_registered() {
         "crate::commands::promptset::wire::prompt_set_rename",
         "crate::commands::promptset::wire::prompt_set_update_body",
         "crate::commands::promptset::wire::prompt_set_delete",
+        // Story 4.5 -- xuat/nhap mot bo prompt qua tep `.prompt.md` (FR79, NFR9, AD-48).
+        "crate::commands::promptset::wire::prompt_set_export",
+        "crate::commands::promptset::wire::prompt_set_open_import_preview",
+        "crate::commands::promptset::wire::prompt_set_confirm_import",
+        "crate::commands::promptset::wire::prompt_set_cancel_import",
     ] {
         assert!(
             lib_src.contains(wire),

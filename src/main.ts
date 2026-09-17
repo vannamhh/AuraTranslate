@@ -306,6 +306,16 @@ import { closeSettings, openSettings, openSettingsToPrivacy, settingsOverlayIsOp
 // ⚠️ Cùng lý do và cùng cửa với `settingsState.ts`: `promptLibraryState.ts` dùng `ref` của
 // Vue và (qua `promptSetState.ts`) gọi `@tauri-apps/api` xuyên qua `config/promptset.ts`.
 import { closePromptLibrary, openPromptLibrary, promptLibraryOverlayIsOpen } from './promptLibraryState'
+// ── Story 4.5 — lớp phủ "Xem trước lượt nhập bộ prompt" (FR79/NFR9, AD-48) ───────────
+//
+// Cùng lý do và cùng cửa với `glossaryImportState.ts`: `promptSetImportState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/promptset.ts`.
+import {
+  cancelPromptImportPreview,
+  confirmPromptImportPreview,
+  openPromptImportPreviewOverlay,
+  promptImportOverlayIsOpen,
+} from './promptSetImportState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -879,6 +889,16 @@ async function boot(): Promise<void> {
       // Story 4.4 · FR69 — lớp phủ "Thư viện prompt".
       openPromptLibrary,
       closePromptLibrary,
+      // Story 4.5 · FR79/NFR9 — hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (AD-48).
+      openPromptImportPreview: () => {
+        void openPromptImportPreviewOverlay()
+      },
+      confirmPromptImportPreview: () => {
+        void confirmPromptImportPreview()
+      },
+      cancelPromptImportPreview: () => {
+        void cancelPromptImportPreview()
+      },
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -922,7 +942,10 @@ async function boot(): Promise<void> {
         settingsOverlayIsOpen.value ||
         // Story 4.4 — cùng lý do hệt `settingsOverlayIsOpen`: `PromptLibraryOverlay.vue`
         // cũng khai `aria-modal="true"` và `trapTab`.
-        promptLibraryOverlayIsOpen.value,
+        promptLibraryOverlayIsOpen.value ||
+        // Story 4.5 — cùng lý do hệt `importOverlayIsOpen` (Glossary): `PromptImportOverlay.vue`
+        // cũng khai `aria-modal="true"` và `trapTab`.
+        promptImportOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

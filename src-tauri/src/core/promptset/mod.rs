@@ -39,12 +39,14 @@
 //! ở đây là kiểu RIÊNG (không tái dùng `core::scope::Tier`), cùng lý do
 //! `core::aiconfig::AiConfigTier`/`core::glossary::GlossaryTier` đã có kiểu riêng.
 
+pub mod exchange;
+pub mod exchange_io;
 pub mod store;
 pub mod vars;
 
 pub use store::{
-    PromptSetError, ResolvedPromptSet, create, delete, load_prompt_set_tier, rename,
-    resolve_two_tiers, update_body,
+    ImportOutcome, PromptSetError, ResolvedPromptSet, create, delete, import_into_tier,
+    load_one, load_prompt_set_tier, rename, resolve_two_tiers, update_body,
 };
 pub use vars::{MarkerWarnings, PromptVariable, scan_markers};
 

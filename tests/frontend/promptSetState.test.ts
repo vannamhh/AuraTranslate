@@ -12,6 +12,7 @@ const promptSetCreateMock = vi.fn()
 const promptSetRenameMock = vi.fn()
 const promptSetUpdateBodyMock = vi.fn()
 const promptSetDeleteMock = vi.fn()
+const promptSetExportMock = vi.fn()
 
 vi.mock('../../src/config/promptset', () => ({
   promptSetList: (...args: unknown[]) => promptSetListMock(...args),
@@ -19,6 +20,7 @@ vi.mock('../../src/config/promptset', () => ({
   promptSetRename: (...args: unknown[]) => promptSetRenameMock(...args),
   promptSetUpdateBody: (...args: unknown[]) => promptSetUpdateBodyMock(...args),
   promptSetDelete: (...args: unknown[]) => promptSetDeleteMock(...args),
+  promptSetExport: (...args: unknown[]) => promptSetExportMock(...args),
 }))
 
 /** Nạp lại module mỗi ca — state là module-level singleton, cùng lý do `freshState` của
@@ -32,8 +34,25 @@ function emptySets() {
   return []
 }
 
-function makeSet(over: Partial<{ id: number; name: string; body: string; tier: 'global' | 'work'; shadowed_body: string | null }> = {}) {
-  return { id: 1, name: 'Xianxia', body: '{{glossary_terms}}', tier: 'global' as const, shadowed_body: null, ...over }
+function makeSet(
+  over: Partial<{
+    id: number
+    name: string
+    body: string
+    tier: 'global' | 'work'
+    shadowed_body: string | null
+    shadowed_id: number | null
+  }> = {},
+) {
+  return {
+    id: 1,
+    name: 'Xianxia',
+    body: '{{glossary_terms}}',
+    tier: 'global' as const,
+    shadowed_body: null,
+    shadowed_id: null,
+    ...over,
+  }
 }
 
 beforeEach(() => {
@@ -42,11 +61,13 @@ beforeEach(() => {
   promptSetRenameMock.mockReset()
   promptSetUpdateBodyMock.mockReset()
   promptSetDeleteMock.mockReset()
+  promptSetExportMock.mockReset()
   promptSetListMock.mockResolvedValue({ sets: emptySets(), workTierAvailable: false, variables: [], error: null })
   promptSetCreateMock.mockResolvedValue({ id: 1, warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
   promptSetRenameMock.mockResolvedValue(null)
   promptSetUpdateBodyMock.mockResolvedValue({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
   promptSetDeleteMock.mockResolvedValue(null)
+  promptSetExportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/x.prompt.md' })
 })
 
 afterEach(() => {
@@ -473,5 +494,52 @@ describe('resetPromptSets', () => {
     expect(promptSetWorkTierAvailable.value).toBe(false)
     expect(promptSetActionError.value).toBeNull()
     expect(selectedPromptSetName.value).toBeNull()
+  })
+})
+
+describe('exportPromptSet — Story 4.5, mở hộp thoại LƯU trong Rust', () => {
+  it('lượt thành công ghi path, không đụng exportError', async () => {
+    const { exportPromptSet, promptSetExportError } = await freshState()
+    await exportPromptSet('global', 1)
+    expect(promptSetExportMock).toHaveBeenCalledWith('global', 1)
+    expect(promptSetExportError.value).toBeNull()
+  })
+
+  it('huỷ hộp thoại (outcome cancelled) không ghi lỗi nào', async () => {
+    promptSetExportMock.mockResolvedValue({ outcome: 'cancelled' })
+    const { exportPromptSet, promptSetExportError } = await freshState()
+    await exportPromptSet('global', 1)
+    expect(promptSetExportError.value).toBeNull()
+  })
+
+  it('lượt trượt ghi lỗi qua promptSetExportError', async () => {
+    const err = { code: 'prompt_set.export_write_failed', message_key: 'err.prompt_set.export_write_failed', params: {}, retryable: false }
+    promptSetExportMock.mockResolvedValue({ outcome: 'error', error: err })
+    const { exportPromptSet, promptSetExportError } = await freshState()
+    await exportPromptSet('global', 1)
+    expect(promptSetExportError.value).toEqual(err)
+  })
+
+  it('resetPromptSets vứt exportError về null', async () => {
+    const err = { code: 'prompt_set.export_write_failed', message_key: 'err.prompt_set.export_write_failed', params: {}, retryable: false }
+    promptSetExportMock.mockResolvedValue({ outcome: 'error', error: err })
+    const { exportPromptSet, resetPromptSets, promptSetExportError } = await freshState()
+    await exportPromptSet('global', 1)
+    expect(promptSetExportError.value).toEqual(err)
+
+    resetPromptSets()
+
+    expect(promptSetExportError.value).toBeNull()
+  })
+
+  it('bấm chồng khi cờ dùng chung đang bận thì bỏ qua, không gọi IPC', async () => {
+    const { exportPromptSet } = await freshState()
+    const { setGlossaryExchangeBusy } = await import('../../src/glossaryExchangeGate')
+    setGlossaryExchangeBusy(true)
+
+    await exportPromptSet('global', 1)
+
+    expect(promptSetExportMock).not.toHaveBeenCalled()
+    setGlossaryExchangeBusy(false)
   })
 })

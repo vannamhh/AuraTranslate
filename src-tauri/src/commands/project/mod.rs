@@ -5229,6 +5229,11 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
             crate::core::glossary::GlossaryTier::Work,
         );
     }
+    // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt dang treo (neu co): chi ha
+    // `work_kind` ve `None`, khong xoa TRON lo (`lib.rs::close_open_work` giai thich vi sao).
+    if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
+    }
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
         drop(swap_locked(&state, new_work));

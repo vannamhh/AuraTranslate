@@ -1,5 +1,12 @@
 /**
- * Cửa loại trừ Xuất ↔ Nhập của Glossary — cụm D vá (vòng rà Epic 3, 2026-08-26).
+ * Cửa loại trừ Xuất ↔ Nhập — ban đầu chỉ của Glossary (cụm D vá, vòng rà Epic 3, 2026-08-26).
+ *
+ * 🔵 **DÙNG CHUNG từ Story 4.5** — `promptSetImportState.ts::openPromptImportPreviewOverlay`
+ * (và, gián tiếp qua chỗ gọi của nó, lượt Xuất một bộ prompt) đọc/ghi ĐÚNG cờ này thay vì một
+ * bản twin riêng: spec 4.5 §Code Map nói "share the existing exchange latch (or a twin)", và
+ * chia sẻ đúng nghĩa hơn ở đây — CẢ Glossary lẫn bộ prompt đều mở một hộp thoại HỆ ĐIỀU HÀNH
+ * của chính Rust, và ứng dụng không có mô hình nào cho "hai hộp thoại chọn tệp cùng mở" bất
+ * kể domain. Tên tệp giữ nguyên (đổi tên là một việc tách biệt, không cần cho Story 4.5).
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO MỘT TỆP RIÊNG, KHÔNG PHẢI MỘT MODULE IMPORT LẪN NHAU

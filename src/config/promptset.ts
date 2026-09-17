@@ -44,6 +44,12 @@ export type PromptSetWire = {
   body: string
   tier: PromptSetTier
   shadowed_body: string | null
+  /**
+   * Story 4.5, Quyết định #3. `id` THẬT của hàng Global bị che — cùng điều kiện `null`/số
+   * với `shadowed_body`. Cho phép hàng đó được chọn, đổi tên, xoá, xuất qua chính `id` này,
+   * ở tầng `"global"` — đóng `deferred-work.md:12947-12968`.
+   */
+  shadowed_id: number | null
 }
 
 /** Hình dạng `PromptSetListWire` phía Rust — phong bì, KHÔNG một `PromptSetWire[]` trần. */
@@ -199,6 +205,196 @@ export async function promptSetDelete(tier: PromptSetTier, id: number): Promise<
       return UNKNOWN_IPC_ERROR
     }
     console.info(`[promptset] không gọi được \`${CMD_DELETE}\` — chạy ngoài Tauri? ${String(err)}`)
+    return null
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.5 (FR79, NFR9, AD-48) — adapter THỨ SÁU đến CHÍN: hộp thoại chọn tệp nối vào
+// xuất/nhập một bộ prompt (`.prompt.md`). Cả bốn lệnh MỞ HỘP THOẠI TRONG RUST — adapter này
+// không cầm một quyền `dialog:*`/`fs:*` nào, khuôn nguyên văn `config/glossary.ts`'s bốn
+// adapter tương ứng (Story 3.10b).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const CMD_EXPORT = 'prompt_set_export'
+const CMD_OPEN_IMPORT_PREVIEW = 'prompt_set_open_import_preview'
+const CMD_CONFIRM_IMPORT = 'prompt_set_confirm_import'
+const CMD_CANCEL_IMPORT = 'prompt_set_cancel_import'
+
+/**
+ * Kết quả một lượt XUẤT. **Không bao giờ ném.** Bốn nhánh phân biệt được, cùng khuôn
+ * `GlossaryExportResult` (`config/glossary.ts`) — `'cancelled'` (huỷ hộp thoại, im lặng CÓ
+ * CHỦ) tách khỏi `'ipc_unavailable'` (không có cầu IPC — PHẢI nói ra).
+ */
+export type PromptSetExportResult =
+  | { outcome: 'done'; path: string }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/** Mở hộp thoại LƯU rồi xuất bộ `(tier, id)`. **Không bao giờ ném.** */
+export async function promptSetExport(tier: PromptSetTier, id: number): Promise<PromptSetExportResult> {
+  try {
+    const path = await invoke<unknown>(CMD_EXPORT, { tier, id })
+    if (path === null) return { outcome: 'cancelled' }
+    if (typeof path !== 'string' || path === '') {
+      console.error(`[promptset] \`${CMD_EXPORT}\` tra ve mot duong dan khong hop le: ${JSON.stringify(path)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: 'done', path }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: 'error', error: err }
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_EXPORT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[promptset] không gọi được \`${CMD_EXPORT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: 'ipc_unavailable' }
+  }
+}
+
+/** Phân loại một tầng cho màn hình xem trước — khớp NGUYÊN VĂN `PromptImportTierPreviewWire`
+ * phía Rust. */
+export type PromptSetImportTierPreview = {
+  kind: 'new' | 'identical' | 'conflict'
+  existing_body: string | null
+}
+
+/** Hình dạng `PromptImportPreviewWire` phía Rust — **`snake_case`, đúng như trên dây**.
+ * `work: null` ⇔ không có Tác phẩm nào đang mở lúc xem trước (Work option VẮNG MẶT, không
+ * một tuỳ chọn bị vô hiệu hoá rỗng). */
+export type PromptSetImportPreview = {
+  file_name: string
+  name: string
+  body: string
+  warnings: PromptSetWarningsWire
+  global: PromptSetImportTierPreview
+  work: PromptSetImportTierPreview | null
+}
+
+function isPromptSetImportTierPreview(value: unknown): value is PromptSetImportTierPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<PromptSetImportTierPreview>
+  return (
+    (v.kind === 'new' || v.kind === 'identical' || v.kind === 'conflict') &&
+    (v.existing_body === null || typeof v.existing_body === 'string')
+  )
+}
+
+/** 🔴 Type guard LÚC CHẠY — dữ liệu qua IPC là một LỜI KHAI, không một bảo đảm của trình
+ * biên dịch, cùng lý do `isGlossaryImportPreview`. */
+function isPromptSetImportPreview(value: unknown): value is PromptSetImportPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<PromptSetImportPreview>
+  return (
+    typeof v.file_name === 'string' &&
+    typeof v.name === 'string' &&
+    typeof v.body === 'string' &&
+    typeof v.warnings === 'object' &&
+    // ⚠️ Hình dạng `PromptSetImportPreview` là một LỜI KHAI về dữ liệu đã qua dây IPC, không
+    // một bảo đảm của trình biên dịch — Rust có thể trả `null` cho `warnings`, và
+    // `typeof null === 'object'` không tự loại trường hợp đó (cùng lý do `isIpcError`'s
+    // guard `params !== null`, `config/pinned.ts`).
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
+    v.warnings !== null &&
+    Array.isArray(v.warnings.unknown_markers) &&
+    v.warnings.unknown_markers.every((m) => typeof m === 'string') &&
+    typeof v.warnings.glossary_terms_missing === 'boolean' &&
+    isPromptSetImportTierPreview(v.global) &&
+    (v.work === null || isPromptSetImportTierPreview(v.work))
+  )
+}
+
+/** Kết quả nhịp MỘT. **Không bao giờ ném.** Cùng bốn nhánh với [`PromptSetExportResult`]. */
+export type PromptSetImportPreviewResult =
+  | { outcome: 'loaded'; preview: PromptSetImportPreview }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/**
+ * Mở hộp thoại CHỌN rồi đọc/phân tích/phân loại — nhịp MỘT của lượt nhập. **Không bao giờ
+ * ném.** **KHÔNG nhận `tier`** — tầng được chọn Ở MÀN XEM TRƯỚC (I/O Matrix spec 4.5 "Import
+ * picks the tier"), sau khi tệp đã đọc, khác Glossary (nơi tầng chọn TRƯỚC khi mở hộp
+ * thoại).
+ */
+export async function promptSetOpenImportPreview(): Promise<PromptSetImportPreviewResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_OPEN_IMPORT_PREVIEW)
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!isPromptSetImportPreview(wire)) {
+      console.error(
+        `[promptset] \`${CMD_OPEN_IMPORT_PREVIEW}\` tra ve mot hinh dang khong dung PromptSetImportPreview`,
+      )
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: 'loaded', preview: wire }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: 'error', error: err }
+    if (hasIpcBridge()) {
+      console.error(
+        `[promptset] \`${CMD_OPEN_IMPORT_PREVIEW}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[promptset] không gọi được \`${CMD_OPEN_IMPORT_PREVIEW}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: 'ipc_unavailable' }
+  }
+}
+
+/** Quyết định của người dùng cho va chạm tên — khớp NGUYÊN VĂN `ConflictDecision::…`
+ * (`#[serde(rename = …)]`) phía Rust. */
+export type PromptSetConflictDecision = 'keep_mine' | 'take_theirs'
+
+/** Hình dạng `PromptImportOutcomeWire` phía Rust — `#[serde(rename_all = "snake_case")]`. */
+export type PromptSetImportOutcome = 'inserted' | 'updated' | 'skipped'
+
+function isPromptSetImportOutcome(value: unknown): value is PromptSetImportOutcome {
+  return value === 'inserted' || value === 'updated' || value === 'skipped'
+}
+
+/** Ba trạng thái, cùng khuôn [`GlossaryConfirmImportResult`]. */
+export type PromptSetConfirmImportResult = { outcome: PromptSetImportOutcome | null; error: IpcError | null }
+
+/**
+ * Xác nhận lượt nhập — nhịp HAI. **Không bao giờ ném.** `tier` là tầng người dùng chọn Ở MÀN
+ * XEM TRƯỚC; `decision` chỉ có ý nghĩa khi tầng đó phân loại `'conflict'` — vắng mặt (hoặc
+ * `null`) ⇒ `'keep_mine'` (mặc định, §Always).
+ */
+export async function promptSetConfirmImport(
+  tier: PromptSetTier,
+  decision: PromptSetConflictDecision | null,
+): Promise<PromptSetConfirmImportResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_CONFIRM_IMPORT, { tier, decision })
+    if (!isPromptSetImportOutcome(wire)) {
+      console.error(`[promptset] \`${CMD_CONFIRM_IMPORT}\` tra ve mot hinh dang khong dung PromptSetImportOutcome`)
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_CONFIRM_IMPORT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[promptset] không gọi được \`${CMD_CONFIRM_IMPORT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: null, error: null }
+  }
+}
+
+/** Huỷ lô đang treo. **Không bao giờ ném.** Vô hại khi không có lô nào. */
+export async function promptSetCancelImport(): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_CANCEL_IMPORT)
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_CANCEL_IMPORT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
+    console.info(`[promptset] không gọi được \`${CMD_CANCEL_IMPORT}\` — chạy ngoài Tauri? ${String(err)}`)
     return null
   }
 }

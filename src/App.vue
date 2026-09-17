@@ -81,6 +81,10 @@ import BilingualImportPreviewOverlay from './BilingualImportPreviewOverlay.vue'
 // phủ, cùng khuôn `SettingsOverlay` (titlebar + chân `ImportPreviewOverlay`). §Never spec 4.4:
 // "A big screen is the 11th overlay" — không một chế độ thứ tư.
 import PromptLibraryOverlay from './PromptLibraryOverlay.vue'
+// Story 4.5 (FR79/NFR9, AD-48) — lớp phủ "Xem trước lượt nhập bộ prompt", lớp phủ THỨ MƯỜI
+// HAI. Mở TỪ BÊN TRONG `PromptLibraryOverlay` (nút "Nhập từ file"), dựng ở cùng tầng gốc như
+// mọi lớp phủ khác — cùng khuôn `GlossaryImportOverlay`/`GlossaryManageOverlay`.
+import PromptImportOverlay from './PromptImportOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -408,6 +412,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 4.4 · FR69 — cùng khuôn: lớp phủ tự quản `v-if` qua `promptLibraryOverlayIsOpen`. -->
     <PromptLibraryOverlay />
+
+    <!-- Story 4.5 · FR79/NFR9 — cùng khuôn: lớp phủ tự quản `v-if` qua `promptImportOverlayIsOpen`. -->
+    <PromptImportOverlay />
   </main>
 </template>
 

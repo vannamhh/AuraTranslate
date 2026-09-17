@@ -32,11 +32,13 @@ import type { IpcError } from './i18n'
 import {
   promptSetCreate,
   promptSetDelete,
+  promptSetExport,
   promptSetList,
   promptSetRename,
   promptSetUpdateBody,
 } from './config/promptset'
 import type { PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
+import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
 const workTierAvailable = ref(false)
@@ -53,6 +55,10 @@ const selectedSetName = ref<string | null>(null)
  * (`commands/promptset.rs`). Không đổi trên một lượt trượt — cùng lý do `resolvedSets` giữ
  * nguyên giá trị CŨ khi `loadPromptSets` gặp lỗi, thay vì tụt về rỗng. */
 const variableNames = ref<string[]>([])
+/** Lỗi/đường dẫn của lượt XUẤT gần nhất — Story 4.5. RIÊNG với `actionError` (Tạo/Đổi tên/
+ * Sửa thân/Xoá): một lỗi xuất không phải một lỗi soạn, và không nên xoá banner của form đang
+ * mở. `null` khi chưa xuất lần nào, hoặc lượt gần nhất thành công/bị huỷ. */
+const exportError = ref<IpcError | null>(null)
 
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `aiConfigState.ts`). */
 let sequence = 0
@@ -66,6 +72,11 @@ export const promptSetActionError: DeepReadonly<Ref<IpcError | null>> = readonly
 export const promptSetActionWarnings: DeepReadonly<Ref<PromptSetWarningsWire | null>> = readonly(actionWarnings)
 export const selectedPromptSetName: DeepReadonly<Ref<string | null>> = readonly(selectedSetName)
 export const promptSetVariables: DeepReadonly<Ref<string[]>> = readonly(variableNames)
+export const promptSetExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
+/** Cờ dùng CHUNG với lượt Nhập (`promptSetImportState.ts`) và với Xuất/Nhập Glossary — cả
+ * ba đều mở một hộp thoại hệ điều hành của Rust; xem doc-comment đã cập nhật của
+ * `glossaryExchangeGate.ts`. */
+export const promptSetExchangeBusy: DeepReadonly<Ref<boolean>> = glossaryExchangeBusy
 
 /**
  * Vứt lỗi/cảnh báo của lượt Tạo/Sửa thân GẦN NHẤT — gọi khi chỗ gọi chuyển sự chú ý sang một
@@ -77,6 +88,10 @@ export const promptSetVariables: DeepReadonly<Ref<string[]>> = readonly(variable
 export function clearPromptSetActionFeedback(): void {
   actionError.value = null
   actionWarnings.value = null
+  // Story 4.5 review fix — cùng lý do hai ô trên: chọn sang một hàng KHÁC không nên ngầm
+  // định lỗi xuất của hàng TRƯỚC vẫn còn đúng — cùng khuyết tật Story 4.4's review đã vá hai
+  // lần (Pass 1 hàng 2 và 3).
+  exportError.value = null
 }
 
 /** Bộ khớp `id`, hoặc `null` nếu không có (chưa nạp, hoặc `id` không còn tồn tại). */
@@ -248,6 +263,29 @@ export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<
 }
 
 /**
+ * Xuất bộ `(tier, id)` — mở hộp thoại LƯU trong Rust, khuôn `exportGlossaryManageTier`. Chặn
+ * bấm chồng bằng cờ DÙNG CHUNG (`glossaryExchangeBusy`, khuôn `openGlossaryImportPreviewOverlay`'s
+ * `if (opening.value || glossaryExchangeBusy.value) return`) — Xuất một bộ prompt và Nhập
+ * (bộ prompt lẫn Glossary) đều mở một hộp thoại hệ điều hành, không được chồng nhau.
+ *
+ * **Không bao giờ ném.** Huỷ hộp thoại (`outcome: 'cancelled'`) là im lặng có chủ — không
+ * ghi `exportError`. `outcome: 'ipc_unavailable'` cũng không ghi lỗi (chạy ngoài Tauri không
+ * phải một lỗi của người dùng, cùng khuôn mọi adapter khác).
+ */
+export async function exportPromptSet(tier: PromptSetTier, id: number): Promise<void> {
+  if (glossaryExchangeBusy.value) return
+
+  setGlossaryExchangeBusy(true)
+  exportError.value = null
+  const result = await promptSetExport(tier, id)
+  setGlossaryExchangeBusy(false)
+
+  if (result.outcome === 'error') {
+    exportError.value = result.error
+  }
+}
+
+/**
  * Vứt toàn bộ state của mục — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`, cùng khuôn `resetAiConfigSection`.
  */
@@ -262,4 +300,5 @@ export function resetPromptSets(): void {
   actionWarnings.value = null
   selectedSetName.value = null
   variableNames.value = []
+  exportError.value = null
 }

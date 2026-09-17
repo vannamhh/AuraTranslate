@@ -26,6 +26,7 @@ const promptSetCreateMock = vi.fn()
 const promptSetRenameMock = vi.fn()
 const promptSetUpdateBodyMock = vi.fn()
 const promptSetDeleteMock = vi.fn()
+const promptSetExportMock = vi.fn()
 
 vi.mock('../../src/config/promptset', () => ({
   promptSetList: (...args: unknown[]) => promptSetListMock(...args),
@@ -33,6 +34,7 @@ vi.mock('../../src/config/promptset', () => ({
   promptSetRename: (...args: unknown[]) => promptSetRenameMock(...args),
   promptSetUpdateBody: (...args: unknown[]) => promptSetUpdateBodyMock(...args),
   promptSetDelete: (...args: unknown[]) => promptSetDeleteMock(...args),
+  promptSetExport: (...args: unknown[]) => promptSetExportMock(...args),
 }))
 
 type WireRow = {
@@ -41,10 +43,19 @@ type WireRow = {
   body: string
   tier: 'global' | 'work'
   shadowed_body: string | null
+  shadowed_id: number | null
 }
 
 function row(over: Partial<WireRow> = {}): WireRow {
-  return { id: 1, name: 'Xianxia', body: '{{glossary_terms}}', tier: 'global', shadowed_body: null, ...over }
+  return {
+    id: 1,
+    name: 'Xianxia',
+    body: '{{glossary_terms}}',
+    tier: 'global',
+    shadowed_body: null,
+    shadowed_id: null,
+    ...over,
+  }
 }
 
 function resetMocks(): void {
@@ -53,6 +64,8 @@ function resetMocks(): void {
   promptSetRenameMock.mockReset()
   promptSetUpdateBodyMock.mockReset()
   promptSetDeleteMock.mockReset()
+  promptSetExportMock.mockReset()
+  promptSetExportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/x.prompt.md' })
 }
 
 /** Nạp lại `promptSetState`/`promptLibraryState`/`PromptLibraryOverlay.vue` CÙNG một lượt —
@@ -77,7 +90,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
     promptSetListMock.mockResolvedValue({
       sets: [
-        row({ id: 5, name: 'Tiên hiệp', tier: 'work', body: 'than tac pham', shadowed_body: 'than toan cuc' }),
+        row({ id: 5, name: 'Tiên hiệp', tier: 'work', body: 'than tac pham', shadowed_body: 'than toan cuc', shadowed_id: 9 }),
         row({ id: 7, name: 'Bao chi', tier: 'global', body: 'cau ngan' }),
       ],
       workTierAvailable: true,
@@ -96,6 +109,57 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     expect(names).toContain('Bao chi')
     expect(wrapper.find('.pl-row-shadowed').exists()).toBe(true)
     expect(wrapper.find('.pl-row-shadowed').text()).toContain('Tiên hiệp')
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
+  it('Story 4.5 Quyết định #3 — hàng Global bị che CHỌN ĐƯỢC qua shadowed_id, nạp đúng thân của chính nó (không phải thân Work đang thắng)', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValue({
+      sets: [
+        row({ id: 5, name: 'Tiên hiệp', tier: 'work', body: 'than tac pham', shadowed_body: 'than toan cuc', shadowed_id: 9 }),
+      ],
+      workTierAvailable: true,
+      error: null,
+    })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const shadowedButton = wrapper.find('.pl-row-shadowed')
+    expect(shadowedButton.exists()).toBe(true)
+    await shadowedButton.trigger('submit')
+    await wrapper.vm.$nextTick()
+
+    // Ô soạn phải hiện DUNG than cua hang Global bi che (khong phai than Work dang thang) —
+    // bang chung selectedRow tra ve tu chinh hang do, khong tu `promptSets` (hang thang).
+    expect((wrapper.find('.pl-textarea').element as HTMLTextAreaElement).value).toBe('than toan cuc')
+
+    await wrapper.find('.pl-export-form').trigger('submit')
+    await flushPromises()
+    expect(promptSetExportMock).toHaveBeenCalledWith('global', 9)
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
+  it('Story 4.5 — nút "Nhập từ file" mang data-prompt-import-open, dispatch parameterless', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValue({ sets: [row()], workTierAvailable: false, error: null })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const importButton = wrapper.find('[data-prompt-import-open]')
+    expect(importButton.exists()).toBe(true)
+    expect(importButton.text()).not.toBe('')
 
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()
@@ -165,6 +229,66 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'Hoc thuat', 'giu thuat ngu chuyen nganh')
     expect(wrapper.find('.pl-create-form').exists()).toBe(false)
     expect((wrapper.find('.pl-rename-form input').element as HTMLInputElement).value).toBe('Hoc thuat')
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
+  it('review fix — tạo một bộ Global bị một bộ Work cùng tên che NGAY LẬP TỨC ⇒ chọn thẳng hàng Global vừa tạo qua shadowed_id, không rơi về createShadowedNote', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValueOnce({ sets: [], workTierAvailable: false, error: null })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.pl-row-form').trigger('submit')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.pl-create-form').exists()).toBe(true)
+
+    await wrapper.find('.pl-create-form input.pl-input').setValue('Hoc thuat')
+    await wrapper.find('.pl-create-form textarea').setValue('giu thuat ngu chuyen nganh')
+
+    promptSetCreateMock.mockResolvedValue({
+      id: 99,
+      warnings: { unknown_markers: [], glossary_terms_missing: false },
+      error: null,
+    })
+    // Lượt nạp lại SAU khi tạo chỉ trả đúng MỘT hàng: hàng Work cùng tên, che ngay hàng Global
+    // vừa tạo (Quyết định #1) — không hàng `tier: 'global'` nào khớp `name`, nên `created` ở
+    // `onSubmitCreate` là `undefined` và nhánh rơi (Quyết định #3) phải chạy.
+    promptSetListMock.mockResolvedValueOnce({
+      sets: [
+        row({
+          id: 5,
+          name: 'Hoc thuat',
+          tier: 'work',
+          body: 'than tac pham co san',
+          shadowed_body: 'giu thuat ngu chuyen nganh',
+          shadowed_id: 99,
+        }),
+      ],
+      workTierAvailable: true,
+      error: null,
+    })
+
+    await wrapper.find('.pl-create-form').trigger('submit')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // Form Tạo đóng và KHÔNG rơi về `createShadowedNote` — bằng chứng: không hint "đã tạo
+    // nhưng không chọn được" nào hiện, và ô soạn đã nạp đúng hàng Global vừa tạo.
+    expect(wrapper.find('.pl-create-form').exists()).toBe(false)
+    expect((wrapper.find('.pl-rename-form input').element as HTMLInputElement).value).toBe('Hoc thuat')
+    expect((wrapper.find('.pl-textarea').element as HTMLTextAreaElement).value).toBe('giu thuat ngu chuyen nganh')
+
+    // Hàng Global bị che (huy hiệu `pl-row-shadowed`) phải là hàng ĐANG CHỌN — đúng
+    // `(tier: 'global', id: shadowed_id)`, không phải hàng Work đang thắng.
+    const shadowedButton = wrapper.find('.pl-row-shadowed')
+    expect(shadowedButton.exists()).toBe(true)
+    expect(shadowedButton.classes()).toContain('pl-row-on')
 
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()

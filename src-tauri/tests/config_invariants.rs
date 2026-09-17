@@ -933,6 +933,70 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
     }
 }
 
+/// 🔴 **SIBLING của [`the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_call_not_before`]
+/// ngay trên, cho hai vỏ hộp thoại của Story 4.5 — spec 4.5 §Always đòi đúng câu này ("the
+/// new shells need a sibling case there, not an exemption"), không mở rộng mảng `cases` của
+/// ca kia sang một tệp KHÁC.**
+///
+/// `prompt_set_export`/`prompt_set_open_import_preview` (`src/commands/promptset.rs::wire`)
+/// đọc tên gợi ý cho hộp thoại LƯU qua hai hàm TỰ CHỨA (`global_row_name`/`work_row_name`) —
+/// `.lock()` của chúng KHÔNG nằm trong thân hai hàm này, nên `.lock()` ĐẦU TIÊN tìm được
+/// trong CHÍNH thân mỗi hàm phải đứng SAU lời gọi hộp thoại tương ứng.
+#[test]
+fn the_open_work_mutex_guard_in_the_promptset_dialog_wires_is_acquired_after_the_blocking_call_not_before()
+ {
+    let path = manifest_dir().join("src/commands/promptset.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    let cases: [(&str, &str, &str); 2] = [
+        (
+            "prompt_set_export",
+            "pub fn prompt_set_export(\n        app: tauri::AppHandle,",
+            ".blocking_save_file()",
+        ),
+        (
+            "prompt_set_open_import_preview",
+            "pub fn prompt_set_open_import_preview(\n        app: tauri::AppHandle,",
+            ".blocking_pick_file()",
+        ),
+    ];
+
+    for (name, fn_start_marker, dialog_call) in cases {
+        let fn_start = text.find(fn_start_marker).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay chu ky ham `{name}` (`{fn_start_marker}`) trong \
+                 commands/promptset.rs -- chu ky da doi? cap nhat marker cua ca test nay CUNG LUOT."
+            )
+        });
+        let after_start = &text[fn_start + fn_start_marker.len()..];
+        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
+        let body = &after_start[..fn_end_rel];
+
+        let dialog_idx = body.find(dialog_call).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `{dialog_call}` trong than ham `{name}` -- ham khong con mo hop \
+                 thoai o day? cap nhat ca test nay CUNG LUOT voi bat ky lan sua cau truc nao."
+            )
+        });
+        let lock_idx = body.find(".lock()").unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `.lock()` nao trong than ham `{name}` -- ham khong con doc lai \
+                 `OpenWorkState` SAU hop thoai? day dung la vi pham P1 neu that, hoac ca test nay \
+                 can cap nhat neu hinh dang doi co chu."
+            )
+        });
+
+        assert!(
+            lock_idx > dialog_idx,
+            "trong than ham `{name}`: `.lock()` (offset {lock_idx}) dung TRUOC `{dialog_call}` \
+             (offset {dialog_idx}) -- MutexGuard cua OpenWorkState dang song xuyen qua loi goi \
+             hop thoai CHAN, dung P1. Doc ten goi y cho hop thoai qua mot ham TU CHUA \
+             (`global_row_name`/`work_row_name`), khong inline `.lock()` truc tiep trong than \
+             vo, roi khoa LAI, MOI, SAU dialog cho luot ghi that."
+        );
+    }
+}
+
 /// Một hàng của [`blocking_wire_cases`]: `(đường dẫn tương đối, tiền tố chữ ký, vì sao vỏ đó
 /// CHẶN)`. Chữ ký giữ NGUYÊN xuống dòng và thụt lề, vì bốn trong các vỏ trùng tên với hàm
 /// thuần cùng tệp (`create_work_from_text` · `create_work_from_file` ·
@@ -1092,6 +1156,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
              `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
              (`core/segment/pipeline.rs:1011`) va `prepare_chapter_images` bo qua dung nhung \
              Chuong do (`commands/project.rs:1011`, `let Some(blocks) = ... else { continue }`)",
+        ),
+        (
+            "src/commands/promptset.rs",
+            "pub fn prompt_set_export(\n        app: tauri::AppHandle",
+            "mo hop thoai luu -- `blocking_save_file()` chan vong lap su kien, Story 4.5",
+        ),
+        (
+            "src/commands/promptset.rs",
+            "pub fn prompt_set_open_import_preview(\n        app: tauri::AppHandle",
+            "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien, Story 4.5",
         ),
     ]
 }
@@ -1379,6 +1453,11 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// vỏ, cùng khuôn `commands/aiconfig.rs`: `mod wire` lồng trong CÙNG tệp). Đếm lại: **63
 /// plain / 26 async** trên **mười ba** tệp. `commands/mod.rs` nay khai **mười hai** `pub mod`.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.5)** — `commands/promptset.rs` thêm bốn vỏ (xuất/mở-xem-
+/// trước/xác nhận/huỷ một lượt nhập `.prompt.md`, FR79/NFR9/AD-48): hai `(async)` (mở hộp
+/// thoại) cộng hai plain (giao dịch một hàng, tức thời). Vẫn không tệp `.rs` mới, vẫn mười ba
+/// tệp mang lệnh. Đếm lại: **65 plain / 28 async**.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1437,12 +1516,16 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 13] = [
     ("src/commands/project/wire.rs", 9, 8, 6, ""),
     (
         "src/commands/promptset.rs",
-        5,
-        0,
-        0,
-        "CHUA DO -- chu: Dev. Nam vo liet ke hai tang da phan giai / tao / doi ten / sua than / \
-         xoa mot bo prompt (Story 4.4, FR69); chua ai do chi phi cua chung tren mot thu vien \
-         prompt lon.",
+        7,
+        2,
+        2,
+        "MOT PHAN DA DO (Story 4.5). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN \
+         CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo \
+         MOI cua Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong \
+         `(async)` co chu -- mot giao dich MOT hang la tuc thoi, khac han luot ghi hang loat \
+         cua `glossary_confirm_import`. Hai `(async)` con lai (`prompt_set_export`/ \
+         `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi bon vo \
+         Glossary o tren.",
     ),
     // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
@@ -1594,11 +1677,11 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (63, 26),
+        (65, 28),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         63/26 (do lai 2026-09-17, Story 4.4 Phase 2 them nam vo plain moi trong tep MOI \
-         `commands/promptset.rs` -- prompt_set_list/create/rename/update_body/delete, bo prompt \
-         theo the loai FR69).\n\n\
+         65/28 (do lai 2026-09-17, Story 4.5 them bon vo xuat/mo-xem-truoc/xac-nhan/huy mot \
+         luot nhap `.prompt.md` trong `commands/promptset.rs` -- hai (async) mo hop thoai cong \
+         hai plain giao dich tuc thoi, FR79/NFR9/AD-48).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

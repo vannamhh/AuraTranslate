@@ -12927,6 +12927,12 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     dạng thứ Story 4.5 phải xuất và nhập lại được trọn vẹn.
     **(Chủ: Story 4.5 — quyết CÙNG LÚC với định dạng tệp xuất, vì hai thứ này là một câu hỏi:
     cái gì thuộc về một bộ prompt thì cái đó phải round-trip được qua tệp văn bản mở.)**
+    → **KHÔNG LÀM 2026-09-17 (Story 4.5) — Quyết định #1 (Ice ký cùng ngày) từ chối VĨNH VIỄN
+    cả hai nhóm trường, không lùi lại một story khác.** `cặp ngôn ngữ` và ba pill phạm vi áp
+    dụng không vào định dạng `.prompt.md` (`core/promptset/exchange.rs`: đúng ba dòng
+    `---`/`name: …`/`---` rồi thân nguyên văn) — một bộ prompt vẫn đúng TÊN + THÂN, khớp
+    `PROMPT_SET_DDL` không đổi. Câu hỏi "định dạng tệp xuất + cái gì thuộc về một bộ" mà mục
+    này chờ nay đã trả lời CÙNG LÚC, đúng như Chủ đã ghi.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **`{{chapter_context}}` bị để NGOÀI bộ từ vựng biến đã phê chuẩn — nó đọc ra như
@@ -12966,6 +12972,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Story 4.5 — story kế tiếp chạm màn hình này (nhập/xuất theo tầng). Nó quyết MỘT
     trong hai: mang `id` của hàng bị che ra dây, hoặc cài bộ lọc tầng mà mockup đã vẽ. Cái
     nào cũng đóng được, và cho tới lúc đó giới hạn này là THẬT chứ không phải lý thuyết.)**
+    → **✅ ĐÃ ĐÓNG 2026-09-17 (Story 4.5) — Quyết định #3 (Ice ký cùng ngày) chọn vế THỨ NHẤT:
+    mang `id` của hàng bị che ra dây, không cài bộ lọc tầng.** `ResolvedPromptSet` nay mang
+    thêm `shadowed_id: Option<i64>` (`core/promptset/store.rs`), đi tới `PromptSetWire.shadowed_id`
+    trên dây (`commands/promptset.rs`). `PromptLibraryOverlay.vue` xoá nhánh `<div>` chỉ-hiển-thị
+    của hàng bị che, dùng CHUNG một `<form>` chọn được với mọi hàng Global khác — hàng đó nay
+    sửa/xoá/đổi tên/xuất được qua chính `(tier: 'global', id: shadowed_id)`, đúng cái mà một
+    lượt xuất cần (`prompt_set_exchange_contract.rs::export_a_shadowed_global_set_is_reachable_
+    and_exports_as_itself` chứng minh: xuất qua `shadowed_id` trả về ĐÚNG thân Global, không
+    phải thân Work đang thắng). Bộ lọc tầng mà mockup vẽ (`:116`) vẫn KHÔNG được cài — không cần
+    nữa, vì cả hai tầng cùng hiện trong một danh sách và hàng nào cũng chọn được.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **Mọi lượt ghi bộ prompt — KỂ CẢ tầng Tác phẩm — đòi `global.db` đang được quản.
@@ -12995,3 +13011,27 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mục nợ, không cho vá thẳng trong lượt thi công — chứ KHÔNG phải vì mệnh đề còn nghi ngờ.
     **(Chủ: Ice — `AGENTS.md` là tệp Ice sở hữu; sửa một dòng: đổi "pair" thành ba hằng và
     thay "No gate guards this pair" bằng tên ca test ở trên.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-5-xuat-va-nhap-bo-prompt.md`
+  summary: **Mockup vẽ xuất NHIỀU bộ prompt một lượt (`"Xuất 3 file"`, chọn nhiều ô, một nút) —
+    Story 4.5 chỉ xây xuất MỘT bộ mỗi hành động, có chủ ý (Quyết định #2).**
+  evidence: `mockups/prompt-library.html:226-231` vẽ một cột "Chọn prompt để xuất" với nhiều ô
+    chọn (`chk`) và nút `:257` "Xuất 3 file". AC của spec 4.5 dùng số ít ("một bộ prompt …
+    xuất"), và `commands::promptset::prompt_set_export` nhận đúng `(tier, id)` của MỘT hàng —
+    không một tham số danh sách nào. Bốn việc mockup ngầm định mà xuất-nhiều đòi hỏi, chưa cái
+    nào được quyết: ① một hộp thoại CHỌN THƯ MỤC (không phải hộp thoại LƯU một tệp — API
+    `tauri-plugin-dialog` cho hai việc đó là hai lệnh khác nhau, `pick_folder`/`save_file`); ②
+    chính sách khi thư mục đích đã có sẵn một tệp trùng tên (`ghi đè`/`bỏ qua`/`đổi tên tự
+    động` — chưa ai chọn); ③ câu trả lời cho một lượt thất bại GIỮA CHỪNG (xuất được 2/3 file
+    rồi tệp thứ ba trượt vì hết dung lượng — báo lỗi trọn cả lô, hay giữ lại 2 file đã xong và
+    chỉ báo tệp thứ ba); ④ Story 4.5 cho xuất VÀ nhập một bộ dùng CHUNG một cờ loại trừ hộp
+    thoại với Glossary (`glossaryExchangeGate.ts` — "chỉ một hộp thoại hệ điều hành mở tại một
+    thời điểm, toàn ứng dụng"), cờ đó là MỘT `boolean`, đúng hình một thao tác MỘT hộp thoại;
+    một lượt xuất N file (dù qua `pick_folder` hay N lần `save_file` nối tiếp) là N thao tác
+    hộp thoại trong MỘT hành động người dùng, và cờ hôm nay không có chỗ cho "đang bận qua N
+    bước" — cần quyết định trước khi story sau tái dùng nguyên cờ này. Không câu nào trong bốn
+    câu đó có mặt ở bất kỳ AC hay I/O Matrix nào — xây trước khi có quyết định là đoán, không
+    phải hiện thực hoá spec.
+    **(Chủ: Ice — quyết CÓ đáng xây xuất-nhiều-bộ hay không, và nếu có thì trả lời cả bốn câu
+    trên trước khi một story sau viết mã. Không chặn Story 4.5: một bộ mỗi lượt đã đóng trọn
+    AC của story này.)**

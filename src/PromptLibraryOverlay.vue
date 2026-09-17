@@ -33,14 +33,21 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { promptLibraryOverlayIsOpen } from './promptLibraryState'
+// Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
+// ở đâu cả: lớp phủ Xem trước tự đóng ngay khi thành công, nên đây (màn Thư viện, vẫn mở bên
+// dưới) là chỗ RẺ NHẤT để nói cho người dùng biết lượt nhập đã tạo/thay/không ghi gì.
+import { promptImportConfirmedOutcome } from './promptSetImportState'
 import {
   clearPromptSetActionFeedback,
   createPromptSet,
   deletePromptSet,
+  exportPromptSet,
   isPromptSetNameValid,
   promptSetActionError,
   promptSetActionWarnings,
   promptSetBusy,
+  promptSetExchangeBusy,
+  promptSetExportError,
   promptSetLoadError,
   promptSetLoading,
   promptSets,
@@ -51,7 +58,7 @@ import {
   setSelectedPromptSetName,
   updatePromptSetBody,
 } from './promptSetState'
-import type { PromptSetTier, PromptSetWire } from './config/promptset'
+import type { PromptSetTier } from './config/promptset'
 
 const panel = useTemplateRef<HTMLElement>('panel')
 // Lớp phủ chứa chữ thật (tên bộ, thân prompt) nhưng không phải nguồn từ điển — vai `'display'`,
@@ -150,25 +157,43 @@ const createBodyDraft = ref('')
  * thích. */
 const createShadowedNote = ref(false)
 
-/** Hàng đang chọn, đọc TRỰC TIẾP từ `promptSets` hiện tại — tự cập nhật sau mỗi lượt nạp lại
- * (đổi tên/sửa thân không đổi `id`), và tự về `null` nếu hàng vừa bị xoá ở nơi khác. */
-const selectedRow = computed<PromptSetWire | null>(() => {
+// `workRows`/`globalRows` khai NGAY DƯỚI ĐÂY — dùng `computed` lồng (Vue cho phép đọc một
+// computed trong một computed khác định nghĩa sau, vì cả hai chỉ THẬT SỰ tính khi được đọc).
+
+/** Hàng đang chọn, đọc từ chính hai danh sách HIỂN THỊ (`workRows`/`globalRows`) — KHÔNG
+ * trực tiếp từ `promptSets` như trước Story 4.5.
+ *
+ * 🔵 **SỬA Story 4.5, Quyết định #3.** `promptSets` (danh sách ĐÃ PHÂN GIẢI) mang ĐÚNG MỘT
+ * hàng cho mỗi TÊN — hàng ĐANG THẮNG. Một bộ Global đang bị che không có mặt ở đó dưới hình
+ * dạng của CHÍNH NÓ (`tier: 'global'`, `id` riêng) — nó chỉ lộ ra qua trường `shadowed_body`/
+ * `shadowed_id` của hàng Work đang thắng. Tra thẳng `promptSets` theo `(selectedTier,
+ * selectedId)` vì thế luôn trả `null` cho hàng bị che vừa chọn, dù `shadowed_id` giờ đã cho
+ * nó chọn được — khoá cả màn soạn ngay sau lượt chọn. `workRows`/`globalRows` đã tự tách hai
+ * hình dạng đó ra thành các `DisplayRow` riêng biệt (đúng việc UI cần); tra ở ĐÓ khớp đúng
+ * điều `selectRow` vừa ghi vào `(selectedTier, selectedId)`, cho CẢ hàng thường lẫn hàng bị
+ * che. Tự cập nhật sau mỗi lượt nạp lại (đổi tên/sửa thân không đổi `id`), và tự về `null`
+ * nếu hàng vừa bị xoá ở nơi khác — cùng tính chất bản cũ giữ được. */
+const selectedRow = computed<DisplayRow | null>(() => {
   if (selectedTier.value === null || selectedId.value === null) return null
-  return promptSets.value.find((s) => s.tier === selectedTier.value && s.id === selectedId.value) ?? null
+  const all: DisplayRow[] = [...workRows.value, ...globalRows.value]
+  return all.find((r) => r.tier === selectedTier.value && r.id === selectedId.value) ?? null
 })
 
-function isCurrent(row: { tier: PromptSetTier; id: number | null }): boolean {
-  return row.id !== null && selectedTier.value === row.tier && selectedId.value === row.id
+function isCurrent(row: { tier: PromptSetTier; id: number }): boolean {
+  return selectedTier.value === row.tier && selectedId.value === row.id
 }
 
-/** Một hàng hiển thị — SỐ THẬT (`id !== null`) hoặc bản HIỂN THỊ của một bộ Global bị che
- * (`id === null`, Quyết định #1: "the shadowed global stays visible in the list"). Bản hiển
- * thị không có `id` riêng — `ResolvedPromptSet.shadowed_body` phía Rust không mang `id` của
- * hàng Global gốc (Phase 2's own note) — nên nó không chọn được, không sửa/xoá/đổi tên được. */
+/** Một hàng hiển thị — Quyết định #1: "the shadowed global stays visible in the list".
+ *
+ * 🔵 **SỬA Story 4.5, Quyết định #3.** Trước story này, hàng Global bị che mang `id: null`
+ * (không chọn/sửa/xoá/xuất được — `deferred-work.md:12947-12968`). `PromptSetWire.shadowed_id`
+ * nay mang `id` THẬT của hàng đó, nên `id` ở đây LUÔN là một số — `isShadowedDisplay` vẫn
+ * còn (để đổi kiểu hiển thị: hàng bị che vẫn vẽ mờ đi và mang huy hiệu riêng), nhưng nó không
+ * còn đồng nghĩa với "không chọn được" nữa. */
 type DisplayRow = {
   key: string
   tier: PromptSetTier
-  id: number | null
+  id: number
   name: string
   body: string
   shadowsGlobal: boolean
@@ -204,11 +229,11 @@ const globalRows = computed<DisplayRow[]>(() => {
       })
       continue
     }
-    if (s.shadowed_body !== null) {
+    if (s.shadowed_body !== null && s.shadowed_id !== null) {
       rows.push({
-        key: `shadow-${s.name}`,
+        key: `shadow-${s.shadowed_id}`,
         tier: 'global',
-        id: null,
+        id: s.shadowed_id,
         name: s.name,
         body: s.shadowed_body,
         shadowsGlobal: false,
@@ -220,7 +245,6 @@ const globalRows = computed<DisplayRow[]>(() => {
 })
 
 function selectRow(row: DisplayRow): void {
-  if (row.id === null) return // bản hiển thị của một bộ bị che — không chọn được
   selectedTier.value = row.tier
   selectedId.value = row.id
   nameDraft.value = row.name
@@ -260,6 +284,28 @@ function onCancelCreate(): void {
   createOpen.value = false
 }
 
+/** "Nhập từ file" — parameterless, đi qua `dispatch` cùng khuôn nút Đóng lớp phủ: handler
+ * tiêm (`main.ts`) mở hộp thoại CHỌN trong Rust, không cần một tham số nào từ đây. */
+function onOpenImport(): void {
+  dispatch('prompt.import.open')
+}
+
+/** Khoá `vi.json` cho kết quả lượt Nhập GẦN NHẤT — `null` khi chưa nhập lần nào trong phiên
+ * này, hoặc lượt gần nhất bị huỷ (Story 4.5 review fix: trước bản vá này ba khoá
+ * `prompt.import.outcome_*` tồn tại trong `vi.json` nhưng không nơi nào đọc chúng). */
+const importOutcomeKey = computed<string | null>(() => {
+  switch (promptImportConfirmedOutcome.value) {
+    case 'inserted':
+      return 'prompt.import.outcome_inserted'
+    case 'updated':
+      return 'prompt.import.outcome_updated'
+    case 'skipped':
+      return 'prompt.import.outcome_skipped'
+    case null:
+      return null
+  }
+})
+
 function onCreateNameInput(event: Event): void {
   const target = event.target
   if (target instanceof HTMLInputElement) createNameDraft.value = target.value
@@ -281,29 +327,47 @@ function onCreateTierChange(tier: PromptSetTier, event: Event): void {
  *
  * ⚠️ Một bộ Global vừa tạo có thể KHÔNG khớp `(tier, name)` nào trong `promptSets` — khi một bộ
  * Work cùng tên đang mở che nó, `resolve_two_tiers` gộp cặp đó thành MỘT hàng mang
- * `tier: 'work'` (Quyết định #1). Lượt ghi đã thành công (không một `IpcError` nào), nhưng
- * không có hàng `tier: 'global'` nào để mà chọn — im lặng đóng form lúc đó để lại một màn hình
- * không đổi gì mà không giải thích. `createShadowedNote` giữ form MỞ và báo rõ tình huống, thay
- * vì suy `id` của hàng bị che hay lọc theo tầng (cả hai đều ngoài phạm vi bản vá này — nợ có
- * chủ của Story 4.5). */
+ * `tier: 'work'` (Quyết định #1). Lượt ghi đã thành công (không một `IpcError` nào).
+ *
+ * 🔵 **SỬA Story 4.5, Quyết định #3.** Trước story này, hàng Work đang thắng không mang `id`
+ * của hàng Global vừa che nó — không có gì để chọn, nên bản trước chỉ báo `createShadowedNote`
+ * và để form MỞ. `shadowed_id` nay có mặt: khi bộ vừa tạo là Global và trùng tên, tra ĐÚNG
+ * hàng Work đang thắng cùng tên, đọc `shadowed_id` của nó, và CHỌN THẲNG hàng Global vừa tạo
+ * qua `(tier: 'global', id: shadowed_id)` — đúng hàng `globalRows` sẽ vẽ ở nhánh bị che. Chỉ
+ * còn rơi về `createShadowedNote` khi vì lý do nào đó `shadowed_id` vẫn vắng (không nên xảy ra
+ * trên đường gọi đúng — một lời khai phòng thủ, không phải nhánh bình thường). */
 async function onSubmitCreate(): Promise<void> {
   const tier = createTier.value
   const name = createNameDraft.value.trim()
-  await createPromptSet(tier, createNameDraft.value, createBodyDraft.value)
+  const body = createBodyDraft.value
+  await createPromptSet(tier, createNameDraft.value, body)
   if (promptSetActionError.value !== null) return // ở lại form Tạo để hiện lỗi
 
   const created = promptSets.value.find((s) => s.tier === tier && s.name === name)
-  if (created === undefined) {
-    createShadowedNote.value = true
+  if (created !== undefined) {
+    createOpen.value = false
+    createShadowedNote.value = false
+    selectedTier.value = tier
+    selectedId.value = created.id
+    nameDraft.value = created.name
+    bodyDraft.value = created.body
     return
   }
 
-  createOpen.value = false
-  createShadowedNote.value = false
-  selectedTier.value = tier
-  selectedId.value = created.id
-  nameDraft.value = created.name
-  bodyDraft.value = created.body
+  if (tier === 'global') {
+    const winning = promptSets.value.find((s) => s.name === name && s.shadowed_id !== null)
+    if (winning?.shadowed_id != null) {
+      createOpen.value = false
+      createShadowedNote.value = false
+      selectedTier.value = 'global'
+      selectedId.value = winning.shadowed_id
+      nameDraft.value = name
+      bodyDraft.value = body
+      return
+    }
+  }
+
+  createShadowedNote.value = true
 }
 
 async function onSubmitRename(): Promise<void> {
@@ -331,6 +395,14 @@ async function onDeleteSubmit(): Promise<void> {
   const id = selectedId.value
   await deletePromptSet(tier, id)
   if (promptSetActionError.value === null) clearSelection()
+}
+
+/** Xuất bộ ĐANG CHỌN ra file — Story 4.5, Quyết định #2 (một bộ mỗi lượt). Tham số (`tier`,
+ * `id`) đến từ `selectedRow`, nên đây là một `<form>+submit` gọi hàm cục bộ, không `dispatch`
+ * (khuôn Rename/Delete/Save body cùng màn hình). */
+async function onExportSelected(): Promise<void> {
+  if (selectedRow.value === null) return
+  await exportPromptSet(selectedRow.value.tier, selectedRow.value.id)
 }
 
 /** "Dùng bộ này" — Quyết định 🔵 đầu `promptSetState.ts`: 0 lượt `invoke`, chỉ đổi lựa chọn
@@ -417,26 +489,34 @@ function onEscape(): void {
 
           <h3 class="pl-group-h">{{ t('prompt.library.group_global') }}</h3>
           <p v-if="globalRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_global_empty') }}</p>
-          <template v-for="row in globalRows" :key="row.key">
-            <form v-if="!row.isShadowedDisplay" class="pl-row-form" @submit.prevent="selectRow(row)">
-              <button type="submit" class="pl-row" :class="{ 'pl-row-on': isCurrent(row) }" :aria-current="isCurrent(row) ? 'true' : undefined">
-                <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
-                <span class="pl-row-name">{{ row.name }}</span>
-                <span v-if="row.name === selectedPromptSetName" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
-              </button>
-            </form>
-            <!-- Bản HIỂN THỊ của một bộ Global bị che — không một `<form>`/`<button>`: nó không
-                 chọn được (không `id`), nên nó không thuộc thứ tự Tab (Quyết định #1). -->
-            <div v-else class="pl-row pl-row-shadowed">
+          <!--
+            🔵 SỬA Story 4.5, Quyết định #3 — hàng Global bị che nay CHỌN ĐƯỢC (mang `shadowed_id`
+            thật), nên nó dùng CHUNG một `<form>` với mọi hàng Global khác thay vì một `<div>`
+            chỉ-hiển-thị riêng. `isShadowedDisplay` chỉ còn quyết định lớp CSS/huy hiệu.
+          -->
+          <form v-for="row in globalRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
+            <button
+              type="submit"
+              class="pl-row"
+              :class="{ 'pl-row-on': isCurrent(row), 'pl-row-shadowed': row.isShadowedDisplay }"
+              :aria-current="isCurrent(row) ? 'true' : undefined"
+            >
               <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
               <span class="pl-row-name">{{ row.name }}</span>
-              <span class="pl-badge pl-badge-shadowed">{{ t('prompt.library.shadowed_badge') }}</span>
-            </div>
-          </template>
+              <span v-if="row.name === selectedPromptSetName" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
+              <span v-if="row.isShadowedDisplay" class="pl-badge pl-badge-shadowed">{{ t('prompt.library.shadowed_badge') }}</span>
+            </button>
+          </form>
 
           <form class="pl-row-form" @submit.prevent="onOpenCreate">
             <button type="submit" class="pl-row pl-row-new">{{ t('prompt.library.new_set') }}</button>
           </form>
+          <form class="pl-row-form" @submit.prevent="onOpenImport">
+            <button type="submit" class="pl-row pl-row-import" data-prompt-import-open>
+              {{ t('prompt.library.import_button') }}
+            </button>
+          </form>
+          <p v-if="importOutcomeKey !== null" class="pl-status" role="status">{{ t(importOutcomeKey) }}</p>
         </nav>
 
         <div class="pl-ed">
@@ -555,6 +635,11 @@ function onEscape(): void {
                   {{ t('prompt.library.use_button') }}
                 </button>
               </form>
+              <form class="pl-export-form" @submit.prevent="onExportSelected">
+                <button type="submit" class="pl-act" :disabled="promptSetExchangeBusy">
+                  {{ t('prompt.library.export_button') }}
+                </button>
+              </form>
               <form class="pl-delete-form" @submit.prevent="onDeleteSubmit">
                 <button type="submit" class="pl-act" :class="{ 'pl-act-danger': deletePending }" :disabled="promptSetBusy">
                   {{ t(deletePending ? 'prompt.library.delete_confirm_button' : 'prompt.library.delete_button') }}
@@ -562,6 +647,10 @@ function onEscape(): void {
               </form>
             </div>
             <p v-if="deletePending" class="pl-status pl-alert" role="status">{{ t('prompt.library.delete_confirm_hint') }}</p>
+            <p v-if="promptSetExportError !== null" class="pl-status pl-alert" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+              {{ tError(promptSetExportError) }}
+            </p>
           </template>
 
           <p v-else class="pl-hint">{{ t('prompt.library.select_hint') }}</p>
@@ -704,7 +793,8 @@ function onEscape(): void {
   background: var(--color-surface-accent);
 }
 
-.pl-row-new {
+.pl-row-new,
+.pl-row-import {
   font-family: var(--face-ui-md);
   color: var(--color-on-surface-variant);
 }
