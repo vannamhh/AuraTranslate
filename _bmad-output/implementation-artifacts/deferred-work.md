@@ -12611,6 +12611,12 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     hai lượt (một lượt thêm trường rồi một lượt sau mới nối nó vào keychain).
     **(Chủ: Story 4.3 — "API key trong keychain", dựng cả cơ chế `keyring` LẪN trường nhập
     khoá cùng lượt, đúng khuôn "story dựng đường ghi đầu tiên sở hữu luôn cơ chế".)**
+    → ✅ ĐÃ ĐÓNG 2026-09-17 (Story 4.3) — cả hai vế cùng một lượt, đúng như mục này đòi.
+    `core/aiconfig/keychain.rs` dựng cơ chế; hàng khoá trong màn Cài đặt dựng trường nhập.
+    Khoá KHÔNG vào `ai_config`: bảng đó không thêm cột nào và story này không thêm bước di
+    trú nào. Đối chứng cho mệnh đề "không rơi xuống tệp": ca
+    `saving_a_key_leaves_no_trace_on_disk_in_global_db_or_project_db` đọc thẳng byte thô của
+    `global.db` và `project.db` sau một lượt lưu.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **21 hằng floor sàn quần thể (ngoài hai hằng `ai_boundary.rs` chính story này vừa
@@ -12796,3 +12802,114 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `Store::close`, và cả `PendingImportState` như `close_open_work` đang làm), hay (b) một bộ
     chọn tầng tường minh trên màn Cài đặt (hẹp hơn, nhưng mockup `settings.html` không vẽ nó và
     nó thành bề mặt UI mới).)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Cổng `aiconfig_keychain_boundary.rs` quét CHUỖI, nên một lượt `use` đổi tên
+    `keychain::read`/`expose_secret` đi lọt — cổng xanh trong khi vi phạm tồn tại.**
+  evidence: Cổng đối chiếu `FORBIDDEN` theo token trên văn bản nguồn, cùng khuôn
+    `ai_boundary.rs`. Một chỗ gọi viết `use crate::core::aiconfig::keychain::read as fetch;`
+    rồi gọi `fetch()` không mang token nào cổng đang tìm. Đây KHÔNG phải một suy đoán: chính
+    `ai_boundary.rs` đã tự ghi cùng lớp chỗ mù này cho `pub use`, và story này chép lại khuôn
+    đó nên thừa hưởng luôn giới hạn. Phạm vi thật hôm nay hẹp: `read`/`expose_secret` có
+    **0 chỗ gọi** ngoài `core/aiconfig/**` (đo bằng chính cổng), nên chưa có vi phạm nào để
+    lọt — rủi ro nằm ở story ĐẦU TIÊN gọi thật, tức 4.8.
+    **(Chủ: Story 4.8 — "Dịch một segment với kết quả chảy dần", chỗ gọi `keychain::read`
+    thật đầu tiên. Story đó phải hoặc mở rộng cổng sang quét `use ... as`, hoặc chuyển sang
+    một phép kiểm không dựa trên chuỗi, và nói rõ đã chọn cái nào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **`keychain::configured()` ĐỌC bí mật (`get_password`) chỉ để trả một `bool`, nên
+    ở bản dev mỗi lần biên dịch lại có thể bật hộp xin quyền của macOS mỗi lượt mở màn Cài
+    đặt.**
+  evidence: Đo 2026-09-17 trong lúc dựng story: tạo một entry thật rồi đọc lại bằng một nhị
+    phân vừa biên dịch ⇒ macOS bật `SecurityAgent` và lượt chạy TREO (treo, không đỏ — nên
+    không cổng nào báo). Nguyên nhân là ACL của Keychain Services gắn theo chữ ký mã, còn
+    `AGENTS.md:32` đã đo rằng chuỗi công cụ này sinh nhị phân *"not signed at all"*, nên mỗi
+    lần dựng lại là một danh tính mới. Trong test đã khử bằng mock store cài một lần cho cả
+    nhị phân; trong bản PHÁT HÀNH chữ ký ổn định nên không có vấn đề. Chỗ còn hở đúng là
+    `npm run tauri dev`. `keyring::v1::Entry` không phơi phép kiểm "có tồn tại không" nào
+    rẻ hơn `get_password`, nên sửa được thì phải đi qua `keyring-core` ở đường sản phẩm —
+    tức đụng AD-29, không phải một dòng mã.
+    **(Chủ: Ice — quyết có đáng đụng AD-29 cho một phiền toái chỉ có ở bản dev hay không.
+    Đo trước khi quyết: mở màn Cài đặt hai lần sau một lần `cargo build` để xem hộp xin
+    quyền có thật sự bật ở đường `tauri dev` hay chỉ ở nhị phân test.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Mockup vẽ hàng "Khoá API" mang dấu tầng *"Kế thừa Toàn cục"*, còn bản dựng là
+    Global-only — hàng khoá là hàng DUY NHẤT trên màn hình đó không có dấu tầng.**
+  evidence: `ux-designs/ux-AuraTranslate-2026-08-02/mockups/settings.html:184-193` vẽ hàng
+    khoá với `class="f inh"` và nhãn `kế thừa`, y như năm hàng kia. Ice chốt Global-only
+    ngày 2026-09-17 (xem §Intent của spec 4.3): FR68 chỉ gọi tên nhà cung cấp/mô hình/tham số
+    sinh là hai tầng, và một khoá theo từng Tác phẩm sinh ra một mục keychain cho mỗi Tác
+    phẩm, khoá trên một danh tính Tác phẩm ổn định, cộng một câu hỏi không ai trả lời được:
+    xoá Tác phẩm thì mục keychain đi đâu, khi không chỗ nào trong ứng dụng liệt kê được
+    keychain. Ghi ra để lượt đọc mockup sau KHÔNG đọc chỗ lệch này thành một sơ suất.
+    **(Chủ: Sally (UX) — sửa mockup cho khớp quyết định, hoặc trình lý do giữ nguyên dấu
+    tầng. Không chặn story nào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Mock keychain là trạng thái TOÀN TIẾN TRÌNH, cài một lần qua `Once` cho cả nhị
+    phân `aiconfig_contract` — mọi ca trong nhị phân đó dùng chung một kho giả.**
+  evidence: `keyring_core::set_default_store` ghi đè một `RwLock` toàn cục
+    (`keyring-core-1.0.0/src/lib.rs:65-71`, đọc trong nguồn đã tải), nên không có cách nào
+    cho hai ca cùng nhị phân giữ hai kho khác nhau. Hôm nay vô hại: chỉ một nhị phân chạm
+    keychain và các ca không chia sẻ entry nào ngoài đúng một cặp service/account. Sẽ thành
+    vấn đề nếu một nhị phân test THỨ HAI cũng cần keychain, hoặc nếu một ca cần một kho lỗi
+    trong khi ca khác chạy song song cần kho lành.
+    **(Chủ: Story 4.8 — story tiếp theo chạm keychain. Nếu nó thêm một nhị phân test thứ hai,
+    phải dựng lại phép cài mock ở đó chứ không mượn được của nhị phân này.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Hai trong bốn chỗ của phép kiểm "khoá không rơi xuống tệp" chưa có ca tự động:
+    thư mục `.atproj` và đầu ra tiến trình.**
+  evidence: Ca `saving_a_key_leaves_no_trace_on_disk_in_global_db_or_project_db` đọc byte thô
+    của `global.db` và `project.db` sau một lượt lưu thật — hai chỗ đó đã đóng. Hai chỗ còn
+    lại KHÔNG chạy qua sản phẩm, vì làm thế là ghi một credential thật vào keychain của máy
+    dev và gặp hộp xin quyền mà story này đo được là gây TREO (treo, không đỏ). Thứ đứng thay
+    hôm nay là lập luận cấu trúc, không phải một lượt chạy: `keychain::set` là chỗ ghi DUY
+    NHẤT của giá trị và nó chỉ gọi `Entry::set_password`, nên không đường ghi tệp nào nhận
+    được giá trị; `expose_secret` có 0 chỗ gọi ngoài `core/aiconfig/keychain.rs`; mọi lỗi
+    keychain bị `map_err(|_| KeychainUnavailable)` ném bỏ nguồn trước khi có gì in ra được.
+    Lập luận cấu trúc KHÔNG phải một lượt đo — ghi ra để không ai đọc §Verification thành
+    "đã kiểm đủ bốn chỗ".
+    **(Chủ: Story 4.8 — story đầu tiên chạy đường khoá thật đầu-cuối. Lúc đó có sẵn một lượt
+    gọi provider thật để bám vào, nên phép grep bốn chỗ rẻ hơn hẳn so với dựng riêng bây giờ.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Cả bốn hàm keychain ném bỏ lỗi gốc bằng `map_err(|_| KeychainUnavailable)`, nên
+    một báo cáo "keychain không trả lời" không có gì để chẩn đoán.**
+  evidence: `core/aiconfig/keychain.rs` — `set`/`delete`/`configured`/`read` đều ném bỏ
+    `keyring::Error`. Ném bỏ là ĐÚNG cho bề mặt hiển thị (dòng đóng băng của spec: không lỗi
+    nào nội suy khoá), nhưng nó cũng ném luôn thứ KHÔNG BAO GIỜ mang được văn bản khoá —
+    tên biến thể của lỗi. Hại có tên, phía người viết mã: lượt báo lỗi thật đầu tiên không
+    phân biệt được "người dùng bấm Từ chối ở hộp xin quyền" với "không có kho nền tảng nào
+    khởi tạo được" với một trục trặc nền tảng khác. Không phải một phép sửa thẳng: quyết định
+    cái gì AN TOÀN để ghi ra từ một `keyring::Error` là một quyết định, không phải một dòng mã.
+    **(Chủ: Story 4.8 — story đầu tiên gặp một lượt keychain hỏng thật trên đường sản phẩm,
+    tức chỗ đầu tiên có dữ kiện để quyết cần ghi gì.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **`ApiKeySecret` không xoá bộ nhớ khi bị huỷ — khoá thô nằm trong bộ nhớ tiến
+    trình suốt đời giá trị, phơi ra core dump và swap.**
+  evidence: `core/aiconfig/keychain.rs` bọc một `String` trần. NFR11 nói về tệp, log và ranh
+    giới IPC — cả ba đều đã đóng — nên đây KHÔNG phải một chỗ lệch NFR11; nó là một lớp gia
+    cố mà spec chưa bao giờ đòi, và ghi ra để không ai đọc "khoá chỉ sống trong Rust" thành
+    "khoá được gia cố trong bộ nhớ". Cái giá thật của việc sửa: cần một crate mới (`zeroize`
+    hoặc tương đương), tức đi qua cửa NFR15 — đọc giấy phép trong nguồn đã tải rồi ghi hàng
+    vào bảng Stack TRƯỚC khi thêm — cho một story mà bảng Stack vừa được sửa lại vì một hàng
+    cũ lấy nhãn registry làm bằng chứng.
+    **(Chủ: Ice — quyết có đáng một phụ thuộc mới cộng một lượt rà giấy phép cho lớp gia cố
+    này hay không. Không chặn story nào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
+  summary: **Gõ lại một ô trong màn Cài đặt AI không xoá thông báo lỗi của lượt lưu trước —
+    đúng cho CẢ SÁU hàng, không riêng hàng khoá.**
+  evidence: `src/aiConfigState.ts:134` (`setAiConfigDraft`, năm trường văn bản thường, có từ
+    Story 4.2) và `:144` (`setAiConfigKeyDraft`, hàng khoá, Story 4.3) đều chỉ ghi giá trị
+    nháp và không đụng tới ref lỗi; `SettingsOverlay.vue` giữ nhánh `v-else-if` lỗi nên thông
+    báo cũ vẫn hiện bên cạnh một giá trị nháp nay đã hợp lệ mà chưa gửi. Lượt rà chỉ nêu hàng
+    khoá; đo ra thì nó là hành vi có sẵn của cả sáu hàng. ⚠️ Cách sửa SAI mà người sau dễ
+    chọn: vá riêng hàng khoá cho "sạch mục nợ" — làm thế là để sáu hàng cùng màn hình chạy hai
+    hành vi khác nhau, đúng thứ khó chịu hơn chính khuyết tật.
+    **(Chủ: Sally (UX) — quyết một luật chung cho cả sáu hàng: gõ lại thì xoá lỗi, hay giữ lỗi
+    cho tới lượt gửi kế tiếp. Sửa mã đi sau quyết định đó, một lượt cho cả sáu.)**

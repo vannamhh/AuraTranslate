@@ -1371,6 +1371,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// lại: **56 plain / 26 async** trên **mười hai** tệp. `commands/mod.rs` nay khai **mười một**
 /// `pub mod`.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.3)** — `commands/aiconfig.rs` thêm hai vỏ (`ai_config_save_key`·
+/// `ai_config_delete_key`, khoá API trong keychain, FR65/FR67/NFR11) — vẫn không tệp `.rs` mới,
+/// vẫn mười hai tệp mang lệnh. Đếm lại: **58 plain / 26 async**.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1385,11 +1389,12 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 12] = [
     (
         "src/commands/aiconfig.rs",
-        3,
+        5,
         0,
         0,
-        "CHUA DO -- chu: Dev. Ba vo doc/ghi cau hinh nha cung cap AI hai tang; chua ai do chi \
-         phi cua chung tren mot cau hinh lon.",
+        "CHUA DO -- chu: Dev. Nam vo doc/ghi cau hinh nha cung cap AI hai tang cong ghi/xoa \
+         khoa API trong keychain (Story 4.3, tang Global-only, tu choi tang Tac pham TAI \
+         VO); chua ai do chi phi cua chung tren mot cau hinh lon.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
@@ -1576,10 +1581,10 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (56, 26),
+        (58, 26),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         56/26 (do lai 2026-09-16, Story 4.2 them `commands/aiconfig.rs` -- ba vo plain \
-         moi).\n\n\
+         58/26 (do lai 2026-09-17, Story 4.3 them hai vo plain moi vao `commands/aiconfig.rs` \
+         -- `ai_config_save_key`/`ai_config_delete_key`, khoa API trong keychain).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -189,3 +189,82 @@ impl From<super::InvalidFieldValue> for IpcError {
         IpcError::new("ai_config.invalid_value", MessageKey::AiConfigInvalidValue, params, false)
     }
 }
+
+/// Ba sự thật riêng của bí mật khoá API (Story 4.3) — KHÔNG chung enum với
+/// [`AiConfigStoreError`]: `resolve_two_tiers`/`write_field`/`clear_field` không có gì để
+/// nói về khoá (nó không đi qua bảng `ai_config`), và `TierNotGlobal` không có tương đương
+/// ở năm trường kia (chúng CÓ hai tầng thật; khoá thì không, §Intent spec 4.3).
+///
+/// Ba biến thể khớp đúng ba hàng lỗi của I/O Matrix spec 4.3: từ chối giá trị TRƯỚC khi
+/// chạm keychain, keychain từ chối trả lời, và một yêu cầu ở tầng Tác phẩm bị chặn tại
+/// tầng lệnh — không biến thể nào mang giá trị khoá hay một phần của nó (§Always spec 4.3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AiConfigKeyError {
+    /// Rỗng hoặc chỉ khoảng trắng — [`super::validate_key`] đã từ chối trước khi gọi vào
+    /// `keychain::set`.
+    InvalidValue,
+    /// Keychain từ chối trả lời (khoá, quyền bị chặn, không có kho nền tảng) — hành động
+    /// thất bại, màn hình cấu hình vẫn dùng được (I/O Matrix "Keychain refuses").
+    Unavailable,
+    /// Yêu cầu khoá ở tầng Tác phẩm — bị chặn TẠI TẦNG LỆNH (§Always spec 4.3: "refused at
+    /// the command layer, not merely hidden in the UI"), không phải một khái niệm mà module
+    /// này hay `keychain.rs` tự biết.
+    TierNotGlobal,
+}
+
+impl std::fmt::Display for AiConfigKeyError {
+    /// KHÔNG DẤU (NFR16).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AiConfigKeyError::InvalidValue => write!(f, "aiconfig[key_invalid_value]"),
+            AiConfigKeyError::Unavailable => write!(f, "aiconfig[key_unavailable]"),
+            AiConfigKeyError::TierNotGlobal => write!(f, "aiconfig[key_tier_not_global]"),
+        }
+    }
+}
+
+impl std::error::Error for AiConfigKeyError {}
+
+impl From<super::InvalidKeyValue> for AiConfigKeyError {
+    fn from(_: super::InvalidKeyValue) -> Self {
+        AiConfigKeyError::InvalidValue
+    }
+}
+
+impl From<super::keychain::KeychainUnavailable> for AiConfigKeyError {
+    fn from(_: super::keychain::KeychainUnavailable) -> Self {
+        AiConfigKeyError::Unavailable
+    }
+}
+
+impl From<AiConfigKeyError> for IpcError {
+    /// Không nhánh nào chèn `params` — cả ba câu của `vi.json` đều không cần nội suy gì, và
+    /// đây chính là điều kiện cấu trúc giữ giá trị khoá không bao giờ lọt vào một tham số
+    /// lỗi (§Always spec 4.3).
+    fn from(err: AiConfigKeyError) -> Self {
+        match err {
+            AiConfigKeyError::InvalidValue => IpcError::new(
+                "ai_config.key_invalid_value",
+                MessageKey::AiConfigKeyInvalidValue,
+                BTreeMap::new(),
+                false,
+            ),
+            // `retryable = true`: khác `InvalidValue`/`TierNotGlobal` (cùng đầu vào sẽ luôn
+            // thất bại y hệt), một keychain bị khoá/từ chối quyền CÓ THỂ thành công ở lượt
+            // bấm lại sau khi người dùng mở khoá — cùng lý lẽ `StoreError::retryable` đã ghi
+            // cho `WriteFailed`/`ReadFailed`.
+            AiConfigKeyError::Unavailable => IpcError::new(
+                "ai_config.keychain_unavailable",
+                MessageKey::AiConfigKeychainUnavailable,
+                BTreeMap::new(),
+                true,
+            ),
+            AiConfigKeyError::TierNotGlobal => IpcError::new(
+                "ai_config.key_is_global",
+                MessageKey::AiConfigKeyIsGlobal,
+                BTreeMap::new(),
+                false,
+            ),
+        }
+    }
+}

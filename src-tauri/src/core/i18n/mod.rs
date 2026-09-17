@@ -658,6 +658,26 @@ message_keys! {
     /// `core::aiconfig::store::AiConfigStoreError::Scope` — lỗi LẬP TRÌNH, không nên xảy ra
     /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `CleanupScopeError`/`GlossaryScopeError`.
     AiConfigScopeError => "err.ai_config.scope_error" [],
+
+    // ── Story 4.3 (FR65/FR67/NFR11, AD-29) — ba khoá, bí mật khoá API trong keychain ──
+    //
+    // Bề mặt riêng của khoá (`core::aiconfig::keychain` + `core::aiconfig::store::AiConfigKeyError`),
+    // KHÔNG chung ba khoá ở trên: khoá không đi qua bảng `ai_config`, không có hai tầng, và
+    // không biến thể nào dưới đây được phép mang giá trị khoá hay một phần của nó
+    // (§Always spec 4.3).
+    /// Giá trị khoá rỗng hoặc chỉ khoảng trắng — từ chối TRƯỚC khi chạm keychain. KHÔNG
+    /// tham số: không có gì an toàn để nói về một giá trị bị từ chối ngoài "nó không hợp
+    /// lệ" (khác `AiConfigInvalidValue`, không mang tên trường vì khoá không phải một biến
+    /// thể của `AiConfigField`).
+    AiConfigKeyInvalidValue => "err.ai_config.key_invalid_value" [],
+    /// Keychain hệ điều hành từ chối trả lời (khoá, quyền bị chặn, không có kho nền tảng) —
+    /// hành động thất bại, màn hình cấu hình vẫn dùng được (I/O Matrix spec 4.3 "Keychain
+    /// refuses").
+    AiConfigKeychainUnavailable => "err.ai_config.keychain_unavailable" [],
+    /// Một yêu cầu khoá API ở tầng Tác phẩm — khoá CHỈ tồn tại ở tầng Global (§Always spec
+    /// 4.3: "the key is stored and read at the Global tier only"); bị chặn TẠI TẦNG LỆNH,
+    /// không chỉ ẩn ở UI.
+    AiConfigKeyIsGlobal => "err.ai_config.key_is_global" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

@@ -47,8 +47,10 @@ import type { DeepReadonly, Ref } from 'vue'
 import type { IpcError } from './i18n'
 import {
   aiConfigClearOverride,
+  aiConfigDeleteKey,
   aiConfigGet,
   aiConfigSaveField,
+  aiConfigSaveKey,
 } from './config/aiconfig'
 import type { AiConfigField, AiConfigFieldWire } from './config/aiconfig'
 
@@ -83,12 +85,32 @@ const loading = ref(false)
 const loadError = ref<IpcError | null>(null)
 const workIsOpen = ref(false)
 
+/**
+ * Trạng thái khoá API — Story 4.3, FR65/FR67, NFR11. BA giá trị, không hai:
+ * `true` (đã cấu hình) · `false` (chưa cấu hình) · `null` (keychain từ chối trả lời thăm dò —
+ * §Boundaries spec 4.3 "the latter surfaces as an `IpcError`... not as a permanently broken
+ * settings screen", và `AiConfigGetWire.key_configured` phía Rust). `null` KHÔNG được vẽ như
+ * `false` — hai trạng thái khác nhau, xem `config/aiconfig.ts::AiConfigGetWire`.
+ */
+const keyConfigured = ref<boolean | null>(null)
+/** Giá trị THÔ đang gõ dở cho khoá — không bao giờ được nạp từ một lượt đọc (Rust không bao
+ * giờ trả khoá qua IPC); chỉ tồn tại từ lúc người dùng gõ tới lúc lưu thành công (khi đó bị
+ * vứt) hoặc tới lúc rời màn (bị `resetAiConfigSection` vứt). */
+const keyDraft = ref('')
+/** Một cờ dùng chung cho cả Lưu và Xoá — cùng khuôn `saving`/`aiConfigIsSaving`: chỉ một
+ * trong hai thao tác chạy tại một thời điểm, và cả hai nút cùng khoá khi cờ này bật. */
+const keyBusy = ref(false)
+const keyError = ref<IpcError | null>(null)
+
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `settingsState.ts`). */
 let sequence = 0
 
 export const aiConfigLoading: DeepReadonly<Ref<boolean>> = readonly(loading)
 export const aiConfigLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const aiConfigWorkIsOpen: DeepReadonly<Ref<boolean>> = readonly(workIsOpen)
+export const aiConfigKeyConfigured: DeepReadonly<Ref<boolean | null>> = readonly(keyConfigured)
+export const aiConfigKeyBusy: DeepReadonly<Ref<boolean>> = readonly(keyBusy)
+export const aiConfigKeyError: DeepReadonly<Ref<IpcError | null>> = readonly(keyError)
 
 /** Trường đã phân giải, hoặc `null` nếu chưa đọc xong lần nào. */
 export function aiConfigFieldWire(field: AiConfigField): AiConfigFieldWire | null {
@@ -111,6 +133,26 @@ export function aiConfigSaveErrorFor(field: AiConfigField): IpcError | null {
 /** Handler của `@input` trên ô nhập của `field`. */
 export function setAiConfigDraft(field: AiConfigField, value: string): void {
   drafts.value = { ...drafts.value, [field]: value }
+}
+
+/** Giá trị THÔ đang gõ dở của ô nhập khoá API. */
+export function aiConfigKeyDraft(): string {
+  return keyDraft.value
+}
+
+/** Handler của `@input` trên ô nhập khoá API. */
+export function setAiConfigKeyDraft(value: string): void {
+  keyDraft.value = value
+}
+
+/**
+ * Kiểm tra hình dạng khoá API — **hàm thuần, xuất khẩu**, cùng luật
+ * `core::aiconfig::validate_key` phía Rust: trim rồi từ chối rỗng/toàn khoảng trắng. Rust vẫn
+ * là trọng tài cuối; hàm này chỉ tránh một vòng IPC vô ích cho một giá trị chắc chắn bị từ
+ * chối (I/O Matrix spec 4.3 "Save an empty or whitespace-only key").
+ */
+export function isAiConfigKeyValueValid(raw: string): boolean {
+  return raw.trim().length > 0
 }
 
 /**
@@ -186,6 +228,7 @@ export async function loadAiConfigSection(): Promise<void> {
   if (result.fields === null) return
 
   workIsOpen.value = result.workTierAvailable
+  keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
   const next = emptyDrafts()
   for (const wire of result.fields) next[wire.field] = wire.value
@@ -241,6 +284,54 @@ export async function clearAiConfigOverride(field: AiConfigField): Promise<void>
 }
 
 /**
+ * Lưu (hoặc thay) khoá API — **hàm thuần re-validate**, cùng khuôn [`saveAiConfigField`]:
+ * `Enter` trên ô nhập đi qua `@submit` mà nút Lưu có thể đã khoá, handler PHẢI tự kiểm lại.
+ * Luôn ghi tầng Global ([`aiConfigSaveKey`] không nhận tham số tầng — spec 4.3, Quyết định
+ * 2026-09-17). Lượt thành công vứt draft ngay — giá trị không có lý do gì để tiếp tục sống
+ * trong state sau khi đã vào keychain.
+ */
+export async function saveAiConfigKey(): Promise<void> {
+  if (keyBusy.value) return
+  const raw = keyDraft.value
+  if (!isAiConfigKeyValueValid(raw)) return
+
+  keyBusy.value = true
+  keyError.value = null
+
+  const err = await aiConfigSaveKey(raw.trim())
+
+  keyBusy.value = false
+  if (err !== null) {
+    keyError.value = err
+    return
+  }
+
+  keyDraft.value = ''
+  await loadAiConfigSection()
+}
+
+/**
+ * Xoá khoá API — luôn tầng Global, cùng lý lẽ [`saveAiConfigKey`]. Xoá khi không có entry nào
+ * vẫn đi qua đường thành công (I/O Matrix spec 4.3 "Delete when none exists") — handler này
+ * không tự phán đoán trạng thái trước khi gọi, Rust là trọng tài.
+ */
+export async function deleteAiConfigKey(): Promise<void> {
+  if (keyBusy.value) return
+  keyBusy.value = true
+  keyError.value = null
+
+  const err = await aiConfigDeleteKey()
+
+  keyBusy.value = false
+  if (err !== null) {
+    keyError.value = err
+    return
+  }
+
+  await loadAiConfigSection()
+}
+
+/**
  * Vứt toàn bộ state của mục — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`. Chưa có chỗ gọi SẢN PHẨM nào hôm nay (mục này sống trong lớp phủ Cài đặt,
  * không theo vòng đời một Tác phẩm cụ thể — đóng/mở Tác phẩm chỉ đổi TẦNG ghi, không có lý
@@ -256,4 +347,8 @@ export function resetAiConfigSection(): void {
   loading.value = false
   loadError.value = null
   workIsOpen.value = false
+  keyConfigured.value = null
+  keyDraft.value = ''
+  keyBusy.value = false
+  keyError.value = null
 }

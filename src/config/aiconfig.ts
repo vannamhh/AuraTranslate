@@ -43,6 +43,11 @@ export type AiConfigFieldWire = {
 type AiConfigGetWire = {
   work_tier_available: boolean
   fields: AiConfigFieldWire[]
+  /** `Option<bool>` phía Rust — `true`/`false` khi keychain trả lời được thăm dò
+   * `configured`, `null` khi keychain TỪ CHỐI trả lời. Xem doc-comment
+   * `commands/aiconfig.rs::AiConfigGetWire.key_configured`: `null` là một trạng thái THỨ BA,
+   * không phải "chưa cấu hình" (`false`). */
+  key_configured: boolean | null
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -72,28 +77,38 @@ const UNKNOWN_IPC_ERROR: IpcError = {
 const CMD_GET = 'ai_config_get'
 const CMD_SAVE_FIELD = 'ai_config_save_field'
 const CMD_CLEAR_OVERRIDE = 'ai_config_clear_override'
+const CMD_SAVE_KEY = 'ai_config_save_key'
+const CMD_DELETE_KEY = 'ai_config_delete_key'
 
 /**
- * Đọc năm trường, hai tầng đã phân giải, cộng `workTierAvailable`. Không ném. `fields: null`
- * khi lượt gọi trượt (`workTierAvailable` khi đó là `false` — không có gì để đọc, chỗ gọi
- * PHẢI kiểm `error`/`fields` trước khi dùng `workTierAvailable`).
+ * Đọc năm trường, hai tầng đã phân giải, cộng `workTierAvailable` và `keyConfigured`. Không
+ * ném. `fields: null` khi lượt gọi trượt (`workTierAvailable` khi đó là `false`, `keyConfigured`
+ * là `null` — không có gì để đọc, chỗ gọi PHẢI kiểm `error`/`fields` trước khi dùng hai trường
+ * kia). `keyConfigured: null` khi lượt gọi THÀNH CÔNG nhưng keychain từ chối trả lời thăm dò —
+ * ba giá trị (`true`/`false`/`null`), không hai; xem `AiConfigGetWire.key_configured` ở trên.
  */
 export async function aiConfigGet(): Promise<{
   fields: AiConfigFieldWire[] | null
   workTierAvailable: boolean
+  keyConfigured: boolean | null
   error: IpcError | null
 }> {
   try {
     const wire = await invoke<AiConfigGetWire>(CMD_GET)
-    return { fields: wire.fields, workTierAvailable: wire.work_tier_available, error: null }
+    return {
+      fields: wire.fields,
+      workTierAvailable: wire.work_tier_available,
+      keyConfigured: wire.key_configured,
+      error: null,
+    }
   } catch (err) {
-    if (isIpcError(err)) return { fields: null, workTierAvailable: false, error: err }
+    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, error: err }
     if (hasIpcBridge()) {
       console.error(`[aiconfig] \`${CMD_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
-      return { fields: null, workTierAvailable: false, error: UNKNOWN_IPC_ERROR }
+      return { fields: null, workTierAvailable: false, keyConfigured: null, error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aiconfig] không gọi được \`${CMD_GET}\` — chạy ngoài Tauri? ${String(err)}`)
-    return { fields: null, workTierAvailable: false, error: null }
+    return { fields: null, workTierAvailable: false, keyConfigured: null, error: null }
   }
 }
 
@@ -129,6 +144,47 @@ export async function aiConfigClearOverride(field: AiConfigField): Promise<IpcEr
       return UNKNOWN_IPC_ERROR
     }
     console.info(`[aiconfig] không gọi được \`${CMD_CLEAR_OVERRIDE}\` — chạy ngoài Tauri? ${String(err)}`)
+    return null
+  }
+}
+
+/**
+ * Ghi (hoặc thay) khoá API — **luôn tầng Global** (spec 4.3, Quyết định 2026-09-17: một
+ * entry keychain cho toàn ứng dụng, không theo Tác phẩm). Không nhận tham số tầng: màn hình
+ * không có nút chọn tầng cho khoá, nên không có gì để chuyển tiếp — `tier: 'global'` là
+ * hằng số của lời gọi này, không phải một quyết định của adapter. `commands/aiconfig.rs`
+ * vẫn từ chối `tier !== Global` tại tầng lệnh (phòng thủ theo lớp); adapter này chỉ không
+ * bao giờ tạo ra yêu cầu tầng khác để mà bị từ chối. Giá trị KHÔNG BAO GIỜ được trả về —
+ * lời gọi thành công chỉ trả `null`, giống mọi adapter ghi khác ở tệp này.
+ */
+export async function aiConfigSaveKey(value: string): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_SAVE_KEY, { tier: 'global', value })
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[aiconfig] \`${CMD_SAVE_KEY}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
+    console.info(`[aiconfig] không gọi được \`${CMD_SAVE_KEY}\` — chạy ngoài Tauri? ${String(err)}`)
+    return null
+  }
+}
+
+/** Xoá khoá API — luôn tầng Global, cùng lý lẽ [`aiConfigSaveKey`]. Xoá khi không có entry
+ * nào vẫn là một lượt thành công (I/O Matrix spec 4.3 "Delete when none exists"). */
+export async function aiConfigDeleteKey(): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_DELETE_KEY, { tier: 'global' })
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[aiconfig] \`${CMD_DELETE_KEY}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
+    console.info(`[aiconfig] không gọi được \`${CMD_DELETE_KEY}\` — chạy ngoài Tauri? ${String(err)}`)
     return null
   }
 }

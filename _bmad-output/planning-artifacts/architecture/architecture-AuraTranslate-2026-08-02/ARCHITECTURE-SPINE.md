@@ -824,7 +824,8 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `jieba-rs` | 0.10.3 | MIT ⚠️ |
 | `tantivy-stemmers` | 0.4.0 | BSD-3-Clause ✓ |
 | `docx-rs` | 0.4.22 | MIT ⚠️ |
-| `keyring` | 4.1.6 | MIT OR Apache-2.0 ✓ |
+| `keyring` *(provenance sửa lại — Rà NFR15 lượt chín, 2026-09-17, Story 4.3; xem ngay dưới)* | 4.1.6 | MIT OR Apache-2.0 ✓ |
+| `keyring-core` *(`[dev-dependencies]` — Story 4.3, cài `keyring_core::mock::Store` cho test; production không khai tên nó, xem `Cargo.toml`)* | 1.0.0 | MIT OR Apache-2.0 ✓ |
 | `reqwest` *(feature `blocking` bật ở Story 6.1 cho bàn đo — 0 crate mới)* | **0.13.4** | MIT OR Apache-2.0 ✓ |
 | `dom_smoothie` *(core::webimport::Extractor — Story 6.1)* | 0.18.0 | MIT ✓ |
 | `chardetng` *(core::webimport — dò bảng mã, Story 6.1)* | 1.0.0 | Apache-2.0 OR MIT ✓ |
@@ -937,6 +938,40 @@ Dễ dãi, tương thích GPL v3 theo chiều đi vào. Ghim bằng `=` (`regex 
 | `quick-xml` 0.41.0 | `MIT` | `LICENSE-MIT.md` | `The MIT License (MIT)` |
 
 Cả hai dễ dãi, tương thích GPL v3 theo chiều đi vào. Ghim bằng `=` trong `Cargo.toml` của `core::docx` — lock chỉ giữ đúng số này tới lần `cargo update` đầu tiên, đúng quy ước ghim của cả bảng. `quick-xml` 0.38.4 (qua `tauri`→`plist`) vẫn ở lại trong `Cargo.lock`, không đổi — khai `0.41.0` tường minh để không thêm một phiên bản thứ ba, không thay thế phiên bản kia.
+
+**Rà NFR15 lượt chín — 2026-09-17, Story 4.3 (khoá API trong keychain, FR67/NFR11).** Sửa lại
+provenance của hàng `keyring` ở trên: dấu ✓ cũ đến từ nhãn crates.io ngày 2026-08-02 (dòng mở
+đầu §Stack: *"Kiểm chứng trên crates.io và tài liệu chính thức"*) — thứ `AGENTS.md:12` cấm dùng
+làm bằng chứng — và hàng đó được ghi TRƯỚC KHI có bất kỳ mã nào gọi `keyring`, nên chưa từng có
+lượt rà thật nào đứng sau nó. Rà lại đúng phương pháp mọi lượt trước: mở tệp giấy phép **trong
+nguồn ĐÃ TẢI** (`~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/…`) mà đọc, không tin
+trường `license`. `cargo tree -p keyring` trên macOS (đo 2026-09-16) thêm ĐÚNG BA gói mà không gì
+khác trong cây kéo tới: `keyring` 4.1.6 · `apple-native-keyring-store` 1.0.1 · `keyring-core`
+1.0.0 — `log`/`security-framework` đã có sẵn qua `tauri`/`reqwest` từ trước. `Cargo.lock` khoá
+thêm hai gói của hai nền tảng khác không lên cây macOS (`windows-native-keyring-store` 1.1.0,
+`zbus-secret-service-keyring-store` 1.0.0) vì nó giải cho MỌI nền tảng đích, không riêng nền
+đang build — cả năm hàng của họ `keyring` đều rà dưới đây, kể cả hai hàng không build trên máy
+Ice.
+
+| Crate | Trường `license` | Tệp đã mở | Dòng đầu |
+|---|---|---|---|
+| `keyring` 4.1.6 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2016 keyring Developers` (MIT) · `Apache License` (APACHE) |
+| `keyring-core` 1.0.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2016 keyring Developers` (MIT) · `Apache License` (APACHE) |
+| `apple-native-keyring-store` 1.0.1 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2016 keyring Developers` (MIT) · `Apache License` (APACHE) |
+| `windows-native-keyring-store` 1.1.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2016 keyring Developers` (MIT) · `Apache License` (APACHE) |
+| `zbus-secret-service-keyring-store` 1.0.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2016 keyring Developers` (MIT) · `Apache License` (APACHE) |
+
+Cả năm dễ dãi, tương thích GPLv3 chiều vào — hàng `keyring` ở bảng Stack trên nay mang dấu ✓
+đúng nghĩa (nguồn đã tải, không nhãn registry); số phiên bản không đổi, đã ghim `=4.1.6` từ
+trước Story 4.3. `keyring-core` gia nhập bảng Stack làm một hàng riêng, khai trong
+`[dev-dependencies]` — nhánh production KHÔNG khai tên nó ở bất cứ đâu (§Never spec 4.3); mục
+đích duy nhất là cài `keyring_core::mock::Store` trong `tests/aiconfig_contract.rs`, SAU khi
+lượt gọi `keyring::Entry::new` thật đầu tiên đã khởi tạo xong `LazyLock` của bản `v1` — thứ tự
+đó là bắt buộc, không phải tuỳ chọn (đo trong nguồn đã tải: `keyring-4.1.6/src/v1.rs:108-121` +
+`keyring-core-1.0.0/src/lib.rs:65-71`, xem doc-comment `[dev-dependencies]` trong `Cargo.toml`
+và §Design Notes spec 4.3). `Cargo.lock` không thêm `[[package]]` nào ở lượt này — cả năm tên
+đã có mặt từ trước qua nhánh production bắc cầu; chỉ tên `"keyring-core"` gia nhập danh sách
+phụ thuộc của gói `auratranslate` (trước đó nó chỉ bắc cầu, chưa khai tường minh ở bất cứ đâu).
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 

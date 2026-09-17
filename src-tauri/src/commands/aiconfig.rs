@@ -1,17 +1,30 @@
-//! Bề mặt IPC cho cấu hình nhà cung cấp AI — Story 4.2, FR68, AD-18.
+//! Bề mặt IPC cho cấu hình nhà cung cấp AI — Story 4.2 (FR68, AD-18) + Story 4.3 (FR65/FR67,
+//! NFR11, khoá API trong keychain).
 //!
 //! Cùng khuôn `commands::cleanup`: hàm thuần nhận `Option<&Store>` (tầng Global) **cộng**
 //! `Option<&OpenWork>` (tầng Tác phẩm) trước, `#[tauri::command]` chỉ là vỏ mỏng trong
-//! [`wire`]. Ba lệnh: đọc năm trường đã phân giải hai tầng · ghi một trường ở một tầng ·
-//! trả một trường tầng Tác phẩm về kế thừa.
+//! [`wire`]. Năm lệnh: đọc năm trường đã phân giải hai tầng cộng trạng thái khoá API · ghi
+//! một trường ở một tầng · trả một trường tầng Tác phẩm về kế thừa · ghi khoá API (Global-only)
+//! · xoá khoá API (Global-only).
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔴 KHOÁ API — LUÔN GLOBAL, TẦNG BỊ TỪ CHỐI Ở ĐÂY, KHÔNG Ở `core/aiconfig/keychain.rs`
+//! ─────────────────────────────────────────────────────────────────────────────
+//! `core/aiconfig/keychain.rs` không nhận tham số tầng (một entry cho toàn ứng dụng — xem
+//! doc-comment đầu tệp đó). [`ai_config_save_key`]/[`ai_config_delete_key`] vẫn nhận
+//! `tier: AiConfigTier` — cùng chữ ký [`ai_config_save_field`] — để một yêu cầu tầng Tác
+//! phẩm bị TỪ CHỐI TẠI ĐÂY (§Always spec 4.3: "refused at the command layer, not merely
+//! hidden in the UI") thay vì chỉ không có nút bấm cho nó trên webview. `tier != Global`
+//! trả `AiConfigKeyError::TierNotGlobal` TRƯỚC khi [`validate_key`] hay `keychain::set`/
+//! `keychain::delete` chạy — "nothing written and nothing read" (I/O Matrix spec 4.3).
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
 use crate::commands::project::OpenWork;
 use crate::core::aiconfig::{
-    AiConfigField, AiConfigStoreError, AiConfigTier, ResolvedField, clear_field, resolve_two_tiers,
-    validate_field, write_field,
+    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, ResolvedField, clear_field,
+    keychain, resolve_two_tiers, validate_field, validate_key, write_field,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -114,14 +127,42 @@ pub struct AiConfigGetWire {
     /// Năm trường, hai tầng đã phân giải — luôn đủ [`AiConfigField::ALL`], kể cả trường chưa
     /// ai cấu hình.
     pub fields: Vec<AiConfigFieldWire>,
+    /// `Some(true)`/`Some(false)` ⇔ keychain hệ điều hành trả lời được thăm dò — KHÔNG BAO
+    /// GIỜ giá trị thật (§Always spec 4.3: "the frontend may learn only configured / not
+    /// configured"). `None` ⇔ keychain TỪ CHỐI trả lời (khoá, quyền bị chặn, không có kho
+    /// nền tảng) — 🔴 **KHÔNG được đọc là `false`**: "chưa cấu hình" là một trạng thái bình
+    /// thường của epic này, còn "không hỏi được" là một trạng thái KHÁC, và gộp hai trạng
+    /// thái đó vào cùng một `false` là đúng lớp lỗi *SILENT EMPTINESS* mà `AGENTS.md` gọi
+    /// tên là lớp lỗi trung tâm của kho này ("A value that can be UNKNOWN gets an
+    /// `Option`/`NULL`, never a `0` or a `.unwrap_or(0)`") — webview phải vẽ `None` thành
+    /// một trạng thái riêng (vd. "không kiểm tra được"), không phải render như "chưa cấu
+    /// hình". Khoá là Global-only nên trường này không đi qua [`AiConfigFieldWire`]/
+    /// `shadowed` — nó không có khái niệm tầng để mà che.
+    pub key_configured: Option<bool>,
 }
 
-/// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` — **hàm thuần**. Luôn
-/// trả đủ năm trường (`AiConfigField::ALL`), kể cả trường chưa ai cấu hình.
+/// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` và `key_configured` —
+/// **hàm thuần**. Luôn trả đủ năm trường (`AiConfigField::ALL`), kể cả trường chưa ai cấu
+/// hình — **kể cả khi keychain từ chối trả lời thăm dò `configured`.**
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔵 SỬA 2026-09-17 (rà lại sau Phase 2) — bản trước làm CẢ LƯỢT GỌI này thất bại khi
+/// keychain từ chối trả lời (`keychain::configured().map_err(..)?`). Đó là đọc SAI I/O
+/// Matrix spec 4.3, dòng "Keychain refuses": "the section stays usable **and other settings
+/// still save**" — `ai_config_get` sập cả lượt thì năm trường plaintext (không đụng gì tới
+/// keychain) cũng biến mất theo trên webview (`SettingsOverlay.vue` chỉ vẽ MỘT nhánh:
+/// lỗi HOẶC nội dung, không cả hai). Sửa: gói lỗi vào `None` bằng `.ok()` — năm trường vẫn
+/// trả đủ, `key_configured: None` là tín hiệu "không hỏi được", KHÁC `Some(false)` ("đã hỏi,
+/// chưa cấu hình"). `IpcError` `ai_config.keychain_unavailable` vẫn đúng chỗ Matrix đặt nó —
+/// trên hành động GHI/XOÁ ([`ai_config_save_key`]/[`ai_config_delete_key`]), không trên GET.
+/// ─────────────────────────────────────────────────────────────────────────────
 ///
 /// # Lỗi
 /// - `global.db` vắng mặt ⇒ `store.open_failed`;
 /// - `ScopeResolver::apply_override` từ chối (lỗi lập trình) ⇒ `ai_config.scope_error`.
+///
+/// Keychain từ chối trả lời KHÔNG nằm trong danh sách lỗi ở trên nữa — xem khối 🔵 ngay
+/// trên: nó trở thành `key_configured: None`, không một `IpcError`.
 pub fn ai_config_get(
     global: Option<&Store>,
     open: Option<&OpenWork>,
@@ -136,7 +177,45 @@ pub fn ai_config_get(
         .map(|&field| AiConfigFieldWire::from_resolved(field, resolved.get(field.as_str())))
         .collect();
 
-    Ok(AiConfigGetWire { work_tier_available: open.is_some(), fields })
+    // `.ok()`, KHONG `?` -- mot keychain tu choi tra loi khong duoc phep lam nam truong
+    // plaintext ben tren bien mat theo (xem khoi doc-comment SUA o tren).
+    let key_configured = keychain::configured().ok();
+
+    Ok(AiConfigGetWire { work_tier_available: open.is_some(), fields, key_configured })
+}
+
+/// Ghi (hoặc thay) khoá API — **hàm thuần**. Chỉ tầng [`AiConfigTier::Global`] được chấp
+/// nhận (§Always spec 4.3: "whatever tier the screen is operating in"); một yêu cầu tầng
+/// Tác phẩm bị từ chối TRƯỚC khi [`validate_key`] hay `keychain::set` chạy. Giá trị được
+/// kiểm bằng [`validate_key`] TRƯỚC khi chạm keychain (§Always spec 4.3: "rejected before
+/// any keychain call").
+///
+/// # Lỗi
+/// - `tier != Global` ⇒ `ai_config.key_is_global` — **không đọc, không ghi gì**;
+/// - giá trị rỗng/toàn khoảng trắng ⇒ `ai_config.key_invalid_value` — **0 lượt ghi keychain**;
+/// - keychain từ chối trả lời ⇒ `ai_config.keychain_unavailable` (retryable).
+pub fn ai_config_save_key(tier: AiConfigTier, value: &str) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    let validated = validate_key(value).map_err(AiConfigKeyError::from)?;
+    keychain::set(&validated).map_err(AiConfigKeyError::from)?;
+    Ok(())
+}
+
+/// Xoá khoá API — **hàm thuần**. Chỉ tầng [`AiConfigTier::Global`] được chấp nhận, cùng lý
+/// lẽ [`ai_config_save_key`]. Xoá khi không có entry nào là THÀNH CÔNG (I/O Matrix spec 4.3:
+/// "Delete when none exists" — hậu trạng thái là trạng thái được yêu cầu).
+///
+/// # Lỗi
+/// - `tier != Global` ⇒ `ai_config.key_is_global` — **không đọc, không ghi gì**;
+/// - keychain từ chối trả lời ⇒ `ai_config.keychain_unavailable` (retryable).
+pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    keychain::delete().map_err(AiConfigKeyError::from)?;
+    Ok(())
 }
 
 /// Ghi một trường ở tầng `tier` — **hàm thuần**. Giá trị được kiểm bằng
@@ -174,10 +253,15 @@ pub fn ai_config_clear_override(open: Option<&OpenWork>, field: AiConfigField) -
     Ok(())
 }
 
-/// Ba vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+/// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 ///
-/// ⚠️ Tên command trên dây LÀ tên hàm — ba vỏ dưới đây mang ĐÚNG tên ba hàm thuần ở
+/// ⚠️ Tên command trên dây LÀ tên hàm — năm vỏ dưới đây mang ĐÚNG tên năm hàm thuần ở
 /// `super::`, không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
+///
+/// `ai_config_save_key`/`ai_config_delete_key` không cần `app: tauri::AppHandle` — khác ba
+/// vỏ kia, chúng không đọc `Store`/`OpenWorkState`: khoá API sống trong keychain hệ điều
+/// hành, không trong `global.db`/`project.db`, và tầng bị từ chối bằng tham số `tier` tới
+/// tay chứ không bằng việc dò `OpenWorkState` (xem doc-comment đầu tệp).
 pub mod wire {
     use super::{AiConfigField, AiConfigGetWire, AiConfigTier};
     use crate::commands::project::OpenWorkState;
@@ -224,5 +308,15 @@ pub mod wire {
         };
         let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::ai_config_clear_override(guard.as_ref(), field)
+    }
+
+    #[tauri::command]
+    pub fn ai_config_save_key(tier: AiConfigTier, value: String) -> Result<(), IpcError> {
+        super::ai_config_save_key(tier, &value)
+    }
+
+    #[tauri::command]
+    pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
+        super::ai_config_delete_key(tier)
     }
 }

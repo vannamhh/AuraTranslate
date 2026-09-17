@@ -33,13 +33,21 @@ import {
   aiConfigDraft,
   aiConfigFieldWire,
   aiConfigIsSaving,
+  aiConfigKeyBusy,
+  aiConfigKeyConfigured,
+  aiConfigKeyDraft,
+  aiConfigKeyError,
   aiConfigLoadError,
   aiConfigLoading,
   aiConfigSaveErrorFor,
   clearAiConfigOverride,
+  deleteAiConfigKey,
+  isAiConfigKeyValueValid,
   isAiConfigValueValid,
   saveAiConfigField,
+  saveAiConfigKey,
   setAiConfigDraft,
+  setAiConfigKeyDraft,
 } from './aiConfigState'
 import type { AiConfigField } from './config/aiconfig'
 import { t, tError } from './i18n'
@@ -189,6 +197,30 @@ function onSaveAiConfigField(field: AiConfigField): void {
 function onClearAiConfigOverride(field: AiConfigField): void {
   void clearAiConfigOverride(field)
 }
+
+/**
+ * Ba trạng thái, không hai — I/O Matrix spec 4.3: `null` (keychain không trả lời thăm dò) là
+ * một trạng thái RIÊNG, không được vẽ như `false` ("chưa cấu hình"). Khác `aiConfigStatusKey`
+ * ở trên: khoá API không có khái niệm tầng để phân biệt ghi đè/kế thừa.
+ */
+function aiConfigKeyStatusKey(): string {
+  const configured = aiConfigKeyConfigured.value
+  if (configured === null) return 'settings.ai_config.key_status_unknown'
+  return configured ? 'settings.ai_config.key_status_configured' : 'settings.ai_config.key_status_not_configured'
+}
+
+function onAiConfigKeyInput(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement) setAiConfigKeyDraft(target.value)
+}
+
+function onSaveAiConfigKey(): void {
+  void saveAiConfigKey()
+}
+
+function onDeleteAiConfigKey(): void {
+  void deleteAiConfigKey()
+}
 </script>
 
 <template>
@@ -296,6 +328,77 @@ function onClearAiConfigOverride(field: AiConfigField): void {
                 >
                   <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
+                  </button>
+                </form>
+              </div>
+
+              <!-- ═══════════════════ Khoá API (FR65/FR67, NFR11, Story 4.3) ═══════════════════
+                   Không đi qua `v-for="field in AI_CONFIG_FIELDS"` ở trên — khoá không có hình
+                   dạng `AiConfigFieldWire` (không tầng, không `shadowed`, giá trị KHÔNG BAO GIỜ
+                   trở lại qua IPC). Ba trạng thái hiển thị, không hai: xem
+                   `aiConfigKeyStatusKey()`. Lớp `ai-key-field` chỉ để test nhắm đúng khối này
+                   giữa nhiều `.ai-field`/`<form>` khác trên cùng màn — không đụng CSS. -->
+              <div class="ai-field ai-key-field">
+                <form class="ai-field-form" @submit.prevent="onSaveAiConfigKey">
+                  <label class="ai-field-label">
+                    <span>{{ t('settings.ai_config.key_label') }}</span>
+                    <input
+                      class="ai-field-input"
+                      type="password"
+                      autocomplete="off"
+                      :value="aiConfigKeyDraft()"
+                      :disabled="aiConfigKeyBusy"
+                      @input="onAiConfigKeyInput($event)"
+                    />
+                  </label>
+
+                  <p class="ai-field-status">
+                    <span
+                      :class="{
+                        'mark-over': aiConfigKeyConfigured === true,
+                        'mark-inh': aiConfigKeyConfigured === false,
+                        'mark-unknown': aiConfigKeyConfigured === null,
+                      }"
+                    >
+                      {{ t(aiConfigKeyStatusKey()) }}
+                    </span>
+                  </p>
+                  <!-- Câu nói ra vì sao mục này KHÔNG có nút chọn tầng như năm ô trên —
+                       Quyết định 2026-09-17 (spec 4.3): một khoá cho toàn ứng dụng. -->
+                  <p class="ai-field-status">{{ t('settings.ai_config.key_note') }}</p>
+
+                  <!-- Cùng luật năm ô trên: "chưa cấu hình" không phải lỗi, chỉ hiện câu từ
+                       chối SAU khi người dùng đã gõ gì đó không hợp lệ. -->
+                  <p
+                    v-if="aiConfigKeyDraft() !== '' && !isAiConfigKeyValueValid(aiConfigKeyDraft())"
+                    class="ai-field-alert"
+                  >
+                    {{ t('settings.ai_config.key_invalid') }}
+                  </p>
+                  <p v-else-if="aiConfigKeyError !== null" class="ai-field-alert" role="alert">
+                    <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                    {{ tError(aiConfigKeyError) }}
+                  </p>
+
+                  <button
+                    type="submit"
+                    class="ai-field-save"
+                    :disabled="!isAiConfigKeyValueValid(aiConfigKeyDraft()) || aiConfigKeyBusy"
+                  >
+                    {{ t('settings.ai_config.key_save') }}
+                  </button>
+                </form>
+
+                <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — hiện trừ lúc đã biết CHẮC chưa có khoá nào
+                     (`=== false`). Một thăm dò trượt (`null`) không nói gì về việc Xoá có
+                     trượt hay không, nên nút vẫn hiện — chỉ khi gọi thật mới biết. -->
+                <form
+                  v-if="aiConfigKeyConfigured !== false"
+                  class="ai-field-clear-form"
+                  @submit.prevent="onDeleteAiConfigKey"
+                >
+                  <button type="submit" class="ai-field-clear" :disabled="aiConfigKeyBusy">
+                    {{ t('settings.ai_config.key_delete') }}
                   </button>
                 </form>
               </div>
@@ -613,6 +716,13 @@ function onClearAiConfigOverride(field: AiConfigField): void {
 
 .mark-inh {
   color: var(--color-on-surface-variant);
+}
+
+/* Trạng thái THỨ BA của khoá API — keychain từ chối trả lời thăm dò (I/O Matrix spec 4.3).
+   Cùng tông màu một lỗi retryable khác trong mục này (`.ai-field-alert`), vì đây đúng là một
+   sự cố tạm thời, không phải "chưa cấu hình" (đó là `.mark-inh`). */
+.mark-unknown {
+  color: var(--color-error);
 }
 
 .ai-field-alert {

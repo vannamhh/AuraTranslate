@@ -30,9 +30,17 @@
 
 pub mod store;
 
+/// Bí mật khoá API — keychain hệ điều hành, Global-only. `pub(crate)`: tầng lệnh
+/// (`commands::aiconfig`) gọi qua đây; xem cảnh báo ranh giới ở đầu `keychain.rs` cho lý do
+/// bên trong module đó vẫn còn hẹp hơn.
+pub(crate) mod keychain;
+
 use std::fmt;
 
-pub use store::{AiConfigStoreError, ResolvedField, clear_field, resolve_two_tiers, write_field};
+pub use store::{
+    AiConfigKeyError, AiConfigStoreError, ResolvedField, clear_field, resolve_two_tiers,
+    write_field,
+};
 
 /// Năm trường của cấu hình AI — FR68 ("nhà cung cấp, mô hình, tham số sinh"). Không trường
 /// khoá API: FR65/NFR11 đặt khoá trong keychain hệ điều hành, đó là Story 4.3 (§Intent).
@@ -127,6 +135,14 @@ pub struct InvalidFieldValue {
     pub field: AiConfigField,
 }
 
+/// Khoá API không qua được kiểm tra của chính nó — rỗng hoặc chỉ toàn khoảng trắng
+/// (§Always spec 4.3: từ chối TRƯỚC khi chạm keychain). KHÔNG mang `field`: khoá không
+/// phải một biến thể của [`AiConfigField`] (§Design Notes spec 4.3 — "vì sao khoá không
+/// gia nhập `AiConfigField`"), và không mang GIÁ TRỊ: một lỗi đi ngang IPC không bao giờ
+/// được phép cõng theo chuỗi khoá hay một phần của nó.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidKeyValue;
+
 /// `temperature` — số thực hữu hạn trong `[0.0, 2.0]`. `"-1"`/`"3"`/`"abc"` đều bị từ chối
 /// (I/O Matrix spec 4.2). Trần trên 2.0 khớp giới hạn tham số sinh phổ biến nhất của các nhà
 /// cung cấp tương thích kiểu OpenAI — không có FR/mockup nào khai một trần khác, và một
@@ -207,6 +223,22 @@ pub fn validate_field(field: AiConfigField, raw: &str) -> Result<String, Invalid
     result.map_err(|()| InvalidFieldValue { field })
 }
 
+/// Khoá API — văn bản tự do, không rỗng sau khi trim (I/O Matrix spec 4.3: "Save an empty
+/// or whitespace-only key"). Không hình dạng nào khác bị áp: mỗi nhà cung cấp đặt ra một
+/// định dạng khoá riêng của họ, và `TranslationProvider` (AD-2) CHƯA được khai (§Never spec
+/// 4.3) nên không có tập giá trị hợp lệ nào để mà `CHECK` sâu hơn — cùng lý lẽ
+/// [`validate_non_empty`] đã ghi cho `provider`/`model`.
+///
+/// Trả giá trị đã trim, cùng khuôn [`validate_field`] — đó là hình dạng thứ đi xuống
+/// keychain, không phải chuỗi thô người dùng gõ.
+pub fn validate_key(raw: &str) -> Result<String, InvalidKeyValue> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(InvalidKeyValue);
+    }
+    Ok(trimmed.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,5 +275,13 @@ mod tests {
         assert!(validate_field(AiConfigField::Provider, "anthropic").is_ok());
         assert!(validate_field(AiConfigField::Provider, "   ").is_err());
         assert!(validate_field(AiConfigField::Model, "").is_err());
+    }
+
+    #[test]
+    fn key_rejects_empty_and_whitespace_only_but_trims_a_real_value() {
+        assert_eq!(validate_key("sk-abc123"), Ok("sk-abc123".to_owned()));
+        assert_eq!(validate_key("  sk-abc123  "), Ok("sk-abc123".to_owned()));
+        assert_eq!(validate_key(""), Err(InvalidKeyValue));
+        assert_eq!(validate_key("   "), Err(InvalidKeyValue));
     }
 }

@@ -908,6 +908,12 @@ pub fn run() {
             crate::commands::aiconfig::wire::ai_config_get,
             crate::commands::aiconfig::wire::ai_config_save_field,
             crate::commands::aiconfig::wire::ai_config_clear_override,
+            // Story 4.3 -- khoa API trong keychain he dieu hanh (FR65/FR67, NFR11). Hai vo
+            // them: ghi khoa (chi tang Global, gia tri khong bao gio doc lai qua IPC) · xoa
+            // khoa (xoa khi khong co entry nao van la thanh cong). Tang Tac pham bi tu choi
+            // TAI DAY, khong chi an di tren webview.
+            crate::commands::aiconfig::wire::ai_config_save_key,
+            crate::commands::aiconfig::wire::ai_config_delete_key,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

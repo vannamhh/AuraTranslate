@@ -1809,3 +1809,31 @@ fn wire_fn_body_stops_before_the_next_pub_fn_and_does_not_bleed_into_it() {
     let bar = wire_fn_body(src, "bar");
     assert_eq!(count_reindex_library_calls(bar), 1, "than `bar` phai mang DUNG 1 loi goi cua CHINH no");
 }
+
+/// **THÊM Story 4.3.** `ai_config_save_key`/`ai_config_delete_key` phải CÓ MẶT trong
+/// `generate_handler![…]` — cùng lý lẽ và cùng khuôn
+/// [`the_library_search_wire_is_registered_and_keeps_its_parameter_names`]. `aiconfig_contract.rs`
+/// gọi thẳng hai hàm thuần (`commands::aiconfig::ai_config_save_key`/`ai_config_delete_key`),
+/// không đi qua `wire::`, và mọi test frontend mock `src/config/aiconfig` ở biên module — nên
+/// xoá hai dòng đăng ký này khỏi `lib.rs` để `cargo test --locked` VÀ `npx vitest run` xanh cả
+/// hai trong khi Lưu/Xoá khoá vỡ trên một bản dựng thật. Phạm vi CHỈ hai lệnh Story 4.3 thêm —
+/// ba lệnh `ai_config_*` của Story 4.2 (`ai_config_get`/`ai_config_save_field`/
+/// `ai_config_clear_override`) có cùng lỗ hổng từ trước story này và không thuộc phạm vi sửa ở
+/// đây.
+#[test]
+fn the_aiconfig_key_wires_are_registered() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::aiconfig::wire::ai_config_save_key",
+        "crate::commands::aiconfig::wire::ai_config_delete_key",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
+             \"command not found\" va Luu/Xoa khoa API vo tren mot ban dung that."
+        );
+    }
+}
