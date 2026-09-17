@@ -1837,3 +1837,34 @@ fn the_aiconfig_key_wires_are_registered() {
         );
     }
 }
+
+/// **THÊM Story 4.4, Phase 2.** Năm vỏ `commands::promptset::wire::*` phải CÓ MẶT trong
+/// `generate_handler![…]` — cùng lý lẽ và cùng khuôn
+/// [`the_aiconfig_key_wires_are_registered`] ngay trên: `ipc_contract.rs:1824` (doc-comment
+/// của test đó) tự ghi rằng cổng này là một danh sách gõ tay THEO TỪNG DOMAIN, không phải
+/// một phép quét chung — một domain mới không có gì canh nó trừ khi một sibling được thêm
+/// vào. `prompt_set_contract.rs` (Phase 3) gọi thẳng năm hàm thuần
+/// (`commands::promptset::prompt_set_*`), không đi qua `wire::`, nên xoá một dòng đăng ký ở
+/// đây khỏi `lib.rs` để `cargo test --locked` VẪN xanh trong khi nút bấm tương ứng vỡ trên
+/// một bản dựng thật — đúng lỗ mà spec 4.4's AC2 đặt tên ("Given the whole repository ...
+/// when `generate_handler!` loses any one prompt-set line, then a Rust case goes red").
+#[test]
+fn the_prompt_set_wires_are_registered() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::promptset::wire::prompt_set_list",
+        "crate::commands::promptset::wire::prompt_set_create",
+        "crate::commands::promptset::wire::prompt_set_rename",
+        "crate::commands::promptset::wire::prompt_set_update_body",
+        "crate::commands::promptset::wire::prompt_set_delete",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
+             \"command not found\" va man Thu vien Prompt vo tren mot ban dung that."
+        );
+    }
+}

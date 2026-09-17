@@ -906,6 +906,15 @@ export type CommandDeps = {
   /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
   closeSettings?: () => void
 
+  // ── Story 4.4 — lớp phủ "Thư viện prompt" (FR69) ────────────────────────────────
+  /** Mở lớp phủ Thư viện prompt và nạp lại danh sách hai tầng. Handler của
+   * `prompt.library.open` — hai chỗ gọi: mục `prompt` của `SettingsOverlay` và Panel AI
+   * Translation. */
+  openPromptLibrary?: () => void
+  /** Đóng lớp phủ Thư viện prompt — KHÔNG dọn danh sách đã nạp. Handler của
+   * `prompt.library.close`. */
+  closePromptLibrary?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -3252,6 +3261,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('settings.close', 'closeSettings')
       }
       deps.closeSettings()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.4 — "THƯ VIỆN PROMPT" (FR69)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Hai chỗ gọi `prompt.library.open`: mục `prompt` của `SettingsOverlay.vue` VÀ Panel AI
+   * Translation (`AiTranslationPanel.vue`) — cùng hình dạng "hai cửa, một lớp phủ" của
+   * `settings.privacy.open`. Cả hai command giữ 0 hợp âm mặc định: `Mod+Alt+…` đã kín chỗ
+   * có nghĩa cho các lớp phủ khác, và cả hai tới được bằng nút + Tab/Enter bên trong.
+   */
+  target.register({
+    id: 'prompt.library.open',
+    labelKey: 'command.prompt.library.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openPromptLibrary === undefined) {
+        return portMissing('prompt.library.open', 'openPromptLibrary')
+      }
+      deps.openPromptLibrary()
+    },
+  })
+  target.register({
+    id: 'prompt.library.close',
+    labelKey: 'command.prompt.library.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closePromptLibrary === undefined) {
+        return portMissing('prompt.library.close', 'closePromptLibrary')
+      }
+      deps.closePromptLibrary()
     },
   })
 

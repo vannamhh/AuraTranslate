@@ -301,6 +301,11 @@ import {
 // Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { closeSettings, openSettings, openSettingsToPrivacy, settingsOverlayIsOpen } from './settingsState'
+// ── Story 4.4 — lớp phủ "Thư viện prompt" (FR69) ─────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `settingsState.ts`: `promptLibraryState.ts` dùng `ref` của
+// Vue và (qua `promptSetState.ts`) gọi `@tauri-apps/api` xuyên qua `config/promptset.ts`.
+import { closePromptLibrary, openPromptLibrary, promptLibraryOverlayIsOpen } from './promptLibraryState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -871,6 +876,9 @@ async function boot(): Promise<void> {
       openSettings,
       openSettingsToPrivacy,
       closeSettings,
+      // Story 4.4 · FR69 — lớp phủ "Thư viện prompt".
+      openPromptLibrary,
+      closePromptLibrary,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -911,7 +919,10 @@ async function boot(): Promise<void> {
         // `aria-modal="true"` và `trapTab`; không chặn ở đây thì một hợp âm đổi preset bố
         // cục phía sau nó vẫn chạy được, gọi `api.clear()` và làm `returnFocusTo` của lớp
         // phủ ôm một node đã rời DOM (UX-DR17 vỡ im lặng, đúng khuyết tật Story 1.19 đã bắt).
-        settingsOverlayIsOpen.value,
+        settingsOverlayIsOpen.value ||
+        // Story 4.4 — cùng lý do hệt `settingsOverlayIsOpen`: `PromptLibraryOverlay.vue`
+        // cũng khai `aria-modal="true"` và `trapTab`.
+        promptLibraryOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

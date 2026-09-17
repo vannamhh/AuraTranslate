@@ -577,7 +577,9 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     let migrated = Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 20 phai mo duoc");
     // 🔵 CAP NHAT 2026-09-16 (Story 4.2): dich moi nhat la 23 — buoc 23 (ai_config, FR68)
     // chay THEM sau buoc 22, khong anh huong menh de nay.
-    assert_eq!(migrated.schema_version(), 23, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
+    // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich moi nhat la 24 — buoc 24 (prompt_set, FR69)
+    // chay THEM sau buoc 23, khong anh huong menh de nay.
+    assert_eq!(migrated.schema_version(), 24, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
 
     let role: Option<String> = migrated
         .read(move |conn| conn.query_row("SELECT role FROM segment WHERE chapter_id = ?1", [chapter_id], |r| r.get(0)))

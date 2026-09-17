@@ -162,6 +162,22 @@ scope_kinds! {
     Glossary => "glossary" : Override,
 
     /// Bộ prompt theo thể loại. **AD-18 · FR69** — dữ liệu thuộc **Epic 4**.
+    ///
+    /// 🔴 Ghi đè **CẢ BỘ, theo TÊN**. AD-18 chỉ ghi *"Prompt | ghi đè"* và không nói độ
+    /// mịn — đây là hàng "mỏng" của bảng AD-18 (`epic-4-context.md`: *"AD-18 declares
+    /// two-tier semantics per data type, and the Prompt row is the thin one ... no
+    /// granularity stated"*), khác hàng `AiConfig` ngay dưới vốn đã ghi rõ. Chỉ
+    /// `mockups/prompt-library.html:134` lộ ra hành vi thật: một bộ Tác phẩm trùng TÊN với
+    /// một bộ Toàn cục THAY THẾ TRỌN bộ đó — mục Toàn cục vẫn hiện, nhưng đánh dấu *"bị
+    /// prompt cùng tên ở trên che"*, không hợp hai bộ theo từng trường như `AiConfig`.
+    /// Khoá của `apply_override` là TÊN bộ do người dùng đặt; không có "trường" nào bên
+    /// trong một bộ để mà chia nhỏ hơn khoá đó — một bộ chỉ là TÊN + THÂN, không trường nào
+    /// khác (spec 4.4, Quyết định #4). *(Ice ký 2026-09-17, spec
+    /// 4-4-bo-prompt-theo-the-loai.md, Quyết định #1.)*
+    ///
+    /// Không phải một `AD` mới — hai hàng láng giềng (`Glossary` "theo từng thuật ngữ",
+    /// `AiConfig` "theo TỪNG TRƯỜNG") đã chốt cùng câu hỏi ở đúng chỗ này, không ở Epic của
+    /// chúng: chốt ở bảng này rẻ hơn chốt lại trong Epic 4.
     Prompt => "prompt" : Override,
 
     /// Cấu hình nhà cung cấp AI. **AD-18 · FR68** — dữ liệu thuộc **Epic 4**.

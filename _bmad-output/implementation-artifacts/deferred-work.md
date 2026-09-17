@@ -12913,3 +12913,85 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     hành vi khác nhau, đúng thứ khó chịu hơn chính khuyết tật.
     **(Chủ: Sally (UX) — quyết một luật chung cho cả sáu hàng: gõ lại thì xoá lỗi, hay giữ lỗi
     cho tới lượt gửi kế tiếp. Sửa mã đi sau quyết định đó, một lượt cho cả sáu.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
+  summary: **Mockup vẽ cho mỗi bộ prompt một `cặp ngôn ngữ` và ba pill phạm vi áp dụng (`Áp
+    cho mọi segment` / `lời thoại` / `tả cảnh`) — Story 4.4 KHÔNG lưu cả hai nhóm, có chủ ý.**
+  evidence: `mockups/prompt-library.html:148-153` vẽ chúng, và YAML front matter của bản xuất
+    ở khung thứ hai (`:244-250`) mang `cặp ngôn ngữ`. Nhưng **không FR nào và không AC nào**
+    của 4.4 lẫn 4.5 nhắc tới chúng, và chưa ai chuẩn hoá được nghĩa của ba pill kia — "áp cho
+    lời thoại" đòi một cơ chế phân loại segment theo vai mà kho chưa có. Quyết định #4 của
+    spec 4.4 (Ice ký 2026-09-17): một bộ prompt là **TÊN + THÂN**, không trường nào khác;
+    `PROMPT_SET_DDL` vì thế chỉ có `id`/`name`/`body`/`created_at`. ⚠️ Cách đọc SAI mà người
+    sau dễ mắc: tưởng đây là một thiếu sót của 4.4 rồi lặng lẽ thêm cột — thêm cột là đổi hình
+    dạng thứ Story 4.5 phải xuất và nhập lại được trọn vẹn.
+    **(Chủ: Story 4.5 — quyết CÙNG LÚC với định dạng tệp xuất, vì hai thứ này là một câu hỏi:
+    cái gì thuộc về một bộ prompt thì cái đó phải round-trip được qua tệp văn bản mở.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
+  summary: **`{{chapter_context}}` bị để NGOÀI bộ từ vựng biến đã phê chuẩn — nó đọc ra như
+    một token lạ, và đó là hành vi đúng cho tới khi có ai dùng nó.**
+  evidence: Quyết định #2 của spec 4.4 phê chuẩn đúng ba tên (`{{glossary_terms}}` ·
+    `{{source_segment}}` · `{{tm_similar_segments}}`) thành `core::promptset::vars::
+    PromptVariable`, biến bốn cái tên vốn chỉ sống trong `mockups/prompt-library.html:177-189`
+    thành mã. Chính mockup đánh dấu `{{chapter_context}}` là *chưa dùng* (`:189`), nên nó
+    không được thêm vào `PromptVariable::ALL`; hệ quả là một thân prompt gõ nó sẽ được LƯU
+    nguyên văn kèm một cảnh báo gọi tên nó (Quyết định #3), không bị từ chối. 🔵 Từ Phase 4c,
+    màn soạn thảo đọc danh sách qua dây từ `PromptVariable::ALL` (`commands/promptset.rs:154`,
+    trường `PromptSetListWire::variables`) chứ không giữ bản chép riêng — nên thêm một biến
+    thể ở Rust là màn hình tự có, không cần đụng frontend.
+    **(Chủ: Story 4.6 — story dựng `RagInjector`, tức story đầu tiên thật sự CHÈN nội dung vào
+    các marker này. Nó quyết `{{chapter_context}}` có vào `ALL` hay không, và nếu có thì "hai
+    câu trước và hai câu sau" lấy ở đâu.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
+  summary: **Hàng Toàn cục BỊ CHE chỉ hiển thị được, không thao tác được — nó không mang `id`
+    riêng trong kết quả phân giải.**
+  evidence: `core::promptset::store::ResolvedPromptSet` mang `shadowed_body: Option<String>`
+    nhưng không mang `id` của hàng Global bị che, nên màn hình vẽ được chú thích *"bị prompt
+    cùng tên ở trên che"* (đúng `mockups/prompt-library.html:134`) mà không sửa/xoá thẳng hàng
+    đó được. Đủ cho AC của 4.4 theo đúng nghĩa đen — mockup vẽ nó như một dấu hiệu, không như
+    một hàng hành động được. Ghi ra vì một giới hạn không ghi thì lần sau đọc thành sơ suất.
+
+    🔵 **SỬA TẠI CHỖ 2026-09-17, cùng ngày, sau vòng rà soát — câu này ban đầu SAI.** Bản đầu
+    của mục nợ viết *"đã có đường vòng: bộ lọc tầng của chính mockup (`:116`, `Toàn cục / Tác
+    phẩm / Cả hai`) đưa người dùng tới hàng Global thật."* **Không có đường vòng đó.** Bộ lọc
+    tầng tồn tại trong `mockups/prompt-library.html` và **chưa bao giờ được cài** — `.filter`
+    duy nhất trong `PromptLibraryOverlay.vue` là phép tách work/global (`:172`). Tôi lấy một
+    năng lực từ MOCKUP rồi viết nó ra như một năng lực của SẢN PHẨM, không kiểm. Hệ quả thật:
+    khi một bộ Toàn cục đang bị che, **không đường nào** tới nó được cho tới khi bộ Tác phẩm
+    cùng tên bị xoá hoặc đổi tên. Đó cũng là lý do lượt rà soát chấm "tạo một bộ Toàn cục
+    trùng tên bộ Tác phẩm" là `medium` chứ không phải một phiền toái nhỏ — xem hàng 1 của
+    §Review Triage Log trong spec 4.4.
+    **(Chủ: Story 4.5 — story kế tiếp chạm màn hình này (nhập/xuất theo tầng). Nó quyết MỘT
+    trong hai: mang `id` của hàng bị che ra dây, hoặc cài bộ lọc tầng mà mockup đã vẽ. Cái
+    nào cũng đóng được, và cho tới lúc đó giới hạn này là THẬT chứ không phải lý thuyết.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
+  summary: **Mọi lượt ghi bộ prompt — KỂ CẢ tầng Tác phẩm — đòi `global.db` đang được quản.
+    Đây là một quyết định đã chốt và đã có test canh, không phải một khuyết tật.**
+  evidence: `core::promptset::store` nhận `(global: &Store, work: Option<&Store>, tier, …)`,
+    nên một lượt ghi tầng Work vẫn đi qua tham số `global`. Phase 3 ghim bằng
+    `prompt_set_contract.rs::every_prompt_set_write_including_a_work_tier_one_requires_
+    global_db_to_be_managed`, đúng để nó là một mệnh đề chứ không phải một tai nạn. Trên sản
+    phẩm điều này luôn đúng: `global.db` mở lúc khởi động, trước khi một `.atproj` nào mở
+    được. ⚠️ Story nào muốn ghi tầng Work khi `global.db` KHÔNG mở được sẽ phải đổi chữ ký,
+    không phải nới test.
+    **(Chủ: Story 4.8 — story đầu tiên gọi bộ prompt trên đường nóng (dịch một segment); nếu
+    có ca nào cần ghi mà không có tầng Global thì nó gặp trước.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
+  summary: **`src-tauri/AGENTS.md:37` nay khai SAI — nó nói "không cổng nào canh cặp này" về
+    rào rỗng 25 điểm mã `White_Space`, trong khi Story 4.4 vừa dựng đúng cổng đó.**
+  evidence: Dòng ấy viết cho CẶP `GLOSSARY_ENTRY_DDL`/`IMPORT_CLEANUP_RULE_DDL` và kết bằng
+    *"No gate guards this pair"*. Story 4.4 thêm hằng thứ BA (`PROMPT_SET_DDL`) mang cùng bảng
+    ký tự, và thêm `prompt_set_contract.rs::the_three_white_space_guard_ddls_share_the_same_
+    set_of_exactly_25_code_points` — ca này so **TẬP** `char(N)` của cả ba (không so chuỗi: đo
+    2026-09-17, ba hằng dài 513 / 465 / 483 byte, khác nhau chỉ ở thụt lề vì `source_term` /
+    `pattern` / `name` dài khác nhau, nên một phép so văn bản sẽ ĐỎ dù cả ba đều đúng). Từ
+    story này, mệnh đề "không cổng nào canh" hết đúng và số "cặp" hết đúng — là bộ BA. Lượt rà
+    soát bắt được (hàng 10, §Review Triage Log). ⚠️ Không sửa trong story này vì quy trình
+    `bmad-build` định tuyến mọi bản vá chạm tệp ngữ cảnh agent (`AGENTS.md`, `CLAUDE.md`) sang
+    mục nợ, không cho vá thẳng trong lượt thi công — chứ KHÔNG phải vì mệnh đề còn nghi ngờ.
+    **(Chủ: Ice — `AGENTS.md` là tệp Ice sở hữu; sửa một dòng: đổi "pair" thành ba hằng và
+    thay "No gate guards this pair" bằng tên ca test ở trên.)**

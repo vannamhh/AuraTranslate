@@ -404,6 +404,20 @@ function onDeleteAiConfigKey(): void {
               </div>
             </template>
           </template>
+          <template v-else-if="settingsActiveSection === 'prompt'">
+            <!--
+              ═══════════════════ Prompt (FR69, Story 4.4) ═══════════════════
+              🔴 KHÔNG soạn prompt TẠI ĐÂY — §Never spec 4.4: "A big screen is the 11th
+              overlay, not a fourth mode." Thân của mục này là một nút MỞ lớp phủ Thư viện
+              prompt (`PromptLibraryOverlay.vue`), cùng khuôn nút "xem" ở chân
+              `ImportPreviewOverlay.vue` mở thẳng Cài đặt → Quyền riêng tư.
+            -->
+            <h3 class="set-h2">{{ t('settings.nav.prompt') }}</h3>
+            <p class="set-h2s">{{ t('settings.prompt.intro') }}</p>
+            <button type="button" class="set-open-library" data-prompt-library-open @click="dispatch('prompt.library.open')">
+              {{ t('command.prompt.library.open') }}
+            </button>
+          </template>
           <template v-else-if="settingsSectionHasBody(settingsActiveSection)">
             <!-- ═══════════════════ Quyền riêng tư — nhật ký domain (AD-41, NFR19) ═══════════════════ -->
             <h3 class="set-h2">{{ t('settings.privacy.title') }}</h3>
@@ -730,5 +744,16 @@ function onDeleteAiConfigKey(): void {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-error);
+}
+
+/* Story 4.4 — nút mở lớp phủ Thư viện prompt (mục `prompt` không soạn tại chỗ). */
+.set-open-library {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-primary);
+  background: none;
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
 }
 </style>

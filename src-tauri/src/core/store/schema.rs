@@ -622,7 +622,11 @@ CREATE TABLE library_orphan (
 /// [`AI_CONFIG_DDL`] (tầng Global của cấu hình nhà cung cấp AI, FR68, CÙNG một hằng với bước
 /// 23 của `project.db`). Câu *"bảy bước, đích là 7"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Tám bước, và đích là phiên bản 8.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.4):** đích chuyển từ **8** lên **9** — bước
+/// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
+/// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔴 **Chín bước, và đích là phiên bản 9.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -698,6 +702,12 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 8,
         sql: AI_CONFIG_DDL,
+    },
+    // Story 4.4 -- tang Global cua bo prompt theo the loai (FR69): bang prompt_set, CUNG mot
+    // hang voi buoc 24 cua project.db. Xem doc-comment cua PROMPT_SET_DDL.
+    Migration {
+        to_version: 9,
+        sql: PROMPT_SET_DDL,
     },
 ];
 
@@ -912,6 +922,76 @@ CREATE TABLE ai_config (
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );";
+
+/// Lược đồ bảng `prompt_set` — **bước song sinh MỚI** ở CẢ HAI kho (`global.db` bước 9,
+/// `project.db` bước 24) — Story 4.4, FR69, `core/scope/kinds.rs`
+/// (`ScopeKind::Prompt => "prompt" : Semantics::Override`).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 KHOÁ THEO TÊN — MỘT HÀNG LÀ MỘT BỘ TRỌN VẸN, KHÔNG PHẢI MỘT TRƯỜNG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Khác [`AI_CONFIG_DDL`] ngay trên (khoá theo TÊN TRƯỜNG, ghi đè theo từng trường — Ice ký
+/// 2026-08-04), `ScopeKind::Prompt` ghi đè **CẢ BỘ, theo TÊN** (Quyết định #1 của spec 4.4,
+/// ghi vào doc-comment của chính hàng đó ở `core/scope/kinds.rs`): tên bộ do người dùng đặt
+/// LÀ khoá ghi đè, và thân bộ không có "trường" con nào để mà chia nhỏ hơn khoá đó. Vì thế
+/// bảng lưu một hàng cho MỘT bộ trọn vẹn (`name`, `body`), không phải `(key, value)` như
+/// `ai_config`/`config_value`.
+///
+/// **Không cột `tier`** — cùng lý do `AI_CONFIG_DDL`/`GLOSSARY_ENTRY_DDL`: mỗi tầng sống
+/// trong `Store` riêng của nó (`global.db`/`project.db` của `.atproj` đang mở), và
+/// `ScopeResolver::apply_override` chỉ phân giải ĐÚNG khi cả hai tầng trả về CÙNG một hình
+/// dạng hàng.
+///
+/// **Không cột nào khác `name`/`body`/`created_at`** — Quyết định #4: *"A prompt set is
+/// NAME + BODY only"*. Cặp cột ngôn ngữ/phạm vi áp dụng mà mockup `prompt-library.html` vẽ
+/// (`Áp cho mọi segment` / `lời thoại` / `tả cảnh`) không có FR/AC nào đòi và không ai
+/// chuẩn hoá được ý nghĩa của chúng — ghi nợ ở `deferred-work.md`, chủ Story 4.5.
+///
+/// **Rào rỗng của `name` liệt TRỌN 25 điểm mã `White_Space`** — cùng khuôn
+/// [`GLOSSARY_ENTRY_DDL`]/[`IMPORT_CLEANUP_RULE_DDL`] và **cùng TẬP điểm mã**
+/// (`src-tauri/AGENTS.md:37`: SQLite `trim()` chỉ cắt dấu cách ASCII).
+///
+/// ⚠️ **Cùng tập, KHÔNG trùng từng byte** — đo 2026-09-17: ba chuỗi dài lần lượt 513 / 465 /
+/// 483 byte, khác nhau **chỉ ở thụt lề** của các dòng nối, vì `source_term`, `name` và
+/// `pattern` dài khác nhau. Ghi ra vì câu này dễ bị đọc thành lời hứa mạnh hơn sự thật: một
+/// phép so **chuỗi** giữa ba hằng sẽ ĐỎ dù cả ba đều đúng. Muốn canh trôi thì so **tập
+/// `char(N)`** đã bóc ra, đừng so văn bản. `AGENTS.md:37` nói thẳng là **không cổng nào canh
+/// cặp này**, và từ story này nó là một bộ BA, không còn là một cặp.
+///
+/// `body` KHÔNG mang rào
+/// này — nó là văn bản tự do và không CHECK nào của DDL được phép biến một thân prompt
+/// thành một lượt ghi bị từ chối (§Always spec 4.4: "A prompt body is never rejected for
+/// its markers").
+///
+/// **Không `CHECK` liệt `name`** — tên là chuỗi người dùng tự đặt, không phải một tập đóng
+/// như `category`/`term_origin` của `glossary_entry`.
+///
+/// **`id INTEGER PRIMARY KEY AUTOINCREMENT`** — cùng lý do mọi bảng khác của dự án (AD-3):
+/// một `id` đã về hưu (bị xoá, hoặc đổi tên rồi tên cũ được người khác dùng lại) không bao
+/// giờ được tái dùng.
+///
+/// **`UNIQUE INDEX idx_prompt_set_name`** — cưỡng chế "trùng tên trong CÙNG tầng bị từ
+/// chối" (I/O Matrix) ở tầng SQL, lưới cuối sau lớp Rust
+/// (`core::promptset::store::create`/`rename` bắt vi phạm này bằng
+/// `core::store::is_unique_constraint_violation` ngay tại chỗ `INSERT`/`UPDATE` trượt, cùng
+/// khuôn `core::glossary::store::import_into_tier` đã dùng cho va chạm `UNIQUE` của chính
+/// nó). Trùng tên ở **hai tầng KHÁC NHAU** không vi phạm gì — đó chính là Quyết định #1
+/// (ghi đè), không phải một xung đột.
+pub const PROMPT_SET_DDL: &str = "\
+CREATE TABLE prompt_set (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT    NOT NULL,
+  body       TEXT    NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL,
+  CHECK (trim(name, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                       || char(133) || char(160) || char(5760)
+                       || char(8192) || char(8193) || char(8194) || char(8195)
+                       || char(8196) || char(8197) || char(8198) || char(8199)
+                       || char(8200) || char(8201) || char(8202)
+                       || char(8232) || char(8233) || char(8239) || char(8287)
+                       || char(12288)) <> '')
+);
+CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name);";
 
 /// Lược đồ bảng `asset` — **bước 20 của `project.db`**, Story 6.11, FR127.
 ///
@@ -1663,11 +1743,11 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi hai bước, và đích là phiên bản 23.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi ba bước, và đích là phiên bản 24.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]` tăng dần
-/// nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước
-/// nào bị bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
+/// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
+/// làm bước nào bị bỏ qua.
 ///
 /// ⚠️ **VẾT SẸO LỊCH SỬ, ĐÓNG BĂNG TẠI 2026-08-11 — không phải một khẳng định về số bước
 /// HÔM NAY** (đọc lại 2026-09-09, vòng rà đối kháng 2, mục D8: câu này giờ đứng cạnh "hai
@@ -1778,6 +1858,10 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2):** đích chuyển từ **22** lên **23** — bước
 /// [`AI_CONFIG_DDL`] (tầng Tác phẩm của cấu hình nhà cung cấp AI, FR68, CÙNG một hằng với
 /// bước 8 của `global.db`). Câu *"hai mươi mốt bước, đích là 22"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.4):** đích chuyển từ **23** lên **24** — bước
+/// [`PROMPT_SET_DDL`] (tầng Tác phẩm của bộ prompt theo thể loại, FR69, CÙNG một hằng với
+/// bước 9 của `global.db`). Câu *"hai mươi hai bước, đích là 23"* đã hết đúng, sửa tại chỗ.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1976,6 +2060,12 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 23,
         sql: AI_CONFIG_DDL,
+    },
+    // Story 4.4 -- tang Tac pham cua bo prompt theo the loai (FR69): bang prompt_set, CUNG
+    // mot hang voi buoc 9 cua global.db. Xem doc-comment cua PROMPT_SET_DDL.
+    Migration {
+        to_version: 24,
+        sql: PROMPT_SET_DDL,
     },
 ];
 

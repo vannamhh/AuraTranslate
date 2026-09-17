@@ -2887,8 +2887,10 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
     // `import_cleanup_rule` (khong cham `glossary_entry`), cung khong anh huong menh de nay.
     // 🔵 SUA (2026-09-16, Story 4.2) -- dich chuyen tu 7 len 8: buoc 8 them bang `ai_config`
     // (khong cham `glossary_entry`), cung khong anh huong menh de nay.
+    // 🔵 SUA (2026-09-17, Story 4.4) -- dich chuyen tu 8 len 9: buoc 9 them bang `prompt_set`
+    // (khong cham `glossary_entry`), cung khong anh huong menh de nay.
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
-    assert_eq!(migrated.schema_version(), 8, "buoc 5, 6, 7 VA 8 phai da chay");
+    assert_eq!(migrated.schema_version(), 9, "buoc 5, 6, 7, 8 VA 9 phai da chay");
 
     // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
     // don lai).

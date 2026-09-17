@@ -1375,6 +1375,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// `ai_config_delete_key`, khoá API trong keychain, FR65/FR67/NFR11) — vẫn không tệp `.rs` mới,
 /// vẫn mười hai tệp mang lệnh. Đếm lại: **58 plain / 26 async**.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.4, Phase 2)** — `commands/promptset.rs` MỚI ra đời (năm
+/// vỏ, cùng khuôn `commands/aiconfig.rs`: `mod wire` lồng trong CÙNG tệp). Đếm lại: **63
+/// plain / 26 async** trên **mười ba** tệp. `commands/mod.rs` nay khai **mười hai** `pub mod`.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1386,7 +1390,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
 /// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
 /// và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 12] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 13] = [
     (
         "src/commands/aiconfig.rs",
         5,
@@ -1431,6 +1435,15 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 12] = [
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
     ("src/commands/project/wire.rs", 9, 8, 6, ""),
+    (
+        "src/commands/promptset.rs",
+        5,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Nam vo liet ke hai tang da phan giai / tao / doi ten / sua than / \
+         xoa mot bo prompt (Story 4.4, FR69); chua ai do chi phi cua chung tren mot thu vien \
+         prompt lon.",
+    ),
     // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
     // do mang mot chu thich 🔴 o `:448-451` mau thuan voi bat ky loi khai "nhe" nao.
@@ -1581,10 +1594,11 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (58, 26),
+        (63, 26),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         58/26 (do lai 2026-09-17, Story 4.3 them hai vo plain moi vao `commands/aiconfig.rs` \
-         -- `ai_config_save_key`/`ai_config_delete_key`, khoa API trong keychain).\n\n\
+         63/26 (do lai 2026-09-17, Story 4.4 Phase 2 them nam vo plain moi trong tep MOI \
+         `commands/promptset.rs` -- prompt_set_list/create/rename/update_body/delete, bo prompt \
+         theo the loai FR69).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -14,6 +14,7 @@ pub mod i18n;
 pub mod library;
 pub mod lifecycle;
 pub mod matching;
+pub mod promptset;
 pub mod scope;
 pub mod segment;
 pub mod store;

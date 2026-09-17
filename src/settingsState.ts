@@ -91,11 +91,13 @@ export function settingsSectionLabelKey(section: SettingsSection): string {
 }
 
 /**
- * Mục nào hôm nay có THÂN thật — `privacy` (Story 6.8) và `ai_and_model` (Story 4.2, FR68).
- * Chín mục còn lại rỗng có tên chủ, khuôn `tier_empty_story_6_9`.
+ * Mục nào hôm nay có THÂN thật — `privacy` (Story 6.8), `ai_and_model` (Story 4.2, FR68), và
+ * `prompt` (Story 4.4, FR69 — thân của mục này KHÔNG soạn prompt tại chỗ, nó là một nút mở
+ * lớp phủ Thư viện prompt, cùng lý do §Never spec 4.4 "A big screen is the 11th overlay, not
+ * a fourth mode"). Tám mục còn lại rỗng có tên chủ, khuôn `tier_empty_story_6_9`.
  */
 export function settingsSectionHasBody(section: SettingsSection): boolean {
-  return section === 'privacy' || section === 'ai_and_model'
+  return section === 'privacy' || section === 'ai_and_model' || section === 'prompt'
 }
 
 /**

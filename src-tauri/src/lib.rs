@@ -914,6 +914,15 @@ pub fn run() {
             // TAI DAY, khong chi an di tren webview.
             crate::commands::aiconfig::wire::ai_config_save_key,
             crate::commands::aiconfig::wire::ai_config_delete_key,
+            // Story 4.4 -- bo prompt theo the loai (FR69, AD-18). Nam vo: liet ke hai tang da
+            // phan giai (Quyet dinh #1 -- ca bo, theo ten, hang Global bi che van hien) · tao
+            // mot bo o mot tang · doi ten · sua than · xoa. Canh bao dau ngoac (Quyet dinh #3)
+            // di tren day nhu DU LIEU cua lot tao/sua, khong bao gio nhu mot IpcError.
+            crate::commands::promptset::wire::prompt_set_list,
+            crate::commands::promptset::wire::prompt_set_create,
+            crate::commands::promptset::wire::prompt_set_rename,
+            crate::commands::promptset::wire::prompt_set_update_body,
+            crate::commands::promptset::wire::prompt_set_delete,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

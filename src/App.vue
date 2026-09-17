@@ -76,6 +76,11 @@ import SettingsOverlay from './SettingsOverlay.vue'
 // doc-comment `bilingualImportPreviewState.ts`), nên đây là component RIÊNG, không một nhánh
 // mới trong component cũ.
 import BilingualImportPreviewOverlay from './BilingualImportPreviewOverlay.vue'
+// Story 4.4 (FR69) — lớp phủ "Thư viện prompt", lớp phủ THỨ MƯỜI MỘT. Mở TỪ mục `prompt` của
+// `SettingsOverlay` VÀ từ Panel AI Translation (`AiTranslationPanel.vue`) — hai cửa, một lớp
+// phủ, cùng khuôn `SettingsOverlay` (titlebar + chân `ImportPreviewOverlay`). §Never spec 4.4:
+// "A big screen is the 11th overlay" — không một chế độ thứ tư.
+import PromptLibraryOverlay from './PromptLibraryOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -400,6 +405,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 6.8 · NFR19 — cùng khuôn: lớp phủ tự quản `v-if` qua `settingsOverlayIsOpen`. -->
     <SettingsOverlay />
+
+    <!-- Story 4.4 · FR69 — cùng khuôn: lớp phủ tự quản `v-if` qua `promptLibraryOverlayIsOpen`. -->
+    <PromptLibraryOverlay />
   </main>
 </template>
 

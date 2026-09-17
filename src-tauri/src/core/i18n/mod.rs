@@ -678,6 +678,30 @@ message_keys! {
     /// 4.3: "the key is stored and read at the Global tier only"); bị chặn TẠI TẦNG LỆNH,
     /// không chỉ ẩn ở UI.
     AiConfigKeyIsGlobal => "err.ai_config.key_is_global" [],
+
+    // ── Story 4.4 (FR69, AD-18) — năm khoá, bộ prompt theo thể loại ─────────────────
+    //
+    // Bề mặt IPC `commands::promptset` (liệt kê hai tầng đã phân giải · tạo/đổi tên/sửa
+    // thân/xoá một bộ ở một tầng). `store.open_failed`/`store.write_failed` (đã có) phủ mọi
+    // lỗi KHO thô; năm khoá dưới đây phủ đúng năm sự thật `core::promptset::PromptSetError`
+    // mang mà không khoá kho nào nói được. Không khoá cảnh báo dấu ngoặc nào ở đây: Quyết
+    // định #3 nói `scan_markers` không bao giờ trả lỗi, nên hai cảnh báo của nó đi trên dây
+    // như DỮ LIỆU (`MarkerWarnings`), không như một `IpcError`.
+    /// Tên rỗng/toàn khoảng trắng (25 điểm mã `White_Space`) — từ chối TRƯỚC khi mở bất kỳ
+    /// giao dịch nào. KHÔNG tham số: giá trị bị từ chối không có gì an toàn để nói ngoài
+    /// "nó không hợp lệ", cùng lý do `AiConfigKeyInvalidValue`.
+    PromptSetInvalidName => "err.prompt_set.invalid_name" [],
+    /// Tạo/đổi tên/sửa thân/xoá một bộ ở tầng Tác phẩm khi chưa có Tác phẩm nào đang mở.
+    PromptSetWorkTierUnavailable => "err.prompt_set.work_tier_unavailable" [],
+    /// `name` đã tồn tại Ở CÙNG TẦNG đang ghi (tạo mới hoặc đổi tên) — hàng đang có KHÔNG bị
+    /// đụng tới. `name` là dữ liệu người dùng đã gõ, không phải câu.
+    PromptSetNameTaken => "err.prompt_set.name_taken" ["name"],
+    /// `(tier, id)` không khớp hàng nào — mục đã bị xoá/đổi tầng ở nơi khác giữa chừng.
+    PromptSetNotFound => "err.prompt_set.not_found" [],
+    /// `ScopeResolver::apply_override` từ chối bên trong
+    /// `core::promptset::store::PromptSetError::Scope` — lỗi LẬP TRÌNH, không nên xảy ra
+    /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `AiConfigScopeError`/`GlossaryScopeError`.
+    PromptSetScopeError => "err.prompt_set.scope_error" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

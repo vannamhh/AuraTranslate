@@ -47,4 +47,5 @@ pub mod library;
 pub mod lifecycle;
 pub mod pinned;
 pub mod project;
+pub mod promptset;
 pub mod segment;
