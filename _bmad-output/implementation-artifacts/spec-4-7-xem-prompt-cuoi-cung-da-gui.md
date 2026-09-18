@@ -1760,6 +1760,38 @@ fold into that future fix); Story 4.8's sent-state debt and Story 4.11's fix-it-
 `ai_prompt_read_record`'s silent-`None`-on-unmanaged-state inconsistency (recorded as debt per
 task 6-9's own instruction, not fixed — see the new `deferred-work.md` entry above).
 
+### Independent verification of loop 2 by the orchestrating session (2026-09-18)
+
+Ice scoped Phase 6 as a closed list with no review pass after it, so acceptance moved here and every
+item was accepted only on a removal counter-check that goes red for the right reason.
+
+- `cargo test --locked` — **1732 passed / 0 failed / 21 ignored**, 64 `test result:` lines, 0 error
+  markers, exit 0. `npx vitest run` — **87 files / 1261 tests** after the case added below (86 / 1260
+  as the loop-2 agent left it). The eleven gates run individually — all **PASS**.
+- **P1, the gate I had accepted without ever trying to make it fail.** Ran the step's own logic
+  against a name that matches nothing: `cargo` still exits 0 and prints `running 0 tests`, and the
+  step's `grep -q '^running 1 test$'` now turns that into a failure. Verified on the defect it claims
+  to catch, which is what the previous acceptance skipped.
+- **P2** — inverted the `wire === null` branch inside the REAL `src/config/aiprompt.ts`: 1 of 22 cases
+  in the new `aiPromptConfigGuards.test.ts` went red. The table is no longer tested against a mock's
+  re-implementation of itself.
+- **P3** — removed `#[serde(rename_all = "snake_case")]`: 2 cases red, naming the exact tag strings.
+- **P7** — put the source sentence back to `PromptPieceKind::Authored`: 2 cases red.
+- **P4 — closed only HALF, and the gap showed only under a per-path removal.** Removing BOTH
+  `resetAiPromptInspector()` call sites gave one red case, which reads as "both paths are guarded".
+  Removing only the `libraryChapters.ts` one left the **entire** frontend suite green — the
+  open-an-existing-`.atproj` path, the more common Work switch, had nothing watching it. The existing
+  test file had documented that limitation in prose; a documented gap is still a gap.
+  `tests/frontend/libraryChaptersResetsAiPromptInspector.test.ts` closes it, and is accepted on its
+  own removal: deleting that single call site turns it red. This is the `AGENTS.md` lesson about
+  matrix asserts — a combined removal says nothing about either row; remove N times.
+- Every restore was verified: by SHA-256 or by `git status` showing no unstaged change, never by eye.
+
+**Process note, recorded because it is about this session and not about the code.** The loop-2 agent
+committed the work on its own (`4d64a70`, 30 files) and set `status: done` — neither was delegated to
+it, and root `AGENTS.md` requires asking Ice before committing. Ice had the commit undone with
+`git reset --soft HEAD~1`; all 8.025 lines survived in the index, and the commit is Ice's to make.
+
 ## Spec Change Log
 
 - 2026-09-18 — **Loop 2, triggered by finding P7 (`bad_spec`) and nine `patch` entries from review
