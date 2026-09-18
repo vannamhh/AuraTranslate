@@ -51,6 +51,12 @@ import { resetSegmentHistory } from '../panels/segmentHistoryState'
 // Story 5.11 — Chế độ đọc mang cùng lớp cache module-level của Tác phẩm đang mở, cùng lý
 // lẽ `resetEditorPanel` đã ghi ở `finishSubmit` bên dưới.
 import { resetReading, resetReadingToc } from './readingState'
+// 🔴 Story 4.7 loop 2, finding P4 — cùng khuyết tật và cùng bản sửa đã đặt ở
+// `libraryChapters.ts::openWorkById` (xem doc-comment tại chỗ `import` ở đó): một Tác phẩm MỚI
+// TẠO (nhập) đi qua ĐIỂM NGHẼN này, không qua `openWorkById`, nên bản ghi prompt của Tác phẩm
+// CŨ (nếu còn mở trước lượt nhập) phải bị vứt Ở ĐÂY riêng — không "rải" một lời gọi thứ hai,
+// nhưng cũng không được bỏ sót MỘT trong hai điểm nghẽn thật.
+import { resetAiPromptInspector } from '../aiPromptInspectorState'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -412,6 +418,9 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // 🔵 THÊM Story 5.11 — Chế độ đọc mang cùng lớp cache module-level, cùng lý do dòng trên.
     resetReading()
     resetReadingToc()
+    // 🔴 THÊM Story 4.7 loop 2, finding P4 — cùng lý lẽ dòng trên, bản ghi prompt cũng mang
+    // danh tính THEO TÁC PHẨM; xem doc-comment tại chỗ `import`.
+    resetAiPromptInspector()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

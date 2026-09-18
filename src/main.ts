@@ -30,6 +30,7 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
   confirmCurrentSegment,
+  editorCaretSegmentId,
   editorChapterId,
   editorSegments,
   goToNextChapter,
@@ -316,6 +317,19 @@ import {
   openPromptImportPreviewOverlay,
   promptImportOverlayIsOpen,
 } from './promptSetImportState'
+// ── Story 4.7 — "Xem prompt cuối cùng đã gửi" (FR71, AD-14) ──────────────────────────
+//
+// Cùng lý do và cùng cửa với `promptSetImportState.ts`: `aiPromptInspectorState.ts` dùng
+// `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/aiprompt.ts`. `selectedPromptSetName`
+// (bộ prompt hiệu lực, Story 4.4) đọc thẳng từ `promptSetState.ts` — cùng nguồn sự thật mà
+// `AiTranslationPanel.vue` đã dùng, không một bản chép thứ hai của "bộ đang chọn".
+import {
+  aiPromptInspectorIsOpen,
+  assembleCurrentAiPrompt,
+  closeAiPromptInspector,
+  openAiPromptInspector,
+} from './aiPromptInspectorState'
+import { selectedPromptSetName } from './promptSetState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -899,6 +913,16 @@ async function boot(): Promise<void> {
       cancelPromptImportPreview: () => {
         void cancelPromptImportPreview()
       },
+      // Story 4.7 · FR71/AD-14 — "Xem prompt cuối cùng đã gửi". `openAiPromptInspector`/
+      // `closeAiPromptInspector` là handler tĩnh (không tham số); `assembleAiPrompt` đọc CẢ
+      // câu đang có tiêu điểm (`editorCaretSegmentId`) LẪN bộ prompt hiệu lực
+      // (`selectedPromptSetName`) TẠI THỜI ĐIỂM CHẠY — cùng khuôn `saveGlossaryConfirmStrip`
+      // ở trên (đọc `editorChapterId`/`sourceChapter` lúc chạy, không qua tham số command).
+      openAiPromptInspector,
+      closeAiPromptInspector,
+      assembleAiPrompt: () => {
+        void assembleCurrentAiPrompt(selectedPromptSetName.value, editorCaretSegmentId.value)
+      },
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -945,7 +969,10 @@ async function boot(): Promise<void> {
         promptLibraryOverlayIsOpen.value ||
         // Story 4.5 — cùng lý do hệt `importOverlayIsOpen` (Glossary): `PromptImportOverlay.vue`
         // cũng khai `aria-modal="true"` và `trapTab`.
-        promptImportOverlayIsOpen.value,
+        promptImportOverlayIsOpen.value ||
+        // Story 4.7 — cùng lý do hệt `promptLibraryOverlayIsOpen`: `AiPromptInspectorOverlay.vue`
+        // cũng khai `aria-modal="true"` và `trapTab`.
+        aiPromptInspectorIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

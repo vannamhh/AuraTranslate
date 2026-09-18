@@ -50,6 +50,15 @@ import { currentLibraryWork } from './libraryWorks'
 // Story 5.11 — Chế độ đọc mang CÙNG lớp cache module-level (`readingState.ts`), nên nó phải
 // đi cùng lượt vứt state Tác phẩm/Chương này — cùng lý lẽ `resetEditorPanel` đã ghi.
 import { resetReading, resetReadingToc } from './readingState'
+// 🔴 Story 4.7 loop 2, finding P4 — cùng lý lẽ Story 5.11 vừa ghi ở trên, một bậc khác: bản ghi
+// prompt đã lắp cũng mang danh tính THEO TÁC PHẨM (`segment_id`/`chapter_id` là khoá hàng của
+// CHÍNH `project.db` sắp rời, `commands/aiprompt.rs::clear_last_assembled_prompt_on_work_close`'s
+// doc-comment). Rust đã dọn phía nó (`replace_open_work`, finding V1) khi `openWork()` NGAY
+// DƯỚI thành công — nhưng phía webview, `aiPromptInspectorState.ts::record` không tự biết
+// điều đó cho tới lượt Đọc kế tiếp, và dòng tóm tắt của `AiTranslationPanel.vue` là LUÔN HIỆN,
+// không đợi ai mở lớp phủ Xem prompt để kích một lượt Đọc mới. Không vứt ở đây thì dòng tóm
+// tắt tiếp tục mô tả Tác phẩm VỪA RỜI đi cho tới khi người dùng tình cờ mở lớp phủ.
+import { resetAiPromptInspector } from '../aiPromptInspectorState'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,6 +286,9 @@ export async function openWorkById(workId: string): Promise<void> {
   // thì Chương đang đọc của nó cũng phải bị vứt, cùng lượt với bốn dòng trên.
   resetReading()
   resetReadingToc()
+  // 🔴 THÊM Story 4.7 loop 2, finding P4 — bản ghi prompt đã lắp mang danh tính THEO TÁC PHẨM
+  // (segment_id/chapter_id), cùng lý lẽ bốn/sáu lượt vứt trên; xem doc-comment tại chỗ `import`.
+  resetAiPromptInspector()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

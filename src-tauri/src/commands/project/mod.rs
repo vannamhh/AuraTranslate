@@ -5234,6 +5234,18 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {
         crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
     }
+    // 🔴 Story 4.7, finding V1 (loop 1) -- cung ly do BA nguoi lang gieng ngay tren, cho ban
+    // ghi prompt da lap cua Tac pham CU (neu co): `segment_id`/`chapter_id` la khoa hang cua
+    // CHINH `project.db` sap bi thay the boi `new_work`, va hai `.atproj` khac nhau deu danh
+    // so lai tu 1 -- de ban ghi song qua lan swap nay se doc sai "dung Chuong/segment nay" cho
+    // mot Tac pham no chua tung thay (xem doc-comment day du o
+    // `commands::aiprompt::clear_last_assembled_prompt_on_work_close`, cung mot ham, chi khac
+    // DIEM GOI: `close_open_work` la dong HAN TOAN khong con Tac pham nao mo; day la THAY THE
+    // mot Tac pham nay bang mot Tac pham KHAC ma khong di qua trang thai "khong Tac pham" o
+    // giua -- ca hai duong deu phai xoa ban ghi cu.
+    if let Some(record) = app.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
+    }
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
         drop(swap_locked(&state, new_work));

@@ -22,6 +22,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use auratranslate_lib::commands::aiprompt::GlossaryTierWire;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
     CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, add_manual_term,
@@ -2523,6 +2524,25 @@ fn category_and_glossary_tier_wire_strings_agree_between_as_str_and_serde_rename
             decoded, tier,
             "duong DAY giai ma dung chuoi {quoted} nhung ra SAI bien the ({decoded} thay vi \
              {tier}) -- #[serde(rename)] tro nham sang mot ten khac"
+        );
+
+        // 🔴 Story 4.7, finding B7 (loop 1) -- `commands::aiprompt::GlossaryTierWire` la BAN
+        // CHEP THU BA cua cung hai gia tri Global/Work (sau `GlossaryTier`'s `as_str()`/
+        // `#[serde(rename)]` da doi chieu O TREN): mot mirror-type rieng, `#[derive(Serialize)]
+        // #[serde(rename_all = "snake_case")]`, chuyen tu `GlossaryTier` qua mot `match` tuong
+        // minh (`impl From<GlossaryTier> for GlossaryTierWire`) -- khong di qua `as_str()`/
+        // `#[serde(rename)]` nao ca. Truoc ca nay: khong gate nao doi chieu ban chep THU BA do
+        // voi hai ban da co; test nay ton tai chinh vi HAI ban chep da tung LECH mot lan
+        // (doc-comment dau cum). Serialize CA HAI chieu: tu `GlossaryTier` qua
+        // `GlossaryTierWire` (dung `From`, khong tu viet lai match) va so voi chuoi
+        // `as_str()` da sinh o tren.
+        let via_wire = serde_json::to_string(&GlossaryTierWire::from(tier))
+            .unwrap_or_else(|e| panic!("serde khong serialize duoc GlossaryTierWire::from({tier}): {e}"));
+        assert_eq!(
+            via_wire, quoted,
+            "GlossaryTierWire::from({tier}) serialize ra {via_wire} nhung GlossaryTier::as_str() \
+             sinh {quoted} -- ban chep THU BA (commands::aiprompt::GlossaryTierWire) da LECH \
+             khoi hai ban con lai"
         );
     }
 }

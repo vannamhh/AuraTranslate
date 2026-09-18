@@ -739,6 +739,26 @@ message_keys! {
     /// mất, hoặc `name` vừa bị một lượt ghi khác chiếm ở nhánh `New`) giữa nhịp xem trước và
     /// nhịp xác nhận. `name` là tên bộ đang nhập — dữ liệu, không phải câu.
     PromptSetImportStaleConflict => "err.prompt_set.import_stale_conflict" ["name"],
+
+    // ── Story 4.7 (FR71, AD-14, Decision 1) — HAI khoá MỚI, một ca tái dùng ─────────
+    //
+    // Bề mặt IPC `commands::aiprompt` (lắp ráp + ghi bản ghi DUY NHẤT của phiên · đọc lại bản
+    // ghi đó). `store.open_failed`/`store.read_failed` (đã có) phủ lỗi KHO thô;
+    // `work.none_open` (đã có, tái dùng qua `commands::chapter::no_work_open` — I/O Matrix
+    // "chưa có Tác phẩm nào đang mở") phủ MỘT trong hai nguyên nhân của hàng "No Work, or an
+    // id the chapter does not hold" — hai khoá dưới đây phủ đúng hai sự thật RIÊNG mà không
+    // khoá nào ở trên nói được, và chúng PHẢI tách nhau (spec: "the two causes are distinct
+    // keys" cho hàng đó, cộng hàng "No set selected" riêng của nó).
+    /// Không có bộ prompt hiệu lực nào cho lượt lắp ráp — webview không gửi tên bộ nào (chưa
+    /// chọn), hoặc tên gửi lên không khớp bộ nào đã phân giải hai tầng. I/O Matrix "No set
+    /// selected — No effective prompt set". KHÔNG tham số: tên đã gửi (nếu có) là dữ liệu
+    /// người dùng vừa thấy trên webview, không cần lặp lại qua `params`.
+    AiPromptNoSetSelected => "err.ai_prompt.no_set_selected" [],
+    /// `segment_id` được chỉ không có trong Chương đang mở — I/O Matrix "an id the chapter
+    /// does not hold". KHÁC `WorkNoneOpen`: Tác phẩm ĐANG MỞ, Chương ĐỌC ĐƯỢC, chỉ riêng id
+    /// này lạ — cùng luật "hai sự thật khác nhau, hai khoá khác nhau" mà `SegmentEndsChapter`
+    /// đã ghi khi nó không mượn `SegmentRetired`.
+    AiPromptSegmentNotInChapter => "err.ai_prompt.segment_not_in_chapter" ["segment_id", "chapter_id"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

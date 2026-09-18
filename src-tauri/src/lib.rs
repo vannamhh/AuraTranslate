@@ -933,6 +933,13 @@ pub fn run() {
             crate::commands::promptset::wire::prompt_set_open_import_preview,
             crate::commands::promptset::wire::prompt_set_confirm_import,
             crate::commands::promptset::wire::prompt_set_cancel_import,
+            // Story 4.7 -- prompt inspector (FR71, AD-14). Hai vo, dung Decision 2 (hai nhip
+            // tach rieng): lap rap tu Chuong dang mo roi GHI ban ghi DUY NHAT cua phien ·
+            // DOC LAI ban ghi do, khong lap rap gi. Seam duy nhat ngoai `core/ai/**` duoc
+            // Decision 1 (spec 4.7) mien tru khoi `tests/ai_boundary.rs` -- xem doc-comment
+            // dau `commands/aiprompt.rs`.
+            crate::commands::aiprompt::wire::ai_prompt_assemble,
+            crate::commands::aiprompt::wire::ai_prompt_read_record,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
@@ -1181,6 +1188,13 @@ fn open_work_slot(app: &tauri::App) {
     // canh OpenWorkState cung ly do PendingImportState cua Glossary ngay tren -- nua Tac
     // pham cua lo (neu co) phai chet cung Tac pham dang mo no, xem close_open_work.
     app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
+    // Story 4.7 (FR71, AD-14) -- ban ghi prompt DA LAP RAP DUY NHAT cua PHIEN, khong theo
+    // Tac pham dang mo (Decision 2 + Boundaries spec 4.7: "no new table -- per-session
+    // managed state only"). Cung hinh dang Mutex<Option<T>> tran voi OpenWorkState/
+    // PendingPromptImportState ngay tren. Don o close_open_work khi doi Tac pham -- xem
+    // doc-comment o do vi sao (segment_id/chapter_id la khoa hang cua MOT project.db, hai
+    // Tac phan khac nhau co the trung so ngau nhien).
+    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
@@ -1314,6 +1328,22 @@ fn close_open_work(handle: &tauri::AppHandle) {
     // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).
     if let Some(pending) = handle.try_state::<crate::commands::promptset::PendingPromptImportState>() {
         crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
+    }
+    // Story 4.7 -- mot ban ghi da lap tu Tac pham DANG DONG mang segment_id/chapter_id la
+    // khoa hang CUA CHINH project.db do; mo mot Tac pham KHAC co the trung so do NGAU NHIEN
+    // (hai .atproj khac nhau tu danh so lai tu 1). De ban ghi song qua lan mo se doc sai
+    // "dung Chuong/segment nay" cho mot Tac pham no chua bao gio thay -- xoa TRUOC khi dong
+    // kho, cung ly do lo nhap Glossary/bo prompt bi don o hai nhanh ngay tren.
+    //
+    // SUA 2026-09-18 (luot ra soat build) -- goi XUONG mot `pub fn` rieng
+    // (`clear_last_assembled_prompt_on_work_close`), dung khuon hai nhanh NGAY TREN
+    // (`clear_pending_prompt_import_work_tier`/`clear_pending_import_for_tier`), thay vi viet
+    // tay ba dong tai cho -- ham `pub` do co ca don vi rieng
+    // (`ai_prompt_contract.rs::the_record_is_cleared_when_the_open_work_closes`), con ba dong
+    // cu nam THANG trong `close_open_work` (khong `pub`) thi khong cach nao goi duoc tu
+    // `src-tauri/tests/*.rs`.
+    if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
     }
 
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {

@@ -5393,3 +5393,54 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
     cleanup(&root);
     cleanup(&side);
 }
+
+/// 🔴 Story 4.7, finding V1 (loop 1) -- `replace_open_work` (bốn đường mở Tác phẩm gộp lại,
+/// xem doc-comment tại chỗ) phải dọn bản ghi prompt đã lắp của Tác phẩm CŨ, cùng ba người láng
+/// giềng `clear_pending_import_for_tier`/`clear_pending_prompt_import_work_tier` — nếu không,
+/// `segment_id`/`chapter_id` trùng NGẪU NHIÊN của Tác phẩm MỚI (hai `.atproj` đều đánh số lại
+/// từ 1) đọc nhầm bản ghi CŨ là "đúng câu/Chương đang mở".
+///
+/// Không có `tauri::test`/`MockRuntime` trong crate này (xem `url_import_items_state_is_wiped_
+/// after_a_successful_confirm` ngay phía trên cho tiền lệ) — `replace_open_work` nhận
+/// `&tauri::AppHandle` thật nên không gọi được trực tiếp từ `tests/*.rs`. Cùng khuôn
+/// `ipc_contract.rs`'s "neo vào ĐÚNG khối `fn`, không chỉ một chuỗi con rời rạc trong cả tệp":
+/// đọc `src/commands/project/mod.rs`, cắt đúng THÂN của `fn replace_open_work`, rồi khẳng định
+/// LỜI GỌI dọn ba trạng thái đều nằm TRONG thân đó (không phải đâu đó khác trong tệp — ca âm
+/// đối kháng bên dưới chứng minh việc chỉ tìm chuỗi con trên CẢ TỆP sẽ không phân biệt được).
+#[test]
+fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project")
+        .join("mod.rs");
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
+
+    let start = src
+        .find("fn replace_open_work(app: &tauri::AppHandle")
+        .unwrap_or_else(|| panic!("khong tim thay `fn replace_open_work` trong {}", path.display()));
+    // Neo diem ket THAT: doc-comment mo dau ham lang gieng ngay sau no trong tep that
+    // (`swap_locked`) — on dinh hon dem ngoac tay, va da la mot chuoi DUY NHAT trong tep.
+    let end_marker = "/// Thay giá trị bên trong `mutex`";
+    let end = src[start..]
+        .find(end_marker)
+        .map(|rel| start + rel)
+        .unwrap_or_else(|| panic!("khong tim thay moc ket `{end_marker}` sau `replace_open_work`"));
+    let body = &src[start..end];
+
+    assert!(
+        body.contains("crate::commands::aiprompt::LastAssembledPromptState")
+            && body.contains("clear_last_assembled_prompt_on_work_close"),
+        "than `replace_open_work` phai goi `clear_last_assembled_prompt_on_work_close` qua \
+         `LastAssembledPromptState` — hien tai KHONG co, nen ban ghi prompt cua Tac pham CU \
+         song sot qua mot lan swap Tac pham:\n{body}"
+    );
+    // Đối chứng dương của phép neo: hai người láng giềng đã có (Story 3.10b/4.5) phải cũng nằm
+    // TRONG đúng thân này — nếu không, phép cắt thân ở trên đang sai vị trí và assert phía
+    // trên có thể đang khớp nhầm một chỗ khác trong tệp.
+    assert!(
+        body.contains("clear_pending_import_for_tier") && body.contains("clear_pending_prompt_import_work_tier"),
+        "phep cat than ham co the sai vi tri -- hai nguoi lang gieng da co (Story 3.10b/4.5) \
+         phai nam trong CUNG than nay:\n{body}"
+    );
+}

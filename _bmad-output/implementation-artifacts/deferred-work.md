@@ -13150,3 +13150,269 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     đều trên macOS, và mệnh đề Windows của kho này đọc từ CI chứ không đọc từ đây.
     **(Chủ: Story 4.8 — story đầu tiên thật sự gửi prompt đi, và là chỗ một thân CRLF gây hậu
     quả nhìn thấy được.)**
+
+## Deferred from: 4-7-xem-prompt-cuoi-cung-da-gui (2026-09-18)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **AC1's *"prompt cuối cùng đã **gửi**"* vẫn chưa nói được — bản ghi của story này
+    không mang một trạng thái ĐÃ GỬI nào, chỉ mang trạng thái ĐÃ LẮP.**
+  evidence: `AssembledPromptRecord`/`AssembledPromptWire` (`commands/aiprompt.rs`) không có
+    trường `sent_at`/`model`/bất kỳ cờ nào phân biệt "đã lắp" khỏi "đã gửi thật cho nhà cung
+    cấp" — đúng Decision 2 spec 4.7 ghi rõ ("no model name or sent-at timestamp — Story 4.8,
+    which is the first code that can know either"). Nút "Lắp prompt cho câu này"
+    (`ai.prompt.assemble`) chỉ gọi `assemble_and_record_prompt`, không gọi mạng, không cập nhật
+    gì gọi là "đã gửi" — bản ghi mà màn hình soi prompt hiển thị hôm nay LUÔN ở trạng thái
+    chưa-gửi, bất kể người dùng đã bấm Lắp bao nhiều lần.
+    **(Chủ: Story 4.8 — story đầu tiên thật sự gọi mạng và biết lúc nào một prompt ĐÃ GỬI;
+    đóng đúng cách là thêm trạng thái đó vào CHÍNH bản ghi này, không dựng một bản ghi thứ hai.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **Hành động "sửa ngay" trên mỗi dòng "đã cân nhắc nhưng không chèn" mà mockup vẽ
+    KHÔNG được xây — Decision 3, Ice chọn seam nhỏ hơn.**
+  evidence: `prompt-inspector.html:206` (mockup) gắn một hành động sửa-ngay cho mỗi dòng
+    suppressed và tự nói màn hình chỉ là "nửa một chẩn đoán" nếu thiếu nó.
+    `AiPromptInspectorOverlay.vue` render danh sách `.aip-term-list-suppressed` CHỈ với
+    `source_term`/`translation`/`tier`/lý do (`glossary_suppressed_reason_pending_overlap`) —
+    không `<button>`, không `<a>` nào trong hàng đó (đối chứng bằng `tests/frontend/aiPromptInspector.test.ts`:
+    ca *"mang tier + lý do CHỜ CHỐT trên MỖI dòng, và KHÔNG một hành động sửa-ngay nào"* khẳng
+    định `row.findAll('button')`/`row.findAll('a')` đều rỗng). Người dịch đọc lý do ở đây rồi tự
+    đi sửa trên các màn hình Glossary đã có — đúng như Decision 3 chấp nhận, không phải một
+    thiếu sót không ai biết.
+    **(Chủ: Story 4.11 — story kế tiếp thật sự chạm lại màn hình này (số token/ước tính chi
+    phí); mọi hành động "sửa ngay" ở đây sẽ làm bản ghi đang hiển thị hết hiệu lực ngay lúc sửa,
+    nên câu trả lời cho "làm sao giữ bản ghi còn đúng sau một lượt sửa tại chỗ" phải có TRƯỚC khi
+    xây, không phải một lượt vá tiện tay.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **Đối chứng dương của seam (`deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`)
+    vẫn KHÔNG THỂ nghiệm thu nửa "xoá hai seam thật" — không vì hai tệp chưa tồn tại (Phase 1's
+    lo ngại), mà vì cơ chế đo của chính nó đọc `HEAD` đã COMMIT, và story này chưa commit.**
+  evidence: Phase 1 ghi rõ: nửa "xoá hai seam" là no-op vì `commands/aiprompt.rs` và các dòng
+    seam của `lib.rs` "chưa tồn tại" — và dặn Phase 4 đo lại "sau khi Phase 2/3 viết ra chúng".
+    Phase 2/3 ĐÃ viết ra chúng — cả hai tồn tại thật trên đĩa hôm nay. Nhưng đo lại
+    (`cargo test --test ai_boundary --locked -- --ignored --exact
+    deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`) vẫn PASS
+    theo cách KHÔNG chứng minh được gì mới: ca này gọi `git worktree add --detach <dir> HEAD`,
+    và `HEAD` ở thời điểm đo (`6de227d`) không mang hai tệp đó — xác nhận trực tiếp:
+    `git show HEAD:src-tauri/src/commands/aiprompt.rs` → `"exists on disk, but not in 'HEAD'"`;
+    `git show HEAD:src-tauri/src/lib.rs | grep -c "commands::aiprompt"` → `0`. Story này (đúng
+    khuôn mọi story khác trong kho — một commit mỗi story, ở CUỐI) chưa commit lúc Phase 4 chạy,
+    nên worktree dựng ra vẫn là ẢNH CHỤP của Phase 1 — nhánh xoá `commands/aiprompt.rs` bên trong
+    ca này vẫn đi qua branch `if aiprompt_path.exists() { … }` với kết quả `false`, đúng NGUYÊN
+    VĂN hành vi Phase 1 đã đo, không phải một phép đo mới. `PASS` hôm nay là bằng chứng về CÙNG
+    kịch bản Phase 1 đã ký, không phải bằng chứng về hai tệp thật.
+    **(Chủ: Ice — người/lượt commit story này. Ngay sau commit đưa `commands/aiprompt.rs` và hai
+    dòng seam của `lib.rs` vào `HEAD`, chạy lại ĐÚNG lệnh trên một lần nữa và ghi lại kết quả —
+    đây mới là lượt đo thật của nửa "xoá hai seam", không phải lượt Phase 4 vừa chạy. Nếu một
+    story sau này cần đo lại cơ chế này TRƯỚC khi commit, `git worktree add` phải đổi sang trỏ
+    vào cây làm việc thật (ví dụ `--no-checkout` rồi copy cây hiện tại, hoặc bỏ `git worktree`
+    và làm việc trực tiếp trên một `cp -r` của `src-tauri/`) — đó là một thay đổi hình dạng của
+    ca, ngoài phạm vi Phase 4 của story này.)**
+
+  → ✅ **ĐÃ ĐÓNG 2026-09-18 (bước rà soát chốt story, trước commit).** Bỏ `git worktree add
+    --detach <dir> HEAD` khỏi ca hoàn toàn — `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
+    nay chép TRỰC TIẾP cây làm việc hiện tại (`copy_dir_recursive_skipping`, `std::fs` thuần,
+    không `git`, không lệnh shell ngoài, portable Windows) sang một thư mục tạm rồi xoá/sửa
+    trên bản chép đó — không còn phụ thuộc trạng thái commit, đúng gợi ý "bỏ `git worktree`…
+    làm việc trực tiếp trên một `cp -r`" mà chính mục nợ này đã ghi. Đo lại THẬT sau khi sửa,
+    trên cây CHƯA commit của story: `cargo test --test ai_boundary --locked -- --ignored --exact
+    deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling` → **lần
+    đầu ĐỎ THẬT**, hai lần, mỗi lần nêu đích danh một lỗ hổng khác nhau mà `git worktree`+`HEAD`
+    trước đó chưa từng chạm tới được: (1) `error: unexpected closing delimiter` tại `lib.rs` —
+    `lib_rs_without_the_approved_ai_prompt_seam` chỉ xoá dòng ĐẦU của khối `if let Some(record)
+    = … { … }` ba dòng (Phase 2's nhánh dọn ở `close_open_work`), để lại một `}` treo; sửa bằng
+    đếm số dư dấu ngoặc mỗi dòng ([`brace_delta`]) và bỏ CẢ KHỐI khi dòng khớp marker cũng MỞ
+    một `{` chưa đóng — có ca đơn vị mới
+    `the_lib_rs_stripper_removes_the_whole_multi_line_block_a_marker_line_opens` khoá lại. (2)
+    `error[E0583]: file not found for module aiprompt` tại `commands/mod.rs` — xoá
+    `commands/aiprompt.rs` một mình để lại `pub mod aiprompt;` treo, đúng lớp lỗi
+    `core/mod.rs`'s `pub mod ai;` mà ca đã canh cho `core/ai/` nhưng chưa canh cho seam THỨ
+    HAI; sửa bằng tổng quát hoá hàm xoá khai báo (`mod_rs_without_declaration(text,
+    module_name)`) và gọi nó thêm một lần cho `commands/mod.rs`/`aiprompt`. Sau cả hai sửa: ca
+    **PASS THẬT** trên cây uncommitted hôm nay (`cargo test --test ai_boundary --locked --
+    --ignored --exact …` → `ok. 1 passed; 0 failed`, ~10s) — không phải kịch bản no-op Phase 1
+    đã đo, mà là `cargo check` thật xoá cả `core/ai/` LẪN hai tệp/dòng seam THẬT của Phase 2/3
+    khỏi một bản chép của cây làm việc, và phần còn lại của crate vẫn biên dịch. AC2 của spec
+    4.7 đóng TRỌN trước khi story được commit — không còn một lượt đo-lại nào bị treo lại cho
+    Ice. Toàn bộ ca của `ai_boundary.rs` (kể cả hai ca đơn vị stripper) chạy lại xanh sau sửa:
+    `cargo test --test ai_boundary --locked` → `16 passed; 0 failed; 1 ignored` (17 ca) tại thời
+    điểm đóng mục này. 🔵 **SỬA 2026-09-18 (loop 2, finding P11) — con số này ĐÃ TRÔI hai lần kể
+    từ đó và bản thân nó là chỗ trôi thứ ba nếu không đọc lại ngay lúc này.** Loop 1's review
+    (Pass 2) đã bắt được lần trôi thứ nhất — "17 ca → 16 passed" trở thành sai ngay khi loop 1
+    tự nó thêm ba ca mới (`commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface`,
+    `ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name`,
+    `the_project_mod_rs_stripper_removes_the_whole_multi_line_block_the_v1_clearing_branch_opens`)
+    vào chính tệp này mà không quay lại sửa con số đã ghi ở trên — số thật lúc đó là 19 passed /
+    1 ignored (20 ca), theo đúng finding P11 gốc. Phase 6 (task 6-8, finding P8) thêm MỘT ca nữa
+    (`a_line_carrying_the_approved_prefix_is_still_scanned_for_a_second_forbidden_token`) — đo
+    lại THẬT lúc đóng Phase 6: `grep -c "#\[test\]" tests/ai_boundary.rs` → **21**; `cargo test
+    --test ai_boundary --locked` → **20 passed; 0 failed; 1 ignored**. Bài học của chính finding
+    này: một con số quần thể ghi CỐ ĐỊNH trong văn xuôi trôi lại đúng bằng số lần tệp đó được sửa
+    sau khi con số được viết — đừng chép số cũ, đếm lại (`grep -c "#\[test\]"` cộng `cargo test`)
+    mỗi lần một mục nợ trích dẫn nó.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **finding B9 (loop 1) — `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
+    (`ai_boundary.rs`) chạy `cargo check` với `--target-dir` trỏ THẲNG vào `target/` THẬT của
+    crate gốc, không một thư mục cô lập — kết quả phụ thuộc vào việc không có `cargo`/`cargo
+    check`/`cargo test` nào khác đang chạy đồng thời trên CÙNG cây.**
+  evidence: Lý do CÓ CHỦ Ý, không phải một sơ suất: dùng `target/` thật để tái sử dụng mọi crate
+    phụ thuộc bên thứ ba đã biên dịch sẵn — bản chép chỉ cần biên dịch lại crate của chính dự án,
+    không phải toàn bộ cây phụ thuộc (đo được: ~10-16s thay vì một lượt build đầy đủ). Rủi ro
+    THẬT: hai lượt `cargo check`/`cargo test` đụng CÙNG `target/` có thể tranh khoá tệp build
+    (Cargo tự khoá `target/` bằng file lock, nên hệ quả thường là một bên CHỜ chứ không hỏng dữ
+    liệu — nhưng chưa đo lại trên máy CI thật khi bước FR77 mới (`.github/workflows/ci.yml`,
+    finding V3) chạy NGAY SAU `cargo test` chính, trên cùng runner, cùng `target/`).
+    **(Chủ: Ice — nếu bước FR77 trong CI (thêm ở lượt đóng finding V3) từng đo được một lượt CHỜ
+    khoá bất thường hoặc một lỗi tranh chấp `target/`, đó là tín hiệu để tách `--target-dir` của
+    ca này sang một thư mục RIÊNG — đánh đổi lại chi phí build cây phụ thuộc một lần. Không sửa
+    trước khi có bằng chứng thật về tranh chấp, đúng root `AGENTS.md`: đo trước khi chốt kiến
+    trúc.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **finding V6 (loop 1) — nhánh MỚI của `isBlocked` (`main.ts`, đọc `aiPromptInspectorIsOpen.value`)
+    không được một ca nào canh, cùng số phận MƯỜI MỘT nhánh anh chị em còn lại của cùng biểu
+    thức.**
+  evidence: `main.ts::attachKeyboard(window, { isBlocked: () => … })` là một biểu thức OR mười
+    hai hạng tử (`attributionIsOpen`/`captureIsArmed`/`glossarySettingsOverlayIsOpen`/…/
+    `aiPromptInspectorIsOpen`) — không một `tests/frontend/*.test.ts` nào mount trọn `main.ts`'s
+    `boot()` để canh biểu thức này với TRẠNG THÁI THẬT của nhiều lớp phủ. Đây KHÔNG phải một
+    khoảng hở riêng của story 4.7: mười một hạng tử trước nó (từ Story 1.19 tới 4.5) đã cùng
+    chung tình trạng trước khi 4.7 thêm hạng tử thứ mười hai — 4.7 chỉ TÁI SẢN XUẤT đúng khuôn
+    đã có, không tự nó mở một khoảng hở mới. Không hạ tầng test hiện có (`freshOverlay`/
+    `freshPanel` của `aiPromptInspector.test.ts`, hay tương đương ở các tệp khác) mount `main.ts`
+    thật — mọi tệp `tests/frontend/*.test.ts` hôm nay đều cài đặt `attachKeyboard`/`isBlocked`
+    RIÊNG cho phạm vi hẹp của chính nó, không đi qua `boot()`.
+    **(Chủ: Ice — một story tương lai chạm lại `main.ts::boot()`'s cài đặt phím tắt cùng lúc
+    (hoặc dựng hạ tầng mount `main.ts` thật lần đầu) nên canh CẢ mười hai hạng tử một lượt, không
+    phải vá riêng hạng tử thứ mười hai của 4.7 rồi để mười một hạng tử kia tiếp tục không ai
+    canh.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **finding B12 (loop 1) — AC5's nửa "CI đã đọc" chưa được thoả, nhưng bản thân sự
+    kiện đó chỉ nằm trong prose của spec (Tasks & Acceptance), không có một mục sổ nợ nào gọi
+    tên nó — nên nó dễ bị đọc lướt qua như một chi tiết đã xong.**
+  evidence: AC5 của spec 4.7 (§Tasks & Acceptance): *"the eleven `pre-push` gates … all pass; and
+    the CI run is read before anything is called done, because `pre-push` runs only on macOS."*
+    Implementation Notes của Phase 4 tự ghi: *"CI — explicitly NOT read this phase… the story
+    **cannot honestly be called `done`** until the CI run… is read."* Đúng, nhưng câu đó sống
+    TRONG một đoạn Implementation Notes — không có hàng `- source_spec: … summary: …` nào trong
+    `deferred-work.md` gọi tên khoảng hở này, nên `scripts/check-debt-owner.mjs` không đếm được
+    nó và một người chỉ đọc `deferred-work.md` (không đọc hết Implementation Notes của spec) sẽ
+    không biết khoản này còn treo.
+    **(Chủ: Ice — người/lượt đọc CI run của commit đóng story này. Đọc xong: nếu CI xanh, xoá
+    mục này (không cần một bước sửa nào khác); nếu CI đỏ ở một nền tảng `pre-push` không phủ
+    (Windows), ghi lý do thật vào đây trước khi đóng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **finding P12 (loop 2, hai mục còn lại chưa đóng) — nhánh "vượt mặt" của
+    `latestAssembleSequence` chưa có ca nào chạm tới, và `ai_prompt_read_record` trả `None` cho
+    trạng thái CHƯA QUẢN LÝ trong khi người láng giềng `ai_prompt_assemble` trả một khoá lỗi có
+    tên cho CÙNG một ca.**
+  evidence: (1) `assembleCurrentAiPrompt` (`aiPromptInspectorState.ts`) có nhánh
+    `if (stillLatestAssemble) { … } ` — rẽ khi một lượt Lắp MỚI HƠN đã chen vào TRƯỚC khi lượt
+    này trả lời (`stillLatestAssemble === false`), auto giữ nguyên `assembleBusy`/không ghi lỗi
+    hộ. `describe('SỬA đua tranh sequence…')` (loop 1) chỉ canh nhánh MỘT lượt Đọc chen vào
+    (không đụng `latestAssembleSequence`); không một ca nào trong `tests/frontend/aiPromptInspector.test.ts`
+    dựng được kịch bản HAI lượt Lắp chồng nhau để đi vào nhánh `stillLatestAssemble === false`
+    — xác nhận bằng `grep -c "latestAssembleSequence" tests/frontend/aiPromptInspector.test.ts`
+    chỉ khớp bên trong `aiPromptInspectorState.ts` được `import`, không một assert nào dựng hai
+    lượt Lắp đồng thời. (2) `commands/aiprompt.rs::wire::ai_prompt_read_record`:
+    `app.try_state::<LastAssembledPromptState>()?` — trạng thái chưa `app.manage()` (lỗi CẤU
+    HÌNH `setup()`) trả `None`, giống HỆT hình dạng dây của "chưa lắp lần nào trong phiên" (I/O
+    Matrix, một trạng thái hợp lệ). Người láng giềng `wire::ai_prompt_assemble` xử lý CÙNG một ca
+    (state chưa quản lý) bằng một nhánh RIÊNG trả `IpcError` với khoá `ai_prompt.record_state_missing`
+    (`MessageKey::Unknown`) — hai lệnh cùng module, cùng nguyên nhân gốc, hai cách báo khác hẳn
+    nhau, một cách im lặng thành "trạng thái", một cách có tên thành "lỗi".
+    **(Chủ: Ice. (1) Nếu một story tương lai dựng lại `describe('SỬA đua tranh sequence…')` với
+    một kịch bản HAI lượt Lắp chồng nhau (Promise thứ nhất chưa trả lời, gọi Lắp lần hai trước
+    khi lượt một xong), nhánh `stillLatestAssemble === false` phải được canh bằng chính kịch bản
+    đó, không suy diễn từ nhánh Đọc-chen-vào đã có. (2) `ai_prompt_read_record` có thể đổi kiểu
+    trả về sang `Result<Option<AssembledPromptWire>, IpcError>` để tái dùng đúng nhánh
+    `ai_prompt.record_state_missing` — nhưng đó là một đổi HÌNH DẠNG DÂY, ngoài phạm vi một lượt
+    vá tiện tay; nếu chưa đổi, ít nhất ghi một `eprintln!` cùng khuôn `wire::ai_prompt_assemble`
+    đã có để lỗi cấu hình không hoàn toàn câm lặng trên log.)**
+
+## Deferred from: bmad-build review — spec 4-7 (2026-09-18)
+
+Ba mục dưới đây (SỬA finding B10, loop 1 — bản trước ghi "Hai mục" nhưng liệt ba, tự mâu thuẫn
+với chính lượt append đã tạo ra mục thứ ba; bắt được ở rà soát build) là kết quả lượt review ba
+lớp (Blind Hunter, Edge Case Hunter, Verification Gap) của story 4.7 — cả ba được triage thành
+`defer` vì mỗi mục **nằm ngoài phạm vi story 4.7 do chính Intent/Decisions đã đóng băng của spec
+loại trừ** (Decision 2: 4.7 chỉ lắp ráp + ghi, KHÔNG BAO GIỜ gửi mạng; mọi điều kiện chỉ có ý
+nghĩa ở nhịp GỬI thật là việc riêng của Story 4.8, hoặc — mục a11y thứ hai — một mẫu đã có TRƯỚC
+story này mà 4.7 chỉ tái sản xuất), không phải một khoảng hở story này bỏ sót trong phạm vi của
+chính nó.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **`assemble_and_record_prompt` (`commands/aiprompt.rs`) không kiểm `is_omitted`
+    (FR133) trước khi lắp — một câu người dùng đã CẮT khỏi bản dịch vẫn được lắp + ghi thành
+    một bản ghi soi-được, nếu tiêu điểm bàn phím đang đứng ở đúng câu đó.**
+  evidence: `ChapterSegment.is_omitted: bool` (`commands/segment.rs:290`, FR133/Story 2.5c) tồn
+    tại trên hàng segment mà `assemble_and_record_prompt` đọc (`read_open_chapter_segments`),
+    nhưng hàm này chỉ khớp `segment_id`, không đọc `is_omitted`. Xác nhận trực tiếp:
+    `editorPanelState.ts::setEditorCaret` (định nghĩa DUY NHẤT của "tiêu điểm bàn phím") không
+    lọc theo `is_omitted` — một câu đã cắt vẫn hiện trong "một trang liền mạch" (AC1 Story 2.2)
+    và nhận được tiêu điểm bình thường — nên `canAssemble`/`editorCaretSegmentId` của
+    `AiTranslationPanel.vue` không tự chặn được ca này. **Vì sao KHÔNG phải một khoảng hở của
+    4.7:** Decision 2 (frozen) tự đóng khung 4.7 là "no network call... the first real send is
+    Story 4.8" — bản ghi 4.7 tạo ra là một bản xem trước THUẦN CHẨN ĐOÁN, không rời máy; đúng
+    bản chất "guard nào canh việc THẬT SỰ gửi cái gì cho AI" đã được đóng khung là việc riêng
+    của Story 4.8, cùng cách AC1's trạng thái "đã gửi"/mốc thời gian gửi cũng được hoãn nguyên
+    văn cho 4.8 vì "the first code that can know either". Một is_omitted-guard đúng chỗ đứng
+    NGAY TRƯỚC lượt gửi thật, không ở lượt lắp-chỉ-để-xem hôm nay.
+    **(Chủ: Story 4.8 — story đầu tiên thật sự gửi. Khi viết nhịp gửi, thêm một kiểm `is_omitted`
+    TRƯỚC khi gọi mạng — dùng đúng hàng `ChapterSegment` đã đọc sẵn, không cần một truy vấn
+    thứ hai — và quyết định hình dạng lỗi/cảnh báo cho ca đó, thứ 4.7 cố tình chưa quyết vì
+    chưa có gì thật để quyết.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **`PromptLibraryOverlay.vue`/`PromptImportOverlay.vue`/`GlossaryImportOverlay.vue`'s
+    `role="dialog" aria-modal="true"` không mang `aria-labelledby`/`aria-label` — công cụ hỗ trợ
+    không có tên truy cập được cho ba hộp thoại này.**
+  evidence: 🔵 **SỬA 2026-09-18 (loop 2, finding P10) — mục này TRƯỚC BẢN SỬA còn mô tả
+    `AiPromptInspectorOverlay.vue` là một trong các tệp thiếu `aria-labelledby`; điều đó KHÔNG
+    còn đúng.** Loop 1's finding B15 đã thêm `aria-labelledby="aip-title"` trỏ vào `.aip-title`
+    cho ĐÚNG overlay đó, TRONG CÙNG diff với mục nợ này — xác nhận trực tiếp:
+    `grep -n aria-labelledby src/AiPromptInspectorOverlay.vue` → `154:aria-labelledby="aip-title"`,
+    và `tests/frontend/aiPromptInspector.test.ts::describe('finding B15 …')` mount overlay và
+    khẳng định `aria-labelledby` trỏ đúng một `id` tồn tại. Một mục nợ mô tả một khuyết tật KHÔNG
+    CÒN TỒN TẠI gửi câu chuyện sai cho lượt đọc kế tiếp (root `AGENTS.md`: "a ledger that
+    describes a defect that no longer exists sends the next story to fix nothing"). Phạm vi THẬT
+    còn lại — xác nhận lại bằng `grep -n "aria-labelledby\|role=\"dialog\"" src/PromptLibraryOverlay.vue
+    src/PromptImportOverlay.vue src/GlossaryImportOverlay.vue` — là ĐÚNG BA tệp, không phải bốn:
+    `PromptLibraryOverlay.vue:451`, `PromptImportOverlay.vue:112`, `GlossaryImportOverlay.vue:112`
+    đều mang `role="dialog" aria-modal="true"` KHÔNG `aria-labelledby`. Đây là một mẫu đã có
+    TRƯỚC story 4.7 (không phải khoảng hở nó gây ra), và story 4.7's overlay của chính nó đã
+    đóng phần của mình.
+    **(Chủ: Ice — SỬA finding B11 (loop 1, rà soát 2026-09-18): "một story a11y tương lai" không
+    phải một Chủ mà `scripts/check-debt-owner.mjs` đọc được — nó qua cổng chỉ vì `NEGATIVE_OWNER_RE`
+    của cổng đó không biết cách nói mơ hồ này, không phải vì nó là một chủ THẬT. Không có story
+    nào trong `epics.md` hôm nay sở hữu "sửa a11y cho cả họ lớp phủ" — Ice là người quyết định
+    lúc nào mở một story như vậy và gán nó, đúng cách các mục nợ chưa có story chủ khác trong tệp
+    này đã ghi. Khi Ice mở story đó: sửa CẢ BA lớp phủ còn lại cùng lúc (`PromptLibraryOverlay.vue`,
+    `PromptImportOverlay.vue`, `GlossaryImportOverlay.vue`) — sửa riêng lẻ từng cái sẽ để lại các
+    lớp phủ còn lại với cùng khoảng hở, đúng lớp lỗi "vá một chỗ, để hở những chỗ giống hệt" mà
+    `deferred-work.md` đã cảnh báo ở nhiều mục khác.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
+  summary: **Nửa `lib.rs` của miễn trừ Decision 1 là mã CHẾT — nó không thể khớp gì trên cây
+    hôm nay, nên không phép đo nào chứng minh được nó chết đi.**
+  evidence: Đo ở lượt rà soát chốt story (2026-09-18), không phải suy luận:
+    `grep -n "crate::core::ai\|super::ai" src-tauri/src/lib.rs` → **0 dòng**. Miễn trừ theo dòng
+    `line_is_the_approved_ai_prompt_seam_in_lib_rs` chỉ bỏ qua một dòng khi dòng đó mang
+    `crate::commands::aiprompt::`; nhưng nhánh `continue` ấy chỉ có ý nghĩa nếu dòng đó CÒN mang
+    một trong hai `FORBIDDEN_BARE_TOKENS` — và `lib.rs` không mang token nào. Nên nhánh này
+    không bao giờ đổi kết quả của cổng thật. Chính doc-comment của `AI_PROMPT_SEAM_LIB_RS_MARKER`
+    đã ghi đúng giới hạn này ("có thể KHÔNG BAO GIỜ được cổng thật cần tới") — mục này chỉ đưa
+    nó ra khỏi doc-comment vào sổ có chủ, vì root `AGENTS.md` đòi mọi miễn trừ phải **chết
+    được**, và một miễn trừ không khớp gì thì không có phép gỡ nào làm nó đỏ. Hai vị từ phụ
+    (`the_two_approved_seams_are_matched_narrowly_and_neighbours_are_not`,
+    `the_lib_rs_stripper_removes_only_the_approved_seam_lines`) kiểm hình dạng KHỚP của nó trên
+    văn bản dựng tay, không kiểm rằng cổng thật cần tới nó. Phạm vi VĂN BẢN của Decision 1 (Ice
+    ký) cho phép hai seam; cây thật chỉ dùng MỘT — thu hẹp xuống một là hẹp hơn, không rộng hơn,
+    nên không phải một lượt lật quyết định.
+    **(Chủ: Story 4.8 — story kế tiếp thật sự chạm dây nối AI ở `lib.rs`. Nếu nó vẫn không viết
+    `crate::core::ai` vào `lib.rs`, XOÁ nửa `lib.rs` của miễn trừ cùng ba hằng số/vị từ chỉ phục
+    vụ nó; nếu nó có viết, lúc đó mới có một phép gỡ làm nhánh này đỏ được, và mục này đóng bằng
+    phép gỡ đó.)**

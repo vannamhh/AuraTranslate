@@ -40,12 +40,22 @@
 // hình của mệnh đề I/O Matrix; nửa Rust (`resolve_two_tiers` đổi kết quả khi tầng đổi) đã
 // đóng ở Phase 3 (`prompt_set_contract.rs::switching_between_two_resolvable_sets_needs_no_
 // settings_reopen`).
-import { onMounted, useTemplateRef } from 'vue'
+import { computed, onMounted, useTemplateRef, watch } from 'vue'
 import PanelFrame from './PanelFrame.vue'
 import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
-import { t } from '../i18n'
+import { t, tError } from '../i18n'
 import { loadPromptSets, promptSets, selectedPromptSetName, setSelectedPromptSetName } from '../promptSetState'
+import { editorCaretSegmentId } from './editorPanelState'
+import {
+  aiPromptAssembleBusy,
+  aiPromptAssembleError,
+  aiPromptRecord,
+  aiPromptRecordIsStale,
+  clearAiPromptAssembleError,
+  glossaryInjectionSummary,
+  refreshAiPromptRecord,
+} from '../aiPromptInspectorState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -62,6 +72,20 @@ useSelectionSurface(surface, 'display')
 // một Tác phẩm khác vừa mở.
 onMounted(() => {
   void loadPromptSets()
+  // Story 4.7 — đồng bộ với bản ghi Rust đang giữ ngay lúc panel này mount: dockview có thể
+  // tháo/dựng lại panel trong khi phiên vẫn còn một bản ghi từ một lượt Lắp trước đó.
+  void refreshAiPromptRecord()
+})
+
+/**
+ * ⚠️ **SỬA 2026-09-18, bắt được ở lượt rà soát build.** `aiPromptAssembleError` không mang
+ * định danh câu — khác `aiPromptRecord` (§Always spec 4.7: bản ghi PHẢI mang định danh câu
+ * tạo ra nó). Không có watcher này, một lỗi Lắp cho câu A đứng nguyên trên `.ai-inspector-alert`
+ * sau khi tiêu điểm dời sang câu B mà người dùng chưa bấm Lắp lại — đọc như "câu B đang lỗi",
+ * dù lỗi đó thuộc về A. Xem doc-comment [`clearAiPromptAssembleError`] cho đối chứng.
+ */
+watch(editorCaretSegmentId, () => {
+  clearAiPromptAssembleError()
 })
 
 function onPromptSetSelectChange(event: Event): void {
@@ -69,6 +93,41 @@ function onPromptSetSelectChange(event: Event): void {
   if (!(target instanceof HTMLSelectElement)) return
   setSelectedPromptSetName(target.value === '' ? null : target.value)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 4.7 — DÒNG TÓM TẮT + NÚT "LẮP PROMPT" + NÚT "XEM PROMPT" (FR71, AD-14)
+// ─────────────────────────────────────────────────────────────────────────────────
+// `EXPERIENCE.md:388` (KF-2 bước 4): dòng tóm tắt và "Xem prompt" sống ở panel này. Nút Lắp
+// là bề mặt riêng của Decision 2 spec 4.7 — nó GHI bản ghi; nút Xem CHỈ mở lớp phủ ĐỌC bản
+// ghi đó (`ai.prompt_inspector.open` không bao giờ lắp ráp). `canAssemble` đọc
+// `editorCaretSegmentId` — panel này (và mọi bản dịch AI) vốn gắn với ĐÚNG MỘT câu tại một
+// thời điểm, và đó là nguồn DUY NHẤT của "câu đang có tiêu điểm" trong toàn kho (dùng lại
+// nguyên, không một ô nhớ "câu hiện tại" thứ hai — `GlossaryConfirmStrip.vue`/
+// `segmentHistoryState.ts`/`GridPanel.vue` đều đọc CHÍNH ref này).
+const glossarySummary = computed(() => glossaryInjectionSummary(aiPromptRecord.value))
+
+const glossarySummaryText = computed<string>(() => {
+  const summary = glossarySummary.value
+  if (summary.kind === 'no_record') return t('ai.prompt.summary_no_record')
+  if (summary.kind === 'not_asked') return t('ai.prompt.summary_not_asked')
+  return t('ai.prompt.summary_asked', { count: String(summary.count) })
+})
+
+/**
+ * 🔴 finding B6 (loop 1) — dòng tóm tắt phải TỰ ĐÁNH DẤU khi bản ghi nó đọc là CŨ (I/O Matrix
+ * "Stale record"): trước bản sửa này, chỉ lớp phủ `AiPromptInspectorOverlay.vue` biết bản ghi
+ * đang xem là cũ ([`aiPromptRecordIsStale`] chỉ được `import` ở đó) — dòng tóm tắt LUÔN HIỆN
+ * ĐƯỢC ngay trên panel (không cần mở lớp phủ) vẫn đọc như "Đã chèn N thuật ngữ" cho câu ĐANG
+ * focus dù bản ghi thật ra thuộc một câu khác. Cùng hàm thuần, cùng cách truyền tham số
+ * (`editorCaretSegmentId` — panel này đã là leaf đọc ref đó cho mục đích khác, xem
+ * `canAssemble`), không một watcher/state thứ hai.
+ */
+const isRecordStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorCaretSegmentId.value))
+
+/** `false` ⇔ không câu nào đang được chọn — chưa mở Tác phẩm, hoặc đã mở nhưng chưa đặt tiêu
+ * điểm vào câu nào. Vô hiệu hoá nút Lắp ở ĐÂY (chỗ BIẾT trước), không dựa vào lưới phòng thủ
+ * "kêu, không ném" của `assembleCurrentAiPrompt` — hai lớp, không chỉ một. */
+const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
 </script>
 
 <template>
@@ -94,6 +153,53 @@ function onPromptSetSelectChange(event: Event): void {
       <button type="button" class="ai-prompt-open" data-prompt-library-open @click="dispatch('prompt.library.open')">
         {{ t('command.prompt.library.open') }}
       </button>
+    </div>
+    <div class="ai-inspector-bar">
+      <!-- aura-allow-text: KẾT QUẢ của t() (ba-giá-trị: chưa lắp / not_asked / asked kèm số đếm). -->
+      <p
+        class="ai-inspector-summary"
+        :data-ai-prompt-summary-kind="glossarySummary.kind"
+        :data-ai-prompt-summary-stale="isRecordStale ? 'true' : null"
+      >
+        {{ glossarySummaryText }}
+      </p>
+      <!-- finding B6 (loop 1) -- đánh dấu RIÊNG, tách khỏi dòng tóm tắt: cùng khoá
+           `ai.prompt_inspector.stale_notice` lớp phủ đã dùng, không đúc một khoá thứ hai cho
+           cùng một sự thật. -->
+      <p v-if="isRecordStale && aiPromptRecord !== null" class="ai-inspector-stale" role="status" data-ai-prompt-summary-stale-notice>
+        <!-- aura-allow-text: KẾT QUẢ của t() (nội suy số câu). -->
+        {{
+          t('ai.prompt_inspector.stale_notice', {
+            record_segment_id: String(aiPromptRecord.segment_id),
+            focused_segment_id: String(editorCaretSegmentId ?? ''),
+          })
+        }}
+      </p>
+      <p v-if="aiPromptAssembleError !== null" class="ai-inspector-alert" role="alert">
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(aiPromptAssembleError) }}
+      </p>
+      <p v-if="!canAssemble" class="ai-inspector-hint">{{ t('panel.ai_translation.assemble_no_segment_hint') }}</p>
+      <div class="ai-inspector-actions">
+        <button
+          type="button"
+          class="ai-inspector-assemble"
+          data-ai-prompt-assemble
+          :disabled="!canAssemble || aiPromptAssembleBusy"
+          @click="dispatch('ai.prompt.assemble')"
+        >
+          <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn, chọn theo cờ đang bận). -->
+          {{ aiPromptAssembleBusy ? t('panel.ai_translation.assemble_busy') : t('command.ai.prompt.assemble') }}
+        </button>
+        <button
+          type="button"
+          class="ai-inspector-open"
+          data-ai-prompt-inspector-open
+          @click="dispatch('ai.prompt_inspector.open')"
+        >
+          {{ t('command.ai.prompt_inspector.open') }}
+        </button>
+      </div>
     </div>
     <div ref="surface" class="ai-surface"></div>
   </PanelFrame>
@@ -148,6 +254,59 @@ function onPromptSetSelectChange(event: Event): void {
   cursor: pointer;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Story 4.7 — dòng tóm tắt Glossary + nút Lắp/Xem prompt. */
+.ai-inspector-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: var(--space-panel-block);
+  padding-top: calc(var(--space-unit) * 1);
+  border-top: 1px solid var(--color-outline);
+}
+
+.ai-inspector-summary,
+.ai-inspector-hint {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-inspector-alert,
+.ai-inspector-stale {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+.ai-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 3);
+}
+
+.ai-inspector-assemble,
+.ai-inspector-open {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-inspector-assemble:disabled {
+  cursor: default;
   color: var(--color-on-surface-variant);
 }
 

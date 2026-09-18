@@ -1458,6 +1458,15 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// thoại) cộng hai plain (giao dịch một hàng, tức thời). Vẫn không tệp `.rs` mới, vẫn mười ba
 /// tệp mang lệnh. Đếm lại: **65 plain / 28 async**.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-18 (Story 4.7, Phase 2)** — `commands/aiprompt.rs` MỚI ra đời (hai
+/// vỏ plain, Decision 2 spec 4.7: lắp ráp + ghi bản ghi phiên · đọc lại bản ghi đó — không vỏ
+/// nào `(async)`, cả hai chỉ đọc/ghi `Store` và một `Mutex` trong phiên, không mở hộp thoại
+/// hệ điều hành nào). Đếm lại: **67 plain / 28 async** trên **mười bốn** tệp. `commands/mod.rs`
+/// nay khai **mười ba** `pub mod` (⚠️ SỬA 2026-09-18, lượt rà soát build: bản đầu ghi "mười
+/// hai" — sai, đếm lại thật `grep -c "^pub mod " src-tauri/src/commands/mod.rs` cho **13**,
+/// đúng bằng mười hai tệp cũ cộng `aiprompt` mới; con số cũ mâu thuẫn với chính hunk thêm
+/// `pub mod aiprompt;` của dòng ngay trên).
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1469,7 +1478,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
 /// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
 /// và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 13] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 14] = [
     (
         "src/commands/aiconfig.rs",
         5,
@@ -1478,6 +1487,16 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 13] = [
         "CHUA DO -- chu: Dev. Nam vo doc/ghi cau hinh nha cung cap AI hai tang cong ghi/xoa \
          khoa API trong keychain (Story 4.3, tang Global-only, tu choi tang Tac pham TAI \
          VO); chua ai do chi phi cua chung tren mot cau hinh lon.",
+    ),
+    (
+        "src/commands/aiprompt.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Hai vo (Story 4.7): lap rap prompt tu Chuong dang mo (doc TOAN \
+         BO Chuong qua read_open_chapter_segments, khong phai duong nong-tren-tung-cau, xem \
+         doc-comment cua ham) roi ghi ban ghi cua phien, va doc lai ban ghi do; chua ai do \
+         chi phi cua ca hai tren mot Chuong lon.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
@@ -1677,11 +1696,12 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (65, 28),
+        (67, 28),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         65/28 (do lai 2026-09-17, Story 4.5 them bon vo xuat/mo-xem-truoc/xac-nhan/huy mot \
-         luot nhap `.prompt.md` trong `commands/promptset.rs` -- hai (async) mo hop thoai cong \
-         hai plain giao dich tuc thoi, FR79/NFR9/AD-48).\n\n\
+         67/28 (do lai 2026-09-18, Story 4.7 Phase 2 them tep moi `commands/aiprompt.rs` voi \
+         hai vo plain -- lap rap+ghi ban ghi prompt cua phien, va doc lai ban ghi do -- khong \
+         vo nao `(async)`: ca hai chi doc/ghi Store va mot Mutex trong phien, khong mo hop \
+         thoai he dieu hanh nao).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

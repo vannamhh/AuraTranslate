@@ -98,6 +98,229 @@ const SRC_RS_FLOOR: usize = 68;
 /// sẽ bỏ lọt.
 const FORBIDDEN_BARE_TOKENS: [&str; 2] = ["crate::core::ai", "super::ai"];
 
+/// Tệp DUY NHẤT được Decision 1 (spec 4.7) miễn trừ TRỌN VẸN khỏi cổng bare-token — lớp lệnh
+/// bắc cầu qua AD-13 (`src-tauri/src/commands/aiprompt.rs`, Story 4.7 Phase 2). Khớp NGUYÊN
+/// VĂN đường dẫn tương đối, không theo tiền tố — đúng bài học `core/aim` mà [`is_inside_ai_module`]
+/// đã phải sửa: một hằng số khớp-tiền-tố sẽ tha oan `commands/aiprompt2.rs` hay
+/// `commands/aiprompt/mod.rs`. Xem đối chứng ở
+/// [`the_two_approved_seams_are_matched_narrowly_and_neighbours_are_not`].
+///
+/// ⚠️ Tệp này CHƯA TỒN TẠI ở Phase 1 (Story 4.7 chia bốn giai đoạn, tệp này là việc của Phase
+/// 2) — cổng thật không đòi nó tồn tại: `all_rust_sources()` chỉ liệt kê tệp CÓ TRÊN ĐĨA, nên
+/// một đường dẫn miễn trừ chưa ai tạo đơn giản là KHÔNG BAO GIỜ khớp, không phải một lỗi.
+const AI_PROMPT_SEAM_COMMAND_FILE: &str = "commands/aiprompt.rs";
+
+/// Tệp DUY NHẤT mà [`AI_PROMPT_SEAM_LIB_RS_MARKER`] được miễn trừ THEO DÒNG (không trọn tệp —
+/// `lib.rs` mang hàng nghìn dòng không liên quan gì tới `ai/`, xem Decision 1: *"do not exempt
+/// the whole file if the gate's structure lets you scope tighter"*).
+const AI_PROMPT_SEAM_LIB_RS_FILE: &str = "lib.rs";
+
+/// Chuỗi con Decision 1 miễn trừ bên trong `lib.rs`: đúng tiền tố đường dẫn module mà Phase 2
+/// sẽ viết cho mọi dòng `generate_handler!`/`app.manage` của `commands::aiprompt` — khuôn đã
+/// có tiền lệ ngay trong `lib.rs` hôm nay (`crate::commands::promptset::wire::…`,
+/// `crate::commands::promptset::PendingPromptImportState::new(None)`): mọi lời gọi từ `lib.rs`
+/// vào một module `commands::*` đánh vần TRỌN đường dẫn `crate::commands::<module>::…`,
+/// không `use` rồi gọi trần.
+///
+/// Dấu `::` ĐUÔI là neo biên bắt buộc — không có nó, chuỗi con này khớp cả một module hàng
+/// xóm tên dài hơn bắt đầu giống nhau (`crate::commands::aipromptset::…`); có `::` đuôi thì
+/// ký tự ngay sau `aiprompt` trong `aipromptset` là `s`, không phải `:`, nên không khớp — xem
+/// đối chứng âm ở [`the_two_approved_seams_are_matched_narrowly_and_neighbours_are_not`].
+///
+/// ⚠️ **GIỚI HẠN THẬT:** cả `generate_handler!` lẫn `app.manage` được Decision 1 chấp thuận chưa
+/// từng viết `crate::core::ai`/`super::ai` (hai token [`FORBIDDEN_BARE_TOKENS`]) theo hình
+/// dạng đã biết hôm nay ở Code Map (state mới sống trong `commands::aiprompt`, không phải
+/// `core::ai`, và `lib.rs` chỉ đánh vần `crate::commands::aiprompt::…`) — nên miễn trừ này có
+/// thể KHÔNG BAO GIỜ được cổng thật cần tới. Ghi rõ thay vì giấu: xem Implementation Notes của
+/// spec 4.7 (Phase 1).
+const AI_PROMPT_SEAM_LIB_RS_MARKER: &str = "crate::commands::aiprompt::";
+
+/// `rel` là đúng tệp lệnh được Decision 1 miễn trừ — xem [`AI_PROMPT_SEAM_COMMAND_FILE`]. Dùng
+/// để NHẬN DIỆN đúng tệp (đối chứng khớp-tên-tệp, và điểm neo của ca biên dịch), KHÔNG còn
+/// nghĩa "miễn trừ TRỌN VẸN khỏi cổng bare-token" nữa kể từ finding V4 (loop 1, Story 4.7) —
+/// xem [`line_is_the_approved_ai_prompt_import_in_command_file`] cho miễn trừ THEO DÒNG thật
+/// sự dùng bởi cổng đó.
+fn is_the_approved_ai_prompt_command_file(rel: &str) -> bool {
+    rel == AI_PROMPT_SEAM_COMMAND_FILE
+}
+
+/// `code` là một dòng TRONG `lib.rs` (đường dẫn `rel` phải khớp [`AI_PROMPT_SEAM_LIB_RS_FILE`])
+/// mang tiền tố module `commands::aiprompt` — đúng hình dạng `generate_handler!`/`app.manage`
+/// Decision 1 miễn trừ. Một dòng mang chuỗi con này ở TỆP KHÁC không được miễn trừ gì — chỉ
+/// `lib.rs` là điểm ráp (composition root) Decision 1 nhắc tới.
+fn line_is_the_approved_ai_prompt_seam_in_lib_rs(rel: &str, code: &str) -> bool {
+    rel == AI_PROMPT_SEAM_LIB_RS_FILE && code.contains(AI_PROMPT_SEAM_LIB_RS_MARKER)
+}
+
+/// Chuỗi con Decision 1 miễn trừ THEO DÒNG bên trong seam ① (`commands/aiprompt.rs`) — đúng
+/// tiền tố `use` DUY NHẤT tệp này viết vào `core::ai` (`core/ai/mod.rs` chỉ khai đúng một con,
+/// `pub mod rag;` — không một module con nào khác của `ai/` để mà nhập). Story 4.7, finding V4
+/// (loop 1): trước bản sửa này, TOÀN BỘ tệp bị miễn trừ khỏi cổng bare-token
+/// (xem [`is_the_approved_ai_prompt_command_file`]'s doc-comment cũ) — một miễn trừ rộng hơn
+/// hẳn thứ Decision 1 thật sự cho phép. Miễn trừ giờ chỉ khớp ĐÚNG dòng mang tiền tố này; mọi
+/// dòng KHÁC của tệp (kể cả một `crate::core::ai::` thứ hai không đi qua `rag`, hay một
+/// `super::ai` lạc vào) vẫn bị cổng thật quét như mọi tệp khác trong cây.
+const AI_PROMPT_SEAM_COMMAND_FILE_MARKER: &str = "crate::core::ai::rag::";
+
+/// `code` là một dòng TRONG seam ① (`rel` phải khớp [`is_the_approved_ai_prompt_command_file`])
+/// mang đúng tiền tố nhập hợp lệ [`AI_PROMPT_SEAM_COMMAND_FILE_MARKER`] — đối xứng với
+/// [`line_is_the_approved_ai_prompt_seam_in_lib_rs`], chỉ khác tệp và chuỗi neo.
+fn line_is_the_approved_ai_prompt_import_in_command_file(rel: &str, code: &str) -> bool {
+    is_the_approved_ai_prompt_command_file(rel) && code.contains(AI_PROMPT_SEAM_COMMAND_FILE_MARKER)
+}
+
+/// Xoá MỌI lần xuất hiện của `marker` khỏi `code` — dùng để quét PHẦN CÒN LẠI của một dòng đã
+/// mang chuỗi con được Decision 1 duyệt, thay vì `continue` bỏ qua TRỌN dòng (finding P8, loop
+/// 2). Xoá thay vì bỏ qua là bắt buộc, không phải một lựa chọn chặt tay: `marker` (dù là
+/// [`AI_PROMPT_SEAM_LIB_RS_MARKER`] hay [`AI_PROMPT_SEAM_COMMAND_FILE_MARKER`]) chính nó có thể
+/// CHỨA một trong hai [`FORBIDDEN_BARE_TOKENS`] làm tiền tố con
+/// (`AI_PROMPT_SEAM_COMMAND_FILE_MARKER` bắt đầu đúng bằng `"crate::core::ai"`) — quét nguyên
+/// dòng mà không xoá phần đã duyệt trước sẽ bắt oan chính chuỗi Decision 1 vừa cho phép.
+fn line_with_marker_occurrences_removed(code: &str, marker: &str) -> String {
+    code.replace(marker, "")
+}
+
+/// Đúng CHÍN tên được phép xuất hiện sau `ai::rag::` bên trong seam ① — Decision 1's control
+/// ②: hai hàm AD-14 đã đóng băng ở `core/ai/rag.rs` (`assemble_prompt`, `gather_glossary_context`)
+/// CỘNG bảy kiểu mirror-type mà tệp này phải ĐẶT TÊN để viết `impl From<…> for …Wire` (không
+/// gọi được các kiểu đó thì không viết được các mirror type Story 4.7 đòi) — không một tên nào
+/// khác của `core::ai::rag` (không `expand_prompt_body`, không `render_glossary_pairs`, không
+/// bất kỳ hàm/hằng nội bộ nào khác). Bất kỳ tên nào khác lọt qua là một lối vào `core::ai` THỨ
+/// HAI mà Decision 1 không hề mở.
+const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 9] = [
+    "assemble_prompt",
+    "gather_glossary_context",
+    "GlossaryInjectionStatus",
+    "TmInjectionStatus",
+    "InjectionLedger",
+    "InjectedGlossaryTerm",
+    "SuppressedGlossaryTerm",
+    "PromptPiece",
+    "PromptPieceKind",
+];
+
+/// Trích mọi định danh xuất hiện ngay sau [`AI_PROMPT_SEAM_COMMAND_FILE_MARKER`] trong
+/// `joined` (đã nối toàn văn qua [`joined_code`]) — cùng khuôn [`glossary_names_named`], chỉ
+/// khác chuỗi neo. Xem doc-comment của hàm đó cho các giới hạn thật đã ghi (không theo dõi
+/// `use … as alias`, comment đuôi dòng vẫn còn trong `joined`, nhóm LỒNG dừng ở `}` đầu tiên).
+fn ai_rag_names_named(joined: &str) -> Vec<String> {
+    let anchor = AI_PROMPT_SEAM_COMMAND_FILE_MARKER;
+    let mut out = Vec::new();
+    let mut search_from = 0usize;
+    let bytes = joined.as_bytes();
+
+    while let Some(rel) = joined[search_from..].find(anchor) {
+        let after_anchor = search_from + rel + anchor.len();
+        let mut i = after_anchor;
+        while i < bytes.len() && (bytes[i] as char).is_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            break;
+        }
+
+        if bytes[i] == b'*' {
+            out.push("*".to_owned());
+            search_from = i + 1;
+        } else if bytes[i] == b'{' {
+            let Some(close_rel) = joined[i + 1..].find('}') else {
+                break;
+            };
+            let inner = &joined[i + 1..i + 1 + close_rel];
+            for item in inner.split(',') {
+                let Some(raw_name) = item.split_whitespace().next() else { continue };
+                let name: String = raw_name.chars().filter(|c| is_ident_char(*c)).collect();
+                if !name.is_empty() && name != "self" {
+                    out.push(name);
+                }
+            }
+            search_from = i + 1 + close_rel + 1;
+        } else {
+            let start = i;
+            let mut j = i;
+            while j < bytes.len() && is_ident_char(bytes[j] as char) {
+                j += 1;
+            }
+            let name = &joined[start..j];
+            if !name.is_empty() && name != "self" {
+                out.push(name.to_owned());
+            }
+            search_from = if j > after_anchor { j } else { after_anchor + 1 };
+        }
+    }
+
+    out
+}
+
+/// 🔴 Cổng THẬT của Decision 1's control ② (Story 4.7, findings V4/B8) — seam ① không được
+/// gọi bất kỳ tên nào khác của `core::ai::rag` ngoài [`ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM`].
+/// Cộng với [`line_is_the_approved_ai_prompt_import_in_command_file`] (miễn trừ THEO DÒNG của
+/// cổng bare-token chính), đây là hai nửa khiến control ② thật sự được canh thay vì chỉ đứng
+/// trong doc-comment: một tệp nào đó lọt qua cổng bare-token (vì dòng của nó khớp tiền tố hợp
+/// lệ) vẫn phải trả lời được câu hỏi "tên gì đứng sau tiền tố đó" — đúng câu hỏi cổng này hỏi.
+#[test]
+fn commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface() {
+    let files = all_rust_sources();
+    let Some((_, text)) = files.iter().find(|(rel, _)| is_the_approved_ai_prompt_command_file(rel))
+    else {
+        // Đúng khuôn Phase 1's honesty note: tệp có thể chưa tồn tại (Phase sớm hơn) -- không
+        // gì để kiểm thì không phải một vi phạm, nhưng CŨNG không phải một PASS im lặng: seam
+        // ① hôm nay (Story 4.7 đã đóng Phase 2+) LUÔN tồn tại, nên nhánh này không nên chạy
+        // trên cây thật -- ghi rõ để một `walk` lỗi không đọc thành "sạch".
+        panic!(
+            "`{AI_PROMPT_SEAM_COMMAND_FILE}` khong ton tai trong cay quet -- ca nay khong con \
+             gi de kiem, va tren cay that hom nay day la mot dau hieu goc quet sai, khong phai \
+             mot trang thai hop le"
+        );
+    };
+    let joined = joined_code(text);
+    let names = ai_rag_names_named(&joined);
+
+    // Đối chứng dương: phép quét phải THẬT SỰ thu được ít nhất một tên — cùng đối chứng
+    // [`no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four`] đòi.
+    assert!(
+        !names.is_empty(),
+        "phep quet KHONG thu duoc mot ten `core::ai::rag` nao trong `{AI_PROMPT_SEAM_COMMAND_FILE}` \
+         -- neu tep that su goi `assemble_prompt`/`gather_glossary_context`, day la vi tu dang mu, \
+         khong phai mot cay sach"
+    );
+
+    let violations: Vec<&String> =
+        names.iter().filter(|name| !ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM.contains(&name.as_str())).collect();
+    assert!(
+        violations.is_empty(),
+        "{} ten NGOAI {ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM:?} duoc goi tu `core::ai::rag` trong \
+         `{AI_PROMPT_SEAM_COMMAND_FILE}`:\n{:?}\n\nDecision 1's control ②: seam nay chi duoc \
+         GOI XUONG hai ham AD-14 da dong bang cong bay kieu mirror-type can dat ten -- KHONG \
+         lap rap them, KHONG thay the bien, KHONG quet marker lan hai.",
+        violations.len(),
+        violations
+    );
+}
+
+/// Đối chứng dương + âm cho [`ai_rag_names_named`] trên văn bản DỰNG TAY — độc lập với
+/// `commands/aiprompt.rs` thật, cùng khuôn
+/// [`the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code`].
+#[test]
+fn ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name() {
+    let text = "use crate::core::ai::rag::{\n    assemble_prompt, gather_glossary_context,\n    InjectionLedger,\n};\n";
+    assert_eq!(
+        ai_rag_names_named(&joined_code(text)),
+        vec!["assemble_prompt", "gather_glossary_context", "InjectionLedger"],
+        "phai thu duoc CA BA ten, du nhom `use` trai qua nhieu dong"
+    );
+
+    // Ca DƯƠNG THẬT — một tên KHÔNG nằm trong danh sách cho phép phải bị gieo được, độc lập
+    // với cây nguồn hôm nay có gì.
+    let seeded = "use crate::core::ai::rag::{assemble_prompt, expand_prompt_body};\n";
+    let names = ai_rag_names_named(&joined_code(seeded));
+    assert!(names.contains(&"expand_prompt_body".to_owned()), "phai gieo bat duoc mot ten LA");
+    assert!(
+        !ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM.contains(&"expand_prompt_body"),
+        "tien de: 'expand_prompt_body' khong duoc nam trong danh sach cho phep"
+    );
+}
+
 fn src_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
 }
@@ -275,6 +498,50 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
             continue;
         }
         for (line, code) in code_lines(text) {
+            // Decision 1 -- mien tru THEO DONG, chi trong `lib.rs`, chi dung tien to module
+            // `commands::aiprompt` -- khong mien tru TRON `lib.rs`, xem doc-comment hang so.
+            //
+            // 🔴 Story 4.7 loop 2, finding P8 -- SỬA: trước bản này, một dòng khớp tiền tố đã
+            // duyệt bị `continue` BỎ QUA TRỌN, nên một token cấm THỨ HAI đứng CÙNG DÒNG với tiền
+            // tố đó (một hình dạng lạ nhưng khả dĩ, vd. hai lệnh gọi trên một dòng) không bao
+            // giờ bị quét. Giờ chỉ CHUỖI CON của tiền tố đã duyệt bị xoá khỏi dòng trước khi
+            // quét PHẦN CÒN LẠI -- xem [`line_with_marker_occurrences_removed`]. Đây là điều
+            // BẮT BUỘC, không phải làm chặt tay: chính tiền tố đã duyệt
+            // (`AI_PROMPT_SEAM_COMMAND_FILE_MARKER = "crate::core::ai::rag::"`) BẮT ĐẦU đúng
+            // bằng một trong hai `FORBIDDEN_BARE_TOKENS` (`"crate::core::ai"`) -- đó chính xác
+            // là LÝ DO miễn trừ này tồn tại, nên không thể quét nguyên dòng mà không xoá tiền
+            // tố trước.
+            if line_is_the_approved_ai_prompt_seam_in_lib_rs(rel, code) {
+                let remainder =
+                    line_with_marker_occurrences_removed(code, AI_PROMPT_SEAM_LIB_RS_MARKER);
+                if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
+                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+                }
+                continue;
+            }
+            // 🔴 Story 4.7, finding V4 (loop 1) -- SỬA: trước bản này, seam ① miễn trừ TRỌN
+            // VẸN cả tệp `commands/aiprompt.rs` khỏi phép quét (dòng đã xoá phía trên) --
+            // Decision 1's control ② ("KHÔNG gọi bất kỳ thứ gì khác của `core::ai` ngoài đúng
+            // hai hàm AD-14 đã đóng băng") khi đó chỉ là LỜI HỨA trong doc-comment: MỌI dòng
+            // khác của tệp (kể cả một `crate::core::ai::` thứ hai, một `super::ai` lạc vào)
+            // không bị cổng này nhìn thấy nữa. Miễn trừ giờ THEO DÒNG, đúng khuôn dòng ngay
+            // trên: chỉ dòng THẬT SỰ mang tiền tố nhập hợp lệ
+            // (`AI_PROMPT_SEAM_COMMAND_FILE_MARKER`) được bỏ qua; cổng riêng
+            // [`commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface`] ngay
+            // dưới kiểm PHẦN TÊN của đúng dòng này khớp
+            // [`ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM`] -- hai cổng cộng lại mới thật sự đóng
+            // control ②, không phải một trong hai riêng lẻ.
+            //
+            // 🔴 finding P8 (loop 2), cùng lý luận với nhánh `lib.rs` ở trên -- xoá CHUỖI CON đã
+            // duyệt rồi quét PHẦN CÒN LẠI, không `continue` bỏ qua trọn dòng.
+            if line_is_the_approved_ai_prompt_import_in_command_file(rel, code) {
+                let remainder =
+                    line_with_marker_occurrences_removed(code, AI_PROMPT_SEAM_COMMAND_FILE_MARKER);
+                if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
+                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+                }
+                continue;
+            }
             if let Some(needle) = line_names_a_forbidden_ai_dependency(code) {
                 violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
             }
@@ -843,5 +1110,564 @@ fn the_call_counter_counts_invocations_not_imports_and_would_flag_a_second_call_
         count_calls(&joined_code(&two_calls), "confirmed_terms_for_injection"),
         2,
         "ca DUONG THAT: hai loi GOI phai duoc dem la hai, khong phai mot"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.7, Decision 1 — hai seam DUY NHẤT được miễn trừ khỏi cổng bare-token
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 Đối chứng dương + âm cho hai seam Decision 1 (spec 4.7) miễn trừ — khớp CHÍNH XÁC hai
+/// hình dạng đã ký, và KHÔNG khớp một hàng xóm gần giống. Đây đúng lớp lỗi XANH GIẢ mà
+/// `is_inside_ai_module` đã bị bắt một lần (`core/aim` khớp lọt qua một hằng số theo tiền
+/// tố) — ca này khoá lại rằng hai vị từ MỚI ở đây không lặp lại cùng khuyết tật, trên MỘT
+/// bề mặt khác (tên tệp lệnh, và một chuỗi con module bên trong `lib.rs`).
+#[test]
+fn the_two_approved_seams_are_matched_narrowly_and_neighbours_are_not() {
+    // ── ① Tệp lệnh -- khớp NGUYÊN VĂN đường dẫn, không theo tiền tố ───────────────
+    assert!(
+        is_the_approved_ai_prompt_command_file(AI_PROMPT_SEAM_COMMAND_FILE),
+        "ca dương thật: đúng đường dẫn Decision 1 ký phải khớp"
+    );
+    for hang_xom in [
+        "commands/aiprompt2.rs",
+        "commands/aipromptset.rs",
+        "commands/aiprompt/mod.rs",
+        "commands/aiprompt_test.rs",
+        "core/commands/aiprompt.rs",
+        "commands/aiprompt.rs.bak",
+    ] {
+        assert!(
+            !is_the_approved_ai_prompt_command_file(hang_xom),
+            "XANH OAN: {hang_xom:?} là một tệp HÀNG XÓM, không phải đúng seam Decision 1 ký \
+             -- một hằng số khớp theo tiền tố sẽ tha oan nó, đúng khuyết tật `core/aim`"
+        );
+    }
+
+    // ── ② Dòng trong `lib.rs` -- khớp tiền tố module, có neo `::` đuôi ────────────
+    assert!(
+        line_is_the_approved_ai_prompt_seam_in_lib_rs(
+            "lib.rs",
+            "            crate::commands::aiprompt::wire::assemble_and_record_prompt,"
+        ),
+        "ca dương thật: một dòng `generate_handler!` gọi qua `commands::aiprompt` phải khớp"
+    );
+    assert!(
+        line_is_the_approved_ai_prompt_seam_in_lib_rs(
+            "lib.rs",
+            "    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));"
+        ),
+        "ca dương thật: dòng `app.manage` của state mới phải khớp"
+    );
+
+    // Đối chứng âm ① -- cùng chuỗi con nhưng ở MỘT TỆP KHÁC không được miễn trừ gì. Chỉ
+    // `lib.rs` là điểm ráp Decision 1 nhắc tới.
+    assert!(
+        !line_is_the_approved_ai_prompt_seam_in_lib_rs(
+            "commands/other.rs",
+            "crate::commands::aiprompt::wire::foo,"
+        ),
+        "XANH OAN: chuỗi con đúng nhưng TỆP sai -- miễn trừ chỉ dành cho `lib.rs`"
+    );
+
+    // Đối chứng âm ② -- module hàng xóm tên dài hơn, thiếu neo `::` đuôi (đúng lớp lỗi
+    // `core/aim` đã bị bắt một lần, ở một bề mặt khác).
+    for hang_xom in [
+        "crate::commands::aipromptset::wire::foo,",
+        "crate::commands::aiprompt2::wire::foo,",
+    ] {
+        assert!(
+            !line_is_the_approved_ai_prompt_seam_in_lib_rs("lib.rs", hang_xom),
+            "XANH OAN: {hang_xom:?} là một module HÀNG XÓM, không phải `commands::aiprompt`"
+        );
+    }
+
+    // Đối chứng âm ③ -- một dòng sạch, thật, đã có trong `lib.rs` hôm nay, không mang chuỗi
+    // con -- không được miễn trừ oan.
+    assert!(
+        !line_is_the_approved_ai_prompt_seam_in_lib_rs(
+            "lib.rs",
+            "    app.manage(crate::commands::promptset::PendingPromptImportState::new(None));"
+        ),
+        "một dòng THẬT của một seam KHÁC (`promptset`, đã có từ Story 4.5) không được khớp oan"
+    );
+}
+
+/// 🔴 Story 4.7 loop 2, finding P8 -- một dòng mang chuỗi con đã duyệt (Decision 1) không được
+/// BỎ QUA TRỌN: nó vẫn phải bị quét cho một token cấm THỨ HAI đứng CÙNG DÒNG. Chứng minh cho
+/// [`line_with_marker_occurrences_removed`] (hàm cổng thật ở trên gọi), độc lập với cây nguồn
+/// hôm nay có gì -- cùng khuôn ca dương thật của [`ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name`].
+#[test]
+fn a_line_carrying_the_approved_prefix_is_still_scanned_for_a_second_forbidden_token() {
+    // ── Seam ① (commands/aiprompt.rs) ──────────────────────────────────────────
+    // Dòng SẠCH, chỉ mang tiền tố đã duyệt -- không được bắt oan sau khi xoá tiền tố.
+    let clean = "use crate::core::ai::rag::{assemble_prompt, gather_glossary_context};";
+    assert_eq!(
+        line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
+            clean,
+            AI_PROMPT_SEAM_COMMAND_FILE_MARKER
+        )),
+        None,
+        "dòng CHỈ mang tiền tố đã duyệt không được bị bắt oan sau khi gỡ tiền tố"
+    );
+
+    // Ca DƯƠNG THẬT -- cùng dòng, CỘNG một token cấm KHÁC đứng kề, phải vẫn bị bắt. Trước bản
+    // sửa P8, dòng này bị `continue` bỏ qua TRỌN chỉ vì nó cũng mang tiền tố đã duyệt.
+    let seeded = "use crate::core::ai::rag::{assemble_prompt}; let _ = super::ai::warm_up();";
+    assert_eq!(
+        line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
+            seeded,
+            AI_PROMPT_SEAM_COMMAND_FILE_MARKER
+        )),
+        Some("super::ai"),
+        "một token cấm THỨ HAI đứng cùng dòng với tiền tố đã duyệt phải vẫn bị bắt, không được \
+         bỏ qua TRỌN theo dòng chỉ vì dòng đó cũng mang tiền tố hợp lệ"
+    );
+
+    // ── Seam ② (lib.rs) -- cùng lý luận, marker khác ────────────────────────────
+    let lib_clean = "    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));";
+    assert_eq!(
+        line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
+            lib_clean,
+            AI_PROMPT_SEAM_LIB_RS_MARKER
+        )),
+        None,
+        "dòng SẠCH của seam ② không được bị bắt oan sau khi gỡ tiền tố"
+    );
+
+    let lib_seeded =
+        "crate::commands::aiprompt::LastAssembledPromptState; let _ = crate::core::ai::rag::x();";
+    assert_eq!(
+        line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
+            lib_seeded,
+            AI_PROMPT_SEAM_LIB_RS_MARKER
+        )),
+        Some("crate::core::ai"),
+        "một token cấm THỨ HAI đứng cùng dòng với tiền tố đã duyệt của seam ② phải vẫn bị bắt"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.7, Decision 1 — đối chứng dương THẬT: xoá `core/ai/` + hai seam, cây còn lại vẫn
+// biên dịch. FR77's real content — xem doc-comment đầu tệp §VÌ SAO ĐỐI CHỨNG DƯƠNG.
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Decision 1 tự ghi: AD-13 offers hai cơ chế "tương đương" — một test tự động, hoặc `ai/` là
+// crate riêng để trình biên dịch cưỡng chế — và "hai cơ chế đó không tương đương NHƯ ĐÃ CÀI".
+// Nghĩa là phép quét TĨNH ở trên (bare-token) không tự nó chứng minh "cây vẫn biên dịch nếu
+// xoá `core/ai/`" — nó chỉ chứng minh "không ai gõ hai token cấm". Hai mệnh đề khác nhau, và
+// mệnh đề FR77 cần là mệnh đề THỨ HAI. Ca dưới đây gọi THẬT `cargo check` trên một bản sao cây
+// nguồn đã bị xoá `core/ai/` cộng hai seam — đây là bằng chứng biên dịch, không phải suy diễn
+// từ một phép quét chuỗi.
+
+/// Xoá đúng dòng khai `pub mod <module_name>;` (dạng TRẦN, kể cả mang comment đuôi dòng) khỏi
+/// văn bản của một `mod.rs` — mô hình hoá "xoá thư mục module thì khai báo của nó (sống ở
+/// `mod.rs` CHA, ngoài chính thư mục) cũng phải đi theo"; xoá thư mục một mình để lại một
+/// `mod` treo mà lỗi biên dịch không nói gì về câu hỏi AD-13/FR77 đang hỏi cả — sẽ làm ca biên
+/// dịch bên dưới đỏ vì một lý do KHÔNG liên quan.
+///
+/// Dùng CHUNG cho cả hai khai báo phải đi theo hai lượt xoá của ca này: `core/mod.rs`'s
+/// `pub mod ai;` (đi theo `core/ai/`) VÀ `commands/mod.rs`'s `pub mod aiprompt;` (đi theo
+/// `commands/aiprompt.rs` — bắt được THẬT bằng chính ca biên dịch dưới đây trước khi hàm này
+/// tồn tại: xoá tệp mà không xoá khai báo cho `error[E0583]: file not found for module
+/// aiprompt` tại `commands/mod.rs`, không phải một đoán trước).
+fn mod_rs_without_declaration(text: &str, module_name: &str) -> String {
+    let target = format!("pub mod {module_name};");
+    let mut out = String::new();
+    for line in text.lines() {
+        if statement_of(line.trim_start()) == target {
+            continue;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
+/// Vỏ mỏng của [`mod_rs_without_declaration`] cho đúng module `ai` — giữ TÊN CŨ vì ca đơn
+/// [`the_declaration_stripper_removes_only_the_bare_ai_line_and_keeps_its_neighbours`] đã gọi
+/// tên này; không đổi tên một hàm test đã có để tránh một sửa không cần thiết.
+fn core_mod_rs_without_the_ai_declaration(text: &str) -> String {
+    mod_rs_without_declaration(text, "ai")
+}
+
+/// Số dư dấu ngoặc nhọn của MỘT dòng — `{` đếm dương, `}` đếm âm. Đếm KÝ TỰ thô, không phân
+/// tích cú pháp thật (không phân biệt trong chuỗi/comment) — chấp nhận được ở đây vì đầu vào
+/// là `lib.rs` của CHÍNH kho này, một văn bản đã biết hình dạng, không phải văn bản người
+/// dùng gõ tuỳ ý.
+fn brace_delta(line: &str) -> i32 {
+    let opens = i32::try_from(line.matches('{').count()).unwrap_or(i32::MAX);
+    let closes = i32::try_from(line.matches('}').count()).unwrap_or(i32::MAX);
+    opens - closes
+}
+
+/// Xoá mọi dòng của một văn bản mang [`AI_PROMPT_SEAM_LIB_RS_MARKER`] (`crate::commands::
+/// aiprompt::`) — CÙNG chuỗi neo mà cổng thật dùng để MIỄN TRỪ các dòng đó trong `lib.rs`
+/// khỏi phép quét bare-token; ở đây thay vào đó XOÁ THẬT, để mô phỏng "seam ① bị xoá cùng
+/// `core/ai/`" cho ca biên dịch bên dưới. **Không kiểm `rel`** — hàm này THUẦN theo văn bản,
+/// chỉ được gọi khi chỗ gọi đã biết chắc `text` là nội dung của một tệp THẬT SỰ tham chiếu
+/// `commands::aiprompt` theo hình dạng đó (xem hai vỏ mỏng ngay dưới:
+/// [`lib_rs_without_the_approved_ai_prompt_seam`]/[`project_mod_rs_without_the_ai_prompt_seam`]).
+///
+/// 🔴 **SỬA 2026-09-18 (rà soát, finding V1) — TỔNG QUÁT HOÁ từ một hàm CHỈ dành cho `lib.rs`.**
+/// Trước bản này, hàm chỉ xử lý ĐÚNG `lib.rs` (qua `line_is_the_approved_ai_prompt_seam_in_lib_rs`,
+/// bản thân nó kiểm `rel == "lib.rs"`) — đúng cho tới khi finding V1 (spec 4.7, loop 1) đóng:
+/// `commands/project/mod.rs::replace_open_work` được thêm MỘT tham chiếu THẬT vào
+/// `crate::commands::aiprompt::LastAssembledPromptState`/`clear_last_assembled_prompt_on_work_close`
+/// — seam ① giờ có HAI điểm gọi thật (`lib.rs` lẫn `commands/project/mod.rs`), không còn một.
+/// Đo được thật (không phải suy đoán): chạy ca biên dịch dưới đây SAU khi thêm dòng V1 mà
+/// KHÔNG tổng quát hoá hàm này cho `error[E0433]: cannot find aiprompt in commands` tại
+/// `commands/project/mod.rs:5247` — seam ② bị xoá nhưng điểm gọi THỨ HAI này không đi theo,
+/// đúng lớp lỗi mà `mod_rs_without_declaration` đã được tổng quát hoá một lần cho `commands/
+/// mod.rs`'s khai báo, giờ lặp lại ở TẦNG THÂN HÀM thay vì tầng khai báo module.
+///
+/// ⚠️ **Dòng khớp marker có thể MỞ một khối nhiều dòng** (vẫn đúng như bản trước, không đổi
+/// logic đó): Phase 2 (Story 4.7) thêm một nhánh `if let Some(record) = handle.try_state::<
+/// crate::commands::aiprompt::LastAssembledPromptState>() { … }` ba dòng trong
+/// `close_open_work` (`lib.rs`) — và V1's nhánh mới trong `project/mod.rs` mang CÙNG hình
+/// dạng ba dòng. Xoá chỉ đúng dòng khớp để lại một `}` treo không còn `{` ghép cặp ⇒ văn bản
+/// kết quả không còn hợp lệ cú pháp Rust — bắt được bằng chính ca biên dịch thật ở
+/// [`deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`],
+/// KHÔNG phải một đoán trước. Khi dòng khớp marker cũng MỞ một khối ([`brace_delta`] dương),
+/// tiếp tục bỏ các dòng sau cho tới khi số dư ngoặc trở lại `<= 0` — bỏ CẢ KHỐI, không chỉ
+/// dòng đầu. Hai hình dạng một-dòng cũ (`generate_handler!`'s mục, `app.manage(...)`) có
+/// `brace_delta == 0` nên hành vi của chúng không đổi.
+fn text_without_lines_matching_the_ai_prompt_seam_marker(text: &str) -> String {
+    let mut out = String::new();
+    let mut skipping_block_depth: i32 = 0;
+    for line in text.lines() {
+        if skipping_block_depth > 0 {
+            skipping_block_depth += brace_delta(line);
+            continue;
+        }
+        if line.contains(AI_PROMPT_SEAM_LIB_RS_MARKER) {
+            let delta = brace_delta(line);
+            if delta > 0 {
+                skipping_block_depth = delta;
+            }
+            continue;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    // 🔴 Story 4.7, finding E7 (loop 1) — nếu số dư ngoặc CHƯA về 0 ở cuối văn bản, một dòng
+    // marker đã MỞ một khối mà KHÔNG BAO GIỜ đóng lại trong phần còn lại (vd. `{` của marker
+    // nằm trong một chuỗi/comment, hoặc văn bản đầu vào không cân ngoặc) — nhánh
+    // `skipping_block_depth > 0 { continue; }` ở trên khi đó ÂM THẦM nuốt trọn phần còn lại
+    // của tệp, và kết quả đọc như "mọi seam khác đã bị xoá sạch" trong khi thật ra là "hàm
+    // này cắt cụt văn bản". `assert!` — không `debug_assert!` — vì hàm này chạy trong CẢ hai
+    // đường: ca đối chứng dương biên dịch thật (nơi một kết quả sai câm lặng đọc như FR77 đã
+    // qua) lẫn các ca đơn vị ngay dưới.
+    assert_eq!(
+        skipping_block_depth, 0,
+        "so du ngoac cuoi van ban phai VE 0 -- neu khong, mot dong marker da MO mot khoi KHONG \
+         BAO GIO dong lai trong phan con lai (vi du `{{` nam trong mot chuoi/comment), va ham \
+         nay se AM THAM cat cut phan con lai cua van ban thay vi tra ve mot ket qua can ngoac \
+         that -- xem finding E7 (Story 4.7, loop 1)"
+    );
+    out
+}
+
+/// Vỏ mỏng cho `lib.rs` — giữ TÊN CŨ vì các ca đơn vị đã có
+/// ([`the_lib_rs_stripper_removes_only_the_approved_seam_lines`], v.v.) gọi đúng tên này.
+fn lib_rs_without_the_approved_ai_prompt_seam(text: &str) -> String {
+    text_without_lines_matching_the_ai_prompt_seam_marker(text)
+}
+
+/// Vỏ mỏng cho `commands/project/mod.rs` — điểm gọi THẬT thứ hai vào `commands::aiprompt`
+/// (finding V1, loop 1: `replace_open_work` dọn [`LastAssembledPromptState`] cùng hai người
+/// láng giềng `PendingImportState`/`PendingPromptImportState` khi Tác phẩm được THAY THẾ,
+/// không chỉ khi ĐÓNG HẲN như `lib.rs::close_open_work`).
+fn project_mod_rs_without_the_ai_prompt_seam(text: &str) -> String {
+    text_without_lines_matching_the_ai_prompt_seam_marker(text)
+}
+
+/// Đối chứng dương + âm cho [`core_mod_rs_without_the_ai_declaration`] trên văn bản DỰNG TAY —
+/// độc lập với `core/mod.rs` thật, đúng khuôn mọi vị từ khác của tệp này.
+#[test]
+fn the_declaration_stripper_removes_only_the_bare_ai_line_and_keeps_its_neighbours() {
+    let text = "pub mod ai;\npub mod aiconfig;\npub mod ai; // AD-13\n";
+    let got = core_mod_rs_without_the_ai_declaration(text);
+    assert_eq!(
+        got, "pub mod aiconfig;\n",
+        "phải xoá CẢ HAI dòng `pub mod ai;` (một trần, một mang comment đuôi dòng) và giữ \
+         nguyên `pub mod aiconfig;`"
+    );
+}
+
+/// Đối chứng dương + âm cho [`lib_rs_without_the_approved_ai_prompt_seam`] trên văn bản DỰNG
+/// TAY — độc lập với `lib.rs` thật.
+#[test]
+fn the_lib_rs_stripper_removes_only_the_approved_seam_lines() {
+    let text = "\
+            crate::commands::promptset::wire::prompt_set_list,
+            crate::commands::aiprompt::wire::assemble_and_record_prompt,
+    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));
+    app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
+";
+    let got = lib_rs_without_the_approved_ai_prompt_seam(text);
+    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
+    assert!(
+        got.contains("promptset::wire::prompt_set_list") && got.contains("PendingPromptImportState"),
+        "hai dòng KHÔNG liên quan seam Decision 1 phải còn nguyên"
+    );
+}
+
+/// 🔴 Đối chứng dương THẬT của khuyết tật vừa bắt được: một dòng khớp marker MỞ một khối
+/// nhiều dòng (đúng hình dạng thật `close_open_work` — dòng đầu khớp marker và mở `{`, thân +
+/// `}` đóng nằm ở các dòng SAU không mang marker). Hành vi CŨ (xoá đúng một dòng khớp) để lại
+/// `}` treo — văn bản kết quả không hợp lệ cú pháp. Ca này khẳng định CẢ KHỐI biến mất, và
+/// một khối KHÔNG liên quan seam (cũng mang `if let … {` ba dòng, hình dạng giống nhưng không
+/// khớp marker) phải còn nguyên — đối chứng dương lẫn âm trên đúng một bề mặt.
+#[test]
+fn the_lib_rs_stripper_removes_the_whole_multi_line_block_a_marker_line_opens() {
+    let text = "\
+    if let Some(pending) = handle.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
+    }
+    if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+        let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        *guard = None;
+    }
+
+    if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
+        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+";
+    let got = lib_rs_without_the_approved_ai_prompt_seam(text);
+
+    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
+    // Không `}` treo: số `{` và `}` còn lại phải bằng nhau -- nếu khuyết tật cũ tái phát (chỉ
+    // xoá dòng đầu của khối), vế này đỏ vì thiếu một `{` đã bị xoá cùng dòng marker.
+    assert_eq!(
+        got.matches('{').count(),
+        got.matches('}').count(),
+        "văn bản còn lại phải CÂN NGOẶC -- một dòng bị xoá dở dang sẽ để lại `}}` treo:\n{got}"
+    );
+    // Khối KHÔNG liên quan (PendingPromptImportState) và khối KHÔNG liên quan còn lại
+    // (OpenWorkState) phải còn NGUYÊN VẸN, kể cả thân của chúng -- không bị cuốn theo.
+    assert!(
+        got.contains("clear_pending_prompt_import_work_tier(&pending)"),
+        "thân khối PendingPromptImportState (không liên quan seam) phải còn nguyên:\n{got}"
+    );
+    assert!(
+        got.contains("OpenWorkState") && got.contains("PoisonError::into_inner"),
+        "khối OpenWorkState (không liên quan seam) phải còn nguyên:\n{got}"
+    );
+}
+
+/// 🔴 Story 4.7, finding V1 (loop 1) — cùng ca đối chứng dương/âm trên, chạy trên hình dạng
+/// THẬT của `commands/project/mod.rs::replace_open_work` (điểm gọi THỨ HAI vào
+/// `commands::aiprompt`, phát sinh khi V1 được đóng — xem doc-comment
+/// [`text_without_lines_matching_the_ai_prompt_seam_marker`]). Không dựng lại hình dạng ba
+/// dòng mới — copy NGUYÊN VĂN từ chính đoạn đã thêm vào `project/mod.rs`, để một lượt đổi
+/// hình dạng thật ở đó (ví dụ gộp về một dòng) tự động phản ánh vào ca này thay vì lệch âm
+/// thầm.
+#[test]
+fn the_project_mod_rs_stripper_removes_the_whole_multi_line_block_the_v1_clearing_branch_opens() {
+    let text = "\
+    if let Some(pending) = app.try_state::<crate::commands::glossary::PendingImportState>() {
+        crate::commands::glossary::clear_pending_import_for_tier(
+            &pending,
+            crate::core::glossary::GlossaryTier::Work,
+        );
+    }
+    if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
+    }
+    if let Some(record) = app.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
+    }
+
+    if let Some(state) = app.try_state::<OpenWorkState>() {
+        drop(swap_locked(&state, new_work));
+    }
+";
+    let got = project_mod_rs_without_the_ai_prompt_seam(text);
+
+    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
+    assert_eq!(
+        got.matches('{').count(),
+        got.matches('}').count(),
+        "văn bản còn lại phải CÂN NGOẶC -- một dòng bị xoá dở dang sẽ để lại `}}` treo:\n{got}"
+    );
+    // Ba khối KHÔNG liên quan seam (glossary, promptset, OpenWorkState) phải còn NGUYÊN VẸN.
+    assert!(
+        got.contains("clear_pending_import_for_tier") && got.contains("GlossaryTier::Work"),
+        "khối glossary (không liên quan seam) phải còn nguyên:\n{got}"
+    );
+    assert!(
+        got.contains("clear_pending_prompt_import_work_tier(&pending)"),
+        "khối promptset (không liên quan seam) phải còn nguyên:\n{got}"
+    );
+    assert!(
+        got.contains("swap_locked(&state, new_work)"),
+        "khối OpenWorkState (không liên quan seam) phải còn nguyên:\n{got}"
+    );
+}
+
+/// Chép ĐỆ QUY toàn bộ `src` sang `dst` bằng `std::fs` thuần (không `git`, không lệnh shell
+/// ngoài) — cây con nào tên khớp một phần tử của `skip_dir_names` bị BỎ QUA hoàn toàn (dùng
+/// cho `target/`, thư mục build nặng và không liên quan tới câu hỏi "cây nguồn còn biên dịch
+/// không"). Portable trên Windows lẫn macOS/Linux — không gọi `cp -r`/`git`, hai thứ đối
+/// chứng dương TRƯỚC đây phụ thuộc và mỗi thứ mang một khuyết tật riêng (xem doc-comment
+/// [`deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`] về vì
+/// sao `git worktree` bị bỏ).
+fn copy_dir_recursive_skipping(src: &Path, dst: &Path, skip_dir_names: &[&str]) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let name = entry.file_name();
+        let dst_path = dst.join(&name);
+        if file_type.is_dir() {
+            if skip_dir_names.iter().any(|skip| name.to_string_lossy() == *skip) {
+                continue;
+            }
+            copy_dir_recursive_skipping(&entry.path(), &dst_path, skip_dir_names)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), &dst_path)?;
+        }
+        // Symlink: không tệp/thư mục nào dưới `src-tauri/` của kho này là symlink hôm nay —
+        // bỏ qua có chủ ý thay vì theo đuổi một nhánh chưa từng cần tới.
+    }
+    Ok(())
+}
+
+/// ⚠️ `#[ignore]` có chủ ý, đúng tiền lệ `check:scope`/`check:scope:bundled` (root
+/// `AGENTS.md`: *"sit outside `pre-push` on purpose... run them by hand"*) — ca này dựng một
+/// bản CHÉP RIÊNG của `src-tauri/` rồi gọi `cargo check` THẬT: tốn giây tới phút, không phải
+/// milli-giây như mọi ca tĩnh khác của tệp này, và không nên nằm trong đường `cargo test
+/// --locked` mặc định mà `pre-push` chạy mỗi lần push. Chạy tay:
+/// `cargo test --test ai_boundary --locked -- --ignored --exact
+/// deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
+///
+/// Dọn dẹp qua `Drop` (`ProbeDirGuard`) để một panic giữa ca vẫn gỡ được thư mục tạm — nhị
+/// phân test biên dịch với `unwind` (`src-tauri/AGENTS.md`), nên `Drop` vẫn chạy trên một
+/// panic dù crate sản phẩm dùng `panic = "abort"`.
+///
+/// ⚠️ **SỬA 2026-09-18 (Phase 4 → hậu-Phase-4) — vì sao KHÔNG còn `git worktree add ... HEAD`:**
+/// Phase 1 dựng ca này trên `git worktree add --detach <dir> HEAD` — `HEAD` là một COMMIT, và
+/// story này (đúng khuôn mọi story khác trong kho: một commit MỖI story, ở CUỐI) chưa commit
+/// lúc Phase 1–4 chạy. Kết quả: nhánh xoá `commands/aiprompt.rs`/seam của `lib.rs` bên trong
+/// ca luôn là NO-OP trên `HEAD` cũ, bất kể Phase 2/3 đã viết seam thật vào ĐĨA — `PASS` đo
+/// được chỉ tái lập kịch bản Phase 1, không chứng minh gì về hai tệp thật (xem
+/// `deferred-work.md`, mục "Đối chứng dương của seam ... KHÔNG THỂ nghiệm thu"). Sửa bằng
+/// cách bỏ `git` hoàn toàn: [`copy_dir_recursive_skipping`] chép THẲNG cây làm việc hiện tại
+/// (bao gồm mọi thay đổi CHƯA commit) sang một thư mục tạm, rồi xoá/sửa trên bản chép đó —
+/// nghiệm thu đúng CÂY ĐANG CÓ TRÊN ĐĨA, không phụ thuộc trạng thái commit.
+#[test]
+#[ignore = "copies the whole `src-tauri/` tree + runs a real `cargo check`; run by hand, see doc-comment"]
+fn deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling() {
+    let src_tauri_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    let probe_dir =
+        std::env::temp_dir().join(format!("ai_boundary_seam_probe_{}", std::process::id()));
+    if probe_dir.exists() {
+        let _ = fs::remove_dir_all(&probe_dir);
+    }
+
+    struct ProbeDirGuard {
+        probe_dir: PathBuf,
+    }
+    impl Drop for ProbeDirGuard {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.probe_dir);
+        }
+    }
+    let _guard = ProbeDirGuard { probe_dir: probe_dir.clone() };
+
+    let probe_src_tauri_dir = probe_dir.join("src-tauri");
+    // `target/` bị BỎ QUA có chủ ý -- nặng (build artifacts), không liên quan câu hỏi đang
+    // hỏi, và `cargo check` dưới đây được truyền `--target-dir` trỏ THẲNG vào `target/` THẬT
+    // của crate gốc để tái sử dụng mọi crate phụ thuộc đã biên dịch sẵn (xem chú thích ở lệnh
+    // gọi `cargo check`).
+    copy_dir_recursive_skipping(&src_tauri_dir, &probe_src_tauri_dir, &["target"]).unwrap_or_else(
+        |e| panic!("khong chep duoc {} sang {}: {e}", src_tauri_dir.display(), probe_src_tauri_dir.display()),
+    );
+
+    let probe_src = probe_src_tauri_dir.join("src");
+
+    let ai_dir = probe_src.join(AI_DIR);
+    assert!(
+        ai_dir.is_dir(),
+        "`{}` khong ton tai trong ban chep -- cay lam viec hien tai khong con core/ai/, khong \
+         con gi de xoa cho ca nay nghiem thu",
+        ai_dir.display()
+    );
+    fs::remove_dir_all(&ai_dir).unwrap_or_else(|e| panic!("khong xoa duoc {}: {e}", ai_dir.display()));
+
+    let core_mod_path = probe_src.join("core/mod.rs");
+    let core_mod_text = fs::read_to_string(&core_mod_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", core_mod_path.display()));
+    fs::write(&core_mod_path, core_mod_rs_without_the_ai_declaration(&core_mod_text))
+        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", core_mod_path.display()));
+
+    // 🔴 Story 4.7, finding B8 (loop 1) — seam ① (`core/ai/`) ngay TRÊN đòi TỒN TẠI bằng một
+    // `assert!` cứng; seam ② (đây) trước bản sửa chỉ xoá `if aiprompt_existed`, KHÔNG một
+    // `assert!` nào ép nó phải có mặt. Một lượt đổi tên tệp trong tương lai (vd. sang
+    // `commands/aiprompt/mod.rs`, đúng lớp lỗi "false-exemption" `is_inside_ai_module`'s
+    // `core/aim` fix đã bắt một lần) làm `aiprompt_path.exists()` thành `false` một cách ÂM
+    // THẦM — nhánh xoá bị BỎ QUA, seam ② quay lại đúng NO-OP mà toàn bộ lượt sửa away-from-
+    // `git worktree` này tồn tại để loại bỏ, và ca vẫn `PASS` như không có chuyện gì. Đối
+    // xứng với seam ①: TỒN TẠI là một đòi hỏi CỨNG, không một nhánh `if` che giấu một lần
+    // xoá bị bỏ sót.
+    let aiprompt_path = probe_src.join(AI_PROMPT_SEAM_COMMAND_FILE);
+    assert!(
+        aiprompt_path.is_file(),
+        "`{}` khong ton tai trong ban chep -- cay lam viec hien tai khong con seam ② \
+         (`commands/aiprompt.rs`), khong con gi de xoa cho ca nay nghiem thu vi giu nguyen \
+         no-op cua ban cu; xem finding B8 (Story 4.7, loop 1)",
+        aiprompt_path.display()
+    );
+    fs::remove_file(&aiprompt_path)
+        .unwrap_or_else(|e| panic!("khong xoa duoc {}: {e}", aiprompt_path.display()));
+
+    // Xoá tệp `commands/aiprompt.rs` một mình để lại `pub mod aiprompt;` treo ở `commands/
+    // mod.rs` — CÙNG lớp lỗi `core/mod.rs`'s `pub mod ai;` ngay trên, chỉ khác cây con. Bắt
+    // được THẬT bằng chính ca này trước khi dòng dưới đây tồn tại: `error[E0583]: file not
+    // found for module aiprompt` tại `commands/mod.rs`, không phải một đoán trước.
+    let commands_mod_path = probe_src.join("commands/mod.rs");
+    let commands_mod_text = fs::read_to_string(&commands_mod_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", commands_mod_path.display()));
+    fs::write(&commands_mod_path, mod_rs_without_declaration(&commands_mod_text, "aiprompt"))
+        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", commands_mod_path.display()));
+
+    let lib_rs_path = probe_src.join(AI_PROMPT_SEAM_LIB_RS_FILE);
+    let lib_rs_text = fs::read_to_string(&lib_rs_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", lib_rs_path.display()));
+    fs::write(&lib_rs_path, lib_rs_without_the_approved_ai_prompt_seam(&lib_rs_text))
+        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", lib_rs_path.display()));
+
+    // 🔴 Story 4.7, finding V1 (loop 1) -- diem goi THAT thu HAI vao `commands::aiprompt`
+    // (`replace_open_work` dep them ba dong dua qua nhieu Tac pham). Bo dong nay thi ca bien
+    // dich duoi day do THAT -- `error[E0433]: cannot find aiprompt in commands` tai
+    // `commands/project/mod.rs` -- vi seam ② da bi xoa nhung diem goi THU HAI khong di theo.
+    let project_mod_rs_path = probe_src.join("commands/project/mod.rs");
+    let project_mod_rs_text = fs::read_to_string(&project_mod_rs_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", project_mod_rs_path.display()));
+    fs::write(&project_mod_rs_path, project_mod_rs_without_the_ai_prompt_seam(&project_mod_rs_text))
+        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", project_mod_rs_path.display()));
+
+    // Dung LAI target dir cua cay chinh -- moi crate phu thuoc (bang thu ba) da bien dich san
+    // o do, khong phu thuoc duong dan crate goc, nen duoc TAI SU DUNG; chi crate cua chinh du
+    // an (source vua doi) can bien dich lai. Khong dung target-dir MOI: mot lan build day du
+    // lai toan bo cay phu thuoc la chi phi khong can thiet cho cau hoi dang hoi.
+    let real_target_dir = src_tauri_dir.join("target");
+    let check = std::process::Command::new("cargo")
+        .args(["check", "--locked"])
+        .arg("--target-dir")
+        .arg(&real_target_dir)
+        .current_dir(probe_dir.join("src-tauri"))
+        .output()
+        .unwrap_or_else(|e| panic!("khong goi duoc `cargo check`: {e}"));
+
+    assert!(
+        check.status.success(),
+        "`cargo check` THAT BAI sau khi xoa `core/ai/` + hai seam duoc phe duyet -- FR77 (go \
+         sach cau hinh AI thi moi nang luc khac van chay day du) khong con dung, hoac mot noi \
+         NGOAI hai seam van dang phu thuoc `core/ai/`:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&check.stdout),
+        String::from_utf8_lossy(&check.stderr)
     );
 }

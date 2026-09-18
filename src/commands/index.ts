@@ -924,6 +924,17 @@ export type CommandDeps = {
   /** Huỷ lượt nhập đang xem trước. Handler của `prompt.import.cancel`. */
   cancelPromptImportPreview?: () => void
 
+  // ── Story 4.7 — "Xem prompt cuối cùng đã gửi" (FR71, AD-14, Decision 2) ─────────
+  /** ĐỌC bản ghi hiện tại và mở lớp phủ soi prompt — KHÔNG BAO GIỜ lắp ráp (Decision 2:
+   * hai nhịp, hai command). Handler của `ai.prompt_inspector.open`. */
+  openAiPromptInspector?: () => void
+  /** Đóng lớp phủ soi prompt. Handler của `ai.prompt_inspector.close`. */
+  closeAiPromptInspector?: () => void
+  /** LẮP RÁP một prompt cho câu đang có tiêu điểm bằng bộ prompt hiệu lực đang chọn, rồi
+   * GHI kết quả — nút "Lắp prompt cho câu này" ở Panel AI Translation, thứ Story 4.8 sẽ thay
+   * bằng nút Dịch thật (§Consequences accepted, Decision 2). Handler của `ai.prompt.assemble`. */
+  assembleAiPrompt?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -3349,6 +3360,55 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('prompt.import.cancel', 'cancelPromptImportPreview')
       }
       deps.cancelPromptImportPreview()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.7 — "XEM PROMPT CUỐI CÙNG ĐÃ GỬI" (FR71, AD-14)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * BA command, cùng hình dạng `prompt.library.open`/`close` (`keys: undefined`, guarded qua
+   * `deps.…` bằng `portMissing`). Decision 2 spec 4.7 là lý do có BA, không HAI: mở lớp phủ
+   * (`ai.prompt_inspector.open`, chỉ ĐỌC) và lắp+ghi (`ai.prompt.assemble`, KHÔNG mở lớp phủ)
+   * là hai command riêng — một command đăng ký phải hành xử GIỐNG NHAU bất kể nguồn kích hoạt
+   * (bấm nút, hay một hợp âm rebind sau này), nên nếu mở-và-lắp gộp vào MỘT command thì một
+   * hợp âm rebind vào `ai.prompt_inspector.open` cũng sẽ lắp ráp — đúng thứ AC4 cấm ("đúng
+   * chuỗi đã gửi, không phải bản dựng lại"). `ai.prompt.assemble` không có hợp âm mặc định:
+   * đây là "một nút bấm người dùng thấy được mà Story 4.8 sẽ thay thế" (§Consequences
+   * accepted, Decision 2) — không đáng một ô nhớ phím tắt cho một nút sẽ biến mất.
+   */
+  target.register({
+    id: 'ai.prompt_inspector.open',
+    labelKey: 'command.ai.prompt_inspector.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiPromptInspector === undefined) {
+        return portMissing('ai.prompt_inspector.open', 'openAiPromptInspector')
+      }
+      deps.openAiPromptInspector()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.close',
+    labelKey: 'command.ai.prompt_inspector.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeAiPromptInspector === undefined) {
+        return portMissing('ai.prompt_inspector.close', 'closeAiPromptInspector')
+      }
+      deps.closeAiPromptInspector()
+    },
+  })
+  target.register({
+    id: 'ai.prompt.assemble',
+    labelKey: 'command.ai.prompt.assemble',
+    keys: undefined,
+    run: () => {
+      if (deps.assembleAiPrompt === undefined) {
+        return portMissing('ai.prompt.assemble', 'assembleAiPrompt')
+      }
+      deps.assembleAiPrompt()
     },
   })
 

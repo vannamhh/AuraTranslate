@@ -85,6 +85,10 @@ import PromptLibraryOverlay from './PromptLibraryOverlay.vue'
 // HAI. Mở TỪ BÊN TRONG `PromptLibraryOverlay` (nút "Nhập từ file"), dựng ở cùng tầng gốc như
 // mọi lớp phủ khác — cùng khuôn `GlossaryImportOverlay`/`GlossaryManageOverlay`.
 import PromptImportOverlay from './PromptImportOverlay.vue'
+// Story 4.7 (FR71, AD-14) — lớp phủ "Xem prompt cuối cùng đã gửi", lớp phủ THỨ MƯỜI BA. Mở
+// TỪ Panel AI Translation (`AiTranslationPanel.vue`, nút "Xem prompt") — cùng khuôn
+// `PromptLibraryOverlay`: một lớp phủ tự quản `v-if`, dựng ở cùng tầng gốc.
+import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -415,6 +419,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 4.5 · FR79/NFR9 — cùng khuôn: lớp phủ tự quản `v-if` qua `promptImportOverlayIsOpen`. -->
     <PromptImportOverlay />
+
+    <!-- Story 4.7 · FR71/AD-14 — cùng khuôn: lớp phủ tự quản `v-if` qua `aiPromptInspectorIsOpen`. -->
+    <AiPromptInspectorOverlay />
   </main>
 </template>
 

@@ -1875,3 +1875,118 @@ fn the_prompt_set_wires_are_registered() {
         );
     }
 }
+
+/// 🔴 Story 4.7, finding V2 (loop 1) — cổng này là một danh sách gõ tay THEO TỪNG DOMAIN
+/// (doc-comment [`the_aiconfig_key_wires_are_registered`] tự ghi vậy) — Story 4.7 thêm HAI vỏ
+/// mới (`ai_prompt_assemble`/`ai_prompt_read_record`) và không sibling nào canh chúng cho tới
+/// ca này. Trước ca này: xoá cả hai dòng `generate_handler!` của `commands::aiprompt::wire::…`
+/// khỏi `lib.rs` vẫn để `cargo test --locked` VÀ `npx vitest run` xanh trong khi màn "Xem
+/// prompt" vỡ trên một bản dựng thật ("command not found") — đúng lỗ `ipc_contract.rs` tồn tại
+/// để chặn cho MỌI domain khác, chỉ riêng domain này chưa có.
+///
+/// Cùng khuôn [`the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names`]
+/// — kiểm CẢ nửa đăng ký (`generate_handler!`) LẪN nửa tham số (neo vào đúng khối `pub fn` của
+/// `commands/aiprompt.rs`, không phải một chuỗi con rời rạc). `fn_param_list` khớp khối ĐẦU
+/// TIÊN khớp tên — an toàn ở đây vì `ai_prompt_assemble`/`ai_prompt_read_record` chỉ xuất hiện
+/// đúng MỘT lần mỗi tên trong tệp (không trùng tên với hàm thuần
+/// `assemble_and_record_prompt`/`read_last_assembled_prompt`, khác tên có chủ ý — xem
+/// doc-comment `commands/aiprompt.rs::wire`).
+#[test]
+fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::aiprompt::wire::ai_prompt_assemble",
+        "crate::commands::aiprompt::wire::ai_prompt_read_record",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
+             \"command not found\" va man Xem prompt vo tren mot ban dung that."
+        );
+    }
+
+    assert!(
+        lib_src.contains("app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));"),
+        "thieu `app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None))` \
+         trong `lib.rs` -- ca hai vo tren roi vao nhanh state-chua-quan-ly."
+    );
+
+    let aiprompt_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("aiprompt.rs");
+    let aiprompt_src = fs::read_to_string(&aiprompt_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", aiprompt_rs.display()));
+
+    for (fn_name, expected_params) in [
+        ("ai_prompt_assemble", "app: tauri::AppHandle, prompt_set_name: Option<String>, segment_id: i64,"),
+        ("ai_prompt_read_record", "app: tauri::AppHandle"),
+    ] {
+        let params = fn_param_list(&aiprompt_src, fn_name);
+        assert_eq!(
+            normalize_param_list(&params),
+            normalize_param_list(expected_params),
+            "vo `{fn_name}` trong `pub mod wire` cua commands/aiprompt.rs khong con dung danh \
+             sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
+             `src/config/aiprompt.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+        );
+    }
+}
+
+/// 🔴 Story 4.7 loop 2, finding P5 — song sinh của
+/// `project_contract.rs::replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings`,
+/// nhưng cho nhánh CÒN LẠI: `lib.rs::close_open_work` (không `pub`, `RunEvent::Exit` gọi khi
+/// ứng dụng thoát — xem doc-comment tại chỗ). Trước ca này, nhánh dọn `LastAssembledPromptState`
+/// mà Phase 2's judgment call thêm vào `close_open_work` không một ca nào canh: xoá ba dòng đó
+/// (nhánh `if let Some(record) = handle.try_state::<crate::commands::aiprompt::
+/// LastAssembledPromptState>() { … }`) vẫn để CẢ `cargo test --locked` LẪN `npx vitest run`
+/// xanh — bản ghi prompt của Tác phẩm vừa đóng sống sót sang phiên kế tiếp, đọc nhầm "đúng
+/// Chương/segment này" cho một Tác phẩm nó chưa từng thấy (cùng khuyết tật V1, một tầng khác).
+///
+/// Neo vào ĐÚNG khối `fn close_open_work`, không một chuỗi con rời rạc trong cả `lib.rs` — cùng
+/// lý do doc-comment của ca song sinh: `crate::commands::aiprompt::LastAssembledPromptState`
+/// còn xuất hiện ở NHIỀU nơi khác của `lib.rs` (đăng ký `generate_handler!`, `app.manage`), nên
+/// một `lib_src.contains(...)` trên cả tệp sẽ xanh dù lời gọi dọn nằm ở một hàm khác hẳn.
+#[test]
+fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    let start_marker = "fn close_open_work(handle: &tauri::AppHandle) {";
+    let start = lib_src
+        .find(start_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{start_marker}` trong {}", lib_rs.display()));
+    // Neo diem ket THAT: doc-comment mo dau ham lang gieng ngay sau no trong tep that
+    // (`close_library_index`) — on dinh hon dem ngoac tay, va da la mot chuoi DUY NHAT trong tep.
+    let end_marker = "đóng `library-index.db`";
+    let end = lib_src[start..]
+        .find(end_marker)
+        .map(|rel| start + rel)
+        .unwrap_or_else(|| panic!("khong tim thay moc ket `{end_marker}` sau `close_open_work`"));
+    let body = &lib_src[start..end];
+
+    assert!(
+        body.contains("crate::commands::aiprompt::LastAssembledPromptState")
+            && body.contains("clear_last_assembled_prompt_on_work_close"),
+        "than `close_open_work` phai goi `clear_last_assembled_prompt_on_work_close` qua \
+         `LastAssembledPromptState` — hien tai KHONG co, nen ban ghi prompt cua Tac pham vua \
+         DONG song sot sang phien ke tiep:\n{body}"
+    );
+    // Đối chứng dương của phép neo: hai người láng giềng đã có (Story 3.10b/4.5) phải cũng nằm
+    // TRONG đúng thân này — nếu không, phép cắt thân ở trên đang sai vị trí và assert phía trên
+    // có thể xanh giả nhờ một chuỗi con ở NƠI KHÁC của `lib.rs`.
+    assert!(
+        body.contains("crate::commands::glossary::PendingImportState")
+            && body.contains("clear_pending_import_for_tier"),
+        "phep cat than co the sai vi tri -- nguoi lang gieng Story 3.10b phai nam TRONG than nay:\n{body}"
+    );
+    assert!(
+        body.contains("crate::commands::promptset::PendingPromptImportState")
+            && body.contains("clear_pending_prompt_import_work_tier"),
+        "phep cat than co the sai vi tri -- nguoi lang gieng Story 4.5 phai nam TRONG than nay:\n{body}"
+    );
+}

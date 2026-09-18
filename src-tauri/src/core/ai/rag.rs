@@ -120,6 +120,46 @@ pub enum TmInjectionStatus {
     Searched(Vec<SimilarSegment>),
 }
 
+/// Nhãn của MỘT mảnh `prompt` đã lắp — Story 4.7, finding B1 (loop 1), sửa lại ở loop 2
+/// (finding P7): BỐN nhãn, không còn ba. `Authored` (thân do người soạn bộ prompt gõ),
+/// `Glossary` (đúng khối `{{glossary_terms}}` mở rộng ra, kể cả hai dấu xuống dòng cách ly nếu
+/// có), `SourceSegment` (câu nguồn đã thay vào `{{source_segment}}` — TÁCH khỏi `Authored`, xem
+/// dưới), `Tm` (dành cho Epic 7 — RỖNG trong mọi `prompt` story này lắp, vì `assemble_prompt`'s
+/// tham số `tm` luôn `None` ở lệnh gọi duy nhất của Story 4.7).
+///
+/// 🔴 **SỬA loop 2, finding P7** — bản loop 1 gộp câu nguồn vào `Authored` ("nó không mang
+/// `tier`, không phải một 'term' Glossary"), đúng NGUYÊN VĂN cách §Code Map của spec đặt tên lúc
+/// đó. Hệ quả: phần ĐỘNG NHẤT của prompt (câu nguồn, đổi mỗi lượt gọi) render giống hệt phần TĨNH
+/// NHẤT (thân bộ prompt, người soạn gõ MỘT lần) — đúng khuyết tật §Always cấm ("dynamically
+/// injected text is visually separable from the user-authored body"), chỉ đổi chỗ chứ chưa đóng.
+/// Câu nguồn KHÔNG phải văn bản người soạn BỘ PROMPT gõ (nó đến từ Chương đang mở, không đến từ
+/// thân `body`), nên nó cũng không thực sự là `Authored` theo đúng nghĩa đen của tên đó.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptPieceKind {
+    /// Thân do người soạn bộ prompt gõ — văn bản TĨNH, không đổi giữa các lượt gọi.
+    Authored,
+    /// Đúng khối văn bản `{{glossary_terms}}` mở rộng ra (xem [`render_glossary_pairs`]).
+    Glossary,
+    /// Câu nguồn đã thay vào `{{source_segment}}` — không mang `tier`, không phải một "term"
+    /// Glossary nên không thuộc `Glossary`, và không phải văn bản người soạn BỘ PROMPT gõ nên
+    /// tách khỏi `Authored` (finding P7, loop 2).
+    SourceSegment,
+    /// Dành cho Epic 7 — không một `prompt` nào story 4.7 lắp tạo ra mảnh khác rỗng ở nhãn
+    /// này, vì tham số `tm` của [`assemble_prompt`] luôn `None`.
+    Tm,
+}
+
+/// MỘT mảnh liên tục của `prompt` đã lắp, mang nhãn nó đến từ đâu. Nối `text` của TOÀN BỘ
+/// `pieces` theo đúng thứ tự phải cho lại `prompt` TỪNG BYTE — đối chứng này chạy trong
+/// `ai_prompt_contract.rs`, và `assemble_prompt` tự kiểm nó bằng `debug_assert_eq!` bên dưới
+/// (không phải một bản quét thứ hai: chỉ nối lại những gì vòng lặp DUY NHẤT của
+/// `expand_prompt_body` đã tự ghi song song vào `out` và `pieces`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PromptPiece {
+    pub kind: PromptPieceKind,
+    pub text: String,
+}
+
 /// Kết quả đầy đủ của MỘT lượt [`assemble_prompt`] — thứ Story 4.7 đọc để vẽ prompt inspector
 /// (FR71) và Story 4.8 đọc để quyết có gửi được hay không.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -133,6 +173,13 @@ pub struct InjectionLedger {
     /// công (§Never của spec cấm mọi hành vi từ chối ở đây), nhưng một prompt không có câu để
     /// dịch không được rời khỏi hàm này mà tự mô tả là "ổn".
     pub source_segment_missing: bool,
+    /// 🔴 **THÊM — Story 4.7 loop 1, finding B1.** `prompt` đã lắp, cắt thành các mảnh liên
+    /// tục theo nhãn (§Code Map: "additive — `assemble_prompt`'s signature không đổi, không
+    /// Decision nào của spec 4.6 đổi"). Nối `.text` của toàn bộ phần tử theo đúng thứ tự phải
+    /// cho lại `prompt` TỪNG BYTE — đây là cơ chế khiến màn hình vẽ được phần chèn động tách
+    /// biệt khỏi thân do người dùng soạn mà KHÔNG cần lắp lại (§Always cấm recompute) và
+    /// KHÔNG cần một bản quét thứ hai trên `prompt` đã lắp (§Never cấm scanner thứ hai).
+    pub pieces: Vec<PromptPiece>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -259,6 +306,51 @@ fn out_ends_with_a_blank_line(out: &str) -> bool {
         .is_empty()
 }
 
+/// Nhãn `pieces` tương ứng với một [`PromptVariable`] — Glossary cho đúng khối
+/// `{{glossary_terms}}`, SourceSegment cho câu nguồn (finding P7, loop 2 — TÁCH khỏi `Authored`;
+/// xem doc-comment [`PromptPieceKind::SourceSegment`]), Tm dành cho Epic 7 (luôn rỗng ở lệnh gọi
+/// story 4.7).
+fn piece_kind_for(var: PromptVariable) -> PromptPieceKind {
+    match var {
+        PromptVariable::GlossaryTerms => PromptPieceKind::Glossary,
+        PromptVariable::SourceSegment => PromptPieceKind::SourceSegment,
+        PromptVariable::TmSimilarSegments => PromptPieceKind::Tm,
+    }
+}
+
+/// Ghi `s` vào CẢ `out` (chuỗi thật) lẫn `pieces` (song song, cùng một lượt gọi — không một
+/// lượt tách biệt đi đọc lại `out`). Gộp vào mảnh CUỐI nếu mảnh đó cùng nhãn — một chuỗi liên
+/// tục cùng nguồn gốc là MỘT mảnh, không nhiều mảnh rời cùng nhãn nối tiếp nhau. Chuỗi rỗng
+/// không tạo mảnh (không có gì để tô màu).
+fn push_piece(out: &mut String, pieces: &mut Vec<PromptPiece>, kind: PromptPieceKind, s: &str) {
+    out.push_str(s);
+    if s.is_empty() {
+        return;
+    }
+    if let Some(last) = pieces.last_mut() {
+        if last.kind == kind {
+            last.text.push_str(s);
+            return;
+        }
+    }
+    pieces.push(PromptPiece { kind, text: s.to_owned() });
+}
+
+/// Gỡ MỘT điểm mã cuối khỏi CẢ `out` lẫn mảnh cuối của `pieces` — dùng bởi lượt co dòng trắng
+/// liền kề (Quyết định 3, "LOCAL") của [`expand_prompt_body`]. Điểm mã bị gỡ luôn là `'\n'` do
+/// chính thân prompt gõ ra (xem doc-comment tại nơi gọi) — nghĩa là mảnh cuối luôn mang nhãn
+/// `Authored` tại điểm gọi này; hàm vẫn viết tổng quát (không giả định nhãn) để không âm thầm
+/// đúng nhờ một điều kiện chưa được đặt tên.
+fn pop_piece(out: &mut String, pieces: &mut Vec<PromptPiece>) {
+    out.pop();
+    if let Some(last) = pieces.last_mut() {
+        last.text.pop();
+        if last.text.is_empty() {
+            pieces.pop();
+        }
+    }
+}
+
 /// Mở rộng MỌI marker ratify trong `body` — **một lượt quét, trái sang phải, trên thân GỐC**
 /// (Task của spec: nội dung tiêm không bao giờ bị quét lại — xem doc-comment đầu tệp). Trả
 /// thêm `source_segment_seen`: `true` nếu ít nhất MỘT lần lượt quét này (không phải một phép
@@ -277,21 +369,22 @@ fn out_ends_with_a_blank_line(out: &str) -> bool {
 ///    dòng riêng, không bao giờ nối giữa dòng (matrix: *"Marker shares its line, two or more
 ///    pairs"*). Phần thay thế MỘT dòng (hoặc rỗng, không đứng một mình) không cần cách ly —
 ///    nó nối vào dòng như văn bản thường, đúng cách `{{source_segment}}` luôn hoạt động.
-fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (String, bool) {
+fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (String, bool, Vec<PromptPiece>) {
     let mut out = String::with_capacity(body.len() + glossary_block.len());
+    let mut pieces: Vec<PromptPiece> = Vec::new();
     let mut cursor = 0usize;
     let mut source_segment_seen = false;
 
     loop {
         let Some(open_rel) = body[cursor..].find("{{") else {
-            out.push_str(&body[cursor..]);
+            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..]);
             break;
         };
         let open_at = cursor + open_rel;
         let after_open = open_at + 2;
 
         let Some(close_rel) = body[after_open..].find("}}") else {
-            out.push_str(&body[cursor..]);
+            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..]);
             break;
         };
         let token_start = after_open;
@@ -302,7 +395,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
         // no la van ban thuong, khong xu ly nhu mot marker; sao chep qua no roi quet lai TU
         // BEN TRONG token vua tim thay.
         if token.contains("{{") {
-            out.push_str(&body[cursor..after_open]);
+            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..after_open]);
             cursor = after_open;
             continue;
         }
@@ -311,7 +404,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
 
         let Some(var) = PromptVariable::from_token(token) else {
             // Token khong biet -- giu NGUYEN VAN toan bo marker (Quyet dinh #3, spec 4.4).
-            out.push_str(&body[cursor..close_at]);
+            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..close_at]);
             cursor = close_at;
             continue;
         };
@@ -320,6 +413,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
         }
 
         let replacement = replacement_for(var, sentence, glossary_block);
+        let piece_kind = piece_kind_for(var);
 
         let line_start = body[..open_at].rfind('\n').map(|i| i + 1).unwrap_or(0);
         let line_end = body[close_at..].find('\n').map(|i| close_at + i).unwrap_or(body.len());
@@ -330,7 +424,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
         if replacement.is_empty() && alone_on_line {
             // Quyet dinh 3 -- go CA DONG (ke ca dau xuong dong CUA CHINH no), khong chi go
             // van ban marker.
-            out.push_str(&body[cursor..line_start]);
+            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..line_start]);
 
             let mut next_cursor = line_end;
             if next_cursor < body.len() {
@@ -341,7 +435,9 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
             // nhau, bo MOT. `prev_line_blank` doc tu `out` (xem doc-comment cua
             // `out_ends_with_a_blank_line`) de mot chuoi marker-roi-lien-tiep phoi hop dung;
             // `next_line_blank` doc tu `body` GOC la dung, vi dong SAU (neu no cung la mot
-            // marker rong) se tu no gay ra mot luot go RIENG o vong lap ke tiep.
+            // marker rong) se tu no gay ra mot luot go RIENG o vong lap ke tiep. `prev_line_blank`
+            // chi co the dung khi dong trang do la van ban THAT tu `body` (nhan `Authored`) --
+            // xem doc-comment cua `pop_piece`.
             let prev_line_blank = out_ends_with_a_blank_line(&out);
             let next_line_blank = body[next_cursor..]
                 .split('\n')
@@ -351,7 +447,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
                 .is_empty();
 
             if prev_line_blank && next_line_blank && out.ends_with('\n') {
-                out.pop();
+                pop_piece(&mut out, &mut pieces);
             }
 
             cursor = next_cursor;
@@ -359,21 +455,21 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
         }
 
         // Truong hop chung: van ban truoc marker giu nguyen, roi chen phan thay the.
-        out.push_str(&body[cursor..open_at]);
+        push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..open_at]);
 
         let needs_isolation = replacement.contains('\n');
         if needs_isolation && !before_on_line.trim().is_empty() && !out.ends_with('\n') {
-            out.push('\n');
+            push_piece(&mut out, &mut pieces, piece_kind, "\n");
         }
-        out.push_str(replacement);
+        push_piece(&mut out, &mut pieces, piece_kind, replacement);
         if needs_isolation && !after_on_line.trim().is_empty() {
-            out.push('\n');
+            push_piece(&mut out, &mut pieces, piece_kind, "\n");
         }
 
         cursor = close_at;
     }
 
-    (out, source_segment_seen)
+    (out, source_segment_seen, pieces)
 }
 
 /// **Assembler THUẦN của Smart RAG Injector** (AD-14) — nửa nghiệm thu bởi toàn bộ ma trận
@@ -398,7 +494,18 @@ pub fn assemble_prompt(
         Some(segments) => TmInjectionStatus::Searched(segments.to_vec()),
     };
 
-    let (prompt, source_segment_seen) = expand_prompt_body(body, sentence, &glossary_block);
+    let (prompt, source_segment_seen, pieces) = expand_prompt_body(body, sentence, &glossary_block);
+
+    // 🔴 Bảo đảm AC4/AC2 giữ đúng KHÔNG PHẢI bằng lời hứa — `pieces` được ghi SONG SONG với
+    // `prompt` trong đúng MỘT vòng lặp của `expand_prompt_body` (không một bản quét thứ hai
+    // trên `prompt` đã lắp). `debug_assert_eq!` này chỉ nối lại những gì đã ghi và so với
+    // `prompt`; nó không chạy ở bản release (giữ `assemble_prompt` không tốn chi phí thêm ở
+    // đường nóng), phép nối thật chạy trong `ai_prompt_contract.rs`.
+    debug_assert_eq!(
+        pieces.iter().map(|p| p.text.as_str()).collect::<String>(),
+        prompt,
+        "pieces phai noi lai dung `prompt` TUNG BYTE -- xem doc-comment `InjectionLedger::pieces`"
+    );
 
     let unknown_markers = scan_markers(body).unknown_markers;
     // 🔴 **KHÔNG `body.contains(marker())` — rà soát 2026-09-18.** Một chuỗi con thô khớp cả
@@ -416,6 +523,7 @@ pub fn assemble_prompt(
         tm: tm_status,
         unknown_markers,
         source_segment_missing,
+        pieces,
     };
 
     (prompt, ledger)

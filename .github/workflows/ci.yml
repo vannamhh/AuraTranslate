@@ -304,6 +304,48 @@ jobs:
       - name: cargo test
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
+      # ═══════════════════════════════════════════════════════════════════════════════
+      #  FR77 — đối chứng dương biên dịch THẬT của seam AD-13 (Story 4.7, Decision 1)
+      # ═══════════════════════════════════════════════════════════════════════════════
+      #
+      # 🔴 Vì sao bước RIÊNG này, không nằm trong `cargo test --locked` ở trên (finding
+      # V3, loop 1): `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_
+      # tree_compiling` (`src-tauri/tests/ai_boundary.rs`) là `#[ignore]`d có chủ ý — nó
+      # CHÉP TOÀN BỘ `src-tauri/` sang một thư mục tạm rồi chạy MỘT `cargo check` THỨ HAI
+      # trên bản chép đã xoá `core/ai/` — đắt hơn hẳn một `assert!` thường, đúng khuôn
+      # `check:scope`/`check:scope:bundled` ở trên (root `AGENTS.md`: kiểm dựa-trên-build
+      # đắt tiền sống NGOÀI đường `cargo test --locked` mặc định). Trước bước này, ca đó
+      # CHỈ chạy tay (`cargo test --test ai_boundary --locked -- --ignored --exact …`) —
+      # không một đường tự động nào, kể cả CI, từng thật sự chạy nó; `pre-push` cũng
+      # không, vì lý do y hệt (chạy MỖI lần push sẽ chậm hẳn một push thường).
+      #
+      # ⚠️ Đặt SAU `cargo test` ở trên (dùng lại `target/` đã build sẵn của lượt đó, đúng
+      # cách `ai_boundary.rs`'s doc-comment tự mô tả: nó `--target-dir` trỏ THẲNG vào
+      # `target/` thật để tái sử dụng crate phụ thuộc đã biên dịch, chỉ crate của chính dự
+      # án cần build lại trên bản chép).
+      # 🔴 P1 (Story 4.7, Phase 6) — `cargo test … -- --ignored --exact <tên>` khi bộ lọc
+      # khớp 0 ca thì IN "running 0 tests" và THOÁT 0: đổi tên/xoá ca này (hoặc gỡ
+      # `#[ignore]`) làm cổng đối chứng dương duy nhất của FR77 tắt tiếng mà bước vẫn
+      # xanh. Đo thật 2026-09-18: `--exact this_test_name_does_not_exist_anywhere` →
+      # `running 0 tests` … `test result: ok. 0 passed…` → exit 0. Nên bước này PHẢI tự
+      # đọc log của chính nó và ép đỏ khi không đúng MỘT ca chạy — không được tin exit
+      # code trần của `cargo test`. `shell: bash` tường minh vì bước này chạy trên CẢ
+      # macOS lẫn Windows (Windows dùng bash của Git for Windows, đúng cách bước
+      # `tauri build (macOS — .dmg)` ở trên đã làm cho nền tảng của nó).
+      - name: FR77 — xoá core/ai/ + hai seam đã duyệt vẫn để phần còn lại của cây biên dịch
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP:-/tmp}/fr77_control_output.txt"
+          cargo test --test ai_boundary --locked --manifest-path src-tauri/Cargo.toml -- \
+            --ignored --exact \
+            deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling \
+            2>&1 | tee "$OUT"
+          if ! grep -q '^running 1 test$' "$OUT"; then
+            echo "::error::FR77 — bộ lọc --exact khớp 0 ca (\"running 0 tests\" thay vì \"running 1 test\"): tên ca đã đổi hoặc bị xoá, cổng đối chứng dương AD-13 đang bị vô hiệu hoá trong im lặng thay vì chạy." >&2
+            exit 1
+          fi
+
       # ── Bản build ứng dụng THẬT (AC1, AC3) ──────────────────────────────────────
       #
       # ⚠️ Truyền `--bundles` TƯỜNG MINH. `tauri.conf.json` khai `targets: ["dmg","msi"]`,

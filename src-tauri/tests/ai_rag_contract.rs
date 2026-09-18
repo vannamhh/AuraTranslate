@@ -20,8 +20,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use auratranslate_lib::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, SuppressedGlossaryTerm, TmInjectionStatus,
-    assemble_prompt, gather_glossary_context,
+    GlossaryInjectionStatus, InjectedGlossaryTerm, PromptPieceKind, SuppressedGlossaryTerm,
+    TmInjectionStatus, assemble_prompt, gather_glossary_context,
 };
 use auratranslate_lib::core::glossary::{
     Category, GlossaryError, GlossaryInjectionTerm, GlossaryTier, add_manual_term,
@@ -489,6 +489,43 @@ fn tm_searched_with_an_empty_slice_is_still_searched_not_not_built_yet() {
     );
     assert_eq!(ledger.tm, TmInjectionStatus::Searched(Vec::new()));
     assert_ne!(ledger.tm, TmInjectionStatus::NotBuiltYet);
+}
+
+/// Story 4.7 loop 2, finding P7 -- câu nguồn giờ mang nhãn RIÊNG `PromptPieceKind::SourceSegment`,
+/// tách khỏi `Authored`. Thân câu này CÒN cố ý mang `{{tm_similar_segments}}` (dù `tm` truyền
+/// `Some(&segments)` mang nội dung THẬT) để đối chứng luôn phần còn lại của finding P9 tại đúng
+/// tầng THUẦN của module: dù `ledger.tm == Searched(segments)`, KHÔNG một mảnh `Tm` nào xuất
+/// hiện trong `pieces` -- `replacement_for(TmSimilarSegments, …)` trả về `""` VÔ ĐIỀU KIỆN
+/// (Quyết định của Story 4.6, đóng băng), và `push_piece` bỏ qua chuỗi rỗng, nên KHÔNG một
+/// `prompt` nào tầng này lắp có thể mang một mảnh `Tm` mang văn bản -- việc đó là của Epic 7.
+#[test]
+fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored_and_tm_never_produces_a_piece()
+ {
+    let segments = vec![SimilarSegment {
+        source_text: "A dog barked.".to_owned(),
+        target_text: "Mot con cho sua.".to_owned(),
+    }];
+    let body = "TM:\n{{tm_similar_segments}}\n{{source_segment}}";
+    let (prompt, ledger) =
+        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, Some(&segments));
+
+    assert_eq!(prompt, "TM:\nHello.");
+    assert_eq!(ledger.tm, TmInjectionStatus::Searched(segments), "tien de: tm THAT su da 'searched'");
+
+    let concatenated: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
+    assert_eq!(concatenated, prompt, "noi lai pieces phai cho dung prompt TUNG BYTE");
+
+    assert_eq!(ledger.pieces.len(), 2, "{:?}", ledger.pieces);
+    assert_eq!(ledger.pieces[0].kind, PromptPieceKind::Authored);
+    assert_eq!(ledger.pieces[0].text, "TM:\n");
+    assert_eq!(ledger.pieces[1].kind, PromptPieceKind::SourceSegment);
+    assert_eq!(ledger.pieces[1].text, "Hello.");
+
+    assert!(
+        !ledger.pieces.iter().any(|p| p.kind == PromptPieceKind::Tm),
+        "khong mot manh Tm nao duoc phep ton tai o tang nay hom nay -- {:?}",
+        ledger.pieces
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
