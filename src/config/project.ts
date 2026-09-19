@@ -303,7 +303,7 @@ export type CleanupPreviewWire = {
   window_truncated: boolean
   /** Văn bản CUỐI CÙNG (sau cả làm sạch VÀ chuẩn hoá) — khi `window_truncated === false`,
    * PHẢI giống hệt từng byte với `source_text` mà xác nhận ghi xuống (đóng nợ
-   * `deferred-work.md:9359`). */
+   * `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`). */
   final_text: string
 }
 

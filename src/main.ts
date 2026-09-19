@@ -791,7 +791,7 @@ async function boot(): Promise<void> {
       // trả về vùng chọn thuộc một bề mặt đã **đăng ký làm nguồn** (AC3), và nó biết cách
       // lấy **ký tự Hán nguồn** từ tab Hán Việt kiểu chuyển đổi.
       currentSelection: currentSelectionText,
-      // Story 1.18 · AC11 — bôi đen bằng bàn phím, đóng `deferred-work.md:608`.
+      // Story 1.18 · AC11 — bôi đen bằng bàn phím, đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
       focusSelectionSource,
       extendSelectionLeft: selectionCommands.extendLeft,
       extendSelectionRight: selectionCommands.extendRight,
@@ -1104,7 +1104,7 @@ async function boot(): Promise<void> {
   // ⚠️ Đăng ký SAU lượt đặt chế độ ban đầu, có chủ ý: nếu không, chính lượt đặt đó kích
   // hoạt một lượt ghi và mỗi lần khởi động lại viết lại đúng giá trị vừa đọc lên.
   //
-  // 🔴 Đóng `deferred-work.md:140` — *"chế độ mặc định lúc khởi động là `library` và không
+  // 🔴 Đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` — *"chế độ mặc định lúc khởi động là `library` và không
   // phép kiểm nào canh"*. Nay nó được lưu, và `scope_contract.rs::the_last_mode_survives_a_
   // write_and_a_reopen` canh vòng ghi-đọc-mở-lại.
   //

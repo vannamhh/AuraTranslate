@@ -56,7 +56,7 @@ import { glossaryMarksError } from './panels/glossaryMarksState'
  * lượt flush — tức nó **nói dối theo hướng an tâm**, đúng thứ UX-DR30 tồn tại để tránh.
  *
  * Cái giá đã cân bằng số: một lượt gán `ref` mỗi giây chạm **một** text node — khác hẳn hạng
- * với lượt `v-for` trên 9.850 `<span>` mà `deferred-work.md:2143-2152` đã ghi cho Panel Editor.
+ * với lượt `v-for` trên 9.850 `<span>` mà `deferred-work.md §*Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)*` đã ghi cho Panel Editor.
  */
 const now = ref(Date.now())
 let ticker: ReturnType<typeof setInterval> | null = null

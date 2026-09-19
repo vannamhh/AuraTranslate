@@ -31,12 +31,12 @@
 // ─────────────────────────────────────────────────────────────────────────────────
 // Kiểm A của `scripts/check-i18n.mjs` quét mọi `.vue` dưới `src/**` và đỏ với một chuỗi
 // tiếng Việt CÓ DẤU ở vị trí mã (AC2 của Story 1.5). Nó đo **DẤU**, nên nó không phân
-// biệt được *"chuỗi hiển thị"* với *"chẩn đoán ra console"* — `deferred-work.md:36` đã ghi
+// biệt được *"chuỗi hiển thị"* với *"chẩn đoán ra console"* — `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` đã ghi
 // đúng giới hạn đó, và §Quyết định #6 của story này mở rộng cổng theo chiều KHÁC (đo text
 // node của template), không nới chiều này.
 //
 // Đường thoát dễ là dời khối logic dưới đây sang một tệp `.ts` — Kiểm A không quét
-// `.ts`. `deferred-work.md:35` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi
+// `.ts`. `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi
 // từ `.vue` sang `.ts` là cách hợp lệ về mặt cổng để cho xanh — đừng dùng."*
 //
 // ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng

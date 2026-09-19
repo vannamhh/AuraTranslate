@@ -47,7 +47,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────
 // 🔴 AC7 — `font-synthesis` PHẢI ĐƯỢC TIÊU THỤ, ĐỪNG BỎ SÓT DÒNG NÀY
 // ─────────────────────────────────────────────────────────────────────────────────
-// `deferred-work.md:133` ghi nguyên văn: "Bỏ sót dòng đó là cách lời giải này chết im
+// `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*` ghi nguyên văn: "Bỏ sót dòng đó là cách lời giải này chết im
 // lặng." Đây là NGƯỜI TIÊU THỤ ĐẦU TIÊN của token `source-hanviet` — xem `rt`
 // trong `<style>` dưới đây, cả năm biến `--*-source-hanviet`, không chỉ `font-synthesis`.
 import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue'
@@ -96,7 +96,7 @@ const props = defineProps<{
    *
    * ⚠️ **Đây LÀ nguồn của cả hai việc `buildSegments` phải làm**: CẮT tại `start`/`end` của
    * mỗi span (bất kể ranh giới từ ICU nói gì — ranh giới `Matcher` THẮNG, xem
-   * `deferred-work.md:914-926`), VÀ gắn nhãn (đã chốt/chờ chốt) để tô màu + hover. Hai việc đi
+   * `deferred-work.md §*Deferred from: nghiệm thu tay tab Hán Việt (Ice, 2026-08-07)*`), VÀ gắn nhãn (đã chốt/chờ chốt) để tô màu + hover. Hai việc đi
    * qua CÙNG một mảng để không có đường nào để hai tập lệch nhau.
    */
   glossaryTerms?: readonly SegmentTermSpan[]
@@ -160,7 +160,7 @@ type Segment =
   | { kind: 'han'; chars: string[]; readings: (string | null)[]; srcStart: number }
 
 /**
- * ⚠️ Ngắt dòng được CHUẨN HOÁ ở đây — Bẫy `deferred-work.md:527`: văn bản nhập từ tệp
+ * ⚠️ Ngắt dòng được CHUẨN HOÁ ở đây — Bẫy `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*`: văn bản nhập từ tệp
  * Windows mang `\r\n`, và `\r` KHÔNG được hiện thành một ô trống trên màn hình. Đây là một
  * phép biến đổi TRÌNH BÀY thuần tuý, không phải một quy tắc nghiệp vụ — dữ liệu gốc
  * trong `chapter.source_text` KHÔNG bị đổi.
@@ -1001,7 +1001,7 @@ onBeforeUnmount(() => {
  * Một dòng trạng thái cho CẢ bề mặt — không nhân theo số ký tự.
  *
  * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) — token thứ 17 `ui-md-wrap`
- * (giãn dòng 1.66, `wraps: true`) thay `ui-md` (1.5, dưới sàn), đóng `deferred-work.md:115`.
+ * (giãn dòng 1.66, `wraps: true`) thay `ui-md` (1.5, dưới sàn), đóng `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`.
  */
 .hv-notice {
   margin: 0 0 var(--space-panel-block) 0;

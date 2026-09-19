@@ -745,7 +745,7 @@ function onSourceCellMouseUp(event: MouseEvent): void {
   //
   // ✅ Ice ký 2026-08-17 — một lượt lật tìm ra bằng cách **DÙNG THẬT**, đúng khuôn đã lặp ở
   //    2.5b *(hàng về hưu trong lưới)* và 2.8 *(chữ ký #6 lật lần thứ ba)*. Cùng lượt ký đó
-  //    xác nhận **double-click TRA ĐƯỢC** trên máy thật ⇒ đóng món nợ 🔴 `deferred-work.md:4100`.
+  //    xác nhận **double-click TRA ĐƯỢC** trên máy thật ⇒ đóng món nợ 🔴 `deferred-work.md §*Deferred from: code review of 2-5d-ngat-doan-ban-dich (2026-08-16)*`.
   //
   // 🔴 `hasPrimaryModifier`, **KHÔNG** `event.metaKey` — §Trap 1 của `keys.ts`, và
   //    `commands/README.md:73` cấm bằng chữ. Nửa Windows của kho không có đường nghiệm thu
@@ -1010,7 +1010,7 @@ function onColumnFocusOut(event: FocusEvent): void {
  * lượt cần khôi phục nhất.
  *
  * 🔵 **RẺ HƠN `EditorPanel.vue` một bậc, và đó là một hệ quả đo được của lưới:** bản cũ quét
- * **toàn bộ** `.doc` bằng `querySelectorAll` mỗi lượt *(`deferred-work.md:2484-2489`, chủ
+ * **toàn bộ** `.doc` bằng `querySelectorAll` mỗi lượt *(`deferred-work.md §*Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)*`, chủ
  * Story 2.4)*. Ở đây phép quét giới hạn trong **cột bản dịch**, và nó chỉ chạy khi tập chờ
  * **khác rỗng**.
  */

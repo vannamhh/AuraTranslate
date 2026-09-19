@@ -70,7 +70,7 @@ export type CommandSpec = {
   /**
    * Giữ phím có LẶP LẠI thao tác không? Mặc định **không**.
    *
-   * 🔴 Story 1.21 · đóng `deferred-work.md:656` *(Ice ký nhận 2026-08-11 — món nợ này
+   * 🔴 Story 1.21 · đóng `deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*` *(Ice ký nhận 2026-08-11 — món nợ này
    * không có AC nào ở `epics.md`, và việc nhận nó là một quyết định có chủ)*.
    *
    * `keys.ts::handle` chặn `event.repeat` cho **mọi** command, và cho tới story này đó là

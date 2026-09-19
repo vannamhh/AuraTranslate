@@ -516,7 +516,7 @@ export function createKeymap(
       // đầu hàm, và hệ quả là từ keydown thứ hai trở đi một hợp âm giữ phím lại đi tiếp
       // xuống tầng dưới với hành vi mặc định nguyên vẹn.
       //
-      // 🔴 Story 1.21 · `deferred-work.md:656` — **trừ khi spec khai `repeatable`.** Bốn
+      // 🔴 Story 1.21 · `deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*` — **trừ khi spec khai `repeatable`.** Bốn
       // command `selection.extend_*` PHẢI lặp: giữ `Shift+→` là cách người ta bôi đen một
       // cụm từ. Xem doc-comment của [`CommandSpec.repeatable`] về vì sao mặc định là KHÔNG.
       if (event.repeat === true && !entry.repeatable) return true

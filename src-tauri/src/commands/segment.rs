@@ -7,7 +7,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 VÌ SAO MỘT LỆNH TƯỜNG MINH CHỨ KHÔNG MỘT BƯỚC DI TRÚ DỮ LIỆU — Quyết định #4
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `deferred-work.md:542` để ngỏ đúng hai đường cho **25 Chương Epic 1** đang mang
+//! `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*` để ngỏ đúng hai đường cho **25 Chương Epic 1** đang mang
 //! `segment_count = 0`: một thao tác tách tường minh, hoặc một bước di trú dữ liệu. Đường
 //! thứ hai bị loại vì ba lý do độc lập:
 //!
@@ -15,7 +15,7 @@
 //! 2. Nó chạy **im lặng** lúc mở Tác phẩm — khó phân biệt với đúng cái *"đường tính ngầm
 //!    lúc nạp Chương"* mà AC3 cấm bằng chữ.
 //! 3. Bản sao lưu trước di trú **không nguyên tử và không xác minh lại**
-//!    (`deferred-work.md:254`, chưa ai vá), và đó sẽ là lượt di trú thật đầu tiên chạy trên
+//!    (`deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*`, chưa ai vá), và đó sẽ là lượt di trú thật đầu tiên chạy trên
 //!    một `project.db` **đã có dữ liệu người dùng**.
 //!
 //! ⇒ Bước di trú 5 chỉ làm **một việc**: `CREATE TABLE segment`. Chương **mới** nhập được
@@ -76,7 +76,7 @@ pub struct SplitOutcome {
 /// 🔴 `prepare_cached` MỘT LẦN, KHÔNG `tx.execute` MỖI HÀNG — Story 2.2 · AC17 · Task 8
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Bản trước gọi `tx.execute` với SQL **literal bên trong vòng lặp**, nên `rusqlite` parse
-/// lại câu lệnh **mỗi hàng**. `deferred-work.md:2012-2024` ghi món này với chủ là Story 2.2
+/// lại câu lệnh **mỗi hàng**. `deferred-work.md §*Deferred from: Story 1.22 — bề mặt dữ liệu thật THỨ HAI (2026-08-11)*` ghi món này với chủ là Story 2.2
 /// và ghi thẳng lý do hoãn: *"hoãn vì **chưa ai đo**, không phải vì nó nhỏ"*.
 ///
 /// **Đã đo, 2026-08-12, `cargo test --release` trên macOS, 9.850 hàng — quy mô THẬT của
@@ -539,7 +539,7 @@ pub struct SegmentVersionRow {
 /// mệnh đề `ORDER BY` ở đây mà không đổi index là làm index thành vô dụng trong im lặng.
 ///
 /// ⚠️ **`created_at` chứ không phải `segment.updated_at`** — hai mốc **không nói cùng một
-/// chuyện**, và đây là món nợ thứ hai có chủ 2.6 *(`deferred-work.md:2787-2792`)*, đã **đọc mã
+/// chuyện**, và đây là món nợ thứ hai có chủ 2.6 *(`deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*`)*, đã **đọc mã
 /// xác nhận lại** chứ không chép: `segment.updated_at` do [`save_segment_targets`] sinh và mang
 /// nghĩa *"mốc sửa **văn bản**"*; `segment_version.created_at` là **mốc ký**, sinh trong SQL bằng
 /// `strftime('%Y-%m-%dT%H:%M:%fZ','now')` ngay trong [`confirm_segment`]. Một lượt ký **không**
@@ -976,7 +976,7 @@ fn select_chapter_assets(
 /// theo nguyên khối `source_text` của cả Chương chỉ để lấy một số nguyên.
 ///
 /// Lệnh **tách** thì khác và tham số của nó có thật: nó chạy trên một Chương **cũ** mà
-/// người dùng chỉ đích danh trong Thư viện, và `deferred-work.md:542` đếm 25 Chương như
+/// người dùng chỉ đích danh trong Thư viện, và `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*` đếm 25 Chương như
 /// vậy.
 ///
 /// ⚠️ ~~Story 2.11 sở hữu biến thể nhận `chapter_id`. **Đừng** thêm sẵn một tham số

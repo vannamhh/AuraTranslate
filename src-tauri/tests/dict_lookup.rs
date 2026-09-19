@@ -1827,7 +1827,7 @@ fn the_route_depends_only_on_the_query_never_on_surrounding_context() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// STORY 1.18 — TRẦN AN TOÀN CHO TẬP ỨNG VIÊN (`deferred-work.md:631`)
+// STORY 1.18 — TRẦN AN TOÀN CHO TẬP ỨNG VIÊN (`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`)
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Fixture riêng: **60 đầu mục không CÓ CÁI NÀO là chuỗi con thật của truy vấn.**
@@ -1883,7 +1883,7 @@ fn build_ceiling_fixture(dir: &Path) -> PathBuf {
     path
 }
 
-/// 🔴 **`deferred-work.md:631` — cờ `truncated` không ĐƯỢC NÓI DỐI khi trần an toàn chạm.**
+/// 🔴 **`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — cờ `truncated` không ĐƯỢC NÓI DỐI khi trần an toàn chạm.**
 ///
 /// Trần ứng viên là `limit * 50`, nên `limit = 1` ⇒ **50**. Fixture có **60** ứng viên và
 /// **0** trong số đó qua được `verify_substring`.
@@ -1908,7 +1908,7 @@ fn the_candidate_ceiling_keeps_the_truncated_flag_honest() {
         );
         assert!(
             result.truncated,
-            "🔴 `deferred-work.md:631` — SQL đã cắt ở trần 50/60 ứng viên, nên lượt tra này \
+            "🔴 `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — SQL đã cắt ở trần 50/60 ứng viên, nên lượt tra này \
              không nhìn hết. Một `truncated = false` ở đây là câu *danh sách đầy đủ*, và nó SAI."
         );
     }

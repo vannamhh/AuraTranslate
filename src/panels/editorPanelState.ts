@@ -129,7 +129,7 @@ export const editorCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(c
  * dứt khoát một điều nó chưa biết — đúng lỗ mà `hanVietPending` của Story 1.16 tồn tại để bịt.
  *
  * 🔵 **2026-08-18 (code review lượt HAI) — gỡ một dẫn chứng đã hết hạn.** Dòng trên từng viện
- * *"25 Chương của Epic 1, `deferred-work.md:542`"* làm ví dụ cho hoàn cảnh thứ ba. Món nợ ấy
+ * *"25 Chương của Epic 1, `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*`"* làm ví dụ cho hoàn cảnh thứ ba. Món nợ ấy
  * **đã ĐÓNG 2026-08-12 ở Story 2.1** *(bước di trú 5 + hai đường tách, không đường nào tính
  * ngầm)*, nên nó không còn chứng minh được gì. Mệnh đề **ba hoàn cảnh** thì vẫn đứng — chỉ dẫn
  * chứng chết. ⚠️ Một lượt rà đã đọc chính dòng này thành *"Chương rỗng chạm tới được"*: một dẫn
@@ -1177,7 +1177,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
       setEditorCaret(following.id)
       caretPlacement.value = following.id
     } else {
-      // 🔵 STORY 2.10, Quyết định #6(c) — MÓN NỢ `deferred-work.md:2837-2847` ĐÓNG MỘT NỬA.
+      // 🔵 STORY 2.10, Quyết định #6(c) — MÓN NỢ `deferred-work.md §*Deferred from: code review of 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-13)*` ĐÓNG MỘT NỬA.
       //
       // Đây là **câu cuối Chương**: không có câu kế để dời con trỏ sang, nên `primary` vẫn
       // thắng `confirmed` ở `resolveSegmentRule` và vạch lề **không đổi màu** dù `segment.status`
@@ -2135,7 +2135,7 @@ export type NavNotice =
   /** AC7 — đã ở segment **cuối** Chương, không có câu sau. */
   | 'at-last'
   /**
-   * 🔵 Quyết định #6 đường (c), Ice ký 2026-08-18 — món nợ `deferred-work.md:2837-2847`.
+   * 🔵 Quyết định #6 đường (c), Ice ký 2026-08-18 — món nợ `deferred-work.md §*Deferred from: code review of 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-13)*`.
    *
    * `⌘Enter` ở câu **cuối** Chương ký thành công nhưng **không dời được con trỏ** *(không có
    * câu kế)*, nên `resolveSegmentRule` giữ `primary` thắng `confirmed` và vạch lề **không đổi

@@ -1,3 +1,13 @@
+> **Lược 2026-09-19 (Ice chốt).** 139 mục đã đóng trọn được gỡ khỏi sổ để nó đọc được;
+> 8 section không còn mục nào cũng gỡ theo. Nội dung đầy đủ nằm ở
+> `git show 77923f0:_bmad-output/implementation-artifacts/deferred-work.md`.
+>
+> ⚠️ **42 mục cổng chấm ✅ đóng KHÔNG bị gỡ** — văn xuôi của chúng tự nói còn một vế hở
+> *(“vẫn mở”, “còn hở”, “ĐÓNG MỘT NỬA”)* trong khi dòng phán quyết cuối mang ✅, nên
+> `check-debt-owner.mjs` đọc ra `closed`. Giữ lại là phía an toàn của một phép đo bất đối xứng.
+>
+> Luật cũ *“không bao giờ XOÁ một mục đã đóng”* được sửa ở nguồn (`project-context.md`) cùng
+> lượt này — không bị vi phạm im lặng.
 
 ## Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)
 
@@ -9,17 +19,12 @@
   - *Nhìn thấy chữ hiện đúng nét trên Windows* vẫn cần một lượt runner có ảnh chụp. Bốn nét của `Source Sans 3` mới chỉ được dựng trên **Blink/macOS** (Chrome headless 2×).
   - **WKWebView chưa đo.** Đối chứng *thiếu* descriptor `{ weight: '200 900' }` **vẫn ra nét đúng trên Blink** — Blink đọc `fvar` và nội suy trục dù `@font-face` không khai dải nét. Nên bẫy "khoá ở `wght = 200`" mà `ARCHITECTURE-SPINE.md` cảnh báo **chưa tái lập được trên engine nào**, và mức độ nghiêm trọng thật của nó vẫn là ẩn số. Descriptor vẫn bắt buộc (đặc tả dựa vào nó), chỉ là *lý do* bắt buộc yếu hơn tài liệu đang khẳng định.
   - **`-webkit-font-smoothing: antialiased` trong `reset.css` là LÝ LẼ, chưa phải PHÉP ĐO** — chưa có ảnh chụp cạnh nhau của cùng một chuỗi trên hai nền tảng để chứng minh nó thu hẹp khoảng cách độ đậm nét thay vì nới rộng.
-- ✅ **ĐÃ ĐÓNG 2026-08-03 ngay trong lượt rà soát** — ~~Ba tệp giấy phép OFL chưa có AC nào đưa vào bundle~~ — báo cáo kết luận *"cả ba tệp giấy phép gốc phải đi kèm bản phát hành (FR38, FR109)"* nhưng không story nào cưỡng chế điều đó, và phép đo 20,30 MiB cũng chưa gồm chúng. Thuộc Story 1.2 / 10.5.
 - **Rà NFR15 chưa đọc name ID 13/14 của tệp font phát hành** — đã mở `LICENSE` / `OFL.txt` trong zip mà đọc (đúng yêu cầu "rà tường minh"), nhưng chưa đối chiếu với trường License Description nhúng trong chính tệp `.otf`/`.ttf` sẽ được đóng gói. **(Chủ: Story 1.2 / 10.5.)**
 
 ## Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)
 
-- **Tổ hợp CSP + asset protocol của bản RELEASE chưa phép kiểm nào chạm tới** — `check-scope` chạy `tauri dev`, nơi Tauri **không** áp CSP (webview nạp HTML từ Vite qua `devUrl`; Tauri chỉ chèn header CSP cho HTML nó tự phục vụ qua asset protocol — `tauri-2.11.5/src/manager/mod.rs:438-452`). Ở release thì có CSP, và `fetch` tới asset protocol do `connect-src` quyết — tổ hợp đó chưa ai đo. **Lý do hoãn (Ice chốt 2026-08-03):** kiểm trên release đòi một bản build release, mà Story 1.3 đã nhận sẵn việc dựng bản đó trên cả hai nền tảng — dựng riêng ở 1.2 là pipeline thứ hai mà AC của 1.3 cấm tường minh. Thuộc Story 1.3.
-  → ✅ **ĐÃ ĐÓNG 2026-08-03 (Story 1.3, AC8)** — `npm run check:scope:bundled` dựng `tauri build --debug` (giữ `debug_assertions` ⇒ móc self-check còn, nhưng webview nạp HTML qua asset protocol ⇒ **CSP có áp**) rồi chạy nhị phân với timeout cứng. Đo thật trên macOS: chiều **dương** ĐẠT qua `font-src` — đúng đường Story 1.4 sẽ dùng. Chiều **âm** ghi `[----] unmeasured` kèm lý do, xem mục `connect-src` bên dưới. Đã gắn vào `.github/workflows/ci.yml`, chạy trên cả hai nền tảng. ⚠️ **Giới hạn ghi thẳng:** phép kiểm này chứng minh **tổ hợp CSP + asset protocol**, KHÔNG chứng minh hành vi của nhị phân profile **release** — móc self-check là `#[cfg(debug_assertions)]` và profile release đang bị cố ý đóng băng để giữ số đo NFR6 so sánh được.
 - **NFR6 phải đo lại: `webviewInstallMode` đổi sang `offlineInstaller`** — Ice chốt 2026-08-03 ưu tiên lời hứa *"fully offline"* hơn ngưỡng dung lượng. Story 1.1 đã cảnh báo một mình chế độ này đủ làm `.msi` phình ~150 MB và vỡ NFR6. Con số NFR6 cũ **không còn áp dụng** cho bản Windows. Thuộc Story 1.3 / 10.2, đi cùng hai phép đo `.msi` đã bàn giao từ Story 1.1.
   → ✅ **Phần quyết định đã đóng 2026-08-03 (Ice, lúc dựng Story 1.3).** Trần 150–200 MB của NFR6 nay là trần của **payload sản phẩm**; **bản WebView2 Runtime nhúng nằm NGOÀI ngân sách** và ghi thành dòng riêng trong mọi phép đo. Đã sửa `prd.md` §7.2 (NFR6 + giả định A2) và `epics.md` (§NFR6 · bản đồ NFR · ghi chú Epic 1 · AC6 Story 1.3 · AC Story 1.9 · AC Story 10.9). **Phần phép đo vẫn mở** — Story 1.3 Task 5/6 đo hai dòng và ghi cả số tổng; đường quay lui (`downloadBootstrapper` · NSIS thay `.msi`) giữ mở ở Story 10.2.
-- **`$RESOURCE/dict/**` nằm trong `assetProtocol.scope` nhưng không nằm trong `bundle.resources`** — `tauri.conf.json:28` khai scope hai mục, `:36` chỉ đóng gói `resources/fonts/*`. Có chủ ý và story đã ghi lý do (thư mục còn rỗng; glob không khớp tệp nào có thể làm `tauri build` gãy). Nhưng **không phép kiểm nào nối scope với `bundle.resources`**, nên Story 10.1 có thể ship một bản không có byte từ điển nào mà test `asset_protocol_scope_has_exactly_the_two_readonly_resource_areas` vẫn xanh — lỗi chỉ lộ ở lần tra cứu đầu tiên của người dùng thật. Thuộc Story 1.9 / 10.1.
-  → ✅ **ĐÃ ĐÓNG 2026-08-04 (Story 1.9, Task 10 — Ice phê chuẩn).** Giải theo hướng SIẾT, không NỚI: gỡ `$RESOURCE/dict/**` khỏi `assetProtocol.scope` (webview không bao giờ đọc tệp từ điển — AD-1/AD-11, `rusqlite` mở tệp qua đường dẫn hệ thống). `scope` giờ đúng MỘT mục `["$RESOURCE/fonts/**"]`; test đổi tên thành `asset_protocol_scope_has_exactly_the_one_readonly_resource_area`. Mâu thuẫn scope/`bundle.resources` **biến mất theo cấu trúc** — không còn gì để nối vì không còn `dict` trong scope. Lưới thay thế cho Story 10.1: xem mục mới `## Deferred from: 1-9-dung-du-lieu-tu-dien-lop-nen`.
 - **`panic = "abort"` + `strip = true` + không crash reporter → crash release là hộp đen, và giết đường checkpoint của AD-12** — `src-tauri/Cargo.toml:56-61`. Profile được cố ý đóng băng để giữ số đo NFR6 của Story 1.1 so sánh được. Nhưng `core::store` có một writer nối tiếp (AD-11) và tự quyết checkpoint (AD-12); một `panic!` trong luồng writer với `panic = "abort"` chấm dứt tiến trình ngay — không unwind, không `Drop`, không cơ hội flush WAL. Trên Windows release `windows_subsystem = "windows"` khiến `.expect()` ở `lib.rs:36` cũng không in ra đâu. Thuộc Story 1.7 + lượt đo lại NFR6.
   → 🟡 **ĐÓNG MỘT NỬA 2026-08-04 (Story 1.7).** Ice chốt: **không đụng `[profile.release]`** — cùng tệp này *(mục [D4])* ghi quyết định không sửa `Cargo.toml`, và sửa profile làm số `.dmg`/`.msi` khác đi, nên nếu làm thì phải làm **trước** khi chốt baseline NFR6, tức thuộc **Story 1.9 / 10.9**, không phải story tầng dữ liệu.
   **Story 1.7 đã đóng phần đóng được bằng THIẾT KẾ, không bằng cấu hình:**
@@ -35,23 +40,12 @@
   ⚠️ **Giới hạn 1 — phạm vi TỆP.** Quét `.rs` và `.vue`, **đúng phát biểu AC2 và Story 10.9, không hơn**. Tệp `.ts` (`src/tokens/fonts.ts`, `src/selftest/scopeCheck.ts`, `src/i18n/resolve.ts`) mang chuỗi tiếng Việt ở vị trí mã và **không** bị cổng nào canh. Hôm nay tất cả là chẩn đoán/log chứ không phải chuỗi hiển thị, nhưng mệnh đề đó do **người đọc** giữ, không do máy giữ. Hệ quả cụ thể: "dời một chuỗi từ `.vue` sang một tệp `.ts`" là một cách hợp lệ về mặt cổng để cho xanh mà không đổi gì về bản chất — đừng dùng. Thuộc **Story 1.14 / 10.9**.
   ⚠️ **Giới hạn 2 — cổng đo DẤU, không đo CHUỖI HIỂN THỊ** *(phát hiện ở lượt code review 2026-08-04)*. Kiểm A nhận dạng 134 ký tự có dấu tiếng Việt. `<button>Xem</button>`, `<button>Dong</button>`, `<button>Save</button>` **đều xanh** — chúng là nhãn giao diện thật, chỉ tình cờ không có dấu. AC2 phát biểu nguyên văn *"grep chuỗi tiếng Việt"* nên cài đặt đúng phát biểu, nhưng NFR16 rộng hơn: *"chuỗi hiển thị sống ở `vi.json` và chỉ ở đó"*. **Ice chốt: giữ nguyên cổng, không mở rộng phạm vi trong Story 1.5** — một phép kiểm cấu trúc (`text node phải là {{ t('…') }}`) là phạm vi mới và sẽ báo thừa trên `App.vue` hiện tại. Mở lại ở **Story 1.14**, khi bốn panel thật có nhãn thật để định nghĩa "đúng" nghĩa là gì.
   → ✅ **ĐÓNG 2026-08-06 (Story 1.14, Task 13 · §Quyết định #6).** `scripts/check-i18n.mjs` **Kiểm A2**: mọi **text node** của template `.vue` phải, sau khi gỡ hết khối `{{ … }}`, không còn chữ cái/chữ số — và mọi khối đã gỡ phải mở đầu bằng `t(` hoặc `tError(`. Dùng lại chính máy trạng thái template của Kiểm A (không dựng bản chép thứ hai). `<button>Dong</button>`, `<span>Save</span>`, `<i>3 muc</i>`, `{{ label }}` — cả bốn **nay ĐỎ**. Miễn trừ **có tên** `<!-- aura-allow-text: <lý do> -->`, tìm được cả khi comment đứng trước THẺ và khi nó trải nhiều dòng; mọi miễn trừ **in ra mỗi lượt chạy** (hôm nay: **2** — `announcedConfigError` và `report.text` ở `App.vue`, cả hai có lý do viết tại chỗ). Nghiệm thu đỏ-rồi-xanh **14 ca** (7 đỏ + 7 đối chứng âm, gồm hai ca miễn trừ và một ca miễn trừ ĐẶT SAI CHỖ vẫn phải đỏ).
-- **`.shell { min-height: 100vh }` + margin 8px mặc định của `<body>` sinh thanh cuộn ở cửa sổ trống** — `src/App.vue:31`. Không có reset CSS toàn cục, `index.html` không nạp stylesheet nào. Thuộc Story 1.4.
-  → ✅ **ĐÃ ĐÓNG 2026-08-03 (Story 1.4, Task 6)** — `src/tokens/reset.css` (`box-sizing` toàn cục · `html, body { margin: 0; padding: 0 }` · nền/chữ từ token · `-webkit-font-smoothing`), import trong `main.ts`. Không kéo `normalize.css` về: mỗi phụ thuộc mới phải rà GPLv3 và vào bảng Stack trước (NFR15), và bốn quy tắc không đáng một lượt rà.
-
 ## Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)
 
 *Sáu mục dưới đây là phát hiện của lượt code review Story 1.5 được xếp **hoãn** — thật nhưng chưa tới lúc hành động. Mọi phát hiện `patch` và `decision` của cùng lượt nằm ở §Review Findings của story file.*
 
 - **Tệp nguồn tới qua symlink bị loại khỏi Kiểm A và không tính vào sàn** — `scripts/check-i18n.mjs:162-165` đẩy symlink vào `skippedLinks` rồi `continue`; nó chỉ hiện ra như một dòng `detail(...)` ở `:603`, **không bao giờ là `fail`**. Với 18 tệp `.rs` trên sàn 14 có đủ dư địa để giấu tệp bằng đường này mà sàn vẫn qua. Hoãn: cây hiện không có symlink nào. Mở lại nếu một `.vue`/`.rs` symlink xuất hiện. **(Chủ: một story hạ tầng cổng kế tiếp.)**
-- **Gốc quét cứng ở `src/` và `src-tauri/`** — `scripts/check-i18n.mjs:179-180`. Comment `:175-178` lập luận glob được cố ý **nới rộng** và mọi thu hẹp phải đi qua `EXEMPT` có tên; nhưng chính hai gốc này là một lần thu hẹp lặng lẽ. Một `packages/`, `examples/` hay `e2e/` về sau vô hình với cổng trong khi `vueFiles.length >= 1` vẫn đúng. Hoãn: chưa có thư mục nào ngoài hai gốc. Mở lại khi cây mọc nhánh thứ ba.
-  → ✅ **ĐÃ ĐÓNG 2026-08-04 (Story 1.9, Task 9).** `tools/` (chứa `tools/dict-build`) là nhánh thứ ba. Đã thêm vào gốc quét của `check-i18n.mjs` **và** miễn trừ TRỌN nó ở `EXEMPT` với tên + lý do (build tool không vào bản phát hành — AD-25, không có bề mặt giao diện, chuỗi của nó là chẩn đoán cho người dựng). Quần thể in ra sau miễn trừ **không đổi** — vẫn 27 `.rs` + 5 `.vue` — đúng như doctrine đòi: thêm gốc quét không phải cái cớ để quần thể phình lên trong im lặng.
 - **`scanStyle` không có trạng thái `line_comment`** — `scripts/check-i18n.mjs:455-499`. Doc `:455` biện minh đúng cho CSS thuần (`url(//host/x.png)` là URL, không phải comment), nhưng trong `<style lang="scss">` thì `//` **là** comment và một comment tiếng Việt ở đó sẽ bị báo là vi phạm. Đúng kiểu hỏng đắt nhất — cổng đỏ trên comment thì bị gỡ trong tuần. Hoãn: chưa có `.scss` nào và không gì trong repo cấm dùng. Mở lại ngày đầu tiên có `lang="scss"`. **(Chủ: một story hạ tầng cổng kế tiếp.)**
-- **Sàn đếm tệp, không đếm nội dung** — `scripts/check-i18n.mjs:207-218`. `VUE_FLOOR = 1` được thoả bởi một `src/App.vue` chỉ có khoảng trắng. Sàn đóng được *"cây rỗng đọc thành sạch"* nhưng không đóng *"tệp rỗng đọc thành sạch"*. Hoãn: rủi ro thấp khi cây `.vue` còn đúng một tệp; mở lại khi Story 1.14 dựng bốn panel.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC11.1).** `VUE_FLOOR` 1 → **9** (thật: 11), `RS_FLOOR` 21 → **26** (thật: 32) ở `check-i18n.mjs`; `VUE_FLOOR` 4 → **9**, `TS_FLOOR` 10 → **16**, `COMMAND_FLOOR` 4 → **10** ở `check-commands.mjs`; `FILE_FLOOR` 5 → **26**, `COMPONENT_FILE_FLOOR` 4 → **23** ở `check-tokens.mjs`. Con số THẬT ghi vào comment cạnh từng hằng số, đúng khuôn `RS_FLOOR` đang có. Nghiệm thu: di dời `src/panels/` ⇒ `check-i18n` · `check-commands` · `check-layout` đều `abort()` kèm số thật; thêm `src/layout/` ⇒ `check-tokens` cũng `abort()`. ⚠️ Sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — giới hạn đó **không** đóng ở đây; nó được bù bằng sàn NỘI DUNG (`CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR`, Kiểm B của `check-i18n`).
-- **`ipc_error_wire_shape` assert "không ký tự có dấu nào trên dây" là một mệnh đề vòng** — `src-tauri/tests/ipc_contract.rs:128-137` quét bản serialize của chính literal `IpcError` mà test tự dựng ở `:73-78`. Nó chỉ đỏ khi ai đó sửa fixture, và không quan sát đường sản phẩm nào — vì chưa có đường nào (`commands/mod.rs` mới chỉ có doc-comment). Doc `:121-127` và §Completion Notes gọi nó là *"mệnh đề trung tâm của AD-21, kiểm được bằng máy"*, rộng hơn thứ nó làm được. ~~Hoãn tới **Story 1.6**, khi `#[tauri::command]` thật đầu tiên cho một đường thật để quan sát.~~
-  → 🔴 **CHỦ SỞ HỮU ĐÃ SỬA 2026-08-04 (Story 1.6): KHÔNG phải Story 1.6.** Câu trên được viết lúc chưa ai đọc kỹ AC của Story 1.6; đọc rồi thì thấy **không AC nào của story đó cần Rust**. Chuyển chế độ, tiêu điểm bàn phím và bố cục panel là **state UI**, và AD-1 nói thẳng đó là phần frontend được phép sở hữu (*"frontend chỉ render và giữ state UI (focus, cuộn, vùng chọn, bố cục panel)"*). Story 1.6 giao **0 dòng Rust** và không từ chối dựng một `#[tauri::command]` giả chỉ để đóng mục này — cùng ba lý do Story 1.5 đã từ chối: nó là mã sản phẩm không ai gọi, chạy nó cần webview cộng một lượt biên dịch profile `dev` riêng (đắt nhất trên macOS, hệ số ×10), và vòng chạy thật đến **miễn phí** ở story đầu tiên có nhu cầu IPC thật.
-  → ~~**Nhận lại ở: Story 1.8** *(phân giải cấu hình hai tầng — đường IPC thật đầu tiên có nhu cầu đọc/ghi qua ranh giới)*, hoặc **1.9/1.11** nếu đường tra cứu chạm Rust trước.~~
-  → ✅ **ĐÓNG 2026-08-04 (Story 1.8).** `ipc_error_wire_shape` nay serialize giá trị mà `commands::config::bootstrap_config(None)` trả về — **đường sản phẩm thật**, đúng hàm mà `#[tauri::command] wire::bootstrap_config` bọc lại, chạy đúng nhánh mà một `$APPDATA` không ghi được sẽ chạy trên máy người dùng. Và **không** phải một command giả: hàm nhận `Option<&Store>` để test gọi được mà không cần webview *(§Quyết định #6)*, chứ không phải để test có một thứ riêng để gọi. Đối chứng âm N14 *(cho `bootstrap_config(None)` trả `Ok` với cấu hình mặc định)* làm ca này đỏ.
 - **`process.exit()` ngay sau `console.log` có thể cắt cụt chẩn đoán trên pipe Windows** — `scripts/check-i18n.mjs:873,876`. Mã thoát — tức phán quyết — vẫn nguyên; thứ mất là các dòng `file:dòng:cột` làm cổng dùng được, đúng trên nền tảng mà cổng được viết bằng Node để có mặt. Hoãn tới lượt runner thật của Story 1.3; xác nhận trong cùng lượt đó. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
 ## Deferred from: 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)
@@ -71,22 +65,15 @@
 
 *Lượt rà soát ba lớp song song trên dải `847e933..HEAD` (gồm cả code Story 1.2). Các mục dưới đây là **hoãn** — thật nhưng không thuộc phạm vi sửa ngay. Phần cần vá nằm ở §Review Findings của story 1.3.*
 
-- **[D2] Trạng thái AC8 chốt sau lượt CI đầu tiên có `check:scope`** — Ice chốt 2026-08-03 trong lượt rà soát. Hôm nay `deferred-work.md:14` (mục của Story 1.2) ghi *"✅ ĐÃ ĐÓNG (Story 1.3, AC8)"* trong khi chiều **âm** là `unmeasured`, và AC8 không có trong danh sách *"Còn thiếu gì để đóng story — đúng bốn thứ"*. AC8 đòi *"**cả hai** chiều"*, và mệnh đề không của nó cấm *"đánh dấu đạt"*. Quyết định phụ thuộc D1: nếu `npm run check:scope` chạy được trên runner thì chiều âm có lưới tự động và AC8 **đóng trọn**; nếu runner không mở được webview thì **hạ `:14` xuống "đóng một nửa, đã trả lại cho Ice"** và thêm AC8 vào danh sách còn thiếu thành mục thứ năm. Không đánh dấu đạt trước khi có lượt chạy đó. **(Chủ: một story hạ tầng cổng kế tiếp — AC8 của Story 1.3 dường như đã đóng ở `:18`, chưa xác minh lại toàn bộ D1/D2.)**
+- **[D2] Trạng thái AC8 chốt sau lượt CI đầu tiên có `check:scope`** — Ice chốt 2026-08-03 trong lượt rà soát. Hôm nay `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*` (mục của Story 1.2) ghi *"✅ ĐÃ ĐÓNG (Story 1.3, AC8)"* trong khi chiều **âm** là `unmeasured`, và AC8 không có trong danh sách *"Còn thiếu gì để đóng story — đúng bốn thứ"*. AC8 đòi *"**cả hai** chiều"*, và mệnh đề không của nó cấm *"đánh dấu đạt"*. Quyết định phụ thuộc D1: nếu `npm run check:scope` chạy được trên runner thì chiều âm có lưới tự động và AC8 **đóng trọn**; nếu runner không mở được webview thì **hạ `:14` xuống "đóng một nửa, đã trả lại cho Ice"** và thêm AC8 vào danh sách còn thiếu thành mục thứ năm. Không đánh dấu đạt trước khi có lượt chạy đó. **(Chủ: một story hạ tầng cổng kế tiếp — AC8 của Story 1.3 dường như đã đóng ở `:18`, chưa xác minh lại toàn bộ D1/D2.)**
 - **[D3] `on: push` (mọi nhánh) + `on: pull_request` ⇒ ma trận chạy HAI lần cho mỗi commit trên nhánh có PR** — `ci.yml:26-27`. `concurrency.group: ci-${{ github.ref }}` (`:34`) không gộp được: push là `refs/heads/x`, PR là `refs/pull/N/merge` — hai group khác nhau nên `cancel-in-progress` không huỷ chéo. Repo **private**, macOS hệ số **×10**. **Ice chốt giữ cả hai trigger** (Task 2 yêu cầu tường minh cả hai): AC7 nghiệm thu bằng **số thật**, nên để lượt CI đầu đo đúng giá của việc nhân đôi rồi mới quyết — đúng §Ngân sách CI *"ghi số và dừng, không tự cắt"*. Ba đường xử nếu số không chịu nổi: bỏ qua loạt `pull_request` khi PR đến từ cùng repo · khoá `concurrency.group` theo `head_ref || ref` để hai loạt huỷ chéo được · giảm tần suất job nặng. *(Kèm theo và chưa giải: `cancel-in-progress: true` xoá luôn bảng số đo AC6 của lượt bị huỷ, trong khi AC6 đòi ghi số ở MỖI lần chạy.)* **(Chủ: một story hạ tầng CI kế tiếp.)**
-- **[D4] Hai khoản chi biên dịch trong `Cargo.toml` đánh thẳng vào AC7** — **Ice chốt không đổi** (§File List không cấm đụng `Cargo.toml`; bảng Stack được cài trọn có chủ ý ở Story 1.2). Ghi lại để lượt tối ưu AC7 sau có chỗ bám: (a) `reqwest = "=0.13.4"` (`:52`) để nguyên default features nên kéo `aws-lc-sys` — biên dịch từ nguồn C — vào **mọi** lượt cache lạnh, trong khi chính manifest tự khai *"chưa có một dòng mã nào gọi tới"*; `default-features = false` bỏ được cả một stack TLS. (b) `crate-type = ["staticlib", "cdylib", "rlib"]` (`:16`) là để phục vụ iOS/Android của template Tauri, nhưng `bundle.targets` chỉ có `["dmg","msi"]` — hai artifact thừa được link ở mọi `cargo test` và cả **ba** lượt build release Windows dưới `lto = true` + `codegen-units = 1`. ⚠️ Sửa hai chỗ này làm số `.dmg`/`.msi` khác đi, nên nếu làm thì phải làm **trước** khi chốt baseline NFR6, không phải sau.
-  → 🟡 **Trạng thái sau Story 1.9 (2026-08-04, §Quyết định của Ice #3): VẪN CHƯA ĐÓNG, chốt lần thứ ba là KHÔNG ĐỤNG.** Story 1.9 đo baseline NFR6 (`.dmg` cây nguồn hôm nay, không font/license: **2.334.696 byte**) TRÊN HIỆN TRẠNG hai khoản này — số đó **chưa phản ánh** khoản tiết kiệm nếu (a)/(b) được cắt. Tổng payload sản phẩm sau khi cộng `dict-core.db` là **178.492.550 byte**, còn cách trần 200.000.000 đúng **21.507.450 byte** — nếu Story 1.10 (bốn lớp gỡ rời) đẩy tổng sát trần, đây vẫn là hai đòn bẩy đầu tiên nên thử, và bây giờ đã có SỐ THẬT để cân nhắc thay vì một tối ưu mù.
-  → 🔴 **Trạng thái sau Story 1.10 (2026-08-05): NFR6 đã VƯỢT trần THẬT, KHÔNG ĐỤNG vẫn chốt.** Story 1.10 giao hai lớp gỡ rời (Thiều Chửu + VietPhrase, phạm vi thu hẹp — Ice chốt 2026-08-05) và đo thật: tổng payload hôm nay **343.991.430 byte**, VƯỢT trần 200.000.000 byte đúng **143.991.430 byte**. VietPhrase một mình **160.083.968 byte**. Hai khoản (a)/(b) ở mục này **chưa đo tác động thật** — cần đo TRƯỚC khi dùng làm đòn bẩy, không suy đoán. Dev **không đụng** `Cargo.toml` ở story này (chốt lần thứ tư). Phán quyết đầy đủ + bảng kế toán: §Debug Log References Task 11 của story `1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md`. Quyết định xử lý VƯỢT: §Câu hỏi cho Ice #1 của story đó.
-  → ✅ **CHỐT 2026-08-05 (Ice): CHẤP NHẬN VƯỢT TRẦN.** Không bỏ nguồn nào, không bỏ `sense_fts_nd` của lớp nào *(phá AC4)*, không đụng hai khoản (a)/(b) ở mục này. Payload sản phẩm **343.991.430 byte** trên trần **200.000.000** — vượt **143.991.430 byte**, và con số đó được **chấp nhận có ý thức** trên số ĐO THẬT, không phải bỏ sót. Mục [D4] này vì vậy **KHÔNG còn là đòn bẩy đang chờ** — nó trở lại đúng bản chất ban đầu: một khoản tối ưu **AC7 (thời gian build)**, không phải AC6 (dung lượng). 🔴 **Hệ quả cần Ice xử lý ở tầng PRD:** trần 200.000.000 byte của **NFR6 giờ mâu thuẫn với sản phẩm thật** — hoặc nâng trần, hoặc ghi rằng NFR6 không tính lớp gỡ rời *(VietPhrase 160.083.968 byte là lớp **gỡ rời**, mà FR36 nói sản phẩm phải chạy đầy đủ khi **không có** nó — đây là cách diễn giải tự nhiên nhất)*. Dev không sửa `prd.md`.
-
 - **`timeout-minutes: 60` nhiều khả năng không đủ cho nhánh Windows ở lượt cache lạnh** — `ci.yml:59`. Nhánh Windows phải làm tuần tự: `npm ci` → `cargo tree` (giải toàn cây) → `npm run build` (vue-tsc ×2 + vite) → `cargo test` (biên dịch **profile dev** toàn cây gồm `aws-lc-sys`, `libsqlite3-sys`, `zstd-sys` từ nguồn C) → `tauri build --debug` → **ba** lượt `tauri build --bundles msi` **profile release** với `lto = true` + `codegen-units = 1`, mỗi lượt chạy lại `beforeBuildCommand`, và hai trong ba lượt tải ~127 MB WebView2 lúc build. Vượt 60 phút ⇒ job bị giết ⇒ mất cả số AC6 lẫn số AC7, và cái đỏ đó **trông giống hệt** một lỗi thật. Con số 60 là phỏng đoán, không phải đo — §Ngân sách CI nói **ghi số rồi để Ice quyết**, nên lượt chạy thật đầu tiên phân xử. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - **`--config` vô hiệu hoá mọi bất biến trong `config_invariants.rs`, và CI đang dùng nó ba lần** — `config_invariants.rs:166-190` chốt `devCsp` và cấm `tauri.<platform>.conf.json`, nhưng không có gì chặn `--config <file>` hay biến `TAURI_CONFIG`. Hai lớp phủ hôm nay (`tauri.nofonts.conf.json`, `bootstrapper.conf.json`) vô hại và đều có cổng riêng, nhưng lối đó mở toang: một lớp phủ tương lai đặt `app.security.csp` hay nới `assetProtocol.scope` cho bản build THẬT sẽ không làm test nào đỏ. Kèm theo, danh sách chặn ở `:178` chỉ liệt kê biến thể `.json` — Tauri còn nhận `tauri.macos.conf.json5` và `Tauri.macos.toml`. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 - **Cổng phụ thuộc dùng DANH SÁCH CẤM, trong khi chính repo lập luận danh sách cấm là sai** — `check-deps.mjs:121-142` vs `config_invariants.rs:92-94` (*"Danh sách CHO PHÉP, không phải danh sách CẤM. Một danh sách cấm chỉ chặn được những hình dạng ai đó đã nghĩ ra"*). `BANNED_CRATES`/`BANNED_NPM` thiếu `tauri-plugin-shell`, `tauri-plugin-http`, `tauri-plugin-process`, `tauri-plugin-opener`, `@tauri-apps/plugin-http`, `@tauri-apps/plugin-shell`. `plugin-http` phá cả AD-1/AD-29 lẫn AD-15; `plugin-shell` nguy hiểm hơn hẳn `plugin-dialog` đang bị cấm. Hai phương pháp trái ngược nhau trong cùng một lượt giao hàng. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 - **`walk()` đệ quy trong cổng phụ thuộc không có bộ nhớ đã-thăm** — `check-deps.mjs:95-99` duyệt `node.dependencies` đệ quy, thêm tên vào `npmNames` nhưng không dùng nó để chặn lặp. Với cây `npm ls --all --json` sâu/lặp (peer-dep, workspace) đây là công đệ quy mũ và có thể tràn stack — khi tràn, `abort()` in ra *"không đọc được cây npm"*, tức một lỗi công cụ đội lốt lỗi hạ tầng. Không tới hạn hôm nay (59 gói). **(Chủ: một story hạ tầng cổng kế tiếp.)**
-- **Hai chỗ tài liệu nội bộ đã lệch khỏi sự thật** — (a) `deferred-work.md:7` vẫn ghi *"CI của Story 1.3 chỉ `cargo test` và build, không xác minh font nạp được lúc chạy"*; mệnh đề này **đã sai** kể từ khi `check:scope:bundled` (chiều dương qua `font-src`) vào `ci.yml:124`. (b) §File List của story 1.3 khai không *"Không đụng `_bmad-output/planning-artifacts/**`"* nhưng dải commit của story có sửa `epics.md` (+14/−) và `prd.md` (+6/−) — nội dung sửa đúng với quyết định của Ice, chỉ là dòng không và bảng "Sửa" nói sai sự thật, nên một lượt rà soát sau sẽ không biết tầng PRD đã đổi. **(Chủ: một story kế tiếp rà soát tài liệu quy hoạch.)**
+- **Hai chỗ tài liệu nội bộ đã lệch khỏi sự thật** — (a) `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*` vẫn ghi *"CI của Story 1.3 chỉ `cargo test` và build, không xác minh font nạp được lúc chạy"*; mệnh đề này **đã sai** kể từ khi `check:scope:bundled` (chiều dương qua `font-src`) vào `ci.yml:124`. (b) §File List của story 1.3 khai không *"Không đụng `_bmad-output/planning-artifacts/**`"* nhưng dải commit của story có sửa `epics.md` (+14/−) và `prd.md` (+6/−) — nội dung sửa đúng với quyết định của Ice, chỉ là dòng không và bảng "Sửa" nói sai sự thật, nên một lượt rà soát sau sẽ không biết tầng PRD đã đổi. **(Chủ: một story kế tiếp rà soát tài liệu quy hoạch.)**
 - **Không có clippy · rustfmt · ESLint · Prettier · test runner frontend · quét CVE** — `ci.yml:88-130` chạy `cargo test` nhưng không `cargo clippy -- -D warnings`, không `cargo fmt --check`; không có `.eslintrc*`, `.prettierrc*`, `vitest.config.*`, `rustfmt.toml`, `clippy.toml`, `dependabot.yml`. Nặng hơn: `scripts/*.mjs` — **chính tầng cưỡng chế** — không được type-check (`tsconfig.json` chỉ include `src/**` + `env.d.ts`) và không có một test nào. Kèm theo: mọi crate ghim `=` vĩnh viễn **cộng** lệnh cấm tường minh `cargo-deny`/`cargo-audit` (`ci.yml:95-97`) ⇒ không có đường nào để biết một CVE xuất hiện trong cây. **(Chủ: một story hạ tầng CI kế tiếp — lưu ý ESLint đã có qua `check:lint`, chưa kiểm phần còn lại.)**
-- **`dict-manifest.toml` đặt ra một luật ba trường bắt buộc rồi không cưỡng chế bằng gì cả** — `dict-manifest.toml:9-18` viết *"Mỗi mục PHẢI có đủ ba trường"* và cảnh báo checksum sai *"hỏng im lặng đúng kiểu tệ nhất"*, nhưng tệp giao ở trạng thái comment toàn bộ và không parser/test nào đọc nó. Bất đối xứng ngược chiều với mức rủi ro: repo dựng cả một script Node + mã thoát để canh việc ai lỡ cài `tauri-plugin-fs`, còn tệp sắp mang SHA-256 của ~130 MB dữ liệu tải về thì không có cổng nào. Chủ sở hữu: Story 1.9 / 10.1.
-  → ✅ **ĐÃ ĐÓNG 2026-08-04 (Story 1.9, Task 8/13).** `scripts/check-dict-manifest.mjs` — parser TOML tập con tự viết, đọc + phán quyết `[base]`/`[[detachable]]`, gắn vào `ci.yml` job `check`. `[base]` đã điền THẬT (`sha256` của `dict-core.db` 154.836.992 byte dựng ở Task 11, `source_version` ghép năm nguồn). Nghiệm thu đỏ-rồi-xanh 11 ca ghi ở Debug Log References của Story 1.9.
-- **Trích dẫn dòng trong comment cưỡng chế đã rữa trước cả khi commit** — `check-scope-bundled.mjs:20` trích `Cargo.toml:56-61` cho khối `[profile.release]`, nhưng khối đó thật sự ở **`Cargo.toml:61-66`** (lệch 5 dòng). Cùng tệp `:7`, `:20` trỏ `deferred-work.md:13`/`:5` như thể chúng ở gốc repo; đường thật là `_bmad-output/implementation-artifacts/deferred-work.md`. Các comment này là cơ chế truyền tri thức duy nhất giữa chín epic, mà trích dẫn dòng cứng vào tệp còn đang sửa sẽ rữa nhanh hơn tốc độ ai đó đọc lại. **(Chủ: một story hạ tầng cổng kế tiếp.)**
+- **Trích dẫn dòng trong comment cưỡng chế đã rữa trước cả khi commit** — `check-scope-bundled.mjs:20` trích `Cargo.toml:56-61` cho khối `[profile.release]`, nhưng khối đó thật sự ở **`Cargo.toml:61-66`** (lệch 5 dòng). Cùng tệp `:7`, `:20` trỏ `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*`/`:5` như thể chúng ở gốc repo; đường thật là `_bmad-output/implementation-artifacts/deferred-work.md`. Các comment này là cơ chế truyền tri thức duy nhất giữa chín epic, mà trích dẫn dòng cứng vào tệp còn đang sửa sẽ rữa nhanh hơn tốc độ ai đó đọc lại. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 - **Nhánh nền tảng chỉ có `win32` / không-`win32`; và không bước build nào khớp một OS thứ ba** — `check-scope-bundled.mjs:60-62,80-82`: trên Linux `IS_WIN === false` ⇒ build với `--bundles app` (target chỉ hợp lệ cho macOS/iOS) và `binPath` trỏ vào `bundle/macos/…app/Contents/MacOS/`; cùng nhánh ẩn đó ở `scopeCheck.ts:93-95`. Song song: `ci.yml:138` và `:204` gác bằng `if: runner.os == 'macOS'` / `== 'Windows'` không có nhánh mặc định ⇒ thêm `ubuntu-*` vào matrix cho một job **xanh mà không dựng ứng dụng và không ghi phép đo AC6 nào**. Khối *"CHỖ MÓC CHO EPIC SAU"* mời gọi đúng việc mở rộng matrix này. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - **Action ghim bằng tag major trôi trong khi header khẳng định đã kiểm chứng phiên bản chính xác** — `ci.yml:15-17` ghi *"kiểm chứng qua GitHub API ngày 2026-08-03: `actions/checkout` v7.0.1 · `actions/setup-node` v7.0.0 · `Swatinem/rust-cache` v2.9.1"*, nhưng `:62,64,75` dùng `@v7`, `@v7`, `@v2`. Chính tệp này cấm `-latest` cho ảnh runner với lý do *"ảnh runner đổi dưới chân là một hồi quy giả"*; action còn nguy hơn ảnh runner vì nó **thực thi mã** trong job. Ghim theo SHA là hình dạng khớp với lời văn đang có. **(Chủ: một story hạ tầng CI kế tiếp.)**
 - **`rust-version = "1.85"` là số trang trí** — `Cargo.toml:7` vs `ci.yml:70` (`dtolnay/rust-toolchain@1.97.1`). CI chỉ chạy một toolchain, cách MSRV khai báo 12 phiên bản. Một crate phụ thuộc nâng sàn thật, hay một cú pháp chỉ có từ 1.9x lọt vào, đều không làm gì đỏ. **(Chủ: một story hạ tầng CI kế tiếp.)**
@@ -103,13 +90,6 @@
   - `typography.lookup-example.lineHeight` `1.6` → **`1.66`** — cùng lý do.
   - *Vì sao hai mục sau là phát hiện mới:* story bắt được `DESIGN.md` tự mâu thuẫn ở `read-title`/`lookup-headword` (họ `read` mà ở 1.3) và giải bằng cờ `wraps`. Nhưng `lookup-gloss` ("Nghĩa") và `lookup-example` ("Ví dụ và trích dẫn") ở **1.6** thì cờ `wraps` **không** giải được — chúng thật sự chạy thành đoạn, nên sàn 1.66 áp cho chúng. Đường thay thế duy nhất là khai `wraps: false`, tức nói dối cổng để cho xanh — đúng thứ AD-34 tồn tại để chặn. Chi phí thị giác: 0,87px và 0,75px mỗi dòng. **(Chủ: Sally — bmad-ux.)**
 
-- **AC6 nghiệm thu ở TẦNG TOKEN, không phải trên màn hình** — không panel nào tồn tại hôm nay (Story 1.14 mới dựng). Kiểm G chứng minh hai theme khai hai cơ chế khác nhau và chặn việc chúng bị thống nhất; nó **không** chứng minh khe 2px hiện ra đúng. Dùng lại tiền lệ `unmeasured` của Story 1.3. Thuộc **Story 1.14**.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC11.4) — đo TRÊN MÀN HÌNH, không suy luận.** Engine **Blink/Chromium (Playwright headless)**, nền tảng **macOS 24.6 arm64**, cửa sổ 1400×900, bốn panel thật:
-  - **theme sáng** — `.dv-groupview` `border-top-width: 1px`, `border-top-left-radius: 0px`; `.dv-view:has(> .dv-groupview)` `padding-top: 0px`; vỏ `.dv-dockview` nền `rgb(244, 241, 234)` (`--color-background`).
-  - **theme tối** — `border-top-width: 0px`, `border-top-left-radius: 3px`, `padding-top: **1px**`.
-  - **khe THẬT đo giữa hai panel cạnh nhau ở theme tối: 2px**. Nửa khe mỗi bên là số học có chủ ý: đệm cả khe mỗi bên cho ra 4px — gấp đôi `panelSeparator.dark.gap` — và **Kiểm G không bắt được** vì nó đọc `tokens.json` chứ không đọc CSS.
-  ⚠️ **WKWebView CHƯA ĐO cho vế thị giác này**; lượt `npm run tauri dev` của story chỉ nghiệm thu vòng lưu/khôi phục bố cục (AC4). Ca **Windows** chưa đo. Bàn giao **Story 1.3 / 10.9**.
-
 - **Kiểm E không phát hiện được một cờ `wraps` khai sai** — đã nghiệm thu tường minh: đặt `read-lg.wraps = false` thì cổng **vẫn xanh** (ca 23/28 của Task 3, kỳ vọng exit 0). Cờ `wraps` là một mệnh đề về *nội dung sẽ chạy qua token*, và không phép kiểm tĩnh nào phân xử được nó khi chưa có component. Lưới duy nhất hôm nay: cổng bắt buộc **phải có** cờ (thiếu là FAIL), nên một token mới không lặng lẽ trốn được sàn. Lưới thật là lượt rà soát khi Story 1.14/1.17 dựng panel — **đối chiếu lại từng cờ với chuỗi thật chạy qua nó**.
   → 🟡 **SOÁT MỘT PHẦN 2026-08-06 (Story 1.14, AC11 ⚠️(b)) — và nó tìm ra MỘT CHỖ LỆCH THẬT.** Bốn chuỗi đầu tiên chạy qua `ui-md` là bốn câu trạng thái panel, và **một trong bốn XUỐNG DÒNG THẬT**: `panel.ai_translation.status` dài 96 ký tự, chạy hai dòng ở panel rộng 700px. `ui-md` khai `wraps: false` với giãn dòng **1.5** — **dưới sàn 1.66**.
   🔴 **Ghi ra thay vì lặng lẽ sửa cờ.** `DESIGN.md` khai `ui-md` là *"Tiêu đề panel — nhãn một dòng"*; đổi `wraps` thành `true` sẽ đòi nâng giãn dòng lên 1.66 cho **mọi** nhãn giao diện — một quyết định thị giác toàn ứng dụng, không phải một lần sửa JSON, và nó chạm `DESIGN.md`. Ba đường: *(a)* rút ngắn câu trạng thái về một dòng; *(b)* thêm token `ui-md-wrap` ở 1.66 cho câu trạng thái; *(c)* nâng `ui-md` lên 1.66. **CHƯA CHỐT — quyết định của Ice.** Nhặt lại ở **Story 1.16/1.17**, nơi bề mặt đọc thật buộc phải mở lại chính bảng này.
@@ -117,9 +97,6 @@
   → ✅ **ĐÓNG TRỌN 2026-08-26 (Story 4.1, Ice chốt cùng ngày).** `PanelFrame.vue .status` chuyển `ui-md` → `ui-md-wrap` (`--face-ui-md-wrap`/`--font-ui-md-wrap`/`--leading-ui-md-wrap`) — cùng 13px, giãn dòng 1,5 → 1,66, đúng đường **(b)** đã chốt ở trên, áp cho component MẶC ĐỊNH thay vì chỉ ba chỗ dùng cũ. Ba panel truyền `status-key` (AI Translation · Lookup · Grid) đổi theo cùng lượt vì chúng dùng chung một component. Câu `panel.ai_translation.status` (`vi.json:190`) đồng thời được viết lại — thêm vế *"mọi năng lực khác vẫn chạy đầy đủ"* (94 → 135 ký tự, đo lại 2026-08-26) theo giọng MỜI (UX-DR27/FR77, Kiểm D `check-i18n` xác nhận không "chúng tôi"/"bạn"). Không còn vế `PanelFrame.vue`/`.status` nào bỏ ngỏ trong mục này.
 
 - **`scripts/check-tokens.mjs` không được type-check và không có test** — cùng hạng với mục *"không có clippy · rustfmt · ESLint · test runner frontend"* ở trên: `tsconfig.json` chỉ include `src/**` + `env.d.ts`, nên **cả tầng cưỡng chế** nằm ngoài mọi phép kiểm tĩnh. Bù lại một phần bằng nghiệm thu đỏ-rồi-xanh 28 ca (Task 3) — nhưng đó là test của *hành vi cổng*, chạy tay, không nằm trong CI. Một hồi quy trong chính script sẽ đi qua CI mà không ai biết. Thuộc lượt bổ sung công cụ frontend. **(Chủ: một story hạ tầng cổng kế tiếp.)**
-
-- **Bộ phân tích CSS của cổng là "đủ dùng", không phải một parser CSS thật** — `parseCssBlocks` bám dấu `{}` `;` trên văn bản đã che comment/chuỗi. Nó đúng cho CSS mà dự án đang viết, nhưng chưa xử `@supports` lồng sâu, CSS nesting của Vue SFC ở dạng lạ, hay `url()` chứa dấu `;`. Khi Story 1.14 dựng CSS thật và nhiều, **soát lại số khai báo mà cổng báo đã quét** — con số đó tụt xuống bất thường là dấu hiệu parser bỏ sót cả vùng, và một cổng bỏ sót im lặng thì xanh y hệt một cổng đang canh.
-  → ✅ **ĐÃ SOÁT 2026-08-06 (Story 1.14, AC11 ⚠️(a)) — con số đi ĐÚNG CHIỀU.** Trước: *21 tệp (18 component) · 116 khai báo*. Sau: *32 tệp (29 component) · **195** khai báo*. **+79** khai báo, phần lớn từ `src/layout/dockview-theme.css`. Không dấu hiệu bỏ sót vùng: mọi khai báo của tệp đó **đi qua Kiểm B** *(chúng phải là `var(--color-*)`; một hex viết thẳng ở đó sẽ đỏ)*. ⚠️ Cây vẫn chưa có `@supports` lồng sâu hay `url()` chứa `;`, nên hai lỗ đó của parser vẫn **chưa được thử**.
 
 - ⚠️ **BA MỆNH ĐỀ THỊ GIÁC của Task 4/5 đang đứng bằng VĂN XUÔI, không bằng bằng chứng tái lập được** *(Ice chấp nhận 2026-08-03 với điều kiện ghi ra đây)*. Trang thăm dò, bốn ảnh chụp và bộ đọc `fvar` sống ngoài repo có chủ ý (tiền lệ §Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào cây nguồn). Hệ quả là không lượt rà soát nào sau này tái lập lại được ba mệnh đề sau từ cây nguồn:
   - *"Bốn nét `Source Sans 3` (200/400/600/700) phân biệt rõ trên chuỗi dày dấu tiếng Việt"* — dựng trên **Blink/macOS**, chưa đo trên WKWebView, chưa đo trên Windows.
@@ -133,9 +110,6 @@
   ⚠️ **Vế đầy đủ VẪN MỞ:** bề mặt ĐỌC *(nguyên văn tiếng Trung, âm Hán Việt, bản ghi từ điển, Editor)* chưa tồn tại — thân panel còn trống. Chúng phải khai `read-*` / `source-*` / `lookup-*` của chính chúng: **Story 1.16 / 1.17 / Epic 2**. Doc-comment đầu `PanelFrame.vue` ghi đúng cảnh báo đó tại chỗ.
   → ✅ **ĐÓNG NỬA LOOKUP 2026-08-06 (Story 1.17, AC9).** Bản ghi từ điển (`LookupPanel.vue`/`LookupRecord.vue`) tự khai `lookup-headword`/`lookup-gloss`/`lookup-example`/`ui-label` — đối chiếu từng bề mặt chữ với token nó khai, không một class nào kế thừa `ui-md` của `body`. Nửa **Editor** (Epic 2) vẫn mở.
   → ✅ **ĐÓNG NỬA EDITOR 2026-08-12 (Story 2.2 · AC6 · Task 3.2).** Bề mặt đọc của Panel Editor (`.doc.tok-editor` trong `EditorPanel.vue`) tự khai token `editor` của chính nó — `var(--face-editor)` · `var(--font-editor)` · `var(--leading-editor)` · `var(--color-on-surface)` — họ `read`, 15px, giãn dòng **1.95**, tức trên hẳn sàn cứng 1.66 mà mặc định `ui-md` của `body` (1.5) vi phạm. Ba bề mặt chữ khác của story cũng tự khai: `.load-error` và `.untranslated-note` đều dùng `ui-md-wrap` (1.66), cùng token và cùng lý do với `SourcePanel.vue::.load-error`. ⚠️ Mục gốc ở trên vẫn đúng ở vế **cơ chế**: Kiểm E vẫn chỉ đọc `tokens.json` và vẫn mù với việc component nào kế thừa gì — lưới duy nhất vẫn là một lượt rà soát khi một bề mặt chữ mới ra đời. Bề mặt đọc còn lại chưa dựng: **Panel AI Translation (Epic 4)**.
-
-- **`--synthesis-*` và `--tracking-*` chưa có người tiêu thụ** — `applyTheme` phát đủ bảy biến cho cả 14 token, nhưng hôm nay chỉ `App.vue` dùng ba biến của `ui-mono`. Lời giải chữ Hán nghiêng giả (`fontSynthesis: 'none'` ở `source-hanviet` và `lookup-example`) đã được **dựng thật và chụp lại** trên trang thăm dò, nhưng nó chỉ có hiệu lực trong sản phẩm khi Story 1.16/1.17 áp `font-synthesis: var(--synthesis-<token>)` ở chính chỗ dựng hai token đó. **Bỏ sót dòng đó là cách lời giải này chết im lặng.**
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, AC9).** `lookup-example` (Panel Lookup: từ loại, ví dụ, trích dẫn, ghi chú) là **người tiêu thụ thứ hai** của `font-synthesis`, sau `source-hanviet` (Story 1.16). `LookupRecord.vue` khai `font-synthesis: var(--synthesis-lookup-example)` ở mọi lớp dùng token đó.
 
 ## Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)
 
@@ -177,32 +151,17 @@
 
 - 🔴 **Ca Windows CHƯA ĐO** — không có máy Windows. Kiểm D của `npm run check:commands` chứng minh **tầng phân giải hợp âm** đúng ở cả hai nhánh `Mod → ⌘ | Ctrl` (nền tảng là một tham số tiêm vào, nên phép kiểm chạy được trên một nền tảng), nhưng nó **không** chứng minh `Ctrl+1` tới được webview trên Windows. Đúng tiền lệ bàn giao phép đo của Story 1.1 → 1.3. Thuộc **Story 1.3 / 10.9**, nơi đã có sẵn một lượt runner hai nền tảng để bấu vào. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
-- ⚠️ **`focus.next_panel` chưa có phím, nên hôm nay KHÔNG có đường bàn phím nào vào panel** — cố ý (§Quyết định thiết kế #5 của story: bốn panel chưa tồn tại; mọi phím ứng cử đều đang hoặc sắp có chủ; và AC6 cần một phần tử thật để `unbound()` có nhánh chạy). Hệ quả phải nói ra: trạng thái tiêu điểm của AC5 hôm nay **chỉ đến được bằng chuột**, và đó là một lỗ trong NFR17 cho tới khi phím được gán. Nhận ở **Story 1.14** *(thứ tự vòng xoay khi có `dockview`)* và **Story 1.21** *(màn hình gán phím)*.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, §Quyết định #2).** `focus.next_panel` = `Mod+Alt+→`, `focus.prev_panel` = `Mod+Alt+←`. Không đụng `Tab`, không đụng `⌥←` `⌥→` trần *(Chương trước/sau — `EXPERIENCE.md:148`, Story 2.11)*, không đụng `⌘⇧…` (không gian của UX-DR35).
-  → 🔵 **ĐỊNH CHÍNH 2026-08-18 (Story 2.11) — vế *"chỗ đã đặt trước cho `⌥←`/`⌥→`"* ở dòng trên đứng trên MỘT LƯỢT ĐỌC NHẦM.** *(Định chính, **không** xoá: quyết định `Mod+Alt+→`/`Mod+Alt+←` cho `focus.*_panel` vẫn đúng nguyên vẹn, chỉ **lý do phụ** dẫn kèm là sai.)* Đo lại từ nguồn hôm nay: dòng **148** của `EXPERIENCE.md` nay là đoạn **Auto-Lookup** — số dòng đã trôi; hàng thật `| ⌥← ⌥→ | Chương trước / sau trong cùng lần nhập |` nằm ở **`EXPERIENCE.md:184`** và nó thuộc bảng *"**Sửa ranh giới bóc** — bàn phím là đường chính"* (`:174-186`), tức **màn xem trước NHẬP**, xác nhận bằng `epics.md:599` = **UX-DR33**. Bảng Phím của **Workspace** (`EXPERIENCE.md:261-269`) **không một hàng nào** cho chuyển Chương. ⇒ ~~`⌥←`/`⌥→` là chỗ đã đặt trước cho Story 2.11~~ — nó **chưa bao giờ** được đặt chỗ ở Workspace. Và độc lập với chuyện đặt chỗ, cặp phím ấy **không dùng được** cho FR26: `keys.ts:510` nuốt mọi hợp âm `lacksPrimaryMod` khi caret đang trong vùng gõ, tức đúng ca thường nhất *(người dùng vừa gõ xong câu cuối)* — cùng phép đo đã lật một chữ ký ở Story 2.10 (`⌥↓` → `⌘⌥↓`). Story 2.11 chốt **`Mod+Alt+]`** / **`Mod+Alt+[`** (Ice ký Quyết định #6, 2026-08-18).
-  🔴 **Bài học, và nó lớn hơn cặp phím:** một mục sổ nợ dẫn `tệp:dòng` sẽ **trôi** cùng tệp, và ở đây nó trôi từ một bảng này sang một bảng khác **của một màn hình khác** mà vẫn đọc trơn tru. Dẫn kèm **tên bảng** hoặc **nguyên văn hàng**, đừng chỉ số dòng.
-
-- ⚠️ **Xung đột `⌘1` `⌘2` giữa mockup và UX-DR34 — đã phân xử, nhưng mockup CHƯA sửa.** `mockups/key-screen-workspace.html:89` vẽ `Bố cục 2×2 nguồn–đích ⌘1 · 4 cột ⌘2` là **preset bố cục**, trong khi AC3 của Story 1.6, UX-DR34 và `EXPERIENCE.md:49` đều nói `⌘1 ⌘2 ⌘3` là **ba chế độ**. Phân xử: **chế độ thắng** — AC của epic là hợp đồng nghiệm thu còn mockup là bản phác; UX-DR34 là một mục đánh số còn dòng trong mockup thì không; và ba chế độ là cấu trúc toàn ứng dụng (AD-24) còn preset bố cục chỉ sống trong Workspace. **Việc còn lại: Story 1.14 phải chọn phím KHÁC cho preset bố cục (FR18).** Dev không sửa mockup — giữ tiền lệ quyết định #3 của Ice ở Story 1.3; lượt chỉnh tài liệu quy hoạch là một lượt riêng của Ice.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, §Quyết định #1).** Preset bố cục nhận `Mod+Alt+1` *(lưới 2×2)* và `Mod+Alt+2` *(bốn cột)*. Giữ nguyên "số thứ tự preset" mà mockup dạy, chỉ thêm một phím bổ trợ; `Mod+Alt+3` **để trống** cho **Review Mode** ở Story 8.11 — đúng thứ tự mockup. Khớp bằng `event.code` (`Digit1`) nên `⌥1` sinh ký tự `¡` trên macOS không thành vấn đề. Đo được: `⌘1` **vẫn** chuyển sang Library, không đổi preset.
-  ⚠️ **`mockups/key-screen-workspace.html:89` VẪN chưa sửa** và dev vẫn không sửa nó — sửa mockup là **một lượt riêng của Ice**.
-
 - ⚠️ **Bộ token thiếu một biến trọng lượng cho nhãn giao diện ĐẬM** — AC5 và UX-DR8 đòi tiêu đề panel *"`primary` in đậm"*, `DESIGN.md §Components` và `mockups/key-screen-workspace.html:34` ghi **600**. Nhưng `ui-md` khai `400` và `ui-label` khai `700`; viết thẳng `600` thì Kiểm B2 của `check-tokens.mjs` đỏ (đúng), và không khai một biến CSS cục bộ `--weight-…: 600` để lách cổng là đúng thứ AD-34 tồn tại để chặn. Đang **mượn `var(--weight-read-title)`** ở `src/panels/PanelFrame.vue` và `src/App.vue`, kèm comment nêu lý do ở cả hai chỗ. Hai đường ra cho **Story 1.14**: thêm một token typography cho nhãn đậm *(phải qua Kiểm A và Kiểm C của `check-tokens.mjs`)*, hoặc chốt rằng mượn là đúng và ghi vào `DESIGN.md`. ⚠️ Đường thứ hai vẫn còn nợ: `--weight-read-title` đổi giá trị thì hai chỗ này đổi theo mà không ai biết.
   → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC10 — đường A).** Token typography thứ **15**: `ui-md-strong` *(họ `ui` · 12px · **600** · 1.5 · `wraps: false`)*. `PanelTab.vue` dùng `var(--weight-ui-md-strong)`; hai chỗ mượn cũ *(`PanelFrame` — nay là `PanelTab` sau §Quyết định #4A — và `App.vue:288`)* không còn mượn.
   🔴 **Đường B bị loại có lý do:** nó đòi một lượt sửa `DESIGN.md`, mà dev không sửa tài liệu quy hoạch *(tiền lệ quyết định #3 của Ice ở Story 1.3)* — nên nó để món nợ mở tiếp **và** để nguyên rủi ro đã ghi.
   ⚠️ **Cách chữ ký được cưỡng chế, và nó KHÔNG phải cách story đề xuất.** Story bảo thêm hàng vào `EXPECTED_TYPOGRAPHY` của cổng. Làm vậy là để **bản chép độc lập thứ hai của `DESIGN.md`** lặng lẽ trôi khỏi `DESIGN.md` — hai bản chép chỉ bắt được lỗi khi cả hai còn chép cùng một thứ. Nên: bảng đóng băng **ở lại đúng 14 hàng của `DESIGN.md`**, và `compare()` được mở rộng để coi **token THỪA** là một chỗ lệch phải có mục `deviations` với `question` + `reason` không rỗng. Nghiệm thu: gỡ mục deviation ⇒ `FAIL typography: thừa 1 token KHÔNG có chữ ký — ui-md-strong`.
   ⚠️ **`DESIGN.md` vẫn ghi 14 token** và việc sửa nó là **một lượt riêng của Ice** — mục này đóng phần *cưỡng chế*, không đóng phần *tài liệu*.
 
-- ⚠️ **Không cổng nào canh focus ring** — một `*:focus { outline: none }` phá đúng nửa NFR17 (*"trạng thái focus luôn nhìn thấy rõ"*) mà **qua được cả `check-commands.mjs` lẫn `check-tokens.mjs`** (cổng token canh màu, cỡ chữ, tương phản, opacity, elevation — không canh focus ring). Luật đang do người viết giữ: `outline: none` **chỉ** ở gốc `tabindex="-1"` của chế độ và panel, kèm lý do ngay cạnh dòng CSS. Đóng được rẻ nhất ở **Story 1.14**, cùng lượt rà soát khi bốn panel thật có điều khiển tương tác thật.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC11.2).** `scripts/check-tokens.mjs` **Kiểm H**: `outline: none` / `outline: 0` / `outline-style: none` chỉ hợp lệ khi selector là **đúng một** gốc chế độ/panel ở dạng `<lớp>:focus` (`.mode` · `.panel` · `.dock`). Mọi bộ chọn hậu duệ hay anh em (`.panel *:focus`, `.mode > a:focus`) và mọi `:focus` trần đều đỏ; đường ra là miễn trừ **có tên** `/* aura-allow-outline-none: <lý do> */`, cùng khuôn `aura-allow-z-index` của Kiểm F. Nghiệm thu đỏ-rồi-xanh **13 ca** (9 đỏ — gồm `*:focus`, `:focus`, `button:focus`, `outline: 0`, `outline-style: none`, `!important`, và một selector NHÓM có một vế hợp lệ một vế không — 4 đối chứng âm). ⚠️ Giới hạn ghi thẳng: cổng đọc **selector**, không đọc HTML, nên nó không chứng minh được phần tử khớp selector thật sự mang `tabindex="-1"`; nó chứng minh được điều kiểm được — selector không quét rộng.
-
 - ⚠️ **Kiểm A chỉ canh `@click`** — `@keydown`, `@input`, `@change`, `@submit` **không** thuộc luật *"phải là đúng một `dispatch('<id>')`"*. Có chủ ý: chúng không phải "thao tác" theo nghĩa AD-34 §1 (một `@input` là dòng dữ liệu). Nhưng ngày **Epic 2** dựng Editor với `@keydown` mang thao tác thật, luật phải được xem lại — không phải nới regex một cách lặng lẽ. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 
 - ⚠️ **`scripts/check-commands.mjs` không được type-check và không có test tự động** — cùng hạng với ba mục đã ghi cho `check-deps.mjs` · `check-tokens.mjs` · `check-i18n.mjs`: `tsconfig.json` chỉ include `src/**` + `env.d.ts`, nên cả tầng cưỡng chế nằm ngoài mọi phép kiểm tĩnh. Bù lại một phần bằng nghiệm thu đỏ-rồi-xanh **28 ca** (Task 10) — nhưng đó là test của *hành vi cổng*, chạy tay, không nằm trong CI. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 
 - ⚠️ **Sàn của cổng đếm TỆP, không đếm nội dung** — `VUE_FLOOR = 4` (thật: 5) và `TS_FLOOR = 10` (thật: 13) đóng được *"cây rỗng đọc thành sạch"* nhưng không đóng *"tệp rỗng đọc thành sạch"*. Cùng mục đã ghi cho `check-i18n.mjs:207-218`. Mở lại khi Story 1.14 dựng bốn panel. **(Chủ: một story hạ tầng cổng kế tiếp.)**
-
-- ~~⚠️ **Chế độ mặc định lúc khởi động là `library` và không phép kiểm nào canh**~~ — PRD §5.2 gọi Library là *"điểm vào ứng dụng"*, nên lựa chọn có lý do; nhưng lúc viết, cả ba chế độ đều rỗng nên nó không quan sát được ở đâu ngoài tab nào đang sáng.
-  → ✅ **ĐÓNG 2026-08-04 (Story 1.8).** Chế độ cuối cùng nay được **lưu** (`watch(currentMode)` → `put_config('app_config', 'mode', …)`) và **nạp lại** lúc khởi động, và `scope_contract.rs::the_last_mode_survives_a_write_and_a_reopen` canh cả vòng ghi → đóng kho → mở lại → đọc, cộng mệnh đề *"kho rỗng ⇒ `library`"*. `setMode()` giữ nguyên chốt lúc chạy cho giá trị không hợp lệ — không và không cố ý **không** thêm một chốt thứ hai ở Rust: hai danh sách chép tay ở hai tầng là hai danh sách sẽ trôi khỏi nhau.
 
 ---
 
@@ -218,13 +177,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   dựng điều khiển form thật hoặc một custom element. Số đo ở §Deferred from: 2-3-hop-dong-flush.
 
 - ⚠️ **Chốt chống rơi `body` bắn-và-quên: `rAF` không chạy khi cửa sổ ẩn, và blur cho cáo buộc sai** — `src/commands/focus.ts:103-113`. Đây là **chuông báo tự động duy nhất** cho AC4, và nó có hai lỗ không canh gác: (1) `requestAnimationFrame` không chạy khi cửa sổ bị ẩn/thu nhỏ, nên chốt bị **bỏ qua đúng trên đường khởi động nền** — chỗ nó cần kêu nhất; (2) nếu người dùng bấm ra ngoài hoặc cửa sổ mất focus trong khoảng giữa `enter()` và callback, `document.activeElement` đọc ra `body` và chốt in một **cáo buộc sai** nêu đích danh một owner đã focus hoàn toàn đúng. Không có đường huỷ. Hoãn vì đây là chuông báo chứ không phải cơ chế — cả hai lỗ làm chuông kém tin, không làm focus hỏng. **Nhặt lại cùng lượt** dựng nghiệm thu DOM tự động *(cùng mục với "Nghiệm thu DOM chạy trên Blink" ở trên)*. **(Chủ: story kế tiếp chạm `src/commands/focus.ts`.)**
-
-- 🔴 **AC4 của Story 1.6 ĐẠT MỘT PHẦN — vế panel chưa có đường dời focus tường minh nào chạy được** *(Ice chốt 2026-08-04 trong lượt code review)*. `src/panels/PanelFrame.vue:50-52` chỉ gọi `declareFocus`, không có `onActivated`/`enterFocus`. Đường duy nhất dời focus vào một panel là `focus.next()` qua command `focus.next_panel` — mà command đó **cố ý không gán phím** (§Quyết định thiết kế #5) **và cũng không có `@click` nào dispatch nó**: grep toàn `src/` cho đúng 3 lời gọi `dispatch()`, cả ba là `mode.*`. Hệ quả phải nói thẳng: handler của `focus.next_panel` là **mã sống nhưng bất khả đạt**, và vế *"mỗi chế độ và mỗi panel dời focus DOM tường minh tới điểm vào đã khai"* của AC4 hôm nay chỉ được thoả cho **chế độ** *(qua `onActivated` → `enterFocus`, đã đo)*; với **panel** nó chỉ được thoả bằng hành vi focus mặc định của trình duyệt khi bấm chuột vào một phần tử `tabindex="-1"` — **không** phải bằng `el.focus()` của ứng dụng. Đây là giới hạn của chính AC4, không chỉ của NFR17 *(mục "focus.next_panel chưa có phím" ở trên xếp nó dưới NFR17 — chưa đủ)*. **Lý do hoãn:** giữ §Quyết định #5 nguyên vẹn — gán phím hôm nay làm `unbound()` trả mảng rỗng và AC6 mất bằng chứng; còn cho `PanelFrame` tự `enterFocus` là thêm một hành vi focus tự động mà Story 1.14 có thể phải tháo ra khi `dockview` quyết thứ tự vòng xoay. **Nhặt lại ở Story 1.14** *(thứ tự vòng xoay panel)* và **Story 1.21** *(màn hình gán phím)*. Không đánh dấu AC4 đạt trọn cho tới lúc đó.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC9).** `focus.next_panel` **nay có phím** (`Mod+Alt+→`) và có cả `focus.prev_panel` (`Mod+Alt+←`), nên handler không còn là mã bất khả đạt. Vòng xoay đi theo **thứ tự bố cục thật** *(`visiblePanelsInLayoutOrder()` sắp theo `group.api.boundingBox`: trên→dưới rồi trái→phải)*, không theo thứ tự `declare()`; panel đã ẩn không có trong vòng. Và `onDidActivePanelChange` của dockview gọi `enterFocus(owner)` **tường minh** — nhưng CHỈ khi `origin === 'user'` *(xem mục mới bên dưới)*. Đo được trên Blink: bốn lần `Mod+Alt+→` đi hết bốn panel theo đúng thứ tự lưới rồi quay lại; ẩn một panel ⇒ vòng còn ba và panel đã ẩn không xuất hiện; rời Workspace rồi quay lại ⇒ không vạch tiêu điểm nào nói dối.
-  ⚠️ **AC6 của Story 1.6 GIỮ ĐƯỢC bằng chứng:** `unbound()` nay trả về **bốn** `layout.toggle_*` thay vì `focus.next_panel`.
-
-- ⚠️ **Bộ lọc phần mở rộng của cổng bỏ qua `.tsx` · `.mts` · `.cts`** — `scripts/check-commands.mjs:122,130-131`. `name.toLowerCase().endsWith('.ts')` sai với cả ba. Một tệp như vậy **không đóng góp gì** vào `tsFiles`, nên mọi `dispatch('…')` và `declareFocus('…')` trong đó vô hình với Kiểm B và Kiểm E, và nó cũng **không tính vào `TS_FLOOR`** — tức sàn không phát hiện được việc mất tệp. Hoãn vì dự án không dùng ba phần mở rộng đó và `tsconfig.json` không bật `jsx`. **Nhặt lại** nếu có story nào thêm `.tsx`, hoặc gộp vào lượt rà soát sàn cổng ở Story 1.14.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.14, AC11.3).** `walk(SRC_ROOT, ['.ts', '.tsx', '.mts', '.cts'])`. Nghiệm thu: một `src/layout/__probe.mts` và một `__probe.cts` mang `dispatch("khong.ton_tai")` **nay bị Kiểm B bắt** (trước lượt sửa: vô hình). ⚠️ `.d.ts` cố ý KHÔNG bị loại — một tệp khai báo không chở `dispatch()` nào nên nó chỉ làm quần thể to thêm, và một luật thừa là một chỗ để sai.
 
 ---
 
@@ -247,12 +199,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **Ca AC5 phụ thuộc vào nhịp tương đối giữa `checkpoint_tick` và khoảng cách hai lượt ghi.** SQLite chỉ quay `.db-wal` về đầu tệp khi một giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame` (`walRestartLog`). Ca test vì thế đặt tick 3 ms / gap 10 ms và ghi lý do ngay tại chỗ. Trên một runner chậm hơn hẳn, tỷ lệ đó có thể lệch. Đã chạy 5 lượt liên tiếp trên máy dev không dao động; **chưa chạy trên runner CI lần nào** — cùng danh sách với bốn phép nghiệm thu của Story 1.3 đang chờ lượt CI thật. **(Chủ: một story kế tiếp chạm `core/store`.)**
 
-- ~~⚠️ **Lỗi mở kho hôm nay chỉ ra `stderr`, không tới người dùng.**~~ `src-tauri/src/lib.rs::open_global_store` ghi chẩn đoán rồi **đi tiếp** thay vì chặn khởi động; lúc viết, story đó không dựng `#[tauri::command]` nào nên **không có bề mặt để nói**.
-  → ✅ **ĐÓNG 2026-08-04 (Story 1.8).** Đường đã nối trọn: `try_state::<Store>()` rỗng ⇒ `bootstrap_config` trả `IpcError` mang `code = "store.open_failed"` · `MessageKey::StoreOpenFailed` · `params = {"store": "global"}` · `retryable = false` ⇒ `src/config/bootstrap.ts` bắt và đặt vào `configError` ⇒ `src/App.vue` vẽ một dải báo lỗi **không chặn**, nội dung qua `tError(err)`. Không khoá `MessageKey` mới nào và không chuỗi `vi.json` mới nào — năm khoá kho của Story 1.7 đã đủ.
-  → ⚠️ **Và `open_global_store` vẫn đi tiếp — nay đó là quyết định đúng chứ không còn là ít tệ nhất.** Ứng dụng lên bằng cấu hình mặc định và **nói ra** rằng nó không đọc được kho, thay vì không lên. Doc-comment của hàm đã được sửa cho khớp.
-  → ⚠️ **Một hở còn lại, ghi ra thay vì đánh dấu đạt:** dải báo lỗi chỉ hiện khi Rust **trả lời**. Một phiên `npm run dev` không có cầu IPC cho `configError = null` có chủ ý *(dựng một `IpcError` giả ở đó làm mọi lần chạy dev mọc một dải "Không mở được kho dữ liệu" — một câu sai, và một câu sẽ dạy người đọc bỏ qua đúng dải đó)*. Hệ quả: đường hiển thị này **chưa từng chạy trong một webview thật** — nghiệm thu nó cần một `$APPDATA` chỉ-đọc, và đó là một bảng nghiệm thu tay. Giao lại **Story 1.15** *(story tiếp theo mở một kho thứ hai, tức story tiếp theo có lý do thật để chạy bảng đó)*.
-  → ⚠️ **VẪN CHƯA ĐÓNG sau Story 1.15 — ghi thẳng thay vì đánh dấu đạt.** Story 1.15 mở kho thứ hai thật (`project.db` qua `commands::project::create_work`) nên lý do kỹ thuật để chạy bảng này nay đã có, nhưng phiên triển khai của Story 1.15 là một agent CLI **không có công cụ điều khiển GUI desktop** (không dựng được cửa sổ Tauri thật rồi đọc màn hình bằng mắt, không có cầu debug-protocol tới WKWebView như Chrome DevTools). Bảng nghiệm thu tay này **vẫn** cần một người vận hành thật, hoặc một bộ tự động hoá desktop mới (`cliclick`/tương đương) chưa có trong môi trường build. Giao tiếp: **QA người trước khi phát hành**, hoặc story kế tiếp có công cụ GUI automation.
-
 - ⚠️ **`tests/**` được miễn trừ khỏi phép quét ranh giới của AC2** — `src-tauri/tests/store_boundary.rs` quét `src-tauri/src/**` và **không** quét `tests/**`. Miễn trừ có tên và có lý do *(ba ca của AC6/AC7 phải dựng một database ở một phiên bản lược đồ và một chế độ journal cho trước — đúng thứ `core::store` tồn tại để mã sản phẩm không làm được)*, nhưng nó là một miễn trừ thật: một test tương lai **có thể** mở kết nối ghi thứ hai vào một kho thật mà không cổng nào báo. Cùng hạng với miễn trừ `src-tauri/tests/**` của `check-i18n.mjs`. Mở lại nếu số tệp test chạm `rusqlite` vượt quá `store_contract.rs`. **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
 
 - ⚠️ **AC7 nghiệm thu trên một fixture ở chế độ `delete`, không phải trên một `global.db` WAL thật của một bản tương lai.** `a_newer_schema_is_refused_without_touching_a_single_byte` dựng fixture ở `journal_mode = delete` để khẳng định *"`.db-wal`/`.db-shm` không được tạo"* một cách sạch sẽ. Một database WAL thật do một bản sau viết ra **sẽ** làm SQLite tạo `-shm` ngay khi mở — tệp `.db` vẫn không đổi một byte *(mệnh đề trung tâm của AC7 vẫn giữ, và hợp đồng thứ tự trong `Store::open` là thứ giữ nó)*, nhưng hai tệp sidecar xuất hiện rồi biến mất khi kết nối đóng. Ghi ra để lượt sau không tưởng phép kiểm rộng hơn thứ nó đo. **(Chủ: một story kế tiếp chạm `core/store`.)**
@@ -270,32 +216,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)
 
-- 🔴 **`ScopeResolver` chưa cache gì, và đó là một quyết định.** Consumer đường nóng duy nhất là khớp Glossary khi gõ — **Story 3.4**, dưới trần NFR2 *"không frame nào vượt 50 ms"* — và hôm nay nó chưa tồn tại. Dựng cache bây giờ là dựng một cơ chế vô hiệu hoá mà **không có gì để vô hiệu hoá**, và một cơ chế như vậy sẽ sai theo đúng cách mà không test nào bắt. Ba hàm phân giải là **thuần** nên thêm cache về sau là một lượt sửa cục bộ, không phải một lượt mổ. **Chủ sở hữu: Story 3.4b** 🔵 *(chuyển chủ 2026-08-21 — kết luận "chưa cần cache" đã ghi ở dòng dưới; nếu câu hỏi cache có ngày quay lại thì nó quay lại ở 3.4b, nơi tần suất gọi được định.)* — và nó phải **đo trước** khi cache. **(Chủ: Story 3.4b.)**
-  → 🟡 **ĐO 2026-08-21 (Story 3.4) — số đo ở `:424` ngay dưới đây bao gồm CẢ chi phí
-  `apply_override` (nơi `ScopeResolver` chạy) lẫn `find_terms`; đo tay không tách riêng được
-  hai phần.** `apply_override` tự nó là O(số thuật ngữ) trên hai `BTreeMap` đã nạp — rẻ hơn
-  hẳn `find_terms` (O(thuật ngữ × độ dài văn bản)) theo đúng bậc, nên phần lớn chi phí đo ở
-  `:424` là `find_terms`, không phải `apply_override`. Kết luận cho `ScopeResolver` riêng nó:
-  **chưa cần cache** — số đo không chỉ ra `apply_override` là nút cổ chai; nút cổ chai đo được
-  là `find_terms`. Xem `:424` cho số thật đầy đủ và cho quyết định ASK-FIRST mà số đó kéo theo.
-  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b) — câu hỏi tần suất mà lượt chuyển chủ ở trên chờ nay
-  có câu trả lời SẢN PHẨM, không chỉ câu trả lời trên giấy của `:492-500`.** `glossaryMarksState.ts`
-  gọi `ensureGlossaryMarksLoaded`/`refreshGlossaryMarks` đúng theo kỷ luật đã ký: MỘT lượt mỗi
-  lần mở Chương (funnel qua `watch([editorChapterId, sourceChapter], …)` ở `GridPanel.vue`,
-  cộng lượt tường minh trong `switchChapter()`), cộng đúng hai lượt làm mới có chủ (gộp/tách ở
-  `applyRegroup`, thêm nhanh ở `glossaryQuickAddState.ts`) — **0** lượt trên đường gõ
-  (`editorFlush.ts`/`noteEditorEdit` không gọi bất kỳ hàm nào ở đây). `ScopeResolver` vẫn
-  KHÔNG cache: tần suất gọi thật (≤ vài lượt/phiên mở một Chương) thấp hơn nhiều so với ngưỡng
-  mà một lượt đo trước sẽ cần để biện minh cho một cơ chế vô hiệu hoá mới. Đóng, không mở lại
-  trừ khi có số đo THẬT trên một phiên dùng dài chỉ ra ngược lại.
-
 - ~~⚠️ **Tầng Tác phẩm chưa từng chạy trên dữ liệu thật.**~~ Nhánh `Some(..)` của cả ba hàm phân giải **có test đầy đủ** *(`scope_contract.rs` cấp dữ liệu tầng Work bằng tay)*, nhưng đường sản phẩm hôm nay **luôn** truyền `None`: `.atproj` và `project.db` là **Story 1.15**, `StoreKind::Project` chưa có `StoreSpec` nào. `ScopeResolver::global_only()` là hàm dựng duy nhất tồn tại và `WorkScope` là một struct rỗng đánh dấu chỗ. **Story 1.15** cắm tầng thật vào; không ba chữ ký không phải đổi.
   → ✅ **ĐÓNG MỘT PHẦN 2026-08-06 (Story 1.15).** `WorkScope` nay mang `work_id` thật; `ScopeResolver::with_work(WorkScope)` là hàm dựng thứ hai, không ba chữ ký `apply_override`/`apply_merge`/`resolve_global_only` không đổi. Đường sản phẩm (`commands::project::create_work`) dựng một `ScopeResolver::with_work(...)` thật mỗi khi một Tác phẩm được tạo — `has_work_tier()` không còn luôn `false` trên đường sản phẩm.
   → ⚠️ **Vẫn còn hở, ghi ra thay vì đóng trọn:** chưa có method phân giải nào (`apply_override`/`apply_merge`/`resolve_global_only`) thật sự được GỌI với dữ liệu tầng Work — Story 1.15 không có bảng nào ở tầng Work để tra (Glossary/TM/Prompt là các epic sau). Resolver tồn tại và phản ánh đúng trạng thái *"đang mở"*, nhưng "phân giải hai tầng trên dữ liệu Work thật" vẫn chờ **Epic 3+**.
-
-- ⚠️ **Mã hoá hợp âm trên đĩa là TẠM.** `config_value` lưu hợp âm dưới dạng **một chuỗi**, và `src/main.ts::toBindings` tách bằng dấu phẩy. Nó đủ cho AC5 *(đọc lại được đúng hàng đã ghi)* và nó phân biệt được *"cố ý không có phím"* `""` với *"chưa ai đặt gì"* (khoá vắng mặt), nhưng nó **không** phải một mô hình: không escape, nên một hợp âm chứa dấu phẩy là không biểu diễn được. **Chủ sở hữu: Story 1.21** *(màn hình gán phím)* — story đó có mô hình thật thì thêm bước di trú của **chính nó**.
-  → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21) — bằng một PHÉP ĐO rồi một CƠ CHẾ, không bằng một mô hình mới và không một bước di trú nào.** Nỗi lo ở đây là *"một hợp âm chứa dấu phẩy là không biểu diễn được"*. Đo trên `src/commands/keys.ts`: phím dấu phẩy viết là **`Comma`** — một tên chữ cái — nên hợp âm của nó là `'Mod+Comma'`, **không** `'Mod+,'`; và `keyToCode` chỉ nhận `[0-9]`, `[A-Za-z]` và các khoá của `NAMED_CODES`, không khoá nào chứa `,`. ⇒ **không hợp âm hợp lệ nào chứa dấu phẩy**, và mã hoá hiện tại an toàn **theo cấu trúc**, không do tình cờ.
-  🔴 Và phép đo đó đã thành **cơ chế**, vì *"đúng do tình cờ"* và *"đúng có lưới"* là hai thứ khác nhau: Kiểm D của `scripts/check-commands.mjs` nay đọc bảng `NAMED_CODES` **từ chính mã nguồn** *(không một bản chép trong script — một bản chép sẽ trôi khỏi sự thật trong hai story)*, lái cả **61** phím mà `keyToCode` có thể sinh ra, và khẳng định không hợp âm nào chứa `,`. Một hàng mới thêm vào bảng ngày mai **tự động** bị kiểm.
 
 - ⚠️ **Xung đột hợp âm từ đĩa chỉ được *sống sót*, chưa được *giải quyết*.** `installCommands` thử dựng keymap trên một registry **nháp** trước; xung đột ⇒ ghi chẩn đoán rồi **rơi về hợp âm mặc định**, nên một `global.db` sửa tay không cho ra cửa sổ trắng (§Bẫy 5). Nhưng người dùng chỉ biết nếu họ mở console, và lựa chọn của họ im lặng không được áp. **Màn giải quyết xung đột là Story 1.21**; đừng đọc chốt hiện tại rộng hơn thứ nó làm.
   → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21, AC13).** Chẩn đoán không còn dừng ở `console.error`: `installCommands` ghi lý do trượt vào một biến module đọc được qua `shortcutsDiskRejection()`, và `ShortcutsOverlay.vue` hiện câu `shortcuts.disk_rejected` — *"Bộ phím tắt đã lưu có hai thao tác giành cùng một phím nên chưa được áp — ứng dụng đang chạy bằng phím mặc định. Lựa chọn cũ chưa bị xoá."* Người dùng biết mà không phải mở console, và họ có một màn hình để sửa.
@@ -309,8 +232,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Đây là lượt di trú THẬT đầu tiên trên một `global.db` đã có dữ liệu, tức lần đầu đường sao lưu `fs::copy` chạy trên máy người dùng.** `schema.rs:137` đã ghi nhận rằng bản sao đó **không nguyên tử và không xác minh lại**. Không sửa ở story này *(ngoài phạm vi, và mục đã có chủ sở hữu)*, nhưng ghi lại quan sát: từ hôm nay mục đó không còn là lý thuyết — mọi người dùng đã chạy một bản có `user_version = 1` sẽ đi qua nó đúng một lần khi nâng cấp. **(Chủ: một story kế tiếp chạm `core/store`.)**
 
 - ⚠️ **Đường hiển thị lỗi kho chưa chạy trong webview thật** — xem mục đã cập nhật ở §*Deferred from: code review of 1-7* (*"Lỗi mở kho hôm nay chỉ ra `stderr`"*). Nghiệm thu cần một `$APPDATA` chỉ-đọc; **Story 1.15 vẫn KHÔNG đóng được mục này** — môi trường triển khai của nó không có công cụ GUI automation, xem ghi chú 2026-08-06 ở mục gốc. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
-
-- ✅ **`tests/**` miễn trừ khỏi phép quét ranh giới: mục ở §1-7 **KHÔNG** phải mở lại.** Hai tệp test mới của story này **không** gõ tên crate SQLite: `Store::write` nhận một closure lấy `&Transaction` — kiểu **tái xuất** từ `core::store` — nên ca ghi thẳng một hàng vào `global.db` viết được mà không chạm `rusqlite`. Số tệp test chạm crate đó vẫn đúng bằng `store_contract.rs`.
 
 - ⚠️ **Sàn quần thể vẫn đếm TỆP, không đếm nội dung** — `scope_boundary.rs::RS_FLOOR = 20` (thật: 26) và `check-i18n.mjs::RS_FLOOR = 21` (thật: 27). Cùng mục đã ghi ba lần trước cho `check-i18n.mjs:207-218` và `check-commands.mjs`. ⚠️ **Hai quần thể này KHÁC nhau** — `src-tauri/src/**` so với `src-tauri/**` sau miễn trừ `tests/**` *(gồm `build.rs`)* — và chép số của tệp này sang tệp kia là đặt một cái sàn cho một cây khác. Đã ghi vào doc-comment của cả hai. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 
@@ -327,7 +248,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: 1-9-dung-du-lieu-tu-dien-lop-nen (2026-08-04)
 
-- 🔴 **Lưới thay thế cho `bundle.resources`/`dict/*.db` — chủ sở hữu: Story 10.1.** **(Chủ: Story 10.1.)** Task 10 của story này gỡ `$RESOURCE/dict/**` khỏi `assetProtocol.scope` (Ice chốt 2026-08-04, đóng `deferred-work.md:21`+`:57`) vì webview không bao giờ đọc tệp từ điển — `rusqlite` mở tệp bằng đường dẫn hệ thống, không qua asset protocol. Hệ quả: từ hôm nay đến Story 10.1, **không còn dòng nào trong `tauri.conf.json` nhắc tới `dict`**, tức lưới cũ *"ship một bản không có byte từ điển nào thì phải lộ ra ở đâu đó"* mất chỗ bấu — `config_invariants.rs` không còn gì để kiểm về việc `dict-core.db` có được đóng gói hay không. **Story 10.1 phải làm hai việc cùng lúc, không phải một:** (1) thêm `dict/*.db` vào `bundle.resources` của `tauri.conf.json`; (2) thêm một test khẳng định nó **có mặt** trong cấu hình đóng gói — nếu chỉ làm (1) mà không làm (2), lỗ hổng lưới lặp lại y hệt mục đã đóng ở đây.
+- 🔴 **Lưới thay thế cho `bundle.resources`/`dict/*.db` — chủ sở hữu: Story 10.1.** **(Chủ: Story 10.1.)** Task 10 của story này gỡ `$RESOURCE/dict/**` khỏi `assetProtocol.scope` (Ice chốt 2026-08-04, đóng `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*`+`:57`) vì webview không bao giờ đọc tệp từ điển — `rusqlite` mở tệp bằng đường dẫn hệ thống, không qua asset protocol. Hệ quả: từ hôm nay đến Story 10.1, **không còn dòng nào trong `tauri.conf.json` nhắc tới `dict`**, tức lưới cũ *"ship một bản không có byte từ điển nào thì phải lộ ra ở đâu đó"* mất chỗ bấu — `config_invariants.rs` không còn gì để kiểm về việc `dict-core.db` có được đóng gói hay không. **Story 10.1 phải làm hai việc cùng lúc, không phải một:** (1) thêm `dict/*.db` vào `bundle.resources` của `tauri.conf.json`; (2) thêm một test khẳng định nó **có mặt** trong cấu hình đóng gói — nếu chỉ làm (1) mà không làm (2), lỗ hổng lưới lặp lại y hệt mục đã đóng ở đây.
   → 🔄 **Cập nhật sau Story 1.10 (2026-08-05): phạm vi giờ là BA tệp, không phải một.** `dict-core.db` + `dict-thieu-chuu.db` + `dict-vietphrase.db` — cả ba phải vào `bundle.resources`, và test khẳng định "có mặt" (2) phải khẳng định cả ba, không chỉ base. **Đánh dấu KHÔNG đóng** — vẫn là việc của Story 10.1.
 - ⚠️ **`ARCHITECTURE-SPINE.md` (AD-23, dòng ~316) còn liệt kê `$RESOURCE/dict/**` bằng chữ — ĐANG LỆCH khỏi `tauri.conf.json` kể từ Task 10 của story này.** Dev không sửa tài liệu quy hoạch (tiền lệ quyết định #3 của Ice ở Story 1.3); sửa AD-23 là việc riêng của Ice. Ai đọc AD-23 trước khi đọc cấu hình thật sẽ hiểu sai rằng `dict` vẫn còn trong scope. **(Chủ: Winston — architect.)**
 
@@ -357,22 +278,11 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 🟡 **`require_nonempty` chỉ chặn ĐÚNG mốc 0 entry — không có ngưỡng tỉ lệ bỏ dòng** (`tools/dict-build/src/build.rs:66`). Hạ tầng Story 1.9, Story 1.10 chỉ tái dùng. Kịch bản chưa được chặn: một nguồn bị đọc sai mã hoá (đúng ca UTF-16LE mà `tools/dict-build/README.md` mới thêm cảnh báo) khiến 679.310/679.311 dòng thành `ParseIssue` còn 1 dòng may mắn giải mã được ⇒ `entries == 1 > 0` ⇒ build **THÀNH CÔNG**, `ExitCode::SUCCESS`, sinh một `.db` gần rỗng và in SHA-256 để chép vào `dict-manifest.toml`. `require_nonempty` là chốt chặn duy nhất theo chính lời README, và nó không bắt được ca 99,9997% hỏng. Cần một ngưỡng tỉ lệ (`skipped / (read)` vượt N% ⇒ lỗi) — **chọn N là quyết định, không phải mặc định hiển nhiên**, nên không vá trong lượt review này.
 - 🟡 **VietPhrase: đầu mục TRÙNG không được gộp — 46 trong nguồn thô, 18 trong `dict-vietphrase.db` đã dựng** (`tools/dict-build/src/sources/vietphrase.rs:19`). Mỗi dòng → một `RawEntry` → một `dict_entry`; lược đồ không có UNIQUE trên `dict_entry(source_id, headword)` (`src/schema.rs:44-58`) nên build không hề đỏ. Ngược khuôn Group A của Story 1.9, nơi `sources/wiktextract_common.rs` được sửa đúng vì lỗi *"nhiều dòng cùng headword ⇒ nhiều `dict_entry`"* và có hẳn test khoá (`en_wiktionary_same_headword_ma_merges_into_one_entry_with_multiple_senses`). **Không vá vì spec Story 1.10 chốt mô hình khác:** §Thông tin kỹ thuật ghi *"Mục hợp lệ: **679.311** — mọi dòng đều là mục"*, và dev đo được 679.302 entry, khớp. Hậu quả thật: tra `不是他的对手` trong `dict-vietphrase.db` trả về HAI `dict_entry` từ CÙNG một nguồn ⇒ UI của **1.13** hiện hai khối "VietPhrase" giống hệt nhau. → **Chủ sở hữu: Story 1.11/1.13** — hoặc gộp lúc đọc, hoặc quyết lại mô hình lúc dựng.
 - 🟡 **VietPhrase tách `/` vô điều kiện, không một ngoại lệ** (`tools/dict-build/src/sources/vietphrase.rs:77`). Bất kỳ nghĩa hợp lệ nào chứa `/` — `và/hoặc`, `24/7`, `n/a`, một URL trong nghĩa — bị bẻ thành nhiều `dict_sense` giả với `ord` 0/1, trong khi `ord` được cả story tuyên bố là *"thứ tự ƯU TIÊN của bản dịch"*. **Không vá vì Task 6 chốt thẳng luật tách `/`**, và không có luật rõ nào phân biệt dấu `/` phân tách với dấu `/` trong nội dung. Ghi lại để lượt rà chất lượng dữ liệu sau này (hoặc story harvest thuật ngữ 8.14/8.15) biết nó tồn tại.
-- 🟢 **§Bẫy 8 — điều kiện "điền manifest + siết cổng cùng MỘT commit" còn TREO.** Cả hai vế đang nằm trong cây làm việc chưa commit (`dict-manifest.toml` hai khối `[[detachable]]` + `scripts/check-dict-manifest.mjs` đòi đúng hai mục), nên một commit là đủ để thoả — nhưng chưa xác minh được cho tới khi commit thật diễn ra. Nếu tách thành hai commit, `check:dict-manifest` sẽ ĐỎ ở mọi lượt push trên cả hai nền tảng cho tới commit thứ hai — đúng thứ §Bẫy 8 tồn tại để tránh.
-  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.13) — phép kiểm đã CHẠY, không suy luận.** `dict-manifest.toml`
-  gốc kho hôm nay mang `[[detachable]]` đúng **3** mục (`thieu-chuu` · `vietphrase` · `tran-van-chanh`),
-  cả ba có `sha256`/`url`/`source_version` THẬT (không placeholder). `npm run check:dict-manifest`
-  chạy tại chỗ 2026-08-19: **tất cả phép kiểm đạt**, gồm câu *"[[detachable]] có đúng 3 mục, đúng
-  tên"*. Cả hai vế đã committed từ lâu (cây làm việc sạch ở đầu story này) — điều kiện "cùng MỘT
-  commit" mà §Bẫy 8 lo ngại đã trôi qua an toàn; không còn gì TREO.
-
 ## Deferred from: correct-course — đường tiếng Anh (2026-08-05)
 
 - 🔴 **Dư địa NFR6 nay là 15.474.554 byte ĐO THẬT — HVTĐTD và Cổ hán văn phải được ĐO trước khi hứa đóng gói. Chủ sở hữu: story nối tiếp của Story 1.10.** **(Chủ: story nối tiếp của Story 1.10.)**
   🔄 **CẬP NHẬT 2026-08-05 sau Story 1.10b — số DỰ PHÓNG thay bằng số ĐO ĐƯỢC.** Lớp tiếng Anh đã dựng thật; `dict-core.db` đi từ `154.464.256` → **`194.998.272` byte** *(**+40.534.016**, dự phóng là +40.333.312 ⇒ hụt **200.704** byte)*. Kế toán thật: baseline `.dmg` **2.334.696** + license **35.149** + font **21.285.713** + `dict-core.db` **194.998.272** + Thiều Chửu **5.787.648** + VietPhrase **160.083.968** = **384.525.446 byte** *(384,53 MB thập phân)*. **ĐẠT** trần **400.000.000**, **dư địa thật 15.474.554 byte** *(dự phóng 15.675.258 ⇒ **hẹp hơn 200.704**; dự phóng chính xác 99,95%)*.
   Thang so sánh **không đổi**: Thiều Chửu **5.787.648** *(vừa)* · VietPhrase **160.083.968** *(không vừa, gấp **10,3 lần** dư địa)*. Nếu HVTĐTD giàu ví dụ + trích dẫn như `prd.md` §8.3 mô tả, **trần 400 MB sẽ vượt lần thứ hai** — và lúc đó đường ra không còn là nâng trần tiếp: phải cân nhắc lại chính lời hứa *"không tải thêm sau khi cài"*, tức chạm **NFR7** và **NFR12**. **Không dựng HVTĐTD rồi mới đo** — đo trước, báo số cho Ice, rồi mới quyết đóng gói.
-- ~~🔴 **AD mới cho đường tra cứu tiếng Anh — chủ sở hữu: Winston (`bmad-architecture`). 🔴 VẪN CHẶN Story 1.11b.**~~
-  → ✅ **ĐÃ ĐÓNG 2026-08-05 — `AD-44` đã vào `ARCHITECTURE-SPINE.md`. Story 1.11b KHÔNG còn bị chặn bởi mục này.** Sáu mệnh đề của AD-44: ① vị từ điều phối là **hình dạng chuỗi truy vấn** *(có ký tự Hán ⇒ đường zh; ngược lại ⇒ đường en)*, không phải ngôn ngữ của Tác phẩm — nên ca *"bôi đen `API` trong truyện Trung"* mà chính mục này nêu **ra kết quả đúng** thay vì rỗng; vị từ chạy **một lần mỗi lượt tra, TRÊN tầng gom**, và không tồn tại sổ đăng ký *"tệp nào chứa ngôn ngữ nào"*. ② đường en có **hai** nhánh *(exact B-tree · FTS5 trigram ≥ 3)*, không có `char_idx`. ③ tập khoá tra chính xác = `{nguyên văn, hạ chữ thường}` trong **một** truy vấn `IN (?1,?2)`, không fallback dây chuyền — và 🔴 **stemming KHÔNG nằm trên đường nóng tra từ điển**, xem mục kế tiếp. ④ chuỗi con **1–2 ký tự** tiếng Anh khai là **không hỗ trợ**, trả trạng thái phân biệt được với *"không có kết quả"*. ⑤ ranh giới mã-riêng-theo-ngôn-ngữ: được phép **đúng** ở chiến lược truy vấn trong `core/dict/`; không cấm ở cổng `DictionarySource` *(adapter theo **tệp**, không theo **ngôn ngữ**)*, ở hình dạng bản ghi kết quả *(`lang` là **trường**, không phải **kiểu**)*, và không cấm mọi bước hợp nhất zh với en. ⑥ **NFR1 đo TRÊN đường tiếng Anh**, không suy từ số tiếng Trung. Kèm theo: **AD-26 sửa Rule tại chỗ** — phạm vi *"tiếng Trung"* đưa vào **thân** Rule chứ không chỉ ở tiêu đề, và dải hiệu năng công bố *(0,15–4,5 ms)* đánh dấu **LỖI THỜI**, thay bằng số đo 2026-08-05 mà Story 1.11 đã bàn giao ở §Completion Notes ②. Reviewer Gate: `lint_spine.py` 0 findings, ba lens bắt 5 phát hiện *(2 nghiêm trọng)* — tất cả đã vá; báo cáo ở `architecture/architecture-AuraTranslate-2026-08-02/reviews/review-ad-44-2026-08-05.md`.
-
 - 🔵 **PHÁT HIỆN MỚI của lượt AD-44 (2026-08-05) — đo thật, không suy luận: `FR40` trên đường TỪ ĐIỂN không cần stemming, và chữ HOA mới là lỗ thật.**
   - **Stemming mua được ~0 recall.** Thứ phủ FR40 là một **tính chất của corpus**: Wiktionary đã có sẵn mọi dạng biến thể làm **đầu mục riêng** — mẫu **16/16** có mặt, **gồm cả bất quy tắc** `went` · `gone` · `children` · `happiest`, thứ stemming về nguyên tắc **không bao giờ** làm được. Quy mô: **7.656** đầu mục `-ing` · **8.855** `-ed` · **19.616** `-s` · **228** `-est` trên **119.039**. *(Dữ kiện phụ, yếu hơn: ba dạng stem Porter kinh điển tra vào `dict-core.db` cho **0** hàng — `dictionari` · `studi` · `happi`; `run` cho 1. ⚠️ **Số hàng là đo thật, nhưng ba CHUỖI stem đó chưa chạy qua stemmer mà sản phẩm sẽ dùng** — ghi rõ trong AD-44 ③.)*
   - 🔴 **Lỗ chữ HOA, chưa tài liệu nào ghi:** `headword='running'` ⇒ **1** hàng nhưng `headword='Running'` ⇒ **0**. Bôi đen một từ ở **đầu câu** là thao tác thường ngày và nó trả rỗng không báo gì — đúng lớp lỗi FR39/AD-26 tồn tại để chặn. **1.635** đầu mục en mang chữ hoa có nghĩa (`API` · `Wikipedia` · `English`) và **184** nhóm chỉ khác nhau ở chữ hoa ⇒ hạ chữ thường phải là **THÊM** khoá, không phải **THAY**.
@@ -411,20 +321,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 🔵 **Khoá theo `code` chứ không theo `id` — ĐÃ ĐÓNG MỘT NỬA.** `EntryHit` của 1.11 mang `source_code: String`, không có trường `source_id` nào, và `tests/dict_lookup.rs::results_carry_the_source_code_not_the_id` khoá mệnh đề đó trên một fixture hai nguồn. **Nửa còn lại là của 1.13:** lúc gom nhiều tệp, khoá gom **phải** là `code`, và không được phép dựng lại một bảng tra `id → nguồn` ở tầng gom. **(Chủ: Story 1.13.)**
 
-- 🔴 **NFR1: nhánh 2 với truy vấn MỘT ký tự đã VƯỢT dải công bố của AD-26, và trần 10 ms chỉ còn 27% dư địa. Chủ sở hữu: Ice quyết, ứng viên là 1.13/1.17.** Đo thật trên `dict-core.db`, 200 lượt, bỏ 10 lượt làm nóng:
-  | Nhánh | AD-26 công bố | Trần story | p95 **release** | p95 **debug** |
-  |---|---|---:|---:|---:|
-  | 1 — B-tree chính xác (`山`) | 0,02 ms | 1 ms | **0,083 ms** ĐẠT | 0,133 ms |
-  | 2 — `char_idx` **1 ký tự** (`山`, 3.177 hàng) | 0,15–4,5 ms | 10 ms | 🔴 **7,324 ms** ĐẠT *(sát)* | 🔴 **15,045 ms** VƯỢT |
-  | 2 — `char_idx` **2 ký tự** (`中國`, 350 hàng) | 0,15–4,5 ms | 10 ms | **1,039 ms** ĐẠT | 2,566 ms |
-  | 3 — FTS5 trigram (`中國人`, 33 hàng) | 0,13–0,19 ms | 1 ms | **0,448 ms** ĐẠT | 0,768 ms |
-  **Phán quyết:** ĐẠT trên bản **release** — đó là bản người dùng chạy, nên đó là số nghiệm thu. Nhưng ba dữ kiện phải đi cùng nó:
-  1. **7,324 ms vượt hẳn dải 0,15–4,5 ms mà AD-26 công bố.** Số của AD-26 đo ở Giai đoạn 0 trên một database **ba** nguồn; `dict-core.db` hôm nay có **sáu**, và `char_idx` của `山` đi từ ~2.576 lên **3.177** hàng. Dải công bố của AD-26 nên được đo lại, không nên được trích tiếp như số hiện hành.
-  2. **Chi phí nằm ở số HÀNG, không ở chỉ mục.** Kế hoạch truy vấn đúng (`SEARCH char_idx USING PRIMARY KEY`); 3.177 hàng × 4 chuỗi cấp phát mỗi hàng là toàn bộ chi phí. Nên nó không sửa được bằng một chỉ mục mới, và story này bị cấm thêm chỉ mục — đúng lý do.
-  3. **Đường ra là một quyết định sản phẩm, không phải một lượt tối ưu:** giới hạn số hàng trả về *(phân trang / `LIMIT` + đếm)* là hình dạng tự nhiên nhất, nhưng nó chạm hợp đồng của Panel Lookup **(1.17)** và tầng gom **(1.13)** — cả hai đều chưa tồn tại. Không tự chọn ở 1.11.
-  ⚠️ Bản **debug** VƯỢT trần *(15,045 ms)*. Không phải số nghiệm thu, nhưng nó là số mà mọi dev chạy `cargo test` sẽ thấy — ghi ra để lượt sau không đọc nó thành một hồi quy.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, Quyết định #4).** Ice chốt: có `LIMIT` pha một. Đo lại trên bốn lớp thật (`--release`): char_idx 1 ký tự p95 **20,836 ms** (không `LIMIT`) → **5,109 ms** (`LIMIT 20`) — đường sản phẩm thật (`commands::dict::lookup`, `LookupMode::Exact` cố định) đo p95 **6,535 ms** cho ca xấu nhất. 🔴 **Phát hiện mới**: `Exact` luôn đi nhánh `ExactBtree`, không bao giờ đi `char_idx` — nhánh đắt của mục này **không** được đường sản phẩm 1.17 tự nó chạm tới; `LIMIT` vẫn giữ giá trị cho FR31 (AC12) trên `ExactBtree` và cho ngày `Substring` được dùng (1.18/7.7). Xem story `1-17-panel-lookup-ban-ghi-co-cau-truc.md` §Debug Log References.
-
 - 🟡 **`EXPLAIN QUERY PLAN` của nhánh 3 chứa chữ `SCAN`, và đó là hành vi ĐÚNG.** Story yêu cầu *"phải thấy `VIRTUAL TABLE INDEX`, không thấy `SCAN`"*. Kế hoạch thật là `SCAN f VIRTUAL TABLE INDEX 0:M1` — SQLite luôn dùng từ `SCAN` cho một bảng ảo; phần mang nghĩa là hậu tố **`:M1`**, nó nói ràng buộc `MATCH` **đã** được đẩy xuống mô-đun FTS5. Một kế hoạch hỏng sẽ là `VIRTUAL TABLE INDEX 0:` **không** có `M`. Nêu ra để lượt rà sau không đọc chữ `SCAN` thành một vi phạm.
 
 ## Deferred from: code review of 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)
@@ -432,9 +328,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - **NFR1 nhánh 2 (1 ký tự) còn 27% dư địa tới trần — quyết định lúc review: chấp nhận nguyên trạng.** Xác nhận lại mục đã có ở trên (§Deferred from: 1-11-…, mục NFR1): người dùng, khi review, chọn không sửa gì bây giờ và để 1.13/1.17 xử lý bằng phân trang thật khi Panel Lookup tồn tại. **(Chủ: một story kế tiếp chạm `core/dict`.)**
 - **Kế hoạch truy vấn của nhánh 1/2 chỉ được xác nhận bằng `EXPLAIN QUERY PLAN` chạy tay, không có cổng CI tự động** (`src-tauri/src/core/dict/query.rs`) — nếu một di trú lược đồ tương lai xoá `idx_entry_headword`/`idx_entry_headword_simp` hay đổi khoá chính của `char_idx`, nhánh 1/2 có thể âm thầm suy biến thành quét toàn bảng mà không test hành vi nào đỏ. Đây là cùng ràng buộc mà AC9 đã chấp nhận (không có tệp `.db` thật trong CI), nên không tự động hoá được trong story này. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 - **Nhánh `char_idx` 1 ký tự bỏ qua xác minh chuỗi con ở Rust, dựa hoàn toàn vào bất biến của `tools/dict-build`** (`src-tauri/src/core/dict/query.rs:121`) — đúng của tối ưu này phụ thuộc việc `char_idx` không bao giờ sinh một cặp `(ký tự, entry_id)` sai, một bất biến chỉ được cưỡng chế ở workspace `tools/dict-build`, không có cổng nào kiểm chéo hai workspace. Ranh giới hai workspace tách rời đã chốt từ Story 1.9 (AC4); story này kế thừa quyết định đó chứ không tạo ra nó. **(Chủ: Story 1.11b / 1.13.)**
-- **Không có giới hạn trên cho độ dài truy vấn** trước khi đưa vào `chars()`, cấp phát chuỗi lặp lại, và dựng cụm FTS (`src-tauri/src/core/dict/query.rs`) — thật với một đầu vào cực dài, nhưng story 1.11 tường minh cấm dựng IPC command hay chạm frontend nên chưa có bên gọi không tin cậy nào tồn tại. Validate độ dài đầu vào thuộc về tầng IPC/UI của Story 1.13/1.17.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, Task 2).** `commands::dict::lookup()` cắt truy vấn ở `QUERY_LENGTH_CEILING = 200` ký tự TRƯỚC khi vào đường tra — một sàn TRÊN có tên, không một `panic`. Ca test `a_query_past_the_length_ceiling_is_truncated_before_it_reaches_the_lookup` chứng minh việc cắt xảy ra trước `pick_route` (201 ký tự Latin+Hán ⇒ route `En`, không `Zh`).
-
 ## Deferred from: code review of 1-11b-duong-tra-cuu-tieng-anh (2026-08-05)
 
 - **Điều kiện `≤ 2 ký tự` của `char_idx()` chỉ cưỡng chế bằng `debug_assert!`** (`src-tauri/src/core/dict/query.rs:138`) — vô tác dụng ở bản release; một lượt gọi trực tiếp trong tương lai (vd. từ tầng gom Story 1.13, nếu nó bỏ qua `lookup()` và gọi thẳng `query::char_idx`) với truy vấn dài hơn sẽ âm thầm cắt còn hai ký tự đầu thay vì báo lỗi. Kế thừa từ Story 1.11 — story 1.11b không chạm hàm này, chỉ mở rộng phạm vi tiếp xúc của nó qua module dùng chung. **(Chủ: một story kế tiếp chạm `core/dict`.)**
@@ -456,32 +349,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   | `run` | *(1 hàng, không nêu chuỗi)* | `run` | ✅ |
 
   ⇒ **Phỏng đoán của AD-44 ③ ĐÚNG 3/3 chuỗi nó nêu.** Kết luận của ③ *(stemming không nằm trên đường nóng tra từ điển)* **không** bị lật bởi số đo — nó **được củng cố**: ba chuỗi stem đó đúng là thứ sẽ được tra, và chúng đúng là cho **0** hàng trên `dict-core.db`. Món nợ đo đạc ở `:616` nay **đóng được**; ⚠️ nội dung sửa là của Winston.
-
-- 🔴 **`Jieba` khởi tạo tốn ~180–330 ms bản RELEASE — VƯỢT NFR2 (50 ms) từ 3,6× đến 6,6×. Chủ sở hữu: Story 3.4** **(Chủ: Story 3.4.)** *(story đầu tiên gọi Matcher trên một đường gõ thật)*. Đo thật, `[profile.release]` không đổi một dòng, 6 lượt chạy trên máy dev *(macOS, darwin 24.6.0)*, mỗi lượt một tiến trình mới:
-
-  | Lượt | 1 | 2 | 3 | 4 | 5 | 6 |
-  |---|---:|---:|---:|---:|---:|---:|
-  | Khởi tạo lạnh **(ms)** | 328,588 | 244,444 | 224,407 | 179,161 | 242,224 | 255,437 |
-
-  Trung vị **~243 ms**, thấp nhất **179 ms**, cao nhất **329 ms**. Lượt gọi **ấm** kế tiếp: **1 µs** *(dưới ngưỡng đo)*. Chi phí là giải nén `dict.txt` *(**5.071.843 byte** thô, nhúng qua `include_flate::flate!`)* cộng nạp từng dòng vào một cây `cedar` — công việc **chạy lúc chạy**, không phải một hằng số biên dịch, và nó rơi vào **lần gọi đầu tiên**, tức có thể rơi đúng vào phím đầu tiên người dùng gõ.
-  **Đường ra là hâm nóng `LazyLock` NGOÀI đường gõ** *(một lượt `tokenize` giả lúc mở Tác phẩm, hoặc trên một luồng nền lúc khởi động)*. **Story 1.12 cố ý KHÔNG dựng cơ chế hâm nóng** — chưa có đường gõ nào tồn tại để hâm nóng vào, và một cơ chế dựng trước người tiêu thụ là một phỏng đoán về chỗ gọi. Cổng `tests/matching_boundary.rs::the_jieba_dictionary_is_constructed_at_exactly_one_place` + `…::the_single_jieba_instance_is_actually_lazily_initialised_once` giữ cho chi phí này không nhân lên khi ai đó chuyển lời gọi vào thân một hàm bị gọi lặp.
-  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4).** `core::matching::warm()` (`LazyLock::force(&JIEBA)`) cộng
-  `core::glossary::warm_jieba_for_source_lang(source_lang)` (chỉ hâm khi `source_lang == "zh"` —
-  đường Anh không bao giờ chạm `Jieba`, hâm nó vô ích) — gọi từ `commands::chapter::read_open_chapter`
-  và `…::open_adjacent_chapter`, đúng "đường mở Chương" mà mục này chờ. Cổng hai lớp cũ
-  (`the_jieba_dictionary_is_constructed_at_exactly_one_place` · `…lazily_initialised_once`) vẫn xanh
-  không đổi — `warm()` gọi `LazyLock::force`, không thêm một lần dựng `Jieba::new` thứ hai.
-
-- 🔵 **PHÁT HIỆN MỚI: Porter2 KHÔNG có luật cho hậu tố so sánh/cực cấp (`-er` · `-est`) — `happiest` không về được `happy`.** AC7 của story liệt kê `happiest` là một *"biến thể hình thái"* mà Matcher phải nhận diện được về dạng gốc. **Đo thật lật vế đó:** `happiest` ⇒ `happiest`, trong khi `happy` ⇒ `happi` — hai vế **không** gặp nhau. Ba biến thể còn lại của AC7 thì đạt *(`running`⇒`run` · `dogs`⇒`dog` · `studies`⇒`studi`=`study`)*. Đây **không** phải lỗi cài đặt: Porter2 theo định nghĩa không xử lý `-er`/`-est`, nên một biến thể **có quy tắc** cũng rơi vào đúng giới hạn mà FR40 đã tuyên bố cho dạng **bất quy tắc**. Story đóng nó bằng cách đưa `happiest` vào ca test giới hạn có tên *(`stemming_is_not_lemmatization_irregular_and_comparative_forms_never_reach_their_lemma`)* thay vì vào ca AC7. ⚠️ **Hệ quả cần biết cho Epic 3:** một người dịch thêm thuật ngữ `happy` vào Glossary sẽ **không** thấy `happiest` được tô màu. Nếu đó là mức phủ không chấp nhận được thì đường ra là một lemmatizer — và NFR15 đòi rà giấy phép **trước** khi thêm phụ thuộc. Chủ sở hữu quyết định: **Ice / John (PM)**, ứng viên là Story 3.4. **(Chủ: Story 3.4.)**
-  → **KHÔNG LÀM 2026-08-21 (Story 3.4)** — Ice ký giữ nguyên giới hạn, không thêm lemmatizer.
-  I/O Matrix của story tự đặt hàng này thành một MỆNH ĐỀ ĐÚNG, không một chỗ chưa xong: *"Anh,
-  cực cấp | thuật ngữ `happy`, câu `…happiest…` | Không dấu — giới hạn Porter2 đã ký"*. Đóng bằng
-  một ca test **có tên**, không phải một dòng bị xoá:
-  `glossary_marks_contract.rs::english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_2026_08_21`
-  khẳng định `happiest` **không** được đánh dấu khi Glossary chỉ chứa `happy` — chạy thật, không
-  suy luận. Thêm một lemmatizer để đóng khoảng phủ này là đổi một phụ thuộc mới (cửa NFR15) lấy
-  một ca biên hiếm, trong khi người dịch có đường né sẵn (tự thêm `happiest` làm một mục Glossary
-  riêng nếu cần) — không có bằng chứng cầu thật nào đòi đánh đổi đó ở FR40 hôm nay.
 
 - 🟡 **`find_terms` là O(số thuật ngữ × độ dài văn bản) — không chỉ mục ngược, không cache. Chủ sở hữu: Story 3.4 / 7.5.** Story 1.12 cố ý không dựng cả hai *(§Ranh giới phạm vi: chúng thuộc 7.5/7.6 và phụ thuộc dữ liệu thật)*. Với một Glossary vài trăm thuật ngữ trên một segment vài trăm ký tự thì hình dạng hiện tại thừa đủ; với một Glossary vài nghìn thuật ngữ trên **cả chương**, nó cần đo lại trước khi đặt lên đường gõ *(NFR2 = 50 ms mỗi frame)*. **Chưa đo** — chưa có người tiêu thụ nào để đo trên đó, và một con số đo trên đầu vào tự bịa là một con số không dùng được.
   → 🟡 **ĐO 2026-08-21 (Story 3.4) — con số THẬT, và nó KHÔNG nằm dưới trần NFR2 ở quy mô
@@ -596,43 +463,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   - Phương án C *(quyết lại mô hình lúc dựng)* vẫn ngoài phạm vi mọi story cho tới khi ai đó chấp nhận dựng lại `dict-vietphrase.db`, điền lại `sha256`, và đo lại NFR6.
   → ✅ **ĐÓNG 2026-08-06 (Story 1.17, Quyết định #5).** Nhìn bằng mắt 18 hàng trùng — CHỐT đường **(a) hiện LIỀN NHAU**, không đánh số, không gộp: `senses` truyền vào `LookupRecord.vue` là danh sách PHẲNG (mọi nghĩa của mọi đầu mục trong nguồn, đúng thứ tự `entry_id → ord → sense_id`), nên component không cần biết ranh giới đầu mục — dữ liệu không đổi, đúng ràng buộc.
 
-- 🔴 **NFR1 trên ĐƯỜNG GOM: nhánh 2 một ký tự VƯỢT trần 10 ms — 12,569 ms bản release. Chủ sở hữu: Ice quyết, ứng viên là 1.17.** Đo thật 2026-08-05 trên **ba tệp `.db` thật** *(`dict-core.db` 194.998.272 · `dict-thieu-chuu.db` 5.787.648 · `dict-vietphrase.db` 160.083.968 byte)*, bản **release**, 200 lượt, bỏ 10 lượt làm nóng, qua `tests/dict_sources.rs::bench_the_grouped_path_on_the_real_dictionaries`:
-
-  **Pha một — `lookup_grouped` trên 3 lớp:**
-
-  | Nhánh | Truy vấn | Nhóm | Hàng | p50 | p95 | p99 | Trần | |
-  |---|---|---:|---:|---:|---:|---:|---:|---|
-  | 1 — B-tree chính xác | `山` | 6 | 8 | 0,196 | **0,223** | 0,268 | 1 ms | ĐẠT |
-  | 2 — `char_idx` 1 ký tự | `山` | 7 | **6.563** | 11,059 | 🔴 **12,569** | 13,368 | 10 ms | **VƯỢT** |
-  | 2 — `char_idx` 2 ký tự | `中國` | 5 | 354 | 2,423 | **3,608** | 4,318 | 10 ms | ĐẠT |
-  | 3 — FTS5 trigram | `中國人` | 4 | 35 | 0,454 | **0,563** | 0,644 | 1 ms | ĐẠT |
-  | en-1 B-tree (thường) | `running` | 1 | 1 | 0,133 | **0,144** | 0,320 | 1 ms | ĐẠT |
-  | en-1 B-tree (HOA) | `Running` | 1 | 1 | 0,144 | **0,239** | 0,323 | 1 ms | ĐẠT |
-  | en-2 trigram | `dic` | 1 | 572 | 1,057 | **1,575** | 1,842 | 10 ms | ĐẠT |
-
-  **Pha hai — `senses()` theo lô (`SENSE_BATCH = 64`):**
-
-  | Ca | Lớp | Đầu mục | p50 | p95 | p99 |
-  |---|---|---:|---:|---:|---:|
-  | `山` substring — **một trang** | `vietphrase` | 20 | 0,151 | **0,294** | 0,369 |
-  | `山` substring — **tất cả** | `vietphrase` | 3.385 | 12,244 | 🔴 **13,015** | 13,380 |
-  | `中國` substring — một trang | `base` | 20 | 0,223 | **0,299** | 0,352 |
-  | `中國` substring — tất cả | `base` | 147 | 0,748 | **0,972** | 1,309 |
-  | `dic` substring — một trang | `base` | 20 | 0,229 | **0,315** | 0,422 |
-  | `dic` substring — tất cả | `base` | 572 | 3,732 | **5,110** | 5,785 |
-
-  **Bốn dữ kiện phải đi cùng bảng trên:**
-  1. **Chi phí nằm ở SỐ HÀNG, không ở số tệp.** Story 1.11 đo `山` trên **một** tệp: 3.177 hàng, 7,324 ms. Nay **6.563** hàng qua ba tệp cho 12,569 ms — **2,07× hàng ⇒ 1,72× thời gian**, tức gần tuyến tính theo hàng. Gom nhiều tệp **không** thêm một chi phí cố định đáng kể; nó chỉ cộng thêm hàng. ⇒ Đường ra **không** phải "mở ít tệp hơn".
-  2. 🔴 **§Quyết định #1B được số đo XÁC NHẬN, không phải chỉ được lý luận.** Một trang 20 đầu mục hydrate hết **0,29–0,32 ms** ở **mọi** ca — thừa sức trong ngân sách. Hydrate **cả** 3.385 đầu mục hết **13,015 ms**. Đó **chính xác** là chi phí mà phương án A *(một pha)* sẽ buộc phải trả **bên trong** `lookup_grouped`, **cộng dồn cho cả ba tệp** — tức pha một sẽ là ~12,6 + ~13,0 + … ms thay vì 12,6 ms. Hai pha đẩy đúng chi phí đó sang chỗ **quyết định được**, và chỗ đó là 1.17.
-  3. **KHÔNG tự thêm `LIMIT`, và story này không thêm.** `deferred-work.md` §1-11 đã chốt: *"đường ra là một **quyết định sản phẩm** […] nó chạm hợp đồng của Panel Lookup **(1.17)**"*, và Ice **đã** chọn *"chấp nhận nguyên trạng"* một lần cho cùng câu hỏi ở lượt review 1.11. Story 1.13 giữ nguyên lựa chọn đó và **ghi số**.
-  4. ⚠️ **Ngân sách NFR1 đầu-cuối là 100 ms; 12,569 ms là phần backend.** Trần 10 ms là một con số **dẫn xuất** *(PRD dành ~99,95 ms cho vòng IPC Tauri + render, giả định `[A1]` — thứ **chưa ai đo**)*. Vượt trần backend **không** đồng nghĩa vượt NFR1; nó nghĩa là dư địa cho hai thứ chưa đo còn **87,4 ms** thay vì 90 ms. Con số nghiệm thu thật của NFR1 chỉ có sau khi Panel Lookup tồn tại.
-  ⇒ 🔴 **Hình dạng đường ra cho 1.17, không phải một mệnh lệnh:** giới hạn số hàng **pha một** *(phân trang + đếm)* là thứ duy nhất chạm được vào 12,569 ms. Pha hai **không cần** làm gì — 1.17 chỉ hydrate đúng trang nó hiện, và số đo nói giá của việc đó là 0,3 ms.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, Quyết định #4 + Task 8).** `LIMIT` pha một đã cài (`LOOKUP_PAGE_LIMIT = 20`, chốt từ số đo Task 8). Đo lại trên 4 tệp thật (`vietphrase` tách lớp riêng từ 1.10c/1.16, khác 3 tệp thời điểm ghi mục này): char_idx 1 ký tự p95 **20,836 ms** không `LIMIT` → **5,109 ms** có `LIMIT`. 🔴 Phát hiện Task 8: đường sản phẩm thật của 1.17 (`commands::dict::lookup`, `Exact` cố định) **không đi nhánh `char_idx`** — nó luôn đi `ExactBtree` (p95 đo được **6,535 ms**, xa dưới trần 100ms NFR1). `LIMIT` vẫn cần cho AC12/FR31 trên `ExactBtree` và cho ngày `Substring` được dùng (1.18/7.7).
-
 - 🟡 **HVTĐTD nghiệm thu trên FIXTURE, không trên dữ liệu thật — VẪN MỞ. Chủ sở hữu: story dựng lớp HVTĐTD.** AC11 của Story 1.13 *(từ loại · ví dụ · trích dẫn **tiếng Việt**, và rơi về nhãn tiếng Anh khi gỡ)* nghiệm thu bằng một fixture mang **đúng hình dạng** HVTĐTD *(`pos_lang = 'vi'`, ví dụ + trích dẫn tiếng Việt)*, vì `dict-hvtdtd.db` **không tồn tại** — chưa có nguồn thô *(`src-tauri/resources/dict/README.md:13`; `prd.md:856` [A2]; xem mục 🔴 HVTĐTD ở §Deferred from 1-10)*. Thứ đã nghiệm thu: **đường mã phân biệt được nhãn tiếng Việt với nhãn ngoại ngữ, và không đánh mất trường nào trên đường đi**. Thứ **chưa** nghiệm thu: hình dạng đó **trên dữ liệu HVTĐTD thật**. **Đừng đánh dấu FR35/FR36 là *"đã nghiệm thu trên dữ liệu thật"***.
-
-- 🟢 **`app.manage(DictLayers)` chạy ở `setup()` nhưng CHƯA có người tiêu thụ nào đọc nó.** Story 1.13 mở tập lớp lúc khởi động *(§Quyết định #3A — NFR14/FR112 đòi một vòng đời tài nguyên có `close()` ở `RunEvent::Exit`)*, nhưng chưa có `#[tauri::command]` nào lấy nó ra: đó là **Story 1.17**. Hệ quả có ý thức: đường `resource_dir()/dict/` **chưa bao giờ chạy trên một bản dựng có tệp `.db` thật** — `bundle.resources` chưa mang thư mục đó *(**Story 10.1**)*, nên hôm nay mọi bản dựng lên với **0 lớp** và dòng `dict[layers] 0 layer(s) loaded from …` ra stderr. Trạng thái đó **đúng theo thiết kế** *(AC3: thư mục không tồn tại ⇒ tập lớp rỗng, không lỗi)*, nhưng nó cũng nghĩa là **tên thư mục con `dict/` chưa được một lượt chạy thật nào xác nhận**. 🔴 Story 10.1 phải khớp hai đầu: khoá ánh xạ trong `bundle.resources` và hằng `DICT_RESOURCE_DIR` của `lib.rs:36`.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, AC8/Task 2).** `commands::dict::wire::lookup_dictionary` (`#[tauri::command]`, `try_state::<DictLayers>()`) là người tiêu thụ đầu tiên. ⚠️ Vế **`bundle.resources`/Story 10.1** ở lại mở nguyên — mọi bản dựng hôm nay vẫn lên với 0 lớp; đây là món nợ RIÊNG, không phải món nợ story này đóng (Task 11 nhắc lại ở cuối story 1.17).
 
 ## Deferred from: code review of 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)
 
@@ -681,7 +512,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **`ui-md` chạy giãn dòng 1.5 nhưng câu trạng thái panel AI XUỐNG DÒNG THẬT** — xem mục *"Kiểm E không phát hiện được một cờ `wraps` khai sai"* ở trên. **Chưa chốt, quyết định của Ice**, và nó chạm `DESIGN.md`. **(Chủ: story kế tiếp dựng panel chạm `ui-md`.)**
 
-- ⚠️ **Chuỗi chẩn đoán trong `.vue` phải viết KHÔNG DẤU.** `WorkspaceDock.vue` và `WorkspaceMode.vue` mang ~7 lời gọi `console.error`/`console.warn` viết tiếng Việt **không dấu**, theo tiền lệ `src-tauri/src/commands/config.rs:36`. Lý do: Kiểm A của `check-i18n.mjs` đo **DẤU** và không phân biệt được *chuỗi hiển thị* với *chẩn đoán ra console*. Đường thoát dễ — dời khối logic sang một `.ts` — là **đúng đường mà `deferred-work.md:35` cấm bằng chữ**, nên không dùng. Lời giải đúng là cho cổng một khái niệm *"chẩn đoán"* *(ví dụ: chuỗi nằm trong đối số của `console.*` được miễn trừ có tên)*. Thuộc **Story 10.9**. **(Chủ: một story hạ tầng cổng kế tiếp.)**
+- ⚠️ **Chuỗi chẩn đoán trong `.vue` phải viết KHÔNG DẤU.** `WorkspaceDock.vue` và `WorkspaceMode.vue` mang ~7 lời gọi `console.error`/`console.warn` viết tiếng Việt **không dấu**, theo tiền lệ `src-tauri/src/commands/config.rs:36`. Lý do: Kiểm A của `check-i18n.mjs` đo **DẤU** và không phân biệt được *chuỗi hiển thị* với *chẩn đoán ra console*. Đường thoát dễ — dời khối logic sang một `.ts` — là **đúng đường mà `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` cấm bằng chữ**, nên không dùng. Lời giải đúng là cho cổng một khái niệm *"chẩn đoán"* *(ví dụ: chuỗi nằm trong đối số của `console.*` được miễn trừ có tên)*. Thuộc **Story 10.9**. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 
 - ⚠️ **`as unknown as Record<string, VueComponent>` ở `WorkspaceDock.vue`.** `dockview-vue` khai `VueComponent<T = any> = DefineComponent<T>`, và prop là vị trí **nghịch biến** nên `DefineComponent<DockviewPanelProps>` không gán được. Đường thay thế *(khai `params?:` ở cả năm component)* qua được kiểm tra kiểu **bằng cách nói dối**: dockview LUÔN truyền `params`, và `PanelTab.vue` không chạy được nếu thiếu. Ép kiểu **một lần ở đúng ranh giới thư viện** rẻ hơn năm lời nói dối rải trong mã. **Mở lại** nếu `dockview-vue` siết kiểu ở một bản sau. **(Chủ: story kế tiếp chạm `WorkspaceDock.vue`.)**
 
@@ -706,28 +537,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
     `libraryImport.ts::finishSubmit` khi Tác phẩm đổi. ⚠️ **Vẫn MỞ cho Editor/AI (Epic 2/4)**. **(Chủ: story kế tiếp áp preset có trạng thái thật.)**
 
 ## Deferred from: 1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu (2026-08-06)
-
-- 🔴 **Mọi Chương nhập ở Epic 1 có `segment_count = 0`, và Story 2.1 phải xử lý bằng một thao tác tách TƯỜNG MINH.** Quyết định #4 của story: AD-4 đóng băng ranh giới segment tính một lần lúc nhập; cài một bộ tách "tạm" ở Story 1.15 là đóng băng vĩnh viễn những ranh giới sai (id đã "về hưu" không bao giờ được tái dùng — AD-3). `chapter.source_text` mang **nguyên khối** văn bản; **không** bảng `segment`, **không** dòng `segment` nào tồn tại. **Story 2.1** sở hữu bước di trú thêm bảng `segment` VÀ một thao tác "tách lần đầu" tường minh trong giao diện (hoặc một bước di trú dữ liệu), **không** một đường tính ngầm lúc nạp Chương — đường đó là vi phạm AD-4 trực tiếp.
-  → ✅ **ĐÓNG 2026-08-12 — Story 2.1.** Bước di trú **5** (`SEGMENT_DDL`; số 4 đã cháy) cộng
-  **hai** đường tách, và không đường nào tính ngầm: Chương **mới** tách trong `create_work`,
-  cùng giao dịch với hàng `chapter` (AC13); Chương **cũ** đi qua lệnh IPC tường minh
-  `split_chapter_into_segments`, một Chương một lượt, **từ chối** một Chương đã có segment
-  thay vì ghi đè. Bước di trú cố ý chỉ làm một việc — `CREATE TABLE segment` — vì nhét phép
-  tách vào đó trộn DDL với nghiệp vụ và chạy im lặng lúc mở Tác phẩm, đúng thứ AC3 cấm; và
-  vì bản sao lưu trước di trú vẫn *"không nguyên tử, không xác minh lại"* (mục nợ ở trên,
-  chưa ai vá) và đây sẽ là lượt di trú thật đầu tiên trên một `project.db` có dữ liệu người
-  dùng. `segment_boundary.rs::the_splitter_has_exactly_two_product_call_sites` khoá con số
-  hai đó lại.
-  ⚠️ **21 Chương, không phải 25** — đo 2026-08-12 trên `~/Documents/AuraTranslate/`: 21 thư
-  mục `.atproj`, mỗi thư mục đúng 1 Chương, tất cả ở `user_version = 3`. Con số 25 trong
-  story là một ước, không một phép đếm.
-  🔴 **Chúng CHƯA được tách** — story này dựng *đường*, và bấm nó trên 21 Chương thật là một
-  thao tác ghi vào dữ liệu thật của Ice, cần Ice bấm. **Chủ: Ice**, một lượt nghiệm thu tay.
-
-- ⚠️ **Đường kéo-thả tệp thật (Quyết định #1(b)) chỉ được verify bằng ĐỌC MÃ NGUỒN `tauri-runtime`/`tauri` đã ghim, chưa bằng một lượt kéo tay thật trên máy có GUI.** Task 0 của story kết luận `WindowEvent::DragDrop` nhận qua `on_window_event` cần **0 permission** (không đi qua ACL/capabilities) và `drag_drop_enabled` mặc định `true` — kết luận mạnh và có cơ sở (đọc trực tiếp `tauri-runtime-2.11.3`/`tauri-2.11.5`), nhưng môi trường triển khai (agent CLI) không có công cụ điều khiển GUI desktop để thật sự thả một tệp bằng chuột. Rủi ro thấp — cơ chế là API ổn định, dùng rộng rãi trong hệ sinh thái Tauri — nhưng câu này chưa có bằng chứng thực nghiệm. ~~**Nghiệm thu tay trước khi phát hành**, hoặc story kế tiếp có công cụ GUI automation.~~
-  → ✅ **ĐÓNG 2026-08-06** — Ice kéo-thả một tệp thật bằng chuột trên macOS/WKWebView: viền vùng kéo-thả đổi màu lúc đang kéo, thả ⇒ đường dẫn điền vào ô, chưa ghi gì xuống đĩa cho tới khi bấm nút. Xem §Nghiệm thu tay của story `1-15…md` (bảng 3). ⚠️ **Chỉ macOS** — đường Windows đi qua WebView2/Win32, một cài đặt runtime khác hẳn, và ba event `Enter`/`Leave`/`Drop` là mã mới của lượt code review. Xem mục "nghiệm thu Windows" bên dưới.
-
-- ✅ **Đường hiển thị lỗi kho trong webview thật (nợ giao lại từ Story 1.7/1.8) ĐÃ ĐÓNG 2026-08-06** — Ice dựng `$APPDATA` chỉ-đọc (`chmod 555`), mở lại app, và **đọc dải báo lỗi kho bằng mắt** trên macOS/WKWebView. Đây là món nợ đã treo qua ba story (1.7 → 1.8 → 1.15) vì mọi lượt triển khai đều chạy ở môi trường agent CLI không có công cụ dựng/đọc một cửa sổ desktop thật. AC10(a) của Story 1.15 nay **đạt**. ⚠️ **Chỉ macOS.** ~~cùng lý do ở trên: agent CLI không dựng được cửa sổ Tauri thật rồi đọc màn hình.~~ Xem mục đã cập nhật ở §*Deferred from: 1-7* và §*1-8* (2026-08-06).
 
 - ⚠️ **Sáu số `Tuning` của Story 2.4 nay càng khó đo hơn: một phiên có thể chạy HAI kho cùng lúc** (`global.db` + `project.db` của Tác phẩm đang mở) — mỗi kho tự mang luồng checkpoint + pool 4 kết nối riêng. Chưa có phép đo nào về tranh chấp CPU/I/O giữa hai luồng checkpoint chạy song song trên cùng một tiến trình. **Story 2.4** đo lại cả sáu số trên Editor thật, nay nên đo trong ĐÚNG kịch bản hai kho, không phải một kho đơn lẻ. **(Chủ: Story 2.4.)**
 
@@ -766,10 +575,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **Trần nhập 100 MB là một con số TẠM, chưa ai đo** — `core::segment::import::MAX_IMPORT_BYTES`, Ice chốt 2026-08-06 ở lượt code review. Nó tồn tại để một tệp bệnh hoạn không giết tiến trình (`fs::read` trọn tệp + `String` + bind SQLite ≈ 3 bản trong bộ nhớ, trên **luồng invoke đồng bộ**, và `panic = "abort"` biến cạn bộ nhớ thành giết cả tiến trình). **Chưa ai đo đỉnh RSS thật** cho một tệp 100 MB đi hết chuỗi, và nó **không** phải một phép đo về *"bao nhiêu thì Editor còn dùng được"*. Còn hai lỗ nữa ghi ra thay vì giấu: ① một **cửa sổ đua** giữa `metadata()` và `read()` *(tệp phình ra ở giữa)* — đóng nó đòi đọc theo khối có trần, mà nhập theo khối là Epic 6; ② lượt nhập vẫn **chặn luồng invoke**, không có tiến độ nào ngoài cờ `busy`. **Chủ: Story 2.4** *(đo `Tuning`)* cho con số, **Epic 6** cho đường đọc theo khối.
 
-- 🔴 **Tầng Tác phẩm của `ScopeResolver` ĐÃ được cắm nhưng CHƯA CÓ MỘT CONSUMER NÀO** — sửa lại phạm vi của mục này ở lượt code review 2026-08-06, vì §Completion Notes của Story 1.15 khai **hẹp hơn thực tế**. Story đó viết *"chưa có method phân giải nào thực sự chạy với dữ liệu tầng Work"*, đúng nhưng thiếu: thực tế là **cả cái slot Tác phẩm chưa có ai đọc**. Cụ thể — `ScopeResolver::with_work` được dựng ở `commands::project::create_work` và cất vào `OpenWork.scope`, và `OpenWork.scope` **không được đọc ở đâu trong `src-tauri/src/**`**; `OpenWorkState` chỉ có đúng hai chỗ chạm (`lib.rs::open_work_slot` đăng ký, `lib.rs::close_open_work` đóng lúc thoát); và đường phân giải sản phẩm thật (`core::scope::store`) vẫn dựng `ScopeResolver::global_only()`. ⇒ **AC9 đạt về CHỮ** *(có hàm dựng thứ hai, ba chữ ký không đổi, đường sản phẩm không còn luôn truyền `None`)* **nhưng CHƯA đạt về MỤC ĐÍCH**, và Ice đã chấm như vậy ở lượt review. ⚠️ Lý do **không** vá được ở Story 1.15: `project.db` chưa có bảng nào ở tầng Tác phẩm để tra *(Glossary → Epic 3, TM → Epic 7, prompt → Epic 4)*, và thêm một bảng như thế hôm nay vi phạm luật `store::schema`: *"Không thêm bước cho một lược đồ chưa tồn tại"*. **Chủ: epic đầu tiên mang dữ liệu tầng Tác phẩm** *(ứng viên gần nhất: Epic 3, Glossary)* — story đó nối `OpenWork.scope` vào đường phân giải thật CÙNG LƯỢT với bảng đầu tiên. Hàm dựng nay đã có test (`scope_contract.rs::the_second_constructor_carries_a_work_tier_and_the_first_one_does_not`), trước lượt review nó ship với **0 test**.
-  → 🟡 **Story 3.1 (2026-08-19): hàm TIÊU THỤ đã có, CHƯA có chỗ gọi sản phẩm.** `core::glossary::entries_eligible_for_injection(resolver, global, work)` là hàm đầu tiên trong kho THẬT SỰ nhận một `ScopeResolver` mang tầng Work và phân giải nó (`scope_contract.rs`/`glossary_contract.rs` canh bằng test, gồm ca "tầng Tác phẩm chờ chốt che tầng Global đã chốt"). Nhưng **không có command IPC hay đường sản phẩm nào gọi nó với `OpenWork.scope` thật** ở story này — §Never của Story 3.1 cấm mọi bề mặt IPC/màn hình (`epics.md`: "Không màn hình ⇒ không khoá chuỗi"). ⇒ Mục nợ gốc **chưa đóng hẳn**: `OpenWork.scope` vẫn không được đọc ở đâu trong `src-tauri/src/**` ngoài test. **Chủ chuyển sang Story 3.3** (Thêm nhanh thuật ngữ từ bất kỳ panel nào) — story đầu tiên của Epic 3 dựng một bề mặt IPC thật, nên là story đầu tiên có lý do nối `OpenWork.scope` vào một lời gọi `entries_eligible_for_injection`/`load_tier` sản phẩm.
-  → ✅ **ĐÃ ĐÓNG 2026-08-20 (Story 3.3).** `commands::glossary::work_context` (`src-tauri/src/commands/glossary.rs`) là chỗ ĐẦU TIÊN trong mã sản phẩm đọc `&open.scope` — nó nạp `(&Store, &ScopeResolver)` từ `OpenWork` rồi truyền cho `core::glossary::store::resolve_term_for_quick_add`, chỗ này tự gọi `ScopeResolver::apply_override` với dữ liệu THẬT ở cả hai tầng khi một Tác phẩm đang mở. Ba command `glossary_lookup_term`/`glossary_add_term`/`glossary_update_term` là bề mặt IPC đầu tiên của module này (`lib.rs::generate_handler!`). `OpenWork.scope` không còn là một trường chỉ được ĐẶT mà không ai ĐỌC.
-
 - ⚠️ **`err.project.meta_too_new` và `MessageKey::ProjectMetaTooNew` ĐÃ BỊ GỠ ở lượt code review 2026-08-06** — Ice chốt. Cơ chế từ chối một `meta.json` phiên bản mới hơn **vẫn còn nguyên và vẫn có test** (`MetaError::SchemaTooNew` + `WorkMeta::read` + `project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`); thứ bị gỡ là **bề mặt hiển thị** của nó. Lý do: Story 1.15 không dựng màn hình *"mở lại một `.atproj` đã có"*, nên `WorkMeta::read` **không có một chỗ gọi sản phẩm nào**, nên một `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** — đúng thứ Story 1.7 §Completion Notes #3 cấm và `scope_contract.rs` trích lại nguyên văn. 🔴 **Story nào dựng đường mở lại một `.atproj`** *(ứng viên: Epic 5, lưới Tác phẩm)* **thêm lại cả ba thứ — biến thể `ProjectError`, `MessageKey`, khoá `vi.json` — CÙNG MỘT LƯỢT với màn hình.** **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
   → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` là đường mở lại một
   `.atproj` đã có trên đĩa, và nó thêm lại đúng ba thứ CÙNG MỘT LƯỢT: biến thể
@@ -792,14 +597,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: 1-10c-am-han-viet-dung-nguon-va-dung-nhan (2026-08-06)
 
-- ✅ **Story 1.16 (tab Hán Việt) HẾT CHẶN.** Lý do chặn — `dict_entry.han_viet` của lớp nền mang âm NÔM (`Unihan kVietnamese`) thay vì âm Hán Việt — đã đóng: AC1/AC2 đổi vai `kVietnamese` sang `nom_reading`, `han_viet` giờ chỉ nhận âm gắn nhãn tường minh (Thiều Chửu · en-wiktionary-vi · Trần Văn Chánh). Bốn tệp `.db` đã dựng lại (`SCHEMA_VERSION` v2), manifest đã cập nhật, mọi cổng xanh.
-  ⚠️ **Bẫy 4 của story này — Story 1.16 PHẢI đọc trước khi viết đường tách âm đọc:** ba quy ước phân tách nhiều-âm-trong-một-chuỗi tồn tại song song trong dữ liệu thật — Thiều Chửu dùng `|` (`"đinh|chênh"`), Trần Văn Chánh **và** en-wiktionary-vi dùng `,` (`"đáng, đương"`, có khoảng trắng sau dấu phẩy ở TVC), Unihan/`nom_reading` cũ dùng khoảng trắng (`"tợ tử"`). Story 1.10c KHÔNG chuẩn hoá bốn quy ước này về một — `nom_guard::split_readings` (`tools/dict-build/src/nom_guard.rs`) đã viết luật "cắt trên cả `|`, `,`, khoảng trắng" cho MỤC ĐÍCH ĐỐI CHIẾU AC5 (build-time only, không ghi lại `.db`), và đó chính là luật Story 1.16 nên tái dùng ở đường ĐỌC — xem module đó làm tham khảo trước khi viết một bộ tách thứ hai.
-
 - ⚠️ **Nguồn kaikki.org khai DEPRECATED trên trang tải** (`raw/en_wiktionary_vi/`, ghim 2026-08-06, `Last-Modified: 2026-08-02`). Story này ghim đúng bản đã tải, không có đường thay ổn định hơn tại thời điểm khảo sát. **Câu hỏi mở cho Ice** (chưa trả lời — story 10.1 hoặc lượt làm mới dữ liệu kế tiếp phải quyết): ai/khi nào làm mới `dict-core.db` theo một dump kaikki mới hơn, và làm gì nếu kaikki ngừng phục vụ hẳn (sáu trong bảy nguồn nền hôm nay đi qua `wiktextract_common.rs`, tức phụ thuộc CÙNG một nhà cung cấp trích xuất). **(Chủ: Ice — câu hỏi mở ghi ngay trong mục này.)**
 
 - 🔴 **Dư địa NFR6 còn lại sau story này: 3.104.634 byte (0,78% trần)** — **SỬA ở lượt code review 2026-08-06**: bản ghi gốc của story ("26.760.192 byte còn lại") dùng baseline "trước story" SAI (343.991.430, số CŨ của `epics.md:336` từ TRƯỚC Story 1.10b, KHÔNG cộng font+baseline app+license). Baseline ĐÚNG là số Story 1.10b tự đo (`1-10b-...md:934,963,1087`) = **384.525.446**. Payload THẬT sau story 1-10c = **396.895.366 / trần 400.000.000**. `prd.md:946` đã cảnh báo dư địa này vốn dành cho **HVTĐTD + Cổ hán văn** — với chỉ **3,1 MB** còn lại, 🔴 **hai lớp đó gần như CHẮC CHẮN không còn vừa** trừ khi cực nhỏ. **Chưa đo HVTĐTD/Cổ hán văn thật** — quyết định tầng PRD (nâng trần, hoãn một lớp, hoặc bỏ `sense_fts_nd`) cần cân nhắc SỚM hơn dự tính ban đầu, không phải quyết định của story dựng dữ liệu tiếp theo. **Đo TRƯỚC khi hứa đóng gói** — đúng bài học `prd.md §8.2` đã ghi cho chính hai lớp này, giờ càng cấp thiết hơn. **(Chủ: Story 10.1.)**
-
-- ✅ **Lưới AC5 (`nom_guard`) — sửa lỗ hổng cấu trúc + dương tính giả, cả hai phát hiện ở lượt code review 2026-08-06 (SAU khi story đã ở trạng thái `review`).** (1) Bản gốc: `LABELED_NOM_SOURCE` chỉ có ở `dict-core.db`, nên AC5 vĩnh viễn `0/0` cho ba tệp gỡ rời (AD-10: một tệp một `dict_source`) — sửa bằng nạp nhãn Nôm từ raw `en-wiktionary-vi` cho MỌI lớp gỡ rời (`build.rs::load_en_wiktionary_vi_labeled_nom`, không thêm mã riêng-từng-nguồn). (2) Sửa xong lộ dương tính giả THẬT: Thiều Chửu (nguồn chuẩn) bị gắn cờ 63,4% — nguyên nhân là `en-wiktionary-vi` tự gắn cả hai nhãn HV/Nôm cho cùng âm khá thường xuyên. Sửa bằng `nom_guard::nom_only_readings` (loại âm tự-trùng-vai khỏi vế đối chứng). Số cuối trên dữ liệu thật: thieu-chuu 5,2%, tran-van-chanh 6,5%, cả hai an toàn; mệnh đề "đỏ được" của AC5 đo lại 79,5% (từ 92,4% gốc, do siết phép lọc) — vẫn cách xa ngưỡng. Bốn SHA-256 `.db` **không đổi** — bản vá chỉ đổi phép kiểm, không đụng dữ liệu ghi ra. **Story 1.16** nên đọc `nom_guard.rs` (cả `split_readings` VÀ `nom_only_readings`) trước khi viết logic liên quan tới HV/Nôm.
 
 - ⚠️ **`dict-tran-van-chanh.db` mang rủi ro pháp lý CHƯA ĐÓNG, có chủ ý** — Trần Văn Chánh (1999) còn trong bản quyền, tác giả còn sống, dự án CHƯA xin phép trực tiếp. Giảm thiểu: đóng gói làm lớp gỡ rời (FR112 = xoá một tệp), `license_kind = "copyrighted"`, rủi ro ghi thẳng vào `dict_source.attribution` + `assets/licenses/tran-van-chanh.txt`. **Chủ: lượt rà pháp lý trước khi phát hành công khai** (cùng nhóm với rủi ro VietPhrase/Cổ hán văn đã ghi ở `prd.md §8.6`) — xin phép tác giả hoặc chấp nhận rủi ro có ý thức là quyết định tầng dự án, không phải quyết định kỹ thuật.
 
@@ -815,7 +615,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: 1-16-panel-source-va-tab-han-viet (2026-08-06)
 
-- 🔴 **Vế thị giác hai nền tảng thật (WKWebView macOS · WebView2 Windows) CHƯA đo được** — dải tab, bề mặt song song (`position: absolute` cho `.hv-reading`, xem Debug Log References của story), và `font-synthesis` chữ Hán nghiêng giả chỉ được xác nhận đúng CƠ CHẾ qua Playwright/**headless Chromium** — một engine THỨ BA, không phải một trong hai engine mục tiêu. Dự án `không có runner đo được vế đó` — món nợ cũ (`deferred-work.md:478`, Story 1.6/1.14), story này KHÔNG đóng nó, chỉ kế thừa. Nghiệm thu mắt trên máy thật là bước còn thiếu trước khi đóng dấu "đã kiểm hai nền tảng". **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
+- 🔴 **Vế thị giác hai nền tảng thật (WKWebView macOS · WebView2 Windows) CHƯA đo được** — dải tab, bề mặt song song (`position: absolute` cho `.hv-reading`, xem Debug Log References của story), và `font-synthesis` chữ Hán nghiêng giả chỉ được xác nhận đúng CƠ CHẾ qua Playwright/**headless Chromium** — một engine THỨ BA, không phải một trong hai engine mục tiêu. Dự án `không có runner đo được vế đó` — món nợ cũ (`deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*`, Story 1.6/1.14), story này KHÔNG đóng nó, chỉ kế thừa. Nghiệm thu mắt trên máy thật là bước còn thiếu trước khi đóng dấu "đã kiểm hai nền tảng". **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - ⚠️ **AC9 (đổi preset ⇒ không gọi lại IPC) đúng CẤU TRÚC MÃ, chưa đo bằng webview đang chạy.** `ensureChapterLoaded`/`ensureHanVietLoaded` (`src/panels/sourcePanelState.ts`) dùng cờ module-level nên về logic KHÔNG THỂ gọi lại `read_open_chapter`/`read_han_viet` ở lượt mount thứ hai — nhưng phiên dev-story không có một instance `tauri dev` rảnh để tạo Tác phẩm, bấm `Mod+Alt+1`↔`Mod+Alt+2`, và đọc DevTools Network thật. Nghiệm thu tay còn nợ. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
 - ⚠️ **Trần render kiểu song song (50.000 ký tự Hán) đo trên headless Chromium, không phải WKWebView/WebView2, và không đi qua bộ máy reactivity của Vue** (DOM dựng thẳng `document.createElement`, rẻ hơn Vue một chút vì bỏ VDOM diff). Bảng số ở Completion Notes của story là **cận dưới hợp lý**, không phải con số cuối cùng đã đóng dấu trên hai nền tảng thật — nếu đo lại cho ra số khác đáng kể, hằng `PARALLEL_VIEW_RENDER_CEILING` (`sourcePanelState.ts`) là chỗ sửa. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - 📝 **`HanVietLookup.sources_used` mang `dict_source.code` thô** (`fx-hv`, `thieu-chuu`, …), không `display_name` đẹp ("Thiều Chửu"). FR31 (nhãn nguồn bắt buộc) thoả bằng `code`; ánh xạ sang tên hiển thị là việc của màn hình Attribution — **Story 10.4** (đã ghi rõ trong Ranh giới phạm vi của chính story 1.16). Nếu 10.4 cần `display_name` ở đây sớm hơn dự tính, cách rẻ nhất là thêm nó vào `HanVietReading`/`sources_used` qua `layer.source(code)` — hạ tầng đã sẵn (`DictLayer::source`), chỉ chưa nối. **(Chủ: story kế tiếp chạm nhãn nguồn hiển thị (FR31).)**
@@ -830,29 +630,13 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: code review of 1-16-panel-source-va-tab-han-viet (2026-08-06)
 
-- ✅ **ĐÓNG cùng lượt code review — đã đo bổ sung, kết luận không lật.** `buildSegments`+`switchText` đo được **2,5 / 17,5 / 237,5 ms** ở 5k/50k/500k ⇒ kiểu chuyển đổi ở 500k là **~460 ms** *(bảng cũ ghi 222,4 ms — bỏ sót quá nửa)*, vẫn rẻ cho một thao tác chạy MỘT LẦN ⇒ *"chuyển đổi không có trần"* **vẫn đúng**, trần song song **50.000 giữ nguyên**. Bản vá `min-width` chỉ tốn **+2,7 %** ở 50k. Số đầy đủ ở §Review Findings của story 1.16. ~~Phép đo Task 8 không đo đường mã thật.~~ Bảng số trần render dựng DOM bằng `document.createElement`, không đi qua `buildSegments()` (một object JS cho **mỗi** ký tự Hán) lẫn `switchText` (`.join()` trên toàn bộ mẩu) — mà cả hai **luôn chạy ở CẢ HAI kiểu xem**. ⇒ mệnh đề *"kiểu chuyển đổi không có trần"* (222,4 ms ở 500k) và hằng `PARALLEL_VIEW_RENDER_CEILING = 50_000` đứng trên một phép đo **sai đối tượng**. Cần đo lại trên component Vue thật trước khi tin con số trần. *(Khác với món nợ engine WKWebView/WebView2 — món đó dev đã ghi rõ và trung thực.)*
 - **Trần render chỉ đếm ký tự Hán, bỏ qua node của mẩu không-Hán.** `buildSegments` `flush()` mỗi lần gặp một ký tự Hán ⇒ mỗi mẩu không-Hán xen giữa cũng sinh một `<span>` riêng. Văn bản xen kẽ `漢a漢a…` với 49.999 ký tự Hán lọt qua trần nhưng dựng ~100.000 node, trong khi bảng đo chỉ đo văn bản Hán liền mạch. Nhặt lại cùng lượt đo lại ở mục trên. **(Chủ: story kế tiếp chạm `buildSegments`.)**
 - **`source_lang` không được validate ở tầng ghi.** `create_work_from_text`/`create_work_from_file` chèn giá trị nguyên văn vào `work`, không một phép kiểm nào; `SourcePanel.vue` so `=== 'zh'` chính xác từng byte. Bất kỳ đường ghi nào khác (`"ZH"`, `"zh-Hans"`, `"cmn"`, hay một `.atproj` chép từ máy khác) cho một Tác phẩm tiếng Trung **không có tab Hán Việt**, không lỗi, không cách nào biết vì sao. Guard đúng nằm ở tầng ghi (Story 1.15), không ở so sánh chuỗi phía UI. **Có sẵn từ trước Story 1.16.** **(Chủ: story kế tiếp chạm `create_work_from_text`/`create_work_from_file`.)**
-- **`read_open_chapter` với 0 Chương trả lỗi KHO thay vì lỗi có tên.** `conn.query_row(…)` ném `QueryReturnedNoRows` khi bảng `chapter` rỗng ⇒ qua `From<StoreError>` thành `store.read_failed` ⇒ người dùng đọc *"không mở được kho dữ liệu"* cho một Tác phẩm hoàn toàn lành lặn. AC8 dựng riêng `project.no_work_open` để không trộn trạng thái sản phẩm vào từ vựng `store.*`, nhưng chỉ phủ nhánh `open == None`, không phủ nhánh `open == Some` mà 0 hàng. 🔴 **Epic 1 luôn ghi đúng một Chương nên hôm nay chưa chạm tới; Story 2.x (chọn/chuyển Chương) mở đúng nhánh này.** Guard: `query_map().next()` + một `MessageKey` riêng. *(`src-tauri/src/commands/chapter.rs:60-71`)*
-  → ✅ **ĐÓNG 2026-08-18 (Story 2.11, Task 1.3)** — đúng story được giao đích danh. Vá bằng `query_map().next().transpose()` rồi đổi `None` thành một lỗi **có tên**: `chapter_not_found(chapter_id)` với `MessageKey::SegmentChapterNotFound` *(`commands/chapter.rs`)*. 🔵 **KHÔNG một khoá thứ hai, và đó là kết luận chứ không một lượt bỏ qua:** khoá ấy đã khai đúng tham số `["chapter_id"]` *(`core/i18n/mod.rs:174`)* và nói **cùng câu, cùng nghĩa** — hai khoá cho một câu là hai chuỗi phải giữ khớp bằng kỷ luật, đúng lập luận mà `no_work_open` đã đi qua hai lần. Ca nghiệm thu: `a_missing_chapter_row_is_a_named_error_not_a_store_error` *(`project_contract.rs`)*, đã chạy **đỏ-rồi-xanh** bằng một phép đột biến trả `query_row` về chỗ cũ.
-  ⚠️ **Ghi ra thay vì để người sau tưởng đã phủ hết:** cùng lượt này, `read_open_chapter` bỏ hẳn câu `ORDER BY ord LIMIT 1` và đọc `OpenWork::chapter_id`, nên nhánh *"bảng `chapter` rỗng"* nay đi vào **cùng** một guard với nhánh *"hàng được chỉ đã bị xoá"* — hai hoàn cảnh, **một** câu. Chấp nhận vì cả hai đều là *"Chương này không có ở đây"* theo nghĩa đen của người dùng; tách chúng ra đòi một khoá thứ hai cho một phân biệt mà màn hình không dùng được.
-
-- **Bôi đen nguyên văn bằng BÀN PHÍM — điều kiện tiên quyết của Story 1.18, CHƯA CÀI.** §KHÔNG-LÀM ① của Story 1.16 giao cho story đó **đúng một** nghĩa vụ: nguyên văn phải bôi đen được *bằng chuột **và bằng bàn phím***. Vế chuột đã đo thật bằng Playwright (`Selection.toString()`); vế bàn phím không xuất hiện một lần nào trong Tasks/AC/Completion Notes của 1.16. 🔴 **Ice chốt 2026-08-06 ở lượt code review: ghi nợ cho 1.18** — lý do: thêm `tabindex` lên bề mặt văn bản đụng hợp đồng tiêu điểm mà Story 1.14 dặn không chạm, nên vế bàn phím phải đóng **cùng lượt** với hợp đồng vùng chọn dùng chung cho bốn panel. ⚠️ Một `<div>` không sửa được **không** hỗ trợ Shift+Mũi tên nếu không bật caret browsing — Story 1.18 phải giải bài này, không giả định trình duyệt cho không.
-  → ✅ **ĐÓNG 2026-08-07 (Story 1.18, AC11 · Quyết định #2a).** Năm command mới trong `CommandRegistry` (`selection.focus_source` · `extend_left` · `extend_right` · `extend_word_left` · `extend_word_right`), cài bằng `Selection.modify()` trên bề mặt mang `tabindex="0"`. 🔴 **ĐO THẬT trên CẢ HAI engine trước khi chốt** (Task 0, WKWebView qua một bộ đo Swift + Chromium headless): `modify()` chạy trên `<p>` không sửa được ở cả hai, và **Bẫy 9 của story không CÓ THẬT** — `'word'` trên văn xuôi tiếng Trung phân đoạn ĐÚNG (`他` / `打開`), không nuốt cả câu. Giá đã trả và đã ghi: `Tab` nay dừng ở thân Panel Source (Ice chốt chấp nhận 2026-08-07). ⚠️ **Một món nợ MỚI sinh ra**, xem mục `repeat` ở §1.18 bên dưới.
-
-
-- **Không token nào đỡ được một câu GIAO DIỆN xuống dòng** — cả sáu token `ui-*` *(`ui-md` · `ui-md-strong` · `ui-sm` · `ui-label` · `ui-mono` · `read-title`)* đều khai `wraps: false`, giãn dòng 1.4–1.5, dưới sàn 1.66; còn `check-tokens.mjs` chỉ áp `LINE_HEIGHT_FLOOR` cho token khai `wraps: true` nên cổng **mù hoàn toàn**. Ba chỗ đang chịu: `.parallel-note` *(có sẵn)*, `.load-error` và `.hv-notice` *(thêm ở lượt code review 2026-08-06)* — cả ba là câu đầy đủ, chắc chắn xuống dòng trong một panel hẹp. 🔴 **Đây là lỗ hổng của BẢNG TOKEN, không phải của chỗ dùng** — cùng hạng với hàng `source-latin` còn thiếu mà Quyết định #6 của Story 1.16 vừa vá. Đóng nó là **quyết định của Ice**: đổi cờ `wraps` của `ui-md` *(mục `:115` ngay trên — đây là lần thứ BA nó bị nhắc tên)* hoặc thêm một token thứ 17 qua sổ `deviations`. Lượt code review GHI RA thay vì tự chế một token.
-  → ✅ **ĐÓNG 2026-08-06 (Story 1.17, Quyết định #7) — lần thứ TƯ bị gọi tên, lần này Ice chốt hẳn.** Token thứ 17 `ui-md-wrap` (12px/1.66/`wraps:true`), áp cho cả ba chỗ liệt kê ở đây. Xem mục `:115` để có chi tiết đầy đủ.
-
 ## Deferred from: 1-17-panel-lookup-ban-ghi-co-cau-truc (2026-08-06)
-
-- 🔴 **`QueryBranch::NoBranchQueryTooShort`/`"query_too_short"` KHÔNG thể xảy ra qua đường sản phẩm thật của chính story vừa dựng nó.** AC6 đòi Panel Lookup hiện chuỗi *"truy vấn quá ngắn"* khi `branch == query_too_short`, và bề mặt (`LookupPanel.vue::queryTooShort`) render đúng nhánh đó — nhưng `commands::dict::lookup()` cố định `LookupMode::Exact` (Quyết định #3), và `pick_branch` cho `Exact` **luôn luôn** trả `ExactBtree` bất kể độ dài truy vấn, bất kể route. Nhánh `query_too_short` chỉ sinh ra khi `mode = Substring` **và** route `En` **và** độ dài < 3 — tổ hợp đó không tồn tại trong bất kỳ lời gọi nào của 1.17. ⇒ Bề mặt UI đúng, đã viết, đã kiểu-khớp với wire — nhưng **chưa từng và không thể được thực thi bằng dữ liệu thật cho tới khi có một chỗ gọi dùng `Substring`**. **Chủ: Story 1.18** (Auto-Lookup, dùng `Substring` khi bôi đen ngắn) hoặc **7.7** (Concordance) — story đầu tiên gọi `LookupMode::Substring` qua IPC phải verify bằng mắt chuỗi "truy vấn quá ngắn" thật sự hiện ra, đừng giả định 1.17 đã làm việc đó.
-  → ✅ **ĐÓNG 2026-08-07 (Story 1.18).** Ice chốt bật `Substring` (§Câu hỏi #1) — cài như một **ĐƯỜNG LUI**, không một phép thay thế: tra `Exact` trước, **rỗng** *và* truy vấn ≤ 4 ký tự ⇒ tra lại `Substring`. Tổ hợp `mode = Substring` + route `En` + độ dài < 3 nay **tồn tại trên đường sản phẩm**. Nghiệm thu: `dict_sources.rs::a_short_latin_selection_now_reaches_the_query_too_short_state` (`"zz"` ⇒ `NoBranchQueryTooShort`), **cộng** phép đo trên bốn lớp THẬT — bench `bench_the_auto_lookup_path_on_distinct_queries` đếm **2 lượt `query_too_short`** trên 166 truy vấn khác nhau. không còn là một nhánh chỉ tồn tại trên giấy.
-
 
 - 🔴 **Vòng IPC Tauri THẬT (serialize Rust → cầu JS → deserialize → Vue reactivity → paint) CHƯA được đo** — cùng hạng món nợ *"vế thị giác hai nền tảng thật"* mà Story 1.6/1.14/1.16 đã để lại, story này **KHÔNG đóng, chỉ kế thừa**. Số đo NFR1 của story dựa trên: (a) backend Rust trên dữ liệu thật (`--release`, đáng tin — p95 6,535 ms), (b) webview render qua Playwright/**headless Chromium** với `invoke` **giả lập trả lời tức thời** (không đo độ trễ round-trip IPC thật). Kết luận NFR1 ĐẠT có cơ sở mạnh (tổng ước tính < 40 ms, cách trần 100 ms một biên độ lớn) nhưng **KHÔNG phải một phép đo đầu-cuối 100% trên WKWebView/WebView2 qua `tauri dev`/bản đóng gói thật**. Xem §Debug Log References của story để có bảng đầy đủ + giới hạn phép đo ghi thẳng. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
-- ⚠️ **`.parallel-note` (Panel Source, Story 1.16) đổi cỡ chữ 11,5px → 12px** khi chuyển từ `ui-sm` sang `ui-md-wrap` (Quyết định #7). Đây là một thay đổi THỊ GIÁC trên một bề mặt đã ship từ Story 1.16, không chỉ thêm token cho chuỗi mới — Ice đã chốt chấp nhận đổi cỡ để đóng dứt điểm `deferred-work.md:115` thay vì rải thêm một token `ui-sm-wrap`. **Chưa nghiệm thu bằng mắt trên máy thật** (chỉ Playwright headless) rằng 0,5px đổi cỡ không làm vỡ bố cục dải tab của `SourcePanel.vue` ở màn hình hẹp — nhặt lại nếu Story 4.12 (bố cục màn hình hẹp) phát hiện vấn đề. **(Chủ: story kế tiếp dựng panel chạm `.parallel-note`.)**
+- ⚠️ **`.parallel-note` (Panel Source, Story 1.16) đổi cỡ chữ 11,5px → 12px** khi chuyển từ `ui-sm` sang `ui-md-wrap` (Quyết định #7). Đây là một thay đổi THỊ GIÁC trên một bề mặt đã ship từ Story 1.16, không chỉ thêm token cho chuỗi mới — Ice đã chốt chấp nhận đổi cỡ để đóng dứt điểm `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*` thay vì rải thêm một token `ui-sm-wrap`. **Chưa nghiệm thu bằng mắt trên máy thật** (chỉ Playwright headless) rằng 0,5px đổi cỡ không làm vỡ bố cục dải tab của `SourcePanel.vue` ở màn hình hẹp — nhặt lại nếu Story 4.12 (bố cục màn hình hẹp) phát hiện vấn đề. **(Chủ: story kế tiếp dựng panel chạm `.parallel-note`.)**
 
 - 📝 **Mục từ TIẾNG ANH của Panel Lookup dùng hình dạng TẠM** — nhắc lại mục `:317` (chủ sở hữu Sally, `bmad-ux`): `LookupRecord.vue` dùng **cùng cấu trúc khối** cho tiếng Anh và tiếng Trung (chỉ khác token đầu mục), một lựa chọn tự chế ở tầng story mà mục `:317` tự cảnh báo là "đúng cách một bất nhất giao diện ra đời". **KHÔNG ĐÓNG** — chữ ký UX chính thức vẫn thiếu. **(Chủ: Sally — bmad-ux, xem mục `:317`.)**
 
@@ -864,26 +648,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 📝 **`layers_loaded = false` khi MỌI tệp `.db` hỏng ⇒ panel hiện "chưa gắn lớp từ điển nào" — một chẩn đoán SAI** (`src-tauri/src/core/dict/layer.rs:460-493`) — `DictLayers::new` đẩy mọi lớp mở-hỏng vào `skipped` chứ không vào `layers`, nên `layers_loaded: !layers.layers().is_empty()` cho `false` cả khi thư mục ĐẦY tệp `.db` hỏng. AC6 dựng chuỗi đó riêng cho ca "thư mục rỗng" (AD-25). Rủi ro thấp: banner `someLayerFailed` vẫn hiện song song nên người dùng không bị bỏ câm, chỉ đọc được hai câu hơi lệch nhau. Sửa gọn: `!layers().is_empty() || !skipped().is_empty()`. **(Chủ: story kế tiếp chạm `core/dict/layer.rs`.)**
 
-- 📝 **Nhánh `Substring`/`fts_trigram` nạp TOÀN BỘ hàng khớp vào RAM trước khi cắt** (`src-tauri/src/core/dict/query.rs:203-221,238-254,321-333`) — ba nhánh cần `verify_substring` cố tình fetch không giới hạn rồi `cap()` ở Rust để tránh Bẫy 11, nên `limit` không chặn được bộ nhớ lẫn độ trễ, chỉ chặn băng thông IPC. Hôm nay là **latent**: đường sản phẩm 1.17 là `Exact`-only nên không chạm tới ba nhánh này. Trở thành thật khi **Story 1.18/7.7** bật `Substring`. Hướng sửa giữ đúng thứ tự "verify rồi mới `cap`": thêm một trần AN TOÀN ở SQL (vd `LIMIT limit * 50`) làm cận trên cho tập ứng viên.
-  → ✅ **ĐÓNG 2026-08-07 (Story 1.18).** `candidate_ceiling(limit) = limit * 50` đặt vào SQL ở cả **ba** nhánh có xác minh. 🔴 Phần tinh tế mà mục này không nêu: khi trần chạm, `verify_substring` có thể loại đủ nhiều dương tính giả để phần còn lại **ít hơn** `limit`, và khi đó `cap()` một mình báo `truncated = false` — đúng câu *"danh sách này đầy đủ"*, và nó SAI. ⇒ `cap_verified()` OR cờ trần vào. Nghiệm thu đỏ-rồi-xanh: `dict_lookup.rs::the_candidate_ceiling_keeps_the_truncated_flag_honest` (60 ứng viên, **0** qua được verify ⇒ `truncated` phải `true`), chứng minh ĐỎ bằng cách nâng hệ số lên 100.000.
-
-
-- 📝 **Chuỗi `query_too_short` chỉ dẫn một thao tác không TỒN TẠI trong panel** (`src/i18n/vi.json:65`) — *"gõ thêm ít nhất ba ký tự"*, nhưng Panel Lookup không có ô nhập nào: truy vấn chỉ đến từ vùng chọn (`main.ts:182`). Cộng với việc chính story tự khai nhánh `query_too_short` không thực thi được qua đường sản phẩm `Exact`-only hôm nay, đây là một chuỗi vừa không hiện được, vừa vô nghĩa nếu hiện. **Story 1.18/7.7** sẽ kế thừa nguyên văn nó — sửa lúc bật `Substring`, cùng lượt với hợp đồng vùng chọn.
-  → ✅ **ĐÓNG 2026-08-07 (Story 1.18).** Chuỗi đổi thành *"Đoạn đang chọn quá ngắn để tra chuỗi con — **chọn** thêm ít nhất ba ký tự."* — nay chỉ một thao tác CÓ THẬT (bôi đen thêm), không một ô nhập không tồn tại.
-
-
-- 📝 **`window.getSelection()` mù với `<input>`/`<textarea>`; vùng chọn rỗng = im lặng tuyệt đối** (`src/main.ts:182`, `src/commands/index.ts:475-477`) — trên Chromium/WebKit, `window.getSelection().toString()` trả `''` cho vùng chọn BÊN TRONG một ô nhập, nên bấm `Mod+Alt+L` khi con trỏ ở ô nhập của Library trông y hệt một phím tắt hỏng; và `text.trim() === ''` trả về sớm không phản hồi nào. **Story 1.18** sở hữu hợp đồng vùng chọn dùng chung — dep hôm nay là dep TỐI THIỂU theo đúng Quyết định #1a, nên hai vế này đóng cùng lượt đó chứ không ở đây.
-  → ✅ **ĐÓNG 2026-08-07 (Story 1.18, AC3 · Task 1).** `src/panels/selectionContract.ts` — sổ đăng ký **OPT-IN** theo phần tử, một listener trên `document`. 🔴 **VÀ PHÉP ĐO LẬT LÝ DO CỦA CHÍNH MỤC NÀY:** `getSelection().toString()` trong một `<input>` trả **`"nội "`** (văn bản THẬT) trên **cả** Chromium **lẫn** WKWebView — không phải `''`. Lời khuyên của mục này đúng, lý do thì sai. Phép loại trừ đã cài không dựa vào chuỗi rỗng lẫn `document.activeElement` (đo được: `activeElement` cho **âm tính giả** khi tiêu điểm ở ô nhập mà vùng chọn nằm nơi khác) — nó đọc **`anchorNode.nodeType`**: một vùng chọn chữ thật luôn neo vào node VĂN BẢN, vùng chọn trong ô nhập neo vào node PHẦN TỬ. Phân biệt sạch trên cả hai engine.
-
-
 ## Deferred from: 1-18-auto-lookup (2026-08-07)
 
 - 🔴 **`Selection.modify()` đi XUYÊN QUA `user-select: none` trên WKWebView — và story này đã vá chỗ dùng, không vá được nguyên nhân.** Đo 2026-08-07, vùng chọn cả đoạn ở kiểu song song: `Selection.toString()` cho `他打開了那扇門，走進了黑暗之中。` trên Chromium *(đúng)* nhưng `他tha打đả開khai了liễu…` trên WKWebView — tức **rò âm Hán Việt vào truy vấn**. `user-select: none` chi phối vùng chọn do **chuột kéo** (số đo Playwright của Story 1.16 vẫn đúng); nó **không ràng buộc** `Selection.modify()`, mà `modify()` chính là đường bàn phím AC11 vừa dựng. ⇒ `SourceHanViet.vue::resolveParallel` nay đọc thẳng node `.hv-char` thay vì tin `toString()` — đúng trên cả hai engine. ⚠️ **Cái không đóng:** mọi bề mặt TƯƠNG LAI dùng `user-select: none` để loại chữ khỏi vùng chọn *(Story 3.4 — đánh dấu thuật ngữ Glossary; Epic 2 — Editor)* thừa hưởng nguyên cái bẫy này, và không cổng nào canh. Cân nhắc một vị từ dùng chung ở `selectionContract.ts` khi bề mặt thứ hai xuất hiện. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
-
-- ⚠️ **Giữ phím không mở rộng vùng chọn liên tục — phải bấm lặp** (`src/commands/keys.ts:295`). `handle()` trả sớm khi `event.repeat === true`, một luật đúng cho 17 command cũ (*lặp lại "đổi chế độ" là vô nghĩa*) và sai cho đúng **bốn** command `selection.extend_*` của story này. Nới nó cần một cờ `repeatable` trên `CommandSpec`, chạm `registry.ts` + `keys.ts` + **mọi** command đang có ⇒ không thuộc phạm vi 1.18. Hai command **theo TỪ** (`Alt+Shift+←/→`) bù phần lớn chi phí thao tác. **Chủ: Story 1.21** (màn hình gán phím — nó vốn phải mổ tầng này).
-  → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21).** Cờ `repeatable?: boolean` trên `CommandSpec`, mặc định **không**; `frozen()` chuẩn hoá nó về `boolean` ở cửa vào; `keys.ts::handle` đọc `event.repeat === true && !entry.repeatable`. **Bốn** chỗ khai `true` — đúng bốn `selection.extend_*` — và không chỗ nào khác.
-  🔴 **Ice ký NHẬN món nợ này 2026-08-11, và việc đó là một quyết định có chủ, không một sự trôi phạm vi.** Story 1.21 đề xuất **trả lại** cả ba món nợ mang tên nó vì cả ba có **0 AC** ở `epics.md`; Ice lật một phần, nhận đúng cái này. Cái giá đã nói trước và Ice ký nhận: nó chạm `registry.ts` + `keys.ts` + mọi command đang có, cho một thay đổi không AC nào yêu cầu.
-  ⚠️ Lưới: Kiểm D của `check-commands.mjs` có **hai** khẳng định — nhánh dương *(`repeatable: true` ⇒ keydown lặp VẪN dispatch)* và **đối chứng âm** trên **cùng một keymap** *(command không khai cờ ⇒ keydown lặp vẫn bị chặn)*. Không có vế thứ hai thì một bản cài đặt bỏ quên cờ hoàn toàn vẫn xanh.
 
 - 🔴 **NFR1 đo được ĐẦU-CUỐI ở tầng Rust, không qua vòng IPC Tauri thật lẫn lượt VẼ của webview** — món nợ Story 1.17 để lại, story này **KẾ THỪA, không ĐÓNG**. Số đã đo (4 lượt độc lập, `--release`, 4 lớp `.db` thật, 166 truy vấn KHÁC NHAU, đường sản phẩm `commands::dict::lookup` gồm cả đường lui `Substring`): trạng thái ổn định **p50 ~1,0 ms · p95 1,8–2,4 ms · p99 5,5–9,8 ms · max 20–25 ms**. Cơ chế đo đầu-cuối THẬT đã cài và bật được tay (`src/panels/lookupTiming.ts`, cờ mặc định TẮT, `__auraLookupTiming.enable()`), mốc cuối sau `requestAnimationFrame` — nhưng nó **chưa được chạy trong một bản Tauri đóng gói**, nên vế *"từ lúc thả chuột tới lúc hiển thị"* vẫn là **ước lượng**, không một phép đo. Đánh dấu AC4 đạt trọn. **(Chủ: story kế tiếp đo NFR1 đầu-cuối qua IPC Tauri thật.)**
 
@@ -1007,28 +774,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: dữ kiện cho Story 3.4b · 3.7. Không hành động ở Epic 1.** 🔵 *(2026-08-21 — ICU cắt sai
   là dữ kiện cho đường VẼ, không cho đường khớp; đường khớp đã đóng ở Story 3.4.)*
 
-- ⚠️ **Story 3.4 KHÔNG bị chặn, nhưng nó phải TỰ CẮT `.hv-unit`.** Rà 2026-08-07: 3.4 đánh
-  dấu thuật ngữ Glossary trong Panel Source bằng ranh giới do **`Matcher` (Rust)** trả về, và
-  ranh giới đó **không nhất thiết trùng** ranh giới TỪ của ICU — một thuật ngữ có thể phủ *một
-  phần* một `.hv-unit`, hoặc *bắc cầu* hai `.hv-unit`. Trước 1.18b *(một ký tự một node)* việc
-  đánh dấu chỉ là gắn class cho các node trong khoảng; nay 3.4 phải **tách `.hv-unit` tại biên
-  thuật ngữ**. ⇒ mệnh đề cho 3.4: **ranh giới của `Matcher` thắng ranh giới của ICU**; ICU chỉ
-  quyết *"double-click phủ tới đâu"*.
-  ⚠️ Và khi 3.4 tách node, nó phải giữ đúng bất biến mà `resolveSwitch()` đứng lên:
-  `host.children[i]` ứng **một-một** với `segments.value[i]`.
-  **Chủ: Story 3.4b.** 🔵 *(chuyển chủ 2026-08-21 qua `correct-course` — Story 3.4 thu hẹp còn
-  nửa Rust và đã `done`; phép cắt `.hv-unit` thuộc nửa GIAO DIỆN. Nay là **một AC** của Story
-  3.4b, `epics.md` §Story 3.4b.)*
-  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b).** `SourceHanViet.vue::buildSegments(text,
-  termBoundaries)` flush TRƯỚC mỗi ký tự mà `termBoundaries.has(srcAt)` đúng — cùng cơ chế
-  ranh giới ICU đã dùng để flush một TỪ, chỉ khác NGUỒN quyết định. Ranh giới `Matcher` THẮNG
-  ICU theo đúng mệnh đề đã ghi: `tests/frontend/hanVietCutAnchors.test.ts` §"biên thuật ngữ
-  Glossary cắt tại tầng dữ liệu" dựng cả ba ca (phủ một phần · bắc cầu hai từ ICU · rỗng) trên
-  component THẬT, mount thật, không DOM dựng tay. Bất biến `host.children[i] ↔ segments.value[i]`
-  đứng THEO CẤU TẠO — template vẫn một Segment ↔ một phần tử con, `buildSegments` chỉ sinh
-  RA NHIỀU segment hơn, không chèn node ngoài `segments.value` (`GridPanel.vue::sourcePieceInfoOf`
-  áp cùng luật ở đường chữ trần).
-
 - ⚠️ **Bàn đo vùng chọn là một tệp DÙNG MỘT LẦN, không phải một lưới tự động.** Toàn bộ vế DOM
   của 1.18b *(double-click, vùng chọn, clipboard, bàn phím)* nghiệm thu bằng một trang HTML
   chạy tay trong trình duyệt — nó **chép** DOM/CSS của `SourceHanViet.vue` chứ **không mount**
@@ -1092,26 +837,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   tự dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel. Đo mới chạy trên Chromium.
   **Chủ: chưa gán — nợ chung với món "hai nền tảng" (NFR14) của 1.6/1.14/1.16/1.17/1.18/1.18b.** **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
 
-- ✅ **ĐÃ ĐÓNG 2026-08-10 ở lượt code review Story 1.19 — Ice chốt vá thật thay vì để nợ.**
-  ~~`viwiktionary-en` là nguồn DUY NHẤT của đường tiếng Anh — vị từ "mọi nguồn đều tắt"
-  KHÔNG hỏi theo đường đang tra.~~ Đo trên bốn tệp `.db` thật 2026-08-08: đúng **một** nguồn
-  mang `lang = 'en'`. Tắt riêng nó ⇒ **mọi** truy vấn tiếng Anh trả rỗng trong khi bảy nguồn
-  tiếng Trung vẫn bật, và `everySourceIsOff` *(hỏi trên **toàn tập**)* trả `false` ⇒ panel nói
-  *"không tìm thấy trong từ điển"* — một câu **SAI**, hệ thống không hề tra.
-  🔴 **Lý lẽ "chưa sửa được" đã SAI ở một vế, và đó là chỗ đáng ghi lại.** Bản đầu lập luận:
-  *"webview không biết nguồn nào phục vụ đường nào, và dựng bảng tra `code → lang` ở webview
-  là dựng đúng sổ đăng ký AD-44 ① vá A2 cấm"*. Vế sau đúng; vế trước sai. Câu trả lời không
-  phải một bảng tra ở webview, cũng không phải một vị từ Rust nhét vào `GroupedLookup` — mà
-  là **để dữ liệu tự khai**: `dict_source.lang` nay **ĐO lúc dựng** từ `dict_entry` của chính
-  tệp *(`insert.rs::backfill_source_langs`)*, đúng cùng đường mà `is_base` đọc `dict_meta`.
-  Webview chỉ **đọc một trường**, không suy luận gì cả, và AD-44 không bị chạm tới.
-  **Cách cài:** `SCHEMA_VERSION` 2→3 · cột `dict_source.lang` *(tập, quy ước
-  `parse_disabled_sources`)* · `SourceAttribution.lang` · `everySourceOffForRoute(route)` với
-  `route` đọc từ `grouped.route` Rust đã trả về. **Đo được:** 10/10 nguồn cho đúng một `lang`;
-  giá đọc **~480 ms → ~16 ms** mỗi lượt khởi động *(dẫn xuất lúc đọc bằng `SELECT DISTINCT`
-  tốn 374 ms + 97 ms vì `dict_entry` không có index trên `source_id`)*; bốn tệp `.db` dựng
-  lại, **ba lượt dựng độc lập cho cùng bốn `sha256`**.
-
 - ⚠️ **§Quyết định #2b *(lọc thẳng trong câu SQL)* nay là một MÓN NỢ CÓ SỐ.** Đo 2026-08-10,
   `--release`, bốn tệp `.db` thật, 130 truy vấn khác nhau, hai lượt mỗi cấu hình — **tỉ lệ lượt
   tra chạm trần `LIMIT`**: **1,8 %** *(0 nguồn tắt)* · **1,8 %** *(1 nguồn tắt)* · **4,8 %**
@@ -1144,7 +869,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **`prd.md §8.2` và `docs/dics/README.md` vẫn xếp Trần Văn Chánh vào nhóm *"đã loại"*.**
   Đo trên tệp thật: `dict-tran-van-chanh.db` **đã dựng**, `license_kind = "copyrighted"`, và
   `attribution` của nó mang một **cảnh báo pháp lý** *(nay hiện nguyên văn trên màn hình
-  Attribution)*. `deferred-work.md:581` đã treo việc đồng bộ đó cho *"lượt quy hoạch kế tiếp
+  Attribution)*. `deferred-work.md §*Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)*` đã treo việc đồng bộ đó cho *"lượt quy hoạch kế tiếp
   hoặc Story 10.4"*; story này **không sửa file quy hoạch** *(tiền lệ 1.10c)*.
   **Chủ: Story 10.4, hoặc một lượt quy hoạch của Ice.**
 
@@ -1155,34 +880,12 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   mệnh đề cũ: `epics.md:1839-1841` *(AC cuối của chính story 1.19)* · `epics.md` §Story 10.4
   *(Story 10.4, **nguyên văn giống hệt** ⇒ cùng số phận)* · `mockups/sources-attribution.html`
   *(vẽ HVTĐTD như một hàng có thật)*.
-  🔴 Và `deferred-work.md:292` *(nghĩa vụ thông báo tác giả HVTĐTD)* **mất điều kiện kích
+  🔴 Và `deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*` *(nghĩa vụ thông báo tác giả HVTĐTD)* **mất điều kiện kích
   hoạt** — không đóng gói dữ liệu ⇒ không có phép sử dụng nào để thực hiện. Đóng hay giữ là
   quyết định của **Story 10.4**, không của story này.
   **Chủ: Story 10.4.**
 
 ## Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)
-
-- ✅ **ĐÃ ĐÓNG 2026-08-10 — và nó KHÔNG phải một lo ngại lý thuyết như lượt triage đã xếp.**
-  ~~Dải chip có thể cắt hàng thứ ba khi đủ 10 nguồn thật.~~ Lượt triage xếp mức **low** và
-  `defer` với lý do *"quyết định CÓ CHỦ Ý, đã ghi trong chú thích CSS, cần đo pixel thật"*.
-  **Ice chạy app thật và ảnh chụp bác lại ngay**: với mười nguồn, `max-height: 52px;
-  overflow: hidden` cắt mất **ba** thứ, và chú thích CSS biện hộ *"hàng thứ ba tới được bằng
-  bàn phím"* đã bỏ sót cả ba:
-  ① **nút "Nguồn dữ liệu"** — con CUỐI trong dải, tức **đường chuột DUY NHẤT** vào màn hình
-     Attribution (AC11) biến mất. Hai phép thử bẫy tiêu điểm và cửa nuốt hợp âm **không bắt
-     đầu được bằng chuột**, đúng như Ice gặp;
-  ② chip **Trần Văn Chánh** *(`license_kind = "copyrighted"`, cảnh báo pháp lý trong
-     `attribution`)* — **không tắt được bằng chuột**, trong khi FR112 dựng cả cơ chế lớp gỡ
-     rời chính vì rủi ro của nguồn này;
-  ③ chip **VietPhrase**.
-  **Cách vá (cầm máu, không phải thiết kế cuối):** tách vùng chip thành một con flex riêng
-  `.lookup-sources-chips` *(`flex: 1 1 auto; min-width: 0; overflow-y: auto`)*, còn nhãn và
-  nút *"Nguồn dữ liệu"* để `flex: none` ở hộp ngoài — hộp ngoài **không cắt gì cả**. Chip
-  tràn thì **cuộn**, không biến mất không dấu vết.
-  🔴 **Bài học cho lượt triage sau:** mức `low` ở đây đến từ việc đọc chú thích CSS và tin lý
-  lẽ của nó. Lý lẽ ấy đúng về cơ chế *(chip vẫn trong thứ tự Tab)* và sai về hậu quả *(thứ bị
-  cắt không phải một chip bất kỳ)*. **Một câu văn xuôi giải thích một quyết định không thay
-  được một lượt render.**
 
 - ⚠️ **`list_source_attributions` không loại trùng `code` giữa các lớp.**
   `src-tauri/src/core/dict/mod.rs:940-952` nối `rows` từ mọi lớp, không dedupe. Bất biến
@@ -1394,30 +1097,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   xác (§Dev Notes ⑨ chốt nó thuộc phiên và cosmetic), nên đây là một sai lệch **có
   hướng** đã biết, không một khuyết tật. Nếu về sau số đếm thành một thứ người dùng tin,
   nó cần một sổ đếm tách khỏi danh sách lịch sử. ~~**Chủ: chưa gán.**~~ **(Chủ: story kế tiếp quản lý lịch sử tra cứu.)**
-- ***"Số 4 đã cháy"* của `PROJECT_MIGRATIONS` chỉ sống bằng văn xuôi.** Doc-comment
-  `schema.rs:277-289` ghi rõ số **4** không được tái dùng (bản đầu của Story 1.20 đã đốt
-  nó, rồi bước đó bị gỡ ở lượt Ice ký lại). Nhưng `validate_strictly_increasing`
-  (`:321`) chỉ kiểm **tăng dần nghiêm ngặt** — `3 → 4` vẫn hợp lệ, nên một story sau
-  thêm `Migration { to_version: 4, … }` sẽ **không** làm cổng nào đỏ, và hai lược đồ
-  khác nhau mang cùng một số sẽ rẽ nhau ở máy người dùng.
-  ✅ **Hành vi hôm nay AN TOÀN, không giấu:** một `.atproj` còn ở `user_version = 4` bị
-  `Store::open` **từ chối** bằng `store.schema_too_new` (AC7 của Story 1.7) — hỏng ồn
-  ào, không hỏng im lặng. **Đường bịt rẻ:** một ca ở `pinned_contract.rs` khẳng định
-  `PROJECT_MIGRATIONS` không chứa `to_version == 4`. Ba dòng, và nó biến một kỷ luật
-  thành một cơ chế — đúng thứ dự án này vẫn đòi ở mọi chỗ khác. **Chủ: story đầu tiên
-  thêm bước di trú cho `project.db`** (dự kiến Epic 5).
-  → ✅ **ĐÓNG 2026-08-12 — Story 2.1**, và chủ hoá ra tới sớm hơn dự kiến (Epic 2, không
-  Epic 5). Cổng là `segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`
-  *(đặt ở tệp của story sở hữu bước di trú, không ở `pinned_contract.rs` như đường bịt gợi ý
-  — `pinned_contract.rs` nói về **phạm vi bảng ghim**, và một mệnh đề về đánh số di trú nằm
-  ở đó là một tệp mang hai mối quan tâm)*. Kèm một ca thứ hai khẳng định bộ di trú đọc đúng
-  `[1, 2, 3, 5]`. **Đỏ-rồi-xanh đã chạy thật:** đổi `to_version` thành `4` ⇒ **cả hai** ca đỏ
-  với đúng thông điệp; đổi lại ⇒ xanh.
-  ⚠️ **Một hệ quả mới, ghi ra vì nó đổi hành vi trên dữ liệu có thật:** nâng target lên 5 làm
-  một `project.db` mang `user_version = 4` chuyển từ *"bị từ chối mở"* sang *"mở được và di
-  trú lên 5"*, mang theo một bảng `pinned_entry` mồ côi. Vô hại về dữ liệu, và cả 6 thư mục ở
-  trạng thái đó đã bị Ice xoá 2026-08-11 — nên đây là ghi chép, không phải nợ. Đã vào
-  doc-comment của `PROJECT_MIGRATIONS`.
 - **`SourcePanel.vue` mang cùng khuyết tật tiêu điểm dải tab.** `@keydown.right/left`
   (`SourcePanel.vue:113-114,126-127`) đổi tab nhưng không gọi `.focus()` trên tab mới,
   nên tiêu điểm DOM ở lại nút vừa nhận `tabindex="-1"`. Với **hai** tab, hệ quả là người
@@ -1495,18 +1174,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Đường ra nếu ai đó cần `Escape`:** một cử chỉ thứ hai để chốt lượt bắt *(ví dụ `Enter`
   xác nhận)*, lúc đó `Escape` mới có chỗ. ~~**Chủ: chưa gán.**~~ **(Chủ: story kế tiếp cân nhắc lại phím tắt Escape.)**
 
-- 📝 **LỆCH MOCKUP — bốn chỗ, ghi ra thay vì dựng theo.** `mockups/settings.html`:
-  ① `:243-248` vẽ thanh chuyển phạm vi `Toàn cục`/`Tác phẩm` ⇒ **KHÔNG dựng**, thay bằng một
-  câu (`shortcuts.scope_note`); `kinds.rs:29-37` cấm bằng chữ và gọi đích danh story này.
-  ② `:251-262` vẽ khung điều hướng chín mục Cài đặt ⇒ **KHÔNG dựng**, chín mục đó thuộc Epic
-  4/5/6/10 và trỏ tới năng lực chưa tồn tại. ③ `:291-292` Xuất/Nhập bộ phím tắt ⇒ **KHÔNG
-  dựng**, 0 AC và một định dạng trao đổi là một hợp đồng phải bảo trì. ④ `:269` ô tìm kiếm /
-  tra ngược hợp âm ⇒ **KHÔNG dựng**, 0 AC. Cả bốn giữ nguyên trong mockup — Quyết định #3 của
-  Story 1.3: lệch thì **ghi ra**, không sửa mockup.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — cả bốn lệch đã QUYẾT theo Quyết định #3 của Story 1.3
-  ("lệch thì ghi ra, không sửa mockup"): mục này TỰ THÂN là bản ghi của quyết định đó, không
-  phải một việc còn chờ làm.
-
 - 📝 **Câu `shortcuts.gesture` diễn giải `⌫` bằng CHỮ (*"phím xoá lùi"*), không bằng ký hiệu
   như mockup.** `settings.html:294` viết *"`⌫` để bỏ gán"*. Màn hình thật viết cả câu ra vì
   cử chỉ này có **hai** trạng thái và ký hiệu trần không nói được trạng thái nào — đúng cái
@@ -1517,35 +1184,6 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 *Lượt rà soát tự động toàn epic. Mọi số đo chạy lại trên cây làm việc hôm nay, không lấy
 một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy đủ: `epic-1-retro-2026-08-11.md`.*
-
-- ✅ **ĐÓNG — CI Windows đỏ 12 trên 12 lượt, và không story nào biết.** Repo đã đẩy lên
-  remote từ 2026-08-05 *(trái với dòng "chưa đẩy lên remote" của Story 1.3, 2026-08-03)*
-  và CI đã chạy **12** lần: `macos-26` **XANH** ở mọi lượt hoàn tất, `windows-2025` **ĐỎ**
-  ở mọi lượt, luôn ở bước `cargo test`, luôn với `0xc0000139`
-  `STATUS_ENTRYPOINT_NOT_FOUND`.
-  **Nguyên nhân đo được:** `tauri-build` nhét app manifest qua `tauri-winres` ->
-  `embed_resource::compile()`, và hàm đó phát `cargo:rustc-link-arg-BINS`
-  (`embed-resource-3.0.11/src/lib.rs:443`) — nhị phân **sản phẩm** có manifest, nhị phân
-  **test** thì không. Thiếu manifest, trình nạp gắn `comctl32.dll` **v5** và entry point
-  mà tầng Win32 của `tauri` nhập không tồn tại ở phiên bản đó.
-  Nhị phân unittest của `src/lib.rs` sống vì nó không chạm `run()` nên cây `tauri` bị loại;
-  `tests/config_invariants.rs:105` lấy **địa chỉ hàm** `auratranslate_lib::run` nên ép trình
-  liên kết giữ trọn cây đó. Nó là nhị phân đầu tiên đủ nặng để lộ ra, không phải nhị phân
-  có lỗi.
-  🔴 **Hệ quả lớn hơn một job đỏ:** `cargo test` dừng ở nhị phân tích hợp ĐẦU TIÊN theo thứ
-  tự chữ cái ⇒ **12 tệp `tests/**` còn lại chưa từng chạy một lần nào trên Windows** suốt
-  Epic 1. Nửa Windows của NFR14 chưa từng có bằng chứng, trong khi cả epic tin rằng nó có.
-  **Vá:** `src-tauri/build.rs` phát `/MANIFEST:EMBED` + `/MANIFESTINPUT` qua
-  `cargo:rustc-link-arg-`**`tests`** + `src-tauri/windows-app-manifest.xml`. Hẹp hơn bản
-  thượng nguồn (`rustc-link-arg` trần) có chủ ý — bản trần nhét manifest hai lần vào nhị
-  phân phát hành. Lý do từng lựa chọn ở doc-comment của `build.rs`.
-
-- ✅ **ĐÓNG — cổng thứ mười canh máy dev, KHÔNG canh nhánh.** `check:lint` ra đời ở
-  `01be1c2` (2026-08-11) nhưng `ci.yml` không gọi nó. Đã thêm. **Nguyên nhân không phải
-  một lượt quên:** kho có HAI danh sách cổng (`package.json` và `ci.yml`) và trước hôm nay
-  không phép kiểm nào buộc chúng khớp ⇒ dựng **cổng thứ mười một** `check:gates`
-  (`scripts/check-gates.mjs`), ba phép kiểm, có tự kiểm. Nó bắt chính mình ở lượt chạy đầu
-  tiên — `check:gates` có trong `package.json` mà chưa có trong `ci.yml` ⇒ ĐỎ đúng chiều.
 
 - ⚠️ **[D2] của lượt review Story 1.3 — chiều ÂM của AC8 nay CÓ lưới tự động.** Điều kiện
   mà [D2] đặt ra (*"nếu `npm run check:scope` chạy được trên runner thì chiều âm có lưới tự
@@ -1572,41 +1210,6 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   Một bộ nghiệm thu chạy trong Chrome đóng được lớp DOM trung tính và **KHÔNG** đóng được
   đúng lớp lỗi đắt nhất. Đừng mua sự yên tâm sai ở đây. **Chủ: Ice** *(quyết định về bộ
   chạy test frontend — món nợ này đang treo chờ đúng quyết định đó)*.
-
-- 📝 **Bao phủ FR của Epic 1 ĐỦ.** Đối chiếu bản đồ FR ↔ `**Covers:**` của 25 story:
-  **27/27** FR mà bản đồ gán cho Epic 1 đều có story nhận. Khoảng trống của epic là **bằng
-  chứng**, không phải **phạm vi**.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — mục tự thân là một BIÊN BẢN xác nhận bao phủ đủ
-  (27/27), không phải một việc chờ làm. Không có chủ vì không có việc để giao chủ.
-
-- 📝 **Số đo của story file khớp thực tế.** Lượt rà soát chạy lại tám cổng, `npm run build`,
-  và `cargo test --locked` (**264 xanh · 0 đỏ · 5 ignored** — khớp đúng số Story 1.21 khai).
-  Không tìm được một khai sai nào trong các bảng số. Cùng lượt, `tauri build` dựng `.dmg`
-  và cả hai cổng `check:scope*` XANH trên runner macOS.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — mục tự thân là một BIÊN BẢN xác nhận số khớp thực tế
-  ("không tìm được một khai sai nào"), không phải một việc chờ làm. Không có chủ vì không có
-  việc để giao chủ.
-
-- ✅ **ĐÓNG — khuyết tật thứ HAI, lộ ra ngay khi `cargo test` trên Windows chạy được.**
-  Bản vá manifest cho `cargo test` chạy tới `tests/dict_lookup.rs` lần đầu tiên trong đời
-  dự án, và cổng parity lược đồ ở đó **ĐỎ**: `fixture_ddl_is_verbatim_from_dict_build_schema`
-  so một hằng chuỗi Rust (LF) bằng `contains` với `tools/dict-build/src/schema.rs` đọc từ
-  đĩa, mà ảnh `windows-2025` đặt `core.autocrlf=true` nên tệp đó tới nơi mang **CRLF**.
-  Cổng đỏ với đúng câu *"lược đồ hai cây đã trôi khỏi nhau"* trong khi hai cây giống hệt
-  nhau — thứ trôi là ký tự xuống dòng. Đo ở run `31468807121`.
-  **Vá:** `.gitattributes` với `* -text` — cây làm việc bằng đúng byte trong index ở mọi
-  nền tảng. 🔴 **KHÔNG dùng `text=auto eol=lf`**: kho có fixture mang CRLF **có chủ ý**
-  (`tools/dict-build/tests/fixtures/raw/cc_cedict/cedict.txt`), và `project_contract.rs:490`
-  khẳng định bằng chữ *"CRLF phải được GIỮ NGUYÊN"* — một lượt chuẩn hoá lúc commit sẽ đổi
-  dữ liệu dưới chân hai phép kiểm cùng lúc. Cộng một dòng chuẩn hoá trong chính hai cổng
-  parity (`dict_lookup.rs` · `dict_sources.rs`, cái sau mang **cùng** lỗ ở
-  `read_dict_build_schema()`) để chúng nói đúng thứ chúng định nói dưới mọi cấu hình
-  checkout. Cổng KHÔNG bị nới.
-  ⚠️ **Bài học chung, và nó lớn hơn hai tệp này:** mọi cổng so văn bản nguồn TỪNG BYTE đều
-  mang lỗ này, và không lỗ nào trong số đó lộ ra được chừng nào nửa Windows còn chết. Mười
-  tệp `tests/**` vẫn chưa từng chạy trên Windows tính tới lượt vá này; mỗi lượt CI xanh
-  thêm một bậc sẽ lộ ra lớp tiếp theo. **Chủ: Story 1.3**, cho tới khi có một lượt Windows
-  xanh trọn vẹn.
 
 - 🔴 **CÒN MỞ — khuyết tật thứ BA, và nó chạm một bất biến SẢN PHẨM chứ không một tạo tác
   test.** Sau hai bản vá ở trên, **15 trên 15** nhị phân test chạy được trên Windows và
@@ -1727,65 +1330,6 @@ file — cùng kết quả với lượt retrospective sáu ngày trước.
 
 ### ĐÃ ĐÓNG trong chính lượt này
 
-- ✅ **Hồ sơ chép sai quyết định của Ice về GitHub Actions — bốn chỗ.** Bốn tạo tác ghi
-  *"Ice chốt BỎ QUA GitHub Actions"*, đọc như một quyết định kiến trúc vĩnh viễn. Ice đính
-  chính 2026-08-11: đó là **TẠM DỪNG**, và lý do là **không có máy Windows để đối chiếu kết
-  quả runner**. Khác biệt không phải chữ nghĩa — §10 của retrospective đang giao cho Epic 2
-  một điều kiện khởi hành mang chữ *"nay KHÔNG có đường nghiệm thu nào"* như một trạng thái
-  đã chốt, trong khi đúng ra nó là một khoảng mù **có điều kiện mở lại**, và điều kiện đó
-  chính là món nợ **A5**. Đã sửa: `sprint-status.yaml` (A2) · `epic-1-retro-2026-08-11.md`
-  (§9 hàng A2, §10 mục 2) · `.githooks/pre-push` (§Giới hạn).
-
-- ✅ **Cổng thứ mười một canh HAI trong BA danh sách cổng.** `check:gates` ra đời ngày
-  2026-08-11 để đóng lỗ *"hai danh sách không ai buộc khớp"*, và **cùng ngày** hook
-  `pre-push` sinh ra một danh sách **thứ ba** mà không phép kiểm nào canh. Đo: `package.json`
-  khai **11** script `check:*`, hook chạy **9**, chênh 2 (`check:scope`,
-  `check:scope:bundled`) có lý do thật nhưng lý do đó chỉ nằm trong một khối chú thích.
-  Ngày mai thêm cổng thứ mười hai mà quên hook là **lặp lại nguyên vẹn** sự cố `check:lint`,
-  chỉ đổi tệp bị quên.
-  **Vá:** `scripts/check-gates.mjs` thêm **Kiểm D** *(cổng thiếu trong hook)* và **Kiểm E**
-  *(hook gọi cổng không tồn tại)*, đối xứng đúng cặp A/B sẵn có, cộng `PREPUSH_EXEMPT` — mỗi
-  miễn trừ kèm lý do, chép từ chính §Phạm vi của hook.
-  🔴 **Chi tiết đắt nhất của bản vá:** bộ đọc trả `null` khi không phân giải nổi vòng lặp
-  `for gate in … ;`, **không** trả tập rỗng. Một bộ đọc trả rỗng làm Kiểm D xanh trong khi
-  nó chẳng kiểm gì — đúng lớp lỗi *"rỗng im lặng"* mà AD-26 và AD-44 ④ tồn tại để cấm.
-  `null` buộc `abort`, tức một lỗi hạ tầng tường minh.
-  **Nghiệm thu đỏ-rồi-xanh, bốn ca chạy thật trên bản sao ngoài kho:** ① thêm một cổng thứ
-  mười hai vào `package.json` + `ci.yml` mà quên hook ⇒ **A và B XANH, D ĐỎ** *(đúng hình
-  dạng sự cố đã xảy ra)* · ② đổi `for gate in` thành `for g in` ⇒ **abort, exit 1**, không
-  xanh oan · ③ hook gọi `check:da-bi-xoa` ⇒ **E ĐỎ** · ④ khôi phục ⇒ **exit 0**. Sau bản vá:
-  chín cổng vẫn **9/9 XANH**.
-  ⚠️ **Chỗ căng đã ghi vào chính tệp thay vì giấu:** dòng kết của `check-gates.mjs` in ra
-  *"AC4 của Story 1.3 — MỘT pipeline duy nhất"*, và hook `pre-push` **LÀ** một đường cưỡng
-  chế thứ hai. AC4 cấm bằng chữ một **tệp workflow** thứ hai nên hook không phạm chữ; nhưng
-  tinh thần AC4 *(một danh sách, không dựa trí nhớ)* chỉ còn đúng **KHI có Kiểm D**. Bản vá
-  này không xin ngoại lệ khỏi AC4 — nó là điều kiện để AC4 tiếp tục đúng dưới ba danh sách.
-
-- ✅ **`ARCHITECTURE-SPINE.md` lỗi thời so với mã — tám chỗ, đã đồng bộ.**
-  ① **Bảng Stack thiếu 10 phụ thuộc** trong khi chính spine đặt luật *"mỗi phụ thuộc mới
-  phải rà GPLv3 và **ghi vào bảng Stack**"* (§Consistency Conventions, hàng *Giấy phép*).
-  Bảy trong mười sinh ra rồi mới được ghi — `uuid` từ Story 1.15, ba hàng ESLint từ cổng thứ
-  mười, năm gói WebdriverIO cùng plugin từ bộ lái e2e. Quy ước đó bị bỏ lỡ **ba lần liên
-  tiếp**. Rà lượt ba theo đúng phương pháp hai lượt trước — **mở tệp `LICENSE` trong nguồn
-  đã tải mà đọc**, không tin nhãn registry: **10/10 mang ✓**, thân tệp đều có mệnh đề
-  *"Permission is hereby granted, free of charge"*; `uuid` là MIT OR Apache-2.0.
-  ② **AD-45 mới — bản phát hành không mở một cổng LẮNG NGHE nào.** AD-15 đếm điểm **RA** và
-  không nói gì về chiều ngược lại, nên một máy chủ nghe trên `localhost` đi vào bản người
-  dùng cài mà **không phạm một chữ nào** của AD-15. Cơ chế **đã có thật trong mã** (hai lớp
-  chặn) và **đã có cổng canh** (`check-deps.mjs` Kiểm 1b) — AD-45 chỉ đặt tên cho một luật
-  đang chạy, không đặt việc mới.
-  ③ §*"Không dùng, đã loại có lý do"* còn khai kho có **0** plugin Tauri. ④ tên tệp cưỡng
-  chế ghi `check-deps.sh`, tệp thật là `.mjs`. ⑤ **cây nguồn thiếu 5 nhánh thật** —
-  `src/config/` · `src/selftest/` · `scripts/` · `e2e/` · `.githooks/`; hai cái đầu có lý do
-  ghi ở sổ nợ này, nhưng một lý do nằm trong sổ nợ **không thay được một dòng trong cây
-  nguồn**. ⑥ hàng mới *Cổng lắng nghe* trong bảng Consistency Conventions. ⑦ `updated` sang
-  `2026-08-11`. ⑧ đoạn *Rà NFR15 lượt ba*.
-  **Nghiệm thu:** `lint_spine.py` → **0 findings**, 45 AD, bảng Stack 31 hàng.
-  ⚠️ **Hai mục giấy phép phải nói thẳng, cả hai ở phần BẮC CẦU chứ không phải hàng Stack:**
-  cây npm đi **194 → 530** gói; `@promptbook/utils` mang **CC-BY-4.0** *(đòi ghi công)* và
-  `css-value@0.0.1` **không khai giấy phép**. Cả hai chỉ devDependency, không vào sản phẩm —
-  nhưng chúng là hai mục duy nhất trong 530 gói không thuộc nhóm dễ dãi.
-
 - ✅ **Bốn năng lực đã dựng mà KHÔNG tạo tác quy hoạch nào nhận.**
   `grep -ni "e2e|webdriver|eslint|wdio" epics.md` cho **0 kết quả**, trong khi bốn thứ sau
   sống trong mã: cổng thứ mười `check:lint` (`01be1c2`) · cổng thứ mười một `check:gates`
@@ -1837,60 +1381,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 
 ## Deferred from: Story 1.22 — C1, chuyển hướng `$APPDATA` của bộ e2e (2026-08-11)
 
-- ✅ **ĐÓNG — bộ e2e thôi dùng chung `$APPDATA` với ứng dụng thật của người chạy.** Đây là
-  AC2 của Story 1.22 và là món chặn mọi hàng bàn đo còn lại.
-
-  **🔴 Phép đo quyết định hình dạng bản vá — và nó lật phương án rẻ.** Cách rẻ là đổi `HOME`
-  của tiến trình con. Đo trên chính cây đang ghim (`dirs-6.0.0` · `dirs-sys-0.5.0`):
-
-  | Nền tảng | `dirs::data_dir()` đi qua | Đổi được bằng biến môi trường? |
-  |---|---|---|
-  | macOS | `home_dir()/Library/Application Support`, `home_dir()` đọc `$HOME` trước | **CÓ** |
-  | Windows | `known_folder(FOLDERID_RoamingAppData)` — Known Folder API | **KHÔNG** |
-
-  `dirs-sys` gọi thẳng Shell API trên Windows và **bỏ qua** `%APPDATA%`. Nên phương án
-  `HOME` là một bản vá **chạy trên macOS và hỏng im lặng trên Windows** — đúng lớp lệch nền
-  tảng NFR14 tồn tại để chặn, và hôm nay nửa Windows **không có đường nghiệm thu nào** để
-  phát hiện ra. Đó là hai khuyết tật chồng lên nhau, nên phương án rẻ bị loại.
-
-  **Bản vá:** `AURATRANSLATE_E2E_DATA_DIR` đọc trong Rust, chặn bằng **đúng hai lớp của
-  AD-45** — `debug_assertions` **và** `feature = "wdio"`, cùng khuôn với chính plugin
-  WebDriver. Bản phát hành không có một dòng mã nào đọc biến đó: nhánh
-  `not(all(debug_assertions, feature = "wdio"))` của `data_dir_override()` trả `None` **theo
-  kiểu**. Phân giải giống hệt nhau trên hai nền tảng.
-
-  **Chính sách tách khỏi phép đọc** (`data_dir_override_from_raw`, **không** bị `cfg` gác):
-  `std::env::set_var` là `unsafe` từ edition 2024 và một ca đặt biến môi trường còn đua với
-  các ca chạy song song; hàm thuần thì test được mà không chạm tiến trình, và luật được kiểm
-  ở **mọi** bộ feature — kể cả bộ mặc định mà hook `pre-push` chạy. Đường dẫn **tương đối bị
-  TỪ CHỐI**, không được phân giải: nó phân giải theo thư mục làm việc của tiến trình con và
-  sẽ đẻ một `global.db` ở một chỗ bất kỳ trong kho mà không ai báo.
-
-  **Ba bất biến mới** ở `tests/config_invariants.rs`: chính sách từ chối rỗng/tương đối ·
-  phép đọc chỉ sống sau hai lớp gác *(ca đọc mã nguồn, vì hai lớp gác là tính chất **lúc
-  biên dịch** và một nhị phân test chỉ quan sát được đúng một bộ feature mỗi lượt)* · **tên
-  biến ở Rust và ở `wdio.conf.mjs` phải khớp từng ký tự**.
-
-  **Cộng một phép TỰ KIỂM lúc chạy** ở `onComplete`: `global.db` phải nằm trong thư mục tạm,
-  nếu không thì lượt chạy ĐỎ. 🔴 Vì sao cần cả hai lớp canh: hình dạng hỏng ở đây **không có
-  triệu chứng** — app lặng lẽ quay về `$APPDATA` thật và **mọi ca vẫn xanh**, vì một kho thật
-  cũng là một kho mở được.
-
-  **Nghiệm thu — bốn phép đo chạy thật, không suy đoán:**
-
-  | Phép đo | Kết quả |
-  |---|---|
-  | Hai spec, mỗi cái một lượt riêng | **xanh** *(`webkit 605.1.15 macos`)* |
-  | Băm SHA-256 của `global.db` thật, trước và sau hai lượt | **không một byte nào đổi** |
-  | Ca ĐỎ — mô phỏng trôi tên biến ở phía JS | spec **xanh** mà tự kiểm **chặn**; kho thật **bị động** đúng như dự đoán, rồi khôi phục từ sao lưu **khớp từng byte** |
-  | Chín cổng · `npm run build` · `cargo test --locked` | 9/9 xanh · xanh · **267 xanh · 0 đỏ · 5 ignored** *(264 → 267, cộng đúng ba ca mới)* |
-
-  ⚠️ **Bản vá tự bắt được lỗi của chính nó, ghi lại vì nó là bằng chứng phép tự kiểm có
-  răng:** bản đầu của `onComplete` tìm kho ở `<tạm>/com.auratranslate.desktop/global.db`.
-  Sai — `app_data_dir()` của Tauri là `data_dir()/<định danh>`, còn biến môi trường **thay
-  thế trọn** kết quả đó, nên kho nằm thẳng trong thư mục tạm. Lượt chạy thật đầu tiên ĐỎ
-  đúng vào chỗ ấy, dù móc chuyển hướng hoạt động đúng. Cả hai chỗ nay ghi mệnh đề đó ra chữ.
-
 - 📝 **Nút *"Về mặc định"* trong hai spec nay là dư, KHÔNG gỡ ở lượt này.** Nó ra đời để dọn
   `global.db` thật giữa các ca; sau bản vá mỗi lượt đã có kho riêng. Giữ lại có chủ ý: gỡ nó
   là đổi hành vi của hai ca đang xanh trong cùng một lượt vá hạ tầng, và nó vẫn giữ một
@@ -1898,17 +1388,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   không cho. Mở lại khi có ca thứ ba trong một spec. **Chủ: Story 1.22.**
 
 ## Deferred from: Story 1.22 — C2, chuột thật thay `element.click()` (2026-08-11)
-
-- ✅ **ĐÓNG — luật *"thứ tự sự kiện đi Actions API"* nay là một CỔNG, không một quy ước.**
-  `realClick()` tách thành `e2e/support/pointer.mjs` *(một cài đặt dùng chung)*;
-  `eslint.config.js` cấm mọi lời gọi `.click()` trong `e2e/**` bằng `no-restricted-syntax`;
-  `check:lint` chạy `eslint src e2e` từ hôm nay — trước đó **`e2e/` không được cổng nào canh**.
-  Lệnh cấm **toàn phần**, rộng hơn phát biểu AC3 *(chỉ đòi ở nơi thứ tự có nghĩa)*, có chủ ý:
-  câu hỏi *"hàng này có phụ thuộc thứ tự không"* đã bị trả lời sai một lần rồi — xem mục kế
-  tiếp. Ngoại lệ thật đi qua `eslint-disable-next-line` kèm lý do, và
-  `reportUnusedDisableDirectives: 'error'` sẵn có bắt được ngoại lệ hết cần.
-  **Nghiệm thu đỏ-rồi-xanh:** cấy lại `.click()` ⇒ ĐỎ kèm câu chỉ thẳng sang `realClick()`;
-  cấy một `eslint-disable` **hết cần** ⇒ cũng ĐỎ; gỡ ⇒ XANH.
 
 - 🔴 **KHUYẾT TẬT SẢN PHẨM lộ ra ngay khi bàn đo đi chuột thật — UX-DR17 hỏng trên WKWebView.**
   Đây là phát hiện đắt nhất của lượt này, và nó là **lý do cả phương án e2e tồn tại**.
@@ -1956,73 +1435,12 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 
 ## Deferred from: Story 1.22 — bề mặt dữ liệu thật THỨ HAI (2026-08-11)
 
-- ✅ **ĐÓNG — thư mục gốc Library đi vào thư mục tạm, không vào `~/Documents` thật.**
-
-  **Bề mặt này tìm ra bằng cách ĐỌC MÃ, không bằng cách mất dữ liệu thêm một lần.** AC2 đóng
-  `$APPDATA`; lượt chuẩn bị fixture cho spec Attribution mới lộ ra rằng thư mục gốc Library
-  đi một đường **hoàn toàn khác** — `app.path().document_dir()` ⇒ `~/Documents/AuraTranslate/`,
-  phân giải ở `commands::project::default_library_root` (AD-23, scope động). Một bàn đo tạo
-  Tác phẩm sẽ ghi vào Documents THẬT của người chạy, tức tái lập nguyên vẹn lớp lỗi mà AC2
-  vừa đóng, chỉ ở một thư mục khác.
-
-  **Bản vá:** `AURATRANSLATE_E2E_LIBRARY_ROOT`, cùng hai lớp gác AD-45 và **cùng một chính
-  sách** với móc thứ nhất — hàm thuần đổi tên `data_dir_override_from_raw` →
-  `absolute_dir_override_from_raw`, vì hai móc khác nhau ở **cái gì bị chuyển hướng**, không
-  ở **giá trị nào hợp lệ**. Hai biến chứ không một: `global.db` và `.atproj/` là **hai vai
-  khác nhau** trong AD-7 với ranh giới sở hữu **cứng**; gộp chúng vào một biến là dạy người
-  đọc rằng chúng cùng một chỗ.
-
-  **Ba bất biến mở rộng để canh CẢ HAI tên** *(danh sách `ENV_NAMES`, phải mọc theo mọi móc
-  mới — một móc thứ ba không có tên ở đó là một đường ghi không ai canh, đúng cách bề mặt thứ
-  hai đã lọt qua AC2)*.
-
-  🔴 **Hai hàng rào, hai chiều, và lý do cần cả hai:** móc `$APPDATA` có một phép tự kiểm
-  **dương tính** *(`global.db` phải nằm trong thư mục tạm)*. Móc Library thoạt nhìn không có
-  đối ứng — chưa bàn đo nào tạo Tác phẩm, nên thư mục tạm rỗng dù móc chạy đúng hay sai, và
-  một phép kiểm dương tính bịa ra sẽ **luôn xanh mà không canh gì**. Đóng bằng hai thứ:
-  ① `onComplete` đi chiều **ÂM** — thư mục Documents thật phải y nguyên; đúng một cách tầm
-  thường hôm nay, và **tự có răng** vào ngày fixture đầu tiên xuất hiện, kể cả khi người viết
-  fixture quên đọc `wdio.conf.mjs`;
-  ② `e2e/specs/library-root-redirect.e2e.mjs` đi chiều **DƯƠNG** — nó **thật sự tạo một Tác
-  phẩm** bằng cách gọi thẳng `create_work_from_text` qua IPC, rồi đọc đĩa bằng `node:fs`.
-  Gọi IPC chứ không đi giao diện có lý do: câu hỏi là *"`.atproj` rơi vào thư mục nào"*, và
-  một đường đi qua form sẽ đo **giao diện nhập** thay vì đo **đường ghi**.
-
-  **Nghiệm thu — đỏ-rồi-xanh chạy thật:**
-
-  | Phép đo | Kết quả |
-  |---|---|
-  | Spec chiều dương | **XANH** — `.atproj` nằm trong thư mục tạm, vắng mặt ở Documents thật |
-  | Ca ĐỎ — biến đặt sai *(đường tương đối, thứ chính sách từ chối)* | **cả hai** hàng rào nổ: khẳng định của spec, và hàng rào âm *(Documents thật 21 → 22 mục)* |
-  | Dọn Tác phẩm lạc rồi đối chiếu | Documents thật **khớp ảnh chụp ban đầu, 21 mục** |
-  | Chín cổng · `npm run build` · `cargo test --locked` | 9/9 xanh · xanh · xanh |
-
-  ⚠️ **Ca đỏ đầu tiên SAI hình dạng, ghi lại vì bài học dùng được:** lượt đầu mô phỏng bằng
-  cách đổi **tên hằng** trong `wdio.conf.mjs`. Nhưng tên đó là thứ **chính spec** đọc để biết
-  thư mục tạm, nên spec trượt **trước khi** tạo Tác phẩm và hàng rào âm không hề bị chạm — một
-  ca đỏ **không chứng minh gì**. Ca đúng là mô phỏng một biến **đặt sai giá trị**, vì đó mới
-  là hình dạng hỏng thật.
-
-  ⚠️ **Giới hạn của hàng rào âm, ghi thẳng:** `mtimeMs` của thư mục chỉ đổi khi có mục được
-  **thêm hay xoá**, nên một lượt ghi **đè** lên `.atproj` sẵn có sẽ lọt. Đóng nốt vế đó cần
-  quét đệ quy cả cây — đắt, và chưa cần vì hôm nay không đường mã nào của bộ e2e mở được một
-  Tác phẩm có sẵn. Mở lại khi có fixture mở Tác phẩm.
-
 - 📝 **Fixture cho spec Attribution nay KHÔNG còn bị chặn bởi dữ liệu thật.** Hai bề mặt đã
   đóng, và `library-root-redirect.e2e.mjs` vừa chứng minh một Tác phẩm tạo được từ trong bàn
   đo. Việc còn lại là thuần giao diện: từ chế độ `library` sang `workspace` với Tác phẩm vừa
   tạo, để `[data-attribution-open]` tồn tại. **Chủ: Story 1.22.**
 
 ## Deferred from: Story 1.22 — fixture workspace, và một AC được làm rõ (2026-08-12)
-
-- ✅ **ĐÓNG — fixture `workspace` chạy được.** `e2e/support/workspace.mjs`: tạo Tác phẩm qua
-  IPC rồi `Mod+2` vào chế độ `workspace`, đợi tới khi `[data-attribution-open]` có mặt THẬT
-  *(dải chip nguồn chỉ render khi `dictSources.length > 0`)*. Hai lựa chọn có chủ ý:
-  **không** đi qua form Library *(nó không có một mối nối `data-` nào — `v-model` trên
-  `<input>` trần — nên một fixture bám cấu trúc DOM sẽ vỡ ở lượt đổi bố cục đầu tiên, và
-  làm MỌI hàng dùng nó đỏ vì lý do không liên quan)*; **không** thêm `data-` vào ba tab chế
-  độ chỉ để bàn đo chọn được *(`data-shortcuts-open` và `data-attribution-open` tồn tại vì
-  **sản phẩm** cần chúng, không vì bàn đo — bàn phím tránh hẳn câu hỏi tiền lệ đó)*.
 
 - 🔴 **PHÁT HIỆN — bản vá `@mousedown` KHÔNG chuyển được sang nút trong panel, và tôi đã
   khuyến nghị sai.** Lượt trước tôi đề xuất Ice vá gốc bằng `@mousedown` cho **cả hai** nút
@@ -2042,120 +1460,11 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tiếp — khác biệt duy nhất giữa hai nút là tổ tiên `tabindex="-1"`. Đường đào tiếp, nếu có
   ngày cần: dựng một trang tối giản NGOÀI kho để cô lập hành vi WKWebView. **(Chủ: một story kế tiếp — điều tra tiêu điểm WKWebView, nguyên nhân chưa đặt tên.)**
 
-- ✅ **ĐÓNG — `focusReturnTargetOnOpen` ở `src/commands/focus.ts`, luật CHUNG cho hai lớp phủ.**
-  UX-DR17 hứa tiêu điểm về **nút đã mở**; lưu `document.activeElement` lúc mở chỉ là một phép
-  **xấp xỉ** của lời hứa đó, đúng khi engine chịu focus nút và sai khi không.
-  🔴 Luật **hẹp hơn** *"luôn ưu tiên nút mở"*: chỉ ưu tiên khi tiêu điểm đang ở chính nút hoặc
-  ở một **tổ tiên** của nó — tức đúng hình dạng *"cú bấm đã rơi vào nút, engine đỗ tiêu điểm ở
-  khung ngoài"*. Ưu tiên vô điều kiện sẽ hỏng đường **bàn phím**: cả hai lớp phủ là command
-  gán phím được (Story 1.21), và khi người dùng mở bằng phím lúc đang gõ ở panel khác thì
-  *"nút đã mở"* không tồn tại — trả tiêu điểm về nút khi đó là ném họ ra khỏi chỗ đang làm.
-  Nhà của nó là module tự khai *"nửa thứ hai của AD-34"*, không một tệp tiện ích mới.
-
-- ⚠️ **AC11 của Story 1.19 được LÀM RÕ — Ice chốt 2026-08-12.** Đích là **nút mở HOẶC một tổ
-  tiên của nó**. Đây là một lần **nới có chữ ký**, phạm vi hẹp: UX-DR17 của Story 1.21 giữ
-  nguyên mệnh đề chặt vì nút của nó ở titlebar. Toàn văn cùng lý do và số đo: §AC11 của
-  `1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md`.
-  **Khẳng định thay thế vẫn có răng, nghiệm thu đỏ-rồi-xanh:** cắt đường trả tiêu điểm ⇒ ĐỎ
-  với `body`; khôi phục ⇒ XANH. Nó cũng đỏ khi tiêu điểm về một panel **khác** — hình dạng
-  `div.original tok-source-cjk` đã quan sát được thật trong lúc dựng ca.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — mục tự thân là bản ghi một quyết định ĐÃ CHỐT (Ice,
-  2026-08-12) kèm phép kiểm đỏ-rồi-xanh đã có, không phải một việc chờ làm.
-
 - 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: dời nút mở
   ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính, nên nó đóng luôn mệnh
   đề chặt. Chạm UX và `mockups/`, nên không quyết trong lượt này. **Chủ: Ice.**
 
-## Deferred from: Story 1.22 — C3, và một giới hạn hoá ra đã tự hết hiệu lực (2026-08-12)
-
-- ✅ **ĐÓNG bằng một PHÉP ĐO, không bằng một bản vá.** C3 sinh ra để sửa giới hạn số 3 của bộ
-  e2e: *"một spec = một phiên app, máy chủ nhúng bám cổng cố định 4445, chạy hai tệp trong
-  cùng một lượt làm phiên thứ hai trượt"*, với đường ra đề xuất là **cổng cấp theo worker**.
-
-  **Việc đầu tiên là chạy thử, không phải viết mã.** Bộ nay có **bốn** spec:
-  `npm run test:e2e` không kèm `--spec` ⇒ **4/4 XANH**, hai lượt liên tiếp, **3m07** và
-  **3m04**. Triệu chứng **không còn tái lập được**.
-
-  ⇒ *"Cổng theo worker"* là công việc cho một vấn đề **đã biến mất**. Nếu viết nó ra hôm nay,
-  ta có thêm một cơ chế không ai kiểm chứng được là cần thiết, cộng một lượt tự khen đã sửa
-  một thứ chưa chắc từng hỏng vì lý do ta nghĩ.
-
-  🔴 **Nguyên nhân lượt trượt cũ KHÔNG được chẩn đoán.** Nó biến mất đâu đó trong lúc C1 và
-  C2 đi qua, và tôi **không gán công** cho một bản vá nào mà không có phép đo nói thế. Ghi ra
-  để ai gặp lại triệu chứng biết nó **từng** có thật và biết nó đã tự hết ở đâu.
-
-- 🔴 **QUYẾT ĐỊNH: bộ e2e chạy TUẦN TỰ (`maxInstances: 1`), không song song.** Đây là một
-  lựa chọn có lý do, không một chỗ chưa làm tới — và lý do đầu **không phải một rủi ro cần
-  đo** mà là một hồi quy **đúng theo cấu tạo**:
-
-  ① `onPrepare` cấp **một** `$APPDATA` tạm và **một** thư mục Library tạm cho **cả lượt**.
-  Hai app chạy song song dùng chung chúng ⇒ đúng trạng thái mà AC2 vừa đóng, chỉ đổi từ
-  *"e2e đụng dữ liệu người dùng"* thành *"hai ca e2e đụng nhau"*. Và phép tự kiểm ở
-  `onComplete` *(`global.db` phải nằm trong thư mục tạm)* trở thành **mơ hồ**: nó không phân
-  biệt được app nào đã ghi.
-
-  ② Mọi spec trong bộ khẳng định trên `document.activeElement`. Hai cửa sổ **thật** trên cùng
-  một desktop macOS tranh tiêu điểm ở tầng hệ điều hành. ⚠️ Đây là rủi ro **CHƯA ĐO** — ghi
-  đúng mức độ chắc chắn của nó, không dựng nó thành một dữ kiện. Lý do ① một mình đã đủ.
-
-  **Cái giá đã biết:** 3 phút cho cả bộ. **Điều kiện mở lại:** cấp thư mục tạm **theo
-  worker** trước, rồi đổi phép tự kiểm ở `onComplete` theo — đúng thứ tự đó, không ngược lại.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — một quyết định có lý do cấu tạo, không một chỗ chưa
-  làm tới (mục tự khai). Điều kiện mở lại đã ghi ngay trong mục: cấp thư mục tạm theo worker
-  trước khi đổi phép tự kiểm ở `onComplete`.
-
-- 📝 **Tài liệu đã dọn ở ba chỗ**, vì lời khuyên cũ nay **tốn tiền của người đọc**: nó bảo
-  chạy từng tệp bằng `--spec`, tức bốn lượt khởi động app thay vì một. `e2e/wdio.conf.mjs`
-  §Giới hạn 3 + khối `Chạy:` · AC tương ứng của Story 1.22 ở `epics.md`.
-  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.13) — phép kiểm đã chạy: đối chiếu với `e2e/wdio.conf.mjs`
-  hôm nay.** `:27` mang `§Giới hạn — ba thứ ĐO ĐƯỢC`; `:150` mang khối `Chạy:` khuyên
-  `npm run test:e2e` (cả bộ, một lượt khởi động), không còn khuyên chạy từng tệp bằng `--spec`.
-  Ba chỗ dọn tài liệu mà mục này khai đã tồn tại thật trên cây nguồn hôm nay.
-
 ## Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)
-
-- ✅ **ĐÓNG — tầng vỏ giao diện nâng một bậc lên mốc macOS 13px. Ice chốt sau nghiệm thu A4.**
-  Ice xem bằng mắt và chốt: *"phần thẩm mỹ tốt rồi, nhưng 11,5px là quá nhỏ để đọc"*.
-
-  **Mốc đối chiếu, không phải khẩu vị:** giao diện hệ thống macOS chạy ở **13px**; tầng vỏ cũ
-  ở **10–12px**, tức **dưới mặc định của hệ điều hành** trên chính nền tảng Ice dùng hằng ngày.
-
-  | Token | Cũ | Mới | Số chỗ dùng |
-  |---|---|---|---|
-  | `ui-md` · `ui-md-strong` · `ui-md-wrap` | 12px | **13px** | 29 · 3 · 11 |
-  | `ui-sm` | 11,5px | **12px** | 16 |
-  | `ui-label` | 10px | **11px** | 11 |
-  | `ui-mono` | 10,5px | **11,5px** | 4 |
-  | `head-height` · `titlebar-height` · `status-height` | 34 · 38 · 32px | **36 · 40 · 34px** | — |
-
-  Tầng **nội dung** (14,5–24px) **không đụng tới**. Ba thanh nâng theo để giữ tỉ lệ khoảng
-  thở — Ice chốt phương án đó thay vì ép chữ to vào chiều cao cũ.
-
-  🔴 **Vì sao không nâng riêng `ui-sm` như câu hỏi của Ice:** lên 12px thì nó **bằng** `ui-md`
-  ⇒ thừa một token; lên 12,5px thì **nhãn phụ to hơn tiêu đề panel** ⇒ đảo trật tự phân cấp.
-  Câu trả lời phải áp cho cả tầng.
-
-  **Ba nơi khai cùng một con số, sửa cả ba** *(thiếu một là cổng đỏ — đó là thiết kế đúng, nó
-  buộc lượt đổi phải có chữ ký)*: `src/tokens/tokens.json` · **bảng đóng băng viết cứng trong
-  chính cổng** `scripts/check-tokens.mjs` · `DESIGN.md` §Bảng token typography + §Spacing.
-
-  ⚠️ **Lật một quyết định có lý do, ghi ra chứ không lặng lẽ đè.** `DESIGN.md` bảo vệ tầng vỏ
-  nhỏ bằng chữ: *"ghìm chặt … giữ được mật độ của một nhạc cụ nghề nghiệp"*. Câu đó **vẫn
-  đứng** và nay mang một khối ghi rõ nó **đã được cân một lần và thua**: mật độ là một giá trị
-  thật, nhưng nó không thắng được việc chữ khó đọc với chính người dùng duy nhất.
-
-  **Nghiệm thu bằng phép đo trên app thật, không bằng suy luận:** titlebar render **40px**,
-  thanh tab panel **36px** — khớp đúng token mới, **không tràn**. Dải chip nguồn báo "tràn"
-  nhưng đó là **dương tính giả theo cấu tạo**: `.lookup-sources-chips` khai
-  `max-height: 52px; overflow-y: auto` và chú thích tại chỗ nói *"nơi DUY NHẤT được phép
-  tràn, và nó cuộn chứ không nuốt"*. Đo lại số hàng chip hiện được: **2,64 hàng** ở cỡ mới so
-  với ~2,76 ở cỡ cũ ⇒ vẫn giữ *"hai hàng trọn + một vệt hàng thứ ba"* làm dấu hiệu còn cuộn
-  được. **Không phải chỉnh `max-height`.**
-
-  📌 **Câu hỏi để ngỏ:** một **hệ số scale giao diện** do người dùng chỉnh là câu trả lời đúng
-  bản chất hơn — *"nhỏ quá"* là thuộc tính của từng người, không của một con số. Token đang là
-  `px` cứng nên nó cần một lượt chuyển sang đơn vị tương đối trước ⇒ **một story riêng**, đã
-  ghi vào `DESIGN.md`. **Chủ: Ice.**
 
 - 🔴 **ĐÍNH CHÍNH — bộ e2e CHẬP CHỜN, và bản ghi C3 hôm qua nói "ổn định" trên cỡ mẫu quá nhỏ.**
   Lượt chốt C3 chạy **hai** lượt xanh rồi kết luận ổn định. **Tám** lượt tính tới hôm nay:
@@ -2175,30 +1484,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   được thì **bắt nguyên văn TRƯỚC**, đừng chạy lại cho tới khi xanh rồi đi tiếp. **Chủ: Dev.**
 
 ## Deferred from: hai quyết định của Ice về CI và Windows (2026-08-12)
-
-- ✅ **ĐÓNG — CI thôi tự chạy lúc push. Ice chốt: hạn mức tài khoản miễn phí để dành cho một
-  dự án khác.**
-
-  🔴 **Và lượt này lộ ra một khoảng cách giữa hồ sơ và thực tế.** Ice chốt *"tạm dừng GitHub
-  Actions"* ngày **2026-08-11**, bốn tạo tác đã ghi lại quyết định đó, và lượt correct-course
-  còn đính chính từ *"BỎ QUA"* thành *"TẠM DỪNG"* cho đúng ý. **Nhưng khối `on:` của
-  `ci.yml` vẫn khai `push:` + `pull_request:`** — nên mọi lượt push từ đó tới nay **vẫn khởi
-  động cả hai job và vẫn tiêu phút**. Một quyết định không được cài vào tệp thì không phải
-  một quyết định; nó là một ghi chú. Cùng lớp lỗi với *"cổng thứ mười canh máy dev, không
-  canh nhánh"* — khoảng cách giữa thứ ta tin và thứ máy làm.
-
-  **Vá:** `on: workflow_dispatch:` — pipeline còn **sống** và tiêu **0 phút** cho tới khi có
-  người bấm *"Run workflow"*.
-
-  🔴 **Vì sao KHÔNG xoá tệp, ba lý do và cả ba đều cứng:**
-  ① AC4 của Story 1.3 cấm dựng một tệp workflow **thứ hai**; xoá rồi dựng lại sau là đúng
-  thứ AC4 chặn. ② Cổng thứ mười một `check:gates` **đọc chính tệp này** (Kiểm A/B) — xoá nó
-  làm cổng `abort`, và ta mất phép kiểm buộc **ba** danh sách cổng khai cùng một bộ.
-  ③ Bốn phép nghiệm thu runner còn nợ của Story 1.3 (AC6 · AC7 · Task 11 hàng 4 · AC3/Task 4)
-  **chỉ đo được ở đây** — chúng chờ, không mất.
-
-  **Nghiệm thu:** `check:gates` vẫn XANH sau lượt đổi ⇒ ba danh sách cổng vẫn khớp, tức
-  pipeline vẫn là một tạo tác sống chứ không một tệp chết.
 
 - 📌 **Phương án khôi phục CI miễn phí, để Ice cân khi tới lúc — KHÔNG quyết trong lượt này.**
 
@@ -2317,30 +1602,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   người dùng chọn sai ngôn ngữ quá dễ**. **Chủ: Ice** — quyết định xem một lượt xác nhận ngôn
   ngữ lúc nhập (đối chiếu nội dung với nhãn, cảnh báo chứ không tự đổi) có đáng một story không.
 
-## Deferred from: code review of 2-1-tach-segment-cap-cau-va-co-ket-doan (2026-08-12)
-
-- ⚠️ **`insert_segments` chuẩn bị lại statement SQL cho mỗi hàng segment.**
-  `src-tauri/src/commands/segment.rs:74-88` gọi `tx.execute` với một chuỗi SQL literal bên
-  trong vòng lặp, nên `rusqlite` parse lại câu lệnh **mỗi hàng** thay vì chuẩn bị một lần rồi
-  tái dùng (`prepare`/`prepare_cached`). Toàn bộ N lượt đó chạy trong **một** closure của
-  `Store::write`, tức trên writer **duy nhất, nối tiếp** của AD-11 — cùng điểm nghẽn mà
-  `commands/project.rs:120-127` đã kéo `split_source_text` ra ngoài để né. Quy mô thật đo được
-  ở Task 8: một Chương chiếm 94% của 10.477 segment ⇒ ~9.850 lượt parse trong một giao dịch.
-  🔴 **Hoãn vì chưa ai đo, không phải vì nó nhỏ.** Story 2.1 đặt chuẩn *"đo chứ không ước"*
-  (AC15), và đề xuất một tối ưu chưa có số là tự phá chuẩn đó — SQLite parse rất nhanh và chi
-  phí thật có thể nằm dưới ngưỡng đáng sửa. Việc cần làm là **một phép đo** trên Chương lớn
-  nhất có thật, rồi mới quyết vá hay đóng.
-  **Chủ: Story 2.2** *(story đầu tiên tải segment lên giao diện, tức chỗ đầu tiên chi phí này
-  chạm một thao tác người dùng nhìn thấy)*.
-  → ✅ **ĐÓNG 2026-08-12 (Story 2.2 · AC17 · Task 8).** Đã đo, rồi mới vá. `cargo test --release`
-  trên macOS, **9.850 hàng** — quy mô thật của Chương lớn nhất, ba lượt: `tx.execute` literal mỗi
-  hàng cho **105,51 / 106,90 / 112,47 ms**; `prepare_cached` một lần cho **44,76 / 49,75 / 48,28 ms**.
-  Chênh **57–64 ms** (53,5–57,6 %). Vá vì con số chứ không vì linh cảm: khoản tiết kiệm nằm **trên**
-  trần một frame của NFR2 (50 ms) chỉ bằng một mình nó, và nó nằm trong closure của `Store::write`,
-  tức trên writer duy nhất nối tiếp của AD-11. Dùng `prepare_cached` (không `prepare`) để Chương
-  **thứ hai** trở đi không phải parse lại lần nào — bộ nhớ đệm sống trên kết nối ghi dài hạn.
-  Bảng số đầy đủ ở doc-comment của `insert_segments`.
-
 ## Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)
 
 - 🔴 **Ba trong năm giá trị vạch lề KHÔNG có nguồn dữ liệu, và mỗi giá trị có chủ riêng.**
@@ -2360,49 +1621,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   `false` ở `editorSegments.ts` **ở lại**)*; `retiredAt` ← chưa đường sản phẩm nào cho segment về
   hưu, **Chủ: Story 2.8** *(Story 2.5 chỉ dựng một **hàng rào từ chối** —
   `MessageKey::SegmentRetired` — và test của nó dựng trạng thái về hưu bằng SQL trực tiếp)*.
-
-- 🔴 **HAI CÂU CÙNG MỘT DÒNG CHO HAI VẠCH LỀ CHỒNG LÊN NHAU — phát hiện của bàn đo, chưa vá.**
-  Vạch được đặt `position: absolute; left: 8px` trong máng, chiều cao đo từ `getClientRects()`
-  của chính câu. Văn bản chảy **inline** (AC1 cấm chia khối), nên hai câu ngắn nằm cùng một dòng
-  cho hai vạch **cùng `top`, cùng `left`** — vạch vẽ sau che vạch vẽ trước. Đo được ở bàn đo,
-  cả Blink lẫn WebKit: fixture 5 câu vẽ **4** vạch nhưng chỉ nhìn thấy **2** vị trí (câu 1
-  `confirmed` bị câu 2 `primary` che; câu 3 `tm-rule` bị câu 5 `ornament` che).
-  ⚠️ **Hôm nay KHÔNG chạm tới được trong sản phẩm**: chỉ `primary` có nguồn dữ liệu, và caret chỉ
-  có **một**, nên nhiều nhất một vạch tồn tại cùng lúc. Nó thành thật ngay lượt Story 2.5 nối
-  `segment.status`. `DESIGN.md:380` và `EXPERIENCE.md:105-113` **không** phân xử ca này — máng
-  rộng 22px, vạch thụt 8px, còn 12px trống, nên xếp cạnh nhau là **khả thi** nhưng là một quyết
-  định thiết kế, không phải một bản vá kỹ thuật.
-  **Chủ: Story 2.5** *(story đầu tiên làm hai vạch cùng tồn tại)* — **và một lượt ký của Ice** cho
-  hình dạng lời giải.
-  → ✅ **ĐÃ ĐÓNG 2026-08-14 (Story 2.5, Quyết định #2 đường (a) — Ice ký).** Cách đóng: `left` rời
-  khỏi CSS và nay do `editorGutter.ts::assignGutterLanes` tính, đi qua `:style` cùng đường với
-  `top`/`height` *(hình học bind bằng style, màu bind bằng lớp — điều kiện để Kiểm B của
-  `check-tokens.mjs` còn đọc được bốn màu vạch từ CSS)*.
-  **Phép phát làn là TÔ MÀU ĐỒ THỊ KHOẢNG**, không gom bắc cầu: mỗi vạch nhận làn nhỏ nhất chưa bị
-  một vạch chồng nào chiếm. **Bước làn CO cho vừa máng** — `bước = clamp(2, 5, ⌊12/(N-1)⌋)`.
-  ⚠️ **Bản đầu bị PHÉP ĐO bác, ghi lại thay vì sửa im lặng:** bước cố định 5px *(đúng hình dạng
-  §Quyết định #2 của story mô tả — "làn trong 8px, làn ngoài 13px")* chỉ chứa nổi **3** làn, và
-  fixture **đối thoại** của bàn đo đòi **5** ⇒ làn ngoài ở `left: 28px`, mép phải **30px**, tràn
-  khỏi máng 22px đúng chỗ chữ bắt đầu. Với bước co thì 5 làn nằm gọn ở mép phải **22px**, **0 vạch
-  bị che**. Số đo hai engine × hai theme: `2-5-ban-do/README.md`; ảnh: `2-5-ban-do/*.png`.
-  Lưới: `tests/frontend/editorGutterLanes.test.ts` *(hai đường sai — bước cố định, gom bắc cầu —
-  đều đã chạy đỏ-rồi-xanh 2026-08-14)*.
-
-- ⚠️ **GIỚI HẠN CÒN LẠI của lời giải vừa ký: từ 8 LÀN trở lên máng 22px hết chỗ.** Bước tối thiểu
-  là 2px *(bằng bề rộng vạch)*, nên máng chứa nhiều nhất **7** làn; từ làn thứ tám luật là **dồn
-  về làn cuối**, tức chấp nhận che — có chủ ý, thay vì tràn ra đè lên chữ. Nó đòi **8 câu cùng một
-  dòng**; fixture đối thoại dày nhất của bàn đo mới cho **5**. Lời giải nếu ngày đó tới: nới token
-  `gutter-width` *(một lượt sửa `DESIGN.md`, tầng token)*. **Chủ: Ice.**
-
-  → ✅ **ĐÃ ĐÓNG 2026-08-15 (Story 2.5b) — BIẾN MẤT THEO CẤU TRÚC, KHÔNG ĐƯỢC VÁ.** Ghi rõ cách
-  đóng vì hai cách đó **không** đổi cho nhau được: không ai nới `gutter-width`, không ai sửa
-  thuật toán chia làn. **Khái niệm "làn" thôi tồn tại**: lưới cho **một câu một HÀNG**, nên hai
-  vạch không bao giờ còn trùng `top`, nên không còn gì để xếp làn. Vạch nay lấy chiều cao từ
-  **track hàng** của `subgrid` *(`GridPanel.vue::.rule { height: 100% }`)*, và cột vạch rộng
-  **3 px** — token `gutter-width` **không còn người đọc** ở bề mặt này.
-  ⚠️ Điều kiện để mục này ở lại đóng: **một câu vẫn là một hàng**. Ngày nào một story cho hai
-  câu chung một hàng *(gộp hiển thị, xuống dòng mềm…)*, bài toán quay lại **nguyên vẹn** — và
-  phép đo của `assignGutterLanes` vẫn nằm trong sổ, ngay dưới đây.
 
 - ⚠️ **Bảng năm giá trị vạch có một HÀNG CÒN THIẾU: "đã dịch bằng tay, chưa xác nhận, con trỏ ở
   chỗ khác".** `confirmed` sai *(chưa ai ký)*, `tm-rule` sai *(không phải máy điền)*, *không vạch*
@@ -2449,12 +1667,12 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   sản phẩm **lệch nhau mà không cổng nào đỏ**. Cộng hai giới hạn nữa: **ba font nhúng của UX-DR4
   vắng mặt** *(bàn đo rơi về `serif` hệ thống, nên số chiều cao vạch là số của **cơ chế**, không
   phải của **sản phẩm**)*, và **`⏐` là pseudo-element nên nó không hiện trong một bàn đo chép DOM**.
-  Cùng lớp nợ `deferred-work.md:826`. **Chủ: treo cho tới khi có quyết định về một bộ chạy test
+  Cùng lớp nợ `deferred-work.md §*Deferred from: 1-16-panel-source-va-tab-han-viet (2026-08-06)*`. **Chủ: treo cho tới khi có quyết định về một bộ chạy test
   frontend (NFR15).**
 
 - 🔴 **WKWebView THẬT (trong cửa sổ Tauri) vẫn CHƯA ĐO — bàn đo chạy WebKit của Playwright.**
   Đây là lượt đầu tiên của dự án có bằng chứng **WebKit** cho một bề mặt DOM *(mọi story trước đo
-  trên Blink — `deferred-work.md:145`)*, và nó trả lời được câu hỏi nóng nhất: hình học
+  trên Blink — `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*`)*, và nó trả lời được câu hỏi nóng nhất: hình học
   `getClientRects()` với chữ dày dấu tiếng Việt **khớp giữa hai engine** *(46,25 px Blink vs
   46,00 px WebKit; 64,50 vs 64,00 — lệch dưới một pixel)*, và `innerText` **không** rò ký tự `⏐`
   trên **cả hai** *(tức Quyết định #3 — pseudo-element thay vì `<span>` thật — đã đóng vết sẹo
@@ -2463,23 +1681,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   nhúng font, khác tầng phân phối sự kiện của OS. Đừng viết *"tương đương"*.
   **Nhặt lại:** một lượt `npm run tauri dev`, hoặc một spec e2e WebdriverIO khi bộ đó hết chập chờn.
   **Chủ: nợ chung "hai nền tảng" của 1.6/1.14/1.16/1.17/1.18/1.18b — nay thêm 2.2.**
-
-- ⚠️ **`data-caret` đọc từ NEO VÙNG CHỌN DOM, không từ một caret thật — một luật ngoài bảy AC.**
-  AC5 đòi *"tiêu điểm bàn phím chạm tới một câu"*, nhưng một bề mặt không `contenteditable`
-  **không có caret** (AC18 cấm gõ ở lượt này). Lời giải: `Selection.anchorNode`, cộng
-  `tabindex="0"` trên `.doc` — **đúng cơ chế** mà Story 1.18 đã dựng cho Panel Source để đóng
-  `deferred-work.md:608`, và một cú bấm chuột cũng đặt một vùng chọn thu gọn.
-  🔴 Cái giá phải nói ra: `tabindex="0"` **bên trong** một `PanelFrame` mang `tabindex="-1"` làm
-  phím `Tab` nay dừng ở thân Panel Editor — đúng hệ quả mà Story 1.18 đã ghi và Ice đã ký cho
-  Panel Source ngày 2026-08-07. Story này áp cùng đánh đổi cho panel thứ hai **mà chưa có một
-  lượt ký riêng**.
-  → ✅ **ICE ĐÃ KÝ 2026-08-12** *(lượt code review của Story 2.2)*. Tiền lệ Panel Source mở rộng
-  sang panel **thứ hai**: `tabindex="0"` trên `.doc` giữ nguyên, và cái giá — `Tab` dừng ở thân
-  Panel Editor — được chấp nhận có chủ ý. Lý lẽ đã cân trước khi ký: gỡ nó thì vế **bàn phím** của
-  AC5 mất nguồn dữ liệu *(`Shift+Mũi tên` không tới, `data-caret` không bao giờ bật)* và hợp đồng
-  vùng chọn đăng ký từ Story 1.18 nằm chết trên bề mặt này — tức AC5 sẽ **không giao đủ**.
-  ⚠️ Chữ ký này phủ **cơ chế hôm nay**, không phủ Story 2.3: khi caret thật xuất hiện cùng
-  `contenteditable`, **Story 2.3** vẫn phải xét lại toàn bộ đường `Selection.anchorNode` này.
 
 - ⚠️ **Một luật hiển thị ngoài bảy AC: dòng *"Chương này đã tách thành câu, chưa câu nào có bản
   dịch"*.** Bảy AC không nói gì về ca *"đã tách, chưa câu nào có bản dịch"* — trước Quyết định #1
@@ -2501,17 +1702,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   được **theo từng hàng**, chưa có một câu tổng ở tầng panel. Nếu một Chương 9.850 câu làm người
   dùng phải cuộn mới thấy tình trạng chung thì đó là một mệnh đề MỚI, cần một phép đo, và nó
   **không** thuộc món nợ này — mở một mục mới, đừng mở lại mục đã đóng.
-
-- ⚠️ **Cổng Kiểm J của `check-commands.mjs` HẾT HẠN ở Story 2.3, và nó phải được gỡ ĐÚNG LÚC.**
-  Cổng khẳng định `EditorPanel.vue` không mang `contenteditable`/`<textarea>`/`<input>`/`v-model`/
-  handler sửa văn bản (AC18 — hệ quả phán quyết Quyết định #1). Story 2.3 dựng vùng gõ, nên nó
-  phải gỡ cổng **cùng lượt** với hợp đồng flush AD-35 — **không sớm hơn**. Gỡ sớm là mở lại đúng
-  cửa sổ mất dữ liệu im lặng mà cổng tồn tại để đóng. **Chủ: Story 2.3.**
-  → ✅ **ĐÓNG 2026-08-12 (Story 2.3).** Gỡ **cả khối** — `TYPING_BANS`, sàn nội dung, tiêu đề in
-  ra. Vế *"đúng lúc, không sớm hơn"* có bằng chứng: 8 ca mới ở `segment_contract.rs` xanh **trước**
-  khi `contenteditable` chạm `EditorPanel.vue`. Chi tiết ở §Deferred from: 2-3-hop-dong-flush.
-  ⚠️ Giới hạn đã ghi tại chỗ: cổng đọc bản **đã che** (bỏ chú thích và chuỗi), nên một
-  `el.setAttribute('contenteditable', 'true')` trong một chuỗi JavaScript đi lọt.
 
 - ⚠️ **Nhãn `Covers:` của Story 2.2 trong `epics.md:2036` TRỎ SAI NGUỒN.** Nó ghi
   `**Covers:** UX-DR13 · AD-1`, nhưng UX-DR13 (`epics.md:523`) là *"Workspace là lưới 2×2 mặc
@@ -2536,14 +1726,6 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 ## Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)
 
 ### 🔴 ĐÃ ĐÓNG ở story này — hai món có chủ đích danh
-
-- ✅ **ĐÓNG — cổng Kiểm J của `check-commands.mjs`** *(mục `:2135-2139` ở trên)*. Gỡ **cả khối**:
-  bảng `TYPING_BANS`, sàn nội dung `data-segment-id`, và tiêu đề in ra — không để lại một cổng
-  xanh rỗng. **Bằng chứng thứ tự làm việc** *(vế "đúng lúc, không sớm hơn" của món nợ)*: đường
-  flush của AD-35 nghiệm thu xanh ở `src-tauri/tests/segment_contract.rs` — 8 ca mới, gồm lượt
-  round-trip *gõ → flush → nạp lại* và ca *lô mang một id lạ bị từ chối TRỌN* — **trước** khi dòng
-  `contenteditable` đầu tiên chạm `EditorPanel.vue`. Sàn nội dung không mồ côi: Kiểm I vẫn đọc
-  `editorVue.masked` và vẫn đối chiếu năm giá trị vạch hai chiều.
 
 - ✅ **ĐÓNG MỘT NỬA — `isTypingZone`, chiều thật sự chạm tới** *(mục `:180-182` ở trên)*. Vùng gõ
   Editor được nhận **đúng**, và nó có lưới: Kiểm D của `check-commands.mjs` nay lái nhánh
@@ -2696,83 +1878,10 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   e2e vế vùng gõ đều xanh)* nhưng **chưa gõ được bằng chuột trên macOS/WKWebView** — tức trên đúng
   nền tảng duy nhất dự án đang chạy. **AC8 không được đánh dấu đạt trọn vẹn.**
 
-- 🔴 **KÝ TỰ RANH GIỚI `⏐` CHIẾM CHỖ Ở MỌI CÂU CHƯA DỊCH, và nó đẩy chữ lệch dần** — Ice bắt
-  bằng mắt 2026-08-13 *(hai lần: *"chữ hiển thị lệch so với bản gốc"*, rồi *"chữ 'a' thụt vào"*)*.
-
-  **Đo được, 2026-08-13:** `.sent::after { content: '⏐'; opacity: 0 }` của UX-DR20 vẫn **chiếm
-  bề rộng** — `opacity` không gỡ chỗ, khác `display: none`. Mỗi câu **chưa dịch** *(một `<span>`
-  rỗng, nhưng `::after` của nó thì không rỗng)* đẩy văn bản phía sau sang phải **9,05 px**:
-
-  | | mép trái câu cuối |
-  |---|---|
-  | không câu rỗng xen giữa | **72,0 px** |
-  | **bốn** câu rỗng xen giữa | **108,2 px** |
-
-  ⇒ Một Chương **mới** có hàng chục câu chưa dịch liên tiếp, nên khoảng thụt cộng dồn tới hàng
-  trăm pixel — và nó **co lại dần** khi người dùng dịch xong từng câu, tức bố cục nhảy trong lúc
-  làm việc. Đây là lớp khuyết tật chỉ lộ ra ở Story 2.3, vì tới hết 2.2 **mọi** câu đều rỗng nên
-  không có gì để so lệch với.
-
-  ⚠️ **Chẩn đoán trước của Dev chỉ đúng MỘT NỬA** — lượt đầu đổ trọn cho focus ring của
-  `contenteditable`. Focus ring có thật và đã tắt, nhưng nó chỉ giải thích khung viền; **vệt
-  thụt** thì tới từ đây.
-
-  **Bản vá, MỘT dòng:** `.sent:empty::after { content: none }` — một câu rỗng không có chữ nào để
-  mà đánh dấu ranh giới. Nó giữ nguyên UX-DR20 cho mọi câu **có chữ**.
-  🔴 Nó **thu hẹp một quyết định UX (UX-DR20)** chứ không sửa một lỗi cài đặt — UX-DR20 nói `⏐`
-  đánh dấu **ranh giới câu**, và ranh giới giữa hai câu rỗng vẫn là một ranh giới — nên nó cần
-  một chữ ký.
-
-  → ✅ **ICE KÝ 2026-08-13, ĐÃ ÁP, ĐÃ ĐO trên cả hai engine:**
-
-  | | 0 câu rỗng | 4 câu rỗng | 40 câu rỗng | đẩy/câu |
-  |---|---|---|---|---|
-  | **trước** | 72,0 px | 108,2 px | **433,9 px** | **9,05 px** |
-  | **sau** | 72,0 px | 72,0 px | **72,0 px** | **0,00 px** |
-
-  *(Blink 151 và WebKit 26.5 cho **cùng** con số tới từng chữ số.)* Và `⏐` của câu **có chữ** đọc
-  lại vẫn là `"⏐"` — mệnh đề *"chỉ thu hẹp cho câu rỗng"* được kiểm ở chính lượt đo đó.
-  ⚠️ Con số 433,9 px cho 40 câu **lớn hơn nửa bề rộng panel** — nặng hơn hẳn ước lượng ban đầu.
-
-  **Phép đo này nay SỐNG:** `2-3-ban-do-vung-go.html` tự dựng hai dòng văn tạm rồi in
-  `Câu chưa dịch đẩy chữ: … px/câu — phải là 0,00` ở mỗi lượt chạy bàn đo. `happy-dom` **không**
-  giữ được mệnh đề này *(nó không có bố cục)*, nên đây là đường nghiệm thu đúng của nó (AC25).
-
-- ⚠️ **Vế *"đóng app → mở lại → chữ còn đó"* của Task 7.2 KHÔNG chạm tới được, và không vì bộ đo
-  thiếu sức: KHÔNG tồn tại đường mở lại một `.atproj`.** `OpenWorkState` khởi tạo `None` mỗi lượt
-  chạy, và cách duy nhất một Tác phẩm được mở là **tạo mới** nó. Màn hình mở lại thuộc **Epic 5**.
-  Vế *"chữ còn đó sau khi nạp lại"* nghiệm thu ở
-  `segment_contract.rs::typed_text_round_trips_through_the_flush_and_the_load_command` — ghi rồi
-  đọc lại qua đúng hai lệnh IPC của sản phẩm. **Chủ: Epic 5** *(nhặt lại cùng lượt dựng đường mở
-  lại một Tác phẩm)*.
-  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` (vỏ IPC
-  `library.open_work`) là đường mở lại một `.atproj` đã có trên đĩa mà mục này chờ — vế
-  "cách duy nhất mở một Tác phẩm là tạo mới nó" đã hết đúng. Đóng trọn cả hai vế của Task
-  7.2: "mở lại" (hàm `open_work`, ca
-  `project_contract.rs::opening_an_existing_atproj_resolves_with_work_scope_and_keeps_glossary_data`
-  dựng một `.atproj` thật trên đĩa, đóng `Store`, rồi mở lại qua đúng đường sản phẩm) VÀ
-  "chữ còn đó" (ca đó ghi một hàng `glossary_entry` trước khi đóng rồi đọc lại được nguyên
-  vẹn sau khi mở lại — cùng cơ chế SQLite/WAL mà `typed_text_round_trips_...` đã canh cho
-  `target_text`, nay canh cho toàn bộ `project.db`, không riêng một bảng).
-
 - ⚠️ **`panic = "abort"` khiến một lần thoát CỨNG không đi qua đường flush lúc thoát** — món nợ
   **kế thừa** từ `close_global_store`/`close_open_work`, story này **không** đóng nó.
   `wire_exit_flush` phủ lượt đóng **bình thường** *(`WindowEvent::CloseRequested`)*, và đó là thao
   tác người dùng chắc chắn nhất trong danh sách của AC3. **Chủ: cùng chủ với món gốc.**
-
-- ⚠️ **Vế *"xác nhận segment"* của AC3 chưa có đường nào chạm tới** — nó cần cột `segment.status`
-  và một máy trạng thái, cả hai thuộc **Story 2.5**. AC3 vì thế **không** được đánh dấu đạt trọn
-  vẹn ở story này. Ba đường còn lại *(nhịp 2 s · rời segment · đóng Tác phẩm)* và vế thoát ứng
-  dụng thì có. **Chủ: Story 2.5.**
-  → ✅ **ĐÃ ĐÓNG 2026-08-14 (Story 2.5).** Cách đóng: `editorPanelState.ts::confirmCurrentSegment`
-  **`await flushEditorNow()` TRƯỚC** rồi mới `invoke('confirm_segment')`, và một lượt flush trượt
-  ⇒ **DỪNG**, không xác nhận *(ký một câu mà lượt lưu vừa trượt là ghi chữ ký cho một văn bản không
-  tồn tại trên đĩa)*. Lưới: `tests/frontend/editorConfirmSegment.test.ts` §① — đảo hai dòng đó làm
-  hai ca ĐỎ *(đã chạy 2026-08-14)*.
-  ⚠️ **GIỚI HẠN THẬT:** mệnh đề này **không** cưỡng chế được ở tầng Rust — `confirm_segment` chỉ
-  đọc thứ đã ở trên đĩa và không biết gì về văn bản đang gõ. Một bề mặt tương lai `invoke` thẳng
-  lệnh đó sẽ đi vòng qua cả hàm lẫn ca test mà **không cổng nào đỏ**. Ghi ở doc-comment của
-  `wire::confirm_segment` và của `config/segment.ts::confirmSegment`.
 
 - ⚠️ **Lệch `32px` / `34px` của chiều cao thanh trạng thái.** `tokens.json:480` và
   `DESIGN.md:283`/`:316` ghi **34px**; `DESIGN.md:132` còn một khối bảng cũ ghi `32px`, và mockup
@@ -2953,21 +2062,6 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 
 ## Deferred from: Sprint Change Proposal 2026-08-13 (FR21 thu hẹp)
 
-- 🔵 **AC23 của Story 2.3 ĐỔI TỪ MỘT PHÉP ĐO THÀNH MỘT MỆNH ĐỀ.** AC23 hỏi *"Auto-Lookup còn
-  chạy trên bề mặt Editor không?"* và đo ra **còn chạy**, đóng theo nhánh hợp lệ. Nó **không
-  bao giờ hỏi "có NÊN chạy không?"** — Ice đặt câu hỏi đó ngày 2026-08-13 và trả lời:
-  **không**, vì bề mặt Editor chứa tiếng Việt đã dịch còn từ điển nhúng là zh→vi / en→vi, nên
-  một lượt tra ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả vừa tra từ Panel
-  Source. Phép đo cũ **không sai**; nó không phủ câu hỏi này.
-  ⇒ AC23 nay đọc: *"Editor KHÔNG phát lượt tra từ điển"*. Nghiệm thu: `EditorPanel.vue` +
-  `AiTranslationPanel.vue` mang vai `'display'` · `tests/frontend/editorAutoLookup.test.ts`
-  (đã đảo, **kèm một ca đối chứng dương**) · `check-commands.mjs` Kiểm F ③.
-  **Không món nợ nào mở ra từ mục này** — ghi để retro Epic 2 thấy được vì sao một AC đã đóng
-  lại đổi nghĩa. Chi tiết: `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — mục tự khai "Không món nợ nào mở ra từ mục này": đây là
-  một ghi chú lịch sử giải thích vì sao AC23 đổi nghĩa, không phải một việc chờ làm. Không có
-  chủ vì không có việc để giao chủ.
-
 - ⚠️ **Chủ: Story 3.3 (FR48) và Story 7.7 (FR60) — điều kiện khởi hành.** Vai `'display'` của
   `AiTranslationPanel.vue` / `EditorPanel.vue` tắt **đúng một** đường: `currentSelectionText()`,
   tức tra từ điển. Nó **KHÔNG** tắt việc bề mặt được đăng ký. Hai story trên đọc vùng chọn ở
@@ -2996,7 +2090,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   Windows.
   → 🟡 **ĐÓNG MỘT NỬA 2026-08-13.** Ice chạy tay và báo **pass** cả ba mệnh đề ① ② ③ trên
   `tauri dev` thật. **Nửa còn HỞ: Windows/WebView2 — chưa chạy một lần nào.** Không làm tròn
-  lên ✅: `EXPERIENCE.md`/`deferred-work.md:145` đã ghi tên đúng lỗi *"nghiệm thu trên một
+  lên ✅: `EXPERIENCE.md`/`deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` đã ghi tên đúng lỗi *"nghiệm thu trên một
   engine rồi viết «tương đương»"*, và lượt sửa này chạm **vùng chọn trong `contenteditable`**
   — đúng một trong hai chỗ có tiền sử lệch engine mà Story 2.3 §9 gọi đích danh. Nửa Windows
   nhập vào lượt rà hai nền tảng cuối dự án *(Ice chốt 2026-08-12: trọn phần Windows dời về
@@ -3041,37 +2135,6 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 
 ## Deferred from: 2-5-xac-nhan-segment-va-may-trang-thai (2026-08-14)
 
-- 🔴 **Hợp âm `⌘↵` (`Mod+Enter`) SẼ xung đột với lệnh *"xác nhận nhập"* của Epic 6.**
-  Story 2.5 đăng ký `editor.confirm_segment` với `Mod+Enter` — hôm nay hợp âm đó **chưa ai
-  chiếm**, và `EXPERIENCE.md:169` đã hẹn đúng `⌘↵` cho *"xác nhận nhập"* ở màn xem trước của
-  đường nhập. Hai thao tác **cùng ngữ nghĩa "ký duyệt"**, khác bề mặt.
-  ⚠️ `check:commands` kiểm trùng hợp âm **trên TOÀN BỘ registry, không theo chế độ**. Ngày Epic 6
-  đăng ký lệnh kia cũng bằng `⌘↵`, cổng sẽ **ĐỎ** và một trong hai phải nhường. Ghi ở đây để nó
-  **không lộ ra dưới dạng một cổng đỏ không ai hiểu**. Ba đường sẽ có lúc đó: đổi hợp âm của lệnh
-  nhập · đổi hợp âm của lệnh xác nhận · hoặc dựng khái niệm *"hợp âm theo chế độ"* trong registry
-  *(lượt đắt nhất, và nó chạm AD-34)*. **Chủ: Story 6.2.**
-  🔵 **SỬA 2026-09-04 (Story 6.2, đo được) — "Chủ: Story 6.2" ở trên HẾT ĐÚNG.** Story 6.2
-  (pipeline nhập bảy bước, `core/segment/pipeline.rs`) đăng ký **0** lệnh và **0** hợp âm vào
-  `CommandRegistry` — nó không chạm bề mặt UI nào (§Never của spec 6.2: "Không đăng ký lệnh
-  hay hợp âm nào vào `CommandRegistry`", và `npm run check:commands` xanh trên story này đúng
-  vì không có gì để đỏ). Nó vì thế KHÔNG phải chỗ hai hợp âm `⌘↵` thật sự VA nhau. ⇒ **Chủ
-  mới: Story 6.5** (đóng số cụ thể, vòng rà đối kháng 2026-09-04, item 18 — "chưa xác định
-  số" không tra được vào `sprint-status.yaml`). `epic-6-context.md` §UX & Interaction
-  Patterns khai đích danh `⌘↵` là phím "xác nhận toàn bộ" của MÀN XEM TRƯỚC, và cùng sổ này
-  (mục "Deferred from: 6-2-…", dưới) đã giao "Màn xem trước luôn hiện kết quả sau TOÀN BỘ
-  chuỗi" cho ĐÚNG Story 6.5 — hai mệnh đề cùng một bề mặt, cùng một chủ. Nếu Story 6.5 dựng
-  xong màn xem trước mà QUYẾT ĐỊNH đặt lệnh xác nhận ở một story con khác trong dải 6.5-6.9,
-  người đóng mục này nối tiếp một dòng `→` nêu rõ, không đổi số ở đây bằng cách xoá.
-  → ✅ ĐÃ ĐÓNG 2026-09-05 (Story 6.5) — đo, không suy luận. `grep -n "keys:" src/commands/index.ts`
-  cho thấy `import.preview.confirm` (`:1075-1081`) đã đăng ký `Mod+Alt+Enter`, KHÔNG
-  `Mod+Enter` — Story 6.3 đã làm việc này, trước cả lượt của Story 6.5. Story 6.5 (luật làm
-  sạch, tầng 3 của màn xem trước) đăng ký **0** lệnh và **0** hợp âm mới vào `CommandRegistry`
-  (bốn thao tác thêm/sửa/xoá/bật-tắt luật đi qua `<form @submit.prevent>`/`<form
-  @reset.prevent>`, không phải qua bàn phím toàn cục) — `npm run check:commands` xanh, số
-  `@click` không đổi (101, như trước lượt này). ⇒ Va chạm `⌘↵` không xảy ra ở đây, và Story
-  6.5 không phải chủ thật của nó. Mục nợ hết hiệu lực — không còn ai đăng ký `⌘↵` cho "xác
-  nhận nhập" để mà va với `editor.confirm_segment`.
-
 - ⚠️ **AD-35 vế (c) — *"xác nhận ⇒ flush trước"* — KHÔNG cưỡng chế được ở tầng Rust.**
   `commands::segment::wire::confirm_segment` chỉ đọc thứ **đã ở trên đĩa**; nó không biết gì về
   văn bản đang gõ trong webview. Thứ tự *flush → confirm* vì thế sống ở
@@ -3081,10 +2144,6 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   người dùng đang nhìn, và **không cổng nào đỏ**. Lời giải nếu ngày đó tới: một cổng tĩnh cấm
   `invoke('confirm_segment')` ngoài `src/config/segment.ts` — cùng khuôn `no-restricted-syntax` đã
   dùng cho `.click()` trong `e2e/**`. **Chủ: story nào dựng bề mặt xác nhận thứ hai.**
-
-- ⚠️ **Từ 8 LÀN trở lên, máng vạch lề 22px hết chỗ** — xem mục đầy đủ ở §Deferred from 2-2, ngay
-  dưới hàng *"hai câu cùng một dòng"* vừa đóng. **Chủ: Ice.**
-  → ✅ **ĐÃ ĐÓNG 2026-08-15 (Story 2.5b) — biến mất theo cấu trúc.** Lý do đầy đủ ở mục gốc.
 
 - 🔴 **`browser.keys()` ĐÁNH RƠI `Meta` đúng ở phím `Enter`, và CHỈ ở đó — giới hạn của BỘ ĐO.**
   Đo 2026-08-14 trong chính cửa sổ e2e, listener `keydown` pha capture trên `window`, một lượt chạy:
@@ -3120,44 +2179,6 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   ký và mệnh đề đã viết vào doc-comment của `resolveSegmentRule` cùng một ca vitest, nhưng **tài
   liệu quy hoạch chưa được sửa** — sửa một tài liệu tầng nguyên tắc là một lượt riêng của Ice, dev
   không sửa `EXPERIENCE.md`/`epics.md`. **Chủ: Ice.**
-
-- ⚠️ **Bảng `segment_version` KHÔNG có index, và đó là một quyết định chứ không một lượt quên.**
-  Story 2.5 **chỉ ghi**, không đọc — không đường sản phẩm nào truy vấn bảng đó ở story này, nên
-  một index ở đây là tối ưu cho một đường đọc **chưa ai đo**. Cùng luật mà `SEGMENT_TARGET_TEXT_DDL`
-  đã ghi cho `target_text`. Story 2.6 mang đường đọc *(lịch sử theo `segment_id`, sắp theo thời
-  điểm)*, nên nó mang index **cùng lượt** — đúng cách bước 5 mang `idx_segment_chapter_ord` cùng
-  lúc với đường đọc cần nó. **Chủ: Story 2.6.**
-  → ✅ **ĐÃ ĐÓNG 2026-08-16 (Story 2.6).** Bước di trú **10** mang
-  `CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC)`
-  — Quyết định #7 đường (a), Ice ký. Index tới **cùng lượt** với đường đọc biện minh cho nó
-  (`commands/segment.rs::read_segment_history`), đúng như món nợ này đòi.
-  🔴 Và nó tới bằng một **bước mới** chứ không bằng một dòng thêm vào hằng của bước 7: một
-  `project.db` đã ở v7 không bao giờ chạy lại hằng đó, nên sửa tại chỗ cho ra **hai lược đồ
-  khác nhau mang cùng số 7** — vết sẹo số 4 ở một hình dạng êm hơn *(vết sẹo cũ ít nhất còn làm
-  `Store::open` từ chối; lượt này thì im lặng)*.
-  Hai ca hợp đồng đứng canh, cả hai đã chạy đỏ-rồi-xanh trên hai đòn bẩy *(đổi tên index · đổi
-  chỗ hai cột)*. ⚠️ Ca hình dạng đọc `pragma_index_info` chứ **không** so chuỗi DDL — đo được:
-  một index sai thứ tự cột vẫn chứa cả `ON SEGMENT_VERSION` lẫn `CREATED_AT DESC`, nên một phép
-  `contains()` sẽ **xanh trên đúng thứ nó tồn tại để bắt**.
-
-- ⚠️ **`updated_at` của `segment` KHÔNG đổi ở lượt xác nhận.** Cột đó mang nghĩa *"mốc sửa **văn
-  bản**"* — nó do `save_segment_targets` sinh, và `SEGMENT_DDL` phân biệt nó với `created_at`
-  (*"mốc TẠO, không phải mốc sửa"*). Một lượt ký không sửa một ký tự nào, và thời điểm ký có chỗ
-  ghi riêng chính xác hơn: `segment_version.created_at`. ⚠️ Ghi ra vì **Story 2.6 sẽ đọc cả hai
-  mốc** và phải biết chúng nói hai chuyện khác nhau. **Chủ: Story 2.6** *(xác nhận lại mệnh đề này
-  khi dựng màn hình lịch sử)*.
-  → ✅ **ĐÃ ĐÓNG 2026-08-16 (Story 2.6).** Mệnh đề **đã xác nhận lại bằng cách đọc mã**, không
-  chép: câu ghi của `confirm_segment` là `UPDATE segment SET status = ?1 WHERE id = ?2` —
-  **không** có `updated_at`. ⇒ *"một lượt ký không sửa một ký tự nào nên nó không đụng
-  `updated_at`"* vẫn đúng nguyên văn.
-  Màn hình lịch sử đọc `segment_version.created_at`, và mệnh đề được ghi vào doc-comment của
-  chính đường đọc kèm hệ quả đo được của việc dùng nhầm: `updated_at` sẽ cho một danh sách mà
-  **mọi hàng mang cùng một mốc**, và mốc đó là lần gõ cuối chứ không phải lần ký.
-  🔵 **Một vế MỚI mà món nợ gốc chưa nói tới, phát hiện lúc dựng đường ghi:** lượt **khôi phục**
-  thì **CÓ** đụng `updated_at`, và nó phải đụng — khôi phục **sửa văn bản thật**, nên nó rơi
-  đúng vào nghĩa *"mốc sửa văn bản"* mà `SEGMENT_DDL` khai cho cột đó. Hai lệnh ghi, hai hành vi
-  ngược nhau trên cùng một cột, và cả hai đều đúng: `confirm_segment` **không** đụng vì nó không
-  sửa chữ; `restore_segment_version` **có** đụng vì nó sửa.
 
 - 🔴 **Story 2.5 phá một giả định hiệu năng của cả Epic 2 — đã ĐO và đã VÁ trong story, ghi lại
   vì nó đổi cách đọc mọi số cũ.** Tới hết Story 2.3, `wanted` của `measureGutterRules` có **nhiều
@@ -3334,39 +2355,6 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 2.5b.**
 
-- ⚠️ **`editorGutter.ts` (273 dòng, 31 chỗ nhắc "làn") và `tests/frontend/editorGutterLanes.test.ts`
-  (140 dòng) mất lý do tồn tại — KHÔNG xoá im lặng.**
-
-  Làn ngang tồn tại **chỉ vì** nhiều câu chung một dòng thị giác nên các vạch phải xếp thành làn.
-  Trong lưới, **một câu một vạch** ⇒ bài toán xếp làn biến mất.
-
-  ⚠️ Nhưng `assignGutterLanes` mang một **phép đo thật** *(bản đầu O(n²) = 254–482 ms trên 9.850
-  vạch ⇒ quét đường 4–8 ms)*. Gỡ nó là gỡ luôn bằng chứng đó. ⇒ Story 2.5b phải **nói rõ nó gỡ
-  cái gì và vì sao**, và giữ lại phép đo trong sổ nếu còn có ai cần so sánh.
-
-  **Chủ: Story 2.5b.**
-
-  → ✅ **ĐÃ GỠ 2026-08-15, và BẰNG CHỨNG Ở LẠI ĐÂY** *(Quyết định #4 đường (a), Ice ký)*.
-  Gỡ `src/panels/editorGutter.ts` *(273 dòng)* và `tests/frontend/editorGutterLanes.test.ts`.
-
-  **Phép đo được chép nguyên vào sổ trước khi mã rời cây nguồn** — đây là toàn bộ lý do đường
-  (a) được chọn thay vì `@deprecated`:
-
-  | `assignGutterLanes`, 9.850 vạch | Ba lượt |
-  |---|---|
-  | bản đầu, **O(n²)** | **482,4 / 254,5 / 261,6 ms** |
-  | quét đường *(tô màu đồ thị khoảng)* | **8,3 / 5,2 / 4,3 ms** |
-
-  *(2026-08-14, Node 22.22.2, macOS 15.6.)*
-
-  🔴 **Lý do gỡ, viết ra:** bài toán *"nhiều câu trên cùng một dòng ⇒ vạch chồng nhau"* **biến
-  mất theo cấu trúc** khi một câu là một hàng. Mã giải một bài toán không còn tồn tại là mã sẽ
-  bị story sau đọc nhầm thành *"chỗ này có một vấn đề chưa xong"*.
-  ⚠️ Bằng chứng thuộc về **sổ**, không thuộc cây nguồn — nên nó ở đây, đầy đủ, thay vì trong một
-  tệp `@deprecated` không ai chạy.
-  ⚠️ `FILE_FLOOR`/`TS_FLOOR` đã **đếm lại** cùng lượt: quần thể `src/**` **không đổi** *(gỡ ba
-  tệp, thêm ba)*, `.ts` đi từ 36 lên **37**. Sàn giữ nguyên và vẫn trong dải ~81–85 %.
-
 - ⚠️ **Ngưỡng bố cục màn hình hẹp nay phải hiệu chỉnh cho HAI bố cục, không phải một.**
 
   UX-DR15 giữ **nguyên bốn con số** và **nguyên thứ tự hy sinh** — cả hai không đổi một chữ.
@@ -3418,44 +2406,6 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 1.22** *(bộ chạy e2e trong webview thật — cùng chủ với ba giới hạn đã ghi ở
   `wdio.conf.mjs`)*.
-
-- 🔴 **`Backspace` ở offset 0 KHÔNG phát `beforeinput` trên WebKit — tiền đề của Story 2.9 đã
-  LẬT.** *(Đo 2026-08-14, Story 2.5b Task 1.2/1.3.)*
-
-  Quyết định #3 của Story 2.5b viết ra bằng chữ: *"`Backspace` ở offset 0 sinh một `beforeinput`
-  `deleteContentBackward` **bắt được** ⇒ Story 2.9 có tiền đề"*. Phép đo bác vế đó trên WebKit.
-
-  | Engine | đầu một ô **CÓ CHỮ** | một ô **đã rỗng** |
-  |---|---|---|
-  | WKWebView 605.1.15 *(`execCommand('delete')`)* | **0** `beforeinput` | **0** `beforeinput` |
-  | Playwright-WebKit *(phím **vật lý**)* | **0** `beforeinput` | **0** `beforeinput` |
-  | Blink *(phím **vật lý**)* | `deleteContentBackward`, **huỷ được** | `deleteContentBackward`, **huỷ được** |
-
-  Caret đã xác nhận đúng chỗ ở cả ba (`type = "Caret"`, neo nằm trong ô), nên đây **không** phải
-  một lượt đo hỏng: WebKit đơn giản **không phát sự kiện cho một lượt xoá không có gì để xoá**.
-
-  ⇒ Story 2.9 *(`Backspace` đầu ô = gộp với câu trên, UX-DR32)* **không** cài được ở
-  `beforeinput` trên macOS. Đường còn lại là `keydown`, và nó **bắt buộc** mang chốt
-  `event.isComposing` **trước mọi nhánh khác** — cùng dòng và cùng lý do `EditorPanel.vue:841`
-  (*"một lượt commit composition của bộ gõ tiếng Việt phát `keydown` mang code vật lý; ăn nó là
-  ăn mất chữ"*).
-
-  ⚠️ 2.5b **không** bị chặn bởi món này — nó chỉ được giao dựng **tiền đề cấu trúc** *(mỗi ô là
-  một editing host riêng)*, và tiền đề đó đứng. Cái lật là **đường bắt sự kiện**, không phải
-  hình dạng DOM.
-
-  **Chủ: Story 2.9.**
-
-  → ✅ **ĐÃ ĐÓNG 2026-08-17 (Story 2.9).** Nhánh cắm ở `keydown` (`GridPanel.vue::onEditKeydown`),
-  **sau** chốt `event.isComposing` và không chạm một dòng nào của nó. Tiền đề đo lại từ nguồn
-  trên cây hôm nay, **có đối chứng dương** — thứ bảng ở trên thiếu: `2-9-ban-do/` §Ⓓ chạy
-  `execCommand('delete')` hai lượt trên **cùng một ô**, caret ở offset 0 và caret ở offset 3.
-  Offset 0 cho **0** `beforeinput` / **0** `input` / `textContent` không đổi; offset 3 cho
-  `["deleteContentBackward"]` ở cả hai sự kiện và `"bốn năm sáu"` → `"bố năm sáu"`.
-  ⇒ Thước hoạt động, và con số ở offset 0 là mệnh đề về **engine**, không về bàn đo.
-  🔴 **Một chi tiết mới, đáng ghi riêng:** `execCommand('delete')` trả **`true`** trong khi
-  KHÔNG làm gì. Giá trị trả về của nó nói *"lệnh được nhận"*, không *"lệnh có tác dụng"* — ai
-  đọc nó thành *"đã xoá"* sẽ có một lượt thành công không có thật.
 
 - 🔴 **CÚ BẤM ĐẦU TIÊN VÀO MỘT PANEL GIẾT CARET VỪA ĐẶT — hợp đồng tiêu điểm AD-34 va vào
   hợp đồng vùng gõ.** *(Đo 2026-08-15, Story 2.5b Task 12.2, trong WKWebView 605.1.15 thật.)*
@@ -3862,32 +2812,6 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
 định câu đã cắt bỏ không xuất hiện. Đó là **cái chốt**, không phải bề mặt.
 
 ⇒ Vế còn hở là **hai lượt CẮM VÀO chốt đó**: **(Chủ: Epic 5.)**
-- Chế độ đọc → **Epic 5** *(Story 5.11 · 5.12 · 5.13)*
-  → ✅ **ĐÃ ĐÓNG 2026-08-30 (Story 5.11).** `core::segment::reading::paragraphs_in_translation`
-  gọi lại `omit::segments_in_translation` rồi cắt đoạn; `read_reading_chapter` đưa kết quả ra
-  dây (🔵 **SỬA 2026-08-30, Story 5.12** — hàm này đã ĐỔI TÊN thành `read_reading_run`, xem mục
-  ngay dưới; câu ở đây giữ nguyên vì nó mô tả đúng trạng thái tại NGÀY đóng); `ReadingMode.vue`
-  render — câu đã cắt bỏ vắng mặt hoàn toàn, không `[…]`, không chỗ trống (AC đầu tiên của
-  story, nghiệm thu bằng `segment_contract.rs` + `readingState.test.ts` ca "gỡ vế lọc ở
-  fixture"). Đánh dấu "cần sửa" (FR119) và đọc liên tục xuyên Chương (FR120) KHÔNG thuộc vế
-  này — hai món đó có chủ riêng: **Story 5.12 · 5.13**.
-  → ✅ **ĐÃ ĐÓNG 2026-08-30 (Story 5.12), vế FR120.** Bề mặt đọc đổi từ MỘT Chương
-  (`read_reading_chapter`) thành MỘT LƯỢT ĐỌC (`read_reading_run` → `ReadingRun`): Rust chọn
-  dãy Chương liên tiếp ở `LifecycleStatus::from_wire(...) == Some(Done)` bắt đầu TẠI Chương
-  đang mở, trả kèm `ReadingFrontier` nói vì sao dãy dừng ở đó (`next-not-done` kèm Chương chặn
-  và nhãn trạng thái, hoặc `end-of-work`). Chương chưa `done` không rời `project.db` — cùng kỷ
-  luật `is_omitted`. Nghiệm thu: `segment_contract.rs` (khối "STORY 5.12", phủ trọn §I/O
-  Matrix) · `ipc_contract.rs` (khoá dây + hai chuỗi biến thể đóng băng) ·
-  `tests/frontend/readingFrontier.test.ts` + `readingUnconfirmed.test.ts` (mới) ·
-  `e2e/specs/story-5-12-reading-frontier.e2e.mjs` (mới, chạy tay). Đánh dấu "cần sửa" (FR119)
-  VẪN có chủ riêng: **Story 5.13**.
-  → ✅ **ĐÃ ĐÓNG 2026-08-31 (Story 5.13), vế FR119.** `reading_mark` sống trong
-  `project.db`, giữ `segment_id` gốc và `navigation_segment_id` sống; `M` ghi idempotent ngay
-  trong Chế độ đọc, danh sách chỉ đọc Work đang mở và mở đúng segment. `write_regroup` rebase
-  neo trong cùng transaction qua cả gộp rồi tách, nhưng không xoá danh tính marker đã về hưu.
-  Nghiệm thu: `segment_contract.rs` (idempotence · no-work/unknown · cách ly Work/Chương ·
-  rollback · regroup lặp) · `tests/frontend/readingMarks.test.ts` ·
-  `e2e/specs/story-5-13-reading-marks.e2e.mjs` (WKWebView 605.1.15, xanh 1/1 ngày 2026-08-31).
 - Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
 
 ### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
@@ -4218,19 +3142,6 @@ mục nào mồ côi.
   **không** sửa mockup và **không** sửa `epics.md` — sửa một tài liệu tầng quy hoạch là một lượt
   riêng của Ice. **Chủ: Ice.**
 
-- ⚠️ **Bẫy đo: một phép `grep` tiền đề có thể tự bắt chính câu nói về nó.**
-  Task 0.6 của Story 2.6 đòi đo lại `grep "merge_segment" src-tauri/src`. Kết quả thô là **1**,
-  không phải 0 — và dòng khớp duy nhất là `core/segment/paragraph.rs:10`, một **doc-comment** viết
-  nguyên văn *"`grep …` trên `src-tauri/src/**` cho **0**"*. Số thật vẫn là **0 đường mã**, nhưng
-  một lượt đọc số thô kết luận ngược, và kết luận ngược đó chặn đúng một quyết định (#8).
-  ⇒ Luật rút ra, áp cho mọi lượt đo tiền đề về sau: **đọc NỘI DUNG dòng khớp, đừng đếm.** Kho này
-  ghi kết quả đo vào chú thích rất dày *(đó là văn hoá có chủ ý)*, nên lớp bẫy này sẽ **gặp lại**.
-  Không có cổng nào canh được nó. **Chủ: không ai — đây là một luật đọc, ghi ra để người sau khỏi
-  vấp lại.**
-  → KHÔNG LÀM 2026-08-19 (Story 2.13) — mục tự khai "Chủ: không ai — đây là một luật đọc": không
-  có cổng nào canh được nó và không có việc để giao chủ, đúng bản chất một bài học ghi lại, không
-  một việc chờ làm.
-
 - ⚠️ **Ca `toISOString()` của `historyTimeLabel` RỖNG NGHĨA trên CI, và CI là nơi duy nhất chạy
   tự động.** Story 2.6 dựng quy ước định dạng thời gian đầu tiên của kho
   (`src/panels/segmentHistoryTime.ts`), và phép so ngày của nó phải đọc theo **giờ địa phương**
@@ -4536,17 +3447,6 @@ mục nào mồ côi.
   chiều là đúng thứ một story sau sẽ đọc nhầm. **Chủ: Ice** *(một dòng trong AD-5, hoặc một mục
   của AD kế tiếp chạm segment)*.
 
-- ✅ **~~Lưới phình theo số lần sửa, VĨNH VIỄN~~ → ĐÃ ĐÓNG 2026-08-17 (Story 2.8), bằng một
-  lượt DÙNG THẬT.** Chữ ký #6(b) giữ hàng về hưu **ở lại trong lưới** với vạch `ornament`, và
-  món nợ này ghi đúng cái giá của nó. Ice **lật** chữ ký ấy cùng ngày, sau khi dùng: *"đã tách
-  ra 2 câu, nhưng câu cũ vẫn tồn tại và số thứ tự vẫn chiếm, gây rối nội dung"*.
-  ⇒ Đóng bằng `WHERE retired_at IS NULL` ở `read_open_chapter_segments` + `applyRegroup` gỡ
-  hàng về hưu khỏi ảnh chụp. **Lọc khỏi LƯỚI, không xoá khỏi ĐĨA** — AC4 còn nguyên, và một ca
-  hợp đồng khoá cả hai vế (lưới 3 → 2, đĩa 3 → 4).
-  🔴 **Bài học giữ lại, vì nó rộng hơn món nợ:** cái giá này **đã được viết ra bằng chữ TRƯỚC
-  KHI KÝ** và vẫn không đủ để thấy. Ba lý lẽ đứng sau #6(b) đều **vẫn đúng** hôm nay; cả ba
-  cộng lại thua một lượt người thật nhìn vào một Chương thật.
-
 - 🟡 **Nhánh `'ornament'` của `resolveSegmentRule` KHÔNG CÒN ĐƯỜNG TỚI** — hệ quả trực tiếp của
   lượt lật ngay trên. Nó **không** bị gỡ, và đó là một lựa chọn có lý do: `ornament` *"mờ đã về
   hưu"* là **một trong sáu** giá trị vạch mà UX-DR19 (`epics.md:555`) khai, nên gỡ nó khỏi mã
@@ -4834,55 +3734,6 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   hở vào ngày có cử chỉ chuột thứ hai cần `Mod`. **Chủ: story đầu tiên thêm một cử chỉ chuột có
   phím bổ trợ.**
 
-- 🔴 **Bàn đo của chính Story 2.9 mang một khuyết tật đã vá, và bài học đáng giữ hơn bản vá:**
-  `waitForExist('[data-col="src"]')` **không phân biệt** *"Chương mới đã nạp"* với *"Chương CŨ
-  còn nằm đó"*. Ca đầu của spec gộp 3 hàng thành 2; ca sau dựng một Tác phẩm mới, đọc ngay và
-  thấy **2** — một lượt đỏ nói về **bàn đo** chứ không về sản phẩm *(nguyên văn: `Expected: 3,
-  Received: 2`)*. Đã vá bằng `doiLuoiCo(n)` — chờ **số hàng mong đợi**, không chờ "tồn tại".
-  ⚠️ Vá này chỉ đóng cho **spec của 2.9**. Khuôn `waitForExist` rồi đọc ngay còn nguyên ở các
-  spec khác, và nó là một **ứng viên chưa ai xét** cho món *"bộ e2e chập chờn"*.
-  **Chủ: story hạ tầng e2e.**
-  → ✅ **ĐÃ ĐÓNG 2026-08-18 (Story 2.12 · AC3).** Khuôn rút thành `e2e/support/gridWait.mjs`
-  (`waitForGridRows` + `waitForGridText`), và **bốn** chỗ còn lại đã chuyển: `segment-merge-split`
-  ×3 · `grid-empty-cell` · `editor-typing-flush` · cộng hai khuôn tự vá (`doiLuoiCo` của
-  `segment-backspace-merge`, `doiChuong` của `segment-navigation`) nay đi qua helper chung.
-  ⚠️ Bốn lượt `waitForExist` **CỐ Ý ở lại** — `attribution-focus:82` · `shortcuts-focus:43,70` ·
-  `shortcuts-capture-mouse:61`: ở đó *"phần tử tồn tại"* **chính là** mệnh đề đang kiểm (panel mở
-  hay đóng), không một tiền đề cần chờ. Chuyển chúng là đổi thứ ca đang đo.
-  🔴 Và helper mang một ranh giới viết thẳng vào doc-comment: gọi nó với con số của **đầu vào
-  fixture**, đừng bao giờ gọi nó với con số mà ca sắp `expect` — nếu không thì phép chờ nuốt chính
-  phép kiểm. Một `expect(truoc.soHang).toBe(3)` đã thành vô nghĩa vì thế và **bị gỡ**, không giữ lại
-  làm một dòng xanh không bao giờ đỏ được.
-  🔵 **ĐÍNH CHÍNH 2026-08-19 — hai mệnh đề của lượt đóng hôm qua đã hết đúng, sửa tại chỗ.**
-  ⓵ **Câu *"chín lượt `reload()` là vá của BÀN ĐO"* SAI MỘT NỬA** — và cả ba tài liệu đều chép
-  cùng cái sai đó *(hồ sơ story · mục này · `wdio.conf.mjs`)*. `reload()` dựng lại webview ⇒ chạy
-  lại `main.ts` ⇒ `GridPanel.vue::onMounted` ⇒ `ensureChapterLoaded()`. Nó mang **HAI** vai: dọn
-  state **và** phát một lượt nạp. Bản vá hôm qua chỉ thay vai thứ nhất ⇒ lượt trọn bộ **thứ mười**
-  cho **5 passed / 6 failed** *(xấu hơn mốc 8/3)*, `Lần đọc cuối: 0` ở mọi ca — lưới **không bao
-  giờ nạp**. ⇒ Đúng khuôn *"chữ ký thi hành đúng MỘT NỬA"*, **lần thứ sáu** của Epic 2. Và
-  `libraryImport.ts:173` đã viết sẵn câu trả lời từ 2026-08-07: *"VỨT state cũ là CHƯA ĐỦ — phải
-  NẠP LẠI ngay tại đây"*.
-  ⓶ **Bản vá thật:** `support/panelReset.mjs` nay soi **cả hai** nửa của `finishSubmit` *(năm hàm
-  `reset*` → đọc lưới phải rỗng → `ensureChapterLoaded()` + `ensureSegmentsLoaded()`)*, và nó chuyển
-  về **SAU** lượt tạo Tác phẩm — đúng chỗ `finishSubmit` chạy, tức sau khi `replace_open_work` đã
-  trỏ `OpenWorkState` sang Tác phẩm mới. Nghiệm thu: lượt trọn bộ **thứ mười hai** = **11/11 xanh**.
-  🔴 ⇒ Và quyết định #5 phải đọc lại kèm dòng này: đường (a) bị loại vì *"giết cả webview state"* —
-  lý do vẫn đúng, nhưng lúc ký **không ai biết** thứ nó "giết" bao gồm một vế **bắt buộc**.
-
-- 🔴 **HỎNG DỮ LIỆU IM LẶNG ở tab Hán Việt — TÌM RA và ĐÃ VÁ cùng ngày (Story 2.9, AC9).**
-  Ice báo *"chưa thấy điểm cắt, và chưa cắt được"*; bàn đo cho một bảng nặng hơn hẳn triệu
-  chứng. Trên `京都春風。` (**5 ký tự**), `sourceCutOffsetOf` trả **17** ở kiểu `switch` và
-  **19** ở `parallel`. Nguyên nhân lớn nhất **không nằm trong ba giả thuyết ban đầu**: dòng
-  `Nguồn: thieu-chuu` (`.hv-sources`, 17 ký tự) nằm **trong ô** và bị phép đếm mù cộng vào.
-  🔴 **Hôm nay nó chưa hỏng im lặng chỉ vì MAY** — hai con số tình cờ vượt biên một câu 5 chữ
-  nên Rust từ chối. Trên một câu Chương thật (40–60 chữ), `19` nằm **trong biên** và `⌘/` cắt
-  **sai chỗ, im lặng**, trên dữ liệu mà AD-5 không cho hoàn tác.
-  ✅ Đã vá: phép **đếm mù** thay bằng **đọc neo** `data-src-start`; không neo ⇒ `null`.
-  Đo lại sau vá, cùng bàn đo: `switch` **0** *(đầu từ được bấm)* · `parallel` **2** ✅
-  → ✅ **ĐÃ ĐÓNG 2026-08-17 (Story 2.9, AC9)** — phép kiểm đã chạy VÀ ĐO LẠI ngay trong mục
-  này (không suy luận): trước vá `switch`=17 `parallel`=19 trên câu 5 ký tự đã đo được là hỏng;
-  sau vá (đọc neo `data-src-start` thay đếm mù) đo lại `switch`=0 `parallel`=2, đúng.
-
 - ⚠️ **Ở kiểu `parallel`, một chỗ cắt nằm GIỮA một từ KHÔNG vẽ được dấu.** Chữ ký của Ice
   (2026-08-17) cho `parallel` cắt **chính xác từng chữ**, và phép ánh xạ làm đúng thế *(đo:
   offset 2 trong base `京都`)*. Nhưng dấu cắt vẽ bằng **`::before`** trên phần tử mang neo, nên
@@ -4903,21 +3754,6 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   câu hỏi"* mà `2-5d-ban-do` đã đặt tên, nhưng ở một cơ chế mới chưa ai ghi.
   **Chủ: một luật cho bàn đo** — hoặc cấm chép, hoặc buộc cập nhật cùng lượt với hàm gốc.
 
-- ⚠️ **`.cell-src.has-cuts` nay KHÔNG còn là "kênh duy nhất ở chế độ Hán Việt".** Chú thích ở
-  `GridPanel.vue` khai nó bằng chữ như thế *(và trỏ về một món nợ có chủ)*; sau AC9 dấu cắt
-  **vẽ được** ở cả hai kiểu xem qua `::before`. Đã sửa chú thích tại chỗ kèm 🔵.
-  Món còn lại là một câu hỏi **thẩm mỹ**: giữ cả hai kênh *(viền ô + dấu cắt)* hay bỏ một.
-  **Chủ: Ice.**
-
-  → ✅ **ĐÃ ĐÓNG 2026-08-17 — Ice dùng thật rồi chốt: BỎ.** Nguyên văn: *"bỏ dấu gạch đứng ở
-  trước câu đi, nó không cần thiết"*. Viền `has-cuts` **và chính lớp đó** đã gỡ; hai spec e2e
-  đọc nó chuyển sang `data-cut-count` *(chở một SỐ, chặt hơn một cờ)*. Cùng lượt: dấu cắt cao
-  `1em` → **`1,3em`** và đổi `ornament` → **`primary`** — `ornament` đo được **2,44/2,64** trên
-  `surface`, tức mờ đến mức `check:tokens` cấm nó làm màu chữ.
-  🔴 Chiều cao hàng **đã đo, không suy**: 71px → **71px**, chênh 0/0 *(`2-9-ban-do/
-  dau-cat-chieu-cao.e2e.mjs`)*. `subgrid` làm một phần tử inline cao hơn line box đẩy cả track
-  và kéo ô bản dịch theo — cái giá đó đã đo một lần ở 2.5b (388px), nên nó không được tin bằng mắt.
-
 - ⚠️ **`hasPrimaryModifier` và `caretAtCellStart` nay sống cạnh `sourceCutOffsetOf` trong
   `editorSegments.ts`, và tệp đó khai bằng chữ *"KHÔNG `import` giá trị nào, KHÔNG Vue, KHÔNG
   DOM"*.** Vế "không DOM" đã **hết đúng theo chữ** từ Story 2.8 *(`sourceCutOffsetOf` gọi
@@ -4935,31 +3771,6 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   tại chỗ ở cả hai đầu, nhưng một lượt sau vẫn có thể sửa một nửa: người dùng sẽ thấy dấu cắt
   đổi hình khi bật tab Hán Việt, và **không phép kiểm nào đỏ**.
   **Chủ: một story hạ tầng cổng** *(hoặc một token dùng chung cho hình dạng dấu cắt)*.
-
----
-
-## Deferred from: code review of 2-9-gop-bang-backspace-dau-o (2026-08-17)
-
-- 🟡 **`sourceCut` (Story 2.8) không được dọn ở `resetEditorPanel()`** — `editorPanelState.ts:443-492`
-  dọn `confirmError` · `caretPlacement` · `confirmNotice` (thêm ở code review 2026-08-15) nhưng
-  **không** dọn `sourceCut`, một ô nhớ chở `segment.id` + offset của Tác phẩm đang mở. Nằm ngoài
-  diff của 2.9 nên không vá ở lượt này.
-  ⚠️ **Quan sát rộng hơn, và nó mới là món thật:** luật viết bằng chữ ở `:479-487` — *"áp cho mọi
-  ô nhớ THÊM VÀO TỆP NÀY sau này: hỏi 'ô này thuộc Tác phẩm hay thuộc ứng dụng?'"* — **không có
-  cổng nào canh**. Bằng chứng: nó đã bị bỏ sót ở **hai story liên tiếp** (`sourceCut` ở 2.8,
-  `regroupNotice`/`regroupError` ở 2.9), cả hai đi qua trọn mười một cổng. Một luật chỉ sống trong
-  một khối chú thích là một luật sẽ bị quên lần thứ ba.
-  **Chủ: một story hạ tầng cổng** *(một phép kiểm đếm `shallowRef`/`ref` cấp module trong
-  `editorPanelState.ts` và đối chiếu với thân `resetEditorPanel`)*.
-  → ✅ **ĐÃ ĐÓNG 2026-08-18 (Story 2.12 · AC5) — cổng `check:panel-refs`.** Và nó đóng **RỘNG HƠN**
-  hình dạng mục này đề nghị: không chỉ `editorPanelState.ts` mà **toàn `src/**/*.ts`** *(Ice ký #2b;
-  đường hẹp *"chỉ `src/panels/**`"* bị loại vì 30 `let` cấp module sống **ngoài** `panels/`)*.
-  ⚠️ Và nó **không** đếm — nó đối chiếu **từng ô một** với thân hàm reset, đòi một lượt **GÁN** chứ
-  không một lượt nhắc tên. Một phép **đếm** sẽ xanh ở đúng ca `sourceCut`: số ô và số dòng reset
-  vẫn khớp nếu một ô mới thay chỗ một ô cũ.
-  🔴 Chi tiết đột biến, giới hạn thật, và ba tệp được dựng hàm reset mới: xem mục
-  *"`resetEditorPanel()` nay có HAI chỗ gọi…"* ở khối 2-11 phía dưới.
-
 
 ---
 
@@ -5172,28 +3983,6 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: story đầu tiên đưa hàng về hưu ra khỏi Rust** *(hôm nay chưa story nào định làm thế; nếu
   Epic 5 dựng màn hình lịch sử gộp thì nó là chủ)*.
 
-- ⚠️ **`editorHasLoaded()` là một vị từ mà KHÔNG CỔNG NÀO canh việc nó được dùng.** Nó tồn tại từ
-  Story 1.16 chính vì lớp lỗi *"`segments` rỗng vì ba lý do khác hẳn nhau"*, nhưng nó là một hàm
-  export mà **chỗ quên gọi vẫn biên dịch sạch** — và đường điều hướng của Story 2.10 đã quên đúng
-  một lượt *(vá 2026-08-18: `dieuHuongVaBao` nay chặn trước bằng `NavNotice` `'loading'`)*.
-  🔴 Đây là **lần thứ hai** cùng lớp: `hanVietPending` của 1.16 là lần thứ nhất, và nó cũng được
-  dựng sau một lượt màn hình khẳng định điều nó chưa biết.
-  ⚠️ **Chưa rõ phép kiểm đúng hình dạng gì** — *"mọi bề mặt đọc `segments` phải đi qua
-  `editorHasLoaded`"* khó diễn đạt bằng một phép quét chuỗi mà không đỏ oan. Ghi ra để lần thứ ba
-  không phải phát hiện lại từ đầu.
-  ~~**Chủ: Ice phân định** — nó có đáng một phép kiểm, hay đáng một dòng trong `project-context.md`
-  §Critical Don't-Miss Rules và thế là đủ.~~
-  → ✅ **ĐÃ ĐÓNG 2026-08-18 — Ice chốt: một dòng, KHÔNG một cổng.** Đã thêm vào
-  `project-context.md` §Critical Don't-Miss Rules ▸ *"Rỗng IM LẶNG bị cấm"* — đúng mục, vì đây là
-  một biến thể của lớp lỗi trung tâm chứ không một lớp mới.
-  🔴 **Ghi thẳng cái mà lượt đóng này KHÔNG mua được:** một dòng trong `project-context.md` là một
-  luật **agent đọc**, không một cổng **cưỡng chế**. Lần thứ ba vẫn vi phạm được mà không lượt CI
-  nào đỏ — khác với `check:commands` hay `check:layout`. Điều nó mua: lần thứ ba sẽ **nhận ra**
-  thay vì phát hiện lại từ đầu, và đó là thứ hai lần trước đều thiếu.
-  ⚠️ **Điều kiện mở lại:** nếu lớp lỗi này hụt **lần thứ ba**, thì bằng chứng đã đủ để không cần
-  bàn nữa — dựng phép kiểm, và dựng như một phép kiểm THÊM vào một cổng có sẵn, không một cổng
-  thứ mười hai *(cùng hình dạng với món nợ `--space-inline-sm` và `scroll-behavior`)*.
-
 ## Deferred from: 2-11-chuyen-chuong-trong-workspace (2026-08-18)
 
 - 🔴 **KHÔNG ĐƯỜNG SẢN PHẨM NÀO SINH RA CHƯƠNG THỨ HAI, nên AC1/AC2 xanh mà chưa ai bấm được.** Đo từ nguồn 2026-08-18: `grep -rn "INSERT INTO chapter" src-tauri/src` = **1** kết quả (`commands/project.rs:138`), và hàng đó chèn `ord = 1` **viết cứng**, một lượt, không vòng lặp; `grep -rn "list_chapters\|read_chapters" src src-tauri/src` = **0**. Trên **mọi** `.atproj` tồn tại hôm nay *(21 Tác phẩm thật, mỗi cái đúng 1 Chương — mục `:559-560`)* không có Chương thứ hai để mở. ⇒ Cơ chế của Story 2.11 **đã dựng trọn** và nghiệm thu bằng **hợp đồng dữ liệu** *(8 ca trong `project_contract.rs` chèn Chương thứ hai bằng SQL trực tiếp — chữ ký #1(a) của Ice)*, nhưng **không đường e2e nào** với tới được một lượt chuyển thành công. 🔴 **Đây là một món nợ, KHÔNG một ca đã xanh** — đừng đọc *"409/0/5 cargo xanh"* thành *"người dùng chuyển Chương được"*. **Chủ: Epic 6** *(FR14 — nhập hàng loạt + mẫu phân tách ⇒ nhiều Chương, `epics.md:662`)*; **Epic 5** cũng mở nhánh này ở FR15 *(gộp/tách/sắp lại Chương, `:663`)*. Khuôn ghi nợ này đã có chữ ký hai lần: #8(a) của Story 2.6 và AC3 của Story 2.7.
@@ -5348,28 +4137,6 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
 **Chủ: Winston** *(action item **B5** — rà tồn dư tài liệu quy hoạch sau correct-course)*.
 
 ## Deferred from: 2-12-ha-tang-e2e-va-cong-con-thieu (2026-08-18)
-
-- 🔴 **`AC7` · Task 8.4 · quyết định #8 — HOÃN, và đây là vế NẶNG NHẤT của story không đóng được.**
-  AC7 đòi bộ e2e trọn bộ cho một kết quả **tái lập được**, với ngưỡng do quyết định #8 định nghĩa
-  *(bao nhiêu lượt liên tiếp · máy rảnh hay máy bận · một ca đỏ có nguyên văn thì tính đạt hay
-  không)*. Ice ký **chữ ký #0 ngày 2026-08-18: làm phần độc lập với Story 2.4, hoãn Task 8.4 và
-  quyết định #8** — vì bảng §Điều kiện khởi hành chụp một cây **trước** bản vá NFR2, và một bản vá
-  NFR2 chạm đúng đường nóng mà chữ ký #8 đang đo.
-  ⚠️ **Điều kiện gỡ:** Story 2.4 đóng. Nó đang `in-progress` và **chủ là ICE** — bản ghi
-  `sprint-status.yaml` lượt 18/8 (b): *"loadavg 162,88 → 111,35 trên 16 nhân, so với 7,19 mà AC22 đã
-  gắn cờ ⇒ lưới 6 điểm và phiên NFR2 KHÔNG chạy được hôm nay"*.
-  🔴 **Và ghi thẳng cái mà story này KHÔNG mua được:** bốn bản vá *(AC1-AC4)* gỡ bốn **nguồn nhiễu
-  đã đặt tên được**. Chúng **không** chứng minh bộ đo đã nói thật — mệnh đề đó là một phép **ĐO**, và
-  phép đo đó chưa chạy một lượt nào. Cửa chặn ② vì thế **chưa đóng trọn**.
-  **Chủ: Ice** *(gỡ điều kiện)* → **story hạ tầng e2e kế tiếp** *(chạy phép đo)*.
-
-  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.12 · AC7).** Ice báo Story 2.4 đã chạy xong phép đo, và điều
-  kiện gỡ được kiểm chứ không tin suông: **cây sạch tại `8457bf3`, `EDITOR_IDLE_MS`/`EDITOR_HARD_CAP_MS`
-  nguyên vẹn** ⇒ 2.4 sinh ra **số đo, không sinh ra bản vá** ⇒ lo ngại phía sau chữ ký #0 *(biên
-  1.500 ms tự nới sau khi 2.4 vá)* **không thành hiện thực**. Và AC4 vốn đã xoá hẳn phụ thuộc ấy.
-  **Chữ ký #8, Ice 2026-08-19: `n = 1` lượt trọn bộ, và phải XANH 11/11.** Lượt **thứ mười hai**
-  thoả: **11 passed / 0 failed / 13m01s / exit 0**, không một dòng `Error in`; máy loadavg
-  **4,19 → 3,23** trên 16 nhân. Task 4.4 *(vế "máy bận")* đi cùng phán quyết này theo chữ ký #0b.
 
 - 🔴 **`n = 1` KHÔNG chứng minh bộ e2e hết chập chờn — nó chứng minh bộ XANH ĐƯỢC. Hai mệnh đề
   khác nhau, và chỉ mệnh đề thứ nhất đã được mua.**
@@ -5620,54 +4387,9 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   ca WAL (từ run 33833753206, 2026-09-04) đều dừng cùng chỗ, nên các mệnh đề AD-41/loopback của
   Epic 6 chưa có một điểm đo Windows. **(Chủ: B7 — cùng chủ với mục cha, cùng cơ chế PASSIVE bị
   chặn.)**
-- 🔴 **Vì sao nó là một món nợ chứ không một mục đã đóng:** `8a4a060` sửa một phép so **sai hình
-  dạng** — nó đúng bất kể câu trên trả lời thế nào. Nhưng nếu câu trả lời là ⒝, thì có một hiệu
-  ứng thật của lượt di trú lên nhịp WAL mà **không ai đo**, và nó sẽ lớn dần theo mỗi lượt thêm
-  di trú. Đóng im lặng là để một hồi quy có thật đi qua dưới một bản vá bộ đo.
-  **Chủ: Ice** *(chưa có lịch)*. Ràng buộc: cần **một** runner, hai cây nguồn — không phải một
-  máy Windows, nên nó **không** nằm sau món nợ A5.
-
-  → ✅ **ĐÓNG 2026-09-13 — câu hỏi trả lời được KHÔNG CẦN "cùng một runner, hai cây nguồn",**
-  bằng một đường tách mạnh hơn: **hai runner khác nhau, CÙNG một bước nhảy.** Nếu ⒜ (biến
-  động runner/`busy`) là nguyên nhân, hai nền tảng không có lý do gì bước nhảy TRÙNG NHAU;
-  nếu ⒝ (di trú dịch nhịp WAL) là nguyên nhân, cả hai PHẢI nhảy cùng lượng vì cùng chạy cùng
-  `GLOBAL_MIGRATIONS`. Đo được: macOS 94.792 B → 189.552 B, Windows 889.952 B → 984.712 B —
-  cả hai đúng **+94.760 B (+23 frame, 4.120 B/khung)**, không sai một byte. Đây là ⒝, và chỉ
-  có thể là ⒝: một `busy` ngẫu nhiên của runner không tạo ra hai bước nhảy giống hệt nhau trên
-  hai hệ điều hành khác nhau. Windows n = 7 (2026-09-03 → 2026-09-13, đồng nhất tuyệt đối)
-  loại thêm khả năng đây là nhiễu — bảy lượt cùng một con số không phải chập chờn.
-  **Hệ quả cho mục cha:** hiệu ứng "lớn dần theo mỗi lượt thêm di trú" mà mục cha lo là CÓ
-  THẬT — **4** di trú mới (`GLOBAL_MIGRATIONS` 3 → 7) ⇒ +23 frame, đo trực tiếp bằng cách cắt
-  danh sách về bộ cũ rồi trả lại — và spec `spec-ca-wal-do-tren-windows.md` đã sửa, tách làm
-  hai vế: **2a** siết `after_second <= after_first` với dung sai 0 (sạch trôi tuyệt đối), và
-  **2b** trừ `before_writes` ra trước khi so với `written` (giữ được ca "phản ứng rất trễ",
-  đổi lại một vùng mù bằng đúng nền lược đồ — món nợ có chủ, ghi ở mục AC5 phía trên).
-  Một di trú kế tiếp vì thế không còn cộng dồn vào tỉ lệ được nữa. **(Đóng bởi story sửa
-  `store_contract.rs`, không phải B7 — B7 vẫn giữ nguyên phạm vi của nó: `busy` chặn PASSIVE
-  trên Windows, một câu hỏi KHÁC câu hỏi này.)**
-
-⚠️ **Và ghi thẳng một chỗ yếu của chính bản vá `8a4a060`:** trần `1/4` cho *mức lớn thêm* hiệu
-chuẩn trên **n = 2 máy**. Hai điểm đo không vẽ được một phân bố. Ba lượt đột biến chứng minh nó
-**phân biệt được** *(115.360 xanh · 655.360 đỏ 4× · 163.841 đỏ ở đúng biên)*, nhưng *"phân biệt
-được"* khác *"hiệu chuẩn đúng"*. Một lượt CI sau vượt `1/4` thì **đọc hai câu in trong thông báo
-trước khi nới** — chúng có mặt để lượt đó có dữ liệu thật mà cãi.
-
 ---
 
 ## Deferred from: 2-13-phan-loai-so-no-va-luat-khong-mo-coi (2026-08-19)
-
-- 🔴 **Quyết định #5 của Story 2.13 CHƯA CÓ CHỮ KÝ, và cho tới lượt rà này nó chỉ sống trong văn
-  xuôi rải rác** *(tầng Blind Hunter bắt được: *"không có mục nợ nào, không cờ trạng thái nào ở đầu
-  story, để đảm bảo việc còn treo một chữ ký không bị quên"*)*. Nội dung: nhóm *"không bám bề mặt
-  nào"* — **đọc HẾT** hay **lấy mẫu**. ⚠️ Vế **thực chất** đã được thi hành theo đường chặt nhất
-  *(đọc hết 83 mục, không lấy mẫu)*, nên đây **không** phải một khoảng trống trong sản phẩm; nó là
-  một **chữ ký còn thiếu** trên một quyết định mà cấu trúc Task 0 của story dành riêng cho Ice.
-  🔴 Và con số của nhóm ấy **khác 36** như story gốc khai — bộ phân loại gốc không được ghi lại, nên
-  `36` không tái lập được. **Chủ: Ice** — ký hoặc rút #5 trước khi story chuyển `done`.
-  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.13).** Ice ký: **XÁC NHẬN** đường đã thi hành *(đọc hết, không
-  lấy mẫu)*. Cách đóng: một chữ ký, không một lượt làm thêm — vế thực chất đã đúng từ trước, mục nợ
-  này chỉ tồn tại vì **chữ ký** còn thiếu. ⚠️ Vế *"con số nhóm khác 36 vì bộ phân loại gốc không
-  được ghi"* **vẫn đúng** và ở lại trong story, không bị lượt ký này làm tròn lên.
 
 - ⚠️ **Sàn quần thể `ITEM_FLOOR = 397` của `check:debt-owner` hiệu chuẩn trên MỘT phép đo** *(467 mục,
   2026-08-19)*. Sổ này chỉ dài ra *(AC4 cấm xoá mục)*, nên sàn sẽ ngày càng xa thực tế và ngày càng
@@ -5709,92 +4431,6 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
   nửa Rust không thêm một kênh trang trí nào lên lưới.)* — đọc ba mục này trước khi viết dòng
   mã đầu tiên, và nếu số NFR2 vẫn chưa có
   thì nói ra trong story thay vì giả định nó đã an toàn.
-
-## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (2026-08-19)
-
-- 🔴 **Mục Glossary tầng Tác phẩm của một `.atproj` đã đóng rồi mở lại KHÔNG phân giải được
-  qua đường sản phẩm — dữ liệu vẫn nguyên vẹn trên đĩa, chỉ là không đường Rust nào nạp lại
-  nó.** Story 3.1 dựng `core::glossary::entries_eligible_for_injection(resolver, global,
-  work)` — hàm đầu tiên thật sự tiêu thụ tầng Work của `ScopeResolver` (xem mục 🟡 mới ở
-  `deferred-work.md:602`). Nhưng `ScopeResolver::with_work` chỉ được dựng ở
-  `commands::project::create_work`, tức lúc **TẠO MỚI** một Tác phẩm trong phiên hiện tại —
-  không tồn tại đường mở lại một `.atproj` đã có trên đĩa (`OpenWorkState` khởi động luôn
-  `None`, không command IPC nào ngoài `create_work_*` đặt được giá trị vào đó — cùng mệnh đề
-  đã ghi ở `deferred-work.md:2465` cho Editor). Hệ quả riêng cho Glossary: người dùng thêm
-  một mục tầng Tác phẩm, đóng ứng dụng, mở lại **cùng** `.atproj` đó — mục vẫn nằm trong
-  `project.db`, nhưng không có `ScopeResolver::with_work` nào được dựng lại cho phiên mới để
-  đọc nó, nên Epic 4 (`RagInjector`) sẽ không thấy mục đó cho tới khi đường mở lại tồn tại.
-  Không vá được ở Story 3.1: mở một đường "mở lại `.atproj`" tạm bợ chỉ để phục vụ Glossary
-  là đúng bẫy *"bộ tách tạm"* mà nhiều story trước đã tự cấm cho chính miền của chúng — đường
-  mở lại là một quyết định kiến trúc của toàn Tác phẩm (menu Thư viện, `Indexer`,
-  `library-index.db`), không phải một chi tiết của riêng một bảng. **Chủ: Epic 5** (đường mở
-  lại `.atproj`) — nhặt món nợ này cùng lượt với món đã ghi ở `deferred-work.md:2465`.
-  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` là chính "quyết
-  định kiến trúc của toàn Tác phẩm" mà mục này đòi — không một đường mở lại tạm bợ riêng cho
-  Glossary. Nó dựng lại `ScopeResolver::with_work` đúng thứ tự `create_work` đã dựng (phân
-  giải `atproj_path` từ `library-index.db` qua `Indexer::find_work` → `WorkMeta::read` →
-  `Store::open` → `ScopeResolver::with_work`), nên MỌI hàm tiêu thụ tầng Work đã có
-  (`entries_eligible_for_injection` và các hàm sau nó) hoạt động đúng ngay khi `.atproj` đó
-  được mở lại — không cần sửa gì thêm ở `core::glossary`. Ca nghiệm thu:
-  `project_contract.rs::opening_an_existing_atproj_resolves_with_work_scope_and_keeps_glossary_data`
-  — ghi một hàng `glossary_entry` tầng Tác phẩm, đóng `Store`, mở lại qua `open_work`, khẳng
-  định `scope.has_work_tier()` VÀ hàng đó đọc lại được nguyên vẹn.
-
-- ⚠️ **`entries_eligible_for_injection(resolver, global, work)` nhận `global`/`work` là
-  `BTreeMap` ĐÃ NẠP, còn `load_tier`/`insert_entry`/`confirm_translation` bị cấm gọi ngoài
-  `core/glossary/**` (`glossary_boundary.rs::only_entries_eligible_for_injection_may_be_called_from_outside_glossary`,
-  thêm ở lượt rà soát ba lớp 2026-08-19).** Hai mệnh đề này CĂNG với nhau: chỗ gọi hợp lệ
-  đầu tiên ngoài module (Epic 4) cần một `BTreeMap<String, GlossaryEntry>` cho mỗi tầng để
-  truyền vào, và cách duy nhất dựng nó hôm nay là `load_tier` — thứ cổng vừa cấm gọi từ bên
-  ngoài. Story 3.1 cố ý KHÔNG giải bài đó ("vá tại chỗ, đừng dựng lại" — chỉ đạo của lượt rà
-  soát): `entries_eligible_for_injection` có thể cần đổi chữ ký để nhận `&Store`/`Option<&Store>`
-  thay vì `BTreeMap` (đúng khuôn `core::scope::store::load_global_config`), kéo theo một kiểu
-  lỗi hợp nhất `StoreError`+`ScopeError` mà hàm chưa có hôm nay — hoặc một đường khác mà
-  story đó tự quyết với đủ bối cảnh của Epic 4. **Chủ: story đầu tiên gọi
-  `entries_eligible_for_injection` từ ngoài `core/glossary/**`** (ứng viên gần nhất: Epic 4,
-  `RagInjector`) — đọc doc-comment của chính hàm đó (`core/glossary/store.rs`) trước khi gõ
-  dòng đầu tiên.
-  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 3.1) — cùng ngày, lượt vá cuối do Ice ký.** Cổng vừa dựng
-  ĐANG cấm đúng con đường duy nhất tới thứ nó bảo vệ — không phải một món nợ để chuyển giao
-  cho Epic 4, mà một lỗi trong chính chỉ thị vá vừa ban hành, phải đóng ngay. Đóng bằng cách
-  đổi chữ ký: `entries_eligible_for_injection(resolver: &ScopeResolver, global: &Store, work:
-  Option<&Store>) -> Result<Vec<GlossaryEntry>, GlossaryError>` — hàm tự gọi `load_tier` cho
-  từng tầng RỒI MỚI phân giải, đúng khuôn `core::scope::store::load_global_config(store:
-  &Store)`. `GlossaryError` (mới, `core/glossary/store.rs`) là enum hai biến thể `Store(StoreError)`
-  · `Scope(ScopeError)`, mỗi biến thể một `From` — không nuốt một họ lỗi vào họ kia, không
-  `unwrap`. `load_tier` ở lại `pub` (vẫn cần cho `glossary_contract.rs` dựng fixture và
-  canh mệnh đề "có mặt khi liệt kê" mà hàm phơi ra không trả lời được) nhưng không còn ai
-  NGOÀI `entries_eligible_for_injection` gọi nó — `tests/**` không nằm trong phạm vi quét
-  của `glossary_boundary.rs` (chỉ quét `src-tauri/src/**`) nên việc test gọi thẳng không
-  đụng cổng. Ca `a_pending_work_tier_entry_shadows_and_disqualifies_a_confirmed_global_entry`
-  giữ nguyên sức: gọi qua đúng chữ ký mới, và bằng chứng "lọc sau khi phân giải" vẫn đo được
-  từ NGOÀI (đầu vào → đầu ra), không phụ thuộc cách tham số được dựng.
-
-## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (rà soát 2026-08-19)
-
-- source_spec: `_bmad-output/implementation-artifacts/3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai.md`
-  summary: Chính sách chuẩn hoá `source_term` — hạ chữ thường và chuẩn hoá Unicode — chưa
-    được quyết, nên hai thuật ngữ khác nhau CHỈ ở chữ hoa (`Fire` / `fire`) hay ở dạng
-    Unicode vẫn là hai hàng riêng dưới `idx_glossary_entry_source_term`.
-  evidence: Story 3.1 đóng vế RỖNG (`CHECK` khoảng trắng) và vế KHOẢNG TRẮNG THỪA (cắt lúc
-    ghi), nhưng cố ý dừng trước vế chuẩn hoá — đó là quyết định của đường KHỚP, không phải
-    của bảng. Ba dữ kiện đã đo ở Epic 1 chi phối nó và cả ba nằm ở miền Story 3.4: chữ hoa
-    có nghĩa với 1.635 đầu mục tiếng Anh và 184 nhóm chỉ phân biệt nhau bằng chữ hoa
-    (`project-context.md` §Rỗng im lặng); luật của kho là *"hạ chữ thường là THÊM một khoá,
-    không THAY khoá gốc"*; và `Matcher` của Story 1.12 — thứ Story 3.4 phải dùng lại theo
-    AD-17 — đã mang sẵn ranh giới stemming cho tiếng Anh. Chốt chuẩn hoá ở tầng bảng hôm
-    nay là chốt thay cho một story có nhiều bối cảnh hơn, và làm nó bằng một chỉ mục UNIQUE
-    thì KHÔNG lùi được sau khi dữ liệu người dùng đã nằm trên đĩa.
-    **(Chủ: Story 3.4 — khớp thuật ngữ theo ngôn ngữ.)**
-  → **KHÔNG LÀM 2026-08-21 (Story 3.4)** — đóng bằng một PHÉP ĐO ở đường khớp, không bằng một
-    lượt sửa lược đồ. `find_terms` nhánh `En` đã chuẩn hoá **CẢ HAI vế** (hạ chữ thường rồi
-    Porter2) TRƯỚC khi so khớp, nên `Fire`/`fire` gặp nhau **ở đường khớp** dù bảng vẫn giữ hai
-    hàng riêng (`marks_for_source_text` khớp cả hai). Nhánh `Zh` khớp CHÍNH XÁC nên không có gì
-    để chuẩn hoá. ⇒ Bảng **giữ nguyên KHÔNG chuẩn hoá** — đúng luật *"hạ chữ thường là THÊM một
-    khoá, không THAY khoá gốc"*, giữ được 1.635 đầu mục tiếng Anh có chữ hoa mang nghĩa, và né
-    một `UNIQUE` chuẩn hoá không lùi được sau khi dữ liệu người dùng đã nằm trên đĩa. Ba dữ kiện
-    Epic 1 nêu ở trên **vẫn đúng và vẫn là lý do** — số đo mới của Story 3.4 chỉ xác nhận vế còn
-    lại: đường khớp (không phải bảng) là nơi `Fire`/`fire` gặp nhau, đúng như dự đoán.
 
 ## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)
 
@@ -5878,17 +4514,6 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   (quản lý Glossary, có xoá mục) đã quyết xoá một mục đã chốt là hợp lệ hay không, vì hai
   quyết định đó ngược chiều nhau. **Chủ: Story 3.9.**
 
-- ⚠️ **`note` không được cắt khoảng trắng biên, khác `source_term` và `translation`.**
-  `insert_entry` cắt hai cột kia rồi ghi `note` nguyên văn (`store.rs`), nên `"   "` thành
-  một cách biểu diễn THỨ BA của "không có ghi chú" — trong khi doc-comment của
-  `GLOSSARY_ENTRY_DDL` khẳng định vắng mặt và rỗng là CÙNG một điều. Một dòng `.trim()` là
-  đủ, nhưng nó đổi dữ liệu người dùng gõ nên không tự quyết ở lượt rà soát. **Chủ: Story 3.3**
-  (bề mặt đầu tiên cho người dùng gõ `note`).
-  → ✅ **ĐÃ ĐÓNG 2026-08-20 (Story 3.3), Ice ký 2026-08-20.** `insert_manual_entry` và
-  `update_manual_term` (mới) đều `.trim()` `note` trước khi ghi — cùng khuôn
-  `source_term`/`translation`. `add_manual_term_trims_a_whitespace_only_note_down_to_the_empty_string`
-  (`glossary_contract.rs`) khoá hành vi: `note = "   \u{3000}  "` ghi xuống `""`.
-
 - ⚠️ **`entries_eligible_for_injection` quét trọn hai bảng và nhân bản mọi hàng, HAI lần,
   mỗi lượt gọi.** `load_tier` dựng một `BTreeMap` chứa bản sao của từng hàng; rồi vòng lọc
   `clone()` thêm lần nữa kể cả với mục sắp bị loại. Với 412 mục toàn cục (con số
@@ -5944,32 +4569,6 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     `DELETE`/`INSERT OR REPLACE` đã quyết ngữ nghĩa xoá một ứng viên đã quyết là hợp lệ hay
     không, đúng khuôn quyết định mà mục `glossary_entry` tương ứng chờ Story 3.9.
     **(Chủ: Story 3.9 — quản lý Glossary, chủ tự nhiên của mọi quyết định xoá/tái sinh.)**
-
-- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
-  summary: Một ứng viên có `source_term` trùng một `glossary_entry` ĐÃ CÓ SẴN (ví dụ mục đó
-    đến từ nhập tay trước khi ứng viên được quét ra) thì `approve_candidate` sẽ luôn thất
-    bại ở `UNIQUE INDEX idx_glossary_entry_source_term` — và vì `approve_candidate` không
-    phân biệt lỗi đó với bất kỳ `WriteFailed` nào khác, ứng viên nằm lại bảng chờ VĨNH VIỄN,
-    không đường nào tự thoát.
-  evidence: `epics.md` §Story 3.5 đặt chỗ chặn đúng lỗ này ở LƯỢT QUÉT (Story 3.5) — quét
-    không được sinh ứng viên cho một chuỗi đã có mục Glossary, chứ không phải để
-    `approve_candidate` phát hiện muộn. Story 3.2 không có lượt quét nào để áp luật đó
-    (`insert_candidate` là API thuần, không tự tra `glossary_entry` trước khi chèn — làm
-    vậy là đặt một quyết định nghiệp vụ của Story 3.5 vào một hàm mà story đó chưa tồn tại).
-    **(Chủ: Story 3.5 — quét ứng viên khi nhập tài liệu.)**
-  → ✅ **ĐÃ ĐÓNG 2026-08-22 (Story 3.5).** Hàm ghi lô mới
-    `core::glossary::candidate_store::insert_import_scan_candidates` lọc `glossary_entry`
-    NGAY trong câu `INSERT` (`WHERE NOT EXISTS (SELECT 1 FROM glossary_entry WHERE
-    source_term = ?1)`), cộng `ON CONFLICT (source_term) DO NOTHING` cho ca "đã từng bị
-    bỏ". `commands::project::spawn_import_scan` gọi hàm này — KHÔNG gọi `insert_candidate`
-    đơn lẻ — nên đường sản phẩm không còn tạo ra được ca "ứng viên kẹt vĩnh viễn" nữa. Đối
-    chứng: `glossary_contract.rs::an_import_scan_candidate_colliding_with_an_existing_
-    glossary_entry_is_never_inserted` (đếm `(inserted, skipped) == (0, 1)`, bảng chờ RỖNG
-    sau lượt ghi). Ca ghim hành vi cũ của `insert_candidate` đơn lẻ
-    (`a_candidate_colliding_with_an_existing_manual_glossary_entry_is_stuck_pending_forever_
-    known_gap`) vẫn đứng — nó ghim đúng API thuần, nay bị khoá lại trong
-    `GLOSSARY_ONLY_SURFACE` (xem mục ngay dưới), không còn chỗ gọi sản phẩm nào dùng hình
-    dạng hở đó nữa.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: `pending_candidates` sắp theo `ORDER BY source_term` — đối chiếu BYTE của
@@ -6131,26 +4730,6 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     `promote_to_global`), nên số chỗ gọi cặp `(&Store, &ScopeResolver)` đi từ **3 lên 6**.
     Gói lại thành `WorkContext<'a>` vẫn là một lượt sửa chữ ký chạm mọi chỗ gọi đã có, tức
     một đích giao được riêng — 3.9 cố ý KHÔNG làm, và ghi số mới thay vì làm tròn lên.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
-  summary: Đổi TẦNG của một mục Glossary đã có (chuyển một mục từ `project.db` lên
-    `global.db` hoặc ngược lại) không có đường nào — `add_manual_term`/`update_manual_term`
-    (Story 3.3) chỉ THÊM mới hoặc SỬA tại chỗ trong đúng một `Store`; không hàm nào đọc một
-    hàng ở tầng này rồi ghi nó sang tầng kia.
-  evidence: §Ask First của Story 3.3 liệt đích danh "Đổi tầng của một mục đã có... chủ Story
-    3.9" — dải "Thêm thuật ngữ" cố ý KHÔNG dựng năng lực này, đúng ranh giới đã ký trước khi
-    viết dòng mã đầu tiên. `mockups/glossary-manage.html` (nếu có) là màn hình quản lý đầy
-    đủ, nơi thao tác "đẩy một mục từ Tác phẩm lên Global bằng một thao tác" thuộc về.
-    **(Chủ: Story 3.9 — quản lý Glossary.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-24 (Story 3.9) — `promote_to_global`
-    (`src-tauri/src/core/glossary/store.rs:823`) đọc hàng ở `project.db` rồi ghi sang
-    `global.db`, phơi ra qua vỏ IPC `glossary_promote_term_to_global`. 🔴 **Chỉ MỘT chiều
-    Work → Global được dựng**; chiều ngược lại (Global → Work) vẫn không có đường nào, và
-    AC của Story 3.9 chỉ đòi chiều đi lên. Hai kho không có giao dịch chung, nên thứ tự là
-    `INSERT` global TRƯỚC, `DELETE` work SAU: một lượt sập giữa hai bước để lại trạng thái
-    DƯ (mục ở cả hai tầng, Work vẫn thắng, làm lại được), không để lại trạng thái THIẾU.
-    Nghiệm thu: `glossary_contract.rs::promote_to_global_moves_an_entry_when_the_destination_is_empty`
-    và `…_rejects_and_writes_nothing_when_the_destination_already_has_the_term`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Một ứng viên (`glossary_candidate`) trùng `source_term` với một mục vừa được
@@ -6355,7 +4934,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     cần một story riêng.
   evidence: Tách 2026-08-21, Ice ký, ở cửa đếm token của `bmad-build`: spec một mảnh đo được
     **17.408 ký tự ≈ 5.000–5.800 token** so với trần **1.600** — vượt 3,1–3,6×, trên đúng
-    story mà `deferred-work.md:5275` tự gọi là *"rủi ro nhất của Epic 3"*. Phép tách là theo
+    story mà `deferred-work.md §*Deferred from: 2-11-chuyen-chuong-trong-workspace (2026-08-18)*` tự gọi là *"rủi ro nhất của Epic 3"*. Phép tách là theo
     TẦNG, không theo mục tiêu: cửa đơn-mục-tiêu của bước 1 đã qua, đây vẫn là một mục tiêu
     người dùng duy nhất (FR50 + FR51). Nửa Rust nghiệm thu được một mình bằng
     `glossary_marks_contract.rs` mà không cần một pixel nào; nửa giao diện vào đường nóng với
@@ -6383,7 +4962,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     độ trễ nó cộng vào đường MỞ CHƯƠNG chưa ai đo.** Story 3.4 đóng vế NFR2 (không rơi vào
     đường gõ) bằng `warm_jieba_for_source_lang` ở `commands/chapter.rs`, nhưng lượt hâm đó
     chạy ĐỒNG BỘ trong `read_open_chapter`/`open_adjacent_chapter`.
-  evidence: Rà soát 2026-08-21 (lớp blind-hunter). Số 179–329 ms ở `deferred-work.md:413` đo
+  evidence: Rà soát 2026-08-21 (lớp blind-hunter). Số 179–329 ms ở `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*` đo
     chi phí khởi tạo, không đo độ trễ mở Chương trước/sau. Spec Story 3.4 lập luận rằng mở
     Chương *"là một thao tác đã chấp nhận độ trễ vài trăm ms"* — mệnh đề đó **hợp lý nhưng
     chưa được đo**, và luật kho cấm đánh dấu đạt bằng suy luận. Vế cần đo là một cặp số trên
@@ -6394,41 +4973,10 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     **(Chủ: Story 3.4b — cùng phiên đo NFR2 mà nửa giao diện phải chạy trước khi vào đường
     nóng; đo hai vế trong một lượt thay vì dựng bàn đo hai lần.)**
 
-- source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
-  summary: **`GlossaryMark` cố ý KHÔNG mang `source_term` lẫn `id`, nên nửa giao diện không
-    correlate được hai dấu về CÙNG một mục Glossary mà không đi thêm một vòng tra.** Bốn
-    trường hiện có đủ để VẼ một dấu, không đủ để trả lời *"hai dấu này có phải cùng một
-    thuật ngữ không"*.
-  evidence: Rà soát 2026-08-21 (lớp blind-hunter). Đây là một lát cắt phạm vi hợp lý cho nửa
-    Rust — thêm một trường chưa ai dùng là đúng thứ luật *"không khoá nào cho một tính năng
-    chưa tồn tại"* cấm. Nhưng nó là một RÀNG BUỘC mà người thiết kế 3.4b phải biết TRƯỚC khi
-    vẽ tương tác: bất kỳ khả năng nào kiểu *"tô sáng mọi lượt xuất hiện của thuật ngữ này"*
-    hay *"rê chuột một dấu thì làm nổi các dấu anh em"* đều đòi đổi hình dạng dây, tức một
-    lượt sửa cả hai đầu chứ không phải một lượt sửa frontend. Ghi ra thay vì để 3.4b phát
-    hiện giữa chừng. **(Chủ: Story 3.4b — quyết định lúc thiết kế tương tác, không phải lúc
-    đang cài.)**
-  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b) — quyết định lúc thiết kế: KHÔNG "tô sáng các dấu
-  anh em".** `3-4b-…md` §Never nói thẳng: *"Thêm `id`/`source_term` vào hình dạng dây để làm
-  'tô sáng các dấu anh em' — đó là một quyết định thiết kế tương tác chưa ai mở."* Story 3.4b
-  KHÔNG mở nó — mỗi dấu chỉ tương tác ĐỘC LẬP (hover/rê chuột một mảnh chỉ ảnh hưởng chính
-  mảnh đó qua `glossaryTermHoverState.ts`, không tra cứu "các mảnh khác cùng thuật ngữ"). Nếu
-  một story sau muốn tô sáng anh em, nó phải tự mở lại RÀNG BUỘC này — hình dạng dây vẫn
-  không mang `id`/`source_term`, đúng như 3.4 đã chốt.
-  → 🔵 2026-08-22 (Story 3.6): **TIỀN ĐỀ CUỐI ("hình dạng dây vẫn không mang `id`/
-  `source_term`") HẾT ĐÚNG — QUYẾT ĐỊNH THIẾT KẾ TƯƠNG TÁC VẪN ĐỨNG NGUYÊN.** `GlossaryMark`/
-  `GlossaryMarkWire` nay mang CẢ `id`, `source_term` VÀ `tier` (Story 3.6, FR114) — nhưng vì
-  một lý do KHÁC HẲN: dải "chờ chốt lần đầu gặp" cần một KHOÁ GHI để gọi
-  `confirm_pending_translation(tier, id, ..)`, không phải để correlate các dấu anh em. Story
-  3.6 KHÔNG mở lại quyết định "không tô sáng anh em" — `glossaryTermHoverState.ts` vẫn tương
-  tác độc lập từng mảnh, không một đường mới nào tra "các mảnh khác cùng thuật ngữ". Hai mệnh
-  đề tách bạch: TIỀN ĐỀ (dây có mang `id`/`source_term` hay không) đã đổi; QUYẾT ĐỊNH (có tô
-  sáng anh em hay không) thì không — một story sau muốn tô sáng anh em vẫn phải tự mở quyết
-  định đó, dữ liệu trên dây giờ đã sẵn có nhưng chưa ai dùng nó cho mục đích đó.
-
 ## Deferred from: 3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi (2026-08-21)
 
 - ⚠️ **Cặp số "mở Chương" CẢM NHẬN ĐƯỢC (LẠNH/ẤM) chưa đo trên webview thật — chỉ có sàn dưới
-  ở tầng Rust.** `deferred-work.md:504-522` (mục cũ, `:492-500`) đo được LẠNH ~402 ms / ẤM
+  ở tầng Rust.** `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*` (mục cũ, `:492-500`) đo được LẠNH ~402 ms / ẤM
   ~189 ms cho riêng chi phí `warm_jieba_for_source_lang` + `marks_for_source_text`, nhưng
   KHÔNG gồm hai lệnh IPC đọc Chương/segment ĐÃ CÓ từ trước, chi phí serialize qua Tauri bridge,
   lượt `glossaryMarksBySegment` trên segment thật, hay lượt Vue render lại DOM. Bốn vế đó cần
@@ -6461,55 +5009,6 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   **(Chủ: Ice — cần một phiên dùng thật trên webview đóng gói để quyết định giữ nguyên hay mở
   một cơ chế thứ hai; không phải quyết định lúc đang cài.)**
 
-- ⚠️ **Bàn phím KHÔNG tới được dấu thuật ngữ — chỉ chuột.**
-  → 🔵 **P14 (rà ba lớp 2026-08-21): mục này ĐÃ ĐÓNG — xem `→ ✅ ĐÃ ĐÓNG` bên dưới khối rủi ro.**
-  Dòng dẫn này chỉ để người lướt tìm mục MỞ không đọc nhầm; khối rủi ro gốc GIỮ NGUYÊN, không
-  xoá (luật "không bao giờ xoá một mục đã đóng").
-  I/O Matrix của story nhắc cả *"rê
-  chuột / đưa TIÊU ĐIỂM"*, nhưng `GridPanel.vue`/`SourceHanViet.vue` chỉ gắn `@mouseenter`/
-  `@mouseleave` lên mảnh mang dấu, KHÔNG `tabindex="0"`/`@focus`/`@blur`. Lý do ghi tại chỗ
-  (doc-comment của `glossaryTermHoverState.ts`): gắn tab-stop lên MỖI mảnh mang dấu (có thể
-  hàng trăm trong một Chương) là một thay đổi vào đúng bề mặt mà hợp đồng vùng chọn
-  (`selectionContract.ts`, AC6/AC11/AC12 của Story 1.16/1.18) đã đo và ký RẤT cẩn thận trên
-  cấu trúc DOM hôm nay — mở rộng nó ngoài phạm vi đo được của 3.4b là một rủi ro không cân
-  xứng với lợi ích của một story đã đủ lớn. Người dùng chỉ-bàn-phím hôm nay KHÔNG có đường nào
-  đọc bản dịch một thuật ngữ đã chốt mà không rời tay khỏi bàn phím để rê chuột.
-  **(Chủ: một story kế tiếp chạm lại `selectionContract.ts` — cần đo TRƯỚC khi thêm tab-stop,
-  không chỉ thêm rồi hy vọng không vỡ AC6/AC11/AC12.)**
-  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b, cùng phiên — Ice bác việc hạ hàng I/O Matrix này thành
-  nợ vì nó nằm TRONG khối `<frozen-after-approval>`).** Đường đạt được KHÔNG cần tab-stop mới:
-  `.hv-switch`/`.hv-parallel` đã mang `tabindex="0"` từ Story 1.18 (AC11), và
-  `Selection.modify()` di chuyển caret không cần phần tử tự focus được — đo lại đúng mệnh đề
-  đã ký ở AC11 (`selectionContract.ts::modifySelection` doc-comment), không suy đoán mới.
-  `GridPanel.vue::onSourceSelectionChange()` nghe `selectionchange` ở `document` (CÙNG khuôn
-  `onSelectionChange` đã có cho cột bản dịch), ánh xạ caret về offset qua ĐÚNG
-  `sourceCutOffsetOf` mà click-để-cắt (2.8/2.9) dùng, rồi ghi vào ĐÚNG MỘT state
-  (`glossaryTermHoverState.ts`) mà `@mouseenter` cũng ghi — một cơ chế, hai đường vào, **0**
-  tab-stop mới, **0** đổi cấu trúc DOM. Kiểm chứng: `tests/frontend/glossaryHoverSelection.test.ts`
-  (6 ca, mount `GridPanel.vue` thật, dựng `Selection`/`Range` thật) — gồm một ca khẳng định
-  tường minh KHÔNG `.src-piece` nào mang `tabindex`. ⚠️ Biên hiếm còn lại, ghi ra không giấu:
-  bấm chuột vào thuật ngữ A rồi (KHÔNG di chuột) đưa chuột đứng yên trên thuật ngữ B từ một cú
-  di chuyển TRƯỚC đó — `selectionchange` của cú bấm đè hiển thị bằng A dù chuột hình học vẫn ở
-  B. Không dựng cơ chế lớp-chồng cho ca này (chấp nhận được, xem doc-comment của
-  `onSourceSelectionChange`).
-  🔴 **VÁ THÊM 2026-08-21, cùng phiên (P13, rà ba lớp LẦN HAI) — một ca RỘNG HƠN "biên hiếm"
-  đã lọt qua lượt review đầu.** Bản đầu của `onSourceSelectionChange` dọn `hoveredGlossaryTerm`
-  VÔ ĐIỀU KIỆN khi vùng chọn nằm NGOÀI cột nguồn — tức MỌI phím gõ ở cột bản dịch
-  (`selectionchange` bắn theo từng ký tự trong `contenteditable`) xoá một hover chuột đang
-  hiện, dù hoàn toàn không liên quan tới cột nguồn. Đây KHÔNG phải một biên hiếm — nó là đường
-  THƯỜNG NGÀY nhất (gõ dịch trong khi đọc lại nguyên văn). Vá: chỉ dọn khi vùng chọn THẬT SỰ ở
-  trong cột nguồn mà không trúng dấu nào (`if (cell === null) return` trước bước dọn). Kiểm
-  chứng: `glossaryHoverSelection.test.ts` +1 ca (gõ ở cột bản dịch không xoá hover), đối chứng
-  đỏ-xanh THẬT đã chạy (gỡ tạm dòng chặn ⇒ đúng ca đó đỏ, khôi phục ⇒ xanh lại).
-  🔵 **SỬA TẠI CHỖ 2026-08-21, cùng phiên (P8) — câu "0 tab-stop mới" ở trên ĐÚNG nhưng đọc
-  RỘNG HƠN những gì đã đo.** Nó chỉ đo được cho đường HÁN VIỆT (`.hv-switch`/`.hv-parallel` có
-  `tabindex="0"` sẵn). Đường CHỮ TRẦN (`.src-piece`, `.col.col-src`) hoàn toàn KHÔNG `tabindex`
-  (`GridPanel.vue:673`/`:1033`, có TỪ TRƯỚC story này) — đường bàn phím DUY NHẤT vào đó là lệnh
-  CÓ SẴN `selection.focus_source` (`⌘⌥S`) cộng `Shift+←/→`. Về kiến trúc, `Selection.modify()`
-  bắn `selectionchange` nguyên sinh nên `onSourceSelectionChange()` NÊN vẫn phản ứng đúng trên
-  đường đó — nhưng chuỗi ĐẦY ĐỦ trên đường chữ trần CHƯA được đo trên một webview thật, chỉ có
-  lập luận kiến trúc. Mục MỞ mới, có chủ, ngay dưới đây.**
-
 - ⚠️ **Chuỗi `⌘⌥S` → `Shift+←/→` → bản dịch thuật ngữ hiện trên `StatusBar`, đường CHỮ TRẦN —
   chưa đo trên webview thật (P8, rà ba lớp 2026-08-21).** `selection.focus_source` là lệnh CÓ
   SẴN từ Story 1.16/1.18, không phải một cơ chế mới của 3.4b; cái CHƯA đo là việc nó ghép nối
@@ -6525,7 +5024,9 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   khác của story này.)**
 
 - ⚠️ **Chuột kéo thật vẫn chưa nghiệm thu được trong WKWebView cho ĐÚNG bề mặt này** —
-  `deferred-work.md:5781` đã ghi Story 3.4b là *"story đầu tiên mà một vùng chọn SAI sẽ hiện
+  `deferred-work.md` §*Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai
+  (rà soát 2026-08-19)* *(section đã lược 2026-09-19 — cách phục hồi ghi ở đầu sổ)* đã ghi
+  Story 3.4b là *"story đầu tiên mà một vùng chọn SAI sẽ hiện
   thành đánh dấu sai TRÊN MÀN HÌNH"*. Story 3.4b đóng được vế DỮ LIỆU (28 ca vitest trên
   component thật, `hanVietCutAnchors.test.ts` + `glossaryMarksMap.test.ts`) nhưng KHÔNG chạy
   được một lượt chuột kéo thật trên WKWebView trong phiên làm việc này — quyết định PHẠM VI
@@ -6611,20 +5112,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     một Tác phẩm đã có" để nối lượt quét vào, vì hành động đó chưa tồn tại.
     **(Chủ: Epic 6 — đường nhập "một loạt Chương". Khi đường đó dựng xong, nó phải tự gọi
     `spawn_import_scan` *(hoặc hàm kế thừa)* cho MỖI Chương mới, không chỉ Chương đầu.)**
-
-- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
-  summary: **Bảng chờ chỉ được PHƠI ra (`glossary_pending_candidates`, vỏ IPC CHỈ-ĐỌC) — chưa
-    một component Vue nào DUYỆT nó.** Người dùng không có màn hình nào để nhận/bỏ một ứng viên
-    vừa quét ra.
-  evidence: §Never của story nói tường minh: *"Không component Vue cho bảng chờ (Story 3.8).
-    Story này chỉ phơi dữ liệu."* `pending_candidates`/`approve_candidate`/`reject_candidate`
-    (Story 3.2) vẫn đứng nguyên, chưa hàm nào trong ba hàm đó có chỗ gọi sản phẩm — chỉ
-    `pending_candidates` mới có, qua vỏ CHỈ-ĐỌC của story này.
-    **(Chủ: Story 3.8 — duyệt hàng loạt một phím.)**
-    → ✅ **ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** `src/GlossaryQueueOverlay.vue` +
-    `src/glossaryQueueState.ts` là màn hình duyệt đầu tiên; sáu lệnh `glossary.queue.*` đăng
-    ký ở `commands/index.ts`. Cả ba hàm nay có chỗ gọi sản phẩm: `pending_candidates` (nạp),
-    `approve_candidate` (phím Nhận), `reject_candidate` (phím Bỏ).
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **AC "đo thời gian tường + số ứng viên trên một Chương tiếng Trung THẬT" chưa đóng
@@ -6739,26 +5226,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
 ## Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
-  summary: **Nguồn gợi ý "âm Hán Việt" — mockup của story vẽ dải chốt hiện một đề xuất bản
-    dịch suy từ âm Hán Việt của thuật ngữ khi thuật ngữ đó là chữ Hán chưa có bản dịch — story
-    này KHÔNG dựng đường đó, dải chỉ hỏi và nhận một ô nhập trần.**
-  evidence: §Never của story: *"Ba nguồn gợi ý của mockup (bạn vừa viết · âm Hán Việt · TM) —
-    hai nguồn sau thuộc Story 3.7 và Epic 7, ghi nợ có chủ, không dựng trước."* Epic 3 context
-    liệt kê rõ: *"Ứng viên tiếng Trung có thể nhận đề xuất âm Hán Việt từ dữ liệu nhúng; khi
-    không có đề xuất phù hợp, người dùng chốt bản dịch lần đầu gặp thuật ngữ trong Workspace"*
-    — câu đó ĐÚNG là mô tả đích đến của Story 3.7, và dải của Story 3.6 là nhánh "không có đề
-    xuất phù hợp" của chính câu đó.
-    **(Chủ: Story 3.7 — "Đề xuất bản dịch bằng âm Hán Việt". Khi story đó dựng xong, dải chốt
-    của Story 3.6 là chỗ TỰ NHIÊN để hiện đề xuất — không cần dựng lại một dải thứ hai.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-24 (Story 3.7). `core/glossary/han_viet_suggestion.rs::
-    suggest_han_viet_batch` tính đề xuất LÚC ĐỌC (không cột `suggested_translation`, AD-36),
-    `marks_for_source_text` gọi nó cho các mục chờ chốt và điền `GlossaryMark.
-    han_viet_suggestion`/`han_viet_status`; `glossaryConfirmStripState.ts::applyTarget` điền
-    thẳng vào ô nhập của dải Story 3.6 — đúng dải cũ, không dải thứ hai. `GlossaryConfirmStrip.vue`
-    hiện nhãn *"Âm Hán Việt"* khi có đề xuất và dòng *"chưa cài dữ liệu từ điển"* khi
-    `dict_unavailable`.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Nguồn gợi ý "TM" (bản dịch khớp mờ từ bộ nhớ dịch) — mockup vẽ dải chốt có thể
     hiện một đề xuất mượn từ một cặp TM khớp gần đúng thuật ngữ — story này KHÔNG dựng.**
   evidence: Cùng §Never trích ở mục trên. Đề xuất TM cho một THUẬT NGỮ (không phải một CÂU)
@@ -6823,21 +5290,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     sổ thay vì thành một bản vá của lượt này. Vế hợp âm đi qua tầng OS/webview thật thì thuộc
     e2e/bàn đo, không thuộc vitest (`happy-dom` không phân phối phím như engine thật).
     **(Chủ: story hạ tầng cổng kế tiếp — cùng hạng với mục *"8/13 cổng chưa có phép tự kiểm"*.)**
-
-- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
-  summary: **Món nợ `reject_candidate` (chủ Story 3.8) chỉ sống trong một chú thích của
-    `src-tauri/tests/glossary_boundary.rs`, KHÔNG có mặt trong sổ nợ này — tức nguồn sự thật của
-    một món nợ đang nằm ngoài chỗ duy nhất được khai là nguồn sự thật của nợ.**
-  evidence: Rà 2026-08-22 (lớp blind-hunter). `AGENTS.md` §Where things are chỉ `deferred-work.md`
-    là sổ nợ, và `check:debt-owner` chỉ quét tệp này — nên một món nợ khai trong một chú thích
-    Rust **không đi qua cổng nào**, không ai đếm, và sẽ chỉ được tìm thấy bởi người tình cờ đọc
-    đúng tệp test đó. `glossary_boundary.rs::QUICK_ADD_SURFACE` nay có 7 phần tử và
-    `reject_candidate` vẫn nằm ngoài, chờ Story 3.8 dựng chỗ gọi sản phẩm đầu tiên.
-    ⚠️ Mục này KHÔNG tự đóng món nợ kia — nó chỉ kéo món nợ vào nơi có cổng canh.
-    **(Chủ: Story 3.8 — cùng chủ với món nợ gốc.)**
-    → ✅ **ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** Món nợ gốc đã tiêu: `reject_candidate` nay nằm
-    trong `QUICK_ADD_SURFACE` (9 phần tử) và có chỗ gọi sản phẩm thật. Mục này — vốn chỉ có
-    vai kéo món nợ vào nơi có cổng canh — hết vai cùng lúc.
 
 ## Deferred from: 3-7-de-xuat-ban-dich-bang-am-han-viet (2026-08-24)
 
@@ -7073,78 +5525,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     thuộc (`Cargo.toml` + đăng ký plugin, cùng `dist/` không dựng lại) = **7.711.888 byte**
     (2026-08-25 10:26). **Delta = 156.392 byte (≈152,7 KiB)** — dưới xa ngưỡng xét lại 1 MB của
     AD-48; không cần đường quay lui `rfd` thẳng.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
-  summary: **Cột `term_origin` trong tệp nhập bị đọc rồi vứt mà KHÔNG nói ra** — người dùng sửa
-    tay cột đó rồi nhập lại không nhận được một câu nào cho biết nó đã bị bỏ qua.
-  evidence: `exchange.rs` liệt `term_origin` trong `COLUMNS` nên nó là cột "đã biết", vì thế nó
-    KHÔNG rơi vào `ParsedImport::ignored_columns` — nơi mọi cột lạ được báo ra theo luật
-    *"bỏ qua và NÓI RA, không im lặng vứt"* của §I/O Matrix. Giá trị thì bị bỏ có chủ ý: §Design
-    Notes của story chốt rằng mọi mục vào đều mang `file_import`, bất kể tệp ghi gì.
-    ⚠️ **KHÔNG phải lệch spec** — hành vi đúng thiết kế; cái thiếu là một câu nói ra điều đó,
-    cùng lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
-    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — nửa chọn tệp, nơi màn hình xem trước lượt nhập ra đời và là
-    chỗ DUY NHẤT hiển thị được câu đó cho người dùng.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `ParsedImport::header_columns` (trường mới) mang
-    TOÀN BỘ tên cột hàng tiêu đề; `commands::glossary::glossary_open_import_preview` tính
-    `term_origin_column_present = header_columns.contains("term_origin")` và trả nó trong
-    `ImportPreviewWire`. `GlossaryImportOverlay.vue` hiện câu `glossary.import.term_origin_note`
-    khi cờ đó `true` — chỗ DUY NHẤT trong sản phẩm nói ra sự thật này.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
-  summary: **`split_first_logical_line` và `split_fields` bất đồng về nháy kép ĐẶT SAI CHỖ** —
-    với đầu vào không theo RFC 4180, hai hàm có thể hiểu khác nhau về việc một `\n` nằm trong
-    hay ngoài một ô đang bọc.
-  evidence: `split_first_logical_line` lật cờ `in_quotes` ở MỌI ký tự `"`, bất kể vị trí; còn
-    `split_fields` chỉ mở một ô bọc khi `"` đứng NGAY ĐẦU ô. Một `"` lạc giữa ô làm ranh giới
-    DÒNG và ranh giới Ô được tính theo hai luật khác nhau. Không ca test nào đẩy một nháy kép
-    đặt sai chỗ qua `parse`.
-    ⚠️ Chỉ với đầu vào đã hỏng sẵn — mọi tệp do chính `render_tier` sinh ra đều bọc đúng luật,
-    nên vòng tròn xuất→nhập không chạm nhánh này.
-    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với việc đọc tệp thật từ đĩa, nơi tệp do NGƯỜI KHÁC
-    sinh ra lần đầu đi vào hệ thống.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `split_first_logical_line` nay áp ĐÚNG luật của
-    `split_fields`: một `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô (tham số `delimiter: Option<char>`
-    mới — `None` cho hàng tiêu đề, coi cả `,`/TAB là ranh giới; `Some(d)` cho hàng dữ liệu, đúng
-    MỘT ký tự đã chốt). Ca mới
-    `a_stray_quote_not_at_the_start_of_a_field_is_literal_in_both_the_line_and_field_splitter`
-    (`glossary_exchange_contract.rs`) khoá mệnh đề; đối chứng GỠ chỗ nối (trả `split_first_logical_line`
-    về luật cũ "đảo cờ ở mọi `"`") xác nhận ca đó ĐỎ đúng
-    (`CellCountMismatch { line: 2, expected: 2, found: 3 }`), khôi phục ⇒ xanh.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
-  summary: **Tương tác giữa lỗi trùng `source_term` và lỗi `category` lạ chưa được kiểm** — một
-    hàng trùng mà lần xuất hiện thứ hai CŨNG sai `category` chỉ được báo là `UnknownCategory`,
-    không bao giờ góp một `DuplicateSourceTerm`.
-  evidence: Trong `exchange.rs::parse`, phép dò trùng chạy SAU phép kiểm `category`, và ô nhớ
-    `seen` chỉ được điền cho những hàng đã qua mọi phép kiểm trước đó. Hành vi này có thể đúng
-    (một hàng đã hỏng thì không cần báo hỏng hai kiểu), nhưng nó chưa được ai QUYẾT — nó là hệ
-    quả của thứ tự viết mã, không của một lựa chọn viết ra.
-    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với màn hình xem trước, nơi hình dạng danh sách lỗi
-    hiển thị cho người dùng mới quyết được câu hỏi "một hàng báo mấy lỗi".)**
-    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — Ice chốt: một hàng báo CẢ HAI lỗi. `exchange.rs::parse`
-    không còn `continue` sớm ở lỗi `category`/`created_at`; mỗi hàng gom hết mọi lỗi áp dụng được
-    (category sai · created_at sai · trùng `source_term`, kiểm theo đúng thứ tự đó) trước khi
-    quyết định `continue` hay nhận hàng. Ca mới
-    `a_row_that_is_both_a_duplicate_and_has_an_unknown_category_reports_both_issues` khoá mệnh đề
-    `Err([UnknownCategory{line:3,..}, DuplicateSourceTerm{first_line:2,second_line:3}])`.
-
-- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
-  summary: **Một `ConflictDecision` trỏ tới `source_term` KHÔNG có trong lô bị bỏ qua trong im
-    lặng** — một lỗi của chỗ gọi (gửi quyết định cho nhầm thuật ngữ) không bao giờ lộ ra.
-  evidence: `import_into_tier` nhận `decisions: &BTreeMap<String, ConflictDecision>` và chỉ tra
-    map đó cho những hàng `Conflict` có thật; mọi khoá thừa rơi vào hư không, không lỗi, không
-    câu trạng thái, không ca test nào ghi lại hành vi này theo chiều nào.
-    ⚠️ Hôm nay chưa chỗ gọi sản phẩm nào tồn tại (§Never của story cấm dựng vỏ IPC), nên đây là
-    một hợp đồng CHƯA có ai vi phạm được — nhưng nó cũng chưa được viết ra.
-    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — story đầu tiên dựng một chỗ gọi thật cho hàm này.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `commands::glossary::glossary_confirm_import` kiểm
-    MỌI khoá của `decisions` khớp một `source_term` trong lô đang treo TRƯỚC khi gọi
-    `import_into_tier` — khoá lạ ⇒ `GlossaryError::ImportDecisionUnknownTerm { term }`, **0** lượt
-    ghi, lô GIỮ LẠI. Ca `confirming_with_a_decision_pointing_at_an_unknown_term_fails_and_keeps_the_batch`
-    (`glossary_import_dialog_contract.rs`) khoá mệnh đề; đối chứng GỠ chỗ nối (bỏ hẳn bước kiểm)
-    xác nhận ĐỎ đúng — không có bước kiểm, quyết định lạ bị ÂM THẦM bỏ qua và lô vẫn ghi thành
-    công (`ImportSummaryWire { inserted: 1, .. }` thay vì lỗi). Khôi phục ⇒ xanh.
 
 ## Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary (2026-08-25)
 
@@ -7509,95 +5889,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
       đều **ĐỎ**, khôi phục ⇒ xanh. ⚠️ Cổng này đọc VĂN BẢN NGUỒN: nó canh thuộc tính và dòng
       lint CÓ MẶT, nó không chứng minh một vé bị thả sẽ đỏ — vế đó do trình biên dịch giữ và
       chỉ nổ khi có một chỗ thả thật.
-
-- source_spec: none
-  summary: **Cụm D — mười ba phát hiện ở frontend**: bốn đường `invoke<>` tin thẳng tham số generic,
-    một cờ kẹt vĩnh viễn khoá hẳn nút xác nhận nhập, và một phím xoá vĩnh viễn không xác nhận.
-  evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn `/bmad-review epic 3`.
-    Vị trí: `config/glossary.ts:739-754, 877-894, 141-168, 519-542` (đường xuất, tóm tắt nhập, id
-    thêm-thuật-ngữ, id duyệt-ứng-viên đều tin thẳng generic của `invoke<>`, 0 phép kiểm lúc chạy —
-    trong khi MỌI kiểu dây nhiều trường khác TRONG CÙNG TỆP đều có guard, và chính tệp khai chính
-    sách *"dữ liệu IPC là một lời khai, không phải bảo đảm của trình biên dịch"*) · `:793-809`
-    (`isGlossaryImportPreview` kiểm `typeof === 'number'` mà thiếu `Number.isInteger`) ·
-    `:113-130` và `:592-628` (thiếu guard; cái sau bỏ bất biến chéo trường
-    `is_shadowed ⇒ tier === 'global'`) · `glossaryImportState.ts:173-190` (`confirming` kẹt `true`
-    VĨNH VIỄN, khoá hẳn nút xác nhận nhập) · `:196-204` (`cancelGlossaryImportPreview()` không đọc
-    `result.error`, khác hẳn hàm anh em ngay trên nó) · `glossaryQuickAddState.ts:196-199,307-330`
-    (không vé `sequence`: một lượt lưu cũ trả về muộn đóng dải và gán nhầm lỗi cho thuật ngữ vừa
-    gõ) · `glossaryQueueState.ts:99-104` (thiếu nhánh `'unknown'` ⇒ hàng chờ ĐANG NẠP đọc y hệt
-    hàng chờ ĐÃ NẠP VÀ CÓ HÀNG) · `GlossaryQueueOverlay.vue:209-214` (nhánh `all_reviewed` là mã
-    chết cho mục đích nó khai: `rows.value` không bao giờ co lại sau accept/reject, chỉ
-    `row.outcome` đổi) · `glossaryMarksState.ts:66-68,113-120` (phép kiểm id Chương trượt ở đua IPC
-    ⇒ `requestedForChapterId` nằm lại `null` và KHÔNG đường nào thử lại; dấu Glossary của Chương đó
-    không bao giờ được nạp — không lỗi, không dấu) · `selectionContract.ts:232-241`
-    (`surface.resolve(selection)` không `try/catch` trong khi hàm anh em cùng tệp thì có;
-    `Registry.dispatch` cũng không bọc `spec.run()` ⇒ một `throw` thoát ra khỏi listener `keydown`)
-    · `GlossaryManageOverlay.vue:223-227,408` (Backspace/Delete ở bất kỳ đâu ngoài ô nhập — đúng
-    trạng thái tiêu điểm mặc định ngay sau khi mở — xoá VĨNH VIỄN hàng đang chọn, không xác nhận,
-    không hoàn tác, trong khi đường Import cùng overlay lại có preview-trước-khi-ghi) ·
-    `:452-469` (Export và Import CSV không loại trừ lẫn nhau ⇒ hai hộp thoại hệ điều hành có thể
-    cùng bay) · `GlossaryQuickAdd.vue:167-186` (radio tầng Work không `disabled` khi
-    `quickAddWorkTierAvailable === false`; nút Lưu vẫn bật và vẫn gửi).
-    **(Chủ: lượt vá kế tiếp.)**
-  → ✅ **ĐÃ ĐÓNG 2026-08-26**, theo
-    `spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy.md`. Đo lại trên `0f07184` trước khi
-    vá: **hai trong mười ba mục bị BÁC bằng phép đo** (xem hai gạch đầu dòng KHÔNG LÀM ngay
-    dưới); **mười một mục đúng nguyên**, trải ra **mười bốn chỗ vá**, mỗi chỗ kèm một ca test
-    đối chứng gỡ-chỗ-nối đã CHẠY THẬT (revert từng tệp/hunk, chạy bộ test liên quan, ghi số ca
-    đỏ, khôi phục) — không suy luận. Bộ test frontend đi từ 479 ca (39 tệp) lên **518 ca (42
-    tệp)**; `check:i18n`/`check:commands`/`check:tokens`/`check:panel-refs`/`check:lint`/
-    `npm run build`/`cargo test`/`.githooks/pre-push` đều exit 0 sau lượt vá.
-    - **Bốn đường `invoke<>` tin thẳng generic** (đường dẫn trả về của `exportGlossaryTier`, id trả về của
-      `addGlossaryTerm`/`approveGlossaryCandidate`, `confirmGlossaryImport`) — **ĐÃ VÁ.** Cả bốn
-      nay `invoke<unknown>` rồi kiểm hình dạng lúc chạy (đường dẫn phải là chuỗi, `null` VẪN là
-      "đã huỷ hộp thoại"; id trả về phải là số nguyên; tóm tắt nhập phải có ba trường số nguyên)
-      trước khi đi tiếp vào state. Đối chứng: `tests/frontend/glossaryConfigGuards.test.ts`.
-    - **`isGlossaryImportPreview` thiếu `Number.isInteger`** — **ĐÃ VÁ**, bốn trường số
-      (`row_count`/`recognized_column_count`/`new_count`/`identical_count`) nay đều kiểm.
-    - **`lookupGlossaryTerm` thiếu guard cho object lồng, `isGlossaryEntry` thiếu bất biến chéo
-      trường** — **ĐÃ VÁ.** `QuickAddLookupWire` (kể cả `GlossaryQuickAddEntry` lồng bên trong)
-      nay có guard riêng; `isGlossaryEntry` nay ép `is_shadowed ⇒ tier === 'global'` như chính
-      doc-comment của kiểu đó đã khai.
-    - **`glossaryQuickAddState.ts:196-199,307-330` (vé `sequence` cho `saveGlossaryQuickAdd`) →
-      KHÔNG LÀM 2026-08-26 — đo lại trên `0f07184`, kịch bản mục nợ mô tả không dựng được.**
-      Kịch bản đòi dải phải đóng RỒI MỞ LẠI trong lúc một lượt lưu đang bay. Ba cửa chặn đồng
-      bộ đã khép kín nó: `saveGlossaryQuickAdd:298` `if (saving.value) return` ·
-      `closeGlossaryQuickAdd:277` `if (saving.value) return` · `openGlossaryQuickAdd:217`
-      `if (isOpen.value) return` (doc-comment tại chỗ của cửa thứ hai nói thẳng "không có ca nào
-      cần `Esc` phải thắng một lượt ghi đang bay"). Thêm một vé `sequence` là thêm một nhánh mã
-      không bao giờ chạy — đúng lớp `tests/AGENTS.md` gọi là "mã chết vĩnh viễn trong sản phẩm".
-      **0 dòng đổi** ở `glossaryQuickAddState.ts` (đối chứng: `git diff --stat` của lượt vá).
-    - **`glossaryMarksState.ts:66-68,113-120` (đua id Chương) → KHÔNG LÀM 2026-08-26 — đo được
-      NGƯỢC với điều mục nợ khai.** `requestedForChapterId = null` (`:105`, tồn tại từ commit
-      tạo tệp `53035e7`, Story 3.4b) là dòng MỞ đường thử lại, không phải dòng khoá nó:
-      `ensureGlossaryMarksLoaded:118` `if (requestedForChapterId === chapterId) return` chỉ
-      chặn khi hai giá trị BẰNG NHAU, nên `null` luôn mở lại được. Mọi lượt ghi
-      `sequence`/`requestedForChapterId` nằm TRƯỚC `await` và JS đơn luồng ⇒ không kẽ hở trong
-      chính tệp; hai chỗ gọi ở `editorPanelState.ts` (`:1578-1584,:2065-2071`) đã có guard khớp
-      nhau. **0 dòng đổi** ở `glossaryMarksState.ts`.
-    - **`glossaryQueueState.ts:99-104` thiếu nhánh `'unknown'`, VÀ `all_reviewed` là mã chết** —
-      **ĐÃ VÁ**, gộp cả hai trong một lượt (bản nợ chỉ nêu vế đầu; vế `all_reviewed` là mã chết
-      cho mục đích nó khai — đo được: `rows.value` không co lại sau Nhận/Bỏ, chỉ `row.outcome`
-      đổi). `queueEmptyReasonFor` nay nhận `unprocessedCount` (không `rows.length`) và trả
-      `'loading'` có tên cho `'unknown'`; `GlossaryQueueOverlay.vue` dời nhánh "đang tải" vào
-      hàm, không còn hai chỗ canh cùng mệnh đề.
-    - **`glossaryImportState.ts:173-190` (`confirming` kẹt `true`) VÀ `:196-204`
-      (`cancelGlossaryImportPreview` không đọc `result.error`)** — **ĐÃ VÁ**, cả hai. `confirming`/
-      `confirmError` nay reset NGAY khi một lượt mở MỚI bắt đầu (không đợi biết `outcome`);
-      `cancelGlossaryImportPreview` nay đọc `result.error` và ghi một chẩn đoán nêu đích danh.
-    - **`selectionContract.ts:232-241` (`resolve()` không `try/catch`) VÀ `Registry.dispatch`
-      không bọc `spec.run()`** — **ĐÃ VÁ**, cả hai. `throw` cho một `CommandId` chưa đăng ký ở
-      `registry.ts:203-211` GIỮ NGUYÊN (nửa cưỡng chế lúc chạy của AC1, không nằm trong phạm vi
-      bọc này).
-    - **`GlossaryManageOverlay.vue:223-227,408` (Backspace/Delete xoá vĩnh viễn, không xác
-      nhận)** — **ĐÃ VÁ** bằng một nhịp xác nhận NỘI TUYẾN hai bước trong CHÍNH lớp phủ đó
-      (không component hộp thoại dùng chung — kho chưa có, dựng một cái là một quyết định kiến
-      trúc riêng). Cùng `dispatch('glossary.manage.delete')` cho cả hai nhịp; `Escape` huỷ nhịp
-      một mà KHÔNG đóng lớp phủ.
-    - **`:452-469` (Export/Import không loại trừ lẫn nhau)** — **ĐÃ VÁ**, xem mục
-      "Hai lượt xuất Glossary song song..." ngay dưới cho cơ chế và tên chỗ gác.
-    - **`GlossaryQuickAdd.vue:167-186` (radio tầng Work không `disabled`)** — **ĐÃ VÁ**, chép
-      khuôn `GlossaryManageOverlay.vue:443` (`:disabled="!manageWorkTierAvailable"`).
 
 - source_spec: none
   summary: **Cụm E — ba lỗ hổng canh gác ĐÃ ĐO BẰNG PHÉP CẮT-THỬ THẬT**, không suy luận: cắt vệ đi
@@ -8160,96 +6451,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
 ## Deferred from: 4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi (2026-08-26)
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
-  summary: **Năm trong sáu AC của Story 4.1 đúng một cách RỖNG hôm nay** — chúng đứng vững vì
-    `core/ai/` có 0 dòng mã và 0 chỗ gọi thật ngoài tệp test vừa dựng, không vì một vi phạm
-    THẬT nào từng bị bắt trên cây sống.
-  evidence: Đo lúc đóng story (2026-08-26): `core/ai/mod.rs` — 10 dòng, 100% doc-comment, 0 dòng
-    mã; `src-tauri/src/**` có 55 tệp `.rs` (`AI_FLOOR = 1`, `SRC_RS_FLOOR = 44`, 44/55 = 80%).
-    `src-tauri/tests/ai_boundary.rs` sáu ca xanh, nhưng AC *"một tệp mang token cấm ⇒ ca
-    ĐỎ, nêu đích danh `file:line`"* và AC *"cây sạch ⇒ mọi ca XANH, ca gieo tổng hợp chứng
-    minh vị từ nổ được"*) chỉ được chứng minh bằng CA GIEO VI PHẠM TỔNG HỢP dựng tay
-    (`the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code`)
-    cộng NĂM phép GỠ-CHỖ-NỐI thật đã chạy và ghi số (xem §Completion Notes: ba lượt gieo vào
-    `src-tauri/src/lib.rs` và `src-tauri/src/core/scope/mod.rs` cho đúng 1 ca đỏ mỗi lượt; một
-    đối chứng ÂM giữ 4/4 xanh; một lượt gieo `AI_DIR` gõ sai cho 2 ca đỏ) — nhưng CHƯA một vi
-    phạm THẬT nào từng tồn tại trong cây để cổng tự bắt: mọi vi phạm đều do chính người nghiệm
-    thu gieo vào rồi gỡ ra.
-    🔵 **Sửa tại chỗ 2026-08-26 — bản đầu của mục này SAI HAI VẾ.** Nó viết *"AC (sàn quần thể
-    đỏ khi cây bị cắt)… chưa được kích hoạt thật ở đây"* và ghi lượt gieo `super::ai::…` là vào
-    `core/dict/mod.rs`. Cả hai là mô tả một DỰ ĐỊNH chứ không phải một phép đo — agent thi hành
-    chết vì lỗi API trước khi chạy chúng, và người nghiệm thu chạy lại trên hai tệp khác. Sàn
-    quần thể ĐÃ được kích hoạt thật. Giữ lại nguyên văn chỗ sai thay vì xoá, đúng luật của sổ này.
-    AC *"toàn bộ cổng/test kho xanh"* đúng nhưng không nói gì riêng về AD-13 trên một cây CÓ Epic
-    4 thật. Mười một story còn lại của Epic 4 (4.2–4.12) sẽ là lần đầu tiên `core/ai/` có từ vựng
-    thật để cổng này canh trên dữ liệu sống thay vì một chuỗi dựng tay.
-    **(Chủ: Story 4.2 — story đầu tiên thêm mã thật vào `core/ai/`. Ảnh chụp nền tiếp theo:
-    đo lại số dòng mã/số tệp của `core/ai/` và chạy `ai_boundary.rs` trên cây đó — còn xanh
-    hay không, và `AI_FLOOR`/`SRC_RS_FLOOR` có cần nâng.)**
-  → ✅ **ĐÃ ĐÓNG 2026-09-16 (Story 4.2), bằng phép đo — KHÔNG bằng mã mới trong `core/ai/`.**
-    Đo lại trên cây sau khi Story 4.2 xong: `core/ai/mod.rs` vẫn đúng 10 dòng, 100%
-    doc-comment, 0 dòng mã, 0 chỗ gọi — Story 4.2 cố ý KHÔNG chạm `core/ai/` (§Intent:
-    "no code in core/ai/", đóng đúng luôn dự đoán ngược mà chính spec 4.2 nêu ra rồi tự bác:
-    *"đây cũng phủ nhận một dự đoán trước đó rằng Story 4.2 sẽ là story đầu tiên đưa mã thật
-    vào `core/ai/` — nó không đưa gì cả"*). `AI_FLOOR` giữ nguyên **1** — đúng, vì quần thể
-    `core/ai/**` không đổi. `src-tauri/src/**` đo được **85** tệp `.rs` (từ 55 lúc Story 4.1
-    đóng, qua Epic 5/6, cộng ba tệp Story 4.2 vừa thêm: `core/aiconfig/mod.rs`,
-    `core/aiconfig/store.rs`, `commands/aiconfig.rs`) — `SRC_RS_FLOOR` nâng **44 → 68**
-    (85 × 80% = 68,0, tính trên quần thể SAU khi ba tệp trên đã tồn tại — một lượt đo đầu
-    tiên dùng nhầm quần thể 82 TRƯỚC ba tệp đó, cho 65 (76,5% của 85, dưới dải 80–85%); sửa
-    tại chỗ trong `ai_boundary.rs` cùng ngày). `cargo test --test ai_boundary` xanh cả sáu ca, KHÔNG sửa
-    `FORBIDDEN_BARE_TOKENS`/vị từ miễn trừ. Vế "đã chạy trên Epic 5/6" đóng cùng lượt — xem
-    mục ngay dưới.
-
-- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
-  summary: **Chiều ĐƯỢC PHÉP của AD-13 — `ai/` đọc `glossary/`/`tm/`/`segment/` — chưa được
-    chứng minh, kể cả bằng một ca rỗng.**
-  evidence: `epic-4-context.md` §Technical Decisions khai *"Chiều ngược lại hợp lệ: `ai/` được
-    đọc `glossary/`, `tm/`, `segment/`"*, nhưng `ai_boundary.rs` (Story 4.1) chỉ dựng được vế
-    CẤM (module khác phụ thuộc `ai/`) — hôm nay không có gì để canh ở chiều ngược vì `core/ai/`
-    0 dòng mã. Khi Story 4.6 (`RagInjector`) dựng lời gọi thật xuống
-    `core::glossary::entries_eligible_for_injection`, `glossary_boundary.rs` (Story 3.1/3.2,
-    quét TRỌN `src-tauri/src/**`) về mặt quần thể ĐÃ bao `core/ai/` — một lời gọi cấm
-    (`load_tier`/tên bảng thô) từ `ai/` sẽ bị `glossary_boundary.rs` bắt như bắt bất kỳ module
-    nào khác — nhưng mệnh đề đó CHƯA từng được chứng minh bằng một ca dương thật, vì chưa một
-    dòng mã `ai/` nào gọi xuống `glossary/` để tự làm chứng.
-    **(Chủ: Story 4.6 — dựng `RagInjector`, chỗ đầu tiên `ai/` thật sự gọi xuống `glossary/`;
-    xác nhận lúc đó rằng `glossary_boundary.rs` bắt đúng nếu `ai/` lách qua bề mặt cấm.)**
-  → ✅ **ĐÃ ĐÓNG 2026-09-17 (Story 4.6), CHỨNG MINH được, không phải chỉ đo.** `core::ai::rag`
-    nay gọi thật `core::glossary::confirmed_terms_for_injection` (cửa MỚI, không phải
-    `entries_eligible_for_injection` như evidence dự đoán — xem Decision 5 của spec 4.6 cho
-    lý do cửa cũ không đủ). Ca dương thật đã chạy, không suy luận: seed `load_tier` bên
-    TRONG nhóm `use crate::core::glossary::{` nhiều dòng của `rag.rs` (hình dạng THẬT mà
-    `rustfmt` xuống dòng cho nhóm ≥3 tên) rồi chạy
-    `cargo test --test ai_boundary --test glossary_boundary` — CẢ HAI cổng đỏ, mỗi cổng nêu
-    đúng tên `load_tier` tại đúng dòng. Gỡ seed, cả hai lại xanh. Vế "chiều ĐƯỢC PHÉP của
-    AD-13" giờ có ca dương thật; `tests/ai_boundary.rs::no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four`
-    còn khoá thêm bốn tên duy nhất được phép (cửa, kiểu trả về, `GlossaryError`,
-    `match_lang_for_source_lang`).
-
-- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
-  summary: **AC ranh giới của `ai_boundary.rs` mới canh được Epic 1–3 (55 tệp hôm nay);
-    `epic-4-context.md` đòi nó chạy LẠI trên bộ test của cả Epic 5 và Epic 6 khi Story 4.2 tới
-    lượt.**
-  evidence: §Technical Decisions của `epic-4-context.md`: *"khi Story 4.2 trở đi tới lượt, AC
-    ranh giới phải chạy lại trên bộ test của cả Epic 5 và Epic 6, không chỉ Epic 1–3 như văn
-    bản gốc."* Về mặt CƠ CHẾ, `ai_boundary.rs` đã bao trọn mọi tệp tương lai của Epic 5/6 một
-    khi chúng tồn tại — nó quét `src-tauri/src/**` bất kể tệp đó do Epic nào viết ra, không cần
-    sửa gì thêm ở chính tệp test. Nhưng mệnh đề *"đã chạy và bắt được trên Epic 5/6"* chỉ đúng
-    SAU khi hai Epic đó có tệp `.rs` thật để quét qua — hôm nay chúng chưa tồn tại
-    (`sprint-status.yaml` quyết định thời điểm).
-    **(Chủ: Story 4.2 — chạy lại `ai_boundary.rs` trên cây SAU khi Epic 5 và Epic 6 đã đóng,
-    xác nhận `SRC_RS_FLOOR` phản ánh đúng quần thể mới và không tệp Epic 5/6 nào lọt miễn trừ.)**
-  → ✅ **ĐÃ ĐÓNG 2026-09-16 (Story 4.2).** `cargo test --test ai_boundary` chạy THẬT trên cây
-    hiện có (Epic 5 và Epic 6 đã đóng, cộng ba tệp mới của Story 4.2) — sáu ca xanh, gồm
-    `the_scanned_tree_and_the_ai_module_are_both_large_enough_to_be_real` (sàn quần thể) và
-    `no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module` (cổng thật, quét TRỌN
-    `src-tauri/src/**` — đã bao mọi tệp Epic 5/6 về mặt cơ chế, không cần sửa gì thêm ở chính
-    tệp test, đúng như evidence đã dự đoán). `SRC_RS_FLOOR` nâng 44 → 68 phản ánh quần thể
-    thật 85 (xem mục ngay trên cho số đo đầy đủ và cho lượt sửa tại chỗ 65 → 68). Không tệp
-    Epic 5/6 nào lọt miễn trừ —
-    `is_inside_ai_module` chỉ khớp `core/ai/**`, không đổi.
-
-- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **Điểm mù có tên — một `pub use ai::Foo;` thêm vào `core/mod.rs` cho module khác
     viết `crate::core::Foo` mà không đánh vần `ai` một lần nào, và cổng ranh giới sẽ xanh trên
     một AD-13 đã bị phá.**
@@ -8330,76 +6531,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (b) dựng một phép kiểm tính tỉ lệ sàn/quần thể thật và đỏ khi tỉ lệ tụt dưới ~70%.)**
 
 ## Deferred from: 5-1-mo-hinh-library-hai-tang (2026-08-27)
-
-- source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
-  summary: **`work` không mang cột `cover`/ảnh bìa** — Story 5.1 §Never cấm tường minh thêm nó
-    hôm nay: 0 lần xuất hiện của `cover` trong toàn bộ `src-tauri/src` + `src`, và không đường
-    sản phẩm nào ghi hay đọc nó. Thêm cột + bump `META_SCHEMA_VERSION` 1→2 cho một tính năng
-    chưa tồn tại là đúng thứ Story 1.7 §Completion Notes #3 cấm.
-  evidence: Epic 5 §Requirements ghi *"Mỗi Tác phẩm mang tên, bìa (tuỳ chọn), ngôn ngữ nguồn…"*,
-    và Story 5.6 (lưới Tác phẩm) là nơi bìa LẦN ĐẦU được nhìn thấy — trước đó không màn hình
-    nào đọc nó nên không có gì để nghiệm thu ngoài một cột nằm im.
-    **(Chủ: Story 5.6 — thêm cột `cover` + di trú `META_SCHEMA_VERSION` 1→2 CÙNG LƯỢT với màn
-    hình lưới Tác phẩm đọc nó lần đầu.)**
-  → **KHÔNG LÀM 2026-08-28 (Story 5.6) — tiền đề "Story 5.6 là nơi bìa LẦN ĐẦU được NHÌN
-    THẤY" đã SAI, và điều đó đổi kết luận.** Đo lại trên `2b837fe`: `grep -rni cover
-    src-tauri/src src` ⇒ **3** kết quả, **0** cái là một trường dữ liệu (hai là chữ "covering
-    index", một là chính câu cấm này); `grep -n "bìa" _bmad-output/planning-artifacts/epics.md`
-    ⇒ **0** story nào mở một đường cho người dùng ĐẶT ảnh bìa — FR3 chỉ ghi *"ảnh bìa (tuỳ
-    chọn)"*, không AC nào ở bất kỳ epic nào dựng đường chọn tệp bìa. Thêm cột bây giờ là thêm
-    một cột LUÔN `NULL` cho một giao diện LUÔN vẽ biểu diễn thay thế — đúng thứ Story 1.7
-    §Completion Notes #3 và §Never của Story 5.1 cấm, và đây không phải một lựa chọn giữa hai
-    KẾT QUẢ khác nhau (người dùng nhìn thấy giống hệt cả hai phương án) mà là giữa "có một cột
-    chết" và "không". Story 5.6 dựng khung bìa + biểu diễn thay thế nhất quán (AC2/AC6, chữ
-    cái đầu của tên trên nền token, `?` khi tên rỗng) — quan sát được, đo được, không cột
-    `cover` nào đứng sau nó. **Chủ MỚI: Ice** — quyết định story nào mở đường ĐẦU TIÊN cho
-    người dùng ĐẶT một ảnh bìa (story đó chưa tồn tại trong `epics.md`), không một tên story
-    giả cho có (`check:debt-owner` Kiểm A). Xem §Design Notes "Vì sao KHÔNG thêm cột `cover`
-    ở lượt này" của `5-6-luoi-tac-pham-loc-va-sap-xep.md`.
-
-- source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
-  summary: **`work.updated_at` không bao giờ sống** — ghi đúng một lần lúc `INSERT`
-    (`commands/project.rs`, câu `INSERT INTO work`) và không câu `UPDATE` nào trong toàn kho
-    chạm cột này. Một Tác phẩm dịch xong mười Chương vẫn đọc `updated_at` bằng đúng thời điểm
-    tạo — cột nói dối theo đúng nghĩa đen ngay khi có UI nào đọc nó.
-  evidence: Story 5.2 (Indexer) là nơi "sắp xếp theo ngày sửa" lần đầu làm lời khai đó lộ ra —
-    `library-index.db` cần một mốc thời gian sửa THẬT để sắp xếp/lọc Tác phẩm, và Indexer là
-    thành phần duy nhất được phép ghi dẫn xuất, nên nó cũng là nơi tự nhiên quyết định
-    `work.updated_at` sống bằng cách nào (mỗi lượt ghi `chapter`/`segment`, hay suy ra lúc quét).
-    **(Chủ: Story 5.2 — quyết định cơ chế làm `work.updated_at` sống, kèm test hợp đồng.)**
-  → 🟡 **Story 5.2 (2026-08-27): PHẠM VI RỘNG HƠN LỜI KHAI GỐC — chủ chuyển sang Story 5.6.**
-    Bốn phép đo trình Ice 2026-08-27 (§Design Notes của story, "Phạm vi hẹp"): (1)
-    `work.updated_at` — đúng như lời khai gốc, 1 lần ghi (`project.rs:177`), **0** `UPDATE`;
-    (2) **`chapter.updated_at` cũng đóng băng** — **0** `UPDATE` toàn cây, và sổ nợ gốc chỉ
-    nêu `work` nên khai HẸP HƠN khuyết tật thật; (3) `meta.json` có đúng MỘT chỗ gọi
-    `write_atomic` sản phẩm (`project.rs:242`), nên MỌI trường của nó — không riêng
-    `updated_at` — đúng đúng một lần trong đời (hệ quả trực tiếp của (1)+(2), xem mục "meta.json
-    đóng băng từ lúc tạo" ở phần "Deferred from: 5-2-…" cuối tệp này); (4) bơm `work.updated_at`
-    trong giao dịch flush làm cổng
-    đang xanh `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`
-    ĐỎ — tức phải mở lại một AC đã ký của Story 2.3, ngoài phạm vi một story Library. Ice chốt
-    hẹp 2026-08-27: Story 5.2 CHÉP TRUNG THÀNH `meta.json` (kể cả hai giá trị đóng băng), không
-    sửa cơ chế ghi. **Chủ chuyển sang Story 5.6** — nơi cột "ngày sửa" của lưới Tác phẩm LẦN
-    ĐẦU hiển thị giá trị này, đúng khuôn "story dựng màn hình đầu tiên đọc một trường sở hữu
-    luôn quyết định cơ chế làm trường đó sống".
-  → ✅ **ĐÃ ĐÓNG 2026-08-28 (Story 5.6, AC8).** `WorkMeta::rebuild_from_store`
-    (`core/library/meta.rs`) — chỗ DUY NHẤT tính giá trị dẫn xuất, §Approach của story — bỏ
-    `updated_at` khỏi câu `SELECT` chép từ `work` và tính nó bằng
-    `MAX(work.created_at, MAX(chapter.updated_at), MAX(segment.updated_at))`, ba nguồn đang
-    SỐNG (`chapter.updated_at` từ `commands/lifecycle.rs:143`, Story 5.4; `segment.updated_at`
-    từ `commands/segment.rs:1186`/`:709`). **Không** đụng giao dịch flush — cổng
-    `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`
-    (AC đã ký của Story 2.3) vẫn xanh, đúng cái giá mà mục nợ này từng nêu để chuyển chủ khỏi
-    Story 5.2 KHÔNG còn phải trả — nguồn dẫn xuất KHÔNG cần một chỗ ghi `meta.json` thứ ba.
-    Đối chứng bắt buộc CHẠY THẬT: gỡ phép tính `MAX`, trả lại lượt chép `work.updated_at` ⇒ ca
-    `project_contract.rs::rebuild_derives_updated_at_from_chapter_updated_at_when_it_is_the_latest`
-    đỏ; khôi phục thì xanh lại. ⚠️ **Dư địa còn lại, KHÔNG được đọc thành "thời gian thực":**
-    `rebuild_from_store` chỉ chạy ở hai chỗ ghi `meta.json` đã có (`create_work`, đổi trạng
-    thái Chương) — một loạt sửa văn bản thuần (không đổi trạng thái Chương nào) đẩy
-    `segment.updated_at` tiến lên nhưng `meta.json` không được ghi lại cho tới lượt kế tiếp.
-    Đóng nốt vế đó cần một chỗ ghi `meta.json` THỨ BA trên đường flush — một **AD MỚI** (kéo
-    theo `reindex_library` quét toàn thư viện mỗi lượt auto-save) — **Chủ: Winston**, xem
-    §Block If của `5-6-luoi-tac-pham-loc-va-sap-xep.md`.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.
@@ -8521,33 +6652,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `library_work` không cập nhật" — đối chứng đó chỉ chạy TAY (§Verification của story,
     "Đối chứng bắt buộc"), không phải một cổng tự động. Chủ giữ nguyên Story 5.6 cho phần
     "một cổng tự động canh cả bốn chỗ gọi cùng lúc, không đối chứng tay từng story".
-
-- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
-  summary: **Hai lượt `Indexer::rebuild` chạy chồng có thể xen kẽ và để chỉ mục phản ánh một ảnh chụp
-    không phải mới nhất** — lượt quét thư mục nằm NGOÀI giao dịch ghi.
-  evidence: `Indexer::rebuild` quét đĩa (`scan_atproj_dirs`) rồi mới mở một `store.write` riêng để
-    `DELETE` + `INSERT`. Hai lượt gọi có thể chồng nhau trong sản phẩm: `open_library_index` chạy một
-    lượt lúc khởi động (`lib.rs`), còn `reindex_after_create_work` chạy một lượt nữa sau mỗi lần tạo Tác
-    phẩm (`commands/project.rs`) — nếu lượt A quét trước lượt B nhưng ghi sau, chỉ mục giữ ảnh chụp CŨ
-    hơn. Hậu quả bị chặn trên: `store::Writer` nối tiếp nên không có ghi rách, chỉ mục là DẪN XUẤT nên
-    lượt `rebuild` kế tiếp tự sửa, và không dữ liệu người dùng nào mất. Chưa có ca nào chạy hai `rebuild`
-    đồng thời.
-    **(Chủ: Story 5.3 — quét lại thư mục — vì nó sở hữu quét tăng dần và sẽ thêm chỗ gọi `rebuild` thứ ba
-    do người dùng bấm, tức là story biến một khả năng lý thuyết thành một cửa sổ thật.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-27 (Story 5.3). `Indexer` nay mang `rebuild_lock: Mutex<()>`
-    (`core/library/indexer.rs`), khoá xuyên suốt CẢ giai đoạn quét đĩa LẪN giai đoạn ghi của
-    `Indexer::rebuild` — không chỉ giai đoạn ghi (`store::Writer` đã nối tiếp phần đó một
-    mình từ trước). Hai lượt gọi `rebuild` đồng thời (khởi động + người dùng bấm "quét lại",
-    đúng chỗ gọi thứ BA mà mục này tiên đoán — `commands::library::wire::library_rescan`)
-    nay PHẢI hoàn tất tuần tự, không xen kẽ. Đo bằng
-    `tests/library_index_contract.rs::two_threads_calling_rebuild_concurrently_converge_to_one_consistent_state`
-    (hai luồng, 20 lượt `rebuild` mỗi luồng, có `Barrier` canh cho khởi động gần như đồng
-    thời) — xanh, hội tụ đúng trạng thái đĩa cuối cùng, không panic/deadlock. ⚠️ Giới hạn thật
-    ghi ngay trong doc-comment của ca đó: không có hook tiêm độ trễ giữa quét và ghi, nên ca
-    này không CHỨNG MINH một ảnh chụp trộn cụ thể sẽ xảy ra nếu thiếu Mutex — nó đối chứng
-    điều đo được (không rơi mất lượt ghi nào, không race). Sửa nghĩa `rebuild` từ xoá-sạch-
-    ghi-lại sang đối chiếu (UPSERT + đánh dấu mồ côi) CÙNG LƯỢT — xem §Design Notes của
-    `5-3-quet-lai-thu-muc.md`.
 
 ## Deferred from: 5-3-quet-lai-thu-muc (2026-08-27)
 
@@ -8824,18 +6928,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ghi ra ở đây để lượt đọc sau không tưởng nhánh tách đã được phủ bằng bàn phím.
     **(Chủ: Ice — cùng chủ với mục gốc ở §"Deferred from: 5-7…".)**
 
-- ✅ **`save_chapter_position` chỉ kiểm `chapter_id` tồn tại, KHÔNG kiểm `segment_id` thuộc
-  đúng Chương đó** *(mục `deferred` #1 trong frontmatter của
-  `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`, giao đích danh cho Story 5.8)*
-  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.8).** Phép kiểm cặp `(chapter_id, segment_id)` nay chạy
-  **trong chính giao dịch ghi** của `commands/segment.rs::save_chapter_position` — không khe
-  hở nào giữa phép kiểm và phép ghi — và một cặp lệch trả `segment.not_found` với **0 hàng
-  ghi**, thay vì đi tiếp rồi đọc lên **giống hệt** ca *"segment đã về hưu"* (hai nguyên nhân
-  khác hẳn đội chung một biểu hiện, đúng lý do mục này được ghi). Điều kiện mà mục gốc chờ đã
-  tới: story này là story đầu tiên có đường sản phẩm làm segment **ĐỔI `chapter_id`**, nên
-  cặp lệch sinh ra được thật. Ca canh:
-  `src-tauri/tests/segment_contract.rs::saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing`.
-
 ## Deferred from: 5-9-tim-kiem-full-text-xuyen-library (2026-08-29)
 
 - ⚠️ **Truy vấn 1–2 ký tự không tra được nửa nguyên văn — đặc biệt từ ghép hai chữ Hán
@@ -8872,26 +6964,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     bảng đảo ngược `(ký tự, rowid)` thứ ba sẽ CỘNG THÊM vào đường nền 1,285 s này ở mỗi lượt
     `rebuild` — mức cộng thêm cụ thể vẫn CHƯA đo (đòi thật sự dựng bảng đó, ngoài phạm vi story
     này).
-
-- 🟡 **Chế độ khoan dung dấu (bỏ qua phân biệt dấu tiếng Việt khi tìm) — câu mời đã có TRÊN
-  MÀN HÌNH, chưa có cửa bấm phía sau nó.**
-  evidence: §I/O Matrix "Không khớp" của story này đòi ca ⑤ (`indexed_segments > 0`, không
-    khớp) *"nói chế độ khoan dung là việc của Story 5.10 — KHÔNG dựng một nút chưa có đường
-    chạy phía sau"*. `mode.library.search_no_match` (`vi.json`) nói đúng câu đó bằng chữ
-    ("chỉ mục PHÂN BIỆT dấu tiếng Việt. Chế độ khoan dung dấu chưa có ở bản này") nhưng KHÔNG
-    một nút/toggle nào đi kèm — đúng ý AD-27 ("`remove_diacritics 2` là chỉ mục PHỤ của Story
-    5.10, không dựng ở đây") và đúng §Never của story ("Không dựng chỉ mục xoá dấu — đó là chế
-    độ khoan dung của Story 5.10").
-    ⇒ Story 5.10 dựng: bảng `library_target_fts_nd` (`remove_diacritics 2`, hậu tố `_nd` đúng
-    khuôn `tools/dict-build/src/schema.rs::SENSE_FTS_ND_DDL`), một nút bật/tắt trên màn hình
-    tìm kiếm, và Rust chạy nhánh đó CHỈ khi người dùng bật — không mặc định (AD-27).
-    **(Chủ: Story 5.10 — đã có tên trong chính story này, không cần Ice chọn lại.)**
-    → ✅ ĐÃ ĐÓNG 2026-08-29 (Story 5.10). `library_target_fts_nd` (`unicode61
-    remove_diacritics 2`) dựng đúng khuôn đã hứa, `LIBRARY_INDEX_MIGRATIONS` bump 6 → 7.
-    `Indexer::search` nhận `SearchMode` (`Exact` mặc định · `Lenient`), tự nới khi chính xác
-    trả 0 hàng trên chỉ mục KHÔNG rỗng (`SearchReport::widened`), và hai nút
-    `library.search_mode_exact`/`_lenient` trên `LibraryMode.vue` cho người dùng chọn thẳng.
-    `mode.library.search_no_match` sửa tại chỗ — câu "chưa có ở bản này" đã hết đúng.
 
 - 🟡 **`đ`/`Đ` (U+0111/U+0110) không được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào —
   người dịch gõ `duong`/`duoc`/`dau`/`di` vẫn không tìm ra `đường`/`được`/`đầu`/`đi` kể cả ở
@@ -9077,18 +7149,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: story kế tiếp mở lại hình dạng `BootstrapConfig` — cùng lượt với bất kỳ trường thứ tám
     nào, không phải một lượt riêng cho ba ô này.)**
 
-- ⚠️ **Vị trí đọc trong Chế độ đọc không được nhớ — rời chế độ rồi quay lại là về đầu trang.**
-  evidence: xem mục *"🟡 THU HẸP 2026-08-30 (Story 5.11)"* ở cụm *Deferred from: 2-11* phía trên —
-    vế *"đúng Chương"* của UX-DR34 đã đóng ở story này, vế *"đúng vị trí cuộn"* thì chưa.
-    Không mở một mục thứ hai cho cùng một món; dòng này chỉ trỏ tới nó để người đọc cụm 5.11 không
-    phải tự tìm.
-    🔵 **SỬA 2026-08-30 (Story 5.12)** — mục gốc vừa THU HẸP chủ về MỘT (Story 5.12 đã dựng
-    xong bề mặt "chỉ đọc phần đã xong" mà không đụng vị trí cuộn); câu ở đây SỬA THEO.
-    **(Chủ: Story 5.13 — duy nhất, cùng chủ đã ghi ở mục gốc.)**
-    → ✅ **ĐÃ ĐÓNG 2026-08-31 (Story 5.13)** — xem mục gốc *Deferred from: 2-11*:
-    neo là `segment.id`, không pixel; e2e WKWebView đã đổi typography rồi xác nhận neo sống
-    sau hai lượt regroup giao vùng nhìn.
-
 ## Deferred from: 5-12-che-do-doc-chi-doc-phan-da-xong (2026-08-30)
 
 - 🟡 **`↵` (Enter) trên nút *Dịch tiếp Chương N* của mốc biên KHÔNG có hợp âm mặc định, dù
@@ -9102,32 +7162,6 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **mặc định**, không phải **năng lực**.
     **(Chủ: Ice — chọn một hợp âm mặc định cho `reading.continue_in_workspace`, hoặc để trống
     vĩnh viễn và chỉ dựa vào `ChordOverrides`.)**
-
-- 🟡 **`read_reading_run` mang HAI chi phí quy mô độc lập, chưa đo ở quy mô lớn — không phải một.**
-  evidence: đo tại baseline `e36599e` (2026-08-30) — chưa đường sản phẩm nào tạo Chương thứ hai
-    ngoài `split_chapter_at_segment` (Story 5.8), và FR14 (nhập hàng loạt, sinh nhiều Chương một
-    lượt) là **Epic 6**. Một Tác phẩm thật hôm nay có 1–2 Chương, cùng hạng chi phí với
-    `read_open_chapter_segments` đang chạy — đó là lý do vỏ IPC của lệnh này **không** `(async)`.
-    **①** nạp TRỌN mọi segment của mọi Chương `done` trong dãy vào bộ nhớ trong MỘT lượt
-    `Store::read` — O(tổng số segment của dãy). **②** 🔵 **THÊM (lượt rà 2026-08-30, Bản vá 8,
-    review vòng bốn lớp) — câu SQL ĐẦU TIÊN của hàm (`SELECT id, ord, title, status FROM
-    chapter`) quét MỌI hàng `chapter` của TOÀN BỘ Tác phẩm, không riêng phần nằm trong dãy —
-    O(tổng số Chương), một chi phí ĐỘC LẬP với ①, và nó chạy dù dãy dừng ngay tại Chương đang mở
-    (§I/O Matrix "Chạm biên ngay").** Mục trước của lượt rà này chỉ kể chi phí ①, bỏ sót ②.
-    ⚠️ **Ngưỡng nó hỏng:** ở quy mô Epic 6 (5.000 Chương giả định của NFR3/NFR4/NFR5), chi phí ①
-    cho một Tác phẩm dịch xong hoàn toàn — một dãy đọc **toàn bộ Tác phẩm** trong một lượt — vượt
-    trần bộ nhớ nhàn rỗi 300 MB trước khi vượt bất cứ thứ gì khác; chi phí ② thì hỏng SỚM HƠN,
-    ngay cả khi dãy dừng ở Chương đầu tiên, vì nó không phụ thuộc dãy dừng ở đâu.
-    **(Chủ: Story 5.14 — đóng CẢ HAI chi phí cùng một lượt đo ba ngưỡng NFR3/NFR4/NFR5; không
-    mở mục thứ hai cho ②, và không phải một lời nhắc trôi nổi mà là một phép đo phải chạy trước
-    khi Epic 6 sinh dữ liệu ở quy mô đó.)**
-    → ✅ **ĐÓNG 2026-09-02 (Story 5.14).** Đo cả hai chi phí **tách rời**, release, 10 warmup +
-    30 mẫu mỗi hình dạng, trên fixture 5.000 Chương/50.000 segment: chi phí **②** (quét toàn bảng
-    `chapter`, dãy dừng ngay Chương đầu) p50 **2,922 ms** · p95 3,272 ms; chi phí **①+②** (dãy đọc
-    trọn Tác phẩm) p50 **179,744 ms** · p95 198,362 ms. Cả hai **dưới** trần NFR1/NFR3 hiện hành.
-    ⚠️ Nhưng cảnh báo *"① vượt trần bộ nhớ 300 MB trước khi vượt thứ khác"* thì **ĐÚNG và nay có
-    số**: pha Reading fixture full đo 894,570 MB — xem mục NFR5 mở dưới đây. Số thô:
-    `5-14-ban-do/reading-run-raw.tsv`.
 
 ## Deferred from: 5-14-do-nfr3-nfr4-nfr5-va-ghi-lai-trang-thai-ba-nguong-tam (2026-09-02)
 
@@ -9300,56 +7334,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     bàn đo này, hoặc luôn hiện xem trước bất kể cờ — bộ lọc "cần xem" là Story 6.10, không phải một
     quyết định ngầm ở đây.)**
 
-- 🔴 **Chi phí byte NFR6 THẬT của `dom_smoothie` (FR123) chưa đo được — con số −16 byte của Story
-  6.1 chỉ đo trạng thái "đã ghim, chưa gọi", không đo đường nhập.**
-  evidence: đo 2026-09-03 (lượt rà đối kháng), hai bản dựng `cargo build --release --locked` dùng
-    chung một `dist/` (đối chiếu `diff -rq` giống hệt): baseline `193ec73` = **8.102.176 byte** →
-    cây hiện tại = **8.102.160 byte**, delta **−16 byte**. `nm`/`strings` trên nhị phân sau xác
-    nhận **0** ký hiệu của `dom_smoothie`/`chardetng`/cây con 10 gói bắc cầu (`html5ever` ·
-    `markup5ever` · `selectors` · `cssparser` · …) — dù cả mười `.rlib` đã biên dịch trong
-    `target/release/deps/`, trình liên kết loại bỏ TRỌN vì `core/webimport/mod.rs` vẫn chỉ có
-    doc-comment, chưa một dòng mã sản phẩm nào gọi tới. ⚠️ Delta đo được còn nằm trong biên độ
-    nhiễu của chính phương pháp: hai lượt dựng ở hai đường dẫn tuyệt đối lệch độ dài (33 ký tự so
-    với 46), mà `OUT_DIR`/`file!()` nhúng vào nhị phân — nên −16 chỉ chứng minh được "không có
-    khác biệt đáng kể", không chứng minh được một con số chính xác.
-    **(Chủ: Story 6.9 — đo lại byte nhị phân `--release` NGAY SAU khi `Extractor` thật gọi
-    `dom_smoothie::Readability::parse()` lần đầu, cùng khuôn Story 3.10b/6.1 (hai bản dựng, cùng
-    một `dist/`, ghi cả hai số + delta vào spine). Đây là lúc `html5ever`/`markup5ever`/`selectors`/
-    `cssparser` thật sự vào nhị phân và dư địa NFR6 mới có một con số đáng tin. KHÔNG suy ra "dư địa
-    NFR6 an toàn" từ con số −16 của Story 6.1.)**
-    → ✅ **ĐÃ ĐÓNG 2026-09-06 (Story 6.7 — không phải 6.9: `Extractor` thật hạ cánh ở đây, xem
-    §Design Notes spec 6.7 "Vì sao thuật toán bóc vào 6.7").** `core::webimport::extractor::extract`
-    (gọi từ `Step::ExtractMainContent`, chạy thật khi `extract_main_content = true` — đường URL)
-    là chỗ gọi SẢN PHẨM ĐẦU TIÊN của `dom_smoothie::Readability::parse()`. Đo đúng khuôn cũ: hai
-    bản dựng `cargo build --release --locked`, CÙNG một `dist/` (đối chiếu `diff -rq` giống hệt,
-    dist mang ĐẦY ĐỦ frontend Story 6.7 ở CẢ HAI lượt — cách ly phần đổi do Rust, không lẫn phần
-    đổi do frontend), baseline dựng trong `git worktree` tại `d990e1c4f11d86facbc00468e47b4ed1b0ef9ece`
-    (commit trước lượt code Story 6.7, `spec-6-7-…md::baseline_commit`):
-
-    | Bản dựng | Byte |
-    | --- | ---: |
-    | baseline `d990e1c4` (`Extractor`/`Fetcher` vẫn stub) | **9.370.872** |
-    | cây hiện tại (Story 6.7 — `Fetcher`+`Extractor` thật, gọi từ `commands::project`) | **13.739.088** |
-    | **Delta** | **+4.368.216 byte (≈4,166 MiB)** |
-
-    Xác nhận CƠ CHẾ bằng `strings` (nhị phân release đã `strip`, `nm` không còn ký hiệu để mà
-    đếm — khác điều kiện đo của Story 6.1): chuỗi `"dom_smoothie"` xuất hiện **5** lần trong nhị
-    phân hiện tại, **0** lần trong baseline; chuỗi `"html5ever"` xuất hiện **7** lần trong nhị
-    phân hiện tại, **0** lần trong baseline — đúng như dự đoán "trình liên kết chỉ giữ lại
-    những gì THẬT SỰ được gọi tới". macOS, cùng máy với mọi phép đo khác của story này.
-    ⚠️ **Giới hạn của phép đo này, ghi ra thay vì giấu:** máy đo đang ở `load average` 15 phút
-    > 100 trên 16 lõi tại thời điểm hai lượt dựng chạy song song (xem ghi chú tương tự ở
-    `perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline`,
-    `webimport_contract.rs`) — điều đó ảnh hưởng THỜI GIAN dựng (mỗi lượt build mất ~14-15
-    phút), KHÔNG ảnh hưởng KÍCH THƯỚC nhị phân đầu ra (kích thước là hàm của mã nguồn + cấu
-    hình trình biên dịch, không phải của tải CPU lúc biên dịch) — số byte trên đáng tin dù thời
-    gian dựng bị kéo dài bất thường. Ăn **≈4,37 MB / 3.104.634 byte dư địa NFR6 còn lại** (Story
-    6.1 đo dư địa đó, chủ Story 10.1) — tức đã VƯỢT dư địa từng ghi nhận tại thời điểm Story 6.1
-    đo (**140%**, không phải một tỉ lệ nhỏ). ⚠️ **Ghi rõ để Story 10.1 không bị bất ngờ**: dư
-    địa NFR6 cần được TÍNH LẠI TOÀN BỘ (không chỉ cộng dồn delta của các story rời rạc) trước
-    khi đóng bất kỳ quyết định ngân sách byte nào — số 3.104.634 của Story 6.1 đã lỗi thời ngay
-    từ dòng này.
-
 ## Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)
 
 - ⚠️ **"Ba đường nhập file, URL và song ngữ khác nhau CHỈ ở bước đầu vào" (AC epic 6) chưa
@@ -9459,23 +7443,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   báo **0 mẫu — chưa đo** đúng khuôn FR126 (`6-1-ban-do/REPORT.md:12`), không một dấu tích.
   **Chủ: Ice** — thả tệp `.docx` Word thật vào `src-tauri/tests/fixtures/docx/` (gitignore)
   rồi chạy lại bàn đo.
-
-- ⚠️ **`ImportError::NotUtf8` sẽ thành một NHÃN SAI đúng vào ngày Story 6.3 hạ cánh.** Story 6.2
-  cho `Step::DecodeEncoding` giải mã theo một bảng mã **được khai**, và biến thể lỗi dùng lại cho
-  mọi bảng mã — nên khi 6.3 mở đường khai GBK/Big5, một tệp GBK hỏng sẽ báo cho người dùng rằng
-  tệp của họ *"không phải UTF-8"*, một câu đúng hình dạng và sai sự thật. Vòng rà đề nghị đổi tên
-  ngay; **không làm ở 6.2 một cách CỐ Ý**: `message_key` là một danh mục ĐÓNG khai bằng
-  `message_keys!` (`core/i18n/`) và đồng bộ với `vi.json` bằng test chạy trên `ALL`, nên đổi nửa
-  Rust mà để `MessageKey::ImportNotUtf8` đứng yên là nhét một miễn trừ chứ không sửa nguồn. Hôm
-  nay đường sản phẩm chỉ khai được UTF-8 nên thông điệp vẫn ĐÚNG — nó sai đúng lúc 6.3 làm nó sai.
-  ⇒ Đổi **cả hai nửa trong CÙNG một lượt**, ở story tạo ra cái sai. **Chủ: Story 6.3.**
-  → ✅ ĐÃ ĐÓNG 2026-09-04 (Story 6.3). `ImportError::NotUtf8` đổi tên thành `UndecodableBytes`
-  (thêm trường `encoding`, `core/segment/import.rs`); `MessageKey::ImportNotUtf8` đổi thành
-  `ImportUndecodableBytes` (`err.import.undecodable_bytes`, tham số `path`+`encoding`) —
-  CẢ HAI nửa cùng một lượt. `GlossaryError::ImportNotUtf8` (Story 3.10b, epic 3) dùng CHUNG
-  khoá `err.import.not_utf8` cũ — khoá đó KHÔNG bị gỡ, chỉ khai LẠI trong khối glossary của
-  `core/i18n/mod.rs` để có chủ tường minh (vòng rà 1 của spec 6.3 bác tiền đề "chỉ thuộc
-  core::segment" của chỉ thị gốc).
 
 - ⚠️ **`PipelineInput.encoding: &'static encoding_rs::Encoding` rò một kiểu thư viện thứ ba ra bề
   mặt công khai của `core/segment/`.** Mọi chỗ dựng một `PipelineInput` vì thế phải phụ thuộc
@@ -9792,38 +7759,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Chương đã có văn bản riêng, còn `joined_line_count` được tính TRƯỚC khi tách, lúc chỉ có MỘT
   đơn vị là TOÀN TÀI LIỆU — xem Design Notes spec 6.10 "Vì sao `Blob` không cho `ord = 1` con
   số FR125, trong khi `cleanup` thì có").
-
-- ⚠️ **Số đếm `joined_lines`/`blank_lines_removed` của Story 6.4 chỉ tính trên CỬA SỔ BẰNG
-  CHỨNG (tối đa `EVIDENCE_WINDOW_BYTES` byte đầu), KHÔNG phải trên TOÀN Chương.** Đây là một
-  giới hạn đã ghi ra tường minh trên dây (`NormalizedCandidate::window_truncated` /
-  `NormalizedPreviewWire::window_truncated`) và trên màn hình (tầng mới của
-  `ImportPreviewOverlay.vue` nói "chỉ xem trước phần đầu Chương" khi cờ đó bật) — không phải
-  một mất mát im lặng. Nhưng nó có nghĩa: một Chương DÀI (vượt cửa sổ) có thể còn hàng chục
-  dòng bị nối/dòng trống bị xoá NGOÀI cửa sổ mà người dùng không thấy số đếm cho tới khi xác
-  nhận. Đây là ĐÚNG khoảng trống mà FR132/Story 6.10 tồn tại để lấp — số đếm trên TOÀN
-  Chương cần một lượt chạy `normalize()` đầy đủ (không windowed), hợp lý hơn để làm SAU khi
-  Chương đã có trong `project.db` (Story 6.10 có bối cảnh "N Chương cần xem" ở cấp Thư viện,
-  không phải cấp một lượt xem trước trước-khi-ghi). **Chủ: Story 6.10.**
-  🔵 **SỬA 2026-09-08 (`correct-course`) — hai mệnh đề của mục này hết đúng, và chúng kéo nhau.**
-  ① *"số đếm trên TOÀN Chương cần một lượt chạy `normalize()` đầy đủ (không windowed)"* — **lượt
-  đó đã chạy rồi**, mỗi đơn vị một lần, ngay trên đường xem trước (`pipeline.rs:644`). Cửa sổ chỉ
-  giới hạn **dải năm ứng viên bảng mã** (`encoding.rs:287`), không giới hạn lượt pipeline thật.
-  ② *"Story 6.10 có bối cảnh 'N Chương cần xem' ở cấp Thư viện, không phải cấp một lượt xem trước
-  trước-khi-ghi"* — **sai**. FR132 (`prd.md:333`), AC Story 6.10 và UX-DR29 đều đặt bộ lọc ở **màn
-  xem trước nhập**. Kết luận *"hợp lý hơn để làm SAU khi Chương đã có trong `project.db`"* dựng
-  trên tiền đề ấy, nên nó **rơi theo**.
-  ⇒ **Phạm vi còn lại hẹp hơn nhiều, và vẫn thật:** hai số đếm hiện trên **tầng 1** (dải ứng viên,
-  `NormalizedPreviewWire`) vẫn là số **có cửa sổ**, và `window_truncated` là thứ duy nhất nói ra
-  điều đó. Bộ lọc của Story 6.10 **không** đọc con số ấy — nó đọc số per-Chương từ pipeline.
-  **Chủ: Story 6.10** giữ nguyên cho vế nối dây; vế *"tầng 1 hiện số có cửa sổ"* là một giới hạn
-  đã ghi ra, không phải nợ.
-  ⚠️ **Nguy cơ đặt tên, ghi ra trước khi ai đó vấp:** `NormalizedPreviewWire.joined_lines`
-  (`project.rs:1023`, theo ỨNG VIÊN, có cửa sổ) và số per-Chương sắp thêm là **hai đại lượng khác
-  nhau**. Đừng đặt trùng tên trần `joined_lines` trên `ChapterSplitPreviewEntryWire`.
-  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Tên né đúng như cảnh báo:
-  `joined_line_count_in_chapter` (quy ước `count_in_chapter` đã có ở `CleanupRuleReportWire`),
-  không phải `joined_lines` trần — hai đại lượng đứng cạnh nhau trên cùng một struct dây
-  (`EncodingCandidateWire`) mà không trùng tên.
 
 - ⚠️ **Tiêu đề KHÔNG dấu chấm đứng riêng một dòng, TRONG THÂN một Chương (không phải dòng
   đầu), vẫn bị luật gộp dòng của Story 6.4 nối OAN vào câu kế nếu không có dòng trống ngăn
@@ -10158,56 +8093,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tên cho màn đó trong `epics.md`, nên Ice quyết định nó thuộc story nào (mở rộng Story 6.9 ra
   ngoài riêng tầng 2, hay một story quản lý Tác phẩm mới) trước khi giao lại cho dev.
 
-## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach — tách phạm vi ở bước định tuyến (2026-09-05)
-
-- ⚠️ **AC7 của `epics.md` §Story 6.6 — *"người dùng chọn nhiều file cùng lúc; mỗi file thành
-  một Chương HOẶC được tách tiếp theo mẫu, theo lựa chọn của người dùng"* — KHÔNG nằm trong
-  Story 6.6.** Ice chốt tách 2026-09-05 ở bước kiểm đa-mục-tiêu của `bmad-build`. Đây là một
-  năng lực CHƯA DỰNG, không phải một chỗ lệch spec: AC ấy vẫn đúng và `epics.md` KHÔNG được
-  sửa cho khớp mã (luật §Story và spec của `AGENTS.md`).
-  **Ba phép đo dẫn tới lượt tách, ghi ra để lượt sau không phải đo lại:**
-  ① Bề mặt vào hôm nay chỉ dựng hình dạng `Blob`: `core::segment::import::import_text` trả
-  `PipelineShape::Blob(ChapterInput::AlreadyText)` và `import_file` trả
-  `PipelineShape::Blob(ChapterInput::RawBytes)` — đo 2026-09-05, không đường sản phẩm nào dựng
-  `PipelineShape::Chapters(N>1)`.
-  ② Kho CHƯA có hộp thoại chọn nhiều tệp cho đường nhập: `blocking_pick_file` xuất hiện đúng
-  một chỗ sản phẩm, `commands::glossary` (đường CSV/TSV của Story 3.10b), và nó là hộp thoại
-  MỘT tệp.
-  ③ Bề mặt ấy chở một bẫy ĐÃ CÓ TÊN, không dùng chung với phần còn lại của Story 6.6: giữ một
-  `MutexGuard` xuyên suốt một hộp thoại CHẶN treo chính vòng lặp sự kiện mà hộp thoại đang chạy
-  trên đó — `commands::glossary` doc-comment quanh `:1266-1305` mô tả đủ, và `lib.rs:479` xếp
-  nó cùng hình dạng với mục AI-7. Một hộp thoại đa chọn cho đường nhập phải đi qua đúng bẫy đó.
-  ⚠️ **Chiều phụ thuộc là MỘT chiều, và đó là lý do tách được:** AC7 không ship một mình được
-  — chọn N tệp thì màn xem trước phải hiện N Chương, mà bề mặt xem trước nhiều Chương chính là
-  thứ Story 6.6 dựng. Chiều ngược lại thì được: 6.6 (tách MỘT nguồn theo mẫu) nghiệm thu trọn
-  vẹn mà không cần AC7. ⇒ Đây là TUẦN TỰ, không phải hai việc song song; đừng đọc lượt tách này
-  thành "AC7 là tuỳ chọn".
-  **Chủ: Story 6.6b** — một story mới đứng NGAY SAU 6.6 và TRƯỚC 6.7, chưa có trong
-  `epics.md`/`sprint-status.yaml`. 🔴 Thêm nó vào hai tệp đó là một mục quy hoạch còn thiếu, tức
-  phải đi qua `correct-course`, không phải một dòng dev tự thêm — cho tới lúc đó mục này mang
-  chủ trên GIẤY, và Ice là người kích hoạt lượt ấy.
-  → 🔵 **SỬA 2026-09-15** — Story 6.6b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Vế *"đứng NGAY SAU 6.6 và TRƯỚC 6.7"* đã hết đúng: 6.7 → 6.17 xong mà không cần nó. Tiền đề ② ③ chỉ áp nếu story chọn một hộp thoại — đường THẢ TỆP đã phát đủ N đường dẫn (`lib.rs:1334-1336`), phía TS mới là chỗ lấy `paths[0]` (`libraryImport.ts:448`).
-  → ✅ **ĐÃ ĐÓNG 2026-09-15 (Story 6.6b).** AC7 nay dựng xong: `PipelineShape::Files` (`core/segment/pipeline.rs`), `import_files` (`core/segment/import.rs`), `preview_import_encoding_from_file` nhận `paths: Vec<String>` cộng envelope `FileImportBatchWire` (`commands/project/{mod,wire}.rs`), và tầng hiển thị (`src/importPreviewState.ts`, `src/modes/libraryImport.ts`, `src/ImportPreviewOverlay.vue`) giữ NGUYÊN mọi đường dẫn đã thả/gõ, cho người dùng chọn "mỗi tệp một Chương" (không mẫu) hoặc "tách tiếp theo mẫu" (mẫu phân tách vẫn áp được lên từng tệp, per-unit) — đúng nguyên văn AC7. Không hộp thoại `blocking_pick_files` nào được dựng (bẫy `MutexGuard` ở tiền đề ③ không bị chạm) — kéo-thả và ô nhập đường dẫn vẫn là hai đường vào duy nhất.
-
 ## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach (2026-09-05)
-
-- 🔴 **Cờ "đáng ngờ" + nút lọc cho danh sách Chương — Ice CHỐT 2026-09-05 KHÔNG làm ở Story
-  6.6.** Mockup (`library-and-import.html:196-212`) vẽ một hộp *"N dòng khớp mẫu nhưng đáng
-  ngờ"* kèm nút lọc, định nghĩa bằng *"ngắn bất thường hoặc nằm giữa một Chương khác"`. Cả hai
-  vế đòi một hằng số ngưỡng chưa đo được trước khi có một kho truyện thật — đúng lý lẽ đã loại
-  phương án "dòng ngắn thì đừng nối" ở Story 6.4. Story 6.6 đóng AC5 bằng đường YẾU HƠN nhưng
-  KHÔNG NÓI DỐI: mọi Chương hiện `title`/độ dài, sắp xếp được theo độ dài (xem §Design Notes
-  "Vì sao KHÔNG có cờ 'đáng ngờ'" của spec 6.6). **Chủ: Story 6.10** — story đã sở hữu bộ lọc
-  "cần xem", và một trong bốn nguồn tín hiệu của nó chính là kết quả tách Chương của story này.
-  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Cờ "đáng ngờ" dựng bằng hàng rào Tukey (`1,5 × IQR`,
-  quy ước có tên — KHÔNG phải hằng số tuyệt đối bị cấm) trên ba tín hiệu so-tương-đối
-  (`length`/`cleanup_match_count`/`joined_line_count`, `core::segment::review::classify`).
-  Nút lọc là `⌥W` (`import.preview.chapter_filter_toggle`, `keys: undefined` + handler DOM
-  cục bộ), co cả tầng 4 lẫn danh sách mục URL về nhóm cần xem. Cổng canh:
-  `src-tauri/src/core/segment/review.rs::tests` (sáu ca, kể cả đối chứng đỏ IQR-suy-biến),
-  `src-tauri/tests/review_contract.rs` (bốn ca tầng dây), `tests/frontend/importPreviewChapters.test.ts`
-  (bật/tắt/0-cần-xem/dời con trỏ), `tests/frontend/importPreviewOverlayRender.test.ts` (bốn
-  ca DOM thật cho `⌥W`, kể cả đối chứng đỏ `event.code` so với `event.key`).
 
 - 🔴 **`spawn_import_scan` chỉ quét Chương ĐẦU — N−1 Chương còn lại của một lượt nhập nhiều
   Chương không được quét ứng viên Glossary, và không cổng nào đỏ vì chuyện đó.** Ice CHỐT
@@ -10321,23 +8207,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   một dòng dev tự nới cổng), hoặc một cơ chế "cell click" khác AD-34 chưa lường trước. Cho tới
   lúc đó, chọn Chương vẫn CHỈ đi qua bàn phím (`⌥←`/`⌥→`).
 
-- ⚠️ **Con trỏ Chương VÔ HÌNH khi Chương đang chọn rơi vào phần bị co gọn của khung nhìn mặc
-  định.** Tầng 4 co danh sách về "ba đầu · `⋯` · ba cuối" khi chưa bật sắp-theo-độ-dài; một
-  Chương ở giữa không có hàng nào trong DOM, nên `aria-activedescendant` trả `null`, không
-  hàng nào tô sáng, không cuộn, không focus — chỉ dòng chữ "Chương k/N" đổi số. Với một lượt
-  nhập vài chục Chương, phần lớn quãng đường dời con trỏ gần như không có phản hồi thị giác.
-  Cùng mục này: bật cờ sắp-theo-độ-dài KHÔNG cuộn tới Chương đang chọn (watcher cuộn chỉ gắn
-  trên con trỏ, không gắn trên cờ sắp xếp), nên hàng vừa hiện ra vẫn phải tự tìm. **Chủ: Story
-  6.10** — cùng lý do: bộ lọc "cần xem" đổi chính tập hàng hiện ra, và khung nhìn nào đúng chỉ
-  trả lời được sau khi biết bộ lọc trình bày ra sao.
-  → ✅ **ĐÓNG 2026-09-08 (Story 6.10) — cả hai vế.** `chapterEntriesRendered` (một `v-for` DUY
-  NHẤT, thay ba nhánh cũ) nay tính "hiện ĐỦ, không co gọn" (`chaptersShowAll`) trên BA điều
-  kiện độc lập: sắp theo độ dài, bộ lọc "cần xem" bật, VÀ — đóng đúng vế đầu của mục này — con
-  trỏ (`⌥←`/`⌥→`) đang đứng ở một Chương nằm NGOÀI hai dải `[0,3)`/`[N-3,N)` mà khung nhìn mặc
-  định render. Vế thứ hai (sắp xếp không cuộn) đóng bằng một `watch([chapterSortByLength,
-  importPreviewChapterFilterActive], …)` THỨ HAI, cùng thân với watcher con trỏ đã có. Đối
-  chứng: `tests/frontend/importPreviewChapters.test.ts` (tầng 4 dựng đúng danh sách).
-
 - ⚠️ **Mỗi lượt dời con trỏ sao chép byte của N Chương HAI LẦN, ngoài chi phí `run_pipeline`
   O(N) đã ghi.** `chapters_shape_for_view` clone `raw` của mọi mục OK mỗi lượt gọi, rồi
   `chapter_detail_for_index` `shape.clone()` thêm một lần nữa trước khi đưa vào
@@ -10439,57 +8308,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   CHƯA ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
 
-## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — tách phạm vi ở bước định tuyến (2026-09-06)
-
-- ⚠️ **Nửa sau AC2 của `epics.md` §Story 6.7 — *"tạo Tác phẩm mới, HOẶC thêm Chương vào một
-  Tác phẩm sẵn có"* — KHÔNG nằm trong Story 6.7.** Ice chốt tách 2026-09-06 ở bước kiểm
-  đa-mục-tiêu của `bmad-build`. Đây là một năng lực CHƯA DỰNG, không phải một chỗ lệch spec:
-  AC ấy vẫn đúng và `epics.md` KHÔNG được sửa cho khớp mã (luật §Story và spec của `AGENTS.md`).
-  **Ba phép đo dẫn tới lượt tách, ghi ra để lượt sau không phải đo lại (đo 2026-09-06, HEAD
-  `d990e1c4f11d86facbc00468e47b4ed1b0ef9ece`, cây sạch):**
-  ① Năng lực này chưa có MỘT DÒNG nào: `grep` `add_chapter|append_chapter|import_chapter` trên
-  `src-tauri/src` cho **0** kết quả, và cùng phép grep (kèm hai dạng camelCase `addChapter`/
-  `appendChapter`) trên `src/` cũng cho **0** kết quả.
-  ② Đường xác nhận nhập hôm nay luôn **TẠO** một Tác phẩm chưa tồn tại, không có nhánh nào
-  nhận một Tác phẩm đích: `commands::project::confirm_import_with_encoding` (`project.rs:1778`)
-  gọi thẳng `create_work` (`:1811`), và ba vỏ `create_work*` (`:299`, `:505`, `:938`) không vỏ
-  nào nhận một `work_id` đích. Đây cùng một giới hạn kiến trúc đã buộc Story 6.5 thu hẹp tầng
-  "Tác phẩm" của luật làm sạch.
-  ③ Chỉ bề mặt ĐỌC là có sẵn: `library_list_works` (`commands/library.rs:682`) và
-  `CMD_LIST_WORKS` (`src/config/library.ts:310`). ⇒ Phần còn thiếu là một lệnh GHI mới ở Rust,
-  một adapter TS mới, và một bề mặt chọn đích — hạ tầng mới hoàn toàn, không phải một dòng thêm.
-  ⚠️ **Chiều phụ thuộc ở đây là HAI chiều tự do — khác mục 6.6b.** Mục này thuộc tầng Library,
-  không thuộc đường URL: dựng xong thì đường nhập từ tệp và đường dán tay cũng hưởng. Story 6.7
-  nghiệm thu trọn vẹn mà không cần nó (màn xem trước vốn luôn tạo Tác phẩm mới), và nó dựng được
-  trên bất kỳ đường nhập nào mà không cần đường URL. ⇒ Đây là hai việc SONG SONG, không phải
-  tuần tự — đừng đọc lượt tách này thành "6.7 phải xong trước".
-  ⚠️ Chi phí đã biết của lượt tách, ghi ra thay vì làm nhẹ đi: mockup `web-import.html:198-208`
-  vẽ chọn đích **cùng một cột phải** với tên Tác phẩm và ngôn ngữ nguồn. Story 6.7 dựng cột đó
-  chỉ với "Tác phẩm mới"; lượt đóng mục này chạm lại đúng khối ấy để thêm lựa chọn thứ hai và
-  một bộ chọn Tác phẩm đích. Một lần sờ lại có giới hạn, không phải viết lại.
-  **Chủ: Story 6.7b** — một story mới đứng sau 6.7, chưa có trong `epics.md`/`sprint-status.yaml`.
-  🔴 Thêm nó vào hai tệp đó là một mục quy hoạch còn thiếu, tức phải đi qua `correct-course`,
-  không phải một dòng dev tự thêm — cho tới lúc đó mục này mang chủ trên GIẤY, và Ice là người
-  kích hoạt lượt ấy. ⚠️ Sổ này nay mang **HAI** mục cùng hình dạng đó (6.6b và 6.7b); một lượt
-  `correct-course` xử được cả hai.
-  → 🔵 **SỬA 2026-09-15** — Story 6.7b nay CÓ trong `epics.md` và `sprint-status.yaml` (`correct-course`, `sprint-change-proposal-2026-09-15.md`). Ba tiền đề đo lại trên `1eb781b` vẫn đúng; số dòng đã trôi: `confirm_import_with_encoding` ở `project.rs:3349` (gọi `create_work` ở `:3392`), ba vỏ `create_work*` ở `:354`, `:1421`, `:1871`.
-  → ✅ **ĐÓNG 2026-09-16 (Story 6.7b, Phase 2-4, `spec-6-7b-them-chuong-vao-tac-pham-co-san.md`).**
-  Năng lực đã dựng: `commands::project::append_chapters_to_work` (sibling THUẦN của `create_work`,
-  không `remove_folder` ở bất kỳ nhánh lỗi nào) + `confirm_append_import_with_encoding` (bước 1-3
-  của khuôn bốn bước AD-8) + `wire::confirm_import_with_encoding` phân giải đích qua
-  `PendingImportSourceState`/`current_pending_destination` (tái dùng `OpenWorkState` khi đích
-  trùng Tác phẩm đang mở, hoặc `open_work` khi không) — đóng đúng năng lực mục này nêu ("một lệnh
-  GHI mới ở Rust, một adapter TS mới, một bề mặt chọn đích"). Bề mặt chọn đích sống ở
-  `LibraryMode.vue`'s `import-form` (không phải `ImportPreviewOverlay.vue` như mockup gợi ý —
-  xem Implementation Notes Phase 3 của spec, mục "Placement decision", cho lý do đo được). Ba
-  đường đơn ngữ (dán/tệp/URL) đều đi qua; đường song ngữ (`confirm_bilingual_import`) CHƯA đóng
-  — xem mục mới ngay dưới đây (Chủ: Story 6.16b), đúng ranh giới Quyết định 1 của spec 6.7b đã
-  vạch từ đầu.
-  → 🔵 SỬA 2026-09-16 — Story 6.16b THẬT (`spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`)
-  đã dùng chỗ đứng đó cho bộ lọc "cần xem" (FR132), KHÔNG cho năng lực "thêm vào Tác phẩm sẵn
-  có" — tiền đề "story kế tiếp của màn hình song ngữ sẽ đóng mục này" đã hết đúng. Chủ mới ghi
-  ở mục "Deferred from: 6-7b…" ngay dưới (cùng ngày SỬA).
-
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link (2026-09-06)
 
 - ⚠️ **Tỉ lệ bóc sai của `dom_smoothie`/`Extractor` mới đo trên MỘT site tin tức
@@ -10535,34 +8353,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mục này còn dở): xem `Deferred from: 6-13-...` cuối tệp cho năm mục ①②③④⑤ (đường `.docx`,
   số ảnh GIỮ có `alt` trên trang thật chưa đo, nhãn hiển thị theo vai, vai mất khi gộp/tách
   câu, nghiệm thu TM).
-
-## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà bước 3 (2026-09-07)
-
-- ⚠️ **Vế *"quá ngắn"* của hàng I/O Matrix *"trang bóc ra rỗng"* KHÔNG được dựng ở Story 6.7 —
-  chỉ vế *"rỗng tuyệt đối"*.** `core::webimport::extractor::extract` từ chối khi và chỉ khi
-  `text_content.trim().is_empty()`; không có ngưỡng độ dài nào. **Phép đo dẫn tới mục này
-  (2026-09-07):** một trang chỉ có `<html><body><nav><a href="/x">m</a></nav></body></html>`
-  đi TRỌN chuỗi và cho ra một `ImportedChapter` với `source_text: "m"` — một Chương **một ký
-  tự**, không lỗi nào ném, không cổng nào đỏ. Đó là rỗng-im-lặng đổi hình dạng, đúng lớp lỗi
-  trung tâm của dự án, chỉ nhỏ hơn.
-  **Vì sao KHÔNG vá ở 6.7 — Ice chốt 2026-09-07:** *"quá ngắn"* đòi một hằng số ngưỡng, và số
-  duy nhất đang có là bảy mẫu của bàn đo 6.1 trên **một** site (`epochtimes.com`): 325 · 589 ·
-  3.545 · **192** · 3.727 · 483 ký tự. Bài THẬT ngắn nhất là 192, nên một sàn tuyệt đối phải
-  nằm dưới đó — và chính `6-1-ban-do/REPORT.md` khai bảy mẫu một site *"không nói gì"* về site
-  khác. Đặt một hằng số ở đây là đúng thứ Ice đã cấm ở Story 6.6 (*"không ngưỡng, không cờ"*).
-  ⚠️ Cũng KHÔNG dùng `is_probably_readable()` thay thế: bàn đo 6.1 quan sát được ít nhất một
-  âm tính giả (mẫu `a04`, bài thật 192 ký tự bị cờ báo `false`) và đã ghi nợ dặn đừng lấy cờ
-  đó làm điều kiện duy nhất.
-  **Chủ: Story 6.10** — story sở hữu bộ lọc *"cần xem"*, và `epic-6-context.md` định nghĩa tín
-  hiệu này là *"phần bóc ngắn bất thường so với **trung vị các Chương khác**"*: một phép so
-  TƯƠNG ĐỐI cần N Chương, không cần một hằng số nào. Đó là chỗ duy nhất câu hỏi này trả lời
-  được mà không bịa một con số.
-  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Phép so tương đối dựng bằng hàng rào Tukey trên
-  `length` (`core::segment::review::classify`, nguyên nhân `ShortLength`, chỉ xét hàng rào
-  DƯỚI) — một trang bóc ra "quá ngắn" so với các Chương khác trong CÙNG lượt nhập giờ bị gắn
-  cờ *cần xem*, không cần một ngưỡng ký tự tuyệt đối nào. Câu hỏi gốc ("quá ngắn là bao
-  nhiêu ký tự") trả lời được đúng như dự đoán: nó không cần trả lời bằng MỘT con số — nó trả
-  lời bằng một PHÉP SO.
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà đối kháng bước 4 (2026-09-07)
 
@@ -11074,34 +8864,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
 
 ## Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc (2026-09-08)
 
-- ⚠️ **Copy `.atproj` sang máy khác ⇒ ảnh KHÔNG chắc hiển thị đầy đủ, dù `project.db`/`assets/`
-  đi theo trọn vẹn (0 đường dẫn tuyệt đối, đối chứng `asset_contract.rs`).** Story 6.11 chỉ
-  ghi tệp + hàng `asset`; **0** đường sản phẩm nào trong `src-tauri/src/` gọi tới
-  `asset_protocol_scope`/`allow_directory` hay bất kỳ cơ chế nào mở `assetProtocol.scope` của
-  Tauri cho thư mục `assets/` của một Tác phẩm (đo `grep -rn "asset_protocol_scope\|allow_directory"
-  src-tauri/src/` — 0 kết quả, 2026-09-08). `assetProtocol.scope` hôm nay vẫn ĐÚNG MỘT phần tử
-  (`$RESOURCE/fonts/**`, `config_invariants.rs:313` khoá lại) — đúng như §Never spec 6.11 đòi
-  ("không đụng `tauri.conf.json`/`capabilities/main.json`"). Vì thế bản thân TỆP ảnh có mặt
-  trên đĩa ở máy đích, nhưng KHÔNG bề mặt HIỂN THỊ nào trong webview đọc được nó qua
-  `asset://` cho tới khi phạm vi đó được mở. **Chủ: Story 6.14** (hiển thị ảnh trong bản dịch,
-  theo `epics.md`) — đây chính là story sẽ quyết định mở `assetProtocol.scope` cho
-  `$APPDATA`/thư mục Tác phẩm theo cách nào (tĩnh trong `tauri.conf.json`, hay động qua
-  `allow_directory` lúc mở một Tác phẩm) và phải đo lại NFR14 (portable qua hai nền tảng) cho
-  quyết định đó.
-
-  → ✅ **ĐÃ ĐÓNG 2026-09-10 (Story 6.14).** `commands::project::replace_open_work` (nút thắt
-  CHUNG của cả bốn đường mở một Tác phẩm — `create_work_from_text`/`_from_file`,
-  `confirm_import_with_encoding`, `open_work`) nay gọi
-  `app.asset_protocol_scope().allow_directory(&new_work.dir, true)` **động, lúc chạy** —
-  đường ĐỘNG (không phải `tauri.conf.json` tĩnh), đúng vế AD-23 đã chốt sẵn ("Scope động cấp
-  lúc chạy... thư mục gốc Library"); Story 6.14 cấp HẸP hơn mức đó cho phép — đúng thư mục
-  `.atproj` đang mở, không cả gốc Library. `tauri.conf.json` không đổi một byte;
-  `config_invariants.rs:313`/`:334` xanh không sửa dòng nào (`git diff` xác nhận). NFR14
-  (portable): scope bám theo `OpenWork::dir` tại THỜI ĐIỂM mở, không một đường dẫn đúc cứng
-  nào trong mã — AC "copy `.atproj` sang thư mục khác cùng máy, mở lại ⇒ ảnh vẫn hiện" của
-  spec 6.14. Xem `src-tauri/SECURITY-NOTES.md` §`assetProtocol.scope` cho bảng ba vùng đã
-  cập nhật.
-
 - ⚠️ **`srcset`/`<picture>` chưa được `Extractor` đọc — chỉ thuộc tính `src` trần.**
   `extractor.rs:93` đã ghi bằng chữ từ Story 6.9 (*"⚠️ srcset/<picture> 0 hit — chỉ src"*);
   Story 6.11 KHÔNG mở lại `extractor.rs` (§Never: không đổi hợp đồng `core::cleanup`/
@@ -11569,25 +9331,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   AGENTS.md cấm ("đo trước khi chốt kiến trúc").
 
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
-  summary: ③ hàng `role='alt'`/`role='caption'` hiện KHÔNG NHÃN trong lưới (Editor) — sau
-  story này, một Chương nhập từ web có ảnh mang `alt`/caption sẽ có thêm hàng trong
-  `GridPanel.vue` mà không cách nào phân biệt với một câu văn xuôi bình thường.
-  evidence: "`src/config/segment.ts::ChapterSegment.role` chở được giá trị (`'alt'` |
-  `'caption'` | `null`) qua dây, nhưng `src/panels/GridPanel.vue`/`editorSegments.ts`
-  KHÔNG đọc trường này ở đâu cả — năm cột render hiện tại (`GridPanel.vue:1568-1730`, dẫn ở
-  Code Map spec 6.13) không có nhánh nào rẽ theo `role`. Một người dùng mở lưới sau story
-  này thấy thêm hàng lạ giữa văn xuôi, không có gợi ý nào nói \"đây là mô tả ảnh\"/\"đây là chú
-  thích ảnh\" — hệ quả đã biết trước, ghi ở §Boundaries Always mục 4 của spec 6.13."
-  chủ: Story 6.14 — epics.md:5151 giao đúng bề mặt hiển thị ảnh (kể cả nhãn cho hàng vai)
-  cho story này; không mở nó ở đây (§Never spec 6.13: "Không đụng bề mặt HIỂN THỊ ảnh").
-
-  → ✅ **ĐÃ ĐÓNG 2026-09-10 (Story 6.14).** `GridPanel.vue` nay đọc `ChapterSegment.role` — chỗ
-  ĐẦU TIÊN ở webview đọc trường này — và hiện một nhãn chữ (`panel.grid.role_alt`/
-  `panel.grid.role_caption`, KHÔNG màu, cùng luật "phân biệt bằng độ lùi/nhãn chữ, không màu"
-  đã dùng cho vạch trạng thái) ngay trong ô nguyên văn của hàng đó. Một hàng `alt`/`caption`
-  nay phân biệt được với một câu văn xuôi bằng mắt — không cần đoán từ nội dung.
-
-- source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ④ vai bị MẤT khi người dùng gộp/tách câu chạm vào một segment vai — `write_regroup`
   (Story 2.8) không đọc/không mang `role` sang hàng mới, đúng AD-5 ("về hưu + tạo mới", không
   nhân bản), nhưng chưa có bề mặt nào CẢNH BÁO người dùng trước khi họ gộp một câu `alt`/
@@ -11850,142 +9593,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   regression. Fix: skip dotfiles/non-UTF-8 in that walk, or fail with a named reason instead of
   a panic."
   **Chủ: Dev** — fix the walk in the next story that touches `dict_boundary.rs`.
-
-- source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
-  summary: "`story-5-4-lifecycle` (2 cases) and `story-5-5-progress` (1 case) drive the Library
-  import form through a submit button that no longer commits a Work, so they stay red even when
-  run alone."
-  evidence: "Split from G1 on 2026-09-12 (Ice chose Split): the two goals have different causes
-  and different fixes. G1 is harness isolation — 12 of the 15 failing cases are green when their
-  spec runs alone (measured 2026-09-12: `story-5-3-rescan` 7 red in the full run, 7 green in
-  2.8 s alone). These 3 cases are red on BOTH sides, so cross-spec leakage cannot be their
-  cause. Real cause: commit `d20fe67` `feat(story-6.3)` (2026-09-04) moved Work creation behind
-  the encoding-preview overlay — `submitPastedText` (`src/modes/libraryImport.ts:332-357`) now
-  only OPENS `ImportPreviewOverlay.vue`, and the write happens in `confirmImportPreview()`,
-  reachable only via `.ip-act-primary` → `dispatch('import.preview.confirm')`
-  (`src/ImportPreviewOverlay.vue:1512-1518`). Both specs were written 2026-08-28, before that
-  commit, and their helper `createWorkThroughForm` clicks an unqualified `form.$('button')`
-  (`story-5-4-lifecycle.e2e.mjs:68-74`, `story-5-5-progress.e2e.mjs:77-82`) — now the first
-  match is the preview-open button. No Work is created, so `watch(createdWork, …)`
-  (`LibraryMode.vue:165`, still present) never fires and the row legitimately never appears.
-  NOT a product regression. Fix direction: anchor the submit on `[data-import-preview-open]`,
-  then confirm through `.ip-act-primary`, waiting for the overlay to open and close — do NOT
-  reroute the helper to the raw `create_work_from_text` IPC, which would bypass the very step
-  Story 6.3 added and give a green suite that never touches it (`e2e/AGENTS.md`: this suite's
-  one role is behaviour in a REAL webview). Cannot be verified by a full-suite run until G1
-  lands: in the full run these two specs die earlier, at `.import-form`, from the mode leak."
-  **Chủ: Dev** — execute after G1 lands, verified by a full-suite `npm run test:e2e`.
-  **G1 landed 2026-09-14: this item is now verifiable by a full run.** On the landed harness
-  (`e2e/wdio.conf.mjs::onWorkerEnd`), three consecutive full-suite runs on a still tree each
-  gave **22 passed / 2 failed**, and the failing cases were exactly these three:
-  `story-5-4-lifecycle` (2) and `story-5-5-progress` (1). Both specs now fail at the
-  Work-creation step described above ("hàng của Tác phẩm … không xuất hiện trong danh sách sau
-  30 giây") instead of dying earlier at `.import-form`, so the fix direction above can be
-  checked with `npm run test:e2e`.
-  → ✅ **ĐÃ ĐÓNG 2026-09-14** (`spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc.md`). Fix direction
-  above implemented as one shared helper, `e2e/support/importForm.mjs::createWorkThroughForm` —
-  fills the form, clicks the real paste-text submit (anchored on DOM structure: the button
-  immediately following the paste textarea's label, verified to also be the FIRST
-  `[data-import-preview-open]` in the form — throws naming the drift instead of guessing when
-  that invariant breaks), waits for `.ip-scrim .ip-act-primary` to enable, clicks it, waits for
-  `.ip-scrim` to close. Both specs now import it instead of each keeping a broken local copy.
-  Measured on a still tree, `6d68dce` + this change, same command
-  (`npm run test:e2e -- --spec … --spec …`), both figures the wdio `Spec Files` total: pair
-  alone **2 passed / 2 total in `00:00:11`** (before the fix, same command: **0 passed / 2
-  failed in `00:01:37`** — the 97 s already on record in this spec's Design Notes). Three
-  consecutive `npm run test:e2e` full runs: **24 passed / 24**
-  each (2:34, 2:37, 2:35). `watch(createdWork, …)` guard re-verified live: temporarily
-  disabling it in `src/modes/LibraryMode.vue` (then restored via `git checkout`) turned
-  `story-5-4-lifecycle` case 1 red at exactly its named message ("nút … vẫn tắt sau 30 giây —
-  … bản vá `watch(createdWork, …)`"), restored green. Layout-drift throw verified with an
-  untracked helper copy anchored on the URL textarea instead of the paste textarea: threw
-  naming the drift, `.ip-scrim` never opened. `git diff --stat -- src src-tauri package.json
-  .githooks .github e2e/wdio.conf.mjs` empty. `check:lint`, `check:gates`, `check:debt-owner`
-  all pass.
-  ⚠️ **Dated correction 2026-09-14 (orchestrator re-verification, logs outside the repo).** An
-  earlier sentence here said I/O-matrix rows 2 and 3 were both verified only "by mechanism",
-  because no harness-only input could force either state. That held for row 2 only, and the
-  helper copy it cited exercised only `waitConfirmEnabled`, never `waitOverlayClosed`.
-  Row 3 ("confirm rejected by Rust") was produced for real: an untracked spec made the run's
-  temp Library root read-only (`chmod 0555`, restored in `finally`) before calling the helper;
-  `create_work_folder`'s `create_dir` failed with a non-`AlreadyExists` error
-  (`src-tauri/src/core/library/atproj.rs:191-196`), the overlay stayed open, and the helper went
-  red after 30 s with `"errorText":"Không tạo được Tác phẩm trên đĩa — chưa có gì được ghi lại."`
-  in its message. Row 2 ("preview never confirmable") has no harness-only trigger on the paste
-  branch: names are sanitized, never rejected (`sanitize_name`, `atproj.rs:78-121`), and
-  `MAX_IMPORT_BYTES` guards files, not pasted text (`src-tauri/src/core/segment/import.rs:82`).
-  It was verified with an untracked helper copy whose confirm selector cannot match: red after
-  30 s with `{"confirmEnabled":false,"errorText":null,"scrimPresent":true}`. So the
-  `waitConfirmEnabled` message has never been observed carrying a real overlay error; the
-  `.ip-scrim .ip-error` read it shares with `waitOverlayClosed` has (row 3). Same session: the
-  whole 8-line `watch(createdWork, …)` block deleted (not just its body) turned
-  `story-5-4-lifecycle` case 1 red at its named message, restored green; three more consecutive
-  full runs gave 24 / 24 each (2:37, 2:34, 2:35).
-  **Chủ: Dev** — row 2 only: re-verify against a real preview-load error on the paste branch
-  if a later story adds one.
-
-- source_spec: `spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
-  summary: "The e2e suite still gives false reds in a full run: one app process serves all 24
-  sequential specs, so module-level state carries across spec files. 12 of 15 failing cases are
-  green when their spec runs alone."
-  evidence: "Measured on Ice's machine 2026-09-12/13, still tree, one run each. Baseline
-  `f5feca0`: 16 spec files passed / 8 failed, 15 failing cases, 131 s; `story-5-3-rescan` is 7
-  red in the full run and 7 GREEN alone in 2.8 s. Removal experiment: `story-5-6-library-grid`
-  alone is green; put `story-5-13-reading-marks` (which ends in reading mode) immediately before
-  it and it goes red with the same message — so the cause is the predecessor, not the spec and
-  not machine load. Mechanism: ONE app pid across the whole run (measured: 1 pid, 2 WebDriver
-  sessions), so the leak is live in-process state, NOT `$APPDATA` — both redirect env vars are
-  read once at launch, which is why per-spec temp dirs cannot fix it and would require the
-  per-spec relaunch already rejected at 18m51s (`panelReset.mjs:31-36`).
-  🔴 AN ATTEMPTED FIX WAS BUILT AND REVERTED — do not rebuild it unchanged. Adding the four
-  Reading/Library modules to `PANEL_MODULES`, normalising `setMode('library')`, and calling
-  `resetPanelState()` from the `before` hook once per spec file gave 12 passed / 12 failed,
-  20 failing cases, 389 s; adding the matching `LOAD_CALLS` (`loadWorks`,
-  `loadOpenWorkLifecycle`, `loadChapters`, `ensureReadingLoaded`) changed it to 372 s and not a
-  single case. The mode half DID work (`story-5-6` lost its 'Library block absent' error) but
-  four green spec files went red and, decisively, the full-vs-solo gap stayed open: on the
-  patched tree `story-5-6` and `story-5-11` were still green when run alone. Two mechanism
-  hypotheses were refuted by measurement — the agent's ('onActivated reloads, so no LOAD_CALLS
-  needed') and the reviewer's ('reset without reload, the 2026-08-18 trap'). The remaining
-  symptom after the mode fix was a new shape: a Work created mid-spec never appears in the list
-  within 30 s (`story-5-5`/`5-6`/`5-7`), which is also G2's symptom.
-  A fourteenth gate (`scripts/check-reset-coverage.mjs`) was built and verified red on four
-  seeded violations, but it is coupled to the reset list and was reverted with it.
-  Closes the investigation step of AI-5 (`epic-5-retro-item-54-…` in `sprint-status.yaml`): the
-  'runner vs Ice's machine' axis is dead — local reproduces CI exactly (16/8 both) — and the
-  'full run vs single run' axis is confirmed as the real one."
-  **Chủ: Ice** — decide the mechanism before any further attempt: a per-spec app relaunch
-  (18m51s, previously rejected on cost), a product-side test seam behind the `wdio` feature, or
-  accepting the suite as solo-only and changing how CI runs it. All three are outside what the
-  reverted spec allowed, so this needs a planning decision, not another patch.
-
-  → ✅ **ĐÃ ĐÓNG 2026-09-14.** Ice chose the mechanism (decision 1a, `spec-e2e-cach-ly-trang-thai-
-  giua-cac-spec.md`): after every spec file the harness stops the app and points the next
-  launch at a fresh `$APPDATA` and Library root (`onWorkerEnd`/`onComplete` in
-  `e2e/wdio.conf.mjs`), harness-only, no `src`/`src-tauri` change. Verified 2026-09-14 on a
-  still tree with logs kept (that spec's §Verification, the **"Review loop 1, 2026-09-14"**
-  block specifically — NOT the two blocks above it, which verified the round-0 implementation
-  reverted in that same review loop and no longer describe the code): three consecutive full
-  runs at
-  **22 passed / 2 failed**, failing cases exactly G2; the ordered pair
-  `story-5-13-reading-marks` then `story-5-6-library-grid` green; the removal control (hook
-  unregistered) red on `story-5-6`; a seeded run that skipped the env write on two relaunches,
-  in a run that also had a failing spec file, named both dirs; a seeded run that skipped the
-  kill stopped with `SevereServiceError` before the second spec file started.
-
-  Two claims in the evidence above are refuted, corrected here rather than left standing:
-  - *"the leak is live in-process state, NOT `$APPDATA`"*: measured 2026-09-14, what carries
-    forward has three layers: frontend module and `<KeepAlive>` state, Rust in-process state
-    (`OpenWorkState`, the Library index), and on-disk state in the shared dirs (the mode
-    persisted in `global.db` and restored at `src/main.ts:946`). A relaunch that kept the dirs
-    measured 17 passed / 7 failed and left `story-5-6` red after `story-5-13`; relaunch plus
-    fresh dirs measured 22 / 2.
-  - *"a per-spec relaunch already rejected at 18m51s"*: 18m51s was the wall time of the ninth
-    full-suite run of 2026-08-18, with one app process for the whole run and no relaunch, so it
-    never measured relaunch cost; its breakdown by cause was never measured. Measured
-    2026-09-14 on the same machine: stock full suite 155 s, relaunch plus fresh dirs 239-243 s,
-    about 3.5 s more per spec file, of which stopping the app and releasing the port takes
-    about 1 s. Corrected in place in `e2e/support/panelReset.mjs`.
 
 ## Deferred from: spec-ca-wal-do-tren-windows (review round 1, 2026-09-13)
 
@@ -12647,25 +10254,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     một biến thể rẻ của đúng lượt gọi đó, không phải một cơ chế thứ hai.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
-  summary: **FR65 (BYOK — khoá API) không có trường nào trong `ai_config` — khoá API không đi
-    qua bảng cấu hình này ở bất kỳ tầng nào.**
-  evidence: FR67/NFR11 khoá khoá API sống TRONG keychain hệ điều hành qua crate `keyring`
-    gọi TRỰC TIẾP từ Rust (AD-29) — không bao giờ qua IPC, và frontend chỉ biết "đã cấu
-    hình/chưa cấu hình". `ai_config` (bảng `(key, value)` phẳng, giá trị luôn là chuỗi ghi
-    thẳng xuống `global.db`/`project.db`) là ĐÚNG hình dạng SAI cho một bí mật — một khoá API
-    nhập ở đây không có chỗ nào khác ngoài một bảng cấu hình dạng văn bản thuần, đúng thứ
-    NFR11 cấm. FR65 vì thế dời trọn sang Story 4.3, đi CÙNG cơ chế keychain thay vì tách làm
-    hai lượt (một lượt thêm trường rồi một lượt sau mới nối nó vào keychain).
-    **(Chủ: Story 4.3 — "API key trong keychain", dựng cả cơ chế `keyring` LẪN trường nhập
-    khoá cùng lượt, đúng khuôn "story dựng đường ghi đầu tiên sở hữu luôn cơ chế".)**
-    → ✅ ĐÃ ĐÓNG 2026-09-17 (Story 4.3) — cả hai vế cùng một lượt, đúng như mục này đòi.
-    `core/aiconfig/keychain.rs` dựng cơ chế; hàng khoá trong màn Cài đặt dựng trường nhập.
-    Khoá KHÔNG vào `ai_config`: bảng đó không thêm cột nào và story này không thêm bước di
-    trú nào. Đối chứng cho mệnh đề "không rơi xuống tệp": ca
-    `saving_a_key_leaves_no_trace_on_disk_in_global_db_or_project_db` đọc thẳng byte thô của
-    `global.db` và `project.db` sau một lượt lưu.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **21 hằng floor sàn quần thể (ngoài hai hằng `ai_boundary.rs` chính story này vừa
     nâng) đã trôi khỏi quần thể thật, đo được trên 18 tệp `tests/*.rs` — tất cả còn dưới
     khuôn 80–85% mà chính chúng tự đặt ra lúc dựng.**
@@ -12962,84 +10550,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     cho tới lượt gửi kế tiếp. Sửa mã đi sau quyết định đó, một lượt cho cả sáu.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
-  summary: **Mockup vẽ cho mỗi bộ prompt một `cặp ngôn ngữ` và ba pill phạm vi áp dụng (`Áp
-    cho mọi segment` / `lời thoại` / `tả cảnh`) — Story 4.4 KHÔNG lưu cả hai nhóm, có chủ ý.**
-  evidence: `mockups/prompt-library.html:148-153` vẽ chúng, và YAML front matter của bản xuất
-    ở khung thứ hai (`:244-250`) mang `cặp ngôn ngữ`. Nhưng **không FR nào và không AC nào**
-    của 4.4 lẫn 4.5 nhắc tới chúng, và chưa ai chuẩn hoá được nghĩa của ba pill kia — "áp cho
-    lời thoại" đòi một cơ chế phân loại segment theo vai mà kho chưa có. Quyết định #4 của
-    spec 4.4 (Ice ký 2026-09-17): một bộ prompt là **TÊN + THÂN**, không trường nào khác;
-    `PROMPT_SET_DDL` vì thế chỉ có `id`/`name`/`body`/`created_at`. ⚠️ Cách đọc SAI mà người
-    sau dễ mắc: tưởng đây là một thiếu sót của 4.4 rồi lặng lẽ thêm cột — thêm cột là đổi hình
-    dạng thứ Story 4.5 phải xuất và nhập lại được trọn vẹn.
-    **(Chủ: Story 4.5 — quyết CÙNG LÚC với định dạng tệp xuất, vì hai thứ này là một câu hỏi:
-    cái gì thuộc về một bộ prompt thì cái đó phải round-trip được qua tệp văn bản mở.)**
-    → **KHÔNG LÀM 2026-09-17 (Story 4.5) — Quyết định #1 (Ice ký cùng ngày) từ chối VĨNH VIỄN
-    cả hai nhóm trường, không lùi lại một story khác.** `cặp ngôn ngữ` và ba pill phạm vi áp
-    dụng không vào định dạng `.prompt.md` (`core/promptset/exchange.rs`: đúng ba dòng
-    `---`/`name: …`/`---` rồi thân nguyên văn) — một bộ prompt vẫn đúng TÊN + THÂN, khớp
-    `PROMPT_SET_DDL` không đổi. Câu hỏi "định dạng tệp xuất + cái gì thuộc về một bộ" mà mục
-    này chờ nay đã trả lời CÙNG LÚC, đúng như Chủ đã ghi.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
-  summary: **`{{chapter_context}}` bị để NGOÀI bộ từ vựng biến đã phê chuẩn — nó đọc ra như
-    một token lạ, và đó là hành vi đúng cho tới khi có ai dùng nó.**
-  evidence: Quyết định #2 của spec 4.4 phê chuẩn đúng ba tên (`{{glossary_terms}}` ·
-    `{{source_segment}}` · `{{tm_similar_segments}}`) thành `core::promptset::vars::
-    PromptVariable`, biến bốn cái tên vốn chỉ sống trong `mockups/prompt-library.html:177-189`
-    thành mã. Chính mockup đánh dấu `{{chapter_context}}` là *chưa dùng* (`:189`), nên nó
-    không được thêm vào `PromptVariable::ALL`; hệ quả là một thân prompt gõ nó sẽ được LƯU
-    nguyên văn kèm một cảnh báo gọi tên nó (Quyết định #3), không bị từ chối. 🔵 Từ Phase 4c,
-    màn soạn thảo đọc danh sách qua dây từ `PromptVariable::ALL` (`commands/promptset.rs:154`,
-    trường `PromptSetListWire::variables`) chứ không giữ bản chép riêng — nên thêm một biến
-    thể ở Rust là màn hình tự có, không cần đụng frontend.
-    **(Chủ: Story 4.6 — story dựng `RagInjector`, tức story đầu tiên thật sự CHÈN nội dung vào
-    các marker này. Nó quyết `{{chapter_context}}` có vào `ALL` hay không, và nếu có thì "hai
-    câu trước và hai câu sau" lấy ở đâu.)**
-  → ✅ **ĐÃ QUYẾT 2026-09-17 (Story 4.6), Ice ký — VĨNH VIỄN đứng ngoài, không "chờ tới khi có
-    ai dùng nó" nữa.** Decision 1 của spec 4.6: `PromptVariable::ALL` giữ nguyên BA tên.
-    Thêm `{{chapter_context}}` sẽ ép một tham số THỨ TƯ (câu lân cận) vào chữ ký
-    `RagInjector` mà story này có nhiệm vụ ĐÓNG BĂNG, đẩy trách nhiệm cấp câu lân cận sang
-    Story 4.8, và tốn token BYOK cho bốn câu phụ mỗi lượt gọi — không AC/FR nào đòi, và
-    chính mockup đã đánh dấu *chưa dùng*. `core::ai::rag::assemble_prompt` xác nhận hành vi:
-    `{{chapter_context}}` vẫn đọc ra như một token lạ, giữ NGUYÊN VĂN trong prompt, và được
-    gọi tên trong `InjectionLedger::unknown_markers`
-    (`tests/ai_rag_contract.rs::chapter_context_is_still_outside_the_ratified_vocabulary`).
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
-  summary: **Hàng Toàn cục BỊ CHE chỉ hiển thị được, không thao tác được — nó không mang `id`
-    riêng trong kết quả phân giải.**
-  evidence: `core::promptset::store::ResolvedPromptSet` mang `shadowed_body: Option<String>`
-    nhưng không mang `id` của hàng Global bị che, nên màn hình vẽ được chú thích *"bị prompt
-    cùng tên ở trên che"* (đúng `mockups/prompt-library.html:134`) mà không sửa/xoá thẳng hàng
-    đó được. Đủ cho AC của 4.4 theo đúng nghĩa đen — mockup vẽ nó như một dấu hiệu, không như
-    một hàng hành động được. Ghi ra vì một giới hạn không ghi thì lần sau đọc thành sơ suất.
-
-    🔵 **SỬA TẠI CHỖ 2026-09-17, cùng ngày, sau vòng rà soát — câu này ban đầu SAI.** Bản đầu
-    của mục nợ viết *"đã có đường vòng: bộ lọc tầng của chính mockup (`:116`, `Toàn cục / Tác
-    phẩm / Cả hai`) đưa người dùng tới hàng Global thật."* **Không có đường vòng đó.** Bộ lọc
-    tầng tồn tại trong `mockups/prompt-library.html` và **chưa bao giờ được cài** — `.filter`
-    duy nhất trong `PromptLibraryOverlay.vue` là phép tách work/global (`:172`). Tôi lấy một
-    năng lực từ MOCKUP rồi viết nó ra như một năng lực của SẢN PHẨM, không kiểm. Hệ quả thật:
-    khi một bộ Toàn cục đang bị che, **không đường nào** tới nó được cho tới khi bộ Tác phẩm
-    cùng tên bị xoá hoặc đổi tên. Đó cũng là lý do lượt rà soát chấm "tạo một bộ Toàn cục
-    trùng tên bộ Tác phẩm" là `medium` chứ không phải một phiền toái nhỏ — xem hàng 1 của
-    §Review Triage Log trong spec 4.4.
-    **(Chủ: Story 4.5 — story kế tiếp chạm màn hình này (nhập/xuất theo tầng). Nó quyết MỘT
-    trong hai: mang `id` của hàng bị che ra dây, hoặc cài bộ lọc tầng mà mockup đã vẽ. Cái
-    nào cũng đóng được, và cho tới lúc đó giới hạn này là THẬT chứ không phải lý thuyết.)**
-    → **✅ ĐÃ ĐÓNG 2026-09-17 (Story 4.5) — Quyết định #3 (Ice ký cùng ngày) chọn vế THỨ NHẤT:
-    mang `id` của hàng bị che ra dây, không cài bộ lọc tầng.** `ResolvedPromptSet` nay mang
-    thêm `shadowed_id: Option<i64>` (`core/promptset/store.rs`), đi tới `PromptSetWire.shadowed_id`
-    trên dây (`commands/promptset.rs`). `PromptLibraryOverlay.vue` xoá nhánh `<div>` chỉ-hiển-thị
-    của hàng bị che, dùng CHUNG một `<form>` chọn được với mọi hàng Global khác — hàng đó nay
-    sửa/xoá/đổi tên/xuất được qua chính `(tier: 'global', id: shadowed_id)`, đúng cái mà một
-    lượt xuất cần (`prompt_set_exchange_contract.rs::export_a_shadowed_global_set_is_reachable_
-    and_exports_as_itself` chứng minh: xuất qua `shadowed_id` trả về ĐÚNG thân Global, không
-    phải thân Work đang thắng). Bộ lọc tầng mà mockup vẽ (`:116`) vẫn KHÔNG được cài — không cần
-    nữa, vì cả hai tầng cùng hiện trong một danh sách và hàng nào cũng chọn được.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **Mọi lượt ghi bộ prompt — KỂ CẢ tầng Tác phẩm — đòi `global.db` đang được quản.
     Đây là một quyết định đã chốt và đã có test canh, không phải một khuyết tật.**
   evidence: `core::promptset::store` nhận `(global: &Store, work: Option<&Store>, tier, …)`,
@@ -13136,7 +10646,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     đếm số lần định danh đi kèm `(` trong văn bản tệp đã nối, nay khẳng định `== 1` (nửa
     "không lời gọi nào" đã đóng ở lượt rà soát 2). Nhưng `for` bọc quanh chỗ gọi đó, hay một hàm
     phụ gọi nó một lần cho MỖI thuật ngữ, đều giữ phép đếm ở 1 trong khi số truy vấn thật nhân
-    lên N lần — đúng ngân sách mà `deferred-work.md:5882` đòi kiểm soát. Đóng đúng cách cần một
+    lên N lần — đúng ngân sách mà `deferred-work.md §*Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)*` đòi kiểm soát. Đóng đúng cách cần một
     bộ đếm truy vấn ở tầng `Store`, thứ `Store` hôm nay không phơi ra.
     **(Chủ: Story 4.8 — chỗ gọi sản phẩm ĐẦU TIÊN, và chỗ đầu tiên tần suất gọi thật đo được.)**
 
@@ -13182,74 +10692,6 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     phí); mọi hành động "sửa ngay" ở đây sẽ làm bản ghi đang hiển thị hết hiệu lực ngay lúc sửa,
     nên câu trả lời cho "làm sao giữ bản ghi còn đúng sau một lượt sửa tại chỗ" phải có TRƯỚC khi
     xây, không phải một lượt vá tiện tay.)**
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
-  summary: **Đối chứng dương của seam (`deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`)
-    vẫn KHÔNG THỂ nghiệm thu nửa "xoá hai seam thật" — không vì hai tệp chưa tồn tại (Phase 1's
-    lo ngại), mà vì cơ chế đo của chính nó đọc `HEAD` đã COMMIT, và story này chưa commit.**
-  evidence: Phase 1 ghi rõ: nửa "xoá hai seam" là no-op vì `commands/aiprompt.rs` và các dòng
-    seam của `lib.rs` "chưa tồn tại" — và dặn Phase 4 đo lại "sau khi Phase 2/3 viết ra chúng".
-    Phase 2/3 ĐÃ viết ra chúng — cả hai tồn tại thật trên đĩa hôm nay. Nhưng đo lại
-    (`cargo test --test ai_boundary --locked -- --ignored --exact
-    deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`) vẫn PASS
-    theo cách KHÔNG chứng minh được gì mới: ca này gọi `git worktree add --detach <dir> HEAD`,
-    và `HEAD` ở thời điểm đo (`6de227d`) không mang hai tệp đó — xác nhận trực tiếp:
-    `git show HEAD:src-tauri/src/commands/aiprompt.rs` → `"exists on disk, but not in 'HEAD'"`;
-    `git show HEAD:src-tauri/src/lib.rs | grep -c "commands::aiprompt"` → `0`. Story này (đúng
-    khuôn mọi story khác trong kho — một commit mỗi story, ở CUỐI) chưa commit lúc Phase 4 chạy,
-    nên worktree dựng ra vẫn là ẢNH CHỤP của Phase 1 — nhánh xoá `commands/aiprompt.rs` bên trong
-    ca này vẫn đi qua branch `if aiprompt_path.exists() { … }` với kết quả `false`, đúng NGUYÊN
-    VĂN hành vi Phase 1 đã đo, không phải một phép đo mới. `PASS` hôm nay là bằng chứng về CÙNG
-    kịch bản Phase 1 đã ký, không phải bằng chứng về hai tệp thật.
-    **(Chủ: Ice — người/lượt commit story này. Ngay sau commit đưa `commands/aiprompt.rs` và hai
-    dòng seam của `lib.rs` vào `HEAD`, chạy lại ĐÚNG lệnh trên một lần nữa và ghi lại kết quả —
-    đây mới là lượt đo thật của nửa "xoá hai seam", không phải lượt Phase 4 vừa chạy. Nếu một
-    story sau này cần đo lại cơ chế này TRƯỚC khi commit, `git worktree add` phải đổi sang trỏ
-    vào cây làm việc thật (ví dụ `--no-checkout` rồi copy cây hiện tại, hoặc bỏ `git worktree`
-    và làm việc trực tiếp trên một `cp -r` của `src-tauri/`) — đó là một thay đổi hình dạng của
-    ca, ngoài phạm vi Phase 4 của story này.)**
-
-  → ✅ **ĐÃ ĐÓNG 2026-09-18 (bước rà soát chốt story, trước commit).** Bỏ `git worktree add
-    --detach <dir> HEAD` khỏi ca hoàn toàn — `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
-    nay chép TRỰC TIẾP cây làm việc hiện tại (`copy_dir_recursive_skipping`, `std::fs` thuần,
-    không `git`, không lệnh shell ngoài, portable Windows) sang một thư mục tạm rồi xoá/sửa
-    trên bản chép đó — không còn phụ thuộc trạng thái commit, đúng gợi ý "bỏ `git worktree`…
-    làm việc trực tiếp trên một `cp -r`" mà chính mục nợ này đã ghi. Đo lại THẬT sau khi sửa,
-    trên cây CHƯA commit của story: `cargo test --test ai_boundary --locked -- --ignored --exact
-    deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling` → **lần
-    đầu ĐỎ THẬT**, hai lần, mỗi lần nêu đích danh một lỗ hổng khác nhau mà `git worktree`+`HEAD`
-    trước đó chưa từng chạm tới được: (1) `error: unexpected closing delimiter` tại `lib.rs` —
-    `lib_rs_without_the_approved_ai_prompt_seam` chỉ xoá dòng ĐẦU của khối `if let Some(record)
-    = … { … }` ba dòng (Phase 2's nhánh dọn ở `close_open_work`), để lại một `}` treo; sửa bằng
-    đếm số dư dấu ngoặc mỗi dòng ([`brace_delta`]) và bỏ CẢ KHỐI khi dòng khớp marker cũng MỞ
-    một `{` chưa đóng — có ca đơn vị mới
-    `the_lib_rs_stripper_removes_the_whole_multi_line_block_a_marker_line_opens` khoá lại. (2)
-    `error[E0583]: file not found for module aiprompt` tại `commands/mod.rs` — xoá
-    `commands/aiprompt.rs` một mình để lại `pub mod aiprompt;` treo, đúng lớp lỗi
-    `core/mod.rs`'s `pub mod ai;` mà ca đã canh cho `core/ai/` nhưng chưa canh cho seam THỨ
-    HAI; sửa bằng tổng quát hoá hàm xoá khai báo (`mod_rs_without_declaration(text,
-    module_name)`) và gọi nó thêm một lần cho `commands/mod.rs`/`aiprompt`. Sau cả hai sửa: ca
-    **PASS THẬT** trên cây uncommitted hôm nay (`cargo test --test ai_boundary --locked --
-    --ignored --exact …` → `ok. 1 passed; 0 failed`, ~10s) — không phải kịch bản no-op Phase 1
-    đã đo, mà là `cargo check` thật xoá cả `core/ai/` LẪN hai tệp/dòng seam THẬT của Phase 2/3
-    khỏi một bản chép của cây làm việc, và phần còn lại của crate vẫn biên dịch. AC2 của spec
-    4.7 đóng TRỌN trước khi story được commit — không còn một lượt đo-lại nào bị treo lại cho
-    Ice. Toàn bộ ca của `ai_boundary.rs` (kể cả hai ca đơn vị stripper) chạy lại xanh sau sửa:
-    `cargo test --test ai_boundary --locked` → `16 passed; 0 failed; 1 ignored` (17 ca) tại thời
-    điểm đóng mục này. 🔵 **SỬA 2026-09-18 (loop 2, finding P11) — con số này ĐÃ TRÔI hai lần kể
-    từ đó và bản thân nó là chỗ trôi thứ ba nếu không đọc lại ngay lúc này.** Loop 1's review
-    (Pass 2) đã bắt được lần trôi thứ nhất — "17 ca → 16 passed" trở thành sai ngay khi loop 1
-    tự nó thêm ba ca mới (`commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface`,
-    `ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name`,
-    `the_project_mod_rs_stripper_removes_the_whole_multi_line_block_the_v1_clearing_branch_opens`)
-    vào chính tệp này mà không quay lại sửa con số đã ghi ở trên — số thật lúc đó là 19 passed /
-    1 ignored (20 ca), theo đúng finding P11 gốc. Phase 6 (task 6-8, finding P8) thêm MỘT ca nữa
-    (`a_line_carrying_the_approved_prefix_is_still_scanned_for_a_second_forbidden_token`) — đo
-    lại THẬT lúc đóng Phase 6: `grep -c "#\[test\]" tests/ai_boundary.rs` → **21**; `cargo test
-    --test ai_boundary --locked` → **20 passed; 0 failed; 1 ignored**. Bài học của chính finding
-    này: một con số quần thể ghi CỐ ĐỊNH trong văn xuôi trôi lại đúng bằng số lần tệp đó được sửa
-    sau khi con số được viết — đừng chép số cũ, đếm lại (`grep -c "#\[test\]"` cộng `cargo test`)
-    mỗi lần một mục nợ trích dẫn nó.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **finding B9 (loop 1) — `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
@@ -13416,3 +10858,23 @@ chính nó.
     `crate::core::ai` vào `lib.rs`, XOÁ nửa `lib.rs` của miễn trừ cùng ba hằng số/vị từ chỉ phục
     vụ nó; nếu nó có viết, lúc đó mới có một phép gỡ làm nhánh này đỏ được, và mục này đóng bằng
     phép gỡ đó.)**
+
+## Deferred from: lượt lược sổ nợ (2026-09-19)
+
+- 🔴 **`check-debt-owner.mjs` đọc `✅ ĐÓNG MỘT NỬA` thành `closed`, nên cổng ĐẾM THIẾU nợ đang
+  mở.** `leadingStatus` và `continuationStatus` phán quyết bằng **ký hiệu dẫn đầu**; phép hạ
+  xuống `half` khi dòng tự nói *"vẫn mở/còn mở"* chỉ áp cho dòng `→ ⚠️`, **không** áp cho dòng
+  `→ ✅`, và **không** áp cho dòng bullet đầu của mục.
+  **Đo được 2026-09-19 trên sổ THẬT:** trong 181 mục cổng chấm `closed`/`decided`, **42** mục có
+  văn xuôi tự nói còn một vế hở — ví dụ `- ✅ **ĐÓNG MỘT NỬA — isTypingZone…**` *(dòng bullet
+  đầu)*, `→ ✅ **ĐÓNG MỘT NỬA 2026-08-12 (Story 2.3)**` *(dòng →)*, và `⚠️ **Còn mở: DESIGN.md
+  chưa được sửa cho khớp.**` *(cùng dòng với ✅)*. Hệ quả: bốn con số AC5 báo nợ mở **thấp hơn
+  sự thật**, và một lượt lược sổ tin cổng sẽ xoá nợ đang mở.
+  ⚠️ **Không vá trong lượt lược này, có lý do:** đổi vị từ là đổi phán quyết của một cổng đang
+  chạy trong `pre-push`/CI, nên nó đòi ca tự kiểm đỏ-rồi-xanh trong Kiểm B cho **từng** nhánh
+  mới — phạm vi một lượt riêng, không phải phần đuôi của một lượt dọn sổ. Lượt 2026-09-19 đi
+  vòng qua khuyết tật bằng cách **chừa cả 42 mục** thay vì tin con số.
+  ⚠️ Vị từ đúng cũng chưa hiển nhiên: bản thử *"đọc cả dải phán quyết cuối"* lật **21** mục
+  nhưng có dương tính giả thật — `→ ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — CẢ HAI VẾ CÒN HỞ đã
+  đóng` chứa đúng cụm *"còn hở"* trong một câu nói ngược lại. Ai vá thì đo trên cả hai chiều.
+  **(Chủ: Ice — đổi vị từ của một cổng là một quyết định về cổng, không phải một lượt sửa mã.)**

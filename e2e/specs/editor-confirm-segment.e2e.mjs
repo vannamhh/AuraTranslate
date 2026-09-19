@@ -4,7 +4,9 @@
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÌ SAO SPEC NÀY TỒN TẠI ĐƯỢC, TRONG KHI SPEC GÕ CHỮ CỦA 2.3 CÒN MỘT CA ĐỎ
  * ═════════════════════════════════════════════════════════════════════════════════
- * Một dữ kiện đo được ở Story 2.4 quyết định điều đó (`deferred-work.md:2334-2337`):
+ * Một dữ kiện đo được ở Story 2.4 quyết định điều đó (`deferred-work.md` §*Deferred from:
+ * code review of 2-1-tach-segment-cap-cau-va-co-ket-doan (2026-08-12)* — section đã lược
+ * 2026-09-19, cách phục hồi ghi ở đầu sổ nợ):
  * `browser.keys()` chỉ phát **`keydown`**, **không** `beforeinput`. Đó là lý do nó **không**
  * lái được một lượt **gõ chữ** — và cũng là lý do nó lái được **phím tắt** hoàn hảo.
  *

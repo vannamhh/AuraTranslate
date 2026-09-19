@@ -8,10 +8,10 @@
 //! bề mặt IPC.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 CHỖ ĐẦU TIÊN `OpenWork.scope` ĐƯỢC ĐỌC TRONG MÃ SẢN PHẨM — đóng `deferred-work.md:603`
+//! 🔴 CHỖ ĐẦU TIÊN `OpenWork.scope` ĐƯỢC ĐỌC TRONG MÃ SẢN PHẨM — đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Trước tệp này, trường `OpenWork::scope` chỉ được ĐẶT (ở `commands::project::create_work`)
-//! và không command nào khác đọc lại nó — `deferred-work.md:603` gọi đó là một lỗ hở có chủ,
+//! và không command nào khác đọc lại nó — `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` gọi đó là một lỗ hở có chủ,
 //! chờ epic đầu tiên có dữ liệu tầng Tác phẩm thật. Epic 3 là epic đó, và
 //! [`glossary_lookup_term`] là chỗ đầu tiên `&open.scope` chạy qua `ScopeResolver::
 //! apply_override` với dữ liệu THẬT ở cả hai tầng.

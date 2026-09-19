@@ -6,7 +6,7 @@
  * ─────────────────────────────────────────────────────────────────────────────────
  * VÌ SAO TỒN TẠI
  * ─────────────────────────────────────────────────────────────────────────────────
- * `deferred-work.md:19` ghi lại nghịch lý: *"NFR16 không có cơ chế cưỡng chế nào —
+ * `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` ghi lại nghịch lý: *"NFR16 không có cơ chế cưỡng chế nào —
  * `src/App.vue:5` chỉ có một comment, trong khi thứ khó vi phạm hơn hẳn (lỡ cài
  * `tauri-plugin-fs`) thì có cả script lẫn mã thoát."* Quy tắc này vi phạm chỉ cần gõ
  * một nhãn button. Story 1.14 dựng bốn panel; Epic 3–9 thêm hàng trăm chuỗi. Cổng
@@ -142,7 +142,7 @@ const EXEMPT = [
     'build tool (Story 1.9, `tools/dict-build`) — KHÔNG vào bản phát hành (AD-25), ' +
       'không có bề mặt giao diện để render, và thông báo lỗi của nó là CHẨN ĐOÁN cho ' +
       'người dựng trên máy Ice/CI, không phải chuỗi người dùng cuối thấy. Đóng ' +
-      '`deferred-work.md:44` — "gốc quét cứng ở src/ và src-tauri/… mở lại khi cây mọc ' +
+      '`deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` — "gốc quét cứng ở src/ và src-tauri/… mở lại khi cây mọc ' +
       'nhánh thứ ba": `tools/` LÀ nhánh thứ ba, và đây là lượt mở lại đó.',
   ],
 ]
@@ -200,7 +200,7 @@ try {
   // bằng một glob lặng lẽ hẹp lại. `target/` bị loại ở `SKIP_DIRS`: nó chứa mã sinh ra
   // và nguồn của crate bên thứ ba, không phải mã của dự án.
   //
-  // 🔴 `tools/` là NHÁNH THỨ BA (Story 1.9, Task 9) — đóng `deferred-work.md:44`.
+  // 🔴 `tools/` là NHÁNH THỨ BA (Story 1.9, Task 9) — đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*`.
   // Miễn trừ TRỌN ở `EXEMPT` (`tools/**`), nên thêm gốc này KHÔNG được đổi quần thể
   // in ra sau miễn trừ; nếu số nhảy lên, miễn trừ chưa ăn — sửa miễn trừ, đừng chỉnh
   // sàn cho vừa (xem doc-comment `RS_FLOOR` bên dưới).
@@ -248,12 +248,12 @@ const vueFiles = keep(vueAll)
  * một lý do không có thật là cổng bị gỡ.
  *
  * ⚠️ Story 1.9 (dữ liệu từ điển lớp nền) thêm gốc quét `tools/**` (nhánh thứ ba, đóng
- * `deferred-work.md:44`) VÀ miễn trừ nó TRỌN ở `EXEMPT`. Quần thể SAU miễn trừ vì vậy
+ * `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*`) VÀ miễn trừ nó TRỌN ở `EXEMPT`. Quần thể SAU miễn trừ vì vậy
  * **không đổi** — vẫn 27 tệp `.rs` + 5 tệp `.vue` (đã cập nhật sau Story 1.8; xem lịch
  * sử ở trên). Sàn `RS_FLOOR`/`VUE_FLOOR` giữ nguyên 21/1 — thêm một nhánh MIỄN TRỪ TRỌN
  * không phải lý do dời sàn.
  *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
  *
  * Số THẬT sau Story 1.14: **32** tệp `.rs` sau miễn trừ · **11** tệp `.vue`. Quần thể
  * `.vue` nhảy từ 5 lên 11 vì bốn panel + `PanelTab` + `WorkspaceDock` ra đời.
@@ -281,7 +281,7 @@ const vueFiles = keep(vueAll)
 // (`glossary_marks_contract.rs`) — miễn trừ TRỌN khỏi quần thể này (`EXEMPT`).
 // 🔵 Sửa tại chỗ 2026-08-21: bản đầu của chú thích này viết *"thêm HAI tệp mới … ·
 // `zzz_scratch_bench_marks.rs`, tệp đo tạm sẽ xoá"*. Tệp đo tạm **đã xoá thật** sau khi lấy
-// xong bảng số ở `deferred-work.md:424`, nên mệnh đề "hai tệp" hết đúng ngay trong cùng
+// xong bảng số ở `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`, nên mệnh đề "hai tệp" hết đúng ngay trong cùng
 // lượt. Một chú thích trỏ vào tệp không tồn tại là đúng thứ luật "sửa tại chỗ" tồn tại để
 // chống. Số thật vẫn **51** tệp `.rs`; cùng luật
 // "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" đã áp cho Story 1.20/1.21.
@@ -927,7 +927,7 @@ if (skippedLinks.length) detail(`symlink bỏ qua: ${skippedLinks.join(', ')}`)
 console.log('\nKiểm A2 — mọi TEXT NODE của template phải đi qua `t()` (NFR16)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 ĐÓNG `deferred-work.md:36` — Story 1.14 · §Quyết định #6.
+// 🔴 ĐÓNG `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` — Story 1.14 · §Quyết định #6.
 //
 // Kiểm A đo **DẤU**, không đo **CHUỖI HIỂN THỊ**. Hệ quả đã ghi nguyên văn từ Story 1.5:
 // `<button>Dong</button>` — một nhãn tiếng Việt viết không dấu, hiển thị ra màn hình,

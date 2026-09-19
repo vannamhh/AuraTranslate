@@ -121,7 +121,7 @@ Hai thứ này **không** ánh xạ một-một và **không** được gộp. C
 
 ## Năm command bôi đen bằng bàn phím (Story 1.18)
 
-`deferred-work.md:608` — *"Ice chốt 2026-08-06: **ghi nợ cho 1.18**"*. AC1 của epic đòi
+`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — *"Ice chốt 2026-08-06: **ghi nợ cho 1.18**"*. AC1 của epic đòi
 *"thả chuột **hoặc kết thúc vùng chọn bằng bàn phím**"*, và vế thứ hai trước story này không
 **thực hiện được**: một `<div>`/`<p>` không sửa được **không nhận** `Shift+Mũi tên`.
 

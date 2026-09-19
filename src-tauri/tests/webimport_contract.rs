@@ -624,7 +624,10 @@ fn a_404_becomes_one_broken_item_carrying_the_http_status_reason_and_the_numeric
 /// ngắn nhất 192 ký tự). Ice chốt 2026-09-07: ghi nợ, **Chủ Story 6.10** — story sở hữu bộ
 /// lọc "cần xem", nơi tín hiệu là *so với TRUNG VỊ các Chương khác*, không cần hằng số.
 /// ⚠️ Hệ quả còn hở, đo được: một trang chỉ có `<nav><a>m</a></nav>` cho ra một Chương
-/// `source_text: "m"` — xem `deferred-work.md` §"Deferred from: 6-7… vòng rà bước 3".
+/// `source_text: "m"`. Món nợ đó ĐÃ ĐÓNG 2026-09-08 (Story 6.10): phép so TƯƠNG ĐỐI bằng
+/// hàng rào Tukey trên `length` (`core::segment::review::classify`, nguyên nhân `ShortLength`)
+/// gắn cờ *cần xem* mà không cần một ngưỡng ký tự tuyệt đối nào. Section sổ nợ chứa nó đã được
+/// lược 2026-09-19 — cách phục hồi ghi ở đầu `deferred-work.md`.
 ///
 /// Vế ÁNH XẠ LÝ DO. Ca `..._fails_extraction_instead_of_
 /// falling_back_to_raw_html` phía trên canh `extract()` trả `Err`; ca này canh chuỗi biến `Err`

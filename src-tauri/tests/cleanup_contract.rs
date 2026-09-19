@@ -519,7 +519,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     assert_eq!(
         written, cleanup.final_text,
         "preview_import_encoding va confirm_import_with_encoding phai cho CUNG mot ket qua, \
-         tren CUNG mot dau vao -- day la phep dong no deferred-work.md:9359: hai duong phai \
+         tren CUNG mot dau vao -- day la phep dong no deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*: hai duong phai \
          cung chay chuoi pipeline that, khong phai hai ham thuan dat canh nhau"
     );
 
@@ -1174,7 +1174,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Story 6.6 — đóng MỘT PHẦN nợ deferred-work.md:9535: count_in_import == Σ count_in_chapter,
+// Story 6.6 — đóng MỘT PHẦN nợ deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*: count_in_import == Σ count_in_chapter,
 // ĐÚNG BẰNG tổng tính tay, khi N ≥ 2 Chương với số khớp KHÁC NHAU mỗi Chương
 // ═════════════════════════════════════════════════════════════════════════════════
 //
@@ -1196,7 +1196,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
 /// TRONG chính ca test rồi so với số tính tay: nó khẳng định phép cộng CỦA CHÍNH CA TEST
 /// đúng, không khẳng định phép cộng mà SẢN PHẨM (`commands::project::cleanup_and_chapters_preview_for`)
 /// làm ra. Đối chứng đo được: thay dòng gán `count_in_import` trong hàm đó bằng
-/// `count_in_chapter` (tái tạo NGUYÊN VĂN khuyết tật mà `deferred-work.md:9535` mô tả) rồi
+/// `count_in_chapter` (tái tạo NGUYÊN VĂN khuyết tật mà `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` mô tả) rồi
 /// chạy `cargo test --locked` — bản test cũ **vẫn xanh** trên một sản phẩm đang hỏng, vì nó
 /// không gọi tới hàm đó một lần nào. Ca này gọi THẲNG `cleanup_and_chapters_preview_for` (hàm
 /// `pub`, cùng khuôn hai lớp `resolve_chapter_pattern`) và đọc `count_in_import` TỪ
@@ -1283,7 +1283,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
     assert_eq!(
         rule_wire.count_in_import, hand_counted_total,
         "count_in_import (do CHINH commands::project::cleanup_and_chapters_preview_for tinh, \
-         khong phai ca test tu cong) phai DUNG BANG tong tinh tay -- dong no deferred-work.md:9535"
+         khong phai ca test tu cong) phai DUNG BANG tong tinh tay -- dong no deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*"
     );
     assert_ne!(
         rule_wire.count_in_chapter, rule_wire.count_in_import,

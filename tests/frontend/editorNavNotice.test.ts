@@ -350,7 +350,7 @@ describe('🔴 BẤT BIẾN "một cửa" — ai ghi một ô thì dọn HAI ô 
 })
 
 /**
- * 🔴 **Quyết định #6(c) — món nợ `deferred-work.md:2837-2847`, đóng MỘT NỬA.**
+ * 🔴 **Quyết định #6(c) — món nợ `deferred-work.md §*Deferred from: code review of 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-13)*`, đóng MỘT NỬA.**
  *
  * `⌘Enter` ở câu **cuối** Chương ký thành công nhưng không dời được con trỏ, nên
  * `resolveSegmentRule` giữ `primary` thắng `confirmed` và **vạch lề không đổi màu**. Vế thị

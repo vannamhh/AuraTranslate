@@ -119,7 +119,7 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// định (có nên hạn chế `pending_candidates`/`approve_candidate` hay không phụ thuộc vào
 /// hình dạng bề mặt Story 3.3/3.5/3.8 dựng). Món nợ có chủ ở `deferred-work.md`.
 /// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — hàm THỨ TƯ, `insert_candidate`.** Nửa món nợ
-/// `deferred-work.md:5630-5643` đóng ở đây: bốn hàm `candidate_store` (Story 3.2) chờ
+/// `deferred-work.md §*Deferred from: lượt push + kiểm tra CI (2026-08-19)*` đóng ở đây: bốn hàm `candidate_store` (Story 3.2) chờ
 /// đúng "story dựng chỗ gọi sản phẩm đầu tiên" quyết định — ứng viên gần nhất ghi trong
 /// sổ nợ là *"Story 3.5 (`insert_candidate`)"*. Đo lại (`grep insert_candidate
 /// src-tauri/src/**` ngoài `core/glossary/**`): **0** chỗ gọi. Story này KHÔNG gọi hàm
@@ -162,7 +162,7 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — hàm THỨ NĂM, `pending_candidates`.** Vỏ IPC
 /// CHỈ-ĐỌC mới `glossary_pending_candidates` (`commands/glossary.rs`) là chỗ gọi sản phẩm
 /// ĐẦU TIÊN của hàm này (Story 3.2 dựng nó, 0 chỗ gọi cho tới lượt này) — đóng nốt nửa
-/// còn lại của `deferred-work.md:5630-5643`. `pending_candidates` KHÔNG lọc gì (trả TRỌN
+/// còn lại của `deferred-work.md §*Deferred from: lượt push + kiểm tra CI (2026-08-19)*`. `pending_candidates` KHÔNG lọc gì (trả TRỌN
 /// `resolution IS NULL`), nhưng đó đúng là việc một bề mặt "phơi để nghiệm thu bằng mắt"
 /// (§Intent của story) cần — không có điều kiện chèn nào để tách ra như
 /// `entries_eligible_for_injection` đã làm cho `glossary_entry`.

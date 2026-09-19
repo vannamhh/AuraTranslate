@@ -226,7 +226,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
       <!--
         🔴 AC13 — hợp âm trên đĩa bị từ chối phải NÓI RA. Cho tới story này chẩn đoán chỉ đi
-        ra `console.error`, tức im lặng theo nghĩa thực dụng. Đóng `deferred-work.md:243`.
+        ra `console.error`, tức im lặng theo nghĩa thực dụng. Đóng `deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*`.
       -->
       <p v-if="diskBindingsRejected" class="sc-alert">{{ t('shortcuts.disk_rejected') }}</p>
 

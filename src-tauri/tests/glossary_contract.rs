@@ -2256,7 +2256,7 @@ fn add_manual_term_at_the_work_tier_without_a_work_store_is_refused() {
 }
 
 /// `note` toàn khoảng trắng ghi xuống chuỗi rỗng — một cách biểu diễn duy nhất cho "không có
-/// ghi chú" (đóng `deferred-work.md:5380-5385`).
+/// ghi chú" (đóng `deferred-work.md §*Deferred from: 2-12-ha-tang-e2e-va-cong-con-thieu (2026-08-18)*`).
 #[test]
 fn add_manual_term_trims_a_whitespace_only_note_down_to_the_empty_string() {
     let dir = temp_dir("quick-add-write-note-trim");

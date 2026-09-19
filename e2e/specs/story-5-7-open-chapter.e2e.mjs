@@ -42,14 +42,14 @@
  *
  * ⇒ Khuyết tật khoanh vùng đúng vào **tiêu điểm DOM trên một `<span contenteditable>`** khi
  * phiên WebDriver chưa từng có tiêu điểm hệ điều hành thật — cùng lớp phát hiện đã ghi ở
- * `deferred-work.md:2557-2564` cho Story 2.3 (*"còn hỏng với tay người hay không CHƯA TRẢ LỜI
+ * `deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*` cho Story 2.3 (*"còn hỏng với tay người hay không CHƯA TRẢ LỜI
  * ĐƯỢC bằng bộ e2e"*). Nút bấm (không phải `contenteditable`) không mắc khuyết tật này.
  *
  * ⇒ Spec này đo đúng phần **mắc lại được**: cơ chế `chapter_position` (ghi/đọc/khôi phục)
  * qua ĐÚNG lệnh IPC của sản phẩm (`save_chapter_position`/`read_open_chapter_segments`), và
  * đường MỞ LẠI (`library.open_work`/`library.open_chapter`) qua nút bấm THẬT — không đoán
  * bằng `document.activeElement` trên một `contenteditable`. Vế "một `<span>` cụ thể có nhận
- * tiêu điểm DOM hay không" ở lại đúng món nợ đã có chủ (`deferred-work.md:2557`, Story 2.3),
+ * tiêu điểm DOM hay không" ở lại đúng món nợ đã có chủ (`deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*`, Story 2.3),
  * không phải một mục mới của story này.
  *
  * ═════════════════════════════════════════════════════════════════════════════════

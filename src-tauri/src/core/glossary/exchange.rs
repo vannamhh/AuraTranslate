@@ -546,7 +546,7 @@ fn looks_like_iso8601_utc(s: &str) -> bool {
 /// trước đảo `in_quotes` trên MỌI `"` gặp được, nên một nháy kép đặt sai chỗ giữa một ô
 /// KHÔNG bọc (`a"b,c`) tự mở một "ô bọc" giả — mọi `\n` sau đó bị nuốt vào cùng một
 /// "dòng logic" cho tới khi gặp `"` thứ hai, làm lệch số dòng của MỌI hàng phía sau.
-/// Đóng `deferred-work.md:6776`. `delimiter = None` (dùng cho hàng TIÊU ĐỀ, lúc dấu phân
+/// Đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`. `delimiter = None` (dùng cho hàng TIÊU ĐỀ, lúc dấu phân
 /// cách CHƯA biết) coi CẢ HAI ứng viên (`,` và TAB) là ranh giới ô — đủ an toàn cho một
 /// hàng tiêu đề (định danh máy đọc, không mang dữ liệu tự do); `delimiter = Some(d)`
 /// dùng ĐÚNG MỘT ký tự đã chốt cho các hàng dữ liệu, khớp hệt [`split_fields`].
@@ -918,7 +918,7 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         // trên một hàng (category sai ⇒ `continue` trước khi kịp kiểm trùng), nên một hàng
         // vừa trùng `source_term` VỪA sai `category` chỉ báo được MỘT trong hai lỗi — sai
         // đúng mệnh đề I/O Matrix "Hàng trùng source_term VÀ category lạ ⇒ báo CẢ HAI lỗi
-        // cho hàng đó" (đóng `deferred-work.md:6787`).
+        // cho hàng đó" (đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`).
         //
         // 🔵 SỬA 2026-08-25 (mục ⑦) — CÂU TRÊN (bản trước) HẾT ĐÚNG một phần: "`seen` vẫn
         // chỉ nhận hàng row_ok" ĐÚNG bản trước NHƯNG đó chính là lỗ hổng ⑦. `seen` nay ghi

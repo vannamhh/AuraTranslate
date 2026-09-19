@@ -21,7 +21,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Lúc viết, `src-tauri/src/commands/` chưa có một hàm IPC nào, nên
 //! `ipc_error_wire_shape` dựng một `IpcError` bằng tay rồi khẳng định về chính nó — một
-//! **mệnh đề vòng** mà `deferred-work.md:49` giao đích danh Story 1.8 phải chữa.
+//! **mệnh đề vòng** mà `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` giao đích danh Story 1.8 phải chữa.
 //!
 //! Nay dự án có hai command thật, và cả hai đều là vỏ mỏng của một **hàm thuần** nhận
 //! `Option<&Store>`. Test gọi thẳng hàm thuần đó: không cần webview, không cần fixture,
@@ -75,7 +75,7 @@ fn read_vi_json() -> BTreeMap<String, String> {
 /// đỏ bất cứ thứ gì khác trong repo — chỉ dòng này đỏ.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 ĐÃ CHỮA MỆNH ĐỀ VÒNG — Story 1.8 đóng `deferred-work.md:49`
+/// 🔴 ĐÃ CHỮA MỆNH ĐỀ VÒNG — Story 1.8 đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*`
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Bản trước dựng một `IpcError` bằng tay ngay tại đây rồi khẳng định về **chính cái
 /// nó vừa dựng**. Nó chứng minh `Serialize` của `IpcError` đúng, và không chứng minh
@@ -87,13 +87,13 @@ fn read_vi_json() -> BTreeMap<String, String> {
 /// `$APPDATA` không ghi được sẽ chạy trên máy người dùng.
 ///
 /// Và **không** phải một command giả dựng lên cho vừa lời hứa cũ:
-/// `deferred-work.md:49` cấm đích danh đường đó. Hàm này nhận `Option<&Store>` để test
+/// `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` cấm đích danh đường đó. Hàm này nhận `Option<&Store>` để test
 /// gọi được **mà không cần webview** (§Quyết định #6), chứ không phải để test có một
 /// thứ riêng để gọi.
 #[test]
 fn ipc_error_wire_shape() {
     // `None` = kho chưa bao giờ được `manage` — nhánh mà `lib.rs::open_global_store` để
-    // ngỏ khi `$APPDATA` không ghi được, và là bề mặt lỗi mà `deferred-work.md:177` chờ.
+    // ngỏ khi `$APPDATA` không ghi được, và là bề mặt lỗi mà `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` chờ.
     let err = bootstrap_config(None).expect_err(
         "`bootstrap_config(None)` phải trả lỗi: không có kho thì không có gì để đọc. \
          Một `Ok` ở đây nghĩa là hàm đã im lặng bịa ra một cấu hình.",

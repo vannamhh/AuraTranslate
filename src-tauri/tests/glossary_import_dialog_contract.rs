@@ -346,7 +346,7 @@ fn the_delimiter_follows_the_real_extension_of_the_chosen_path_not_prior_ui_stat
 }
 
 /// §I/O Matrix "Nhập, tệp có cột term_origin" — xem trước NÓI RA rằng cột này bị đọc rồi
-/// bỏ, đóng `deferred-work.md:6763`.
+/// bỏ, đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`.
 #[test]
 fn opening_a_file_with_a_term_origin_column_flags_it_in_the_preview() {
     let root = temp_dir("term-origin-column");

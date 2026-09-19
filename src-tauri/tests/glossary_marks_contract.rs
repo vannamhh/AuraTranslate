@@ -216,7 +216,7 @@ fn english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_202
     )
     .expect("khong loi");
 
-    // `deferred-work.md:422`: Porter2 KHONG co luat cho hau to so sanh/cuc cap (`-er`/`-est`)
+    // `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`: Porter2 KHONG co luat cho hau to so sanh/cuc cap (`-er`/`-est`)
     // -- `happiest` khong ve duoc `happy` (`happi`). Day la mot GIOI HAN DA DO, khong phai
     // mot cho chua lam: ghi ra bang mot ca test co ten thay vi de nguoi sau tuong no da
     // duoc xet.

@@ -15,7 +15,7 @@
  *   ① Dải ĐẨY `.modeport` lên, không PHỦ lên nó — một mệnh đề HÌNH HỌC, đo bằng
  *      `getBoundingClientRect()` trong webview thật.
  *   ② Vùng chọn đọc được ở bề mặt vai `display` — điều kiện khởi hành của story
- *      (`deferred-work.md:2687-2697`), và nó chỉ có ý nghĩa khi `window.getSelection()` là
+ *      (`deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*`), và nó chỉ có ý nghĩa khi `window.getSelection()` là
  *      CỦA ENGINE THẬT, không một `Range` do bàn đo tự dựng bằng tay.
  *   ③ `Esc` trả tiêu điểm VÀ vùng chọn cũ — `restoreFocusAndSelection()`
  *      (`glossaryQuickAddState.ts`) gọi `Selection.removeAllRanges()`/`addRange()` thật, một

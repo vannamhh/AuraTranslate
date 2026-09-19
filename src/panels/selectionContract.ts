@@ -144,7 +144,7 @@ export function useSelectionSurface(
  * Chromium (Chrome headless — engine WebView2 dùng trên Windows). Hai engine khớp nhau
  * từng dòng. Ba số đo quyết định hình dạng hàm này:
  *
- * ① **`deferred-work.md:635` SAI trên cả hai engine.** Nó khai rằng
+ * ① **`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` SAI trên cả hai engine.** Nó khai rằng
  *    `getSelection().toString()` trả `''` cho vùng chọn bên trong `<input>`. Đo được:
  *    `"nội "` — tức văn bản THẬT. ⇒ không dựa vào hành vi đó (mục `:635` đã ghi đúng lời
  *    khuyên, chỉ sai lý do).
@@ -348,7 +348,7 @@ export function attachSelectionWatcher(target: Document, dispatchLookup: () => v
 }
 
 /**
- * 🔴 **MỞ RỘNG VÙNG CHỌN BẰNG BÀN PHÍM** — AC11, đóng `deferred-work.md:608`.
+ * 🔴 **MỞ RỘNG VÙNG CHỌN BẰNG BÀN PHÍM** — AC11, đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
  *
  * Sự thật kỹ thuật, không ý kiến: một `<div>`/`<p>` không sửa được **không nhận** `Shift+Mũi tên`.
  * Trình duyệt chỉ cho điều đó khi ① caret browsing bật (mặc định TẮT, không bật được bằng
@@ -380,7 +380,7 @@ function modifySelection(direction: 'left' | 'right', granularity: 'character' |
     // đó, và đó là thứ phải lần ra được, không đoán.
     console.error(
       '[selection] `Selection.modify()` không có trên engine này — mở rộng vùng chọn bằng ' +
-        'bàn phím KHÔNG hoạt động (NFR17, `deferred-work.md:608`).',
+        'bàn phím KHÔNG hoạt động (NFR17, `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`).',
     )
     return
   }

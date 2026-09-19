@@ -13,7 +13,7 @@ version = "0.4.0"
 description = "Build tool nội bộ: dựng dict-core.db (bảy nguồn nền) cùng một tệp .db độc lập cho mỗi lớp gỡ rời (Thiều Chửu, VietPhrase, Trần Văn Chánh). KHÔNG vào bản phát hành (AD-25)."
 edition = "2024"
 # Khớp toolchain CI (`rust-version` của `src-tauri/Cargo.toml` là 1.85, cũ hơn CI thật —
-# xem `deferred-work.md:83`). Build tool này khai đúng số CI dùng, không chép số cũ đó.
+# xem `deferred-work.md §*Deferred from: code review of 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)*`). Build tool này khai đúng số CI dùng, không chép số cũ đó.
 rust-version = "1.97.1"
 publish = false
 

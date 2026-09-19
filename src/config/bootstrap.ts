@@ -213,7 +213,7 @@ export const bootstrapLayout: DeepReadonly<Ref<string>> = readonly(layout)
 
 /**
  * Lỗi cấu hình gần nhất mà **Rust trả lời**, để `App.vue` vẽ một dải báo lỗi **không
- * chặn**. Đóng `deferred-work.md:177`.
+ * chặn**. Đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*`.
  *
  * ⚠️ Chỉ đọc ở nơi tiêu thụ; [`loadBootstrapConfig`] là đường đặt duy nhất — cùng khuôn
  * `currentMode` / `setMode` của `src/modes/modeState.ts`.

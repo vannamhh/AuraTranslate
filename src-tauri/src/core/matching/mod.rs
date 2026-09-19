@@ -150,7 +150,7 @@ const HMM: bool = false;
 static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 
 /// Ép [`JIEBA`] khởi tạo **ngay bây giờ**, thay vì đợi lượt gọi đầu tiên của [`tokenize`]/
-/// [`find_terms`] — Story 3.4, đóng `deferred-work.md:413`.
+/// [`find_terms`] — Story 3.4, đóng `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`.
 ///
 /// 🔴 **Gọi TỪ đường mở Chương (`commands::chapter`), KHÔNG từ thân một hàm khớp.** Khởi
 /// tạo lạnh tốn **179–329 ms** bản release (trung vị ~243 ms) — vượt trần NFR2 (50 ms)

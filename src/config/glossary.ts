@@ -257,7 +257,7 @@ export async function updateGlossaryTerm(
  *
  * 🔵 **SỬA 2026-08-22 (Story 3.6) — NAY MANG `id`/`source_term`, mệnh đề "cố ý KHÔNG mang"
  * hết đúng.** Bản trước (Story 3.4b) đúng cho PHẠM VI của nó: bốn trường cũ đủ để VẼ dấu,
- * không đủ để correlate hai dấu về cùng một mục (`deferred-work.md:5925-5940`, mục "Story
+ * không đủ để correlate hai dấu về cùng một mục (`deferred-work.md §*Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)*`, mục "Story
  * 3.4b"). Story 3.6 mở đúng đường đó: dải mọc chốt lần đầu gặp cần biết CHÍNH XÁC `id` +
  * `source_term` (khoá ghi thật — có thể KHÁC bề mặt đã khớp trên màn hình khi nhánh tiếng
  * Anh khớp theo hình thái) để gọi `confirmPendingGlossaryTranslation(...)`.

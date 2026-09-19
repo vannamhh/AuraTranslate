@@ -12,7 +12,7 @@
 //! Rust còn lại (kể cả `glossary_boundary.rs`) vẫn xanh — `work_tier_available` sẽ luôn
 //! `false`, mọi yêu cầu tầng Tác phẩm sẽ trượt, và AD-18 (tầng Tác phẩm thắng) sẽ không
 //! bao giờ chạy qua bề mặt IPC thật. Đây đúng là mệnh đề mà Story 3.3 dùng để đóng
-//! `deferred-work.md:603` — "không đánh dấu đạt bằng suy luận" (`AGENTS.md`).
+//! `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — "không đánh dấu đạt bằng suy luận" (`AGENTS.md`).
 //!
 //! Dựng `OpenWork` qua `create_work_from_text` — đúng khuôn `project_contract.rs` (dùng lại
 //! ~18 lần trong tệp đó), không phải một cách dựng riêng của tệp này.
@@ -121,7 +121,7 @@ fn glossary_add_term_at_the_work_tier_writes_through_a_real_open_work() {
 }
 
 /// `glossary_lookup_term` qua một `OpenWork` thật trả `work_tier_available == true` — đúng
-/// mệnh đề mà story dùng để đóng `deferred-work.md:603`.
+/// mệnh đề mà story dùng để đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
 #[test]
 fn glossary_lookup_term_reports_work_tier_available_when_a_real_work_is_open() {
     let root = temp_dir("lookup-work-available");

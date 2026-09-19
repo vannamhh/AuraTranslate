@@ -36,7 +36,7 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
-// 🔵 SỬA (2026-09-14, G2 `deferred-work.md:11580-11610`) — `createWorkThroughForm` chuyển
+// 🔵 SỬA (2026-09-14, G2 `deferred-work.md §*Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)*`) — `createWorkThroughForm` chuyển
 // sang `e2e/support/importForm.mjs` (dùng CHUNG với `story-5-5-progress.e2e.mjs`), vì Story
 // 6.3 (`d20fe67`) chèn màn xem trước bảng mã giữa cú bấm nộp và lượt ghi thật. Ca đầu dưới
 // đây VẪN canh đúng `watch(createdWork, …)` của `LibraryMode.vue:165` như doc-comment cũ của

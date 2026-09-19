@@ -47,7 +47,7 @@ export type PromptSetWire = {
   /**
    * Story 4.5, Quyết định #3. `id` THẬT của hàng Global bị che — cùng điều kiện `null`/số
    * với `shadowed_body`. Cho phép hàng đó được chọn, đổi tên, xoá, xuất qua chính `id` này,
-   * ở tầng `"global"` — đóng `deferred-work.md:12947-12968`.
+   * ở tầng `"global"` — đóng `deferred-work.md §*Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)*`.
    */
   shadowed_id: number | null
 }

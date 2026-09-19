@@ -28,7 +28,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! KHÔNG DÙNG `ScopeError` LÀM LỖI DOMAIN CỦA MODULE NÀY
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `ScopeError` là lỗi riêng của Glossary theo quyết định đã ghi (`deferred-work.md:6073`).
+//! `ScopeError` là lỗi riêng của Glossary theo quyết định đã ghi (`deferred-work.md §*Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (rà soát ba lớp, 2026-08-20)*`).
 //! [`store::PromptSetError`] là kiểu lỗi RIÊNG của domain này, cùng khuôn
 //! `core::aiconfig::store::AiConfigKeyError`/`AiConfigStoreError`.
 //!

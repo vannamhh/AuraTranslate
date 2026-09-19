@@ -8,7 +8,7 @@
  * `<span>` **RỖNG, rộng 0 pixel** — không có gì để trúng khi bấm, và không text node nào để
  * neo caret. `execCommand('insertText')` trả **`false`**. Đó là ca **THƯỜNG NHẤT** của tính
  * năng *(câu đầu tiên người dùng bấm vào ở mọi Chương mới)*, không một ca biên, và nó đứng
- * treo qua ba story: `deferred-work.md:2317-2371` · `:2528-2584`.
+ * treo qua ba story: `deferred-work.md §*Deferred from: 2-1-tach-segment-cap-cau-va-co-ket-doan (2026-08-12)*` · `:2528-2584`.
  *
  * Lưới đóng nó **theo cấu trúc**, không bằng một bản vá hình học: ô có `min-height: 1.95em`
  * nên nó có hộp thật; và mỗi ô là một editing host **riêng** nên caret có chỗ để đậu.

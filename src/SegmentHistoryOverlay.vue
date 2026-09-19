@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Ba đường đã cân, và hai đường kia bị loại bằng phép đo chứ không bằng sở thích:
 // - **tab thứ hai trong panel Lookup** — cột thật của bố cục Ⓑ-2 rộng **238,5 px**
-//   (`deferred-work.md:3131-3162`), còn mockup vẽ một cột danh sách 270 px **cộng** một cột
+//   (`deferred-work.md §*Deferred from: 2-5-xac-nhan-segment-va-may-trang-thai (2026-08-14)*`), còn mockup vẽ một cột danh sách 270 px **cộng** một cột
 //   nội dung. Và panel Lookup sẽ mang một khái niệm không thuộc tra cứu.
 // - **mở ra trong chính hàng của lưới** — 🔴 **một hàng KHÔNG phải một phần tử DOM**
 //   (`GridPanel.vue:5-24`): năm cột là năm `subgrid` chia chung một tập track, nên chèn một

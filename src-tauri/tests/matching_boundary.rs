@@ -525,7 +525,7 @@ fn the_single_jieba_instance_is_actually_lazily_initialised_once() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// AC10 — hâm nóng Jieba (Story 3.4, `deferred-work.md:413`) mắc THẬT vào đường mở Chương
+// AC10 — hâm nóng Jieba (Story 3.4, `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`) mắc THẬT vào đường mở Chương
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // ⚠️ Tệp riêng có chủ ý vẫn đúng: đây là phép kiểm TĨNH trên cây nguồn (đúng vai của
@@ -543,7 +543,7 @@ fn the_single_jieba_instance_is_actually_lazily_initialised_once() {
 /// Tệp sở hữu hai đường mở Chương mà lượt hâm phải mắc vào.
 const CHAPTER_COMMAND_FILE: &str = "commands/chapter.rs";
 
-/// Chuỗi cần tìm — hàm hâm nóng `Jieba` của `core::glossary` (`deferred-work.md:413`).
+/// Chuỗi cần tìm — hàm hâm nóng `Jieba` của `core::glossary` (`deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`).
 const WARM_NEEDLE: &str = "warm_jieba_for_source_lang";
 
 /// Lát THÂN của một hàm top-level `pub fn NAME(` trong `text`, tính từ chữ ký của nó tới chữ
@@ -581,7 +581,7 @@ fn fn_body_calls_warm(body: &str) -> bool {
 /// Cổng này bắt được lời gọi bị **XOÁ** hoặc **DỜI** khỏi hai hàm dưới đây — nó **KHÔNG**
 /// chứng minh lượt hâm **thật sự có tác dụng** (không đo thời gian: một ngưỡng mili-giây sẽ
 /// chập chờn trên một runner CI đang tải, đúng lý do các phép kiểm khác trong kho tránh
-/// assert theo thời gian). Bằng chứng "có tác dụng" là số đo TAY ở `deferred-work.md:413`
+/// assert theo thời gian). Bằng chứng "có tác dụng" là số đo TAY ở `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`
 /// (179–329 ms khởi tạo lạnh, ~1 µs lượt gọi ấm kế tiếp), không phải một cổng tự động.
 #[test]
 fn warm_jieba_for_source_lang_is_called_from_both_chapter_opening_functions() {
@@ -599,11 +599,11 @@ fn warm_jieba_for_source_lang_is_called_from_both_chapter_opening_functions() {
         assert!(
             fn_body_calls_warm(body),
             "`{func}` ({CHAPTER_COMMAND_FILE}) KHÔNG còn gọi `{WARM_NEEDLE}` -- đây chính là \
-             đường MỞ CHƯƠNG mà `deferred-work.md:413` đòi lượt hâm `Jieba` mắc vào. Xoá hoặc \
+             đường MỞ CHƯƠNG mà `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*` đòi lượt hâm `Jieba` mắc vào. Xoá hoặc \
              dời lời gọi này ra khỏi hàm là mở lại đúng hồi quy NFR2 mà Story 3.4 dựng ra để \
              chặn: khởi tạo lạnh 179–329 ms rơi đúng vào phím đầu tiên người dùng gõ.\n\n\
              GIỚI HẠN THẬT của cổng này: nó bắt lời gọi bị XOÁ/DỜI, nó KHÔNG chứng minh lượt \
-             hâm thật sự có tác dụng — xem số đo tay ở `deferred-work.md:413`."
+             hâm thật sự có tác dụng — xem số đo tay ở `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`."
         );
     }
 }

@@ -69,7 +69,7 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * đầu không thay được sàn sau: khi `src/tokens/` mọc thêm tệp, `files.length` vẫn qua
  * sàn trong khi số component có thể về 0, và toàn bộ AD-34 xanh rỗng.
  *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
  * NÂNG LẠI 2026-08-06 — Story 1.17 · Task 10 (AC13): sàn 1.14 (26/23) đã tụt xuống
  * ~62–65% số thật sau ba story liên tiếp (1.15/1.16/1.17) — dưới hẳn tỷ lệ ~81% mà chính
  * comment này đặt ra, tức sàn đã "canh không được gì" đúng như cảnh báo ở dưới.
@@ -1502,7 +1502,7 @@ if (fBad === 0) {
 console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabindex="-1"` (NFR17)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 ĐÓNG `deferred-work.md:140` — Story 1.14 · AC11.2.
+// 🔴 ĐÓNG `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` — Story 1.14 · AC11.2.
 //
 // Ghi chú của chính cổng này *(và của `check-commands.mjs`)* đã nêu tên lỗ suốt bốn story:
 // *"Một `*:focus { outline: none }` phá NFR17 mà vẫn qua được cả cổng này lẫn

@@ -305,7 +305,7 @@ action_items:
     action: "✅ XONG 2026-08-12 — vet seo `PROJECT_MIGRATIONS` so 4 da vao §Dieu kien
       khoi hanh muc 2 cua Story 2.1, kem AC10 va Task 3.4. Dieu kien dong (`story
       2.1 dung ra da mang menh de do`) da dat. Task 3.4 di xa hon mot buoc: dung cong
-      con thieu ghi o `deferred-work.md:1169-1180` — mot test cam `to_version == 4`
+      con thieu ghi o `deferred-work.md §*Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)*` — mot test cam `to_version == 4`
       quay lai, vi `validate_strictly_increasing` KHONG bat duoc ca nay"
     owner: "Dev"
     status: done
@@ -447,7 +447,9 @@ action_items:
       va NFR2 DONG THOI. Ly do la cua chan: 2.5b do duoc doi con tro tren 9.850 cau
       = 706-770 ms so voi tran NFR2 50 ms => vuot ~15 lan; 2.10 va 2.11 deu them lenh
       di qua DUNG duong nong do va deu ghi 'chu van la Story 2.4', trong khi 2.4 khong
-      chay duoc. Epic 3 trang tri them len chinh duong do. Moc hieu nang cu (deferred-work.md:2113-2129)
+      chay duoc. Epic 3 trang tri them len chinh duong do. Moc hieu nang cu (deferred-work.md
+      §*Deferred from: Story 1.22 — C3, và một giới hạn hoá ra đã tự hết hiệu lực (2026-08-12)*
+      — section da luoc 2026-09-19, cach phuc hoi ghi o dau so no)
       MAT HIEU LUC THEO CAU TRUC. Epic 3 KHONG mo truoc khi B1 xong. 🔵 GO VE MENH
       DE EPIC-3 — Ice ky 2026-08-19. Ve chan Epic 3 HET HIEU LUC; phan con lai cua
       B1 (mot con so NFR2 da va) O LAI mo. DIEU GI DA DOI, ba menh de kiem duoc: (1)
@@ -595,7 +597,7 @@ action_items:
   - id: "epic-3-retro-item-37-ai-3-giao-lai-chu-cho-28-muc-no-dang-tre"
     epic: 3
     action: "🔴 AI-3 — GIAO LAI CHU cho 28 muc no dang treo (phan bo: Story 3.9 x8
-      · 3.4b x6 · 3.8 x6 · 3.6 x3 · 3.7 x2 · 3.10 · 3.5 · 3.10b). Uu tien muc `deferred-work.md:6389`
+      · 3.4b x6 · 3.8 x6 · 3.6 x3 · 3.7 x2 · 3.10 · 3.5 · 3.10b). Uu tien muc `deferred-work.md §*Deferred from: lượt rà soát Story 3.4 (2026-08-21)*`
       — \"Mo mot Tac pham thu hai giua hai lan khoa => ket qua quet MAT VINH VIEN\"\
       : chu cu la Story 3.8, story do da `done`, va vi tu `...HasScanned` ma chinh
       muc no doi thi chua bao gio duoc dung (`grep -rE 'HasScanned|hasScanned|ScanStatus'
@@ -753,7 +755,7 @@ action_items:
   - id: "epic-3-retro-item-48-ai-14-tach-tieu-de-so-no-deferred-from-3"
     epic: 3
     action: "📌 AI-14 — TACH TIEU DE SO NO. `## Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary
-      (2026-08-25)` (`deferred-work.md:6837`) cho 28 muc nhung chi 5 thuoc Story 3.10b
+      (2026-08-25)` (`deferred-work.md §*Deferred from: vòng rà ba lớp của Story 3.6 (2026-08-22)*`) cho 28 muc nhung chi 5 thuoc Story 3.10b
       — 22 muc thuoc sau cum ra A-F. Moi muc CO `source_spec` dung nen khong muc nao
       mat dau va `check:debt-owner` xanh; thu sai chi la TIEU DE. Tach mot tieu de
       `## Deferred from: vong ra toan Epic 3 (cum A-F)`, sua tai cho kem 🔵 va ngay."
@@ -890,7 +892,7 @@ action_items:
     epic: 6
     action: "AI-9 — Chay bmad-correct-course dua Story 6.6b (nhap nhieu tep) va 6.7b
       (them Chuong vao Tac pham co san) vao epics.md + sprint-status.yaml; hien chi
-      co trong deferred-work.md:10100 va :10382, va ve '6.6b dung truoc 6.7' da het
+      co trong deferred-work.md §*Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)* va :10382, va ve '6.6b dung truoc 6.7' da het
       dung"
     owner: "Ice"
     status: done

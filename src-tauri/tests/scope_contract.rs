@@ -18,7 +18,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! ⚠️ TỆP NÀY KHÔNG `use rusqlite` — và đó là một mệnh đề, không phải may mắn
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `deferred-work.md:179` ghi rằng `tests/**` được **miễn trừ** khỏi phép quét ranh giới,
+//! `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` ghi rằng `tests/**` được **miễn trừ** khỏi phép quét ranh giới,
 //! và mở lại mục đó nếu test mới chạm `rusqlite` trực tiếp. Không cần: `Store::write` nhận
 //! một closure lấy `&Transaction` — kiểu **tái xuất** từ `core::store` — nên ca ghi thẳng
 //! một hàng vào `global.db` viết được mà không gõ tên crate. Miễn trừ ở lại nguyên trạng.
@@ -503,7 +503,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 /// phân giải gì và không đoán về một loại nào.
 ///
 /// Chữ ký của cả ba method đổi từ `kind: ScopeKind` sang `kind: &str`
-/// (`deferred-work.md:272`) đúng khuôn `save_value`/`delete_value` ở ranh giới IPC — và một
+/// (`deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*`) đúng khuôn `save_value`/`delete_value` ở ranh giới IPC — và một
 /// chữ ký nhận chuỗi không tin được thì phải có một nhánh cho chuỗi sai. Ca này đóng nhánh
 /// đó cho cả ba method, không chỉ một.
 #[test]
@@ -668,7 +668,7 @@ fn a_row_written_straight_into_global_db_resolves_back_through_the_scope_path() 
 
 /// Vòng ghi → đọc qua **đường sản phẩm**: `put_config` rồi `bootstrap_config`.
 ///
-/// Đóng `deferred-work.md:140` — *"chế độ mặc định lúc khởi động là `library` và không phép
+/// Đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` — *"chế độ mặc định lúc khởi động là `library` và không phép
 /// kiểm nào canh"*. Nay có một.
 #[test]
 fn the_last_mode_survives_a_write_and_a_reopen() {

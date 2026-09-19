@@ -13,7 +13,7 @@
  *     và khác lớp nhúng so với **WKWebView của Tauri**;
  *   - `src-tauri/tests/segment_contract.rs` không có webview nào.
  *
- * Đó đúng là món nợ mà `deferred-work.md:2127-2134` ghi cho Story 2.2 và story này **kế thừa**.
+ * Đó đúng là món nợ mà `deferred-work.md §*Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)*` ghi cho Story 2.2 và story này **kế thừa**.
  * Spec này đóng phần đóng được của nó: hành vi `contenteditable` trên engine mà sản phẩm thật
  * sự chạy.
  *

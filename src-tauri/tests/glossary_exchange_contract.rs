@@ -490,7 +490,7 @@ fn a_duplicate_whose_first_occurrence_was_rejected_for_an_unrelated_reason_is_st
     );
 }
 
-/// Story 3.10b, đóng `deferred-work.md:6776` — "Nháy kép đặt sai chỗ": một `"` KHÔNG đứng
+/// Story 3.10b, đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*` — "Nháy kép đặt sai chỗ": một `"` KHÔNG đứng
 /// đầu ô là một ký tự THƯỜNG, ở CẢ bước cắt dòng lẫn bước cắt ô. Trước bản vá, bước cắt
 /// DÒNG (`split_first_logical_line`) đảo `in_quotes` trên MỌI `"` gặp được — một dấu nháy
 /// đặt sai chỗ ở dòng 2 tự "mở một ô bọc giả" nuốt luôn dấu xuống dòng thật sau đó, nên
@@ -524,7 +524,7 @@ fn a_stray_quote_not_at_the_start_of_a_field_is_literal_in_both_the_line_and_fie
     );
 }
 
-/// Story 3.10b, đóng `deferred-work.md:6787` — "Hàng trùng `source_term` VÀ `category` lạ":
+/// Story 3.10b, đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*` — "Hàng trùng `source_term` VÀ `category` lạ":
 /// dòng thứ hai sai CẢ HAI phải báo CẢ HAI lỗi trong MỘT lượt, không chỉ lỗi ĐẦU TIÊN tìm
 /// được. Trước bản vá, kiểm `category` `continue` sớm nên lượt kiểm trùng của CHÍNH dòng đó
 /// không bao giờ chạy tới.

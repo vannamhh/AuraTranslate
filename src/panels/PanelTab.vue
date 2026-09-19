@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
  * Tab đang hiện của group đang hoạt động — `primary` + nét đậm.
  *
  * 🔴 `var(--weight-ui-md-strong)` là token thứ 15, thêm ở Story 1.14 · AC10 để đóng
- * `deferred-work.md:138`. Trước nó, ba chỗ trong dự án phải MƯỢN `--weight-read-title`
+ * `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`. Trước nó, ba chỗ trong dự án phải MƯỢN `--weight-read-title`
  * (một token của tiêu đề Chương, 23px họ `read`) chỉ để lấy con số 600 — và rủi ro đã
  * ghi: *"`--weight-read-title` đổi giá trị thì các chỗ này đổi theo mà không ai biết."*
  * Đừng viết thẳng `600`: Kiểm B2 của `check-tokens.mjs` đỏ, và khai một biến CSS cục

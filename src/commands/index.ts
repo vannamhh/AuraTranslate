@@ -153,7 +153,7 @@ let liveOverrides: ChordOverrides = {}
 /**
  * Vì sao hợp âm đọc từ đĩa **không được áp**, hoặc `null` nếu chúng đã được áp.
  *
- * 🔴 Story 1.21 · AC13 · đóng `deferred-work.md:243`. Cho tới story này chẩn đoán đó chỉ đi
+ * 🔴 Story 1.21 · AC13 · đóng `deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*`. Cho tới story này chẩn đoán đó chỉ đi
  * ra `console.error` — im lặng theo nghĩa thực dụng, vì người dùng chỉ biết nếu họ mở
  * console. Nay màn hình phím tắt đọc được nó và nói ra một câu.
  */
@@ -503,7 +503,7 @@ export type CommandDeps = {
    */
   currentSelection?: () => string
 
-  // ── Story 1.18 — bôi đen bằng BÀN PHÍM (`deferred-work.md:608`) ─────────────────
+  // ── Story 1.18 — bôi đen bằng BÀN PHÍM (`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`) ─────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `currentSelection`: cài đặt sống ở
   // `src/panels/selectionContract.ts` và chạm DOM (`window.getSelection`,
@@ -1124,11 +1124,11 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   }
 
   /**
-   * `focus.next_panel` / `focus.prev_panel` — AC9, đóng `deferred-work.md:134` và `:161`.
+   * `focus.next_panel` / `focus.prev_panel` — AC9, đóng `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*` và `:161`.
    *
    * 🔴 Trước story này **không có đường bàn phím nào vào panel**: §Quyết định #5 của
    * Story 1.6 cố ý để trống vì *"bốn panel chưa tồn tại, nên vòng xoay chưa biết gồm những
-   * gì"*. Nay chúng tồn tại, nên `deferred-work.md:161` — *"Không đánh dấu AC4 đạt trọn
+   * gì"*. Nay chúng tồn tại, nên `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` — *"Không đánh dấu AC4 đạt trọn
    * cho tới lúc đó"* — đóng ở đây.
    *
    * 🔴 Vòng xoay đi theo **thứ tự bố cục hiện tại**, không theo thứ tự `declare()`.
@@ -2169,10 +2169,10 @@ function registerAll(target: Registry, deps: CommandDeps): void {
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════
-   * 🔴 STORY 1.18 — NĂM COMMAND BÔI ĐEN BẰNG BÀN PHÍM (AC11, `deferred-work.md:608`)
+   * 🔴 STORY 1.18 — NĂM COMMAND BÔI ĐEN BẰNG BÀN PHÍM (AC11, `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`)
    * ═══════════════════════════════════════════════════════════════════════════════
    *
-   * `deferred-work.md:608` — *"Ice chốt 2026-08-06 ở lượt code review: **ghi nợ cho
+   * `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — *"Ice chốt 2026-08-06 ở lượt code review: **ghi nợ cho
    * 1.18**"*. AC1 của epic nói *"thả chuột **hoặc kết thúc vùng chọn bằng bàn phím**"*, và
    * vế thứ hai trước story này không **thực hiện được**.
    *
@@ -2406,7 +2406,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       id,
       labelKey: `command.${id}`,
       keys: [chord],
-      // 🔴 BỐN CHỖ DUY NHẤT khai `repeatable` — Story 1.21, đóng `deferred-work.md:656`.
+      // 🔴 BỐN CHỖ DUY NHẤT khai `repeatable` — Story 1.21, đóng `deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*`.
       //
       // Giữ `Shift+→` là cách người ta bôi đen một cụm từ; mở rộng đúng một ký tự rồi
       // đứng im là *"bấm mà không có gì xảy ra"* (AD-44 ④). Bốn thao tác này luỹ tiến và
@@ -2450,7 +2450,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * 🔴 VÌ SAO MỘT COMMAND, KHÔNG MỘT `@keydown` TRÊN BỀ MẶT GÕ
    * ─────────────────────────────────────────────────────────────────────────────
    * AD-34 §1 — sàn khả năng tiếp cận là **cấu trúc**, không kỷ luật. Và có một cái bẫy cụ
-   * thể ở đây: **Kiểm A của `check:commands` chỉ canh `@click`** (`deferred-work.md:166`).
+   * thể ở đây: **Kiểm A của `check:commands` chỉ canh `@click`** (`deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*`).
    * Một `@keydown` gọi thẳng hàm dựng một đường thứ hai mà **không cổng nào nhìn thấy** —
    * nên mọi bề mặt phải phát **cùng một** `dispatch('editor.confirm_segment')`.
    *
@@ -2620,7 +2620,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    *    số đo ở `:1092-1112`).
    *
    * ② 🔴 **Và "chỗ đã đặt trước" cho `⌥←`/`⌥→` DỰA TRÊN MỘT LƯỢT ĐỌC NHẦM — đo lại 2026-08-18.**
-   *    `deferred-work.md:151` (Story 1.14) viết *"không đụng `⌥←` `⌥→` trần (Chương trước/sau
+   *    `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` (Story 1.14) viết *"không đụng `⌥←` `⌥→` trần (Chương trước/sau
    *    — `EXPERIENCE.md:148`, Story 2.11)"*. Dòng 148 của tệp đó **nay là đoạn Auto-Lookup**;
    *    hàng thật `| ⌥← ⌥→ | Chương trước / sau trong cùng lần nhập |` nằm ở **`:184`**, và nó
    *    thuộc bảng *"Sửa ranh giới bóc"* (`:174-186`) — tức **màn xem trước NHẬP**, UX-DR33
@@ -3469,7 +3469,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
  * ít hơn để hai đường trôi khỏi nhau.
  *
  * 🔴 Và chẩn đoán không dừng ở `console.error` nữa — nó vào [`shortcutsDiskRejection`] để
- * màn hình phím tắt nói ra một câu (AC13, đóng `deferred-work.md:243`).
+ * màn hình phím tắt nói ra một câu (AC13, đóng `deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*`).
  */
 export function installCommands(deps: CommandDeps): Keymap {
   const isMac = deps.isMac ?? detectIsMac()

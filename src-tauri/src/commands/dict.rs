@@ -103,7 +103,7 @@ pub fn list_sources(layers: Option<&DictLayers>) -> Vec<SourceAttribution> {
 /// §Debug Log References của story cho bảng đầy đủ.
 const LOOKUP_PAGE_LIMIT: usize = 20;
 
-/// 🔴 `deferred-work.md:363` — *"Không giới hạn độ dài truy vấn — validate thuộc tầng
+/// 🔴 `deferred-work.md §*Deferred from: code review of 1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap (2026-08-05)*` — *"Không giới hạn độ dài truy vấn — validate thuộc tầng
 /// IPC/UI của 1.13/**1.17**"*. Một sàn TRÊN có tên, **không** một `panic`: một lượt bôi
 /// đen vô tình kéo qua nhiều đoạn văn (hàng nghìn ký tự) vẫn phải trả lời, không đơ máy
 /// hay ném lỗi — nó chỉ bị CẮT trước khi vào đường tra, vì một truy vấn dài hơn ngần này
@@ -135,7 +135,7 @@ const QUERY_LENGTH_CEILING: usize = 200;
 /// 🔴 **4 ký tự, và con số đó có lý do:** một thành ngữ tiếng Trung là **bốn** ký tự — đơn
 /// vị dài nhất còn đáng tra như một chuỗi con. Dài hơn thế, ứng viên chuỗi con là nhiễu.
 /// Với đường tiếng Anh, mọi truy vấn < 3 ký tự rơi vào [`QueryBranch::NoBranchQueryTooShort`]
-/// — **đó là ca đóng `deferred-work.md:615`**, nhánh trước nay không thực thi được.
+/// — **đó là ca đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`**, nhánh trước nay không thực thi được.
 const SUBSTRING_FALLBACK_CEILING: usize = 4;
 
 /// Có thử đường lui `Substring` không — **hàm thuần, đây là thứ test gọi**.

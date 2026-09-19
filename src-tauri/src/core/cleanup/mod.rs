@@ -146,7 +146,7 @@ pub struct CleanupMatch {
 
 /// Báo cáo làm sạch của MỘT Chương — gắn vào
 /// `core::segment::import::ImportedChapter::cleanup_report` (Story 6.5, đóng nợ
-/// `deferred-work.md:9359`: xem trước và xác nhận nay đọc CÙNG một lượt chạy chuỗi).
+/// `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`: xem trước và xác nhận nay đọc CÙNG một lượt chạy chuỗi).
 ///
 /// `matches`/`per_rule_counts` tính trên văn bản NGAY TRƯỚC khi luật xoá gì — đã giải mã
 /// ([`Step::DecodeEncoding`] đã chạy), CHƯA chuẩn hoá (đứng TRƯỚC [`Step::NormalizeParagraphsAndWhitespace`]

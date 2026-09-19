@@ -40,7 +40,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `tests/scope_boundary.rs::FORBIDDEN_OUTSIDE_SCOPE` cấm token đó ngoài `core/scope/**`.
 //! [`ScopeResolver::apply_override`] nhận `kind: &str` (Story 3.1 đóng
-//! `deferred-work.md:272`) đúng để chỗ này gọi bằng một hằng literal
+//! `deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*`) đúng để chỗ này gọi bằng một hằng literal
 //! ([`GLOSSARY_SCOPE_KIND`]) mà không phải `use` kiểu đó.
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
@@ -210,7 +210,7 @@ pub fn insert_manual_entry(
 /// `glossary_entry_lifecycle_is_one_way` từ chối ở tầng SQL, không phải một kiểm tra ở đây.
 ///
 /// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — `id` KHÔNG khớp hàng nào NAY LÀ MỘT LỖI, đóng
-/// `deferred-work.md:5348-5352` phần "Chủ: Story 3.3".** Doc-comment trước của hàm này
+/// `deferred-work.md §*🔵 2026-08-18 — Sprint Change Proposal 2026-08-18c: nửa NFR2 của Story 2.4 đã có AC SỐNG trở lại*` phần "Chủ: Story 3.3".** Doc-comment trước của hàm này
 /// cảnh báo đúng rủi ro *"rỗng im lặng"* mà `AGENTS.md` liệt vào Known pitfalls trung tâm.
 /// `tx.execute` trả về SỐ HÀNG bị đổi (`usize`); `0` giờ là [`StoreError::WriteFailed`] với
 /// một câu chẩn đoán đọc được, không còn `Ok(())` cho một lượt ghi không đổi gì.
@@ -380,7 +380,7 @@ fn decode_term_origin(col: usize, raw: &str) -> SqlResult<TermOrigin> {
 }
 
 /// Lỗi Rust-layer "đọc được" cho ca *"`UPDATE` khớp 0 hàng"* — Story 3.3, đóng
-/// `deferred-work.md:5348-5352` (`confirm_translation`) và mảnh *"sửa một `id` đã biến
+/// `deferred-work.md §*🔵 2026-08-18 — Sprint Change Proposal 2026-08-18c: nửa NFR2 của Story 2.4 đã có AC SỐNG trở lại*` (`confirm_translation`) và mảnh *"sửa một `id` đã biến
 /// mất"* của I/O Matrix (`update_manual_term`).
 ///
 /// Cùng khuôn `candidate_store.rs::already_decided_error`: không biến thể `rusqlite::Error`
@@ -545,7 +545,7 @@ pub enum GlossaryError {
     DialogPathInvalid,
     /// Bản đồ quyết định của nhịp hai mang một khoá `source_term` KHÔNG có trong
     /// `Vec<RowPlan>` của lô đang treo — §Always: "một quyết định trỏ tới `source_term`
-    /// không có trong lô là một lỗi tường minh", đóng `deferred-work.md:6798`.
+    /// không có trong lô là một lỗi tường minh", đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`.
     ImportDecisionUnknownTerm {
         /// Thuật ngữ lạ đọc được từ khoá của bản đồ quyết định.
         term: String,
@@ -755,7 +755,7 @@ pub fn entries_eligible_for_injection(
     global: &Store,
     work: Option<&Store>,
 ) -> Result<Vec<GlossaryEntry>, GlossaryError> {
-    // 🔵 THÊM 2026-08-20 (Story 3.3) — `deferred-work.md:5348-5352`: không chỗ gọi nào bắt
+    // 🔵 THÊM 2026-08-20 (Story 3.3) — `deferred-work.md §*🔵 2026-08-18 — Sprint Change Proposal 2026-08-18c: nửa NFR2 của Story 2.4 đã có AC SỐNG trở lại*`: không chỗ gọi nào bắt
     // khớp `resolver.has_work_tier()` với `work.is_some()`. Hai giá trị này PHẢI đi cùng
     // nhau trên mọi đường gọi đúng: `resolver` chỉ mang `Some(WorkScope)` sau
     // `ScopeResolver::with_work`, và đó chính xác là lúc `OpenWork::store` (tầng
@@ -768,7 +768,8 @@ pub fn entries_eligible_for_injection(
         resolver.has_work_tier(),
         work.is_some(),
         "entries_eligible_for_injection -- resolver.has_work_tier()={} nhung work.is_some()={} \
-         -- hai gia tri nay phai di cung nhau tren moi duong goi dung (deferred-work.md:5348)",
+         -- hai gia tri nay phai di cung nhau tren moi duong goi dung \
+         (deferred-work.md, section Sprint Change Proposal 2026-08-18c)",
         resolver.has_work_tier(),
         work.is_some()
     );
@@ -1224,7 +1225,7 @@ pub fn match_lang_for_source_lang(source_lang: &str) -> MatchLang {
 }
 
 /// Hâm nóng `Jieba` cho một Chương mang `source_lang` — Story 3.4, đóng
-/// `deferred-work.md:413`.
+/// `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`.
 ///
 /// 🔴 **Gọi từ đường MỞ CHƯƠNG (`commands::chapter::read_open_chapter` /
 /// `open_adjacent_chapter`), KHÔNG từ thân [`marks_for_source_text`].** Xem doc-comment của

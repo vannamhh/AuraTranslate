@@ -137,7 +137,7 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
 /// *"Đã có trong Glossary"* của I/O Matrix — một chuỗi đã là `glossary_entry` (nhập tay
 /// trước khi lượt quét chạy tới, hoặc đã được duyệt ở một Chương khác trong cùng phiên)
 /// không bao giờ được ghi vào bảng chờ, đóng đúng món nợ có chủ của story này
-/// (`deferred-work.md:5606-5617`, "quét không được sinh ứng viên trùng `source_term` với
+/// (`deferred-work.md §*Deferred from: lượt push + kiểm tra CI (2026-08-19)*`, "quét không được sinh ứng viên trùng `source_term` với
 /// `glossary_entry`, nếu không `approve_candidate` hỏng vĩnh viễn").
 ///
 /// `ON CONFLICT (source_term) DO NOTHING` chặn ca *"Đã từng bị bỏ"* — một `source_term` đã

@@ -1421,7 +1421,7 @@ fn a_newer_schema_is_refused_without_touching_a_single_byte() {
 /// `From<StoreError> for IpcError` đi **qua `IpcError::new`** và mang đủ tham số.
 ///
 /// Vì sao nghiệm thu hôm nay khi chưa gì hiển thị nó: đây là toàn bộ phần story này đóng
-/// góp cho món nợ `ipc_error_wire_shape` (`deferred-work.md:38-40`). Story 1.8 chỉ phải
+/// góp cho món nợ `ipc_error_wire_shape` (`deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*`). Story 1.8 chỉ phải
 /// **nối dây**; nếu bảng tham số ở đây sai thì nó sai từ hôm nay, không phải từ hôm đó.
 ///
 /// ⚠️ Ca này cũng là lưới cho `IpcError::new`: khoá thiếu tham số rơi về

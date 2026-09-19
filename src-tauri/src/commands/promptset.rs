@@ -101,7 +101,7 @@ pub struct PromptSetWire {
     /// 🔵 **THÊM Story 4.5, Quyết định #3.** `id` THẬT của hàng Global bị che — cùng điều
     /// kiện `None`/`Some` với `shadowed_body`. Cho phép màn hình vẽ hàng đó như một hàng
     /// CHỌN ĐƯỢC (`tier: "global"`, `id` này) thay vì một dòng chỉ-hiển-thị, đóng
-    /// `deferred-work.md:12947-12968`.
+    /// `deferred-work.md §*Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)*`.
     pub shadowed_id: Option<i64>,
 }
 

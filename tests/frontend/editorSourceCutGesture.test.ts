@@ -18,7 +18,7 @@
  * gọi** — và AD-5 không cho hoàn tác lượt tách đó.
  *
  * ✅ **Ice ký 2026-08-17:** `Mod`+click đánh dấu; **bấm đơn KHÔNG đánh dấu gì**, để trống cho
- * tra cứu. Cùng lượt ký đó đóng món nợ 🔴 `deferred-work.md:4100` *(Auto-Lookup bằng chuột
+ * tra cứu. Cùng lượt ký đó đóng món nợ 🔴 `deferred-work.md §*Deferred from: code review of 2-5d-ngat-doan-ban-dich (2026-08-16)*` *(Auto-Lookup bằng chuột
  * "có thể đang chết")*: Ice xác nhận **double-click TRA ĐƯỢC** trên máy thật ⇒ vế đó là giới
  * hạn của **BỘ ĐO**, không của sản phẩm.
  *

@@ -51,7 +51,7 @@
 //!   KHO (§Design Notes "vị từ mồ côi: bốn cách viết, ba cách sai"; §Rủi ro/§Spec Change Log
 //!   của story cho lý do thứ tự ghi). Toàn bộ scan+ghi (CẢ HAI kho) chạy dưới
 //!   [`Indexer::rebuild_lock`] — hai lượt `rebuild` gọi đồng thời phải NỐI TIẾP, không xen kẽ
-//!   giai đoạn quét với giai đoạn ghi (deferred-work.md:8079, chủ Story 5.3).
+//!   giai đoạn quét với giai đoạn ghi (deferred-work.md §*Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary (2026-08-25)*, chủ Story 5.3).
 //!   Đây vẫn là đường ghi DUY NHẤT của module này — không có một đường "chèn một hàng" thứ
 //!   hai chạy song song với nó, kể cả khi chỉ một Tác phẩm vừa được tạo (xem
 //!   `commands::project::wire::create_work_from_text`, nơi gọi lại đúng hàm này).

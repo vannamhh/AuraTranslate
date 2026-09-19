@@ -48,7 +48,7 @@
 //! `ScopeResolver::with_work` chỉ được dựng ở `commands::project::create_work` — tức lúc
 //! **TẠO MỚI** một `.atproj` trong phiên hiện tại. Hôm nay **không tồn tại đường mở lại**
 //! một `.atproj` đã có trên đĩa (`OpenWorkState` khởi động luôn `None`, và không command
-//! IPC nào ngoài `create_work_*` đặt được giá trị vào đó — `deferred-work.md:2465`). Hệ
+//! IPC nào ngoài `create_work_*` đặt được giá trị vào đó — `deferred-work.md §*Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)*`). Hệ
 //! quả cho Glossary: mục tầng Tác phẩm của một Tác phẩm đã đóng rồi mở lại **vẫn nằm
 //! nguyên vẹn** trong `project.db` của nó — không mất dữ liệu — nhưng đường Rust để nạp
 //! lại `ScopeResolver::with_work` cho phiên mới **chưa tồn tại**, nên
@@ -103,7 +103,7 @@
 //!   nhất thắng, hoà thì trái nhất) TRƯỚC khi quy đổi byte → điểm mã.
 //! - [`store::warm_jieba_for_source_lang`] — hâm `Jieba` NGOÀI đường gõ, gọi từ đường MỞ
 //!   CHƯƠNG (`commands::chapter`), không từ thân `marks_for_source_text` — đóng
-//!   `deferred-work.md:413` (179–329 ms khởi tạo lạnh, vượt trần NFR2 3,6–6,6×).
+//!   `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*` (179–329 ms khởi tạo lạnh, vượt trần NFR2 3,6–6,6×).
 //! - `commands::glossary::glossary_marks_for_chapter` — hàm thuần thứ hai của
 //!   `commands::glossary`: nhận `text`/`source_lang` làm THAM SỐ (không tự đọc `chapter`
 //!   từ đĩa — frontend đã có `source_text` từ `read_open_chapter`), cùng khuôn
@@ -230,9 +230,9 @@
 //!   3.10 vẫn đúng nguyên vẹn.
 //! - `exchange.rs` — hai bản vá TẠI CHỖ: bước cắt DÒNG (`split_first_logical_line`) nay
 //!   áp đúng luật "một `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô" mà bước cắt Ô đã có, đóng
-//!   `deferred-work.md:6776`; `seen`/kiểm `category` không còn `continue` sớm loại nhau,
+//!   `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`; `seen`/kiểm `category` không còn `continue` sớm loại nhau,
 //!   nên một hàng vừa trùng `source_term` vừa sai `category` báo CẢ HAI lỗi, đóng
-//!   `deferred-work.md:6787`.
+//!   `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`.
 //! - `commands::glossary` — bốn vỏ IPC mới, gọi thẳng `export_tier`/`import_into_tier`
 //!   (KHÔNG nằm trong `GLOSSARY_ONLY_SURFACE`, xem `glossary_boundary.rs`): xuất một
 //!   tầng (một nhịp) · mở-và-xem-trước một lượt nhập (nhịp một, kế hoạch ở lại `State`

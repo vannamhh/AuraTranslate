@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Cổng `dict-manifest.toml` — Task 8 của Story 1.9 (AC3, đóng `deferred-work.md:79`:
+ * Cổng `dict-manifest.toml` — Task 8 của Story 1.9 (AC3, đóng `deferred-work.md §*Deferred from: code review of 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)*`:
  * *"đặt ra luật ba trường rồi không cưỡng chế bằng gì cả"*), siết thêm ở Task 7 của
  * Story 1.10 (AC5): `[[detachable]]` giờ đòi ĐÚNG N mục, đúng N `name` — không dư không
  * thiếu. Con số này đổi CÙNG LÚC với dữ liệu khi story nối tiếp thêm một lớp — đó là

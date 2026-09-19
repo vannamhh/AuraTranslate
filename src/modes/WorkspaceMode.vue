@@ -15,11 +15,11 @@
 // ─────────────────────────────────────────────────────────────────────────────────
 // Kiểm A của `scripts/check-i18n.mjs` quét mọi `.vue` dưới `src/**` và đỏ với một chuỗi
 // tiếng Việt CÓ DẤU ở vị trí mã (AC2 của Story 1.5). Nó không phân biệt được *"chuỗi
-// hiển thị"* với *"chẩn đoán ra console"* — nó đo DẤU, và `deferred-work.md:36` đã ghi
+// hiển thị"* với *"chẩn đoán ra console"* — nó đo DẤU, và `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` đã ghi
 // đúng giới hạn đó.
 //
 // Đường thoát dễ là dời `console.warn` sang một tệp `.ts` — Kiểm A không quét `.ts`.
-// `deferred-work.md:35` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi từ
+// `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi từ
 // `.vue` sang `.ts` là cách hợp lệ về mặt cổng để cho xanh — đừng dùng."*
 //
 // ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng
@@ -47,7 +47,7 @@ onBeforeUnmount(() => {
  * `body`** — gốc chế độ mang `tabindex="-1"` nên nó nhận được focus thật.
  *
  * Đường vào panel là `focus.next_panel`, và từ Story 1.14 nó CÓ phím (`Mod+Alt+→`) — tức
- * `deferred-work.md:134` và `:161` đóng ở đây.
+ * `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*` và `:161` đóng ở đây.
  */
 onActivated(() => {
   void enterFocus('mode.workspace')

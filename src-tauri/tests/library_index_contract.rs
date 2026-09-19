@@ -1361,7 +1361,7 @@ fn forget_orphan_refuses_a_work_id_that_does_not_exist() {
 }
 
 /// Hai lượt `rebuild` gọi từ HAI LUỒNG gần như đồng thời (khởi động + người dùng bấm) phải
-/// NỐI TIẾP, không cho ra một trạng thái trộn — deferred-work.md:8079, chủ Story 5.3.
+/// NỐI TIẾP, không cho ra một trạng thái trộn — deferred-work.md §*Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary (2026-08-25)*, chủ Story 5.3.
 ///
 /// ⚠️ **Giới hạn thật của ca này, ghi ra thay vì làm tròn lên:** không có một hook tiêm được
 /// độ trễ vào giữa lượt QUÉT ĐĨA và lượt GHI của `Indexer::rebuild` (đó là chỗ interleave

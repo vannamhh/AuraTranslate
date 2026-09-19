@@ -3205,7 +3205,7 @@ fn lookup_command_calls_senses_with_an_empty_batch_for_no_layer() {
     cleanup(&dir);
 }
 
-/// 🔴 `deferred-work.md:363` — một truy vấn dài hơn sàn `QUERY_LENGTH_CEILING` (200 ký tự,
+/// 🔴 `deferred-work.md §*Deferred from: code review of 1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap (2026-08-05)*` — một truy vấn dài hơn sàn `QUERY_LENGTH_CEILING` (200 ký tự,
 /// riêng của `commands::dict`) bị CẮT trước khi vào đường tra, không panic. Chứng minh
 /// bằng hiệu ứng quan sát được: 200 ký tự Latin + MỘT ký tự Hán ở CUỐI. Nếu bị cắt trước
 /// khi qua `pick_route`, phần bị cắt KHÔNG còn ký tự Hán nào ⇒ `route = En`. Nếu không
@@ -3656,7 +3656,7 @@ fn an_empty_exact_lookup_falls_back_to_substring() {
     cleanup(&dir);
 }
 
-/// 🔴 **`query_too_short` NAY THỰC THI ĐƯỢC** — đóng `deferred-work.md:615`.
+/// 🔴 **`query_too_short` NAY THỰC THI ĐƯỢC** — đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
 ///
 /// Mục `:615` ghi rằng `QueryBranch::NoBranchQueryTooShort` *"không thể xảy ra qua đường sản
 /// phẩm thật"*: `commands::dict::lookup` cố định `Exact`, và `pick_branch` cho `Exact` luôn
@@ -3676,7 +3676,7 @@ fn a_short_latin_selection_now_reaches_the_query_too_short_state() {
     assert_eq!(
         response.grouped.branch,
         QueryBranch::NoBranchQueryTooShort,
-        "🔴 `deferred-work.md:615` — trạng thái này không tới được trước Story 1.18. Panel \
+        "🔴 `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` — trạng thái này không tới được trước Story 1.18. Panel \
          Lookup đọc ĐÚNG trường này để nói *đoạn đang chọn quá ngắn* thay vì *không tìm thấy*, \
          và hai câu đó dẫn người dùng đi hai đường khác nhau (AD-44 ④)."
     );

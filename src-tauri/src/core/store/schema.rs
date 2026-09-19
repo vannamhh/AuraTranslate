@@ -42,7 +42,7 @@ use super::{StoreError, StoreKind, pragmas};
 /// *"chạy các bước di trú chỉ tiến trong một giao dịch, sau khi đã sao lưu"*, và **không
 /// có bước nào thì AC6 không có gì để nghiệm thu trên đường sản phẩm** — chỉ nghiệm thu
 /// được bằng một bộ di trú giả trong test, tức lại đúng hình dạng *"mệnh đề vòng"* mà
-/// lượt review Story 1.5 đã bắt (`deferred-work.md:38`).
+/// lượt review Story 1.5 đã bắt (`deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*`).
 ///
 /// - `applied_at` lấy bằng `strftime` **của chính SQLite** — ISO-8601 UTC theo
 ///   Consistency Conventions, và không phải thêm `chrono`/`time` cho một dòng.
@@ -1905,7 +1905,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// là một danh sách tăng dần nghiêm ngặt hoàn hảo, và nó sẽ đi qua **mọi** cổng hiện có mà
 /// không một dòng đỏ nào. Cổng thật là
 /// `tests/segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`,
-/// dựng ở Story 2.1 để đóng món nợ `deferred-work.md:1169-1180`.
+/// dựng ở Story 2.1 để đóng món nợ `deferred-work.md §*Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)*`.
 ///
 /// ⚠️ **HỆ QUẢ của việc nâng target lên 5, ghi ra vì nó đổi hành vi trên dữ liệu có thật:**
 /// một `project.db` mang `user_version = 4` trước lượt này bị [`super::Store::open`] **từ

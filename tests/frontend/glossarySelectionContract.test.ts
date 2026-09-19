@@ -4,7 +4,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO ĐỐI CHỨNG HAI CHIỀU, KHÔNG MỘT CA DƯƠNG ĐƠN LẺ
  * ─────────────────────────────────────────────────────────────────────────────
- * `deferred-work.md:2687-2697` gọi mệnh đề *"vai `display` KHÔNG chặn đường của
+ * `deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*` gọi mệnh đề *"vai `display` KHÔNG chặn đường của
  * `glossary.add_term`"* là **điều kiện khởi hành** của story 3.3: nó là lý do TOÀN BỘ hàm
  * `currentSelectionTextForGlossaryQuickAdd` tồn tại thay vì tái dùng `currentSelectionText`.
  * Một test chỉ khẳng định *"hàm mới trả về chữ ở một bề mặt `display`"* không chứng minh
@@ -16,7 +16,7 @@
  *   ① bề mặt vai `'display'` ⇒ `currentSelectionText()` RỖNG, `…ForGlossaryQuickAdd()` CÓ CHỮ;
  *   ② bề mặt vai `'source'` ⇒ CẢ HAI đều CÓ CHỮ, và cùng một chuỗi.
  * Thiếu vế ①  thì một lượt "sửa" lỡ tái lọc theo `role` trong hàm mới đi lọt — đúng lỗi mà
- * `deferred-work.md:2691-2696` cảnh báo (*"gỡ đăng ký ⇒ SELECTION_SURFACE_FLOOR đỏ; lật vai
+ * `deferred-work.md §*Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)*` cảnh báo (*"gỡ đăng ký ⇒ SELECTION_SURFACE_FLOOR đỏ; lật vai
  * ⇒ Kiểm F ③ đỏ — nhưng LỌC lại theo role bên trong hàm mới thì KHÔNG cổng tĩnh nào bắt
  * được, chỉ hành vi lúc chạy mới bắt được"*). Thiếu vế ② thì một hàm luôn trả `''` (bị lỗi ở
  * chỗ khác) vẫn "qua" được vế ① một cách vô nghĩa.

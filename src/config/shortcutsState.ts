@@ -115,7 +115,7 @@ export const aimedShortcutRow: DeepReadonly<Ref<CommandId | null>> = readonly(ai
 export const shortcutNotice: DeepReadonly<Ref<ShortcutNotice | null>> = readonly(notice)
 
 /**
- * Hợp âm trên đĩa bị từ chối ⇒ một câu nói ra điều đó. AC13, đóng `deferred-work.md:243`.
+ * Hợp âm trên đĩa bị từ chối ⇒ một câu nói ra điều đó. AC13, đóng `deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*`.
  *
  * Cho tới story này chẩn đoán chỉ đi ra `console.error` — im lặng theo nghĩa thực dụng, vì
  * người dùng chỉ biết nếu họ mở console, và lựa chọn của họ lặng lẽ không được áp.

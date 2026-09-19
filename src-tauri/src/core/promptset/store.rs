@@ -96,7 +96,7 @@ pub struct ResolvedPromptSet {
     /// `None` khi bộ chỉ tồn tại ở một tầng, hoặc khi `tier == PromptSetTier::Global`.
     pub shadowed_body: Option<String>,
     /// 🔵 **THÊM Story 4.5, Quyết định #3.** `id` THẬT của hàng Global đang bị che —
-    /// `deferred-work.md:12947-12968` ghi rằng thiếu trường này là lý do hàng đó CHỈ hiện
+    /// `deferred-work.md §*Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)*` ghi rằng thiếu trường này là lý do hàng đó CHỈ hiện
     /// được, không thao tác được (không sửa/xoá/đổi tên/xuất thẳng nó qua kết quả này). Luôn
     /// mang tầng [`PromptSetTier::Global`] khi `Some` — một Work-tier row chỉ có thể che một
     /// Global-tier row cùng tên (Quyết định #1), không bao giờ ngược lại. `None` cùng điều
@@ -488,7 +488,7 @@ pub fn import_into_tier(
 }
 
 /// Lỗi domain của bộ prompt — RIÊNG, không tái dùng `ScopeError` (đó là lỗi Glossary-only
-/// theo quyết định đã ghi, `deferred-work.md:6073`), cùng khuôn
+/// theo quyết định đã ghi, `deferred-work.md §*Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (rà soát ba lớp, 2026-08-20)*`), cùng khuôn
 /// `core::aiconfig::store::AiConfigStoreError`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PromptSetError {

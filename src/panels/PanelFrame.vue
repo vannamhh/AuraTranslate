@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
 /*
  * UX-DR27 — câu trạng thái, màu chữ phụ. Không màu `error`, kể cả ở panel AI.
  *
- * 🔵 SỬA 2026-08-26 (Story 4.1, Ice chốt) — `ui-md` → `ui-md-wrap`. `deferred-work.md:116`
+ * 🔵 SỬA 2026-08-26 (Story 4.1, Ice chốt) — `ui-md` → `ui-md-wrap`. `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`
  * đã ghi từ Story 1.17: câu trạng thái của panel AI Translation (94 ký tự hôm nay, và Story
  * 4.1 còn dài thêm để nói rõ "mọi năng lực khác vẫn chạy đầy đủ") xuống dòng THẬT ở panel
  * hẹp, còn `ui-md` khai `wraps: false` với giãn dòng 1,5 — dưới sàn 1,66 mà `DESIGN.md

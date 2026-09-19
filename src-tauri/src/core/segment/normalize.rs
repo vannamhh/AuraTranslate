@@ -182,7 +182,7 @@ pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Norm
 /// `pipeline.rs`, ba trong `encoding.rs`, hai trong `anchor.rs` — Story 6.11 +
 /// Story 6.13). `commands::project` cần cắt cửa sổ AN TOÀN cho
 /// một ứng viên/đường tự khai RỒI đưa qua chuỗi pipeline thật (`run_pipeline`, đóng nợ
-/// `deferred-work.md:9359`) thay vì tự gọi [`normalize`] một lần nữa — gọi thẳng
+/// `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`) thay vì tự gọi [`normalize`] một lần nữa — gọi thẳng
 /// [`normalize_window`] ở đó sẽ là một chỗ gọi sản phẩm NGOÀI tập đã đặt tên và làm cổng đó
 /// đỏ. Hàm này
 /// mang tên KHÁC (không phải `normalize`/`normalize_window`), nên [`commands::project`] gọi

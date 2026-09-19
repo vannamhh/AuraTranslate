@@ -112,7 +112,7 @@ fn fetch_rows(limit: usize) -> i64 {
     i64::try_from(effective_limit(limit)).unwrap_or(i64::MAX).saturating_add(1)
 }
 
-/// 🔴 **TRẦN AN TOÀN CHO TẬP ỨNG VIÊN** — Story 1.18, đóng `deferred-work.md:631`.
+/// 🔴 **TRẦN AN TOÀN CHO TẬP ỨNG VIÊN** — Story 1.18, đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
 ///
 /// Ba nhánh cần [`verify_substring`] (`char_idx` 2 ký tự · cả hai `fts_trigram`) cố ý
 /// **không đặt `LIMIT` ở SQL**: cắt ứng viên TRƯỚC khi xác minh cho ra ít hơn `limit` mục thật
@@ -272,7 +272,7 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
     // FOR ORDER BY` ở outer query nên vốn đã streaming; và nhánh 2-ký-tự vốn dưới trần NFR1
     // (3,451 ms p95, `:419`).
     //
-    // 🔴 **STORY 1.18 — nhưng CÓ một trần AN TOÀN** (`deferred-work.md:631`, nay thành thật
+    // 🔴 **STORY 1.18 — nhưng CÓ một trần AN TOÀN** (`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`, nay thành thật
     // vì Ice bật `Substring`): `?3` là [`candidate_ceiling`], hai bậc độ lớn TRÊN cỡ trang,
     // nên nó không bao giờ cắt vào phần Bẫy 11 nói tới — nó chỉ chặn ca *"một ký tự Hán phổ
     // biến kéo hàng chục nghìn hàng vào RAM"*. [`cap_verified`] giữ cờ `truncated` khỏi
@@ -314,7 +314,7 @@ pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlR
     // CÓ `USE TEMP B-TREE FOR ORDER BY` — một `LIMIT` không cắt được thời gian dù đặt trước hay
     // sau verify — nhưng nhánh 3 vốn dưới trần NFR1 (0,6–2,0 ms mọi ca đo, §Debug Log).
     //
-    // 🔴 **STORY 1.18 — trần AN TOÀN `?2`** (`deferred-work.md:631`): nó không mua thời gian ở
+    // 🔴 **STORY 1.18 — trần AN TOÀN `?2`** (`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`): nó không mua thời gian ở
     // nhánh này (kế hoạch phải sắp xong mới cắt được), nó mua **BỘ NHỚ** — đó là đúng thứ
     // mục `:631` mô tả. Xem [`candidate_ceiling`].
     let sql = format!(
@@ -396,7 +396,7 @@ pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str, limit: usize) -> S
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
     // Cùng lý do `fts_trigram`: không `LIMIT limit` ở SQL, cắt ở Rust sau verify — cộng trần
-    // AN TOÀN `?2` của Story 1.18 (`deferred-work.md:631`). Xem [`candidate_ceiling`].
+    // AN TOÀN `?2` của Story 1.18 (`deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`). Xem [`candidate_ceiling`].
     //
     // ⚠️ Nhánh này là chỗ trần đó **đáng giá nhất**: `entry_fts MATCH '"dic"'` đo được
     // **572** hàng, và một trigram Latin ba ký tự phổ biến (`"ing"`, `"the"`) kéo về nhiều

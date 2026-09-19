@@ -44,7 +44,7 @@
  * ⚠️ GIỚI HẠN THẬT, ghi ra thay vì giấu:
  *   - Trạng thái ĐÓNG một mục theo đúng luật ở `project-context.md:449` là "nối tiếp `→ …`
  *     NGAY TRONG mục đó". Nếu ai đó đóng một mục bằng cách viết một mục MỚI Ở CHỖ KHÁC (đã đo
- *     được ít nhất một ca thật: `deferred-work.md:303` bị "đóng" bởi một mục mới ở `:429` mà
+ *     được ít nhất một ca thật: `deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*` bị "đóng" bởi một mục mới ở `:429` mà
  *     không nối tiếp tại `:303`), bộ đếm này sẽ KHÔNG thấy việc đóng đó — mục gốc vẫn đếm theo
  *     trạng thái cũ. Đây là lựa chọn CÓ CHỦ Ý: thà báo "còn mở/nửa" khi thật ra đã đóng ở chỗ
  *     khác (an toàn — không bao giờ tự nhận đạt bằng suy luận) còn hơn đoán một tham chiếu chéo
@@ -244,7 +244,7 @@ function continuationStatus(line) {
   const m = /^\s*→\s*(.*)$/.exec(line)
   if (!m) return null
   const rest = m[1]
-  // 🔴 Bẫy đo được 2026-08-19 (Task 1 của Story 2.13): `deferred-work.md:20` mở bằng
+  // 🔴 Bẫy đo được 2026-08-19 (Task 1 của Story 2.13): `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` mở bằng
   // `→ ✅ **Phần quyết định đã đóng…**` nhưng CHÍNH DÒNG ĐÓ kết bằng "**Phần phép đo vẫn
   // mở**" — một dòng mang HAI tín hiệu trái nhau. Tin ✅ mù quáng sẽ tự nhận đạt bằng suy
   // luận đúng thứ AC2 cấm. ⇒ nếu dòng đóng còn tự nói "vẫn mở/còn mở", hạ xuống `half` —
@@ -276,7 +276,7 @@ function parseItems(fileText) {
     //
     // 🔴 Bản đầu chỉ coi `- ` và `## ` là ranh giới, nên **mọi** dòng khác bị nối vào mục đang mở
     // — kể cả một dòng phân cách `---`. Hệ quả đo được trong CHÍNH lượt phân loại này: lượt gắn
-    // thẻ hàng loạt dán `**(Chủ: …)**` lên **hai** dòng `---` *(`deferred-work.md:494` và `:1057`)*,
+    // thẻ hàng loạt dán `**(Chủ: …)**` lên **hai** dòng `---` *(`deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*` và `:1057`)*,
     // và cổng **vẫn xanh** vì nó đọc thẻ ấy như chủ của mục phía trên. Một thẻ chủ nằm ngoài mọi
     // mục mà vẫn được tính là chủ ⇒ AC1 xanh trên một sổ có hai chỗ hỏng hình dạng markdown
     // *(dòng `---` mang nội dung không còn render `<hr>`)*.
@@ -437,7 +437,7 @@ function runSelftest() {
       fail(
         'tự kiểm — thẻ `**(Chủ: …)**` dán trên một dòng `---` KHÔNG được tính là chủ của mục ' +
           `phía trên (nhận ${items.length} mục, hasOwner=${items[0]?.hasOwner}). Đây đúng lớp lỗi ` +
-          'đã xảy ra HAI lần ở `deferred-work.md:494` và `:1057` trong lượt phân loại 2026-08-19.',
+          'đã xảy ra HAI lần ở `deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*` và `:1057` trong lượt phân loại 2026-08-19.',
       )
       bad += 1
     }
@@ -548,7 +548,16 @@ const summary = summarize(items)
 // 84,5 %, vẫn bên TRONG 80-85 % — chỉ con số CĂN CỨ lệch theo mỗi lượt sổ dài thêm, giá trị
 // sàn không cần đổi mỗi lần. Ghi lại để lượt sau không tưởng nhầm 577/579 là số thật — và
 // đo LẠI (không tin số ở đây) nếu khoảng cách với sàn đã hẹp đáng kể.
-const ITEM_FLOOR = 490
+// 🔵 SỬA 2026-09-19 (lượt lược sổ, Ice chốt) — căn cứ ĐỔI CHIỀU lần đầu: sổ **ngắn lại**.
+// Mọi lập luận ở trên dựng trên giả định *"sổ này chỉ dài ra"* (AC4 cấm xoá mục). Ice đã sửa
+// luật đó ở nguồn (`project-context.md` §Sổ nợ) và lượt này gỡ **139** mục đã đóng trọn khỏi
+// sổ. Quần thể THẬT sau lượt gỡ: **683** mục *(549 mở · 92 nửa · 42 đóng được chừa lại vì văn
+// xuôi của chúng tự nói còn một vế hở)* — 682 ngay sau lượt gỡ, cộng **một** mục nợ mà chính
+// lượt này mở *(§lượt lược sổ nợ — khuyết tật `✅ ĐÓNG MỘT NỬA`)*. Sàn cũ 490 cho 490/683 =
+// **71,7 %**, rơi khỏi dải 80-85 % mà chính khối doc-comment trên đặt ra — tức nó sẽ dung thứ
+// việc mất thêm ~190 mục trong im lặng. Sàn mới: 0,85 × 683 = 580,5 → làm tròn **XUỐNG** thành
+// **579** (579/683 = 84,8 %, đúng bên trong dải), giữ đúng tiền lệ làm tròn xuống ở trên.
+const ITEM_FLOOR = 579
 if (DEBT_PATH === REAL_DEBT_PATH && summary.total < ITEM_FLOOR) {
   abort(
     `so no THAT — chi ${summary.total} muc, duoi san ${ITEM_FLOOR}`,

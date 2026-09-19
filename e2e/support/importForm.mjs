@@ -3,7 +3,7 @@
  * bảng mã (Story 6.3). Dùng bởi `story-5-4-lifecycle.e2e.mjs` và `story-5-5-progress.e2e.mjs`.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
- * VÌ SAO HÀM NÀY TỒN TẠI — G2 (`deferred-work.md:11580-11610`)
+ * VÌ SAO HÀM NÀY TỒN TẠI — G2 (`deferred-work.md §*Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)*`)
  * ═════════════════════════════════════════════════════════════════════════════════
  * Trước Story 6.3 (`d20fe67`), bấm nút nộp dán-văn-bản GHI Tác phẩm ngay. Từ Story 6.3,
  * `submitPastedText` (`src/modes/libraryImport.ts:332-358`) chỉ MỞ `ImportPreviewOverlay.vue`;

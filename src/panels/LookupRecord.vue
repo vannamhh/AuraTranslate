@@ -294,7 +294,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 
 /*
  * AC3/AC9 — ví dụ VÀ trích dẫn khai token `lookup-example`; `font-synthesis` là NGƯỜI
- * TIÊU THỤ THỨ HAI của nó (`source-hanviet` đã đóng ở 1.16, `deferred-work.md:133`).
+ * TIÊU THỤ THỨ HAI của nó (`source-hanviet` đã đóng ở 1.16, `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`).
  */
 .lookup-example {
   margin: 4px 0 0 0;

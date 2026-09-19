@@ -424,7 +424,7 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   'window.getSelection',
   // Story 1.18, AC11 — `document.createRange()` dựng một `Range` rỗng ở đầu bề mặt chữ để
   // `Selection.modify()` có chỗ bám (`selectionContract.ts::focusSelectionSource`). Đó là
-  // đường DUY NHẤT đóng được `deferred-work.md:608` (bôi đen bằng bàn phím) mà không phải bật
+  // đường DUY NHẤT đóng được `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*` (bôi đen bằng bàn phím) mà không phải bật
   // caret browsing (không bật được bằng mã) hay `contenteditable` (AD-1: nguyên văn là dữ liệu
   // không sửa được). API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.createRange',

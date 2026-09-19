@@ -144,7 +144,7 @@ let tsAll = []
 try {
   vueAll = walk(SRC_ROOT, ['.vue']).sort()
   /**
-   * 🔴 BỐN PHẦN MỞ RỘNG, KHÔNG PHẢI MỘT — đóng `deferred-work.md:163` (Story 1.14 · AC11.3).
+   * 🔴 BỐN PHẦN MỞ RỘNG, KHÔNG PHẢI MỘT — đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` (Story 1.14 · AC11.3).
    *
    * `endsWith('.ts')` là `false` với `.tsx`, `.mts` VÀ `.cts` — cả ba đều là TypeScript và
    * cả ba đều `import()` được bằng Node. Hôm nay cây không có tệp nào như vậy, nên lỗ
@@ -184,7 +184,7 @@ const tsFiles = keep(tsAll)
  * **13** tệp `.ts` · **4** command. Sàn đặt dưới số thật một khoảng nhỏ để một lần xoá
  * tệp có chủ ý không làm cổng `abort()`, nhưng một lượt quét hỏng thì có.
  *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
  *
  * Số THẬT sau Story 1.14: **11** tệp `.vue` *(`App` · ba chế độ · `PanelFrame` ·
  * `PanelTab` · bốn panel · `WorkspaceDock`)* · **18** tệp `.ts` · **11** command.
@@ -1437,7 +1437,7 @@ let dBad = 0
   check('tên phím không phân giải được ⇒ ném', unknown, true)
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // 🔴 STORY 1.21 — CỜ `repeatable` (`deferred-work.md:656`, Ice ký nhận 2026-08-11)
+  // 🔴 STORY 1.21 — CỜ `repeatable` (`deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*`, Ice ký nhận 2026-08-11)
   // ═══════════════════════════════════════════════════════════════════════════════
   //
   // Ba ca ngay trên khẳng định `repeat: true` **không** lặp thao tác — đúng, và đó là mặc
@@ -1580,7 +1580,7 @@ let dBad = 0
   // ═══════════════════════════════════════════════════════════════════════════════
   //
   // `src/main.ts::toBindings` tách hợp âm bằng **dấu phẩy, không escape**, và
-  // `deferred-work.md:241` ghi mã hoá đó là TẠM vì một hợp âm chứa dấu phẩy sẽ vỡ nó.
+  // `deferred-work.md §*Deferred from: 1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban (2026-08-04)*` ghi mã hoá đó là TẠM vì một hợp âm chứa dấu phẩy sẽ vỡ nó.
   // Phép đo đóng mục nợ đó: phím dấu phẩy viết là `Comma` — một **tên chữ cái** — nên
   // không hợp âm hợp lệ nào chứa `,`. Ba dòng dưới đây biến phép đo thành **cơ chế**; nếu
   // không, mệnh đề *"an toàn theo cấu trúc"* chỉ đúng cho tới ngày ai đó thêm một tên phím

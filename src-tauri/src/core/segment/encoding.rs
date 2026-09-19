@@ -261,7 +261,7 @@ pub struct EncodingCandidate {
     /// **THÊM 2026-09-05 (Story 6.5)** — bản dựng AN TOÀN (cửa sổ đã cắt, KHÔNG chuẩn hoá —
     /// xem [`super::normalize::window_safe_prefix`]) mà `commands::project` nạp vào chuỗi
     /// pipeline thật (`run_pipeline`) để tính báo cáo làm sạch cho ứng viên này, đóng nợ
-    /// `deferred-work.md:9359`. `None` đồng bộ với `preview`/`normalized` (bảng mã này
+    /// `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`. `None` đồng bộ với `preview`/`normalized` (bảng mã này
     /// "không ra chữ"), hoặc khi cửa sổ không đủ một dòng trọn vẹn để hiện (đồng bộ
     /// `NormalizedCandidate.text == ""`). KHÔNG phải một trường trên dây — `commands::project`
     /// đọc nó nội bộ rồi bỏ, không forward nguyên văn qua IPC.

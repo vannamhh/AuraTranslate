@@ -27,7 +27,7 @@ import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 import { dispatch } from './commands'
 import { currentMode } from './modes/modeState'
 import { t, tError } from './i18n'
-// ── Story 1.8 — bề mặt hiển thị lỗi kho, đóng `deferred-work.md:177` ────────────────
+// ── Story 1.8 — bề mặt hiển thị lỗi kho, đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` ────────────────
 //
 // 🔴 `configError` chỉ khác `null` khi **Rust đã trả lời** bằng một lỗi thật. Một phiên
 // `npm run dev` không có cầu IPC cho `null` — dựng một lỗi giả ở đó làm mọi lần chạy dev
@@ -187,7 +187,7 @@ function focusOnPointerDown(event: MouseEvent) {
 <template>
   <main class="shell">
     <!--
-      🔴 DẢI BÁO LỖI KHÔNG CHẶN — Story 1.8, đóng `deferred-work.md:177`.
+      🔴 DẢI BÁO LỖI KHÔNG CHẶN — Story 1.8, đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*`.
 
       Trước story này, một `$APPDATA` không ghi được chỉ ra `stderr`: `lib.rs::open_global_store`
       ghi chẩn đoán rồi đi tiếp, và người dùng nhận đúng thứ tệ nhất — im lặng. Nay nó nói ra.
@@ -537,7 +537,7 @@ function focusOnPointerDown(event: MouseEvent) {
  * cộng một gạch chân 2px `primary`.
  *
  * `var(--weight-ui-md-strong)` là token thứ 15, thêm ở Story 1.14 · AC10 để đóng
- * `deferred-work.md:138`. Trước nó, tab này MƯỢN `--weight-read-title` (một token của
+ * `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`. Trước nó, tab này MƯỢN `--weight-read-title` (một token của
  * tiêu đề Chương, 23px họ `read`) chỉ để lấy con số 600 — rủi ro đã ghi: đổi giá trị
  * `--weight-read-title` thì tab chế độ đổi theo mà không ai biết. Nay không còn mượn.
  */

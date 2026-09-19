@@ -146,7 +146,7 @@ impl fmt::Display for TermOrigin {
 /// dùng chung) — cùng lý lẽ mà `Category`/`TermOrigin` đã có kiểu riêng thay vì mượn một
 /// enum chuỗi tự do.
 ///
-/// `id` của [`GlossaryEntry`] chỉ DUY NHẤT **trong một `Store`** (`deferred-work.md:5352`)
+/// `id` của [`GlossaryEntry`] chỉ DUY NHẤT **trong một `Store`** (`deferred-work.md §*Deferred from: 2-12-ha-tang-e2e-va-cong-con-thieu (2026-08-18)*`)
 /// — hai `Store` khác nhau (`global.db`/`project.db` của Tác phẩm đang mở) có thể cùng
 /// đánh số `id = 7` cho hai hàng khác hẳn nhau. Một `id` trần đi qua dây IPC không đủ để
 /// sửa lại đúng hàng; cặp `(GlossaryTier, id)` mới đủ — xem

@@ -282,7 +282,7 @@ describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView th
    * ⚠️ **Vế KHÔNG phủ được, ghi ra thay vì để người sau tưởng đã xét:** một cú `⌘`+click
    * **CHUỘT THẬT** có tới được handler không, và double-click trơn có tra từ được không. Cả
    * hai là **món cho Ice** — và chữ ký 2026-08-17 của Ice đã đóng vế thứ hai *(double-click
-   * TRA ĐƯỢC trên máy thật, đóng món nợ `deferred-work.md:4100`)*.
+   * TRA ĐƯỢC trên máy thật, đóng món nợ `deferred-work.md §*Deferred from: code review of 2-5d-ngat-doan-ban-dich (2026-08-16)*`)*.
    */
   it('🔴 AC7 — bấm TRƠN không đánh dấu chỗ cắt; `Mod`+click thì có', async () => {
     // Câu đầu DÀI có chủ ý — cùng lý do 2.8 đã ghi: tâm ô phải rơi vào GIỮA CHỮ, không vào

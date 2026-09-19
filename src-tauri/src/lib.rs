@@ -864,7 +864,7 @@ pub fn run() {
             // Story 3.3 -- "Them nhanh thuat ngu" (FR48). Ba lenh, khuon hai lop
             // (`commands::glossary`): tra hai tang (khong loc is_confirmed) roi them/sua mot
             // muc nhap tay theo TANG nguoi dung chon. Day la cho DAU TIEN `OpenWork.scope`
-            // duoc doc trong ma san pham, dong `deferred-work.md:603`.
+            // duoc doc trong ma san pham, dong `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
             crate::commands::glossary::wire::glossary_lookup_term,
             crate::commands::glossary::wire::glossary_add_term,
             crate::commands::glossary::wire::glossary_update_term,

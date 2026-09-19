@@ -264,7 +264,7 @@ fn resolve_configured_library_root(store: Option<&Store>) -> Option<String> {
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `tests/segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site` đếm
 /// LITERAL chuỗi `"run_import("` trong `src-tauri/src/**` (ngoài `core/segment/`) và đòi
-/// ĐÚNG MỘT chỗ. Story 6.5 mở nợ `deferred-work.md:9359`: `preview_import_encoding` (mỗi
+/// ĐÚNG MỘT chỗ. Story 6.5 mở nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`: `preview_import_encoding` (mỗi
 /// ứng viên VÀ đường tự khai) VÀ `confirm_import_with_encoding` đều phải chạy chuỗi thật —
 /// ba lời gọi độc lập sẽ là ba dòng mang chuỗi đó, làm cổng đỏ đúng lúc mệnh đề nó canh
 /// ("một chỗ gọi sản phẩm thứ hai không âm thầm truyền một thứ tự khác `PIPELINE_ORDER`")
@@ -2346,7 +2346,7 @@ pub struct CleanupRuleReportWire {
     /// (§Always spec 6.5: "tắt đổi việc xoá, không đổi việc đo").
     pub count_in_chapter: usize,
     /// Số chỗ khớp trong CẢ lần nhập. 🔵 **SỬA 2026-09-05 (Story 6.6) — 🟡 đóng MỘT PHẦN nợ
-    /// `deferred-work.md:9535`, không trọn vẹn.** "LUÔN bằng `count_in_chapter`" đã HẾT ĐÚNG
+    /// `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`, không trọn vẹn.** "LUÔN bằng `count_in_chapter`" đã HẾT ĐÚNG
     /// cho [`PipelineShape::Chapters`] (N đơn vị NGAY TỪ ĐẦU — mỗi Chương có báo cáo THẬT
     /// của riêng nó, hai số THỰC SỰ khác nhau khi có ý nghĩa để khác nhau) — nhưng hình dạng
     /// đó CHƯA có đường sản phẩm nào dựng ra (Story 6.7 sẽ là đường đầu tiên). Trên đường
@@ -2405,7 +2405,7 @@ pub struct CleanupPreviewWire {
     pub window_truncated: bool,
     /// **THÊM 2026-09-05 (Story 6.5)** — văn bản CUỐI CÙNG (sau cả làm sạch VÀ chuẩn hoá,
     /// tức `PipelineOutput::chapters[0].source_text` của CHÍNH lượt chạy chuỗi vừa tính ra
-    /// `rules` ở trên) — chỗ đóng nợ `deferred-work.md:9359` mà một phép đo tìm thấy được:
+    /// `rules` ở trên) — chỗ đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` mà một phép đo tìm thấy được:
     /// khi `window_truncated == false`, trường này PHẢI giống hệt từng byte với `source_text`
     /// mà `confirm_import_with_encoding` ghi xuống cho CÙNG đầu vào — hai nhánh preview/confirm
     /// cùng chạy [`run_pipeline`] trên CÙNG văn bản TRỌN VẸN, không phải hai hàm thuần đặt
@@ -2939,7 +2939,7 @@ pub fn build_file_import_batch_wire(
 }
 
 /// Chạy chuỗi pipeline thật trên `shape` — **TOÀN Chương, KHÔNG cắt cửa sổ** — để tính khối
-/// làm sạch của MỘT ứng viên/đường tự khai, chỗ đóng nợ `deferred-work.md:9359`.
+/// làm sạch của MỘT ứng viên/đường tự khai, chỗ đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`.
 ///
 /// 🔴 **SỬA 2026-09-06 — khuyết tật chứng minh bằng ca test
 /// `cleanup_contract.rs::counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated`.**
@@ -3030,7 +3030,7 @@ pub fn build_file_import_batch_wire(
 /// (N đơn vị NGAY TỪ ĐẦU, `already_chaptered = true`), bước 3 lặp `apply` một lần cho MỖI
 /// đơn vị (một chỗ gọi nguồn, N lần chạy) nên `outcome.chapters[i].cleanup_report` là báo cáo
 /// THẬT của riêng Chương đó — tổng của chúng đúng là `count_in_import`, đóng nợ
-/// `deferred-work.md:9535`.
+/// `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ⚠️ GIỚI HẠN THẬT — mẫu phân tách (`Blob` + `chapter_pattern`) KHÔNG đạt độ chi tiết đó
@@ -3049,7 +3049,7 @@ pub fn build_file_import_batch_wire(
 /// theo dõi vị trí xuyên bước chuẩn hoá (bước 4) chưa tồn tại — ghi vào `deferred-work.md`,
 /// không phải việc của story này.
 /// 🔴 **`pub`, không riêng tư (vòng nghiệm thu 2026-09-06)** — bản đầu để hàm này riêng tư và
-/// đối chứng nợ `deferred-work.md:9535` tự cộng `per_rule_counts` NGAY TRONG ca test, so với
+/// đối chứng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` tự cộng `per_rule_counts` NGAY TRONG ca test, so với
 /// số tính tay: ca đó khẳng định phép cộng CỦA CHÍNH CA TEST đúng, không khẳng định phép cộng
 /// mà HÀM NÀY (chỗ SẢN PHẨM thật sinh `count_in_import`) làm ra — một đột biến đổi dòng gán
 /// `count_in_import` bên dưới đi thẳng vào một hằng số vẫn để ca đó XANH. Cùng khuôn hai lớp
@@ -3170,7 +3170,7 @@ pub fn cleanup_and_chapters_preview_for(
 /// không cần cắt" mà `preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules`
 /// khoá). `import_totals` — **THÊM 2026-09-05 (Story 6.6)** — tổng số khớp MỖI luật qua TOÀN
 /// lần nhập; CÓ THỂ khác `report`'s per-chapter counts khi N > 1 đến từ
-/// [`PipelineShape::Chapters`] (🟡 đóng MỘT PHẦN nợ `deferred-work.md:9535` — hình dạng đó
+/// [`PipelineShape::Chapters`] (🟡 đóng MỘT PHẦN nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` — hình dạng đó
 /// chưa có đường sản phẩm nào dựng ra). Trên đường sản phẩm THẬT (`Blob` + `chapter_pattern`)
 /// và khi N = 1, chỗ gọi truyền CÙNG map với `report.per_rule_counts` nên hai số bằng nhau
 /// như trước story (không đổi hành vi đường cũ).
@@ -3217,7 +3217,7 @@ fn build_cleanup_preview_wire(
 
     // 🔵 SỬA 2026-09-05 (Story 6.6) — `count_in_import` đọc từ `import_totals` (tổng qua N
     // Chương khi mẫu phân tách cho N > 1), KHÔNG còn LUÔN bằng `count_in_chapter` — đóng nợ
-    // `deferred-work.md:9535`. Xem doc-comment `cleanup_and_chapters_preview_for` cho cách
+    // `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`. Xem doc-comment `cleanup_and_chapters_preview_for` cho cách
     // `import_totals` được tính.
     let rules = cleanup_rules
         .iter()
@@ -3351,7 +3351,7 @@ fn encoding_candidate_wire(
 /// 🔵 **THÊM 2026-09-05 (Story 6.5) — tham số `cleanup_rules`.** Luật làm sạch ĐÃ PHÂN GIẢI
 /// (hai tầng đã hợp nhất ở `mod wire`, xem `core::cleanup::store::resolve_two_tiers`) —
 /// mỗi ứng viên VÀ đường tự khai nay chạy qua chuỗi pipeline thật (`run_pipeline`) để tính
-/// khối làm sạch (tầng 3), đóng nợ `deferred-work.md:9359`.
+/// khối làm sạch (tầng 3), đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*`.
 /// 🔴 **THÊM tham số `block_overrides` 2026-09-07 (Story 6.9).** Chỉ có nghĩa cho đơn vị ĐẦU
 /// của `PipelineShape::Chapters` (đường URL); nhánh `Blob`/tự khai truyền `&[]` (không bao
 /// giờ đọc tới).
@@ -3851,7 +3851,7 @@ pub fn cancel_import_preview(state: &PendingImportSourceState) {
 /// 🔵 **THÊM 2026-09-05 (Story 6.5) — tham số `cleanup_rules`.** CÙNG tập luật (ĐÃ PHÂN
 /// GIẢI ở `mod wire`, nạp NGAY LÚC XÁC NHẬN chứ không phải bộ đã dùng lúc xem trước — luật
 /// có thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác) mà [`preview_import_encoding`]
-/// vừa dùng để hiện — đây là chỗ đóng nợ `deferred-work.md:9359` cho NỬA GHI: `create_work`
+/// vừa dùng để hiện — đây là chỗ đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` cho NỬA GHI: `create_work`
 /// nhận đúng luật đó, không một bộ luật thứ hai.
 /// 🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`, đúng cái vòng rà 1 đã hụt.**
 /// `wire::confirm_import_with_encoding` đọc `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN

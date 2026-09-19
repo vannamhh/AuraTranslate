@@ -52,7 +52,7 @@
     /// [`resolve_cleanup_rules_for_destination`]. `None` (đích = Tác phẩm MỚI) uỷ thác
     /// NGUYÊN VẸN cho [`resolve_cleanup_rules`] ở trên — giữ đúng hành vi hôm nay: hợp nhất
     /// luật của bất kỳ Tác phẩm nào đang mở. Đó là một khiếm khuyết ĐÃ BIẾT cho đích "Tác
-    /// phẩm mới" (`deferred-work.md:10063-10081`), không phải điều story này sửa — story chỉ
+    /// phẩm mới" (`deferred-work.md §*Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)*`), không phải điều story này sửa — story chỉ
     /// mở nửa ĐỌC cho đích LÀ một Tác phẩm có sẵn (§Never: "This story needs only the read
     /// half").
     fn resolve_cleanup_rules_for(app: &tauri::AppHandle, destination: Option<&str>) -> Vec<CleanupRule> {

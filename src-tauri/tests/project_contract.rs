@@ -1665,7 +1665,7 @@ fn switching_chapters_without_a_work_open_reuses_the_named_error() {
     assert!(!err.retryable());
 }
 
-/// 🔴 **Món nợ `deferred-work.md:650`, giao đích danh story này** — hàng `chapter` vắng mặt
+/// 🔴 **Món nợ `deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*`, giao đích danh story này** — hàng `chapter` vắng mặt
 /// ⇒ một lỗi **CÓ TÊN**, không `store.read_failed`.
 ///
 /// Trước story này `conn.query_row(...)` ném `QueryReturnedNoRows`, đi qua

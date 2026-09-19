@@ -300,7 +300,7 @@ fn csp_style_src_stays_at_self() {
 /// `assetProtocol.scope`. Webview KHÔNG BAO GIỜ đọc tệp từ điển — AD-1 và AD-11 đặt
 /// mọi truy cập dữ liệu ở Rust, và `rusqlite` mở tệp bằng đường dẫn hệ thống, không
 /// đi qua asset protocol. Mục scope đó là một QUYỀN THỪA; mâu thuẫn với `connect-src`
-/// (`deferred-work.md:56-57`) chỉ là hệ quả của việc nó thừa.
+/// (`deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*`) chỉ là hệ quả của việc nó thừa.
 ///
 /// ⚠️ Tên hàm đã ĐỔI cùng lúc với giá trị — một tên còn nói `..._the_two_...` trong khi
 /// scope chỉ còn MỘT mục là để lại một cái tên nói dối, và tên test là thứ lượt rà soát

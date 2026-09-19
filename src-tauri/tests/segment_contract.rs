@@ -692,7 +692,7 @@ fn the_language_branch_comes_from_source_lang_not_from_the_content() {
 // AC10 — bước di trú số 5, và cổng cấm số 4 quay lại
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **Cổng còn thiếu mà `deferred-work.md:1169-1180` ghi nợ.**
+/// 🔴 **Cổng còn thiếu mà `deferred-work.md §*Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)*` ghi nợ.**
 ///
 /// `validate_strictly_increasing` KHÔNG bắt được ca này: `[1, 2, 3, 4]` là một danh sách
 /// tăng dần nghiêm ngặt hoàn hảo. Số **4** là một số **đã cháy** — một `project.db` tạo ra
@@ -2517,7 +2517,7 @@ fn the_open_chapter_hands_back_every_segment_in_reading_order() {
 
 /// 🔴 **Chương KHÔNG có segment nào cho một danh sách RỖNG, không một lỗi.**
 ///
-/// Đây là trạng thái thật của **25 Chương Epic 1** (`deferred-work.md:542`) cho tới khi ai
+/// Đây là trạng thái thật của **25 Chương Epic 1** (`deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*`) cho tới khi ai
 /// đó bấm lệnh tách tường minh. Trả lỗi ở đây sẽ làm Panel Editor hiện một câu lỗi cho một
 /// Tác phẩm hoàn toàn lành lặn; câu đúng là một trạng thái rỗng CÓ GIẢI THÍCH, và nó thuộc
 /// tầng giao diện (UX-DR27), không thuộc tầng lỗi IPC (AD-21).
@@ -6498,7 +6498,7 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
 
 /// 🔴 **AC4 trên một segment về hưu THẬT** — không một hàng dựng bằng SQL.
 ///
-/// `deferred-work.md:3675-3683` ghi thẳng khoảng hở này: mọi ca AC4 trước story này bơm
+/// `deferred-work.md §*Deferred from: code review of 2-5b-luoi-hai-cot-doi-chieu (2026-08-15)*` ghi thẳng khoảng hở này: mọi ca AC4 trước story này bơm
 /// `retired_at` bằng SQL trực tiếp, nên chúng canh *"đường đọc không hỏi `retired_at`"* chứ
 /// **không** canh *"một lượt gộp thật để lại lịch sử tra được"*. Story 2.8 là lượt đầu tiên
 /// đóng được vế đó, và đây là ca đóng nó.

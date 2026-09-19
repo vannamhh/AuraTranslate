@@ -11,7 +11,7 @@
 //! thật** — không phải một fixture cho test. Hai `#[tauri::command]` ngay dưới chúng chỉ
 //! làm đúng một việc: lấy `State<Store>` qua `try_state` rồi gọi xuống.
 //!
-//! Đó là điều kiện để chữa `ipc_error_wire_shape` cho tử tế: `deferred-work.md:49` ghi
+//! Đó là điều kiện để chữa `ipc_error_wire_shape` cho tử tế: `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` ghi
 //! rằng phép kiểm đó là một **mệnh đề vòng** *(nó quét chính fixture nó tự dựng)*, và
 //! đồng thời cấm dựng một command giả để đóng nợ. Một hàm thuần mà command thật bọc lại
 //! thì **không phải** command giả — nó là chính thứ chạy trên máy người dùng.
@@ -22,7 +22,7 @@
 //! `lib.rs:84-116` ghi chẩn đoán rồi **đi tiếp** khi mở kho thất bại, nên `app.manage(store)`
 //! **có thể chưa từng chạy**. Một `state::<Store>()` thẳng tay sẽ panic — và `panic = "abort"`
 //! giết luôn tiến trình. Dùng `try_state`, và nhánh `None` chính là bề mặt lỗi mà
-//! `deferred-work.md:177` chờ: từ hôm nay một `$APPDATA` không ghi được **nói ra** thay vì
+//! `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` chờ: từ hôm nay một `$APPDATA` không ghi được **nói ra** thay vì
 //! chỉ ra `stderr`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────

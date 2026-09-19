@@ -166,7 +166,7 @@ jobs:
         run: npm run check:tokens
 
       # Năm phép kiểm chuỗi giao diện — NFR16 · AD-21 (Story 1.5). Đóng mục
-      # `deferred-work.md:19` (*"NFR16 không có cơ chế cưỡng chế nào"*).
+      # `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` (*"NFR16 không có cơ chế cưỡng chế nào"*).
       #
       # Kề bước token vì cùng hình dạng và cùng lý do đặt chỗ: chỉ đọc tệp, xong trong
       # vài giây, không cần `dist/`, không cần cửa sổ đồ hoạ. Một chuỗi tiếng Việt lọt
@@ -406,7 +406,7 @@ jobs:
             echo "> ⚠️ **Đừng đọc số này thành hồi quy so với Story 1.1.** Story 1.1 đo"
             echo "> \`22.944.022 byte\` trên **Intel x86_64**; runner này là **$ARCH**."
             echo "> Baseline khác kiến trúc thì khác dung lượng. Đây cũng là bằng chứng"
-            echo "> đầu tiên của dự án trên Apple Silicon (thu hẹp \`deferred-work.md:5\`,"
+            echo "> đầu tiên của dự án trên Apple Silicon (thu hẹp \`deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*\`,"
             echo "> chưa đóng vì chưa ai đo universal binary)."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -568,7 +568,7 @@ jobs:
             "> Hai dòng trên là cách *ta* hạch toán; người tải về chỉ thấy con số này, và sau"
             "> Story 1.9 nó còn cộng thêm ~130 MB dữ liệu từ điển. Nếu nó thành rào cản tải"
             "> xuống thì đường quay lui còn mở ở **Story 10.2** — ``downloadBootstrapper`` (mất"
-            "> mệnh đề cài offline) hoặc **NSIS** thay ``.msi`` (chạm ``deferred-work.md:6``)."
+            "> mệnh đề cài offline) hoặc **NSIS** thay ``.msi`` (chạm ``deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*``)."
             "> Không tự chọn ở story này."
             ""
             "> **Đừng đổi ``webviewInstallMode`` để số đẹp lại.** Nhiệm vụ của story này là"
@@ -595,7 +595,7 @@ jobs:
 
       # ── AC8 — Kiểm 3 NGOÀI chế độ dev, trên cả hai nền tảng ─────────────────────
       #
-      # Đóng `deferred-work.md:13` (tổ hợp CSP + asset protocol chưa phép kiểm nào chạm
+      # Đóng `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*` (tổ hợp CSP + asset protocol chưa phép kiểm nào chạm
       # tới). Script tự dựng `tauri build --debug` rồi chạy nhị phân với timeout cứng và
       # đọc dòng `VERDICT:` — xem doc-comment của `scripts/check-scope-bundled.mjs`.
       #

@@ -491,9 +491,27 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
 
 - **Mọi thứ không nghiệm thu được ở story hiện tại đi vào đây, KÈM MỘT CHỦ** (story nào sẽ
   đóng). Không có mục nào mồ côi.
-- **Không bao giờ XOÁ một mục đã đóng.** Đóng bằng cách nối tiếp `→ ✅ ĐÃ ĐÓNG <ngày>
-  (Story x.y)` kèm cách đóng; mệnh đề đã hết đúng thì **gạch ngang**, không xoá. Lịch sử
-  của một món nợ là bằng chứng cho quyết định kế tiếp.
+- **Trong lúc thi công, không bao giờ XOÁ một mục đã đóng.** Đóng bằng cách nối tiếp
+  `→ ✅ ĐÃ ĐÓNG <ngày> (Story x.y)` kèm cách đóng; mệnh đề đã hết đúng thì **gạch ngang**,
+  không xoá. Lịch sử của một món nợ là bằng chứng cho quyết định kế tiếp.
+- 🔵 **SỬA 2026-09-19 (Ice ký) — có MỘT đường gỡ, và nó không phải một lượt thi công.**
+  Câu trên từng viết *"không bao giờ XOÁ"* không kèm ngoại lệ, và sổ đã dài tới 1.480.895 B
+  (13.419 dòng, 821 mục). Nay: một **lượt lược sổ riêng, Ice ký từng lượt**, được gỡ các mục
+  đã đóng TRỌN, với ba điều kiện bắt buộc — thiếu một điều thì không phải lượt lược hợp lệ:
+  - **Ghi commit gốc ngay đầu sổ**, để nội dung đã gỡ tra lại được bằng `git show <sha>:<đường dẫn>`.
+    Lịch sử không mất; nó đổi chỗ từ sổ sang git, và chỗ mới phải được nói ra.
+  - **Không gỡ mục mà văn xuôi tự nói còn một vế hở** *(“vẫn mở”, “còn hở”, “ĐÓNG MỘT NỬA”)*,
+    kể cả khi `check-debt-owner.mjs` chấm nó `closed`. 🔴 Đo được 2026-09-19: **42/181** mục
+    cổng chấm ✅ rơi đúng vào ca này — dòng phán quyết cuối mang ✅ trong khi thân mục ghi phần
+    còn hở, và cổng chỉ đọc ký hiệu dẫn đầu. Cổng là **sàn dưới** của phép phân loại, không
+    phải phán quyết cuối; chi phí hai chiều không cân nhau nên giữ lại là phía an toàn.
+  - **Đối chứng bằng vân tay**: băm toàn bộ các mục GIỮ LẠI trước và sau phải trùng từng byte.
+    Một lượt lược làm đổi thân một mục còn mở là một lượt hỏng, không phải một lượt dọn.
+- **Mốc trỏ vào sổ phải là `§TÊN section`, không phải `deferred-work.md:<số dòng>`.** Lượt lược
+  làm mọi số dòng trôi cùng lúc. Mốc trong **mã sống** (mã nguồn · test · cổng · sổ nợ) phải
+  đổi sang §TÊN; mốc nằm trong **bản ghi đã khép** (story `done` · AD brief · đề xuất sprint)
+  thì **để nguyên** — sửa số trong đó là viết lại một tài liệu đã khép, và tiền lệ `epics.md`
+  (2026-08-21) đo được rằng một lượt bước máy móc chỉ bảo toàn đúng cái sai.
 - **Đóng MỘT NỬA thì ghi 🟡 và liệt kê phần CÒN HỞ**, không làm tròn lên thành ✅.
 - **Một mục có thể đóng bằng cách QUYẾT ĐỊNH KHÔNG LÀM** — nối tiếp
   `→ KHÔNG LÀM <ngày> (Story x.y) — <lý do>`. Viết bằng **chữ**, không một ký hiệu mới:

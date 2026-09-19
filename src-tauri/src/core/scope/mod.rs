@@ -159,7 +159,7 @@ pub enum ScopeError {
     },
 
     /// Chuỗi trên dây không khớp `ScopeKind` nào đã khai — **Story 3.1**, đóng
-    /// `deferred-work.md:272`.
+    /// `deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*`.
     ///
     /// `apply_override`/`apply_merge`/`resolve_global_only` nhận `kind: &str` (thay vì
     /// `ScopeKind`) đúng khuôn `save_value`/`delete_value` ở ranh giới IPC, để một module
@@ -280,7 +280,7 @@ impl ScopeResolver {
     /// ⚠️ Tên **khác** hàm nội bộ nó bọc (`apply_` chứ không `resolve_`) — có chủ đích, xem
     /// doc-comment của [`resolve::resolve_override`] và [`Self::apply_merge`].
     ///
-    /// 🔴 **`kind: &str`, không `ScopeKind` — Story 3.1, đóng `deferred-work.md:272`.** Một
+    /// 🔴 **`kind: &str`, không `ScopeKind` — Story 3.1, đóng `deferred-work.md §*Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)*`.** Một
     /// module miền (Glossary hôm nay; TM/Prompt/Cấu hình AI/Luật làm sạch sau) gọi bằng một
     /// hằng literal (`"glossary"`) và không bao giờ gõ tên kiểu `ScopeKind` — token đó vẫn
     /// bị cấm ngoài `core/scope/**` (`scope_boundary.rs`), và trước lượt đổi chữ ký này, mọi

@@ -186,7 +186,7 @@ function isCurrent(row: { tier: PromptSetTier; id: number }): boolean {
 /** Một hàng hiển thị — Quyết định #1: "the shadowed global stays visible in the list".
  *
  * 🔵 **SỬA Story 4.5, Quyết định #3.** Trước story này, hàng Global bị che mang `id: null`
- * (không chọn/sửa/xoá/xuất được — `deferred-work.md:12947-12968`). `PromptSetWire.shadowed_id`
+ * (không chọn/sửa/xoá/xuất được — `deferred-work.md §*Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)*`). `PromptSetWire.shadowed_id`
  * nay mang `id` THẬT của hàng đó, nên `id` ở đây LUÔN là một số — `isShadowedDisplay` vẫn
  * còn (để đổi kiểu hiển thị: hàng bị che vẫn vẽ mờ đi và mang huy hiệu riêng), nhưng nó không
  * còn đồng nghĩa với "không chọn được" nữa. */
