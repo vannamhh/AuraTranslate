@@ -1995,6 +1995,12 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
 // Spec 4.8, Phase 4 — registration test cho ba wire mới: `ai_translate_segment`,
 // `ai_translate_cancel`, `promote_ai_translation`. Cùng khuôn
 // [`the_ai_prompt_wires_are_registered_and_keep_their_parameter_names`].
+//
+// 🔵 MỞ RỘNG 2026-09-21 (Story 4.9, Phase 2) — thêm `ai_translate_batch` vào CÙNG ca này
+// (`the_ai_translate_wires_are_registered_and_keep_their_parameter_names`) thay vì một ca mới:
+// vỏ này đứng cạnh `ai_translate_segment`/`ai_translate_cancel` trong CÙNG tệp, tái dùng CÙNG
+// `AiTranslateGeneration`, và spec 4.9's Phase 2 task nói thẳng "extend the registration test",
+// không "add a new one".
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Cùng khuôn [`fn_param_list`], neo `"pub async fn {fn_name}("` thay vì `"pub fn {fn_name}("`
@@ -2026,6 +2032,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::aitranslate::wire::ai_translate_segment",
         "crate::commands::aitranslate::wire::ai_translate_cancel",
         "crate::commands::segment::wire::promote_ai_translation",
+        "crate::commands::aitranslate::wire::ai_translate_batch",
     ] {
         assert!(
             lib_src.contains(wire),
@@ -2066,6 +2073,20 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         normalize_param_list("app: tauri::AppHandle"),
         "vo `ai_translate_cancel` trong `pub mod wire` cua commands/aitranslate.rs khong con \
          dung danh sach tham so mong doi"
+    );
+
+    // Story 4.9, Phase 2 — `ai_translate_batch` cung la `async fn` LITERAL (cung ly do
+    // `ai_translate_segment` o tren), nen dung `fn_param_list_async`, khong `fn_param_list`.
+    let batch_params = fn_param_list_async(&aitranslate_src, "ai_translate_batch");
+    assert_eq!(
+        normalize_param_list(&batch_params),
+        normalize_param_list(
+            "app: tauri::AppHandle, segment_ids: Vec<i64>, prompt_set_name: Option<String>, \
+             channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
+        ),
+        "vo `ai_translate_batch` trong `pub mod wire` cua commands/aitranslate.rs khong con \
+         dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
+         `src/config/aitranslate.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
 
     // `promote_ai_translation` mang HAI khối `pub fn` cùng tên trong `commands/segment.rs` (hàm

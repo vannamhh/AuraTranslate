@@ -28,7 +28,7 @@ use auratranslate_lib::core::glossary::{
     confirmed_terms_for_injection, marks_for_source_text,
 };
 use auratranslate_lib::core::matching::{self, MatchLang};
-use auratranslate_lib::core::scope::ScopeResolver;
+use auratranslate_lib::core::scope::{ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use auratranslate_lib::core::tm::SimilarSegment;
 
@@ -1000,5 +1000,152 @@ fn perf_probe_gather_glossary_context_whole_per_sentence_path_on_a_matching_sent
     );
 
     drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// perf_probe — `confirmed_terms_for_injection` CHÍNH NÓ (KHÔNG `entries_eligible_for_
+// injection`), nhánh MỘT tầng vs HAI tầng, câu NGẮN vs câu DÀI, trên một Tác phẩm ĐANG MỞ
+// THẬT (`open_project`) -- Story 4.9, Phase 4b, SỬA 2026-09-21 (điều phối viên bắt được)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 **Bản đầu đo NHẦM HÀM.** `grep -rnE "entries_eligible_for_injection\s*\(" src/` trả
+// đúng MỘT dòng -- chính doc-comment định nghĩa nó (`core/glossary/store.rs:753`) -- không
+// một đường sản phẩm nào gọi nó. Đường THẬT của mỗi câu trong một lô là
+// `core::ai::rag::gather_glossary_context` (`core/ai/rag.rs:214`), và nó gọi
+// [`confirmed_terms_for_injection`] (`core/glossary/store.rs:1559`), KHÔNG
+// `entries_eligible_for_injection`. Root `AGENTS.md`: *"a number measured on ... a
+// dependency nothing calls yet is not a number about the product"* -- con số
+// `two_tier_per_call=3.09372ms` bản đầu ghi vào `deferred-work.md` là đúng con số đó (đo một
+// hàm không ai gọi); mục ledger được viết lại cùng lượt sửa này.
+//
+// `confirmed_terms_for_injection` nặng hơn `entries_eligible_for_injection` THEO CẤU TRÚC,
+// không chỉ theo con số: nó gọi `resolve_and_match` (cùng hai lượt `load_tier` +
+// `apply_override` mà hàm SAI đã đo) RỒI CHẠY THÊM `find_terms` (AD-17,
+// `core/matching/mod.rs:470`) trên TOÀN BỘ tập thuật ngữ đã phân giải × câu -- nhánh `En`
+// lặp `for term in terms { for start in 0..=(stems.len()-needle.len()) { ... } }`, tức chi
+// phí O(số thuật ngữ × số token của câu), rồi `resolve_overlaps` phân xử chồng nhau. **Kết
+// luận cho quyết định cache:** khác `entries_eligible_for_injection` (chỉ nhận `resolver`/
+// `global`/`work`), hàm THẬT nhận thêm `text`/`lang` -- quần thể ảnh hưởng chi phí KHÔNG chỉ
+// là cỡ hai bảng, còn là ĐỘ DÀI CÂU. Probe dưới đây đo cả hai trục: bảng (một tầng vs hai
+// tầng, cùng 500+500 mục bản đầu đã gieo) VÀ câu (ngắn ~34 ký tự vs dài ~250 ký tự).
+//
+// KHÔNG một `assert!`/`assert_eq!` nào ở đây SO SÁNH THỜI GIAN -- root `AGENTS.md`: một phép
+// đo dựa trên ngưỡng thời gian đo MÁY, không đo MÃ (LuLu, lượt ký lại nhị phân, máy đang
+// tải...), và repo này đã dính đúng bẫy đó nhiều lần. Mọi `assert_eq!` ở đây kiểm SỐ MỤC ĐƯỢC
+// TIÊM -- chỉ thời gian mới in ra qua `eprintln!` để người đọc `--nocapture` tự đọc, không
+// được máy tự ý gán ĐÚNG/SAI cho một con số đo máy.
+//
+// 🔴 **`#[ignore]` có chủ ý, KHÁC `perf_probe_gather_glossary_context_...` phía trên (số đó
+// giữ nguyên KHÔNG `#[ignore]`, tiền lệ đã có từ Story 4.6 -- sửa nó không phải việc của bản
+// vá này).** Probe này đo BA tổ hợp × 200 lượt/tổ hợp trên một quần thể 1000 mục -- nặng hơn
+// hẳn probe cũ (500 mục, một tổ hợp), và trong build DEBUG (mặc định của `cargo test`) con số
+// nó in ra KHÔNG nói gì về sản phẩm (khác optimizations release) trong khi vẫn tốn vài giây
+// THẬT mỗi lượt `cargo test`/`cargo test --locked` (kể cả `pre-push`) -- đúng chi phí mà
+// `dict_lookup.rs`/`dict_sources.rs`'s NFR1 p95 bench đã chọn tránh bằng `#[ignore]`. Giá trị
+// của nó trong bộ mặc định là ĐÚNG MỘT: khi CHẠY TAY trên release, nó là công cụ TÁI ĐO cho
+// lần tới ai đó cần xét lại ngưỡng cache; đi qua trong `cargo test`/CI mặc định (không
+// `--ignored`) nó không mang giá trị nào, nên không đáng trả phí đó mỗi lượt xanh.
+#[test]
+#[ignore = "phep do THOI GIAN tren build RELEASE -- chay tay: cargo test --release --test \
+            ai_rag_contract -- --ignored --nocapture perf_probe_confirmed"]
+fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_sentence() {
+    let dir = temp_dir("perf-probe-confirmed");
+    let global = open_global(&dir);
+    let work = open_project(&dir);
+
+    // Quần thể BẢNG: cùng 500 Global + 500 Work của bản đầu (không trùng `source_term`, nên
+    // nhánh hai tầng không mất hàng nào vào `shadowed()`) CỘNG đúng một thuật ngữ THẬT SỰ khớp
+    // câu đo (`dragon` -> `rong`), gieo Ở TẦNG GLOBAL để cả hai nhánh đều thấy nó.
+    const GLOBAL_ROWS: usize = 500;
+    for i in 0..GLOBAL_ROWS {
+        add_manual_term(
+            &global,
+            None,
+            GlossaryTier::Global,
+            &format!("term-g-{i}"),
+            Some(&format!("dich-g-{i}")),
+            "",
+            Category::Other,
+        )
+        .expect("them thuat ngu Global");
+    }
+    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
+        .expect("them thuat ngu khop that");
+
+    const WORK_ROWS: usize = 500;
+    for i in 0..WORK_ROWS {
+        add_manual_term(
+            &global,
+            Some(&work),
+            GlossaryTier::Work,
+            &format!("term-w-{i}"),
+            Some(&format!("dich-w-{i}")),
+            "",
+            Category::Other,
+        )
+        .expect("them thuat ngu Work");
+    }
+
+    // Quần thể CÂU: NGẮN (bản đầu đã dùng cho `gather_glossary_context`) vs DÀI (~7x số ký
+    // tự) -- cả hai mang ĐÚNG một khớp thật (`dragon`), để đối chứng KHÔNG lẫn với "khớp nhiều
+    // thuật ngữ hơn".
+    const SHORT_SENTENCE: &str = "A dragon roared in the distance.";
+    const LONG_SENTENCE: &str = "In the depths of the ancient forest, where the mist never \
+        lifted and the trees had stood since before anyone could remember, a dragon roared in \
+        the distance, and every creature that heard the sound fell utterly silent, waiting to \
+        see what would happen next in the valley far below the ridge.";
+    assert!(
+        LONG_SENTENCE.len() > SHORT_SENTENCE.len() * 5,
+        "cau DAI phai dai hon han cau NGAN de phep do co y nghia -- {} vs {} ky tu",
+        LONG_SENTENCE.len(),
+        SHORT_SENTENCE.len()
+    );
+
+    const CALLS: usize = 200;
+
+    /// Chạy `calls` lượt `confirmed_terms_for_injection` trên `(resolver, work, sentence)` đã
+    /// cho, đối chứng ĐÚNG một mục được tiêm (KHÔNG đối chứng thời gian), rồi in số đo ra
+    /// `eprintln!`. Trả `Duration` chỉ để chỗ gọi có thể so sánh BẰNG MẮT qua log, không phải
+    /// để một `assert!` nào đọc lại.
+    fn run(
+        label: &str,
+        resolver: &ScopeResolver,
+        global: &Store,
+        work: Option<&Store>,
+        sentence: &str,
+        calls: usize,
+    ) -> std::time::Duration {
+        let t0 = Instant::now();
+        let mut injected_count = 0usize;
+        for _ in 0..calls {
+            let outcome = confirmed_terms_for_injection(resolver, global, work, sentence, MatchLang::En)
+                .expect("confirmed_terms_for_injection khong loi");
+            injected_count = outcome.injected.len();
+        }
+        let elapsed = t0.elapsed();
+        assert_eq!(injected_count, 1, "{label}: phai khop DUNG MOT thuat ngu that (dragon)");
+        eprintln!(
+            "[perf_probe_confirmed_terms_for_injection] label={label} build={} calls={calls} \
+             sentence_len={} total={elapsed:?} per_call={:?}",
+            if cfg!(debug_assertions) { "debug" } else { "release" },
+            sentence.len(),
+            elapsed / calls as u32
+        );
+        elapsed
+    }
+
+    let resolver_one_tier = ScopeResolver::global_only();
+    let resolver_two_tier = ScopeResolver::with_work(WorkScope { work_id: "perf-probe-work".to_owned() });
+
+    // Trục BẢNG (một tầng vs hai tầng), câu giữ NGẮN cả hai lượt.
+    run("one_tier_short", &resolver_one_tier, &global, None, SHORT_SENTENCE, CALLS);
+    run("two_tier_short", &resolver_two_tier, &global, Some(&work), SHORT_SENTENCE, CALLS);
+    // Trục CÂU (ngắn vs dài), bảng giữ HAI TẦNG cả hai lượt -- đây là nhánh ngưỡng cache
+    // spec 4.9 Phase 4 đòi kiểm, nên nó là nhánh cần đo ở CẢ hai đầu của trục câu.
+    run("two_tier_long", &resolver_two_tier, &global, Some(&work), LONG_SENTENCE, CALLS);
+
+    drop(global);
+    drop(work);
     cleanup(&dir);
 }

@@ -63,6 +63,13 @@ import { resetAiPromptInspector } from '../aiPromptInspectorState'
 // (`aiTranslateState.ts::runSegmentId` chỉ có nghĩa trong `project.db` đang mở). Không vứt ở
 // đây thì `.ai-surface` tiếp tục hiện bản dịch của Tác phẩm VỪA RỜI dưới nhãn Tác phẩm mới.
 import { resetAiTranslate } from '../aiTranslateState'
+// 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh tính
+// THEO Tác phẩm (mỗi `segmentId` của một hàng chỉ có nghĩa trong `project.db` đang mở). Xem
+// doc-comment đầu `aiTranslateBatchState.ts`.
+import { resetAiTranslateBatch } from '../aiTranslateBatchState'
+// 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
+// lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
+import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,6 +303,15 @@ export async function openWorkById(workId: string): Promise<void> {
   // 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên, kết quả dịch cũng mang danh tính THEO TÁC PHẨM;
   // xem doc-comment tại chỗ `import`.
   resetAiTranslate()
+  // 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh tính
+  // THEO TÁC PHẨM; xem doc-comment tại chỗ `import`.
+  resetAiTranslateBatch()
+  // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang `anchor`/`focus` là hai `segment.id`,
+  // cùng lý lẽ hai dòng trên: `AUTOINCREMENT` của `project.db` đếm RIÊNG mỗi Tác phẩm, nên
+  // hai id cũ tồn tại THẬT ở Tác phẩm mới và trỏ vào câu khác hẳn — xem doc-comment đầu
+  // `panels/segmentSelectionState.ts` cho lý do lượt đổi CHƯƠNG trong cùng Tác phẩm KHÔNG
+  // cần dòng này (tự lành qua `indexOf`).
+  resetSegmentSelection()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

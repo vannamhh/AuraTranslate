@@ -948,6 +948,14 @@ pub fn run() {
             // the he len MOT, dung hinh dang `commands::project::ImportScanGeneration`.
             crate::commands::aitranslate::wire::ai_translate_segment,
             crate::commands::aitranslate::wire::ai_translate_cancel,
+            // Story 4.9, Phase 2 -- dich THEO LO cac segment da chon, huy giua chung (FR73,
+            // AD-22, Quyet dinh 1/2/4). `ai_translate_batch` la `async fn` LITERAL thu hai cung
+            // co che `Future: Send`, chay qua MOT `Channel<AiTranslateBatchEventWire>` -- moi
+            // khung mang `segment_id` cua chinh cau no thuoc ve, khong mot Channel thu hai nao
+            // cho tung cau. Dung CHUNG `ai_translate_cancel`/`AiTranslateGeneration` voi luot
+            // dich mot segment o tren -- mot bo dem cho ca tien trinh, bat dau lo nay SUPERSEDE
+            // mot luot don dang chay va nguoc lai.
+            crate::commands::aitranslate::wire::ai_translate_batch,
             // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
             // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no dat CA
             // `target_text` LAN `translation_origin = TRANSLATION_ORIGIN_OTHER` trong MOT cau

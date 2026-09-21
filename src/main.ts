@@ -48,6 +48,16 @@ import {
   splitCurrentSegment,
   wireExitFlush,
 } from './panels/editorPanelState'
+// ── Story 4.9 — vùng chọn NHIỀU segment trong lưới (Decision 1, batch input) ─────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `editorPanelState.ts`: `segmentSelectionState.ts` dùng
+// `ref`/`computed` của Vue — import thẳng nó ở `src/commands/index.ts` giết Kiểm C/D/E.
+import {
+  clearSegmentSelection,
+  extendSegmentSelectionDown,
+  extendSegmentSelectionUp,
+  segmentSelectionIds,
+} from './panels/segmentSelectionState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
 // ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
@@ -343,6 +353,18 @@ import {
   cancelAiTranslate,
   runAiTranslate,
 } from './aiTranslateState'
+// ── Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22) ─────────
+//
+// Cùng lý do và cùng cửa với `aiTranslateState.ts` ngay trên: module Vue thật, dùng `ref` và
+// gọi `@tauri-apps/api` xuyên qua `config/aitranslate.ts`. Module RIÊNG — xem doc-comment đầu
+// `aiTranslateBatchState.ts` §"Design Notes" cho lý do không widening `aiTranslateState.ts`.
+import {
+  aiTranslateBatchRows,
+  aiTranslateBatchStateValue,
+  aiTranslateBatchTextForSegment,
+  cancelAiTranslateBatch,
+  runAiTranslateBatch,
+} from './aiTranslateBatchState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -810,6 +832,11 @@ async function boot(): Promise<void> {
       extendSelectionRight: selectionCommands.extendRight,
       extendSelectionWordLeft: selectionCommands.extendWordLeft,
       extendSelectionWordRight: selectionCommands.extendWordRight,
+      // Story 4.9 · Decision 1 — vùng chọn NHIỀU segment trong lưới (batch input). Trục RIÊNG
+      // với bốn dep chọn-chữ ngay trên; cài đặt thật ở `panels/segmentSelectionState.ts`.
+      extendSegmentSelectionDown,
+      extendSegmentSelectionUp,
+      clearSegmentSelection,
       // Story 1.19 · AC2 · AC7 · AC11 — ba handler tĩnh, không một command cho mỗi nguồn.
       toggleDictSource: toggleFocusedDictSource,
       openAttribution,
@@ -939,27 +966,69 @@ async function boot(): Promise<void> {
       // Story 4.8 · FR72/FR74/AD-47①③ — "Dịch một segment với kết quả chảy dần".
       // `runAiTranslate`/`cancelAiTranslate` đọc CẢ câu đang có tiêu điểm LẪN bộ prompt hiệu
       // lực TẠI THỜI ĐIỂM CHẠY, cùng khuôn `assembleAiPrompt` ngay trên.
+      //
+      // 🔴 SỬA Story 4.9, Phase 3 — CỔNG LOẠI TRỪ LẪN NHAU giữa một lượt ĐƠN và một LÔ (§Tasks
+      // spec 4.9 Phase 3: "a batch refuses while a single run streams, and the reverse ... the
+      // guard cannot live in either state module without a two-way import cycle"). `main.ts`
+      // là chỗ DUY NHẤT đã `import` cả hai module state, nên nó là chỗ ĐÚNG để hỏi module KIA
+      // trước khi khởi module NÀY — mỗi module tự chặn CHỒNG chính nó (`state === 'generating'`
+      // bên trong `runAiTranslate`/`runAiTranslateBatch`), việc còn thiếu chỉ là hỏi chéo.
       runAiTranslate: () => {
+        if (aiTranslateBatchStateValue.value === 'generating') {
+          console.warn('[ai-translate] khong dich: mot lo dang chay')
+          return
+        }
         void runAiTranslate(selectedPromptSetName.value, editorCaretSegmentId.value)
       },
+      // Cổng ở ĐÂY, không ở hai module state — "whichever call is in flight" (§Tasks spec 4.9
+      // Phase 3): mỗi hàm `cancelAiTranslate*` tự gác ĐÚNG module của nó (không gửi IPC nếu
+      // module đó không `generating`), nên gọi CẢ HAI vô hại — quá lắm một trong hai là no-op.
       cancelAiTranslate: () => {
         cancelAiTranslate()
+        cancelAiTranslateBatch()
       },
       // 🔴 Cổng ở ĐÂY, không ở `aiTranslateState.ts`/`editorPanelState.ts` — cùng lý lẽ
       // `assembleAiPrompt`: hai module state không tự đọc lẫn nhau, `main.ts` là chỗ GHÉP.
       // I/O Matrix spec 4.8 "Promote while generating" → kêu, không ném, không ghi.
+      //
+      // 🔴 SỬA Story 4.9, Phase 3 (Decision 2/3) — thử NHÁNH ĐƠN trước (nguyên vẹn, hành vi
+      // 4.8 không đổi một ký tự); trượt thì thử NHÁNH LÔ, đọc kết quả của câu đang có TIÊU
+      // ĐIỂM (không phải "hàng đang chạy" — Decision 3: "each promote targets the caret
+      // segment", đúng cách FR20 đã đóng cho lượt đơn). `aiTranslateBatchTextForSegment` trả
+      // `null` cho MỌI trạng thái khác `done` (`running`/`cancelled`/`error`/`skipped`/
+      // `pending`), nên nhánh này tự từ chối đúng những ca đó mà không cần lặp lại điều kiện.
       promoteAiTranslate: () => {
         const state = aiTranslateStateValue.value
         const segmentId = aiTranslateRunSegmentId.value
         const text = aiTranslateAccumulatedText.value
-        if ((state !== 'done' && state !== 'cancelled') || segmentId === null || text === '') {
-          console.warn(
-            `[ai-translate] khong dua sang Editor: chua co ket qua hop le (state=${state}, ` +
-              `segmentId=${String(segmentId)}, text rong=${String(text === '')})`,
-          )
+        if ((state === 'done' || state === 'cancelled') && segmentId !== null && text !== '') {
+          void promoteAiTranslationToEditor(segmentId, text)
           return
         }
-        void promoteAiTranslationToEditor(segmentId, text)
+
+        const caretId = editorCaretSegmentId.value
+        const batchText = caretId === null ? null : aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId)
+        if (batchText !== null && caretId !== null) {
+          void promoteAiTranslationToEditor(caretId, batchText)
+          return
+        }
+
+        console.warn(
+          `[ai-translate] khong dua sang Editor: chua co ket qua hop le (state=${state}, ` +
+            `segmentId=${String(segmentId)}, caretId=${String(caretId)})`,
+        )
+      },
+      // Story 4.9, Phase 3 · FR73/AD-22 (Decision 1) — "Dịch theo LÔ". Đọc vùng chọn HIỆN
+      // HÀNH (`segmentSelectionIds`) TẠI THỜI ĐIỂM CHẠY, cùng khuôn `runAiTranslate` ngay
+      // trên — module state của lô tự lấy một BẢN SAO (`.slice()`) ngay khi khởi, nên vùng
+      // chọn đổi giữa chừng KHÔNG kéo lô đang chạy đi theo (I/O Matrix "Selection changes
+      // while a batch runs").
+      runAiTranslateBatch: () => {
+        if (aiTranslateStateValue.value === 'generating') {
+          console.warn('[ai-translate-batch] khong dich: mot luot don dang chay')
+          return
+        }
+        void runAiTranslateBatch(selectedPromptSetName.value, segmentSelectionIds.value)
       },
     })
 

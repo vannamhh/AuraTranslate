@@ -232,6 +232,20 @@ export function ruleClassOf(rule: SegmentRuleValue): string | null {
 }
 
 /**
+ * 🔵 **THÊM Story 4.9** — hàng có nằm trong vùng chọn nhiều-segment không (Decision 1 của
+ * spec, batch input). Vị từ THUẦN, tách khỏi `GridPanel.vue` cùng lý do mọi hàm khác của tệp
+ * này: kiểm được bằng `vitest`/Node trần, không cần mount component.
+ *
+ * ⚠️ **KHÔNG** đi qua [`ruleClassOf`]/`SEGMENT_RULE_VALUES` — `isSelected` là một trục RIÊNG
+ * với sáu giá trị vạch lề (UX-DR19), không một giá trị thứ bảy. Trộn hai trục sẽ làm Kiểm I
+ * của `check-commands.mjs` (đối chiếu HAI CHIỀU `.rule-<x>`) đỏ oan trên một class không
+ * thuộc bảng vạch.
+ */
+export function selectedRowClassOf(isSelected: boolean): string | null {
+  return isSelected ? 'row-selected' : null
+}
+
+/**
  * 🔴 **Đổi một vị trí `(node, offset)` trong một ô nguyên văn thành CHỈ SỐ KÝ TỰ trong
  * `source_text`** — Story 2.8, AC2. Trả `null` khi `node` không thuộc `cell`.
  *

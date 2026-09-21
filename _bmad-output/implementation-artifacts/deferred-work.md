@@ -2342,6 +2342,16 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   một lượt "khôi phục FR20".
 
   **Chủ: Epic 4.**
+  → **KHÔNG LÀM 2026-09-21 (Story 4.9).** Decision 3 của spec 4.9 (Ice ký cùng ngày): thứ
+    FR20 muốn — cùng một câu lên hình ở cả hai panel — đã có sẵn qua CARET, không qua cuộn
+    theo lô. Promote vẫn theo TỪNG câu (Decision 2 — `promote_ai_translation` không ghi
+    `segment_version`, xem `commands/segment.rs:2449`, nên bulk promote không có đường lùi),
+    mỗi lượt promote nhắm đúng segment đang có tiêu điểm, và dời caret đã tự cuộn đúng hàng
+    của nó vào tầm nhìn qua `focus()` (`GridPanel.vue:1177`, đo BA CÁCH ở Story 2.10, Ice ký
+    2026-08-18). Lý do đóng là CARET, không phải cỡ danh sách lô — nó vì thế sống sót qua
+    Decision 1 (không trần cho N, một Chương 184 câu vẫn chọn được trọn vẹn): dù panel Đề xuất
+    AI có hiển thị cả trăm hàng của một lô, người dùng vẫn cuộn theo caret khi họ promote một
+    hàng, không theo lô. Không một FR mới nào cần mở.
 
 - ⚠️ **Chiều cao hàng khi bật Hán Việt *song song* ở cột hẹp của Ⓑ-2 — CHƯA ĐO.**
 
@@ -4551,6 +4561,67 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     thật sự lặp chỗ gọi này trên nhiều câu của cùng một Tác phẩm, đúng điều kiện cần để đo cả
     nhánh MỘT tầng (đã có số ở đây) lẫn nhánh HAI tầng (Work đang mở, chưa đo) rồi mới quyết
     cache theo phiên hay đổi chữ ký.
+  → 🔵 **SỬA 2026-09-21 (Story 4.9, Phase 4b) — bản đầu đo NHẦM HÀM, bác bởi điều phối viên,
+    đo lại đúng hàm và ĐỔI KẾT LUẬN.** `grep -rnE "entries_eligible_for_injection\s*\("
+    src-tauri/src/` trả đúng MỘT dòng — chính doc-comment định nghĩa nó
+    (`core/glossary/store.rs:753`) — không một đường sản phẩm nào gọi hàm đó. Đường THẬT của
+    mỗi câu trong một lô là `core::ai::rag::gather_glossary_context` (`core/ai/rag.rs:214`),
+    và nó gọi [`confirmed_terms_for_injection`] (`core/glossary/store.rs:1559`), KHÔNG
+    `entries_eligible_for_injection`. Root `AGENTS.md`: *"a number measured on ... a
+    dependency nothing calls yet is not a number about the product"* — con số
+    `two_tier_per_call=3.09372ms` của bản đầu đúng NGUYÊN VĂN câu đó, và bị THAY bằng số dưới
+    đây, không giữ lại làm tham chiếu.
+
+    **Đo lại `confirmed_terms_for_injection` CHÍNH NÓ**, build RELEASE (`cargo test --release
+    --test ai_rag_contract -- --ignored --nocapture perf_probe_confirmed`, `[profile.release]`
+    đóng băng: `opt-level = "s"`, `lto`, `codegen-units = 1`), một Tác phẩm ĐANG MỞ thật
+    (`open_project`). Khác `entries_eligible_for_injection` (chỉ nhận `resolver`/`global`/
+    `work`), hàm THẬT nhận thêm `text`/`lang` — chi phí KHÔNG chỉ phụ thuộc cỡ hai bảng, còn
+    phụ thuộc ĐỘ DÀI CÂU (`find_terms`, AD-17, `core/matching/mod.rs:470`, quét O(số thuật ngữ
+    × độ dài văn bản × độ dài từng thuật ngữ) — 🔵 **SỬA 2026-09-22, vòng rà Story 4.9:** bản
+    đầu viết O(số thuật ngữ × số token câu), thiếu nhân tử thứ ba; vòng lặp per-term còn so
+    khớp trọn thân thuật ngữ ở mỗi vị trí (`start + term.len()` ngay trong thân vòng), nên độ
+    dài thuật ngữ là một nhân tử thật. Kết luận cache-hay-cap KHÔNG đổi: phép đo ở dưới là số
+    đo thật, không phải số suy từ công thức này). Quần thể đo CẢ HAI trục: bảng 500 mục Global + 500 mục Tác phẩm (không
+    trùng `source_term`, nhánh hai tầng không mất hàng vào `shadowed()`) cộng đúng một thuật
+    ngữ khớp thật (`dragon` → `rong`, gieo ở tầng Global); câu NGẮN (32 ký tự, "A dragon
+    roared in the distance.") vs câu DÀI (291 ký tự). 200 lượt gọi mỗi tổ hợp, đối chứng ĐÚNG
+    một mục được tiêm ở mỗi tổ hợp — KHÔNG đối chứng thời gian (root `AGENTS.md`: một ngưỡng
+    thời gian đo MÁY, không đo MÃ; repo này đã dính bẫy đó nhiều lần). Con số NGUYÊN VĂN probe
+    in ra, cả ba `build=release`:
+    **`label=one_tier_short calls=200 sentence_len=32 per_call=1.730391ms`**
+    **`label=two_tier_short calls=200 sentence_len=32 per_call=3.818571ms`**
+    **`label=two_tier_long calls=200 sentence_len=291 per_call=4.844849ms`**.
+    Hai tầng > một tầng ở CÙNG câu (3.82ms so 1.73ms — hai lượt `load_tier` cộng
+    `apply_override` gấp đôi quần thể bảng); câu dài > câu ngắn ở CÙNG hai tầng (4.84ms so
+    3.82ms, +27% dù câu dài gấp ~9× số ký tự) — chi phí BẢNG vẫn chiếm phần lớn, nhưng độ dài
+    câu là một biến THẬT, đo được, không bỏ qua được.
+
+    **Ngưỡng spec 4.9 Phase 4 đòi kiểm, tính LẠI trên số đúng:** dùng nhánh XẤU NHẤT đo được
+    (hai tầng, câu dài, `4.844849ms`/lượt) × 184 câu (ví dụ Quyết định 1 dùng để minh hoạ
+    *"không trần"*, KHÔNG phải một trần thật) = **`4.844849ms × 184 ≈ 891ms`** — dưới một
+    giây, nhưng chỉ còn **~11% dư** so với ngưỡng, không còn biên an toàn rộng như con số SAI
+    trước đó (569ms, ~43% dư). Điểm cắt thật: **N ≈ 206 câu** (`1000ms / 4.844849ms`, nhánh
+    câu dài) tới **N ≈ 262 câu** (`1000ms / 3.818571ms`, nhánh câu ngắn) — tuỳ độ dài câu
+    trung bình của lô, thấp hơn hẳn con số N≈323 mà phép đo SAI (hàm nhẹ hơn, không mất chi
+    phí `find_terms`) đã tính.
+
+    **⇒ Kết luận ĐỔI CHIỀU so với bản đầu.** Bản đầu (đo nhầm hàm) đóng mục này bằng "đóng
+    bằng số đo, không cache". Số ĐÚNG cho thấy chính điều kiện spec 4.9 Phase 4 đặt ra
+    (*"nếu ... vượt quá một giây ... thì cache lại tập hợp lệ cho lượt chạy"*) THẬT SỰ xảy ra
+    — không phải cho MỌI lô, nhưng cho bất kỳ lô nào N tới gần hoặc vượt ~206–262 câu, một cỡ
+    lô mà Quyết định 1 KHÔNG hề cấm ("không trần cho N"). Mục này vì vậy **KHÔNG đóng** —
+    trạng thái đúng là NỬA ĐÓNG bằng số đo THẬT: việc còn lại là một quyết định kiến trúc mà
+    chính mục ledger gốc đã nêu tên ("quyết cache theo phiên hay đổi chữ ký") và cần Ice chốt,
+    không phải một agent tự chọn một trong hai — root `AGENTS.md`: *"Hai lựa chọn hợp lệ ⇒
+    trình cả hai kèm số đo cho Ice chốt; không bao giờ tự chọn một rồi đi tiếp."* Hai lựa
+    chọn, cả hai đã có số đo ở trên: (1) cache tập thuật ngữ đã phân giải (`payload`/`terms`
+    của `resolve_and_match`) MỘT LẦN cho cả lô, chạy lại CHỈ `find_terms` cho từng câu — bỏ
+    N-1 lượt `load_tier`+`apply_override` thừa; (2) đổi chữ ký `gather_glossary_context`/
+    `confirmed_terms_for_injection` để nhận danh sách đã nạp sẵn từ chỗ gọi (`prepare_batch_
+    call`), đúng câu chữ ledger gốc đã để ngỏ. **Chủ: Story 4.9** nếu Ice muốn đóng ngay bằng
+    cache trong cùng story; **chủ: Story 4.11/4.12** nếu Ice chọn đặt một trần N thay vì cache
+    (một quyết định khác, ngược Decision 1 hôm nay, cũng cần Ice ký riêng).
 
 - ⚠️ **`pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay
   khẳng định phiên bản 4, tức bước `glossary_entry`, không phải bước `pinned_entry` mà tên
@@ -11079,3 +11150,15 @@ chính nó.
   nhưng có dương tính giả thật — `→ ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — CẢ HAI VẾ CÒN HỞ đã
   đóng` chứa đúng cụm *"còn hở"* trong một câu nói ngược lại. Ai vá thì đo trên cả hai chiều.
   **(Chủ: Ice — đổi vị từ của một cổng là một quyết định về cổng, không phải một lượt sửa mã.)**
+
+---
+
+## Deferred from: Story 4.9 — Dịch theo lô và huỷ giữa chừng (vòng rà 2026-09-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
+  summary: Nhánh `last_sent` / `mark_prompt_as_sent` nằm trong thân `wire::ai_translate_batch` không có ca nào chạy qua, nên xoá nó đi thì `sent_at` vĩnh viễn `None` mà bộ test vẫn xanh. **(Chủ: Story 4.10.)**
+  evidence: `grep -rn "wire::ai_translate_batch" src-tauri/tests/*.rs` chỉ khớp phép kiểm đăng ký và danh sách tham số trong `ipc_contract.rs`; không ca nào dựng `AppHandle` để gọi lệnh thật. Đúng hình dạng Story 4.8 đã ghi nợ ở mục #15 của nó cho đường MỘT segment, nên một bàn đo `AppHandle` đóng được cả hai — và chính vì phải dựng bàn đo ấy mà nó không phải một lượt vá.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
+  summary: Danh sách hàng của lô ở Panel AI Translation không cắt cửa sổ và chưa được đo ở đúng cỡ N mà Quyết định 1 cố ý không đặt trần. **(Chủ: Story 4.12 — bố cục màn hình hẹp, nơi đã có lịch đo trên máy thật.)**
+  evidence: `<li v-for="row in aiTranslateBatchRows">` không windowing, và mảng nền bị thay mới ở mỗi sự kiện token/done/skipped, tức mỗi token gây một lượt so khớp lại trọn danh sách. Bất đối xứng đo được với chính build này: chi phí phía Rust đã được đo lại ở N≈184-262 câu (mục ngay trên), phía webview thì chưa có một con số nào ở cùng cỡ. Cần một phép đo ở N thật trên máy Ice trước khi quyết có phải virtualise hay không — NFR2 là 50 ms mỗi frame.

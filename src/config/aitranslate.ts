@@ -68,6 +68,7 @@ function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWi
 }
 
 const CMD_TRANSLATE = 'ai_translate_segment'
+const CMD_TRANSLATE_BATCH = 'ai_translate_batch'
 const CMD_CANCEL = 'ai_translate_cancel'
 
 /**
@@ -109,14 +110,90 @@ export async function runAiTranslateSegment(
 }
 
 /**
+ * Một khung của `Channel` lô — Story 4.9, Phase 3 (FR73). Khớp NGUYÊN VĂN
+ * `AiTranslateBatchEventWire` phía Rust (`commands/aitranslate.rs`,
+ * `#[serde(tag = "kind", rename_all = "snake_case")]`) — BA biến thể, mỗi khung mang
+ * `segment_id` của CHÍNH câu nó thuộc về, vì một `Channel` DUY NHẤT chở token của TOÀN lô
+ * (§Never spec 4.9: "no second `Channel` per sentence").
+ */
+export type AiTranslateBatchEventWire =
+  | { kind: 'token'; segment_id: number; text: string }
+  | { kind: 'done'; segment_id: number }
+  | { kind: 'skipped'; segment_id: number }
+
+/**
+ * Kiểm hình dạng LÚC CHẠY — cùng luật `src/AGENTS.md`: "luôn kiểu-kiểm dữ liệu qua IPC lúc
+ * chạy". Khác `onmessage` của lượt dịch MỘT segment (chỉ một `string` trần, không cần kiểm
+ * hình dạng), mỗi khung ở đây là MỘT OBJECT — `Channel<T>` không tự kiểm `T` lúc chạy, nó chỉ
+ * là một khai TypeScript phía webview.
+ */
+function isAiTranslateBatchEventWire(value: unknown): value is AiTranslateBatchEventWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { kind?: unknown; segment_id?: unknown; text?: unknown }
+  if (typeof v.segment_id !== 'number') return false
+  if (v.kind === 'token') return typeof v.text === 'string'
+  return v.kind === 'done' || v.kind === 'skipped'
+}
+
+/**
+ * Chạy MỘT lượt dịch theo LÔ cho `segmentIds` (đúng thứ tự tài liệu — chỗ gọi truyền
+ * `segmentSelectionIds.value`, tệp này không sắp lại gì) bằng bộ prompt hiệu lực
+ * `promptSetName`, gọi `onEvent` cho MỖI khung chảy tới qua `Channel` — cùng khuôn
+ * [`runAiTranslateSegment`] (một `invoke`, không bao giờ ném, `{ value, error }`), chỉ khác
+ * hình dạng khung mang thêm `segment_id`/`kind`.
+ *
+ * ⚠️ Một khung sai hình dạng bị BỎ QUA (chẩn đoán ra console), không làm sập lượt gọi —
+ * cùng mức độ nghiêm khắc mà [`isAiTranslateOutcomeWire`] áp cho kết quả cuối, nhưng ở đây
+ * bỏ một khung không ném vì các khung KHÁC của cùng lô vẫn còn ý nghĩa.
+ */
+export async function runAiTranslateBatchCall(
+  segmentIds: number[],
+  promptSetName: string | null,
+  onEvent: (event: AiTranslateBatchEventWire) => void,
+): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
+  const channel = new Channel<unknown>()
+  channel.onmessage = (raw) => {
+    if (!isAiTranslateBatchEventWire(raw)) {
+      console.error(
+        `[aitranslate] \`${CMD_TRANSLATE_BATCH}\` gui mot khung Channel khong dung AiTranslateBatchEventWire`,
+      )
+      return
+    }
+    onEvent(raw)
+  }
+
+  try {
+    const wire = await invoke<unknown>(CMD_TRANSLATE_BATCH, { segmentIds, promptSetName, channel })
+    if (!isAiTranslateOutcomeWire(wire)) {
+      console.error(
+        `[aitranslate] \`${CMD_TRANSLATE_BATCH}\` tra ve mot hinh dang khong dung AiTranslateOutcomeWire`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { value: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[aitranslate] \`${CMD_TRANSLATE_BATCH}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[aitranslate] không gọi được \`${CMD_TRANSLATE_BATCH}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { value: null, error: null }
+  }
+}
+
+/**
  * Huỷ lượt dịch đang chạy — bơm bộ đếm thế hệ phía Rust lên một (`AiTranslateGeneration::next`),
  * làm thế hệ đang bay (nếu có) không còn là thế hệ hiện hành. Lệnh KHÔNG mang `Result` phía
  * Rust (`commands/aitranslate.rs::wire::ai_translate_cancel` trả `()`), nên không có nhánh
  * `IpcError` nào để phân biệt — **không bao giờ ném**, chỉ ghi chẩn đoán khi trượt.
  *
  * ⚠️ Không tham số nào đi trên dây: lệnh huỷ đúng lượt đang bay của TIẾN TRÌNH, không một
- * `segmentId` cụ thể — chỉ một lượt dịch chạy tại một thời điểm (`aiTranslateState.ts` từ
- * chối khởi một lượt mới trong khi một lượt khác đang `generating`).
+ * `segmentId` cụ thể — chỉ một lượt dịch chạy tại một thời điểm, dù đó là MỘT segment
+ * (`aiTranslateState.ts`) hay một LÔ (`aiTranslateBatchState.ts`, Story 4.9). 🔵 SỬA
+ * (Story 4.9, Phase 3) — hàm này dùng CHUNG cho cả hai module state; chỗ gọi thật sự
+ * (`main.ts`'s handler của `ai.translate.cancel`) đọc trạng thái CỦA CẢ HAI rồi chỉ gửi lệnh
+ * huỷ khi ít nhất một trong hai đang `generating` — xem doc-comment tại đó.
  */
 export async function cancelAiTranslateCall(): Promise<void> {
   try {

@@ -778,6 +778,24 @@ message_keys! {
     /// "no error-copy catalogue ... this story produces the error state and an `IpcError`-
     /// shaped failure" — Story 4.10 sở hữu văn bản/nút thử lại riêng cho từng nguyên nhân).
     AiTranslateProviderCallFailed => "err.ai_translate.provider_call_failed" [],
+
+    // ── Story 4.9, Phase 2 (FR73, AD-22, Decision 2) — MỘT khoá MỚI ─────────────────
+    //
+    // Bề mặt IPC `commands::aitranslate::ai_translate_batch`. Bốn trong năm hàng từ chối của
+    // I/O Matrix spec 4.9 tái dùng khoá ĐÃ CÓ: config chưa xong ⇒ `AiTranslateOutcomeWire::
+    // NotConfigured` (trạng thái, không lỗi); segment bị cắt ⇒ được BỎ QUA trong batch, không
+    // một `IpcError` nào (khác hẳn lượt dịch MỘT segment 4.8, nơi `is_omitted` từ chối cả lượt
+    // gọi); `WorkNoneOpen`/`AiPromptSegmentNotInChapter` phủ "chưa mở Tác phẩm"/"một id lạ
+    // trong lô". Khoá dưới đây phủ đúng MỘT sự thật RIÊNG mà không khoá nào ở trên nói được:
+    // provider dừng GIỮA một lô nhiều câu, và người dùng cần biết CÂU NÀO đã dừng ở đó — khác
+    // `AiTranslateProviderCallFailed` (Story 4.8) ở chỗ khoá đó không mang `segment_id` vì lượt
+    // dịch một segment không cần nói lại một id người dùng đã biết.
+    /// Provider trả lỗi giữa một lô (`core::ai::client::OpenAiClientError`, cùng NHÃN duy nhất
+    /// `AiTranslateProviderCallFailed` đã dùng cho lượt dịch một segment) TRÊN câu `segment_id`
+    /// — batch dừng NGAY tại đó: mọi câu trước đó giữ nguyên kết quả, câu này và mọi câu sau
+    /// không bao giờ được gọi (§Always spec 4.9: "the first error stops the batch and names the
+    /// sentence. Never skip a failed sentence and carry on").
+    AiTranslateBatchStopped => "err.ai_translate.batch_stopped" ["segment_id"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

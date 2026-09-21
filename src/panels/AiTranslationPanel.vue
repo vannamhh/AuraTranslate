@@ -63,6 +63,19 @@ import {
   aiTranslateStateValue,
   isAiTranslateResultStale,
 } from '../aiTranslateState'
+// Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22, AC2).
+import {
+  aiTranslateBatchDoneCount,
+  aiTranslateBatchError,
+  aiTranslateBatchRemainingCount,
+  aiTranslateBatchRows,
+  aiTranslateBatchRunningSegmentId,
+  aiTranslateBatchStateValue,
+  aiTranslateBatchTextForSegment,
+  aiTranslateBatchTotalCount,
+} from '../aiTranslateBatchState'
+import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
+import { segmentSelectionCount } from './segmentSelectionState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -141,21 +154,77 @@ const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
 // ─────────────────────────────────────────────────────────────────────────────────
 // Cùng khuôn khối Story 4.7 ngay trên: vô hiệu hoá nút ở CHỖ BIẾT TRƯỚC, hai lớp cùng lưới
 // "kêu, không ném" của `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate` (`main.ts`).
+//
+// 🔴 SỬA Story 4.9, Phase 3 — cả hai computed dưới đây đọc THÊM `aiTranslateBatchStateValue`
+// (khai ở khối Story 4.9 ngay dưới file này): một lượt LÔ đang chạy cũng phải khoá nút Dịch
+// MỘT câu (cổng loại-trừ-lẫn-nhau, §Tasks spec 4.9 Phase 3), và nút Huỷ dùng CHUNG cho cả hai
+// hình dạng lời gọi ("driven by whichever call is in flight") nên phải BẬT khi MỘT TRONG HAI
+// đang chạy, không chỉ lượt đơn.
 const canRunAiTranslate = computed<boolean>(
-  () => editorCaretSegmentId.value !== null && aiTranslateStateValue.value !== 'generating',
-)
-const canCancelAiTranslate = computed<boolean>(() => aiTranslateStateValue.value === 'generating')
-/** I/O Matrix spec 4.8 "Promote the result": `done`/`cancelled` VÀ văn bản không rỗng. */
-const canPromoteAiTranslate = computed<boolean>(
   () =>
-    (aiTranslateStateValue.value === 'done' || aiTranslateStateValue.value === 'cancelled') &&
-    aiTranslateAccumulatedText.value !== '',
+    editorCaretSegmentId.value !== null &&
+    aiTranslateStateValue.value !== 'generating' &&
+    aiTranslateBatchStateValue.value !== 'generating',
 )
+const canCancelAiTranslate = computed<boolean>(
+  () => aiTranslateStateValue.value === 'generating' || aiTranslateBatchStateValue.value === 'generating',
+)
+/** I/O Matrix spec 4.8 "Promote the result": `done`/`cancelled` VÀ văn bản không rỗng.
+ *
+ * 🔴 SỬA Story 4.9, Phase 3 — `main.ts`'s handler thật của `ai.translate.promote` (đúng nút
+ * này) từ Story 4.9 cũng chốt được một hàng LÔ đang `done` tại câu có TIÊU ĐIỂM (Decision 3),
+ * không chỉ kết quả lượt đơn. Thiếu nhánh đó ở đây thì hợp âm `Mod+Shift+Enter` chốt được
+ * trong khi nút trên panel vẫn khoá — cùng hàm thuần `aiTranslateBatchTextForSegment` mà
+ * `main.ts` dùng, không một phép kiểm thứ hai có thể trôi khỏi nó. */
+const canPromoteAiTranslate = computed<boolean>(() => {
+  if (
+    (aiTranslateStateValue.value === 'done' || aiTranslateStateValue.value === 'cancelled') &&
+    aiTranslateAccumulatedText.value !== ''
+  ) {
+    return true
+  }
+  const caretId = editorCaretSegmentId.value
+  return caretId !== null && aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId) !== null
+})
 /** `true` ⇔ kết quả đang hiện được dịch cho một câu KHÁC câu đang có tiêu điểm bây giờ — cùng
  * khuôn [`isRecordStale`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
 const isAiTranslateStale = computed<boolean>(() =>
   isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorCaretSegmentId.value),
 )
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 4.9, PHASE 3 — "DỊCH THEO LÔ VỚI TIẾN ĐỘ VÀ HUỶ GIỮA CHỪNG" (FR73, AD-22)
+// ─────────────────────────────────────────────────────────────────────────────────
+// Cùng khuôn khối Story 4.8 ngay trên: vô hiệu hoá nút Ở ĐÂY (chỗ BIẾT TRƯỚC — vùng chọn
+// rỗng, hoặc một lượt ĐƠN/LÔ khác đang chạy), lớp phòng thủ thứ hai sống trong
+// `runAiTranslateBatch` chính nó (`aiTranslateBatchState.ts`, "kêu, không ném").
+const canRunAiTranslateBatch = computed<boolean>(
+  () =>
+    segmentSelectionCount.value > 0 &&
+    aiTranslateStateValue.value !== 'generating' &&
+    aiTranslateBatchStateValue.value !== 'generating',
+)
+
+/** Khoá `vi.json` của nhãn một hàng, theo TRẠNG THÁI của hàng đó (`AiTranslateBatchRowStatus`,
+ * `aiTranslateBatchState.ts`) — hàm THUẦN, một `switch` đóng thay vì nối chuỗi trong template
+ * (Kiểm A2 của `check:i18n` chỉ chấp nhận `{{ t(...) }}`/`{{ tError(...) }}`, việc nối chuỗi
+ * key nằm ở ĐÂY, không ở template). */
+function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): string {
+  switch (status) {
+    case 'pending':
+      return 'panel.ai_translation.batch_row_status_pending'
+    case 'running':
+      return 'panel.ai_translation.batch_row_status_running'
+    case 'done':
+      return 'panel.ai_translation.batch_row_status_done'
+    case 'skipped':
+      return 'panel.ai_translation.batch_row_status_skipped'
+    case 'cancelled':
+      return 'panel.ai_translation.batch_row_status_cancelled'
+    case 'error':
+      return 'panel.ai_translation.batch_row_status_error'
+  }
+}
 </script>
 
 <template>
@@ -294,6 +363,68 @@ const isAiTranslateStale = computed<boolean>(() =>
         <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
         {{ aiTranslateAccumulatedText }}
       </p>
+
+      <!-- ─────────────────────────────────────────────────────────────────────────────
+           Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22,
+           AC1/AC2). Nút Huỷ và trạng thái LỖI dùng LẠI `.ai-translate-cancel`/`.ai-translate-alert`
+           ngay trên (một nút, một khối lỗi cho CẢ HAI hình dạng lời gọi — §Tasks spec 4.9
+           Phase 3: "reuse the existing cancel button"), khối dưới đây chỉ thêm phần LÔ
+           không có ở lượt đơn: đếm vùng chọn, nút chạy lô, tiến độ, và danh sách hàng. -->
+      <div class="ai-batch-bar">
+        <p v-if="segmentSelectionCount > 0" class="ai-batch-selection-hint" data-ai-translate-batch-selection-count>
+          {{ t('panel.ai_translation.batch_selection_count', { count: String(segmentSelectionCount) }) }}
+        </p>
+        <button
+          type="button"
+          class="ai-translate-batch-run"
+          data-ai-translate-batch-run
+          :disabled="!canRunAiTranslateBatch"
+          @click="dispatch('ai.translate.batch_run')"
+        >
+          {{ t('command.ai.translate.batch_run') }}
+        </button>
+      </div>
+      <template v-if="aiTranslateBatchTotalCount > 0">
+        <p class="ai-batch-progress" data-ai-translate-batch-progress>
+          {{
+            t('panel.ai_translation.batch_progress', {
+              done_count: String(aiTranslateBatchDoneCount),
+              total_count: String(aiTranslateBatchTotalCount),
+              remaining_count: String(aiTranslateBatchRemainingCount),
+            })
+          }}
+        </p>
+        <p
+          v-if="aiTranslateBatchRunningSegmentId !== null"
+          class="ai-batch-running"
+          data-ai-translate-batch-running
+        >
+          {{ t('panel.ai_translation.batch_running', { segment_id: String(aiTranslateBatchRunningSegmentId) }) }}
+        </p>
+        <p
+          v-if="aiTranslateBatchStateValue === 'error' && aiTranslateBatchError !== null"
+          class="ai-translate-alert"
+          role="alert"
+          data-ai-translate-batch-alert
+        >
+          <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+          {{ tError(aiTranslateBatchError) }}
+        </p>
+        <ul class="ai-batch-rows" data-ai-translate-batch-rows>
+          <li
+            v-for="row in aiTranslateBatchRows"
+            :key="row.segmentId"
+            class="ai-batch-row"
+            :data-ai-translate-batch-row-status="row.status"
+          >
+            <span class="ai-batch-row-segment">
+              <!-- aura-allow-text: DỮ LIỆU (segment.id của hàng). -->
+              {{ row.segmentId }}
+            </span>
+            <span class="ai-batch-row-status">{{ t(aiTranslateBatchRowStatusKey(row.status)) }}</span>
+          </li>
+        </ul>
+      </template>
     </div>
   </PanelFrame>
 </template>
@@ -427,7 +558,8 @@ const isAiTranslateStale = computed<boolean>(() =>
 
 .ai-translate-run,
 .ai-translate-cancel,
-.ai-translate-promote {
+.ai-translate-promote,
+.ai-translate-batch-run {
   align-self: flex-start;
   padding: 0;
   background: none;
@@ -441,13 +573,17 @@ const isAiTranslateStale = computed<boolean>(() =>
 
 .ai-translate-run:disabled,
 .ai-translate-cancel:disabled,
-.ai-translate-promote:disabled {
+.ai-translate-promote:disabled,
+.ai-translate-batch-run:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);
 }
 
 .ai-translate-hint,
-.ai-translate-status {
+.ai-translate-status,
+.ai-batch-selection-hint,
+.ai-batch-progress,
+.ai-batch-running {
   margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -475,5 +611,42 @@ const isAiTranslateStale = computed<boolean>(() =>
   line-height: var(--leading-editor);
   color: var(--color-on-surface);
   white-space: pre-wrap;
+}
+
+/* Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng". Chỉ token đã có (không
+   một màu/bóng đổ/lớp phủ mới), cùng luật mọi khối khác của panel này. */
+.ai-batch-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 3);
+  padding-top: calc(var(--space-unit) * 1);
+  border-top: 1px solid var(--color-outline);
+}
+
+.ai-batch-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.ai-batch-row {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-batch-row-segment {
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface);
 }
 </style>

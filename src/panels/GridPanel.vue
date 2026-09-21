@@ -82,6 +82,7 @@ import {
   resolveSegmentRule,
   ruleClassOf,
   segmentRuleInputOf,
+  selectedRowClassOf,
   sourceCutOffsetOf,
 } from './editorSegments'
 import type { SegmentRuleValue } from './editorSegments'
@@ -121,6 +122,10 @@ import { ensureGlossaryMarksLoaded, glossaryMarks } from './glossaryMarksState'
 import { EMPTY_SEGMENT_GLOSSARY_MARKS, glossaryMarksBySegment } from './glossaryMarksMap'
 import type { SegmentTermSpan } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
+// 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
+// là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
+// [`selectedSegmentIds`] ngay dưới.
+import { segmentSelectionIds } from './segmentSelectionState'
 
 defineProps<DockviewPanelProps>()
 
@@ -272,6 +277,35 @@ const ruleClassById = computed(() => {
   const map = new Map<number, string>()
   for (const [id, rule] of ruleById.value) {
     const cls = ruleClassOf(rule)
+    if (cls !== null) map.set(id, cls)
+  }
+  return map
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔵 THÊM Story 4.9 — VÙNG CHỌN NHIỀU-SEGMENT (Decision 1). §Phase 1 Task 2: "a selection
+// the user cannot see is not a selection; no new colour, no shadow, no floating layer."
+// ═════════════════════════════════════════════════════════════════════════════════
+/**
+ * `Set`, không một `Array.includes` trong `v-for` — cùng lý do [`ruleById`] đã ghi: một phép
+ * tìm tuyến tính ở đó cho O(n²) trên **9.850** hàng, và Decision 1 chấp nhận CHÍNH XÁC một
+ * Chương trọn vẹn bị chọn ("không trần cho N").
+ */
+const selectedSegmentIds = computed(() => new Set(segmentSelectionIds.value))
+
+/**
+ * `null` ⇒ *không tô*, tức **không lớp `:class` nào** được thêm — cùng khuôn `ruleClassById`.
+ *
+ * ⚠️ **CÙNG TOKEN `--color-surface-accent` với `.cell-tgt.editing`, có chủ ý.** Bảng màu chỉ
+ * có 17 token mỗi theme (`tokens.json`) và spec cấm thêm màu mới. Một hàng vừa là caret vừa
+ * nằm trong vùng chọn tô cùng một sắc ở cả hai lớp — không một xung đột thị giác, vì cả hai
+ * lớp cùng nói "đang bật", cùng tiền lệ tái dùng `--color-primary` đã ghi ở
+ * `.cell-tgt.tgt-para-end`.
+ */
+const selectedRowClassById = computed(() => {
+  const map = new Map<number, string>()
+  for (const id of selectedSegmentIds.value) {
+    const cls = selectedRowClassOf(true)
     if (cls !== null) map.set(id, cls)
   }
   return map
@@ -1624,7 +1658,12 @@ const chapterId = computed(() => editorChapterId.value)
           bằng chữ. Một chuỗi div rỗng không nhãn ở đây chỉ là tiếng ồn cho công nghệ trợ giúp.
         -->
         <div class="col col-rule" aria-hidden="true">
-          <div v-for="s in editorSegments" :key="s.id" class="cell cell-rule" :class="{ 'para-end': s.is_paragraph_end }">
+          <div
+            v-for="s in editorSegments"
+            :key="s.id"
+            class="cell cell-rule"
+            :class="[{ 'para-end': s.is_paragraph_end }, selectedRowClassById.get(s.id)]"
+          >
             <div v-if="ruleClassById.get(s.id)" class="rule" :class="ruleClassById.get(s.id)"></div>
           </div>
         </div>
@@ -1640,7 +1679,7 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="(s, i) in editorSegments"
             :key="s.id"
             class="cell cell-num"
-            :class="{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }"
+            :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
           ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ i + 1 }}</div>
         </div>
 
@@ -1650,10 +1689,13 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-src"
-            :class="{
-              'para-end': s.is_paragraph_end,
-              omitted: s.is_omitted,
-            }"
+            :class="[
+              {
+                'para-end': s.is_paragraph_end,
+                omitted: s.is_omitted,
+              },
+              selectedRowClassById.get(s.id),
+            ]"
             :data-segment-id="s.id"
             :data-cut-count="cutCountOf(s.id)"
             data-col="src"
@@ -1790,13 +1832,16 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-tgt"
-            :class="{
-              'para-end': s.is_paragraph_end,
-              empty: (editorEditedText.get(s.id) ?? s.target_text).trim() === '',
-              editing: editorCaretSegmentId === s.id,
-              omitted: s.is_omitted,
-              'tgt-para-end': s.is_target_paragraph_end,
-            }"
+            :class="[
+              {
+                'para-end': s.is_paragraph_end,
+                empty: (editorEditedText.get(s.id) ?? s.target_text).trim() === '',
+                editing: editorCaretSegmentId === s.id,
+                omitted: s.is_omitted,
+                'tgt-para-end': s.is_target_paragraph_end,
+              },
+              selectedRowClassById.get(s.id),
+            ]"
             :data-segment-id="s.id"
             data-col="tgt"
             contenteditable="true"
@@ -1809,11 +1854,14 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-state"
-            :class="{
-              'para-end': s.is_paragraph_end,
-              refused: errorSegmentId === s.id,
-              omitted: s.is_omitted,
-            }"
+            :class="[
+              {
+                'para-end': s.is_paragraph_end,
+                refused: errorSegmentId === s.id,
+                omitted: s.is_omitted,
+              },
+              selectedRowClassById.get(s.id),
+            ]"
           >
             <template v-if="errorSegmentId === s.id && confirmErrorKey !== null">{{
               t('panel.grid.state_refused')
@@ -2300,6 +2348,22 @@ const chapterId = computed(() => editorChapterId.value)
  * năm `v-for` chứ không một dòng CSS.
  */
 .cell-tgt.editing {
+  background-color: var(--color-surface-accent);
+}
+
+/*
+ * 🔵 **THÊM Story 4.9 — VÙNG CHỌN NHIỀU-SEGMENT** (Decision 1, batch input). §Phase 1 Task 2
+ * cấm bằng chữ: "no new colour, no shadow, no floating layer" — tô CẢ NĂM ô của một hàng
+ * bằng token `--color-surface-accent` ĐÃ CÓ, cùng sắc `.cell-tgt.editing` dùng cho hàng đang
+ * gõ. Đây là một lượt tái dùng CÓ CHỦ, cùng tiền lệ `.cell-tgt.tgt-para-end` tái dùng
+ * `--color-primary`: hai lớp `.editing`/`.row-selected` có thể cùng có mặt trên một hàng
+ * (hàng caret là `anchor` của vùng chọn) và tô ra CÙNG một sắc — không một xung đột.
+ *
+ * ⚠️ Khác `.editing` (chỉ tô ô bản dịch — "phạm vi tối thiểu" đã ghi ở khối trên): vùng chọn
+ * phải tô CẢ HÀNG, vì đây chính là câu Story 4.9 viết ra: "a selection the user cannot see
+ * is not a selection". Năm `v-for` đều nhận lớp này — không một chỗ nào bị bỏ sót.
+ */
+.cell.row-selected {
   background-color: var(--color-surface-accent);
 }
 

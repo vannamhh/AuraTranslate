@@ -45,7 +45,7 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
 use auratranslate_lib::commands::aiconfig::{ai_config_delete_key, ai_config_save_key};
@@ -54,7 +54,9 @@ use auratranslate_lib::commands::aiprompt::{
     read_last_assembled_prompt,
 };
 use auratranslate_lib::commands::aitranslate::{
-    PrepareOutcome, PreparedTranslateCall, prepare_translate_call, run_translate_call,
+    AiTranslateBatchEventWire, AiTranslateBatchOutcome, PrepareBatchOutcome, PrepareOutcome,
+    PreparedBatchItem, PreparedTranslateCall, batch_stopped_error, prepare_batch_call,
+    prepare_translate_call, run_batch_call, run_translate_call,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::prompt_set_create;
@@ -119,6 +121,16 @@ fn first_segment_id(open: &OpenWork) -> i64 {
 /// `Result::expect_err` (đòi `T: Debug`) không gọi được thẳng trên `Result<PrepareOutcome,
 /// IpcError>` -- hàm này khớp tay thay cho nó.
 fn expect_prepare_err(result: Result<PrepareOutcome, IpcError>, msg: &str) -> IpcError {
+    match result {
+        Ok(_) => panic!("{msg}: nhan duoc Ok, khong phai Err"),
+        Err(e) => e,
+    }
+}
+
+/// Cùng lý do [`expect_prepare_err`] một dòng ngay trên -- `PrepareBatchOutcome::Ready` mang
+/// `PreparedBatchItem::ToTranslate { prepared: PreparedTranslateCall, .. }`, và kiểu đó cũng
+/// cấm `Debug`.
+fn expect_prepare_batch_err(result: Result<PrepareBatchOutcome, IpcError>, msg: &str) -> IpcError {
     match result {
         Ok(_) => panic!("{msg}: nhan duoc Ok, khong phai Err"),
         Err(e) => e,
@@ -1059,4 +1071,796 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
 
     drop(open);
     cleanup(&work_dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 5. Story 4.9, Phase 4a — I/O Matrix của batch (`prepare_batch_call` + `run_batch_call`)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Chín hàng ma trận I/O spec 4.9. Sáu hàng canh được ở tầng Rust này (giống 4.8's file, hai
+// hàng "Promote while generating"/"Caret moves during generation" là frontend-only): "Batch
+// over a selection", "Cancel mid-batch", "Error mid-batch", "Omitted segment inside the
+// selection", "AI not configured", "Selection of exactly one". Ba hàng còn lại là trạng thái
+// **frontend-only**, không một trường Rust nào biết chúng: "Work or Chapter changes while an
+// AI call runs" (module reset, `tests/frontend/aiTranslate*.test.ts`), "Selection changes
+// while a batch runs" (đã đóng băng CẤU TRÚC ngay khi `prepare_batch_call` trả một
+// `Vec<PreparedBatchItem>` sở hữu -- `run_batch_call` không giữ tham chiếu nào tới lựa chọn
+// đang sống của webview để mà thấy nó đổi), và "Empty selection" (nút lệnh bị khoá ở tầng
+// dispatch, không một lời gọi IPC nào được gửi).
+//
+// ⚠️ Một giới hạn ĐO ĐƯỢC, không sửa được từ đây: `commands::aitranslate::batch_stopped_error`
+// (map `(segment_id, OpenAiClientError) -> IpcError` mã `ai_translate.batch_stopped`) là hàm
+// PRIVATE của module, chỉ `mod wire` (con của cùng tệp) gọi được -- `tests/**` là một crate
+// KHÁC, không `pub`, không gọi được. `run_batch_call` (canh dưới đây) đã trả đúng
+// `Err((segment_id, P::Error))`, đúng sự thật hành vi ma trận đòi ("names the sentence it
+// stopped on"); phần MÃ/`message_key`/`retryable` cụ thể của `ai_translate.batch_stopped`
+// chỉ testable được bằng cách gọi thẳng lệnh Tauri `ai_translate_batch` qua một `AppHandle`
+// thật (không có tiền lệ nào trong tệp này, và ngoài phạm vi Phase 4a: "Do not edit any file
+// outside src-tauri/tests/" -- làm `batch_stopped_error` `pub` là sửa product code) hoặc chờ
+// Phase 4b/một agent sau đo bằng cách khác. Việc ĐÃ đo được ở đây: đúng phân loại
+// `openai_client_error_is_retryable` mà `batch_stopped_error` DÙNG CHUNG đã có 7/7 biến thể
+// canh ở §4a trên qua `impl From<OpenAiClientError> for IpcError` (cùng hàm private).
+
+/// Mirror THUẦN của `AiTranslateBatchEventWire` chỉ để giải mã byte THẬT đã đi qua
+/// `Channel::send` -- kiểu sản phẩm chỉ derive `Serialize` (một chiều gửi ra), không
+/// `Deserialize`, nên một crate test khác không giải mã ngược được kiểu đó thẳng. Hình dạng
+/// JSON (`tag = "kind"`, `rename_all = "snake_case"`) sao lại NGUYÊN VĂN từ
+/// `commands/aitranslate.rs` -- một đổi hình dạng bên sản phẩm mà không sửa mirror này sẽ
+/// làm MỌI ca dưới đây đỏ vì lỗi giải mã, không lặng lẽ trôi qua.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum BatchEventShape {
+    Token { segment_id: i64, text: String },
+    Done { segment_id: i64 },
+    Skipped { segment_id: i64 },
+}
+
+/// Dựng một `Channel<AiTranslateBatchEventWire>` THẬT, thu lại các sự kiện đã gửi qua
+/// `BatchEventShape` (cùng khuôn `collecting_channel` ở §3, mở rộng cho kiểu enum của batch),
+/// cho một `hook` chạy TRÊN MỖI sự kiện ngay khi nó tới -- chỗ Test "huỷ đúng giữa hai câu"
+/// dưới đây cắm cờ huỷ vào.
+fn collecting_batch_channel_with_hook(
+    hook: impl FnMut(&BatchEventShape) + Send + 'static,
+) -> (tauri::ipc::Channel<AiTranslateBatchEventWire>, Arc<Mutex<Vec<BatchEventShape>>>) {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let received_in = Arc::clone(&received);
+    // `Channel::new` doi `Fn + Send + Sync` -- boc `hook` (chi `FnMut`) trong mot `Mutex` de
+    // co `Sync` thay vi doi chu ky ham nay thanh `Fn` (moi ca goi hook deu can MUTATE mot cai
+    // gi do, vd. bat mot co dung chung).
+    let hook = Mutex::new(hook);
+    let channel = tauri::ipc::Channel::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+            let event: BatchEventShape = serde_json::from_str(&json)
+                .unwrap_or_else(|e| panic!("giai ma AiTranslateBatchEventWire that bai: {e} -- json={json}"));
+            (hook.lock().unwrap_or_else(std::sync::PoisonError::into_inner))(&event);
+            received_in.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(event);
+        }
+        Ok(())
+    });
+    (channel, received)
+}
+
+fn collecting_batch_channel()
+-> (tauri::ipc::Channel<AiTranslateBatchEventWire>, Arc<Mutex<Vec<BatchEventShape>>>) {
+    collecting_batch_channel_with_hook(|_| {})
+}
+
+fn dummy_batch_item(segment_id: i64, prompt: &str) -> PreparedBatchItem {
+    PreparedBatchItem::ToTranslate {
+        segment_id,
+        prepared: PreparedTranslateCall {
+            endpoint: "https://api.example.invalid/v1/chat/completions".to_owned(),
+            model: "gpt-test".to_owned(),
+            temperature: None,
+            max_tokens: None,
+            api_key: "sk-fake-batch-provider-test".to_owned(),
+            prompt: prompt.to_owned(),
+        },
+    }
+}
+
+/// Một chuỗi 5 câu tiếng Anh phân biệt được bằng số thứ tự -- đủ để cả `prepare_batch_call`
+/// (đọc Chương thật, cần thứ tự tài liệu) lẫn phép đối chứng "sắp xếp lại theo tài liệu,
+/// không theo thứ tự `segment_ids` gửi lên" dùng chung MỘT fixture.
+const FIVE_SENTENCE_TEXT: &str = "Sentence one arrives. Sentence two arrives. \
+Sentence three arrives. Sentence four arrives. Sentence five arrives.";
+
+/// "Công thức" của MỘT lời gọi provider trong một lô nhiều câu -- chỉ số THỨ TỰ lời gọi
+/// (không phải `segment_id`) chọn công thức nào chạy, đúng cách [`MultiItemProvider`] tiêu
+/// thụ nó.
+struct MultiItemRecipe {
+    tokens: Vec<&'static str>,
+    finish: FakeFinish,
+    /// Sau khi gửi token Ở CHỈ SỐ này (0-based) của CHÍNH công thức này, bật cờ huỷ dùng
+    /// chung -- mô phỏng "người dùng bấm huỷ đúng lúc câu này đang chảy".
+    trigger_cancel_after_token: Option<usize>,
+}
+
+/// `TranslationProvider` GIẢ cho một LÔ nhiều câu -- mở rộng [`FakeProvider`] (§3, một câu)
+/// sang một DANH SÁCH công thức tiêu thụ THEO THỨ TỰ lời gọi. `call_count` đếm MỌI lời gọi
+/// `translate(...)`, kể cả một lời gọi lẽ ra không được phép xảy ra -- các ca "không câu nào
+/// SAU được gọi" cấp đúng số công thức cho số câu ĐÁNG được gọi; một lời gọi THỪA sẽ panic ở
+/// `expect` dưới đây (chỉ số vượt `recipes.len()`) thay vì lặng lẽ trôi qua.
+struct MultiItemProvider {
+    recipes: Vec<MultiItemRecipe>,
+    call_index: AtomicUsize,
+    call_count: AtomicUsize,
+    cancel_flag: Arc<AtomicBool>,
+}
+
+impl TranslationProvider for MultiItemProvider {
+    type Error = FakeProviderError;
+
+    async fn translate(
+        &self,
+        _request: TranslateRequest<'_>,
+        on_token: &mut dyn FnMut(&str),
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<TranslateOutcome, Self::Error> {
+        self.call_count.fetch_add(1, Ordering::SeqCst);
+        let idx = self.call_index.fetch_add(1, Ordering::SeqCst);
+        let recipe = self.recipes.get(idx).unwrap_or_else(|| {
+            panic!(
+                "MultiItemProvider bi goi lan thu {} nhung chi cap {} cong thuc -- mot cau KHONG \
+                 DUOC goi da bi goi",
+                idx + 1,
+                self.recipes.len()
+            )
+        });
+        for (i, token) in recipe.tokens.iter().enumerate() {
+            if should_cancel() {
+                return Ok(TranslateOutcome::Cancelled);
+            }
+            on_token(token);
+            if recipe.trigger_cancel_after_token == Some(i) {
+                self.cancel_flag.store(true, Ordering::SeqCst);
+            }
+        }
+        if should_cancel() {
+            return Ok(TranslateOutcome::Cancelled);
+        }
+        match &recipe.finish {
+            FakeFinish::Done => Ok(TranslateOutcome::Done),
+            FakeFinish::Err(e) => Err(e.clone()),
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────────────
+// 5a. `prepare_batch_call` -- hàm THUẦN, đọc Chương thật
+// ───────────────────────────────────────────────────────────────────────────────────
+
+/// I/O Matrix "Batch over a selection" (nửa sắp xếp) -- `prepare_batch_call` trả các hàng
+/// theo ĐÚNG thứ tự tài liệu, KHÔNG theo thứ tự `segment_ids` được gửi lên (§Always spec 4.9:
+/// "the batch is exactly the user's selection, translated in document order").
+#[test]
+fn prepare_batch_call_returns_items_in_document_order_regardless_of_the_input_order_of_segment_ids()
+ {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-order-test-key");
+
+    let global_dir = temp_dir("batch-order-global");
+    let work_dir = temp_dir("batch-order-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchOrder", "en", FIVE_SENTENCE_TEXT);
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
+        .expect("tao bo prompt");
+
+    let doc_order: Vec<i64> =
+        read_open_chapter_segments(Some(&open)).expect("nap chuong").segments.iter().map(|s| s.id).collect();
+    assert_eq!(doc_order.len(), 5, "fixture 5 cau phai tach thanh 5 segment");
+
+    // Gui LEN theo thu tu XAO TRON co y -- khac han thu tu tai lieu.
+    let shuffled = [doc_order[2], doc_order[0], doc_order[4], doc_order[1], doc_order[3]];
+    let record = fresh_record();
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &shuffled)
+        .expect("prepare batch khong duoc loi");
+    let items = match outcome {
+        PrepareBatchOutcome::Ready(items) => items,
+        PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
+    };
+
+    let returned_order: Vec<i64> = items
+        .iter()
+        .map(|item| match item {
+            PreparedBatchItem::ToTranslate { segment_id, .. } => *segment_id,
+            PreparedBatchItem::Omitted { segment_id } => *segment_id,
+        })
+        .collect();
+    assert_eq!(
+        returned_order, doc_order,
+        "prepare_batch_call phai sap lai THEO TAI LIEU, khong theo thu tu segment_ids gui len"
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "Selection of exactly one" -- một lô của ĐÚNG một segment chạy qua path THUẦN
+/// của batch (`Ready(vec![... 1 phần tử ...])`), không một nhánh rẽ lặng lẽ nào rơi về hình
+/// dạng khác.
+#[test]
+fn a_selection_of_exactly_one_segment_runs_through_the_batch_prepare_path_as_a_batch_of_one() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-of-one-test-key");
+
+    let global_dir = temp_dir("batch-of-one-global");
+    let work_dir = temp_dir("batch-of-one-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchOfOne", "en", "A dragon roared.");
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
+        .expect("tao bo prompt");
+
+    let segment_id = first_segment_id(&open);
+    let record = fresh_record();
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &[segment_id])
+        .expect("prepare batch khong duoc loi");
+    match outcome {
+        PrepareBatchOutcome::Ready(items) => {
+            assert_eq!(items.len(), 1, "mot lua chon dung MOT segment phai tra ve DUNG mot phan tu");
+            match &items[0] {
+                PreparedBatchItem::ToTranslate { segment_id: got, prepared } => {
+                    assert_eq!(*got, segment_id);
+                    assert!(!prepared.prompt.is_empty());
+                }
+                PreparedBatchItem::Omitted { .. } => panic!("segment nay khong bi cat, phai la ToTranslate"),
+            }
+        }
+        PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
+    }
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "Omitted segment inside the selection" (nửa PHÂN LOẠI) — segment `is_omitted`
+/// phải được `prepare_batch_call` phân loại `PreparedBatchItem::Omitted`, không
+/// `ToTranslate`. **Đây là ca dùng cho counter-check-bằng-gỡ của "the omitted-segment guard"**
+/// (§Tasks spec 4.9's Phase 4 cuối cùng): gỡ khối `if row.is_omitted { ... continue; }` khỏi
+/// `prepare_batch_call` làm hàng này rơi xuống nhánh `assemble_and_record_prompt` như mọi hàng
+/// khác và trở thành `ToTranslate` -- ca này đỏ ngay tại đúng assert dưới, không phải một lỗi
+/// biên dịch.
+#[test]
+fn an_omitted_segment_inside_the_selection_is_classified_as_omitted_not_to_translate() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-omitted-test-key");
+
+    let global_dir = temp_dir("batch-omitted-global");
+    let work_dir = temp_dir("batch-omitted-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchOmitted", "en", FIVE_SENTENCE_TEXT);
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
+        .expect("tao bo prompt");
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    assert_eq!(chapter.segments.len(), 5, "fixture 5 cau phai tach thanh 5 segment");
+    let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+    let omitted_id = all_ids[2];
+    set_segment_omitted(Some(&open), omitted_id, true).expect("dat co cat bo that bai");
+
+    let record = fresh_record();
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
+        .expect("prepare batch khong duoc loi");
+    let items = match outcome {
+        PrepareBatchOutcome::Ready(items) => items,
+        PrepareBatchOutcome::NotConfigured => panic!("phai san sang -- cac hang khac can dich"),
+    };
+
+    assert_eq!(items.len(), 5);
+    for (i, item) in items.iter().enumerate() {
+        if i == 2 {
+            assert!(
+                matches!(item, PreparedBatchItem::Omitted { segment_id } if *segment_id == omitted_id),
+                "hang thu 3 (segment_id={omitted_id}, is_omitted=true) phai la PreparedBatchItem::Omitted"
+            );
+        } else {
+            assert!(
+                matches!(item, PreparedBatchItem::ToTranslate { .. }),
+                "hang thu {} khong bi cat, phai la ToTranslate",
+                i + 1
+            );
+        }
+    }
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "Omitted segment inside the selection" (nửa KHOÁ) — một lô mà MỌI segment đều
+/// `is_omitted` không được chạm khoá keychain: đo bằng cách xoá khoá đi (không lưu gì) rồi
+/// vẫn mong `Ready`, không `NotConfigured` -- nếu code đọc keychain cho lô này, nó sẽ thấy
+/// "chưa có khoá" và rơi nhầm về `NotConfigured`.
+#[test]
+fn a_batch_of_only_omitted_segments_never_reads_the_keychain() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+
+    let global_dir = temp_dir("batch-all-omitted-global");
+    let work_dir = temp_dir("batch-all-omitted-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchAllOmitted", "en", "Sentence one. Sentence two.");
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+    for id in &all_ids {
+        set_segment_omitted(Some(&open), *id, true).expect("dat co cat bo that bai");
+    }
+
+    let record = fresh_record();
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
+        .expect("prepare batch khong duoc loi");
+    match outcome {
+        PrepareBatchOutcome::Ready(items) => {
+            assert_eq!(items.len(), 2);
+            assert!(
+                items.iter().all(|i| matches!(i, PreparedBatchItem::Omitted { .. })),
+                "ca hai hang deu bi cat -- ca hai phai la Omitted"
+            );
+        }
+        PrepareBatchOutcome::NotConfigured => panic!(
+            "mot lo TOAN cau da cat khong duoc doc keychain -- khong khoa nao duoc luu nhung \
+             ket qua khong duoc la NotConfigured vi KHONG lan nao thu doc khoa"
+        ),
+    }
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "AI not configured" (áp cho lô) -- `NotConfigured` cho CẢ lô, và lựa chọn không
+/// bị chạm: không một bản ghi prompt nào được tạo cho bất kỳ segment nào trong lô.
+#[test]
+fn ai_not_configured_for_a_batch_reports_not_configured_before_any_provider_call_and_leaves_the_selection_untouched()
+ {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+
+    let global_dir = temp_dir("batch-not-configured-global");
+    let work_dir = temp_dir("batch-not-configured-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchNotConfigured", "en", "Sentence one. Sentence two.");
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    // KHONG luu khoa nao -- endpoint/model du nhung "key_configured == Some(false)".
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+
+    let record = fresh_record();
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
+        .expect("khong duoc la mot Err -- 'chua cau hinh' la mot TRANG THAI");
+    assert!(matches!(outcome, PrepareBatchOutcome::NotConfigured));
+    assert!(
+        read_last_assembled_prompt(&record).is_none(),
+        "lua chon phai VAN NGUYEN -- khong mot ban ghi prompt nao duoc tao khi chua cau hinh"
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "segment not in chapter" (áp cho LÔ) -- tái dùng ĐÚNG khoá
+/// `AiPromptSegmentNotInChapter`, cùng khoá mà lượt dịch MỘT segment dùng
+/// (`segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_key`). Ca đó
+/// chỉ canh nhánh ĐƠN -- ca dưới đây là nhánh LÔ của `prepare_batch_call`, đúng dòng `if let
+/// Some(&missing) = requested.difference(&found).next() { return Err(segment_not_in_chapter(...)) }`,
+/// với một id bịa TRỘN giữa hai id thật (không phải id bịa duy nhất trong lô).
+#[test]
+fn segment_not_in_chapter_on_a_batch_names_the_one_bogus_id_among_real_ones() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-not-in-chapter-test-key");
+
+    let global_dir = temp_dir("batch-not-in-chapter-global");
+    let work_dir = temp_dir("batch-not-in-chapter-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchNotInChapter", "en", "Sentence one. Sentence two.");
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
+        .expect("tao bo prompt");
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    let real_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+    let bogus_id = real_ids.iter().copied().max().unwrap_or(0) + 999_999;
+    // Id bia NAM GIUA hai id that -- doi chung "phan loai tung id", khong chi "danh sach dau
+    // hay cuoi bi tu choi".
+    let mixed = [real_ids[0], bogus_id, real_ids[1]];
+
+    let record = fresh_record();
+    let err = expect_prepare_batch_err(
+        prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &mixed),
+        "mot id khong thuoc Chuong dang mo phai la mot Err -- ca cho MOT LO",
+    );
+
+    assert_eq!(err.code(), "ai_prompt.segment_not_in_chapter");
+    assert_eq!(err.message_key(), MessageKey::AiPromptSegmentNotInChapter);
+    assert_eq!(err.params().get("segment_id"), Some(&bogus_id.to_string()));
+    assert!(!err.retryable());
+    assert!(
+        read_last_assembled_prompt(&record).is_none(),
+        "tu choi TRUOC khi bat ky prompt nao trong lo duoc lap -- 0 luot ghi mot phan"
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+/// I/O Matrix "Keychain refuses to answer" (áp cho LÔ) -- cùng khoá
+/// `AiConfigKeychainUnavailable` mà lượt dịch MỘT segment dùng
+/// (`keychain_refusing_to_answer_surfaces_the_existing_ai_config_keychain_unavailable_key`). Ca
+/// đó chỉ canh nhánh ĐƠN -- ca dưới đây là nhánh LÔ, đúng dòng `Err(_unavailable) => return
+/// Err(keychain_unavailable())` bên trong khối "đọc khoá MỘT LẦN cho cả lô, CHỈ KHI ít nhất
+/// một hàng cần dịch". Một hàng bị cắt (`is_omitted`), một hàng còn lại CẦN dịch -- đúng điều
+/// kiện `needs_translation` mà nhánh này canh, không phải "mọi hàng đều cần dịch".
+#[test]
+fn keychain_refusing_to_answer_on_a_batch_surfaces_the_existing_key_when_at_least_one_row_still_needs_translation()
+ {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+
+    let global_dir = temp_dir("batch-keychain-unavailable-global");
+    let work_dir = temp_dir("batch-keychain-unavailable-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchKeychainUnavailable", "en", "Sentence one. Sentence two.");
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+    set_segment_omitted(Some(&open), all_ids[0], true).expect("dat co cat bo that bai");
+
+    inject_one_shot_keychain_error();
+
+    let record = fresh_record();
+    let err = expect_prepare_batch_err(
+        prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids),
+        "keychain tu choi tra loi phai la mot Err -- ca cho MOT LO",
+    );
+
+    assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
+    assert!(err.retryable(), "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai");
+    assert!(
+        err.params().values().all(|v| v != "sk-decoy" && !v.contains("Bearer")),
+        "gia tri khoa KHONG BAO GIO duoc lot vao tham so loi"
+    );
+    assert!(
+        read_last_assembled_prompt(&record).is_none(),
+        "khoa doc TRUOC lop lap prompt dau tien -- 0 luot ghi mot phan khi keychain tu choi"
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+// ───────────────────────────────────────────────────────────────────────────────────
+// 5b. `run_batch_call` + `MultiItemProvider` -- seam ASYNC, `Channel` THẬT
+// ───────────────────────────────────────────────────────────────────────────────────
+
+/// I/O Matrix "Batch over a selection" (nửa CHẢY) -- 5 câu, mỗi sự kiện mang ĐÚNG
+/// `segment_id` của câu nó thuộc về, tới THEO THỨ TỰ tài liệu, outcome `Done`.
+#[test]
+fn batch_over_a_selection_streams_each_sentence_in_document_order_and_finishes_done() {
+    let ids = [601_i64, 602, 603, 604, 605];
+    let items: Vec<PreparedBatchItem> =
+        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let recipes = ids
+        .iter()
+        .map(|id| MultiItemRecipe {
+            tokens: vec![Box::leak(format!("token-{id}").into_boxed_str())],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        })
+        .collect();
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let (channel, received) = collecting_batch_channel();
+    let should_cancel = || false;
+
+    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        .expect("khong duoc loi");
+    assert_eq!(outcome, AiTranslateBatchOutcome::Done);
+    assert_eq!(provider.call_count.load(Ordering::SeqCst), 5);
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut expected = Vec::new();
+    for id in ids {
+        expected.push(BatchEventShape::Token { segment_id: id, text: format!("token-{id}") });
+        expected.push(BatchEventShape::Done { segment_id: id });
+    }
+    assert_eq!(got, expected, "moi su kien phai mang DUNG segment_id va toi DUNG THU TU tai lieu");
+}
+
+/// I/O Matrix "Cancel mid-batch" — batch 12, huỷ giữa lúc câu 6 đang chảy: phần dở của câu 6
+/// bị bỏ (không `Done` cho nó), câu 1-5 giữ kết quả, câu 7-12 KHÔNG BAO GIỜ được gọi (đo bằng
+/// `call_count` VÀ bằng việc `MultiItemProvider` chỉ cấp đúng 6 công thức -- gọi lần thứ 7 sẽ
+/// panic thay vì lặng lẽ trôi qua).
+#[test]
+fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_one_through_five_and_never_calls_seven_through_twelve()
+ {
+    let ids: Vec<i64> = (701..=712).collect();
+    let items: Vec<PreparedBatchItem> =
+        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+
+    let mut recipes: Vec<MultiItemRecipe> = (0..5)
+        .map(|i| MultiItemRecipe {
+            tokens: vec![Box::leak(format!("token-{}", ids[i]).into_boxed_str())],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        })
+        .collect();
+    // Cau thu 6 (chi so 5): gui DUNG mot token ROI bat co huy -- mo phong "nguoi dung bam
+    // huy dung luc cau nay dang chay".
+    recipes.push(MultiItemRecipe {
+        tokens: vec![Box::leak(format!("partial-{}", ids[5]).into_boxed_str())],
+        finish: FakeFinish::Done,
+        trigger_cancel_after_token: Some(0),
+    });
+    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let cancel_flag = Arc::clone(&provider.cancel_flag);
+    let should_cancel = move || cancel_flag.load(Ordering::SeqCst);
+    let (channel, received) = collecting_batch_channel();
+
+    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        .expect("huy giua chung phai la Ok(Cancelled), khong phai mot Err");
+    assert_eq!(outcome, AiTranslateBatchOutcome::Cancelled);
+    assert_eq!(
+        provider.call_count.load(Ordering::SeqCst),
+        6,
+        "provider chi duoc goi dung 6 lan -- cau 7-12 khong bao gio duoc goi"
+    );
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut expected = Vec::new();
+    for i in 0..5 {
+        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
+        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+    }
+    expected.push(BatchEventShape::Token { segment_id: ids[5], text: format!("partial-{}", ids[5]) });
+    assert_eq!(
+        got, expected,
+        "cau 1-5 giu ket qua DA XONG (Token+Done); cau 6 chi co Token cua phan da nhan TRUOC \
+         khi huy, KHONG mot Done nao cho no; khong su kien nao cho cau 7-12"
+    );
+}
+
+/// I/O Matrix "Error mid-batch" — provider lỗi ở câu 6/12: batch DỪNG NGAY, đặt tên đúng câu
+/// (`segment_id` trong `Err`), câu 1-5 giữ kết quả, câu 7-12 không bao giờ được gọi.
+#[test]
+fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_calls_seven_through_twelve()
+ {
+    let ids: Vec<i64> = (801..=812).collect();
+    let items: Vec<PreparedBatchItem> =
+        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+
+    let mut recipes: Vec<MultiItemRecipe> = (0..5)
+        .map(|i| MultiItemRecipe {
+            tokens: vec![Box::leak(format!("token-{}", ids[i]).into_boxed_str())],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        })
+        .collect();
+    recipes.push(MultiItemRecipe {
+        tokens: vec!["boom"],
+        finish: FakeFinish::Err(FakeProviderError("dropped".to_owned())),
+        trigger_cancel_after_token: None,
+    });
+    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let should_cancel = || false;
+    let (channel, received) = collecting_batch_channel();
+
+    let (failed_segment_id, err) =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect_err("mot loi provider phai truyen nguyen qua run_batch_call");
+
+    assert_eq!(failed_segment_id, ids[5], "loi phai dat DUNG TEN cau ma provider tra loi that bai");
+    assert_eq!(err, FakeProviderError("dropped".to_owned()));
+    assert_eq!(provider.call_count.load(Ordering::SeqCst), 6);
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut expected = Vec::new();
+    for i in 0..5 {
+        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
+        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+    }
+    expected.push(BatchEventShape::Token { segment_id: ids[5], text: "boom".to_owned() });
+    assert_eq!(got, expected, "cau 1-5 giu ket qua, cau 6 chi co Token cua phan da nhan, khong Done");
+}
+
+/// I/O Matrix "Error mid-batch" — cột Error-Handling, phần Phase 4a KHÔNG canh được
+/// (`batch_stopped_error` từng `private`, xem doc-comment tại nguồn). Ca ngay TRÊN chỉ đo được
+/// `run_batch_call` trả `Err((segment_id, P::Error))` với `P::Error` GIẢ (`FakeProviderError`)
+/// -- không một ca nào gọi ĐÚNG hàm đúc `IpcError` thật (`OpenAiClientError` thật) cho tới bản
+/// sửa này. Hai biến thể, đúng hai hàng đã có tên trong
+/// `every_openai_client_error_variant_maps_to_...` ở trên (`NonSuccessStatus` ⇒ không thử lại,
+/// `StreamEndedWithoutDone` ⇒ có thể thử lại) -- cùng phân loại, chỉ khác NHÃN
+/// (`ai_translate.batch_stopped` thay vì `ai_translate.provider_call_failed`) và mang thêm
+/// `segment_id`.
+#[test]
+fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag() {
+    let non_retryable = batch_stopped_error(842, OpenAiClientError::NonSuccessStatus { status: 500 });
+    assert_eq!(non_retryable.code(), "ai_translate.batch_stopped");
+    assert_eq!(non_retryable.message_key(), MessageKey::AiTranslateBatchStopped);
+    assert_eq!(non_retryable.params().get("segment_id"), Some(&"842".to_owned()));
+    assert!(!non_retryable.retryable(), "non-2xx khong duoc thu lai, cung phan loai voi loi don");
+
+    let retryable = batch_stopped_error(843, OpenAiClientError::StreamEndedWithoutDone);
+    assert_eq!(retryable.code(), "ai_translate.batch_stopped");
+    assert_eq!(retryable.message_key(), MessageKey::AiTranslateBatchStopped);
+    assert_eq!(retryable.params().get("segment_id"), Some(&"843".to_owned()));
+    assert!(retryable.retryable(), "rot ket noi GIUA CHUNG co the thu lai o luot bam lai");
+}
+
+/// I/O Matrix "Omitted segment inside the selection" (nửa CHẢY) — segment 3/5 mang
+/// `Omitted`: một sự kiện `Skipped` gửi cho ĐÚNG segment đó, KHÔNG một lời gọi provider nào
+/// (đo bằng `call_count` == 4, không phải 5), và lô tiếp tục sang câu 4.
+#[test]
+fn an_omitted_segment_sends_a_skipped_event_with_no_provider_call_and_the_batch_continues() {
+    let ids = [901_i64, 902, 903, 904, 905];
+    let items: Vec<PreparedBatchItem> = vec![
+        dummy_batch_item(ids[0], "Prompt 1"),
+        dummy_batch_item(ids[1], "Prompt 2"),
+        PreparedBatchItem::Omitted { segment_id: ids[2] },
+        dummy_batch_item(ids[3], "Prompt 4"),
+        dummy_batch_item(ids[4], "Prompt 5"),
+    ];
+    let recipes: Vec<MultiItemRecipe> = [ids[0], ids[1], ids[3], ids[4]]
+        .iter()
+        .map(|id| MultiItemRecipe {
+            tokens: vec![Box::leak(format!("token-{id}").into_boxed_str())],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        })
+        .collect();
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let should_cancel = || false;
+    let (channel, received) = collecting_batch_channel();
+
+    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        .expect("khong duoc loi");
+    assert_eq!(outcome, AiTranslateBatchOutcome::Done);
+    assert_eq!(
+        provider.call_count.load(Ordering::SeqCst),
+        4,
+        "segment bi cat KHONG duoc goi provider -- chi 4/5 cau that su goi provider"
+    );
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let expected = vec![
+        BatchEventShape::Token { segment_id: ids[0], text: format!("token-{}", ids[0]) },
+        BatchEventShape::Done { segment_id: ids[0] },
+        BatchEventShape::Token { segment_id: ids[1], text: format!("token-{}", ids[1]) },
+        BatchEventShape::Done { segment_id: ids[1] },
+        BatchEventShape::Skipped { segment_id: ids[2] },
+        BatchEventShape::Token { segment_id: ids[3], text: format!("token-{}", ids[3]) },
+        BatchEventShape::Done { segment_id: ids[3] },
+        BatchEventShape::Token { segment_id: ids[4], text: format!("token-{}", ids[4]) },
+        BatchEventShape::Done { segment_id: ids[4] },
+    ];
+    assert_eq!(got, expected, "Skipped phai toi DUNG vi tri, lo phai tiep tuc sang cau ke tiep");
+}
+
+/// Counter-check bằng gỡ của "between-sentence `should_cancel()`" (`aitranslate.rs:548`,
+/// §Tasks spec 4.9's Phase 4 cuối cùng) — huỷ xảy ra ĐÚNG lúc câu 1 vừa `Done` và câu 2 CHƯA
+/// bắt đầu: không một khung SSE nào đang chảy lúc đó để mà cơ chế huỷ-giữa-khung (đã có từ
+/// Story 4.8, không đổi ở đây) bắt được. Nếu vòng lặp không tự hỏi `should_cancel()` GIỮA HAI
+/// CÂU, câu 3 sẽ vẫn bị gọi dù người dùng đã bấm huỷ -- đúng câu doc-comment `run_batch_call`
+/// tự nêu. Cờ huỷ được bật NGAY TRONG hook của `Channel` thật, đúng lúc sự kiện `Done` của
+/// câu 2 được gửi -- không một `should_cancel()` nào bên trong `provider.translate` của câu 2
+/// còn dịp đọc thấy cờ TRƯỚC khi nó được bật (nó đã trả `Done` va roi khoi ham TRUOC khi hook
+/// chay), nên chỉ cơ chế GIỮA HAI CÂU của `run_batch_call` mới bắt được lượt huỷ này.
+#[test]
+fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_next_sentence() {
+    let ids = [1001_i64, 1002, 1003];
+    let items: Vec<PreparedBatchItem> = ids.iter().map(|id| dummy_batch_item(*id, "Prompt")).collect();
+    // CHI cap 2 cong thuc -- cau thu 3 KHONG DUOC goi; neu bi goi, `MultiItemProvider` panic
+    // vi vuot chi so thay vi lang le sinh su kien.
+    let recipes = vec![
+        MultiItemRecipe {
+            tokens: vec!["token-1"],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        },
+        MultiItemRecipe {
+            tokens: vec!["token-2"],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        },
+    ];
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let cancel_flag_for_should_cancel = Arc::clone(&provider.cancel_flag);
+    let should_cancel = move || cancel_flag_for_should_cancel.load(Ordering::SeqCst);
+
+    let cancel_flag_for_hook = Arc::clone(&provider.cancel_flag);
+    let second_id = ids[1];
+    let (channel, received) = collecting_batch_channel_with_hook(move |event| {
+        if *event == (BatchEventShape::Done { segment_id: second_id }) {
+            cancel_flag_for_hook.store(true, Ordering::SeqCst);
+        }
+    });
+
+    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        .expect("huy giua hai cau phai la Ok(Cancelled)");
+    assert_eq!(
+        outcome,
+        AiTranslateBatchOutcome::Cancelled,
+        "huy dung luc giua hai cau phai duoc doc lai boi VONG LAP, khong phai boi provider"
+    );
+    assert_eq!(
+        provider.call_count.load(Ordering::SeqCst),
+        2,
+        "cau thu 3 KHONG DUOC goi provider -- huy da xay ra TRUOC no bat dau, giua cau 1 va cau 2"
+    );
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let expected = vec![
+        BatchEventShape::Token { segment_id: ids[0], text: "token-1".to_owned() },
+        BatchEventShape::Done { segment_id: ids[0] },
+        BatchEventShape::Token { segment_id: ids[1], text: "token-2".to_owned() },
+        BatchEventShape::Done { segment_id: ids[1] },
+    ];
+    assert_eq!(got, expected, "cau 1 va cau 2 hoan tat sach; khong su kien nao cho cau 3");
 }

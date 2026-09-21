@@ -639,6 +639,22 @@ export type CommandDeps = {
    */
   splitChapter?: () => void
 
+  /**
+   * **Vùng chọn NHIỀU segment trong lưới** — Story 4.9, Decision 1 (Ice ký 2026-09-21): batch
+   * input là một range selection THẬT, không một "N câu kế tiếp" suy từ caret. Ba dep dưới
+   * đây tiêm handler của `segment.selection.extend_down`/`extend_up`/`clear`; cài đặt thật
+   * sống ở `src/panels/segmentSelectionState.ts` — module ĐỘC LẬP với ba dep `selection.*`
+   * ngay dưới (chọn CHỮ trong một ô, `selectionContract.ts`, Story 1.18), không cùng trục.
+   *
+   * ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `mergeSegments`: `segmentSelectionState.ts` dùng
+   * `ref`/`computed` của Vue — import thẳng nó ở đây giết Kiểm C/D/E.
+   */
+  extendSegmentSelectionDown?: () => void
+  /** Xem [`extendSegmentSelectionDown`]. Handler của `segment.selection.extend_up`. */
+  extendSegmentSelectionUp?: () => void
+  /** Xoá vùng chọn nhiều-segment. Handler của `segment.selection.clear`. */
+  clearSegmentSelection?: () => void
+
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
   /** Mở rộng vùng chọn một KÝ TỰ sang trái. Handler của `selection.extend_left`. */
@@ -944,8 +960,16 @@ export type CommandDeps = {
   cancelAiTranslate?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
    * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
-   * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. */
+   * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. Story 4.9, Phase 3 mở
+   * rộng handler THẬT ở `main.ts` để đọc thêm kết quả của một LÔ (`aiTranslateBatchState.ts`)
+   * cho câu đang có tiêu điểm — chữ ký dep ở đây không đổi (vẫn `() => void`). */
   promoteAiTranslate?: () => void
+
+  // ── Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22) ────
+  /** Dịch vùng chọn NHIỀU segment hiện tại (`segmentSelectionState.ts`) bằng bộ prompt hiệu
+   * lực đang chọn, theo THỨ TỰ TÀI LIỆU. Handler của `ai.translate.batch_run`. Cùng cổng
+   * loại-trừ-lẫn-nhau với `runAiTranslate` — xem doc-comment tại chỗ đăng ký lệnh. */
+  runAiTranslateBatch?: () => void
 
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
@@ -2436,6 +2460,62 @@ function registerAll(target: Registry, deps: CommandDeps): void {
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.9 — `segment.selection.*` (FR73, Decision 1: batch input là RANGE SELECTION)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Tiền tố `segment.selection.` cố ý KHÁC `selection.*` ngay trên (chọn CHỮ trong một ô,
+   * Story 1.18) — hai trục không chồng nhau: cái này chọn HÀNG trong lưới.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 HỢP ÂM `Mod+Shift+Arrow…`, KHÔNG `Shift+Arrow…` TRẦN NHƯ MOCKUP — đo, không gu
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `keys.ts:510` nuốt mọi hợp âm KHÔNG mang `Mod`/`Ctrl` khi tiêu điểm nằm trong một vùng gõ
+   * (`isTypingZone`), và ô bản dịch của lưới LUÔN `contenteditable`
+   * (`GridPanel.vue`, Quyết định #3(b)). Một `Shift+↓` trần sẽ CHẾT đúng chỗ người dùng cần
+   * nó nhất — đúng cái bẫy mockup `key-screen-workspace.html` viết `⇧↓` mà spec 4.9 đo ra là
+   * SAI cho kho này. Mang `Mod` đưa nó qua được luật vùng gõ, cùng khuôn `Mod+Enter`/
+   * `Mod+Alt+ArrowDown` đã có.
+   *
+   * ⚠️ Đo RẢNH trước khi đăng ký (spec 4.9, §Code Map "Chord"): `grep 'ArrowDown\|ArrowUp'`
+   * trên tệp NÀY trước lượt sửa chỉ khớp `Mod+Alt+ArrowDown` (`editor.next_untranslated`,
+   * dòng ~2542 TRƯỚC lượt sửa) — không hợp âm `Mod+Shift+Arrow…` nào tồn tại.
+   * `createKeymap` NÉM khi hai command trùng hợp âm (xem doc-comment `ai.translate.*` dưới),
+   * nên một lượt trùng ở đây sẽ sập `installCommands()` ngay lúc khởi động — Kiểm D của
+   * `check:commands` dựng CHÍNH bộ command thật trên cả hai nền tảng và sẽ bắt được nó.
+   *
+   * `segment.selection.clear` giữ `keys: undefined` — spec không đặt tên một hợp âm cho nó
+   * (§Tasks & Acceptance Phase 1), và bàn phím vẫn tới được nó qua màn hình gán phím
+   * (Story 1.21, FR22).
+   */
+  for (const [id, port, chord] of [
+    ['segment.selection.extend_down', 'extendSegmentSelectionDown', 'Mod+Shift+ArrowDown'],
+    ['segment.selection.extend_up', 'extendSegmentSelectionUp', 'Mod+Shift+ArrowUp'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: [chord],
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+  target.register({
+    id: 'segment.selection.clear',
+    labelKey: 'command.segment.selection.clear',
+    keys: undefined,
+    run: () => {
+      if (deps.clearSegmentSelection === undefined) {
+        return portMissing('segment.selection.clear', 'clearSegmentSelection')
+      }
+      deps.clearSegmentSelection()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
    * 🔴 STORY 2.5 — `editor.confirm_segment` (FR24 · AD-31 · AC5)
    * ═══════════════════════════════════════════════════════════════════════════════
    *
@@ -3483,6 +3563,34 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.translate.promote', 'promoteAiTranslate')
       }
       deps.promoteAiTranslate()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.9, PHASE 3 — `ai.translate.batch_run` (FR73, AD-22, Decision 1/2)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `keys: undefined` — cùng lý lẽ đã ghi cho `ai.translate.run`/`ai.translate.cancel` ngay
+   * trên: `Mod+Enter`/`Escape` đã bị hai command khác chiếm, và một chuỗi hợp âm còn rảnh cho
+   * riêng lệnh này là quyết định của Ice, không phải một lượt đoán. Tới được bằng nút bấm
+   * trên panel VÀ bằng màn hình gán phím (Story 1.21, FR22).
+   *
+   * `ai.translate.cancel` KHÔNG có một command riêng cho lô — §Tasks spec 4.9 Phase 3: "reuse
+   * the existing `ai.translate.cancel` for both call shapes". Cổng LOẠI TRỪ LẪN NHAU ("a batch
+   * refuses while a single run streams, and the reverse") sống trong THÂN handler thật ở
+   * `main.ts`, không ở đây — dep này chỉ là một cổng tiêm `() => void`, không biết gì về
+   * `aiTranslateState.ts`.
+   */
+  target.register({
+    id: 'ai.translate.batch_run',
+    labelKey: 'command.ai.translate.batch_run',
+    keys: undefined,
+    run: () => {
+      if (deps.runAiTranslateBatch === undefined) {
+        return portMissing('ai.translate.batch_run', 'runAiTranslateBatch')
+      }
+      deps.runAiTranslateBatch()
     },
   })
 

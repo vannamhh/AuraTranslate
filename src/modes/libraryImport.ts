@@ -60,6 +60,12 @@ import { resetAiPromptInspector } from '../aiPromptInspectorState'
 // 🔴 Story 4.8 — cùng khuyết tật và cùng bản sửa ngay trên: kết quả dịch cũng mang danh tính
 // THEO Tác phẩm, và cũng phải bị vứt ở đúng điểm nghẽn này.
 import { resetAiTranslate } from '../aiTranslateState'
+// 🔴 Story 4.9, Phase 3 — cùng khuyết tật và cùng bản sửa ngay trên: kết quả của một LÔ cũng
+// mang danh tính THEO Tác phẩm. Xem doc-comment đầu `aiTranslateBatchState.ts`.
+import { resetAiTranslateBatch } from '../aiTranslateBatchState'
+// 🔴 Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
+// khuyết tật và cùng bản sửa ngay trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
+import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -426,6 +432,12 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     resetAiPromptInspector()
     // 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên, kết quả dịch cũng mang danh tính THEO TÁC PHẨM.
     resetAiTranslate()
+    // 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh
+    // tính THEO TÁC PHẨM. Xem doc-comment tại chỗ `import`.
+    resetAiTranslateBatch()
+    // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`),
+    // cùng lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
+    resetSegmentSelection()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

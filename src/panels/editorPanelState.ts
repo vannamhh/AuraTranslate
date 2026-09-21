@@ -26,6 +26,16 @@ import type { ChapterDirection } from '../config/chapter'
 // đổi TÁC PHẨM đã làm ở `modes/libraryImport.ts`. Xem khối lý do trong [`switchChapter`].
 // ⚠️ Không vòng: `sourcePanelState.ts` chỉ import `config/*` và `i18n`, không import tệp này.
 import { ensureChapterLoaded, resetSourcePanel, sourceChapter } from './sourcePanelState'
+// 🔴 THÊM Story 4.9, Phase 3 (Decision 4, Ice ký 2026-09-21) — đo được 2026-09-21:
+// `resetAiTranslate`/`resetAiTranslateBatch` chỉ nối vào HAI cụm đổi TÁC PHẨM
+// (`modes/libraryChapters.ts`, `modes/libraryImport.ts`), nên đổi CHƯƠNG trong CÙNG một Tác
+// phẩm bỏ một lượt dịch (đơn hoặc lô) đang chạy lại streaming và tính tiền cho một Chương
+// người dùng đã rời. Không phải AC riêng của story này — đây là lỗ 4.8 để lại mà Decision 4
+// đóng CÙNG lượt sửa này (xem doc-comment [`switchChapter`] cho vị trí chính xác trong bốn
+// bước của một lượt đổi Chương). ⚠️ Không vòng: cả hai module chỉ import `vue`,
+// `./config/aitranslate` và `./i18n` — không import tệp này.
+import { resetAiTranslate } from '../aiTranslateState'
+import { resetAiTranslateBatch } from '../aiTranslateBatchState'
 import {
   confirmSegment,
   mergeSegments,
@@ -1711,6 +1721,13 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     // ⚠️ `flush.reset()` bên trong nó vứt tập chờ **vô điều kiện** — an toàn ở đây **vì** ①
     // vừa trả `'clean'`, không vì hàm ấy hiền.
     resetEditorPanel()
+
+    // 🔴 THÊM Story 4.9, Phase 3 (Decision 4) — cùng lượt vứt state của Chương CŨ, không một
+    // bước riêng: một lượt dịch AI (đơn hoặc lô) đang chạy cho Chương vừa rời phải bị HUỶ và
+    // kết quả của nó bị VỨT, đúng cách hai cụm đổi Tác phẩm đã làm từ Story 4.8/4.9 — xem
+    // doc-comment tại chỗ `import` cho lý do đây KHÔNG phải một AC riêng của story này.
+    resetAiTranslate()
+    resetAiTranslateBatch()
 
     // ═════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-18 — PANEL SOURCE PHẢI ĐI CÙNG LƯỢT NÀY

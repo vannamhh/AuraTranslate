@@ -1475,6 +1475,13 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// lại: **70 plain / 28 async** trên **mười lăm** tệp. `commands/mod.rs` nay khai **mười bốn**
 /// `pub mod`.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-21 (Story 4.9, Phase 2)** — `commands/aitranslate.rs` thêm MỘT vỏ plain
+/// nữa: `ai_translate_batch` (dịch theo lô, FR73/AD-22) — cùng lý do `ai_translate_segment` ở
+/// trên, một `async fn` LITERAL viết `#[tauri::command]` TRẦN vẫn đếm là `plain` (văn bản dòng
+/// thuộc tính, không đọc `asyncness`). Không tệp mới, không hàng `mod` mới, không hàng
+/// `blocking_wire_cases()` mới (không `(async)` nào đổi). Đếm lại: **71 plain / 28 async** trên
+/// **mười lăm** tệp — 70 + 1 = 71.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1508,18 +1515,19 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        2,
+        3,
         0,
         0,
-        "CHUA DO -- chu: Dev. Hai vo (Story 4.8, Phase 2): `ai_translate_segment` la mot `async \
-         fn` LITERAL dau tien trong kho -- than no tu spawn mot luong cua ho boi blocking roi \
-         `Handle::block_on` BEN TRONG luong do (xem doc-comment dau `commands/aitranslate.rs`), \
-         nen no KHONG giu `OpenWorkState` xuyen mot luot goi mang co the dai hang chuc giay; \
-         `ai_translate_cancel` chi bom mot `AtomicU64`. Ca hai la vo `#[tauri::command]` PLAIN \
-         ve mat CHU KY thuoc tinh -- `count_command_attrs_in` doc VAN BAN dong thuoc tinh, \
-         khong doc `asyncness` cua chu ky ham, nen mot `async fn` mang `#[tauri::command]` tran \
-         (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong bo; chua ai do chi phi cua \
-         chung tren mot lan sinh dai.",
+        "CHUA DO -- chu: Dev. Ba vo (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2): \
+         `ai_translate_segment` va `ai_translate_batch` deu la `async fn` LITERAL -- than moi \
+         ham tu spawn mot luong cua ho boi blocking roi `Handle::block_on` BEN TRONG luong do \
+         (xem doc-comment dau `commands/aitranslate.rs`), nen khong ham nao giu `OpenWorkState` \
+         xuyen mot luot goi mang co the dai hang chuc giay; `ai_translate_cancel` chi bom mot \
+         `AtomicU64`, dung CHUNG cho ca lot dich mot segment lan mot lo. Ca ba la vo \
+         `#[tauri::command]` PLAIN ve mat CHU KY thuoc tinh -- `count_command_attrs_in` doc VAN \
+         BAN dong thuoc tinh, khong doc `asyncness` cua chu ky ham, nen mot `async fn` mang \
+         `#[tauri::command]` tran (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong \
+         bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
@@ -1721,13 +1729,14 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (70, 28),
+        (71, 28),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         70/28 (do lai 2026-09-21, Story 4.8 Phase 2 them tep moi `commands/aitranslate.rs` \
-         voi hai vo plain -- `ai_translate_segment` (async fn LITERAL, van dem la plain vi cong \
-         nay doc VAN BAN dong thuoc tinh chu khong doc asyncness chu ky) va `ai_translate_cancel` \
-         -- cong MOT vo plain moi o `commands/segment.rs` (`promote_ai_translation`, AD-47①/③): \
-         67 + 2 + 1 = 70.\n\n\
+         71/28 (do lai 2026-09-21, Story 4.9 Phase 2 them MOT vo plain moi vao tep DA CO \
+         `commands/aitranslate.rs` -- `ai_translate_batch` (async fn LITERAL, dich theo lo, van \
+         dem la plain vi cong nay doc VAN BAN dong thuoc tinh chu khong doc asyncness chu ky), \
+         khong tep moi, khong `(async)` moi: 70 + 1 = 71 (70 tu lan do truoc, Story 4.8 Phase 2 \
+         them tep moi `commands/aitranslate.rs` voi hai vo plain cong MOT vo plain moi o \
+         `commands/segment.rs`: 67 + 2 + 1 = 70).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
