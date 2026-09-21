@@ -1467,6 +1467,14 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// đúng bằng mười hai tệp cũ cộng `aiprompt` mới; con số cũ mâu thuẫn với chính hunk thêm
 /// `pub mod aiprompt;` của dòng ngay trên).
 ///
+/// 🔵 **CẬP NHẬT 2026-09-21 (Story 4.8, Phase 2)** — `commands/aitranslate.rs` MỚI ra đời (hai
+/// vỏ plain — `ai_translate_segment` là một `async fn` LITERAL đầu tiên trong kho, viết
+/// `#[tauri::command]` TRẦN nên `count_command_attrs_in` (đọc VĂN BẢN dòng thuộc tính, không
+/// đọc `asyncness` chữ ký) xếp nó vào cột `plain`; `ai_translate_cancel` bơm một `AtomicU64`).
+/// `commands/segment.rs` thêm MỘT vỏ plain (`promote_ai_translation`, AD-47①/③): 14 → 15. Đếm
+/// lại: **70 plain / 28 async** trên **mười lăm** tệp. `commands/mod.rs` nay khai **mười bốn**
+/// `pub mod`.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1478,7 +1486,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
 /// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
 /// và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 14] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     (
         "src/commands/aiconfig.rs",
         5,
@@ -1497,6 +1505,21 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 14] = [
          BO Chuong qua read_open_chapter_segments, khong phai duong nong-tren-tung-cau, xem \
          doc-comment cua ham) roi ghi ban ghi cua phien, va doc lai ban ghi do; chua ai do \
          chi phi cua ca hai tren mot Chuong lon.",
+    ),
+    (
+        "src/commands/aitranslate.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Hai vo (Story 4.8, Phase 2): `ai_translate_segment` la mot `async \
+         fn` LITERAL dau tien trong kho -- than no tu spawn mot luong cua ho boi blocking roi \
+         `Handle::block_on` BEN TRONG luong do (xem doc-comment dau `commands/aitranslate.rs`), \
+         nen no KHONG giu `OpenWorkState` xuyen mot luot goi mang co the dai hang chuc giay; \
+         `ai_translate_cancel` chi bom mot `AtomicU64`. Ca hai la vo `#[tauri::command]` PLAIN \
+         ve mat CHU KY thuoc tinh -- `count_command_attrs_in` doc VAN BAN dong thuoc tinh, \
+         khong doc `asyncness` cua chu ky ham, nen mot `async fn` mang `#[tauri::command]` tran \
+         (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong bo; chua ai do chi phi cua \
+         chung tren mot lan sinh dai.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
@@ -1549,7 +1572,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 14] = [
     // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
     // do mang mot chu thich 🔴 o `:448-451` mau thuan voi bat ky loi khai "nhe" nao.
-    ("src/commands/segment.rs", 14, 0, 0, ""),
+    // 🔵 SUA 2026-09-21 (Story 4.8, Phase 2) -- 14 → 15: `promote_ai_translation` (vo PLAIN,
+    // mot cau `UPDATE` tuc thoi) them vao.
+    ("src/commands/segment.rs", 15, 0, 0, ""),
     (
         "src/lib.rs",
         2,
@@ -1696,12 +1721,13 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (67, 28),
+        (70, 28),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         67/28 (do lai 2026-09-18, Story 4.7 Phase 2 them tep moi `commands/aiprompt.rs` voi \
-         hai vo plain -- lap rap+ghi ban ghi prompt cua phien, va doc lai ban ghi do -- khong \
-         vo nao `(async)`: ca hai chi doc/ghi Store va mot Mutex trong phien, khong mo hop \
-         thoai he dieu hanh nao).\n\n\
+         70/28 (do lai 2026-09-21, Story 4.8 Phase 2 them tep moi `commands/aitranslate.rs` \
+         voi hai vo plain -- `ai_translate_segment` (async fn LITERAL, van dem la plain vi cong \
+         nay doc VAN BAN dong thuoc tinh chu khong doc asyncness chu ky) va `ai_translate_cancel` \
+         -- cong MOT vo plain moi o `commands/segment.rs` (`promote_ai_translation`, AD-47①/③): \
+         67 + 2 + 1 = 70.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -34,13 +34,19 @@
 //! VÔ ĐIỀU KIỆN cùng mọi tên `pub(crate)` khác của module, nên bản thân câu `use` đã là vi
 //! phạm, không cần đợi một lời gọi `read(...)` trần xuất hiện sau đó).
 //!
-//! Nó VẪN KHÔNG bắt được một chỗ gọi đã đặt LẠI TÊN qua `use` (`use …keychain::read as
-//! get_secret;` rồi gọi `get_secret()`) — hình dạng đó lách qua cổng bằng cách không còn
-//! đánh vần cụm `read` nhận dạng được ở chỗ gọi. Đây là một LỖ KHÁC CƠ CHẾ với lỗ brace/glob
-//! vừa đóng ở trên (bản vá 2026-09-17, rà soát), không phải cùng một lỗ — ghi ra làm nợ đã
-//! biết thay vì một cổng tự nhận là hoàn chỉnh; cùng lớp giới hạn mà `ai_boundary.rs`
-//! (§ĐIỂM MÙ CÓ TÊN — `pub use` chưa từng bị cấm) đã ghi cho chính nó. Chủ nợ này vẫn là
-//! Story 4.8 (chỗ gọi sản phẩm đầu tiên), không đóng ở đây.
+//! 🔵 **ĐÓNG 2026-09-21 (spec 4.8, Phase 1, Task 3) — `deferred-work.md:10441`.** Đoạn này
+//! từng khẳng định "VẪN KHÔNG bắt được một chỗ gọi đã đặt LẠI TÊN qua `use`
+//! (`use …keychain::read as get_secret;` rồi gọi `get_secret()`)". Đo lại, câu đó SAI cho
+//! hình dạng BARE mà chính nó nêu làm ví dụ: `"use crate::core::aiconfig::keychain::read as
+//! get_secret;"` chứa NGUYÊN VẸN chuỗi con `"keychain::read"` ngay trước khoảng trắng của
+//! `as`, và token trần đã có neo biên ĐUÔI (không phải đầu) — nó đã bị bắt từ trước bản sửa
+//! này (đối chứng không-hồi-quy:
+//! [`the_renamed_import_hole_in_deferred_work_10441_is_closed_for_the_brace_shape`]). Lỗ THẬT
+//! nằm ở dạng NGOẶC mà [`line_use_pulls_in_read_via_brace_or_glob`]'s bản trước không đóng:
+//! `use …keychain::{read as get_secret, ...};` — vị từ cũ so `item.trim() == "read"`, và
+//! `"read as get_secret"` không bằng `"read"`. Sửa: so TOKEN ĐẦU của từng phần tử sau khi
+//! tách khoảng trắng, đóng cả hai vị trí trong danh sách. Chủ nợ này giờ đã đóng ở đây, không
+//! còn ở Story 4.8's Phase 2/3.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 SÀN SỐ TỆP LÀ BẮT BUỘC — "cây rỗng đọc thành sạch"
@@ -190,7 +196,16 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
     if let Some(at) = code.find("keychain::{") {
         let after = &code[at + "keychain::{".len()..];
         let inside = after.split('}').next().unwrap_or(after);
-        if inside.split(',').any(|item| item.trim() == "read") {
+        // 🔴 SỬA (spec 4.8, Phase 1, Task 3, đóng deferred-work.md:10441) — so TOKEN ĐẦU của
+        // từng phần tử, không so BẰNG cả phần tử: `"read as get_secret"` tách bởi khoảng
+        // trắng cho token đầu là `"read"`, nên đặt lại tên qua BRACE
+        // (`keychain::{read as get_secret, configured}`) giờ vẫn bị bắt. Bản trước dùng
+        // `item.trim() == "read"`, nên đúng hình dạng này lọt qua cổng — chỗ gọi tại nơi khác
+        // trong tệp sau đó gọi `get_secret()`, một chuỗi cổng không hề tìm. Hình dạng BARE
+        // (`use …keychain::read as get_secret;`, không ngoặc) đã bị bắt từ trước — nó chứa
+        // nguyên vẹn chuỗi con `"keychain::read"` trước khoảng trắng của `as`, nên
+        // `FORBIDDEN_RAW_VALUE_TOKENS`'s neo biên ĐUÔI đã khớp nó — lỗ THẬT chỉ ở dạng NGOẶC.
+        if inside.split(',').any(|item| item.trim().split_whitespace().next() == Some("read")) {
             return Some("keychain::{read}");
         }
     }
@@ -208,6 +223,43 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
 /// `core/aiconfig2/` hay `core/aiconfig_legacy/`.
 fn is_inside_aiconfig_module(rel: &str) -> bool {
     rel == AICONFIG_DIR || rel.starts_with(&format!("{AICONFIG_DIR}/"))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spec 4.8, Phase 1, Task 3 — miễn trừ tệp DUY NHẤT cho chỗ gọi THẬT đầu tiên
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Tệp DUY NHẤT ngoài `core/aiconfig/**` được miễn trừ TRỌN VẸN khỏi cổng raw-value-accessor
+/// — chỗ gọi THẬT đầu tiên của `keychain::read`/`expose_secret` (tầng lệnh dịch một segment,
+/// spec 4.8: *"a pure function ... that resolves config, reads the key, ... calls 4.7's
+/// producer, and streams through a `Channel<T>`"*).
+///
+/// 🔴 **MIỄN TRỪ TRỌN TỆP có chủ ý ở ĐÂY** — khác bài học V4 của `ai_boundary.rs` ("a
+/// whole-file exemption was already tried and closed"), nhưng KHÔNG mâu thuẫn nó: rủi ro V4
+/// bắt là một danh sách TÊN MỞ (bất kỳ định danh nào của `core::ai::rag`) lọt qua khi miễn trừ
+/// trọn tệp — mở một đường thứ hai vào cả một MODULE. Ở đây [`FORBIDDEN_RAW_VALUE_TOKENS`] là
+/// một tập ĐÓNG đúng HAI token cụ thể (`expose_secret`, `keychain::read`), không phải một
+/// namespace — miễn trừ trọn tệp cho đúng hai token đó không mở thêm bề mặt nào khác, nó chỉ
+/// nói đúng một câu đã ký sẵn ở đầu tệp này: *"Chỗ gọi hợp lệ DUY NHẤT hôm nay là Story 4.8
+/// (`core/ai/`)"* — chỉ khác là spec 4.8's Code Map đặt chỗ gọi đó ở TẦNG LỆNH
+/// (`commands/aitranslate.rs`), không ở `core/ai/client.rs` (xem doc-comment
+/// `ports/translation_provider.rs` §`api_key` cho quyết định cùng nguồn: cổng chỉ nhận `&str`
+/// đã lộ, để chỗ gọi — không phải cổng — chịu trách nhiệm expose).
+///
+/// ⚠️ Tệp này CHƯA TỒN TẠI ở Phase 1 — cùng lý lẽ `AI_PROMPT_SEAM_COMMAND_FILE`
+/// (`ai_boundary.rs`, Story 4.7 Phase 1): `all_rust_sources()` chỉ liệt kê tệp CÓ TRÊN ĐĨA,
+/// nên miễn trừ này KHÔNG BAO GIỜ khớp cho tới khi Phase 2 tạo tệp — không phải một lỗi. Nếu
+/// Phase 2 kết luận `expose_secret`/`keychain::read` cần được gọi từ `core/ai/client.rs` THAY
+/// VÌ (hoặc THÊM) `commands/aitranslate.rs`, đó là quyết định của Phase 2 khi có mã thật để
+/// đo — nó phải thêm một hằng số miễn trừ THỨ HAI đúng khuôn này, đặt tên tệp mới, không mở
+/// rộng hằng số này theo tiền tố.
+const AI_TRANSLATE_KEYCHAIN_CALLER_FILE: &str = "commands/aitranslate.rs";
+
+/// `rel` là đúng tệp seam Phase 1 Task 3 miễn trừ — xem [`AI_TRANSLATE_KEYCHAIN_CALLER_FILE`].
+/// Khớp NGUYÊN VĂN, không theo tiền tố — cùng bài học `core/aim` mà
+/// `ai_boundary.rs::is_inside_ai_module` đã phải sửa.
+fn is_the_approved_ai_translate_keychain_caller_file(rel: &str) -> bool {
+    rel == AI_TRANSLATE_KEYCHAIN_CALLER_FILE
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -251,6 +303,12 @@ fn no_file_outside_core_aiconfig_calls_the_raw_value_accessor_of_the_api_key() {
             aiconfig_files += 1;
             continue;
         }
+        // Spec 4.8, Phase 1, Task 3 -- chỗ gọi THẬT đầu tiên, miễn trừ TRỌN TỆP có chủ ý; xem
+        // doc-comment [`AI_TRANSLATE_KEYCHAIN_CALLER_FILE`] cho lý lẽ vì sao trọn-tệp AN TOÀN
+        // ở đúng gate này (khác bài học V4 của `ai_boundary.rs`).
+        if is_the_approved_ai_translate_keychain_caller_file(rel) {
+            continue;
+        }
         for (line, code) in code_lines(text) {
             if let Some(needle) = line_names_a_forbidden_raw_value_access(code) {
                 violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
@@ -269,9 +327,10 @@ fn no_file_outside_core_aiconfig_calls_the_raw_value_accessor_of_the_api_key() {
         violations.is_empty(),
         "{} chỗ NGOÀI `core/aiconfig/**` gọi bộ truy cập giá trị THẬT của khoá API:\n{}\n\n\
          §Always spec 4.3: 'The raw-value accessor is reachable only from inside \
-         core/aiconfig/**'. Chỗ gọi hợp lệ DUY NHẤT hôm nay là Story 4.8 (`core/ai/`), và \
-         story đó chưa tồn tại — bất kỳ chỗ gọi nào khác là một vi phạm THẬT. DỪNG LẠI, đây \
-         là quyết định phạm vi của Ice, không phải một lượt vá tiện tay.",
+         core/aiconfig/**'. Chỗ gọi hợp lệ DUY NHẤT ngoài đó là `{AI_TRANSLATE_KEYCHAIN_CALLER_FILE}` \
+         (Story 4.8, Phase 1 Task 3) — tệp đó chưa tồn tại hôm nay, nên bất kỳ chỗ gọi nào \
+         KHÁC là một vi phạm THẬT. DỪNG LẠI, đây là quyết định phạm vi của Ice, không phải một \
+         lượt vá tiện tay.",
         violations.len(),
         violations.join("\n")
     );
@@ -397,6 +456,95 @@ fn the_brace_or_glob_use_check_would_actually_flag_a_seeded_violation_and_ignore
         None,
         "DO OAN: `ready_flag` la mot dinh danh KHAC voi `read`, khong duoc bi bat"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Spec 4.8, Phase 1, Task 3 — đóng lỗ đặt-lại-tên qua BRACE (`deferred-work.md:10441`)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 Đóng `deferred-work.md:10441` cho ĐÚNG hình dạng còn hở: `use
+/// …keychain::{read as get_secret, ...};` — một `use` BRACE đặt lại tên `read` qua `as`. Hình
+/// dạng BARE tương đương (`use …keychain::read as get_secret;`, không ngoặc) đã bị bắt từ
+/// trước bản sửa này — nó chứa nguyên vẹn chuỗi con `"keychain::read"` ngay trước khoảng
+/// trắng của `as`, và `FORBIDDEN_RAW_VALUE_TOKENS`'s neo biên ĐUÔI (không phải đầu) đã khớp
+/// nó; đo được bằng ca đầu tiên dưới đây, giữ nguyên KHÔNG đổi qua bản sửa. Lỗ THẬT nằm ở
+/// dạng NGOẶC: `item.trim() == "read"` (bản trước [`line_use_pulls_in_read_via_brace_or_glob`])
+/// không khớp chuỗi `"read as get_secret"`, nên nếu chỗ gọi thật viết vậy rồi gọi
+/// `get_secret()` ở một dòng khác, KHÔNG dòng nào trong cả tệp còn mang một trong hai
+/// [`FORBIDDEN_RAW_VALUE_TOKENS`] — cổng xanh trong khi vi phạm tồn tại, đúng nguyên văn tóm
+/// tắt của `deferred-work.md:10441`.
+#[test]
+fn the_renamed_import_hole_in_deferred_work_10441_is_closed_for_the_brace_shape() {
+    // Ca DƯƠNG THẬT thứ nhất — hình dạng BARE (không ngoặc) ĐÃ bị bắt từ trước bản sửa này;
+    // giữ lại như một đối chứng KHÔNG HỒI QUY, không phải một khẳng định mới.
+    assert_eq!(
+        line_names_a_forbidden_raw_value_access(
+            "use crate::core::aiconfig::keychain::read as get_secret;"
+        ),
+        Some("keychain::read"),
+        "hình dạng BARE (không ngoặc) của use...as đã bị bắt từ trước bản sửa 10441 — không          được hồi quy"
+    );
+
+    // Ca DƯƠNG THẬT thứ hai — hình dạng NGOẶC, `read as alias` đứng ĐẦU danh sách. Đây là ca
+    // mà bản TRƯỚC bản sửa này bỏ lọt.
+    assert_eq!(
+        line_names_a_forbidden_raw_value_access(
+            "use crate::core::aiconfig::keychain::{read as get_secret, configured};"
+        ),
+        Some("keychain::{read}"),
+        "10441: use...as dang NGOAC (read as get_secret) phai bi bat -- day dung hinh \
+         dang cong bo bi lot truoc ban sua nay"
+    );
+
+    // Ca DƯƠNG THẬT thứ ba — hình dạng NGOẶC, `read as alias` đứng CUỐI danh sách.
+    assert_eq!(
+        line_names_a_forbidden_raw_value_access(
+            "use super::keychain::{configured, delete, read as fetch};"
+        ),
+        Some("keychain::{read}"),
+        "10441: use...as dang NGOAC o CUOI danh sach cung phai bi bat"
+    );
+
+    // Ca ÂM — một định danh KHÁC mang `read` làm tiền tố, dù có `as`, không được bắt oan (so
+    // TOKEN ĐẦU sau khi tách khoảng trắng, không phải `contains`/`starts_with`).
+    assert_eq!(
+        line_names_a_forbidden_raw_value_access(
+            "use super::keychain::{ready_flag as rf, configured};"
+        ),
+        None,
+        "ĐỎ OAN: `ready_flag` là một định danh KHÁC với `read`, dù đổi tên qua `as`, không          được bị bắt"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Spec 4.8, Phase 1, Task 3 — miễn trừ tệp mới khớp HẸP, không khớp hàng xóm
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Đối chứng dương + âm cho [`is_the_approved_ai_translate_keychain_caller_file`] — cùng
+/// khuôn `ai_boundary.rs::the_third_approved_seam_is_matched_narrowly_and_neighbours_are_not`:
+/// khớp CHÍNH XÁC đường dẫn Task 3 đặt tên, và KHÔNG khớp một hàng xóm gần giống (cùng lớp
+/// lỗi XANH GIẢ mà `core/aim` đã bị bắt một lần cho `ai_boundary.rs::is_inside_ai_module`).
+#[test]
+fn the_new_caller_exemption_is_matched_narrowly_and_neighbours_are_not() {
+    assert!(
+        is_the_approved_ai_translate_keychain_caller_file(AI_TRANSLATE_KEYCHAIN_CALLER_FILE),
+        "ca dương thật: đúng đường dẫn Task 3 đặt tên phải khớp"
+    );
+    for hang_xom in [
+        "commands/aitranslate2.rs",
+        "commands/aitranslateset.rs",
+        "commands/aitranslate/mod.rs",
+        "commands/aitranslate_test.rs",
+        "core/commands/aitranslate.rs",
+        "commands/aitranslate.rs.bak",
+        "commands/aiprompt.rs",
+        "core/ai/client.rs",
+    ] {
+        assert!(
+            !is_the_approved_ai_translate_keychain_caller_file(hang_xom),
+            "XANH OAN: {hang_xom:?} là một tệp HÀNG XÓM, không phải đúng tệp Task 3 đặt tên --              một hằng số khớp theo tiền tố sẽ tha oan nó, đúng khuyết tật `core/aim`"
+        );
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

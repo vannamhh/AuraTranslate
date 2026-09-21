@@ -2069,6 +2069,68 @@ pub const TRANSLATION_ORIGINS: [&str; 4] = [
     TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
 ];
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 4.8, Phase 2 — lượt PROMOTE một kết quả AI vào Editor (AD-47①, AD-47③, `⌘⇧↵`)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Kết quả một lượt PROMOTE — thứ đi ra qua dây. Story 4.8 (FR72, AD-47①/③).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PromoteAiTranslationOutcome {
+    /// Segment vừa được ghi.
+    pub segment_id: i64,
+    /// Văn bản vừa ghi — webview mirror lại bằng `replaceEditorSegment` (§Code Map spec 4.8:
+    /// "that mirror is not cosmetic — the confirm baseline is read from the loaded snapshot").
+    pub target_text: String,
+    /// Luôn `TRANSLATION_ORIGIN_OTHER` khi `Ok` — trả lại để webview không phải tự nhớ hằng số
+    /// này, cùng khuôn mọi outcome khác của tệp này trả nguyên trạng thái SAU lượt ghi.
+    pub translation_origin: String,
+}
+
+/// Ghi một kết quả AI vào `target_text` **và** đặt `translation_origin = TRANSLATION_ORIGIN_OTHER`
+/// trong **MỘT** câu `UPDATE` — Story 4.8, AD-47①. Đây là chỗ ghi RIÊNG của đường promote
+/// (§Code Map spec 4.8: "the promote path therefore needs its own write, not a reuse of
+/// `save_segment_targets`") — ba writer `target_text` đã có (`save_segment_targets`,
+/// `flush_segment_targets`, `restore_segment_version`) đều cố ý để nguyên `translation_origin`,
+/// vì cả ba đều ghi văn bản NGƯỜI DÙNG gõ hoặc một bản chép CŨ của chính người dùng; dùng lại
+/// một trong ba cho một văn bản MÔ HÌNH sinh ra sẽ đóng dấu tên người dịch lên câu của AI.
+///
+/// 🔴 **Đây là một lượt ghi non-user, dưới AD-47①** — nó KHÔNG đọc `text_at_load` để phân xử
+/// `self`/giữ nguyên như [`confirm_segment`] làm: mốc so của FR117 không áp dụng ở đây, vì lượt
+/// này không phải một lượt XÁC NHẬN, nó là lượt THAY THẾ nội dung bằng đề xuất của AI — AD-47③
+/// đã CHỐT sẵn giá trị xuất xứ cho đúng cơ chế này (*"Đưa đề xuất AI sang Editor"* → **người
+/// khác dịch**), không có nhánh thứ hai để mà phân xử.
+///
+/// # Lỗi
+/// - chưa có Tác phẩm nào đang mở ⇒ `work.none_open`;
+/// - `segment_id` không có trong `project.db` của Tác phẩm đang mở ⇒ `segment.not_found`
+///   (`0` hàng bị `UPDATE` chạm tới).
+pub fn promote_ai_translation(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    target_text: &str,
+) -> Result<PromoteAiTranslationOutcome, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let payload = target_text.to_owned();
+    let changed = open.store.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "UPDATE segment SET target_text = ?1, translation_origin = ?2, \
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?3",
+            (&payload, TRANSLATION_ORIGIN_OTHER, segment_id),
+        )
+    })?;
+
+    if changed == 0 {
+        return Err(segment_not_found(segment_id));
+    }
+
+    Ok(PromoteAiTranslationOutcome {
+        segment_id,
+        target_text: target_text.to_owned(),
+        translation_origin: TRANSLATION_ORIGIN_OTHER.to_owned(),
+    })
+}
+
 /// Kết quả một lượt xác nhận — thứ đi ra qua dây. Story 2.5, AC2 · AC13.
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
@@ -3379,9 +3441,9 @@ fn ket_qua_regroup(
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
-        ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome, SaveOutcome,
-        ReadingMark, ReadingRun, RegroupOutcome, RestoreOutcome, SegmentTargetEdit, SegmentVersionRow,
-        SplitOutcome,
+        ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome,
+        PromoteAiTranslationOutcome, SaveOutcome, ReadingMark, ReadingRun, RegroupOutcome,
+        RestoreOutcome, SegmentTargetEdit, SegmentVersionRow, SplitOutcome,
     };
     use crate::commands::project::OpenWorkState;
 
@@ -3692,6 +3754,36 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::restore_segment_version(guard.as_ref(), segment_id, version_id, force)
+    }
+
+    /// Vỏ IPC của [`super::promote_ai_translation`]. Story 4.8 · FR72 · AD-47①/③.
+    ///
+    /// ⚠️ Hai tham số đi trên dây dưới tên **`segmentId`** · **`targetText`** — `invoke()` gửi
+    /// tham số ở dạng camelCase. Trường của [`PromoteAiTranslationOutcome`] **trả về** giữ
+    /// `snake_case`.
+    ///
+    /// ⚠️ **Nghĩa vụ của tầng gọi:** đây là lượt ghi non-user (AD-47①) — nó KHÔNG đọc bộ đệm
+    /// gõ dở của Editor, nên không có "flush trước" nào cần đợi ở đây (khác
+    /// `restore_segment_version`/`merge_segments`). Phía webview mirror kết quả bằng
+    /// `replaceEditorSegment` NGAY sau lượt gọi này thành công — đó là nửa còn lại của AD-47①(a)
+    /// (§Code Map spec 4.8), không phải việc của vỏ Rust.
+    ///
+    /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho.
+    #[tauri::command]
+    pub fn promote_ai_translation(
+        app: tauri::AppHandle,
+        segment_id: i64,
+        target_text: String,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::promote_ai_translation(None, segment_id, &target_text);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::promote_ai_translation(guard.as_ref(), segment_id, &target_text)
     }
 
     /// Vỏ IPC của [`super::merge_segments`]. Story 2.8 · FR78 · AD-5 · AC1.

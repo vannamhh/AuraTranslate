@@ -309,7 +309,7 @@ jobs:
       # ═══════════════════════════════════════════════════════════════════════════════
       #
       # 🔴 Vì sao bước RIÊNG này, không nằm trong `cargo test --locked` ở trên (finding
-      # V3, loop 1): `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_
+      # V3, loop 1): `deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_
       # tree_compiling` (`src-tauri/tests/ai_boundary.rs`) là `#[ignore]`d có chủ ý — nó
       # CHÉP TOÀN BỘ `src-tauri/` sang một thư mục tạm rồi chạy MỘT `cargo check` THỨ HAI
       # trên bản chép đã xoá `core/ai/` — đắt hơn hẳn một `assert!` thường, đúng khuôn
@@ -332,14 +332,14 @@ jobs:
       # code trần của `cargo test`. `shell: bash` tường minh vì bước này chạy trên CẢ
       # macOS lẫn Windows (Windows dùng bash của Git for Windows, đúng cách bước
       # `tauri build (macOS — .dmg)` ở trên đã làm cho nền tảng của nó).
-      - name: FR77 — xoá core/ai/ + hai seam đã duyệt vẫn để phần còn lại của cây biên dịch
+      - name: FR77 — xoá core/ai/ + ba seam đã duyệt vẫn để phần còn lại của cây biên dịch
         shell: bash
         run: |
           set -euo pipefail
           OUT="${RUNNER_TEMP:-/tmp}/fr77_control_output.txt"
           cargo test --test ai_boundary --locked --manifest-path src-tauri/Cargo.toml -- \
             --ignored --exact \
-            deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling \
+            deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_compiling \
             2>&1 | tee "$OUT"
           if ! grep -q '^running 1 test$' "$OUT"; then
             echo "::error::FR77 — bộ lọc --exact khớp 0 ca (\"running 0 tests\" thay vì \"running 1 test\"): tên ca đã đổi hoặc bị xoá, cổng đối chứng dương AD-13 đang bị vô hiệu hoá trong im lặng thay vì chạy." >&2

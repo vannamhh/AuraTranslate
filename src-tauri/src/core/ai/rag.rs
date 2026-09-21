@@ -336,15 +336,30 @@ fn push_piece(out: &mut String, pieces: &mut Vec<PromptPiece>, kind: PromptPiece
     pieces.push(PromptPiece { kind, text: s.to_owned() });
 }
 
-/// Gỡ MỘT điểm mã cuối khỏi CẢ `out` lẫn mảnh cuối của `pieces` — dùng bởi lượt co dòng trắng
-/// liền kề (Quyết định 3, "LOCAL") của [`expand_prompt_body`]. Điểm mã bị gỡ luôn là `'\n'` do
-/// chính thân prompt gõ ra (xem doc-comment tại nơi gọi) — nghĩa là mảnh cuối luôn mang nhãn
+/// Gỡ MỘT dấu xuống dòng cuối khỏi CẢ `out` lẫn mảnh cuối của `pieces` — dùng bởi lượt co dòng
+/// trắng liền kề (Quyết định 3, "LOCAL") của [`expand_prompt_body`]. Dòng bị gỡ luôn do chính
+/// thân prompt gõ ra (xem doc-comment tại nơi gọi) — nghĩa là mảnh cuối luôn mang nhãn
 /// `Authored` tại điểm gọi này; hàm vẫn viết tổng quát (không giả định nhãn) để không âm thầm
 /// đúng nhờ một điều kiện chưa được đặt tên.
+///
+/// 🔵 **SỬA 2026-09-21 (Story 4.8) — gỡ `"\r\n"` trọn vẹn khi có, không chỉ `'\n'`
+/// (`deferred-work.md:10653`).** Bản trước gọi `out.pop()` đúng MỘT điểm mã, đúng khi thân
+/// dùng LF trần. Với thân CRLF (Story 4.5 nhập `.prompt.md` soạn trên Windows), dòng trắng mà
+/// `out` vừa ghi kết bằng `"\r\n"`; gỡ đúng một điểm mã chỉ lấy đi `'\n'` và để lại một `'\r'`
+/// mồ côi làm đuôi `out` — byte đó đi thẳng ra dây (Story 4.8 là lượt đầu tiên gửi các byte
+/// này cho nhà cung cấp). Sửa ở ĐÚNG hàm gỡ dòng, không chuẩn hoá tại chỗ gửi (spec 4.8 §Code
+/// Map: *"fix it where it is, do not normalise at the send"*).
 fn pop_piece(out: &mut String, pieces: &mut Vec<PromptPiece>) {
     out.pop();
+    let also_pop_cr = out.ends_with('\r');
+    if also_pop_cr {
+        out.pop();
+    }
     if let Some(last) = pieces.last_mut() {
         last.text.pop();
+        if also_pop_cr {
+            last.text.pop();
+        }
         if last.text.is_empty() {
             pieces.pop();
         }

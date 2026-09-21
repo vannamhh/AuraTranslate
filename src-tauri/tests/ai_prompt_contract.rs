@@ -817,10 +817,17 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
             "prompt_set_name",
             "prompt_set_tier",
             "ledger",
+            // THEM Story 4.8, Phase 2 -- su that DA GUI, ca hai `None` o day vi luot goi nay la
+            // mot lot LAP RAP, khong phai mot lot GUI (Quyet dinh 2, spec 4.8; xem doc-comment
+            // `AssembledPromptRecord::sent_at`/`sent_model`).
+            "sent_at",
+            "sent_model",
         ]),
         "TEN TRUONG cap AssembledPromptWire tren day that -- mot truong bi doi ten/them/bot \
          khong duoc mot ca nao khac trong tep nay bat, vi tat ca so tren gia tri Rust da giai ma"
     );
+    assert_eq!(json["sent_at"], serde_json::json!(null));
+    assert_eq!(json["sent_model"], serde_json::json!(null));
     assert_eq!(json["prompt_set_tier"], serde_json::json!("global"));
 
     let ledger = &json["ledger"];

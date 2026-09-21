@@ -759,6 +759,25 @@ message_keys! {
     /// này lạ — cùng luật "hai sự thật khác nhau, hai khoá khác nhau" mà `SegmentEndsChapter`
     /// đã ghi khi nó không mượn `SegmentRetired`.
     AiPromptSegmentNotInChapter => "err.ai_prompt.segment_not_in_chapter" ["segment_id", "chapter_id"],
+
+    // ── Story 4.8 (FR72/FR74, AD-22) — HAI khoá MỚI, ba ca tái dùng ─────────────────
+    //
+    // Bề mặt IPC `commands::aitranslate` (dịch một segment với kết quả chảy dần). Ba trong năm
+    // hàng từ chối của I/O Matrix spec 4.8 tái dùng khoá ĐÃ CÓ: "No Work, or an id the chapter
+    // does not hold" ⇒ `work.none_open`/`ai_prompt.segment_not_in_chapter` (tái dùng ĐÚNG hàm
+    // `commands::aiprompt::segment_not_in_chapter`, không một khoá thứ hai cho cùng câu);
+    // "Keychain refuses to answer" ⇒ `ai_config.keychain_unavailable` (Story 4.3). Hai khoá
+    // dưới đây phủ đúng hai sự thật RIÊNG mà không khoá nào ở trên nói được.
+    /// Segment mang `is_omitted == true` — bị từ chối TRƯỚC khi request được dựng (§Always
+    /// spec 4.8: "never sent to a provider, checked before the request is built").
+    AiTranslateSegmentOmitted => "err.ai_translate.segment_omitted" ["segment_id"],
+    /// Provider trả lỗi mạng/HTTP/khung SSE hỏng (`core::ai::client::OpenAiClientError`, chẩn
+    /// đoán CỤ THỂ nằm ở `Display` của kiểu đó, không dấu, cho log) — khoá này là NHÃN duy nhất
+    /// qua IPC cho toàn bộ họ lỗi đó. KHÔNG tham số bắt buộc: `status` (khi có, ca non-2xx)
+    /// đi kèm như dữ liệu chẩn đoán THỪA, không một placeholder trong câu (§Never spec 4.8:
+    /// "no error-copy catalogue ... this story produces the error state and an `IpcError`-
+    /// shaped failure" — Story 4.10 sở hữu văn bản/nút thử lại riêng cho từng nguyên nhân).
+    AiTranslateProviderCallFailed => "err.ai_translate.provider_call_failed" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

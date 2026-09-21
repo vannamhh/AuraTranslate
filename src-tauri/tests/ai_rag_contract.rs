@@ -829,6 +829,74 @@ fn blank_lines_untouched_by_any_removal_survive_verbatim() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// `deferred-work.md:10653` (spec 4.8, Phase 4) — đối chứng THƯỜNG TRỰC cho bản sửa CRLF của
+// `pop_piece` (Story 4.8, Phase 2a). Phase 2a tự ghi: bản sửa được đối chứng bằng một ca
+// revert-rồi-xác-nhận-đỏ THẬT rồi XOÁ ca đó, đúng nhận xét "không task nào đặt tên một nơi ở
+// lại thường trực cho nó" — món nợ đã hấp thụ (`deferred-work.md:10653`) vì thế ĐÓNG mà KHÔNG
+// canh gì cả cho tới hai ca dưới đây.
+//
+// ⚠️ **`pop_piece` là `fn` riêng tư của module, không `pub`** — hai ca dưới đây canh nó GIÁN
+// TIẾP qua `assemble_prompt` (chỗ gọi DUY NHẤT của nó), đúng khuôn mọi ca khác của tệp này.
+// `pop_piece` "bỏ `'\r'` khỏi mảnh `pieces` DỰA VÀO những gì `out` kết thúc, không dựa vào
+// những gì CHÍNH mảnh đó kết thúc" (Phase 2b, Implementation Notes spec 4.8) — hai điều đó có
+// thể lệch nhau nếu một `'\r'` và `'\n'` của nó rơi vào HAI mảnh khác nhau. Đo tay (xem
+// doc-comment từng ca): cả hai kịch bản CRLF thực tế `expand_prompt_body` tạo ra đều giữ
+// nguyên mảnh cuối cùng khớp đuôi `out` — khả năng lệch mà Phase 2b nêu chưa được chứng minh
+// ĐẠT ĐƯỢC ở đây (cũng như chưa từng được chứng minh loại trừ); hai ca dưới đây là hàng rào
+// THƯỜNG TRỰC, không phải một chứng minh đã đóng câu hỏi đó.
+
+/// CRLF, phiên bản của [`removing_a_marker_alone_on_its_line_collapses_two_blank_lines_it_creates_into_one`]
+/// — trước bản sửa CRLF, `pop_piece` chỉ gỡ đúng MỘT điểm mã (`out.pop()`), nên một dòng trắng
+/// CRLF vừa gộp để lại một `'\r'` mồ côi làm đuôi `prompt` (byte đó sẽ đi thẳng ra dây — Story
+/// 4.8 là lượt đầu tiên gửi các byte này cho một nhà cung cấp).
+#[test]
+fn removing_a_marker_alone_on_its_line_over_crlf_leaves_no_orphan_carriage_return() {
+    let body = "Before.\r\n\r\n{{tm_similar_segments}}\r\n\r\nAfter.";
+    let (prompt, ledger) =
+        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    assert_eq!(
+        prompt, "Before.\r\n\r\nAfter.",
+        "go dong marker CRLF dua hai dong trang lai gan nhau -- phai con DUNG MOT dong trang, \
+         khong mot '\\r' mo coi lam duoi (deferred-work.md:10653)"
+    );
+    assert!(
+        !prompt.replace("\r\n", "").contains('\r'),
+        "moi '\\r' phai di kem dung mot '\\n' ngay sau -- khong '\\r' mo coi: {prompt:?}"
+    );
+
+    // Nửa thứ hai `deferred-work.md:10653` đòi: `pieces` vẫn nối lại ĐÚNG `prompt`, từng byte,
+    // trên một thân CRLF -- không chỉ đúng bằng `debug_assert_eq!` nội bộ (không chạy ở
+    // release) mà bằng một đối chứng NGOÀI, thường trực.
+    let reconstructed: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
+    assert_eq!(
+        reconstructed, prompt,
+        "pieces phai noi lai DUNG prompt TUNG BYTE tren mot than CRLF"
+    );
+}
+
+/// CRLF, phiên bản của [`two_adjacent_marker_only_lines_between_two_blank_lines_collapse_to_one_blank_line`]
+/// — HAI lượt `pop_piece` LIÊN TIẾP trên cùng một thân CRLF (marker rỗng thứ hai không tạo
+/// mảnh `Authored` mới vì phần "trước marker" của nó rỗng, nên mảnh CUỐI mà lượt `pop_piece`
+/// thứ hai thao tác là mảnh mà lượt ĐẦU đã để lại — đây đúng hình dạng mà Phase 2b nêu tên có
+/// thể làm `out`/mảnh cuối lệch nhau, đo tay ở đây và xác nhận KHÔNG lệch trên kịch bản này).
+#[test]
+fn two_adjacent_marker_only_lines_over_crlf_collapse_without_orphan_carriage_return() {
+    let body = "A\r\n\r\n{{glossary_terms}}\r\n{{tm_similar_segments}}\r\n\r\nB";
+    let (prompt, ledger) =
+        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    assert_eq!(
+        prompt, "A\r\n\r\nB",
+        "hai dong CHI CO marker CRLF lien tiep phai co lai thanh DUNG MOT dong trang, khong \
+         mot '\\r' mo coi (deferred-work.md:10653)"
+    );
+    let reconstructed: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
+    assert_eq!(
+        reconstructed, prompt,
+        "pieces phai noi lai DUNG prompt TUNG BYTE qua CA HAI luot pop_piece lien tiep"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // AC — gọi hai lần cho cùng đầu vào ⇒ hai prompt byte-for-byte, ledger cùng thứ tự
 // ═════════════════════════════════════════════════════════════════════════════════
 

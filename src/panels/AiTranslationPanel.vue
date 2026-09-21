@@ -56,6 +56,13 @@ import {
   glossaryInjectionSummary,
   refreshAiPromptRecord,
 } from '../aiPromptInspectorState'
+import {
+  aiTranslateAccumulatedText,
+  aiTranslateError,
+  aiTranslateRunSegmentId,
+  aiTranslateStateValue,
+  isAiTranslateResultStale,
+} from '../aiTranslateState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -128,6 +135,27 @@ const isRecordStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptReco
  * điểm vào câu nào. Vô hiệu hoá nút Lắp ở ĐÂY (chỗ BIẾT trước), không dựa vào lưới phòng thủ
  * "kêu, không ném" của `assembleCurrentAiPrompt` — hai lớp, không chỉ một. */
 const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 4.8 — DỊCH THẬT + HUỶ + ĐƯA SANG BẢN DỊCH (FR72/FR74, AD-22, AD-47①/③)
+// ─────────────────────────────────────────────────────────────────────────────────
+// Cùng khuôn khối Story 4.7 ngay trên: vô hiệu hoá nút ở CHỖ BIẾT TRƯỚC, hai lớp cùng lưới
+// "kêu, không ném" của `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate` (`main.ts`).
+const canRunAiTranslate = computed<boolean>(
+  () => editorCaretSegmentId.value !== null && aiTranslateStateValue.value !== 'generating',
+)
+const canCancelAiTranslate = computed<boolean>(() => aiTranslateStateValue.value === 'generating')
+/** I/O Matrix spec 4.8 "Promote the result": `done`/`cancelled` VÀ văn bản không rỗng. */
+const canPromoteAiTranslate = computed<boolean>(
+  () =>
+    (aiTranslateStateValue.value === 'done' || aiTranslateStateValue.value === 'cancelled') &&
+    aiTranslateAccumulatedText.value !== '',
+)
+/** `true` ⇔ kết quả đang hiện được dịch cho một câu KHÁC câu đang có tiêu điểm bây giờ — cùng
+ * khuôn [`isRecordStale`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
+const isAiTranslateStale = computed<boolean>(() =>
+  isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorCaretSegmentId.value),
+)
 </script>
 
 <template>
@@ -201,7 +229,72 @@ const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
         </button>
       </div>
     </div>
-    <div ref="surface" class="ai-surface"></div>
+    <div ref="surface" class="ai-surface">
+      <div class="ai-translate-actions">
+        <button
+          type="button"
+          class="ai-translate-run"
+          data-ai-translate-run
+          :disabled="!canRunAiTranslate"
+          @click="dispatch('ai.translate.run')"
+        >
+          {{ t('command.ai.translate.run') }}
+        </button>
+        <button
+          type="button"
+          class="ai-translate-cancel"
+          data-ai-translate-cancel
+          :disabled="!canCancelAiTranslate"
+          @click="dispatch('ai.translate.cancel')"
+        >
+          {{ t('command.ai.translate.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="ai-translate-promote"
+          data-ai-translate-promote
+          :disabled="!canPromoteAiTranslate"
+          @click="dispatch('ai.translate.promote')"
+        >
+          {{ t('command.ai.translate.promote') }}
+        </button>
+      </div>
+      <p v-if="!canAssemble" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
+      <p v-if="aiTranslateStateValue === 'generating'" class="ai-translate-status" data-ai-translate-state="generating">
+        {{ t('panel.ai_translation.state_generating') }}
+      </p>
+      <p
+        v-else-if="aiTranslateStateValue === 'cancelled'"
+        class="ai-translate-status"
+        data-ai-translate-state="cancelled"
+      >
+        {{ t('panel.ai_translation.state_cancelled') }}
+      </p>
+      <p
+        v-else-if="aiTranslateStateValue === 'not_configured' && aiTranslateRunSegmentId !== null"
+        class="ai-translate-status"
+        data-ai-translate-state="not_configured"
+      >
+        {{ t('panel.ai_translation.status') }}
+      </p>
+      <p v-if="aiTranslateStateValue === 'error' && aiTranslateError !== null" class="ai-translate-alert" role="alert">
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(aiTranslateError) }}
+      </p>
+      <p v-if="isAiTranslateStale && aiTranslateAccumulatedText !== ''" class="ai-translate-stale" role="status" data-ai-translate-stale-notice>
+        <!-- aura-allow-text: KẾT QUẢ của t() (nội suy hai số câu). -->
+        {{
+          t('ai.translate.stale_notice', {
+            record_segment_id: String(aiTranslateRunSegmentId),
+            focused_segment_id: String(editorCaretSegmentId ?? ''),
+          })
+        }}
+      </p>
+      <p v-if="aiTranslateAccumulatedText !== ''" class="ai-translate-text" data-ai-translate-text>
+        <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
+        {{ aiTranslateAccumulatedText }}
+      </p>
+    </div>
   </PanelFrame>
 </template>
 
@@ -318,5 +411,69 @@ const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
 .ai-surface {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  overflow-y: auto;
+}
+
+/* Story 4.8 — nút Dịch/Huỷ/Đưa sang bản dịch. */
+.ai-translate-actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 3);
+}
+
+.ai-translate-run,
+.ai-translate-cancel,
+.ai-translate-promote {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-translate-run:disabled,
+.ai-translate-cancel:disabled,
+.ai-translate-promote:disabled {
+  cursor: default;
+  color: var(--color-on-surface-variant);
+}
+
+.ai-translate-hint,
+.ai-translate-status {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-translate-alert,
+.ai-translate-stale {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+/* Văn bản AI chảy dần — cùng token `editor` mà `GridPanel.vue` dùng cho bản dịch trong Editor
+   (DESIGN.md: "Bản dịch trong Editor", 15px/1,95): đây LÀ một bản dịch, chỉ chưa được đưa vào
+   Editor. Giữ nguyên xuống dòng của chính nó (AD-16: không `v-html`, đây vẫn là một text node
+   thuần, chỉ CSS đổi cách trình bày khoảng trắng). */
+.ai-translate-text {
+  margin: 0;
+  font-family: var(--face-editor);
+  font-size: var(--font-editor);
+  line-height: var(--leading-editor);
+  color: var(--color-on-surface);
+  white-space: pre-wrap;
 }
 </style>

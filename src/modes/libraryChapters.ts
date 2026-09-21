@@ -59,6 +59,10 @@ import { resetReading, resetReadingToc } from './readingState'
 // không đợi ai mở lớp phủ Xem prompt để kích một lượt Đọc mới. Không vứt ở đây thì dòng tóm
 // tắt tiếp tục mô tả Tác phẩm VỪA RỜI đi cho tới khi người dùng tình cờ mở lớp phủ.
 import { resetAiPromptInspector } from '../aiPromptInspectorState'
+// 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên: kết quả dịch mang danh tính THEO Tác phẩm
+// (`aiTranslateState.ts::runSegmentId` chỉ có nghĩa trong `project.db` đang mở). Không vứt ở
+// đây thì `.ai-surface` tiếp tục hiện bản dịch của Tác phẩm VỪA RỜI dưới nhãn Tác phẩm mới.
+import { resetAiTranslate } from '../aiTranslateState'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -289,6 +293,9 @@ export async function openWorkById(workId: string): Promise<void> {
   // 🔴 THÊM Story 4.7 loop 2, finding P4 — bản ghi prompt đã lắp mang danh tính THEO TÁC PHẨM
   // (segment_id/chapter_id), cùng lý lẽ bốn/sáu lượt vứt trên; xem doc-comment tại chỗ `import`.
   resetAiPromptInspector()
+  // 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên, kết quả dịch cũng mang danh tính THEO TÁC PHẨM;
+  // xem doc-comment tại chỗ `import`.
+  resetAiTranslate()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

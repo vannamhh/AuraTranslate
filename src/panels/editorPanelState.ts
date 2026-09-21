@@ -29,6 +29,7 @@ import { ensureChapterLoaded, resetSourcePanel, sourceChapter } from './sourcePa
 import {
   confirmSegment,
   mergeSegments,
+  promoteAiTranslation,
   readOpenChapterSegments,
   saveChapterPosition,
   saveSegmentTargets,
@@ -254,6 +255,48 @@ export function replaceEditorSegment(
   const next = [...segments.value]
   next[index] = { ...next[index], ...patch }
   segments.value = next
+}
+
+const promoteAiTranslationError = shallowRef<IpcError | null>(null)
+/** Lỗi gần nhất Rust trả lời cho một lượt PROMOTE. `null` ⇒ chưa lượt nào bị từ chối. */
+export const editorPromoteAiTranslationError: DeepReadonly<Ref<IpcError | null>> = readonly(
+  promoteAiTranslationError,
+)
+
+export type PromoteAiTranslationToEditorResult = 'promoted' | 'refused'
+
+/**
+ * **Đưa một kết quả AI vào Editor** — Story 4.8 · FR72 · AD-47①/③, `⌘⇧↵`.
+ *
+ * Cùng khuôn `segmentHistoryState.ts::restoreVersion`: gọi lệnh Rust rồi mirror kết quả bằng
+ * [`replaceEditorSegment`] — đó là nửa còn lại của AD-47①(a), không cosmetic (§Code Map spec
+ * 4.8: *"the confirm baseline is read from the loaded snapshot"* — `confirmCurrentSegment` đọc
+ * mốc so FR117 từ CHÍNH [`segments`], nên một lượt PROMOTE không mirror vào đó để lại mốc so
+ * TRỎ VÀO văn bản cũ).
+ *
+ * `segmentId`/`text` do CHỖ GỌI xác định (`main.ts`'s deps, đọc `aiTranslateRunSegmentId`/
+ * `aiTranslateAccumulatedText`) — cùng lý lẽ `assembleCurrentAiPrompt` không tự `import`
+ * `editorCaretSegmentId`: hàm này ghi vào ĐÚNG câu mà kết quả AI thuộc về (*"lands against the
+ * segment it started on"*, §Always spec 4.8), không nhất thiết là câu đang có tiêu điểm ngay
+ * lúc bấm `⌘⇧↵` — caret có thể đã dời sang câu khác trong lúc lượt dịch còn chạy (I/O Matrix
+ * "Caret moves during generation").
+ *
+ * KHÔNG BAO GIỜ NÉM — chỗ gọi là một hợp âm bàn phím, và *"một hợp âm không bao giờ ném"* là
+ * luật chung của mọi hàm chạy từ đó trong kho này.
+ */
+export async function promoteAiTranslationToEditor(
+  segmentId: number,
+  text: string,
+): Promise<PromoteAiTranslationToEditorResult> {
+  const { outcome, error } = await promoteAiTranslation(segmentId, text)
+  if (outcome === null) {
+    // ⚠️ `error === null` cũng vào đây: ca "không có cầu IPC" (`npm run dev` ngoài Tauri).
+    promoteAiTranslationError.value = error
+    return 'refused'
+  }
+  promoteAiTranslationError.value = null
+  replaceEditorSegment(segmentId, { target_text: outcome.target_text })
+  return 'promoted'
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -764,6 +807,11 @@ export function resetEditorPanel(): void {
   // 🔵 Story 3.6 — sổ "Để sau" của dải chốt có phạm vi ĐÚNG MỘT Chương; đổi Chương/Tác phẩm
   // thì dải thu và sổ đó xoá, đúng §I/O Matrix "Đổi Chương giữa chừng".
   resetGlossaryConfirmStrip()
+
+  // 🔴 THÊM Story 4.8 — `promoteAiTranslationError` chở một `IpcError` có `params.segment_id`
+  // của Tác phẩm VỪA BỊ THAY, cùng lớp lỗi mà `confirmError`/`regroupError` đã ghi ở trên
+  // ("ô này thuộc Tác phẩm hay thuộc ứng dụng?" — thuộc Tác phẩm thì phải có mặt ở đây).
+  promoteAiTranslationError.value = null
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

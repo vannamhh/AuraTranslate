@@ -935,6 +935,18 @@ export type CommandDeps = {
    * bằng nút Dịch thật (§Consequences accepted, Decision 2). Handler của `ai.prompt.assemble`. */
   assembleAiPrompt?: () => void
 
+  // ── Story 4.8 — "Dịch một segment với kết quả chảy dần" (FR72/FR74, AD-22, AD-47①/③) ────
+  /** Dịch câu đang có tiêu điểm bằng bộ prompt hiệu lực đang chọn, kết quả chảy dần qua một
+   * `Channel`. Handler của `ai.translate.run`. */
+  runAiTranslate?: () => void
+  /** Huỷ lượt dịch đang chạy — không tác dụng khi không có lượt nào. Handler của
+   * `ai.translate.cancel`. */
+  cancelAiTranslate?: () => void
+  /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
+   * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
+   * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. */
+  promoteAiTranslate?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -3409,6 +3421,68 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.prompt.assemble', 'assembleAiPrompt')
       }
       deps.assembleAiPrompt()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.8 — "DỊCH MỘT SEGMENT VỚI KẾT QUẢ CHẢY DẦN" (FR72/FR74, AD-22, AD-47①/③)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * BA command, cùng hình dạng ba command của Story 4.7 ngay trên (`keys` guarded qua
+   * `deps.…` bằng `portMissing`).
+   *
+   * 🔴 **`ai.translate.promote` mang `keys: ['Mod+Shift+Enter']`** — `⌘⇧↵` là hợp âm mà
+   * `keys.ts:92-95` đã RESERVED BY NAME cho đúng thao tác này từ trước khi story này tồn tại
+   * (UX-DR35, *"⌘⇧↵ đưa bản dịch AI sang"*) — đo 2026-09-21: `grep 'Mod+Shift+Enter'` trên bản
+   * TRƯỚC lượt sửa này của tệp này cho **0**, hợp âm còn trống, đúng như tài liệu đã hứa.
+   *
+   * ⚠️ **`ai.translate.run` và `ai.translate.cancel` giữ `keys: undefined`, LỆCH với mockup —
+   * đo được, không bỏ sót.** `key-screen-workspace.html:162` vẽ `⌘↵` cho dịch và `Esc` cho
+   * huỷ, và §Code Map spec 4.8 đọc `⌘↵` thành `'Mod+Enter'`. Nhưng đo trên CHÍNH tệp này
+   * TRƯỚC lượt sửa: `'Mod+Enter'` đã bị `editor.confirm_segment` chiếm (dòng ~2464, Story 2.5)
+   * và `'Escape'` đã bị `editor.clear_source_cuts` chiếm (Story 2.9, không mang `Mod`) —
+   * `createKeymap` **NÉM** khi hai command trùng hợp âm (`index.ts:3459`'s doc-comment), nên
+   * gán một trong hai hợp âm đó ở đây sẽ làm toàn bộ `installCommands()` sập ngay lúc khởi
+   * động, không phải một cổng đỏ đọc được — một mức giá cao hơn hẳn việc thiếu phím tắt mặc
+   * định. Đây là ĐÚNG lớp xung đột mà `deferred-work.md`/Story 6.2 đã ghi cho một cặp `⌘↵`
+   * khác (`index.ts:2441-2444`); nó không tự giải quyết chỉ vì people đọc đúng mockup. Cả hai
+   * lệnh vẫn tới được bằng nút bấm trên panel VÀ bằng màn hình gán phím (Story 1.21, FR22) —
+   * người dùng tự chọn một hợp âm rảnh nếu muốn. Việc chọn đâu là chủ nhân của `'Mod+Enter'`/
+   * `'Escape'` giữa ba command đang tranh nhau nó là một quyết định của Ice, không phải một
+   * lượt "ai viết trước thắng" — ghi nợ, không đoán.
+   */
+  target.register({
+    id: 'ai.translate.run',
+    labelKey: 'command.ai.translate.run',
+    keys: undefined,
+    run: () => {
+      if (deps.runAiTranslate === undefined) {
+        return portMissing('ai.translate.run', 'runAiTranslate')
+      }
+      deps.runAiTranslate()
+    },
+  })
+  target.register({
+    id: 'ai.translate.cancel',
+    labelKey: 'command.ai.translate.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelAiTranslate === undefined) {
+        return portMissing('ai.translate.cancel', 'cancelAiTranslate')
+      }
+      deps.cancelAiTranslate()
+    },
+  })
+  target.register({
+    id: 'ai.translate.promote',
+    labelKey: 'command.ai.translate.promote',
+    keys: ['Mod+Shift+Enter'],
+    run: () => {
+      if (deps.promoteAiTranslate === undefined) {
+        return portMissing('ai.translate.promote', 'promoteAiTranslate')
+      }
+      deps.promoteAiTranslate()
     },
   })
 

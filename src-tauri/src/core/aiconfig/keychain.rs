@@ -18,14 +18,15 @@
 //! chối.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⚠️ RAW-VALUE ACCESSOR — CHỈ ĐƯỢC GỌI TỪ TRONG `core/aiconfig/**` HÔM NAY
+//! ⚠️ RAW-VALUE ACCESSOR — CHỈ ĐƯỢC GỌI TỪ TRONG `core/aiconfig/**`, CỘNG ĐÚNG MỘT TỆP NGOÀI
 //! ─────────────────────────────────────────────────────────────────────────────
-//! [`ApiKeySecret::expose_secret`] và [`read`] trả GIÁ TRỊ THẬT của khoá — Story 4.8 là chỗ
-//! gọi kế tiếp, khi `core/ai/` cần dựng request thật ra provider. Hôm nay KHÔNG chỗ nào gọi
-//! chúng ngoài `core/aiconfig/**`; mở rộng miễn trừ đó là quyết định của Story 4.8, không
-//! phải của story này (§Code Map spec 4.3: "the read reserved for Story 4.8's provider
-//! call"). Một test quét nguồn (Task 8/Phase 3, khuôn `ai_boundary.rs`) khoá lại ranh giới
-//! này — Rust tự nó không chặn được `pub(crate)` bị gọi từ một module khác trong CÙNG
+//! [`ApiKeySecret::expose_secret`] và [`read`] trả GIÁ TRỊ THẬT của khoá.
+//! 🔵 **SỬA 2026-09-21 (Story 4.8, Phase 2)** — câu cũ ở đây nói "hôm nay KHÔNG chỗ nào gọi
+//! chúng ngoài `core/aiconfig/**`"; nay SAI, đo trên mã thật:
+//! `commands::aitranslate::prepare_translate_call` gọi cả hai để dựng request dịch thật ra
+//! provider — đúng chỗ gọi mà câu cũ đã dự đoán. `tests/aiconfig_keychain_boundary.rs::
+//! AI_TRANSLATE_KEYCHAIN_CALLER_FILE` khoá ranh giới lại đúng MỘT tệp đó, không mở rộng theo
+//! tiền tố — Rust tự nó không chặn được `pub(crate)` bị gọi từ một module khác trong CÙNG
 //! crate, nên phép quét văn bản là hàng rào thật, không phải một phép lịch sự.
 
 use std::fmt;
@@ -134,10 +135,13 @@ pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
     }
 }
 
-/// Đọc giá trị thô, bọc trong [`ApiKeySecret`] — dành cho Story 4.8 (`TranslationProvider`,
-/// AD-2). KHÔNG chỗ gọi nào hôm nay: xem cảnh báo ranh giới ở đầu tệp. `None` khi chưa cấu
-/// hình (khác lỗi keychain từ chối trả lời), cùng phân biệt `configured`.
-#[allow(dead_code)] // Story 4.8 la cho goi dau tien; giu lai ham nay khong phai mot ban viet thua.
+/// Đọc giá trị thô, bọc trong [`ApiKeySecret`] — Story 4.8 (`TranslationProvider`, AD-2).
+///
+/// 🔵 **SỬA 2026-09-21 (Story 4.8, Phase 2) — `#[allow(dead_code)]` gỡ bỏ, chỗ gọi đã có
+/// thật.** `commands::aitranslate::prepare_translate_call` gọi hàm này để đọc khoá TRƯỚC khi
+/// dựng `TranslateRequest`, đúng lời câu cũ đã hứa ("Story 4.8 là chỗ gọi đầu tiên"). Giữ
+/// `#[allow]` sau khi có chỗ gọi thật là một lời nói dối về đồ thị gọi (root `AGENTS.md`).
+/// `None` khi chưa cấu hình (khác lỗi keychain từ chối trả lời), cùng phân biệt `configured`.
 pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
     match entry()?.get_password() {
         Ok(value) => Ok(Some(ApiKeySecret::new(value))),

@@ -67,7 +67,10 @@ fn no_set_selected() -> IpcError {
 /// đã có, tái dùng qua `crate::commands::chapter::no_work_open` — xem chỗ gọi ở
 /// [`assemble_and_record_prompt`]) vì đây là một sự thật khác hẳn: Tác phẩm ĐANG MỞ, Chương
 /// ĐỌC ĐƯỢC, chỉ riêng `segment_id` này không thuộc nó.
-fn segment_not_in_chapter(segment_id: i64, chapter_id: i64) -> IpcError {
+///
+/// `pub(crate)` từ Story 4.8, Phase 2 — `commands::aitranslate::prepare_translate_call` tái
+/// dùng ĐÚNG hàm này cho cùng sự thật, thay vì gõ một khoá thứ hai cho cùng câu.
+pub(crate) fn segment_not_in_chapter(segment_id: i64, chapter_id: i64) -> IpcError {
     let mut params = std::collections::BTreeMap::new();
     params.insert("segment_id".to_owned(), segment_id.to_string());
     params.insert("chapter_id".to_owned(), chapter_id.to_string());
@@ -290,6 +293,15 @@ impl From<InjectionLedger> for InjectionLedgerWire {
 /// "The record carries the identity of what produced it — which segment, which prompt set,
 /// which tier — so a record from an earlier segment cannot be read as describing the segment
 /// now focused").
+///
+/// 🔵 **THÊM 2026-09-21 (Story 4.8, Phase 2) — `sent_at`/`sent_model`.** `deferred-work.md:10666`
+/// đòi bản ghi NÀY rộng ra với "sự thật đã GỬI", thay vì một bản ghi thứ hai (Quyết định 2, spec
+/// 4.8). Cả hai `None` ở MỌI lượt [`assemble_and_record_prompt`] chạy — hàm đó KHÔNG BAO GIỜ đặt
+/// chúng, kể cả khi ghi ĐÈ một bản ghi cũ đã từng gửi (một lượt lắp lại prompt cho inspector là
+/// một prompt CHƯA gửi, dù bản ghi trước nó có gửi hay không). Chỉ [`mark_prompt_as_sent`] —
+/// gọi bởi `commands::aitranslate` SAU khi một lượt gửi thật đã THÀNH CÔNG (`TranslateOutcome::Done`)
+/// — đặt `Some`. `Some`/`None` phân biệt "chưa từng gửi" khỏi "đã gửi", cùng kỷ luật BA-TRẠNG-THÁI
+/// của root `AGENTS.md` — không một chuỗi rỗng đóng vai "chưa gửi".
 #[derive(Debug, Clone)]
 pub struct AssembledPromptRecord {
     pub prompt: String,
@@ -298,6 +310,13 @@ pub struct AssembledPromptRecord {
     pub chapter_id: i64,
     pub prompt_set_name: String,
     pub prompt_set_tier: PromptSetTier,
+    /// Ngày giờ UTC (ISO-8601, lấy qua `strftime` của SQLite) của lượt GỬI THẬT gần nhất thành
+    /// công cho ĐÚNG bản ghi này — `None` cho tới khi có một lượt gửi. Xem khối 🔵 ở trên.
+    pub sent_at: Option<String>,
+    /// Tên mô hình đã GỬI — có thể khác `AiConfigField::Model` hiện đang cấu hình nếu người
+    /// dùng đổi mô hình SAU lượt gửi này; bản ghi giữ đúng cái nó đã DÙNG, không cái đang cấu
+    /// hình bây giờ.
+    pub sent_model: Option<String>,
 }
 
 /// Kiểu state Tauri quản lý cho [`AssembledPromptRecord`] — `None` == chưa lắp prompt nào
@@ -317,6 +336,11 @@ pub struct AssembledPromptWire {
     pub prompt_set_name: String,
     pub prompt_set_tier: PromptSetTierWire,
     pub ledger: InjectionLedgerWire,
+    /// Xem doc-comment [`AssembledPromptRecord::sent_at`] — `None` cho tới lượt gửi THẬT đầu
+    /// tiên thành công cho bản ghi này (Story 4.8, Phase 2).
+    pub sent_at: Option<String>,
+    /// Xem doc-comment [`AssembledPromptRecord::sent_model`].
+    pub sent_model: Option<String>,
 }
 
 impl From<AssembledPromptRecord> for AssembledPromptWire {
@@ -328,6 +352,8 @@ impl From<AssembledPromptRecord> for AssembledPromptWire {
             prompt_set_name: r.prompt_set_name,
             prompt_set_tier: r.prompt_set_tier.into(),
             ledger: r.ledger.into(),
+            sent_at: r.sent_at,
+            sent_model: r.sent_model,
         }
     }
 }
@@ -396,6 +422,10 @@ pub fn assemble_and_record_prompt(
         chapter_id: chapter.chapter_id,
         prompt_set_name: set.name,
         prompt_set_tier: set.tier,
+        // Mot lot LAP RAP KHONG BAO GIO la mot lot GUI (Quyet dinh 2, spec 4.8) -- ke ca khi no
+        // GHI DE mot ban ghi cu DA tung gui, prompt MOI nay la mot prompt CHUA gui.
+        sent_at: None,
+        sent_model: None,
     };
 
     let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -415,6 +445,46 @@ pub fn assemble_and_record_prompt(
 pub fn read_last_assembled_prompt(record: &LastAssembledPromptState) -> Option<AssembledPromptWire> {
     let guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.clone().map(AssembledPromptWire::from)
+}
+
+/// Rộng bản ghi DUY NHẤT với sự thật đã GỬI — Story 4.8, Phase 2 (`deferred-work.md:10666`).
+/// **Hàm thuần, đây là thứ test gọi.** Gọi bởi `commands::aitranslate` SAU khi một lượt gửi
+/// thật đã trả về `TranslateOutcome::Done` — KHÔNG BAO GIỜ gọi từ [`assemble_and_record_prompt`]
+/// (Quyết định 2, spec 4.8: hai chỗ gọi cùng MỘT hàm ghi; đây là NỬA THÊM riêng của đường gửi,
+/// không phải một lượt ghi thứ hai đường lắp ráp).
+///
+/// No-op khi bản ghi hiện tại đã ĐỔI — không chỉ đổi SEGMENT (`record.segment_id != segment_id`,
+/// caret rời sang segment khác trong lúc lượt gửi còn chạy, I/O Matrix spec 4.8: "the call keeps
+/// running and lands against the segment it started on"), mà cả khi CÙNG segment nhưng bản ghi
+/// đã bị GHI ĐÈ bởi một lượt lắp ráp mới hơn (`record.prompt != sent_prompt`).
+///
+/// 🔴 **SỬA (rà soát) — so cả `prompt`, không chỉ `segment_id`.** Nút "soi prompt" (FR71) không
+/// bị khoá bởi trạng thái dịch — người dùng bấm dịch RỒI bấm soi lại CÙNG segment đó trước khi
+/// lượt dịch trả lời được, và `assemble_and_record_prompt` ghi đè bản ghi bằng một prompt MỚI
+/// (cùng `segment_id`, nội dung có thể khác — Glossary/bộ prompt hiệu lực có thể đã đổi giữa hai
+/// lượt). Nếu lượt gửi CŨ sau đó `Done`, so `segment_id` một mình sẽ đóng dấu "đã gửi" lên đúng
+/// bản ghi MỚI mà người dùng chỉ mới LẮP RÁP để soi, chưa từng gửi — một lời nói dối trên màn
+/// hình mà FR71 tồn tại để tránh. `prompt` đã sẵn có trong bản ghi (không cần trường mới):
+/// chỗ gọi (`commands::aitranslate`) truyền lại ĐÚNG chuỗi nó đã gửi, và stamp chỉ áp dụng khi
+/// chuỗi đó KHỚP TỪNG BYTE với `record.prompt` hiện tại.
+///
+/// Không mang `IpcError`: mọi nguyên nhân khiến hàm này thành no-op (chưa từng lắp prompt trong
+/// phiên, bản ghi đã đổi segment, hoặc bản ghi đã bị thay bằng một prompt khác) đều là tình
+/// huống bình thường, không phải một thất bại của LƯỢT GỬI vốn đã thành công.
+pub fn mark_prompt_as_sent(
+    record: &LastAssembledPromptState,
+    segment_id: i64,
+    sent_prompt: &str,
+    model: &str,
+    sent_at: &str,
+) {
+    let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(r) = guard.as_mut() {
+        if r.segment_id == segment_id && r.prompt == sent_prompt {
+            r.sent_at = Some(sent_at.to_owned());
+            r.sent_model = Some(model.to_owned());
+        }
+    }
 }
 
 /// Xoá bản ghi phiên khi Tác phẩm đang mở ĐÓNG — `segment_id`/`chapter_id` là khoá hàng của

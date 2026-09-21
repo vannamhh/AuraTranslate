@@ -39,6 +39,7 @@
 
 pub mod aiconfig;
 pub mod aiprompt;
+pub mod aitranslate;
 pub mod chapter;
 pub mod cleanup;
 pub mod config;

@@ -940,6 +940,19 @@ pub fn run() {
             // dau `commands/aiprompt.rs`.
             crate::commands::aiprompt::wire::ai_prompt_assemble,
             crate::commands::aiprompt::wire::ai_prompt_read_record,
+            // Story 4.8, Phase 2 -- dich MOT segment voi ket qua chay dan (FR72/FR74, AD-22).
+            // Hai vo: `ai_translate_segment` la `async fn` LITERAL dau tien trong kho (xem
+            // doc-comment dau `commands/aitranslate.rs` cho co che `Future: Send`), goi lai
+            // producer cua Story 4.7 (Quyet dinh 2, spec 4.8) roi chay qua mot `Channel<String>`
+            // -- KHONG mot `emit`/`listen` nao tren duong nay (AD-22). `ai_translate_cancel` bom
+            // the he len MOT, dung hinh dang `commands::project::ImportScanGeneration`.
+            crate::commands::aitranslate::wire::ai_translate_segment,
+            crate::commands::aitranslate::wire::ai_translate_cancel,
+            // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
+            // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no dat CA
+            // `target_text` LAN `translation_origin = TRANSLATION_ORIGIN_OTHER` trong MOT cau
+            // `UPDATE` -- ba writer `target_text` da co deu co y de nguyen cot xuat xu.
+            crate::commands::segment::wire::promote_ai_translation,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
@@ -1195,6 +1208,11 @@ fn open_work_slot(app: &tauri::App) {
     // doc-comment o do vi sao (segment_id/chapter_id la khoa hang cua MOT project.db, hai
     // Tac phan khac nhau co the trung so ngau nhien).
     app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));
+    // Story 4.8, Phase 2 (AD-22) -- bo dem the he dung cho HUY giua chung mot luot dich AI
+    // dang chay, dung hinh dang ImportScanGeneration o tren (Arc<AtomicU64>, `.manage` MOT
+    // LAN cho ca PHIEN, khong theo Tac pham dang mo -- mot luot dich con dang chay khi nguoi
+    // dung dong Tac pham van phai huy duoc sach, khong phai mot rang buoc voi OpenWorkState).
+    app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).

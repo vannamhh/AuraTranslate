@@ -4542,6 +4542,15 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   một phiên dịch) — quyết cache theo phiên (nạp tầng MỘT LẦN, dùng lại cho mọi câu của cùng
   một Tác phẩm đang mở) hay đổi chữ ký để nhận dữ liệu đã nạp sẵn từ chỗ gọi; đo thêm nhánh
   hai tầng (Work đang mở) trước khi quyết, vì con số ở đây chưa nói gì về nhánh đó.
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8, Decision 3 — "phần còn lại" ở trên KHÔNG được làm
+    trong story này).** Đo được: Story 4.8 gọi `gather_glossary_context` thật lần đầu tiên
+    (`commands/aitranslate.rs`, qua 4.7's producer), nhưng vẫn CHỈ dịch MỘT câu mỗi lượt —
+    chưa một chỗ gọi sản phẩm nào lặp `gather_glossary_context` nhiều lần liên tiếp trên CÙNG
+    một Tác phẩm đang mở, nên câu hỏi cache-theo-phiên vẫn đứng nguyên CHƯA CÓ DỮ KIỆN MỚI.
+    **Chủ mới: Story 4.9** ("Dịch theo lô và huỷ giữa chừng") — lượt dịch THEO LÔ đầu tiên mới
+    thật sự lặp chỗ gọi này trên nhiều câu của cùng một Tác phẩm, đúng điều kiện cần để đo cả
+    nhánh MỘT tầng (đã có số ở đây) lẫn nhánh HAI tầng (Work đang mở, chưa đo) rồi mới quyết
+    cache theo phiên hay đổi chữ ký.
 
 - ⚠️ **`pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay
   khẳng định phiên bản 4, tức bước `glossary_entry`, không phải bước `pinned_entry` mà tên
@@ -10252,6 +10261,14 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     TIÊN của toàn Epic 4 theo `epic-4-context.md` §Cross-Story Dependencies. Story đó khai
     `TranslationProvider` (AD-2) và đường gọi mạng thật vào `core/ai/`; "kiểm tra kết nối" là
     một biến thể rẻ của đúng lượt gọi đó, không phải một cơ chế thứ hai.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8, Decision 4 — Ice chốt).** Rào cản KỸ THUẬT mục nợ
+    này nêu đã GỠ: `TranslationProvider` (AD-2) đã khai, `core/ai/client.rs` đã gọi mạng thật.
+    Nhưng Story 4.8 KHÔNG dựng nút "kiểm tra kết nối" — Decision 4 (đóng băng) ghi rõ lý do:
+    nút đó sống ở màn hình CÀI ĐẶT, không ở Workspace, và tự nó review/test/merge được ĐỘC LẬP
+    — nhận vào Story 4.8 sẽ phá luật một-story-một-mục-tiêu của chính dự án. `epics.md` KHÔNG
+    bị sửa (một năng lực chưa dựng không phải một lệch spec). **Chủ mới:** một story CHƯA CÓ
+    SỐ cho nút "Kiểm tra kết nối" trên màn Cài đặt — không một story đã đánh số nào trong sprint
+    hiện tại (4.9 lô, 4.10 lỗi, 4.11 token, 4.12 bố cục hẹp) tự nhiên ôm nó. Cần Ice xếp lịch.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **21 hằng floor sàn quần thể (ngoài hai hằng `ai_boundary.rs` chính story này vừa
@@ -10451,6 +10468,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Story 4.8 — "Dịch một segment với kết quả chảy dần", chỗ gọi `keychain::read`
     thật đầu tiên. Story đó phải hoặc mở rộng cổng sang quét `use ... as`, hoặc chuyển sang
     một phép kiểm không dựa trên chuỗi, và nói rõ đã chọn cái nào.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, Phase 1) — cho ĐÚNG hình dạng lỗ đo được, khác hình
+    dạng mục nợ này ban đầu đoán.** `aiconfig_keychain_boundary.rs` gained
+    `line_use_pulls_in_read_via_brace_or_glob` cộng ca đối chứng đích danh
+    `the_renamed_import_hole_in_deferred_work_10441_is_closed_for_the_brace_shape`. ⚠️ Lỗ THẬT
+    đo được không phải dạng BARE mục nợ này trích (`use … as fetch;` — vị từ cũ vốn đã bắt
+    được dạng đó) mà dạng NGOẶC: `use …keychain::{read as get_secret, …};`, nơi `read` đứng
+    lẫn trong danh sách import chứ không đứng một mình sau `as`. Đóng cả hai hình dạng (BRACE
+    và GLOB, `use …keychain::*;`), có ca dương/âm riêng
+    (`the_brace_or_glob_use_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code`).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **`keychain::configured()` ĐỌC bí mật (`get_password`) chỉ để trả một `bool`, nên
@@ -10493,6 +10519,27 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     trong khi ca khác chạy song song cần kho lành.
     **(Chủ: Story 4.8 — story tiếp theo chạm keychain. Nếu nó thêm một nhị phân test thứ hai,
     phải dựng lại phép cài mock ở đó chứ không mượn được của nhị phân này.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8) — câu hỏi vẫn mở, đo được lúc dòng này viết.**
+    `commands/aitranslate.rs` (Phase 2) đọc khoá thật qua `core/aiconfig/keychain.rs::read`
+    nhưng KHÔNG mở một nhị phân test mới cho việc đó — `aiconfig_keychain_boundary.rs` đứng
+    nguyên. Đo trực tiếp: `ls src-tauri/tests/ai_translate_contract.rs` → tệp CHƯA TỒN TẠI
+    trên cây này lúc dòng này được viết (Phase 4's `ai_translate_contract.rs` đang được một
+    agent khác dựng song song). Nếu tệp đó cần gọi `prepare_translate_call` với một khoá THẬT
+    trong keychain, nó sẽ là nhị phân test THỨ HAI chạm `keyring_core::set_default_store` và
+    va đúng cạm bẫy mục này mô tả. **Chủ mới: agent hoàn tất `ai_translate_contract.rs`** —
+    đo trước khi cài mock (`Once` toàn tiến trình có đủ không nếu ca đó chạy cùng nhị phân với
+    những ca không cần keychain?), đừng mượn cơ chế của `aiconfig_contract.rs` mà không đo lại.
+
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, vòng nghiệm thu) — điều kiện ĐÃ nổ, và câu trả lời đo
+    được.** Dòng CHUYỂN CHỦ ngay trên đúng lúc nó được viết và sai lúc được đọc:
+    `src-tauri/tests/ai_translate_contract.rs` nay TỒN TẠI, và nó CHẠM keychain (33 lần nhắc).
+    Nó là nhị phân test THỨ HAI mà mục này lo. Phép đo trả lời: mỗi nhị phân test của Rust là
+    một TIẾN TRÌNH riêng, nên một `Once` toàn-tiến-trình ở `aiconfig_contract.rs` không liên
+    quan gì tới nhị phân kia — nhân bản bộ cài mock là lời giải ĐÚNG, không phải một phép
+    mượn ẩu. Bằng chứng: cả hai nhị phân xanh trong cùng một lượt `cargo test --locked` đầy đủ,
+    và 26 ca của `ai_translate_contract.rs` gồm cả ca CẦN keychain lẫn ca KHÔNG cần chạy chung
+    một nhị phân mà không lẫn trạng thái. Giới hạn của bằng chứng, ghi ra: đo trên macOS của
+    Ice; vế Windows đọc ở lượt CI của story này.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Hai trong bốn chỗ của phép kiểm "khoá không rơi xuống tệp" chưa có ca tự động:
@@ -10509,6 +10556,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     "đã kiểm đủ bốn chỗ".
     **(Chủ: Story 4.8 — story đầu tiên chạy đường khoá thật đầu-cuối. Lúc đó có sẵn một lượt
     gọi provider thật để bám vào, nên phép grep bốn chỗ rẻ hơn hẳn so với dựng riêng bây giờ.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8) — "có sẵn một lượt gọi provider thật" nay đúng,
+    nhưng chưa ai bám vào nó cho HAI chỗ còn thiếu.** Story 4.8 dựng đường gọi provider thật
+    (`commands/aitranslate.rs`), nhưng không thêm ca tự động nào cho thư mục `.atproj` hay đầu
+    ra tiến trình — lập luận cấu trúc trong mục nợ này (`keychain::set` là chỗ ghi DUY NHẤT,
+    chỉ gọi `Entry::set_password`) vẫn là thứ đứng thay hôm nay, không phải một lượt đo mới.
+    Rào cản gốc (hộp xin quyền OS gây TREO khi ghi một credential thật trên máy dev) không đổi
+    chỉ vì có thêm một chỗ gọi provider. **Chủ mới: Ice** — quyết có đáng đầu tư một harness né
+    hộp xin quyền (ví dụ biến môi trường CI đã cấp quyền sẵn) cho hai chỗ còn lại, hay giữ lập
+    luận cấu trúc vĩnh viễn; không story sản phẩm nào tự nhiên sở hữu quyết định đó.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Cả bốn hàm keychain ném bỏ lỗi gốc bằng `map_err(|_| KeychainUnavailable)`, nên
@@ -10522,6 +10578,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     cái gì AN TOÀN để ghi ra từ một `keyring::Error` là một quyết định, không phải một dòng mã.
     **(Chủ: Story 4.8 — story đầu tiên gặp một lượt keychain hỏng thật trên đường sản phẩm,
     tức chỗ đầu tiên có dữ kiện để quyết cần ghi gì.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8) — chưa chạm.** Đo trực tiếp: `map_err(|_|
+    KeychainUnavailable)` đứng nguyên tại cả hai chỗ trong `core/aiconfig/keychain.rs` (`read`
+    dòng ~113, `entry` dòng ~102) — `git diff --stat` trên tệp này ở Story 4.8 chỉ đổi
+    doc-comment và gỡ `#[allow(dead_code)]`, không đụng thân hàm `map_err`. Story 4.8 CÓ một
+    đường sản phẩm gọi `keychain::read` thật (`commands/aitranslate.rs::prepare_translate_
+    call`), nên "chỗ đầu tiên có dữ kiện" nay tồn tại về mặt CƠ CHẾ, nhưng không cấu hình lỗi
+    keychain thật nào được gieo trong lượt phát triển story này để thật sự thu dữ kiện đó.
+    **Chủ mới: Story 4.10** ("Lỗi mạng và lỗi API") — story kế tiếp có lý do sản phẩm để định
+    hình câu chuyện lỗi hiển thị cho người dùng; quyết cái gì AN TOÀN để lộ từ `keyring::Error`
+    thuộc đúng phạm vi đó, không phải một sửa rời trước khi có ngữ cảnh lỗi.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **`ApiKeySecret` không xoá bộ nhớ khi bị huỷ — khoá thô nằm trong bộ nhớ tiến
@@ -10561,6 +10627,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     không phải nới test.
     **(Chủ: Story 4.8 — story đầu tiên gọi bộ prompt trên đường nóng (dịch một segment); nếu
     có ca nào cần ghi mà không có tầng Global thì nó gặp trước.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8) — đường nóng chỉ ĐỌC, không kích hoạt mục nợ này.**
+    `commands/aitranslate.rs` gọi 4.7's `assemble_and_record_prompt` (qua `core::promptset`'s
+    đường ĐỌC hai tầng), không một lượt GHI bộ prompt nào nằm trên đường dịch một segment —
+    "nếu có ca nào cần ghi mà không có tầng Global thì nó gặp trước" dự đoán sai điều kiện
+    kích hoạt: đường nóng của Story 4.8 không ghi gì cả, nên nó không gặp. Lập luận gốc (mọi
+    lượt ghi tầng Work vẫn đòi `global.db` được quản, và trên sản phẩm điều đó luôn đúng vì
+    `global.db` mở trước mọi `.atproj`) vẫn đứng, chưa có phản ví dụ. **Chủ mới:** chưa có
+    story nào trong sprint hiện tại ghi bộ prompt tầng Work độc lập với vòng đời `global.db` —
+    giữ nguyên cho tới khi một story như vậy xuất hiện; cho tới lúc đó đây là một quyết định đã
+    chốt có test canh (`prompt_set_contract.rs`), không phải một khoảng hở đang chờ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **`src-tauri/AGENTS.md:37` nay khai SAI — nó nói "không cổng nào canh cặp này" về
@@ -10649,6 +10725,14 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     lên N lần — đúng ngân sách mà `deferred-work.md §*Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)*` đòi kiểm soát. Đóng đúng cách cần một
     bộ đếm truy vấn ở tầng `Store`, thứ `Store` hôm nay không phơi ra.
     **(Chủ: Story 4.8 — chỗ gọi sản phẩm ĐẦU TIÊN, và chỗ đầu tiên tần suất gọi thật đo được.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8) — "chỗ gọi sản phẩm đầu tiên" nay đúng, nhưng
+    `Store` vẫn không phơi bộ đếm truy vấn.** Story 4.8 là chỗ gọi provider thật đầu tiên,
+    nhưng bàn đo tần suất gọi thật của MỘT PHIÊN DỊCH (nhiều câu liên tiếp) đòi cùng điều kiện
+    mục `:4540` ngay ở trên đã re-own — dịch theo lô trên nhiều câu của cùng một Tác phẩm — mà
+    Story 4.8 chỉ dịch MỘT câu mỗi lượt. Đóng đúng cách vẫn cần một bộ đếm truy vấn ở tầng
+    `Store`, việc `Store` hôm nay không làm. **Chủ mới: Story 10.9** — cùng story đo NFR trên
+    thư viện thật mà mục liền kề (dòng ngay trên, "Phép tái cấu trúc dùng chung...") đã được
+    giao; đo TRƯỚC rồi quyết có cần phơi bộ đếm ở tầng `Store` hay không, đừng vá mù.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **Thân prompt dùng CRLF để sót một ký tự `\r` mồ côi khi một dòng marker bị gỡ và
@@ -10660,6 +10744,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     đều trên macOS, và mệnh đề Windows của kho này đọc từ CI chứ không đọc từ đây.
     **(Chủ: Story 4.8 — story đầu tiên thật sự gửi prompt đi, và là chỗ một thân CRLF gây hậu
     quả nhìn thấy được.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, Phase 2a).** `core::ai::rag::pop_piece` nay gỡ cả cụm
+    `"\r\n"` — không chỉ `'\n'` — trên CẢ HAI đường: `out` lẫn mảnh `pieces` mirror, nên một
+    thân CRLF không còn sót `\r` mồ côi khi một dòng marker bị gỡ. Xác nhận bằng một phép
+    gỡ-rồi-xác-nhận-đỏ THẬT (Phase 2a dựng ca scratch, revert bản vá, xác nhận đỏ, rồi mới xoá
+    ca scratch — không phải suy luận từ đọc mã). ⚠️ Bản vá đứng nhưng phép gỡ-rồi-xác-nhận-đỏ
+    đó đã bị xoá cùng lượt, nên tới lúc dòng này được viết KHÔNG một ca THƯỜNG TRỰC nào canh nó
+    — ca thường trực (`ai_rag_contract.rs`, một CRLF regression case cho `pop_piece`) là một
+    task Phase 4 riêng của chính story này, đang được dựng bởi một agent khác song song lúc
+    dòng này được viết; chưa xác nhận được bởi agent viết dòng này. Đóng đúng phạm vi mục nợ
+    này khai — cái BUG — không phải "đã có test canh".
 
 ## Deferred from: 4-7-xem-prompt-cuoi-cung-da-gui (2026-09-18)
 
@@ -10675,6 +10769,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     chưa-gửi, bất kể người dùng đã bấm Lắp bao nhiều lần.
     **(Chủ: Story 4.8 — story đầu tiên thật sự gọi mạng và biết lúc nào một prompt ĐÃ GỬI;
     đóng đúng cách là thêm trạng thái đó vào CHÍNH bản ghi này, không dựng một bản ghi thứ hai.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, Phase 2b).** `AssembledPromptRecord`/`AssembledPromptWire`
+    (`commands/aiprompt.rs`) nay mang `sent_at`/`sent_model`, cả hai `None` cho tới khi một lượt
+    GỬI thật thành công — set DUY NHẤT bởi đường dịch (`commands/aitranslate.rs`), không một
+    lượt lắp-chỉ-để-xem nào đụng tới chúng (Decision 2 spec 4.8: một bản ghi, hai producer).
+    AC1 spec 4.7's *"đã gửi"* nay có một trạng thái để trỏ vào. Đối chứng không lỏng: bản sửa
+    `tests/ai_prompt_contract.rs`'s
+    `the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag_strings_and_field_names`
+    chỉ THÊM hai khoá vào tập mong đợi (cả hai `null` khi chưa gửi) — không assertion nào bị
+    gỡ hay nới lỏng.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **Hành động "sửa ngay" trên mỗi dòng "đã cân nhắc nhưng không chèn" mà mockup vẽ
@@ -10807,6 +10910,14 @@ chính nó.
     TRƯỚC khi gọi mạng — dùng đúng hàng `ChapterSegment` đã đọc sẵn, không cần một truy vấn
     thứ hai — và quyết định hình dạng lỗi/cảnh báo cho ca đó, thứ 4.7 cố tình chưa quyết vì
     chưa có gì thật để quyết.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, Phase 2b) — đúng vị trí mà chính mục nợ này đã chỉ ra,
+    KHÔNG ở `assemble_and_record_prompt`.** `commands/aitranslate.rs::prepare_translate_call`
+    đọc `row.is_omitted` từ CHÍNH hàng `ChapterSegment` đã đọc sẵn (không một truy vấn thứ
+    hai) và từ chối TRƯỚC khi request được dựng, trả `segment_is_omitted(segment_id)` —
+    `IpcError` mang `message_key: MessageKey::AiTranslateSegmentOmitted`
+    (`err.ai_translate.segment_omitted`, tham số `segment_id`). `assemble_and_record_prompt`
+    (4.7) đứng nguyên KHÔNG kiểm — đúng như mục nợ này tự đóng khung: guard thuộc về nhịp GỬI
+    thật, không phải nhịp lắp-chỉ-để-xem.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **`PromptLibraryOverlay.vue`/`PromptImportOverlay.vue`/`GlossaryImportOverlay.vue`'s
@@ -10858,6 +10969,96 @@ chính nó.
     `crate::core::ai` vào `lib.rs`, XOÁ nửa `lib.rs` của miễn trừ cùng ba hằng số/vị từ chỉ phục
     vụ nó; nếu nó có viết, lúc đó mới có một phép gỡ làm nhánh này đỏ được, và mục này đóng bằng
     phép gỡ đó.)**
+  → 🔵 **CHUYỂN CHỦ 2026-09-21 (Story 4.8, Phase 2b) — mục nợ này đã đúng, phép đo đã chạy,
+    nhưng phép XOÁ chưa được làm bởi lượt viết dòng này.** Đo (Phase 2b, lặp lại): `grep -n
+    "crate::core::ai" src/lib.rs` → **0 dòng**, không đổi so với 2026-09-18. Theo đúng hướng
+    dẫn của chính mục nợ này ("nếu nó vẫn không viết... XOÁ nửa `lib.rs`"), nhánh "vẫn không
+    viết" đã xảy ra — nghĩa là `AI_PROMPT_SEAM_LIB_RS_MARKER`/`_FILE` và các vị từ chỉ phục vụ
+    chúng trong `tests/ai_boundary.rs` giờ ĐỦ ĐIỀU KIỆN để xoá. Phase 2b cố ý KHÔNG tự làm
+    (việc đó đụng `tests/ai_boundary.rs`, tệp Phase 1 đã để lại cho một agent khác của CHÍNH
+    story này hoàn tất hai task carry — allowed-names freeze + compile-probe extension).
+    **Chủ mới: agent hoàn tất hai task carry của `tests/ai_boundary.rs` trong Story 4.8** —
+    phép đo đã sẵn, việc còn lại là phép XOÁ; chưa xác nhận được bởi agent viết dòng này liệu
+    lượt đó đã chạy hay chưa.
+
+  → ✅ **ĐÃ ĐÓNG 2026-09-21 (Story 4.8, Phase 4a) — phép xoá ĐÃ chạy.** Xác nhận bằng phép đếm,
+    không bằng lời khai: `grep -c "fn line_is_the_approved_ai_prompt_seam_in_lib_rs"
+    src-tauri/tests/ai_boundary.rs` → **0** (định nghĩa hàm đã đi), cùng nhánh của nó trong
+    cổng bare-token thật. Ba lần nhắc tên còn sót lại đều là chú thích LỊCH SỬ ("nhánh cũ…",
+    "trước bản này…"), đúng lệ "sửa tại chỗ, đừng xoá bản ghi" của kho. `AI_PROMPT_SEAM_LIB_RS_
+    FILE`/`_MARKER` được GIỮ có chủ ý — chúng nay mang một việc KHÁC và còn sống: bộ cắt dòng
+    của mũi thăm dò biên dịch, thứ Phase 4a mở rộng cho seam thứ ba.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **Vế thứ hai của AC7 Story 4.8 — "và test của chúng vẫn xanh" — chưa có bằng chứng,
+    và như đã viết thì nó chưa phải một mệnh đề đo được.**
+  evidence: Mũi thăm dò `deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_
+    tree_compiling` (`src-tauri/tests/ai_boundary.rs:1864`) chạy `cargo check` THẬT trên một bản
+    chép đã xoá `core/ai/` cộng ba seam — đo 2026-09-21: `1 passed`, 16 giây. Đó là bằng chứng
+    BIÊN DỊCH, và tệp test tự nói thế (`:1501`: *"mệnh đề FR77 cần là mệnh đề THỨ HAI"*). Nó
+    KHÔNG chạy `cargo test`. Và mệnh đề "test của chúng vẫn xanh" chưa định nghĩa được ở dạng
+    hiện tại: chính các nhị phân test của AI (`ai_translate_contract.rs`, `ai_rag_contract.rs`,
+    `ai_prompt_contract.rs`, `ai_boundary.rs`) đều gõ `core::ai`, nên chúng không sống sót qua
+    đúng phép xoá mà chúng phải chạy SAU. Muốn đóng thì phải định nghĩa trước "chúng" là tập
+    nào (nhiều khả năng: mọi nhị phân test KHÔNG thuộc Epic 4), rồi mới chạy được một lượt
+    `cargo test` trên bản chép. Khuyết tật nằm ở TIÊU CHÍ tôi viết, không ở thứ đã dựng.
+    ⚠️ Lưu ý khi làm: bước CI riêng cho FR77 lọc ca theo TÊN qua `--exact`, nên một lượt đổi
+    tên nữa sẽ lại cắt dây nối đó — 2026-09-21 nó đã đứt đúng một lần vì lượt đổi tên
+    `two`→`three` và chỉ được cứu nhờ rào `grep -q '^running 1 test$'` của Story 4.7.
+    **(Chủ: Ice — định nghĩa phạm vi "tập test không-AI" là một quyết định, không phải một dòng
+    mã; sau đó story nào chạm lại seam AD-13 có thể cài phép đo.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **`PreparedTranslateCall::api_key` giữ khoá API ở dạng `String` thô qua một
+    `spawn_blocking`, nới rộng vùng sống của bản rõ mà `ApiKeySecret` vẫn chưa zeroize lúc drop.**
+  evidence: Vòng rà 2026-09-21 (blind-hunter). `prepare_translate_call` gọi
+    `secret.expose_secret().to_owned()` rồi chuyển `String` ấy qua giá trị trả về vào một closure
+    bắt qua `tauri::async_runtime::spawn_blocking`. Không vi phạm luật `derive(Debug)` nào, và
+    Story 4.8 KHÔNG tạo ra món nợ zeroize (mục nợ của spec-4-3 đã có trước) — nhưng đây đúng là
+    lớp phơi nhiễm thêm mà mục nợ ấy cảnh báo, nên nó được ghi ra thay vì ngầm hiểu.
+    **(Chủ: Ice — cùng lúc với món nợ zeroize của spec-4-3; hai chỗ đóng chung một phép sửa.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **Bước CI cho FR77 neo vào TÊN một hàm test bằng một chuỗi trần, nên mọi lượt đổi tên
+    sẽ lại cắt dây nối đó.**
+  evidence: 2026-09-21 nó đã đứt đúng một lần: Phase 4a đổi `..._two_approved_seams_...` thành
+    `..._three_approved_seams_...`, `ci.yml:342` vẫn lọc tên cũ, và không cổng `pre-push` nào phủ
+    một bước thô của workflow. Chỉ được cứu nhờ rào `grep -q '^running 1 test$'` Story 4.7 dựng ở
+    vòng 6. Đã vá lần này, nhưng chính CƠ CHẾ ghép nối vẫn nguyên. Phép sửa thật (một hằng dùng
+    chung, hoặc sinh bước CI từ nguồn) là một thay đổi thiết kế CI, không thuộc story này.
+    **(Chủ: Ice — quyết định hình dạng, rồi story nào chạm CI tiếp theo cài.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **`pop_piece` quyết định gỡ `'\r'` khỏi bản sao `pieces` dựa trên đuôi của `out`, không
+    dựa trên đuôi của chính mảnh đó — CHƯA chứng minh được là có với tới được hay không.**
+  evidence: Hai lượt truy vết độc lập (Phase 4a bằng tay, edge-case-hunter bằng path tracing) đều
+    không tìm ra một cấu trúc nào `expand_prompt_body` sinh ra chạm tới nhánh đó; không lượt nào
+    chứng minh nó BẤT KHẢ. Nếu có thật thì `pieces` lệch `prompt` theo byte và mệnh đề nền của
+    Story 4.7 gãy — mức `medium`, chưa kiểm chứng. Thứ sẽ phân xử: liệt kê đầy đủ những gì
+    `expand_prompt_body` có thể đặt tại một ranh giới mảnh, hoặc một property test trên thân CRLF.
+    **(Chủ: story nào chạm lại `core/ai/rag.rs`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **Nhánh `Done` của `wire::ai_translate_segment` gọi `mark_prompt_as_sent` không ca nào
+    chạy thật — mọi ca đều gọi thẳng hàm thuần.**
+  evidence: Lớp verification-gap, đã tự kiểm chứng: `grep -rn "mark_prompt_as_sent" src-tauri/` cho
+    thấy ca duy nhất chạm nó (`assemble_only_and_translate_write_an_identical_record_differing_only
+    _in_the_sent_facts`) GỌI THẲNG hàm, còn `ipc_contract.rs`/`ai_boundary.rs` chỉ đọc `lib.rs`
+    dạng văn bản. Xoá lời gọi khỏi nhánh `Done` sẽ khiến `sent_at` mãi mãi `None` sau mọi lượt gửi
+    thật mà cả bộ test vẫn xanh. Đóng được thì cần dựng một `tauri::AppHandle` thật với state quản
+    lý + `Channel` — không vỏ `#[tauri::command]` nào trong kho được đối xử như thế, kể cả Story
+    4.7. Đây là giới hạn CÓ SẴN của khuôn test, Story 4.8 chỉ nối dài thêm.
+    **(Chủ: Ice — quyết định có dựng khuôn test cho tầng vỏ hay không là một quyết định hạ tầng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
+  summary: **Một `HeaderValue::from_str` hỏng (khoá API chứa ký tự không hợp lệ trong header) bị
+    gán `retryable: true`, cùng rổ với mất kết nối.**
+  evidence: `core/ai/client.rs` ánh xạ lỗi dựng header thành `OpenAiClientError::RequestFailed`, mà
+    `From<OpenAiClientError> for IpcError` đánh `retryable: true`. Thử lại với đúng khoá đã lưu sẽ
+    hỏng y hệt mọi lần — nó không phải lỗi nhất thời. Ca `every_openai_client_error_variant_maps_
+    to_the_provider_call_failed_key_with_the_documented_retryable_flag` ghim đúng hành vi hiện tại,
+    nên đổi là đổi cả ca đó. Mức `low`: khoá đến từ keychain nên người dùng khó chạm.
+    **(Chủ: Story 4.10 — story sở hữu chính sách lỗi và thử lại.)**
 
 ## Deferred from: lượt lược sổ nợ (2026-09-19)
 

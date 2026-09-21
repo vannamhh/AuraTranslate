@@ -57,6 +57,9 @@ import { resetReading, resetReadingToc } from './readingState'
 // CŨ (nếu còn mở trước lượt nhập) phải bị vứt Ở ĐÂY riêng — không "rải" một lời gọi thứ hai,
 // nhưng cũng không được bỏ sót MỘT trong hai điểm nghẽn thật.
 import { resetAiPromptInspector } from '../aiPromptInspectorState'
+// 🔴 Story 4.8 — cùng khuyết tật và cùng bản sửa ngay trên: kết quả dịch cũng mang danh tính
+// THEO Tác phẩm, và cũng phải bị vứt ở đúng điểm nghẽn này.
+import { resetAiTranslate } from '../aiTranslateState'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -421,6 +424,8 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // 🔴 THÊM Story 4.7 loop 2, finding P4 — cùng lý lẽ dòng trên, bản ghi prompt cũng mang
     // danh tính THEO TÁC PHẨM; xem doc-comment tại chỗ `import`.
     resetAiPromptInspector()
+    // 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên, kết quả dịch cũng mang danh tính THEO TÁC PHẨM.
+    resetAiTranslate()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

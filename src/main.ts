@@ -40,6 +40,8 @@ import {
   goToPrevSegmentCoBao,
   clearEditorSourceCut,
   mergeCurrentSegment,
+  // 🔴 THÊM Story 4.8 (FR72, AD-47①/③) — handler thật của `ai.translate.promote`.
+  promoteAiTranslationToEditor,
   setCurrentSegmentOmitted,
   setCurrentSegmentParagraphEnd,
   splitChapterHere,
@@ -330,6 +332,17 @@ import {
   openAiPromptInspector,
 } from './aiPromptInspectorState'
 import { selectedPromptSetName } from './promptSetState'
+// ── Story 4.8 — "Dịch một segment với kết quả chảy dần" (FR72/FR74, AD-22) ──────────
+//
+// Cùng lý do và cùng cửa với `aiPromptInspectorState.ts`: `aiTranslateState.ts` dùng `ref` của
+// Vue và gọi `@tauri-apps/api` xuyên qua `config/aitranslate.ts`.
+import {
+  aiTranslateAccumulatedText,
+  aiTranslateRunSegmentId,
+  aiTranslateStateValue,
+  cancelAiTranslate,
+  runAiTranslate,
+} from './aiTranslateState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -922,6 +935,31 @@ async function boot(): Promise<void> {
       closeAiPromptInspector,
       assembleAiPrompt: () => {
         void assembleCurrentAiPrompt(selectedPromptSetName.value, editorCaretSegmentId.value)
+      },
+      // Story 4.8 · FR72/FR74/AD-47①③ — "Dịch một segment với kết quả chảy dần".
+      // `runAiTranslate`/`cancelAiTranslate` đọc CẢ câu đang có tiêu điểm LẪN bộ prompt hiệu
+      // lực TẠI THỜI ĐIỂM CHẠY, cùng khuôn `assembleAiPrompt` ngay trên.
+      runAiTranslate: () => {
+        void runAiTranslate(selectedPromptSetName.value, editorCaretSegmentId.value)
+      },
+      cancelAiTranslate: () => {
+        cancelAiTranslate()
+      },
+      // 🔴 Cổng ở ĐÂY, không ở `aiTranslateState.ts`/`editorPanelState.ts` — cùng lý lẽ
+      // `assembleAiPrompt`: hai module state không tự đọc lẫn nhau, `main.ts` là chỗ GHÉP.
+      // I/O Matrix spec 4.8 "Promote while generating" → kêu, không ném, không ghi.
+      promoteAiTranslate: () => {
+        const state = aiTranslateStateValue.value
+        const segmentId = aiTranslateRunSegmentId.value
+        const text = aiTranslateAccumulatedText.value
+        if ((state !== 'done' && state !== 'cancelled') || segmentId === null || text === '') {
+          console.warn(
+            `[ai-translate] khong dua sang Editor: chua co ket qua hop le (state=${state}, ` +
+              `segmentId=${String(segmentId)}, text rong=${String(text === '')})`,
+          )
+          return
+        }
+        void promoteAiTranslationToEditor(segmentId, text)
       },
     })
 

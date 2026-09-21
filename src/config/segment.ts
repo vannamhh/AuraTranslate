@@ -449,6 +449,31 @@ const CMD_READ_SEGMENT_HISTORY = 'read_segment_history'
  */
 const CMD_RESTORE_SEGMENT_VERSION = 'restore_segment_version'
 
+/**
+ * Kết quả một lượt **PROMOTE** — khớp NGUYÊN VĂN `commands::segment::PromoteAiTranslationOutcome`
+ * phía Rust, **`snake_case`**. Story 4.8 · FR72 · AD-47①/③.
+ */
+export type PromoteAiTranslationOutcome = {
+  segment_id: number
+  /** Văn bản vừa ghi — chỗ gọi mirror lại bằng `replaceEditorSegment` (§Code Map spec 4.8:
+   * "that mirror is not cosmetic — the confirm baseline is read from the loaded snapshot"). */
+  target_text: string
+  /** Luôn `"other"` khi thành công — AD-47③. */
+  translation_origin: string
+}
+
+/** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
+export type PromoteAiTranslationResult = {
+  outcome: PromoteAiTranslationOutcome | null
+  error: IpcError | null
+}
+
+/**
+ * Tên command trên dây — Story 4.8 · FR72 · AD-47①/③. `segment_id`/`target_text` đi dưới tên
+ * `segmentId`/`targetText`.
+ */
+const CMD_PROMOTE_AI_TRANSLATION = 'promote_ai_translation'
+
 /** Tên command trên dây — Story 2.8, FR78 · AD-5. */
 const CMD_MERGE_SEGMENTS = 'merge_segments'
 /**
@@ -895,6 +920,54 @@ export async function restoreSegmentVersion(
 
     console.info(
       `[segment] không gọi được \`${CMD_RESTORE_SEGMENT_VERSION}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * **Đưa một kết quả AI vào Editor** — máy trạng thái AD-47①/③, Story 4.8 · FR72.
+ *
+ * Không ném, cùng lý do `confirmSegment` không ném: chỗ gọi hiển thị lỗi bằng `tError()`,
+ * không bằng `try/catch` ở tầng UI.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 KHÔNG PHẢI FLUSH TRƯỚC — lượt ghi này KHÔNG đọc bộ đệm gõ dở của Editor
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Đây là một lượt ghi **non-user** (AD-47①): văn bản ghi xuống là văn bản AI vừa sinh, không
+ * phải văn bản người dùng đang gõ. Khác `confirmSegment` (ký văn bản **trên đĩa**, phải flush
+ * trước), lệnh này không có gì để chờ.
+ *
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `segment_id`/`target_text` phía Rust đi trên
+ * dây dưới tên `segmentId`/`targetText`.
+ *
+ * ⚠️ **Nghĩa vụ của chỗ gọi:** mirror kết quả bằng `replaceEditorSegment` NGAY sau khi lượt này
+ * thành công — đó là nửa còn lại của AD-47①(a), không phải việc của adapter này (cùng khuôn
+ * `restoreSegmentVersion`/`segmentHistoryState.ts::restoreVersion`).
+ */
+export async function promoteAiTranslation(
+  segmentId: number,
+  targetText: string,
+): Promise<PromoteAiTranslationResult> {
+  try {
+    const outcome = await invoke<PromoteAiTranslationOutcome>(CMD_PROMOTE_AI_TRANSLATION, {
+      segmentId,
+      targetText,
+    })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_PROMOTE_AI_TRANSLATION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_PROMOTE_AI_TRANSLATION}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { outcome: null, error: null }
   }

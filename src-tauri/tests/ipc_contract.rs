@@ -1990,3 +1990,104 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
         "phep cat than co the sai vi tri -- nguoi lang gieng Story 4.5 phai nam TRONG than nay:\n{body}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Spec 4.8, Phase 4 — registration test cho ba wire mới: `ai_translate_segment`,
+// `ai_translate_cancel`, `promote_ai_translation`. Cùng khuôn
+// [`the_ai_prompt_wires_are_registered_and_keep_their_parameter_names`].
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Cùng khuôn [`fn_param_list`], neo `"pub async fn {fn_name}("` thay vì `"pub fn {fn_name}("`
+/// — `ai_translate_segment` là `async fn` LITERAL đầu tiên của kho (spec 4.8 §Code Map: "There
+/// is no literal `async fn` command in the tree today"), không một thân đồng bộ bọc bởi
+/// `#[tauri::command(async)]` như mọi vỏ khác — tiền tố `pub fn` không khớp được chữ ký của nó.
+fn fn_param_list_async(src: &str, fn_name: &str) -> String {
+    let needle = format!("pub async fn {fn_name}(");
+    let start = src.find(&needle).unwrap_or_else(|| panic!("khong tim thay `{needle}` trong nguon"));
+    let after_open = start + needle.len();
+    let close = src[after_open..]
+        .find(')')
+        .unwrap_or_else(|| panic!("khong tim thay dau `)` dong tham so cho `{fn_name}`"));
+    src[after_open..after_open + close].to_owned()
+}
+
+/// 🔴 Không có ca đăng ký TOÀN CỤC nào cho ba wire này trước ca này — đúng lỗ mà
+/// [`the_ai_prompt_wires_are_registered_and_keep_their_parameter_names`]'s doc-comment ghi cho
+/// domain trước (Story 4.7, finding V2): xoá cả ba dòng `generate_handler!`/`app.manage` khỏi
+/// `lib.rs` vẫn để `cargo test --locked` VÀ `npx vitest run` xanh trong khi màn AI Translation
+/// vỡ trên một bản dựng thật ("command not found").
+#[test]
+fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::aitranslate::wire::ai_translate_segment",
+        "crate::commands::aitranslate::wire::ai_translate_cancel",
+        "crate::commands::segment::wire::promote_ai_translation",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
+             \"command not found\" va man AI Translation vo tren mot ban dung that."
+        );
+    }
+
+    assert!(
+        lib_src.contains("app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());"),
+        "thieu `app.manage(crate::commands::aitranslate::AiTranslateGeneration::default())` \
+         trong `lib.rs` -- huy giua chung khong con gi de bom the he len, va vo se panic tren \
+         nhanh `try_state` chua duoc quan ly."
+    );
+
+    let aitranslate_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("aitranslate.rs");
+    let aitranslate_src = fs::read_to_string(&aitranslate_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", aitranslate_rs.display()));
+
+    let segment_params = fn_param_list_async(&aitranslate_src, "ai_translate_segment");
+    assert_eq!(
+        normalize_param_list(&segment_params),
+        normalize_param_list(
+            "app: tauri::AppHandle, segment_id: i64, prompt_set_name: Option<String>, \
+             channel: tauri::ipc::Channel<String>,"
+        ),
+        "vo `ai_translate_segment` trong `pub mod wire` cua commands/aitranslate.rs khong con \
+         dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
+         `src/config/aitranslate.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+
+    let cancel_params = fn_param_list(&aitranslate_src, "ai_translate_cancel");
+    assert_eq!(
+        normalize_param_list(&cancel_params),
+        normalize_param_list("app: tauri::AppHandle"),
+        "vo `ai_translate_cancel` trong `pub mod wire` cua commands/aitranslate.rs khong con \
+         dung danh sach tham so mong doi"
+    );
+
+    // `promote_ai_translation` mang HAI khối `pub fn` cùng tên trong `commands/segment.rs` (hàm
+    // thuần đồng bộ + vỏ `pub mod wire`, AD-47①/③) — `fn_param_list` khớp khối ĐẦU TIÊN trong
+    // `src` truyền vào (xem doc-comment của nó), nên phải thu hẹp `src` tới ĐÚNG `pub mod wire
+    // { … }` trước, không được khớp nhầm khối hàm thuần đứng TRƯỚC nó trong tệp.
+    let segment_rs =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+    let segment_src = fs::read_to_string(&segment_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
+    let wire_mod_marker = "pub mod wire {";
+    let wire_mod_start = segment_src
+        .find(wire_mod_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{wire_mod_marker}` trong {}", segment_rs.display()));
+    let segment_wire_src = &segment_src[wire_mod_start..];
+
+    let promote_params = fn_param_list(segment_wire_src, "promote_ai_translation");
+    assert_eq!(
+        normalize_param_list(&promote_params),
+        normalize_param_list("app: tauri::AppHandle, segment_id: i64, target_text: String,"),
+        "vo `promote_ai_translation` trong `pub mod wire` cua commands/segment.rs khong con \
+         dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
+         `src/config/segment.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+}
