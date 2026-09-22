@@ -914,6 +914,31 @@ fn a_provider_error_after_partial_tokens_leaves_earlier_tokens_visible_and_propa
     );
 }
 
+/// I/O Matrix "Error with zero tokens received" (nhánh ĐƠN) — §Coverage spec 4.10 nêu tên lỗ
+/// này: "every fake error case emits at least one token first". Ca này đối chứng nhánh KHÔNG
+/// một token nào từng tới trước khi provider trượt -- `Channel` phải RỖNG, không một khung nào
+/// (khác ca `a_provider_error_after_partial_tokens_...` ngay trên, nơi MỘT token đã tới).
+///
+/// 🔵 THÊM 2026-09-22 (Story 4.10, Phase 3 — nửa MỚI của Task 9).
+#[test]
+fn a_provider_error_with_zero_tokens_received_leaves_the_channel_empty_and_propagates_the_error() {
+    let provider = FakeProvider {
+        tokens: vec![],
+        finish: FakeFinish::Err(FakeProviderError("dropped-before-first-token".to_owned())),
+    };
+    let prepared = dummy_prepared();
+    let (channel, received) = collecting_channel();
+    let should_cancel = || false;
+
+    let err =
+        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
+            .expect_err("mot loi provider TRUOC token dau tien van phai la Err");
+
+    assert_eq!(err, FakeProviderError("dropped-before-first-token".to_owned()));
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    assert!(got.is_empty(), "khong token nao tung gui -- Channel phai RONG, khong mot khung nao");
+}
+
 /// AC2's nửa "grep tìm 0 `emit`/`listen`" — canh bằng chính văn bản nguồn của tầng lệnh, đúng
 /// khuôn các gate quét-mã-nguồn khác của kho (`ai_boundary.rs`).
 #[test]
@@ -937,11 +962,15 @@ fn the_command_file_carries_zero_emit_or_listen_calls_on_the_translate_path() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// I/O Matrix "Provider returns a non-2xx" — `IpcError` mang mã trạng thái, KHÔNG thử lại.
+///
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — trước bản sửa này ca này canh một NHÃN GỘP DUY
+/// NHẤT (`AiTranslateProviderCallFailed`) cho cả bảy biến thể; Quyết định 2 spec 4.10 tách sáu
+/// khoá họ nguyên nhân, và non-2xx là khoá `AiTranslateProviderRefused` (`["status"]` bắt buộc).
 #[test]
 fn provider_returns_a_non_2xx_maps_to_a_non_retryable_ipc_error_naming_the_status() {
     let err: IpcError = OpenAiClientError::NonSuccessStatus { status: 401 }.into();
-    assert_eq!(err.code(), "ai_translate.provider_call_failed");
-    assert_eq!(err.message_key(), MessageKey::AiTranslateProviderCallFailed);
+    assert_eq!(err.code(), "ai_translate.provider_refused");
+    assert_eq!(err.message_key(), MessageKey::AiTranslateProviderRefused);
     assert_eq!(err.params().get("status"), Some(&"401".to_owned()));
     assert!(!err.retryable(), "non-2xx khong duoc thu lai");
 }
@@ -949,33 +978,83 @@ fn provider_returns_a_non_2xx_maps_to_a_non_retryable_ipc_error_naming_the_statu
 /// I/O Matrix "Stream ends without [DONE]" — `IpcError` retryable, KHÔNG tự động thử lại ở
 /// bất kỳ tầng nào (đó là quyết định của chỗ gọi/người dùng bấm lại, không phải cơ chế tự
 /// động — AD-22).
+///
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — khoá đổi từ `AiTranslateProviderCallFailed` sang
+/// `AiTranslateStreamEndedWithoutDone` (Quyết định 2 spec 4.10, cùng lý do trên).
 #[test]
 fn stream_ended_without_done_maps_to_a_retryable_ipc_error() {
     let err: IpcError = OpenAiClientError::StreamEndedWithoutDone.into();
-    assert_eq!(err.message_key(), MessageKey::AiTranslateProviderCallFailed);
+    assert_eq!(err.code(), "ai_translate.stream_ended_without_done");
+    assert_eq!(err.message_key(), MessageKey::AiTranslateStreamEndedWithoutDone);
     assert!(err.params().is_empty());
     assert!(err.retryable(), "rot ket noi GIUA CHUNG co the thu lai o luot bam lai");
 }
 
-/// Đối chứng ĐỦ SÁU biến thể — khoá cả bảng `match` của `impl From<OpenAiClientError> for
-/// IpcError` lại một lần, để một biến thể mới thêm vào tương lai không lặng lẽ rơi vào nhánh
-/// mặc định sai.
+/// Đối chứng ĐỦ TÁM biến thể (7 cũ + `ApiKeyHeaderInvalid` tách khỏi `RequestFailed` ở Task 1
+/// spec 4.10) — khoá cả bảng `match` của `openai_client_error_family`
+/// (`impl From<OpenAiClientError> for IpcError` gọi xuống nó) lại một lần, để một biến thể mới
+/// thêm vào tương lai không lặng lẽ rơi vào nhánh mặc định sai.
+///
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — tên hàm VÀ nội dung đổi từ "mọi biến thể ánh xạ
+/// cùng MỘT khoá gộp" sang "mọi biến thể ánh xạ khoá HỌ của chính nó" (Quyết định 2). Mảng giữ
+/// nguyên 7 phần tử cũ CỘNG một phần tử mới cho `ApiKeyHeaderInvalid` = 8.
 #[test]
-fn every_openai_client_error_variant_maps_to_the_provider_call_failed_key_with_the_documented_retryable_flag()
- {
-    let cases: [(OpenAiClientError, bool); 7] = [
-        (OpenAiClientError::ClientBuildFailed { detail: "x".to_owned() }, false),
-        (OpenAiClientError::RequestFailed { detail: "x".to_owned() }, true),
-        (OpenAiClientError::NonSuccessStatus { status: 500 }, false),
-        (OpenAiClientError::ReadFailed { detail: "x".to_owned() }, true),
-        (OpenAiClientError::StreamEndedWithoutDone, true),
-        (OpenAiClientError::MalformedEvent { detail: "x".to_owned() }, false),
-        (OpenAiClientError::BufferOverflow { size: 2 * 1024 * 1024 }, false),
+fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documented_retryable_flag() {
+    let cases: [(OpenAiClientError, &str, MessageKey, bool); 8] = [
+        (
+            OpenAiClientError::ClientBuildFailed { detail: "x".to_owned() },
+            "ai_translate.client_build_failed",
+            MessageKey::AiTranslateClientBuildFailed,
+            false,
+        ),
+        (
+            OpenAiClientError::RequestFailed { detail: "x".to_owned() },
+            "ai_translate.provider_unreachable",
+            MessageKey::AiTranslateProviderUnreachable,
+            true,
+        ),
+        (
+            OpenAiClientError::NonSuccessStatus { status: 500 },
+            "ai_translate.provider_refused",
+            MessageKey::AiTranslateProviderRefused,
+            false,
+        ),
+        (
+            OpenAiClientError::ReadFailed { detail: "x".to_owned() },
+            "ai_translate.provider_unreachable",
+            MessageKey::AiTranslateProviderUnreachable,
+            true,
+        ),
+        (
+            OpenAiClientError::StreamEndedWithoutDone,
+            "ai_translate.stream_ended_without_done",
+            MessageKey::AiTranslateStreamEndedWithoutDone,
+            true,
+        ),
+        (
+            OpenAiClientError::MalformedEvent { detail: "x".to_owned() },
+            "ai_translate.reply_unreadable",
+            MessageKey::AiTranslateReplyUnreadable,
+            false,
+        ),
+        (
+            OpenAiClientError::BufferOverflow { size: 2 * 1024 * 1024 },
+            "ai_translate.reply_unreadable",
+            MessageKey::AiTranslateReplyUnreadable,
+            false,
+        ),
+        (
+            OpenAiClientError::ApiKeyHeaderInvalid { detail: "x".to_owned() },
+            "ai_translate.api_key_header_invalid",
+            MessageKey::AiTranslateApiKeyHeaderInvalid,
+            false,
+        ),
     ];
-    for (variant, expected_retryable) in cases {
+    for (variant, expected_code, expected_key, expected_retryable) in cases {
         let label = format!("{variant:?}");
         let err: IpcError = variant.into();
-        assert_eq!(err.message_key(), MessageKey::AiTranslateProviderCallFailed, "{label}");
+        assert_eq!(err.code(), expected_code, "{label} phai mang code cua HO nguyen nhan");
+        assert_eq!(err.message_key(), expected_key, "{label}");
         assert_eq!(err.retryable(), expected_retryable, "{label} phai anh xa retryable={expected_retryable}");
     }
 }
@@ -1088,18 +1167,15 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
 // đang sống của webview để mà thấy nó đổi), và "Empty selection" (nút lệnh bị khoá ở tầng
 // dispatch, không một lời gọi IPC nào được gửi).
 //
-// ⚠️ Một giới hạn ĐO ĐƯỢC, không sửa được từ đây: `commands::aitranslate::batch_stopped_error`
-// (map `(segment_id, OpenAiClientError) -> IpcError` mã `ai_translate.batch_stopped`) là hàm
-// PRIVATE của module, chỉ `mod wire` (con của cùng tệp) gọi được -- `tests/**` là một crate
-// KHÁC, không `pub`, không gọi được. `run_batch_call` (canh dưới đây) đã trả đúng
-// `Err((segment_id, P::Error))`, đúng sự thật hành vi ma trận đòi ("names the sentence it
-// stopped on"); phần MÃ/`message_key`/`retryable` cụ thể của `ai_translate.batch_stopped`
-// chỉ testable được bằng cách gọi thẳng lệnh Tauri `ai_translate_batch` qua một `AppHandle`
-// thật (không có tiền lệ nào trong tệp này, và ngoài phạm vi Phase 4a: "Do not edit any file
-// outside src-tauri/tests/" -- làm `batch_stopped_error` `pub` là sửa product code) hoặc chờ
-// Phase 4b/một agent sau đo bằng cách khác. Việc ĐÃ đo được ở đây: đúng phân loại
-// `openai_client_error_is_retryable` mà `batch_stopped_error` DÙNG CHUNG đã có 7/7 biến thể
-// canh ở §4a trên qua `impl From<OpenAiClientError> for IpcError` (cùng hàm private).
+// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — đoạn ⚠️ nguyên bản dưới đây (Phase 4a) đã SAI ngay
+// từ Story 4.9 Phase 4b: `batch_stopped_error` được đổi thành `pub` ở chính phase đó (xem
+// doc-comment của nó ở `commands/aitranslate.rs`, "`pub` (Story 4.9, Phase 4b)"), nên ca
+// `batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag` (§4a trên) ĐÃ
+// gọi thẳng được hàm thật từ lâu — không còn cần `AppHandle` thật/một lệnh Tauri thật nào. Tên
+// hàm phân loại dùng chung cũng đổi: `openai_client_error_is_retryable` → `openai_client_error_
+// family` (Quyết định 2 spec 4.10, sáu khoá họ thay vì một nhãn gộp), và nhãn `ai_translate.
+// batch_stopped` không còn được dùng nữa — `batch_stopped_error` giờ trả về MỘT trong sáu khoá
+// họ nguyên nhân, giống hệt lượt dịch MỘT segment, chỉ mang thêm `segment_id`.
 
 /// Mirror THUẦN của `AiTranslateBatchEventWire` chỉ để giải mã byte THẬT đã đi qua
 /// `Channel::send` -- kiểu sản phẩm chỉ derive `Serialize` (một chiều gửi ra), không
@@ -1466,6 +1542,32 @@ fn ai_not_configured_for_a_batch_reports_not_configured_before_any_provider_call
     cleanup(&global_dir);
 }
 
+/// I/O Matrix "No Work open" (áp cho LÔ) -- tái dùng ĐÚNG khoá `WorkNoneOpen`, cùng khoá mà
+/// lượt dịch MỘT segment dùng (`no_work_open_reuses_the_existing_work_none_open_key`). Ca đó
+/// chỉ canh nhánh ĐƠN -- `prepare_batch_call` từ chối TRƯỚC khi đụng tới `segment_ids` (dòng
+/// `open.ok_or_else(crate::commands::chapter::no_work_open)?` chạy trước bất kỳ điều gì khác),
+/// nên §Coverage spec 4.10 nêu tên đây là lỗ chưa canh: "`work.none_open` is untested on the
+/// batch path".
+///
+/// 🔵 THÊM 2026-09-22 (Story 4.10, Phase 3 — nửa MỚI của Task 9).
+#[test]
+fn no_work_open_on_a_batch_reuses_the_existing_work_none_open_key() {
+    let global_dir = temp_dir("batch-no-work-open-global");
+    let global = open_global(&global_dir);
+    let record = fresh_record();
+
+    let err = expect_prepare_batch_err(
+        prepare_batch_call(Some(&global), None, &record, Some("Plain"), &[1]),
+        "khong Tac pham nao dang mo phai la mot Err -- ca cho MOT LO",
+    );
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
+    assert!(!err.retryable());
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
 /// I/O Matrix "segment not in chapter" (áp cho LÔ) -- tái dùng ĐÚNG khoá
 /// `AiPromptSegmentNotInChapter`, cùng khoá mà lượt dịch MỘT segment dùng
 /// (`segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_key`). Ca đó
@@ -1720,28 +1822,169 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
     assert_eq!(got, expected, "cau 1-5 giu ket qua, cau 6 chi co Token cua phan da nhan, khong Done");
 }
 
+/// I/O Matrix "Error with zero tokens received" (nhánh LÔ) — cùng lỗ §Coverage spec 4.10 nêu
+/// tên cho nhánh ĐƠN (`a_provider_error_with_zero_tokens_received_...` ở §3), áp cho
+/// `run_batch_call`: câu 6/12 trượt TRƯỚC khi gửi bất kỳ token nào -- không một `Token` nào cho
+/// câu đó, chỉ dừng lô ngay (không `Done`). Câu 1-5 vẫn giữ kết quả, câu 7-12 chưa từng được
+/// gọi -- cùng phép đo `call_count` các ca "Error mid-batch"/"Cancel mid-batch" ngay trên dùng.
+///
+/// 🔵 THÊM 2026-09-22 (Story 4.10, Phase 3 — nửa MỚI của Task 9).
+#[test]
+fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_for_that_sentence_and_stops_the_batch()
+ {
+    let ids: Vec<i64> = (901..=912).collect();
+    let items: Vec<PreparedBatchItem> =
+        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+
+    let mut recipes: Vec<MultiItemRecipe> = (0..5)
+        .map(|i| MultiItemRecipe {
+            tokens: vec![Box::leak(format!("token-{}", ids[i]).into_boxed_str())],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        })
+        .collect();
+    // Cau thu 6: KHONG mot token nao truoc khi loi.
+    recipes.push(MultiItemRecipe {
+        tokens: vec![],
+        finish: FakeFinish::Err(FakeProviderError("dropped-before-first-token".to_owned())),
+        trigger_cancel_after_token: None,
+    });
+    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let should_cancel = || false;
+    let (channel, received) = collecting_batch_channel();
+
+    let (failed_segment_id, err) =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect_err("mot loi provider TRUOC token dau tien van phai la Err");
+
+    assert_eq!(failed_segment_id, ids[5], "loi phai dat DUNG TEN cau ma provider tra loi that bai");
+    assert_eq!(err, FakeProviderError("dropped-before-first-token".to_owned()));
+    assert_eq!(provider.call_count.load(Ordering::SeqCst), 6);
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut expected = Vec::new();
+    for i in 0..5 {
+        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
+        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+    }
+    // Cau 6: KHONG mot su kien nao -- khong Token (khong token nao tung gui), khong Done.
+    assert_eq!(
+        got, expected,
+        "cau 1-5 giu ket qua DA XONG; cau 6 KHONG mot su kien nao (loi truoc token dau tien)"
+    );
+}
+
 /// I/O Matrix "Error mid-batch" — cột Error-Handling, phần Phase 4a KHÔNG canh được
 /// (`batch_stopped_error` từng `private`, xem doc-comment tại nguồn). Ca ngay TRÊN chỉ đo được
 /// `run_batch_call` trả `Err((segment_id, P::Error))` với `P::Error` GIẢ (`FakeProviderError`)
 /// -- không một ca nào gọi ĐÚNG hàm đúc `IpcError` thật (`OpenAiClientError` thật) cho tới bản
 /// sửa này. Hai biến thể, đúng hai hàng đã có tên trong
-/// `every_openai_client_error_variant_maps_to_...` ở trên (`NonSuccessStatus` ⇒ không thử lại,
-/// `StreamEndedWithoutDone` ⇒ có thể thử lại) -- cùng phân loại, chỉ khác NHÃN
-/// (`ai_translate.batch_stopped` thay vì `ai_translate.provider_call_failed`) và mang thêm
-/// `segment_id`.
+/// `every_openai_client_error_variant_maps_to_its_own_family_key_...` ở trên (`NonSuccessStatus`
+/// ⇒ không thử lại, `StreamEndedWithoutDone` ⇒ có thể thử lại) -- cùng phân loại VÀ cùng khoá họ
+/// nguyên nhân mà lượt dịch MỘT segment dùng (Quyết định 2, spec 4.10: "No per-path duplicate of
+/// the family"), chỉ mang thêm `segment_id` -- đúng câu batch dừng ở đó.
+///
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — trước bản sửa này ca này canh một NHÃN GỘP RIÊNG
+/// cho đường batch (`AiTranslateBatchStopped`, mang `segment_id` BẮT BUỘC); Quyết định 2 gỡ khoá
+/// đó, batch dùng CHUNG sáu khoá họ với lượt dịch MỘT segment. `status` (ca non-2xx) giờ là tham
+/// số bắt buộc của `AiTranslateProviderRefused` và PHẢI có mặt — đây cũng là phép sửa "cho
+/// `batch_stopped_error` cái `{status}` nó đánh rơi hôm nay" mà Task 4 spec 4.10 đòi.
+///
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 3 — nửa MỚI của Task 9: "extend `:1733` to every
+/// variant"). Phase 1 chỉ canh HAI trong tám biến thể (đúng hai hàng §Coverage spec 4.10 nêu tên
+/// đã đo được lỗ: "`:1733` checks only two of the seven variants for batch"). Bản sửa này mở
+/// rộng thành ĐỦ TÁM — cùng khuôn ĐÚNG mảng `every_openai_client_error_variant_maps_to_its_own_
+/// family_key_with_the_documented_retryable_flag` ở §4a (nhánh ĐƠN), chỉ khác chỗ gọi
+/// (`batch_stopped_error(segment_id, variant)` thay vì `variant.into()`) và hai khẳng định thêm
+/// mọi biến thể đều PHẢI mang đúng `segment_id`, còn `status` chỉ có ở đúng một biến thể
+/// (`NonSuccessStatus`) — hai mảng này PHẢI đứng cạnh nhau khi đọc, không phải hai bản chép độc
+/// lập: một biến thể mới thêm vào `OpenAiClientError` mà chỉ một trong hai mảng cập nhật sẽ để
+/// lộ lệch ở CHÍNH bản sửa thêm biến thể đó, không phải ở đây.
 #[test]
 fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag() {
-    let non_retryable = batch_stopped_error(842, OpenAiClientError::NonSuccessStatus { status: 500 });
-    assert_eq!(non_retryable.code(), "ai_translate.batch_stopped");
-    assert_eq!(non_retryable.message_key(), MessageKey::AiTranslateBatchStopped);
-    assert_eq!(non_retryable.params().get("segment_id"), Some(&"842".to_owned()));
-    assert!(!non_retryable.retryable(), "non-2xx khong duoc thu lai, cung phan loai voi loi don");
-
-    let retryable = batch_stopped_error(843, OpenAiClientError::StreamEndedWithoutDone);
-    assert_eq!(retryable.code(), "ai_translate.batch_stopped");
-    assert_eq!(retryable.message_key(), MessageKey::AiTranslateBatchStopped);
-    assert_eq!(retryable.params().get("segment_id"), Some(&"843".to_owned()));
-    assert!(retryable.retryable(), "rot ket noi GIUA CHUNG co the thu lai o luot bam lai");
+    const SEGMENT_ID: i64 = 850;
+    let cases: [(OpenAiClientError, &str, MessageKey, bool); 8] = [
+        (
+            OpenAiClientError::ClientBuildFailed { detail: "x".to_owned() },
+            "ai_translate.client_build_failed",
+            MessageKey::AiTranslateClientBuildFailed,
+            false,
+        ),
+        (
+            OpenAiClientError::RequestFailed { detail: "x".to_owned() },
+            "ai_translate.provider_unreachable",
+            MessageKey::AiTranslateProviderUnreachable,
+            true,
+        ),
+        (
+            OpenAiClientError::NonSuccessStatus { status: 500 },
+            "ai_translate.provider_refused",
+            MessageKey::AiTranslateProviderRefused,
+            false,
+        ),
+        (
+            OpenAiClientError::ReadFailed { detail: "x".to_owned() },
+            "ai_translate.provider_unreachable",
+            MessageKey::AiTranslateProviderUnreachable,
+            true,
+        ),
+        (
+            OpenAiClientError::StreamEndedWithoutDone,
+            "ai_translate.stream_ended_without_done",
+            MessageKey::AiTranslateStreamEndedWithoutDone,
+            true,
+        ),
+        (
+            OpenAiClientError::MalformedEvent { detail: "x".to_owned() },
+            "ai_translate.reply_unreadable",
+            MessageKey::AiTranslateReplyUnreadable,
+            false,
+        ),
+        (
+            OpenAiClientError::BufferOverflow { size: 2 * 1024 * 1024 },
+            "ai_translate.reply_unreadable",
+            MessageKey::AiTranslateReplyUnreadable,
+            false,
+        ),
+        (
+            OpenAiClientError::ApiKeyHeaderInvalid { detail: "x".to_owned() },
+            "ai_translate.api_key_header_invalid",
+            MessageKey::AiTranslateApiKeyHeaderInvalid,
+            false,
+        ),
+    ];
+    for (variant, expected_code, expected_key, expected_retryable) in cases {
+        let label = format!("{variant:?}");
+        let is_non_2xx = matches!(variant, OpenAiClientError::NonSuccessStatus { .. });
+        let err = batch_stopped_error(SEGMENT_ID, variant);
+        assert_eq!(err.code(), expected_code, "{label}");
+        assert_eq!(err.message_key(), expected_key, "{label}");
+        assert_eq!(
+            err.params().get("segment_id"),
+            Some(&SEGMENT_ID.to_string()),
+            "{label}: segment_id phai co mat o MOI bien the, khong chi hai bien the cu"
+        );
+        if is_non_2xx {
+            assert_eq!(err.params().get("status"), Some(&"500".to_owned()), "{label}: status khong con bi rot");
+        } else {
+            assert!(
+                err.params().get("status").is_none(),
+                "{label}: chi NonSuccessStatus moi mang status"
+            );
+        }
+        assert_eq!(
+            err.retryable(),
+            expected_retryable,
+            "{label} phai anh xa retryable={expected_retryable}, cung phan loai voi loi don"
+        );
+    }
 }
 
 /// I/O Matrix "Omitted segment inside the selection" (nửa CHẢY) — segment 3/5 mang

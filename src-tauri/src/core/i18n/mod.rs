@@ -760,42 +760,63 @@ message_keys! {
     /// đã ghi khi nó không mượn `SegmentRetired`.
     AiPromptSegmentNotInChapter => "err.ai_prompt.segment_not_in_chapter" ["segment_id", "chapter_id"],
 
-    // ── Story 4.8 (FR72/FR74, AD-22) — HAI khoá MỚI, ba ca tái dùng ─────────────────
+    // ── Story 4.8 (FR72/FR74, AD-22) — hai ca tái dùng ─────────────────────────────
     //
     // Bề mặt IPC `commands::aitranslate` (dịch một segment với kết quả chảy dần). Ba trong năm
     // hàng từ chối của I/O Matrix spec 4.8 tái dùng khoá ĐÃ CÓ: "No Work, or an id the chapter
     // does not hold" ⇒ `work.none_open`/`ai_prompt.segment_not_in_chapter` (tái dùng ĐÚNG hàm
     // `commands::aiprompt::segment_not_in_chapter`, không một khoá thứ hai cho cùng câu);
-    // "Keychain refuses to answer" ⇒ `ai_config.keychain_unavailable` (Story 4.3). Hai khoá
-    // dưới đây phủ đúng hai sự thật RIÊNG mà không khoá nào ở trên nói được.
+    // "Keychain refuses to answer" ⇒ `ai_config.keychain_unavailable` (Story 4.3). Khoá dưới
+    // đây phủ đúng một sự thật RIÊNG mà không khoá nào ở trên nói được.
     /// Segment mang `is_omitted == true` — bị từ chối TRƯỚC khi request được dựng (§Always
     /// spec 4.8: "never sent to a provider, checked before the request is built").
     AiTranslateSegmentOmitted => "err.ai_translate.segment_omitted" ["segment_id"],
-    /// Provider trả lỗi mạng/HTTP/khung SSE hỏng (`core::ai::client::OpenAiClientError`, chẩn
-    /// đoán CỤ THỂ nằm ở `Display` của kiểu đó, không dấu, cho log) — khoá này là NHÃN duy nhất
-    /// qua IPC cho toàn bộ họ lỗi đó. KHÔNG tham số bắt buộc: `status` (khi có, ca non-2xx)
-    /// đi kèm như dữ liệu chẩn đoán THỪA, không một placeholder trong câu (§Never spec 4.8:
-    /// "no error-copy catalogue ... this story produces the error state and an `IpcError`-
-    /// shaped failure" — Story 4.10 sở hữu văn bản/nút thử lại riêng cho từng nguyên nhân).
-    AiTranslateProviderCallFailed => "err.ai_translate.provider_call_failed" [],
 
-    // ── Story 4.9, Phase 2 (FR73, AD-22, Decision 2) — MỘT khoá MỚI ─────────────────
+    // ── Story 4.10 (FR75, Quyết định 2) — SÁU khoá HỌ NGUYÊN NHÂN, thay cho MỘT khoá gộp ──
     //
-    // Bề mặt IPC `commands::aitranslate::ai_translate_batch`. Bốn trong năm hàng từ chối của
-    // I/O Matrix spec 4.9 tái dùng khoá ĐÃ CÓ: config chưa xong ⇒ `AiTranslateOutcomeWire::
-    // NotConfigured` (trạng thái, không lỗi); segment bị cắt ⇒ được BỎ QUA trong batch, không
-    // một `IpcError` nào (khác hẳn lượt dịch MỘT segment 4.8, nơi `is_omitted` từ chối cả lượt
-    // gọi); `WorkNoneOpen`/`AiPromptSegmentNotInChapter` phủ "chưa mở Tác phẩm"/"một id lạ
-    // trong lô". Khoá dưới đây phủ đúng MỘT sự thật RIÊNG mà không khoá nào ở trên nói được:
-    // provider dừng GIỮA một lô nhiều câu, và người dùng cần biết CÂU NÀO đã dừng ở đó — khác
-    // `AiTranslateProviderCallFailed` (Story 4.8) ở chỗ khoá đó không mang `segment_id` vì lượt
-    // dịch một segment không cần nói lại một id người dùng đã biết.
-    /// Provider trả lỗi giữa một lô (`core::ai::client::OpenAiClientError`, cùng NHÃN duy nhất
-    /// `AiTranslateProviderCallFailed` đã dùng cho lượt dịch một segment) TRÊN câu `segment_id`
-    /// — batch dừng NGAY tại đó: mọi câu trước đó giữ nguyên kết quả, câu này và mọi câu sau
-    /// không bao giờ được gọi (§Always spec 4.9: "the first error stops the batch and names the
-    /// sentence. Never skip a failed sentence and carry on").
-    AiTranslateBatchStopped => "err.ai_translate.batch_stopped" ["segment_id"],
+    // 🔵 SỬA 2026-09-22 — `AiTranslateProviderCallFailed` (Story 4.8) và `AiTranslateBatchStopped`
+    // (Story 4.9) từng là hai NHÃN che cả bảy biến thể của `OpenAiClientError` thành đúng một
+    // câu mỗi bên (single-run/batch); doc-comment của `AiTranslateProviderCallFailed` đã tự ghi
+    // "Story 4.10 sở hữu văn bản/nút thử lại riêng cho từng nguyên nhân" — đây là bản đó. Hai
+    // khoá cũ bị GỠ khỏi danh mục này (không còn `impl From<OpenAiClientError> for IpcError`
+    // hay `batch_stopped_error` nào dựng chúng nữa).
+    //
+    // 🔵 SỬA 2026-09-22 (Phase 3) — đoạn ngay trên (Phase 1) từng ghi hai dòng `vi.json` cũ
+    // (`err.ai_translate.provider_call_failed`/`err.ai_translate.batch_stopped`) "được GIỮ
+    // NGUYÊN, mồ côi có chủ ý", vì Phase 1's ranh giới chỉ cho phép THÊM sáu câu nguyên nhân vào
+    // `vi.json`, không xoá. Cả hai dòng đó đã bị XOÁ khỏi `vi.json` ở Phase 3 (thứ tự: xoá trước
+    // — đối chứng `npx vitest run` phải ĐỎ ở `tests/frontend/aiTranslate.test.ts`/
+    // `aiTranslateBatch.test.ts` khi chưa sửa fixture — rồi mới sửa hai fixture đó sang khoá
+    // HỌ thật; xem `## Phase notes` §"Phase 3" của spec 4.10). Không còn mồ côi nào trong
+    // `vi.json` cho hai câu này nữa.
+    //
+    // Sáu khoá dưới đây dùng CHUNG cho cả lượt dịch MỘT segment (`impl From<OpenAiClientError>
+    // for IpcError`) LẪN lượt dừng GIỮA một lô (`batch_stopped_error`) — Quyết định 2: "One
+    // `IpcError` carries exactly one `message_key`, so the key carries the CAUSE ... No per-path
+    // duplicate of the family." `segment_id` (batch) và `status` (non-2xx, cả hai đường) vẫn đi
+    // kèm trong `params` như trước — xem doc-comment từng khoá.
+    /// Provider không TỚI ĐƯỢC — rớt kết nối trước khi có phản hồi hoặc đọc thân phản hồi lỗi
+    /// GIỮA CHỪNG (`OpenAiClientError::RequestFailed`/`ReadFailed`). Retryable.
+    AiTranslateProviderUnreachable => "err.ai_translate.provider_unreachable" [],
+    /// Provider TỪ CHỐI yêu cầu bằng một mã KHÔNG phải 2xx (`OpenAiClientError::
+    /// NonSuccessStatus`) — KHÔNG retryable, câu nêu tên sự từ chối cộng `status`.
+    AiTranslateProviderRefused => "err.ai_translate.provider_refused" ["status"],
+    /// Luồng ĐÓNG trước khi thấy khung `[DONE]` (`OpenAiClientError::StreamEndedWithoutDone`) —
+    /// lỗi tường minh, token đã nhận vẫn ở lại màn hình (AD-22). Retryable.
+    AiTranslateStreamEndedWithoutDone => "err.ai_translate.stream_ended_without_done" [],
+    /// Phản hồi của provider KHÔNG ĐỌC ĐƯỢC — một khung `data:` không phải JSON hợp lệ hoặc bộ
+    /// đệm SSE tích luỹ vượt trần mà chưa thấy dấu phân cách nào
+    /// (`OpenAiClientError::MalformedEvent`/`BufferOverflow`). KHÔNG retryable — thử lại cùng
+    /// một endpoint hỏng hình cho cùng một kết quả.
+    AiTranslateReplyUnreadable => "err.ai_translate.reply_unreadable" [],
+    /// MÁY NÀY không dựng được client HTTP (`OpenAiClientError::ClientBuildFailed`) — câu nêu
+    /// tên máy này, không phải provider (§Always spec 4.10: "Copy names the provider or this
+    /// machine, never the user"). KHÔNG retryable.
+    AiTranslateClientBuildFailed => "err.ai_translate.client_build_failed" [],
+    /// Khoá API đã lưu KHÔNG vào được giá trị header HTTP
+    /// (`OpenAiClientError::ApiKeyHeaderInvalid`, tách khỏi `RequestFailed` ở Task 1 spec 4.10)
+    /// — câu chỉ vào khoá đã lưu, không đọc được. KHÔNG retryable — thất bại giống hệt mỗi lần.
+    AiTranslateApiKeyHeaderInvalid => "err.ai_translate.api_key_header_invalid" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

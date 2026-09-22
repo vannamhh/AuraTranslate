@@ -95,11 +95,52 @@ impl fmt::Display for KeychainUnavailable {
 
 impl std::error::Error for KeychainUnavailable {}
 
+/// Tên biến thể `keyring::Error`, KHÔNG DẤU — chẩn đoán CHO LOG, không bao giờ phải là văn bản
+/// hiển thị lẫn đi qua IPC (Quyết định 5, spec 4.10: "log the `keyring::Error` variant NAME,
+/// never its message"). Kiểu là `#[non_exhaustive]` (`keyring-core-1.0.0`), nên nhánh cuối bọc
+/// mọi biến thể mà một bản nâng cấp crate tương lai có thể thêm.
+fn keyring_error_variant_name(err: &keyring::Error) -> &'static str {
+    match err {
+        keyring::Error::PlatformFailure(_) => "PlatformFailure",
+        keyring::Error::NoStorageAccess(_) => "NoStorageAccess",
+        keyring::Error::NoEntry => "NoEntry",
+        keyring::Error::BadEncoding(_) => "BadEncoding",
+        keyring::Error::BadDataFormat(_, _) => "BadDataFormat",
+        keyring::Error::BadStoreFormat(_) => "BadStoreFormat",
+        keyring::Error::TooLong(_, _) => "TooLong",
+        keyring::Error::Invalid(_, _) => "Invalid",
+        keyring::Error::Ambiguous(_) => "Ambiguous",
+        keyring::Error::NoDefaultStore => "NoDefaultStore",
+        keyring::Error::NotSupportedByStore(_) => "NotSupportedByStore",
+        _ => "Unknown",
+    }
+}
+
+/// Ghi TÊN biến thể `keyring::Error` ra chẩn đoán TRƯỚC khi hạ nó xuống [`KeychainUnavailable`]
+/// (Quyết định 5, spec 4.10) — đường chẩn đoán DUY NHẤT, KHÔNG DẤU (NFR16), không bao giờ băng
+/// qua IPC: `KeychainUnavailable` vẫn là lỗi trả về, y hệt trước bản sửa này. Một tên biến thể
+/// phân biệt `NoStorageAccess` với `NoDefaultStore`, tức tách được "kho có mà không truy cập
+/// được" khỏi "không kho nào khởi tạo được" — đúng chỗ mất chẩn đoán mà spec 4.10 §Intent nêu —
+/// mà không mang theo giá trị thô của biến thể (một số biến thể bọc `PlatformError`/`Vec<u8>`,
+/// chẩn đoán nền tảng, không phải khoá, nhưng đây chỉ log TÊN).
+///
+/// 🔵 **SỬA 2026-09-22 (vòng rà, Story 4.10).** Bản trước ở đây khai `NoStorageAccess` NGHĨA LÀ
+/// "người dùng bấm Từ chối trên hộp thoại hệ điều hành". Đó là một GIẢ THIẾT viết thành sự thật:
+/// biến thể này của `keyring` phủ cả một kho đang khoá hoặc không truy cập được, không riêng một
+/// lượt từ chối cấp quyền. Tên biến thể vẫn là thứ đáng log; ý nghĩa CHÍNH XÁC của từng tên thì
+/// đọc ở `keyring`, đừng đọc ở đây. Chưa lượt nào đo trên máy thật.
+fn log_keyring_error(context: &str, err: &keyring::Error) {
+    eprintln!("aiconfig[keychain] {context} keyring_error_variant={}", keyring_error_variant_name(err));
+}
+
 /// Mở entry keychain của ứng dụng. Lỗi ở đây gồm cả `NoDefaultStore` — nền tảng không khởi
 /// tạo được kho nào (§Always spec 4.3: "a test that means to use the mock store must prove
 /// it got it" nói về đúng biến thể này, ở phía test).
 fn entry() -> Result<Entry, KeychainUnavailable> {
-    Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT).map_err(|_| KeychainUnavailable)
+    Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT).map_err(|e| {
+        log_keyring_error("entry_new", &e);
+        KeychainUnavailable
+    })
 }
 
 /// Ghi (hoặc thay) giá trị khoá — chỗ gọi đã qua [`super::validate_key`] trước khi tới đây
@@ -108,9 +149,10 @@ fn entry() -> Result<Entry, KeychainUnavailable> {
 /// chính `keyring`/nền tảng bên dưới (`set_password` trên một account đã tồn tại thay giá
 /// trị tại chỗ), I/O Matrix "Overwrite an existing key".
 pub(crate) fn set(value: &str) -> Result<(), KeychainUnavailable> {
-    entry()?
-        .set_password(value)
-        .map_err(|_| KeychainUnavailable)
+    entry()?.set_password(value).map_err(|e| {
+        log_keyring_error("set_password", &e);
+        KeychainUnavailable
+    })
 }
 
 /// Xoá entry — "xoá khi không có entry nào" là THÀNH CÔNG (I/O Matrix spec 4.3: "post-state
@@ -119,7 +161,10 @@ pub(crate) fn delete() -> Result<(), KeychainUnavailable> {
     match entry()?.delete_credential() {
         Ok(()) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()),
-        Err(_) => Err(KeychainUnavailable),
+        Err(e) => {
+            log_keyring_error("delete_credential", &e);
+            Err(KeychainUnavailable)
+        }
     }
 }
 
@@ -131,7 +176,10 @@ pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
     match entry()?.get_password() {
         Ok(_) => Ok(true),
         Err(keyring::Error::NoEntry) => Ok(false),
-        Err(_) => Err(KeychainUnavailable),
+        Err(e) => {
+            log_keyring_error("get_password[configured]", &e);
+            Err(KeychainUnavailable)
+        }
     }
 }
 
@@ -146,7 +194,10 @@ pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
     match entry()?.get_password() {
         Ok(value) => Ok(Some(ApiKeySecret::new(value))),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(_) => Err(KeychainUnavailable),
+        Err(e) => {
+            log_keyring_error("get_password[read]", &e);
+            Err(KeychainUnavailable)
+        }
     }
 }
 

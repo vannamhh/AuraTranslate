@@ -77,11 +77,38 @@ type RunResult = { value: AiTranslateOutcomeWire | null; error: IpcError | null 
 type OnEvent = (event: AiTranslateBatchEventWire) => void
 type OnToken = (text: string) => void
 
-const BATCH_STOPPED_ON_12: IpcError = {
-  code: 'ai_translate.batch_stopped',
-  message_key: 'err.ai_translate.batch_stopped',
+/**
+ * 🔴 SỬA 2026-09-22 (Story 4.10, Phase 3) — trước bản sửa này hằng số này tên
+ * `BATCH_STOPPED_ON_12`, mang `err.ai_translate.batch_stopped` (khoá GỘP RIÊNG cho đường batch
+ * mà Quyết định 2 spec 4.10 đã gỡ — batch dùng CHUNG sáu khoá họ với lượt dịch MỘT segment, chỉ
+ * mang thêm `segment_id`, xem `commands/aitranslate.rs::batch_stopped_error`). Cùng phát hiện
+ * đã ghi ở `aiTranslate.test.ts::STREAM_ENDED_ERROR`: đo được (`npx vitest run` TRƯỚC khi xoá
+ * hai dòng orphan khỏi `vi.json`, giữ NGUYÊN fixture) cả hai tệp vẫn XANH, vì dòng cũ so
+ * `alert.text()` với `i18n.tError(BATCH_STOPPED_ON_12)` — gọi lại CHÍNH hàm đang được canh trên
+ * CÙNG payload, nên hai vế luôn bằng nhau kể cả khi khoá đã biến mất. Đổi khoá THẬT
+ * (`provider_unreachable`, retryable) VÀ đổi vế so sánh sang chuỗi LITERAL chép từ `vi.json`.
+ *
+ * 🔴 Khác MỘT điều nữa: khoá HỌ nguyên nhân (Quyết định 2) KHÔNG còn nội suy `{segment_id}` vào
+ * CÂU hiển thị nữa — "the batch row list built in 4.9 carries WHICH row failed. No per-path
+ * duplicate of the family." Câu cũ (`err.ai_translate.batch_stopped`) từng nêu tên "câu số 12"
+ * NGAY TRONG câu; câu mới không nêu số câu nào -- danh tính câu 12 giờ chỉ đọc được qua HÀNG lô
+ * (`data-ai-translate-batch-row-status`), không qua `.ai-translate-alert`. Ca dưới đây đã sửa
+ * theo đúng thay đổi này (xem tiêu đề ca).
+ */
+const PROVIDER_UNREACHABLE_ON_12: IpcError = {
+  code: 'ai_translate.provider_unreachable',
+  message_key: 'err.ai_translate.provider_unreachable',
   params: { segment_id: '12' },
   retryable: true,
+}
+
+/** Cùng lý do trên: một lỗi KHÔNG retryable thật (Quyết định 2 spec 4.10), dùng cho cụm "nút
+ * Thử lại LÔ chỉ hiện khi retryable". */
+const PROVIDER_REFUSED_ON_13: IpcError = {
+  code: 'ai_translate.provider_refused',
+  message_key: 'err.ai_translate.provider_refused',
+  params: { segment_id: '13', status: '500' },
+  retryable: false,
 }
 
 /**
@@ -198,6 +225,32 @@ async function freshPanel() {
     runAiTranslateBatch: () => {
       if (state.aiTranslateStateValue.value === 'generating') return
       void batchState.runAiTranslateBatch(null, selectionState.segmentSelectionIds.value)
+    },
+    // Story 4.10, Phase 3 — chép NGUYÊN VĂN hai lớp gác thật của `main.ts`'s handler thật
+    // `retryAiTranslate`/`retryAiTranslateBatch` (Phase 2): cổng loại-trừ-lẫn-nhau ĐƠN/LÔ
+    // trước (cùng khuôn `runAiTranslate`/`runAiTranslateBatch` ngay trên), rồi lớp gác riêng
+    // của retry -- phải THẬT SỰ có một lỗi `retryable` đang chờ (§Always spec 4.10: "retryable
+    // grants only the right to SHOW a button").
+    retryAiTranslate: () => {
+      if (batchState.aiTranslateBatchStateValue.value === 'generating') return
+      if (state.aiTranslateStateValue.value === 'generating') return
+      const err = state.aiTranslateError.value
+      if (state.aiTranslateStateValue.value !== 'error' || err === null || err.retryable !== true) return
+      const segmentId = state.aiTranslateRunSegmentId.value
+      if (segmentId === null) return
+      void state.runAiTranslate(null, segmentId)
+    },
+    // `aiTranslateBatchRetryIds` (Task 6 spec 4.10) đọc hàng `error` cộng mọi hàng `pending`
+    // của LÔ vừa lỗi, giữ ĐÚNG thứ tự tài liệu -- không một câu `done`/`skipped`/`cancelled`
+    // nào bị gọi lại.
+    retryAiTranslateBatch: () => {
+      if (state.aiTranslateStateValue.value === 'generating') return
+      if (batchState.aiTranslateBatchStateValue.value === 'generating') return
+      const err = batchState.aiTranslateBatchError.value
+      if (batchState.aiTranslateBatchStateValue.value !== 'error' || err === null || err.retryable !== true) return
+      const ids = batchState.aiTranslateBatchRetryIds(batchState.aiTranslateBatchRows.value)
+      if (ids.length === 0) return
+      void batchState.runAiTranslateBatch(null, ids)
     },
   } as CommandDeps)
 
@@ -343,8 +396,8 @@ describe('AiTranslationPanel.vue — huỷ giữa lô (I/O Matrix "Cancel mid-ba
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 describe('AiTranslationPanel.vue — lỗi giữa lô (I/O Matrix "Error mid-batch")', () => {
-  it('provider trượt ở câu 2 ⇒ `.ai-translate-alert` nêu đúng câu 12, câu 2 chuyển "error" VÀ GIỮ NGUYÊN văn bản đã nhận, câu 1 vẫn "done", câu 3 chưa từng được gọi', async () => {
-    const { i18n, editorState, selectionState, batchState, AiTranslationPanel } = await freshPanel()
+  it('provider trượt ở câu 2 ⇒ `.ai-translate-alert` hiện đúng bản dịch của họ nguyên nhân (KHÔNG nêu số câu — hàng lô mới là nơi biết CÂU NÀO, Quyết định 2 spec 4.10), câu 2 chuyển "error" VÀ GIỮ NGUYÊN văn bản đã nhận, câu 1 vẫn "done", câu 3 chưa từng được gọi', async () => {
+    const { editorState, selectionState, batchState, AiTranslationPanel } = await freshPanel()
     selectAllThreeFixtureSegments(editorState, selectionState)
     const fake = pendingBatchRun()
 
@@ -358,13 +411,19 @@ describe('AiTranslationPanel.vue — lỗi giữa lô (I/O Matrix "Error mid-bat
     fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan truoc khi loi' })
     await wrapper.vm.$nextTick()
 
-    fake.settle({ value: null, error: BATCH_STOPPED_ON_12 })
+    fake.settle({ value: null, error: PROVIDER_UNREACHABLE_ON_12 })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     const alert = wrapper.get('[data-ai-translate-batch-alert]')
     expect(alert.attributes('role')).toBe('alert')
-    expect(alert.text()).toBe(i18n.tError(BATCH_STOPPED_ON_12))
+    // 🔴 CHUỖI LITERAL, KHÔNG gọi lại `i18n.tError(...)` — xem doc-comment
+    // `PROVIDER_UNREACHABLE_ON_12` đầu tệp: so hai lời gọi `tError` giống nhau là một phép đối
+    // chứng RỖNG. Chép NGUYÊN VĂN từ `src/i18n/vi.json` (`err.ai_translate.provider_unreachable`)
+    // — câu KHÔNG nêu số câu 12, đúng Quyết định 2 ("No per-path duplicate of the family").
+    expect(alert.text()).toBe(
+      'Không kết nối được tới nhà cung cấp AI — chưa có kết quả mới nào. Những đoạn đã nhận trước đó vẫn còn trên màn hình.',
+    )
 
     const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
     expect(rows[0]?.attributes('data-ai-translate-batch-row-status')).toBe('done')
@@ -376,6 +435,141 @@ describe('AiTranslationPanel.vue — lỗi giữa lô (I/O Matrix "Error mid-bat
     // template (chỉ segmentId + nhãn trạng thái) — kiểm qua state của module thay vì DOM.
     const errorRow = batchState.aiTranslateBatchRows.value.find((r) => r.segmentId === 12)
     expect(errorRow?.text).toBe('Mot phan truoc khi loi')
+
+    wrapper.unmount()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Story 4.10, Phase 3 — Task 10: nút "Thử lại" LÔ. `[data-ai-translate-batch-retry]` chỉ hiện
+// khi `retryable`, và một click dispatch ĐÚNG tập id chưa chạy (`error` + mọi `pending`), không
+// một câu `done` nào bị gọi lại -- assert TẬP ID THẬT, không chỉ "có gọi lại".
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Always: "retryable grants only the right to SHOW a button")', () => {
+  it('lỗi retryable ở câu 12/3 ⇒ nút Thử lại LÔ hiện, `aiTranslateBatchRetryIds` trả ĐÚNG [12, 13], click dispatch lại ĐÚNG hai id đó (không câu 11 đã "done")', async () => {
+    const { editorState, selectionState, batchState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
+    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan truoc khi loi' })
+    await wrapper.vm.$nextTick()
+
+    fake.settle({ value: null, error: PROVIDER_UNREACHABLE_ON_12 })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
+    expect(rows[0]?.attributes('data-ai-translate-batch-row-status')).toBe('done')
+    expect(rows[1]?.attributes('data-ai-translate-batch-row-status')).toBe('error')
+    expect(rows[2]?.attributes('data-ai-translate-batch-row-status')).toBe('pending')
+
+    expect(wrapper.get('[data-ai-translate-batch-retry]').text()).toBe('Thử lại các câu chưa xong')
+    // Hàm THUẦN trực tiếp (Left for Phase 3, `## Phase notes` §"Phase 2") -- không suy tập id
+    // từ dispatch, đọc thẳng từ module.
+    expect(batchState.aiTranslateBatchRetryIds(batchState.aiTranslateBatchRows.value)).toEqual([12, 13])
+
+    runBatchMock.mockClear()
+    const fake2 = pendingBatchRun()
+    await wrapper.get('[data-ai-translate-batch-retry]').trigger('click')
+    await flushPromises()
+
+    // 🔴 Mệnh đề trung tâm: ĐÚNG [12, 13], KHÔNG [11, 12, 13] -- câu 11 đã "done" không bao giờ
+    // được gọi lại.
+    expect(runBatchMock).toHaveBeenCalledTimes(1)
+    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function))
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
+    expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([12, 13])
+
+    fake2.emit({ kind: 'token', segment_id: 12, text: 'z' })
+    fake2.emit({ kind: 'done', segment_id: 12 })
+    fake2.emit({ kind: 'token', segment_id: 13, text: 'z' })
+    fake2.emit({ kind: 'done', segment_id: 13 })
+    fake2.settle({ value: { state: 'done' }, error: null })
+    await flushPromises()
+
+    wrapper.unmount()
+  })
+
+  it('lỗi KHÔNG retryable ⇒ không có `[data-ai-translate-batch-retry]` nào trong DOM, và dispatch trực tiếp (chord) không gọi lại provider', async () => {
+    const { commands, editorState, selectionState, batchState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
+    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Ket qua 2' })
+    fake.emit({ kind: 'done', segment_id: 12 })
+    await wrapper.vm.$nextTick()
+
+    fake.settle({ value: null, error: PROVIDER_REFUSED_ON_13 })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('error')
+    expect(wrapper.find('[data-ai-translate-batch-retry]').exists()).toBe(false)
+
+    runBatchMock.mockClear()
+    commands.dispatch('ai.translate.batch_retry')
+    await flushPromises()
+
+    expect(runBatchMock).not.toHaveBeenCalled()
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('error')
+
+    wrapper.unmount()
+  })
+
+  it('huỷ giữa lúc câu 12 đang chảy ⇒ KHÔNG có nút Thử lại LÔ nào (frozen row đã SỬA, §Spec Change Log spec 4.10: "a cancel produces no `IpcError`"), và `aiTranslateBatchRetryIds` chỉ trả câu CHƯA CHẠY (13), KHÔNG gồm câu vừa bị huỷ dở (12)', async () => {
+    const { commands, editorState, selectionState, batchState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
+    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan cau 2' })
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-ai-translate-cancel]').trigger('click')
+    fake.settle({ value: { state: 'cancelled' }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
+    expect(rows[0]?.attributes('data-ai-translate-batch-row-status')).toBe('done')
+    expect(rows[1]?.attributes('data-ai-translate-batch-row-status')).toBe('cancelled')
+    expect(rows[2]?.attributes('data-ai-translate-batch-row-status')).toBe('pending')
+    expect(batchState.aiTranslateBatchError.value).toBeNull()
+
+    expect(wrapper.find('[data-ai-translate-batch-retry]').exists()).toBe(false)
+    // 🔴 KEEP của §Spec Change Log: "aiTranslateBatchRetryIds returns the `error` row plus every
+    // `pending` row and excludes `done`, `skipped` and `cancelled`" -- câu 12 (cancelled) KHÔNG
+    // có mặt, chỉ câu 13 (pending, chưa từng được gọi).
+    expect(batchState.aiTranslateBatchRetryIds(batchState.aiTranslateBatchRows.value)).toEqual([13])
+
+    runBatchMock.mockClear()
+    commands.dispatch('ai.translate.batch_retry')
+    await flushPromises()
+
+    // Không `IpcError` nào đang chờ (`aiTranslateBatchError` vẫn `null`) ⇒ lớp gác thứ hai từ
+    // chối, đúng cách nó từ chối ca "KHÔNG retryable" ngay trên.
+    expect(runBatchMock).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })
@@ -536,6 +730,65 @@ describe('Cổng loại trừ lẫn nhau giữa một lượt ĐƠN và một L�
     expect(state.aiTranslateStateValue.value).toBe('generating')
 
     commands.dispatch('ai.translate.batch_run')
+    await flushPromises()
+
+    expect(runBatchMock).not.toHaveBeenCalled()
+  })
+
+  // 🔴 THÊM (rà soát) — cùng cổng loại-trừ-lẫn-nhau ngay trên, áp cho HAI command retry
+  // (`main.ts:1048/1052` và `:1075/1079`): mỗi handler retry hỏi module KIA trước khi hỏi lỗi
+  // `retryable` của chính nó. Hai ca trên chỉ canh `run`/`batch_run` — gỡ cổng loại-trừ khỏi
+  // `retryAiTranslate`/`retryAiTranslateBatch` vẫn để cả bộ này xanh, nên hai ca dưới đây canh
+  // riêng nhánh retry.
+  it('LÔ đang "generating" ⇒ dispatch("ai.translate.retry") KHÔNG gọi lại runAiTranslateSegment dù lượt ĐƠN đang "error" với một lỗi retryable đang chờ', async () => {
+    const { commands, editorState, selectionState, state, batchState } = await freshPanel()
+    editorState.setEditorCaret(11)
+    const single = pendingSegmentRun()
+    commands.dispatch('ai.translate.run')
+    await flushPromises()
+    single.settle({
+      value: null,
+      error: {
+        code: 'ai_translate.stream_ended_without_done',
+        message_key: 'err.ai_translate.stream_ended_without_done',
+        params: {},
+        retryable: true,
+      },
+    })
+    await flushPromises()
+    expect(state.aiTranslateStateValue.value).toBe('error')
+
+    selectionState.extendSegmentSelectionDown()
+    pendingBatchRun()
+    commands.dispatch('ai.translate.batch_run')
+    await flushPromises()
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
+
+    runSegmentMock.mockClear()
+    commands.dispatch('ai.translate.retry')
+    await flushPromises()
+
+    expect(runSegmentMock).not.toHaveBeenCalled()
+  })
+
+  it('lượt ĐƠN đang "generating" ⇒ dispatch("ai.translate.batch_retry") KHÔNG gọi lại runAiTranslateBatchCall dù LÔ đang "error" với một lỗi retryable đang chờ', async () => {
+    const { commands, editorState, selectionState, state, batchState } = await freshPanel()
+    editorState.setEditorCaret(11)
+    selectionState.extendSegmentSelectionDown()
+    const batch = pendingBatchRun()
+    commands.dispatch('ai.translate.batch_run')
+    await flushPromises()
+    batch.settle({ value: null, error: PROVIDER_UNREACHABLE_ON_12 })
+    await flushPromises()
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('error')
+
+    pendingSegmentRun()
+    commands.dispatch('ai.translate.run')
+    await flushPromises()
+    expect(state.aiTranslateStateValue.value).toBe('generating')
+
+    runBatchMock.mockClear()
+    commands.dispatch('ai.translate.batch_retry')
     await flushPromises()
 
     expect(runBatchMock).not.toHaveBeenCalled()

@@ -225,6 +225,30 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
       return 'panel.ai_translation.batch_row_status_error'
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 4.10, PHASE 2 — NÚT "THỬ LẠI" (FR75, AD-22, Decision 2)
+// ─────────────────────────────────────────────────────────────────────────────────
+// `retryable` là thứ DUY NHẤT được cấp quyền HIỆN nút (§Always spec 4.10: "retryable grants
+// only the right to SHOW a button — no timer, no loop, no automatic second call at any
+// layer") — cả hai computed dưới đây gói TRỌN điều kiện đó thành MỘT chỗ, và cả hai nút dùng
+// `v-if` (không `:disabled`) để nút biến mất hẳn khỏi DOM khi không retryable, thay vì hiện
+// mờ. Cùng cổng loại-trừ-lẫn-nhau đã ghi cho `canRunAiTranslate`/`canRunAiTranslateBatch` ở
+// trên: một lượt KHÁC (đơn hoặc lô) đang chạy thì cũng ẩn nút retry của module kia.
+const canRetryAiTranslate = computed<boolean>(
+  () =>
+    aiTranslateStateValue.value === 'error' &&
+    aiTranslateError.value !== null &&
+    aiTranslateError.value.retryable === true &&
+    aiTranslateBatchStateValue.value !== 'generating',
+)
+const canRetryAiTranslateBatch = computed<boolean>(
+  () =>
+    aiTranslateBatchStateValue.value === 'error' &&
+    aiTranslateBatchError.value !== null &&
+    aiTranslateBatchError.value.retryable === true &&
+    aiTranslateStateValue.value !== 'generating',
+)
 </script>
 
 <template>
@@ -327,6 +351,15 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
         >
           {{ t('command.ai.translate.promote') }}
         </button>
+        <button
+          v-if="canRetryAiTranslate"
+          type="button"
+          class="ai-translate-retry"
+          data-ai-translate-retry
+          @click="dispatch('ai.translate.retry')"
+        >
+          {{ t('command.ai.translate.retry') }}
+        </button>
       </div>
       <p v-if="!canAssemble" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
       <p v-if="aiTranslateStateValue === 'generating'" class="ai-translate-status" data-ai-translate-state="generating">
@@ -346,7 +379,12 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
       >
         {{ t('panel.ai_translation.status') }}
       </p>
-      <p v-if="aiTranslateStateValue === 'error' && aiTranslateError !== null" class="ai-translate-alert" role="alert">
+      <p
+        v-if="aiTranslateStateValue === 'error' && aiTranslateError !== null"
+        class="ai-translate-alert"
+        role="alert"
+        data-ai-translate-state="error"
+      >
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
         {{ tError(aiTranslateError) }}
       </p>
@@ -410,6 +448,15 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
           <!-- aura-allow-text: KẾT QUẢ của tError(). -->
           {{ tError(aiTranslateBatchError) }}
         </p>
+        <button
+          v-if="canRetryAiTranslateBatch"
+          type="button"
+          class="ai-translate-batch-retry"
+          data-ai-translate-batch-retry
+          @click="dispatch('ai.translate.batch_retry')"
+        >
+          {{ t('command.ai.translate.batch_retry') }}
+        </button>
         <ul class="ai-batch-rows" data-ai-translate-batch-rows>
           <li
             v-for="row in aiTranslateBatchRows"
@@ -559,7 +606,9 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
 .ai-translate-run,
 .ai-translate-cancel,
 .ai-translate-promote,
-.ai-translate-batch-run {
+.ai-translate-batch-run,
+.ai-translate-retry,
+.ai-translate-batch-retry {
   align-self: flex-start;
   padding: 0;
   background: none;

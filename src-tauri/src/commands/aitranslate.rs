@@ -92,72 +92,87 @@ fn keychain_unavailable() -> IpcError {
     crate::core::aiconfig::AiConfigKeyError::Unavailable.into()
 }
 
-/// Phân loại `retryable` cho toàn bộ họ lỗi của `OpenAiClientError` — hai hàng ma trận đã ghi
-/// tường minh (non-2xx ⇒ không thử lại; rớt kết nối trước khi thấy `[DONE]` ⇒ có thể thử lại) —
-/// bốn nhánh còn lại (dựng client, gửi thất bại, đọc thân lỗi giữa chừng, khung JSON hỏng) chưa
-/// có hàng ma trận riêng; xếp CHẶT theo "thất bại tạm thời, đáng thử lại" — Story 4.10 xét lại
-/// khi có chỗ đo.
+/// Phân loại HOÀN CHỈNH của `OpenAiClientError` — Quyết định 2, spec 4.10: sáu HỌ NGUYÊN NHÂN,
+/// mỗi họ một `code`/[`MessageKey`]/`retryable` riêng, dùng CHUNG cho cả lượt dịch MỘT segment
+/// (`impl From<OpenAiClientError> for IpcError` ngay dưới) LẪN lượt dừng GIỮA một lô
+/// ([`batch_stopped_error`]) — một chỗ gọi thứ hai dùng chung hàm này, không phải một bản chép
+/// tay có thể trôi khỏi bản gốc.
 ///
-/// TÁCH riêng (Story 4.9, Phase 2) khỏi `impl From<OpenAiClientError> for IpcError` ngay dưới
-/// đây vì [`batch_stopped_error`] cần ĐÚNG cùng phân loại cho `ai_translate.batch_stopped` —
-/// một chỗ gọi thứ hai dùng chung hàm này, không phải một bản chép tay có thể trôi khỏi bản gốc.
-fn openai_client_error_is_retryable(err: &OpenAiClientError) -> bool {
+/// 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) — bản trước ở đây
+/// (`openai_client_error_is_retryable`) ghi: *"hai hàng ma trận đã ghi tường minh ... bốn nhánh
+/// còn lại (dựng client, gửi thất bại, đọc thân lỗi giữa chừng, khung JSON hỏng) chưa có hàng ma
+/// trận riêng; xếp CHẶT theo 'thất bại tạm thời, đáng thử lại' — Story 4.10 xét lại khi có chỗ
+/// đo"* — và liệt `BufferOverflow` vào nhánh `false` mà không nhắc tới nó trong văn xuôi. Story
+/// 4.10 CHÍNH LÀ bản xét lại đó: cả sáu họ giờ có hàng riêng trong §I/O Matrix spec 4.10, không
+/// còn nhánh nào "xếp chặt" — `retryable` dưới đây khớp NGUYÊN VĂN Quyết định 2.
+fn openai_client_error_family(err: &OpenAiClientError) -> (&'static str, MessageKey, bool) {
     match err {
-        OpenAiClientError::NonSuccessStatus { .. } => false,
-        OpenAiClientError::StreamEndedWithoutDone
-        | OpenAiClientError::RequestFailed { .. }
-        | OpenAiClientError::ReadFailed { .. } => true,
-        OpenAiClientError::ClientBuildFailed { .. }
-        | OpenAiClientError::MalformedEvent { .. }
-        | OpenAiClientError::BufferOverflow { .. } => false,
+        OpenAiClientError::RequestFailed { .. } | OpenAiClientError::ReadFailed { .. } => {
+            ("ai_translate.provider_unreachable", MessageKey::AiTranslateProviderUnreachable, true)
+        }
+        OpenAiClientError::NonSuccessStatus { .. } => {
+            ("ai_translate.provider_refused", MessageKey::AiTranslateProviderRefused, false)
+        }
+        OpenAiClientError::StreamEndedWithoutDone => {
+            ("ai_translate.stream_ended_without_done", MessageKey::AiTranslateStreamEndedWithoutDone, true)
+        }
+        OpenAiClientError::MalformedEvent { .. } | OpenAiClientError::BufferOverflow { .. } => {
+            ("ai_translate.reply_unreadable", MessageKey::AiTranslateReplyUnreadable, false)
+        }
+        OpenAiClientError::ClientBuildFailed { .. } => {
+            ("ai_translate.client_build_failed", MessageKey::AiTranslateClientBuildFailed, false)
+        }
+        OpenAiClientError::ApiKeyHeaderInvalid { .. } => {
+            ("ai_translate.api_key_header_invalid", MessageKey::AiTranslateApiKeyHeaderInvalid, false)
+        }
     }
 }
 
-/// Provider trả lỗi mạng/HTTP/khung SSE hỏng — NHÃN duy nhất qua IPC cho toàn bộ họ lỗi của
-/// `OpenAiClientError` (§Never spec 4.8: "no error-copy catalogue ... this story produces the
-/// error state and an `IpcError`-shaped failure", Story 4.10 sở hữu văn bản riêng cho từng
-/// nguyên nhân). `retryable` qua [`openai_client_error_is_retryable`] ngay trên.
+/// Provider trả lỗi mạng/HTTP/khung SSE hỏng — MỘT trong sáu NHÃN qua IPC theo họ nguyên nhân
+/// (Quyết định 2, spec 4.10; trước bản sửa này là MỘT nhãn duy nhất cho cả bảy biến thể, xem
+/// `openai_client_error_family` ngay trên). `status` (ca non-2xx) vẫn đi kèm `params` như trước
+/// — khoá `AiTranslateProviderRefused` khai nó là tham số BẮT BUỘC (`core/i18n/mod.rs`).
 impl From<OpenAiClientError> for IpcError {
     fn from(err: OpenAiClientError) -> Self {
         let mut params = std::collections::BTreeMap::new();
         if let OpenAiClientError::NonSuccessStatus { status } = &err {
             params.insert("status".to_owned(), status.to_string());
         }
-        let retryable = openai_client_error_is_retryable(&err);
-        IpcError::new(
-            "ai_translate.provider_call_failed",
-            MessageKey::AiTranslateProviderCallFailed,
-            params,
-            retryable,
-        )
+        let (code, message_key, retryable) = openai_client_error_family(&err);
+        IpcError::new(code, message_key, params, retryable)
     }
 }
 
-/// Provider dừng GIỮA một lô (Story 4.9, I/O Matrix "Error mid-batch") — NHÃN riêng
-/// `ai_translate.batch_stopped`, mang `segment_id` của đúng câu batch dừng ở đó (§Always spec
-/// 4.9: "the first error stops the batch and names the sentence"). `retryable` dùng ĐÚNG phân
-/// loại [`openai_client_error_is_retryable`] mà `impl From<OpenAiClientError> for IpcError`
-/// (lượt dịch MỘT segment, 4.8) đã dùng — cùng một họ lỗi mạng/HTTP/SSE, hai NHÃN khác nhau chỉ
-/// vì một cái cần nói thêm câu nào, không phải hai phép phân loại khác nhau.
+/// Provider dừng GIỮA một lô (Story 4.9, I/O Matrix "Error mid-batch") — dùng ĐÚNG cùng sáu
+/// NHÃN họ nguyên nhân mà lượt dịch MỘT segment dùng ([`openai_client_error_family`]), không một
+/// nhãn `batch_stopped` chung nữa (Quyết định 2, spec 4.10: "One `IpcError` carries exactly one
+/// `message_key` ... No per-path duplicate of the family" — cái phân biệt hai đường là
+/// `segment_id`, không phải một khoá thứ hai). `segment_id` của đúng câu batch dừng ở đó vẫn đi
+/// kèm `params` (§Always spec 4.9: "the first error stops the batch and names the sentence"),
+/// và `status` (ca non-2xx) không còn bị rớt như bản trước Story 4.10 — cả hai cùng SURPLUS, vì
+/// `AiTranslateProviderRefused` khai `status` bắt buộc còn `segment_id` thì không, để cùng khoá
+/// đó vẫn dựng được từ lượt dịch MỘT segment, nơi không có `segment_id` nào để mang.
 ///
 /// `pub` (Story 4.9, Phase 4b) — cùng tiền lệ [`prepare_translate_call`]/[`run_translate_call`]
 /// (Story 4.8): hàng "Error mid-batch" của I/O Matrix có cột Error-Handling nêu ĐÚNG bốn
 /// trường của `IpcError` mà hàm này đúc (`code`, `message_key`, `param segment_id`,
 /// `retryable`) — `tests/**` là một crate RIÊNG, không với tới một `fn` private của
-/// `commands::aitranslate`. Trước bản sửa này, cột đó chỉ được canh gián tiếp qua
-/// `run_batch_call` (seam trả `Err((segment_id, P::Error))` với `P::Error` GIẢ, không phải
-/// `OpenAiClientError` thật) — không ca nào gọi được CHÍNH hàm đúc `IpcError`.
+/// `commands::aitranslate`.
 pub fn batch_stopped_error(segment_id: i64, err: OpenAiClientError) -> IpcError {
     let mut params = std::collections::BTreeMap::new();
     params.insert("segment_id".to_owned(), segment_id.to_string());
-    let retryable = openai_client_error_is_retryable(&err);
-    IpcError::new("ai_translate.batch_stopped", MessageKey::AiTranslateBatchStopped, params, retryable)
+    if let OpenAiClientError::NonSuccessStatus { status } = &err {
+        params.insert("status".to_owned(), status.to_string());
+    }
+    let (code, message_key, retryable) = openai_client_error_family(&err);
+    IpcError::new(code, message_key, params, retryable)
 }
 
 /// Tác vụ blocking của lô panic/bị huỷ — KHÔNG một câu cụ thể nào để nêu tên (khác
-/// [`batch_stopped_error`]), nên rơi về NHÃN chung `ai_translate.provider_call_failed` đã dùng
-/// cho cùng ca này ở lượt dịch MỘT segment (`send_prepared_translate_call`) — một sự cố hạ tầng
-/// của chính lượt gọi, không phải "provider trả lỗi trên câu N".
+/// [`batch_stopped_error`]), nên rơi về họ "provider không tới được"
+/// (`AiTranslateProviderUnreachable`) đã dùng cho cùng ca này ở lượt dịch MỘT segment
+/// (`send_prepared_translate_call`) — một sự cố hạ tầng của chính lượt gọi, không phải
+/// "provider trả lỗi trên câu N".
 fn batch_panicked_error() -> IpcError {
     OpenAiClientError::RequestFailed {
         detail: "ai_translate batch blocking task panicked or was aborted".to_owned(),
@@ -494,8 +509,8 @@ pub async fn run_translate_call<P: TranslationProvider>(
 ///   "Skipped with no provider call and no keychain read; its row shows skipped").
 ///
 /// KHÔNG một biến thể lỗi ở đây — lỗi giữa lô đi qua `Result::Err(IpcError)` của chính lệnh
-/// (`ai_translate.batch_stopped`), đúng khuôn `AiTranslateOutcomeWire` không mang biến thể
-/// `error` (nó cũng đi qua `Result::Err`).
+/// ([`batch_stopped_error`], một trong sáu nhãn họ nguyên nhân — Quyết định 2, spec 4.10), đúng
+/// khuôn `AiTranslateOutcomeWire` không mang biến thể `error` (nó cũng đi qua `Result::Err`).
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiTranslateBatchEventWire {
@@ -624,8 +639,8 @@ async fn send_prepared_translate_call(
 /// Lý do [`send_prepared_batch_call`] không trả về `Ok` — TÁCH ca "provider dừng ở một câu cụ
 /// thể" (mang `segment_id` để [`batch_stopped_error`] dựng đúng tham số) khỏi ca "tác vụ blocking
 /// panic/bị huỷ" (không câu nào để mà nêu tên — cùng khuôn `send_prepared_translate_call` xử lý
-/// ca đó, rơi về NHÃN chung `ai_translate.provider_call_failed`, không phải `batch_stopped`: một
-/// panic không phải "provider trả lỗi trên câu N", nó là một sự cố hạ tầng của chính lượt gọi).
+/// ca đó, rơi về họ "provider không tới được", không mang `segment_id`: một panic không phải
+/// "provider trả lỗi trên câu N", nó là một sự cố hạ tầng của chính lượt gọi).
 enum BatchCallError {
     Provider { segment_id: i64, err: OpenAiClientError },
     Panicked,

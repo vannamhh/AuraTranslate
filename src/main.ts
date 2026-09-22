@@ -348,6 +348,7 @@ import { selectedPromptSetName } from './promptSetState'
 // Vue và gọi `@tauri-apps/api` xuyên qua `config/aitranslate.ts`.
 import {
   aiTranslateAccumulatedText,
+  aiTranslateError,
   aiTranslateRunSegmentId,
   aiTranslateStateValue,
   cancelAiTranslate,
@@ -359,6 +360,8 @@ import {
 // gọi `@tauri-apps/api` xuyên qua `config/aitranslate.ts`. Module RIÊNG — xem doc-comment đầu
 // `aiTranslateBatchState.ts` §"Design Notes" cho lý do không widening `aiTranslateState.ts`.
 import {
+  aiTranslateBatchError,
+  aiTranslateBatchRetryIds,
   aiTranslateBatchRows,
   aiTranslateBatchStateValue,
   aiTranslateBatchTextForSegment,
@@ -1029,6 +1032,65 @@ async function boot(): Promise<void> {
           return
         }
         void runAiTranslateBatch(selectedPromptSetName.value, segmentSelectionIds.value)
+      },
+      // Story 4.10, Phase 2 · FR75/AD-22 (Decision 2) — nút "Thử lại" của lượt dịch MỘT
+      // segment. Cùng cổng loại-trừ-lẫn-nhau đã ghi cho `runAiTranslate` ngay trên (một lượt
+      // khác — đơn hoặc lô — đang chạy thì từ chối), CỘNG một lớp gác thứ hai riêng của retry:
+      // phải THẬT SỰ có một lỗi `retryable` đang chờ, vì `retryable` là thứ DUY NHẤT được cấp
+      // quyền hiện nút (§Always spec 4.10) — handler thật đọc lại đúng cờ đó thay vì tin nút đã
+      // bị khoá đúng, cùng khuôn hai lớp phòng thủ mọi command AI khác trong tệp này.
+      //
+      // Gọi lại bằng `aiTranslateRunSegmentId`, KHÔNG bằng `editorCaretSegmentId` — lượt dịch
+      // lỗi thuộc về câu nó đã khởi cho, và caret có thể đã dời sang câu khác trong lúc lượt đó
+      // còn chạy hoặc sau khi nó đã lỗi (cùng lý lẽ `promoteAiTranslate` ngay trên dùng
+      // `aiTranslateRunSegmentId`, không dùng caret, cho nhánh lượt đơn).
+      retryAiTranslate: () => {
+        if (aiTranslateBatchStateValue.value === 'generating') {
+          console.warn('[ai-translate] khong retry: mot lo dang chay')
+          return
+        }
+        if (aiTranslateStateValue.value === 'generating') {
+          console.warn('[ai-translate] khong retry: mot luot don khac dang chay')
+          return
+        }
+        const err = aiTranslateError.value
+        if (aiTranslateStateValue.value !== 'error' || err === null || err.retryable !== true) {
+          console.warn('[ai-translate] khong retry: khong co loi retryable nao dang cho')
+          return
+        }
+        const segmentId = aiTranslateRunSegmentId.value
+        if (segmentId === null) {
+          console.warn('[ai-translate] khong retry: khong biet cau nao da loi')
+          return
+        }
+        void runAiTranslate(selectedPromptSetName.value, segmentId)
+      },
+      // Story 4.10, Phase 2 · FR75/AD-22 (Decision 2) — nút "Thử lại" của lượt dịch LÔ. Cùng
+      // hai lớp gác đã ghi ngay trên cho `retryAiTranslate` (loại-trừ-lẫn-nhau, rồi lỗi
+      // `retryable` đang chờ thật sự), chỉ khác nguồn id: `aiTranslateBatchRetryIds` đọc hàng
+      // `error` cộng mọi hàng `pending` của LÔ vừa lỗi (Task 6 spec 4.10) — không một câu đã
+      // `done`/`skipped` nào bị gọi lại, cùng lời hứa của I/O Matrix "Batch stops at sentence N
+      // of M": "retry runs 6-12 only".
+      retryAiTranslateBatch: () => {
+        if (aiTranslateStateValue.value === 'generating') {
+          console.warn('[ai-translate-batch] khong retry: mot luot don dang chay')
+          return
+        }
+        if (aiTranslateBatchStateValue.value === 'generating') {
+          console.warn('[ai-translate-batch] khong retry: mot lo khac dang chay')
+          return
+        }
+        const err = aiTranslateBatchError.value
+        if (aiTranslateBatchStateValue.value !== 'error' || err === null || err.retryable !== true) {
+          console.warn('[ai-translate-batch] khong retry: khong co loi retryable nao dang cho')
+          return
+        }
+        const ids = aiTranslateBatchRetryIds(aiTranslateBatchRows.value)
+        if (ids.length === 0) {
+          console.warn('[ai-translate-batch] khong retry: khong con cau nao chua chay')
+          return
+        }
+        void runAiTranslateBatch(selectedPromptSetName.value, ids)
       },
     })
 

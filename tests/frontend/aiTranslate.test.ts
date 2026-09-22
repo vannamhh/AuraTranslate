@@ -64,11 +64,37 @@ type RunResult = { value: AiTranslateOutcomeWire | null; error: IpcError | null 
 /** Kiểu callback `onToken` mà `runAiTranslateSegment` (thật lẫn mock) nhận ở tham số thứ ba. */
 type OnToken = (text: string) => void
 
-const SOME_ERROR: IpcError = {
-  code: 'ai_translate.provider_call_failed',
-  message_key: 'err.ai_translate.provider_call_failed',
+/**
+ * 🔴 SỬA 2026-09-22 (Story 4.10, Phase 3) — trước bản sửa này hằng số này tên
+ * `SOME_ERROR`, mang `err.ai_translate.provider_call_failed` (khoá GỘP đã bị Task 3/4 spec
+ * 4.10 xoá khỏi `MessageKey`; Phase 1 chỉ xoá biến thể, KHÔNG xoá dòng `vi.json` tương ứng —
+ * xem `## Phase notes` §"Phase 1" của spec). Đối chứng đo được (`npx vitest run` TRƯỚC khi xoá
+ * hai dòng orphan khỏi `vi.json`, giữ NGUYÊN fixture): CẢ HAI tệp `aiTranslate.test.ts`/
+ * `aiTranslateBatch.test.ts` vẫn XANH sau khi xoá — vì dòng 325 gốc so `alert.text()` với
+ * `i18n.tError(SOME_ERROR)`, GỌI LẠI đúng hàm `tError` một lần nữa trên CÙNG payload thay vì so
+ * với một chuỗi LITERAL: khi khoá biến mất, `t()` trả về CHÍNH khoá đó làm chuỗi (`resolve.ts`
+ * "khoá thiếu ⇒ trả đúng khoá nguyên văn"), và cả hai vế của `toBe` cùng trả về CHUỖI ĐÓ — ca
+ * không hề canh xem `vi.json` có đúng câu hay không, chỉ canh xem hai lời gọi `tError` giống
+ * nhau, điều LUÔN đúng bất kể khoá tồn tại hay không. Sửa ở ĐÂY: đổi sang khoá HỌ thật
+ * (`stream_ended_without_done`, đúng ngữ cảnh "stream lỗi giữa chừng" mà ca dưới dựng), VÀ đổi
+ * vế so sánh sang một chuỗi tiếng Việt LITERAL chép từ `vi.json` — một khoá sai hoặc một câu
+ * `vi.json` đổi đều làm ca này ĐỎ, đúng thứ một ca `tError` phải canh.
+ */
+const STREAM_ENDED_ERROR: IpcError = {
+  code: 'ai_translate.stream_ended_without_done',
+  message_key: 'err.ai_translate.stream_ended_without_done',
   params: {},
   retryable: true,
+}
+
+/** Cùng lý do trên: một lỗi KHÔNG retryable thật (Quyết định 2 spec 4.10), dùng cho cụm "nút
+ * Thử lại chỉ hiện khi retryable" — không tái dùng `STREAM_ENDED_ERROR` vì hai ca đó phải khác
+ * nhau đúng ở CỜ `retryable`, không phải ở bất cứ điều gì khác. */
+const PROVIDER_REFUSED_ERROR: IpcError = {
+  code: 'ai_translate.provider_refused',
+  message_key: 'err.ai_translate.provider_refused',
+  params: { status: '401' },
+  retryable: false,
 }
 
 /**
@@ -148,6 +174,27 @@ async function freshPanel() {
         return
       }
       void editorPanelState.promoteAiTranslationToEditor(segmentId, text)
+    },
+    // Story 4.10, Phase 3 — chép NGUYÊN VĂN hai lớp gác thật của `main.ts`'s handler
+    // `retryAiTranslate` (Phase 2): phải THẬT SỰ có một lỗi `retryable` đang chờ — `retryable`
+    // là thứ DUY NHẤT được cấp quyền cho phép gọi lại (§Always spec 4.10) — và gọi lại bằng
+    // `aiTranslateRunSegmentId` (câu lỗi thuộc về), KHÔNG bằng caret. Tệp này không import
+    // `aiTranslateBatchState.ts` (chỉ canh nhánh ĐƠN, xem doc-comment đầu tệp), nên cổng loại
+    // trừ lẫn nhau với một LÔ đang chạy không có gì để canh ở đây — `aiTranslateBatch.test.ts`
+    // là nơi canh nhánh đó.
+    retryAiTranslate: () => {
+      const s = state.aiTranslateStateValue.value
+      const err = state.aiTranslateError.value
+      if (s !== 'error' || err === null || err.retryable !== true) {
+        console.warn('[test] khong retry: khong co loi retryable nao dang cho')
+        return
+      }
+      const segmentId = state.aiTranslateRunSegmentId.value
+      if (segmentId === null) {
+        console.warn('[test] khong retry: khong biet cau nao da loi')
+        return
+      }
+      void state.runAiTranslate(null, segmentId)
     },
   } as CommandDeps)
 
@@ -303,7 +350,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
   })
 
   it('error: stream lỗi giữa chừng ⇒ `.ai-translate-alert` hiện đúng bản dịch của lỗi, token đã nhận trước đó KHÔNG bị xoá', async () => {
-    const { state, i18n, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     const fake = pendingRun()
 
@@ -315,15 +362,126 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     fake.token('Mot phan ket qua')
     await wrapper.vm.$nextTick()
 
-    fake.settle({ value: null, error: SOME_ERROR })
+    fake.settle({ value: null, error: STREAM_ENDED_ERROR })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(state.aiTranslateStateValue.value).toBe('error')
     const alert = wrapper.get('.ai-translate-alert')
     expect(alert.attributes('role')).toBe('alert')
-    expect(alert.text()).toBe(i18n.tError(SOME_ERROR))
+    // 🔴 CHUỖI LITERAL, KHÔNG gọi lại `i18n.tError(...)` — xem doc-comment `STREAM_ENDED_ERROR`
+    // đầu tệp: so hai lời gọi `tError` giống nhau là một phép đối chứng RỖNG, xanh cả khi khoá
+    // đã biến mất khỏi `vi.json`. Chép NGUYÊN VĂN từ `src/i18n/vi.json`
+    // (`err.ai_translate.stream_ended_without_done`) — câu này đổi ở đó thì ca này phải đỏ.
+    expect(alert.text()).toBe(
+      'Kết nối tới nhà cung cấp AI đã đóng giữa chừng, trước khi luồng kết thúc. Những đoạn đã nhận trước đó vẫn còn trên màn hình.',
+    )
     expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Mot phan ket qua')
+
+    wrapper.unmount()
+  })
+
+  // 🔴 THÊM (rà soát) — `err.ai_translate.provider_refused` là khoá MỚI DUY NHẤT còn khai tham
+  // số bắt buộc (`["status"]`, `ipc_contract.rs:325`); không ca nào ở trên đối chứng chuỗi ĐÃ
+  // NỘI SUY của nó — một lượt nội suy hỏng (`resolve.ts`'s "tham số thiếu ⇒ giữ nguyên
+  // placeholder") sẽ để lại `{status}` nguyên văn trên màn hình mà không ca nào bắt được.
+  it('error: provider từ chối (non-2xx) ⇒ `.ai-translate-alert` hiện ĐÚNG câu đã nội suy `{status}`, không phải placeholder nguyên văn', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+
+    fake.settle({ value: null, error: PROVIDER_REFUSED_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(state.aiTranslateStateValue.value).toBe('error')
+    const alert = wrapper.get('.ai-translate-alert')
+    // 🔴 CHUỖI LITERAL với `401` ĐÃ THAY vào chỗ `{status}` — cùng khuôn ca "stream lỗi giữa
+    // chừng" ngay trên, KHÔNG gọi lại `i18n.tError(...)`. Chép NGUYÊN VĂN từ `src/i18n/vi.json`
+    // (`err.ai_translate.provider_refused`) rồi thay tay `{status}` -> `401`.
+    expect(alert.text()).toBe(
+      'Nhà cung cấp AI từ chối yêu cầu này (mã trạng thái 401) — kiểm lại endpoint và khoá API đã cấu hình rồi thử lại.',
+    )
+
+    wrapper.unmount()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Story 4.10, Phase 3 — Task 10: nút "Thử lại" chỉ hiện khi `retryable`, và gọi lại ĐÚNG câu
+// đã lỗi (không phải caret) — cùng khuôn năm-trạng-thái ngay trên: mount THẬT, dispatch qua
+// registry THẬT, đọc DOM thật, không chỉ gọi hàm thuần rồi đọc giá trị trả về.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.10, §Always: "retryable grants only the right to SHOW a button")', () => {
+  it('lỗi retryable ⇒ `[data-ai-translate-retry]` hiện, click gọi lại ĐÚNG segmentId đã lỗi dù caret đã dời sang câu khác', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    expect(runMock).toHaveBeenCalledTimes(1)
+    expect(runMock).toHaveBeenCalledWith(3, null, expect.any(Function))
+
+    fake.settle({ value: null, error: STREAM_ENDED_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(state.aiTranslateStateValue.value).toBe('error')
+    expect(wrapper.get('[data-ai-translate-retry]').text()).toBe('Thử lại')
+
+    // 🔴 Caret dời sang MỘT CÂU KHÁC trong lúc lỗi vẫn còn hiện -- mệnh đề trung tâm của ca này:
+    // retry phải gọi lại câu 3 (nơi lỗi thuộc về), KHÔNG gọi câu 99 (nơi caret đang đứng bây
+    // giờ), cùng lý lẽ `promoteAiTranslate` đã dùng `aiTranslateRunSegmentId` thay vì caret.
+    caretSegmentId.value = 99
+
+    const fake2 = pendingRun()
+    await wrapper.get('[data-ai-translate-retry]').trigger('click')
+    await flushPromises()
+
+    expect(runMock).toHaveBeenCalledTimes(2)
+    expect(runMock).toHaveBeenLastCalledWith(3, null, expect.any(Function))
+    expect(state.aiTranslateStateValue.value).toBe('generating')
+
+    fake2.settle({ value: { state: 'done' }, error: null })
+    await flushPromises()
+
+    wrapper.unmount()
+  })
+
+  it('lỗi KHÔNG retryable ⇒ không có `[data-ai-translate-retry]` nào trong DOM, và dispatch trực tiếp (chord) không gọi lại provider', async () => {
+    const { commands, state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 5
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+
+    fake.settle({ value: null, error: PROVIDER_REFUSED_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(state.aiTranslateStateValue.value).toBe('error')
+    expect(wrapper.find('[data-ai-translate-retry]').exists()).toBe(false)
+
+    // Lớp phòng thủ THỨ HAI (§Always spec 4.10: "retryable grants only the right to SHOW a
+    // button ... nothing else may [grant it]") -- dispatch THẲNG, bỏ qua nút đã ẩn (đúng cách
+    // một chord có thể làm), vẫn phải bị từ chối.
+    runMock.mockClear()
+    commands.dispatch('ai.translate.retry')
+    await flushPromises()
+
+    expect(runMock).not.toHaveBeenCalled()
+    expect(state.aiTranslateStateValue.value).toBe('error')
 
     wrapper.unmount()
   })

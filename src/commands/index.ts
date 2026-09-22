@@ -971,6 +971,18 @@ export type CommandDeps = {
    * loại-trừ-lẫn-nhau với `runAiTranslate` — xem doc-comment tại chỗ đăng ký lệnh. */
   runAiTranslateBatch?: () => void
 
+  // ── Story 4.10, Phase 2 — "Lỗi mạng và lỗi API": nút Thử lại (FR75, AD-22) ─────────
+  /** Gọi lại lượt dịch MỘT segment cho ĐÚNG câu vừa lỗi (`aiTranslateRunSegmentId`, không phải
+   * câu đang có tiêu điểm — caret có thể đã dời) — từ chối (kêu, không ném) khi không có lỗi
+   * `retryable` đang chờ, hoặc một lượt khác (đơn/lô) đang chạy. Handler của
+   * `ai.translate.retry`. */
+  retryAiTranslate?: () => void
+  /** Gọi lại lượt dịch LÔ cho đúng những câu CHƯA CHỐT của lô vừa lỗi — hàng `error` cộng mọi
+   * hàng `pending` (`aiTranslateBatchRetryIds`), không câu nào đã `done`/`skipped`. Từ chối khi
+   * không có lỗi `retryable` đang chờ, hoặc một lượt khác đang chạy. Handler của
+   * `ai.translate.batch_retry`. */
+  retryAiTranslateBatch?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -3591,6 +3603,40 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.translate.batch_run', 'runAiTranslateBatch')
       }
       deps.runAiTranslateBatch()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.10, PHASE 2 — NÚT "THỬ LẠI" (FR75, AD-22, Decision 2)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `keys: undefined` cho cả hai — cùng lý lẽ đã ghi cho `ai.translate.run`/`.cancel` ở trên:
+   * không hợp âm mặc định rảnh chỗ có nghĩa, tới được bằng nút bấm trên panel VÀ bằng màn hình
+   * gán phím (Story 1.21, FR22). `retryable` chỉ cấp quyền HIỆN nút (Panel ẩn nó khi
+   * `retryable !== true`, §Always spec 4.10) — bản thân handler thật ở `main.ts` gác lại LẦN
+   * NỮA bằng chính cờ đó, cùng khuôn hai lớp phòng thủ mọi command AI khác trong tệp này dùng.
+   */
+  target.register({
+    id: 'ai.translate.retry',
+    labelKey: 'command.ai.translate.retry',
+    keys: undefined,
+    run: () => {
+      if (deps.retryAiTranslate === undefined) {
+        return portMissing('ai.translate.retry', 'retryAiTranslate')
+      }
+      deps.retryAiTranslate()
+    },
+  })
+  target.register({
+    id: 'ai.translate.batch_retry',
+    labelKey: 'command.ai.translate.batch_retry',
+    keys: undefined,
+    run: () => {
+      if (deps.retryAiTranslateBatch === undefined) {
+        return portMissing('ai.translate.batch_retry', 'retryAiTranslateBatch')
+      }
+      deps.retryAiTranslateBatch()
     },
   })
 

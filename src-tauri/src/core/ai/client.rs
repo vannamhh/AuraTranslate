@@ -100,6 +100,10 @@ pub enum OpenAiClientError {
     /// hết hạn giữa hai khung (`reqwest::Error::is_timeout()`/`is_connect()` đều rơi vào đây,
     /// chẩn đoán giữ nguyên từ `reqwest`).
     RequestFailed { detail: String },
+    /// Khoá API đã lưu không vào được giá trị header HTTP (`HeaderValue::from_str` thất bại) —
+    /// TÁCH RIÊNG khỏi [`RequestFailed`] (Story 4.10, Quyết định 2): một khoá không hợp lệ theo
+    /// hình dạng header thất bại GIỐNG HỆT mỗi lần thử lại, không phải một sự cố mạng tạm thời.
+    ApiKeyHeaderInvalid { detail: String },
     /// Máy chủ trả một mã KHÔNG phải 2xx — I/O Matrix spec 4.8 "Provider returns a non-2xx".
     NonSuccessStatus { status: u16 },
     /// Đọc thân phản hồi lỗi GIỮA CHỪNG, sau khi đã nhận 2xx.
@@ -127,6 +131,9 @@ impl std::fmt::Display for OpenAiClientError {
             }
             OpenAiClientError::RequestFailed { detail } => {
                 write!(f, "ai_client[request_failed] detail={detail}")
+            }
+            OpenAiClientError::ApiKeyHeaderInvalid { detail } => {
+                write!(f, "ai_client[api_key_header_invalid] detail={detail}")
             }
             OpenAiClientError::NonSuccessStatus { status } => {
                 write!(f, "ai_client[non_success_status] status={status}")
@@ -242,8 +249,11 @@ impl TranslationProvider for OpenAiChatClient {
         // khien dieu do KHONG the xay ra, thay vi mot loi hua rang khong ai tung debug-print
         // request nay (§Always spec 4.8: "The API key never crosses IPC, never enters a log
         // line, an error message, an `IpcError` param, or a `Debug` output").
+        // 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) -- biến thể riêng `ApiKeyHeaderInvalid`, không
+        // còn dùng chung `RequestFailed`: thất bại ở đây là hình dạng khoá đã lưu, không phải
+        // một sự cố mạng tạm thời -- xem doc-comment `OpenAiClientError::ApiKeyHeaderInvalid`.
         let mut auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", request.api_key))
-            .map_err(|e| OpenAiClientError::RequestFailed { detail: e.to_string() })?;
+            .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid { detail: e.to_string() })?;
         auth_value.set_sensitive(true);
 
         let mut response = client

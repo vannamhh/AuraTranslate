@@ -10659,6 +10659,14 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **Chủ mới: Story 4.10** ("Lỗi mạng và lỗi API") — story kế tiếp có lý do sản phẩm để định
     hình câu chuyện lỗi hiển thị cho người dùng; quyết cái gì AN TOÀN để lộ từ `keyring::Error`
     thuộc đúng phạm vi đó, không phải một sửa rời trước khi có ngữ cảnh lỗi.
+  → ✅ **ĐÃ ĐÓNG 2026-09-22 (Story 4.10, Quyết định 5).** `core/aiconfig/keychain.rs` ghi TÊN
+    BIẾN THỂ của `keyring::Error` (`keyring_error_variant_name`/`log_keyring_error`, không dấu,
+    `eprintln!`) trước cả năm chỗ trả `KeychainUnavailable`. Đúng thứ mục này đòi: một lượt báo
+    lỗi thật giờ phân biệt được "người dùng bấm Từ chối ở hộp xin quyền" với "không kho nền tảng
+    nào khởi tạo được". Kiểu lỗi TRẢ VỀ không đổi và không gì mới qua IPC — quyết định là ghi
+    tên biến thể vào đường chẩn đoán, KHÔNG vào `IpcError`, để dòng đóng băng của spec 4.8 (khoá
+    không bao giờ vào một dòng log, một câu lỗi, một `param` hay một `Debug`) vẫn đứng; một tên
+    biến thể không chở được văn bản khoá.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **`ApiKeySecret` không xoá bộ nhớ khi bị huỷ — khoá thô nằm trong bộ nhớ tiến
@@ -11130,6 +11138,14 @@ chính nó.
     to_the_provider_call_failed_key_with_the_documented_retryable_flag` ghim đúng hành vi hiện tại,
     nên đổi là đổi cả ca đó. Mức `low`: khoá đến từ keychain nên người dùng khó chạm.
     **(Chủ: Story 4.10 — story sở hữu chính sách lỗi và thử lại.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-22 (Story 4.10, Task 1).** `HeaderValue::from_str` ở
+    `core/ai/client.rs` nay đúc biến thể RIÊNG `OpenAiClientError::ApiKeyHeaderInvalid`, không
+    còn dùng chung `RequestFailed`, và họ nguyên nhân của nó mang `retryable: false` cùng khoá
+    riêng `err.ai_translate.api_key_header_invalid` — thất bại vì hình dạng khoá đã lưu thì hỏng
+    y hệt mỗi lần, nên nó không được phép hiện nút Thử lại. Ca mục này cảnh báo sẽ phải đổi
+    (`every_openai_client_error_variant_maps_to_...`) đã đổi cùng lượt: nó nay quét 8/8 biến thể
+    ra 6 khoá họ, và đối chứng bằng phép GỠ thật (buộc ba nhánh retryable thành `false`) cho
+    đúng 3 ca đỏ ở đúng `assert_eq!` về cờ đó, rồi hoàn nguyên.
 
 ## Deferred from: lượt lược sổ nợ (2026-09-19)
 
@@ -11158,7 +11174,63 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
   summary: Nhánh `last_sent` / `mark_prompt_as_sent` nằm trong thân `wire::ai_translate_batch` không có ca nào chạy qua, nên xoá nó đi thì `sent_at` vĩnh viễn `None` mà bộ test vẫn xanh. **(Chủ: Story 4.10.)**
   evidence: `grep -rn "wire::ai_translate_batch" src-tauri/tests/*.rs` chỉ khớp phép kiểm đăng ký và danh sách tham số trong `ipc_contract.rs`; không ca nào dựng `AppHandle` để gọi lệnh thật. Đúng hình dạng Story 4.8 đã ghi nợ ở mục #15 của nó cho đường MỘT segment, nên một bàn đo `AppHandle` đóng được cả hai — và chính vì phải dựng bàn đo ấy mà nó không phải một lượt vá.
+  → 🔵 **CHUYỂN CHỦ 2026-09-22 (Story 4.10) — chưa chạm.** Ice quyết: bàn đo `AppHandle` ở lại
+    với Ice, CẢ HAI nửa. Lý do là chính evidence của mục này — một bàn đo đóng được cả hai nửa,
+    và nửa sinh đôi cho đường MỘT segment đã mang `Chủ: Ice` với đúng lời "quyết định có dựng
+    khuôn test cho tầng vỏ hay không là một quyết định hạ tầng". Hai chủ khác nhau cho cùng một
+    bàn đo thiếu là chỗ lệch, không phải hai việc. **Chủ mới: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
   summary: Danh sách hàng của lô ở Panel AI Translation không cắt cửa sổ và chưa được đo ở đúng cỡ N mà Quyết định 1 cố ý không đặt trần. **(Chủ: Story 4.12 — bố cục màn hình hẹp, nơi đã có lịch đo trên máy thật.)**
   evidence: `<li v-for="row in aiTranslateBatchRows">` không windowing, và mảng nền bị thay mới ở mỗi sự kiện token/done/skipped, tức mỗi token gây một lượt so khớp lại trọn danh sách. Bất đối xứng đo được với chính build này: chi phí phía Rust đã được đo lại ở N≈184-262 câu (mục ngay trên), phía webview thì chưa có một con số nào ở cùng cỡ. Cần một phép đo ở N thật trên máy Ice trước khi quyết có phải virtualise hay không — NFR2 là 50 ms mỗi frame.
+
+## Deferred from: Story 4.10 — Lỗi mạng và lỗi API (2026-09-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
+  summary: **Ba assert `expect(...).toBe(i18n.tError(...))` còn sống gọi CHÍNH hàm đang được canh
+    ở cả hai vế, nên chúng xanh cả khi khoá đã biến mất khỏi `vi.json`.**
+  evidence: `glossaryQuickAddStrip.test.ts:110` và `:152`, `glossaryConfirmStripTemplate.test.ts:243`
+    — đếm bằng `grep -rnE "(toBe|toEqual|toContain)\([^)]*tError\(" tests/frontend/`, cho 3, và
+    phép grep hẹp `expect(.*)\.toBe(.*tError(` cũng cho 3. Cơ chế: `src/i18n/resolve.ts:89`
+    `return safeKey` trả về KHOÁ TRẦN khi thiếu, nên hai lời gọi `tError` trên cùng payload luôn
+    bằng nhau. Nói cho đúng phạm vi: dạng assert đó VẪN canh việc component truyền đúng payload
+    qua `tError`, nhưng KHÔNG canh `vi.json` có câu ấy, cũng không canh câu ấy đúng. Story 4.10
+    đã sửa hai chỗ cùng hình dạng ở `aiTranslate.test.ts`/`aiTranslateBatch.test.ts` bằng cách so
+    với CHUỖI LITERAL chép nguyên văn từ `vi.json`; ba chỗ còn lại nằm trên bề mặt Glossary,
+    ngoài phạm vi story này. **(Chủ: Ice — ba tệp thuộc hai bề mặt khác, và sửa chúng là một lượt
+    quét quy ước test chứ không phải một phép vá của một story sản phẩm.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
+  summary: **`editorPromoteAiTranslationError` được export và KHÔNG ai đọc, nên một lượt "đưa
+    sang" thất bại hiện im lặng hoàn toàn trên giao diện.**
+  evidence: khai ở `src/panels/editorPanelState.ts:270-274`, gán ở `:304`/`:307`/`:824`, và không
+    một chỗ nào ngoài tệp đó đọc nó. Quyết định 4 của spec 4.10 định cho nó một tiếng nói qua
+    `tError()`; Pha 2 dựng rồi HOÀN NGUYÊN sau phép đo: `tests/frontend/aiTranslate.test.ts:119`
+    và `aiPromptInspector.test.ts` đều `vi.doMock` `editorPanelState.ts` bằng một factory trả
+    OBJECT LITERAL cố định không có tên export này, nên panel import vào là `undefined` và 24 ca
+    đang xanh hoá đỏ. Sửa hai factory đó cùng pha với thêm dòng panel thì một agent viết cả mã
+    lẫn test duy nhất canh nó — đúng thứ ranh giới pha dựng ra để chặn. Đây là lỗi ghi store, KHÔNG
+    phải FR75, nên nó không nợ story này một AC nào. Nó thuộc cùng cụm với món nợ bề mặt-báo-lỗi
+    UX-DR30 đang mở. **(Chủ: Ice — cùng lớp quyết định hạ tầng test mà Ice đã nhận cho bàn đo
+    `AppHandle` ngày 2026-09-22.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
+  summary: **`batch_panicked_error` đúc `RequestFailed` cho một `JoinError`, nên một panic nội bộ
+    nay đọc thành *"Không kết nối được tới nhà cung cấp AI"* kèm `retryable: true`.**
+  evidence: `commands/aitranslate.rs` — `batch_panicked_error()` dựng
+    `OpenAiClientError::RequestFailed { detail: "... panicked or was aborted" }`, rơi vào họ
+    `AiTranslateProviderUnreachable`. Câu chữ vô hại khi MỘT khoá gộp phủ mọi nguyên nhân; sau
+    Quyết định 2 spec 4.10 thì câu cụ thể, nên nó sai cụ thể: người dùng đọc một lỗi mạng cho một
+    khuyết tật nội bộ, và được mời thử lại. Phạm vi thật, ĐO 2026-09-22 ở vòng rà chứ không suy từ
+    `AGENTS.md`: `src-tauri/Cargo.toml` đặt `panic = "abort"` CHỈ dưới `[profile.release]` (dòng
+    208); `[profile.bench-release]` (dòng 232) là `unwind`, KHÔNG có `[profile.dev]` nên dev mặc
+    định `unwind`, và dòng 214 của chính tệp đó ghi rằng một test target thì Cargo LUÔN dựng bằng
+    `unwind`. Nên nhánh này không tới được trong một build RELEASE, nhưng TỚI ĐƯỢC trong một build
+    dev — tức đúng loại build mà tính năng này được gõ và demo. Hại vì thế là hại phía người viết
+    mã, không phải phía người dùng bản phát hành, và dòng `Display` vẫn nói đúng sự thật
+    (`detail="ai_translate batch blocking task panicked or was aborted"`). Đó là lý do mục này giữ
+    mức thấp thay vì đóng: lý do "không tới được" hẹp hơn kết luận mà nó từng đỡ —
+    cùng lý do §Code Map spec 4.10 xử bốn lỗi `MessageKey::Unknown` bằng "record, do not chase",
+    và cùng lý do vòng rà 4.9 đã bác một phát hiện trên chính nhánh này. **(Chủ: Ice — quyết một
+    nhánh không-tới-được-trong-release có đáng một khoá riêng hay không là một quyết định về
+    ngưỡng, không phải một dòng mã.)**

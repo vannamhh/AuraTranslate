@@ -120,6 +120,24 @@ export function aiTranslateBatchTextForSegment(
   return row.text
 }
 
+/**
+ * ID những hàng một lượt RETRY sẽ chạy lại: hàng `error` cộng MỌI hàng `pending`, giữ ĐÚNG
+ * thứ tự trong `currentRows` (thứ tự tài liệu đã đóng băng từ lúc [`runAiTranslateBatch`]
+ * khởi lô — xem doc-comment đầu tệp §"Một `Channel` DUY NHẤT, N hàng"). HÀM THUẦN, cùng khuôn
+ * [`aiTranslateBatchTextForSegment`] ngay trên — chỗ gọi (`main.ts`'s handler thật của
+ * `ai.translate.batch_retry`) truyền `aiTranslateBatchRows.value` vào, tệp này không tự đọc gì.
+ *
+ * 🔴 `done` VÀ `skipped` VÀ `cancelled` không có mặt trong tập trả về — một retry không bao
+ * giờ gọi lại một câu đã CHỐT kết quả (Task 6 spec 4.10: *"a retry must never re-send a `done`
+ * sentence, which is the whole reason the user pressed stop rather than losing the work"*).
+ * `running` cũng không có mặt: tối đa một hàng `running` tại một thời điểm và nó chỉ tồn tại
+ * TRONG LÚC lô đang `generating`, khi nút retry vốn đã bị khoá (xem `canRetryAiTranslateBatch`,
+ * `AiTranslationPanel.vue`).
+ */
+export function aiTranslateBatchRetryIds(currentRows: readonly AiTranslateBatchRow[]): number[] {
+  return currentRows.filter((r) => r.status === 'error' || r.status === 'pending').map((r) => r.segmentId)
+}
+
 /** `index` luôn hợp lệ trong thực tế — nó đến từ [`rowIndexBySegmentId`], dựng ĐÚNG từ độ dài
  * `rows.value` ở đầu [`runAiTranslateBatch`] — nhưng vẫn kiểm biên PHÒNG THỦ (không đọc
  * `rows.value[index]` khi biên sai) thay vì tin tưởng lời hứa đó im lặng. */
@@ -182,8 +200,13 @@ export async function runAiTranslateBatch(
   if (result.error !== null) {
     state.value = 'error'
     error.value = result.error
-    // `ai_translate.batch_stopped` mang `segment_id` của ĐÚNG câu batch dừng ở đó
-    // (`batch_stopped_error`, `commands/aitranslate.rs`) — chỉ ĐỔI `status`, KHÔNG xoá `text`.
+    // 🔵 SỬA 2026-09-22 (Story 4.10) — `batch_stopped_error` (`commands/aitranslate.rs`) không
+    // còn mang một nhãn gộp `ai_translate.batch_stopped` nữa; nó trả về MỘT trong sáu `code` họ
+    // nguyên nhân (Quyết định 2 spec 4.10 — `ai_translate.provider_unreachable`/
+    // `provider_refused`/`stream_ended_without_done`/`reply_unreadable`/`client_build_failed`/
+    // `api_key_header_invalid`), chỉ khác lượt dịch MỘT segment ở chỗ `params` LUÔN mang thêm
+    // `segment_id` của ĐÚNG câu batch dừng ở đó — điểm mà đoạn dưới đây vẫn dựa vào không đổi.
+    // Nhánh này chỉ ĐỔI `status` của HÀNG (`setRowAt(..., { status: 'error' })`), KHÔNG xoá `text`.
     // 🔴 Khác nhánh `cancelled` ngay dưới: §Always spec 4.9 chỉ hứa xoá văn bản dở dang cho
     // CANCEL ("the in-flight sentence's partial text is discarded"), không cho LỖI — đúng
     // tiền lệ đã kiểm của 4.8
