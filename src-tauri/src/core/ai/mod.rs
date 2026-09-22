@@ -35,6 +35,14 @@
 //! `reqwest` ASYNC (không `blocking` — `read_timeout` chỉ tồn tại trên builder async, xem
 //! doc-comment của `client`). Tách khung SSE là một hàm THUẦN trong đó, trên một bộ đệm byte
 //! — xem doc-comment của `client` cho lý do.
+//!
+//! 🔵 THÊM 2026-09-22 (Story 4.11) — [`pricing`]: bảng giá BUNDLED, dated, keyed theo model
+//! id, và một hàm THUẦN `(model_id, prompt_tokens, completion_tokens) -> Option<f64>`. `client`
+//! gọi module này ngay khi đọc được `usage` của chunk cuối để đúc `cost_usd` TRƯỚC khi trả
+//! `TranslateOutcome::Done` ra ngoài ranh giới `core/ai/` — không module nào khác trong cây
+//! (kể cả `commands::aitranslate`) gọi thẳng `pricing`, đúng lý do `AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER`'s
+//! ghi chú "⚠️ GIỚI HẠN THẬT" ở `tests/ai_boundary.rs` không cần mở rộng cho module này.
 
 pub mod client;
+pub mod pricing;
 pub mod rag;

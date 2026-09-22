@@ -51,7 +51,7 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { cancelAiTranslateCall, runAiTranslateBatchCall } from './config/aitranslate'
-import type { AiTranslateBatchEventWire } from './config/aitranslate'
+import type { AiTranslateBatchEventWire, AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 
 /** Xem doc-comment đầu tệp §"Trạng thái mỗi hàng" cho ý nghĩa và thứ tự chuyển của sáu giá trị. */
@@ -63,6 +63,12 @@ export type AiTranslateBatchRow = {
   segmentId: number
   status: AiTranslateBatchRowStatus
   text: string
+  /** Story 4.11 -- số liệu của ĐÚNG câu này, gán từ `AiTranslateBatchEventWire::Done.usage`
+   * khi hàng chuyển sang `status === 'done'`. `null` ở mọi trạng thái khác VÀ khi `'done'`
+   * nhưng provider không trả về usage cho câu này (I/O Matrix spec 4.11 "Provider sends no
+   * usage") — hai lý do khác nhau, cùng giá trị `null`, cùng khuôn hai lớp `null` mà
+   * `config/aitranslate.ts` đã ghi cho `AiTranslateOutcomeWire`. */
+  usage: AiTranslateUsageWire | null
 }
 
 /** Cùng năm giá trị `AiTranslateState` (`aiTranslateState.ts`) — TÁI DÙNG hình dạng đó cho
@@ -103,6 +109,45 @@ export const aiTranslateBatchRemainingCount: ComputedRef<number> = computed(
 export const aiTranslateBatchRunningSegmentId: ComputedRef<number | null> = computed(() => {
   const running = rows.value.find((r) => r.status === 'running')
   return running === undefined ? null : running.segmentId
+})
+
+/**
+ * Số liệu THÔ đã cộng dồn cho dòng "tổng token + tổng ước tính của lô" — Story 4.11
+ * (`epics.md:3811-3813`, AC ký: *"hiển thị tổng token và tổng ước tính của cả lô"*). HÀM tính
+ * toán số học thuần (đếm/cộng), KHÔNG chọn khoá/dựng câu — đúng ranh giới §Code Map spec 4.11:
+ * chọn khoá `vi.json` (đầy đủ/một phần, có giá/không giá) và định dạng tham số là việc của
+ * `AiTranslationPanel.vue`'s pure function, tệp này chỉ đưa ra SỰ THẬT để pure function đó đọc.
+ *
+ * `sentenceCount` — số hàng đã DỊCH XONG (`status === 'done'`; `skipped`/`pending`/`running`/
+ * `cancelled`/`error` không đáng kể, chúng chưa từng — hoặc sẽ không bao giờ — báo usage cho
+ * lượt này). `reportedCount` — trong số đó, bao nhiêu hàng THẬT SỰ mang `usage !== null`.
+ * `tokenCount` — tổng `total_tokens` của đúng những hàng đã báo.
+ *
+ * `costUsd` — tổng `cost_usd` của những hàng đã báo, HOẶC `null`. Một lô dùng CHUNG một mô
+ * hình cho mọi câu (`prepare_batch_call` phân giải cấu hình MỘT lần cho cả lô,
+ * `commands/aitranslate.rs`), nên `cost_usd` của mọi hàng ĐÃ báo trong CÙNG một lô đều CÙNG có
+ * mặt hoặc CÙNG vắng mặt trên lý thuyết — có giá hay không là tính chất của MÔ HÌNH, không của
+ * TỪNG câu. `every(...)` dưới đây vẫn là một khoá an toàn có chủ ý (không suy diễn từ lý
+ * thuyết): nếu vì lý do nào đó một hàng ĐÃ báo lại thiếu `cost_usd` trong khi hàng khác có,
+ * tổng KHÔNG được hiện — một tổng thiếu-mất-một-phần còn tệ hơn không hiện gì (cùng tinh thần
+ * "never silently sum a subset as if whole" mà token đã áp dụng).
+ */
+export const aiTranslateBatchUsageSummary: ComputedRef<{
+  tokenCount: number
+  reportedCount: number
+  sentenceCount: number
+  costUsd: number | null
+}> = computed(() => {
+  const doneRows = rows.value.filter((r) => r.status === 'done')
+  const reporting = doneRows.filter((r) => r.usage !== null)
+  const allReportingHaveCost =
+    reporting.length > 0 && reporting.every((r) => r.usage?.cost_usd !== null && r.usage?.cost_usd !== undefined)
+  return {
+    tokenCount: reporting.reduce((sum, r) => sum + (r.usage?.total_tokens ?? 0), 0),
+    reportedCount: reporting.length,
+    sentenceCount: doneRows.length,
+    costUsd: allReportingHaveCost ? reporting.reduce((sum, r) => sum + (r.usage?.cost_usd ?? 0), 0) : null,
+  }
 })
 
 /**
@@ -172,7 +217,7 @@ export async function runAiTranslateBatch(
   const mine = ++sequence
   const ids = segmentIds.slice()
   rowIndexBySegmentId = new Map(ids.map((id, index) => [id, index]))
-  rows.value = ids.map((id) => ({ segmentId: id, status: 'pending', text: '' }))
+  rows.value = ids.map((id) => ({ segmentId: id, status: 'pending', text: '', usage: null }))
   state.value = 'generating'
   error.value = null
 
@@ -188,7 +233,7 @@ export async function runAiTranslateBatch(
       return
     }
     if (event.kind === 'done') {
-      setRowAt(index, { status: 'done' })
+      setRowAt(index, { status: 'done', usage: event.usage })
       return
     }
     setRowAt(index, { status: 'skipped' })

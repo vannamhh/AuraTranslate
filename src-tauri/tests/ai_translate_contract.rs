@@ -65,7 +65,7 @@ use auratranslate_lib::commands::segment::{
     set_segment_omitted,
 };
 use auratranslate_lib::core::ai::client::{
-    OpenAiClientError, SseEventOutcome, build_request_body, enforce_sse_buffer_cap,
+    ChunkUsage, OpenAiClientError, SseEventOutcome, build_request_body, enforce_sse_buffer_cap,
     interpret_sse_event, split_sse_frames,
 };
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
@@ -73,7 +73,7 @@ use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::promptset::PromptSetTier;
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use auratranslate_lib::ports::translation_provider::{
-    TranslateOutcome, TranslateRequest, TranslationProvider,
+    TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -316,6 +316,214 @@ fn a_buffer_that_never_sees_a_boundary_is_rejected_once_it_crosses_the_cap() {
     let just_over = vec![b'x'; 1024 * 1024 + 1];
     let err = enforce_sse_buffer_cap(&just_over).expect_err("vuot tran phai la mot Err");
     assert_eq!(err, OpenAiClientError::BufferOverflow { size: just_over.len() });
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 1b. Story 4.11 -- request mang `stream_options`, và khung usage cuối cùng không còn rơi
+// vào `SseEventOutcome::Ignore` (bug được nêu tên nguyên văn ở §Code Map spec 4.11:
+// "a chunk with choices: [] takes exactly that path today, so adding the struct field alone
+// changes nothing observable" -- ca dưới đây là counter-check trực tiếp cho đúng câu đó).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Mọi request phải mang `stream_options: { include_usage: true }` -- đây là cách DUY NHẤT
+/// provider biết phải gửi một khung `usage` trước `[DONE]` (§Design Notes spec 4.11). Không
+/// `Option`/`skip_serializing_if`: trường này LUÔN có mặt, không như `temperature`/`max_tokens`.
+#[test]
+fn the_request_body_always_asks_for_usage_via_stream_options() {
+    let request = TranslateRequest {
+        endpoint: "https://api.example.invalid/v1/chat/completions",
+        model: "gpt-test",
+        temperature: None,
+        max_tokens: None,
+        api_key: "sk-test",
+        prompt: "Hello.",
+    };
+    let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
+    assert_eq!(value["stream_options"]["include_usage"], serde_json::json!(true));
+}
+
+/// 🔴 Counter-check trực tiếp cho khuyết tật nêu ở §Code Map spec 4.11 — một khung `usage`
+/// mang `choices: []` (hình dạng THẬT của khung usage cuối của một provider tương thích
+/// OpenAI, `stream_options.include_usage == true`) phải cho ra [`SseEventOutcome::Usage`],
+/// KHÔNG [`SseEventOutcome::Ignore`]. Trước bản sửa của story này, `ChatCompletionsChunk`
+/// không đọc trường `usage` nên đúng khung này rơi vào `Ignore` một cách im lặng — gỡ nhánh
+/// `if let Some(usage) = chunk.usage { ... }` khỏi `interpret_sse_event` (`core/ai/client.rs`)
+/// làm ĐÚNG ca này đỏ (đối chứng bằng tay lúc dựng story, xem báo cáo triển khai).
+#[test]
+fn a_usage_only_final_chunk_with_empty_choices_is_read_as_usage_not_ignored() {
+    let usage_chunk = r#"{"id":"x","object":"chat.completion.chunk","choices":[],"usage":{"prompt_tokens":100,"completion_tokens":312,"total_tokens":412}}"#;
+    let outcome = interpret_sse_event(usage_chunk).expect("khung usage hop le khong duoc la Err");
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Usage(ChunkUsage {
+            prompt_tokens: Some(100),
+            completion_tokens: Some(312),
+            total_tokens: Some(412),
+        }),
+        "khung usage voi choices RONG phai doc thanh Usage, khong phai Ignore"
+    );
+}
+
+/// 🔴 Rà soát coordinator — một `usage` CÓ MẶT trong JSON nhưng không báo được một số token
+/// nào (`{"usage":{}}`, ba trường đều vắng mặt) phải đọc như KHÔNG có khung usage nào tới —
+/// KHÔNG một `Usage(ChunkUsage { None, None, None })` mà tầng trên hiểu nhầm thành "đã có usage,
+/// mọi số đều 0" (frozen §Always: "never `0`"). Đối chứng bằng cách rơi xuống ĐÚNG nhánh
+/// `Ignore` mà một chunk không mang `usage` lẫn `delta.content` sẽ rơi vào.
+#[test]
+fn a_usage_object_present_but_reporting_no_token_counts_at_all_is_read_as_no_usage() {
+    let empty_usage_chunk = r#"{"id":"x","choices":[],"usage":{}}"#;
+    let outcome = interpret_sse_event(empty_usage_chunk).expect("khong duoc la Err");
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Ignore,
+        "usage rong (khong mot truong nao) phai doc nhu KHONG co usage, khong phai Usage voi so 0"
+    );
+}
+
+/// 🔴 Rà soát coordinator — một `usage` báo MỘT PHẦN (chỉ `total_tokens`, thiếu
+/// `prompt_tokens`/`completion_tokens`) VẪN là một `Usage` thật (số token đó có nghĩa, hiện
+/// được) — khác ca `{}` ngay trên. `interpret_sse_event` giữ nguyên hai trường vắng mặt là
+/// `None`, không đúc `0` thay — `ChunkUsage::into_translate_usage` (đối chứng riêng ngay dưới)
+/// mới là nơi quyết định `cost_usd` có được tính hay không từ hình dạng THIẾU này.
+#[test]
+fn a_usage_frame_reporting_only_total_tokens_is_read_as_usage_with_the_other_two_fields_none() {
+    let partial_usage_chunk = r#"{"id":"x","choices":[],"usage":{"total_tokens":412}}"#;
+    let outcome = interpret_sse_event(partial_usage_chunk).expect("khong duoc la Err");
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Usage(ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) }),
+        "usage MOT PHAN van la Usage that -- total_tokens=412 co nghia, hai truong con lai None"
+    );
+}
+
+/// 🔴 Rà soát coordinator — `ChunkUsage::into_translate_usage` không được đúc một chi phí BỊA
+/// từ hai trường VẮNG MẶT. Cùng khung `{"total_tokens":412}` ở ca ngay trên: token count 412
+/// phải lên màn hình (thật), nhưng `cost_usd` PHẢI là `None` (không phải một `Some(0.0)` giả —
+/// công thức giá cần CẢ HAI `prompt_tokens`/`completion_tokens`, và ở đây cả hai đều không
+/// biết, không phải bằng `0`).
+#[test]
+fn into_translate_usage_does_not_fabricate_a_cost_when_the_prompt_and_completion_split_is_unknown() {
+    let partial = ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) };
+    let usage = partial.into_translate_usage("claude-sonnet-5");
+    assert_eq!(usage.total_tokens, 412, "so token THAT phai len man hinh du thieu chi tiet vao/ra");
+    assert_eq!(
+        usage.cost_usd, None,
+        "khong du CA HAI prompt_tokens/completion_tokens thi KHONG duoc tinh gia -- None, khong phai Some(0.0) gia"
+    );
+}
+
+/// Ca ĐỐI CHỨNG DƯƠNG cạnh ca trên — khi CẢ HAI `prompt_tokens`/`completion_tokens` đều có
+/// mặt (dù `total_tokens` vắng mặt, một hình dạng hợp lệ khác), giá VẪN được tính, và
+/// `total_tokens` rơi về đúng tổng hai chiều đã biết.
+#[test]
+fn into_translate_usage_computes_a_cost_and_falls_back_to_the_sum_when_total_tokens_is_absent_but_both_parts_are_known() {
+    let usage = ChunkUsage { prompt_tokens: Some(100), completion_tokens: Some(312), total_tokens: None }
+        .into_translate_usage("claude-sonnet-5");
+    assert_eq!(usage.total_tokens, 412, "total_tokens vang mat -- roi ve dung tong hai chieu da biet");
+    assert!(usage.cost_usd.is_some(), "ca hai chieu deu biet -- gia PHAI duoc tinh");
+}
+
+/// 🔴 Rà soát coordinator — GHIM đúng lời doc-comment `SseEventOutcome::Usage` khẳng định:
+/// một khung mang CẢ `usage` LẪN `delta.content` thì `usage` THẮNG, nội dung bị bỏ — trước ca
+/// này, mệnh đề đó chỉ đứng trong doc-comment, không ai đối chứng được nó THẬT SỰ đúng hay chỉ
+/// tình cờ đúng vì chưa ai gieo đúng hình dạng JSON hiếm này.
+#[test]
+fn a_frame_carrying_both_usage_and_delta_content_reads_as_usage_and_discards_the_content() {
+    let both = r#"{"choices":[{"delta":{"content":"Xin"}}],"usage":{"total_tokens":412}}"#;
+    let outcome = interpret_sse_event(both).expect("khong duoc la Err");
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Usage(ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) }),
+        "usage phai THANG khi mot khung mang ca hai -- dung nhu doc-comment SseEventOutcome::Usage khang dinh"
+    );
+}
+
+/// Một khung PHIÊN BẢN giữa dòng (không usage, `delta.content` có mặt) vẫn phải đọc như
+/// `Token` như trước — bản sửa thêm trường `usage` không được đổi hành vi của khung KHÔNG
+/// mang `usage` (ca ÂM cạnh ca trên).
+#[test]
+fn a_token_chunk_without_usage_still_reads_as_token() {
+    let token_chunk = r#"{"choices":[{"delta":{"content":"Xin"}}]}"#;
+    let outcome = interpret_sse_event(token_chunk).expect("khung token hop le khong duoc la Err");
+    assert_eq!(outcome, SseEventOutcome::Token("Xin".to_owned()));
+}
+
+/// `core::ai::pricing::estimate_cost_usd` — mô hình CÓ hàng trong bảng giá trả `Some`, tính
+/// đúng công thức (giá/triệu token × số token / 1_000_000, cộng hai chiều vào/ra).
+#[test]
+fn estimate_cost_usd_computes_a_price_for_a_seeded_model_id() {
+    let cost = auratranslate_lib::core::ai::pricing::estimate_cost_usd("claude-sonnet-5", 100, 312)
+        .expect("claude-sonnet-5 phai co hang trong bang gia");
+    let expected = (100.0 / 1_000_000.0 * 2.0) + (312.0 / 1_000_000.0 * 10.0);
+    assert!((cost - expected).abs() < 1e-12, "cong thuc gia phai dung: got={cost}, expected={expected}");
+}
+
+/// I/O Matrix spec 4.11 "Model id collides with a table row" — TÀI LIỆU HOÁ một giới hạn ĐÃ
+/// CHẤP NHẬN, không phải một lỗi cần vá: bảng giá khoá THEO TÊN model id, không theo bất kỳ
+/// dấu hiệu cục bộ/đám mây nào (`core/ai/pricing.rs`'s doc-comment — FR66 cố ý không cho một
+/// bộ phân biệt như vậy). Một mô hình cục bộ (Ollama/LM Studio) hay một proxy tự đặt tên trùng
+/// MỘT id đã niêm yết trong bảng SẼ bị tính tiền y hệt bản đám mây thật.
+///
+/// 🔴 **SỬA (rà soát coordinator)** — bản trước gọi `estimate_cost_usd` HAI LẦN với ĐÚNG cùng
+/// tham số rồi khẳng định hai kết quả bằng nhau: đúng với BẤT KỲ hàm thuần nào, không ca nào
+/// gieo được để nó đỏ. Ca này thay bằng hai LƯỢT GỌI THẬT KHÁC NHAU (số token khác nhau, đóng
+/// vai "cuộc gọi đám mây thật" và "cuộc gọi từ một mô hình cục bộ/proxy trùng tên") rồi đối
+/// chiếu CẢ HAI với công thức giá CÔNG KHAI ($2/$10 mỗi triệu token, `PRICE_TABLE`) tính độc
+/// lập ở đây — nếu `estimate_cost_usd` từng học thêm một cách phân biệt nguồn gọi (đọc một cờ
+/// ẩn, một biến môi trường, …) khiến MỘT trong hai lượt lệch khỏi công thức công khai, ca này
+/// đỏ đúng ở đó.
+#[test]
+fn a_local_or_proxied_model_answering_to_a_seeded_cloud_id_is_priced_as_if_it_were_the_real_cloud_model_an_accepted_limitation()
+ {
+    const INPUT_USD_PER_MILLION: f64 = 2.0;
+    const OUTPUT_USD_PER_MILLION: f64 = 10.0;
+    fn expected_cost(prompt_tokens: f64, completion_tokens: f64) -> f64 {
+        (prompt_tokens / 1_000_000.0 * INPUT_USD_PER_MILLION)
+            + (completion_tokens / 1_000_000.0 * OUTPUT_USD_PER_MILLION)
+    }
+
+    // "claude-sonnet-5" o day dong hai vai KHAC NHAU that su, khong phai mot loi goi lap lai:
+    // mot lot voi so token mo phong mot cuoc goi dam may that, mot lot voi so token KHAC han mo
+    // phong mot may cuc bo (hoac mot proxy) tra loi dung TEN nay -- I/O Matrix mo ta dung tinh
+    // huong nay, vi ham chi biet doc TEN, khong biet cuoc goi da di dau.
+    let real_cloud_call =
+        auratranslate_lib::core::ai::pricing::estimate_cost_usd("claude-sonnet-5", 100, 312)
+            .expect("id nay co hang trong bang");
+    let same_id_from_a_local_or_proxied_caller =
+        auratranslate_lib::core::ai::pricing::estimate_cost_usd("claude-sonnet-5", 9, 4)
+            .expect("ham khong co cach nao phan biet duoc hai loi goi nay -- van cung mot hang");
+
+    assert!(
+        (real_cloud_call - expected_cost(100.0, 312.0)).abs() < 1e-12,
+        "gia cua 'cuoc goi dam may that' phai khop CONG THUC CONG KHAI"
+    );
+    assert!(
+        (same_id_from_a_local_or_proxied_caller - expected_cost(9.0, 4.0)).abs() < 1e-12,
+        "gioi han da CHAP NHAN: mot loi goi KHAC (so token khac) nhung CUNG id van bi tinh tien \
+         theo DUNG cong thuc cong khai -- khong co bo do nguon goi nao lam no lech di"
+    );
+}
+
+/// I/O Matrix spec 4.11 "Usage arrives, model not in table" — một id CỤC BỘ (đúng id
+/// `aiconfig_contract.rs` đã dùng cho mô hình Ollama, `llama3`) không có hàng trong bảng ⇒
+/// `None`, đây LÀ quy tắc "mô hình cục bộ" (§Always spec 4.11), không một lỗi.
+#[test]
+fn estimate_cost_usd_returns_none_for_a_model_id_absent_from_the_table() {
+    assert_eq!(auratranslate_lib::core::ai::pricing::estimate_cost_usd("llama3", 100, 312), None);
+    assert_eq!(auratranslate_lib::core::ai::pricing::estimate_cost_usd("qwen2.5:14b", 100, 312), None);
+}
+
+/// AC: "every row states the date its prices were taken, so a stale row is visible rather
+/// than silently believed" — `PRICES_AS_OF` phải là một chuỗi có mặt (không rỗng), và bảng
+/// giá phải có ít nhất một hàng để hằng số đó có nghĩa.
+#[test]
+fn the_price_table_states_the_date_its_prices_were_taken() {
+    assert!(!auratranslate_lib::core::ai::pricing::PRICES_AS_OF.is_empty());
+    assert!(
+        auratranslate_lib::core::ai::pricing::estimate_cost_usd("claude-sonnet-5", 1, 1).is_some(),
+        "phai co it nhat mot hang de PRICES_AS_OF co nghia"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -780,6 +988,7 @@ impl std::error::Error for FakeProviderError {}
 
 enum FakeFinish {
     Done,
+    DoneWithUsage(TranslateUsage),
     Err(FakeProviderError),
 }
 
@@ -811,7 +1020,8 @@ impl TranslationProvider for FakeProvider {
             return Ok(TranslateOutcome::Cancelled);
         }
         match &self.finish {
-            FakeFinish::Done => Ok(TranslateOutcome::Done),
+            FakeFinish::Done => Ok(TranslateOutcome::Done(None)),
+            FakeFinish::DoneWithUsage(u) => Ok(TranslateOutcome::Done(Some(*u))),
             FakeFinish::Err(e) => Err(e.clone()),
         }
     }
@@ -858,7 +1068,7 @@ fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
         tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
             .expect("khong duoc loi");
 
-    assert_eq!(outcome, TranslateOutcome::Done);
+    assert_eq!(outcome, TranslateOutcome::Done(None));
     let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
     assert_eq!(got, vec!["Xin ".to_owned(), "chào".to_owned()], "token phai toi DUNG THU TU");
 }
@@ -937,6 +1147,177 @@ fn a_provider_error_with_zero_tokens_received_leaves_the_channel_empty_and_propa
     assert_eq!(err, FakeProviderError("dropped-before-first-token".to_owned()));
     let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
     assert!(got.is_empty(), "khong token nao tung gui -- Channel phai RONG, khong mot khung nao");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 3b. Story 4.11 -- `run_translate_call` carries `TranslateUsage` through unchanged, đúng ba
+// hàng còn lại của I/O Matrix spec 4.11 canh được ở seam NÀY (usage đã tới, provider không
+// gửi usage, huỷ trước khi usage tới).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// I/O Matrix "Usage arrives" -- provider (giả) trả về usage cùng lượt `Done`, và
+/// `run_translate_call` phải mang NGUYÊN VẸN giá trị đó ra ngoài, không đánh rơi hay đúc lại.
+#[test]
+fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchanged() {
+    let usage = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
+    let provider = FakeProvider { tokens: vec!["Xin chào"], finish: FakeFinish::DoneWithUsage(usage) };
+    let prepared = dummy_prepared();
+    let (channel, _received) = collecting_channel();
+    let should_cancel = || false;
+
+    let outcome =
+        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
+            .expect("khong duoc loi");
+
+    assert_eq!(outcome, TranslateOutcome::Done(Some(usage)), "usage phai di qua NGUYEN VEN, khong doi mot truong nao");
+}
+
+/// I/O Matrix "Provider sends no usage" -- stream kết thúc `Done` mà không một khung `usage`
+/// nào từng tới (`FakeFinish::Done` không mang usage) -- outcome phải mang `None`, KHÔNG một
+/// `TranslateUsage` giả với các trường bằng `0` (§Always spec 4.11: "never `0`, never an empty
+/// currency").
+#[test]
+fn a_stream_that_ends_done_without_ever_seeing_a_usage_frame_carries_none() {
+    let provider = FakeProvider { tokens: vec!["Xin ", "chào"], finish: FakeFinish::Done };
+    let prepared = dummy_prepared();
+    let (channel, _received) = collecting_channel();
+    let should_cancel = || false;
+
+    let outcome =
+        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
+            .expect("khong duoc loi");
+
+    assert_eq!(outcome, TranslateOutcome::Done(None));
+}
+
+/// I/O Matrix "Cancelled mid-flight" -- huỷ TRƯỚC khi provider (giả) kịp trả usage (dù công
+/// thức của nó CÓ mang usage nếu chạy hết) -- outcome phải là `Cancelled`, kiểu của biến thể
+/// đó KHÔNG có chỗ để mang một usage nào (không cần assert thêm gì ngoài biến thể đúng: đây là
+/// bảo đảm ở TẦNG KIỂU, không phải một giá trị có thể lỡ tay đúc sai).
+#[test]
+fn cancelling_before_the_usage_frame_arrives_reports_cancelled_with_no_usage_to_carry() {
+    let usage = TranslateUsage { prompt_tokens: 9, completion_tokens: 9, total_tokens: 18, cost_usd: None };
+    let provider = FakeProvider { tokens: vec!["partial"], finish: FakeFinish::DoneWithUsage(usage) };
+    let prepared = dummy_prepared();
+    let (channel, received) = collecting_channel();
+    let calls = AtomicUsize::new(0);
+    // Huy NGAY sau token dau tien -- provider (gia) khong bao gio toi duoc nhanh tra usage.
+    let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 1;
+
+    let outcome =
+        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
+            .expect("huy la Ok(Cancelled), khong phai mot Err");
+
+    assert_eq!(outcome, TranslateOutcome::Cancelled);
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    assert_eq!(got, vec!["partial".to_owned()]);
+}
+
+/// `AiTranslateUsageWire::from(TranslateUsage)` -- chuyển đổi 1:1, không đánh rơi/đúc lại
+/// trường nào (kể cả `cost_usd: None`, ca "usage đã tới nhưng mô hình không có giá").
+#[test]
+fn ai_translate_usage_wire_from_translate_usage_copies_every_field_verbatim() {
+    let usage = TranslateUsage { prompt_tokens: 7, completion_tokens: 11, total_tokens: 18, cost_usd: None };
+    let wire = auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(usage);
+    assert_eq!(wire.prompt_tokens, 7);
+    assert_eq!(wire.completion_tokens, 11);
+    assert_eq!(wire.total_tokens, 18);
+    assert_eq!(wire.cost_usd, None);
+
+    let priced = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
+    let priced_wire = auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(priced);
+    assert_eq!(priced_wire.cost_usd, Some(0.00412));
+}
+
+/// 🔴 Rà soát coordinator — `single_run_outcome_wire` (`commands/aitranslate.rs`) là seam
+/// THUẦN mà `wire::ai_translate_segment` (một `#[tauri::command]`, không gọi được từ đây) dùng
+/// để đúc `AiTranslateOutcomeWire` -- trước ca này, KHÔNG một test nào canh rằng `usage` thật
+/// sự đi ra dây cho lượt dịch MỘT segment: thay `usage.map(AiTranslateUsageWire::from)` bằng
+/// `None` bên trong hàm đó (đúng hình dạng nhánh batch hợp lệ đứng cạnh -- một lỗi copy-paste
+/// dễ mắc) vẫn qua sạch mọi gate/test khác. Ca này gọi THẲNG hàm ánh xạ, không đi vòng qua một
+/// webview giả.
+#[test]
+fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_nothing_for_cancelled() {
+    use auratranslate_lib::commands::aitranslate::{AiTranslateOutcomeWire, single_run_outcome_wire};
+
+    let usage = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
+    match single_run_outcome_wire(TranslateOutcome::Done(Some(usage))) {
+        AiTranslateOutcomeWire::Done { usage: Some(wire) } => {
+            assert_eq!(wire.total_tokens, 412, "usage THAT phai di ra day, khong duoc thay bang None");
+            assert_eq!(wire.cost_usd, Some(0.00412));
+        }
+        other => panic!("Done(Some(usage)) phai anh xa thanh Done{{ usage: Some(..) }}, nhan duoc {other:?}"),
+    }
+
+    match single_run_outcome_wire(TranslateOutcome::Done(None)) {
+        AiTranslateOutcomeWire::Done { usage: None } => {}
+        other => panic!("Done(None) (provider khong tra usage) phai anh xa thanh Done{{ usage: None }}, nhan duoc {other:?}"),
+    }
+
+    match single_run_outcome_wire(TranslateOutcome::Cancelled) {
+        AiTranslateOutcomeWire::Cancelled => {}
+        other => panic!("Cancelled phai anh xa thanh Cancelled, nhan duoc {other:?}"),
+    }
+}
+
+/// AC5 — batch: usage rời rạc theo TỪNG câu qua `AiTranslateBatchEventWire::Done`, và một câu
+/// KHÔNG báo usage (provider giả không mang usage cho câu đó) không kéo câu khác xuống theo —
+/// mỗi khung chỉ mang sự thật CỦA CHÍNH NÓ (Rust không tự cộng dồn; cộng dồn + phân biệt
+/// "toàn phần"/"một phần" là việc của `aiTranslateBatchState.ts`, canh ở
+/// `tests/frontend/aiTranslateBatch.test.ts`).
+#[test]
+fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affect_its_neighbours() {
+    let ids = [1_601_i64, 1_602, 1_603];
+    let items: Vec<PreparedBatchItem> =
+        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let usage_1 = TranslateUsage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: Some(0.0002) };
+    let usage_3 = TranslateUsage { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: None };
+    let recipes = vec![
+        MultiItemRecipe {
+            tokens: vec!["one"],
+            finish: FakeFinish::DoneWithUsage(usage_1),
+            trigger_cancel_after_token: None,
+        },
+        MultiItemRecipe { tokens: vec!["two"], finish: FakeFinish::Done, trigger_cancel_after_token: None },
+        MultiItemRecipe {
+            tokens: vec!["three"],
+            finish: FakeFinish::DoneWithUsage(usage_3),
+            trigger_cancel_after_token: None,
+        },
+    ];
+    let provider = MultiItemProvider {
+        recipes,
+        call_index: AtomicUsize::new(0),
+        call_count: AtomicUsize::new(0),
+        cancel_flag: Arc::new(AtomicBool::new(false)),
+    };
+    let (channel, received) = collecting_batch_channel();
+    let should_cancel = || false;
+
+    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        .expect("khong duoc loi");
+    assert_eq!(outcome, AiTranslateBatchOutcome::Done);
+
+    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let usage_shape = |u: TranslateUsage| UsageShape {
+        prompt_tokens: u.prompt_tokens,
+        completion_tokens: u.completion_tokens,
+        total_tokens: u.total_tokens,
+        cost_usd: u.cost_usd,
+    };
+    let expected = vec![
+        BatchEventShape::Token { segment_id: ids[0], text: "one".to_owned() },
+        BatchEventShape::Done { segment_id: ids[0], usage: Some(usage_shape(usage_1)) },
+        BatchEventShape::Token { segment_id: ids[1], text: "two".to_owned() },
+        BatchEventShape::Done { segment_id: ids[1], usage: None },
+        BatchEventShape::Token { segment_id: ids[2], text: "three".to_owned() },
+        BatchEventShape::Done { segment_id: ids[2], usage: Some(usage_shape(usage_3)) },
+    ];
+    assert_eq!(
+        got, expected,
+        "moi khung Done phai mang DUNG usage cua CHINH cau do -- cau khong bao usage (id[1]) \
+         khong lam sai lech usage cua hai cau con lai"
+    );
 }
 
 /// AC2's nửa "grep tìm 0 `emit`/`listen`" — canh bằng chính văn bản nguồn của tầng lệnh, đúng
@@ -1177,6 +1558,17 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
 // batch_stopped` không còn được dùng nữa — `batch_stopped_error` giờ trả về MỘT trong sáu khoá
 // họ nguyên nhân, giống hệt lượt dịch MỘT segment, chỉ mang thêm `segment_id`.
 
+/// Mirror THUẦN của `AiTranslateUsageWire` (`commands/aitranslate.rs`, Story 4.11) -- cùng
+/// lý do [`BatchEventShape`] ngay dưới có mirror riêng của nó: kiểu sản phẩm chỉ derive
+/// `Serialize`.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize)]
+struct UsageShape {
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    total_tokens: u32,
+    cost_usd: Option<f64>,
+}
+
 /// Mirror THUẦN của `AiTranslateBatchEventWire` chỉ để giải mã byte THẬT đã đi qua
 /// `Channel::send` -- kiểu sản phẩm chỉ derive `Serialize` (một chiều gửi ra), không
 /// `Deserialize`, nên một crate test khác không giải mã ngược được kiểu đó thẳng. Hình dạng
@@ -1187,7 +1579,11 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum BatchEventShape {
     Token { segment_id: i64, text: String },
-    Done { segment_id: i64 },
+    // Story 4.11 -- `usage` them vao `AiTranslateBatchEventWire::Done` (commands/aitranslate.rs);
+    // mirror THUAN rieng (khong tai dung `AiTranslateUsageWire` san pham: kieu do chi derive
+    // `Serialize`, khong `Deserialize`, dung khuon doc-comment tren -- mot crate test KHAC
+    // khong giai ma nguoc duoc no thang).
+    Done { segment_id: i64, usage: Option<UsageShape> },
     Skipped { segment_id: i64 },
 }
 
@@ -1296,7 +1692,8 @@ impl TranslationProvider for MultiItemProvider {
             return Ok(TranslateOutcome::Cancelled);
         }
         match &recipe.finish {
-            FakeFinish::Done => Ok(TranslateOutcome::Done),
+            FakeFinish::Done => Ok(TranslateOutcome::Done(None)),
+            FakeFinish::DoneWithUsage(u) => Ok(TranslateOutcome::Done(Some(*u))),
             FakeFinish::Err(e) => Err(e.clone()),
         }
     }
@@ -1707,7 +2104,7 @@ fn batch_over_a_selection_streams_each_sentence_in_document_order_and_finishes_d
     let mut expected = Vec::new();
     for id in ids {
         expected.push(BatchEventShape::Token { segment_id: id, text: format!("token-{id}") });
-        expected.push(BatchEventShape::Done { segment_id: id });
+        expected.push(BatchEventShape::Done { segment_id: id, usage: None });
     }
     assert_eq!(got, expected, "moi su kien phai mang DUNG segment_id va toi DUNG THU TU tai lieu");
 }
@@ -1762,7 +2159,7 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
     let mut expected = Vec::new();
     for i in 0..5 {
         expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
     }
     expected.push(BatchEventShape::Token { segment_id: ids[5], text: format!("partial-{}", ids[5]) });
     assert_eq!(
@@ -1816,7 +2213,7 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
     let mut expected = Vec::new();
     for i in 0..5 {
         expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
     }
     expected.push(BatchEventShape::Token { segment_id: ids[5], text: "boom".to_owned() });
     assert_eq!(got, expected, "cau 1-5 giu ket qua, cau 6 chi co Token cua phan da nhan, khong Done");
@@ -1872,7 +2269,7 @@ fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_
     let mut expected = Vec::new();
     for i in 0..5 {
         expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i] });
+        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
     }
     // Cau 6: KHONG mot su kien nao -- khong Token (khong token nao tung gui), khong Done.
     assert_eq!(
@@ -2029,14 +2426,14 @@ fn an_omitted_segment_sends_a_skipped_event_with_no_provider_call_and_the_batch_
     let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
     let expected = vec![
         BatchEventShape::Token { segment_id: ids[0], text: format!("token-{}", ids[0]) },
-        BatchEventShape::Done { segment_id: ids[0] },
+        BatchEventShape::Done { segment_id: ids[0], usage: None },
         BatchEventShape::Token { segment_id: ids[1], text: format!("token-{}", ids[1]) },
-        BatchEventShape::Done { segment_id: ids[1] },
+        BatchEventShape::Done { segment_id: ids[1], usage: None },
         BatchEventShape::Skipped { segment_id: ids[2] },
         BatchEventShape::Token { segment_id: ids[3], text: format!("token-{}", ids[3]) },
-        BatchEventShape::Done { segment_id: ids[3] },
+        BatchEventShape::Done { segment_id: ids[3], usage: None },
         BatchEventShape::Token { segment_id: ids[4], text: format!("token-{}", ids[4]) },
-        BatchEventShape::Done { segment_id: ids[4] },
+        BatchEventShape::Done { segment_id: ids[4], usage: None },
     ];
     assert_eq!(got, expected, "Skipped phai toi DUNG vi tri, lo phai tiep tuc sang cau ke tiep");
 }
@@ -2080,7 +2477,7 @@ fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_nex
     let cancel_flag_for_hook = Arc::clone(&provider.cancel_flag);
     let second_id = ids[1];
     let (channel, received) = collecting_batch_channel_with_hook(move |event| {
-        if *event == (BatchEventShape::Done { segment_id: second_id }) {
+        if *event == (BatchEventShape::Done { segment_id: second_id, usage: None }) {
             cancel_flag_for_hook.store(true, Ordering::SeqCst);
         }
     });
@@ -2101,9 +2498,9 @@ fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_nex
     let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
     let expected = vec![
         BatchEventShape::Token { segment_id: ids[0], text: "token-1".to_owned() },
-        BatchEventShape::Done { segment_id: ids[0] },
+        BatchEventShape::Done { segment_id: ids[0], usage: None },
         BatchEventShape::Token { segment_id: ids[1], text: "token-2".to_owned() },
-        BatchEventShape::Done { segment_id: ids[1] },
+        BatchEventShape::Done { segment_id: ids[1], usage: None },
     ];
     assert_eq!(got, expected, "cau 1 va cau 2 hoan tat sach; khong su kien nao cho cau 3");
 }

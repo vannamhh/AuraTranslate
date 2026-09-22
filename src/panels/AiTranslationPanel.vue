@@ -61,6 +61,7 @@ import {
   aiTranslateError,
   aiTranslateRunSegmentId,
   aiTranslateStateValue,
+  aiTranslateUsage,
   isAiTranslateResultStale,
 } from '../aiTranslateState'
 // Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22, AC2).
@@ -73,8 +74,10 @@ import {
   aiTranslateBatchStateValue,
   aiTranslateBatchTextForSegment,
   aiTranslateBatchTotalCount,
+  aiTranslateBatchUsageSummary,
 } from '../aiTranslateBatchState'
 import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
+import type { AiTranslateUsageWire } from '../config/aitranslate'
 import { segmentSelectionCount } from './segmentSelectionState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
@@ -190,6 +193,112 @@ const canPromoteAiTranslate = computed<boolean>(() => {
  * khuôn [`isRecordStale`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
 const isAiTranslateStale = computed<boolean>(() =>
   isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorCaretSegmentId.value),
+)
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 4.11 — SỐ TOKEN VÀ ƯỚC TÍNH CHI PHÍ (Quyết định Ice 2026-09-22)
+// ─────────────────────────────────────────────────────────────────────────────────
+// Pure functions trả về KHOÁ + THAM SỐ, không bao giờ một câu tiếng Việt lắp tay — đúng khuôn
+// `aiTranslateBatchRowStatusKey` ngay dưới VÀ tiền lệ `Intl.RelativeTimeFormat` đã bị từ chối
+// ở `lookupHistoryState.ts:249-256` (NFR16): không `Intl.NumberFormat`/`toLocaleString`/
+// `toFixed` NGUYÊN VĂN ở đây — [`formatUsdParam`] tự làm tròn bằng số học, không mượn API
+// định dạng theo locale nào.
+
+/** Một dòng hiển thị được — khoá `vi.json` cộng tham số nó cần, hoặc `null` khi KHÔNG có gì
+ * để vẽ (không một dòng rỗng nào được render — template đọc `null` để bỏ hẳn phần tử DOM). */
+type AiTranslateUsageLine = { key: string; params: Record<string, string> }
+
+/**
+ * Dấu phẩy thập phân THAY vì dấu chấm — HÀM SỐ HỌC THUẦN, không `Intl.NumberFormat` (§Code Map
+ * spec 4.11: "The decimal comma is produced as a param, by a pure function"). Làm tròn 4 chữ số
+ * thập phân bằng phép nhân/chia số nguyên trước khi `toFixed` — tránh đuôi float dài
+ * (`0.1 + 0.2`-class) lọt ra màn hình.
+ */
+function formatUsdParam(costUsd: number): string {
+  const rounded = Math.round(costUsd * 10000) / 10000
+  return rounded.toFixed(4).replace('.', ',')
+}
+
+/**
+ * `usage` của LƯỢT DỊCH MỘT SEGMENT (`aiTranslateState.ts::aiTranslateUsage`) → khoá + tham số
+ * — ba trong năm hàng I/O Matrix spec 4.11 canh được ở tầng NÀY (hai hàng còn lại là của LÔ,
+ * [`aiTranslateBatchUsageLine`] ngay dưới). `usage === null` ⇔ provider không trả về một khung
+ * `usage` nào (I/O Matrix "Provider sends no usage") — chỗ gọi (computed `aiTranslateUsageLineValue`
+ * ngay dưới) chỉ gọi hàm này khi `aiTranslateStateValue === 'done'`; một lượt `cancelled`/
+ * `error`/`generating` không có dòng usage nào cả (§I/O Matrix spec 4.11 "Cancelled mid-flight":
+ * "no figure for that call").
+ */
+function aiTranslateUsageLine(usage: AiTranslateUsageWire | null): AiTranslateUsageLine {
+  if (usage === null) {
+    return { key: 'ai.translate.usage_unavailable', params: {} }
+  }
+  if (usage.cost_usd === null) {
+    return { key: 'ai.translate.usage_no_price', params: { token_count: String(usage.total_tokens) } }
+  }
+  return {
+    key: 'ai.translate.usage_with_cost',
+    params: { token_count: String(usage.total_tokens), cost_usd: formatUsdParam(usage.cost_usd) },
+  }
+}
+
+/** Dòng usage của lượt dịch MỘT segment — `null` (không vẽ gì) trừ khi lượt đã `'done'` (xem
+ * doc-comment [`aiTranslateUsageLine`]). */
+const aiTranslateUsageLineValue = computed<AiTranslateUsageLine | null>(() =>
+  aiTranslateStateValue.value === 'done' ? aiTranslateUsageLine(aiTranslateUsage.value) : null,
+)
+
+/**
+ * Tổng số liệu của MỘT LÔ (`aiTranslateBatchState.ts::aiTranslateBatchUsageSummary`) → khoá +
+ * tham số — hai hàng LÔ còn lại của I/O Matrix spec 4.11: "Batch completes" (mọi câu đã dịch
+ * đều báo số ⇒ `batch_usage_total*`) và "Batch partly without usage" (chỉ MỘT PHẦN báo số ⇒
+ * `batch_usage_partial*`, nêu rõ bao nhiêu câu — §Always: "never silently sum a subset as if
+ * whole"). `null` khi CHƯA câu nào báo số (lô chưa xong câu nào, hoặc mọi câu đã xong đều
+ * không mang usage) — không một dòng "0 token" giả nào được vẽ.
+ *
+ * `epics.md:3811-3813` (AC ký): *"hiển thị tổng token VÀ tổng ước tính của cả lô"* — cùng
+ * khuôn lượt dịch MỘT segment ([`aiTranslateUsageLine`] ngay trên: MỘT khoá khi có giá, MỘT
+ * khoá khi không), áp riêng cho từng trường hợp đầy-đủ/một-phần — bốn khoá, không hai, vì
+ * "đầy đủ hay một phần" và "có giá hay không" là hai trục ĐỘC LẬP.
+ */
+function aiTranslateBatchUsageLine(summary: {
+  tokenCount: number
+  reportedCount: number
+  sentenceCount: number
+  costUsd: number | null
+}): AiTranslateUsageLine | null {
+  if (summary.reportedCount === 0) return null
+  const full = summary.reportedCount === summary.sentenceCount
+  if (summary.costUsd !== null) {
+    return {
+      key: full ? 'ai.translate.batch_usage_total_with_cost' : 'ai.translate.batch_usage_partial_with_cost',
+      params: full
+        ? {
+            token_count: String(summary.tokenCount),
+            cost_usd: formatUsdParam(summary.costUsd),
+            sentence_count: String(summary.sentenceCount),
+          }
+        : {
+            token_count: String(summary.tokenCount),
+            cost_usd: formatUsdParam(summary.costUsd),
+            reported_count: String(summary.reportedCount),
+            sentence_count: String(summary.sentenceCount),
+          },
+    }
+  }
+  return {
+    key: full ? 'ai.translate.batch_usage_total' : 'ai.translate.batch_usage_partial',
+    params: full
+      ? { token_count: String(summary.tokenCount), sentence_count: String(summary.sentenceCount) }
+      : {
+          token_count: String(summary.tokenCount),
+          reported_count: String(summary.reportedCount),
+          sentence_count: String(summary.sentenceCount),
+        },
+  }
+}
+
+const aiTranslateBatchUsageLineValue = computed<AiTranslateUsageLine | null>(() =>
+  aiTranslateBatchUsageLine(aiTranslateBatchUsageSummary.value),
 )
 
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -401,6 +510,15 @@ const canRetryAiTranslateBatch = computed<boolean>(
         <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
         {{ aiTranslateAccumulatedText }}
       </p>
+      <p
+        v-if="aiTranslateUsageLineValue !== null"
+        class="ai-translate-usage"
+        role="status"
+        data-ai-translate-usage
+      >
+        <!-- aura-allow-text: KẾT QUẢ của t() (Story 4.11: số token + ước tính chi phí). -->
+        {{ t(aiTranslateUsageLineValue.key, aiTranslateUsageLineValue.params) }}
+      </p>
 
       <!-- ─────────────────────────────────────────────────────────────────────────────
            Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22,
@@ -431,6 +549,15 @@ const canRetryAiTranslateBatch = computed<boolean>(
               remaining_count: String(aiTranslateBatchRemainingCount),
             })
           }}
+        </p>
+        <p
+          v-if="aiTranslateBatchUsageLineValue !== null"
+          class="ai-batch-usage"
+          role="status"
+          data-ai-translate-batch-usage
+        >
+          <!-- aura-allow-text: KẾT QUẢ của t() (Story 4.11: tổng token của lô). -->
+          {{ t(aiTranslateBatchUsageLineValue.key, aiTranslateBatchUsageLineValue.params) }}
         </p>
         <p
           v-if="aiTranslateBatchRunningSegmentId !== null"
@@ -632,7 +759,9 @@ const canRetryAiTranslateBatch = computed<boolean>(
 .ai-translate-status,
 .ai-batch-selection-hint,
 .ai-batch-progress,
-.ai-batch-running {
+.ai-batch-running,
+.ai-translate-usage,
+.ai-batch-usage {
   margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);

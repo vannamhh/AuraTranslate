@@ -304,7 +304,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fak
     expect(runBatchMock).toHaveBeenCalledWith([11, 12, 13], null, expect.any(Function))
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Dang chay.' })
     await wrapper.vm.$nextTick()
 
@@ -323,7 +323,209 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fak
 
     wrapper.unmount()
   })
+})
 
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Story 4.11 — tổng token + tổng ƯỚC TÍNH của LÔ (`epics.md:3811-3813`, AC ký: "hiển thị tổng
+// token và tổng ước tính của cả lô"). Bốn hàng thật: "Batch completes" × {mô hình có giá / mô
+// hình không có giá} và "Batch partly without usage" × {có giá / không có giá} — trong MỘT lô
+// mọi câu dùng CHUNG một mô hình (`prepare_batch_call` phân giải cấu hình một lần cho cả lô),
+// nên có-giá-hay-không là tính chất của LÔ, không trộn lẫn giữa các câu trong cùng một fixture
+// (đúng lý lẽ `aiTranslateBatchUsageSummary`'s doc-comment). Cùng khuôn `aiTranslate.test.ts`:
+// so với một chuỗi tiếng Việt LITERAL chép từ `vi.json`.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run"), tổng token + tổng ước tính của lô (Story 4.11)', () => {
+  it('mọi câu đã dịch đều báo usage, mô hình CÓ giá ⇒ dòng tổng cộng CẢ token LẪN tiền', async () => {
+    const { editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 11,
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: 0.0003 },
+    })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Hai.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 12,
+      usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: 0.0001 },
+    })
+    await wrapper.vm.$nextTick()
+
+    // Chỉ 2/3 câu đã DỊCH XONG cho tới lúc này -- dòng tổng phải đọc đúng những gì ĐÃ có, và
+    // vì cả hai câu đã xong đều báo usage, đây vẫn là dòng "đầy đủ" (không phải "một phần").
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toBe(
+      'Tổng 40 token · ước tính ~0,0004 USD cho 2 câu đã dịch',
+    )
+
+    fake.emit({ kind: 'token', segment_id: 13, text: 'Ba.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 13,
+      usage: { prompt_tokens: 8, completion_tokens: 12, total_tokens: 20, cost_usd: 0.0002 },
+    })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toBe(
+      'Tổng 60 token · ước tính ~0,0006 USD cho 3 câu đã dịch',
+    )
+
+    wrapper.unmount()
+  })
+
+  it('mọi câu đã dịch đều báo usage, mô hình KHÔNG có giá (cục bộ) ⇒ dòng tổng CHỈ token, không một số tiền nào', async () => {
+    const { editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 11,
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: null },
+    })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Hai.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 12,
+      usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: null },
+    })
+    fake.emit({ kind: 'token', segment_id: 13, text: 'Ba.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 13,
+      usage: { prompt_tokens: 8, completion_tokens: 12, total_tokens: 20, cost_usd: null },
+    })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toBe('Tổng 60 token cho 3 câu đã dịch')
+
+    wrapper.unmount()
+  })
+
+  it('chỉ MỘT PHẦN câu đã dịch báo usage, mô hình CÓ giá ⇒ dòng tổng nêu rõ nó phủ bao nhiêu câu VÀ cộng đúng tiền của các câu đã báo', async () => {
+    const { editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 11,
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: 0.0003 },
+    })
+    // Cau 12 dich xong nhung KHONG bao usage -- I/O Matrix "Provider sends no usage" ap dung
+    // cho tung cau cua lo, khong chi lot don.
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Hai.' })
+    fake.emit({ kind: 'done', segment_id: 12, usage: null })
+    fake.emit({ kind: 'token', segment_id: 13, text: 'Ba.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 13,
+      usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: 0.0001 },
+    })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toBe(
+      'Tổng 40 token · ước tính ~0,0004 USD — chỉ tính được cho 2/3 câu đã báo số liệu',
+    )
+
+    wrapper.unmount()
+  })
+
+  it('một hàng ĐÃ báo usage lại thiếu `cost_usd` trong khi hàng khác của CÙNG lô có ⇒ tổng lùi về CHỈ token, không một tổng thiếu-mất-một-phần', async () => {
+    // Ca biên phòng thủ: trên lý thuyết một lô dùng chung một mô hình nên cost_usd của mọi
+    // hàng ĐÃ báo phải cùng có mặt hoặc cùng vắng mặt -- nhưng `aiTranslateBatchUsageSummary`
+    // không được TIN giả định đó im lặng, nó phải kiểm bằng `every(...)` thật (xem doc-comment
+    // tại nguồn). Ca này gieo đúng hình dạng lệch để chứng minh nhánh an toàn chạy thật.
+    const { editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 11,
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: 0.0003 },
+    })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Hai.' })
+    fake.emit({
+      kind: 'done',
+      segment_id: 12,
+      usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: null },
+    })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // Cả hai câu đã DỊCH XONG đều CÓ mang usage (chỉ lệch ở `cost_usd`), nên phủ token vẫn
+    // "đầy đủ" (2/2) -- điều bị lùi về là TIỀN, không phải nhãn đầy-đủ/một-phần: dòng tổng vẫn
+    // là dạng "đầy đủ", chỉ KHÔNG mang một số tiền nào.
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toBe('Tổng 40 token cho 2 câu đã dịch')
+
+    wrapper.unmount()
+  })
+
+  it('chưa câu nào báo usage ⇒ KHÔNG một dòng tổng nào (không `0 token` giả)', async () => {
+    const { editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(false)
+
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Hai.' })
+    fake.emit({ kind: 'done', segment_id: 12, usage: null })
+    fake.emit({ kind: 'token', segment_id: 13, text: 'Ba.' })
+    fake.emit({ kind: 'done', segment_id: 13, usage: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fake Channel", số đếm tiến độ (tiếp)', () => {
   it('segment mang is_omitted bên trong vùng chọn ⇒ khung `skipped` đưa hàng đó thẳng sang "xong việc", đếm done tăng mà KHÔNG chờ token nào', async () => {
     const { i18n, editorState, selectionState, AiTranslationPanel } = await freshPanel()
     selectAllThreeFixtureSegments(editorState, selectionState)
@@ -365,7 +567,7 @@ describe('AiTranslationPanel.vue — huỷ giữa lô (I/O Matrix "Cancel mid-ba
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan cau 2' })
     await wrapper.vm.$nextTick()
 
@@ -407,7 +609,7 @@ describe('AiTranslationPanel.vue — lỗi giữa lô (I/O Matrix "Error mid-bat
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan truoc khi loi' })
     await wrapper.vm.$nextTick()
 
@@ -458,7 +660,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan truoc khi loi' })
     await wrapper.vm.$nextTick()
 
@@ -489,10 +691,10 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([12, 13])
 
     fake2.emit({ kind: 'token', segment_id: 12, text: 'z' })
-    fake2.emit({ kind: 'done', segment_id: 12 })
+    fake2.emit({ kind: 'done', segment_id: 12, usage: null })
     fake2.emit({ kind: 'token', segment_id: 13, text: 'z' })
-    fake2.emit({ kind: 'done', segment_id: 13 })
-    fake2.settle({ value: { state: 'done' }, error: null })
+    fake2.emit({ kind: 'done', segment_id: 13, usage: null })
+    fake2.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
 
     wrapper.unmount()
@@ -509,9 +711,9 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Ket qua 2' })
-    fake.emit({ kind: 'done', segment_id: 12 })
+    fake.emit({ kind: 'done', segment_id: 12, usage: null })
     await wrapper.vm.$nextTick()
 
     fake.settle({ value: null, error: PROVIDER_REFUSED_ON_13 })
@@ -542,7 +744,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'Mot phan cau 2' })
     await wrapper.vm.$nextTick()
 
@@ -649,10 +851,10 @@ describe('I/O Matrix "Selection changes while a batch runs" — lô đang chạy
 
     // Cho lô hiện tại kết thúc bình thường — chỉ để không rò một Promise treo sang ca sau.
     fake.emit({ kind: 'token', segment_id: 11, text: 'x' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     fake.emit({ kind: 'token', segment_id: 12, text: 'y' })
-    fake.emit({ kind: 'done', segment_id: 12 })
-    fake.settle({ value: { state: 'done' }, error: null })
+    fake.emit({ kind: 'done', segment_id: 12, usage: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
 
     wrapper.unmount()
@@ -814,7 +1016,7 @@ describe('dispatch("ai.translate.promote") — nhánh dự phòng LÔ của main
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua cau 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     await wrapper.vm.$nextTick()
     expect(editorState.editorCaretSegmentId.value).toBe(11)
 
@@ -838,7 +1040,7 @@ describe('dispatch("ai.translate.promote") — nhánh dự phòng LÔ của main
     await flushPromises()
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua cau 1' })
-    fake.emit({ kind: 'done', segment_id: 11 })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
     await wrapper.vm.$nextTick()
 
     // Tiêu điểm dời sang một `segment_id` KHÔNG nằm trong ba hàng của lô đang chạy —

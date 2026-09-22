@@ -817,6 +817,49 @@ message_keys! {
     /// (`OpenAiClientError::ApiKeyHeaderInvalid`, tách khỏi `RequestFailed` ở Task 1 spec 4.10)
     /// — câu chỉ vào khoá đã lưu, không đọc được. KHÔNG retryable — thất bại giống hệt mỗi lần.
     AiTranslateApiKeyHeaderInvalid => "err.ai_translate.api_key_header_invalid" [],
+
+    // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
+    //
+    // ⚠️ Chín khoá dưới đây KHÔNG BAO GIỜ đi qua `IpcError` — không "chưa có usage" lẫn "mô
+    // hình chưa có giá" là một lỗi (§Always spec 4.11: "this is not rendered as an error
+    // state"). Chúng đăng ký ở ĐÂY (thay vì chỉ sống trần trong `vi.json`, khuôn `ai.prompt.*`
+    // của Story 4.7 đã dùng) để mượn ĐÚNG hai phép kiểm `ipc_contract.rs` đã có sẵn cho MỌI
+    // khoá trong `MessageKey::ALL`, không phân biệt khoá đó có bao giờ đúc một `IpcError` hay
+    // không: khoá có mặt trong `vi.json` (`every_message_key_exists_in_vi_json`), và tham số
+    // khai ở đây khớp CHÍNH XÁC placeholder trong câu (`every_message_key_declares_the_params_
+    // its_string_needs`) — chín câu này không có cơ chế sync nào khác ngoài đọc-mắt nếu đứng
+    // ngoài danh mục. `AiTranslationPanel.vue`'s pure function chọn MỘT trong chín khoá này
+    // theo dữ liệu `usage` nhận được qua wire, tự tay đánh vần lại chuỗi khoá — không `import`
+    // `MessageKey` (TS không thấy kiểu Rust); giữ hai chuỗi đúng nhau là kỷ luật, cùng cách
+    // `panel.ai_translation.*`/`command.*` đã sống từ trước khi `message_keys!` tồn tại.
+    /// Usage đã tới VÀ mô hình có hàng trong bảng giá (`core::ai::pricing`) — dòng đầy đủ số
+    /// + tiền, ví dụ `"412 token · ước tính ~0,004 USD"` (spec 4.11: "written as numbers ...
+    /// never hidden behind a click").
+    AiTranslateUsageWithCost => "ai.translate.usage_with_cost" ["token_count", "cost_usd"],
+    /// Usage đã tới nhưng mô hình KHÔNG có hàng trong bảng giá (mô hình cục bộ, hoặc một id
+    /// bảng giá chưa được dạy) — chỉ số token, không một số tiền nào, và KHÔNG đọc như lỗi.
+    AiTranslateUsageNoPrice => "ai.translate.usage_no_price" ["token_count"],
+    /// Provider chưa từng gửi một khung `usage` nào cho lượt gọi này — dòng nói RÕ không có số
+    /// liệu, không `0`, không ký hiệu tiền tệ nào (§Always spec 4.11).
+    AiTranslateUsageUnavailable => "ai.translate.usage_unavailable" [],
+    /// Tổng token của MỘT LÔ, khi MỌI câu đã dịch (không bị cắt) đều đã báo số liệu NHƯNG mô
+    /// hình của lô KHÔNG có giá — tổng cộng dồn ở webview (`aiTranslateBatchState.ts`) trên
+    /// các `usage` mà từng khung `AiTranslateBatchEventWire::Done` mang.
+    AiTranslateBatchUsageTotal => "ai.translate.batch_usage_total" ["token_count", "sentence_count"],
+    /// 🔵 **THÊM (rà soát coordinator) — `epics.md:3811-3813`'s AC ký: *"hiển thị tổng token VÀ
+    /// tổng ước tính của cả lô"*.** Cùng hàng `AiTranslateBatchUsageTotal` (mọi câu đã dịch đều
+    /// báo số liệu) nhưng mô hình của lô CÓ giá — tổng tiền CỘNG DỒN từ `cost_usd` của từng
+    /// hàng đã báo (`aiTranslateBatchUsageSummary`, `aiTranslateBatchState.ts`), không phải
+    /// một phép tính lại ở đây.
+    AiTranslateBatchUsageTotalWithCost => "ai.translate.batch_usage_total_with_cost" ["token_count", "cost_usd", "sentence_count"],
+    /// Tổng token của MỘT LÔ khi chỉ MỘT PHẦN số câu đã dịch báo số liệu VÀ mô hình của lô
+    /// KHÔNG có giá — câu nêu rõ nó phủ bao nhiêu câu, không trình bày một tổng riêng phần như
+    /// thể nó là tổng đầy đủ (§Always spec 4.11: "never silently sum a subset as if whole").
+    AiTranslateBatchUsagePartial => "ai.translate.batch_usage_partial" ["token_count", "reported_count", "sentence_count"],
+    /// 🔵 **THÊM (rà soát coordinator).** Cùng hàng `AiTranslateBatchUsagePartial` nhưng mô
+    /// hình của lô CÓ giá — tổng tiền chỉ CỘNG những hàng đã báo, đúng cùng kỷ luật "never
+    /// silently sum a subset as if whole" áp cho cả số token lẫn số tiền.
+    AiTranslateBatchUsagePartialWithCost => "ai.translate.batch_usage_partial_with_cost" ["token_count", "cost_usd", "reported_count", "sentence_count"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

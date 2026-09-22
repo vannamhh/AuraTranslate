@@ -95,14 +95,39 @@ pub struct TranslateRequest<'a> {
     pub prompt: &'a str,
 }
 
+/// Số liệu sử dụng nhà cung cấp trả về cho MỘT lượt gọi, cộng ước tính chi phí đã tính sẵn —
+/// Story 4.11 (spec 4.11). Khai ở TẦNG CỔNG, không ở `core::ai::client`: cài đặt
+/// (`OpenAiChatClient`) đọc trường `usage` của chunk cuối SSE rồi gọi `core::ai::pricing`
+/// (module KHÁC, nhưng cùng nằm trong ranh giới `core/ai/`, nên không phạm AD-13) để đúc
+/// `cost_usd` trước khi trả giá trị này ra — khai kiểu này ở `core::ai::client` sẽ buộc
+/// `commands/aitranslate.rs` gọi tên THỨ BA của module đó, vượt quá
+/// `ai_boundary.rs::ALLOWED_AI_CLIENT_NAMES_IN_COMMAND_SEAM: [&str; 2]` (spec 4.11 §Code Map:
+/// *"its length is in the type"*) — cổng chỉ khai HÌNH DẠNG (đúng luật đầu tệp), không mang
+/// hành vi tính giá.
+///
+/// `cost_usd` là `None` khi `model_id` (đã dùng để gọi) không có hàng trong bảng giá — mô
+/// hình cục bộ (Ollama/LM Studio), hoặc bất kỳ id nào bảng giá chưa được dạy. Đây LÀ quy tắc
+/// "mô hình cục bộ" của Quyết định Ice 2026-09-22: ứng dụng không có bộ phân biệt cục bộ/đám
+/// mây (`provider` là chuỗi tự do), nên vắng mặt khỏi bảng là tín hiệu DUY NHẤT.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TranslateUsage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
+    pub cost_usd: Option<f64>,
+}
+
 /// Vì sao một lượt dịch streaming DỪNG — không phải MỌI lượt dừng đều là một lỗi, và cổng
 /// này phân biệt hai lượt dừng SẠCH khỏi một `Err` (một lượt dừng KHÔNG sạch, vd. kết nối rớt
 /// giữa chừng hay một mã trạng thái non-2xx — I/O Matrix spec 4.8's "Stream ends without
 /// `[DONE]`"/"Provider returns a non-2xx").
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TranslateOutcome {
     /// Provider gửi khung kết thúc hợp lệ (`[DONE]`, hoặc kết nối đóng sau khi đã nhận đủ).
-    Done,
+    /// Mang [`TranslateUsage`] khi VÀ CHỈ KHI provider thật sự gửi một khung `usage` trước khi
+    /// kết thúc (Story 4.11) — `None` là trạng thái "nhà cung cấp không trả về số liệu", không
+    /// một `0` giả.
+    Done(Option<TranslateUsage>),
     /// `should_cancel` trả `true` giữa chừng — không khung nào gửi thêm sau thời điểm đó
     /// (I/O Matrix spec 4.8's "Cancel mid-stream": *"received tokens stay visible, no further
     /// Channel message arrives"*).

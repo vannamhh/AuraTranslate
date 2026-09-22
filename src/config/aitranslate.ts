@@ -27,14 +27,42 @@ import { Channel, invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
 
 /**
+ * Số liệu sử dụng + ước tính chi phí — Story 4.11. Khớp NGUYÊN VĂN `AiTranslateUsageWire`
+ * phía Rust (`commands/aitranslate.rs`). `cost_usd: null` ⇔ `model_id` không có hàng trong
+ * bảng giá bundled (`core::ai::pricing`) — mô hình cục bộ, hoặc một id bảng giá chưa được dạy;
+ * đây LÀ quy tắc "mô hình cục bộ" (§Always spec 4.11), không một trường quên điền.
+ */
+export type AiTranslateUsageWire = {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  cost_usd: number | null
+}
+
+function isAiTranslateUsageWire(value: unknown): value is AiTranslateUsageWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<AiTranslateUsageWire>
+  return (
+    typeof v.prompt_tokens === 'number' &&
+    typeof v.completion_tokens === 'number' &&
+    typeof v.total_tokens === 'number' &&
+    (v.cost_usd === null || typeof v.cost_usd === 'number')
+  )
+}
+
+/**
  * Kết quả CUỐI của một lượt dịch — khớp NGUYÊN VĂN `AiTranslateOutcomeWire` phía Rust
- * (`#[serde(tag = "state", rename_all = "snake_case")]` trên một enum không mang trường nào).
- * BA giá trị, đúng ba biến thể Rust khai — `'generating'`/`'error'` không có mặt ở kiểu này,
- * xem doc-comment đầu tệp.
+ * (`#[serde(tag = "state", rename_all = "snake_case")]`). BA biến thể, đúng ba biến thể Rust
+ * khai — `'generating'`/`'error'` không có mặt ở kiểu này, xem doc-comment đầu tệp.
+ *
+ * ⚠️ **SỬA (Story 4.11)** — `'done'` giờ mang `usage: AiTranslateUsageWire | null`: `null` ⇔
+ * nhà cung cấp không trả về một khung `usage` nào cho lượt gọi này (I/O Matrix spec 4.11
+ * "Provider sends no usage") — KHÔNG cùng nghĩa với `cost_usd: null` bên trong một `usage` CÓ
+ * mặt (đó là "usage tới nhưng mô hình không có giá"). Hai lớp `null` khác nhau, cố ý.
  */
 export type AiTranslateOutcomeWire =
   | { state: 'not_configured' }
-  | { state: 'done' }
+  | { state: 'done'; usage: AiTranslateUsageWire | null }
   | { state: 'cancelled' }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -63,8 +91,10 @@ const UNKNOWN_IPC_ERROR: IpcError = {
 
 function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { state?: unknown }
-  return v.state === 'not_configured' || v.state === 'done' || v.state === 'cancelled'
+  const v = value as { state?: unknown; usage?: unknown }
+  if (v.state === 'not_configured' || v.state === 'cancelled') return true
+  if (v.state === 'done') return v.usage === null || isAiTranslateUsageWire(v.usage)
+  return false
 }
 
 const CMD_TRANSLATE = 'ai_translate_segment'
@@ -118,7 +148,7 @@ export async function runAiTranslateSegment(
  */
 export type AiTranslateBatchEventWire =
   | { kind: 'token'; segment_id: number; text: string }
-  | { kind: 'done'; segment_id: number }
+  | { kind: 'done'; segment_id: number; usage: AiTranslateUsageWire | null }
   | { kind: 'skipped'; segment_id: number }
 
 /**
@@ -129,10 +159,11 @@ export type AiTranslateBatchEventWire =
  */
 function isAiTranslateBatchEventWire(value: unknown): value is AiTranslateBatchEventWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; segment_id?: unknown; text?: unknown }
+  const v = value as { kind?: unknown; segment_id?: unknown; text?: unknown; usage?: unknown }
   if (typeof v.segment_id !== 'number') return false
   if (v.kind === 'token') return typeof v.text === 'string'
-  return v.kind === 'done' || v.kind === 'skipped'
+  if (v.kind === 'done') return v.usage === null || isAiTranslateUsageWire(v.usage)
+  return v.kind === 'skipped'
 }
 
 /**

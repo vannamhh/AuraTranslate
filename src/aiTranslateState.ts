@@ -33,6 +33,7 @@
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { cancelAiTranslateCall, runAiTranslateSegment } from './config/aitranslate'
+import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 
 /** Đúng năm giá trị của §Always spec 4.8 — không giá trị thứ sáu. */
@@ -44,6 +45,14 @@ const accumulatedText = ref('')
 const error = shallowRef<IpcError | null>(null)
 /** `segment.id` mà lượt dịch hiện tại/gần nhất được khởi cho — xem doc-comment đầu tệp. */
 const runSegmentId = shallowRef<number | null>(null)
+/**
+ * Số liệu sử dụng + ước tính chi phí của lượt dịch gần nhất — Story 4.11. Có nghĩa khi và chỉ
+ * khi [`aiTranslateStateValue`] là `'done'`; `null` ở MỌI trạng thái khác (kể cả `'done'` khi
+ * provider không trả về usage nào — xem doc-comment `AiTranslateOutcomeWire` phía
+ * `config/aitranslate.ts` cho hai lớp `null` khác nhau: usage vắng mặt trọn vẹn, hay usage có
+ * mặt nhưng `cost_usd` bên trong nó là `null`).
+ */
+const usage = shallowRef<AiTranslateUsageWire | null>(null)
 
 /**
  * Số thứ tự lượt dịch — cùng cơ chế và cùng lý do `sequence` của `aiPromptInspectorState.ts`:
@@ -58,6 +67,7 @@ export const aiTranslateAccumulatedText: DeepReadonly<Ref<string>> = readonly(ac
 /** Lỗi của lượt dịch gần nhất — có nghĩa khi và chỉ khi [`aiTranslateStateValue`] là `'error'`. */
 export const aiTranslateError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 export const aiTranslateRunSegmentId: DeepReadonly<Ref<number | null>> = readonly(runSegmentId)
+export const aiTranslateUsage: DeepReadonly<Ref<AiTranslateUsageWire | null>> = readonly(usage)
 
 /**
  * `true` ⇔ lượt dịch hiện tại/gần nhất được khởi cho một câu KHÁC câu đang có tiêu điểm bây
@@ -100,6 +110,7 @@ export async function runAiTranslate(promptSetName: string | null, segmentId: nu
   state.value = 'generating'
   accumulatedText.value = ''
   error.value = null
+  usage.value = null
 
   const onToken = (text: string): void => {
     // Một lượt MỚI (hoặc một lượt reset) đã vượt mặt lượt này — token trễ không được cộng
@@ -121,7 +132,15 @@ export async function runAiTranslate(promptSetName: string | null, segmentId: nu
   // ước `aiPromptAssemble`. Không có gì xảy ra thật; `'not_configured'` là giá trị NGHỈ của
   // §Always spec 4.8, không phải một lời khai "provider chưa cấu hình" giả — chỗ gọi ngoài
   // Tauri không có provider nào để mà cấu hình.
-  state.value = result.value === null ? 'not_configured' : result.value.state
+  if (result.value === null) {
+    state.value = 'not_configured'
+    return
+  }
+  state.value = result.value.state
+  // Story 4.11 -- chỉ biến thể `'done'` mang `usage`; `'not_configured'`/`'cancelled'` không có
+  // trường đó ở kiểu Rust (xem doc-comment `AiTranslateOutcomeWire`), nên `usage` PHẢI về `null`
+  // ở hai nhánh kia -- không giữ lại số liệu của một lượt dịch TRƯỚC đó.
+  usage.value = result.value.state === 'done' ? result.value.usage : null
 }
 
 /**
@@ -160,4 +179,5 @@ export function resetAiTranslate(): void {
   accumulatedText.value = ''
   error.value = null
   runSegmentId.value = null
+  usage.value = null
 }

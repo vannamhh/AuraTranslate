@@ -56,7 +56,9 @@
 //! an toàn — luật cấm `derive(Debug)` chỉ nhắm `ApiKeySecret`/`TranslateRequest`/bất cứ gì BỌC
 //! khoá đã lộ, không nhắm kiểu lỗi của module này.
 
-use crate::ports::translation_provider::{TranslateOutcome, TranslateRequest, TranslationProvider};
+use crate::ports::translation_provider::{
+    TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
+};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -178,7 +180,23 @@ pub struct ChatCompletionsRequestBody<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u32>,
     stream: bool,
+    /// Story 4.11 -- LUÔN có mặt, LUÔN `include_usage: true`. Đây là cách DUY NHẤT provider
+    /// biết phải gửi một khung `usage` trước `[DONE]` (doc-comment đầu tệp, §Design Notes spec
+    /// 4.11: "the residual risk is named: an OpenAI-compatible endpoint that rejects unknown
+    /// request fields would fail the call outright ... most such servers ignore unknown
+    /// fields"). Không bọc `Option`/`skip_serializing_if` như hai trường trên -- đây không phải
+    /// một lựa chọn của người dùng, nó là một phần CỐ ĐỊNH của mọi request từ client này.
+    stream_options: StreamOptions,
     messages: [ChatMessage<'a>; 1],
+}
+
+/// `{ "include_usage": true }` -- thân JSON tối thiểu để yêu cầu một khung `usage` cuối cùng
+/// (spec chat-completions tương thích OpenAI). HẰNG SỐ CHỨC NĂNG duy nhất trong request body:
+/// không trường nào khác trong kiểu này, vì client chỉ cần DÙNG một hành vi, không cần BẬT/TẮT
+/// nó theo cấu hình.
+#[derive(Serialize)]
+struct StreamOptions {
+    include_usage: bool,
 }
 
 #[derive(Serialize)]
@@ -197,16 +215,26 @@ pub fn build_request_body<'a>(request: &TranslateRequest<'a>) -> ChatCompletions
         temperature: request.temperature,
         max_tokens: request.max_tokens,
         stream: true,
+        stream_options: StreamOptions { include_usage: true },
         messages: [ChatMessage { role: "user", content: request.prompt }],
     }
 }
 
-/// Hình dạng TỐI THIỂU của một chunk chat-completions cần đọc — `choices[0].delta.content`.
-/// Mọi trường khác nhà cung cấp gửi thêm (`id`, `usage`, …) bị `serde` bỏ qua mặc định.
+/// Hình dạng TỐI THIỂU của một chunk chat-completions cần đọc — `choices[0].delta.content`
+/// cộng `usage` (Story 4.11, đọc được nhờ `stream_options.include_usage`). Mọi trường khác
+/// nhà cung cấp gửi thêm (`id`, …) bị `serde` bỏ qua mặc định.
+///
+/// 🔴 **SỬA (Story 4.11)** — khung `usage` cuối cùng mang `choices: []` (mảng RỖNG, không
+/// vắng mặt trường): trước bản sửa này, `parse_chunk_content` chỉ đọc `choices`, không đọc
+/// `usage`, nên khung này rơi thẳng vào `SseEventOutcome::Ignore` một cách IM LẶNG (doc-comment
+/// đầu tệp §"Code Map"). `usage: Option<ChunkUsage>` đọc ĐƯỢC field đó trước khi `choices`
+/// từng được xét tới.
 #[derive(Deserialize)]
 struct ChatCompletionsChunk {
     #[serde(default)]
     choices: Vec<ChunkChoice>,
+    #[serde(default)]
+    usage: Option<ChunkUsage>,
 }
 
 #[derive(Deserialize, Default)]
@@ -219,6 +247,77 @@ struct ChunkChoice {
 struct ChunkDelta {
     #[serde(default)]
     content: Option<String>,
+}
+
+/// Số liệu sử dụng THÔ đọc trực tiếp từ payload JSON `usage` của provider — CHƯA gắn
+/// `cost_usd` (đòi `model_id`, thứ hàm THUẦN `interpret_sse_event` không biết và không nên
+/// biết — nó chỉ đọc MỘT sự kiện). `OpenAiChatClient::translate` gắn giá qua
+/// `core::ai::pricing::estimate_cost_usd` ngay khi khung `Done` tới, dùng `request.model` nó
+/// đã có sẵn trong tay — xem [`SseEventOutcome::Usage`].
+///
+/// 🔴 **SỬA (rà soát coordinator, Story 4.11)** — ba trường đổi từ `u32` sang `Option<u32>`.
+/// Bản trước dùng `u32` với `#[serde(default)]`: một trường VẮNG MẶT trong JSON (không phải
+/// nhà cung cấp nào cũng gửi đủ cả ba) đọc thành `0`, và `0` đó không phân biệt được với một
+/// số `0` THẬT. Hậu quả đo được hai lớp: một khung `{"usage":{}}` (không trường nào) đọc thành
+/// `ChunkUsage { 0, 0, 0 }` — một usage "có" nhưng mọi con số đều `0`, đúng thứ frozen §Always
+/// cấm thẳng ("never `0`"); và một khung THIẾU một phần (`{"total_tokens":412}`, hai trường kia
+/// vắng mặt) làm `total_tokens` đúng nhưng khiến `cost_usd` tính ra từ HAI SỐ 0 GIẢ (không phải
+/// nhà cung cấp thật sự báo `prompt_tokens: 0`) — một chi phí BỊA đứng cạnh một số token THẬT.
+/// `Option<u32>` giữ đúng ba trạng thái JSON thật sự có: vắng mặt (`None`), có và bằng `0`
+/// (`Some(0)`, một provider thật CÓ THỂ báo đúng vậy cho một câu rỗng), có và khác `0`.
+/// [`ChunkUsage::has_any_token_count`] là vị từ THUẦN phân biệt "hoàn toàn không báo gì"
+/// (mọi trường `None`) khỏi "có báo, dù một phần" — dùng ở [`interpret_sse_event`].
+///
+/// `pub` (không chỉ `pub(crate)`) vì `tests/ai_translate_contract.rs` (crate KHÁC) đối chứng
+/// trực tiếp [`interpret_sse_event`] trên một khung usage dựng tay (đúng khuôn mọi hàm thuần
+/// khác của tệp này).
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Default)]
+pub struct ChunkUsage {
+    #[serde(default)]
+    pub prompt_tokens: Option<u32>,
+    #[serde(default)]
+    pub completion_tokens: Option<u32>,
+    #[serde(default)]
+    pub total_tokens: Option<u32>,
+}
+
+impl ChunkUsage {
+    /// `false` ⇔ CẢ BA trường đều `None` — đối tượng `usage` có mặt trong JSON (`{"usage":{}}`
+    /// hoặc tương đương) nhưng không báo được lấy một số token nào. [`interpret_sse_event`]
+    /// đọc `false` ở đây như "không có khung usage nào tới", không như một `Usage` mang toàn
+    /// số `0`.
+    fn has_any_token_count(&self) -> bool {
+        self.prompt_tokens.is_some() || self.completion_tokens.is_some() || self.total_tokens.is_some()
+    }
+
+    /// Đúc [`TranslateUsage`] từ số liệu THÔ này — gọi ở `OpenAiChatClient::translate` khi
+    /// khung `Done` tới, `model_id` là `request.model` nó đã có sẵn.
+    ///
+    /// `total_tokens` ưu tiên giá trị provider THẬT SỰ báo; chỉ rơi về tổng hai chiều đã biết
+    /// khi provider báo `prompt_tokens`/`completion_tokens` mà KHÔNG báo `total_tokens` (một
+    /// hình dạng hợp lệ khác của cùng API).
+    ///
+    /// 🔴 `cost_usd` CHỈ được tính khi CẢ HAI `prompt_tokens` LẪN `completion_tokens` đều
+    /// `Some` — công thức giá (`core::ai::pricing::estimate_cost_usd`) nhân RIÊNG từng chiều
+    /// vào/ra; một trong hai vắng mặt nghĩa là không có đủ dữ liệu thật cho phép nhân đó, và
+    /// dùng `0` thay cho phần vắng mặt sẽ đúc một chi phí BỊA đứng cạnh một số token THẬT —
+    /// đúng khuyết tật rà soát coordinator nêu tên: một khung `{"total_tokens":412}` (thiếu
+    /// hai trường kia) trước bản sửa này cho ra `~0,0000 USD` giả, không phải `cost_usd: None`.
+    pub fn into_translate_usage(self, model_id: &str) -> TranslateUsage {
+        let total_tokens = self
+            .total_tokens
+            .unwrap_or_else(|| self.prompt_tokens.unwrap_or(0) + self.completion_tokens.unwrap_or(0));
+        let cost_usd = match (self.prompt_tokens, self.completion_tokens) {
+            (Some(p), Some(c)) => crate::core::ai::pricing::estimate_cost_usd(model_id, p, c),
+            _ => None,
+        };
+        TranslateUsage {
+            prompt_tokens: self.prompt_tokens.unwrap_or(0),
+            completion_tokens: self.completion_tokens.unwrap_or(0),
+            total_tokens,
+            cost_usd,
+        }
+    }
 }
 
 impl TranslationProvider for OpenAiChatClient {
@@ -271,6 +370,10 @@ impl TranslationProvider for OpenAiChatClient {
         }
 
         let mut buf: Vec<u8> = Vec::new();
+        // Story 4.11 -- so lieu THO cua khung `usage` GAN NHAT tung thay, neu co. `None` cho
+        // toi khi (neu) mot khung usage that su toi -- day la trang thai "nha cung cap chua
+        // tung gui usage" ma I/O Matrix spec 4.11 doi phan biet voi mot `0` gia.
+        let mut last_usage: Option<ChunkUsage> = None;
         loop {
             // `should_cancel` duoc hoi GIUA moi khung nhan duoc -- ca truoc khi doc khung ke
             // tiep tu mang (o day) LAN truoc khi phat tung su kien da tach duoc trong khung do
@@ -301,8 +404,12 @@ impl TranslationProvider for OpenAiChatClient {
                     return Ok(TranslateOutcome::Cancelled);
                 }
                 match interpret_sse_event(&event)? {
-                    SseEventOutcome::Done => return Ok(TranslateOutcome::Done),
+                    SseEventOutcome::Done => {
+                        let usage = last_usage.map(|u| u.into_translate_usage(request.model));
+                        return Ok(TranslateOutcome::Done(usage));
+                    }
                     SseEventOutcome::Token(text) => on_token(&text),
+                    SseEventOutcome::Usage(usage) => last_usage = Some(usage),
                     SseEventOutcome::Ignore => {}
                 }
             }
@@ -333,7 +440,7 @@ pub fn enforce_sse_buffer_cap(buf: &[u8]) -> Result<(), OpenAiClientError> {
 /// không đi tới đây bằng đường khác — nó không mang dòng `data:` nào nên
 /// [`extract_data_payload`] đã lọc nó ra từ trước, `split_sse_frames` không bao giờ tạo một sự
 /// kiện cho nó.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SseEventOutcome {
     /// Không có gì để làm — payload rỗng (hoặc toàn khoảng trắng), hoặc một chunk hợp lệ nhưng
     /// không mang `delta.content` (vd. chunk mở đầu chỉ mang `role`).
@@ -342,6 +449,14 @@ pub enum SseEventOutcome {
     Done,
     /// Văn bản để gọi `on_token`.
     Token(String),
+    /// **THÊM Story 4.11.** Một khung mang trường JSON `usage` (thường là khung CUỐI, với
+    /// `choices: []`, gửi TRƯỚC `[DONE]` khi `stream_options.include_usage == true`) — số liệu
+    /// THÔ, chưa gắn giá (xem doc-comment [`ChunkUsage`]). Khi một khung mang CẢ `usage` LẪN
+    /// `delta.content` (chưa từng đo được ở nhà cung cấp nào, nhưng không cấm về mặt hình
+    /// dạng JSON), `usage` thắng — `interpret_sse_event` không đánh rơi số liệu sử dụng để đổi
+    /// lấy một đoạn văn bản mà chỗ gọi đã ngừng chờ (xem `translate()`'s vòng lặp: `Usage` chỉ
+    /// GHI LẠI, `Done` mới thật sự kết thúc lượt gọi).
+    Usage(ChunkUsage),
 }
 
 pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientError> {
@@ -351,19 +466,21 @@ pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientE
     if event.trim() == "[DONE]" {
         return Ok(SseEventOutcome::Done);
     }
-    match parse_chunk_content(event)? {
+    let chunk: ChatCompletionsChunk = serde_json::from_str(event)
+        .map_err(|e| OpenAiClientError::MalformedEvent { detail: e.to_string() })?;
+    if let Some(usage) = chunk.usage {
+        // `{"usage":{}}` (hoặc tương đương) -- trường `usage` có mặt nhưng không báo được một
+        // số token nào -- KHÔNG được đọc như một `Usage` mang toàn số `0` giả (xem doc-comment
+        // `ChunkUsage::has_any_token_count`); rơi xuống nhánh `choices` bên dưới như thể chunk
+        // này chưa từng mang `usage`.
+        if usage.has_any_token_count() {
+            return Ok(SseEventOutcome::Usage(usage));
+        }
+    }
+    match chunk.choices.into_iter().next().and_then(|c| c.delta.content) {
         Some(text) if !text.is_empty() => Ok(SseEventOutcome::Token(text)),
         _ => Ok(SseEventOutcome::Ignore),
     }
-}
-
-/// Phân tích MỘT khung `data:` (đã tách bởi [`split_sse_frames`], không mang `"[DONE]"`) thành
-/// đoạn văn bản nó mang, nếu có — `None` khi chunk hợp lệ nhưng không mang `delta.content`
-/// (vd. chunk mở đầu chỉ mang `role`).
-fn parse_chunk_content(event: &str) -> Result<Option<String>, OpenAiClientError> {
-    let chunk: ChatCompletionsChunk = serde_json::from_str(event)
-        .map_err(|e| OpenAiClientError::MalformedEvent { detail: e.to_string() })?;
-    Ok(chunk.choices.into_iter().next().and_then(|c| c.delta.content))
 }
 
 /// Tách MỌI sự kiện SSE TRỌN VẸN hiện có trong `buf`, theo đúng thứ tự tới — HÀM THUẦN, không

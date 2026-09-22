@@ -10874,6 +10874,12 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     phí); mọi hành động "sửa ngay" ở đây sẽ làm bản ghi đang hiển thị hết hiệu lực ngay lúc sửa,
     nên câu trả lời cho "làm sao giữ bản ghi còn đúng sau một lượt sửa tại chỗ" phải có TRƯỚC khi
     xây, không phải một lượt vá tiện tay.)**
+    🔵 **RE-DEFER 2026-09-22 (Story 4.11, §Never spec 4.11).** Story 4.11 đã chạy và ĐÃ KHÔNG xây
+    hành động này — spec của chính nó ghi rõ đây là *"a separate deliverable on a different
+    screen"* (Prompt Inspector overlay, không phải panel AI Translation mà 4.11 sửa). Câu hỏi
+    "làm sao giữ bản ghi còn đúng sau một lượt sửa tại chỗ" ở trên vẫn CHƯA có câu trả lời — 4.11
+    không đụng tới nó. **(Chủ: Ice — chưa có số story kế tiếp nào chạm lại
+    `AiPromptInspectorOverlay.vue`; giao lại khi một story mới nhận màn hình đó.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **finding B9 (loop 1) — `deleting_core_ai_and_its_two_approved_seams_leaves_the_rest_of_the_tree_compiling`
@@ -11234,3 +11240,82 @@ chính nó.
     và cùng lý do vòng rà 4.9 đã bác một phát hiện trên chính nhánh này. **(Chủ: Ice — quyết một
     nhánh không-tới-được-trong-release có đáng một khoá riêng hay không là một quyết định về
     ngưỡng, không phải một dòng mã.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
+  summary: **Con số CỘNG DỒN cả phiên làm việc (mọi lượt dịch, mọi segment, từ lúc mở ứng dụng)
+    ở thanh trạng thái — mockup §"1 · Lô đang chạy" vẽ nó, spec 4.11 KHÔNG xây, có chủ ý.**
+  evidence: `ai-batch-translate.html` §"1 · Lô đang chạy" (dòng `.status`, cụm
+    `<span>Phiên này: 18.640 token · ~0,18 USD</span>`) vẽ một con số CỘNG DỒN sống lâu hơn một
+    lượt dịch đơn lẻ. Spec 4.11 §Never nêu rõ: *"Not this story: the session-cumulative
+    status-bar figure"* — story chỉ xây con số CỦA MỘT lượt gọi (single-run) và CỦA MỘT lô
+    (batch, cộng dồn trong lô đó rồi mất khi `aiTranslateBatchState.ts::resetAiTranslateBatch`
+    chạy), không một ô nhớ nào sống XUYÊN NHIỀU lượt gọi/nhiều lô/suốt phiên làm việc. Xây nó
+    đòi một cơ chế mới — cộng dồn KHÔNG mất khi đổi Chương/Tác phẩm, khác hẳn `aiTranslateState.ts`/
+    `aiTranslateBatchState.ts` hôm nay (cả hai reset về `null`/`[]` mỗi lượt gọi mới, đúng luật
+    "không tích luỹ sống sót qua reset panel" §Never spec 4.11) — và một quyết định về việc con
+    số đó có PERSIST qua việc đóng/mở lại ứng dụng hay không (spec 4.11 §Never cũng cấm mọi
+    persistence mới: "no new table, no migration, no accumulation that survives a panel reset").
+    **(Chủ: Ice — cần một story riêng quyết định hình dạng lưu trữ của con số cộng dồn này
+    trước khi xây, không phải một lượt vá thêm vào `aiTranslateState.ts`; chưa có số story kế
+    tiếp nào nhận việc này.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
+  summary: **Bảng chi tiết theo TỪNG loại việc (dịch từng câu / dịch theo lô / Proofreader,
+    mỗi hàng một dòng số lần gọi + token vào/ra + ước tính) — mockup §"3 · Chi phí — số liệu là
+    số liệu" > "Token và chi phí phiên này" vẽ nó, spec 4.11 KHÔNG xây.**
+  evidence: `ai-batch-translate.html` §"3 · Chi phí — số liệu là số liệu", tiêu đề con "Token và
+    chi phí phiên này" — một `<table>` bốn hàng việc cộng một hàng "Tổng phiên", tách theo LOẠI
+    lời gọi (dịch từng câu/dịch theo lô/Proofreader) chứ không theo TỪNG lượt gọi đơn lẻ. Spec
+    4.11 §Never: *"Not this story: ... the per-task breakdown table the mockup draws"*. Story
+    4.11 chỉ hiện số của LƯỢT GỌI ĐANG XEM (single-run) hoặc CỦA MỘT LÔ đang/đã chạy (batch) —
+    không một bảng tổng hợp xuyên nhiều loại việc nào. Bảng này còn đòi một khái niệm "Proofreader"
+    (Epic 9) chưa tồn tại trong kho hôm nay, nên xây nó sớm ở đây sẽ phải đoán hình dạng của một
+    tính năng chưa viết. **(Chủ: Ice — cùng lý do mục "con số cộng dồn cả phiên" ngay trên: cả
+    hai đòi một cơ chế lưu trữ/cộng dồn XUYÊN LƯỢT GỌI mà spec 4.11 cố ý không mở, và quyết định
+    đó nên đi CÙNG một story, không tách rời hai nửa của cùng một câu hỏi; chưa có số story kế
+    tiếp nào nhận việc này.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
+  summary: **The two manual checks Story 4.11 requires before it closes were never performed — no
+    real cloud key and no local Ollama/LM Studio endpoint existed in any session that built it.**
+  evidence: §Verification of spec 4.11 lists both by name: compare the on-screen token count against
+    the provider's own dashboard for the same call, and confirm `stream_options: {include_usage:
+    true}` does not break an OpenAI-compatible local server that rejects unknown request fields.
+    §Design Notes calls the second one a named residual risk in its own words — *"a broken translate
+    path is a worse regression than a missing figure"* — because the field now ships on EVERY
+    request, unconditionally (`core/ai/client.rs`, `StreamOptions` is a fixed part of the body, not
+    an `Option`). No automated test can settle either: the first needs an authoritative number from
+    outside this machine, the second needs a server that behaves differently from the fake provider
+    every test uses. **(Chủ: Ice — cần một lượt chạy tay trên endpoint thật; cho tới lúc đó phần
+    "đúng số" của FR76 mới chỉ được chứng minh trên nhà cung cấp GIẢ.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
+  summary: **The bundled price table ships exactly ONE row (`claude-sonnet-5`), so a translator on
+    any other BYOK endpoint sees token counts and never a money figure.**
+  evidence: `core/ai/pricing.rs` §`PRICE_TABLE` holds a single `PriceRow`. This matched spec 4.11's
+    own task wording (*"seed at least the ids this repo already names"*), so the narrowness came
+    from the spec, not from the implementation — which under the review routing rules keeps it as a
+    finding rather than dismissing it as out of scope. Not patched in this story on purpose: every
+    additional row is a dollar figure about the user's own money, and no session that touched this
+    story could source or corroborate one (the single shipped row was read once from
+    `https://claude.com/pricing` by the implementing agent and never checked against a second
+    source). Not sent back through a spec loopback either: re-deriving code cannot produce verified
+    prices. Extending the table is a one-line edit per model once prices are sourced, and
+    `PRICES_AS_OF` already sits beside them so a stale row is visible. **(Chủ: Ice — quyết định bao
+    nhiêu mô hình đi kèm bản phát hành và ai chịu trách nhiệm đối chứng giá; cả hàng đang có cũng
+    cần một lượt soi.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
+  summary: **`aiconfig_contract.rs`'s `keychain_refusing_to_answer_fails_the_action_but_keeps_the_
+    section_usable` is flaky — it failed once in three full `cargo test --locked` runs on a tree
+    that does not touch keychain code at all.**
+  evidence: Measured in this session, not reported by a reviewer. Three full runs on the same tree:
+    green (1799 cases), RED at this one test with `CARGO exit=101`, then green again (1800 cases).
+    The diff for Story 4.11 touches zero lines under `core/aiconfig/` or `tests/aiconfig*` (checked
+    with `git diff --numstat` over both paths: empty), and the binary passes 22/22 when run alone,
+    both in parallel and under `--test-threads=1`. The failing assertion is that a save must fail
+    after `inject_one_shot_keychain_error()`; it saw a success instead, i.e. the one-shot error was
+    consumed before the test that armed it — a race in shared harness state, which `KEYCHAIN_KEY_
+    TEST_LOCK` does not cover for any call site that does not take the lock. It is not caused by
+    this story, but it is the kind of red that returns on CI at the least convenient moment.
+    **(Chủ: Ice — cần quyết định ai sửa hàng rào one-shot này; nó sẽ đỏ lại.)**

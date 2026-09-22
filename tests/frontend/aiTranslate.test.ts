@@ -304,7 +304,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     fake.token('day du.')
     await wrapper.vm.$nextTick()
 
-    fake.settle({ value: { state: 'done' }, error: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -313,6 +313,123 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Ket qua day du.')
     expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeUndefined()
     expect(wrapper.get('[data-ai-translate-promote]').attributes('disabled')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  // ═══════════════════════════════════════════════════════════════════════════════════
+  // Story 4.11 — số token và ước tính chi phí, ba hàng I/O Matrix canh được ở seam ĐƠN.
+  // Cùng khuôn `STREAM_ENDED_ERROR`: so với một chuỗi tiếng Việt LITERAL chép từ `vi.json`,
+  // không gọi lại `i18n.t()` trên cùng payload (một khoá sai/mất sẽ đỏ ĐÚNG lý do).
+  // ═══════════════════════════════════════════════════════════════════════════════════
+
+  it('done + usage với giá: dòng usage hiện "<tổng token> token · ước tính ~<giá> USD"', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Ket qua.')
+    fake.settle({
+      value: {
+        state: 'done',
+        usage: { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: 0.004 },
+      },
+      error: null,
+    })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-usage]').text()).toBe('412 token · ước tính ~0,0040 USD')
+
+    wrapper.unmount()
+  })
+
+  it('done + usage KHÔNG có giá (mô hình chưa có hàng trong bảng giá): chỉ hiện số token, không một số tiền nào, và không phải một trạng thái lỗi', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Ket qua.')
+    fake.settle({
+      value: {
+        state: 'done',
+        usage: { prompt_tokens: 4, completion_tokens: 6, total_tokens: 10, cost_usd: null },
+      },
+      error: null,
+    })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-usage]').text()).toBe(
+      '10 token — mô hình này chưa có giá trong bảng giá, không hiện số tiền',
+    )
+    expect(wrapper.find('.ai-translate-alert').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('done nhưng provider KHÔNG trả về usage nào: dòng nói rõ không có số liệu, không `0`, không USD', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Ket qua.')
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-usage]').text()).toBe('Nhà cung cấp không trả về số liệu token cho lượt này')
+
+    wrapper.unmount()
+  })
+
+  it('cancelled: KHÔNG một dòng usage nào — I/O Matrix "Cancelled mid-flight" (no fabricated number)', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Mot phan.')
+    fake.settle({ value: { state: 'cancelled' }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('error: KHÔNG một dòng usage nào — I/O Matrix "Provider error" (bất kỳ trong sáu họ nguyên nhân)', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Mot phan.')
+    fake.settle({ value: null, error: STREAM_ENDED_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(state.aiTranslateStateValue.value).toBe('error')
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -450,7 +567,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.1
     expect(runMock).toHaveBeenLastCalledWith(3, null, expect.any(Function))
     expect(state.aiTranslateStateValue.value).toBe('generating')
 
-    fake2.settle({ value: { state: 'done' }, error: null })
+    fake2.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
 
     wrapper.unmount()
@@ -552,7 +669,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
   it('done VỚI văn bản rỗng (0 token nào tới) ⇒ nút vẫn `disabled`, không đủ theo I/O Matrix "panel text non-empty"', async () => {
     const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 21
-    runMock.mockResolvedValue({ value: { state: 'done' }, error: null })
+    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
 
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
@@ -578,7 +695,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
     await flushPromises()
 
     fake.token('Ket qua AI')
-    fake.settle({ value: { state: 'done' }, error: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -678,7 +795,7 @@ describe('AC "mỗi lệnh ... hoạt động khi được rebind qua màn hình
     expect(runMock).toHaveBeenCalledWith(42, null, expect.any(Function))
     expect(state.aiTranslateStateValue.value).toBe('generating')
 
-    fake.settle({ value: { state: 'done' }, error: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
     wrapper.unmount()
   })
@@ -738,7 +855,7 @@ describe('AC "mỗi lệnh ... hoạt động khi được rebind qua màn hình
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
     fake.token('Ket qua AI')
-    fake.settle({ value: { state: 'done' }, error: null })
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 

@@ -61,7 +61,9 @@ use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
-use crate::ports::translation_provider::{TranslateOutcome, TranslateRequest, TranslationProvider};
+use crate::ports::translation_provider::{
+    TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
+};
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn `commands::aiprompt::store_is_missing`.
 fn store_is_missing() -> IpcError {
@@ -490,6 +492,34 @@ pub async fn run_translate_call<P: TranslationProvider>(
     provider.translate(request, &mut on_token, should_cancel).await
 }
 
+/// Số liệu sử dụng + ước tính chi phí, hình dạng WIRE — Story 4.11. Mirror trực tiếp
+/// [`crate::ports::translation_provider::TranslateUsage`] — `cost_usd` KHÔNG bị bỏ hẳn khỏi
+/// JSON khi là `None` (§Always spec 4.11: "the token count appears and no money is shown at
+/// all" là một trạng thái webview PHẢI đọc được, `cost_usd: null` trên dây — không phải một
+/// trường vắng mặt mà webview không phân biệt được với "chưa từng gửi usage" ở tầng NGOÀI,
+/// `usage: None`).
+///
+/// Tên trường giữ nguyên `snake_case` — `src/AGENTS.md`: "the RETURNED struct's fields stay
+/// `snake_case`", đúng khuôn mọi wire khác của kho.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct AiTranslateUsageWire {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
+    pub cost_usd: Option<f64>,
+}
+
+impl From<TranslateUsage> for AiTranslateUsageWire {
+    fn from(usage: TranslateUsage) -> Self {
+        Self {
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
+            cost_usd: usage.cost_usd,
+        }
+    }
+}
+
 /// Một sự kiện của lô — MỖI khung gửi qua `Channel` của [`super::wire::ai_translate_batch`]
 /// mang `segment_id` của CHÍNH câu nó thuộc về (§Always spec 4.9: "streaming events carrying
 /// their own `segment_id`"). MỘT `Channel` duy nhất cho TOÀN lô (§Never spec 4.9: "no second
@@ -515,7 +545,12 @@ pub async fn run_translate_call<P: TranslationProvider>(
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiTranslateBatchEventWire {
     Token { segment_id: i64, text: String },
-    Done { segment_id: i64 },
+    /// `usage` — Story 4.11: số liệu CỦA RIÊNG câu này, `None` khi provider không trả về gì
+    /// cho câu này (I/O Matrix spec 4.11 "Provider sends no usage"). Tổng của cả lô, và việc
+    /// phân biệt "mọi câu đã báo số" khỏi "chỉ một phần đã báo số", là việc CỘNG DỒN của
+    /// webview (`aiTranslateBatchState.ts`) trên những `usage` này — Rust không tự cộng, mỗi
+    /// khung chỉ mang sự thật CỦA CHÍNH NÓ.
+    Done { segment_id: i64, usage: Option<AiTranslateUsageWire> },
     Skipped { segment_id: i64 },
 }
 
@@ -593,8 +628,11 @@ pub async fn run_batch_call<P: TranslationProvider>(
         };
 
         match provider.translate(request, &mut on_token, should_cancel).await {
-            Ok(TranslateOutcome::Done) => {
-                let _ = channel.send(AiTranslateBatchEventWire::Done { segment_id });
+            Ok(TranslateOutcome::Done(usage)) => {
+                let _ = channel.send(AiTranslateBatchEventWire::Done {
+                    segment_id,
+                    usage: usage.map(AiTranslateUsageWire::from),
+                });
             }
             Ok(TranslateOutcome::Cancelled) => return Ok(AiTranslateBatchOutcome::Cancelled),
             Err(err) => return Err((segment_id, err)),
@@ -696,16 +734,42 @@ fn now_utc_iso8601(global: &Store) -> Option<String> {
 /// spec 4.8): `generating` không có mặt ở đây (nó là trạng thái webview tự giữ TRONG LÚC lời gọi
 /// này chưa trả về — Phase 3), và `error` đi qua `Result::Err(IpcError)` của chính lệnh này,
 /// không qua biến thể nào ở đây.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AiTranslateOutcomeWire {
     /// `endpoint`/`model` rỗng, hoặc chưa có khoá API nào lưu — KHÔNG một lượt gọi mạng nào đã
     /// chạy (I/O Matrix spec 4.8).
     NotConfigured,
     /// Provider gửi khung kết thúc hợp lệ.
-    Done,
+    ///
+    /// `usage` — Story 4.11: mang số liệu của LƯỢT DỊCH MỘT SEGMENT (`wire::ai_translate_segment`,
+    /// `Channel<String>` không có chỗ để đính một số, xem §Design Notes spec 4.11 "Why the two
+    /// paths carry it differently"). Lượt LÔ (`wire::ai_translate_batch`) LUÔN đặt `None` ở
+    /// đây — tổng của lô đi qua từng [`AiTranslateBatchEventWire::Done`], không qua giá trị cuối
+    /// dùng chung này (hai wire khác hình dạng, không nên đọc `usage` ở đây cho một lô).
+    Done { usage: Option<AiTranslateUsageWire> },
     /// Huỷ giữa chừng — token đã nhận ở lại trên màn hình webview, không khung nào gửi thêm.
     Cancelled,
+}
+
+/// Ánh xạ THUẦN `TranslateOutcome -> AiTranslateOutcomeWire` cho lượt dịch MỘT SEGMENT — tách
+/// khỏi `wire::ai_translate_segment` (một `#[tauri::command]` đòi `AppHandle` thật, không gọi
+/// được từ một test không dựng webview) đúng lý do mọi hàm thuần khác của tệp này tách
+/// (`prepare_translate_call`, `run_translate_call`, …): để một test gọi được TRỰC TIẾP.
+///
+/// 🔴 **THÊM (rà soát coordinator, Story 4.11)** — trước hàm này, không một ca nào canh rằng
+/// `usage` THẬT SỰ đi ra dây cho lượt dịch MỘT segment: thay `usage: usage.map(AiTranslateUsageWire::from)`
+/// bằng `usage: None` (đúng hình dạng nhánh `ai_translate_batch` hợp lệ đứng NGAY BÊN CẠNH —
+/// một lỗi copy-paste dễ mắc) vẫn qua sạch `cargo test`/`npx vitest run`/mọi gate. Hàm này là
+/// SEAM để `tests/ai_translate_contract.rs` đối chứng đúng phép ánh xạ đó mà không cần một
+/// `AppHandle`.
+pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeWire {
+    match outcome {
+        TranslateOutcome::Cancelled => AiTranslateOutcomeWire::Cancelled,
+        TranslateOutcome::Done(usage) => {
+            AiTranslateOutcomeWire::Done { usage: usage.map(AiTranslateUsageWire::from) }
+        }
+    }
 }
 
 /// Ba vỏ `#[tauri::command]` (Story 4.9, Phase 2 thêm `ai_translate_batch` bên cạnh hai vỏ
@@ -716,7 +780,7 @@ pub mod wire {
         AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration, AiTranslateOutcomeWire,
         BatchCallError, PrepareBatchOutcome, PrepareOutcome, PreparedBatchItem, batch_panicked_error,
         batch_stopped_error, prepare_batch_call, prepare_translate_call, send_prepared_batch_call,
-        send_prepared_translate_call,
+        send_prepared_translate_call, single_run_outcome_wire,
     };
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
@@ -800,8 +864,8 @@ pub mod wire {
         let outcome = send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
         match outcome {
-            Ok(TranslateOutcome::Cancelled) => Ok(AiTranslateOutcomeWire::Cancelled),
-            Ok(TranslateOutcome::Done) => {
+            Ok(TranslateOutcome::Cancelled) => Ok(single_run_outcome_wire(TranslateOutcome::Cancelled)),
+            Ok(TranslateOutcome::Done(usage)) => {
                 if let Some(global) = app.try_state::<Store>() {
                     if let Some(sent_at) = super::now_utc_iso8601(&global) {
                         mark_prompt_as_sent(
@@ -813,7 +877,7 @@ pub mod wire {
                         );
                     }
                 }
-                Ok(AiTranslateOutcomeWire::Done)
+                Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
             }
             Err(err) => Err(err.into()),
         }
@@ -919,7 +983,11 @@ pub mod wire {
                         }
                     }
                 }
-                Ok(AiTranslateOutcomeWire::Done)
+                // Story 4.11 -- lô KHÔNG mang một số tổng ở giá trị cuối dùng chung này (xem
+                // doc-comment `AiTranslateOutcomeWire::Done`): tổng của lô đã đi qua từng
+                // `AiTranslateBatchEventWire::Done` phía trên, webview (`aiTranslateBatchState.ts`)
+                // tự cộng dồn từ những khung đó.
+                Ok(AiTranslateOutcomeWire::Done { usage: None })
             }
             Err(BatchCallError::Provider { segment_id, err }) => Err(batch_stopped_error(segment_id, err)),
             Err(BatchCallError::Panicked) => Err(batch_panicked_error()),
