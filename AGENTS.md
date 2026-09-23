@@ -58,7 +58,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - One fact, one place. Spec = intent, decisions, acceptance. Phase handoff file = working notes for the next agent, never copied into the spec. Commit message = what was found. Link, don't copy.
 - Don't restate AGENTS.md, the spine or the PRD in a spec; cite by id (`AD-35`, `FR101`).
 - `## Implementation Notes`: at most ~10 bullets for the whole story — decisions and surprises a later reader needs. No per-phase narration, no command logs, no intermediate test counts. Review Triage Log: one line per finding.
-- `deferred-work.md` is over 1 MB: never read it whole, `grep` it. A new item is at most 5 lines: what, why it matters, owner, pointer. Close items in words — `→ ✅ ĐÃ ĐÓNG <date> (Story x.y)` · `→ 🟡 <remaining gap>` · `→ KHÔNG LÀM <date> (Story x.y) — <what changed>` — and never delete one.
+- `deferred-work.md` is over 1 MB: never read it whole, `grep` it. A new item is at most 5 lines: what, why it matters, owner, pointer. `Chủ:` names Ice, a persona, `Story X.Y`, `Epic N` or a sprint-status item id (`B7`); `check:debt-owner` rejects a vague owner such as "a later story touching X". Close items in words — `→ ✅ ĐÃ ĐÓNG <date> (Story x.y)` · `→ 🟡 <remaining gap>` · `→ KHÔNG LÀM <date> (Story x.y) — <what changed>` — and never delete one.
 - In specs and the ledger, a claim that stops being true is fixed in place with 🔵 and a date. In AGENTS.md and in code, just replace it; git keeps the old text.
 - A capability not yet built is not a spec mismatch: record an owned debt item; don't edit `epics.md`/`prd.md` to match code.
 

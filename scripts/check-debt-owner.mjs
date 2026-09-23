@@ -168,46 +168,21 @@ function abort(what, err) {
 const ITEM_START_RE = /^- /
 const BLOCK_START_RE = /^## /
 
-/** Cụm phủ định — `Chủ:` chứa các cụm này KHÔNG phải một chủ thật. Đo được 2026-08-19: 24 ca
- *  `chưa gán`, 1 ca `không ai`, 1 ca `chưa cần` (trong một trích dẫn lịch sử — mục đó có MỘT
- *  `Chủ:` khác, thật, ở chỗ khác — xem `hasPositive` bên dưới, "có MỘT chủ thật ⇒ có chủ").
- *
- *  🔵 **SỬA 2026-09-08 (vòng nghiệm thu Story 6.10a) — thêm `chưa ai`, CHỈ `chưa ai`.**
- *  Danh sách trên là một phép ĐẾM trên sổ nợ NGÀY 2026-08-19, và nó đã được đọc nhầm thành một
- *  phép liệt kê ĐẦY ĐỦ mọi cách nói "không có chủ". Đo 2026-09-08: một lượt thi công ghi một
- *  mục `Chủ: chưa ai nhận` — cụm đó KHÔNG khớp nhánh nào ở trên (`chưa gán`/`chưa có`/`chưa cần`/
- *  `chưa chốt` đều khác, và `không ai` khác `chưa ai`) ⇒ `detectOwner` trả `positive = true`,
- *  Kiểm A báo `mở KHÔNG có Chủ: 0`, và mục mồ côi đó đi qua đúng cái cổng dựng ra để chặn nợ
- *  mồ côi. Sửa NGUỒN cho vị từ nói thật, không nhận một ngoại lệ.
- *  🔴 **SỬA (vòng rà đối kháng bước 4) — RÚT `chưa story`/`chưa xác định`.** Bản vá đầu thêm cả
- *  hai cụm này KÈM `chưa ai`, nhưng phép đo 2026-09-08 chỉ QUAN SÁT ĐƯỢC `chưa ai` trong sổ nợ
- *  thật — hai cụm kia là SUY ĐOÁN "có thể ai đó sẽ viết vậy", đúng lớp lỗi mà chính đoạn văn
- *  này đang mô tả ("một phép ĐẾM bị đọc thành một phép liệt kê ĐẦY ĐỦ"), chỉ khác chiều: lần
- *  này là TỰ đúc thêm hai nhánh không có bằng chứng thay vì bỏ sót một nhánh có thật. Giữ ĐÚNG
- *  cụm đã đo; thêm cụm mới thì thêm lại phép đo đi kèm, không suy đoán trước.
- *  ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** đây vẫn là một danh sách CỤM
- *  ĐÓNG, tức vẫn thua một cách nói mới chưa ai nghĩ ra ("để ngỏ", "tính sau", …). Vị từ đúng
- *  hoàn toàn phải là danh sách CHO PHÉP (tên story/epic/người), không phải danh sách CẤM —
- *  đổi chiều nó là một quyết định về sổ nợ, `Chủ: Ice`.
- *  🔵 **SỬA 2026-09-16 (nghiệm thu Story 4.2) — thêm `chưa phân`.** Đo được: ba mục `Chủ: chưa
- *  phân` trong sổ nợ THẬT (Story 4.2), không khớp nhánh nào ở trên ⇒ bị chấm có chủ oan. Cả ba
- *  đã sửa lại thành `Chủ: Ice` cùng lượt vá này; cụm thêm vào đây là lưới chống tái phát. */
-const NEGATIVE_OWNER_RE =
-  /^(chưa gán|chưa có|chưa cần|chưa ai|không ai|chưa chốt|trống|chưa phân)\b/iu
+// A vague owner ("một story kế tiếp chạm …", "chưa gán") names nobody, so only an allow-listed
+// name counts (Ice chốt 2026-09-23).
+const CONCRETE_OWNER_RE =
+  /^(?:(?:Ice|Winston|Sally|John|Amelia|Murat|Mary)\b|[Ss]tory\s+\d+\.\d+|[Ee]pic\s+\d+|[A-Z]\d+\b|\d+-\d+[a-z]?-)/u
 
 /** Tìm mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục; trả về có ít nhất MỘT chủ THẬT. */
 function detectOwner(text) {
-  // 🔵 **LƯỢT RÀ 2026-08-19 — `i`: sổ đang có `CHỦ:` (2 ca) và `chủ:` (4 ca).** Không có cờ này,
-  // một mục MỞ viết hoa bị chấm mồ côi ⇒ cổng ĐỎ OAN, và Task 4.3 nói một cổng đỏ oan trên sổ
-  // nợ sẽ bị TẮT — lúc đó tệ hơn không có cổng.
   const re = /chủ:\**\s*/giu
   let m
   let any = false
   let positive = false
   while ((m = re.exec(text))) {
     any = true
-    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 60)
-    if (!NEGATIVE_OWNER_RE.test(after)) positive = true
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 60).replace(/^[\s*(`~_]+/u, '')
+    if (CONCRETE_OWNER_RE.test(after)) positive = true
   }
   return { any, positive }
 }
@@ -396,6 +371,12 @@ const SELFTEST_CASES = [
     '- Một việc chưa xong. **Chủ: Story 6.11.**',
     false,
   ],
+  ['chủ mơ hồ "một story … kế tiếp" — MỒ CÔI', '- Việc R. **(Chủ: một story hạ tầng cổng kế tiếp.)**', true],
+  ['chủ mơ hồ "story kế tiếp chạm …" — MỒ CÔI', '- Việc Q. **(Chủ: story kế tiếp chạm `core/store`.)**', true],
+  ['`Chủ: Epic 7` — chủ THẬT', '- Việc P. **(Chủ: Epic 7.)**', false],
+  ['`Chủ: B7` — mục sprint-status, chủ THẬT', '- Việc O. **(Chủ: B7 — bảng nghiệm thu Windows.)**', false],
+  ['`Chủ: Winston` trong ngoặc — chủ THẬT', '- Việc N. **(Chủ: Winston.)**', false],
+  ['chủ mơ hồ cũ + chủ THẬT nối sau ⇒ có chủ', '- Việc M. **(Chủ: một story kế tiếp.)**\n  → 2026-09-23 (rà sổ nợ) — vẫn đúng. **Chủ: Story 7.3.**', false],
 ]
 
 function runSelftest() {
