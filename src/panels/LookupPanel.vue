@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
           🔴 STORY 1.20 — TAB LỊCH SỬ: hai mục, hai trạng thái rỗng KHÁC NHAU (AC8)
           ═══════════════════════════════════════════════════════════════════════════
 
-          AD-44 ④ (`ARCHITECTURE-SPINE.md:622`): *"rỗng im lặng bị cấm; rỗng có lý do thì
+          AD-44 ④ (`ARCHITECTURE-SPINE.md`): *"rỗng im lặng bị cấm; rỗng có lý do thì
           không."* Lịch sử rỗng và danh sách ghim rỗng là **hai câu riêng**, không một khung
           trắng chung — và bộ ghim còn có thêm hai ca mà mockup không vẽ (chưa mở Tác phẩm ·
           nạp trượt), mỗi ca một vị từ riêng ở `lookupHistoryState.ts` (Bẫy 4).

@@ -73,7 +73,7 @@ pub use store::{
 
 /// Hai tầng của AD-18. **`Work`, không phải `Project`.**
 ///
-/// Consistency Conventions (`ARCHITECTURE-SPINE.md:538`) cấm `Project` cho thực thể Tác
+/// Consistency Conventions (`ARCHITECTURE-SPINE.md#Consistency Conventions`) cấm `Project` cho thực thể Tác
 /// phẩm. `StoreKind::Project` đặt tên cho **tệp** `project.db`, không cho tầng — hai
 /// khái niệm khác nhau tình cờ nằm cạnh nhau, và gộp tên chúng là mở đúng loại nhầm lẫn
 /// mà một quy ước đặt tên tồn tại để chặn.

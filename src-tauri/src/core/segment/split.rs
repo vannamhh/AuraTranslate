@@ -182,7 +182,7 @@ pub struct SplitSegment {
 /// nhất một ký tự xuống dòng. Segment **cuối cùng**: cờ **tắt, luôn luôn** (AC7) — kể cả khi
 /// văn bản gốc kết thúc bằng một dòng trống.
 ///
-/// Ba ca biên của AD-37 (`ARCHITECTURE-SPINE.md:449-453`), ghi ra đây để Story 2.8 không
+/// Ba ca biên của AD-37 (`ARCHITECTURE-SPINE.md`), ghi ra đây để không
 /// phải đi tìm lại:
 ///
 /// | Ca | Cờ đi đâu | Chủ |

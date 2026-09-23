@@ -24,7 +24,7 @@ use super::WorkError;
 const ASSETS_DIR: &str = "assets";
 
 /// Đuôi thư mục của một Tác phẩm — **ngoại lệ lịch sử**, không kéo theo tên thực thể
-/// (`ARCHITECTURE-SPINE.md:642` — thực thể là `Work`, không phải `Project`).
+/// (`ARCHITECTURE-SPINE.md#Consistency Conventions` — thực thể là `Work`, không phải `Project`).
 const WORK_FOLDER_SUFFIX: &str = ".atproj";
 
 /// Tên hồi phòng khi tên Tác phẩm rút gọn thành rỗng (mọi ký tự đều bị cấm/khoảng trắng).

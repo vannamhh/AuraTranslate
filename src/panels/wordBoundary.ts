@@ -14,13 +14,13 @@
  * ⇒ Tệp này trả lời **"chọn gì"**: *trình duyệt sẽ phủ tới đâu khi người dùng double-click
  * trên màn hình*. Nó **không** khớp dữ liệu, không chấm điểm, không quyết định một mục từ
  * điển nào trúng. Vế **"tra thế nào"** vẫn là độc quyền của **AD-17**
- * *(`ARCHITECTURE-SPINE.md:230-236` — **đúng một** cài đặt khớp ngôn ngữ, `jieba-rs`, ở
+ * *(`ARCHITECTURE-SPINE.md` — **đúng một** cài đặt khớp ngôn ngữ, `jieba-rs`, ở
  * **Rust**, Story 1.12)*, và story này **không chạm một dòng nào** của `core/matching/**`.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÌ SAO ĐẶT NÓ Ở WEBVIEW KHÔNG VI PHẠM AD-1
  * ═════════════════════════════════════════════════════════════════════════════════
- * `ARCHITECTURE-SPINE.md:75-79` nguyên văn:
+ * `ARCHITECTURE-SPINE.md#AD-1` nguyên văn:
  *
  * > *"frontend chỉ render và giữ state UI (**focus, cuộn, vùng chọn, bố cục panel**). Không
  * > cài đặt lại bất kỳ quy tắc nghiệp vụ nào ở TypeScript."*

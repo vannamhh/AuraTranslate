@@ -137,7 +137,7 @@ fn join_targets(parts: &[SegmentPart<'_>]) -> String {
 ///
 /// > *"Mọi mảnh mang **cùng một** giá trị ⇒ segment mới giữ giá trị đó. **Bất kỳ bất đồng
 /// > nào** ⇒ **người khác dịch**. Tách là ca tầm thường của luật này."*
-/// > — `ARCHITECTURE-SPINE.md:715-717`
+/// > — `ARCHITECTURE-SPINE.md#AD-47`
 ///
 /// ⚠️ AD-47 ④ ghi sẵn **cái mất**, chép vào đây để người sau không đọc nó thành một lỗi:
 /// gộp một câu `""` *(chưa dịch)* với một câu *tôi dịch* cũng rơi vào nhánh bất đồng. Luật

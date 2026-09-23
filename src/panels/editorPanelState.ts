@@ -377,7 +377,7 @@ export async function flushChapterPositionNow(): Promise<void> {
 
 /**
  * Văn bản đang gõ, theo `segment.id` — **state cục bộ frontend**, ngoại lệ *duy nhất, tường
- * minh* của AD-1 (`ARCHITECTURE-SPINE.md:75-79`).
+ * minh* của AD-1 (`ARCHITECTURE-SPINE.md`).
  *
  * 🔴 **Tách rời `segments`, và đó là một mệnh đề của AD-31 chứ không một lượt chia cho gọn.**
  * `segments` giữ bản **lúc nạp segment**, và FR117 (*xuất xứ bản dịch*, Story 2.7) so *"văn
@@ -398,7 +398,7 @@ export const editorEditedText: DeepReadonly<Ref<Map<number, string>>> = readonly
 /**
  * Mốc lượt flush **thành công** gần nhất, mili-giây epoch. `null` ⇒ chưa lượt nào.
  *
- * 🔴 Một `number`, **không** một câu — AD-21 (`ARCHITECTURE-SPINE.md:302-306`): Rust không bao
+ * 🔴 Một `number`, **không** một câu — AD-21 (`ARCHITECTURE-SPINE.md`): Rust không bao
  * giờ trả văn bản hiển thị, và §Consistency Conventions nói **định dạng số và ngày giờ chỉ ở
  * frontend**. Câu *"Đã lưu N giây trước"* dựng ở `StatusBar.vue` từ con số này (AC10).
  */

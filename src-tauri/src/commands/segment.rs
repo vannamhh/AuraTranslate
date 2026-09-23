@@ -662,7 +662,7 @@ pub struct RestoreOutcome {
 /// 🔴 KHÔNG `INSERT` MỘT HÀNG `segment_version` NÀO — Quyết định #1 đường (a)
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Đây là chỗ **hai tài liệu quy hoạch nói ngược nhau**, và mâu thuẫn đó đo được:
-/// - Bảng Rule của **AD-31** (`ARCHITECTURE-SPINE.md:374-381`) có đúng **sáu** hàng và
+/// - Bảng Rule của **AD-31** (`ARCHITECTURE-SPINE.md`) có đúng **sáu** hàng và
 ///   **không hàng nào là "khôi phục"**. Hàng duy nhất tạo một `SegmentVersion` là *"Xác nhận
 ///   segment (FR24)"*.
 /// - **Mockup** (`mockups/data-integrity.html:226-229`) viết đậm: *"Khôi phục là tạo phiên
@@ -690,7 +690,7 @@ pub struct RestoreOutcome {
 /// byte nào. Webview hỏi lại rồi gọi lại với `force = true`.
 ///
 /// 🔴 **Phép so là "văn bản này có bản sao trong `segment_version` không", KHÔNG phải một cờ
-/// `dirty`** — hợp đồng phụ bắt buộc của AD-31 (`ARCHITECTURE-SPINE.md:390`). Và nó là phép
+/// `dirty`** — hợp đồng phụ bắt buộc của AD-31 (`ARCHITECTURE-SPINE.md`). Và nó là phép
 /// so **đúng** chứ không chỉ là phép so hợp lệ: thứ đáng lo không phải *"đã sửa hay chưa"* mà
 /// *"cái sắp mất có bản sao ở đâu không"*. Một câu người dùng gõ rồi hoàn tác về đúng một bản
 /// đã ký thì **không mất gì** — cờ dirty sẽ hỏi thừa, phép so này thì không.
@@ -1848,7 +1848,7 @@ fn unknown_segment_ids(chapter_id: i64, count: usize) -> IpcError {
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 AD-31 HÀNG 1 — AUTO-SAVE **KHÔNG** ĐỔI TRẠNG THÁI VÀ **KHÔNG** TẠO `SegmentVersion`
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `ARCHITECTURE-SPINE.md:376` nói bằng một hàng bảng: *"Auto-save (FR100) | trạng thái
+/// `ARCHITECTURE-SPINE.md#AD-31` nói bằng một hàng bảng: *"Auto-save (FR100) | trạng thái
 /// **không đổi** | **không** tạo `SegmentVersion`"*. Hàm này giao mệnh đề đó bằng cách câu
 /// `UPDATE` dưới đây chạm **đúng hai cột** — và mệnh đề đó có lưới ở
 /// `tests/segment_contract.rs` *(bảy cột kia y nguyên từng byte)*.
@@ -3019,7 +3019,7 @@ fn load_segment_for_write(
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 KHÔNG MỘT HÀNG `segment_version` NÀO ĐƯỢC TẠO — AD-31, và nó dễ làm sai
 /// ─────────────────────────────────────────────────────────────────────────────
-/// Bảng máy trạng thái của AD-31 (`ARCHITECTURE-SPINE.md:381`) có một hàng viết thẳng:
+/// Bảng máy trạng thái của AD-31 (`ARCHITECTURE-SPINE.md`) có một hàng viết thẳng:
 /// *"Về hưu do gộp/tách (AD-5) | về hưu | **không** tạo"*. Bản năng khi đọc *"đừng để mất
 /// bản dịch của người dùng"* là chụp một `segment_version` trước khi cho về hưu — và lượt
 /// chụp đó **phá AC3** *(segment mới bắt đầu với lịch sử RỖNG)* theo một cách đọc rất giống

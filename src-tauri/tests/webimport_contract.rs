@@ -1037,7 +1037,7 @@ fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
 // STORY 6.8 — BỐN CA AD-41 BẮT BUỘC (spine `:542`) + CA TẦNG 2
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// AD-41 (`ARCHITECTURE-SPINE.md:542`) đòi nguyên văn: *"từ chối host ngoài hai tầng; từ
+// AD-41 (`ARCHITECTURE-SPINE.md`) đòi nguyên văn: *"từ chối host ngoài hai tầng; từ
 // chối chuyển hướng ra ngoài; từ chối tài liệu ở tầng 2; không lời gọi nào khi người dùng
 // không bấm"*. Bốn `#[test]` dưới đây ứng ĐÚNG bốn mệnh đề đó, theo thứ tự; ca "chuyển
 // hướng ra ngoài" chính là `a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_...`

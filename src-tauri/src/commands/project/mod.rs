@@ -1047,7 +1047,7 @@ pub fn append_chapters_to_work(
     let saved_assets = saved_assets;
     let appended_count = chapters.len();
 
-    // 🔴 Bước 1 của khuôn bốn bước AD-8 (`ARCHITECTURE-SPINE.md:133`) — CHỈ SQL, MỘT giao
+    // 🔴 Bước 1 của khuôn bốn bước AD-8 (`ARCHITECTURE-SPINE.md`) — CHỈ SQL, MỘT giao
     // dịch. `MAX(ord)` đọc TRONG CÙNG giao dịch với lượt chèn — `Store::write` giữ một writer
     // duy nhất nối tiếp (AD-11), nên không lượt ghi nào khác chen được vào giữa lượt đọc và
     // lượt chèn của chính giao dịch này (§Always spec 6.7b: "New Chapters take ord =
@@ -3934,7 +3934,7 @@ pub fn confirm_import_with_encoding(
 /// khuôn [`confirm_import_with_encoding`] ngay trên (giải `encoding_wire_id`, CLONE nguồn
 /// đang chờ, dọn ô đang chờ CHỈ KHI thành công), nhưng gọi [`append_chapters_to_work`] +
 /// [`crate::commands::lifecycle::write_lifecycle_after_change`] — bước 1-2-3 của khuôn bốn
-/// bước AD-8 (`ARCHITECTURE-SPINE.md:133`) — thay vì [`create_work`]. Bước 4
+/// bước AD-8 (`ARCHITECTURE-SPINE.md`) — thay vì [`create_work`]. Bước 4
 /// (`reindex_after_lifecycle_write`) chạy Ở LỚP VỎ, sau khi khoá `OpenWorkState` (nếu đích
 /// trùng Tác phẩm đang mở) đã nhả — cùng kỷ luật
 /// `commands::lifecycle::wire::set_chapter_status`.

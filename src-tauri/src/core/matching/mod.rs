@@ -12,7 +12,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 RANH GIỚI: `core::dict` KHÔNG GỌI MODULE NÀY
 //! ─────────────────────────────────────────────────────────────────────────────
-//! AD-17 (thân Rule, `ARCHITECTURE-SPINE.md:236`) nói *mọi nơi cần khớp ngôn ngữ dùng
+//! AD-17 (thân Rule, `ARCHITECTURE-SPINE.md`) nói *mọi nơi cần khớp ngôn ngữ dùng
 //! chung MỘT cài đặt* — nó **không** nói mọi đường đều phải gọi Matcher. Đường tra
 //! cứu **từ điển** tiếng Anh không gọi, và đó là một **số đo** chứ không phải một
 //! sở thích:
@@ -27,7 +27,7 @@
 //! cổng tĩnh ở `tests/matching_boundary.rs`. Người tiêu thụ là `core::glossary` và
 //! `core::tm`, cả hai chưa tồn tại — xem §*"Không có người tiêu thụ hôm nay"* dưới.
 //!
-//! ⚠️ Sơ đồ mermaid của AD-13 (`ARCHITECTURE-SPINE.md:189`) còn một cạnh
+//! ⚠️ Sơ đồ mermaid của AD-13 (`ARCHITECTURE-SPINE.md`) còn một cạnh
 //! `dict --> matching`. Nó vẽ **trước** lượt sửa Rule của AD-17 và nay mâu thuẫn với
 //! chính thân Rule ở `:236`. Chủ sở hữu là Winston (architect); đã ghi vào
 //! `deferred-work.md`. Mã theo **thân Rule**, không theo mũi tên.

@@ -32,7 +32,7 @@ import { createWriteSchedule } from '../layout/writeSchedule'
 /**
  * Yên bao lâu thì flush — **2 giây**, AC1 nguyên văn.
  *
- * ⚠️ **TẠM — chủ là Story 2.4** (`ARCHITECTURE-SPINE.md:990`, hàng Deferred *"ngưỡng WAL +
+ * ⚠️ **TẠM** (`ARCHITECTURE-SPINE.md#Deferred`, hàng Deferred *"ngưỡng WAL +
  * nhịp flush cụ thể"*). Story này dựng **cơ chế**; 2.4 hiệu chỉnh **con số**, và nó phải
  * hiệu chỉnh cùng lúc với `Tuning::wal_threshold_bytes` vì hai số đó **đánh đổi lẫn nhau**.
  *
@@ -64,7 +64,7 @@ export const EDITOR_HARD_CAP_MS = 5000
  * 🔴 **SÀN giữa hai lượt thử lại sau một lượt ghi TRƯỢT** — code review 2026-08-13, Ice ký.
  *
  * ⚠️ **TẠM — chủ là Story 2.4**, cùng hàng Deferred với [`EDITOR_IDLE_MS`] và
- * [`EDITOR_HARD_CAP_MS`] — *"ngưỡng WAL + nhịp flush cụ thể"*, `ARCHITECTURE-SPINE.md:990`.
+ * [`EDITOR_HARD_CAP_MS`] — *"ngưỡng WAL + nhịp flush cụ thể"*, `ARCHITECTURE-SPINE.md#Deferred`.
  *
  * Vì sao con số này phải tồn tại, và nó KHÔNG phải một lượt "cho chắc": `onFlushed()` chỉ gọi
  * `schedule.onWrite()` khi tập chờ đã **sạch**, nên một lượt ghi trượt để `deadline()` đứng

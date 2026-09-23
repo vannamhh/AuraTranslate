@@ -416,7 +416,7 @@ export function aimLookupEntryFrom(event: Event): void {
  *    là đường bỏ ghim bằng chuột);
  * 2. chưa chạm cái nào **và** kết quả chỉ có đúng một mục ⇒ lấy mục đó;
  * 3. không xác định được ⇒ `null`, và chỗ gọi **phải nói ra** — một phím bấm không có hiệu
- *    lực và không giải thích là đúng thứ *"rỗng im lặng"* mà `ARCHITECTURE-SPINE.md:622`
+ *    lực và không giải thích là đúng thứ *"rỗng im lặng"* mà `ARCHITECTURE-SPINE.md#AD-44`
  *    cấm.
  */
 function resolvePinTarget(): PinTarget | null {

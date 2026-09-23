@@ -154,7 +154,7 @@ trúc**, không nhờ trùng hợp *(đo: bảng đối chiếu 26 vị trí, 26
 🔴 **Đây là *"chọn gì để tra"*, KHÔNG phải *"tra thế nào"*.** Ranh giới đã phân xử sẵn ở
 `reviews/review-ad-44-2026-08-05.md:50`. Khớp ngôn ngữ vẫn là độc quyền của **AD-17**
 *(`jieba-rs`, Rust, Story 1.12)*; story 1.18b **không chạm một dòng** của `core/matching/**`.
-`AD-1` cho phép vì `ARCHITECTURE-SPINE.md:75-79` liệt kê **"vùng chọn"** là thứ frontend giữ.
+`AD-1` cho phép vì `ARCHITECTURE-SPINE.md#AD-1` liệt kê **"vùng chọn"** là thứ frontend giữ.
 
 Đơn vị của cả bề mặt vì vậy là **một TỪ**, không còn một ký tự:
 

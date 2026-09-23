@@ -1,7 +1,7 @@
 ---
 name: 'Kế hoạch gọn hoá ARCHITECTURE-SPINE.md'
 date: '2026-09-23'
-status: draft — chờ Ice chốt các quyết định ở §6
+status: done — thi hành 2026-09-23
 target: '_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md'
 ---
 
@@ -120,3 +120,5 @@ Không tìm thấy người đọc máy nào khác ngoài `lint_spine.py` (đã 
 | 4 | Tự soạn AD-49 trong lượt này? | Không — theo AGENTS.md "AD mới giao Winston" | Đúng chính sách; B6 treo tới khi Winston soạn | Có, gộp luôn | Vi phạm chính sách đã ghi (và bài học đã lưu `ad-moi-giao-winston-khong-dev-tu-soan`) — không đề xuất |
 
 **Ice chốt 2026-09-23:** #1 → B (cắt đúng ranh, giữ mọi Rule/Prevents, đích ~95–100 KB) · #2 → A (B6 đã sửa, mô hình hoàn tác nhận `AD-49`, Winston soạn trong lượt riêng) · #3 → A (45 tệp lịch sử giữ nguyên, chỉ sửa 10 chỗ trong mã đang sống) · #4 → A (không soạn AD-49 trong lượt gọn spine).
+
+🔵 2026-09-23 — Đích ~95–100 KB ở #1 hết đúng: spine sau gọn còn **131.386 byte** (từ 158.666, mốc `d861aab`). Đọc hết 49 AD thì phần cắt được thật của `Invariants & Rules` chỉ **6,4%**; 38 AD không mang ngày, tên Story, 🔵 hay trỏ nợ nào. Ước 55% ở §1.3 suy rộng từ 3 AD dày nhất. Cắt theo đúng ranh của B, không cắt vào Rule/Prevents để ép số. Chỗ trích số dòng trong mã sống là **28 chỗ / 16 tệp**, không phải 10 tệp như §2.1.

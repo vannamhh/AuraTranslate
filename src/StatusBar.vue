@@ -132,7 +132,7 @@ onBeforeUnmount(() => {
 /**
  * *"N giây trước"* — **tính và định dạng ở frontend**, Rust không trả về một chữ nào (AC10).
  *
- * AD-21 (`ARCHITECTURE-SPINE.md:302-306`): Rust không bao giờ trả văn bản hiển thị.
+ * AD-21 (`ARCHITECTURE-SPINE.md`): Rust không bao giờ trả văn bản hiển thị.
  * §Consistency Conventions: **định dạng số và ngày giờ chỉ ở frontend**, và `params` của
  * `IpcError` là `chuỗi → chuỗi`. ⇒ mốc flush cuối là một `number` trong state TS
  * (`editorLastSavedAt`), `N` là một phép trừ ở đây, và câu là một khoá `vi.json` có placeholder.
