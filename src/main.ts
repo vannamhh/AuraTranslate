@@ -64,6 +64,11 @@ import {
 // để Kiểm C/D/E của `npm run check:commands` chạy trên chính bộ command của sản phẩm. Cùng
 // cửa mà `setMode` và `bindings` đã đi qua từ Story 1.6 / 1.8.
 import { applyPreset, panelRing, togglePanel } from './layout/dockController'
+// ── Story 4.12, Phase 3a — ngăn kéo Tra cứu (Decision 2) ────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ngay trên: `lookupDrawerState.ts` dùng `ref`
+// của Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E cùng lúc.
+import { closeLookupDrawer, openLookupDrawer } from './layout/lookupDrawerState'
 // ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ở trên: `libraryImport.ts` là một module
@@ -521,6 +526,9 @@ async function boot(): Promise<void> {
       applyPreset,
       togglePanel,
       panelRing,
+      // Story 4.12, Phase 3a · Decision 2 — ngăn kéo Tra cứu, điểm vào ở `<StatusBar />`.
+      openLookupDrawer,
+      closeLookupDrawer,
       submitPastedText,
       submitFilePath,
       submitPastedUrls,

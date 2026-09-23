@@ -52,14 +52,26 @@ import AiTranslationPanel from '../panels/AiTranslationPanel.vue'
 import PanelTab from '../panels/PanelTab.vue'
 import { setDockController } from './dockController'
 import { createWriteSchedule } from './writeSchedule'
+// Story 4.12, Phase 3a (sửa 2026-09-23) — đẩy tầng mới vào ngăn kéo Tra cứu ĐỒNG BỘ, thay
+// một thăm dò `setInterval` đã gỡ. Xem doc-comment đầu `lookupDrawerState.ts` cho lý lẽ đầy
+// đủ (Khuyết tật 1 + Khuyết tật 2) và vì sao chiều import này (từ một `.vue` sang một `.ts`
+// dùng `ref`) không đụng ràng buộc "nạp được bằng Node thuần" của `src/commands/index.ts` —
+// chiều cấm là NGƯỢC LẠI (`dockController.ts` không được giữ một `ref`, vì `commands/
+// index.ts` `import` nó).
+import { syncLayoutTier } from './lookupDrawerState'
 import {
   DEFAULT_PRESET_ID,
+  layoutTierFor,
+  nextToSacrifice,
   PANEL_COMPONENTS,
   PANEL_IDS,
   PANEL_TITLE_KEYS,
   presetById,
+  SACRIFICE_ORDER,
 } from './workspaceLayout'
-import type { PanelId, PlacementDirection } from './workspaceLayout'
+import type { LayoutTier, PanelId, PlacementDirection, PresetId, WorkArea } from './workspaceLayout'
+import { findTreeSpot, unmergeForPersist } from './dockTree'
+import type { SerializedDockJSON, SerializedGrid } from './dockTree'
 
 const props = defineProps<{
   /**
@@ -73,6 +85,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Bố cục đã ổn định và cần được ghi xuống đĩa. Payload là `api.toJSON()` đã stringify. */
   (e: 'persist', json: string): void
+  /**
+   * Tầng vừa ÁP THẬT — Story 4.12 Phase 3b. Bắn từ [`measureAndApplyTier`], cùng chỗ gọi
+   * [`applyTier`], nên không bao giờ mang `null`: hợp đồng Phase 1 (`layoutTierFor` không đọc
+   * được ⇒ giữ nguyên tầng cũ, không bắn sự kiện) không đổi.
+   */
+  (e: 'tier-change', tier: LayoutTier): void
 }>()
 
 /**
@@ -229,6 +247,12 @@ function applyPreset(presetId: string): boolean {
   }
   api.clear()
   hidden.clear()
+  // 🔵 Story 4.12, Task 3 — một preset MỚI là một bố cục lại từ đầu, nên sổ tầng cũ (panel
+  // nào tầng đang ẩn, có đang gộp tab không) không còn nói đúng sự thật nữa. Dọn ba biến này
+  // CÙNG LÚC với `hidden.clear()` ở trên — cùng một lý do, cùng một lượt.
+  autoHiddenIds.clear()
+  tierMerged.value = false
+  mergedSpot = null
   // ⚠️ Bọc `try`, cùng kỷ luật với `restore()`/`flush()` cho đúng lớp lỗi: một `addPanel()`
   // ném giữa vòng lặp (component nội dung ném lúc mount, `position` trỏ tới một panel chưa
   // kịp thêm, …) không được để lại một bố cục dở dang rồi văng thẳng lên
@@ -249,8 +273,25 @@ function applyPreset(presetId: string): boolean {
     )
     api.clear()
     hidden.clear()
+    autoHiddenIds.clear()
+    tierMerged.value = false
+    mergedSpot = null
     return false
   }
+  currentPresetId.value = preset.id
+  // 🔴 Story 4.12 (2026-09-23): đánh dấu ghi NGAY, trước khi đo tầng. Các `addPanel` ở trên chỉ
+  // tới `onLayoutChange` ở microtask sau, sau cả lượt gộp/ẩn của tầng bên dưới, lúc cờ chặn ghi
+  // đã bật. Đo được: áp preset ở tầng `short`/`narrow` ghi 0 lượt, nên lần mở sau vẫn về bố cục
+  // cũ. Đánh dấu ở đây thì `flush()` dòng đầu của `applyTier` ghi preset nguyên vẹn, trước khi
+  // tầng chạm vào dock.
+  onLayoutChange()
+  // Story 4.12, Task 3 — hai preset mang hai bộ ngưỡng RIÊNG (`LAYOUT_THRESHOLDS`); cùng một
+  // kích thước cửa sổ có thể đọc ra hai tầng khác nhau tuỳ preset đang sống (spec I/O Matrix,
+  // hàng "Preset switched at a fixed size"). `currentTier` bị đặt về `null` TRƯỚC khi đo lại —
+  // không so sánh chuỗi tầng cũ với tầng mới: dock vừa được dựng lại từ đầu (`api.clear()` ở
+  // trên), nên tầng "đang áp" cũ không còn mô tả đúng gì cả, kể cả khi tên tầng trùng nhau.
+  currentTier.value = null
+  measureAndApplyTier()
   return true
 }
 
@@ -258,17 +299,11 @@ function applyPreset(presetId: string): boolean {
 // Ẩn / hiện panel — AC3
 // ═══════════════════════════════════════════════════════════════════════════════════
 
-/** Một nút của cây lưới trong `api.toJSON().grid.root`. */
-type GridNode = { type: 'leaf' | 'branch'; data: unknown }
-
-/** Mọi id panel nằm trong một cây con, theo thứ tự cây. */
-function viewsIn(node: GridNode): string[] {
-  if (node.type === 'leaf') return [...((node.data as { views?: string[] }).views ?? [])]
-  return (node.data as GridNode[]).flatMap(viewsIn)
-}
-
 /**
- * Anh em THẬT của panel trong cây lưới — tức nút cạnh nó trong **cùng một nhánh**.
+ * Anh em THẬT của panel trong cây lưới — tức nút cạnh nó trong **cùng một nhánh**, cộng
+ * hướng của panel so với anh em đó. Đi cây sống ở `dockTree.ts` (thuần, không import, có
+ * bộ kiểm riêng `dockTree.test.ts`) — gộp làm MỘT bộ đi cây cho cả việc tìm neo lẫn tính
+ * hướng, thay vì một bản đọc cây rồi một bản hình học riêng.
  *
  * 🔴 BẢN ĐẦU DÙNG `adjacentGroupInDirection()` VÀ NÓ SAI — bắt được ở lượt đo (Task 11).
  *
@@ -283,39 +318,9 @@ function viewsIn(node: GridNode): string[] {
  * ⇒ Đọc cây từ `api.toJSON()`. Đó là dữ liệu công khai, ổn định, và là **chính** thứ
  * `fromJSON` đọc lại — nên nó không phải một bản chép của trạng thái nội bộ dockview.
  */
-function siblingInTree(api: DockviewApi, id: PanelId): string | null {
-  const root = (api.toJSON() as unknown as { grid: { root: GridNode } }).grid.root
-  // Đường từ gốc tới lá chứa `id`, cùng chỉ số của từng bước.
-  const path: { branch: GridNode; index: number }[] = []
-  const find = (node: GridNode): boolean => {
-    if (node.type === 'leaf') return viewsIn(node).includes(id)
-    const kids = node.data as GridNode[]
-    for (let i = 0; i < kids.length; i += 1) {
-      path.push({ branch: node, index: i })
-      if (find(kids[i] as GridNode)) return true
-      path.pop()
-    }
-    return false
-  }
-  if (!find(root)) return null
-  // Leo NGƯỢC lên: nhánh gần nhất còn một nút khác là chỗ có anh em thật. Leo lên là cần
-  // thiết vì một nhánh có thể chỉ có đúng một con sau vài lượt kéo–thả.
-  for (let i = path.length - 1; i >= 0; i -= 1) {
-    const step = path[i] as { branch: GridNode; index: number }
-    // ⚠️ `(GridNode | undefined)[]` chứ không `GridNode[]`: hai chỉ số đọc ngay dưới là
-    // `index - 1` và `index + 1`, tức ở hai đầu danh sách **luôn** có một cái ngoài biên.
-    // Đó chính là việc mà `.filter()` bên dưới làm. Khai không có `undefined` là nói dối
-    // đúng chỗ mà phép lọc tồn tại để xử lý.
-    const kids = step.branch.data as readonly (GridNode | undefined)[]
-    const neighbours = [kids[step.index - 1], kids[step.index + 1]].filter(
-      (n): n is GridNode => n !== undefined,
-    )
-    for (const n of neighbours) {
-      const candidate = viewsIn(n).find((v) => v !== id && isPanelId(v))
-      if (candidate !== undefined) return candidate
-    }
-  }
-  return null
+function siblingSpotInTree(api: DockviewApi, id: PanelId): { reference: string; direction: PlacementDirection } | null {
+  const grid = (api.toJSON() as unknown as { grid: SerializedGrid }).grid
+  return findTreeSpot(grid, id)
 }
 
 /**
@@ -325,11 +330,19 @@ function siblingInTree(api: DockviewApi, id: PanelId): string | null {
  *   1. panel **gộp tab** với panel khác trong cùng group ⇒ nhớ `within` + một bạn cùng
  *      group. Hiện lại phải quay về đúng group đó, không phải cắt một ô mới.
  *   2. panel một mình trong group ⇒ nhớ **anh em trong cây lưới** *(không phải hàng
- *      xóm hình học — xem [`siblingInTree`])* và hướng ngược lại.
+ *      xóm hình học — xem [`siblingSpotInTree`])* và hướng của nó so với anh em đó.
  *
- * ⚠️ Hướng đọc từ **hình học thật** *(`boundingBox`)* chứ không suy ra từ `Orientation`
- * của nhánh: `Orientation` đảo ở mỗi tầng lồng nhau, và một lượt suy luận sai ở đó cho ra
- * một panel về đúng nhánh nhưng sai bên — thứ không cổng nào thấy được.
+ * 🔵 SỬA 2026-09-23 (Phase 4d) — câu cũ ở đây bắt đọc hướng từ **hình học thật**
+ * (`group.api.boundingBox`) "chứ không suy ra từ `Orientation` của nhánh", với lý do
+ * `Orientation` đảo ở mỗi tầng lồng nhau nên một lượt suy luận sai cho ra đúng nhánh, sai
+ * bên. Đó CHÍNH LÀ lỗi đo được ở Phase 4d: `boundingBox` là toạ độ DOM, `0` cho TỚI lượt
+ * `measureAndApplyTier()` đầu tiên trong `onReady` VÀ trong khi Workspace còn ẩn dưới
+ * `<KeepAlive>` — `dx = dy = 0` đọc thành `'right'` MỌI LẦN, nên hiện lại một panel đơn độc
+ * (đúng ca 2 này) luôn đặt nó bên phải neo, kể cả khi nó vốn ở dưới. Hình học "thật" tệ hơn
+ * suy luận từ `Orientation` đúng vào lúc cần nó nhất — trước khi dock được đo lần đầu.
+ * `dockTree.ts::findTreeSpot` tính hướng bằng ĐỘ SÂU của nhánh trong `api.toJSON()`, dữ liệu
+ * không phụ thuộc kích thước container; luật xen kẽ tầng được canh bởi `dockTree.test.ts`
+ * (đối chứng: gỡ vế đảo hướng, ca lồng ≥ 3 tầng đỏ) thay vì bởi mắt.
  *
  * ⚠️ Trả `null` khi không tìm được neo nào — tức panel này là panel **duy nhất** đang
  * hiện. Ẩn nốt nó là một Workspace rỗng hoàn toàn, và AC3 nói *"các panel CÒN LẠI lấp đầy
@@ -340,18 +353,9 @@ function rememberSpot(api: DockviewApi, panel: IDockviewPanel): RememberedSpot |
   if (tabbed !== undefined && isPanelId(tabbed.id)) {
     return { reference: tabbed.id, direction: 'within' }
   }
-  const siblingId = siblingInTree(api, panel.id as PanelId)
-  if (siblingId === null || !isPanelId(siblingId)) return null
-  const mine = panel.api.group.api.boundingBox
-  const theirs = api.getPanel(siblingId)?.api.group.api.boundingBox
-  if (mine === undefined || theirs === undefined) return null
-  // Trục nào lệch nhiều hơn thì đó là trục của lần cắt. `direction` là chỗ đặt panel MỚI
-  // so với neo, nên nó ngược với chỗ neo đang đứng so với panel.
-  const dx = mine.left - theirs.left
-  const dy = mine.top - theirs.top
-  const direction: PlacementDirection =
-    Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : dy >= 0 ? 'below' : 'above'
-  return { reference: siblingId, direction }
+  const spot = siblingSpotInTree(api, panel.id as PanelId)
+  if (spot === null || !isPanelId(spot.reference)) return null
+  return { reference: spot.reference, direction: spot.direction }
 }
 
 function hidePanel(id: PanelId): boolean {
@@ -469,11 +473,311 @@ function togglePanel(panelId: string): boolean {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
+// Tầng bố cục tự động theo kích thước cửa sổ — Story 4.12, Task 3 · Task 5
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🔴 CỜ CHẶN GHI — chỗ Phase 2 tồn tại để giữ đúng §Always của spec: *"một lượt đổi tầng tự
+ * động không bao giờ được ghi thành bố cục của người dùng"*.
+ *
+ * [`onLayoutChange`] (chỗ nối với lịch ghi nợ, xem doc-comment ở đó) đọc cờ này ĐẦU TIÊN,
+ * trước khi đánh dấu lịch "bẩn". Mọi lượt gọi `hidePanel`/`showPanel`/`api.removePanel`/
+ * `api.addPanel` mà TẦNG tự động thực hiện phải bọc `suppressPersist = true` NGAY TRƯỚC và
+ * [`endSuppressPersist`] NGAY SAU, đồng bộ — không `await` chen giữa.
+ *
+ * 🔵 SỬA 2026-09-23 (Story 4.12, sau Phase 4b) — câu cũ ở đây khẳng định `dockview` bắn
+ * `onDidLayoutChange` ĐỒNG BỘ trong cùng lượt mutate. SAI: đọc `dockview-core` 7.0.4,
+ * `baseComponentGridview.js` gán `onDidLayoutChange = new AsapEvent().onEvent`, và
+ * `AsapEvent.fire()` (`events.js`) gom mọi lượt bắn trong một tick vào MỘT `queueMicrotask`.
+ * Với lượt tắt cờ đồng bộ cũ, cờ đã về `false` trước khi sự kiện tới, nên nó CHƯA TỪNG chặn
+ * được gì. Phase 4b gỡ riêng vế này và cả bảy ca vẫn xanh. Đo được hai hệ quả: `full → short`
+ * ghi bố cục đã gộp, và mọi chiều nới cửa sổ trở lại ghi bố cục tầng vừa dựng lại.
+ */
+let suppressPersist = false
+
+/**
+ * Tắt cờ chặn ghi SAU microtask của `dockview`, không phải ngay lập tức.
+ *
+ * Microtask chạy theo thứ tự FIFO. `AsapEvent` xếp microtask của nó ngay lượt mutate đầu tiên
+ * trong tick, tức TRƯỚC lượt xếp ở đây, nên [`onLayoutChange`] luôn thấy cờ còn `true`. Nếu
+ * một bản `dockview` sau đổi `AsapEvent` sang một nhịp khác (`setTimeout`, rAF), thứ tự này
+ * hết đúng. Các ca `full → short` và nới-trở-lại trong `workspaceDockTier.test.ts` sẽ đỏ.
+ */
+function endSuppressPersist(): void {
+  queueMicrotask(() => {
+    suppressPersist = false
+  })
+}
+
+/** Tầng ĐÃ ÁP gần nhất. `null` = chưa đo lần nào (trước lượt đầu tiên ở `onReady`). */
+const currentTier = shallowRef<LayoutTier | null>(null)
+
+/**
+ * Preset đang sống theo cách hiểu của tầng — preset gần nhất được ÁP THẬT qua
+ * [`applyPreset`], không phải "preset đã lưu trên đĩa".
+ *
+ * ⚠️ Một bố cục đã lưu tuỳ ý (khôi phục qua `fromJSON` ở [`restore`]) không PHẢI một trong
+ * hai preset — nó có thể là bất kỳ sự sắp xếp nào người dùng từng kéo tay, và không có cách
+ * suy ngược hình dạng đó ra một `PresetId`. Biến này vì vậy GIỮ NGUYÊN giá trị mặc định cho
+ * tới lượt người dùng tự gọi `layout.preset_*` — một xấp xỉ có chủ, cùng luật dự phòng
+ * `presetId` lạ mà `layoutTierFor` đã khai.
+ */
+const currentPresetId = shallowRef<PresetId>(DEFAULT_PRESET_ID)
+
+/** Có đang gộp `panel.ai_translation` vào NHÓM của `panel.lookup` (tầng `short`) không. */
+const tierMerged = shallowRef(false)
+/** Chỗ của `panel.ai_translation` TRƯỚC lượt gộp — để [`undoMerge`] trả đúng chỗ cũ. */
+let mergedSpot: RememberedSpot | null = null
+
+/**
+ * Panel đang ẩn VÌ TẦNG, không vì người dùng bấm `layout.toggle_*`. Tập con của khoá trong
+ * [`hidden`] — mọi panel ở đây LUÔN có mặt trong `hidden`, chiều ngược thì không.
+ *
+ * Đây là câu trả lời cho "một lượt ẩn tay và một lượt ẩn tự động phân biệt được bằng gì lúc
+ * chạy" (Phase 2 phải để lại cho Phase 4, xem phase file): một `id` nằm trong tập này ⇔ lượt
+ * ẩn GẦN NHẤT của nó đi qua [`autoHide`], không phải qua [`hidePanel`] trực tiếp từ
+ * [`togglePanel`].
+ */
+const autoHiddenIds = new Set<PanelId>()
+
+/** Đọc một token chrome (Story 1.4) LÚC CHẠY — không viết số cứng (spec §Always). */
+function readChromeToken(name: string): number {
+  return parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue(name))
+}
+
+/**
+ * Diện tích làm việc THẬT — `width` bằng thẳng chiều rộng cửa sổ, `height` đã trừ hai token
+ * chrome (`--space-titlebar-height` · `--space-status-height`, Story 1.4, ghi lên `:root`
+ * bởi `tokens/index.ts::applyTheme`).
+ *
+ * ⚠️ Nếu một token đọc lỗi (`getPropertyValue` trả chuỗi rỗng ⇒ `parseFloat('') === NaN`),
+ * phép trừ lan `NaN` sang `height` — và `layoutTierFor` đã có luật riêng cho ca đó (trả
+ * `null`, không phải `'full'`); xem contract Phase 1 để lại.
+ */
+function computeWorkArea(): WorkArea {
+  const titlebar = readChromeToken('--space-titlebar-height')
+  const status = readChromeToken('--space-status-height')
+  return { width: window.innerWidth, height: window.innerHeight - titlebar - status }
+}
+
+/** Ẩn một panel VÌ TẦNG — bọc cờ chặn ghi, ghi vào sổ "ẩn vì tầng" khi thành công. */
+function autoHide(id: PanelId): void {
+  suppressPersist = true
+  const ok = hidePanel(id)
+  endSuppressPersist()
+  if (ok) autoHiddenIds.add(id)
+}
+
+/** Hiện lại một panel TẦNG từng ẩn — bọc cờ chặn ghi, xoá khỏi sổ "ẩn vì tầng". */
+function autoShow(id: PanelId): void {
+  suppressPersist = true
+  const ok = showPanel(id)
+  endSuppressPersist()
+  if (ok) autoHiddenIds.delete(id)
+}
+
+/**
+ * Đồng bộ sổ "ẩn vì tầng" với thực tế — một panel tầng từng ẩn có thể đã được người dùng tự
+ * hiện lại bằng `layout.toggle_*` (đi thẳng qua [`showPanel`], không qua [`autoShow`]). Gọi
+ * TRƯỚC mỗi lượt áp tầng để [`nextAutoRestoreCandidate`] không đọc một sổ đã cũ.
+ */
+function reconcileAutoHidden(): void {
+  for (const id of [...autoHiddenIds]) {
+    if (!hidden.has(id)) autoHiddenIds.delete(id)
+  }
+}
+
+/**
+ * Panel có mức ưu tiên trả lại CAO NHẤT trong số những panel TẦNG đang ẩn — duyệt
+ * [`SACRIFICE_ORDER`] NGƯỢC, cùng thứ tự với `nextToRestore` của tầng thuần, nhưng chỉ nhận
+ * panel nằm trong [`autoHiddenIds`].
+ *
+ * ⚠️ Khác `nextToRestore` ở ĐÚNG một chỗ, và đó là chỗ quan trọng: nó không đọc tập panel
+ * đang ẩn THẬT (`hidden`, thứ có thể lẫn một panel người dùng tự ẩn tay), nó chỉ đọc sổ CỦA
+ * MÌNH. Đọc nhầm sang `hidden` sẽ làm một lượt "mở cửa sổ rộng ra" cố trả lại một panel
+ * người dùng đã ẩn tay — đúng điều spec cấm ("lựa chọn thủ công không bị tầng ghi đè").
+ */
+function nextAutoRestoreCandidate(): PanelId | null {
+  for (let i = SACRIFICE_ORDER.length - 1; i >= 0; i -= 1) {
+    const id = SACRIFICE_ORDER[i] as PanelId
+    if (autoHiddenIds.has(id)) return id
+  }
+  return null
+}
+
+/** Hy sinh theo [`SACRIFICE_ORDER`] tới khi chỉ còn lưới — tầng `narrow`/`unsupported`. */
+function applyGridOnlySacrifice(): void {
+  for (;;) {
+    const visible = visiblePanelsInLayoutOrder()
+    if (visible.length <= 1) return
+    const id = nextToSacrifice(visible)
+    if (id === null) return
+    autoHide(id as PanelId)
+  }
+}
+
+/** Trả lại MỌI panel tầng từng ẩn (và chỉ những cái đó) — tầng `full`/`short`. */
+function restoreAllAutoHidden(): void {
+  for (;;) {
+    const id = nextAutoRestoreCandidate()
+    if (id === null) return
+    autoShow(id)
+  }
+}
+
+/**
+ * Gộp `panel.ai_translation` vào group của `panel.lookup` — tầng `short` (Task 5). Dùng lại
+ * đúng nhánh `within` mà [`rememberSpot`] đã có (§Code Map) thay vì tự dựng một dải tab thứ
+ * ba (`GridPanel.vue` và `LookupPanel.vue` đã mỗi cái hand-copy một lần).
+ *
+ * ⚠️ Từ chối LẶNG LẼ khi một trong hai panel đang KHÔNG hiện (người dùng đã ẩn tay nó) — ép
+ * nó hiện lên chỉ để gộp là ghi đè một lựa chọn thủ công, đúng điều spec cấm.
+ */
+function applyMerge(): void {
+  const api = dock.value
+  if (api === null || tierMerged.value) return
+  const lookupPanel = api.getPanel('panel.lookup')
+  const aiPanel = api.getPanel('panel.ai_translation')
+  if (lookupPanel === undefined || aiPanel === undefined) return
+  if (aiPanel.api.group.panels.some((p) => p.id === lookupPanel.id)) {
+    // Already tabbed together by the user, not by the tier: leave `tierMerged` false so
+    // `undoMerge` never splits a group the user made, and persist keeps the user's shape.
+    return
+  }
+  const spot = rememberSpot(api, aiPanel)
+  suppressPersist = true
+  api.removePanel(aiPanel)
+  addPanel(api, 'panel.ai_translation', { referencePanel: 'panel.lookup', direction: 'within' })
+  endSuppressPersist()
+  mergedSpot = spot
+  tierMerged.value = true
+}
+
+/** Gỡ gộp — trả `panel.ai_translation` về đúng chỗ TRƯỚC lượt gộp ([`mergedSpot`]). */
+function undoMerge(): void {
+  if (!tierMerged.value) return
+  tierMerged.value = false
+  const api = dock.value
+  if (api === null) return
+  const aiPanel = api.getPanel('panel.ai_translation')
+  if (aiPanel === undefined) {
+    mergedSpot = null
+    return
+  }
+  const spot = mergedSpot
+  const anchorStillThere = spot !== null && api.getPanel(spot.reference) !== undefined
+  suppressPersist = true
+  api.removePanel(aiPanel)
+  if (spot !== null && anchorStillThere) {
+    addPanel(api, 'panel.ai_translation', { referencePanel: spot.reference, direction: spot.direction })
+  } else {
+    // Neo cũ không còn (đã bị ẩn/xoá trong lúc gộp) — cùng đường dự phòng của `showPanel`:
+    // đặt bên phải panel đầu tiên đang hiện, hoặc chiếm cả lưới nếu không còn panel nào.
+    const anchor = visiblePanelsInLayoutOrder()[0] as PanelId | undefined
+    if (anchor === undefined) addPanel(api, 'panel.ai_translation')
+    else addPanel(api, 'panel.ai_translation', { referencePanel: anchor, direction: 'right' })
+  }
+  endSuppressPersist()
+  mergedSpot = null
+}
+
+/**
+ * Áp một TẦNG lên dock THẬT — Task 3. Chỉ gọi khi tầng vừa ĐỔI (xem
+ * [`measureAndApplyTier`]); mọi nhánh dùng lại nguyên [`hidePanel`]/[`showPanel`] qua
+ * [`autoHide`]/[`autoShow`], không một cơ chế ẩn/hiện thứ hai.
+ *
+ * 🔴 `flush()` NGAY DÒNG ĐẦU — và đây KHÔNG phải một lượt ghi thừa.
+ *
+ * `suppressPersist` chỉ chặn được lượt ĐÁNH DẤU BẨN MỚI; nó không xoá một lượt đã bẩn TỪ
+ * TRƯỚC. Nếu một hành động THẬT của người dùng (vd. vừa `applyPreset()` qua lệnh bàn phím)
+ * để lịch ghi đang "bẩn" và đợi hết idle 500 ms, rồi TẦNG mới mutate tiếp (bọc
+ * `suppressPersist`, không đánh dấu bẩn thêm) — lượt `flush()` SAU CÙNG, khi nó tự bắn, vẫn
+ * đọc `api.toJSON()` ở thời điểm nó chạy, tức SAU cả lượt tầng vừa làm. Không gọi `flush()`
+ * ở đây thì bố cục ghi xuống đĩa là bố cục ĐÃ BỊ TẦNG SỬA, không phải bố cục người dùng vừa
+ * chọn — đúng thứ §Always cấm, chỉ đi vòng qua một cửa khác. Gọi `flush()` trước khi TẦNG
+ * chạm vào dock chốt lại đúng ảnh chụp (nếu có gì đang bẩn) TRƯỚC khi tầng mutate; `flush()`
+ * tự no-op khi lịch đang sạch, nên lượt gọi này rẻ ở đường thường (resize không đổi gì khác).
+ *
+ * 🔵 [`syncLayoutTier`] NGAY SAU `flush()` — Story 4.12 Phase 3a (sửa 2026-09-23). Nó không
+ * chạm `api`/dock (chỉ chạm `ref` của ngăn kéo Tra cứu), nên nó không tranh chỗ "dòng đầu"
+ * với `flush()` ở trên; điều bắt buộc là nó chạy TRƯỚC mọi nhánh dưới đây — đặc biệt trước
+ * `restoreAllAutoHidden()`, chỗ có thể `addPanel` lại `panel.lookup` ĐỒNG BỘ. Xem doc-comment
+ * đầu `lookupDrawerState.ts` cho lý lẽ đầy đủ.
+ */
+function applyTier(tier: LayoutTier): void {
+  flush()
+  syncLayoutTier(tier)
+  reconcileAutoHidden()
+  if (tier === 'narrow' || tier === 'unsupported') {
+    // Cùng bố cục panel cho cả hai — chỉ lưới, xem doc-comment `LayoutTier` ở tầng thuần.
+    undoMerge()
+    applyGridOnlySacrifice()
+  } else if (tier === 'short') {
+    restoreAllAutoHidden()
+    applyMerge()
+  } else {
+    // 'full'
+    undoMerge()
+    restoreAllAutoHidden()
+  }
+  // Cùng kỷ luật với `togglePanel`: `restoreFocusIfLost` chỉ can thiệp khi focus THẬT SỰ đã
+  // mất, nên gọi vô điều kiện ở đây là an toàn — nó tự no-op khi người dùng vẫn đứng nơi khác.
+  const fallback = visiblePanelsInLayoutOrder().at(0)
+  if (fallback !== undefined) restoreFocusIfLost(fallback as PanelId)
+}
+
+/**
+ * Đo và áp tầng — Task 3. Gọi lúc `onReady` (tầng khởi động) và ở mỗi sự kiện `resize`.
+ *
+ * 🔴 `null` KHÔNG BAO GIỜ được đọc thành một tầng — đúng hợp đồng Phase 1 để lại
+ * (`workspaceLayout.ts::layoutTierFor` doc-comment): GIỮ NGUYÊN tầng đang áp, chỉ ghi một
+ * chẩn đoán nêu nguyên nhân. Không thử lại ngay — sự kiện `resize` hoặc lượt đổi preset kế
+ * tiếp sẽ tự đo lại.
+ */
+function measureAndApplyTier(): void {
+  const workArea = computeWorkArea()
+  const tier = layoutTierFor(workArea, currentPresetId.value)
+  if (tier === null) {
+    console.error(
+      `[layout] khong do duoc dien tich lam viec (cua so ${window.innerWidth}x${window.innerHeight}) ` +
+        `-- giu nguyen tang dang ap (${currentTier.value ?? 'chua ap tang nao'}).`,
+    )
+    return
+  }
+  if (tier === currentTier.value) return
+  currentTier.value = tier
+  applyTier(tier)
+  emit('tier-change', tier)
+}
+
+function onWindowResize(): void {
+  measureAndApplyTier()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
 // Lưu và khôi phục — AC4
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 const schedule = createWriteSchedule()
 let timer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * JSON sẽ ghi xuống đĩa cho lượt `flush()` này — [`api.toJSON()`] thẳng, TRỪ khi đang gộp VÀ
+ * còn nhớ chỗ trước gộp: khi đó đi qua [`unmergeForPersist`] để đĩa luôn chở hình dạng CHƯA
+ * GỘP (phán quyết Ice 2026-09-23, xem doc-comment [`onLayoutChange`]).
+ *
+ * 🔵 SỬA 2026-09-23 (orchestrator) — bản Phase 4e loại riêng `within` và ghi JSON thẳng cho
+ * ca đó, kèm lời khai "cùng hành vi trước Phase 4e". Lời khai đó sai: trước 4e, vế
+ * `tierMerged.value` chặn hẳn lượt ghi, còn JSON thẳng lúc đang gộp chính là nhóm đã gộp. Nay
+ * [`unmergeForPersist`] nhận cả `within`, nên không còn nhánh nào ghi hình dạng đã gộp.
+ */
+function jsonForPersist(api: DockviewApi): unknown {
+  const json = api.toJSON() as unknown as SerializedDockJSON
+  if (tierMerged.value && mergedSpot !== null) {
+    return unmergeForPersist(json, 'panel.ai_translation', mergedSpot)
+  }
+  return json
+}
 
 function flush(): void {
   if (timer !== null) {
@@ -486,7 +790,7 @@ function flush(): void {
   schedule.onWrite(now)
   if (api === null) return
   try {
-    emit('persist', JSON.stringify(api.toJSON()))
+    emit('persist', JSON.stringify(jsonForPersist(api)))
   } catch (err) {
     // Không ném: một bố cục không serialize được không phải lý do để giết thao tác
     // mà người dùng vừa làm. Nó chỉ có nghĩa là phiên sau mở bằng preset mặc định.
@@ -497,8 +801,57 @@ function flush(): void {
 /**
  * Một lượt `onDidLayoutChange`. Xem `src/layout/writeSchedule.ts` cho lý lẽ đầy đủ —
  * tóm tắt: idle 500 ms **cộng** một trần cứng 5 s **không reset bởi sự kiện kế tiếp**.
+ *
+ * 🔴 DÒNG ĐẦU TIÊN LÀ CỜ CHẶN GHI CỦA STORY 4.12 — xem doc-comment đầy đủ ở
+ * [`suppressPersist`] (§Tầng bố cục tự động). Mọi lượt `hidePanel`/`showPanel`/
+ * `api.removePanel`/`api.addPanel` mà TẦNG tự động gọi đều tới đây, ở microtask ngay sau
+ * lượt mutate (🔵 2026-09-23: không phải đồng bộ, xem [`endSuppressPersist`]). Không có vế
+ * này thì một lượt cửa sổ co lại hoặc nới ra sẽ TỰ GHI đè bố cục người dùng đã lưu, im lặng,
+ * và không cách nào lấy lại (spec §Always, phase file §Phase 2).
+ *
+ * 🔴 VÀ VẾ `autoHiddenIds.size > 0` — CỬA THỨ HAI VÀO CÙNG CHỖ MẤT DỮ LIỆU ĐÓ.
+ *
+ * `suppressPersist` chỉ bọc quanh chính lượt mutate của tầng và tắt sau microtask kế tiếp. Nhưng khi
+ * tầng đã ẩn một panel, `api.toJSON()` KHÔNG CÒN panel ấy (dockview 7.0.4 không có
+ * `setVisible` cho panel — "ẩn" là `removePanel` thật). Nên một thao tác THẬT của người dùng
+ * sau đó — kéo một sash, bật/tắt một panel bằng tay — đi qua đây với cờ đã tắt, đánh dấu bẩn
+ * bình thường, và `flush()` tuần tự hoá một cây ĐANG THIẾU panel. `hidden` là bộ nhớ trong,
+ * chết theo phiên; phiên sau mở ra chỉ còn lưới và không gì mang panel kia về.
+ *
+ * Ice chốt 2026-09-22: **khi còn panel bị TẦNG ẩn thì không ghi gì cả.** Cái mất là vị trí
+ * sash người dùng kéo ở bậc hẹp — mở rộng lại vẫn ra bố cục cũ. Cái giữ được là không bao
+ * giờ mất một panel. Hai phương án kia (lắp tạm panel ẩn vào rồi tuần tự hoá, hoặc lưu kèm
+ * tập panel bị ẩn) đều giữ được cả sash lẫn panel nhưng một cái phải mutate dock để đọc nó,
+ * cái kia đổi hình dạng giá trị đã lưu trong `AppConfig` — cả hai to hơn story này.
+ *
+ * 🔵 2026-09-23 (Story 4.12, Phase 4e) — VẾ `tierMerged.value` từng đứng Ở ĐÂY (thêm sau
+ * Phase 4b) và chặn đứng MỌI lượt ghi trong lúc đang gộp, cùng lý do đo được ở vế
+ * `autoHiddenIds` bên trên: gộp tab không ẩn panel nào (`autoHiddenIds` vẫn rỗng), nên thiếu
+ * nó thì một lượt bật/tắt tay + `beforeunload` ghi thẳng xuống một NHÓM chứa cả
+ * `panel.ai_translation` lẫn `panel.lookup` — phiên sau mở ở cỡ đầy đủ thì `tierMerged` là
+ * `false` nên [`undoMerge`] không bao giờ chạy, và bố cục người dùng mất hẳn.
+ *
+ * Ice chốt LẠI 2026-09-23 ("giữ gộp, lưu dạng chưa gộp"): chặn TUYỆT ĐỐI đó quá tay — một
+ * lượt kéo sash hay bật/tắt panel THẬT của người dùng trong lúc đang gộp cũng bị nuốt, không
+ * khác gì trạng thái trước khi có `writeSchedule.ts`. Luật MỚI: TRONG LÚC gộp, một thay đổi
+ * bố cục THẬT vẫn được ghi — nhưng ghi dưới dạng CHƯA GỘP, như thể lượt gộp của tầng chưa từng
+ * xảy ra. [`jsonForPersist`] (ngay trên [`flush`]) là nơi làm việc đó: khi `tierMerged.value`
+ * và còn nhớ chỗ trước gộp (`mergedSpot`), nó gọi `dockTree.ts::unmergeForPersist` tách
+ * `panel.ai_translation` ra khỏi nhóm chung, đặt lại đúng chỗ đã nhớ, TRƯỚC khi tuần tự hoá —
+ * mọi thứ KHÁC người dùng vừa đổi (sash, panel khác) vẫn nguyên trong JSON đó.
+ *
+ * Cửa chặn CHÍNH LƯỢT GỘP/GỠ GỘP của tầng tự nó thì KHÔNG đổi — đó vẫn là việc của
+ * `suppressPersist`/[`endSuppressPersist`] (§Always: một lượt đổi tầng tự động không bao giờ
+ * được ghi thành bố cục của người dùng), không phải của vế này. Guard ở đây giờ chỉ còn hai
+ * vế, giống hệt trước khi Phase 4b thêm vế thứ ba.
+ *
+ * ⚠️ Vế `autoHiddenIds` dựa vào một sự thật đã đo: `schedule.onChange` CHỈ được gọi từ đây, và
+ * `flush()` thoát sớm khi `!schedule.isDirty()`. Nên chặn ở đây cũng chặn luôn lượt
+ * `flush()` thẳng của `onDeactivated`. Nếu một story sau thêm một chỗ gọi `onChange` thứ
+ * hai, vế này hở và phải xét lại.
  */
 function onLayoutChange(): void {
+  if (suppressPersist || autoHiddenIds.size > 0) return
   const due = schedule.onChange(Date.now())
   if (timer !== null) clearTimeout(timer)
   timer = setTimeout(flush, Math.max(0, due - Date.now()))
@@ -614,6 +967,12 @@ function onReady(event: DockviewReadyEvent): void {
   disposables.push(api.onDidLayoutChange(onLayoutChange))
 
   setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder })
+
+  // Story 4.12, Task 3 — tầng khởi động: `restore()` ở trên có thể đã đi qua nhánh
+  // `fromJSON` (bố cục tuỳ ý, không qua `applyPreset`), nhánh đó KHÔNG tự đo tầng. Gọi ở đây
+  // phủ cả hai nhánh — lượt gọi thứ hai (khi `restore()` đã đi qua `applyPreset` và tự đo
+  // rồi) là một no-op rẻ, vì `measureAndApplyTier` tự so `tier === currentTier.value`.
+  measureAndApplyTier()
 }
 
 /**
@@ -630,6 +989,10 @@ const onBeforeUnload = (): void => flush()
 
 onMounted(() => {
   window.addEventListener('beforeunload', onBeforeUnload)
+  // Story 4.12, Task 3 — nguồn duy nhất đo lại tầng sau lúc khởi động. Không debounce
+  // riêng: `measureAndApplyTier` tự no-op khi tầng chưa đổi, nên một cơn `resize` dày sự
+  // kiện chỉ mua thêm vài phép so sánh chuỗi rẻ, không thêm lượt biến đổi dock nào.
+  window.addEventListener('resize', onWindowResize)
 })
 
 /**
@@ -668,6 +1031,7 @@ onActivated(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', onBeforeUnload)
+  window.removeEventListener('resize', onWindowResize)
   flush()
   for (const d of disposables) d.dispose()
   disposables.length = 0
@@ -694,7 +1058,19 @@ onBeforeUnmount(() => {
     rộng — tức thanh tiêu đề panel 34px của UX-DR17, thay vì một cái tab con con nằm nép
     bên trái một dải trống.
   -->
-  <div class="dock-host">
+  <!--
+    Story 4.12, Task 3 — móc `data-*` cho Phase 4: tầng đang áp, preset tầng đang đọc, và có
+    đang gộp tab (tầng `short`) không. Không một phép nào ở đây đọc kích thước PIXEL — đó là
+    việc của Phase 5/e2e (`happy-dom` không tính layout); ba thuộc tính này chỉ phơi ra TRẠNG
+    THÁI đã tính, để một test mô phỏng `resize` (đặt `window.innerWidth`/`innerHeight` rồi
+    phát sự kiện) đọc lại được kết quả mà không cần đọc hình học thật.
+  -->
+  <div
+    class="dock-host"
+    :data-layout-tier="currentTier ?? undefined"
+    :data-layout-preset="currentPresetId"
+    :data-layout-merged="tierMerged ? 'true' : undefined"
+  >
     <DockviewVue
       class="dock dockview-theme-aura"
       :theme="auraTheme"

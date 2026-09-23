@@ -95,9 +95,15 @@ export function declareFocus(owner: FocusOwner, resolve: FocusEntry): void {
   focus.declare(owner, resolve)
 }
 
-/** Gỡ khai báo lúc tháo — không có nó thì một lượt mount lại là một lần ném. */
-export function releaseFocus(owner: FocusOwner): void {
-  focus.release(owner)
+/**
+ * Gỡ khai báo lúc tháo — không có nó thì một lượt mount lại là một lần ném.
+ *
+ * `expected` (tuỳ chọn) — chuyển thẳng xuống `FocusRegistry.release`; xem doc-comment ở đó
+ * (Story 4.12 Phase 3a). `PanelFrame.vue` luôn truyền, để một lượt gỡ ĐẾN MUỘN không xoá
+ * nhầm một đăng ký MỚI đã chiếm lại cùng owner.
+ */
+export function releaseFocus(owner: FocusOwner, expected?: FocusEntry): void {
+  focus.release(owner, expected)
 }
 
 /** Dời focus DOM tường minh tới điểm vào đã khai. `false` khi trượt, kèm `console.error`. */
@@ -751,6 +757,16 @@ export type CommandDeps = {
   openShortcuts?: () => void
   /** Đóng lớp phủ phím tắt. Handler của `shortcuts.close` (AC1). */
   closeShortcuts?: () => void
+
+  // ── Story 4.12, Phase 3a — ngăn kéo Tra cứu (Decision 2) ─────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `openShortcuts`: `layout/lookupDrawerState.ts`
+  // dùng `ref` của Vue — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
+
+  /** Mở ngăn kéo Tra cứu. Handler của `layout.lookup_drawer_open`. */
+  openLookupDrawer?: () => void
+  /** Đóng ngăn kéo Tra cứu. Handler của `layout.lookup_drawer_close`. */
+  closeLookupDrawer?: () => void
   /**
    * Vào trạng thái **chờ một hợp âm** cho thao tác đang nhắm. Handler của
    * `shortcuts.capture` (AC2, AC10).
@@ -1167,6 +1183,33 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       run: () => {
         if (deps.togglePanel === undefined) return portMissing(id, 'togglePanel')
         deps.togglePanel(`panel.${suffix}`)
+      },
+    })
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 4.12, PHASE 3a — ĐIỂM VÀO NGĂN KÉO TRA CỨU (Decision 2, Ice ký 2026-09-22)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Tầng `narrow`/`unsupported` rút `panel.lookup` khỏi lưới (Phase 2); hai command này là
+   * đường DUY NHẤT còn lại vào nó ngoài `layout.toggle_lookup` (vẫn tồn tại, vẫn không gán
+   * phím mặc định — §QĐ #3 của Story 1.6, không đổi). `keys: undefined` cho cả hai, cùng lý
+   * lẽ với `layout.toggle_*` ngay trên: nút ở `<StatusBar />` tới được bằng Tab + Enter/Space,
+   * và màn hình phím tắt (Story 1.21) gán được cho ai cần một hợp âm.
+   */
+  for (const [id, port] of [
+    ['layout.lookup_drawer_open', 'openLookupDrawer'],
+    ['layout.lookup_drawer_close', 'closeLookupDrawer'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
       },
     })
   }

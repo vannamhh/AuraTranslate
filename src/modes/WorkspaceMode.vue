@@ -10,6 +10,11 @@
 // Không ngưỡng màn hình hẹp, không `matchMedia`, không ngăn kéo — **Story 4.12**,
 // và `epics.md:1617` cấm tường minh việc đóng chúng ở đây.
 //
+// 🔵 2026-09-23 (Phase 3b) — vế trên vẫn đúng theo NGHĨA đó: chế độ này không TỰ đo
+// ngưỡng, không tự quyết sacrifice. Nó có thêm một việc thứ tư, thuần hiển thị: nghe
+// sự kiện `tier-change` từ `WorkspaceDock` để hiện một thông báo KHÔNG CHẶN khi tầng đo
+// được là `unsupported` — lưới vẫn gắn DOM và dùng được nguyên vẹn bên dưới thông báo.
+//
 // ─────────────────────────────────────────────────────────────────────────────────
 // ⚠️ CHUỖI CHẨN ĐOÁN TRONG TỆP NÀY VIẾT **KHÔNG DẤU** — và đó KHÔNG phải cẩu thả
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -24,10 +29,12 @@
 //
 // ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng
 // lý do. Người đọc dòng này là người đang mở DevTools, không phải người dùng cuối.
-import { onActivated, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+import { onActivated, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 import { declareFocus, enterFocus, releaseFocus } from '../commands'
 import { bootstrapLayout, KEY_LAYOUT, putConfig, SCOPE_APP_CONFIG } from '../config/bootstrap'
+import { t } from '../i18n'
 import WorkspaceDock from '../layout/WorkspaceDock.vue'
+import type { LayoutTier } from '../layout/workspaceLayout'
 
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -77,11 +84,32 @@ function onPersist(json: string): void {
     if (err !== null) console.warn(`[layout] khong luu duoc bo cuc (\`${err.code}\`).`)
   })
 }
+
+/**
+ * Tầng đang áp — bản sao CỤC BỘ, nhận qua sự kiện `tier-change` (Story 4.12 Phase 3b).
+ * `WorkspaceDock` giữ bản chính (`currentTier`, đóng kín trong closure của nó); chế độ này
+ * chỉ cần biết có đang ở tầng `unsupported` hay không, để quyết định hiện thông báo.
+ */
+const currentTier = shallowRef<LayoutTier | null>(null)
+
+function onTierChange(tier: LayoutTier): void {
+  currentTier.value = tier
+}
 </script>
 
 <template>
   <section ref="root" class="mode" tabindex="-1">
-    <WorkspaceDock :saved-layout="bootstrapLayout" @persist="onPersist" />
+    <!--
+      Story 4.12, Phase 3b — thông báo tầng `unsupported` (§Boundaries: "grid never yields at
+      any size"). Nằm TRƯỚC `WorkspaceDock` trong cùng cột flex, NẰM XUÔI DÒNG — không overlay,
+      không modal, không chặn nhập liệu: lưới bên dưới vẫn gắn DOM và dùng được nguyên vẹn.
+      `data-workspace-narrow-notice` là móc cho test, không phải nguồn dữ liệu của chính nó.
+    -->
+    <p v-if="currentTier === 'unsupported'" class="narrow-notice" role="status" data-workspace-narrow-notice>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` — chuỗi đã đi qua `vi.json`. -->
+      {{ t('mode.workspace.narrow_notice') }}
+    </p>
+    <WorkspaceDock :saved-layout="bootstrapLayout" @persist="onPersist" @tier-change="onTierChange" />
   </section>
 </template>
 
@@ -91,6 +119,23 @@ function onPersist(json: string): void {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+
+/*
+ * Dải xuôi dòng, không phải lớp phủ — chiếm chỗ thật trong cột flex nên `WorkspaceDock`
+ * (`flex: 1`) tự co lại nhường chỗ, không đè lên lưới. Không z-index, không opacity trung
+ * gian: chỉ nền và chữ từ token (`check:tokens`).
+ */
+.narrow-notice {
+  flex: none;
+  margin: 0;
+  padding: var(--space-panel-block) var(--space-panel-inline);
+  border-bottom: 1px solid var(--color-outline);
+  background: var(--color-surface-accent);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
 }
 
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — chỉ gốc `tabindex="-1"`, không `*:focus`. */

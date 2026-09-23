@@ -2541,6 +2541,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   Ⓑ-1)* — cả ba đều chưa được nêu ra bao giờ.
 
   **Chủ: Ice** *(quyết định UX)*, kèm **Story 4.12** cho vế ngưỡng bố cục.
+  → 🟡 2026-09-23 (Story 4.12) — the threshold half is closed, but not by measurement: Story 4.12 calibrated nothing in parallel mode, per its Decision 3, which fixed the default view for Ⓑ-2. Ice then ruled the seed thresholds final (see the item *"None of the four narrow-window thresholds is a measured number"* in §Deferred from: Story 4.10 — Lỗi mạng và lỗi API (2026-09-22), where the Story 4.12 items were appended). The UX choice is still open: keep as is · cap `<rt>` lines · parallel only in Ⓑ-1. **Chủ: Ice.**
 
 - 🔴 **TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4. MỘT ĐƯỜNG VƯỢT TRẦN NFR2 15 LẦN.**
   *(2026-08-15, WKWebView 605.1.15, macOS 15.6, bản dựng thật.)*
@@ -11319,3 +11320,94 @@ chính nó.
     TEST_LOCK` does not cover for any call site that does not take the lock. It is not caused by
     this story, but it is the kind of red that returns on CI at the least convenient moment.
     **(Chủ: Ice — cần quyết định ai sửa hàng rào one-shot này; nó sẽ đỏ lại.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
+  summary: **`full → short` (the `applyMerge` branch of `WorkspaceDock.vue::applyTier`) emits ONE
+    `persist` roughly 500ms after `applyTier` returns, even though `suppressPersist` wraps the
+    merge's `removePanel`/`addPanel` pair — a real breach of §Always ("an automatic tier change
+    must never be persisted").**
+  evidence: Found and measured in Phase 4b (`tests/frontend/workspaceDockTier.test.ts`, case
+    `A(finding)`, captured as `it.fails(...)` rather than silently passed or fixed). Root cause,
+    confirmed with a temporary `console.log` inside `onLayoutChange` (removed before the final
+    restore, `shasum -a 256` matched): `dockview` does not fire `onDidLayoutChange` synchronously
+    for every mutation — when two panel mutations happen in the same synchronous tick (a merge's
+    remove+add, or a grid-only sacrifice's two sequential auto-hides), it coalesces them into ONE
+    notification that fires on a later microtask, by which point any same-tick flag
+    (`suppressPersist`, reset to `false` at the end of that same tick) has already gone back false.
+    The narrow/unsupported sacrifice path stays clean only because `autoHiddenIds` has *already*
+    reached its final non-zero size by the time that deferred notification fires, so the OTHER half
+    of the guard (`autoHiddenIds.size > 0`) still blocks it — `applyMerge` has no equivalent second
+    guard, so it leaks. Direct counter-proof (also in Phase 4b's notes): mounting straight into
+    `short` with no prior `full` tier is clean — the leak needs the group disposal that happens when
+    `ai_translation` is removed from a group it occupied alone, not the merge call by itself. A
+    second, related finding from the same counter-check: dropping `suppressPersist` from
+    `onLayoutChange` entirely left every other case in that file green — `suppressPersist` is not
+    proven to guard anything reachable in this codebase today; every reachable path is actually
+    protected by `autoHiddenIds.size > 0` alone. Not fixed here — coverage-only phase; a real fix
+    needs either a second guard for `applyMerge` shaped like `autoHiddenIds`, or moving the
+    persist-suppression check to run after a microtask flush instead of relying on a same-tick flag.
+    **(Chủ: Ice — quyết định hướng sửa `applyMerge`/`onLayoutChange`, và liệu `suppressPersist` có
+    còn lý do để tồn tại.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-23 (Story 4.12, orchestrator, sau Phase 4b) — sửa trong story, vì lỗi
+    vi phạm §Always đã frozen của chính story này, không phải một khoản nợ để hoãn.** Mục này
+    còn HẸP hơn sự thật. Đo lại bằng một probe riêng (fake timer, chờ 6000 ms mỗi chiều): hỏng
+    ở BA chiều, không phải một. `full → short` ghi bố cục đã gộp. `narrow → full` và
+    `short → full` (nới trở lại) mỗi chiều đều ghi bố cục mà tầng vừa dựng lại. Ngoài ra, ở tầng
+    `short`, một lượt bật/tắt tay rồi `beforeunload` ghi một nhóm chứa cả `panel.ai_translation`
+    lẫn `panel.lookup`. Nguyên nhân gốc đã xác nhận trong mã `dockview-core` 7.0.4:
+    `onDidLayoutChange` là một `AsapEvent` (`queueMicrotask`). Cả HAI hướng mục này nêu đều đã
+    làm, vì mỗi hướng đóng một cửa khác nhau. (1) `endSuppressPersist()` tắt cờ trong một
+    microtask xếp SAU microtask của dockview, nên `suppressPersist` giờ có lý do tồn tại: nó
+    chặn các chiều nới trở lại. (2) Thêm vế `tierMerged.value` vào dòng chặn của
+    `onLayoutChange`, cùng hình dạng với phán quyết 2026-09-22 của Ice cho `autoHiddenIds`. Sau
+    khi sửa, probe đo 0 persist ở cả bốn trường hợp. Phase 4c viết các ca canh và đối chứng từng
+    vế. ⚠️ Ice xem lại: vế (2) là tôi áp một phán quyết có sẵn cho một trạng thái mới
+    (sash kéo ở tầng `short` không được lưu), không phải một phán quyết Ice đã ký.
+    🔵 2026-09-23, Ice đã xem và KHÔNG giữ vế (2): *"giữ gộp, lưu dạng chưa gộp"*. Khi đang gộp,
+    thao tác thật của người dùng VẪN được lưu, nhưng ghi ở dạng đã tách `panel.ai_translation`
+    về chỗ trước lượt gộp. Vế `tierMerged.value` bị gỡ khi bản đó dựng xong (spec §Tasks, task
+    "un-merged form"). Vế (1) giữ nguyên.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
+  summary: **The `titlebar-height` token is 40px in the product, but two planning texts still say
+    38px, and nobody has recorded why the number changed.** The two stale texts are the frontmatter
+    `spacing` block of `DESIGN.md` (`titlebar-height: 38px`) and UX-DR15 in `epics.md`, which says
+    *"titlebar 38px và status 32px"*. Against them stand three sources that say 40px: `DESIGN.md`'s
+    own §Bảng token khoảng cách và hình dạng, `src/tokens/tokens.json`, and `check-tokens.mjs`
+    `EXPECTED_SPACING`, which freezes the value.
+  evidence: Story 4.12 computes work-area height as window height minus both chrome tokens, read at
+    runtime. That is 74px today (40 + 34), not the 70px (38 + 32) that UX-DR15 still describes.
+    Following the precedent of the item *"Lệch `32px` / `34px` của chiều cao thanh trạng thái"* in
+    §Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12), the dev does NOT edit
+    `DESIGN.md` or `epics.md` (spec §Boundaries & Constraints → Never).
+    **(Chủ: Ice — chọn con số đúng và sửa tài liệu quy hoạch.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
+  summary: **None of the four narrow-window thresholds is a measured number.** For both Ⓑ-1 and
+    Ⓑ-2 they stay at UX-DR15's seed (1100 · 820 · 700 · 860) because Ice ruled that way on
+    2026-09-23 after a single measurement. Q9 and `SPEC.md` [A11] are closed by that ruling, not by
+    the measurement Q9's own closing condition named.
+  evidence: Spec §Implementation Notes → Phase 5 has the full account. That one measurement was
+    Ⓑ-2 with the full tier forced, at a 1280×833 work area, and the verdict was "usable". No size
+    was ever judged unusable, so no threshold was located, and Ⓑ-1 was not measured at all. There is
+    also a hardware limit: on Ice's MacBook (1536×960 pt, 25pt menu bar, 28pt title bar) the
+    tallest reachable work area is 833, only 13px above `minFullHeight`, so `minFullHeight` cannot
+    be probed above 833 on this machine. The consequence is written into [A11]: the default
+    1280×860 window has a 1280×786 work area and opens in the `short` tier (Lookup and AI
+    Translation merged into one tab group).
+    **(Chủ: Ice — mở lại nếu dùng thật cho thấy một tầng đến quá sớm hoặc quá muộn; muốn đo thì
+    dùng lại quy trình ép tầng ở Phase 5.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
+  summary: **After a tier round trip (full → narrow/short → full), every panel returns to its spot
+    but the sash RATIO may be re-split. The next real user action then persists the drifted ratio
+    over the user's own proportions.**
+  evidence: `WorkspaceDock.vue::rememberSpot` stores only `{reference, direction}`, and nothing in
+    the file calls `setSize`, so `showPanel`'s `addPanel` lets dockview divide the reference group's
+    space afresh. Case D in `tests/frontend/workspaceDockTier.test.ts` says so itself and asserts
+    only the panel-id set. The stored `workspace_layout` is untouched by the round trip itself:
+    measured byte-identical in the Phase 5 hand check, and cases A/G/H assert zero persists. Ice
+    ruled 2026-09-23 (review loop 1, finding E3) that this is owned debt rather than a loopback.
+    Closing it needs group sizes remembered beside the spot and re-applied after `addPanel`, which
+    is real geometry that happy-dom cannot measure, so it needs a hand check on a real build.
+    **(Chủ: Ice.)**

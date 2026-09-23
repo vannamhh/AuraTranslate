@@ -125,11 +125,24 @@ onDeactivated(() => {
  */
 const owner = props.owner
 
+/**
+ * ⚠️ MỘT closure ổn định, dùng CHO CẢ HAI đầu declare/release — Story 4.12 Phase 3a.
+ *
+ * Trước bản vá này mỗi hook tự dựng closure riêng (`() => root.value` viết hai lần) — hai
+ * hàm khác nhau về THAM CHIẾU dù cùng thân. `releaseFocus(owner, expected)` so `expected`
+ * bằng THAM CHIẾU với đăng ký hiện tại (`FocusRegistry.release`, so sánh `!==`) để phân biệt
+ * "tôi đang gỡ đúng thứ tôi khai" với "owner đã bị một instance KHÁC chiếm lại" (panel Lookup
+ * sống đồng thời ở lưới VÀ ở ngăn kéo trong một khắc ngắn khi tầng nhảy — xem
+ * `lookupDrawerState.ts::syncLayoutTier`). Hai closure khác nhau sẽ luôn lệch tham chiếu và
+ * làm phép so sánh đó vô nghĩa với MỌI panel, không chỉ Lookup.
+ */
+const resolve = (): HTMLElement | null => root.value
+
 onMounted(() => {
-  declareFocus(owner, () => root.value)
+  declareFocus(owner, resolve)
 })
 onBeforeUnmount(() => {
-  releaseFocus(owner)
+  releaseFocus(owner, resolve)
 })
 </script>
 

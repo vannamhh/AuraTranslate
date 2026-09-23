@@ -16,7 +16,7 @@
         "title": "AuraTranslate",
         "width": 1280,
         "height": 860,
-        "minWidth": 960,
+        "minWidth": 800,
         "minHeight": 600,
         "resizable": true
       }

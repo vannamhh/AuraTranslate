@@ -217,6 +217,30 @@ const EXEMPT = new Map([
     'Chế độ đang mở (library/workspace). Dọn nó khi đổi Tác phẩm sẽ ném người dùng về màn ' +
       'hình Library ngay giữa lượt họ vừa mở một Tác phẩm — nó là state của PHIÊN.',
   ],
+  // ── Story 4.12, Phase 3a — ngăn kéo Tra cứu (Decision 2) ─────────────────────────
+  //
+  // ⚠️ Cả hai ô đều là state CỬA SỔ/PHIÊN, không state Tác phẩm — cùng lý lẽ với
+  // `modeState.ts::mode` ngay trên: việc ngăn kéo đang mở hay đóng, và tầng bố cục hiện tại
+  // có đòi Tra cứu rút hay không, không mô tả gì về Tác phẩm nào đang mở. Dọn chúng khi đổi
+  // Tác phẩm sẽ tự đóng một ngăn kéo người dùng đang thao tác, hoặc quên mất tầng bố cục vừa
+  // đo cho tới sự kiện resize kế tiếp — cả hai là hồi quy, không một lượt dọn dẹp có ích.
+  //
+  // 🔵 SỬA 2026-09-23: đã gỡ `KNOWN_TIERS` (hằng số THUẦN cho lượt đọc `dataset.layoutTier`)
+  // và `pollTimer` (con trỏ `setInterval` 200ms) — cả hai thuộc phép THĂM DÒ DOM của bản đầu,
+  // nay thay bằng `WorkspaceDock.vue::applyTier` đẩy tầng mới vào thẳng qua `syncLayoutTier`.
+  // Xem doc-comment đầu `lookupDrawerState.ts`.
+  [
+    'src/layout/lookupDrawerState.ts::drawerOpen',
+    'Ngăn kéo đang mở hay đóng — state PHIÊN. Đóng nó khi đổi Tác phẩm là tự tay đóng một ' +
+      'mặt người dùng đang dùng, không phải dọn dữ liệu của Tác phẩm cũ.',
+  ],
+  [
+    'src/layout/lookupDrawerState.ts::retreated',
+    'Tầng bố cục hiện tại có đòi Tra cứu rút hay không — suy ra từ KÍCH THƯỚC CỬA SỔ, đo lại ' +
+      'ĐỒNG BỘ ở lượt kế tiếp `WorkspaceDock.vue::applyTier` gọi `syncLayoutTier` (mỗi lượt ' +
+      'tầng đổi thật, không một chu kỳ cố định) bất kể có dọn ở đây hay không. Cùng loại "chỉ ' +
+      'phiên" với `modeState.ts::mode`.',
+  ],
 
   // ── SỔ ĐĂNG KÝ phần tử DOM — Vue đã sở hữu vòng đời, đừng dựng chủ thứ hai ───────
   //

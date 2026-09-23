@@ -1,12 +1,16 @@
 /**
  * Cổng BỐ CỤC — Story 1.14 · AC1 · AC4 · AC7 · AC12.
  *
- * Bốn phép kiểm, và cả bốn đều chạy trên **mã của sản phẩm**, không trên một bản chép:
+ * Năm phép kiểm, và cả năm đều chạy trên **mã của sản phẩm**, không trên một bản chép:
  *
  *   A (AC7)  thứ tự hy sinh của UX-DR15 — ba mệnh đề, gọi `nextToSacrifice()` THẬT.
  *   B (AC4)  nhịp ghi bố cục — ĐẾM số lượt `putConfig` trên một dòng sự kiện dày.
  *   C (AC1 · AC12) bề mặt cấm: không cửa sổ OS thứ hai, không kho lưu trữ thứ hai.
  *   D        TỰ KIỂM — chứng minh Kiểm C **đỏ được**, và không đỏ oan.
+ *   E (Story 4.12) bốn ngưỡng bố cục theo preset — toàn phần (cả vế hữu hạn lẫn vế
+ *     `null` khi không đo được), biên bao gồm cả hai đầu theo TỪNG preset, ưu tiên
+ *     trên-xuống khi hai điều kiện cùng khớp, và `NEVER_SACRIFICED` không bị đụng —
+ *     KHÔNG chứng minh "lưới còn hiện ở mọi tầng", việc đó thuộc Phase 4 trên dock thật.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÌ SAO KIỂM C VIẾT DẠNG **DANH SÁCH CHO PHÉP**, KHÔNG PHẢI MỘT DANH SÁCH CẤM DÀI
@@ -489,6 +493,22 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // lượt sửa phải tự dựng bằng `Range`, và `⌘Z` của người dùng mất lịch sử.
   // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.execCommand',
+  // Story 4.12, Task 3-4 (Phase 2) — `WorkspaceDock.vue::computeWorkArea` đọc kích thước cửa
+  // sổ THẬT để tính tầng bố cục qua `layoutTierFor`. ĐÂY LÀ LƯỢT ĐỌC `window.inner*` ĐẦU
+  // TIÊN trong `src/**` — Story 1.14 · AC1 giữ mệnh đề "không một chỗ đọc kích thước cửa sổ
+  // nào tồn tại" suốt tới tận đây, và spec 4.12 §Always nói đường kết thúc mệnh đề đó phải đi
+  // qua CHÍNH danh sách cho phép này, không phải một `ResizeObserver` — thứ Kiểm C này không
+  // thấy được (`workspaceLayout.ts` §"vì sao window reads rather than ResizeObserver" giải
+  // thích đầy đủ). API DOM chuẩn, chỉ ĐỌC, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng
+  // hai thứ đó.
+  'window.innerWidth',
+  'window.innerHeight',
+  // Cùng chỗ, cùng lý do — `getComputedStyle(document.documentElement)` đọc hai token chrome
+  // do `tokens/index.ts::applyTheme` ghi LÚC CHẠY (`--space-titlebar-height` ·
+  // `--space-status-height`, Story 1.4), vì spec 4.12 §Always cấm viết hai con số đó thành
+  // literal ở `computeWorkArea`. Trả về một `CSSStyleDeclaration` CHỈ-ĐỌC; không mở cửa
+  // sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'window.getComputedStyle',
 ])
 
 const GLOBAL_MEMBER_RE = /\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g
@@ -627,6 +647,215 @@ for (const [name, code, shouldFail] of CASES) {
 if (dBad === 0) {
   const red = CASES.filter(([, , f]) => f).length
   pass(`${CASES.length} ca tự kiểm — ${red} ca ĐỎ đúng, ${CASES.length - red} đối chứng âm XANH đúng`)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm E — bốn ngưỡng bố cục theo preset (Story 4.12, Task 1-2)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Gọi thẳng `layoutTierFor()` thật từ `layoutMod` (đã `import()` ở Kiểm A) — không một
+// bản chép logic. Bốn mệnh đề, đúng thứ Task 2 của Phase 1 giao:
+//   1. TOÀN PHẦN, HAI VẾ — mọi (width, height, preset) HỮU HẠN trả về một tầng hợp lệ,
+//      không ném lỗi; mọi (width, height) có ít nhất một chiều KHÔNG hữu hạn (`NaN`,
+//      `±Infinity`, `undefined`) trả ĐÚNG `null`, không bao giờ một chuỗi tầng.
+//   2. BIÊN THEO TỪNG PRESET — mỗi ngưỡng đóng cả hai phía (đúng số ⇒ tầng cao hơn; kém
+//      1 ⇒ tầng thấp hơn), số kỳ vọng ghim RIÊNG cho Ⓑ-1 và Ⓑ-2 để một lượt hiệu chỉnh
+//      chỉ đổi MỘT preset không làm phép kiểm đọc sai preset kia.
+//   3. ƯU TIÊN TRÊN-XUỐNG — khi chiều rộng đã `unsupported`, nó thắng cả một chiều cao
+//      lẽ ra rơi vào `narrow`; khi chiều cao quá thấp, nó thắng cả một chiều rộng đủ cho
+//      `full`/`short`.
+//   4. `NEVER_SACRIFICED` KHÔNG BỊ ĐỤNG, HAI TỪ VỰNG RỜI NHAU — không chứng minh "lưới
+//      còn hiện ở mọi tầng"; thang bậc thuần không biết panel nào đang mount. Mệnh đề
+//      đó là Phase 4, trên `WorkspaceDock.vue` thật.
+
+for (const name of ['LAYOUT_TIERS', 'LAYOUT_THRESHOLDS', 'layoutTierFor']) {
+  if (layoutMod[name] === undefined) {
+    abort('`src/layout/workspaceLayout.ts`', new Error(`không export \`${name}\` — Kiểm E cần nó.`))
+  }
+}
+const { LAYOUT_TIERS, LAYOUT_THRESHOLDS, layoutTierFor } = layoutMod
+
+const PRESET_IDS = ['layout.preset_grid', 'layout.preset_columns']
+for (const id of PRESET_IDS) {
+  if (LAYOUT_THRESHOLDS[id] === undefined) {
+    abort('`src/layout/workspaceLayout.ts`', new Error(`\`LAYOUT_THRESHOLDS\` thiếu khoá \`${id}\`.`))
+  }
+}
+
+// Mệnh đề 1 — TOÀN PHẦN, HAI VẾ.
+//
+// 🔴 Vế thứ hai tồn tại vì một cái bẫy ĐO ĐƯỢC, không phải phòng xa: mọi phép so sánh
+// với `NaN` trả `false`, nên một chuỗi `if (x < ngưỡng)` viết ngây thơ rơi qua HẾT bốn
+// nhánh và trả `'full'` — tức chính lượt "không đo được kích thước" lại báo bố cục
+// THOẢI MÁI NHẤT. Phase 2 đọc `getComputedStyle(...)` rồi `parseFloat`; một token rỗng
+// cho `NaN` theo đúng cách này. `layoutTierFor` phải trả `null` — *"không biết"*, không
+// phải *"đủ chỗ"* — và Kiểm E ghim cả hai vế để không ai âm thầm quay lại `'full'`.
+{
+  const widths = [-100, 0, 1, 500, 837.5, 859, 860, 861, 1099, 1100, 1101, 1500, 5000, 100000]
+  const heights = [-100, 0, 1, 500, 650.25, 699, 700, 701, 819, 820, 821, 1000, 5000, 100000]
+  const known = new Set(LAYOUT_TIERS)
+  let checked = 0
+  let bad = 0
+  for (const id of PRESET_IDS) {
+    for (const width of widths) {
+      for (const height of heights) {
+        checked += 1
+        let out
+        try {
+          out = layoutTierFor({ width, height }, id)
+        } catch (err) {
+          fail(`toàn phần (hữu hạn) — (${width}×${height}, ${id}) NÉM LỖI: ${err?.message || err}`)
+          bad += 1
+          continue
+        }
+        if (typeof out !== 'string' || !known.has(out)) {
+          fail(`toàn phần (hữu hạn) — (${width}×${height}, ${id}) trả về \`${String(out)}\`, không thuộc bốn tầng`)
+          bad += 1
+        }
+      }
+    }
+  }
+
+  // Vế KHÔNG HỮU HẠN — mọi tổ hợp có ít nhất một chiều không phải số hữu hạn phải trả
+  // ĐÚNG `null`, không phải một chuỗi tầng nào (kể cả `'full'`).
+  const nonFinite = [NaN, Infinity, -Infinity, undefined]
+  const FIXED = 999 // một chiều "bình thường" để cô lập chiều đang bị làm hỏng
+  let checkedNonFinite = 0
+  for (const id of PRESET_IDS) {
+    for (const bad_ of nonFinite) {
+      const cases = [
+        ['width', { width: bad_, height: FIXED }],
+        ['height', { width: FIXED, height: bad_ }],
+        ['cả hai', { width: bad_, height: bad_ }],
+      ]
+      for (const [label, workArea] of cases) {
+        checkedNonFinite += 1
+        let out
+        try {
+          out = layoutTierFor(workArea, id)
+        } catch (err) {
+          fail(`toàn phần (không hữu hạn) — ${label}=\`${String(bad_)}\` (${id}) NÉM LỖI: ${err?.message || err}`)
+          bad += 1
+          continue
+        }
+        if (out !== null) {
+          fail(
+            `toàn phần (không hữu hạn) — ${label}=\`${String(bad_)}\` (${id}) trả về \`${String(out)}\`, ` +
+              'phải là `null` — không đo được KHÔNG được đọc thành một tầng, nhất là không phải `full`',
+          )
+          bad += 1
+        }
+      }
+    }
+  }
+
+  if (bad === 0) {
+    pass(
+      `toàn phần — ${checked} tổ hợp hữu hạn luôn ra một trong bốn tầng; ` +
+        `${checkedNonFinite} tổ hợp không hữu hạn (NaN/±Infinity/undefined) luôn ra \`null\``,
+    )
+  }
+}
+
+// Mệnh đề 2 — BIÊN, đóng cả hai phía, GHIM RIÊNG THEO PRESET. Số kỳ vọng ở đây ĐỘC LẬP
+// với `LAYOUT_THRESHOLDS` (không đọc lại từ module) — nếu Task 1 (hoặc một lượt hiệu
+// chỉnh sau này) dời một ngưỡng mà quên sửa cổng, phép kiểm này đỏ và NÊU TÊN đúng
+// ngưỡng VÀ đúng preset đã dời.
+//
+// 🔴 Khoá theo `PresetId`, giống hệt cách `LAYOUT_THRESHOLDS` khoá — KHÔNG một `SEED`
+// dùng chung lặp qua cả hai preset. Spec và UX-DR15 đòi Ⓑ-1/Ⓑ-2 mang hai bộ số RIÊNG
+// sau khi hiệu chỉnh (Phase 5); một `SEED` chung sẽ ĐÚNG hôm nay (cả hai preset cùng hạt
+// giống) nhưng SAI HÌNH DẠNG ngay khi Phase 5 dời một preset — nó sẽ đỏ cả hai preset dù
+// chỉ một preset đổi, hoặc tệ hơn là đọc số của preset kia. Khoá theo preset thì một lượt
+// hiệu chỉnh chỉ làm đỏ đúng preset đó, và chỉ hàng ứng với đúng ngưỡng đã dời.
+//
+// 🔴 Đây chính là móc cho counter-check 1 của Phase 4: dời MỘT ngưỡng của MỘT preset —
+// hoặc số biên (khớp) hoặc số kém-1 (lệch) sẽ lệch tầng mong đợi, ở CẢ HAI HƯỚNG dời,
+// và chỉ ở preset đó.
+{
+  const EXPECTED = {
+    'layout.preset_grid': { minFullWidth: 1100, minFullHeight: 820, minShortHeight: 700, minSupportedWidth: 860 },
+    'layout.preset_columns': { minFullWidth: 1100, minFullHeight: 820, minShortHeight: 700, minSupportedWidth: 860 },
+  }
+  let bad = 0
+  const expect = (label, id, width, height, wantTier) => {
+    const got = layoutTierFor({ width, height }, id)
+    if (got !== wantTier) {
+      fail(`biên — ${label} (${id}, ${width}×${height}) mong \`${wantTier}\`, được \`${got}\``)
+      bad += 1
+    }
+  }
+  for (const id of PRESET_IDS) {
+    const seed = EXPECTED[id]
+    if (seed === undefined) {
+      abort('`scripts/check-layout.mjs`', new Error(`Kiểm E — \`EXPECTED\` thiếu khoá \`${id}\`.`))
+    }
+    // minSupportedWidth — chiều cao giữ cố định cao (999) để không chen vào.
+    expect('minSupportedWidth đúng biên ⇒ narrow', id, seed.minSupportedWidth, 999, 'narrow')
+    expect('minSupportedWidth kém 1 ⇒ unsupported', id, seed.minSupportedWidth - 1, 999, 'unsupported')
+    // minFullWidth — cùng lý do, chiều cao cố định cao.
+    expect('minFullWidth đúng biên ⇒ không còn narrow-vì-rộng', id, seed.minFullWidth, 999, 'full')
+    expect('minFullWidth kém 1 ⇒ narrow', id, seed.minFullWidth - 1, 999, 'narrow')
+    // minFullHeight — chiều rộng cố định rộng (5000) để không chen vào.
+    expect('minFullHeight đúng biên ⇒ full', id, 5000, seed.minFullHeight, 'full')
+    expect('minFullHeight kém 1 ⇒ short', id, 5000, seed.minFullHeight - 1, 'short')
+    // minShortHeight — cùng lý do, chiều rộng cố định rộng.
+    expect('minShortHeight đúng biên ⇒ short', id, 5000, seed.minShortHeight, 'short')
+    expect('minShortHeight kém 1 ⇒ narrow (quá thấp)', id, 5000, seed.minShortHeight - 1, 'narrow')
+  }
+  if (bad === 0) pass(`biên — cả 4 ngưỡng × 2 phía × ${PRESET_IDS.length} preset (ghim RIÊNG) đều đóng đúng`)
+}
+
+// Mệnh đề 3 — ƯU TIÊN TRÊN-XUỐNG: khi hai điều kiện cùng khớp, cái đứng TRƯỚC thắng.
+{
+  let bad = 0
+  const expect = (label, id, width, height, wantTier) => {
+    const got = layoutTierFor({ width, height }, id)
+    if (got !== wantTier) {
+      fail(`ưu tiên — ${label} (${id}, ${width}×${height}) mong \`${wantTier}\`, được \`${got}\``)
+      bad += 1
+    }
+  }
+  for (const id of PRESET_IDS) {
+    // Rộng đã unsupported (800 < 860) VÀ cao đã đủ điều kiện narrow-vì-thấp (650 < 700):
+    // unsupported phải thắng — chiều rộng được xét TRƯỚC chiều cao.
+    expect('unsupported thắng narrow-vì-thấp', id, 800, 650, 'unsupported')
+    // Rộng đủ full (1500 ≥ 1100) nhưng cao quá thấp (650 < 700): vẫn narrow, không phải
+    // full/short — chiều cao "quá thấp" thắng một chiều rộng tốt.
+    expect('narrow-vì-thấp thắng full/short dù rộng thoải mái', id, 1500, 650, 'narrow')
+    // Rộng hẹp (900, trong dải 860-1099) nhưng cao rất tốt (2000): vẫn narrow — dải hẹp
+    // của chiều rộng thắng một chiều cao thoải mái.
+    expect('narrow-vì-hẹp thắng dù cao thoải mái', id, 900, 2000, 'narrow')
+  }
+  if (bad === 0) pass('ưu tiên trên-xuống — chiều rộng unsupported/hẹp thắng mọi mệnh đề về chiều cao')
+}
+
+// Mệnh đề 4 — `NEVER_SACRIFICED` KHÔNG BỊ ĐỤNG, VÀ HAI TỪ VỰNG RỜI NHAU.
+//
+// ⚠️ Tên cũ của mệnh đề này ("LƯỚI KHÔNG BAO GIỜ BỊ NHƯỜNG") hứa NHIỀU hơn thân nó
+// chứng minh — thang bậc thuần ở đây chỉ trả về một TẦNG, nó không biết panel nào đang
+// mount, nên nó KHÔNG THỂ tự chứng minh "lưới còn hiện". Cái nó chứng minh được, và chỉ
+// chừng đó: Task 1/2 không đụng vào `NEVER_SACRIFICED` (spec §Always), và tên bốn tầng
+// không trùng với một `PanelId` — hai từ vựng RỜI NHAU để không ai lẫn "trả về một tầng"
+// với "trả về một panel". Mệnh đề THẬT "lưới không bao giờ bị nhường ở bất kỳ tầng nào"
+// chỉ chứng minh được khi tầng được nối vào `hidePanel`/`showPanel` thật — đó là
+// Phase 4, chạy trên `WorkspaceDock.vue`, không phải ở đây.
+{
+  let bad = 0
+  if (NEVER_SACRIFICED.length !== 1 || NEVER_SACRIFICED[0] !== 'panel.grid') {
+    fail(`\`NEVER_SACRIFICED\` phải là ĐÚNG \`['panel.grid']\`, đang là [${NEVER_SACRIFICED.join(', ')}]`)
+    detail('Task 1/2 của Story 4.12 không được đụng vào tập này — spec §Always.')
+    bad += 1
+  }
+  const overlap = LAYOUT_TIERS.filter((t) => PANEL_IDS.includes(t))
+  if (overlap.length > 0) {
+    fail(`tên tầng trùng với \`PanelId\`: ${overlap.join(', ')}`)
+    detail('Hai từ vựng phải RỜI NHAU — nhầm lẫn "tầng" với "panel" là chỗ nối dễ hỏng nhất.')
+    bad += 1
+  }
+  if (bad === 0) {
+    pass('`NEVER_SACRIFICED` vẫn đúng `[\'panel.grid\']`, và tên tầng không trùng `PanelId` nào')
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

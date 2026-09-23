@@ -50,8 +50,17 @@ export type FocusEntry = () => HTMLElement | null
 export type FocusRegistry = {
   /** ⚠️ NÉM khi: owner rỗng · owner sai văn phạm · owner TRÙNG · `resolve` không phải hàm. */
   declare(owner: FocusOwner, resolve: FocusEntry): void
-  /** Gỡ khai báo khi component tháo. Không có nó thì một lượt mount lại là một lần ném. */
-  release(owner: FocusOwner): void
+  /**
+   * Gỡ khai báo khi component tháo. Không có nó thì một lượt mount lại là một lần ném.
+   *
+   * ⚠️ `expected` (tuỳ chọn) — Story 4.12 Phase 3a, Task 6, Decision 2. Khi truyền, `release`
+   * chỉ xoá owner nếu `resolve` ĐANG khai đúng bằng `expected` (so tham chiếu). Nếu owner đã bị
+   * một lượt `declare()` KHÁC chiếm lại từ lúc `expected` được khai (ai đó đã "vượt mặt" —
+   * xem `PanelFrame.vue::onBeforeUnmount`), `release` coi đây là "không còn gì của tôi để gỡ"
+   * và thoát ÊM, không ném, không `console.error`: nó không phải một lỗi gõ tên, nó là một lượt
+   * gỡ ĐẾN MUỘN sau khi chủ đã đổi. Bỏ qua tham số này giữ nguyên hành vi cũ — xoá vô điều kiện.
+   */
+  release(owner: FocusOwner, expected?: FocusEntry): void
   has(owner: FocusOwner): boolean
   /** Thứ tự KHAI BÁO, ổn định — `next()` xoay vòng theo đúng thứ tự này. */
   owners(): readonly FocusOwner[]
@@ -100,7 +109,17 @@ export function createFocusRegistry(): FocusRegistry {
     byOwner.set(owner, resolve)
   }
 
-  const release = (owner: FocusOwner): void => {
+  const release = (owner: FocusOwner, expected?: FocusEntry): void => {
+    /**
+     * ⚠️ Vượt mặt — CHỈ khi gọi kèm `expected`. Owner vẫn còn khai (`current !== undefined`)
+     * nhưng KHÔNG PHẢI bởi `expected` nữa ⇒ một `declare()` khác đã chiếm lại chỗ này hợp lệ
+     * (dock re-declare `panel.lookup` trong khi bản sao ở ngăn kéo còn chờ Vue tháo bất đồng
+     * bộ — xem `WorkspaceDock.vue::applyTier` → `lookupDrawerState.ts::syncLayoutTier`). Xoá
+     * vô điều kiện ở đây sẽ GỠ NHẦM đăng ký MỚI, hợp lệ; thoát êm là hành vi ĐÚNG, không phải
+     * một lượt nuốt lỗi.
+     */
+    const current = byOwner.get(owner)
+    if (expected !== undefined && current !== undefined && current !== expected) return
     /**
      * ⚠️ KÊU khi gỡ một owner chưa khai. Mọi chỗ lệch khác trong tệp này đều ném hoặc
      * `console.error`; một `Map.delete` trả `false` bị bỏ đi là chỗ duy nhất im lặng — và

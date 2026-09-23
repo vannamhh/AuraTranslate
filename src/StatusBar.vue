@@ -30,6 +30,13 @@
 // là đúng thứ bắt họ bận tâm.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { t, tError } from './i18n'
+import { dispatch } from './commands'
+// 🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu. `lookupHasRetreated` là
+// một `ref` module-level ở `layout/lookupDrawerState.ts`, đẩy bởi `WorkspaceDock.vue::
+// applyTier` ĐỒNG BỘ qua `syncLayoutTier` (sửa 2026-09-23 — bản đầu thăm dò DOM mỗi 200ms;
+// xem doc-comment đầu tệp đó). `StatusBar` chỉ ĐỌC nó qua `v-if`, không còn vòng đời nào để
+// bắt đầu/dừng ở đây.
+import { lookupHasRetreated } from './layout/lookupDrawerState'
 import {
   editorConfirmNotice,
   editorNavNotice,
@@ -445,6 +452,28 @@ const glossaryHoverText = computed<string | null>(() => {
     <span v-else-if="secondsSinceSave !== null" class="saved">{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>
+
+    <!--
+      🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu.
+
+      🔴 KHÔNG một nhánh của chuỗi `v-if`/`v-else-if` ở trên: nó không phải một THÔNG BÁO
+      tranh chỗ với "Đã lưu N giây trước" và bốn nhóm câu khẩn hơn — nó là một LỐI VÀO,
+      phải còn bấm được bất kể thanh đang nói câu gì khác. `margin-left: auto` đẩy nó về
+      cạnh phải, tách khỏi luồng của năm nhánh câu (xem `.lookup-entry` ở style).
+
+      `data-lookup-drawer-open` là mối nối UX-DR17 mà `LookupDrawer.vue` đọc lại để trả tiêu
+      điểm về đây lúc đóng — một thuộc tính `data-`, không một tên lớp CSS (tên lớp là trình
+      bày, đổi được tự do).
+    -->
+    <button
+      v-if="lookupHasRetreated"
+      type="button"
+      class="lookup-entry"
+      data-lookup-drawer-open
+      @click="dispatch('layout.lookup_drawer_open')"
+    >
+      {{ t('command.layout.lookup_drawer_open') }}
+    </button>
   </footer>
 </template>
 
@@ -491,6 +520,30 @@ const glossaryHoverText = computed<string | null>(() => {
  * có một mức khẩn cấp, và mức đó sẽ phải lạm phát ở story sau. Chữ nói đủ.
  */
 .notice {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * 🔵 Story 4.12, Phase 3a — điểm vào ngăn kéo Tra cứu. `margin-left: auto` trên một flex
+ * container đẩy nó về cạnh PHẢI bất kể nhánh câu nào (hoặc không nhánh nào) đang chiếm phần
+ * còn lại — cùng cơ chế `justify-content: space-between` mà `.attr-head`/`.sc-head` dùng,
+ * chỉ viết ở phía item thay vì ở container vì `.status` còn năm anh em khác không cần dời.
+ *
+ * Không một vai chữ RIÊNG: `ui-sm` là vai của `.saved`/`.notice` ngay trên — một nút chữ
+ * cùng cỡ với phần còn lại của thanh, không phải một huy hiệu nổi bật hơn (Kiểm F của
+ * `check:tokens` cấm bóng đổ; nổi bật bằng token màu KHÔNG bằng elevation).
+ */
+.lookup-entry {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

@@ -89,6 +89,11 @@ import PromptImportOverlay from './PromptImportOverlay.vue'
 // TỪ Panel AI Translation (`AiTranslationPanel.vue`, nút "Xem prompt") — cùng khuôn
 // `PromptLibraryOverlay`: một lớp phủ tự quản `v-if`, dựng ở cùng tầng gốc.
 import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
+// Story 4.12, Phase 3a (Decision 2, Ice ký) — NGĂN KÉO Tra cứu, không lớp phủ thứ mười bốn.
+// Mở TỪ điểm vào ở `<StatusBar />` (tầng `narrow`/`unsupported`) — cùng khuôn tự quản `v-if`
+// của mười hai lớp phủ trên, chỉ khác Ở HÌNH DẠNG: trượt vào từ cạnh phải, không căn giữa
+// (UX-DR16 cấm hộp thoại cho thao tác thường xuyên, và tra cứu là thao tác thường xuyên nhất).
+import LookupDrawer from './layout/LookupDrawer.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -422,6 +427,10 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 4.7 · FR71/AD-14 — cùng khuôn: lớp phủ tự quản `v-if` qua `aiPromptInspectorIsOpen`. -->
     <AiPromptInspectorOverlay />
+
+    <!-- Story 4.12, Phase 3a · Decision 2 — tự quản `v-if` qua `lookupDrawerIsOpen`, mở từ
+         điểm vào ở `<StatusBar />`. Ngăn kéo, không lớp phủ căn giữa — xem import ở trên. -->
+    <LookupDrawer />
   </main>
 </template>
 

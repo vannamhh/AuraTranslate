@@ -184,6 +184,11 @@ export function presetById(id: string): LayoutPreset | undefined {
  * ngưỡng kích thước (`1100×820` · `<820 cao` · `<1100 rộng hoặc <700 cao` · `<860 rộng`)
  * là số, và chúng thuộc **Story 4.12**. Thứ tự thì thuộc về đây.
  *
+ * 🔵 **CẬP NHẬT 2026-09-22 (Story 4.12, Phase 1) — bốn ngưỡng đó nay ĐÃ Ở DƯỚI**, xem
+ * [`LAYOUT_THRESHOLDS`] và [`layoutTierFor`] cuối tệp này. Đoạn văn trên vẫn đúng — thứ tự
+ * hy sinh và bốn ngưỡng kích thước là hai mối quan tâm tách rời, chỉ là hai mối quan tâm
+ * đó nay cùng sống trong một tệp — nên không sửa, chỉ ghi thêm chỗ tìm.
+ *
  * ⚠️ *"rút về thanh trạng thái"* là vế mà story này KHÔNG cài — `panel.lookup` ở đây
  * chỉ **nhường**, và cái gì hiện ra thay nó là việc của 4.12. Ghi ra để 4.12 không đọc
  * mảng này thành *"Tra cứu được phép biến mất"*.
@@ -231,4 +236,150 @@ export function nextToRestore(visible: readonly string[]): PanelId | null {
     if (!visible.includes(id)) return id
   }
   return null
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * NGƯỠNG BỐN TẦNG — Story 4.12, Task 1. Vẫn tầng THUẦN: không `window`, không
+ * `matchMedia`, không DOM. `WorkspaceDock.vue` (Story 4.12, Phase 2) là nơi đọc
+ * `window.innerWidth`/`innerHeight` thật rồi gọi [`layoutTierFor`] ở đây.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Bốn tầng, TOÀN PHẦN và đánh giá theo một thứ tự ưu tiên cố định — với mọi
+ * `(width, height)` hợp lệ, đúng MỘT tầng khớp:
+ *
+ *   `full`        — đủ cả hai chiều: ba panel đứng nguyên vị trí.
+ *   `short`       — đủ rộng, thiếu cao vừa phải: Tra cứu và Đề xuất AI gộp một
+ *                   nhóm có tab (Story 4.12, Phase 2 — nhánh `within` của
+ *                   `rememberSpot`), lưới không đổi.
+ *   `narrow`      — thiếu rộng, hoặc quá thấp: chỉ còn lưới; Đề xuất AI ẩn hẳn,
+ *                   Tra cứu rút khỏi lưới (điểm vào chuyển sang thanh trạng thái
+ *                   — Quyết định 2, Story 4.12, Phase 3).
+ *   `unsupported` — quá hẹp để dùng được thoải mái: cùng bố cục panel với
+ *                   `narrow`, cộng một thông báo không chặn (Story 4.12, Phase 3).
+ *                   Lưới vẫn hiện và dùng được — một cửa sổ hẹp là một PHIỀN TOÁI,
+ *                   không phải một điểm dừng (user story gốc, đóng băng).
+ *
+ * 🔴 *"quá thấp"* của `narrow` là một mệnh đề RIÊNG khỏi chiều rộng: một cửa sổ ĐỦ
+ * rộng (`width ≥ minFullWidth`) nhưng quá thấp (`height < minShortHeight`) vẫn rơi
+ * vào `narrow`, không phải `short` hay `full` — đó là hàng *"Narrow or very short"*
+ * của ma trận I/O trong spec. Và một cửa sổ dưới `minSupportedWidth` là
+ * `unsupported` BẤT KỂ chiều cao — chiều rộng thắng chiều cao khi cả hai cùng tệ,
+ * đó chính là thứ tự ưu tiên mà `check-layout.mjs` Kiểm E ghim bằng số.
+ */
+export type LayoutTier = 'full' | 'short' | 'narrow' | 'unsupported'
+
+/** Mọi giá trị hợp lệ của [`LayoutTier`] — dùng để duyệt toàn phần trong gate và test. */
+export const LAYOUT_TIERS: readonly LayoutTier[] = ['full', 'short', 'narrow', 'unsupported']
+
+/**
+ * Diện tích làm việc THẬT của lưới, tính bằng CSS px. **Không phải** kích thước cửa
+ * sổ OS — spec đòi `height` đã trừ hai token chrome đang triển khai
+ * (`titlebar-height` + `status-height`, đọc từ `getComputedStyle` tại runtime, không
+ * viết số cứng), còn `width` thì bằng thẳng chiều rộng cửa sổ. Phép trừ đó là việc
+ * của `WorkspaceDock.vue` (Phase 2) — hàm ở đây chỉ nhận số đã trừ xong.
+ */
+export type WorkArea = {
+  readonly width: number
+  readonly height: number
+}
+
+/**
+ * Bốn ngưỡng của MỘT preset. Bốn TRƯỜNG, bốn TÊN — mỗi ngưỡng di chuyển ĐƯỢC một
+ * mình khi lượt hiệu chỉnh thật (Task 11) đo ra một số khác, mà không phải viết lại
+ * hàm [`layoutTierFor`].
+ */
+export type LayoutThresholds = {
+  /** Chiều rộng tối thiểu cho `full`/`short` — dưới số này luôn là `narrow` (trừ khi
+   *  đã `unsupported`), BẤT KỂ chiều cao. Hạt giống UX-DR15: `1100`. */
+  readonly minFullWidth: number
+  /** Chiều cao tối thiểu cho `full` — dưới số này (nhưng vẫn ≥ `minShortHeight`) là
+   *  `short`. Hạt giống UX-DR15: `820`. */
+  readonly minFullHeight: number
+  /** Chiều cao tối thiểu để KHÔNG rơi vào `narrow` vì quá thấp — dưới số này là
+   *  `narrow` dù chiều rộng còn thoải mái. Hạt giống UX-DR15: `700`. */
+  readonly minShortHeight: number
+  /** Chiều rộng tối thiểu để còn dùng được — dưới số này là `unsupported`, bất kể
+   *  chiều cao. Hạt giống UX-DR15: `860`. */
+  readonly minSupportedWidth: number
+}
+
+/**
+ * 🔴 HẠT GIỐNG — cả hai preset cùng bốn số này hôm nay, sao chép nguyên văn từ ma
+ * trận I/O của spec (2026-09-22). ĐÂY LÀ CHỖ DUY NHẤT bốn số đó xuất hiện; Task 11
+ * (Phase 5, người, không phải agent) đo lại trên phần cứng thật, RIÊNG cho Ⓑ-1 và
+ * Ⓑ-2 (spec Design Notes — áp lực dọc bén Ⓑ-1 trước, áp lực ngang bén Ⓑ-2 trước), và
+ * sửa đúng ở đây. `check-layout.mjs` Kiểm E ghim lại bốn số này ĐỘC LẬP, nên một lượt
+ * hiệu chỉnh phải sửa CẢ HAI chỗ.
+ *
+ * ⚠️ Hai object RIÊNG BIỆT, không phải một object dùng chung cho cả hai khoá của
+ * [`LAYOUT_THRESHOLDS`] — dù giá trị hôm nay giống hệt nhau. Một object dùng chung sẽ
+ * làm "hiệu chỉnh RIÊNG cho Ⓑ-1" và "hiệu chỉnh RIÊNG cho Ⓑ-2" đổi lẫn nhau.
+ */
+const SEEDED_THRESHOLDS_B2: LayoutThresholds = {
+  minFullWidth: 1100,
+  minFullHeight: 820,
+  minShortHeight: 700,
+  minSupportedWidth: 860,
+}
+const SEEDED_THRESHOLDS_B1: LayoutThresholds = {
+  minFullWidth: 1100,
+  minFullHeight: 820,
+  minShortHeight: 700,
+  minSupportedWidth: 860,
+}
+
+/** Bốn ngưỡng, theo preset. Khoá đúng hai `PresetId` của [`LAYOUT_PRESETS`]. */
+export const LAYOUT_THRESHOLDS: Readonly<Record<PresetId, LayoutThresholds>> = {
+  'layout.preset_grid': SEEDED_THRESHOLDS_B2,
+  'layout.preset_columns': SEEDED_THRESHOLDS_B1,
+}
+
+/**
+ * Thang bậc TỔNG (workArea, preset) → tầng — **HÀM THUẦN**, cùng kỷ luật với
+ * [`nextToSacrifice`]: không `window`, không đọc kích thước cửa sổ thật, không biết
+ * `PresetId` nào đang hiện trừ tham số truyền vào.
+ *
+ * `presetId` lạ (không khớp khoá nào của [`LAYOUT_THRESHOLDS`]) dùng ngưỡng của
+ * [`DEFAULT_PRESET_ID`] — cùng luật với [`presetById`] không ném lỗi trên một id lạ,
+ * để một bản ghi bố cục cũ/hỏng trên đĩa không làm hàm này ném ngoại lệ.
+ *
+ * 🔴 **`width`/`height` KHÔNG PHẢI SỐ HỮU HẠN ⇒ `null`, không phải `'full'`.** Mọi phép
+ * so sánh với `NaN` trả `false`, nên một thang bậc viết bằng chuỗi `if (x < ngưỡng)` rơi
+ * qua hết bốn nhánh và trả về `'full'` — tức chính lượt "không đo được kích thước" lại
+ * báo bố cục THOẢI MÁI NHẤT, trên một cửa sổ có thể đang rất nhỏ. `AGENTS.md` gọi im
+ * lặng-thành-rỗng là lớp lỗi trung tâm của dự án: *"một giá trị có thể KHÔNG XÁC ĐỊNH
+ * được nhận một `Option`/`NULL`, không bao giờ một `0` hay một giá trị mặc định ngầm"*.
+ * `Number.isFinite` chặn cả `NaN`, `Infinity`, `-Infinity` VÀ mọi giá trị không phải
+ * `number` (`undefined` ép kiểu qua JS runtime) trong cùng MỘT lượt kiểm — Phase 2 đọc
+ * `getComputedStyle(...).getPropertyValue(...)` rồi `parseFloat`, và một token trống
+ * (`''`) cho `NaN` đúng theo cách này, không phải một trường hợp lý thuyết.
+ *
+ * @returns tầng hợp lệ khi cả hai chiều là số hữu hạn, hoặc `null` khi KHÔNG ĐO ĐƯỢC —
+ *   `null` là *"không biết"*, không phải *"đủ chỗ"*. Gọi ở Phase 2 phải GIỮ tầng đang
+ *   áp trước đó và ghi một chẩn đoán nêu nguyên nhân, không được coi `null` là `'full'`.
+ */
+export function layoutTierFor(workArea: WorkArea, presetId: string): LayoutTier | null {
+  const { width, height } = workArea
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null
+  // 🔵 Story 4.12, Phase 2 — `presetId` nới từ `PresetId` sang `string`, và tra qua
+  // `presetById` thay vì đánh chỉ số thẳng vào `LAYOUT_THRESHOLDS`. Bản Phase 1 khai tham số
+  // là `PresetId` (một union ĐÃ ĐÓNG hai giá trị) rồi tự viết một nhánh dự phòng cho "id lạ" —
+  // nhưng với tham số kiểu `PresetId`, TypeScript CHỨNG MINH chỉ số đó không bao giờ thiếu, và
+  // `@typescript-eslint/no-unnecessary-condition` đọc đúng bằng chứng đó (`check:lint` đỏ,
+  // đo được — bảng kiểu nói một chuyện, chú thích ngay trên nó nói chuyện khác). Nới kiểu
+  // tham số để nó KHỚP với sự thật nhánh dự phòng đang phòng: dữ liệu preset trên đĩa CÓ THỂ
+  // sai hình dạng (cùng lý do `presetById(id: string)` ngay trên đây không khai `PresetId`).
+  // `presetById` đã có sẵn phép tra CÓ-KIỂM (`LAYOUT_PRESETS.find`, trả `LayoutPreset |
+  // undefined`) — tái dùng nó thay vì đánh chỉ số trần giữ nguyên hành vi, chỉ đổi CÁCH kiểu
+  // được chứng minh: `preset.id` là `PresetId` THẬT (không phải một `as` ép kiểu), nên chỉ số
+  // vào `LAYOUT_THRESHOLDS` vẫn an toàn và `??`/ternary dưới đây giờ canh một `| undefined`
+  // CÓ THẬT, không phải một cái TypeScript đã chứng minh không xảy ra.
+  const preset = presetById(presetId)
+  const t = preset === undefined ? LAYOUT_THRESHOLDS[DEFAULT_PRESET_ID] : LAYOUT_THRESHOLDS[preset.id]
+  if (width < t.minSupportedWidth) return 'unsupported'
+  if (width < t.minFullWidth) return 'narrow'
+  if (height < t.minShortHeight) return 'narrow'
+  if (height < t.minFullHeight) return 'short'
+  return 'full'
 }
