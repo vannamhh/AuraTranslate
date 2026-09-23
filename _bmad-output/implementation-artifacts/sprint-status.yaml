@@ -525,9 +525,10 @@ action_items:
       Story 2.9' (2-9 da rut AC do). Ho so ban giao da soan: planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md
       (hai duong (A)/(B) kem he qua tren dia · ba muc pham vi · tam rang buoc cung
       · sau dieu kien nghiem thu). Ice phan dinh -> Winston soan AD. Dieu kien xong:
-      AD-49 co mat trong ARCHITECTURE-SPINE.md, lint_spine.py sach"
+      AD-49 co mat trong ARCHITECTURE-SPINE.md, lint_spine.py sach. 🔵 2026-09-23: AD-49 da
+      vao spine (pham vi toan san pham, Ice chot), lint_spine.py 0 finding"
     owner: "Ice"
-    status: open
+    status: done
   - epic: 2
     action: "🔴 B7 — A5 cua retro Epic 1 LAP LAN THU HAI, va nay DA LO MOC. Retro Epic
       1 §10.3 viet bang chu: 'Story 2.4 do NFR18/NFR2 dong thoi, va NFR14 la menh

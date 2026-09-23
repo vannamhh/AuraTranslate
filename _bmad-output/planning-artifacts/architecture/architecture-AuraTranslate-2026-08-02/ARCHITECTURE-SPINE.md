@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-08-16'
+updated: '2026-09-23'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -771,6 +771,22 @@ graph TD
 - ⚠️ **Vị từ của `check-deps.mjs` Kiểm 1 rộng hơn lý do nó tự khai — sửa LÝ DO, giữ VỊ TỪ** *(Ice chốt 2026-08-25)*. Cổng đó canh *"tên có mặt trong `cargo tree`"*, trong khi chú thích khai lý do là *"plugin tồn tại để phơi API ra JavaScript"*. Hai mệnh đề đó **không trùng nhau** — §Rule ③ ngay trên là bằng chứng: `tauri-plugin-fs` ở trong cây mà **không** phơi một lệnh nào. Vị từ **ở lại** vì nó cưỡng chế được bằng máy; chú thích phải nói thật rằng nó canh **mã trong nhị phân** (NFR6 + bề mặt tấn công), còn **bề mặt IPC** (NFR11) do `config_invariants.rs` canh. Hai cổng, hai mệnh đề, không cái nào thay được cái kia.
 
   ⇒ `tauri-plugin-dialog` và `tauri-plugin-fs` rời `BANNED_CRATES`; **bốn** tên còn lại (`tauri-plugin-stronghold` · `tauri-plugin-keyring` · `tauri-plugin-sql` · `tauri-wire`) đứng nguyên, lý do không đổi một chữ.
+
+### AD-49 — Không có ngăn xếp hoàn tác; mỗi thao tác rời rạc tự mang đường lui của nó
+
+- **Binds:** tất cả — mọi thao tác ghi rời rạc (AD-35) và mọi binding `Mod+Z` · `Mod+Shift+Z` trong `CommandRegistry` (AD-34).
+- **Prevents:** (1) mỗi epic tự trả lời lại câu *"`⌘Z` làm gì"* — thành một ngăn xếp undo trong TypeScript (phá AD-1), hoặc một nghịch đảo gộp/tách cho `segment.id` đã về hưu sống lại (phá AD-3); (2) một command `Mod+Z` đăng ký vì lý do khác bắn cả trong ô bản dịch — hợp âm có phím mod chính **không** nhường vùng gõ — rồi `preventDefault` giết `⌘Z` gốc của trình duyệt, mà vẫn biên dịch và vẫn xanh; (3) một thao tác rời rạc mới ghi đè hoặc xoá văn bản người dùng không còn bản sao nào, không hỏi.
+- **Rule:** v1 **không** có ngăn xếp hoàn tác cấp ứng dụng, không bảng nhật ký thao tác, không trạng thái hoàn tác nào sống qua một lượt ghi. Thêm một cái là một `AD` mới.
+
+  1. **`⌘Z` duy nhất là `⌘Z` gốc của trình duyệt trong một vùng gõ.** Nó sửa văn bản trong đúng một editing host và xuống đĩa qua bộ đệm gõ như một lượt gõ (AD-35, AD-47). Lịch sử của nó hết khi một lượt ghi rời rạc viết lại chính ô đó; không thao tác nào được hứa khôi phục lịch sử ấy. Mọi binding `Mod+Z` · `Mod+Shift+Z` phải **nhường vùng gõ** — không `preventDefault` ở đó — và vùng gõ là đúng vị từ `keys.ts::isTypingZone`, không vị từ thứ hai.
+  2. **Mỗi thao tác ghi rời rạc thuộc đúng một lớp**, khai trong spec của story dựng nó:
+     **(i) có lệnh nghịch đảo đi cặp** — đường lui là gọi lệnh kia, và lệnh kia trả lại **mọi** nội dung người dùng (mục 3) mà lệnh đi đã đổi; không trả đủ thì thao tác thuộc lớp (iii) (cắt bỏ ↔ khôi phục câu FR133, ngắt ↔ nối đoạn FR134, dời Chương lên ↔ xuống, gộp ↔ tách Chương);
+     **(ii) không phá byte nội dung người dùng nào** — bản trước vẫn tra lại được (gộp/tách segment theo AD-5, xác nhận theo AD-31); đường lui là người dùng gọi lại lệnh gộp/tách, hoặc sửa văn bản của câu đã xác nhận để đưa nó về chưa xác nhận (AD-31); không có nghịch đảo tự động;
+     **(iii) phá nội dung người dùng không còn bản sao** — hỏi trước khi ghi: bấm hai lần kèm chữ *"không hoàn tác được"*, hoặc khuôn `needs_confirmation`/`force` của FR101. Phép thử là *"cái sắp mất có bản sao ở đâu không"* (hợp đồng phụ của AD-31), không phải một cờ `dirty`.
+  3. **Nội dung người dùng** ở lớp (iii) = `segment.target_text` và các hàng người dùng soạn trọn một thực thể (`glossary_entry`, `prompt_set`, `import_cleanup_rule`). **Không** gồm: siêu dữ liệu Chương (`title`, `origin_*` — AD-43), giá trị ghi đè cấu hình của các tầng AD-18 (`config_value`, `ai_config` — xoá = trả về kế thừa), dữ liệu dẫn xuất (`library_*`). Bảng hoặc cột mới mang văn bản người dùng tự soạn thì vào danh sách này, khai trong spec của story dựng nó.
+  4. AD-3, AD-5, AD-31 **không đổi một chữ**.
+
+  → bằng chứng: `ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11 · `sprint-change-proposal-2026-08-18b-mo-hinh-hoan-tac.md` · `.memlog.md`.
 
 ## Consistency Conventions
 

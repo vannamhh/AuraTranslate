@@ -4286,9 +4286,11 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Hai đường đóng, chưa chốt:** ① một dòng báo ở `StatusBar` — *"Gộp/tách không hoàn tác được — tách lại rồi chuyển chữ sang ô dưới"*; ② quyết định để nguyên, **viết ra bằng chữ** kèm lý do. 🔴 Đường ② là một quyết định hợp lệ, **không** phải một lượt bỏ qua — nhưng nó phải được viết, không được im lặng.
   ⚠️ **Ràng buộc nếu chọn ①:** `⌘Z` có `primaryMod` nên nó **không** bị `keys.ts:510` chặn trong vùng gõ *(khác `Backspace`)* ⇒ nó bắn **cả khi con trỏ đang ở trong ô bản dịch**. Một dòng báo gắn vào đó sẽ hiện giữa lúc người dùng đang gõ — đúng chỗ dễ thành phiền. Và command mới phải đi qua `CommandRegistry` *(AD-34 §1)*, không cài thẳng trong `GridPanel.vue`.
   **Chủ: Ice** *(chốt hình dạng — một dòng báo, hay một quyết định để nguyên viết ra)*. Một quyết định phủ được **cả hai** chỗ hở: `⌘Z` và lượt `⌘/` đa-mảnh.
+  🔵 2026-09-23 — Ràng buộc ở trên nay là luật: AD-49 Rule ① bắt mọi binding `Mod+Z` · `Mod+Shift+Z` nhường vùng gõ, không `preventDefault` ở đó. Nếu không, `⌘Z` gốc trong ô bản dịch sẽ chết.
 
 - ⚠️ **`AD-48` chưa được soạn, và nó KHÔNG chết theo AC5.** Ice rút AC5 nhưng câu hỏi *"`⌘Z` làm gì trong ứng dụng này"* vẫn phải có một chỗ đứng: Epic 3 trở đi còn thêm thao tác rời rạc *(duyệt glossary hàng loạt FR53, điền sẵn từ TM FR58, đề xuất AI)*, và mỗi thao tác ấy sẽ hỏi lại đúng câu này. Không viết ra thì mỗi epic phải đo lại từ đầu — đúng chi phí mà 47 `AD` kia tồn tại để tránh. Nội dung nay **nhỏ hơn nhiều** so với hồ sơ gốc: một mệnh đề *(Epic 2 không có mô hình hoàn tác; đường quay lại là gọi lại chính lệnh; và đây là lý do)*, cộng một câu khai rằng **AD-3, AD-5, AD-31 không đổi một chữ** *(khuôn AD-47 đã dùng)*. Hồ sơ: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11.4.
   **Chủ: Winston.** 🔴 Dev **không** tự soạn `AD` *(`project-context.md:461-463`)*.
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (AD-49) — số `AD-48` đã cấp cho hộp thoại chọn tệp, nên mô hình hoàn tác nhận `AD-49`. Phạm vi toàn sản phẩm, không chỉ Epic 2 (Ice chốt).
 
 ---
 
@@ -11716,3 +11718,13 @@ chính nó.
     Closing it needs group sizes remembered beside the spot and re-applied after `addPanel`, which
     is real geometry that happy-dom cannot measure, so it needs a hand check on a real build.
     **(Chủ: Ice.)**
+
+## Deferred from: AD-49 — mô hình hoàn tác (2026-09-23)
+
+- 🔴 **`promote_ai_translation` (⌘⇧↵) lệch lớp (iii) của AD-49.** `commands/segment.rs:2107` ghi đè `target_text` mà không kiểm "bản sắp mất có trong `segment_version` không", nên bản nháp chưa xác nhận mất hẳn. Khuôn đúng đã có ở FR101 (`restore_segment_version`, `needs_confirmation`/`force`). Thêm một vế: `replaceEditorSegment` viết lại cả ô đang có con trỏ, nên lịch sử ⌘Z gốc của ô đó mất theo, cùng các ký tự chưa flush.
+  Vì sao quan trọng: mất văn bản người dùng mà không hỏi, đúng lớp hỏng AD-49 Prevents (3). AD không chọn cách sửa.
+  **Chủ: Ice.** Bằng chứng: `architecture-AuraTranslate-2026-08-02/reviews/review-ad-49-reality-2026-09-23.md`.
+
+- 🟡 **AD-49 Rule ① chưa có cơ chế cưỡng chế.** `keys.ts:510` chỉ nhường vùng gõ cho hợp âm KHÔNG có phím mod chính. Một binding `Mod+Z` tương lai vẫn `preventDefault` trong ô và vẫn xanh; hôm nay có 0 binding `KeyZ`, nên chưa có lỗi đang chạy.
+  Hai đường, chưa chốt: ① `keys.ts::handle()` luôn nhường `Mod+Z`/`Mod+Shift+Z` khi `isTypingZone`; ② thêm một ca quét vào `check-commands.mjs`, rồi Rule trích tên ca đó.
+  **Chủ: Ice.** Bằng chứng: `reviews/review-ad-49-rubric-2026-09-23.md`.
