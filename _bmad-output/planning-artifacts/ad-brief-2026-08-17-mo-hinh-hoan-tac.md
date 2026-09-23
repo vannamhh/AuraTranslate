@@ -1,6 +1,7 @@
 # Hồ sơ bàn giao cho Winston — một `AD` mới về **mô hình hoàn tác**
 
 **Ngày:** 2026-08-17 · **Người bàn giao:** Amelia (dev-story) · **Người nhận:** Winston (architect)
+🔵 **2026-09-23 — đổi số `AD-48` → `AD-49`** ở cả năm chỗ trong hồ sơ này: `AD-48` đã được cấp cho hộp thoại chọn tệp (Story 3.10b, 2026-08-25). Ice chốt, action item AI-1 của retro Epic 3.
 **Nguồn gốc:** cửa chặn **Task 0** của Story 2.9 (`2-9-gop-bang-backspace-dau-o.md`)
 **Trạng thái Story 2.9:** `in-progress`. Cửa chặn này **chỉ chặn AC5**; năm AC còn lại đứng được
 một mình — xem §7.
@@ -162,7 +163,7 @@ mức ①/②, và là một **cái bẫy** cho mức ③.
 
 ## 7. Khuyến nghị phạm vi — năm AC giao được ngay, và chúng đứng được một mình
 
-| AC | Nội dung | Phụ thuộc `AD-48`? |
+| AC | Nội dung | Phụ thuộc `AD-49`? |
 |---|---|---|
 | AC1 | Cử chỉ `Backspace` ở đầu ô ⇒ gộp | **Không** |
 | AC2 | Kết quả xác định ở cả hai vế | **Không** — đã cài ở `regroup.rs`, đã khoá ở `segment_contract.rs` |
@@ -291,7 +292,7 @@ một ngoại lệ của AD-3.
 được rằng nó cho ra *"một segment giữ toàn bộ bản dịch, một segment rỗng"*, và nó **không** với tới
 được trạng thái xác nhận cùng lịch sử phiên bản mà chính lượt gộp đã lấy đi *(§9.3)*.
 
-⇒ **`AD-48` phải khai một NGOẠI LỆ CÓ TÊN của AD-3** *(`SPINE:89-93` — `segment.id` bất biến, không
+⇒ **`AD-49` phải khai một NGOẠI LỆ CÓ TÊN của AD-3** *(`SPINE:89-93` — `segment.id` bất biến, không
 tái dùng sau khi về hưu)*. Đây là việc của **Winston**, không của một lượt dev.
 
 ### 10.1 (A) kéo theo gì — đo trên HEAD `91cfed1`
@@ -330,7 +331,7 @@ tại**, và mọi đường đọc lịch sử sẽ gặp nó. Ghi ra vì *"đ�
 
 ### 10.3 Câu §4 còn mở — nhưng nay phân định được bằng số
 
-`AD-48` chưa đủ điều kiện nghiệm thu §6 mục 2 cho tới khi phạm vi ①/②/③ có chữ ký. Đo **năm** bề mặt
+`AD-49` chưa đủ điều kiện nghiệm thu §6 mục 2 cho tới khi phạm vi ①/②/③ có chữ ký. Đo **năm** bề mặt
 ghi rời rạc đang tồn tại, và **hai trong năm đã có nghịch đảo là một lệnh người dùng có sẵn**:
 
 | Thao tác rời rạc | Lệnh | Nghịch đảo hôm nay |
@@ -352,7 +353,7 @@ Rust)*, AD-11 không đụng tới *(mọi lượt ghi vẫn qua một `Writer`)
 🔴 Chỉ khi phạm vi là **②/③** hoặc `⌘Z` phải **sống qua một lượt đóng/mở Tác phẩm** thì bảng nhật ký
 — và bước **12** — mới trở thành bắt buộc.
 
-### 10.4 Winston cần gì để soạn `AD-48`
+### 10.4 Winston cần gì để soạn `AD-49`
 
 1. ✅ Câu §3 — **(A)**, Ice ký 2026-08-18.
 2. 🔲 Câu §4 — phạm vi **①/②/③**, và `⌘Z` có sống qua đóng/mở Tác phẩm không.
@@ -412,7 +413,7 @@ nhìn thấy được"*. Đúng **với một nút dán nhãn "hoàn tác"** —
 Cùng trạng thái ấy khi **người dùng tự làm** thì không lời hứa nào bị phá. **Khác biệt nằm ở LỜI HỨA,
 không ở byte.** Mệnh đề §9.2 **vẫn đúng cho đường (B)** và vẫn là lý do loại (B).
 
-### 11.4 `AD-48` — vẫn cần, nhưng đổi hẳn kích thước
+### 11.4 `AD-49` — vẫn cần, nhưng đổi hẳn kích thước
 
 Winston soạn **một** mệnh đề: *Epic 2 không có mô hình hoàn tác; gộp/tách không hoàn tác được; đường
 quay lại là gọi lại chính lệnh gộp/tách — và đây là lý do.*

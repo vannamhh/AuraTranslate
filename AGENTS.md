@@ -17,7 +17,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - Default branch is `master`; a workflow on `main` never runs and throws no error.
 - Never commit `.db` files (AD-25). Dictionary data ships through GitHub Release + `dict-manifest.toml`.
 - New dependency (NFR15): read the licence in the DOWNLOADED source (`~/.cargo/registry/src/…`, `node_modules/…`), per-file headers when there is no `LICENSE`, and record it in the spine's Stack table BEFORE adding. GPLv3-compatible only; MPL-2.0 passes unless a file carries an Exhibit B notice.
-- Changing an architectural invariant is a new `AD` in the spine, drafted by Winston, not a line of code. Next free number: scan the spine AND every unwritten `ad-brief-*.md` (AD-48 is issued twice today — `sprint-status.yaml` B6).
+- Changing an architectural invariant is a new `AD` in the spine, drafted by Winston, not a line of code. Next free number: scan the spine AND every unwritten `ad-brief-*.md` (AD-49 is reserved for the undo model — `sprint-status.yaml` B6).
 - Two valid options ⇒ present both with measurements for Ice; never pick one and move on.
 - Dirty tree before a story ⇒ ask Ice, then commit it separately first.
 - Agent cost is the area under the context curve, and a byte read early costs far more than one read late (evidence: `agent-token-economics.md`). So: split a story into ~4 phases (plan · Rust · Webview · Tests that move), one FRESH agent per phase, handed off through a file on disk, each under ~250 k context (a guideline, not a gate). Keep up-front reading short. Read large files with `offset`/`limit`; a file too large to hold as a map should be split, not re-peeked.
