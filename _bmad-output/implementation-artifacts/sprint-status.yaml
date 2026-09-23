@@ -45,7 +45,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-23-2026 16:35'
+last_updated: '09-23-2026 17:32'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -127,7 +127,7 @@ development_status:
   4-10-lỗi-mạng-và-lỗi-api: review
   4-11-số-token-và-ước-tính-chi-phí: review
   4-12-bố-cục-màn-hình-hẹp-và-hiệu-chỉnh-ngưỡng: review
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: in-progress
   5-1-mô-hình-library-hai-tầng: done
@@ -305,8 +305,9 @@ action_items:
     action: "✅ XONG 2026-08-12 — vet seo `PROJECT_MIGRATIONS` so 4 da vao §Dieu kien
       khoi hanh muc 2 cua Story 2.1, kem AC10 va Task 3.4. Dieu kien dong (`story
       2.1 dung ra da mang menh de do`) da dat. Task 3.4 di xa hon mot buoc: dung cong
-      con thieu ghi o `deferred-work.md §*Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)*` — mot test cam `to_version == 4`
-      quay lai, vi `validate_strictly_increasing` KHONG bat duoc ca nay"
+      con thieu ghi o `deferred-work.md §*Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong
+      (2026-08-10)*` — mot test cam `to_version == 4` quay lai, vi `validate_strictly_increasing`
+      KHONG bat duoc ca nay"
     owner: "Dev"
     status: done
   - epic: 1
@@ -448,24 +449,23 @@ action_items:
       = 706-770 ms so voi tran NFR2 50 ms => vuot ~15 lan; 2.10 va 2.11 deu them lenh
       di qua DUNG duong nong do va deu ghi 'chu van la Story 2.4', trong khi 2.4 khong
       chay duoc. Epic 3 trang tri them len chinh duong do. Moc hieu nang cu (deferred-work.md
-      §*Deferred from: Story 1.22 — C3, và một giới hạn hoá ra đã tự hết hiệu lực (2026-08-12)*
-      — section da luoc 2026-09-19, cach phuc hoi ghi o dau so no)
-      MAT HIEU LUC THEO CAU TRUC. Epic 3 KHONG mo truoc khi B1 xong. 🔵 GO VE MENH
-      DE EPIC-3 — Ice ky 2026-08-19. Ve chan Epic 3 HET HIEU LUC; phan con lai cua
-      B1 (mot con so NFR2 da va) O LAI mo. DIEU GI DA DOI, ba menh de kiem duoc: (1)
-      Ly do goc cua cua chan la cap danh doi `wal_threshold_bytes` <-> NFR18, va luoi
-      SAU DIEM da chay 2026-08-18 (120 mau hop le) chung minh cap do KHONG TON TAI
-      trong tai nay — dinh `.db-wal` khong bao gio vuot ~740 KB nen tu 1 MiB tro len
-      nguong la mot bien TRO (o 16 MiB moi cham 1/22), va `busy = 0` o ca sau diem.
-      (2) Cua chan B2 da dong (Story 2.12, e2e 11/11 xanh) — luoi nghiem thu cho hinh
-      dang day da co. (3) Ban do NFR2 het la mot cho chan KY THUAT: goc re da tim
-      ra (patchInvoke nem vi Tauri khoa `__TAURI_INTERNALS__.invoke`) va ban do nay
-      chay tron vong, lap lai duoc 5/5 phien. Thu con thieu la THOI GIAN MAY, khong
-      phai mot khuyet tat chua biet. 🔴 CAI KHONG DOI, ghi ra thay vi lam nhe di: NFR18
-      TRUOT 120/120 mau (tot nhat 7,747 s so voi tran 5 s), va so smoke NFR2 cho 9-39%
-      frame vuot tran 50 ms tren mot Chuong chi 122 cau. Story 3.4 (danh dau o cot
-      nguyen van cua luoi) trang tri DUNG duong nong do — no la story rui ro nhat
-      cua Epic 3"
+      §*Deferred from: Story 1.22 — C3, và một giới hạn hoá ra đã tự hết hiệu lực
+      (2026-08-12)* — section da luoc 2026-09-19, cach phuc hoi ghi o dau so no) MAT
+      HIEU LUC THEO CAU TRUC. Epic 3 KHONG mo truoc khi B1 xong. 🔵 GO VE MENH DE EPIC-3
+      — Ice ky 2026-08-19. Ve chan Epic 3 HET HIEU LUC; phan con lai cua B1 (mot con
+      so NFR2 da va) O LAI mo. DIEU GI DA DOI, ba menh de kiem duoc: (1) Ly do goc
+      cua cua chan la cap danh doi `wal_threshold_bytes` <-> NFR18, va luoi SAU DIEM
+      da chay 2026-08-18 (120 mau hop le) chung minh cap do KHONG TON TAI trong tai
+      nay — dinh `.db-wal` khong bao gio vuot ~740 KB nen tu 1 MiB tro len nguong
+      la mot bien TRO (o 16 MiB moi cham 1/22), va `busy = 0` o ca sau diem. (2) Cua
+      chan B2 da dong (Story 2.12, e2e 11/11 xanh) — luoi nghiem thu cho hinh dang
+      day da co. (3) Ban do NFR2 het la mot cho chan KY THUAT: goc re da tim ra (patchInvoke
+      nem vi Tauri khoa `__TAURI_INTERNALS__.invoke`) va ban do nay chay tron vong,
+      lap lai duoc 5/5 phien. Thu con thieu la THOI GIAN MAY, khong phai mot khuyet
+      tat chua biet. 🔴 CAI KHONG DOI, ghi ra thay vi lam nhe di: NFR18 TRUOT 120/120
+      mau (tot nhat 7,747 s so voi tran 5 s), va so smoke NFR2 cho 9-39% frame vuot
+      tran 50 ms tren mot Chuong chi 122 cau. Story 3.4 (danh dau o cot nguyen van
+      cua luoi) trang tri DUNG duong nong do — no la story rui ro nhat cua Epic 3"
     owner: "Ice"
     status: open
   - epic: 2
@@ -597,13 +597,14 @@ action_items:
   - id: "epic-3-retro-item-37-ai-3-giao-lai-chu-cho-28-muc-no-dang-tre"
     epic: 3
     action: "🔴 AI-3 — GIAO LAI CHU cho 28 muc no dang treo (phan bo: Story 3.9 x8
-      · 3.4b x6 · 3.8 x6 · 3.6 x3 · 3.7 x2 · 3.10 · 3.5 · 3.10b). Uu tien muc `deferred-work.md §*Deferred from: lượt rà soát Story 3.4 (2026-08-21)*`
-      — \"Mo mot Tac pham thu hai giua hai lan khoa => ket qua quet MAT VINH VIEN\"\
-      : chu cu la Story 3.8, story do da `done`, va vi tu `...HasScanned` ma chinh
-      muc no doi thi chua bao gio duoc dung (`grep -rE 'HasScanned|hasScanned|ScanStatus'
-      src/ src-tauri/src/` = 0). Hau qua la dung lop loi trung tam cua du an: man
-      Duyet hang loat doc `status='loaded'` voi 0 hang, khong phan biet duoc \"rong
-      vi mat\" voi \"rong vi khong co ung vien\", va du lieu khong hoi phuc."
+      · 3.4b x6 · 3.8 x6 · 3.6 x3 · 3.7 x2 · 3.10 · 3.5 · 3.10b). Uu tien muc `deferred-work.md
+      §*Deferred from: lượt rà soát Story 3.4 (2026-08-21)*` — \"Mo mot Tac pham thu
+      hai giua hai lan khoa => ket qua quet MAT VINH VIEN\": chu cu la Story 3.8,
+      story do da `done`, va vi tu `...HasScanned` ma chinh muc no doi thi chua bao
+      gio duoc dung (`grep -rE 'HasScanned|hasScanned|ScanStatus' src/ src-tauri/src/`
+      = 0). Hau qua la dung lop loi trung tam cua du an: man Duyet hang loat doc `status='loaded'`
+      voi 0 hang, khong phan biet duoc \"rong vi mat\" voi \"rong vi khong co ung
+      vien\", va du lieu khong hoi phuc."
     owner: "Ice"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -755,10 +756,11 @@ action_items:
   - id: "epic-3-retro-item-48-ai-14-tach-tieu-de-so-no-deferred-from-3"
     epic: 3
     action: "📌 AI-14 — TACH TIEU DE SO NO. `## Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary
-      (2026-08-25)` (`deferred-work.md §*Deferred from: vòng rà ba lớp của Story 3.6 (2026-08-22)*`) cho 28 muc nhung chi 5 thuoc Story 3.10b
-      — 22 muc thuoc sau cum ra A-F. Moi muc CO `source_spec` dung nen khong muc nao
-      mat dau va `check:debt-owner` xanh; thu sai chi la TIEU DE. Tach mot tieu de
-      `## Deferred from: vong ra toan Epic 3 (cum A-F)`, sua tai cho kem 🔵 va ngay."
+      (2026-08-25)` (`deferred-work.md §*Deferred from: vòng rà ba lớp của Story 3.6
+      (2026-08-22)*`) cho 28 muc nhung chi 5 thuoc Story 3.10b — 22 muc thuoc sau
+      cum ra A-F. Moi muc CO `source_spec` dung nen khong muc nao mat dau va `check:debt-owner`
+      xanh; thu sai chi la TIEU DE. Tach mot tieu de `## Deferred from: vong ra toan
+      Epic 3 (cum A-F)`, sua tai cho kem 🔵 va ngay."
     owner: "Dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -892,8 +894,8 @@ action_items:
     epic: 6
     action: "AI-9 — Chay bmad-correct-course dua Story 6.6b (nhap nhieu tep) va 6.7b
       (them Chuong vao Tac pham co san) vao epics.md + sprint-status.yaml; hien chi
-      co trong deferred-work.md §*Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)* va :10382, va ve '6.6b dung truoc 6.7' da het
-      dung"
+      co trong deferred-work.md §*Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa
+      (2026-09-05)* va :10382, va ve '6.6b dung truoc 6.7' da het dung"
     owner: "Ice"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"

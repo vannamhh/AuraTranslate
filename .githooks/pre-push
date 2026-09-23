@@ -1,59 +1,8 @@
 #!/bin/sh
-# ══════════════════════════════════════════════════════════════════════════════════
-#  Cổng chặn lúc PUSH — thay chỗ mà GitHub Actions bỏ trống (Ice chốt 2026-08-11).
-# ══════════════════════════════════════════════════════════════════════════════════
-#
-# 🔴 VÌ SAO CHẶN CHỨ KHÔNG BÁO CÁO
-#
-# Phát hiện nặng nhất của retrospective Epic 1: CI đã chạy 12 lượt và ĐỎ cả 12, suốt
-# sáu ngày, mà không một story nào biết — vì nó chỉ **báo cáo** lên một tab không ai mở.
-# Một cổng chặn không có lối hỏng đó: nó đứng chắn đường push, nên nó được đọc hay
-# không cũng không quan trọng.
-#
-# Cùng lý do, cổng này KHÔNG viết log rồi tiếp tục. Đỏ là dừng.
-#
-# ── Phạm vi: cái gì Ở TRONG và vì sao ────────────────────────────────────────────
-#
-# TRONG (đo 2026-08-11: cổng 11s · build 5s · cargo test 34s; + test frontend ~2s từ 2026-08-12):
-#   **mười một** cổng đọc-tệp · `npm run test` (vitest) · `npm run build` · `cargo test --locked`
-#   🔵 2026-08-19: chín → mười (`check:panel-refs`, Story 2.12) → mười một (`check:debt-owner`,
-#   Story 2.13). Con số ở đây và ở dòng `echo` phải đi cùng vòng lặp `for gate in …` bên dưới.
-#
-# NGOÀI, có chủ ý:
-#   - `check:scope` và `check:scope:bundled` — hai cổng này dựng một cửa sổ Tauri thật
-#     và cần cổng 1420 trống. Chúng trượt nếu Ice đang mở `npm run tauri dev`, tức một
-#     cổng chặn sẽ chặn nhầm vào đúng lúc đang làm việc. Chạy tay:
-#         npm run check:scope && npm run check:scope:bundled
-#   - Bộ e2e — mỗi spec mở một cửa sổ thật, tốn ~1,5 phút, VÀ nó sửa `global.db` thật
-#     của người chạy (xem §Giới hạn ở `e2e/wdio.conf.mjs`). Không có việc gì trong một
-#     cổng chạy mỗi lượt push. Chạy tay:  npm run test:e2e
-#     🔵 2026-08-20 (lượt rà soát Story 3.3) — VÀ NÓ THÔI NẰM NGOÀI MỌI CỔNG. Câu trên
-#     đúng nguyên văn về `pre-push`, nhưng lượt rà soát đo ra một vế nó KHÔNG nói: bộ e2e
-#     cũng không có trong CI, tức nó chạy đúng 0 lần trong bất kỳ cổng nào và mọi mệnh đề
-#     "webview thật" đi qua `pre-push` xanh + CI xanh mà chưa từng được đo. Nay job `e2e`
-#     ở `.github/workflows/ci.yml` chạy trọn bộ theo NHỊP ĐÊM (`schedule`) và khi bấm tay
-#     — vẫn KHÔNG ở `push`, vì bộ này còn một mục nợ chập chờn chưa chẩn đoán. Nhịp đêm
-#     là chỗ đọc kết quả; `pre-push` giữ nguyên vai và nguyên lý do loại trừ.
-#
-# ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng nhầm: cổng này chạy trên **macOS
-# của Ice**, nên nó KHÔNG nói được gì về nửa Windows.
-#
-# 🔵 CẬP NHẬT 2026-08-19 — hai mệnh đề ở đây đã hết đúng, sửa tại chỗ. Bản trước viết
-# *"GitHub Actions nay chỉ chạy khi bấm tay (`workflow_dispatch`, Ice chốt 2026-08-12 —
-# hạn mức để dành cho dự án khác)"* và *"trọn phần Windows đã dời về CUỐI dự án"*. Cả hai
-# đã bị chính `ci.yml` lật:
-#   · `ci.yml:46-49` khai `push:` + `pull_request:` + `workflow_dispatch:` — lượt tạm dừng
-#     sống đúng MỘT ngày, rồi quyết định "repo công khai" của Ice làm lý do hạn mức hết
-#     hiệu lực (`ci.yml:24-38`);
-#   · `ci.yml:70-81` chạy `windows-2025` trong CÙNG matrix với macOS ở MỌI lượt, và
-#     `ci.yml:343-508` dựng + đo ba biến thể `.msi` mỗi lượt.
-#
-# ⇒ Nửa Windows NAY có đường nghiệm thu: mỗi lượt push. Nhưng nó không nằm ở cổng này —
-# `pre-push` xanh vẫn KHÔNG nói gì về Windows, nên vẫn phải đọc lượt CI trước khi kết
-# luận. Xem action item A5 của retrospective Epic 1.
-#
-# Bỏ qua một lượt:  git push --no-verify
-# Gỡ hẳn:           git config --unset core.hooksPath
+# Push gate: 11 gates, vitest, build, cargo test. A red step blocks the push.
+# A push touching only documentation runs the gates and skips the rest (is_docs_only).
+# check:scope, check:scope:bundled and the e2e suite stay out on purpose; CI and the nightly run cover them.
+# History: _bmad-output/implementation-artifacts/agent-rules-evidence.md
 
 set -e
 
@@ -74,6 +23,29 @@ fail() {
   exit 1
 }
 
+ZERO=0000000000000000000000000000000000000000
+
+# naming_boundary.rs reads the root AGENTS.md, and *-ban-do/ holds test fixtures.
+is_docs_only() {
+  files=$(git diff --name-only "$1" "$2" 2>/dev/null) || return 1
+  printf '%s\n' "$files" | awk '
+    $0 == "" { next }
+    $0 == "AGENTS.md" || /-ban-do\// { found = 1; exit }
+    /^_bmad-output\// || /\.md$/ { next }
+    { found = 1; exit }
+    END { exit found }'
+}
+
+DOCS_ONLY=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO" ] && continue
+  if [ "$remote_sha" = "$ZERO" ] || ! is_docs_only "$remote_sha" "$local_sha"; then
+    DOCS_ONLY=0
+    break
+  fi
+  DOCS_ONLY=1
+done
+
 START=$(date +%s)
 echo ''
 echo 'pre-push — mười một cổng, test frontend, build, cargo test.'
@@ -88,21 +60,22 @@ for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint 
   fi
 done
 
-# Bộ chạy test frontend — Story 2.3. Ngay sau **mười một** cổng, TRƯỚC build: nó không cần `dist/`,
-# và một mệnh đề mili-giây phải đỏ trước một lượt biên dịch. `check:gates` Kiểm F canh việc
-# dòng này có mặt ở cả ba danh sách.
-printf '  %-14s' 'test'
-if npm run --silent test >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run test' 'npm run test'; fi
-
-printf '  %-14s' 'build'
-if npm run build >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run build' 'npm run build'; fi
-
-printf '  %-14s' 'cargo test'
-if (cd src-tauri && cargo test --locked >/dev/null 2>&1); then
-  green 'OK'
+if [ "$DOCS_ONLY" = 1 ]; then
+  echo '  (chỉ đổi tài liệu — bỏ qua test, build, cargo test)'
 else
-  echo ''
-  fail 'cargo test' 'cd src-tauri && cargo test --locked'
+  printf '  %-14s' 'test'
+  if npm run --silent test >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run test' 'npm run test'; fi
+
+  printf '  %-14s' 'build'
+  if npm run build >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run build' 'npm run build'; fi
+
+  printf '  %-14s' 'cargo test'
+  if (cd src-tauri && cargo test --locked >/dev/null 2>&1); then
+    green 'OK'
+  else
+    echo ''
+    fail 'cargo test' 'cd src-tauri && cargo test --locked'
+  fi
 fi
 
 echo ''
