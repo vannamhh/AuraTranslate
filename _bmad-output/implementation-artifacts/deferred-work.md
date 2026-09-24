@@ -168,6 +168,7 @@
     §Story 2.3 *"Chủ: Ice (phán quyết về AD-34), rồi story thi hành"*.)**
 
 - 🔴 **Nghiệm thu DOM chạy trên Blink (Chrome), KHÔNG phải WKWebView, và KHÔNG qua `tauri dev`.** Lý do đo được, không phải quên: cổng `1420` mà `vite.config.ts` ghim (`strictPort: true`) đang bị **một dự án khác của Ice** (`gdrive_suite_manager`) chiếm lúc đo, và `devUrl` trong `tauri.conf.json` trỏ cứng vào đó — mà §Ranh giới phạm vi của story không cấm đụng `tauri.conf.json`. Lượt đo chạy qua `npx vite --port 1431` rồi lái bằng Chrome. **Chưa đo:** `⌘1 ⌘2 ⌘3` đi qua **WKWebView** thật; `⌘1..3` đi qua **tầng OS** *(Chrome nuốt `⌘2` để chuyển tab — sự kiện được dựng trên `window` thay thế, tức tầng ứng dụng đã đo, tầng phân phối phím của OS thì chưa)*. Đừng viết "tương đương" bằng suy luận. **Nhặt lại:** một lượt `npm run tauri dev` khi cổng 1420 rảnh, hoặc lượt runner của Story 1.9 / 10.9. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu: đo trên WKWebView thật thuộc lượt nghiệm thu NFR cuối). **Chủ: Story 10.9.**
 
 - 🔴 **Ca Windows CHƯA ĐO** — không có máy Windows. Kiểm D của `npm run check:commands` chứng minh **tầng phân giải hợp âm** đúng ở cả hai nhánh `Mod → ⌘ | Ctrl` (nền tảng là một tham số tiêm vào, nên phép kiểm chạy được trên một nền tảng), nhưng nó **không** chứng minh `Ctrl+1` tới được webview trên Windows. Đúng tiền lệ bàn giao phép đo của Story 1.1 → 1.3. Thuộc **Story 1.3 / 10.9**, nơi đã có sẵn một lượt runner hai nền tảng để bấu vào. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
@@ -1024,6 +1025,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   `inset` + một `z-index` có miễn trừ có tên, và nó nằm **trên** lưới `dockview` — mà dockview
   tự dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel. Đo mới chạy trên Chromium.
   **Chủ: chưa gán — nợ chung với món "hai nền tảng" (NFR14) của 1.6/1.14/1.16/1.17/1.18/1.18b.** **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 10.4.**
 
 - ⚠️ **§Quyết định #2b *(lọc thẳng trong câu SQL)* nay là một MÓN NỢ CÓ SỐ.** Đo 2026-08-10,
   `--release`, bốn tệp `.db` thật, 130 truy vấn khác nhau, hai lượt mỗi cấu hình — **tỉ lệ lượt
@@ -1046,6 +1048,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   Đây là nhiễu page-cache của lượt đầu, đúng **Bẫy 8** mà Story 1.18 đã ghi *(1.17 đo p99
   70,742 ms ở lượt đầu và không tái lập được)*. Không kết luận trên một lượt đo.
   **Chủ: chưa gán — theo dõi cùng món "đo NFR1 đầu-cuối gồm vòng IPC" của 1.17.** **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu: cùng họ NFR1 đầu-cuối đã giao 10.9). **Chủ: Story 10.9.**
 
 - ⚠️ **Số đo NFR1 vẫn là ĐƯỜNG RUST, không đầu-cuối.** Bàn đo mới
   *(`bench_the_source_filter_on_the_real_dictionaries`)* thừa hưởng nguyên giới hạn của 1.17/1.18:
@@ -1055,6 +1058,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   cho **mỗi** lượt Auto-Lookup. Nó rẻ *(một `SELECT` trên `config_value` của `global.db`, ba
   loại `GlobalOnly`)*, nhưng *"rẻ"* ở đây là một suy luận, không một số đo.
   **Chủ: chưa gán — đóng cùng món "đo đầu-cuối" của Story 1.17.** **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (cùng họ NFR1 đầu-cuối đã giao 10.9). **Chủ: Story 10.9.**
 
 - ⚠️ **`prd.md §8.2` và `docs/dics/README.md` vẫn xếp Trần Văn Chánh vào nhóm *"đã loại"*.**
   Đo trên tệp thật: `dict-tran-van-chanh.db` **đã dựng**, `license_kind = "copyrighted"`, và
@@ -1103,6 +1107,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   ⚠️ Và hai câu `vi.json` mới (`attribution.load_failed` · `panel.source.han_viet_all_sources_off`)
   chưa ai nhìn thấy hiện ra: câu đầu cần ép `list_dict_sources` trượt, câu sau cần tắt hết
   nguồn `zh` rồi mở tab Hán Việt. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 10.4.**
 
 - 🔴 **Bờ đọc từ điển KHÔNG có sàn phiên bản — một tệp `.db` QUÁ CŨ hỏng NỬA VỜI thay vì bị
   từ chối có tên.** Phát hiện khi soạn bàn đo chạy tay ngay sau lượt vá, 2026-08-10.
@@ -1122,6 +1127,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   sau lượt dựng, và nó xảy ra **ngay lập tức** với bất kỳ ai đang giữ bản `.db` ngày 2026-08-07
   ở `src-tauri/resources/dict/`.
   ~~**Chủ: chưa gán.**~~ **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — `src-tauri/src/core/dict/layer.rs` có `MINIMUM_SCHEMA_VERSION = 3` và nhánh `SkipReason::SchemaTooOld` khi `file_version < MINIMUM_SCHEMA_VERSION`, đúng đường bịt mục này đề xuất (commit `19ea24c`).
 
 - ⚠️ **D3 mới bịt được NỬA lỗ: một tệp `.db` đọc KHÔNG được vẫn nói *"chưa gắn lớp nào"*.**
   Phát hiện khi soạn bàn đo chạy tay, 2026-08-10. `attribution.load_failed` chỉ hiện khi
@@ -1137,6 +1143,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Đường bịt:** cho `list_dict_sources` trả về cả **danh sách lớp bị bỏ** *(`skipped`, kiểu
   đã có sẵn — `lookup_grouped` đang dùng)*, rồi bảng phân biệt ba trạng thái thay vì hai:
   *0 tệp* · *có tệp nhưng k lớp bị bỏ* · *gọi trượt*. ~~**Chủ: chưa gán.**~~ **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.3.**
 
 ---
 
@@ -1459,6 +1466,7 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   được hiệu chuẩn trên một nền tảng**. Tới lúc đó để nó **ĐỎ** — một pipeline đỏ vì một câu
   hỏi thật tốt hơn một pipeline xanh vì một câu hỏi bị nới. **Chủ: Ice** · liên đới
   **Story 1.7**.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — đã đóng 2026-09-13 bằng bảy lượt CI `windows-2025`, ghi ở khối §*Deferred from: hai quyết định của Ice về CI và Windows (2026-08-12)*; dòng đóng nằm ở mục đó nên bộ đếm không thấy từ đây.
 
 - ✅ **ĐÓNG bằng một QUYẾT ĐỊNH của Ice, 2026-08-11: AC5 nói *"CHỮNG LẠI"*, không nói *"có
   trần tuyệt đối"* — chấp nhận nới trần.** Trần của mệnh đề 2 nới **theo nền tảng**, KHÔNG
@@ -1575,6 +1583,7 @@ file — cùng kết quả với lượt retrospective sáu ngày trước.
   phải trả lời trước khi dựng: (1) GitHub Actions quay lại chưa, nếu chưa thì FR107 còn
   đường nào khác; (2) nợ **A5** có chủ chưa, vì FR105/FR106 hứa cả `.dmg` lẫn `.msi`.
   **Chủ: Ice** · mở lại ở **Story 10.1**.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 10.1.**
 
 - 🔴 **Ba khuyết tật của bộ e2e, nay có chủ là Story 1.22 **(Chủ: Story 1.22.)** *(trước lượt này chúng chỉ sống
   trong `proposal-tauri-window-automation-2026-08-11.md` §8, không tạo tác nào chịu trách
@@ -1635,6 +1644,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tự đúng — thay vì thêm một nhánh thứ hai chỉ chữa cho một lớp phủ.
   **Nghiệm thu:** trước vá ĐỎ với `section|mode` → sau vá **XANH**; `shortcuts-capture-mouse`
   vẫn xanh (không hồi quy); chín cổng · `npm run build` · `cargo test --locked` đều xanh. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — bản vá gốc còn trên HEAD: `src/App.vue` có `focusOnPointerDown` gắn `@mousedown` trên các nút mở panel. Đuôi "chờ B10" của mục là nhãn dán hàng loạt, không phải việc còn lại.
 
 - ⚠️ **`AttributionOverlay.vue` (Story 1.19, đang `done`) đã VÁ THEO CÙNG NGUYÊN NHÂN, nhưng
   mệnh đề của nó CHƯA ĐO ĐƯỢC.** Tệp đó mang khuôn giống hệt (`:57-70`) — chính doc-comment
@@ -2510,6 +2520,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   ẩn)*. ⇒ Vế còn hở **không** chỉ là *"bằng màu"* như dòng trên viết — nó chạm **AD-34 §2** và
   **NFR17**. Mệnh đề *"đóng bằng thông tin, không bằng màu"* vì thế đúng một nửa: thanh trạng thái
   nói được, nhưng **hàng** thì không, và trình đọc màn hình chỉ có hàng.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: đòi AD mới cho trạng thái `confirmed` của vạch câu cuối. **Chủ: Winston.**
 
 - 🔴 **Ba khoá lỗi `err.segment.*` vừa dựng KHÔNG có đường ra màn hình.** `confirm_segment` phía
   Rust trả đúng ba `IpcError` phân biệt được (`not_found` · `retired` · `nothing_to_confirm`), và
@@ -2731,6 +2742,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   tên**. Ứng viên chưa loại trừ: lượt xử lý cú bấm của chính WKWebView.
 
   **Chủ: Ice** *(quyết định đã ký)* → **đóng**.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — bản vá còn trên HEAD: `src/commands/focus.ts` `enter()` trả sớm khi `el.contains(document.activeElement)`. Đuôi "chờ B10" là nhãn dán hàng loạt.
 
 - ⚠️ **FIXTURE `workspace.mjs` KHÔNG reset state của panel — spec sau đọc Tác phẩm của spec
   trước.** *(Đo 2026-08-15, Story 2.5b Task 12.2.)*
@@ -3741,6 +3753,7 @@ mục nào mồ côi.
   này chọn chiều an toàn cho một **quyết định của người dùng**. Hai cột cùng một ca mà khác
   chiều là đúng thứ một story sau sẽ đọc nhầm. **Chủ: Ice** *(một dòng trong AD-5, hoặc một mục
   của AD kế tiếp chạm segment)*.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: ghi luật `is_omitted` khi gộp vào spine là việc của spine, không của story. **Chủ: Winston.**
 
 - 🟡 **Nhánh `'ornament'` của `resolveSegmentRule` KHÔNG CÒN ĐƯỜNG TỚI** — hệ quả trực tiếp của
   lượt lật ngay trên. Nó **không** bị gỡ, và đó là một lựa chọn có lý do: `ornament` *"mờ đã về
@@ -3778,6 +3791,7 @@ mục nào mồ côi.
   e2e** nếu nó tìm ra cách lái con trỏ tới một vùng không soạn thảo được.
   🔵 Gộp vào cùng chủ với hai món đã có: `devServerIsUp()` tin một Vite hấp hối (`:3345-3354`)
   và `FLUSH_WAIT_MS` thua một máy đang biên dịch (`:3902-3906`).
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.2.**
 
 - 🔴 **Auto-Lookup bằng chuột ở cột nguồn CHƯA CÓ đường nghiệm thu, và có thể đang chết.**
   Đo 2026-08-17 (`2-8-ban-do/README.md` vòng 2–3): trên WKWebView, **không cử chỉ chuột nào**
@@ -3883,6 +3897,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   trong cùng một struct giải "bất đồng" NGƯỢC CHIỀU nhau**. Cả hai đều đúng theo chữ ký; cái
   thiếu là một chỗ viết ra **vì sao** hai chiều khác nhau, ở nơi story sau sẽ đọc. **Chủ: Ice**
   *(một `AD` mới, hoặc một dòng trong AD-5)*.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: cùng luật `is_omitted` với mục §Story 2.8 ở trên. **Chủ: Winston.**
 
 - ⚠️ **Ca e2e đa-mảnh mang y nguyên HAI giới hạn của bàn đo, không thêm và không bớt.**
   `segment-merge-split.e2e.mjs` ca *"tách BA mảnh"* dùng một `MouseEvent` tổng hợp *(bộ đo
@@ -4187,6 +4202,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   hiện: **hai lệnh này vô hình cho tới khi người dùng tự gán phím**, nên AC1/AC2 hôm nay chỉ chạy
   được qua `dispatch()`.
   **Chủ: Ice** *(một lượt xem lại bảng Phím khi Epic 2 xong và có đủ ngữ cảnh về bảng phím tổng)*.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
 
 - ⚠️ **Vế *"`⌥↓` thật có bị macOS nuốt không, và `preventDefault()` có chặn nổi không"* vẫn chưa
   đóng** — mọi sự kiện driver mang `isTrusted: false`, và một sự kiện không tin cậy **không có
@@ -4633,6 +4649,7 @@ cây **trước** lượt vá, nên nó **không** là bằng chứng cho cây h
 đỏ được trên cả ba vị từ sai)*, nhưng **không** ở tầng **engine thật** — `happy-dom` không phải
 WKWebView, và vế `requestAnimationFrame` của hàng rào `resetPanelState` chỉ chạy thật trong webview.
 ⇒ Đây là chỗ *"không nghiệm thu được ở tầng đang làm"*, đúng định nghĩa một món nợ.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.5.**
 
 ---
 
@@ -5422,6 +5439,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     thẳng *"thêm 2026-08-05 qua `correct-course`"*. Đúc một khoá `3-4b` thẳng vào tệp trạng
     thái là dựng một mục quy hoạch ngoài workflow đã có.
     **(Chủ: Ice — mở Story 3.4b qua một lượt `bmad-correct-course` sau khi 3.4 xanh.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — Story 3.4b đã mở và `done` trong `sprint-status.yaml` (`3-4b-đánh-dấu-thuật-ngữ-ở-cột-nguyên-văn-của-lưới`).
 
 ## Deferred from: lượt rà soát Story 3.4 (2026-08-21)
 
@@ -5751,6 +5769,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — quyết định mô hình hoàn tác toàn ứng dụng qua `ad-brief-2026-08-17-mo-hinh-
     hoan-tac.md`. Bất kỳ đường hoàn tác nào cho lượt chốt Glossary phải tương thích với luật
     một-chiều của AD-36, không phải một `UPDATE … SET translation = NULL` trần.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: đối chiếu với AD-49 (mô hình hoàn tác) xem mục đã được trả lời chưa. **Chủ: Winston.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Số lần xuất hiện của thuật ngữ trên dải (mockup vẽ "644 lần") — `GlossaryMark`
@@ -5979,6 +5998,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Story 3.9 đã dựng bề mặt ấy, và nó mang **cùng** khoảng trống. Đừng đọc mục kia là đã đóng.
     **(Chủ: Ice — cùng lượt với hai mục trên, vì cả ba là hình dạng tương tác của cùng một
     bề mặt và tách ra thì lại được ba lượt vá rời rạc.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: cùng ràng buộc `dispatch()` không tham số của AD-34 với hai mục danh sách tầng 4. **Chủ: Winston.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Nhánh `changed == 0` của `promote_to_global` KHÔNG có phép kiểm tất định** — nó chỉ
@@ -8789,6 +8809,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Kiểm A cho một hình dạng `@click` tham số hoá CÓ TÊN (một quyết định kiến trúc, không phải
   một dòng dev tự nới cổng), hoặc một cơ chế "cell click" khác AD-34 chưa lường trước. Cho tới
   lúc đó, chọn Chương vẫn CHỈ đi qua bàn phím (`⌥←`/`⌥→`).
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: ràng buộc `dispatch()` không tham số của AD-34. **Chủ: Winston.**
 
 - ⚠️ **Mỗi lượt dời con trỏ sao chép byte của N Chương HAI LẦN, ngoài chi phí `run_pipeline`
   O(N) đã ghi.** `chapters_shape_for_view` clone `raw` của mọi mục OK mỗi lượt gọi, rồi
@@ -9289,6 +9310,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   dựng đủ dữ liệu (`needs_review`/`ord` trên mỗi hàng) và một hàm state hoàn chỉnh
   (`selectImportPreviewChapter`, xoá lại vì không có đường `@click` hợp lệ để gọi nó) — phần
   còn thiếu là một quyết định kiến trúc của Ice, không phải một dòng dev. **Chủ: Ice.**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: ràng buộc `dispatch()` không tham số của AD-34. **Chủ: Winston.**
 
 - 🔴 **`cargo test --locked` trên máy Ice CÓ LÚC đỏ 13–14 ca của `webimport_contract.rs` —
   nguyên nhân là Application Firewall của macOS chặn binary test, KHÔNG phải một dòng mã.** Đo 2026-09-08 trong lượt nghiệm thu Story 6.10:
@@ -9487,6 +9509,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   XML) mà kho này chưa có, và đó là một quyết định kiến trúc MỚI (một `AD` mới), không phải
   một dòng mã nới `RASTER_IMAGE_MIMES`. **Chủ: Ice** — chỉ mở lại nếu có yêu cầu thật (trang
   nguồn dùng SVG làm ảnh minh hoạ chính, không phải icon/logo trang trí).
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: mở lại SVG đòi AD mới thay AD-16. **Chủ: Winston.**
 
 - ⚠️ **`images_failed`/`images_saved` đi lên dây (`CreatedWork`) nhưng KHÔNG bề mặt hiển thị
   nào đọc chúng.** Đúng như §Design Notes spec 6.11 đã tuyên bố trước ("Bề mặt HIỂN THỊ con số
@@ -10467,6 +10490,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     test MỚI, không phải một bản vá nhỏ, nên nó ở đây chứ không trong diff này. ⚠️ Đừng chép lại
     lý do "không có `MockRuntime`": nó đã bị chính kho bác.
   **Chủ: Ice**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
   summary: `wire::create_work_from_file` không có MỘT lời gọi nào trong toàn kho — nó vừa được lật
@@ -10607,6 +10631,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Ice** — đây là loại sửa nên đi CÙNG chặng 2 chứ không riêng lẻ: chặng 2 sẽ dời tiếp
     phần thân, nên một lượt sửa prose bây giờ phải làm lại lần nữa. Nếu Ice muốn sửa ngay, phạm
     vi là 45 chỗ trong 28 tệp, thuần văn bản, không chạm mã chạy.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
   summary: Hai con số trong `epic-6-retro-2026-09-15.md` §F6 và trong `AGENTS.md:19` sai so với
@@ -10854,6 +10879,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     khai, và nó CÓ TRƯỚC 6.16b (6.16 đã phân loại một lần cho hậu quả `target_text == source_text`);
     story này chỉ thêm hậu quả thứ hai lên cùng một gốc. Thứ sẽ giải quyết: một nhánh từ chối ở
     `preview_bilingual_import`, đóng cả hai hậu quả một lượt. **Chủ: Ice**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.6.**
 
 ## Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)
 
@@ -10975,6 +11001,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     ⚠️ Đây là một thiết kế **chưa chạy thử**. Trước khi nhận nó, chạy chính nó trên đúng khuyết
     tật nó sắp canh — gieo một hằng tụt dưới ngưỡng và xem nó có đỏ không.
     **(Chủ: Ice — xếp lịch story; nội dung và điều kiện đã chốt ở trên.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.1.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: 🔴 **Tầng ghi của màn cấu hình AI được suy từ CHẾ ĐỘ GIAO DIỆN, không hỏi
@@ -11502,6 +11529,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `ai_prompt.record_state_missing` — nhưng đó là một đổi HÌNH DẠNG DÂY, ngoài phạm vi một lượt
     vá tiện tay; nếu chưa đổi, ít nhất ghi một `eprintln!` cùng khuôn `wire::ai_prompt_assemble`
     đã có để lỗi cấu hình không hoàn toàn câm lặng trên log.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.7.**
 
 ## Deferred from: bmad-build review — spec 4-7 (2026-09-18)
 
@@ -11746,6 +11774,7 @@ chính nó.
     với CHUỖI LITERAL chép nguyên văn từ `vi.json`; ba chỗ còn lại nằm trên bề mặt Glossary,
     ngoài phạm vi story này. **(Chủ: Ice — ba tệp thuộc hai bề mặt khác, và sửa chúng là một lượt
     quét quy ước test chứ không phải một phép vá của một story sản phẩm.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
   summary: **`editorPromoteAiTranslationError` được export và KHÔNG ai đọc, nên một lượt "đưa
@@ -11760,6 +11789,7 @@ chính nó.
     phải FR75, nên nó không nợ story này một AC nào. Nó thuộc cùng cụm với món nợ bề mặt-báo-lỗi
     UX-DR30 đang mở. **(Chủ: Ice — cùng lớp quyết định hạ tầng test mà Ice đã nhận cho bàn đo
     `AppHandle` ngày 2026-09-22.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu: cùng đường `promote_ai_translation` với mục AD-49 lớp iii). **Chủ: Story 11.5.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
   summary: **`batch_panicked_error` đúc `RequestFailed` cho một `JoinError`, nên một panic nội bộ
@@ -11860,6 +11890,7 @@ chính nó.
     TEST_LOCK` does not cover for any call site that does not take the lock. It is not caused by
     this story, but it is the kind of red that returns on CI at the least convenient moment.
     **(Chủ: Ice — cần quyết định ai sửa hàng rào one-shot này; nó sẽ đỏ lại.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
   summary: **`full → short` (the `applyMerge` branch of `WorkspaceDock.vue::applyTier`) emits ONE
@@ -11951,13 +11982,16 @@ chính nó.
     Closing it needs group sizes remembered beside the spot and re-applied after `addPanel`, which
     is real geometry that happy-dom cannot measure, so it needs a hand check on a real build.
     **(Chủ: Ice.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
 
 ## Deferred from: AD-49 — mô hình hoàn tác (2026-09-23)
 
 - 🔴 **`promote_ai_translation` (⌘⇧↵) lệch lớp (iii) của AD-49.** `commands/segment.rs:2107` ghi đè `target_text` mà không kiểm "bản sắp mất có trong `segment_version` không", nên bản nháp chưa xác nhận mất hẳn. Khuôn đúng đã có ở FR101 (`restore_segment_version`, `needs_confirmation`/`force`). Thêm một vế: `replaceEditorSegment` viết lại cả ô đang có con trỏ, nên lịch sử ⌘Z gốc của ô đó mất theo, cùng các ký tự chưa flush.
   Vì sao quan trọng: mất văn bản người dùng mà không hỏi, đúng lớp hỏng AD-49 Prevents (3). AD không chọn cách sửa.
   **Chủ: Ice.** Bằng chứng: `architecture-AuraTranslate-2026-08-02/reviews/review-ad-49-reality-2026-09-23.md`.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.5.**
 
 - 🟡 **AD-49 Rule ① chưa có cơ chế cưỡng chế.** `keys.ts:510` chỉ nhường vùng gõ cho hợp âm KHÔNG có phím mod chính. Một binding `Mod+Z` tương lai vẫn `preventDefault` trong ô và vẫn xanh; hôm nay có 0 binding `KeyZ`, nên chưa có lỗi đang chạy.
   Hai đường, chưa chốt: ① `keys.ts::handle()` luôn nhường `Mod+Z`/`Mod+Shift+Z` khi `isTypingZone`; ② thêm một ca quét vào `check-commands.mjs`, rồi Rule trích tên ca đó.
   **Chủ: Ice.** Bằng chứng: `reviews/review-ad-49-rubric-2026-09-23.md`.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.5.**
