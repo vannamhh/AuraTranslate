@@ -104,178 +104,178 @@ Mỗi câu trả lời một trong: **chọn (x)** · **KHÔNG LÀM** · **giữ
 ## CI & cổng (11)
 
 32. `b8f22f7:1421` — Dựng bộ test tự động trong Chrome cho vế DOM dù nó không bắt được lỗi riêng WKWebView — (a) dựng, (b) giữ nghiệm thu tay?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không dựng bộ test DOM trong Chrome; e2e trên WKWebView thật và lượt dùng thật cuối mỗi epic (AI-7) phủ chỗ này.
 
 33. `b8f22f7:1718` — Khôi phục CI bằng: (a) bấm tay khi cần, (b) repo công khai, (c) runner tự quản trên máy Ice, (d) act cục bộ?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — đường "repo công khai" đã xảy ra: `gh repo view` báo PUBLIC và `ci.yml` chạy mỗi push (vd. run 35946100786).
 
 34. `b8f22f7:2196` — Cửa rà giấy phép NFR15: (a) dựng cổng máy kiểm đã mở tệp giấy phép, hay (b) giữ quy trình người?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ cửa rà giấy phép NFR15 là quy trình người theo AGENTS.md §Policy và bảng Stack của spine; không dựng cổng máy.
 
 35. `b8f22f7:3574` — Dựng cổng canh 'xuất xứ không có bề mặt UI mới' dù cổng phủ định ấy khó đỏ được — (a) dựng, (b) giữ bằng kỷ luật?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không dựng cổng phủ định cho "xuất xứ không có bề mặt UI"; một cổng không đỏ được trái luật kho, giữ bằng review.
 
 36. `b8f22f7:4664` — Thêm lượt vitest TZ=UTC vào ba danh sách cổng (~4s mỗi lượt) — (a) thêm, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — CI đã chạy vitest ở UTC và AGENTS.md buộc đọc CI trước done; không thêm lượt TZ=UTC vào pre-push.
 
 37. `b8f22f7:4677` — Canh CI bị bỏ qua: (a) bật thông báo GitHub khi master đỏ, (b) pre-push cảnh báo qua gh run list, (c) mục đọc CI trong retro/sprint-status?
-   - Quyết: 
+   - Quyết: giao Story 11.1 — Ice chọn một bước pre-push hỏi `gh run list` phán quyết lượt push trước và cảnh báo khi đỏ, không chặn.
 
 38. `b8f22f7:7080` — Đưa cargo clippy --all-targets -D warnings vào cổng — (a) có, dọn 22 cảnh báo trước, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không đưa clippy vào cổng; 22 cảnh báo có sẵn để nguyên.
 
 39. `b8f22f7:8756` — check:debt-owner: (a) đổi NEGATIVE_OWNER_RE sang danh sách CHO PHÉP, chấp nhận đỏ hàng loạt để dọn sổ, hay (b) giữ danh sách CẤM?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — vị từ đã đổi sang danh sách cho phép: `scripts/check-debt-owner.mjs` dùng `CONCRETE_OWNER_RE` (Ice chốt 2026-09-23), `NEGATIVE_OWNER_RE` không còn trong tệp.
 
 40. `b8f22f7:9731` — Toolchain Rust máy dev lệch CI: (a) thêm rust-toolchain.toml ghim 1.97.1, hay (b) ghi nhận lệch, chỉ tin số hiệu năng ở CI?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — Ice ghi lệch toolchain là có chủ ý: AGENTS.md §This machine nay nói so hai số đo chỉ cùng toolchain, Homebrew rustc cục bộ khác bản ci.yml ghim.
 
 41. `b8f22f7:10529` — Dựng cổng đo kích thước tệp: (a) có, ngưỡng riêng cho Rust và Vue SFC, hay (b) chưa?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không dựng cổng đo kích thước tệp; luật tách tệp quá lớn trong AGENTS.md là đủ.
 
 42. `b8f22f7:11699` — check:debt-owner đọc 'ĐÓNG MỘT NỬA' thành đóng: (a) đổi vị từ, kèm ca tự kiểm từng nhánh, hay (b) giữ?
-   - Quyết: 
+   - Quyết: giao Story 11.1 — Ice chọn sửa vị từ để ✅ ĐÓNG MỘT NỬA và dòng tự nói còn vế hở chấm half, kèm ca tự kiểm đỏ-rồi-xanh cho từng nhánh.
 
 ## Nhập — ảnh & mạng (10)
 
 43. `b8f22f7:9491` — Hiển thị images_failed/images_saved cho người dùng qua: (a) toast, (b) dòng trong xác nhận nhập, (c) mục trong lưới Tác phẩm?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn một thông báo sau khi nhập xong "N ảnh không tải được" kèm lối tới nhật ký domain.
 
 44. `b8f22f7:9545` — Ảnh nhúng data: URI: (a) xử lý và lưu (không gọi mạng), hay (b) giữ vứt như ảnh trượt?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn giải mã và lưu ảnh data: URI, chỉ các kiểu raster đã cho phép (AD-16 vẫn loại SVG).
 
 45. `b8f22f7:9553` — Pha tải ảnh khi nhập nhiều Chương: thêm (a) ngân sách thời gian, (b) tiến độ theo mục, (c) nút huỷ — chọn những gì?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn tiến độ theo mục và nút huỷ cho pha tải ảnh theo khuôn pha trang Story 6.7; huỷ giữ Chương, bỏ ảnh còn lại; không ngân sách thời gian.
 
 46. `b8f22f7:9562` — Allowlist ảnh tầng 2: (a) nới khoá thành host+port+scheme, hay (b) giữ chỉ host?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ allowlist tầng 2 so theo host như Story 6.8 đã giao; nhật ký domain vẫn ghi mọi lần gọi.
 
 47. `b8f22f7:9608` — Cột 'chặng cuối sau chuyển hướng' cho asset.source_url: giao story nào — (a) một story 11.6, (b) story Epic sau, (c) không làm?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ asset.source_url là URL yêu cầu, tức URL người dùng thấy trong trang; không tách cột chặng cuối khỏi khoá dedup AD-41.
 
 48. `b8f22f7:9699` — Ảnh Chương 1 chuyển hướng sang host của ảnh Chương 5 được cho qua: (a) đúng ý, hay (b) lỗ AD-41 cần chặn?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice xác nhận đúng ý: allowlist tầng 2 thuộc cả Tác phẩm, nên chuyển hướng chéo Chương tới host đã có trong Tác phẩm được cho qua.
 
 49. `b8f22f7:9777` — Ảnh .docx: (a) mở thêm EMF/WMF/BMP/TIFF (rủi ro AD-16), hay (b) giữ bốn kiểu raster?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ bốn kiểu raster cho ảnh .docx; EMF/WMF/BMP/TIFF tiếp tục bị từ chối có đếm.
 
 50. `b8f22f7:9876` — Ảnh .docx sau ranh giới phân tách: (a) mỗi Chương tự cắt blocks để ảnh vào đúng Chương, hay (b) chấp nhận gắn vào Chương đầu?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn để mỗi Chương .docx sau mẫu phân tách tự cắt lát blocks của mình, ảnh vào đúng Chương.
 
 51. `b8f22f7:9904` — Caption Word: nhận (a) pStyle 'Caption', (b) đoạn ngay sau ảnh; và có đọc descr/title làm alt cho .docx?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không đọc alt/caption cho ảnh .docx; đường .docx chỉ mang ảnh.
 
 52. `b8f22f7:10064` — Phạm vi asset:// theo AD-23: (a) đúng một Tác phẩm mỗi lúc, thu hồi khi đổi, hay (b) chấp nhận tích luỹ trong phiên?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn thu hồi phạm vi asset:// của Tác phẩm cũ khi đổi Tác phẩm (forbid_directory), đúng ý AD-23 một Tác phẩm mỗi lúc.
 
 ## Glossary (9)
 
 53. `b8f22f7:5217` — Thêm nhanh thuật ngữ khi có Tác phẩm mở: (a) giữ mặc định Global, hay (b) mặc định tầng Tác phẩm?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn mặc định tầng Tác phẩm cho thêm nhanh thuật ngữ khi có Tác phẩm mở; ghi nhầm xuống Tác phẩm rẻ hơn rò lên Global.
 
 54. `b8f22f7:5822` — Đề xuất Hán Việt trên dải có hiện nhãn nguồn (sources_used) cho cả cụm — (a) có, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không hiện nhãn nguồn cho đề xuất Hán Việt trên dải; nguồn xem được ở tab Hán Việt của Panel Source.
 
 55. `b8f22f7:5834` (+ `5850`) — Tắt nguồn từ điển: (a) thêm chỗ gọi refreshGlossaryMarks thứ tư và sửa doc-comment đã ký, hay (b) để dấu Glossary cũ?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn làm mới dấu Glossary khi tắt/bật nguồn từ điển, tách đổi danh tính khỏi đổi đề xuất để không xoá chữ đang gõ; sửa doc-comment đã ký 2026-08-21 cùng lượt.
 
 56. `b8f22f7:5868` — Năm năng lực mockup glossary-queue (lọc phân loại, bỏ hàng loạt, số Chương, nhiều ví dụ, phân loại đoán): (a) giữ mockup và xây, (b) bỏ?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn xây riêng số Chương một thuật ngữ xuất hiện trên bảng chờ; bốn năng lực còn lại của mockup (lọc phân loại kèm đếm, bỏ hàng loạt, nhiều ví dụ ngữ cảnh, phân loại do máy đoán) không làm.
 
 57. `b8f22f7:5931` — Thêm cột đếm (migration) cho glossary_entry để hiện cột 'Dùng' và sắp theo tần suất — (a) xây, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn thêm cột đếm cho glossary_entry (một bước di trú) để hiện cột "Dùng" và sắp theo tần suất; cùng lượt với #56.
 
 58. `b8f22f7:5945` — Xoá mục Glossary: (a) hộp xác nhận mọi lượt xoá, (b) đường hoàn tác sau xoá, (c) giữ như hiện tại?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn một hộp xác nhận cho mọi lượt xoá mục Glossary; không dựng đường hoàn tác (khớp AD-49).
 
 59. `b8f22f7:5960` — Gõ tìm/đổi lọc khi đang sửa mục Glossary: (a) vô hiệu thanh công cụ, (b) giữ bản sửa qua lượt lọc, (c) báo trước khi bỏ?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn vô hiệu ô tìm và bộ lọc khi đang sửa một mục Glossary.
 
 60. `b8f22f7:6819` — Câu lỗi 'tệp quá lớn': (a) bỏ {size}, chỉ nêu {limit} dùng chung, hay (b) tách khoá riêng cho Glossary?
-   - Quyết: 
+   - Quyết: giao Story 11.4 — Ice chọn bỏ {size} khỏi câu err.import.too_large, chỉ nêu {limit}, một câu dùng chung.
 
 61. `b8f22f7:6895` — Lô nhập Glossary hỗn hợp: (a) đổi hàng ④ I/O Matrix sang báo va chạm, hay (b) giữ row_missing?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ row_missing và hàng ④ I/O Matrix; ca cần một lượt ghi song song, hiếm ở app một người dùng.
 
 ## Editor & tiêu điểm (8)
 
 62. `b8f22f7:136` (+ `2092`) — Khi đổi Chương, resetEditorPanel nên: (a) trao tiêu điểm cho entry-focus GridPanel theo AD-34, hay (b) giữ nguyên, tiêu điểm rơi về body?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice chọn trao tiêu điểm cho entry-focus của GridPanel khi đổi Chương (AD-34), kèm e2e vì happy-dom không tái lập được.
 
 63. `b8f22f7:2205` — Sau remount EditorPanel khi đổi preset: (a) chấp nhận mất tiêu điểm tạm, hay (b) cho ngoại lệ giành tiêu điểm lúc mount?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice chấp nhận mất tiêu điểm tạm sau remount EditorPanel khi đổi preset; chữ không mất, và giành tiêu điểm lúc mount trái doctrine AD-34.
 
 64. `b8f22f7:2514` (+ `3408`) — Bề mặt lỗi UX-DR30: (a) nối lỗi flush và message_key thật vào cột nhãn hàng, kèm e2e canh, hay (b) giữ phạm vi tối thiểu đã ký?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice chọn mở rộng UX-DR30: lỗi confirm, lỗi flush và ba nhánh từ chối khôi phục hiện message_key thật ở cột nhãn hàng, kèm e2e canh.
 
 65. `b8f22f7:3745` — Nhánh ornament: (a) dựng bề mặt hàng 'về hưu' mờ để hồi sinh, hay (b) rút UX-DR19 xuống năm giá trị?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice rút giá trị về hưu khỏi UX-DR19 (epics.md, DESIGN.md, EXPERIENCE.md đã sửa bằng 🔵 lượt này); 11.5 gỡ nhánh ornament của resolveSegmentRule.
 
 66. `b8f22f7:4423` (+ `3865`) — ⌘Z vào lượt gộp/tách: (a) thêm dòng báo StatusBar hướng dẫn, hay (b) ghi quyết định giữ im lặng có lý do?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ ⌘Z ngoài vùng gõ im lặng có chủ ý: AD-49 không có ngăn xếp hoàn tác, đường lui của gộp/tách là gọi lại lệnh.
 
 67. `b8f22f7:9743` — Ảnh neo rơi giữa nhóm gộp/tách mới snap về: (a) SAU nhóm (hiện tại), hay (b) TRƯỚC nhóm?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice ký hướng snap về SAU nhóm mới như mã hiện tại; 11.5 thay dòng "chưa có Ice ký" trong doc-comment của write_regroup.
 
 68. `b8f22f7:10004` — Ô bản dịch trống đối diện ảnh có chấp nhận được, và (a) thêm e2e đo hình học thật, hay (b) dừng ở DOM?
-   - Quyết: 
+   - Quyết: giao Story 11.2 — Ice nhận ô bản dịch trống đối diện ảnh là đúng ý; 11.2 thêm e2e đo năm cột thẳng hàng trên WKWebView thật.
 
 69. `b8f22f7:10082` — Chương toàn ảnh (0 câu văn xuôi): (a) hiện chú riêng thứ ba, hay (b) đổi nghĩa segment_count?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice chấp nhận chú "mọi câu đã cắt bỏ" cho Chương chỉ có ảnh; ca hiếm, không đổi nghĩa segment_count.
 
 ## Test & bàn đo (6)
 
 70. `b8f22f7:5983` — Nhánh changed==0 của promote_to_global: (a) dựng cơ chế chèn điểm dừng để test tất định, hay (b) chấp nhận không canh?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice chấp nhận nhánh đua changed==0 của promote_to_global không có ca canh; không dựng cơ chế chèn điểm dừng.
 
 71. `b8f22f7:9247` — Đối chứng đỏ ② của spec 6.9 đã done mới đóng một nửa: (a) chấp nhận như hiện tại, hay (b) đòi đo thêm trước khi sửa bản ghi?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn sửa đối chứng ② spec 6.9 để nó đỏ khi bộ chọn khối về bản vòng 1 (so theo khối/thẻ được chọn, không so văn bản ghép).
 
 72. `b8f22f7:9293` — cargo test đỏ do LuLu: (a) cấp phép LuLu cho target/debug/deps, (b) tách ca server cục bộ ra #[ignore], (c) chỉ tin CI và ghi AGENTS.md?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — Ice đã tắt LuLu; đo 2026-09-24 trên binary vừa dựng lại: `cargo test --test webimport_contract --test asset_contract` xanh 34/34 và 19/19.
 
 73. `b8f22f7:10148` — Ca chuyển hướng origin_url đầu-cuối: (a) sửa để chạy được trên máy Ice dưới LuLu, hay (b) chỉ canh ở CI?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — LuLu đã tắt nên bộ loopback xanh trên máy Ice (34/34 webimport_contract); 11.6 thêm ca chuyển hướng thật cho chapter.origin_url và nghiệm thu tại chỗ.
 
 74. `b8f22f7:11617` — AC7 Story 4.8 'test không-AI vẫn xanh': (a) định nghĩa là mọi nhị phân test ngoài Epic 4, hay (b) tập khác?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice chấp nhận bằng chứng biên dịch (mũi thăm dò cargo check trên bản chép đã xoá core/ai/) cho AC7 Story 4.8; vế "test không-AI vẫn xanh" không đo thêm.
 
 75. `b8f22f7:11667` (+ `11721`) — Dựng khuôn test tầng vỏ #[tauri::command] với AppHandle, state và Channel thật — (a) dựng, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn dựng khuôn test vỏ #[tauri::command] với AppHandle, state và Channel thật (MockRuntime); ca đầu tiên canh lời gọi mark_prompt_as_sent ở nhánh Done.
 
 ## Tài liệu thiết kế (5)
 
 76. `b8f22f7:1944` — Sửa nhãn Covers của Story 2.2 trong epics.md thành UX-DR19/20/2/12/7 + AD-34§2 — (a) sửa, (b) giữ?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — John sửa nhãn Covers của Story 2.2 trong epics.md thành UX-DR19 · UX-DR20 · UX-DR2+UX-DR12 · UX-DR7+AD-34 §2 · AD-1, kèm dòng 🔵.
 
 77. `b8f22f7:2132` — Chiều cao StatusBar: xác nhận 34px và sửa DESIGN.md cùng mockup còn ghi 32px — (a) 34px, (b) 32px?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — John sửa DESIGN.md frontmatter status-height và mockup key-screen-workspace.html về 34px, khớp tokens.json và StatusBar.vue.
 
 78. `b8f22f7:2436` — Bổ sung hàng 'đã dịch, chưa xác nhận' vào bảng trạng thái EXPERIENCE.md cho khớp Quyết định #3 đã ký — (a) thêm, (b) không?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — đã làm từ 2026-08-14: bảng trạng thái EXPERIENCE.md có hàng `draft` "đã dịch tay, chưa xác nhận" (🔵 Sửa 2026-08-14 — Ice).
 
 79. `b8f22f7:3415` — Sửa câu mockup data-integrity.html: phiên bản thứ sáu xuất hiện ở lượt xác nhận KẾ TIẾP, khớp AD-31 — (a) sửa, (b) giữ?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — John sửa câu mockup data-integrity.html: bản khôi phục thành phiên bản thứ sáu ở lượt xác nhận kế tiếp (AD-31).
 
 80. `b8f22f7:11911` — Chiều cao titlebar: xác nhận 40px và sửa DESIGN.md cùng UX-DR15 trong epics.md — (a) 40px, (b) 38px?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — John sửa DESIGN.md frontmatter titlebar-height và UX-DR15 trong epics.md về 40px, khớp tokens.json và check-tokens EXPECTED_SPACING.
 
 ## Quy trình & kế hoạch (5)
 
 81. `b8f22f7:5343` — 19 mốc dòng epics.md trôi trong tài liệu đã đóng: (a) viết lại bản ghi lịch sử, hay (b) để nguyên như dấu vết thời điểm?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice để nguyên 19 mốc epics.md:N trong tài liệu đã đóng; chúng đúng tại thời điểm viết, tài liệu sống đã chuyển sang §TÊN.
 
 82. `b8f22f7:10406` (+ `10431`) — Cho phép sửa cả sáu chú thích sai 'sync_threadpool', kể cả hai chỗ bị Never của spec đóng băng — (a) có, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice mở khoá §Never cho lượt này: sửa cả sáu chú thích sai về sync_threadpool và con số sai trong doc-comment, viết lại không mang số đếm.
 
 83. `b8f22f7:10553` — Chặng 2 AI-6: (a) viết lại hệ xem trước nhập, hay (b) chỉ tách ba khối tách được, tệp gốc còn ~2.600 dòng?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn chặng 2 AI-6 chỉ tách ba khối tách được (có song ngữ), không đổi hành vi; không viết lại hệ xem trước.
 
 84. `b8f22f7:10611` — Số sai trong retro Epic 6 và agent-token-economics.md: (a) sửa qua correct-course, hay (b) ghi chú đính chính có ngày?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — John thêm dòng 🔵 vào epic-6-retro-2026-09-15.md §F6 với số đúng (17 lệnh, create_work :354-853); agent-token-economics.md giữ số đo tại commit của nó.
 
 85. `b8f22f7:11260` — Sửa AGENTS.md dòng 37: ba hằng DDL thay 'pair' và thay 'No gate guards' bằng tên ca canh — (a) sửa, (b) không?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — câu khai sai đã không còn: src-tauri/AGENTS.md dòng 30 chỉ nêu luật 25 điểm mã White_Space, không còn "No gate guards this pair".
 
 ## Tra cứu, từ điển & Hán Việt (4)
 

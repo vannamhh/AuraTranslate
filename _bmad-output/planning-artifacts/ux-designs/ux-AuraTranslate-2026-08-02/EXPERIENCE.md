@@ -113,6 +113,8 @@ Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả 
 | trống | chưa dịch | mặc định khi nhập |
 | `ornament` mờ | đã về hưu do gộp/tách | AD-5 |
 
+> 🔵 **2026-09-24 (Ice chốt, phiếu quyết #65):** giá trị *về hưu* rút khỏi vạch trạng thái — hàng về hưu không còn hiện trong lưới (AD-5), nên không đường nào tới nó. Token màu `ornament` vẫn sống cho `draft` và cho khối bị loại ở màn xem trước nhập.
+
 > 🔵 **Sửa 2026-08-14 — Ice. Bảng cũ THIẾU MỘT HÀNG, và chỗ thiếu đó là một lỗi dùng được.**
 >
 > Bản cũ có năm giá trị và gom *"đã dịch tay, chưa xác nhận"* chung ô **không vạch** với *"chưa dịch"*. Hai hoàn cảnh khác hẳn nhau **trông y hệt**: người dịch nhìn một Chương dở và **không phân biệt được câu mình đã làm với câu chưa động tới**.

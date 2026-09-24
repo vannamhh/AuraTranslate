@@ -166,6 +166,7 @@
     §I/O Matrix của Story 3.6; hai vế đầu (dải thu, sổ "Để sau" xoá) ĐÃ có phép kiểm và xanh.
     **(Chủ: Ice — phán quyết về AD-34, rồi story thi hành; cùng khuôn mục `deferred-work.md`
     §Story 2.3 *"Chủ: Ice (phán quyết về AD-34), rồi story thi hành"*.)**
+  → 2026-09-24 (phiếu quyết #62) — Ice chọn trao tiêu điểm cho entry-focus của GridPanel khi đổi Chương (AD-34), kèm e2e vì happy-dom không tái lập được. **Chủ: Story 11.5.**
 
 - 🔴 **Nghiệm thu DOM chạy trên Blink (Chrome), KHÔNG phải WKWebView, và KHÔNG qua `tauri dev`.** Lý do đo được, không phải quên: cổng `1420` mà `vite.config.ts` ghim (`strictPort: true`) đang bị **một dự án khác của Ice** (`gdrive_suite_manager`) chiếm lúc đo, và `devUrl` trong `tauri.conf.json` trỏ cứng vào đó — mà §Ranh giới phạm vi của story không cấm đụng `tauri.conf.json`. Lượt đo chạy qua `npx vite --port 1431` rồi lái bằng Chrome. **Chưa đo:** `⌘1 ⌘2 ⌘3` đi qua **WKWebView** thật; `⌘1..3` đi qua **tầng OS** *(Chrome nuốt `⌘2` để chuyển tab — sự kiện được dựng trên `window` thay thế, tức tầng ứng dụng đã đo, tầng phân phối phím của OS thì chưa)*. Đừng viết "tương đương" bằng suy luận. **Nhặt lại:** một lượt `npm run tauri dev` khi cổng 1420 rảnh, hoặc lượt runner của Story 1.9 / 10.9. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu: đo trên WKWebView thật thuộc lượt nghiệm thu NFR cuối). **Chủ: Story 10.9.**
@@ -1441,6 +1442,7 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   Một bộ nghiệm thu chạy trong Chrome đóng được lớp DOM trung tính và **KHÔNG** đóng được
   đúng lớp lỗi đắt nhất. Đừng mua sự yên tâm sai ở đây. **Chủ: Ice** *(quyết định về bộ
   chạy test frontend — món nợ này đang treo chờ đúng quyết định đó)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #32) — Ice không dựng bộ test DOM trong Chrome; e2e trên WKWebView thật và lượt dùng thật cuối mỗi epic (AI-7) phủ chỗ này.
 
 - 🔴 **CÒN MỞ — khuyết tật thứ BA, và nó chạm một bất biến SẢN PHẨM chứ không một tạo tác
   test.** Sau hai bản vá ở trên, **15 trên 15** nhị phân test chạy được trên Windows và
@@ -1741,6 +1743,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   ⇒ Nếu mục tiêu là **nghiệm thu bốn món của Story 1.3**, đường rẻ nhất là **bấm tay đúng
   một lượt** khi Ice sẵn sàng. Nếu mục tiêu là **CI thường trực**, đường duy nhất miễn phí là
   **repo công khai**, và nó trùng với FR107. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #33)** — đường "repo công khai" đã xảy ra: `gh repo view` báo PUBLIC và `ci.yml` chạy mỗi push (vd. run 35946100786).
 
 - 📌 **Trọn phần Windows dời về CUỐI dự án — Ice chốt 2026-08-12, và Ice sẽ tự dựng máy để chạy.**
 
@@ -1964,6 +1967,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   nói về nội thất Panel Editor. Đặc tả thật của bảy AC là **UX-DR19** (AC1·AC2·AC3) · **UX-DR20**
   (AC4·AC5) · **UX-DR2 + UX-DR12** (AC6) · **UX-DR7 + AD-34 §2** (AC7). Dev **không** sửa
   `epics.md` — tiền lệ quyết định #3 của Ice ở Story 1.3, giữ qua toàn Epic 1. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #76)** — John sửa nhãn Covers của Story 2.2 trong epics.md thành UX-DR19 · UX-DR20 · UX-DR2+UX-DR12 · UX-DR7+AD-34 §2 · AD-1, kèm dòng 🔵.
 
 ## Deferred from: code review of 2-2-panel-editor-lien-mach (2026-08-12)
 
@@ -2138,6 +2142,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   ⚠️ **Trạng thái hôm nay, nói thẳng:** bề mặt Editor **gõ được trên Blink** *(bàn đo + vitest +
   e2e vế vùng gõ đều xanh)* nhưng **chưa gõ được bằng chuột trên macOS/WKWebView** — tức trên đúng
   nền tảng duy nhất dự án đang chạy. **AC8 không được đánh dấu đạt trọn vẹn.**
+  → 2026-09-24 (phiếu quyết #62) — Ice chọn trao tiêu điểm cho entry-focus của GridPanel khi đổi Chương (AD-34), kèm e2e vì happy-dom không tái lập được. **Chủ: Story 11.5.**
 
 - ⚠️ **`panic = "abort"` khiến một lần thoát CỨNG không đi qua đường flush lúc thoát** — món nợ
   **kế thừa** từ `close_global_store`/`close_open_work`, story này **không** đóng nó.
@@ -2152,6 +2157,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   `var(--space-status-height)` = **34px** — số trong bảng token, và `EXPERIENCE.md:312` phân xử
   rằng tài liệu thắng bản dựng. Dev **không** sửa `DESIGN.md` *(tiền lệ quyết định #3 của Ice ở
   Story 1.3)*. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #77)** — John sửa DESIGN.md frontmatter status-height và mockup key-screen-workspace.html về 34px, khớp tokens.json và StatusBar.vue.
 
 - ⚠️ **PHỦ TEST HỒI TỐ cho mã Story 1.x / 2.1 / 2.2 — cố ý KHÔNG làm ở đây.** Bộ chạy test
   frontend ra đời ở story này *(Quyết định #6)*, và một bộ chạy mới luôn mời gọi phủ ngược. Trộn
@@ -2218,6 +2224,7 @@ hoãn, không gom thành một câu *(retro §5)*.
   qua nó đúng cách *(ba tệp giấy phép thật đã mở, 811 dòng của `vitest` đọc ra 27 gói vendor)*.
   Ghi ra vì gói **thứ tư** sẽ gặp lại đúng cửa này, và lúc đó trí nhớ người là thứ duy nhất canh.
   **Chủ: Ice** *(quyết định có biến cửa này thành cổng máy hay không)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #34) — Ice giữ cửa rà giấy phép NFR15 là quy trình người theo AGENTS.md §Policy và bảng Stack của spine; không dựng cổng máy.
 
 - **Tiêu điểm/caret không khôi phục sau một lượt dựng lại component.**
   Người dùng đang gõ dở một câu, một lượt đổi preset bố cục tháo và dựng lại `EditorPanel.vue`:
@@ -2228,6 +2235,7 @@ hoãn, không gom thành một câu *(retro §5)*.
   chọn. 🔴 **Vì sao hoãn chứ không vá:** lời giải là **giành** tiêu điểm lúc mount, và đó đúng là
   thứ `PanelFrame.vue::focused` cùng chốt chống-rơi-`body` của `focus.ts` tồn tại để **không** làm
   — cùng doctrine mà §ĐÍNH CHÍNH 2026-08-13 vừa xác lập lại bằng phép đo. **Chủ: Ice.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #63) — Ice chấp nhận mất tiêu điểm tạm sau remount EditorPanel khi đổi preset; chữ không mất, và giành tiêu điểm lúc mount trái doctrine AD-34.
 
 - **Chưa đo caret có NHÌN THẤY trên một câu rỗng sau khi bỏ `min-width`.**
   Khối CSS *"KHÔNG ép câu rỗng chiếm chỗ"* cộng `.sent[contenteditable='true']{outline:none}` để
@@ -2455,6 +2463,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   ký và mệnh đề đã viết vào doc-comment của `resolveSegmentRule` cùng một ca vitest, nhưng **tài
   liệu quy hoạch chưa được sửa** — sửa một tài liệu tầng nguyên tắc là một lượt riêng của Ice, dev
   không sửa `EXPERIENCE.md`/`epics.md`. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #78)** — đã làm từ 2026-08-14: bảng trạng thái EXPERIENCE.md có hàng `draft` "đã dịch tay, chưa xác nhận" (🔵 Sửa 2026-08-14 — Ice).
 
 - 🔴 **Story 2.5 phá một giả định hiệu năng của cả Epic 2 — đã ĐO và đã VÁ trong story, ghi lại
   vì nó đổi cách đọc mọi số cũ.** Tới hết Story 2.3, `wanted` của `measureGutterRules` có **nhiều
@@ -2574,6 +2583,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
     *"một lượt từ chối có đổi pixel nào không"*, và ca e2e cho nó chưa dựng.
 
   **Chủ phần còn hở: Ice** *(mở rộng UX-DR30 quá phạm vi tối thiểu — hai gạch đầu dòng trên)*.
+  → 2026-09-24 (phiếu quyết #64) — Ice chọn mở rộng UX-DR30: lỗi confirm, lỗi flush và ba nhánh từ chối khôi phục hiện message_key thật ở cột nhãn hàng, kèm e2e canh. **Chủ: Story 11.5.**
 
 - 🔴 **Bộ e2e ĐỎ OAN khi chạy cả bộ — hai tệp xanh khi chạy riêng, đỏ khi chạy nối tiếp.**
   **Đo 2026-08-14** (macOS 15.6, sau lượt code review Story 2.5):
@@ -3432,6 +3442,7 @@ mục nào mồ côi.
   bản không thuộc segment đó)* và cả ba đi vào đúng bề mặt dở đó.
   ⚠️ Ghi ra vì nó làm món nợ cũ **nặng thêm**, không phải vì nó là món mới: trước story này có
   hai lệnh Editor dùng ô lỗi chung, nay là ba. **Chủ: Ice** *(gộp vào món `:2825-2840` đã có)*.
+  → 2026-09-24 (phiếu quyết #64) — Ice chọn mở rộng UX-DR30: lỗi confirm, lỗi flush và ba nhánh từ chối khôi phục hiện message_key thật ở cột nhãn hàng, kèm e2e canh. **Chủ: Story 11.5.**
 
 - ⚠️ **Mockup nói phiên bản "thứ sáu" xuất hiện NGAY lúc khôi phục; chữ ký #1(a) làm nó xuất hiện
   MUỘN HƠN MỘT NHỊP.** `data-integrity.html:226-229` viết đậm *"Khôi phục là tạo phiên bản
@@ -3444,6 +3455,7 @@ mục nào mồ côi.
   ⇒ Phần lệch còn lại là **một câu trong mockup nói sai về THỜI ĐIỂM**, không về cơ chế. Dev
   **không** sửa mockup và **không** sửa `epics.md` — sửa một tài liệu tầng quy hoạch là một lượt
   riêng của Ice. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #79)** — John sửa câu mockup data-integrity.html: bản khôi phục thành phiên bản thứ sáu ở lượt xác nhận kế tiếp (AD-31).
 
 - ⚠️ **Ca `toISOString()` của `historyTimeLabel` RỖNG NGHĨA trên CI, và CI là nơi duy nhất chạy
   tự động.** Story 2.6 dựng quy ước định dạng thời gian đầu tiên của kho
@@ -3601,6 +3613,7 @@ mục nào mồ côi.
   ⚠️ Ghi ra thay vì dựng một cổng cho nó: một cổng canh *"không có X"* trên một khái niệm chưa
   có tên trong mã là một cổng không đỏ được, và luật của kho là **mỗi cổng phải đỏ được**.
   **Chủ: Ice** *(một câu hỏi quy ước, cùng hạng với món adapter ở trên)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #35) — Ice không dựng cổng phủ định cho "xuất xứ không có bề mặt UI"; một cổng không đỏ được trái luật kho, giữ bằng review.
 
 - 🔵 **ĐÃ CHẨN ĐOÁN 2026-08-16 (Story 2.7) — và phép đo ĐẶT TÊN cho một phần của hai món nợ
   *"bộ e2e chập chờn"* ở trên.** Năm lượt trọn bộ, ghi cả năm:
@@ -3775,6 +3788,7 @@ mục nào mồ côi.
   *(lịch sử? điều hướng tới chỗ đánh dấu FR119?)* cho hàng về hưu một chỗ hiện, và nhánh này
   sống lại; ② UX-DR19 rút xuống năm giá trị, và **đó là một lượt sửa spec** phải đi qua thủ tục
   của nó. **Chủ: Ice.**
+  → 2026-09-24 (phiếu quyết #65) — Ice rút giá trị về hưu khỏi UX-DR19 (epics.md, DESIGN.md, EXPERIENCE.md đã sửa bằng 🔵 lượt này); 11.5 gỡ nhánh ornament của resolveSegmentRule. **Chủ: Story 11.5.**
 
 - ⚠️ **`⌘M` sẽ va Quản lý TM ở Epic 7.** `mockups/tm-manage.html:128` dùng `⌘M` mở màn hình
   Quản lý TM; Story 2.8 vừa đăng ký `⌘M` cho `editor.merge_segments`. Va chạm **chưa xảy ra**
@@ -3899,6 +3913,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   `n` mảnh đó là **n−1 lượt gộp bằng tay** — đắt, nhưng đo được và **không mất dữ liệu**.
   🔴 **CÒN HỞ:** một lượt `⌘/` đa-mảnh vẫn **im lặng về cái giá đó TRƯỚC khi chạy**. **Chủ: Ice**
   *(cùng chủ với chỗ hở `⌘Z` ở mục cuối tệp — một quyết định về dòng báo phủ được cả hai)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #66) — Ice giữ ⌘Z ngoài vùng gõ im lặng có chủ ý: AD-49 không có ngăn xếp hoàn tác, đường lui của gộp/tách là gọi lại lệnh.
 
 - 🔴 **Luật `is_omitted` khi gộp (chữ ký #5(a)) VẪN chưa có chỗ đứng trong spine.** Món này đã
   ghi ở lượt dev; nhắc lại ở đây vì lượt rà xác nhận nó là mệnh đề **duy nhất** của story mà
@@ -4455,6 +4470,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   ⚠️ **Ràng buộc nếu chọn ①:** `⌘Z` có `primaryMod` nên nó **không** bị `keys.ts:510` chặn trong vùng gõ *(khác `Backspace`)* ⇒ nó bắn **cả khi con trỏ đang ở trong ô bản dịch**. Một dòng báo gắn vào đó sẽ hiện giữa lúc người dùng đang gõ — đúng chỗ dễ thành phiền. Và command mới phải đi qua `CommandRegistry` *(AD-34 §1)*, không cài thẳng trong `GridPanel.vue`.
   **Chủ: Ice** *(chốt hình dạng — một dòng báo, hay một quyết định để nguyên viết ra)*. Một quyết định phủ được **cả hai** chỗ hở: `⌘Z` và lượt `⌘/` đa-mảnh.
   🔵 2026-09-23 — Ràng buộc ở trên nay là luật: AD-49 Rule ① bắt mọi binding `Mod+Z` · `Mod+Shift+Z` nhường vùng gõ, không `preventDefault` ở đó. Nếu không, `⌘Z` gốc trong ô bản dịch sẽ chết.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #66) — Ice giữ ⌘Z ngoài vùng gõ im lặng có chủ ý: AD-49 không có ngăn xếp hoàn tác, đường lui của gộp/tách là gọi lại lệnh.
 
 - ⚠️ **`AD-48` chưa được soạn, và nó KHÔNG chết theo AC5.** Ice rút AC5 nhưng câu hỏi *"`⌘Z` làm gì trong ứng dụng này"* vẫn phải có một chỗ đứng: Epic 3 trở đi còn thêm thao tác rời rạc *(duyệt glossary hàng loạt FR53, điền sẵn từ TM FR58, đề xuất AI)*, và mỗi thao tác ấy sẽ hỏi lại đúng câu này. Không viết ra thì mỗi epic phải đo lại từ đầu — đúng chi phí mà 47 `AD` kia tồn tại để tránh. Nội dung nay **nhỏ hơn nhiều** so với hồ sơ gốc: một mệnh đề *(Epic 2 không có mô hình hoàn tác; đường quay lại là gọi lại chính lệnh; và đây là lý do)*, cộng một câu khai rằng **AD-3, AD-5, AD-31 không đổi một chữ** *(khuôn AD-47 đã dùng)*. Hồ sơ: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11.4.
   **Chủ: Winston.** 🔴 Dev **không** tự soạn `AD` *(`project-context.md:461-463`)*.
@@ -4703,6 +4719,7 @@ hai commit của Story 2.12** — story mà hồ sơ ghi *"7/7 AC đóng, cửa 
   ⚠️ Và ghi thẳng chỗ yếu của chính đề xuất đó: chạy trọn bộ hai lần cho **hai** múi giờ làm
   `pre-push` dài thêm ~4 s *(đo: trọn bộ 250 ca chạy 4,35 s)*. Rẻ — nhưng nó chỉ canh **hai** điểm
   trên một trục liên tục, nên nó **không** là *"đã canh mọi múi giờ"*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #36) — CI đã chạy vitest ở UTC và AGENTS.md buộc đọc CI trước done; không thêm lượt TZ=UTC vào pre-push.
 
 - 🔴 **Và món nặng hơn, không phải chuyện kỹ thuật: KHÔNG AI ĐỌC KẾT QUẢ CI.** Kho có CI chạy mỗi
   push *(`ci.yml`, repo công khai)*, và nó đỏ **năm lượt** mà không lượt nào bị chặn, không lượt nào
@@ -4726,6 +4743,7 @@ Bản vá `fa70fe3` *(cái bẫy `-0`)* là thứ cho `cargo test` chạy đư�
 trước đó `npm test` đứng **trước** nó trong job và chết sớm, nên khâu Rust bị bỏ qua hoàn toàn.
 Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa hình dạng đã giao ở `8a4a060`
 *(đảo thứ tự hai mệnh đề · gỡ phép so tự tham chiếu)*, và cả hai **không** trả lời câu dưới đây:
+  → 2026-09-24 (phiếu quyết #37) — Ice chọn một bước pre-push hỏi `gh run list` phán quyết lượt push trước và cảnh báo khi đỏ, không chặn. **Chủ: Story 11.1.**
 
 - **Cửa sổ hồi quy:** `cargo test` **XANH** trên `macos-26` ở `64cf7cb` *(2026-08-16)*, rồi
   **không chạy trong CI lần nào** cho tới `fa70fe3` *(2026-08-19)*. Trong khoảng ấy:
@@ -5256,6 +5274,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     phẩm lên Global là thao tác một bước của Story 3.9; chiều ngược lại thì không.
     **(Chủ: Ice — đây là một lựa chọn sản phẩm, không phải một lỗi kỹ thuật; nêu lại ở
     Story 3.9 khi màn hình quản lý cho thấy hậu quả thật.)**
+  → 2026-09-24 (phiếu quyết #53) — Ice chọn mặc định tầng Tác phẩm cho thêm nhanh thuật ngữ khi có Tác phẩm mở; ghi nhầm xuống Tác phẩm rẻ hơn rò lên Global. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: `<form>` của dải "Thêm thuật ngữ" không có tên khả truy cập nối với tiêu đề
@@ -5409,6 +5428,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   rồi đổi sang §TÊN, hoặc để nguyên và chấp nhận rằng chúng là dấu vết của thời điểm viết.
   **(Chủ: Ice — quyết định có viết lại bản ghi đã đóng hay không; đây là một câu hỏi về tính
   toàn vẹn của lịch sử, không phải một lượt sửa kỹ thuật.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #81) — Ice để nguyên 19 mốc epics.md:N trong tài liệu đã đóng; chúng đúng tại thời điểm viết, tài liệu sống đã chuyển sang §TÊN.
 
 - ⚠️ **Không cổng nào canh một tham chiếu `epics.md:N`, và lớp lỗi này TÁI DIỄN theo cấu tạo.**
   `scripts/check-layout.mjs` và `scripts/check-commands.mjs` có nhắc `epics.md:N` nhưng **chỉ
@@ -5869,6 +5889,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     lại và phơi ra ngoài (hàm hiện chỉ trả `HanVietSuggestion`, không trả kèm nguồn).
     **(Chủ: Ice — quyết định có cần nhãn nguồn trên dải hay không; nếu có, đây là công việc mở
     rộng `HanVietSuggestion`/`GlossaryMark`, không phải một trường đang bị bỏ sót.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #54) — Ice không hiện nhãn nguồn cho đề xuất Hán Việt trên dải; nguồn xem được ở tab Hán Việt của Panel Source.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
   summary: **Tắt/bật một nguồn từ điển KHÔNG làm mới dấu Glossary, nên đề xuất Hán Việt đang
@@ -5885,6 +5906,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     — *"KHÔNG chỗ nào khác được gọi hai hàm này"* — một câu **Ice ký 2026-08-21**. Story 3.6 đã
     phải sửa câu đó tại chỗ để mở chỗ gọi thứ ba; chỗ thứ tư là cùng loại quyết định.
     **(Chủ: Ice — phán quyết về chỗ gọi `refreshGlossaryMarks` thứ tư.)**
+  → 2026-09-24 (phiếu quyết #55) — Ice chọn làm mới dấu Glossary khi tắt/bật nguồn từ điển, tách đổi danh tính khỏi đổi đề xuất để không xoá chữ đang gõ; sửa doc-comment đã ký 2026-08-21 cùng lượt. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
   summary: **`targetsEqual` chỉ so `tier`+`id`, nên một đề xuất ĐỔI cho CÙNG một mục sẽ không
@@ -5901,6 +5923,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khỏi *"đổi đề xuất"*, và chỉ điền lại khi ô còn nguyên vẹn.
     **(Chủ: Ice — cùng một quyết định với mục ngay trên; sửa mục kia mà không sửa mục này là
     mở đúng cửa sổ mất chữ đang gõ.)**
+  → 2026-09-24 (phiếu quyết #55) — Ice chọn làm mới dấu Glossary khi tắt/bật nguồn từ điển, tách đổi danh tính khỏi đổi đề xuất để không xoá chữ đang gõ; sửa doc-comment đã ký 2026-08-21 cùng lượt. **Chủ: Story 11.4.**
 
 ## Deferred from: 3-8-duyet-hang-loat-mot-phim (2026-08-24)
 
@@ -5918,6 +5941,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đừng dựng một phỏng đoán mà máy chưa hề tính.
     **(Chủ: Ice — phán quyết mockup nào còn hiệu lực; mỗi năng lực trong năm cái cần một cột
     hoặc một bài toán nhận diện thực thể riêng.)**
+  → 2026-09-24 (phiếu quyết #56) — Ice chọn xây riêng số Chương một thuật ngữ xuất hiện trên bảng chờ; bốn năng lực còn lại của mockup (lọc phân loại kèm đếm, bỏ hàng loạt, nhiều ví dụ ngữ cảnh, phân loại do máy đoán) không làm. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
   summary: **Chip phân loại và hàng ứng viên KHÔNG bấm chuột được** — chỉ bàn phím `1`–`4`
@@ -5980,6 +6004,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — đây là một quyết định sản phẩm, không phải một chỗ sót kỹ thuật: cột này chỉ
     tồn tại được nếu chấp nhận một bước di trú thêm cột đếm vào `glossary_entry` và một đường
     cập nhật nó, tức một đích giao được riêng.)**
+  → 2026-09-24 (phiếu quyết #57) — Ice chọn thêm cột đếm cho glossary_entry (một bước di trú) để hiện cột "Dùng" và sắp theo tần suất; cùng lượt với #56. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Xoá một mục Glossary KHÔNG có bước xác nhận** — một phím `Backspace`/`Delete` khi
@@ -5995,6 +6020,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — hai đường đều hợp lệ và ngược chiều nhau: một hộp xác nhận cho mọi lượt xoá,
     hay một đường HOÀN TÁC sau khi xoá. Đường thứ hai hợp gu kho hơn nhưng đắt hơn nhiều vì
     mục ở tầng Tác phẩm và tầng Toàn cục nằm ở hai kho không có giao dịch chung.)**
+  → 2026-09-24 (phiếu quyết #58) — Ice chọn một hộp xác nhận cho mọi lượt xoá mục Glossary; không dựng đường hoàn tác (khớp AD-49). **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Gõ vào ô tìm hoặc đổi một bộ lọc XOÁ bản sửa đang dở, không một câu nào** — người
@@ -6007,6 +6033,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — ba đường đều hợp lệ: vô hiệu thanh công cụ trong lúc sửa · giữ bản sửa qua
     lượt lọc · hoặc nói ra bằng một câu trước khi bỏ. Chọn đường nào là một quyết định sản
     phẩm, không phải một lượt vá.)**
+  → 2026-09-24 (phiếu quyết #59) — Ice chọn vô hiệu ô tìm và bộ lọc khi đang sửa một mục Glossary. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Hàng trong lưới quản lý không bấm chuột để chọn được** — con trỏ chỉ dời bằng mũi
@@ -6032,6 +6059,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nào canh**. Không đánh dấu đạt bằng suy luận: đây là một mệnh đề đang đứng một mình.
     **(Chủ: Ice — cần một cơ chế chèn điểm dừng vào giữa hai lượt ghi để dựng ca tất định, tức
     một năng lực bàn đo mới chứ không phải một ca test thêm.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #70) — Ice chấp nhận nhánh đua changed==0 của promote_to_global không có ca canh; không dựng cơ chế chèn điểm dừng.
 
 - source_spec: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`
   summary: **Nửa CHỌN TỆP của Story 3.10 tách ra và hoãn** — đúng hai chỗ: lấy đường dẫn nguồn
@@ -6875,6 +6903,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ① bỏ `{size}` khỏi câu, chỉ nêu `{limit}` — đúng cho cả hai bên, mất một thông tin chẩn đoán;
     ② tách khoá riêng cho Glossary. **(Chủ: Ice — đây là một quyết định hiển thị, không phải một
     dòng vá. Lượt đầu tiên chạm `err.import.too_large` mở lại.)**
+  → 2026-09-24 (phiếu quyết #60) — Ice chọn bỏ {size} khỏi câu err.import.too_large, chỉ nêu {limit}, một câu dùng chung. **Chủ: Story 11.4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
   summary: **Hai lượt xuất Glossary song song cùng một đích đều trả `Ok(())`, nhưng chỉ MỘT lượt
@@ -6961,6 +6990,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khối đã đông cứng, không phải một dòng vá.
     **(Chủ: Ice — một quyết định hiển thị, cùng hạng với mục `err.import.too_large` đang mở. Lượt
     đầu tiên mở lại hàng ④ của Matrix chốt luôn: lô hỗn hợp báo lỗi nào.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #61) — Ice giữ row_missing và hàng ④ I/O Matrix; ca cần một lượt ghi song song, hiếm ở app một người dùng.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy.md`
   summary: **Một `throw` sau `await` bên trong handler của một command vẫn thoát ra thành unhandled
@@ -7122,6 +7152,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.
   evidence: `-D warnings` dừng ngay ở crate lib nên KHÔNG bao giờ chạm tới target test — chạy `cargo clippy --all-targets` trần mới thấy đủ: `tests/segment_contract.rs` 12 · `commands/pinned.rs` 3 · `tests/ai_boundary.rs` 2 · `commands/glossary.rs` 2 · `core/scope/resolve.rs` 1 · `core/scope/mod.rs` 1 · `core/glossary/exchange.rs` 1. Tám cái ở tầng lib đo tại baseline `7d1165f` trước mọi thay đổi của story — `useless_conversion` (`commands/glossary.rs:1316,1393`), `redundant_closure` (`commands/pinned.rs:116,164,197`), `redundant_guards` (`core/glossary/exchange.rs:945`), `type_complexity` (`core/scope/resolve.rs:198`, `core/scope/mod.rs:335`). Story 5.1 KHÔNG đẻ thêm cảnh báo nào: `segment_contract.rs` là tệp story có sửa và mang 3 cảnh báo `err_expect`, nhưng ở dòng 1755/3857/3863 — story chỉ sửa 1965/2072/2972/3484/3501/3859/4030/6280/6284, không dòng nào trùng; `ai_boundary.rs` không nằm trong diff. Đáng ghi vì `clippy` KHÔNG phải cổng của kho — chuỗi `cargo clippy` không xuất hiện trong `.github/workflows/ci.yml`, `package.json`, hay `scripts/` — nên nợ này không có đường nào tự lộ ra, và nó đã âm thầm làm một dòng `expected: không cảnh báo` trong §Verification của Story 5.1 thành kỳ vọng không bao giờ đạt được. **Chủ: Ice — quyết định có đưa `cargo clippy --all-targets -D warnings` vào một cổng hay không trước khi bất kỳ story nào dọn 22 cảnh báo này** *(🔵 THÊM 2026-08-27, Story 5.3 — mục này đứng mồ côi ở `check:debt-owner` Kiểm A trước bản vá; vá bằng cách nêu đúng người ra quyết định kế tiếp, không phải một cái tên story giả cho có).*
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #38) — Ice không đưa clippy vào cổng; 22 cảnh báo có sẵn để nguyên.
 
 ## Deferred from: 5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat (2026-08-27)
 
@@ -8833,6 +8864,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   story/epic/người thật), và đổi chiều nó sẽ làm cổng đỏ trên những mục lịch sử viết tự do
   ⇒ phải đo số mục bị chạm TRƯỚC khi đổi. **Chủ: Ice** — đây là một quyết định về hình dạng sổ
   nợ (và về việc chấp nhận một lượt đỏ hàng loạt để dọn), không phải một chi tiết cài đặt.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #39)** — vị từ đã đổi sang danh sách cho phép: `scripts/check-debt-owner.mjs` dùng `CONCRETE_OWNER_RE` (Ice chốt 2026-09-23), `NEGATIVE_OWNER_RE` không còn trong tệp.
 
 - ⚠️ **Danh sách tầng 4 khai `role="listbox"`/`role="option"` nhưng KHÔNG chọn được bằng
   chuột.** Story 6.10a gắn `role`/`aria-selected`/`aria-activedescendant` lên danh sách tách
@@ -9342,6 +9374,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   các khối giữ có `exact_gap_before` mang ký tự không phải khoảng trắng trên bảy mẫu;
   (c) §Verification spec 6.9 vẫn ghi đối chứng ② theo mệnh đề văn bản. **Chủ: Ice** — spec đã
   `done`, sửa bản ghi của nó là quyết định của Ice.
+  → 2026-09-24 (phiếu quyết #71) — Ice chọn sửa đối chứng ② spec 6.9 để nó đỏ khi bộ chọn khối về bản vòng 1 (so theo khối/thẻ được chọn, không so văn bản ghép). **Chủ: Story 11.6.**
 
 ## Deferred from: 6-10-bo-loc-can-xem (2026-09-08)
 
@@ -9461,6 +9494,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Lựa chọn ① ở trên đổi nội dung theo nguyên nhân mới: cho LuLu một đường quyết (chạy giao diện
   LuLu để bấm Allow — luật theo hash nên mỗi lượt biên dịch lại sẽ hỏi lại; hoặc bật
   `passiveMode`); ② và ③ giữ nguyên. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #72)** — Ice đã tắt LuLu; đo 2026-09-24 trên binary vừa dựng lại: `cargo test --test webimport_contract --test asset_contract` xanh 34/34 và 19/19.
 
 ## Deferred from: spec-6-10-bo-loc-can-xem — vòng rà đối kháng bước 4 (2026-09-08)
 
@@ -9579,6 +9613,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   domain ở Cài đặt › Quyền riêng tư, một màn hình người dùng không tự mở). **Chủ: Ice** — cần
   một quyết định UX (toast? dòng trong xác nhận nhập? mục trong lưới Tác phẩm?) trước khi một
   story sau viết bề mặt này; chưa story nào nhận việc này hôm nay.
+  → 2026-09-24 (phiếu quyết #43) — Ice chọn một thông báo sau khi nhập xong "N ảnh không tải được" kèm lối tới nhật ký domain. **Chủ: Story 11.6.**
 
 - ⚠️ **Hàng ma trận *"ghi tệp trượt giữa chừng ⇒ lượt nhập trượt sạch, thư mục `.atproj` bị
   dọn"* CHỈ được nghiệm thu trên Unix.** `asset_contract.rs::a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder`
@@ -9633,6 +9668,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `host_of` trả `None` nên nó không bao giờ vào tầng 2, rồi `fetch` từ chối với `InvalidUrl`
   ("url khong co host"). Ảnh rơi vào `images_failed`, không phân biệt được với một ảnh 404.
   Đây là một nguồn ảnh KHÔNG cần một lời gọi mạng nào — tức nó không đụng AD-41. **Chủ: Ice.**
+  → 2026-09-24 (phiếu quyết #44) — Ice chọn giải mã và lưu ảnh data: URI, chỉ các kiểu raster đã cho phép (AD-16 vẫn loại SVG). **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Pha ảnh không có ngân sách thời gian, không tiến độ, không huỷ — một lượt nhập
@@ -9642,6 +9678,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   §Ask First spec 6.11 chỉ hỏi trần TỔNG BYTE (Ice: không thêm ngưỡng) — câu hỏi về THỜI GIAN
   và khả năng HUỶ chưa từng được hỏi, nên đừng đọc câu trả lời kia thành đã chốt cả cái này.
   **Chủ: Ice.**
+  → 2026-09-24 (phiếu quyết #45) — Ice chọn tiến độ theo mục và nút huỷ cho pha tải ảnh theo khuôn pha trang Story 6.7; huỷ giữ Chương, bỏ ảnh còn lại; không ngân sách thời gian. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Tập tầng 2 chỉ chở HOST, nên một thẻ `<img>` cấp phép cho mọi cổng và mọi giao thức
@@ -9651,6 +9688,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   dạng `Allowlist` đã giao ở 6.8, cùng bộ ca đã ký của nó); story này chỉ là chỗ gọi đầu tiên
   làm hệ quả ấy quan sát được. **Chủ: Ice** — nới khoá tầng 2 thành host+port+scheme là đổi một
   cấu trúc đã giao, cần một quyết định chứ không một dòng sửa.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #46) — Ice giữ allowlist tầng 2 so theo host như Story 6.8 đã giao; nhật ký domain vẫn ghi mọi lần gọi.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Tệp ảnh mồ côi ở lại trong `assets/` vĩnh viễn nếu tiến trình chết giữa lúc ghi tệp
@@ -9727,6 +9765,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `asset.source_url` (tầng ẢNH, §Never spec 6.15: "Không đụng tầng ẢNH"). Mục này ở lại
   NGUYÊN TRẠNG 🟡, **chủ: Ice** — Story 6.15 không phải nơi quyết định "chặng cuối sau chuyển
   hướng" của `asset.source_url` sống ở đâu, nó chỉ xác nhận rằng KHÔNG PHẢI ở đây.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #47) — Ice giữ asset.source_url là URL yêu cầu, tức URL người dùng thấy trong trang; không tách cột chặng cuối khỏi khoá dedup AD-41.
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Lượt áp bốn trường xuất xứ HÀNG LOẠT cho nhiều Chương một lúc — chưa có, cố ý.
@@ -9796,6 +9835,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_the_work`) chủ ý
   không phủ trường hợp này để tên ca không nói quá thứ nó đo. **Chủ: Ice** — cần một quyết
   định (mệnh đề rộng có phải điều muốn không?) trước khi viết ca cho nhánh này.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #48) — Ice xác nhận đúng ý: allowlist tầng 2 thuộc cả Tác phẩm, nên chuyển hướng chéo Chương tới host đã có trong Tác phẩm được cho qua.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Không kiểm được biên dịch cho target Windows trên máy Ice — hai lượt thử đều trượt vì
@@ -9826,6 +9866,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   — nhưng không có gì canh chiều ngược lại, tức máy dev trôi khỏi CI. Không do story này gây ra.
   **Chủ: Ice** — hoặc thêm `rust-toolchain.toml` để ghim máy dev về đúng bản CI, hoặc ghi ra rằng
   hai bên cố ý lệch và số đo hiệu năng chỉ tin được ở một phía.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #40)** — Ice ghi lệch toolchain là có chủ ý: AGENTS.md §This machine nay nói so hai số đo chỉ cùng toolchain, Homebrew rustc cục bộ khác bản ci.yml ghim.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Hướng "snap" của một ảnh neo RƠI VÀO GIỮA nhóm segment đang bị gộp/tách là một quyết
@@ -9839,6 +9880,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ranh giới đó). Hướng còn lại — snap về TRƯỚC nhóm mới (`ord_dau_nhom - 1`) — cũng hợp lệ và
   giữ ảnh ở phía văn bản đứng trước nó. **Chủ: Ice** — chốt một hướng, hoặc nói rõ là không quan
   trọng để người sau khỏi mở lại; hôm nay chưa có phép đo nào đứng sau lựa chọn đang cài.
+  → 2026-09-24 (phiếu quyết #67) — Ice ký hướng snap về SAU nhóm mới như mã hiện tại; 11.5 thay dòng "chưa có Ice ký" trong doc-comment của write_regroup. **Chủ: Story 11.5.**
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: "`merge_chapter_into_previous` chạy `normalize_chapter_ord(tx)` TRƯỚC phép kiểm
@@ -9876,6 +9918,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — quyết định mở rộng danh mục ảnh ĐÓNG bốn kiểu (rủi ro: SVG là markup, đã bị
   loại có chủ ở Story 6.11 vì lý do bảo mật AD-16, không nên mở lại riêng cho `.docx`) là quyết
   định sản phẩm, không phải một lượt vá kỹ thuật nhỏ.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #49) — Ice giữ bốn kiểu raster cho ảnh .docx; EMF/WMF/BMP/TIFF tiếp tục bị từ chối có đếm.
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: `core::docx::read_docx` không đọc header/footer/footnote/endnote/ghi chú của
@@ -9990,6 +10033,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   liệu) là một thay đổi cấu trúc ngoài phạm vi một lượt vá nhỏ; hoặc chấp nhận giới hạn này
   (ảnh sau ranh giới phân tách luôn trượt có thể phân biệt được, không bao giờ sai Chương)
   như một hành vi ĐỦ AN TOÀN cho tới khi có nhu cầu thật.
+  → 2026-09-24 (phiếu quyết #50) — Ice chọn để mỗi Chương .docx sau mẫu phân tách tự cắt lát blocks của mình, ảnh vào đúng Chương. **Chủ: Story 11.6.**
 
 ## Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)
 
@@ -10011,6 +10055,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ảnh?) là một quyết định sản phẩm, không phải một lượt đọc-thêm-thuộc-tính đơn giản; đọc
   `wp:docPr@descr`/`@title` cho `alt` khả thi hơn nhưng vẫn cần Ice chốt phạm vi trước khi
   cài — spec 6.13 khoanh vùng rõ "chỉ mô hình + đường web" cho đúng lý do này.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #51) — Ice không đọc alt/caption cho ảnh .docx; đường .docx chỉ mang ảnh.
 
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ② số ảnh GIỮ có `alt` khác rỗng trên trang thật CHƯA ĐO ĐƯỢC — rủi ro "một `alt`
@@ -10112,6 +10157,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `.githooks/pre-push:23-42`), nên nó không tự đóng bằng một lượt push; và câu hỏi thứ hai
   ("khoảng trống đối diện ảnh có chấp nhận được không") là một phán quyết thiết kế, không một
   phép đo kỹ thuật.
+  → 2026-09-24 (phiếu quyết #68) — Ice nhận ô bản dịch trống đối diện ảnh là đúng ý; 11.2 thêm e2e đo năm cột thẳng hàng trên WKWebView thật. **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: 🔵 Cơ chế của món nợ "test dựng `TcpListener` thật đỏ trong thư mục dự án" đo lại
@@ -10174,6 +10220,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — cần một quyết định: AD-23 có ý *"đúng một Tác phẩm tại một thời điểm"* hay chấp nhận
   tích luỹ trong phiên? Trả lời xong mới biết nên dựng cơ chế thu hồi kiểu gì (bỏ allow thay vì
   thêm forbid, hoặc dựng lại scope từ đầu mỗi lượt mở).
+  → 2026-09-24 (phiếu quyết #52) — Ice chọn thu hồi phạm vi asset:// của Tác phẩm cũ khi đổi Tác phẩm (forbid_directory), đúng ý AD-23 một Tác phẩm mỗi lúc. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Một Chương chỉ gồm segment mang vai (ảnh + alt + caption, 0 câu văn xuôi) hiện chú
@@ -10187,6 +10234,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đổi nó có thể dựng lại đúng nhánh đó."
   chủ: Ice — cần chốt Chương-toàn-ảnh đọc lên như thế nào (một chú thứ BA, hay `segment_count`
   đổi nghĩa) trước khi dev chạm vào một trường của story khác.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #69) — Ice chấp nhận chú "mọi câu đã cắt bỏ" cho Chương chỉ có ảnh; ca hiếm, không đổi nghĩa segment_count.
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: `assets_dir` đi ra dây qua `to_string_lossy()` — đường dẫn không biểu diễn được bằng
@@ -10263,6 +10311,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ca đó xanh; trên CI `macos-26` chúng xanh sẵn. Câu hỏi đổi hình dạng, không đóng: một ca chuyển
   hướng đầu-cuối nay nghiệm thu được ở máy này khi LuLu có đường quyết, và ở CI. **Chủ: Ice** — vẫn
   cần chọn đường nghiệm thu.
+  → 2026-09-24 (phiếu quyết #73) — LuLu đã tắt nên bộ loopback xanh trên máy Ice (34/34 webimport_contract); 11.6 thêm ca chuyển hướng thật cho chapter.origin_url và nghiệm thu tại chỗ. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-16-nhap-tai-lieu-song-ngu-hai-cot.md`
   summary: "Bilingual import (FR115) does not read Markdown pipe tables (`.md`) — Story 6.16
@@ -10533,6 +10582,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     ở sáu doc-comment mới trong `project.rs` — không một chỗ nào trong sáu chỗ trên.
   **Chủ: Ice** — sáu chỗ sửa CÙNG MỘT LƯỢT; sửa lẻ một chỗ tạo ra đúng cái bẫy "hai bản chép
     phải đồng bộ bằng tay" mà tệp này đã ghi nợ ở chỗ khác. Không gate nào canh câu này.
+  → 2026-09-24 (phiếu quyết #82) — Ice mở khoá §Never cho lượt này: sửa cả sáu chú thích sai về sync_threadpool và con số sai trong doc-comment, viết lại không mang số đếm. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
   summary: Doc-comment của `wire::start_url_import` trong `src/commands/project.rs` khai
@@ -10557,6 +10607,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     TÊN vỏ. Lý do đo được ngay trong một phiên: vòng rà đặt câu ấy ở `:6338`, agent đo lại thấy
     `:6339`, và sau các patch của chính agent nó nằm ở `:6341` — ba con số cho một câu không đổi.
     Trỏ bằng tên, không bằng dòng.)*
+  → 2026-09-24 (phiếu quyết #82) — Ice mở khoá §Never cho lượt này: sửa cả sáu chú thích sai về sync_threadpool và con số sai trong doc-comment, viết lại không mang số đếm. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
   summary: Bốn trong sáu vỏ vừa lật `(async)` chưa có ca nào canh chồng lấn — và lý do hoãn ghi ở
@@ -10659,6 +10710,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     Rust so với Vue SFC — nên một ngưỡng rút ra từ quần thể gộp có thể không hợp với bên nào.
     Nếu dựng, hãy đếm HAI phân bố riêng và cân nhắc hai ngưỡng, hoặc nêu rõ vì sao một ngưỡng
     chung là đúng. Đây là lời khuyên về việc Ice CHƯA bắt đầu, không phải một khuyết tật.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #41) — Ice không dựng cổng đo kích thước tệp; luật tách tệp quá lớn trong AGENTS.md là đủ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
   summary: Chặng 2 của AI-6 — cắt phần THÂN của `commands/project.rs` (`:43-4550`, ~4.500 dòng)
@@ -10693,6 +10745,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     việc nhận hay không nhận lượt viết lại ấy — nếu không nhận, chặng 2 thu về đúng ba khối
     tách được (song ngữ 334 · nhập URL ~500 · tạo Tác phẩm + tải ảnh ~1.100) và tệp gốc dừng ở
     khoảng 2.600 dòng thay vì nhỏ hơn.
+  → 2026-09-24 (phiếu quyết #83) — Ice chọn chặng 2 AI-6 chỉ tách ba khối tách được (có song ngữ), không đổi hành vi; không viết lại hệ xem trước. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-6-tach-commands-project-rs.md`
   summary: Sau chặng 1, **45 lần nhắc tới `commands/project.rs` trong 28 tệp** trỏ vào một
@@ -10739,6 +10792,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     một tệp retro ĐÃ KÝ thì không sửa bằng một bản vá của story; nếu muốn `epic-6-retro-2026-09-15.md`
     và `agent-token-economics.md` nói đúng, đường đi là `bmad-correct-course` hoặc một ghi chú
     đính chính có ngày, do Ice quyết.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #84)** — John thêm dòng 🔵 vào epic-6-retro-2026-09-15.md §F6 với số đúng (17 lệnh, create_work :354-853); agent-token-economics.md giữ số đo tại commit của nó.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-6b-nhap-nhieu-tep-cung-luc.md`
   summary: Một `.docx` bên trong một batch N > 1 tệp bị từ chối per-item (`BatchUnsupportedFormat`)
@@ -11400,6 +11454,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mục nợ, không cho vá thẳng trong lượt thi công — chứ KHÔNG phải vì mệnh đề còn nghi ngờ.
     **(Chủ: Ice — `AGENTS.md` là tệp Ice sở hữu; sửa một dòng: đổi "pair" thành ba hằng và
     thay "No gate guards this pair" bằng tên ca test ở trên.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #85)** — câu khai sai đã không còn: src-tauri/AGENTS.md dòng 30 chỉ nêu luật 25 điểm mã White_Space, không còn "No gate guards this pair".
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-5-xuat-va-nhap-bo-prompt.md`
   summary: **Mockup vẽ xuất NHIỀU bộ prompt một lượt (`"Xuất 3 file"`, chọn nhiều ô, một nút) —
@@ -11763,6 +11818,7 @@ chính nó.
     `two`→`three` và chỉ được cứu nhờ rào `grep -q '^running 1 test$'` của Story 4.7.
     **(Chủ: Ice — định nghĩa phạm vi "tập test không-AI" là một quyết định, không phải một dòng
     mã; sau đó story nào chạm lại seam AD-13 có thể cài phép đo.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #74) — Ice chấp nhận bằng chứng biên dịch (mũi thăm dò cargo check trên bản chép đã xoá core/ai/) cho AC7 Story 4.8; vế "test không-AI vẫn xanh" không đo thêm.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **`PreparedTranslateCall::api_key` giữ khoá API ở dạng `String` thô qua một
@@ -11807,6 +11863,7 @@ chính nó.
     lý + `Channel` — không vỏ `#[tauri::command]` nào trong kho được đối xử như thế, kể cả Story
     4.7. Đây là giới hạn CÓ SẴN của khuôn test, Story 4.8 chỉ nối dài thêm.
     **(Chủ: Ice — quyết định có dựng khuôn test cho tầng vỏ hay không là một quyết định hạ tầng.)**
+  → 2026-09-24 (phiếu quyết #75) — Ice chọn dựng khuôn test vỏ #[tauri::command] với AppHandle, state và Channel thật (MockRuntime); ca đầu tiên canh lời gọi mark_prompt_as_sent ở nhánh Done. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **Một `HeaderValue::from_str` hỏng (khoá API chứa ký tự không hợp lệ trong header) bị
@@ -11845,6 +11902,7 @@ chính nó.
   nhưng có dương tính giả thật — `→ ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — CẢ HAI VẾ CÒN HỞ đã
   đóng` chứa đúng cụm *"còn hở"* trong một câu nói ngược lại. Ai vá thì đo trên cả hai chiều.
   **(Chủ: Ice — đổi vị từ của một cổng là một quyết định về cổng, không phải một lượt sửa mã.)**
+  → 2026-09-24 (phiếu quyết #42) — Ice chọn sửa vị từ để ✅ ĐÓNG MỘT NỬA và dòng tự nói còn vế hở chấm half, kèm ca tự kiểm đỏ-rồi-xanh cho từng nhánh. **Chủ: Story 11.1.**
 
 ---
 
@@ -11858,6 +11916,7 @@ chính nó.
     và nửa sinh đôi cho đường MỘT segment đã mang `Chủ: Ice` với đúng lời "quyết định có dựng
     khuôn test cho tầng vỏ hay không là một quyết định hạ tầng". Hai chủ khác nhau cho cùng một
     bàn đo thiếu là chỗ lệch, không phải hai việc. **Chủ mới: Ice.**
+  → 2026-09-24 (phiếu quyết #75) — Ice chọn dựng khuôn test vỏ #[tauri::command] với AppHandle, state và Channel thật (MockRuntime); ca đầu tiên canh lời gọi mark_prompt_as_sent ở nhánh Done. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
   summary: Danh sách hàng của lô ở Panel AI Translation không cắt cửa sổ và chưa được đo ở đúng cỡ N mà Quyết định 1 cố ý không đặt trần. **(Chủ: Story 4.12 — bố cục màn hình hẹp, nơi đã có lịch đo trên máy thật.)**
@@ -12058,6 +12117,7 @@ chính nó.
     §Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12), the dev does NOT edit
     `DESIGN.md` or `epics.md` (spec §Boundaries & Constraints → Never).
     **(Chủ: Ice — chọn con số đúng và sửa tài liệu quy hoạch.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #80)** — John sửa DESIGN.md frontmatter titlebar-height và UX-DR15 trong epics.md về 40px, khớp tokens.json và check-tokens EXPECTED_SPACING.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
   summary: **None of the four narrow-window thresholds is a measured number.** For both Ⓑ-1 and

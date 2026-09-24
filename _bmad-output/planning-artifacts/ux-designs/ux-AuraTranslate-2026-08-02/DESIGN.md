@@ -128,8 +128,8 @@ spacing:
   panel-inline: 16px
   panel-block: 12px
   head-height: 34px
-  titlebar-height: 38px
-  status-height: 32px
+  titlebar-height: 40px
+  status-height: 34px
   gutter-width: 22px
   read-measure-lg: 62ch
   read-measure-md: 68ch
@@ -388,7 +388,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 
 **Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`. Từ loại `read` in nghiêng màu `on-surface-variant`. Nghĩa `lookup-gloss`. Ví dụ in nghiêng; trích dẫn có vạch trái `primary` để phân biệt với ví dụ. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.**
 
-**Vạch lề segment** — vạch dọc trong cột vạch bên trái lưới, cao đúng bằng **hàng** tương ứng. `confirmed` đã xác nhận · `primary` đang sửa · `draft` đã dịch tay chưa ký · `tm-rule` gợi ý TM chờ xác nhận · `ornament` đã về hưu.
+**Vạch lề segment** — vạch dọc trong cột vạch bên trái lưới, cao đúng bằng **hàng** tương ứng. `confirmed` đã xác nhận · `primary` đang sửa · `draft` đã dịch tay chưa ký · `tm-rule` gợi ý TM chờ xác nhận · `ornament` đã về hưu. 🔵 **2026-09-24 (Ice chốt, phiếu quyết #65):** giá trị *về hưu* rút khỏi vạch trạng thái — hàng về hưu không còn hiện trong lưới (AD-5), nên không đường nào tới nó. Token màu `ornament` vẫn sống cho `draft` và cho khối bị loại ở màn xem trước nhập.
 
 > 🔵 **CẬP NHẬT 2026-08-15 (Story 2.5b) — HAI mệnh đề của đoạn này đã hết đúng, sửa tại chỗ:**
 > ① *"Đây là **cách duy nhất** trạng thái segment được hiển thị"* — **hết đúng**: lưới có thêm một **cột nhãn trạng thái** đọc được bằng chữ. Đó không phải một lượt nói hai lần: vạch là kênh **thị giác**, và một người đi bàn phím hoặc dùng trình đọc màn hình không có nó — cột nhãn là lý do vạch được phép `aria-hidden`.

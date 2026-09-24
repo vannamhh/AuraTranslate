@@ -38,9 +38,9 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 
 ## This machine (Ice's Mac)
 
-- Tests red with no code change ⇒ suspect the environment first: LuLu blocks freshly built test binaries that bind a local port. Re-run the SAME binary twice before touching code.
+- Tests red with no code change ⇒ suspect the environment first (firewall, sandbox, machine load). Re-run the SAME binary twice before touching code.
 - A freshly built, unsigned Rust binary costs ~204 ms per exec (Homebrew `rustc`; `codesign -s -` removes it). Count process spawns before calling a tool slow. `cargo-nextest` was measured and rejected — don't install it.
-- Compare two timings only from the same cache state and machine load.
+- Compare two timings only from the same cache state, machine load and toolchain: local Homebrew `rustc` is not the version `ci.yml` pins, on purpose.
 - A background watcher greps a sentinel the script really prints (emit it from `trap … EXIT`) and caps every step: `perl -e 'alarm shift; exec @ARGV' <secs> <cmd…>` (exit 142 = timeout). macOS has no `timeout`.
 - `tauri.conf.json` bundles only `fonts/` and `license/`, not `dict`; tests read dictionaries via `CARGO_MANIFEST_DIR`. A green Rust suite says nothing about dictionaries in a packaged app.
 - A measurement states its build and population. Never mark something passed by inference; what cannot be accepted now goes to `deferred-work.md` with an owner.

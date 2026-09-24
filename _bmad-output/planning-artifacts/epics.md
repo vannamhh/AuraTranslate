@@ -540,7 +540,7 @@ Hai bố cục, **cả hai đều dựng**, người dùng chọn — *"không c
 
 UX-DR14: **Phân tách panel đảo ngược giữa hai theme — đừng thống nhất về một cách làm.** Sáng: đường kẻ 1px `outline`. Tối: **khe 2px để `background` lộ ra**, panel bo `3px` — vì `outline #3b382f` trên `surface #26241f` chỉ đạt **1,39:1**, gần như vô hình. Nguyên tắc: *mặt sáng phân tách bằng nét, mặt tối phân tách bằng khe*.
 
-UX-DR15: **Bốn ngưỡng bố cục màn hình hẹp, đo theo vùng làm việc** (chiều cao cửa sổ trừ titlebar 38px và status 32px), **không theo kích thước màn hình**: **≥ 1100×820** giữ **bố cục đã chọn (Ⓑ-1 hoặc Ⓑ-2) đủ ba panel** · **< 820 cao** gộp **Tra cứu và Đề xuất AI** thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. **Thứ tự hy sinh là quyết định, không hiệu chỉnh:** Đề xuất AI nhường trước · Tra cứu nhường sau nhưng **rút về thanh trạng thái, không bao giờ mất hẳn** · **lưới không bao giờ nhường**. **[A11] · Q9**
+UX-DR15: **Bốn ngưỡng bố cục màn hình hẹp, đo theo vùng làm việc** (chiều cao cửa sổ trừ titlebar 40px và status 34px — 🔵 *2026-09-24, phiếu quyết #77/#80: bản cũ ghi 38px/32px, token và mã là 40px/34px*), **không theo kích thước màn hình**: **≥ 1100×820** giữ **bố cục đã chọn (Ⓑ-1 hoặc Ⓑ-2) đủ ba panel** · **< 820 cao** gộp **Tra cứu và Đề xuất AI** thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. **Thứ tự hy sinh là quyết định, không hiệu chỉnh:** Đề xuất AI nhường trước · Tra cứu nhường sau nhưng **rút về thanh trạng thái, không bao giờ mất hẳn** · **lưới không bao giờ nhường**. **[A11] · Q9**
 
 🔵 **Viết lại cách diễn đạt 2026-08-14, KHÔNG đổi số và KHÔNG đổi thứ tự.** Bốn ngưỡng là **số** và chủ của chúng vẫn là **Story 4.12**; thứ tự hy sinh là **quyết định** và `workspaceLayout.ts:152` chép nguyên văn nó. Cái đổi là chỗ diễn đạt theo **vị trí** *(«hàng dưới»)* nay diễn đạt theo **panel** — Ⓑ-2 không có "hàng dưới". Và *«cặp `Nguyên văn | Bản dịch`»* nay là **một** panel. ⚠️ Kéo theo trong mã *(chủ: Story 2.5b)*: `NEVER_SACRIFICED` từ hai phần tử còn **một**, và mệnh đề *"hai tập hợp lại đúng **bốn** panel"* ở `workspaceLayout.ts:153` đổi thành **ba**. ⚠️ Kéo theo cho **Story 4.12**: nay phải hiệu chỉnh cho **hai** bố cục, không phải một.
 
@@ -552,7 +552,7 @@ UX-DR17: **Panel** — thanh tiêu đề 34px, tiêu đề `ui-md` màu `on-surf
 
 UX-DR18: **Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`; từ loại `read` in nghiêng `on-surface-variant`; nghĩa `lookup-gloss`; ví dụ in nghiêng; **trích dẫn có vạch trái `primary` để phân biệt với ví dụ**. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.** Khi hai nguồn ghi khác nhau, **một dòng dẫn nói rõ điều đó trước khi liệt kê**.
 
-UX-DR19: **Trạng thái segment đọc ở cột trạng thái của lưới**, cộng một vạch 2px đầu hàng. **Sáu** giá trị: `confirmed` đã xác nhận · `primary` đang sửa, con trỏ ở đây · **`draft` đã dịch tay, chưa xác nhận** · `tm-rule` điền sẵn từ TM khớp 100% chưa xác nhận · **trống** chưa dịch · `ornament` mờ đã về hưu. **Một câu, một vạch.**
+UX-DR19: **Trạng thái segment đọc ở cột trạng thái của lưới**, cộng một vạch 2px đầu hàng. **Sáu** giá trị: `confirmed` đã xác nhận · `primary` đang sửa, con trỏ ở đây · **`draft` đã dịch tay, chưa xác nhận** · `tm-rule` điền sẵn từ TM khớp 100% chưa xác nhận · **trống** chưa dịch · `ornament` mờ đã về hưu. **Một câu, một vạch.** 🔵 **2026-09-24 (Ice chốt, phiếu quyết #65):** giá trị *về hưu* rút khỏi vạch trạng thái — hàng về hưu không còn hiện trong lưới (AD-5), nên không đường nào tới nó. Token màu `ornament` vẫn sống cho `draft` và cho khối bị loại ở màn xem trước nhập.
 
 🔵 **Viết lại 2026-08-14** *(Sprint Change Proposal, Ice ký)*, **và bảng cũ THIẾU MỘT HÀNG.** Bản năm giá trị gom *"đã dịch tay, chưa xác nhận"* chung ô **không vạch** với *"chưa dịch"* — hai hoàn cảnh khác hẳn nhau **trông y hệt**, nên người dịch nhìn một Chương dở **không phân biệt được câu mình đã làm với câu chưa động tới**. Chỗ thiếu này đã đi vào bản dựng: `resolveSegmentRule` cho cả hai ra `'none'`, và một test khoá nó lại. **Chuẩn ngành xác nhận chỗ thiếu:** XLIFF 2.0 tách đúng ba mốc `initial · translated · final`; hàng `draft` mới chính là `translated`.
 
@@ -2166,7 +2166,7 @@ So that lịch sử và trạng thái công việc của tôi không bao giờ t
 >
 > 🔴 **Nguyên nhân gốc nằm ở HÌNH DẠNG, không ở ba mục trên.** Một dòng văn liên tục là hình dạng để **ĐỌC** một bản dịch đã xong; suốt thời gian dịch nó **gần như rỗng**, và nó không có cách nào diễn đạt *"ở đây sẽ có một câu, nhưng chưa"* mà không hoặc **chiếm chỗ** *(bố cục nhảy)* hoặc **tàng hình** *(không bấm được)*. Hai vế đó đã được đo và chúng **xung khắc** — nên vá lần lượt ba mục trên không giải được. ⇒ Văn xuôi chảy liên tục **không mất**, nó **về Chế độ đọc**, đúng chỗ của nó.
 
-**Covers:** UX-DR13 · AD-1
+**Covers:** UX-DR19 *(AC1–AC3)* · UX-DR20 *(AC4–AC5)* · UX-DR2 + UX-DR12 *(AC6)* · UX-DR7 + AD-34 §2 *(AC7)* · AD-1 — 🔵 *2026-09-24 (phiếu quyết #76): bản cũ ghi UX-DR13, là bố cục lưới 2×2 của Story 1.14, không phải nội thất Panel Editor.*
 
 As a người dịch,
 I want gõ trên một trang văn bản liền chứ không phải một cái bảng, mà vẫn đọc được trạng thái từng câu,
