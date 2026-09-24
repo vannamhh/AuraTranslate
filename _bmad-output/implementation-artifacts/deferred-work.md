@@ -747,6 +747,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 ## Deferred from: 1-10c-am-han-viet-dung-nguon-va-dung-nhan (2026-08-06)
 
 - ⚠️ **Nguồn kaikki.org khai DEPRECATED trên trang tải** (`raw/en_wiktionary_vi/`, ghim 2026-08-06, `Last-Modified: 2026-08-02`). Story này ghim đúng bản đã tải, không có đường thay ổn định hơn tại thời điểm khảo sát. **Câu hỏi mở cho Ice** (chưa trả lời — story 10.1 hoặc lượt làm mới dữ liệu kế tiếp phải quyết): ai/khi nào làm mới `dict-core.db` theo một dump kaikki mới hơn, và làm gì nếu kaikki ngừng phục vụ hẳn (sáu trong bảy nguồn nền hôm nay đi qua `wiktextract_common.rs`, tức phụ thuộc CÙNG một nhà cung cấp trích xuất). **(Chủ: Ice — câu hỏi mở ghi ngay trong mục này.)**
+  → 2026-09-24 (phiếu quyết #86) — Ice chọn đóng băng dict-core.db ở bản kaikki đã ghim và lưu dump thô vào GitHub Release để dựng lại được; làm mới chỉ khi có lý do. **Chủ: Story 10.1.**
 
 - 🔴 **Dư địa NFR6 còn lại sau story này: 3.104.634 byte (0,78% trần)** — **SỬA ở lượt code review 2026-08-06**: bản ghi gốc của story ("26.760.192 byte còn lại") dùng baseline "trước story" SAI (343.991.430, số CŨ của `epics.md:336` từ TRƯỚC Story 1.10b, KHÔNG cộng font+baseline app+license). Baseline ĐÚNG là số Story 1.10b tự đo (`1-10b-...md:934,963,1087`) = **384.525.446**. Payload THẬT sau story 1-10c = **396.895.366 / trần 400.000.000**. `prd.md:946` đã cảnh báo dư địa này vốn dành cho **HVTĐTD + Cổ hán văn** — với chỉ **3,1 MB** còn lại, 🔴 **hai lớp đó gần như CHẮC CHẮN không còn vừa** trừ khi cực nhỏ. **Chưa đo HVTĐTD/Cổ hán văn thật** — quyết định tầng PRD (nâng trần, hoãn một lớp, hoặc bỏ `sense_fts_nd`) cần cân nhắc SỚM hơn dự tính ban đầu, không phải quyết định của story dựng dữ liệu tiếp theo. **Đo TRƯỚC khi hứa đóng gói** — đúng bài học `prd.md §8.2` đã ghi cho chính hai lớp này, giờ càng cấp thiết hơn. **(Chủ: Story 10.1.)**
 
@@ -781,6 +782,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 📝 **`HanVietLookup.sources_used` mang `dict_source.code` thô** (`fx-hv`, `thieu-chuu`, …), không `display_name` đẹp ("Thiều Chửu"). FR31 (nhãn nguồn bắt buộc) thoả bằng `code`; ánh xạ sang tên hiển thị là việc của màn hình Attribution — **Story 10.4** (đã ghi rõ trong Ranh giới phạm vi của chính story 1.16). Nếu 10.4 cần `display_name` ở đây sớm hơn dự tính, cách rẻ nhất là thêm nó vào `HanVietReading`/`sources_used` qua `layer.source(code)` — hạ tầng đã sẵn (`DictLayer::source`), chỉ chưa nối. **(Chủ: story kế tiếp chạm nhãn nguồn hiển thị (FR31).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: core/dict/mod.rs dòng 1193,1217: sources_used vẫn insert hit.source_code thô, không có ánh xạ display_name. **Chủ: Story 10.4.**
 - 📝 **§Câu hỏi cho Ice #2 (báo hay không báo ký tự nhiều âm) và #3 (hình dạng placeholder ký tự không âm) — dùng MẶC ĐỊNH ĐỀ XUẤT của story, CHƯA được Ice xác nhận lại trong phiên dev-story này.** #2: không đánh dấu gì cho ca nhiều âm (danh sách đầy đủ vẫn đi qua IPC qua `HanVietReading.all`, sẵn cho Story 1.17/3.7). #3: hai chuỗi `vi.json` riêng theo `layersLoaded` (`panel.source.han_viet_unknown`/`han_viet_unavailable`), không dùng `ornament`/`opacity`. Nếu Ice muốn một hướng khác, cả hai đổi được mà không đụng tầng dữ liệu. **(Chủ: Ice — câu hỏi mở #2/#3 ghi ngay trong mục này, chưa được xác nhận.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #87)** — Ice xác nhận hai mặc định: không đánh dấu ký tự Hán Việt nhiều âm, và ký tự không âm dùng hai chuỗi vi.json riêng theo layersLoaded.
 
 - 🔴 **Kiểu song song CHỒNG CHỮ thật — claim "giãn dòng 2.05 đủ chỗ cho âm đọc" của Task 8 SAI, đo lại lật.** Ice báo lỗi trực tiếp 2026-08-07 (`.hv-parallel` đọc không được, âm đọc đè lên dòng Hán kế tiếp) sau khi story đã Status `done`. Đo lại bằng `getBoundingClientRect`: ở `line-height: 2.05` (token `source-cjk`), `.hv-reading` (`position: absolute; top: 100%`) đè **19,8px** vào dòng sau — chiều cao hộp dòng chỉ do KÝ TỰ quyết, âm đọc không góp một pixel nào nên toàn bộ chiều cao của nó ăn vào dòng kế tiếp, không nằm "trong phần leading" như comment gốc khẳng định.
   → ⚠️ **VÁ LẦN 1 (4.8, neo `top:100%` vào `.hv-unit`) SAI THEO CÁCH KHÁC — Ice bắt lại bằng ảnh chụp thật cùng ngày.** `.hv-unit` kế thừa chính line-height đã giãn (4.8), nên `top:100%` đẩy âm đọc xuống ĐÁY một hộp CAO — âm đọc trôi XA khỏi ký tự của nó, trôi GẦN dòng SAU hơn, đọc như thể thuộc dòng sau. Phép đo `getBoundingClientRect` (chỉ đo độ đè giữa hai dòng) không lộ ra lỗi này.
@@ -1707,6 +1709,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 - 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: dời nút mở
   ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính, nên nó đóng luôn mệnh
   đề chặt. Chạm UX và `mockups/`, nên không quyết trong lượt này. **Chủ: Ice.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #90) — Ice giữ nút mở màn Attribution ở vị trí hiện tại; không dời ra titlebar.
 
 ## Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)
 
@@ -2835,6 +2838,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Ice** *(quyết định UX)*, kèm **Story 4.12** cho vế ngưỡng bố cục.
   → 🟡 2026-09-23 (Story 4.12) — the threshold half is closed, but not by measurement: Story 4.12 calibrated nothing in parallel mode, per its Decision 3, which fixed the default view for Ⓑ-2. Ice then ruled the seed thresholds final (see the item *"None of the four narrow-window thresholds is a measured number"* in §Deferred from: Story 4.10 — Lỗi mạng và lỗi API (2026-09-22), where the Story 4.12 items were appended). The UX choice is still open: keep as is · cap `<rt>` lines · parallel only in Ⓑ-1. **Chủ: Ice.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #88) — Ice giữ hàng Hán Việt song song cao ở Ⓑ-2; người dùng chọn kiểu song song có chủ ý và chuyển kiểu xem bằng một phím.
 
 - 🔴 **TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4. MỘT ĐƯỜNG VƯỢT TRẦN NFR2 15 LẦN.**
   *(2026-08-15, WKWebView 605.1.15, macOS 15.6, bản dựng thật.)*
@@ -3435,6 +3439,7 @@ mục nào mồ côi.
   hạ cờ về một giá trị mặc định *(mất dữ liệu, đường tệ nhất)*.
   Story 2.6 làm ①-không, ②-có: ghi mệnh đề vào doc-comment tại chỗ và ghi món nợ này.
   **Chủ: Ice** *(quyết định ngữ nghĩa, không phải một lượt cài đặt)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #94) — Ice ký đường ②: khôi phục lịch sử segment chỉ đụng văn bản, giữ cờ ngắt đoạn hiện tại, như doc-comment Story 2.6 đã ghi; không di trú segment_version.
 
 - 🟡 **Lượt từ chối khôi phục thừa hưởng một bề mặt báo lỗi đang dở.** `editorConfirmError` hiện
   một chuỗi **cố định**, không đọc `message_key` thật — món nợ đã ghi ở `:2825-2840` (🟡, chủ Ice).
@@ -3533,6 +3538,7 @@ mục nào mồ côi.
   để đọc cả. ⇒ Món nợ **KHÔNG đóng ở Story 2.7**; nó **đổi chủ và đổi lý do**, không đổi trạng
   thái. Đóng nó là một **cột thứ ba** *(con trỏ)*, tức một quyết định lược đồ mới.
   **Chủ: Ice** *(cùng chủ với bốn nhãn kia)*.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #95) — Ice không mở năng lực "phiên bản nào đang dùng"; không thêm con trỏ segment.current_version_id.
 
 - 🟡 **AC3 chỉ đối chứng được bằng fixture SQL — không đường sản phẩm nào sinh ra một xuất xứ
   khác mặc định hôm nay.** Ba ca `reviewing_a_sentence_word_for_word_...`,
@@ -3708,6 +3714,7 @@ mục nào mồ côi.
   khoá bằng chữ: "no Editor-side change here". Câu hỏi cấu trúc ("xuất xứ lúc nạp = lúc nạp
   phiên panel hay lúc bắt đầu vòng draft hiện tại?") vẫn là một quyết định của Ice, không một
   dòng mã của story nào tới sau nó nữa. **Chủ: Ice.**
+  → 2026-09-24 (phiếu quyết #96) — Ice chọn mốc xuất xứ theo phiên panel: văn bản trở về đúng bản lúc nạp thì xuất xứ lúc nạp trở lại (vd. bilingual_import), để TM không nhận văn bản người khác là của Ice (FR118). **Chủ: Story 11.5.**
 
 - ⚠️ **Vế ĐỌC của danh mục đóng `translation_origin` không tồn tại** — phát hiện ở lượt rà
   2026-08-16, cả Blind Hunter lẫn Acceptance Auditor cùng chỉ vào nó độc lập. Doc-comment của
@@ -3722,6 +3729,7 @@ mục nào mồ côi.
   ⚠️ Kèm một mệnh đề đo được, ghi vì nó rộng hơn món này: kho **không** chạy `cargo doc` với
   `rustdoc::broken_intra_doc_links` ở bất kỳ đâu trong 11 cổng · CI · `pre-push` — nên **mọi**
   liên kết intra-doc gãy trong kho hôm nay đều im lặng. Chính lỗi vừa sửa là ca đầu tiên.
+  → 2026-09-24 (phiếu quyết #97) — Ice chọn từ chối mở .atproj có translation_origin lạ, cùng khuôn lược đồ mới hơn; Task 0 kiểm sàn phiên bản đã chặn sẵn ca này chưa. **Chủ: Story 11.5.**
 
 - 🟡 **Chuẩn hoá Unicode (NFC/NFD) chưa phủ ở phép so mốc FR117.** Chữ ký thứ mười của Ice
   (2026-08-16) đưa `trim()` vào cả hai vế của `segment.rs:1493`, và nó phủ khoảng trắng bao
@@ -3729,6 +3737,7 @@ mục nào mồ côi.
   vì một bên dùng ký tự dựng sẵn còn bên kia dùng dấu kết hợp. Phủ nốt vế đó cần một phụ thuộc
   **MỚI** (`unicode-normalization`), nên nó phải đi qua **cửa rà giấy phép NFR15 ba bước** trước
   — không tiện tay cài. **Chủ: Ice** *(cùng hạng với các quyết định phụ thuộc khác)*.
+  → 2026-09-24 (phiếu quyết #105) — Ice nhận phụ thuộc unicode-normalization cho phép so mốc FR117; 11.5 qua cửa NFR15 (đọc giấy phép trong source đã tải, ghi bảng Stack) trước khi thêm. **Chủ: Story 11.5.**
 
 ---
 
@@ -4105,6 +4114,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   khối luôn *(cắt theo ranh giới từ ở CẢ hai kiểu xem; mọi dấu cắt vẽ được, mất độ chính xác
   giữa từ)*, hay (b) giữ độ chính xác và nhận một dấu cắt vô hình ở ca giữa từ.
   ⚠️ Ghi ra vì im lặng ở đây đúng bằng khuyết tật vừa vá: một chỗ cắt **không nhìn thấy**.
+  → 2026-09-24 (phiếu quyết #89) — Ice lật chữ ký 2026-08-17: .hv-unit nguyên khối, cắt theo ranh giới từ ở cả hai kiểu xem để mọi dấu cắt vẽ được. **Chủ: Story 11.3.**
 
 - 🔴 **Một bàn đo CHÉP hàm sản phẩm sẽ đo BẢN CHÉP, và bản chép cũ đi — đo được trong chính
   story này.** Sau lượt vá AC9, `2-9-ban-do/han-viet-cho-cat.e2e.mjs` chạy lại vẫn cho **17**
@@ -4819,6 +4829,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   `wal_threshold_bytes` ⟷ NFR18 mà `ARCHITECTURE-SPINE.md:990` treo lên **không tồn tại trong tải
   này**; NFR18 hỏng ở **đường flush**. **Chủ: Ice** — hàng SPINE `:990` chưa được đóng, và dòng đóng
   nó bắt buộc phải khai sự thu hẹp đó kèm số (AC3).
+  → 2026-09-24 (phiếu quyết #107) — Ice chọn: Winston đóng hàng đánh đổi wal_threshold_bytes ⟷ NFR18 trong spine kèm số đo (cặp đó không tồn tại ở tải này), rồi nối → Chủ: Story 10.9 cho đường flush; NFR18 được chấp nhận trượt tới lượt nghiệm thu cuối. **Chủ: Winston.**
 
 - 🔴 **Phiên NFR2 thật (30 phút × n=3) CHƯA CHẠY — Ice chốt 2026-08-19 KHÔNG chặn Epic 3 vì nó.**
   Bàn đo nay chạy trọn vòng và lặp lại được **5/5 phiên**, nên thứ còn thiếu là **thời gian máy**,
@@ -7775,6 +7786,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     bằng nút trên thanh công cụ cộng `Tab` + `Enter`/`Space` — NFR17 không hở.
     **(Chủ: Ice — chọn giữa (a) giữ nguyên như hôm nay, (b) chuyển `⌘,` sang Chế độ đọc và cấp
     một hợp âm mới cho `shortcuts.open`.)**
+  → 2026-09-24 (phiếu quyết #102) — Ice chọn ⌘, mở khung Cài đặt theo quy ước macOS (khớp #91); shortcuts.open và Tinh chỉnh của Chế độ đọc vào qua khung đó hoặc hợp âm khác, 11.7 kiểm trùng bằng check:commands. **Chủ: Story 11.7.**
 
 - 🟡 **Tuỳ chọn đọc (mức chữ · song ngữ · cỡ chữ/giãn dòng tinh chỉnh) KHÔNG lưu xuống đĩa — mỗi
   lần khởi động lại rơi về mức Cân.**
@@ -7806,6 +7818,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **mặc định**, không phải **năng lực**.
     **(Chủ: Ice — chọn một hợp âm mặc định cho `reading.continue_in_workspace`, hoặc để trống
     vĩnh viễn và chỉ dựa vào `ChordOverrides`.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #103) — Ice để trống hợp âm mặc định cho reading.continue_in_workspace; vào bằng Tab + Enter hoặc tự gán qua ChordOverrides.
 
 ## Deferred from: 5-14-do-nfr3-nfr4-nfr5-va-ghi-lai-trang-thai-ba-nguong-tam (2026-09-02)
 
@@ -7822,6 +7835,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (`ReadingMode.vue:463-527` đang `v-for` phẳng, một nút DOM mỗi segment) · hoặc thả dãy khi
     `<KeepAlive>` deactivate. Số sơ bộ trên fixture tổng hợp, KHÔNG được dùng để sửa ngưỡng —
     Story 6.18 mới đóng Q4.)**
+  → 2026-09-24 (phiếu quyết #108) — Ice chọn thả dãy đọc khi KeepAlive deactivate; trần NFR5 quyết ở Story 10.9 trên số đo thật, không nới A8 bây giờ. **Chủ: Story 11.6.**
 
 - 🔴 **NFR4 vượt trần 3 giây, nhưng biên độ giữa các phiên LỚN HƠN khoảng cách còn lại tới trần —
   một phán quyết trên 3 phiên là mỏng.**
@@ -8914,6 +8928,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   bắt `⌘↵` bằng handler DOM cục bộ trong lớp phủ (một đường thứ hai mà `check:commands` không nhìn
   thấy). **Chủ: Ice** — chọn hợp âm cho một lệnh đã có hai chỗ dùng là một quyết định sản phẩm, không
   phải một chi tiết cài đặt.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #104)** — Ice giữ ⌥⌘↵ cho xác nhận nhập toàn bộ; John sửa AC Story 6.10 trong epics.md và mockup web-import.html sang ⌥⌘↵.
 
 ## Deferred from: spec-6-6-tach-chuong-theo-mau-phan-tach — vòng rà đối kháng 3 (2026-09-06)
 
@@ -9236,6 +9251,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `Phím tắt` tiếp tục sống như những lớp phủ ĐỘC LẬP — là câu hỏi CHƯA CÓ AI CHỌN, và câu hỏi
   đó **rộng hơn** bất kỳ Epic đơn lẻ nào ở trên (nó chạm TẤT CẢ chúng cùng lúc). **Chủ: Ice**
   — quyết định sản phẩm "có gom hay không, gom lúc nào", không phải một chi tiết cài đặt.
+  → 2026-09-24 (phiếu quyết #91) — Ice chọn nav Cài đặt chỉ hiện mục đã có thân, gộp lớp phủ Ngưỡng quét Glossary và Phím tắt vào khung Cài đặt; mỗi epic sau tự thêm mục của mình (cùng quyết với #92). **Chủ: Story 11.7.**
 
 - ⚠️ **Thứ tự và tên 11 mục nav Cài đặt là một quyết định TẠM, không phải một lời chốt.**
   §Ask First của spec 6.8 nêu đích danh câu hỏi này CHƯA CÓ CÂU TRẢ LỜI. Lượt thi công giữ
@@ -9245,6 +9261,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   dọn vào mục `glossary` của Cài đặt — mục đó vẫn rỗng như chín mục kia. **Chủ: Ice** — cần
   một câu trả lời tường minh trước khi một story sau này viết lại thứ tự/coi thứ tự này là
   đã chốt.
+  → 2026-09-24 (phiếu quyết #92) — cùng quyết với #91: thứ tự mockup settings.html được chốt; Ngưỡng quét Glossary dọn vào mục glossary. **Chủ: Story 11.7.**
 
 ## Deferred from: 6-9-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim (2026-09-07)
 
@@ -11246,6 +11263,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `Store::close`, và cả `PendingImportState` như `close_open_work` đang làm), hay (b) một bộ
     chọn tầng tường minh trên màn Cài đặt (hẹp hơn, nhưng mockup `settings.html` không vẽ nó và
     nó thành bề mặt UI mới).)**
+  → 2026-09-24 (phiếu quyết #98) — Ice chọn bộ chọn tầng Global/Tác phẩm tường minh ở Cài đặt AI thay vì thêm lệnh đóng Tác phẩm. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Cổng `aiconfig_keychain_boundary.rs` quét CHUỖI, nên một lượt `use` đổi tên
@@ -11402,6 +11420,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     cũ lấy nhãn registry làm bằng chứng.
     **(Chủ: Ice — quyết có đáng một phụ thuộc mới cộng một lượt rà giấy phép cho lớp gia cố
     này hay không. Không chặn story nào.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #106) — Ice không nhận zeroize; khoá API chỉ sống trong Rust, NFR11 (tệp, log, IPC) đã đóng.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Gõ lại một ô trong màn Cài đặt AI không xoá thông báo lỗi của lượt lưu trước —
@@ -11479,6 +11498,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — quyết CÓ đáng xây xuất-nhiều-bộ hay không, và nếu có thì trả lời cả bốn câu
     trên trước khi một story sau viết mã. Không chặn Story 4.5: một bộ mỗi lượt đã đóng trọn
     AC của story này.)**
+  → 2026-09-24 (phiếu quyết #99) — Ice chọn xây xuất nhiều bộ prompt một lượt như mockup; 11.7 trả lời bốn câu của mục (chọn thư mục, trùng tên, lỗi giữa chừng) trước khi viết mã. **Chủ: Story 11.7.**
 
 ## Deferred from: 4-6-smart-rag-injector-la-mot-ham-thuan (2026-09-17)
 
@@ -11758,6 +11778,7 @@ chính nó.
     `PromptImportOverlay.vue`, `GlossaryImportOverlay.vue`) — sửa riêng lẻ từng cái sẽ để lại các
     lớp phủ còn lại với cùng khoảng hở, đúng lớp lỗi "vá một chỗ, để hở những chỗ giống hệt" mà
     `deferred-work.md` đã cảnh báo ở nhiều mục khác.)**
+  → 2026-09-24 (phiếu quyết #93) — Ice chọn thêm aria-labelledby cho PromptLibraryOverlay, PromptImportOverlay và GlossaryImportOverlay theo khuôn AiPromptInspectorOverlay. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **Nửa `lib.rs` của miễn trừ Decision 1 là mã CHẾT — nó không thể khớp gì trên cây
@@ -11840,6 +11861,7 @@ chính nó.
     vòng 6. Đã vá lần này, nhưng chính CƠ CHẾ ghép nối vẫn nguyên. Phép sửa thật (một hằng dùng
     chung, hoặc sinh bước CI từ nguồn) là một thay đổi thiết kế CI, không thuộc story này.
     **(Chủ: Ice — quyết định hình dạng, rồi story nào chạm CI tiếp theo cài.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #106) — Ice không nhận zeroize; khoá API chỉ sống trong Rust, NFR11 (tệp, log, IPC) đã đóng.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **`pop_piece` quyết định gỡ `'\r'` khỏi bản sao `pieces` dựa trên đuôi của `out`, không
@@ -11993,6 +12015,7 @@ chính nó.
     **(Chủ: Ice — cần một story riêng quyết định hình dạng lưu trữ của con số cộng dồn này
     trước khi xây, không phải một lượt vá thêm vào `aiTranslateState.ts`; chưa có số story kế
     tiếp nào nhận việc này.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #100) — Ice không xây số cộng dồn cả phiên ở thanh trạng thái; số của một lượt và của một lô là đủ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **Bảng chi tiết theo TỪNG loại việc (dịch từng câu / dịch theo lô / Proofreader,
@@ -12009,6 +12032,7 @@ chính nó.
     hai đòi một cơ chế lưu trữ/cộng dồn XUYÊN LƯỢT GỌI mà spec 4.11 cố ý không mở, và quyết định
     đó nên đi CÙNG một story, không tách rời hai nửa của cùng một câu hỏi; chưa có số story kế
     tiếp nào nhận việc này.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #100) — Ice không xây số cộng dồn cả phiên ở thanh trạng thái; số của một lượt và của một lô là đủ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **The two manual checks Story 4.11 requires before it closes were never performed — no
@@ -12040,6 +12064,7 @@ chính nó.
     `PRICES_AS_OF` already sits beside them so a stale row is visible. **(Chủ: Ice — quyết định bao
     nhiêu mô hình đi kèm bản phát hành và ai chịu trách nhiệm đối chứng giá; cả hàng đang có cũng
     cần một lượt soi.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #101) — Ice giữ bảng giá một dòng; mô hình khác hiện số token, không hiện tiền.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **`aiconfig_contract.rs`'s `keychain_refusing_to_answer_fails_the_action_but_keeps_the_

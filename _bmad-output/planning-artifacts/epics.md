@@ -5113,7 +5113,7 @@ nên viết ở AC rẻ hơn để mỗi story tự phát hiện lại.)*
 6.10a** ngày 2026-09-08. Nó là điều hướng chứ không phải lọc, và nó cần một con trỏ *Chương đang chọn*
 mà story này không dựng. AC không mất, nó đổi chỗ.)*
 
-**Given** phím `⌘↵`
+**Given** phím `⌥⌘↵` *(🔵 2026-09-24, Ice chốt ở phiếu quyết #104: bản cũ ghi `⌘↵`, hợp âm đó thuộc `editor.confirm_segment`)*
 **When** bấm
 **Then** xác nhận nhập toàn bộ
 ⚠️ *(2026-09-08: năng lực này **đã có** — `import.preview.confirm`. Chỉ hợp âm khác AC: `Mod+Enter` đã

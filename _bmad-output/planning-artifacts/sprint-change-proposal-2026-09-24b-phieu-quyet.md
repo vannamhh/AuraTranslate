@@ -280,82 +280,82 @@ Mỗi câu trả lời một trong: **chọn (x)** · **KHÔNG LÀM** · **giữ
 ## Tra cứu, từ điển & Hán Việt (4)
 
 86. `b8f22f7:746` — Ai, khi nào làm mới dict-core.db từ kaikki; nếu kaikki ngừng thì (a) tự lưu bản dump, (b) đổi nguồn, (c) đóng băng bản hiện có?
-   - Quyết: 
+   - Quyết: giao Story 10.1 — Ice chọn đóng băng dict-core.db ở bản kaikki đã ghim và lưu dump thô vào GitHub Release để dựng lại được; làm mới chỉ khi có lý do.
 
 87. `b8f22f7:779` — Xác nhận mặc định: không đánh dấu ký tự Hán Việt nhiều âm, và hai chuỗi vi.json riêng theo layersLoaded — (a) đồng ý, (b) hướng khác?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — Ice xác nhận hai mặc định: không đánh dấu ký tự Hán Việt nhiều âm, và ký tự không âm dùng hai chuỗi vi.json riêng theo layersLoaded.
 
 88. `b8f22f7:2775` — Hàng Hán Việt song song Ⓑ-2 cao ~388px: (a) giữ nguyên, (b) giới hạn số dòng <rt>, (c) chỉ mở song song ở Ⓑ-1?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ hàng Hán Việt song song cao ở Ⓑ-2; người dùng chọn kiểu song song có chủ ý và chuyển kiểu xem bằng một phím.
 
 89. `b8f22f7:4053` — Dấu cắt Hán Việt song song khi cắt giữa từ: (a) .hv-unit nguyên khối, luôn vẽ được, hay (b) giữ chính xác, chấp nhận dấu vô hình?
-   - Quyết: 
+   - Quyết: giao Story 11.3 — Ice lật chữ ký 2026-08-17: .hv-unit nguyên khối, cắt theo ranh giới từ ở cả hai kiểu xem để mọi dấu cắt vẽ được.
 
 ## Giao diện chung (4)
 
 90. `b8f22f7:1691` — Nút mở màn Attribution: (a) dời ra titlebar cạnh nút phím tắt (sửa mockup), hay (b) giữ vị trí hiện tại?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ nút mở màn Attribution ở vị trí hiện tại; không dời ra titlebar.
 
 91. `b8f22f7:9122` — Gộp các lớp phủ Cài đặt rời rạc (Glossary, Shortcuts…) vào một khung Cài đặt: (a) có — khi nào, (b) giữ rời?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn nav Cài đặt chỉ hiện mục đã có thân, gộp lớp phủ Ngưỡng quét Glossary và Phím tắt vào khung Cài đặt; mỗi epic sau tự thêm mục của mình (cùng quyết với #92).
 
 92. `b8f22f7:9135` — Chốt thứ tự/tên 11 mục nav Cài đặt, và có dọn Ngưỡng quét Glossary vào mục glossary — (a) có, (b) chưa?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — cùng quyết với #91: thứ tự mockup settings.html được chốt; Ngưỡng quét Glossary dọn vào mục glossary.
 
 93. `b8f22f7:11547` — Mở story sửa aria-labelledby cho cả ba lớp phủ PromptLibrary/PromptImport/GlossaryImport: (a) giao story nào, khi nào, (b) chưa?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn thêm aria-labelledby cho PromptLibraryOverlay, PromptImportOverlay và GlossaryImportOverlay theo khuôn AiPromptInspectorOverlay.
 
 ## Lịch sử & xuất xứ segment (4)
 
 94. `b8f22f7:3394` — Khôi phục lịch sử segment với cờ ngắt đoạn: (a) thêm cột cờ vào segment_version, (b) khai chỉ khôi phục văn bản, (c) hạ cờ về mặc định?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice ký đường ②: khôi phục lịch sử segment chỉ đụng văn bản, giữ cờ ngắt đoạn hiện tại, như doc-comment Story 2.6 đã ghi; không di trú segment_version.
 
 95. `b8f22f7:3490` — Để trả lời 'phiên bản nào đang dùng': (a) thêm con trỏ segment.current_version_id (lược đồ mới), hay (b) không mở năng lực này?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không mở năng lực "phiên bản nào đang dùng"; không thêm con trỏ segment.current_version_id.
 
 96. `b8f22f7:3645` — 'Xuất xứ lúc nạp' nghĩa là: (a) lúc nạp phiên panel, hay (b) lúc bắt đầu vòng draft hiện tại?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice chọn mốc xuất xứ theo phiên panel: văn bản trở về đúng bản lúc nạp thì xuất xứ lúc nạp trở lại (vd. bilingual_import), để TM không nhận văn bản người khác là của Ice (FR118).
 
 97. `b8f22f7:3677` — Gặp translation_origin lạ từ .atproj tương lai: (a) từ chối mở, (b) hạ về rỗng, (c) báo lỗi?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice chọn từ chối mở .atproj có translation_origin lạ, cùng khuôn lược đồ mới hơn; Task 0 kiểm sàn phiên bản đã chặn sẵn ca này chưa.
 
 ## AI (4)
 
 98. `b8f22f7:11041` — Sửa cấu hình AI Global khi có Tác phẩm mở: (a) thêm lệnh đóng Tác phẩm, hay (b) bộ chọn tầng tường minh trên Cài đặt?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn bộ chọn tầng Global/Tác phẩm tường minh ở Cài đặt AI thay vì thêm lệnh đóng Tác phẩm.
 
 99. `b8f22f7:11276` — Xuất nhiều bộ prompt một lượt như mockup: (a) xây (chốt thư mục, trùng tên, lỗi giữa chừng), hay (b) giữ một bộ?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn xây xuất nhiều bộ prompt một lượt như mockup; 11.7 trả lời bốn câu của mục (chọn thư mục, trùng tên, lỗi giữa chừng) trước khi viết mã.
 
 100. `b8f22f7:11785` (+ `11803`) — Số cộng dồn cả phiên ở thanh trạng thái như mockup: (a) mở story (có persist qua đóng app?), hay (b) không xây?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không xây số cộng dồn cả phiên ở thanh trạng thái; số của một lượt và của một lô là đủ.
 
 101. `b8f22f7:11833` — Bảng giá bundled: bao nhiêu mô hình đi kèm, và ai đối chứng giá với nguồn thứ hai?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ bảng giá một dòng; mô hình khác hiện số token, không hiện tiền.
 
 ## Phím tắt (3)
 
 102. `b8f22f7:7671` — ⌘,: (a) giữ cho shortcuts.open, hay (b) chuyển sang Tinh chỉnh Chế độ đọc và cấp hợp âm mới cho shortcuts.open?
-   - Quyết: 
+   - Quyết: giao Story 11.7 — Ice chọn ⌘, mở khung Cài đặt theo quy ước macOS (khớp #91); shortcuts.open và Tinh chỉnh của Chế độ đọc vào qua khung đó hoặc hợp âm khác, 11.7 kiểm trùng bằng check:commands.
 
 103. `b8f22f7:7715` — Nút 'Dịch tiếp Chương N': (a) chọn một hợp âm mặc định, hay (b) để trống, chỉ dựa ChordOverrides?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice để trống hợp âm mặc định cho reading.continue_in_workspace; vào bằng Tab + Enter hoặc tự gán qua ChordOverrides.
 
 104. `b8f22f7:8805` — Hợp âm gửi ở Story 6.10: (a) giữ ⌥⌘↵, (b) đổi phím editor.confirm_segment, (c) bắt ⌘↵ bằng handler DOM cục bộ?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — Ice giữ ⌥⌘↵ cho xác nhận nhập toàn bộ; John sửa AC Story 6.10 trong epics.md và mockup web-import.html sang ⌥⌘↵.
 
 ## Phụ thuộc mới (2)
 
 105. `b8f22f7:3691` — Nhận phụ thuộc unicode-normalization (qua cửa NFR15) để chuẩn hoá NFC/NFD khi so mốc segment — (a) nhận, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.5 — Ice nhận phụ thuộc unicode-normalization cho phép so mốc FR117; 11.5 qua cửa NFR15 (đọc giấy phép trong source đã tải, ghi bảng Stack) trước khi thêm.
 
 106. `b8f22f7:11211` (+ `11646`) — Nhận phụ thuộc zeroize (qua cửa NFR15) để xoá khoá API khỏi bộ nhớ khi huỷ — (a) nhận, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không nhận zeroize; khoá API chỉ sống trong Rust, NFR11 (tệp, log, IPC) đã đóng.
 
 ## NFR & hiệu năng (2)
 
 107. `b8f22f7:4764` — Ghi nhận cặp wal_threshold_bytes⟷NFR18 ở spine không tồn tại ở tải này, và giao ai sửa đường flush làm trượt NFR18?
-   - Quyết: 
+   - Quyết: giao Winston — Ice chọn: Winston đóng hàng đánh đổi wal_threshold_bytes ⟷ NFR18 trong spine kèm số đo (cặp đó không tồn tại ở tải này), rồi nối → Chủ: Story 10.9 cho đường flush; NFR18 được chấp nhận trượt tới lượt nghiệm thu cuối.
 
 108. `b8f22f7:7729` — NFR5 vượt trần 300MB: (a) nới trần A8 theo số thật, (b) ảo hoá dãy đọc ReadingMode, (c) thả dãy khi KeepAlive deactivate?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn thả dãy đọc khi KeepAlive deactivate; trần NFR5 quyết ở Story 10.9 trên số đo thật, không nới A8 bây giờ.

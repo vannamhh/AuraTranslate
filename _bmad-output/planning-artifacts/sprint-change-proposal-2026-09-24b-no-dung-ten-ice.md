@@ -3,7 +3,7 @@
 **Người soạn:** John (PM), `bmad-correct-course` chế độ Batch · **Người duyệt:** Ice
 **Baseline:** `b8f22f7` (master, cây sạch)
 **Nguồn:** `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md` §1 — *"239 mục ngoài lượt rà không thuộc phạm vi đề xuất này"*
-**Trạng thái:** Ice duyệt hướng 2026-09-24. Bước 1–2 và nửa K của bước 3 đã thi hành; phiên quyết hạng P còn mở.
+**Trạng thái:** Ice duyệt 2026-09-24; đã thi hành trọn.
 
 ---
 
@@ -63,6 +63,19 @@ Sau bước 2: **177** mục mở/🟡 đứng tên Ice.
 Một agent tách 162 câu: **119 P** (hành vi người dùng thấy, UX, phạm vi, chính sách quy trình, tài liệu đã ký) · **43 K** (lựa chọn cài đặt người dùng không thấy khác, phép đo trong story chọn được). Câu chạm tài liệu đã ký, ý định một AD hay chính sách test được xếp P dù nghe kỹ thuật.
 
 - **K, đã thi hành:** 43 mục → Story 10.9 · 11.1 · 11.2 · 11.3 · 11.5 · 11.6 · 11.7; Task 0 của story trình phương án kèm số đo cho Ice. Sau đó: **134** mục đứng tên Ice. Tải Epic 11 (`grep -c 'Chủ: Story 11.N.**'`): 49 · 34 · 35 · 33 · 33 · 50 · 23 — 11.1 và 11.6 nên tách đôi lúc `create-story`.
-- **P, còn mở:** 108 quyết định riêng trong `sprint-change-proposal-2026-09-24b-phieu-quyet.md`, gom theo mảng. John trình từng mảng; mỗi câu trả lời được thi hành vào `deferred-work.md` sau phiên.
+- **P, đã thi hành:** Ice trả lời đủ 108 câu của `sprint-change-proposal-2026-09-24b-phieu-quyet.md` trong phiên 2026-09-24: 40 KHÔNG LÀM · 53 giao story/người · 14 đóng · 1 giữ Ice kèm điều kiện. Mỗi câu nối một dòng `(phiếu quyết #N)` vào mục của nó; câu trả lời nằm ở cột *Quyết* của phiếu.
 
 **Tiêu chí thành công:** `check:debt-owner` xanh; mỗi mục còn `Chủ: Ice` thuộc một trong ba loại: câu trong phiếu chưa trả lời, mục D có điều kiện ghi rõ, hoặc việc môi trường trên máy Ice.
+
+## 7. Sửa tài liệu quy hoạch trong phiên quyết
+
+Correct-course đi kèm câu trả lời, mỗi chỗ mang một dòng 🔵 tại chỗ:
+
+- FR115 bỏ bảng `.md` (`prd.md`, `epics.md` §FR list và AC1 Story 6.16); thêm **Story 6.16c** (bảng `.docx` song ngữ) vào `epics.md` và `sprint-status.yaml`, chạy cùng đợt Epic 11 sau Epic 4 — #22, #23.
+- UX-DR19 rút giá trị về hưu (`epics.md`, `DESIGN.md`, `EXPERIENCE.md`) — #65.
+- UX-DR15 và `DESIGN.md` frontmatter: titlebar 40px, status 34px; mockup `key-screen-workspace.html` — #77, #80.
+- Mockup `data-integrity.html` theo AD-31; mockup `web-import.html` và AC Story 6.10 sang `⌥⌘↵` — #79, #104.
+- Covers của Story 2.2; hàng "Trang 0 khối" spec 6.9; dòng 🔵 ở retro Epic 6 §F6 — #76, #17, #84.
+- `AGENTS.md` §This machine: dòng LuLu thành "nghi môi trường trước" (Ice tắt LuLu vĩnh viễn); so số đo chỉ cùng toolchain — #72, #40.
+
+**Kết quả:** 239 → **16** mục mở/🟡 đứng tên Ice: 13 treo điều kiện, 2 việc môi trường máy Ice, 1 giữ kèm điều kiện (#3). `check:debt-owner` xanh.
