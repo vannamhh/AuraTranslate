@@ -113,8 +113,8 @@ const tabpanelLabelledBy = computed(() =>
  * tử đang mang `tabindex="-1"`, nên không cần `nextTick`. Đợi Vue vẽ xong chỉ thêm một
  * khung hình mà tiêu điểm nằm sai chỗ.
  *
- * ⚠️ Kiểm A của `check:commands` **không** áp cho `@keydown` (`check-commands.mjs:33`),
- * nên hàm này hợp lệ; luật *"đúng một `dispatch()`"* vẫn giữ nguyên cho mọi `@click`.
+ * Kiểm A doesn't cover `@keydown`; Kiểm K (`HANDLER_TABLE` in `check-commands.mjs`) does,
+ * but marks this function `nonCommand`, since its body dispatches via a parameter, not an id literal.
  */
 function moveTabFocus(commandId: string, targetTabId: string): void {
   dispatch(commandId)

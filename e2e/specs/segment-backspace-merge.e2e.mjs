@@ -13,12 +13,14 @@
  * |---|---|---|
  * | Vào đâu | `keys.ts` → bảng hợp âm → `CommandRegistry` | `GridPanel.vue::onEditKeydown` **trực tiếp** |
  * | Phép kiểm quyết định | hợp âm khớp | `caretAtCellStart(cell, selection)` |
- * | Cổng nào canh | `check:commands` Kiểm A/B | 🔴 **KHÔNG CỔNG NÀO** |
+ * | Cổng nào canh | `check:commands` Kiểm A/B | Kiểm K (bảng đông cứng) — vế TĨNH |
  *
- * ⇒ Hàng thứ ba là lý do tệp này tồn tại. `check:commands` Kiểm A **chỉ canh `@click`** —
- * `check-commands.mjs:2348-2349` in ra mỗi lượt chạy: *"ngày một `@keydown` mang thao tác
- * thật xuất hiện, luật phải được xem lại"*. Trước story này `onEditKeydown` **không mang
- * thao tác nào**; nay nó mang một thao tác **phá huỷ và không lui được**.
+ * ⇒ Hàng thứ ba là lý do tệp này vẫn còn cần tồn tại: Kiểm K của `check-commands.mjs` (ghi
+ * chú *"Kiểm A chỉ canh `@click`"* ở đầu tệp đó — không trích theo số dòng, số đó trôi mỗi
+ * lượt sửa tệp) nay đối chiếu `onEditKeydown` hai chiều với bộ id literal nó dispatch, nên vế
+ * **TĨNH** đã có chủ. Vế tệp này còn giữ là hành vi **LÚC CHẠY** không cổng tĩnh nào giả lập
+ * được: `isComposing`, auto-repeat hệ điều hành, và `preventDefault()` trên một sự kiện
+ * KHÔNG `isTrusted` (driver) — ba mệnh đề đúng ở §GIỚI HẠN THẬT ngay dưới.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * ⚠️ GIỚI HẠN THẬT CỦA BỘ ĐO — ghi ra thay vì để người sau tưởng đã phủ

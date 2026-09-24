@@ -30,10 +30,10 @@
  * ─────────────────────────────────────────────────────────────────────────────────
  * GIỚI HẠN — ghi thẳng thay vì để người sau tự phát hiện
  * ─────────────────────────────────────────────────────────────────────────────────
- * 1. **Chỉ `@click`.** `@keydown`, `@input`, `@change`, `@submit` KHÔNG thuộc luật Kiểm A
- *    — chúng không phải "thao tác" theo nghĩa AD-34 §1 (một `@input` là dòng dữ liệu, một
- *    `@click` là một thao tác người dùng chủ động). Ngày một `@keydown` mang thao tác thật
- *    xuất hiện, luật này phải được xem lại — chứ không phải mở rộng regex một cách lặng lẽ.
+ * 1. **Kiểm A chỉ canh `@click`.** `@input`/`@change` KHÔNG thuộc luật này — chúng là dòng DỮ
+ *    LIỆU theo nghĩa AD-34 §1, không phải một thao tác người dùng chủ động.
+ *    `@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit` are checked by Kiểm K (end of
+ *    file) against a frozen two-way table, not by widening Kiểm A's regex.
  * 2. **Vế DOM của AC4 KHÔNG kiểm được ở đây.** *"Focus không bao giờ rơi về `body`"* là
  *    hành vi lúc chạy trong một webview thật. Cổng canh vế KHAI BÁO; vế hành vi có một
  *    chốt tự kêu ở `focus.ts` cộng một lượt nghiệm thu tay có bảng, và giới hạn đó ghi ở
@@ -61,6 +61,18 @@
 import { readFileSync, readdirSync, lstatSync, realpathSync, existsSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { basename, dirname, join, relative, sep } from 'node:path'
+import {
+  blank,
+  maskScript,
+  maskTemplate,
+  attributesIn,
+  scanVueAttrs,
+  functionBodyRange,
+} from './lib/commands-scan.mjs'
+
+/** @typedef {import('./lib/commands-scan.mjs').ParsedFile} ParsedFile */
+/** @typedef {import('./lib/commands-scan.mjs').TemplateRegion} TemplateRegion */
+/** @typedef {import('./lib/commands-scan.mjs').TemplateAttr} TemplateAttr */
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
@@ -70,21 +82,33 @@ const COMMANDS_INDEX_TS = join(SRC_ROOT, 'commands', 'index.ts')
 const VI_JSON = join(SRC_ROOT, 'i18n', 'vi.json')
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
+
+/**
+ * @param {unknown} err
+ * @returns {string}
+ */
+const errorMessage = (err) => (err instanceof Error && err.message ? err.message : String(err))
 
 /**
  * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
  * (`check-deps.mjs:60-66`)
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
  */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(errorMessage(err).trim())
   process.exit(1)
 }
 
@@ -95,14 +119,23 @@ function abort(what, err) {
 // Hôm nay danh sách RỖNG, và con số 0 in ra có chủ ý: khối này tồn tại để lần đầu ai đó
 // cần một ngoại lệ thì phải viết lý do ra đây, chứ không phải sửa một dấu sao.
 // ═════════════════════════════════════════════════════════════════════════════════
+/** @type {[string, string][]} */
 const EXEMPT = []
 
+/**
+ * @param {string} pattern
+ * @returns {RegExp}
+ */
 function globToRe(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
   return new RegExp(`^${escaped.replace(/\*\*/g, '.*').replace(/(?<!\.)\*/g, '[^/]*')}$`)
 }
-const EXEMPT_RES = EXEMPT.map(([pattern, why]) => [globToRe(pattern), pattern, why])
+const EXEMPT_RES = EXEMPT.map(
+  ([pattern, why]) => /** @type {[RegExp, string, string]} */ ([globToRe(pattern), pattern, why]),
+)
+/** @param {string} p */
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
+/** @param {string} file */
 const exemptionFor = (file) => EXEMPT_RES.find(([re]) => re.test(posix(file)))
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -113,9 +146,17 @@ const exemptionFor = (file) => EXEMPT_RES.find(([re]) => re.test(posix(file)))
 // symlink nên một liên kết trỏ về thư mục cha làm đệ quy không dừng, và một liên kết gãy
 // ném `ENOENT` bị `abort()` báo thành "cây nguồn không đọc được". Symlink bị BỎ QUA và
 // ghi tên ra, để việc bỏ qua không im lặng.
+/** @type {string[]} */
 const skippedLinks = []
 const SKIP_DIRS = new Set(['target', 'node_modules', 'dist', '.git'])
 
+/**
+ * @param {string} dir
+ * @param {string[]} exts
+ * @param {string[]} out
+ * @param {Set<string>} seen
+ * @returns {string[]}
+ */
 function walk(dir, exts, out = [], seen = new Set()) {
   let key
   try {
@@ -161,7 +202,9 @@ try {
   abort('cây nguồn `src/**`', err)
 }
 
+/** @type {[string, string][]} */
 const exemptedFiles = []
+/** @param {string[]} files */
 const keep = (files) =>
   files.filter((f) => {
     const hit = exemptionFor(f)
@@ -381,161 +424,17 @@ if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
 // Xoá đi thì mọi chẩn đoán trỏ sai dòng, và một cổng chỉ đường sai sẽ bị người sau thêm
 // ngoại lệ cho tới khi nó không bắt được gì (`check-tokens.mjs:351-355`).
 //
-// 🔴 CHỈ CHE COMMENT, KHÔNG CHE CHUỖI — ngược với `check-tokens.mjs`. Cổng này cần đọc
-// NỘI DUNG chuỗi (`dispatch('mode.library')`), nên chuỗi phải sống sót. Nhưng máy trạng
-// thái vẫn phải THEO DÕI chuỗi, vì một `//` hay `/*` bên trong dấu nháy không được mở một
-// comment giả — đúng bài học `check-i18n.mjs:43-55`.
-//
-// 🔴 REGEX LITERAL là trạng thái mà một lượt cài đặt vội bỏ sót, và nó hỏng theo chiều
-// ĐẮT NHẤT: `/^https?:\/\//` chứa `\/` rồi `/`; một máy không biết regex đọc cặp đó thành
-// `//` và che nốt dòng — tức nuốt một `dispatch(` thật ngay sau đó.
-
-const IDENT_CHAR = /[A-Za-z0-9_]/
+// `maskScript`/`maskTemplate`/`attributesIn` moved to `./lib/commands-scan.mjs`.
+// `maskStyle`/`vueRegions`/`maskFile` stay here: `vueRegions` owns the impure
+// module-level `looseBlockTags` counter this gate reports on.
 
 /**
- * Sau ký tự nào thì một `/` mở REGEX chứ không phải phép chia. (`check-i18n.mjs:394-415`)
- *
- * ⚠️ `}` PHẢI có mặt. Thiếu nó thì một regex mở đầu câu lệnh ngay sau một block —
- * `function f() {}` xuống dòng `/^https?:\/\//.test(x)` — bị đọc thành phép chia; máy
- * trạng thái gặp cặp `\/` + `/` liền đó và che nốt dòng, tức nuốt một `dispatch(` thật
- * nằm sau nó. Đúng chiều hỏng mà header ở trên gọi là ĐẮT NHẤT.
+ * Vùng CSS — chỉ `/* *\/`. ⚠️ `//` KHÔNG phải comment: `url(//host/x.png)` là một URL.
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {string[]} chars
  */
-const REGEX_PRECEDERS = new Set([...'([{},;:=!&|?+-*%^~<>'])
-const REGEX_KEYWORDS = new Set([
-  'return', 'typeof', 'instanceof', 'in', 'of', 'case', 'do', 'else',
-  'yield', 'await', 'new', 'delete', 'void', 'throw',
-])
-
-function regexAllowed(lastSig, text, at) {
-  if (lastSig === '') return true
-  if (REGEX_PRECEDERS.has(lastSig)) return true
-  if (!IDENT_CHAR.test(lastSig)) return false
-  const m = /[A-Za-z_$][A-Za-z0-9_$]*$/.exec(text.slice(Math.max(0, at - 24), at).trimEnd())
-  return m ? REGEX_KEYWORDS.has(m[0]) : false
-}
-
-const blank = (chars, s, e) => {
-  for (let i = s; i < e && i < chars.length; i += 1) if (chars[i] !== '\n') chars[i] = ' '
-}
-
-/** Vùng JS/TS — che `//` và `/* *\/`, theo dõi chuỗi · template literal · regex literal. */
-function maskScript(text, from, to, chars) {
-  let i = from
-  let state = 'code'
-  let quote = ''
-  let lastSig = ''
-  const interp = []
-
-  while (i < to) {
-    const ch = text[i]
-    if (state === 'code') {
-      if (text.startsWith('/*', i)) {
-        let end = text.indexOf('*/', i + 2)
-        end = end === -1 || end + 2 > to ? to : end + 2
-        blank(chars, i, end)
-        i = end
-        continue
-      }
-      if (text.startsWith('//', i)) {
-        let end = text.indexOf('\n', i)
-        if (end === -1 || end > to) end = to
-        blank(chars, i, end)
-        i = end
-        continue
-      }
-      if (ch === '"' || ch === "'") {
-        state = 'string'
-        quote = ch
-        i += 1
-        continue
-      }
-      if (ch === '`') {
-        state = 'template'
-        i += 1
-        continue
-      }
-      if (ch === '/' && regexAllowed(lastSig, text, i)) {
-        let j = i + 1
-        let inClass = false
-        let closed = false
-        while (j < to) {
-          const c = text[j]
-          if (c === '\\') {
-            j += 2
-            continue
-          }
-          if (c === '\n') break
-          if (c === '[') inClass = true
-          else if (c === ']') inClass = false
-          else if (c === '/' && !inClass) {
-            closed = true
-            break
-          }
-          j += 1
-        }
-        if (closed) {
-          j += 1
-          while (j < to && /[a-z]/.test(text[j])) j += 1
-          lastSig = '/'
-          i = j
-          continue
-        }
-        // Không đóng được ⇒ đoán sai, đây là phép chia. Đi tiếp một bước.
-      }
-      if (interp.length) {
-        if (ch === '{') interp[interp.length - 1] += 1
-        else if (ch === '}') {
-          if (interp[interp.length - 1] === 0) {
-            interp.pop()
-            state = 'template'
-            i += 1
-            continue
-          }
-          interp[interp.length - 1] -= 1
-        }
-      }
-      if (!/\s/.test(ch)) lastSig = ch
-      i += 1
-      continue
-    }
-    if (state === 'string') {
-      if (ch === '\\') {
-        i += 2
-        continue
-      }
-      // Một dấu nháy lẻ phải đóng TRONG CÙNG MỘT DÒNG — đúng ngữ nghĩa JS. Không có luật
-      // này thì một dấu nháy trong văn xuôi (`don't`) nuốt phần còn lại của tệp.
-      if (ch === '\n' || ch === quote) {
-        state = 'code'
-        lastSig = quote
-        i += 1
-        continue
-      }
-      i += 1
-      continue
-    }
-    // template literal
-    if (ch === '\\') {
-      i += 2
-      continue
-    }
-    if (text.startsWith('${', i)) {
-      interp.push(0)
-      state = 'code'
-      i += 2
-      continue
-    }
-    if (ch === '`') {
-      state = 'code'
-      lastSig = '`'
-      i += 1
-      continue
-    }
-    i += 1
-  }
-}
-
-/** Vùng CSS — chỉ `/* *\/`. ⚠️ `//` KHÔNG phải comment: `url(//host/x.png)` là một URL. */
 function maskStyle(text, from, to, chars) {
   let i = from
   while (i < to) {
@@ -544,59 +443,6 @@ function maskStyle(text, from, to, chars) {
       end = end === -1 || end + 2 > to ? to : end + 2
       blank(chars, i, end)
       i = end
-      continue
-    }
-    i += 1
-  }
-}
-
-/**
- * Vùng template — che `<!-- -->`, và CHỈ ở vùng văn bản.
- *
- * 🔴 `<!--` KHÔNG mở comment ở mọi vị trí. `<div title="a <!-- b">` là HTML hợp lệ, và
- * một phép so chuỗi trần ở đó mở một comment không có thật rồi làm mù phần còn lại của
- * vùng (`check-i18n.mjs:628-635`). Kèm theo, `indexOf('-->')` phải bị chặn bởi `to`.
- */
-function maskTemplate(text, from, to, chars) {
-  let i = from
-  let state = 'text'
-  let quote = ''
-  while (i < to) {
-    const ch = text[i]
-    if (state === 'text') {
-      if (text.startsWith('<!--', i)) {
-        const end = text.indexOf('-->', i + 4)
-        const stop = end === -1 || end + 3 > to ? to : end + 3
-        blank(chars, i, stop)
-        i = stop
-        continue
-      }
-      if (ch === '<' && /[A-Za-z/]/.test(text[i + 1] ?? '')) {
-        state = 'tag'
-        i += 1
-        continue
-      }
-      i += 1
-      continue
-    }
-    if (state === 'tag') {
-      if (ch === '"' || ch === "'") {
-        state = 'attr'
-        quote = ch
-        i += 1
-        continue
-      }
-      if (ch === '>') {
-        state = 'text'
-        i += 1
-        continue
-      }
-      i += 1
-      continue
-    }
-    if (ch === quote) {
-      state = 'tag'
-      i += 1
       continue
     }
     i += 1
@@ -625,8 +471,11 @@ let looseBlockTags = 0
  *
  * ⚠️ Cái giá: một `<script>` thật viết thụt đầu dòng sẽ bị bỏ qua. Nên nó được **ĐẾM và
  * IN RA** thay vì bỏ im lặng — cùng kỷ luật với `nonLiteralOwnerCalls` ở Kiểm E.
+ * @param {string} text
+ * @returns {(TemplateRegion & { kind: string })[]}
  */
 function vueRegions(text) {
+  /** @type {(TemplateRegion & { kind: string })[]} */
   const regions = []
   const anchored = /^<(script|style)\b[^>]*>/gim
   const anyTag = /<(script|style)\b[^>]*>/gi
@@ -652,123 +501,102 @@ function vueRegions(text) {
   return regions.sort((a, b) => a.start - b.start)
 }
 
+/**
+ * `code` is a second, additive masking pass over the same text (also blanks string/
+ * template-literal content) — used only to locate a real call, never to read an id.
+ * @param {string} text
+ * @param {boolean} isVue
+ * @returns {{ masked: string, code: string, templates: TemplateRegion[] }}
+ */
 function maskFile(text, isVue) {
   const chars = text.split('')
+  const codeChars = text.split('')
   if (!isVue) {
     maskScript(text, 0, text.length, chars)
-    return { masked: chars.join(''), templates: [] }
+    maskScript(text, 0, text.length, codeChars, { blankLiterals: true })
+    return { masked: chars.join(''), code: codeChars.join(''), templates: [] }
   }
   const regions = vueRegions(text)
+  /** @type {TemplateRegion[]} */
   const templates = []
   let cursor = 0
   for (const r of regions) {
     if (r.start > cursor) {
       maskTemplate(text, cursor, r.start, chars)
+      maskTemplate(text, cursor, r.start, codeChars)
       templates.push({ start: cursor, end: r.start })
     }
-    if (r.kind === 'script') maskScript(text, r.start, r.end, chars)
-    else maskStyle(text, r.start, r.end, chars)
+    if (r.kind === 'script') {
+      maskScript(text, r.start, r.end, chars)
+      maskScript(text, r.start, r.end, codeChars, { blankLiterals: true })
+    } else {
+      maskStyle(text, r.start, r.end, chars)
+      maskStyle(text, r.start, r.end, codeChars)
+    }
     cursor = r.end
   }
   if (cursor < text.length) {
     maskTemplate(text, cursor, text.length, chars)
+    maskTemplate(text, cursor, text.length, codeChars)
     templates.push({ start: cursor, end: text.length })
   }
-  return { masked: chars.join(''), templates }
+  return { masked: chars.join(''), code: codeChars.join(''), templates }
 }
 
+/**
+ * Builds a `ParsedFile` — shared by the real scan below and Kiểm K's self-check, so the
+ * self-check parses its fake fixture with the real function, not a copy.
+ * @param {string} file
+ * @param {string} text
+ * @returns {ParsedFile}
+ */
+function buildParsedEntry(file, text) {
+  const isVue = file.toLowerCase().endsWith('.vue')
+  const { masked, code, templates } = maskFile(text, isVue)
+  return { file, text, masked, code, templates, isVue }
+}
+
+/** @type {ParsedFile[]} */
 const parsed = []
 for (const file of [...vueFiles, ...tsFiles]) {
+  /** @type {string} */
   let text
   try {
     text = readFileSync(file, 'utf8')
   } catch (err) {
     abort(`tệp \`${posix(file)}\``, err)
   }
-  const isVue = file.toLowerCase().endsWith('.vue')
-  const { masked, templates } = maskFile(text, isVue)
-  parsed.push({ file, text, masked, templates, isVue })
+  parsed.push(buildParsedEntry(file, text))
 }
 
+/**
+ * @param {string} text
+ * @param {number} index
+ */
 const positionOf = (text, index) => {
   const before = text.slice(0, index)
   const line = before.split('\n').length
   const col = index - (before.lastIndexOf('\n') + 1) + 1
   return { line, col }
 }
+/**
+ * @param {ParsedFile} p
+ * @param {number} index
+ */
 const at = (p, index) => {
   const { line, col } = positionOf(p.text, index)
   return `${posix(p.file)}:${line}:${col}`
 }
-/** Trích 60 ký tự quanh chỗ vi phạm, một dòng, để chẩn đoán đọc được ngay ở log CI. */
+/**
+ * Trích 60 ký tự quanh chỗ vi phạm, một dòng, để chẩn đoán đọc được ngay ở log CI.
+ * @param {string} text
+ * @param {number} index
+ */
 const excerpt = (text, index) =>
   text
     .slice(Math.max(0, index - 30), Math.min(text.length, index + 30))
     .replace(/\s+/g, ' ')
     .trim()
-
-// ═════════════════════════════════════════════════════════════════════════════════
-// Bóc thuộc tính trong vùng template — CÓ TRẠNG THÁI
-// ═════════════════════════════════════════════════════════════════════════════════
-//
-// Không `replace` ngây thơ. Lượt review Story 1.5 đã dựng lại được ba lỗ thủng của một
-// bộ quét không trạng thái (char literal chứa `"`, regex literal, `<!--` trong giá trị
-// attribute). Giá trị attribute được phép chứa `>` — `@click="a > b ? f() : g()"` là
-// template Vue hợp lệ — nên chỗ đóng của một giá trị là DẤU NHÁY, không phải `>`.
-const ATTR_NAME_START = /[@:A-Za-z_]/
-const ATTR_NAME_CHAR = /[@:A-Za-z0-9_.\-[\]]/
-
-function attributesIn(masked, from, to) {
-  const out = []
-  let i = from
-  let state = 'text'
-  while (i < to) {
-    const ch = masked[i]
-    if (state === 'text') {
-      if (ch === '<' && /[A-Za-z/]/.test(masked[i + 1] ?? '')) {
-        state = 'tag'
-        i += 1
-        continue
-      }
-      i += 1
-      continue
-    }
-    // state === 'tag'
-    if (ch === '>') {
-      state = 'text'
-      i += 1
-      continue
-    }
-    if (!ATTR_NAME_START.test(ch)) {
-      i += 1
-      continue
-    }
-    let j = i
-    while (j < to && ATTR_NAME_CHAR.test(masked[j])) j += 1
-    const name = masked.slice(i, j)
-    let k = j
-    while (k < to && /\s/.test(masked[k])) k += 1
-    if (masked[k] !== '=') {
-      i = j
-      continue
-    }
-    k += 1
-    while (k < to && /\s/.test(masked[k])) k += 1
-    const q = masked[k]
-    if (q === '"' || q === "'") {
-      let e = k + 1
-      while (e < to && masked[e] !== q) e += 1
-      out.push({ name, value: masked.slice(k + 1, e), index: k + 1 })
-      i = Math.min(e + 1, to)
-      continue
-    }
-    let e = k
-    while (e < to && !/[\s>]/.test(masked[e])) e += 1
-    out.push({ name, value: masked.slice(k, e), index: k })
-    i = e
-  }
-  return out
-}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm A — `@click` chỉ được là `dispatch(\'<id>\')` (AC1)')
@@ -792,32 +620,29 @@ const CLICK_ATTR_RE = /^(@|v-on:)click(\.[A-Za-z0-9.\-]+)?$/
  * chứ không được suy đoán. Đây là chỗ §Task 9 nói *"miễn trừ — nếu có — viết ngay trong
  * script"*: không có miễn trừ nào ở đây, có một lời từ chối.
  */
+/** @type {[RegExp, string][]} */
 const OPAQUE_CLICK_RES = [
   [/^:?on[Cc]lick$/, '`:onClick` / `onClick` là một listener click của Vue 3'],
   [/^v-on$/, '`v-on="{ click: … }"` là dạng object của một listener click'],
   [/^(@|v-on:)\[/, 'tên sự kiện ĐỘNG — không đọc tĩnh được, nên không chứng minh được'],
 ]
 
+/** @type {{ p: ParsedFile, a: TemplateAttr }[]} */
 const clickAttrs = []
 let aBad = 0
-for (const p of parsed) {
-  if (!p.isVue) continue
-  for (const region of p.templates) {
-    for (const a of attributesIn(p.masked, region.start, region.end)) {
-      if (CLICK_ATTR_RE.test(a.name)) {
-        clickAttrs.push({ p, a })
-        continue
-      }
-      const opaque = OPAQUE_CLICK_RES.find(([re]) => re.test(a.name))
-      if (opaque) {
-        fail(`${at(p, a.index)} — \`${a.name}\` là một thao tác click KHÔNG kiểm được tĩnh`)
-        detail(`… ${excerpt(p.text, a.index)} …`)
-        detail(`${opaque[1]}, nên nó lách được luật "\`@click\` phải là đúng một \`dispatch()\`".`)
-        detail('Viết lại thành `@click="dispatch(\'<id>\')"`. AD-34 §1: handler chuột chỉ được')
-        detail('`dispatch` một command ĐÃ ĐĂNG KÝ, không tự cài đặt thao tác tại chỗ.')
-        aBad += 1
-      }
-    }
+for (const { p, a } of scanVueAttrs(parsed)) {
+  if (CLICK_ATTR_RE.test(a.name)) {
+    clickAttrs.push({ p, a })
+    continue
+  }
+  const opaque = OPAQUE_CLICK_RES.find(([re]) => re.test(a.name))
+  if (opaque) {
+    fail(`${at(p, a.index)} — \`${a.name}\` là một thao tác click KHÔNG kiểm được tĩnh`)
+    detail(`… ${excerpt(p.text, a.index)} …`)
+    detail(`${opaque[1]}, nên nó lách được luật "\`@click\` phải là đúng một \`dispatch()\`".`)
+    detail('Viết lại thành `@click="dispatch(\'<id>\')"`. AD-34 §1: handler chuột chỉ được')
+    detail('`dispatch` một command ĐÃ ĐĂNG KÝ, không tự cài đặt thao tác tại chỗ.')
+    aBad += 1
   }
 }
 
@@ -847,7 +672,8 @@ if (aBad === 0) {
       'tất cả là một lời gọi `dispatch()` đơn',
   )
 }
-detail('giới hạn đã khai: chỉ `@click`; `@keydown`/`@input` KHÔNG thuộc luật này (xem đầu tệp)')
+detail('giới hạn đã khai: chỉ `@click`; `@input`/`@change` KHÔNG thuộc luật này (xem đầu tệp).')
+detail('`@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit` có Kiểm K riêng, cuối tệp.')
 detail(
   `\`:onClick\` · \`v-on="{click}"\` · \`@[dyn]\` bị TỪ CHỐI (không kiểm được tĩnh) · ` +
     `${looseBlockTags} thẻ \`<script/style>\` không ở đầu dòng đã bỏ qua`,
@@ -904,6 +730,11 @@ if (!existsSync(REGISTRY_TS)) {
   abort(`\`${posix(REGISTRY_TS)}\``, new Error('Tệp không tồn tại — Kiểm C KHÔNG chạy được.'))
 }
 
+/**
+ * @param {string} path
+ * @param {string} which
+ * @returns {Promise<any>}
+ */
 const loadTs = async (path, which) => {
   try {
     return await import(pathToFileURL(path).href)
@@ -911,7 +742,7 @@ const loadTs = async (path, which) => {
     abort(
       `\`${posix(path)}\` — ${which} KHÔNG chạy được`,
       new Error(
-        `${err?.message || err}\n\n` +
+        `${errorMessage(err)}\n\n` +
           `Node đang chạy: ${process.version}. Phép kiểm này cần Node ≥ 22.18 (bóc kiểu ` +
           'TypeScript mặc định), và tệp phải là cú pháp "erasable-only": không `enum`, ' +
           'không `namespace`, không parameter property, không `import` một module ' +
@@ -947,6 +778,11 @@ let cBad = 0
  * phải nằm trong thông báo. Lớp thật sự đóng ca "ném vô điều kiện" là `expectNoThrow`
  * ngay dưới.
  */
+/**
+ * @param {string} what
+ * @param {() => void} fn
+ * @param {string} [needle]
+ */
 const expectThrow = (what, fn, needle) => {
   try {
     fn()
@@ -974,15 +810,24 @@ const expectThrow = (what, fn, needle) => {
  * Error('x')` ở dòng đầu tiên sẽ vượt qua trọn vẹn. Đường hợp lệ phải được khẳng định
  * tường minh, và một lần ném ở đó phải là FAIL **CÓ TÊN**, không phải một lượt sập script.
  */
+/**
+ * @param {string} what
+ * @param {() => void} fn
+ */
 const expectNoThrow = (what, fn) => {
   try {
     fn()
     pass(what)
   } catch (err) {
-    fail(`${what} — NÉM ở đường hợp lệ: ${err?.message || String(err)}`)
+    fail(`${what} — NÉM ở đường hợp lệ: ${errorMessage(err)}`)
     cBad += 1
   }
 }
+/**
+ * @param {string} what
+ * @param {unknown} got
+ * @param {unknown} want
+ */
 const expectEq = (what, got, want) => {
   if (got === want) return
   fail(`${what} — nhận \`${String(got)}\`, phải là \`${String(want)}\``)
@@ -991,6 +836,10 @@ const expectEq = (what, got, want) => {
 
 {
   const noop = () => {}
+  /**
+   * @param {string} id
+   * @param {Record<string, unknown>} [extra]
+   */
   const spec = (id, extra = {}) => ({ id, labelKey: `command.${id}`, run: noop, ...extra })
 
   // 🔴 ĐỐI CHỨNG DƯƠNG, đứng TRƯỚC mọi mệnh đề "⇒ ném". Nếu `register()` ném vô điều
@@ -1042,14 +891,14 @@ const expectEq = (what, got, want) => {
 
   expectEq(
     '`list()` giữ THỨ TỰ ĐĂNG KÝ',
-    r.list().map((s) => s.id).join(' → '),
+    r.list().map((/** @type {any} */ s) => s.id).join(' → '),
     'mode.library → mode.workspace → focus.next_panel → demo.keys_rong',
   )
 
   // AC6 — và ⚠️ ca `keys: []` phải nằm trong tập, không chỉ ca `keys` vắng mặt.
   expectEq(
     '`unbound()` trả ĐÚNG tập command thiếu phím (AC6)',
-    r.unbound().map((s) => s.id).sort().join(' · '),
+    r.unbound().map((/** @type {any} */ s) => s.id).sort().join(' · '),
     'demo.keys_rong · focus.next_panel',
   )
 
@@ -1090,7 +939,10 @@ if (typeof focusMod.createFocusRegistry !== 'function') {
 }
 {
   const { createFocusRegistry } = focusMod
-  /** Phần tử giả: `enter()` chỉ cần một thứ có `focus()`. */
+  /**
+   * Phần tử giả: `enter()` chỉ cần một thứ có `focus()`.
+   * @param {string} name
+   */
   const fakeEl = (name) => ({ name, focused: 0, focus() { this.focused += 1 } })
 
   expectThrow('owner rỗng ⇒ ném (AD-34 §2)', () => createFocusRegistry().declare('', () => null))
@@ -1114,6 +966,7 @@ if (typeof focusMod.createFocusRegistry !== 'function') {
   // Cửa vào một owner LẠ phải trả `false` và không ném — một chốt chống rơi focus không
   // được tự nó làm sập ứng dụng.
   const realError = console.error
+  /** @type {string[]} */
   const errors = []
   console.error = (...a) => errors.push(a.join(' '))
   try {
@@ -1169,6 +1022,7 @@ if (typeof keysMod.createKeymap !== 'function') {
 
 let dBad = 0
 {
+  /** @type {string[]} */
   const fired = []
   /** Registry giả — Kiểm D nghiệm thu TẦNG BÀN PHÍM, không nghiệm thu lại registry. */
   const fakeRegistry = {
@@ -1177,12 +1031,14 @@ let dBad = 0
       { id: 'ai.send', labelKey: 'command.ai.send', run: () => {}, keys: ['Mod+Shift+Enter'] },
       { id: 'read.bilingual', labelKey: 'command.read.bilingual', run: () => {}, keys: ['B'] },
     ],
+    /** @param {string} id */
     dispatch: (id) => fired.push(id),
     register: () => {},
     has: () => true,
     unbound: () => [],
   }
 
+  /** @param {Partial<Record<string, unknown>>} over */
   const ev = (over) => {
     let prevented = 0
     return {
@@ -1201,6 +1057,11 @@ let dBad = 0
     }
   }
 
+  /**
+   * @param {string} what
+   * @param {unknown} got
+   * @param {unknown} want
+   */
   const check = (what, got, want) => {
     if (got === want) {
       pass(what)
@@ -1445,6 +1306,7 @@ let dBad = 0
   // hoàn toàn vẫn xanh: giữ `Shift+→` sẽ mở rộng vùng chọn đúng một ký tự rồi đứng im, và
   // không cổng nào đỏ.
   {
+    /** @type {string[]} */
     const fired = []
     const map = keysMod.createKeymap(
       {
@@ -1459,6 +1321,7 @@ let dBad = 0
             repeatable: true,
           },
         ],
+        /** @param {string} id */
         dispatch: (id) => fired.push(id),
       },
       { isMac: true },
@@ -1483,11 +1346,12 @@ let dBad = 0
       ...fakeRegistry,
       list: () => [{ id: 'a.b', labelKey: 'command.a.b', run: () => {}, keys: ['Mod+1'] }],
     }
+    /** @param {Record<string, string[]>} [overrides] */
     const chordsOf = (overrides) =>
       keysMod
         .createKeymap(base, { isMac: true }, overrides)
         .bindings()
-        .map((b) => b.chord)
+        .map((/** @type {any} */ b) => b.chord)
         .join(' · ')
 
     check('`overrides` VẮNG MẶT ⇒ hành vi cũ từng dòng một (tương thích ngược)', chordsOf(undefined), 'Mod+1')
@@ -1531,11 +1395,13 @@ let dBad = 0
         check(`vòng khứ hồi (isMac=${isMac}) — \`${event.code}\` phải cho ra một hợp âm`, typeof chord, 'string')
         continue
       }
+      /** @type {string[]} */
       const seen = []
       const map = keysMod.createKeymap(
         {
           ...fakeRegistry,
           list: () => [{ id: 'x.y', labelKey: 'command.x.y', run: () => {}, keys: [chord] }],
+          /** @param {string} id */
           dispatch: (id) => seen.push(id),
         },
         { isMac },
@@ -1624,6 +1490,7 @@ let dBad = 0
 console.log('\nKiểm E — nhãn có trong `vi.json`, sổ điểm vào focus khớp mã nguồn (AC4)')
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/** @type {any} */
 let catalog
 try {
   catalog = JSON.parse(readFileSync(VI_JSON, 'utf8'))
@@ -1640,6 +1507,7 @@ for (const name of ['installCommands', 'commandRegistry', 'FOCUS_OWNERS']) {
 }
 
 let eBad = 0
+/** @param {string} m */
 const eFail = (m) => {
   fail(m)
   eBad += 1
@@ -1676,7 +1544,7 @@ for (const isMac of [true, false]) {
     keysMod.createKeymap(indexMod.commandRegistry, { isMac })
     pass(`bộ command THẬT dựng được keymap trên ${nen} — không hợp âm nào giành nhau`)
   } catch (err) {
-    eFail(`bộ command THẬT KHÔNG dựng được keymap trên ${nen}: ${err?.message || String(err)}`)
+    eFail(`bộ command THẬT KHÔNG dựng được keymap trên ${nen}: ${errorMessage(err)}`)
     detail('Một xung đột hợp âm chỉ tồn tại trên MỘT nền tảng vẫn là một cửa sổ trắng ở nền tảng đó:')
     detail('`installCommands()` chạy TRƯỚC `mount()` trong `src/main.ts`.')
   }
@@ -1738,7 +1606,6 @@ for (const c of callSiteKeys) {
     eFail(`${at(c.p, c.index)} — khoá \`${c.key}\` (qua ${c.how}) KHÔNG có trong \`src/i18n/vi.json\``)
     detail('`resolve.ts` không sập với khoá thiếu — nó hiện KHOÁ NGUYÊN VĂN ra màn hình.')
     detail('Thêm khoá vào `vi.json`, hoặc sửa chỗ gõ sai.')
-    oBad += 1
   }
 }
 if (callSiteKeys.length > 0) {
@@ -1755,7 +1622,7 @@ if (registered.length < COMMAND_FLOOR) {
   )
 }
 
-const registeredIds = new Set(registered.map((s) => s.id))
+const registeredIds = new Set(registered.map((/** @type {any} */ s) => s.id))
 
 for (const spec of registered) {
   if (!KEY_RE.test(spec.id)) eFail(`command \`${spec.id}\` sai văn phạm id — phải khớp \`${KEY_RE.source}\``)
@@ -1774,7 +1641,7 @@ if (eBad === 0) {
 }
 
 // AC6 — `unbound()` phải có phần tử THẬT, nếu không nhánh có nghĩa của nó không bao giờ chạy.
-const unboundIds = indexMod.commandRegistry.unbound().map((s) => s.id)
+const unboundIds = indexMod.commandRegistry.unbound().map((/** @type {any} */ s) => s.id)
 if (unboundIds.length === 0) {
   eFail('`unbound()` trả MẢNG RỖNG — AC6 chưa được chứng minh trên bộ command thật')
   detail('§Quyết định thiết kế #5: `focus.next_panel` cố ý không gán phím, và handler của nó CHẠY THẬT.')
@@ -1831,6 +1698,11 @@ const OWNER_ATTR_RE = /\bowner\s*=\s*(['"])([^'"]*)\1/g
 const declaredOwners = new Map()
 const referencedOwners = new Map()
 let nonLiteralOwnerCalls = 0
+/**
+ * @param {Map<string, string>} map
+ * @param {string} owner
+ * @param {string} where
+ */
 const noteOwner = (map, owner, where) => {
   if (!map.has(owner)) map.set(owner, where)
 }
@@ -1840,7 +1712,11 @@ const noteOwner = (map, owner, where) => {
  */
 const declaresViaVariable = new Map()
 
-/** ⚠️ Loại trừ ĐỊNH NGHĨA hàm. Xem lý do ở khối `FOCUS_CALL_RE` bên trên. */
+/**
+ * ⚠️ Loại trừ ĐỊNH NGHĨA hàm. Xem lý do ở khối `FOCUS_CALL_RE` bên trên.
+ * @param {string} text
+ * @param {number} index
+ */
 const isFunctionDefinition = (text, index) => /\bfunction\s+$/.test(text.slice(Math.max(0, index - 32), index))
 
 for (const p of parsed) {
@@ -2101,15 +1977,20 @@ let fBad = 0
 const surfaceCalls = []
 let anySurfaceCalls = 0
 
+// The call-head is located on `code` (a fake call inside a prose string can't match there),
+// then the role is read from `masked` at that same offset, since `code` also blanks the
+// `'source'`/`'display'` literal — same split as Kiểm B's `DISPATCH_ANY_RE` + masked-slice.
+const SURFACE_CALL_AT_RE = new RegExp(`^${SURFACE_CALL_RE.source}`)
 for (const p of parsed) {
   if (!p.file.endsWith('.vue')) continue
+  const code = p.code ?? '' // `code` is optional only for vitest fixtures; always set here
   let m
-  const re = new RegExp(SURFACE_CALL_RE.source, 'g')
-  while ((m = re.exec(p.masked ?? p.text))) {
-    surfaceCalls.push({ file: posix(p.file), role: m[1], index: m.index })
-  }
   const any = new RegExp(SURFACE_ANY_CALL_RE.source, 'g')
-  while ((m = any.exec(p.masked ?? p.text))) anySurfaceCalls += 1
+  while ((m = any.exec(code))) {
+    anySurfaceCalls += 1
+    const roleMatch = SURFACE_CALL_AT_RE.exec(p.masked.slice(m.index))
+    if (roleMatch) surfaceCalls.push({ file: posix(p.file), role: roleMatch[1], index: m.index })
+  }
 }
 const nonLiteralSurfaceCalls = anySurfaceCalls - surfaceCalls.length
 
@@ -2199,6 +2080,138 @@ if (gridCalls.length > 0) {
       detail('quả người dùng vừa tra từ cột nguyên văn — rỗng im lặng.')
       fBad += 1
     }
+  }
+}
+
+/**
+ * The `{ … }` body immediately after the first match of `head`, found by brace-depth
+ * counting rather than a `[^}]*` regex (which stops at the first, possibly nested, `}`).
+ * @param {string} text
+ * @param {RegExp} head
+ * @returns {string | null}
+ */
+function balancedBraceBody(text, head) {
+  const m = head.exec(text)
+  if (!m) return null
+  const open = text.indexOf('{', m.index)
+  if (open === -1) return null
+  let depth = 0
+  for (let i = open; i < text.length; i += 1) {
+    if (text[i] === '{') depth += 1
+    else if (text[i] === '}') {
+      depth -= 1
+      if (depth === 0) return text.slice(open + 1, i)
+    }
+  }
+  return null
+}
+
+/**
+ * Splits `body` on commas at depth 0 only, so a comma inside a nested `{}`/`()`/`[]` does
+ * not break an entry apart.
+ * @param {string} body
+ * @returns {string[]}
+ */
+function splitTopLevel(body) {
+  /** @type {string[]} */
+  const parts = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < body.length; i += 1) {
+    const c = body[i]
+    if (c === '{' || c === '(' || c === '[') depth += 1
+    else if (c === '}' || c === ')' || c === ']') depth -= 1
+    else if (c === ',' && depth === 0) {
+      parts.push(body.slice(start, i))
+      start = i + 1
+    }
+  }
+  parts.push(body.slice(start))
+  return parts
+}
+
+// ⑥ `SELECTION_PANEL_FILES` is cross-checked two-way against the real `components` map of
+// `WorkspaceDock.vue`, instead of being a hand-copied table nothing keeps in sync.
+const WORKSPACE_DOCK_VUE = 'src/layout/WorkspaceDock.vue'
+const dockPanel = parsed.find((p) => posix(p.file).endsWith(WORKSPACE_DOCK_VUE))
+if (dockPanel === undefined) {
+  fail(`\`${WORKSPACE_DOCK_VUE}\` — không tìm thấy trong quần thể quét, không đối chiếu được`)
+  fBad += 1
+} else {
+  // Brace-BALANCED body, not `{([^}]*)}`: a value containing its own `{`/`}` (or a nested
+  // object) would otherwise truncate the match at the first inner `}`.
+  const objBody = balancedBraceBody(dockPanel.masked, /\bconst\s+components(?::[^=]*)?\s*=\s*\{/)
+  /** @type {string[]} */
+  const dockImportedFiles = []
+  if (objBody === null) {
+    fail(`\`${WORKSPACE_DOCK_VUE}\` — không tìm thấy \`const components = { … }\`, không đối chiếu được`)
+    fBad += 1
+  } else {
+    const ENTRY_RE = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*([A-Za-z_$][A-Za-z0-9_$]*)$/
+    for (const raw of splitTopLevel(objBody)) {
+      const entryText = raw.trim()
+      if (entryText === '') continue
+      const e = ENTRY_RE.exec(entryText)
+      if (e === null) {
+        // Fail-closed: a shorthand entry (`{ NewPanel }`), a spread, or anything else that
+        // isn't `key: Ident` must name itself instead of being silently skipped.
+        fail(`\`${WORKSPACE_DOCK_VUE}\` — mục \`${entryText}\` trong \`components\` không đọc được tĩnh (không phải \`key: Ident\`)`)
+        fBad += 1
+        continue
+      }
+      const ident = e[2]
+      const importRe = new RegExp(`import\\s+${ident}\\s+from\\s+(['"])([^'"]+)\\1`)
+      const im = importRe.exec(dockPanel.masked)
+      if (im === null) {
+        fail(
+          `\`${WORKSPACE_DOCK_VUE}\` — \`components.${e[1]}\` là \`${ident}\`, không tìm thấy ` +
+            `\`import ${ident} from …\` để tra ra tệp`,
+        )
+        fBad += 1
+        continue
+      }
+      dockImportedFiles.push(posix(join(dirname(dockPanel.file), im[2])))
+    }
+  }
+  for (const file of Object.keys(SELECTION_PANEL_FILES)) {
+    if (!dockImportedFiles.includes(file)) {
+      fail(`SELECTION_PANEL_FILES khai \`${file}\`, nhưng \`${WORKSPACE_DOCK_VUE}\` không đăng ký nó vào \`components\``)
+      detail('Hai bảng đã lệch nhau — panel này không còn là một panel Workspace thật, hoặc')
+      detail('SELECTION_PANEL_FILES chưa theo kịp một lượt đổi tên/gỡ panel.')
+      fBad += 1
+    }
+  }
+  for (const file of dockImportedFiles) {
+    if (!(file in SELECTION_PANEL_FILES)) {
+      fail(
+        `\`${WORKSPACE_DOCK_VUE}\` đăng ký panel \`${file}\` vào \`components\`, nhưng ` +
+          'SELECTION_PANEL_FILES không khai nó',
+      )
+      detail('Một panel Workspace mới đứng ngoài sổ hợp đồng vùng chọn — đúng thứ AC2 tồn tại')
+      detail('để chặn (§Kiểm F đầu tệp).')
+      fBad += 1
+    }
+  }
+}
+
+// ⑦ `registerSelectionSurface(` may only be called from `src/panels/selectionContract.ts`
+// — it is the selection contract's own internal, idempotent registration function. Reads
+// `p.code`, not `p.masked`, so a fake mention inside a prose string doesn't count as a call.
+const REGISTER_SURFACE_CALL_RE = /\bregisterSelectionSurface\s*\(/g
+const REGISTER_SURFACE_HOME = 'src/panels/selectionContract.ts'
+for (const p of parsed) {
+  const home = posix(p.file).endsWith(REGISTER_SURFACE_HOME)
+  const code = p.code ?? '' // optional only for vitest fixtures; always set here
+  const re = new RegExp(REGISTER_SURFACE_CALL_RE.source, 'g')
+  let m
+  while ((m = re.exec(code))) {
+    if (isFunctionDefinition(code, m.index)) continue
+    if (home) continue
+    fail(`${at(p, m.index)} — gọi \`registerSelectionSurface(\` ngoài \`${REGISTER_SURFACE_HOME}\``)
+    detail(`… ${excerpt(p.text, m.index)} …`)
+    detail('Hàm này là NỘI BỘ của hợp đồng vùng chọn — dùng `useSelectionSurface` (bề mặt công')
+    detail('khai) thay vì gọi thẳng, hoặc chuyển logic cần nó vào chính `selectionContract.ts`.')
+    fBad += 1
   }
 }
 
@@ -2410,6 +2423,395 @@ if (iBad === 0) {
 // story 2.3 không phải "mở khoá" nó.
 
 // ═════════════════════════════════════════════════════════════════════════════════
+console.log(
+  '\nKiểm K — `@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit`: bảng đông cứng ' +
+    'HAI CHIỀU (Story 11.1 lot A, Quyết định 1)',
+)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Every matching attribute must resolve to a `file::handler` entry in HANDLER_TABLE: the
+// exact set of ids its own function body dispatches, or `nonCommand: <reason>`. A literal
+// `dispatch('<id>')` value passes silently, same as Kiểm A. `@input`/`@change` stay out
+// (data flow, not a user action).
+
+/** @type {RegExp} */
+const HANDLER_ATTR_RE = /^(@|v-on:)(keydown|keyup|mouseup|mousedown|submit)(\.[A-Za-z0-9.\-]+)?$/
+
+/**
+ * A handler value must be a bare identifier or exactly one call `ident(<args>)` spanning
+ * the whole string; anything else (two statements, `||`, a trailing call) is unreadable.
+ * @param {string} value
+ * @returns {{ ident: string } | null}
+ */
+function parseHandlerValue(value) {
+  if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value)) return { ident: value }
+  const head = /^([A-Za-z_$][A-Za-z0-9_$]*)\(/.exec(value)
+  if (!head || !value.endsWith(')')) return null
+  let depth = 0
+  for (let i = head[1].length; i < value.length; i += 1) {
+    if (value[i] === '(') depth += 1
+    else if (value[i] === ')') {
+      depth -= 1
+      if (depth === 0) return i === value.length - 1 ? { ident: head[1] } : null
+    }
+  }
+  return null
+}
+
+/**
+ * Whether an import statement in `code` brings `name` into scope (named, aliased via
+ * `real as name`, or default).
+ * @param {string} code
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isImportedIdentifier(code, name) {
+  const named = /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*['"]/g
+  let m
+  while ((m = named.exec(code))) {
+    for (const raw of m[1].split(',')) {
+      const spec = raw.trim().replace(/^type\s+/, '')
+      if (spec === '') continue
+      const asMatch = /^[\w$]+\s+as\s+([\w$]+)$/.exec(spec)
+      if ((asMatch ? asMatch[1] : spec) === name) return true
+    }
+  }
+  return new RegExp(`import\\s+${name}\\s*(?:,|from)`).test(code)
+}
+
+const R_FOCUS_TRAP = 'Tab focus trap inside an overlay — moves focus in place, no dispatch'
+const R_POINTER_FOCUS = 'moves focus on a pointer click — no dispatch'
+const R_SCRIM_CLOSE = 'closes an overlay on a scrim click/key in place — no dispatch'
+const R_CLOSE_IMPORTED =
+  'closes an overlay/drawer via a state-module import — its body cannot be opened from ' +
+  'this file, so the import is machine-verified but its dispatch behaviour is not'
+const R_CURSOR_LOCAL = 'sets caret / grid-cell cursor memory in place — no dispatch'
+const R_CURSOR_IMPORTED = 'sets grid-cell cursor memory via a state-module import — same limit as R_CLOSE_IMPORTED'
+const R_SUBMIT_DIRECT = '`@submit` acting directly on local form state — a named exemption, not a command'
+const R_CATEGORY_NAV = 'in-place list navigation (arrow/Enter selects a row) — no dispatch'
+const R_DISPATCH_VIA_PARAM =
+  'dispatches an id received as a parameter, not a literal — already counted by ' +
+  "Kiểm B's nonLiteralDispatchCalls"
+const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
+
+/**
+ * @typedef {{ ids: string[] }} HandlerDispatches
+ * @typedef {{ nonCommand: string }} HandlerNonCommand
+ * @typedef {HandlerDispatches | HandlerNonCommand} HandlerExpectation
+ */
+
+/** @type {Record<string, HandlerExpectation>} */
+const HANDLER_TABLE = {
+  'src/AiPromptInspectorOverlay.vue::onEscape': { ids: ['ai.prompt_inspector.close'] },
+  'src/AiPromptInspectorOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/App.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
+  'src/AttributionOverlay.vue::closeAttribution': { nonCommand: R_CLOSE_IMPORTED },
+  'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },
+  'src/BilingualImportPreviewOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/BilingualImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
+  'src/GlossaryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryManageOverlay.vue::onEscape': { ids: ['glossary.manage.close'] },
+  'src/GlossaryManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryManageOverlay.vue::onKeydown': {
+    ids: ['glossary.manage.next', 'glossary.manage.prev', 'glossary.manage.edit', 'glossary.manage.delete'],
+  },
+  'src/GlossaryQueueOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryQueueOverlay.vue::onKeydown': {
+    ids: ['glossary.queue.next', 'glossary.queue.prev', 'glossary.queue.accept', 'glossary.queue.reject'],
+  },
+  'src/GlossaryQuickAdd.vue::onCategoryKeydown': { nonCommand: R_CATEGORY_NAV },
+  'src/GlossarySettingsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
+  'src/ImportPreviewOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
+  'src/ImportPreviewOverlay.vue::onReloadUrlItem': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onRemoveUrlItem': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onRemoveFileItem': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onSaveEditCleanupRule': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onStartEditCleanupRule': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onDeleteCleanupRule': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ImportPreviewOverlay.vue::onAddCleanupRule': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/PromptLibraryOverlay.vue::onEscape': { ids: ['prompt.library.close'] },
+  'src/PromptLibraryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/PromptLibraryOverlay.vue::selectRow': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onOpenCreate': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onOpenImport': { ids: ['prompt.import.open'] },
+  'src/PromptLibraryOverlay.vue::onSubmitCreate': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onCancelCreate': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onSubmitRename': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onSubmitBody': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onUseSelected': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onExportSelected': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onDeleteSubmit': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SegmentHistoryOverlay.vue::closeSegmentHistory': { nonCommand: R_CLOSE_IMPORTED },
+  'src/SegmentHistoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/SegmentHistoryOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/SettingsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/SettingsOverlay.vue::onSelectSection': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSaveAiConfigField': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onClearAiConfigOverride': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSaveAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onDeleteAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
+  'src/ShortcutsOverlay.vue::onEscape': { ids: ['shortcuts.close'] },
+  'src/ShortcutsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ShortcutsOverlay.vue::aimRowFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/ShortcutsOverlay.vue::onKeyCellKeydown': { ids: ['shortcuts.unassign'] },
+  'src/layout/LookupDrawer.vue::closeLookupDrawer': { nonCommand: R_CLOSE_IMPORTED },
+  'src/layout/LookupDrawer.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/modes/ReadingMode.vue::onReadingSegmentEnter': { ids: ['reading.open_aimed'] },
+  'src/modes/ReadingMode.vue::trapOverlayTab': { nonCommand: R_FOCUS_TRAP },
+  'src/panels/GridPanel.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
+  'src/panels/GridPanel.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
+  'src/panels/GridPanel.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
+  'src/panels/GridPanel.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'editor.merge_segments'] },
+  'src/panels/LookupPanel.vue::aimDictSourceFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/panels/LookupPanel.vue::moveTabFocus': { nonCommand: R_DISPATCH_VIA_PARAM },
+  'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
+}
+
+/**
+ * Judges a single attribute — shared by the real scan below and the self-check, so the
+ * self-check always exercises the real function, not a copy.
+ * @param {ParsedFile} p
+ * @param {TemplateAttr} a
+ * @param {Record<string, HandlerExpectation>} table
+ * @returns {{ key: string|null, problems: string[] }}
+ */
+function judgeHandlerInventory(p, a, table) {
+  const value = a.value.trim()
+  if (DISPATCH_ONLY_RE.test(value)) return { key: null, problems: [] }
+  const handlerValue = parseHandlerValue(value)
+  if (handlerValue === null) {
+    return {
+      key: null,
+      problems: [
+        `${at(p, a.index)} — \`${a.name}="${value}"\` không đọc được tĩnh (không phải ` +
+          "`dispatch('<id>')`, một tên hàm trần, hay đúng MỘT lời gọi `ident(...)`)",
+      ],
+    }
+  }
+  const key = `${posix(p.file)}::${handlerValue.ident}`
+  const entry = table[key]
+  if (entry === undefined) {
+    return {
+      key,
+      problems: [
+        `${at(p, a.index)} — \`${key}\` chưa có trong HANDLER_TABLE (handler mới hoặc đổi tên — ` +
+          'xếp nó vào một bộ id nó dispatch, hoặc `nonCommand: <lý do>`)',
+      ],
+    }
+  }
+  const code = p.code ?? ''
+  const range = functionBodyRange(code, handlerValue.ident)
+  /** @type {string[]|null} */
+  let actualIds = null
+  if (range !== null) {
+    const body = p.masked.slice(range.start, range.end)
+    const ids = new Set()
+    const re = new RegExp(DISPATCH_CALL_RE.source, 'g')
+    let m
+    while ((m = re.exec(body))) ids.add(m[2])
+    actualIds = [...ids].sort()
+  }
+  if ('nonCommand' in entry) {
+    if (actualIds !== null && actualIds.length > 0) {
+      return {
+        key,
+        problems: [`${key} — khai \`nonCommand\`, nhưng thân hàm THẬT dispatch ${JSON.stringify(actualIds)}`],
+      }
+    }
+    // `masked`, not `code`: `code` blanks the quote characters of the import path too.
+    if (actualIds === null && !isImportedIdentifier(p.masked, handlerValue.ident)) {
+      return {
+        key,
+        problems: [
+          `${key} — khai \`nonCommand\`, nhưng không mở được thân hàm cục bộ VÀ không thấy ` +
+            `import nào đưa \`${handlerValue.ident}\` vào tệp này — không đọc được tĩnh`,
+        ],
+      }
+    }
+    return { key, problems: [] }
+  }
+  if (actualIds === null) {
+    return {
+      key,
+      problems: [
+        `${key} — khai bộ id ${JSON.stringify(entry.ids)}, nhưng không tìm thấy định nghĩa hàm ` +
+          'cục bộ để đối chiếu',
+      ],
+    }
+  }
+  const want = [...entry.ids].sort()
+  if (want.join('\u0000') !== actualIds.join('\u0000')) {
+    return {
+      key,
+      problems: [
+        `${key} — khai dispatch ${JSON.stringify(want)}, thân hàm THẬT dispatch ` +
+          `${JSON.stringify(actualIds)} (bộ id đã TRÔI)`,
+      ],
+    }
+  }
+  return { key, problems: [] }
+}
+
+/**
+ * Which HANDLER_TABLE keys matched no scanned attribute — shared by the real run and the
+ * self-check, so a dangling entry is caught by the same code path in both.
+ * @param {Record<string, HandlerExpectation>} table
+ * @param {Set<string>} seenKeys
+ * @returns {string[]}
+ */
+function danglingHandlerKeys(table, seenKeys) {
+  return Object.keys(table).filter((k) => !seenKeys.has(k))
+}
+
+/**
+ * Self-check: the gate must go red on a bad case and not go red on a good one. Calls the
+ * real buildParsedEntry/judgeHandlerInventory/danglingHandlerKeys on a fake fixture.
+ * @returns {string[]}
+ */
+function selfCheckHandlerInventory() {
+  /** @type {string[]} */
+  const problems = []
+  const fixtureFile = join(REPO_ROOT, '__selfcheck__', 'Fixture.vue')
+  const fixtureText = [
+    '<template>',
+    '  <button @keydown="onFakeDispatch" />',
+    '  <button @keydown="onFakeQuiet" />',
+    '  <button @keydown="onFakeUnlisted" />',
+    '</template>',
+    '<script setup lang="ts">',
+    "import { onFakeImported } from './fakeModule'",
+    'function onFakeDispatch(event: KeyboardEvent): void {',
+    "  dispatch('fake.command')",
+    '}',
+    'function onFakeQuiet(event: KeyboardEvent): void {',
+    '  closeSomething()',
+    '}',
+    '</script>',
+  ].join('\n')
+  const p = buildParsedEntry(fixtureFile, fixtureText)
+  const attrs = scanVueAttrs([p]).filter(({ a }) => HANDLER_ATTR_RE.test(a.name))
+  if (attrs.length !== 3) {
+    problems.push('fixture phải quét đúng BA thuộc tính @keydown — tự kiểm không dựng đúng ca thử')
+    return problems
+  }
+  const byValue = new Map(attrs.map(({ a }) => [a.value.trim(), a]))
+  const dispatchAttr = byValue.get('onFakeDispatch')
+  const quietAttr = byValue.get('onFakeQuiet')
+  const unlistedAttr = byValue.get('onFakeUnlisted')
+  if (dispatchAttr === undefined || quietAttr === undefined || unlistedAttr === undefined) {
+    problems.push('fixture thiếu một trong ba thuộc tính mong đợi — tự kiểm không dựng đúng ca thử')
+    return problems
+  }
+
+  // Case 1: unlisted handler must be caught.
+  if (judgeHandlerInventory(p, unlistedAttr, {}).problems.length === 0) {
+    problems.push('ca ①: handler chưa khai trong bảng PHẢI bị bắt (unlisted) — cổng không đỏ')
+  }
+
+  // Case 2: a correctly declared ids/nonCommand entry must not be flagged.
+  const tableDung = {
+    [`${posix(fixtureFile)}::onFakeDispatch`]: { ids: ['fake.command'] },
+    [`${posix(fixtureFile)}::onFakeQuiet`]: { nonCommand: 'ca tự kiểm — không dispatch' },
+  }
+  const r2a = judgeHandlerInventory(p, dispatchAttr, tableDung)
+  const r2b = judgeHandlerInventory(p, quietAttr, tableDung)
+  if (r2a.problems.length > 0) problems.push(`ca ②a: khai ĐÚNG bộ id vẫn bị đỏ oan — ${r2a.problems.join('; ')}`)
+  if (r2b.problems.length > 0) problems.push(`ca ②b: khai ĐÚNG nonCommand vẫn bị đỏ oan — ${r2b.problems.join('; ')}`)
+
+  // Case 3: a wrong id set (dispatch-set drift) must be caught.
+  const tableTroi = { [`${posix(fixtureFile)}::onFakeDispatch`]: { ids: ['fake.other_command'] } }
+  if (judgeHandlerInventory(p, dispatchAttr, tableTroi).problems.length === 0) {
+    problems.push('ca ③: bộ id đã khai SAI với thân hàm thật (trôi) PHẢI bị bắt — cổng không đỏ')
+  }
+
+  // Case 4: `nonCommand` declared while the real body dispatches must be caught (reverse drift).
+  const tableNguoc = { [`${posix(fixtureFile)}::onFakeDispatch`]: { nonCommand: 'sai — hàm này CÓ dispatch' } }
+  if (judgeHandlerInventory(p, dispatchAttr, tableNguoc).problems.length === 0) {
+    problems.push('ca ④: khai `nonCommand` trong khi thân hàm THẬT dispatch PHẢI bị bắt — cổng không đỏ')
+  }
+
+  // Case 5: a table key matching no scanned attribute must be caught (dangling entry).
+  const tableTreo = {
+    [`${posix(fixtureFile)}::onFakeDispatch`]: { ids: ['fake.command'] },
+    [`${posix(fixtureFile)}::onGoneHandler`]: { nonCommand: 'ca tự kiểm — mục treo' },
+  }
+  const seenTreo = new Set()
+  const rTreo = judgeHandlerInventory(p, dispatchAttr, tableTreo)
+  if (rTreo.key !== null) seenTreo.add(rTreo.key)
+  if (danglingHandlerKeys(tableTreo, seenTreo).length === 0) {
+    problems.push('ca ⑤: một mục HANDLER_TABLE không còn khớp gì PHẢI bị bắt (mục treo) — cổng không đỏ')
+  }
+
+  // Case 6: `nonCommand` on a handler that is neither locally openable nor imported must be
+  // caught — a null body alone (arrow function, typo, renamed import) is not proof enough.
+  const ghostAttr = { name: '@keydown', value: 'onFakeGhost', index: 0 }
+  const tableGhost = { [`${posix(fixtureFile)}::onFakeGhost`]: { nonCommand: 'ca tự kiểm — không mở được' } }
+  if (judgeHandlerInventory(p, ghostAttr, tableGhost).problems.length === 0) {
+    problems.push('ca ⑥: `nonCommand` không mở được thân VÀ không thấy import PHẢI bị bắt — cổng không đỏ')
+  }
+
+  // Case 6b: the same shape, but the identifier IS imported, must NOT be flagged.
+  const importedAttr = { name: '@keydown', value: 'onFakeImported', index: 0 }
+  const tableImported = { [`${posix(fixtureFile)}::onFakeImported`]: { nonCommand: 'ca tự kiểm — qua import' } }
+  const rImported = judgeHandlerInventory(p, importedAttr, tableImported)
+  if (rImported.problems.length > 0) {
+    problems.push(`ca ⑥b: một handler ĐÃ import vẫn bị đỏ oan — ${rImported.problems.join('; ')}`)
+  }
+
+  // Case 7: a value that is not a bare identifier nor a single whole-value call (two
+  // statements, an operator) must FAIL as unreadable, not silently key on the leading name.
+  const multiStmtAttr = { name: '@keydown', value: "onFakeQuiet(); dispatch('sneaky.id')", index: 0 }
+  const rMulti = judgeHandlerInventory(p, multiStmtAttr, {})
+  if (rMulti.key !== null || rMulti.problems.length === 0) {
+    problems.push('ca ⑦: một giá trị nhiều lệnh PHẢI bị bắt là không đọc được tĩnh — cổng không đỏ')
+  }
+
+  return problems
+}
+
+for (const problem of selfCheckHandlerInventory()) fail(`TỰ KIỂM Kiểm K: ${problem}`)
+
+let kBad = 0
+let handlerAttrCount = 0
+const seenHandlerKeys = new Set()
+for (const { p, a } of scanVueAttrs(parsed)) {
+  if (!HANDLER_ATTR_RE.test(a.name)) continue
+  handlerAttrCount += 1
+  const { key, problems } = judgeHandlerInventory(p, a, HANDLER_TABLE)
+  if (key !== null) seenHandlerKeys.add(key)
+  for (const msg of problems) {
+    fail(msg)
+    kBad += 1
+  }
+}
+for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
+  fail(`HANDLER_TABLE khai \`${tableKey}\`, nhưng không còn thuộc tính nào khớp — mục TREO`)
+  detail('Handler đã đổi tên, tệp đã gỡ, hoặc thuộc tính đã đổi loại sự kiện. Xoá mục này khỏi')
+  detail('HANDLER_TABLE hoặc sửa lại tên cho khớp mã nguồn hiện tại.')
+  kBad += 1
+}
+
+// Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
+const HANDLER_ATTR_FLOOR = 75
+if (handlerAttrCount < HANDLER_ATTR_FLOOR) {
+  abort(
+    `thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit quét được — ${handlerAttrCount} ` +
+      `(sàn ${HANDLER_ATTR_FLOOR})`,
+    new Error('Ít hơn sàn nghĩa là tầng quét đã mất một vùng template — kiểm `vueRegions` trước khi hạ sàn.'),
+  )
+}
+if (kBad === 0) {
+  pass(
+    `${handlerAttrCount} thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit trên ` +
+      `${Object.keys(HANDLER_TABLE).length} handler đã khai — đúng bảng, không mục treo`,
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log('')
 if (skippedLinks.length) {
   console.log(`\x1b[33mĐã BỎ QUA ${skippedLinks.length} symlink:\x1b[0m ${skippedLinks.join(' · ')}`)
@@ -2433,8 +2835,8 @@ console.log(
 console.log(`Đã miễn trừ ${exemptedFiles.length} tệp.`)
 console.log('')
 console.log('Ghi chú cho người rà soát — ba giới hạn, ghi thẳng thay vì để người sau tự phát hiện:')
-console.log('  1. Kiểm A chỉ canh `@click`. `@keydown`/`@input`/`@submit` KHÔNG thuộc luật này;')
-console.log('     ngày một `@keydown` mang thao tác thật xuất hiện, luật phải được xem lại.')
+console.log('  1. Kiểm A chỉ canh `@click`. `@input`/`@change` KHÔNG thuộc luật này (dòng dữ liệu,')
+console.log('     AD-34 §1); `@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit` có Kiểm K riêng.')
 console.log('  2. Vế DOM của AC4 (*"focus không rơi về `body`"*) KHÔNG kiểm được ở đây — nó là')
 console.log('     hành vi lúc chạy trong một webview thật. Chốt tự kêu ở `src/commands/focus.ts`')
 console.log('     cộng nghiệm thu tay; giới hạn ghi ở `deferred-work.md`. Không đánh dấu đạt.')

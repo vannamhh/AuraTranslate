@@ -182,10 +182,12 @@
 - ⚠️ **Kiểm A chỉ canh `@click`** — `@keydown`, `@input`, `@change`, `@submit` **không** thuộc luật *"phải là đúng một `dispatch('<id>')`"*. Có chủ ý: chúng không phải "thao tác" theo nghĩa AD-34 §1 (một `@input` là dòng dữ liệu). Nhưng ngày **Epic 2** dựng Editor với `@keydown` mang thao tác thật, luật phải được xem lại — không phải nới regex một cách lặng lẽ. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: check-commands.mjs:33-35 vẫn loại @keydown khỏi Kiểm A; nhiều overlay sau Story 2.2 (GlossaryImportOverlay.vue:109, GlossaryQuickAdd.vue:116, GlossaryConfirmStrip.vue:100) nay có @keydown mang dispatch() thật. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — Kiểm K mới ở cuối `check-commands.mjs` đối chiếu HAI CHIỀU `@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit` với một `HANDLER_TABLE` đông cứng (91 thuộc tính, 63 handler, 19 dispatch chữ). Tự kiểm trong script cộng ba lượt gỡ chỗ nối thật (đổi id dispatch trong thân handler, thêm một handler mới chưa khai, xoá một mục đang khai) đều đỏ đúng lý do, phục hồi xanh.
 
 - ⚠️ **`scripts/check-commands.mjs` không được type-check và không có test tự động** — cùng hạng với ba mục đã ghi cho `check-deps.mjs` · `check-tokens.mjs` · `check-i18n.mjs`: `tsconfig.json` chỉ include `src/**` + `env.d.ts`, nên cả tầng cưỡng chế nằm ngoài mọi phép kiểm tĩnh. Bù lại một phần bằng nghiệm thu đỏ-rồi-xanh **28 ca** (Task 10) — nhưng đó là test của *hành vi cổng*, chạy tay, không nằm trong CI. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Cùng tsconfig.json không include scripts/*.mjs; không có tệp test tự động cho check-commands.mjs trong repo. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → 🟡 2026-09-24 (Story 11.1) — nửa type-check ĐÃ ĐÓNG: `tsconfig.node.json` nay type-check `check-commands.mjs` cộng `scripts/lib/commands-scan.mjs` (module vừa tách) dưới `checkJs` nghiêm ngặt, 0 lỗi. Nửa test tự động CÒN HỞ: `tests/frontend/checkCommandsScan.test.ts` (22 ca) canh mô-đun THUẦN đã tách, nhưng phán quyết của Kiểm K (`judgeHandlerInventory`) và các Kiểm khác trong `check-commands.mjs` chỉ được canh bằng tự kiểm trong chính script cộng gỡ chỗ nối tay — tệp không nạp an toàn (`process.exit`, top-level `await`) nên không import được thẳng vào một tệp vitest. **Chủ: Story 11.1.**
 
 - ⚠️ **Sàn của cổng đếm TỆP, không đếm nội dung** — `VUE_FLOOR = 4` (thật: 5) và `TS_FLOOR = 10` (thật: 13) đóng được *"cây rỗng đọc thành sạch"* nhưng không đóng *"tệp rỗng đọc thành sạch"*. Cùng mục đã ghi cho `check-i18n.mjs:207-218`. Mở lại khi Story 1.14 dựng bốn panel. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — check-commands.mjs:211,236 (Story 3.6, 2026-08-22) nâng VUE_FLOOR 4→16 (thật 19) và TS_FLOOR 10→39 (thật 47); dòng 194-198 ghi rõ sàn nội dung CLICK_FLOOR/DISPATCH_FLOOR/COMMAND_FLOOR bù cho lỗ "tệp rỗng đọc thành sạch" mà sàn đếm tệp không canh được.
@@ -843,14 +845,17 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 📝 **Bộ đếm Kiểm F (`scripts/check-commands.mjs`, AC2) đọc `p.masked`, và `maskScript`/`maskTemplate` chỉ che comment (`//`, `/* */`, `<!-- -->`), KHÔNG che nội dung chuỗi literal/template literal.** Một chuỗi giả dạng lời gọi (vd một dòng văn xuôi/chuỗi lỗi chứa nguyên văn `"useSelectionSurface(original, 'source')"`) vẫn bị đếm là một lượt đăng ký thật, dù không có lời gọi nào. Đây là đặc tính CHUNG của mọi cổng regex trong tệp này (không riêng Kiểm F) — vá đúng nghĩa là đổi hành vi `maskScript`/`maskTemplate` toàn cục, ngoài phạm vi story 1.18. Nhặt lại nếu có một lượt hardening riêng cho `check-commands.mjs`, hoặc nếu một ca thật (không phải giả định) từng lọt qua cổng theo đường này. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-commands.mjs:497-508 (nhánh `state === 'string'`) chỉ dò trạng thái để bỏ qua `//`/`/* */` giả trong chuỗi, không gọi `blank()` để xoá nội dung chuỗi — cùng hành vi maskTemplate. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — `maskScript`/`maskTemplate` nay có một chế độ `blankLiterals` sinh ra view `code` (chuỗi/template literal cũng bị che, `${...}` vẫn hiện) bên cạnh `masked` không đổi. Kiểm F đọc `p.code` để tìm đầu lời gọi `useSelectionSurface`, chỉ đọc `p.masked` để lấy `role` tại đúng offset — ca "Fake call in a string" của bảng I/O đo trong `checkCommandsScan.test.ts`: `masked` đếm 2 (lỗi cũ), `code` đếm 1 (đã sửa).
 
 - 📝 **`SURFACE_CALL_RE` không khớp dạng gọi thay thế** — gọi trực tiếp `registerSelectionSurface(...)` thay vì qua `useSelectionSurface(...)`, đối số đầu chứa dấu phẩy (vd `pick(a, b)`), hoặc `role` viết sai hoa/thường (`'Source'`) đều không được đếm đúng. Chưa có ca thật nào trong mã hôm nay dùng các dạng đó — mọi panel đều gọi `useSelectionSurface(ref, 'source'|'display')` literal, đúng quy ước. Cùng lớp giới hạn với các cổng regex khác trong tệp (NFR15 cấm phụ thuộc một bộ phân tích cú pháp thật). Nhặt lại nếu một story sau đổi cách gọi. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-commands.mjs:2088 `SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g` không đổi, vẫn không khớp `registerSelectionSurface(...)` hay đối số đầu chứa dấu phẩy. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — Kiểm F (Quyết định 2, vệ ⑦) nay đỏ trên `registerSelectionSurface(` ngoài `src/panels/selectionContract.ts`, đọc `p.code` (không `masked`) nên một chuỗi giả không kích hoạt. Gỡ chỗ nối thật: thêm một lời gọi thật ở một tệp `.ts` khác (`src/panels/hanVietSurfaces.ts`) → đỏ; đúng chữ đó đặt trong một chuỗi → vẫn xanh. Phục hồi xanh cả hai lần. 🟡 Chỉ vế `registerSelectionSurface(...)` đóng: đối số đầu chứa dấu phẩy và `role` sai hoa/thường vẫn KHÔNG đỏ — cả hai đã rơi vào cảnh báo vàng có sẵn (`anySurfaceCalls - surfaceCalls.length`, in ra "N lời gọi truyền vai bằng BIẾN") vì `SURFACE_CALL_AT_RE` không khớp được vai ở đúng offset, nhưng chữ cảnh báo đó nói về vai truyền BIẾN chứ không nói đúng hai hình dạng này.
 
 - 📝 **`SELECTION_PANEL_FILES` (`scripts/check-commands.mjs:1627`) là danh sách chép tay từ `src/layout/workspaceLayout.ts`, không tự đồng bộ khi Workspace có panel văn bản mới.** Một panel mới (vd Story 3.4 — Glossary) mà không được thêm tay vào danh sách này sẽ không bị Kiểm F đòi đăng ký — cùng lớp lỗi "sổ đăng ký không tự cập nhật" mà AD-34 §2 (`FOCUS_OWNERS`) tồn tại để chặn ở chỗ khác, nhưng ở đây chưa có một đối chiếu hai chiều. Cùng khuôn với `PANEL_SUFFIXES` đã dùng nơi khác trong tệp — không phải một quy ước mới của story này. Chủ: story nào thêm panel văn bản mới tiếp theo.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-commands.mjs:2026 `SELECTION_PANEL_FILES` vẫn là object chép tay 3 panel (GridPanel/LookupPanel/AiTranslationPanel); nhiều overlay khác (`GlossaryManageOverlay.vue` v.v.) đã gọi `useSelectionSurface` mà không nằm trong sổ này, xác nhận không có đối chiếu hai chiều. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — Kiểm F (Quyết định 2, vệ ⑥) nay đối chiếu HAI CHIỀU `SELECTION_PANEL_FILES` với `const components = {…}` của `WorkspaceDock.vue`, giải mỗi định danh về `import … from '…'` rồi về đường dẫn. Gỡ chỗ nối thật cả hai chiều — bỏ `lookup: LookupPanel,` khỏi `SELECTION_PANEL_FILES` → đỏ; thêm một panel THẬT khác (`fakePanel: PanelTab,`, không dùng lại một định danh đã có trong sổ) vào `WorkspaceDock.vue` → đỏ — phục hồi xanh cả hai lần.
 
 ## Deferred from: nghiệm thu tay tab Hán Việt (Ice, 2026-08-07)
 
@@ -2430,6 +2435,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   dùng cho `.click()` trong `e2e/**`. **Chủ: story nào dựng bề mặt xác nhận thứ hai.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/config/segment.ts:421 (CMD_CONFIRM_SEGMENT) vẫn là chỗ invoke('confirm_segment') DUY NHẤT tìm thấy trong src/; scripts/check-commands.mjs chưa có luật cấm một bề mặt thứ hai. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — luật ESLint `no-restricted-syntax` mới cấm `Literal[value='confirm_segment']` trong `src/**/*.ts` và `src/**/*.vue`, trừ `src/config/segment.ts` (cùng khuôn `.click()` đã cấm ở `e2e/**`). Gỡ chỗ nối thật: thêm `export const probe = 'confirm_segment'` vào `src/commands/index.ts` → `eslint` đỏ đúng thông điệp; gỡ đi → sạch.
 
 - 🔴 **`browser.keys()` ĐÁNH RƠI `Meta` đúng ở phím `Enter`, và CHỈ ở đó — giới hạn của BỘ ĐO.**
   Đo 2026-08-14 trong chính cửa sổ e2e, listener `keydown` pha capture trên `window`, một lượt chạy:
@@ -4028,6 +4034,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   tầng cổng** *(hoặc Ice, nếu muốn đóng ngay bằng một Kiểm mới)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-commands.mjs:2436 (in ra mỗi lượt chạy) vẫn ghi 'Kiểm A chỉ canh @click'; onEditKeydown vẫn dispatch qua editor.merge_segments (đúng như mục ghi), không cổng nào đếm @keydown mang thao tác khác. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — cùng Kiểm K của mục "Kiểm A chỉ canh `@click`" ở trên: `GridPanel.vue::onEditKeydown` được đối chiếu đúng tập `['editor.clear_source_cuts', 'editor.merge_segments']`. Ba ghi chú cũ trong `check-commands.mjs` (đầu tệp, cuối Kiểm A, ghi chú cuối lượt chạy) đã sửa để nói Kiểm K tồn tại, không còn hứa "chưa cổng nào canh". Gỡ chỗ nối thật: đổi `editor.merge_segments` thành một id sai trong thân `onEditKeydown` → Kiểm K đỏ đúng lý do lệch tập dispatch, phục hồi xanh.
 
 - ⚠️ **Ba mệnh đề của cử chỉ `Backspace` KHÔNG đường nghiệm thu nào của dự án mô phỏng được —
   chữ ký của Ice là đường nghiệm thu duy nhất.** Đo 2026-08-17 (`2-9-ban-do/` §Vòng 1): **mọi**
@@ -4091,6 +4098,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   bỏ quên. **Chủ: giữ nguyên — story hạ tầng cổng kế tiếp.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: check-commands.mjs:33 vẫn ghi rõ Kiểm A chỉ canh @click; check:panel-refs (Story 2.12, đã done) canh ô nhớ cấp module chứ không canh cử chỉ chuột, đúng như mục tự xác nhận là khác miền. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — cùng Kiểm K: `HANDLER_TABLE` liệt cả `onSourceCellMouseUp`/`onCellMouseDown`/`onCellMouseUp` của lưới, với `setEditorSourceCut` khai là một miễn trừ có tên theo Quyết định 1 (mutate state trực tiếp, không dispatch — không phải một lỗ hổng bị Kiểm K làm ngơ). Gỡ chỗ nối thật: thêm một `@keyup` mới chưa khai trong `GridPanel.vue` → đỏ "chưa có trong HANDLER_TABLE"; xoá một mục đang khai (`@keydown.tab="trapTab($event)"` của `AttributionOverlay.vue`) → đỏ "mục TREO". Phục hồi xanh cả hai lần.
 
 - ⚠️ **`PLATFORM` của `GridPanel.vue` KHÔNG tiêm được, khác `installCommands`.** `hasPrimaryModifier`
   nhận nền tảng qua **tham số** và có `tests/frontend/editorSourceCutGesture.test.ts` lái cả hai
@@ -6833,6 +6841,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hoặc lượt đầu tiên thêm một Kiểm mới vào `check-commands.mjs` cho bảng dep của `main.ts`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/main.ts:803 và tests/frontend/editorClearSourceCuts.test.ts:81 vẫn là hai bản chép clearSourceCuts riêng; check-commands.mjs không có Kiểm nào canh bảng dep của main.ts. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-24 (Story 11.1) — `src/editorClearSourceCuts.ts` (mới) giữ MỘT định nghĩa `clearSourceCuts`; `main.ts` và `tests/frontend/editorClearSourceCuts.test.ts` cùng import đúng hàm đó, không còn bản chép. Gỡ chỗ nối thật: xoá vệ `if (quickAddIsOpen.value || confirmStripIsOpen.value) return` khỏi định nghĩa đó → bốn ca vitest (⑥⑦⑨⑩) đỏ đúng lý do; phục hồi xanh 12/12.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
   summary: **Cùng lỗi `Escape` làm hai việc, còn mở ở HAI bề mặt nữa: `SegmentHistoryOverlay` và
@@ -12186,3 +12195,7 @@ chính nó.
   Hai đường, chưa chốt: ① `keys.ts::handle()` luôn nhường `Mod+Z`/`Mod+Shift+Z` khi `isTypingZone`; ② thêm một ca quét vào `check-commands.mjs`, rồi Rule trích tên ca đó.
   **Chủ: Ice.** Bằng chứng: `reviews/review-ad-49-rubric-2026-09-23.md`.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.5.**
+
+## Deferred from: 11-1-lo-a-check-commands (2026-09-24)
+
+- 📝 **`main.ts::boot()` có thêm hai bản sao dep chưa canh, cùng lớp `clearSourceCuts` vừa đóng.** `tests/frontend/aiTranslate.test.ts:133-178` chép NGUYÊN VĂN cách `main.ts` nối `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate`; `tests/frontend/aiTranslateBatch.test.ts:167-229` chép cổng loại-trừ-lẫn-nhau của `runAiTranslateBatch`/`cancelAiTranslate`. `main.ts` không nạp được trong vitest nên cả hai tệp tự chép thân dep xuống bàn test, và không cổng nào canh cho bản chép khớp bản thật — đúng khoảng hở mà Story 11.1 lot A vừa đóng cho `clearSourceCuts` bằng cách tách nó ra một tệp import chung (`src/editorClearSourceCuts.ts`). **Chủ: Story 11.7.**

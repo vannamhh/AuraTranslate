@@ -38,7 +38,6 @@ import {
   goToNextUntranslatedCoBao,
   goToPrevChapter,
   goToPrevSegmentCoBao,
-  clearEditorSourceCut,
   mergeCurrentSegment,
   // 🔴 THÊM Story 4.8 (FR72, AD-47①/③) — handler thật của `ai.translate.promote`.
   promoteAiTranslationToEditor,
@@ -48,6 +47,7 @@ import {
   splitCurrentSegment,
   wireExitFlush,
 } from './panels/editorPanelState'
+import { clearSourceCuts } from './editorClearSourceCuts'
 // ── Story 4.9 — vùng chọn NHIỀU segment trong lưới (Decision 1, batch input) ─────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `editorPanelState.ts`: `segmentSelectionState.ts` dùng
@@ -775,35 +775,7 @@ async function boot(): Promise<void> {
           console.warn(`[grid] khong gop duoc segment: ${result}`)
         })
       },
-      // Story 2.9 · AC8 — xoá tập điểm cắt. Cùng cửa `editorPanelState.ts` với hai dep trên,
-      // nhưng KHÔNG cùng nghĩa vụ: đây là một lượt xoá state webview, không một lượt ghi đĩa,
-      // nên nó không trả về gì để mà xử lý.
-      //
-      // 🔴 **CỬA THU HẸP 2026-08-25 (vòng rà Epic 3) — `Escape` không được làm HAI việc.**
-      // `editor.clear_source_cuts` là command DUY NHẤT của kho mang `Escape` **trần**
-      // (`commands/index.ts`, ngoại lệ có đo của Story 2.9 AC8). `keys.ts::isTypingZone` nuốt
-      // hợp âm không-`Mod` khi tiêu điểm ở `INPUT`/`TEXTAREA`/`SELECT`/`contenteditable`, nên
-      // ô nhập và cả radio phân loại của dải đều đã an toàn — nhưng một `<button>` thì KHÔNG.
-      // Tab tới nút Lưu/Đóng/Hoãn của một dải đang mở rồi bấm `Escape` ⇒ dải đóng **và** tập
-      // điểm cắt của segment đang mở bị xoá, im lặng, không ai yêu cầu.
-      //
-      // ⚠️ **Vì sao bản vá đứng ở ĐÂY, không ở hai chỗ hiển nhiên hơn — cả hai đều SAI:**
-      // ① `isBlocked` ngay dưới: nó nuốt **mọi** hợp âm suốt thời gian dải mở, tức lật thẳng
-      //   quyết định Ice ký 2026-08-20 (`glossaryQuickAddState.ts::openGlossaryQuickAdd` —
-      //   *"dải không nuốt bàn phím, nó không phải một `KeymapGate`"*). Dải là KHÔNG modal có
-      //   chủ ý; `panels/inlineStripPriority.ts` tồn tại chính vì dải sống chung với phần còn
-      //   lại của Workspace. NĂM lớp phủ trong `isBlocked` thì khai `aria-modal` + `trapTab` —
-      //   khác hạng, đừng đọc cái này thay cái kia.
-      // ② `.stop` trên `@keydown.esc` của dải: tới **quá muộn**. `attachKeymap` gắn ở pha
-      //   `{ capture: true }` trên `window`, nên `keys.ts` đã `preventDefault()` và
-      //   `dispatch()` xong TRƯỚC khi handler của dải chạy.
-      // ⇒ Chỗ duy nhất hai lời tuyên bố va nhau là cổng này, và đúng chỗ `keys.ts` khai chính
-      //   sách phải sống (*"chính sách quyết ở `main.ts`, tầng này chỉ nhận một vị từ"*). Nó
-      //   thu hẹp ĐÚNG MỘT lệnh trong ĐÚNG MỘT ngữ cảnh, thay vì tắt cả bàn phím.
-      clearSourceCuts: () => {
-        if (quickAddIsOpen.value || confirmStripIsOpen.value) return
-        clearEditorSourceCut()
-      },
+      clearSourceCuts,
       splitSegment: () => {
         void splitCurrentSegment().then((result) => {
           if (result === 'done' || result === 'refused') return
@@ -885,11 +857,11 @@ async function boot(): Promise<void> {
       },
       closeGlossarySettings,
       // Story 3.6 · FR114 — dải "Chờ chốt lần đầu gặp". `focusGlossaryConfirmStrip` tính
-      // `topmostStrip(...)` NGAY TẠI ĐÂY (chỗ DUY NHẤT biết cả `quickAddIsOpen` LẪN
-      // `confirmStripIsOpen`) rồi truyền `isVisible` xuống state — xem doc-comment tại chỗ
-      // import. `deferGlossaryConfirmStrip` không cần ngữ cảnh Chương (dải tự đọc mục đang
-      // hỏi từ state của chính nó); `saveGlossaryConfirmStrip` đọc Chương đang mở TẠI THỜI
-      // ĐIỂM CHẠY — cùng khuôn `refreshGlossaryMarksAfterSave` của `glossaryQuickAddState.ts`.
+      // `topmostStrip(...)` NGAY TẠI ĐÂY (chỗ tính `topmostStrip` cho `isVisible`) rồi
+      // truyền xuống state — xem doc-comment tại chỗ import. `deferGlossaryConfirmStrip`
+      // không cần ngữ cảnh Chương (dải tự đọc mục đang hỏi từ state của chính nó);
+      // `saveGlossaryConfirmStrip` đọc Chương đang mở TẠI THỜI ĐIỂM CHẠY — cùng khuôn
+      // `refreshGlossaryMarksAfterSave` của `glossaryQuickAddState.ts`.
       focusGlossaryConfirmStrip: (initialTranslation: string) => {
         const eligible: InlineStripKind[] = []
         if (quickAddIsOpen.value) eligible.push('glossary_quick_add')

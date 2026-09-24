@@ -751,7 +751,8 @@ watch(libraryChapterCursor, (cursor) => {
       <!--
         Story 5.6 — ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp), tập-mở nên KHÔNG viết được
         thành nút literal (§Design Notes "Vì sao `<select>` chứ không thêm nút"). `@change`
-        NGOÀI luật Kiểm A (`scripts/check-commands.mjs:33`). `<option>` dựng từ hai mảng DO
+        is outside both Kiểm A and Kiểm K (not one of Kiểm K's five event types).
+        `<option>` dựng từ hai mảng DO
         RUST TRẢ VỀ (`libraryGenres`/`librarySourceLangs`, `DISTINCT` trên bảng CHƯA LỌC) —
         KHÔNG BAO GIỜ suy từ `libraryWorks` đã lọc (AD-1, §Always).
       -->

@@ -62,11 +62,11 @@ async function mountEditor() {
   // nếu không cổng dưới đây đọc một thể hiện module khác thể hiện mà ca test bật lên.
   const quickAdd = await import('../../src/glossaryQuickAddState')
   const confirmStrip = await import('../../src/glossaryConfirmStripState')
+  const { clearSourceCuts } = await import('../../src/editorClearSourceCuts')
   // 🔴 **PHẢI gọi `installCommands` — `dispatch` NÉM với một id chưa đăng ký.** Ca ③ đi qua
   // `onEditKeydown` → `dispatch('editor.clear_source_cuts')`, tức **đúng đường sản phẩm**;
   // một bàn test không cài command sẽ đo một ứng dụng chưa khởi động xong.
-  // ⚠️ Nối `clearSourceCuts` vào **chính** hàm của `editorPanelState`, y như `main.ts` — không
-  // một hàm giả. Chuỗi này là thứ đang được kiểm: phím → command → state.
+  // `clearSourceCuts` is the same function `main.ts` uses, not a copy.
   commands.installCommands({
     isMac: true,
     // ⚠️ `setMode` là dep **bắt buộc** duy nhất của `CommandDeps` — mọi dep khác tuỳ chọn và
@@ -74,14 +74,7 @@ async function mountEditor() {
     // chuyển chế độ, và bỏ nó đi thì `vue-tsc` đỏ *(cây test CÓ được kiểm kiểu — một cây test
     // không kiểm kiểu là một cây test sẽ mục)*.
     setMode: () => {},
-    // 🔵 **CẬP NHẬT 2026-08-25 — bản sao này ĐÃ HẾT KHỚP `main.ts` và phải theo kịp.**
-    // Vòng rà Epic 3 thêm một vệ vào chính cổng này (`main.ts::clearSourceCuts`): `Escape`
-    // trần thuộc về DẢI đang mở, không thuộc về tập điểm cắt. Chép nguyên vệ đó xuống đây —
-    // một bản sao lệch là một bàn test đo một sản phẩm không tồn tại.
-    clearSourceCuts: () => {
-      if (quickAdd.quickAddIsOpen.value || confirmStrip.confirmStripIsOpen.value) return
-      state.clearEditorSourceCut()
-    },
+    clearSourceCuts,
   })
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
   const wrapper = mount(GridPanel, {
@@ -190,14 +183,11 @@ describe('Story 2.9 · AC8 — `Esc` xoá tập điểm cắt', () => {
  * 🔴 **Bản vá KHÔNG được là `isBlocked`** — nó nuốt mọi hợp âm suốt thời gian dải mở, tức lật
  * quyết định Ice ký 2026-08-20 (*"dải không nuốt bàn phím, nó không phải một `KeymapGate`"*).
  * Và KHÔNG được là `.stop` trên dải — `attachKeymap` gắn ở pha `capture` trên `window` nên nó
- * tới quá muộn. Vệ đứng ở cổng `clearSourceCuts` của `main.ts`.
+ * tới quá muộn. Vệ đứng ở cổng `clearSourceCuts` của `src/editorClearSourceCuts.ts`.
  *
- * ⚠️ **GIỚI HẠN THẬT của nhóm này, ghi ra thay vì làm tròn lên:** `main.ts` không nạp được
- * trong vitest, nên `mountEditor()` **chép** cổng đó xuống bàn test. Nhóm ca dưới đây chứng
- * minh HÌNH DẠNG vệ đúng trên state THẬT và đường command THẬT; nó **không** chứng minh
- * `main.ts` mang đúng hình dạng đó. Bản sao ấy không cổng nào canh — món nợ có chủ ở
- * `deferred-work.md`, cùng lớp với ghi chú *"`installCommands(deps)` ở `main.ts` được giữ bởi
- * `check:commands` cộng e2e"* ở `editorNavNotice.test.ts`.
+ * `main.ts` không nạp được trong vitest, nhưng `main.ts` và `mountEditor()` dưới đây import
+ * ĐÚNG CÙNG hàm đó, không một bản chép — nhóm ca dưới đây vì vậy chứng minh cả HÌNH DẠNG vệ
+ * trên state THẬT LẪN việc `main.ts` mang đúng hình dạng đó.
  */
 describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộc tập điểm cắt', () => {
   /** Một segment đủ để dải chốt mọc, đúng hình dạng `GlossarySegmentSource`. */

@@ -76,6 +76,31 @@ export default tseslint.config(
   },
 
   {
+    // Bans a second `invoke('confirm_segment')` surface outside `src/config/segment.ts`.
+    files: ['src/**/*.ts', 'src/**/*.vue'],
+    ignores: ['src/config/segment.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Literal[value='confirm_segment']",
+          message:
+            "Chuỗi 'confirm_segment' chỉ được sống ở `src/config/segment.ts` " +
+            '(`CMD_CONFIRM_SEGMENT`) — import hằng đó thay vì viết lại literal, để một bề mặt ' +
+            '`invoke` thứ hai không mọc lên ngoài tầm của cổng `check:commands`.',
+        },
+        {
+          selector: "TemplateLiteral[expressions.length=0][quasis.length=1][quasis.0.value.cooked='confirm_segment']",
+          message:
+            "Chuỗi mẫu `confirm_segment` chỉ được sống ở `src/config/segment.ts` " +
+            '(`CMD_CONFIRM_SEGMENT`) — import hằng đó thay vì viết lại literal, để một bề mặt ' +
+            '`invoke` thứ hai không mọc lên ngoài tầm của cổng `check:commands`.',
+        },
+      ],
+    },
+  },
+
+  {
     // 🔴 `.vue` cần HAI parser lồng nhau, và bỏ vế trong là cổng chết:
     // `vue-eslint-parser` đọc tệp `.vue`, rồi `parserOptions.parser` nói nó chuyển
     // khối `<script lang="ts">` xuống parser CÓ KIỂU. Thiếu dòng đó,

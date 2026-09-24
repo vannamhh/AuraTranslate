@@ -393,9 +393,9 @@ export type CommandDeps = {
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `loadLibraryWorks`: state sống ở
   // `src/modes/libraryWorks.ts`. Ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp) KHÔNG đi qua
-  // `dispatch()` — chúng dùng `@change` (ngoài luật Kiểm A, xem doc-comment
-  // `scripts/check-commands.mjs:33`) và gọi thẳng các hàm mở tường của `libraryWorks.ts` từ
-  // `LibraryMode.vue`, đúng tiền lệ `<select v-model="sourceLang">` đã có trong chính tệp đó.
+  // `dispatch()` — chúng dùng `@change` (outside both Kiểm A and Kiểm K) và gọi thẳng các hàm
+  // mở tường của `libraryWorks.ts` từ `LibraryMode.vue`, đúng tiền lệ `<select
+  // v-model="sourceLang">` đã có trong chính tệp đó.
   // Chỉ con trỏ ô lưới cần một CẶP LỆNH thật: không có tương đương HTML gốc cho "ô kế
   // tiếp"/"ô trước" trên một lưới hiển thị-thuần, và AD-34 §1 đòi mỗi `@click` là một
   // `dispatch('<id>')` — chép ĐÚNG khuôn `library.orphan_next`/`orphan_prev` ở trên.
@@ -3694,7 +3694,8 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   //
   // ⚠️ Bốn command dưới `shortcuts.open` giữ **0 hợp âm mặc định**, và đó là chủ ý kép:
   // họ `Mod+Alt+…` đã kín chỗ có nghĩa, cả bốn tới được bằng Tab + Enter/Space bên trong
-  // lớp phủ, VÀ chúng là nhiên liệu cho `unbound()` — xem `check-commands.mjs:1398`.
+  // lớp phủ, VÀ chúng là nhiên liệu cho `unbound()` — xem đoạn `check-commands.mjs` bắt đầu
+  // "AC6 — `unbound()` phải có phần tử THẬT".
   for (const [id, port, chord] of [
     // `Mod+Comma` — `⌘,` là quy ước Preferences của macOS, `Comma` có sẵn trong
     // `NAMED_CODES` (`keys.ts:112`), và hợp âm đó chưa ai chiếm.
