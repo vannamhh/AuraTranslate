@@ -4620,6 +4620,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   ca WAL (từ run 33833753206, 2026-09-04) đều dừng cùng chỗ, nên các mệnh đề AD-41/loopback của
   Epic 6 chưa có một điểm đo Windows. **(Chủ: B7 — cùng chủ với mục cha, cùng cơ chế PASSIVE bị
   chặn.)**
+  → 🔵 2026-09-24 — ĐIỂM ĐO THỨ NĂM: run 35943564794 (`5fdd919`) đỏ ca WAL trên `windows-2025` ở CẢ HAI lượt (lượt chạy lại `--failed`), số GIỐNG HỆT từng byte: 836.392 B → 1.668.632 B (+832.240 B, mệnh đề 2a). Run 35871524813 (`ef63eb3`) ngay trước XANH ca này, cùng image `windows-2025-vs2026` 20260907.229.1; `git diff ef63eb3 5fdd919 -- src-tauri` chỉ đổi chú thích và chuỗi thông báo. Hai lượt đỏ trùng byte không khớp hình dạng "nhịp rơi ngẫu nhiên" của ⒜ — chưa kết luận. **Chủ: B7.**
 ---
 
 ## Deferred from: 2-13-phan-loai-so-no-va-luat-khong-mo-coi (2026-08-19)
