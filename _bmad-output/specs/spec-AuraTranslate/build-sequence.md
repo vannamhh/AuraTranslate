@@ -28,6 +28,10 @@ ghi nguyên văn: *muốn thấy sản phẩm dùng được sớm*. Đây là t
 cắt phạm vi — v1 vẫn gồm trọn mười nhóm năng lực. Phân tích đầy đủ kèm kiểm phụ thuộc chéo:
 `sprint-change-proposal-2026-08-13b-thu-tu-epic.md`.
 
+🔵 **2026-09-24:** thêm **Epic 11 — trả nợ nền**, không mang năng lực mới nên không có Giai đoạn,
+chạy ngay sau Epic 4: **1 → 2 → 3 → 5 → 6 → 4 → 11 → 7 → 8 → 9 → 10**. Lý do:
+`sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`.
+
 **Ngoại lệ:** Story 4.1 (module `ai/` cô lập + test cưỡng chế AD-13) tách khỏi Giai đoạn 2c và
 chạy **ngay sau Giai đoạn 2b**. Lý do: ranh giới AD-13 thuộc đúng loại *rẻ nếu làm từ dòng code
 đầu tiên, rất đắt nếu vá sau* (§"Áp từ Giai đoạn 1" dưới đây nói cùng một điều cho NFR16/NFR17)

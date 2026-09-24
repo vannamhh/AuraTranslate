@@ -1,6 +1,9 @@
 # Nhật ký chi tiết story 2.4: `2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi.md` §Nhật ký sprint-status (gỡ về 2026-08-26).
 # 2026-08-13: THU TU THUC THI DOI — Epic 4 (AI) lui xuong sau Epic 6. Ice duyet tron goi.
 #   Thu tu moi: 1 -> 2 -> 3 -> 5 -> 6 -> 4 -> 7 -> 8 -> 9 -> 10
+# 2026-09-24: THEM epic-11 (tra no nen) chay ngay sau epic-4 — Ice duyet.
+#   Thu tu moi: 1 -> 2 -> 3 -> 5 -> 6 -> 4 -> 11 -> 7 -> 8 -> 9 -> 10
+#   Chi tiet: planning-artifacts/sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md
 #   SO EPIC LA TEN, KHONG PHAI THU TU — khong doi so hieu epic, khong doi id story.
 #   NGOAI LE: story 4-1 (module ai/ co lap + test cuong che AD-13) chay NGAY SAU epic-3,
 #   khong cho phan con lai cua epic-4.
@@ -45,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-23-2026 17:32'
+last_updated: '09-24-2026 09:37'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -240,6 +243,19 @@ development_status:
   #   Con thieu: task 7 (chay do tren may nhan roi) va task 8 (ghi phan quyet sau khi Ice ky).
   10-9-nghiệm-thu-cuối-các-ngưỡng-phi-chức-năng: backlog
   epic-10-retrospective: optional
+
+  # 2026-09-24 correct-course: epic-11 CHAY NGAY SAU epic-4, TRUOC epic-7, du nam cuoi tep.
+  #   Danh sach muc no cua moi story: grep 'Chủ: Story 11.N' deferred-work.md.
+  #   Chi tiet: planning-artifacts/sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md
+  epic-11: backlog
+  11-1-trả-nợ-cổng-và-công-cụ-kiểm: backlog
+  11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test: backlog
+  11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển: backlog
+  11-4-trả-nợ-glossary: backlog
+  11-5-trả-nợ-editor-segment-và-tầng-ghi: backlog
+  11-6-trả-nợ-nhập-và-library: backlog
+  11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai: backlog
+  epic-11-retrospective: optional
 
 # Action items committed during retrospectives (section created by the retrospective workflow)
 action_items:

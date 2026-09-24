@@ -811,13 +811,17 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 
 ## Epic List
 
-**Mười epic**, bám `build-sequence.md` (bản chốt, quyền hơn PRD §10). Hai giai đoạn bị tách vì có ranh giới rủi ro thật; các giai đoạn còn lại giữ nguyên làm một epic.
+**Mười một epic**, bám `build-sequence.md` (bản chốt, quyền hơn PRD §10). Hai giai đoạn bị tách vì có ranh giới rủi ro thật; các giai đoạn còn lại giữ nguyên làm một epic.
 
 > 🔵 **Cập nhật 2026-08-13 — số Epic là TÊN, cột *Thứ tự* là trình tự.** Epic 4 (AI) lùi xuống
 > sau Epic 6 theo quyết định của chủ dự án: *xây môi trường trước, cắm AI vào sau*
 > (`build-sequence.md` §Vì sao thứ tự này). Không FR nào bị cắt, không AC nào đổi nội dung,
 > không epic nào bị bỏ. Kiểm phụ thuộc chéo và cái giá phải trả:
 > `sprint-change-proposal-2026-08-13b-thu-tu-epic.md`.
+>
+> 🔵 **Cập nhật 2026-09-24 — thêm Epic 11 (trả nợ nền), chạy ngay sau Epic 4, trước Epic 7.**
+> Thứ tự: `1 → 2 → 3 → 5 → 6 → 4 → 11 → 7 → 8 → 9 → 10`. Không FR mới, không FR nào đổi.
+> Lý do và phân bổ nợ: `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`.
 
 | Epic | Giai đoạn | Thứ tự | FR | Vì sao đứng riêng |
 |---|---|---|---|---|
@@ -827,10 +831,11 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | 4 | 2c | **6** ← dời | 14 | `ai/` phải cô lập được **bằng test** (AD-13 → FR77). ⚠️ **Story 4.1 tách ra chạy ở thứ tự 3½**, ngay sau Epic 3 — xem AC cuối của Story 4.1 |
 | 5 | 3a | **4** | 17 | Library + tầng dữ liệu dẫn xuất |
 | 6 | 3b | **5** | 16 | **Ranh giới rủi ro:** hai giả định chưa đo (A12, A13), hai lớp lỗi im lặng |
-| 7 | 4 | **7** | 10 | Translation Memory |
-| 8 | 5 | **8** | 13 | Cầu nối Reviewer |
-| 9 | 6 | **9** | 7 | Ứng viên cắt số 1 nếu R1 nổ — phải tách được sạch |
-| 10 | 7 | **10** | 8 | Phát hành |
+| 7 | 4 | **8** ← dời | 10 | Translation Memory |
+| 8 | 5 | **9** ← dời | 13 | Cầu nối Reviewer |
+| 9 | 6 | **10** ← dời | 7 | Ứng viên cắt số 1 nếu R1 nổ — phải tách được sạch |
+| 10 | 7 | **11** ← dời | 8 | Phát hành |
+| 11 | — | **7** | 0 | Trả nợ nền Epic 1–6 trước khi Epic 7 dựng lên cùng phần nền đó |
 
 ---
 
@@ -1023,6 +1028,19 @@ Một người dịch phổ thông tải bản cài từ GitHub Releases, đối
 - FR112 nghiệm thu bằng thao tác thật: **gỡ một nguồn = xoá một file, không đổi một dòng mã** — và màn hình Attribution tự cập nhật theo.
 - Ghi phép dùng HVTĐTD vào `LICENSE`/`NOTICE`: © Đặng Thế Kiệt, **không thuộc GPL v3**.
 - **Nghĩa vụ ngoài mã nguồn, không mang số FR nhưng không được rơi:** thông báo cho tác giả Đặng Thế Kiệt khi công cụ hoàn thành — đề nghị tường minh trong thư đồng ý, và là **điều kiện của phép sử dụng**.
+
+---
+
+### Epic 11: Trả nợ nền — đóng nợ đã hoãn của Epic 1–6 trước khi xây tiếp
+
+Lượt rà sổ nợ 2026-09-23 để lại 199 mục còn đúng trên mã, nằm trong phần nền Epic 1–6 đã dựng — cổng kiểm, e2e, tra cứu, Glossary, editor, tầng ghi, đường nhập, Library. Không epic tính năng nào còn lại chạm tới chúng. Epic này không thêm năng lực người dùng thấy được; nó trả nợ trước khi Epic 7 dựng TM lên cùng phần nền đó.
+
+**FRs covered:** không.
+
+**Ghi chú cài đặt:**
+- Danh sách mục của mỗi story là `grep 'Chủ: Story 11.N' deferred-work.md`, không chép vào đây.
+- `check:debt-owner` Kiểm C đỏ khi một story `done` còn mục mở mang tên nó — epic này không cần cổng mới.
+- Chạy **ngay sau Epic 4**, dù khối `epic-11` nằm cuối `sprint-status.yaml`.
 
 ---
 
@@ -1478,7 +1496,7 @@ So that cặp Anh → Việt có nền dữ liệu như cặp Trung → Việt �
 **And** bảng kế toán **NFR6** cập nhật với số **thật** và đối chiếu trần **400.000.000 byte**
 **And** `check-dict-build.mjs` (Kiểm C/D/E/F) đi theo nguồn mới; `RS_FILE_FLOOR` cập nhật nếu số tệp `.rs` đổi
 
-🔴 **Quyết định phải chốt TRONG story:** lớp này vào **`dict-core.db`** *(nguồn nền — khuyến nghị: giấy phép sạch cùng loại với `viwiktionary` vai B, và FR34 thuộc phạm vi lõi)* hay thành **tệp `.db` riêng**? ⚠️ Nếu vào `dict-core.db` thì **phải dựng lại** tệp đó và điền lại `[base].sha256` — nay rẻ và tái lập được sau bản vá `built_at` của Story 1.10.
+🔵 **Đã chốt 2026-08-05 (AC5 của Story 1.10b):** lớp này vào **`dict-core.db`**, là nguồn nền thứ sáu; `dict-core.db` dựng lại và `[base].sha256` điền lại.
 
 **Không** chạm `src-tauri/**`. **Không** đổi một dòng DDL nào của `schema.rs`. Đường tra cứu là **Story 1.11b**.
 
@@ -1587,7 +1605,7 @@ So that ba nơi không bao giờ bắt được những biến thể khác nhau 
 **Given** `core/matching/`
 **When** kiểm
 **Then** tồn tại **đúng một** cài đặt khớp ngôn ngữ
-**And** `dict/` dùng nó; `glossary/` và `tm/` sẽ dùng chính nó ở các epic sau, không cài lại
+**And** `glossary/` và `tm/` dùng chính nó ở các epic sau, không cài lại; `core/dict/**` **không** gọi nó (AD-17, AD-44 ③), và `matching_boundary.rs` canh ranh giới này
 
 **Given** văn bản tiếng Trung
 **When** khớp
@@ -7201,3 +7219,124 @@ So that v1 phát hành với bằng chứng chứ không với giả định.
 **When** hoàn tất
 **Then** **Q4 đóng**
 **And** không còn ngưỡng nào của NFR3, NFR4, NFR5 mang nhãn ngưỡng tạm
+
+## Epic 11: Trả nợ nền — đóng nợ đã hoãn của Epic 1–6 trước khi xây tiếp
+
+> ➕ **Epic THÊM 2026-09-24 qua `correct-course`** — xem `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`.
+
+**AC chung cho mọi story của Epic 11** *(mỗi story dưới đây thừa kế cả bốn khối)*:
+
+**Given** các mục `deferred-work.md` có `Chủ:` cuối cùng là story này
+**When** soạn spec
+**Then** Task 0 đọc lại từng mục trên mã HEAD, vì mục có thể đã tự đóng hoặc đổi dạng từ lượt rà 2026-09-23
+
+**Given** story chuyển sang `done`
+**When** `check:debt-owner` chạy
+**Then** mỗi mục kết thúc bằng đúng một trong ba: `→ ✅ ĐÃ ĐÓNG` kèm bằng chứng mã hoặc test · `→ KHÔNG LÀM <ngày> (Story 11.N) — <lý do>` · `→ … Chủ: <chủ cụ thể mới>` kèm lý do
+**And** Kiểm C của cổng đỏ nếu còn mục mở trỏ vào story đã `done`
+
+**Given** một mục treo điều kiện *("mở lại khi …")*
+**When** điều kiện vẫn chưa xảy ra
+**Then** không dựng mã phòng trước; chốt `KHÔNG LÀM` hoặc chuyển về `Chủ: Ice` với điều kiện ghi rõ
+
+**Given** một mục đòi đổi bất biến kiến trúc
+**When** phát hiện
+**Then** dừng và chuyển `Chủ: Winston`, không vá trong story
+
+---
+
+### Story 11.1: Trả nợ cổng và công cụ kiểm
+
+As a chủ dự án,
+I want nợ nhóm cổng và công cụ kiểm (`scripts/check-*`, hook, lint) được đóng hoặc quyết dứt điểm,
+So that một cổng xanh nghĩa là điều nó khai, trước khi Epic 7 dựa vào nó.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.1` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.2: Trả nợ hạ tầng e2e và bộ chạy test
+
+As a chủ dự án,
+I want nợ nhóm hạ tầng e2e và bộ chạy test được đóng hoặc quyết dứt điểm,
+So that một lượt e2e đỏ chỉ ra lỗi thật, không phải thước đo chập chờn.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.2` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.3: Trả nợ tra cứu và dữ liệu từ điển
+
+As a chủ dự án,
+I want nợ nhóm tra cứu và dữ liệu từ điển (Epic 1) được đóng hoặc quyết dứt điểm,
+So that Concordance ở Story 7.7 dựng lên đường tra cứu đã vá.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.3` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.4: Trả nợ Glossary
+
+As a chủ dự án,
+I want nợ nhóm Glossary (Epic 3) được đóng hoặc quyết dứt điểm,
+So that TM ở Epic 7 nhân giá trị với một Glossary không còn lỗ đã biết.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.4` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.5: Trả nợ editor, segment và tầng ghi
+
+As a chủ dự án,
+I want nợ nhóm editor, segment và tầng ghi (Epic 2, `core/store`) được đóng hoặc quyết dứt điểm,
+So that cặp TM ghi tại chuyển tiếp xác nhận (AD-31) đi qua một đường ghi đã vá.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.5` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.6: Trả nợ đường nhập và Library
+
+As a chủ dự án,
+I want nợ nhóm đường nhập và Library (Epic 5, Epic 6) được đóng hoặc quyết dứt điểm,
+So that dữ liệu vào TM là dữ liệu đã nhập đúng.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.6` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.7: Trả nợ nền giao diện dùng chung và AI
+
+As a chủ dự án,
+I want nợ nhóm nền giao diện dùng chung (lệnh, tiêu điểm, phím tắt, a11y) và module AI (Epic 4) được đóng hoặc quyết dứt điểm,
+So that các bề mặt mới của Epic 7–9 dựng trên nền lệnh và tiêu điểm đã vá.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.7` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
