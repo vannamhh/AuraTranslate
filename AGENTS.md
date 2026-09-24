@@ -31,6 +31,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - Counter-check a new guard by REMOVING the seam in production code and re-running that guard's test target (not the whole suite). The removal must be real — moved or deleted, not commented out, not duplicated elsewhere — must keep the call's signature, and the red must be for the reason being measured.
 - `npm run build` before `cargo test`: without `dist/` it fails at compile time.
 - Before `done`: read the CI run (the Windows half and the UTC timezone run only there) and the latest nightly e2e run (`schedule`, macOS only; manual: `npm run test:e2e`). Red ⇒ write down why.
+- A check only a person can make in the real app is a debt item `Chủ: Epic N` of the epic about to close; Ice runs one real-use pass before that epic goes `done`, and `check:debt-owner` Kiểm C keeps it from closing first. Windows-only checks go to `B7`.
 - `check:scope`/`check:scope:bundled` are outside `pre-push` (they need port 1420 free); CI runs them.
 - Adding a gate = three lists (`package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push`), guarded by `check:gates`; `test:e2e` is the named two-list exception.
 - A green suite does not prove a new seam is guarded: count the cases that actually reach it.

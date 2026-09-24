@@ -580,9 +580,10 @@ action_items:
       duong tu dong nao thay: moi su kien driver giao deu `isTrusted: false`, va mot
       su kien khong tin cay KHONG co default action. Quyet mot hinh dang: mot hang
       nghiem thu tay BAT BUOC moi story cham be mat, hay mot luot dung that co lich
-      moi cuoi epic. Hom nay no la mot thoi quen may man, khong mot quy trinh"
+      moi cuoi epic. Hom nay no la mot thoi quen may man, khong mot quy trinh.
+      Ice chot 2026-09-24: mot luot dung that co lich cuoi moi epic (xem AI-7)"
     owner: "Ice"
-    status: open
+    status: done
   - id: "epic-3-retro-item-35-ai-1-sua-nguyen-van-muc-b6-va-cap-mot-so"
     epic: 3
     action: "🔴 AI-1 — SUA NGUYEN VAN muc B6 va cap mot so `AD` MOI cho mo hinh hoan
@@ -694,9 +695,12 @@ action_items:
       nen no khong chay tren luong chinh. Bang chung dung, ket luan sai. 669 ca `cargo
       test` khong noi mot chu nao ve ve do vi `cargo test` KHONG dung cua so. Quyet
       mot hinh dang: mot hang nghiem thu tay BAT BUOC moi story cham be mat, hay mot
-      luot dung that co lich moi cuoi epic."
+      luot dung that co lich moi cuoi epic. Ice chot 2026-09-24: LUOT DUNG THAT
+      CUOI MOI EPIC, khong hang tay moi story. Muc kiem tay mang `Chu: Epic N` cua
+      epic sap dong; Kiem C cua check:debt-owner giu lich. Lo ton: 25 muc -> Epic 4
+      (planning-artifacts/sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md)."
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
   - id: "epic-3-retro-item-42-ai-8-mo-bo-e2e-sang-be-mat-danh-dau-do-2"
     epic: 3

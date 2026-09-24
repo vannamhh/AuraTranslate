@@ -140,6 +140,7 @@ and accepted it, confined to 2b (see §Spec Change Log); 2a carries no tolerance
 
 The Windows CI number (984.712 B, n = 7 nightlies, byte-identical) was measured against the **old**
 code and says nothing about the reshaped test — CI has not run it yet.
+🔵 2026-09-24: read from the `check (windows-2025)` logs, the nightlies printing `WAL: 984712 B sau đợt một -> 984712 B sau đợt hai` are **eight**, not seven, all before this spec was written: `33988357165` (09-05) · `34056379716` · `34161685911` · `34275969502` · `34400377433` · `34525941476` · `34643864151` · `34716118563` (09-12). The three earlier nightlies (`33679346901`, `33802182437`, `33915037807`) had a green Windows job.
 
 **Not done / left to CI:** the "next `check (windows-2025)` must be green" verification step is
 unverified until this change merges and CI runs — see §Verification below.

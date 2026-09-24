@@ -3,7 +3,7 @@
 **Người soạn:** John (PM), `bmad-correct-course` chế độ Batch · **Người duyệt:** Ice
 **Baseline:** `b8f22f7` (master, cây sạch)
 **Nguồn:** `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md` §1 — *"239 mục ngoài lượt rà không thuộc phạm vi đề xuất này"*
-**Trạng thái:** Ice duyệt hướng 2026-09-24. Bước 1 đã thi hành; bước 2–3 còn mở.
+**Trạng thái:** Ice duyệt hướng 2026-09-24. Bước 1–2 đã thi hành; bước 3 còn mở.
 
 ---
 
@@ -32,6 +32,7 @@ Bốn agent chia 239 mục, mỗi mục đọc một lượt, đối chiếu mã
 |---|---|---|
 | 1 | Hạng A | **Lai:** câu sản phẩm/UX/quy trình quyết ngay với John; câu kỹ thuật hai phương án giao story, Task 0 trình số đo |
 | 2 | Hạng B | **Chốt AI-7 trước** (hình dạng nghiệm thu tay, retro Epic 3); mục B đi theo lựa chọn đó, mục agent làm được tách ra làm luôn |
+| 2′ | AI-7 / B10 | **Lượt dùng thật cuối mỗi epic**, không hàng tay mỗi story |
 | 3 | E · C · F · D | **Thi hành Batch, commit riêng** |
 
 ## 4. Bước 1 — đã thi hành
@@ -45,9 +46,20 @@ Nối một dòng `→ … (xếp nợ đứng tên Ice)` vào 34 mục của `d
 
 Danh sách từng mục: `grep -n 'xếp nợ đứng tên Ice' deferred-work.md`. Sau bước 1: **205** mục mở/🟡 đứng tên Ice; `check:debt-owner` xanh.
 
-## 5. Còn mở
+## 5. Bước 2 — đã thi hành
 
-- **Bước 2 — AI-7** (`sprint-status.yaml` `epic-3-retro-item-41-…`, cùng B10 của retro Epic 2): Ice chọn giữa một hàng nghiệm thu tay bắt buộc cho mỗi story chạm bề mặt, hoặc một lượt dùng thật có lịch cuối mỗi epic. Sau đó 30 mục B nhận chủ theo lựa chọn; đuôi "chờ B10" được gỡ khỏi mục không liên quan.
-- **Bước 3 — hạng A:** tách 162 câu thành hai loại. Câu sản phẩm/UX/quy trình vào phiên quyết với John. Câu kỹ thuật đi theo story thi hành (`Chủ: Story 11.x` hoặc `10.x`). Nếu tải vượt sức một story thì tách story (định tuyến thô đưa 11.6 từ 28 lên 87 mục).
+26/30 mục B đến từ story đã `done` hoặc đang `review`, nên hàng tay mỗi story không phủ được lô tồn; Ice chọn lượt dùng thật cuối mỗi epic.
 
-**Tiêu chí thành công:** `check:debt-owner` xanh; mỗi mục còn `Chủ: Ice` thuộc một trong ba loại: câu hỏi đang chờ phiên quyết, mục B chờ lượt nghiệm thu đã có lịch, hoặc mục D có điều kiện ghi rõ.
+- **25 mục → `Chủ: Epic 4`**: lượt dùng thật cuối Epic 4. Kiểm C đỏ nếu `epic-4` lên `done` khi còn mục mở, nên lịch có cổng giữ.
+- **1 mục → `B7`**: đối chứng scope asset protocol đòi cả Windows.
+- **2 mục đóng** bằng đọc CI: tám (không phải bảy) lượt đêm Windows in `984712 B`, run ID ghi vào `spec-ca-wal-do-tren-windows.md`; lượt CI đầu tiên chứa Story 4.7 (`35436773193`) xanh cả hai nền.
+- **2 mục giữ `Chủ: Ice`**: sửa môi trường máy Ice (`rustup` target Windows, `brew reinstall merve`).
+- AI-7 và B10 trong `sprint-status.yaml` sang `done`; luật ghi một dòng ở `AGENTS.md` §Tests.
+
+Sau bước 2: **177** mục mở/🟡 đứng tên Ice.
+
+## 6. Còn mở — bước 3, hạng A
+
+Tách 162 câu thành hai loại. Câu sản phẩm/UX/quy trình vào phiên quyết với John. Câu kỹ thuật đi theo story thi hành (`Chủ: Story 11.x` hoặc `10.x`). Nếu tải vượt sức một story thì tách story (định tuyến thô đưa 11.6 từ 28 lên 87 mục).
+
+**Tiêu chí thành công:** `check:debt-owner` xanh; mỗi mục còn `Chủ: Ice` thuộc một trong ba loại: câu hỏi đang chờ phiên quyết, mục D có điều kiện ghi rõ, hoặc việc môi trường trên máy Ice.

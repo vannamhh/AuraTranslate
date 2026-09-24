@@ -277,6 +277,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.5.**
 
 - ⚠️ **Đường hiển thị lỗi kho chưa chạy trong webview thật** — xem mục đã cập nhật ở §*Deferred from: code review of 1-7* (*"Lỗi mở kho hôm nay chỉ ra `stderr`"*). Nghiệm thu cần một `$APPDATA` chỉ-đọc; **Story 1.15 vẫn KHÔNG đóng được mục này** — môi trường triển khai của nó không có công cụ GUI automation, xem ghi chú 2026-08-06 ở mục gốc. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Sàn quần thể vẫn đếm TỆP, không đếm nội dung** — `scope_boundary.rs::RS_FLOOR = 20` (thật: 26) và `check-i18n.mjs::RS_FLOOR = 21` (thật: 27). Cùng mục đã ghi ba lần trước cho `check-i18n.mjs:207-218` và `check-commands.mjs`. ⚠️ **Hai quần thể này KHÁC nhau** — `src-tauri/src/**` so với `src-tauri/**` sau miễn trừ `tests/**` *(gồm `build.rs`)* — và chép số của tệp này sang tệp kia là đặt một cái sàn cho một cây khác. Đã ghi vào doc-comment của cả hai. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scope_boundary.rs:45 RS_FLOOR=43 (thật 53, ghi 2026-08-24 Story 3.7) và check-i18n.mjs:288 RS_FLOOR=44 (thật 53, ghi 2026-08-22 Story 3.5) -- cả hai vẫn là sàn đếm TỆP, không đổi nội dung. **Chủ: Ice.**
@@ -774,6 +775,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 🔴 **Vế thị giác hai nền tảng thật (WKWebView macOS · WebView2 Windows) CHƯA đo được** — dải tab, bề mặt song song (`position: absolute` cho `.hv-reading`, xem Debug Log References của story), và `font-synthesis` chữ Hán nghiêng giả chỉ được xác nhận đúng CƠ CHẾ qua Playwright/**headless Chromium** — một engine THỨ BA, không phải một trong hai engine mục tiêu. Dự án `không có runner đo được vế đó` — món nợ cũ (`deferred-work.md §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*`, Story 1.6/1.14), story này KHÔNG đóng nó, chỉ kế thừa. Nghiệm thu mắt trên máy thật là bước còn thiếu trước khi đóng dấu "đã kiểm hai nền tảng". **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - ⚠️ **AC9 (đổi preset ⇒ không gọi lại IPC) đúng CẤU TRÚC MÃ, chưa đo bằng webview đang chạy.** `ensureChapterLoaded`/`ensureHanVietLoaded` (`src/panels/sourcePanelState.ts`) dùng cờ module-level nên về logic KHÔNG THỂ gọi lại `read_open_chapter`/`read_han_viet` ở lượt mount thứ hai — nhưng phiên dev-story không có một instance `tauri dev` rảnh để tạo Tác phẩm, bấm `Mod+Alt+1`↔`Mod+Alt+2`, và đọc DevTools Network thật. Nghiệm thu tay còn nợ. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 - ⚠️ **Trần render kiểu song song (50.000 ký tự Hán) đo trên headless Chromium, không phải WKWebView/WebView2, và không đi qua bộ máy reactivity của Vue** (DOM dựng thẳng `document.createElement`, rẻ hơn Vue một chút vì bỏ VDOM diff). Bảng số ở Completion Notes của story là **cận dưới hợp lý**, không phải con số cuối cùng đã đóng dấu trên hai nền tảng thật — nếu đo lại cho ra số khác đáng kể, hằng `PARALLEL_VIEW_RENDER_CEILING` (`sourcePanelState.ts`) là chỗ sửa. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - 📝 **`HanVietLookup.sources_used` mang `dict_source.code` thô** (`fx-hv`, `thieu-chuu`, …), không `display_name` đẹp ("Thiều Chửu"). FR31 (nhãn nguồn bắt buộc) thoả bằng `code`; ánh xạ sang tên hiển thị là việc của màn hình Attribution — **Story 10.4** (đã ghi rõ trong Ranh giới phạm vi của chính story 1.16). Nếu 10.4 cần `display_name` ở đây sớm hơn dự tính, cách rẻ nhất là thêm nó vào `HanVietReading`/`sources_used` qua `layer.source(code)` — hạ tầng đã sẵn (`DictLayer::source`), chỉ chưa nối. **(Chủ: story kế tiếp chạm nhãn nguồn hiển thị (FR31).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: core/dict/mod.rs dòng 1193,1217: sources_used vẫn insert hit.source_code thô, không có ánh xạ display_name. **Chủ: Story 10.4.**
@@ -1212,6 +1214,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   chứng âm cho AC3/AC4/AC7/AC9/AC12 và hai hàng NFR14 (`Mod+D` trên cả macOS lẫn Windows).
   Vế DOM không có bộ chạy test frontend (§KHÔNG-LÀM ⑥, nợ `:836-846` nối dài). **Chủ: Ice**,
   và story không được đánh dấu `done` trước lượt đó.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Không cổng nào canh được thứ tự XẾP LỚP giữa lớp phủ và cây dockview.** Lỗi *"sash vẽ
   đè lớp phủ Attribution"* (Ice bắt bằng mắt 2026-08-10, vá bằng `isolation: isolate` trên
@@ -1360,6 +1363,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **17** (UX-DR17 — tiêu điểm quay đúng về nút đã mở). Cộng **ảnh chụp màn hình thật** cho
   mỗi AC thị giác. **Chủ: Ice** *(hàng 16 đòi một máy Windows — cùng hạng món nợ mà
   1.6/1.14/1.16/1.17/1.18/1.19/1.20 để lại và chưa story nào đóng được)*.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **`spec.keys` và `registry.unbound()` nay ĐÚNG TRONG MỘT NGHĨA HẸP, và cả hai chỉ được
   giữ đúng bằng doc-comment.** Kể từ story này, một lượt gán phím **không** đi qua
@@ -1789,6 +1793,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tiểu thuyết tiếng Trung thật**, và đó chính là ca sản phẩm chính. **Chủ: Ice** — một lượt
   nhập một chương truyện thật rồi rà tay, trước khi Epic 2 đi xa hơn. AD-4 đóng băng ranh
   giới **vĩnh viễn**, nên phép đo này rẻ nhất khi làm sớm.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Ca sai duy nhất còn lại: một hàng bảng Markdown bị cắt giữa ô.** Một ô chứa hai câu
   (`| 2\. CHIẾN LƯỢC … phục vụ ai. Chiến lược là sự tập trung… |`) bị cắt tại dấu chấm giữa
@@ -3204,6 +3209,7 @@ một ô có `SourceHanViet` bên trong *(cột nguyên văn, chế độ song s
 gạch ngang **kế thừa** xuống mọi con, nên phần Hán Việt cũng bị gạch — đúng hay không thì
 chưa có ai phán.
 **Chủ: Ice** *(một lượt nhìn bằng mắt)* — hoặc một story sau có động tới cột Hán Việt.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 ---
 
@@ -3738,6 +3744,7 @@ mục nào mồ côi.
   tay **sau bản vá này**, trên một câu đã bấm vào cột nguyên văn; ② nếu vẫn câm thì `keys.ts`
   phải chấp cả hai `code` — và đó là một lượt nới **danh mục đóng**, tức một quyết định.
   **Chủ: Ice.**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - 🟡 **AC5 (*"cặp TM đã ghi ở lại nguyên"*) đóng bằng CẤU TRÚC, không bằng một phép đo.**
   Bảng TM chưa tồn tại trong lược đồ, nên không đường sản phẩm nào đối chứng được. Thứ nói được
@@ -3906,6 +3913,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   vẫn là hai vế cũ: *"chuột thật có tới `onSourceCellMouseUp` không"* và *"WKWebView thật báo
   `code` gì cho phím gạch chéo"*. **Chủ: Ice** *(một lượt bấm và gõ tay)* — không phải một món
   mới, nhưng ca mới **không** thu hẹp nó.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **`split_at` cắt theo code point, không theo CỤM CHỮ CÁI.** Một chỗ cắt giữa một ký tự cơ
   sở và một dấu tổ hợp *(chuỗi NFD)* cho hai mảnh "hợp lệ" mà mảnh sau mở đầu bằng một dấu mồ
@@ -4004,6 +4012,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   *(chữ ký ③ — WebDriver `keyDown` giữ 600 ms cho **đúng một** `keydown`, `repeat: false`)*;
   ③ một lượt chốt của **bộ gõ tiếng Việt** không bị nhánh mới ăn mất.
   **Chủ: Ice** *(một lượt kiểm tay trên máy thật, cùng lớp với Task 1.4/1.5 của các story trước)*.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - 🔵 **Món `restore_segment_version` khi văn bản RỖNG (`:3821-3829`) rà lại 2026-08-17 —
   KHÔNG chạm, và lý do đáng ghi.** Story 2.9 **không** sinh thêm một đường tạo segment rỗng:
@@ -4796,6 +4805,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   ⚠️ Hai cụm tách bạch trên cùng tham số **không** giải thích được bằng nhiễu đo — nó đòi một biến
   chưa kiểm soát, nghi can đầu là tải nền. **Chủ: Ice** — mở lại khi có một máy rảnh ~2 giờ 20 phút
   và màn hình mở khoá.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - 🔴 **App tụt lại ~15 giây sau một phiên gõ 30 giây, và đây là một mệnh đề về NFR2 chứ không về
   bàn đo.** Đo được qua cổng `settle_keys`: bộ đếm phím nóng nhảy **3 → 13** *(và 3 → 17 trên thang
@@ -5477,6 +5487,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   — một cái giá không nên trả ngoài một phiên Ice chủ động yêu cầu.
   **(Chủ: Ice — cần một phiên đo tay trên bản dựng đóng gói/`npm run tauri dev`, cổng `check:scope`
   đã có sẵn khuôn "dựng cửa sổ Tauri thật" để tham khảo.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Khoảng cách `StatusBar` ↔ thuật ngữ — Ice GIỮ `StatusBar` 2026-08-21, nhưng chưa đo lại
   trên sản phẩm THẬT.** `epic-3-context.md` §UX & Interaction Patterns chốt `StatusBar` là *"nơi
@@ -5496,6 +5507,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   thứ chỉ đo được bằng người dùng thật trên bản dựng thật.
   **(Chủ: Ice — cần một phiên dùng thật trên webview đóng gói để quyết định giữ nguyên hay mở
   một cơ chế thứ hai; không phải quyết định lúc đang cài.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Chuỗi `⌘⌥S` → `Shift+←/→` → bản dịch thuật ngữ hiện trên `StatusBar`, đường CHỮ TRẦN —
   chưa đo trên webview thật (P8, rà ba lớp 2026-08-21).** `selection.focus_source` là lệnh CÓ
@@ -5645,6 +5657,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     thật, đọc số `scan_candidates`/`insert_import_scan_candidates`/số ứng viên qua Rust log
     hoặc một lượt đo tương tự tệp bench đã xoá, rồi ghi thẳng vào story theo đúng luật "đo,
     không suy luận".)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **AC "quét trong lúc gõ ⇒ không frame nào vượt 50 ms (NFR2)" đóng được bằng LẬP LUẬN
@@ -5659,6 +5672,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — nghiệm thu tay: mở một Chương tiếng Trung lớn, gõ liên tục trong 5 giây đầu
     ngay sau khi import xong Tác phẩm chứa nó, quan sát DevTools Performance có frame nào vượt
     50 ms không.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 ## Deferred from: vòng rà ba lớp của Story 3.5 (2026-08-22)
 
@@ -5817,6 +5831,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `check:tokens` Kiểm C xanh cho `.gcs-suggestion-label` (không token màu MỚI nào ngoài bộ
     đã kiểm). Đo bằng mắt trên bản dựng thật là việc của Ice.
     **(Chủ: Ice — nghiệm thu tay trên bản dựng thật, đúng khuôn mục tương ứng của Story 3.6.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
   summary: **NFR2 (lượt tính đề xuất trên đường `marks_for_source_text` không vượt 50 ms ở
@@ -5837,6 +5852,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⇒ Ai gỡ dòng `.filter(...)` trong một lượt refactor sẽ không làm cổng nào đỏ, chỉ làm mọi
     Chương trả thêm một lượt tra vô ích cho MỌI thuật ngữ đã chốt. Cùng chủ, vì cách đóng rẻ
     nhất là gộp vào chính phép đo NFR2 ở trên (số lượt tra đọc được cùng lúc với số mili-giây).
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
   summary: **Nhãn nguồn cho đề xuất (`HanVietLookup::sources_used` chưa được nối ra dây) —
@@ -6814,6 +6830,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đã ghi là **không đủ** (*"Hai dấu hiệu gián tiếp không thay được một phép đo"*).
     🔴 Đừng đọc `cargo test` 680 ca xanh thành *"đã hết đứng"*. Chưa một người thật nào bấm nút.
     **(Chủ: Ice — một lượt QA tay, cùng lượt với hai món QA tay còn mở của Story 3.10b.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
   summary: **`(async)` mới đóng được NỬA mệnh đề: năm vỏ vẫn giữ `MutexGuard` của `OpenWorkState`
@@ -7887,6 +7904,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     thuộc một cổng tĩnh; nó thuộc bàn đo chạy tay hoặc e2e.
     **(Chủ: Ice — quyết xem có gộp hai đoạn vào MỘT live region không, và phép đo nào nghiệm thu
     được vế ấy. NFR17 là chỗ luật này sống.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 ## Deferred from: 6-1-mui-tham-do-ba-lua-chon-thu-vien (2026-09-03)
 
@@ -7904,6 +7922,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — cấp `.txt` GBK/Big5 thật vào `6-1-ban-do/fixtures/encoding/`, quy ước tên
     `<mô-tả>__<NHÃN>.txt` ghi ở `README.md` của thư mục đó, rồi chạy lại đúng bàn đo trên. Câu hỏi
     CRATE đã đóng — chỉ còn thiếu SỐ ĐO; không ai được suy phán quyết FR126 từ hàng Stack đã ghim.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **`is_probably_readable()` của `dom_smoothie` chấm SAI một bài báo THẬT thành "không giống
   bài viết" — âm tính giả trên nội dung dạng tóm tắt video ngắn.**
@@ -8029,6 +8048,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   báo **0 mẫu — chưa đo** đúng khuôn FR126 (`6-1-ban-do/REPORT.md:12`), không một dấu tích.
   **Chủ: Ice** — thả tệp `.docx` Word thật vào `src-tauri/tests/fixtures/docx/` (gitignore)
   rồi chạy lại bàn đo.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **`PipelineInput.encoding: &'static encoding_rs::Encoding` rò một kiểu thư viện thứ ba ra bề
   mặt công khai của `core/segment/`.** Mọi chỗ dựng một `PipelineInput` vì thế phải phụ thuộc
@@ -8061,6 +8081,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `src-tauri/tests/fixtures/encoding/` (thư mục CHƯA tồn tại) trước khi bàn đo chạy được.
   **Chủ: Ice.**
   → 🔵 **SỬA 2026-09-15** — đường dẫn ở trên SAI. Bàn đo đọc `_bmad-output/implementation-artifacts/6-1-ban-do/fixtures/encoding/` (`webimport_probe.rs:67-72`, `:262`), không phải `src-tauri/tests/fixtures/encoding/`; chép tệp vào đường cũ thì bàn đo vẫn báo 0 mẫu. Thư mục `fixtures/` bị `.gitignore` của `6-1-ban-do/` loại trừ, nên mẫu chỉ sống trên máy chạy đo. Mục này TRÙNG phép đo với mục ở `:9193` — đóng một thì đóng cả hai. **Chủ: Ice** giữ nguyên.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - ⚠️ **Nhánh "nguồn tự khai" bảng mã qua `charset` của HTTP (`Content-Type` header/`<meta
   charset>`) CHƯA có đường nhập nào để nghiệm thu.** `core::segment::encoding::Confidence::SelfDeclared`
@@ -10083,6 +10104,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   suy luận mà đối chứng ② sinh ra để chặn."
   chủ: Ice — cùng lớp với mọi vế e2e/bàn đo khác của kho; cần một lượt chạy ứng dụng thật trên
   cả macOS và Windows (NFR14) để đóng, và bộ e2e không chạy trong cổng `pre-push`.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: vế Windows chỉ đo được ở bảng nghiệm thu Windows. **Chủ: B7.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Phạm vi asset protocol cấp lúc chạy **chỉ nở, không bao giờ co** — mở Tác phẩm A rồi
@@ -10265,6 +10287,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     write their IDs next to the number.
   **Chủ: Ice** — cần quyền đọc lịch sử `check (windows-2025)` trên GitHub, thứ phiên dựng ca này
   không có.
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — đọc log `check (windows-2025)`: tám lượt đêm in `984712 B`, không phải bảy; run ID đã ghi vào `spec-ca-wal-do-tren-windows.md` bằng một dòng 🔵 dưới câu *n = 7*.
 
 ## Deferred from: spec-e2e-cach-ly-trang-thai-giua-cac-spec (review loop 1, 2026-09-14)
 
@@ -10547,6 +10570,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     làm không phải "cắt thêm `U+0085`" (quay lại đúng chỗ lệch BOM mà spec này vừa đóng theo
     chiều ngược) mà là cho `ChapterOrigin.vue` một nhãn placeholder RIÊNG cho "trường có ký tự
     ẩn, không phải trống" — một thay đổi UX, không phải một thay đổi luật cắt.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 ## Deferred from: spec-ai-6-tach-commands-project-rs (scope split, 2026-09-15)
 
@@ -10849,6 +10873,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     món nợ "bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá" của đường đơn ngữ vẫn mở, và ca
     1.000 Chương trong `importPreviewChapters.test.ts` tự khai là bằng chứng trên `happy-dom`,
     KHÔNG phải phán quyết trên WKWebView thật. Nên đo cả hai màn một lượt. **Chủ: Ice**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: Nút chip lọc không mang `aria-pressed` (thiếu ở CẢ HAI màn), và danh sách Chương song
@@ -11132,6 +11157,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — quyết có đáng đụng AD-29 cho một phiền toái chỉ có ở bản dev hay không.
     Đo trước khi quyết: mở màn Cài đặt hai lần sau một lần `cargo build` để xem hộp xin
     quyền có thật sự bật ở đường `tauri dev` hay chỉ ở nhị phân test.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Mockup vẽ hàng "Khoá API" mang dấu tầng *"Kế thừa Toàn cục"*, còn bản dựng là
@@ -11500,6 +11526,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — người/lượt đọc CI run của commit đóng story này. Đọc xong: nếu CI xanh, xoá
     mục này (không cần một bước sửa nào khác); nếu CI đỏ ở một nền tảng `pre-push` không phủ
     (Windows), ghi lý do thật vào đây trước khi đóng.)**
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (xếp nợ đứng tên Ice)** — lượt CI đầu tiên chứa `77923f0` là push `35436773193` trên `5a23410`: `check (windows-2025)` và `check (macos-26)` đều xanh (e2e bỏ qua ở lượt push).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **finding P12 (loop 2, hai mục còn lại chưa đóng) — nhánh "vượt mặt" của
@@ -11859,6 +11886,7 @@ chính nó.
     outside this machine, the second needs a server that behaves differently from the fake provider
     every test uses. **(Chủ: Ice — cần một lượt chạy tay trên endpoint thật; cho tới lúc đó phần
     "đúng số" của FR76 mới chỉ được chứng minh trên nhà cung cấp GIẢ.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **The bundled price table ships exactly ONE row (`claude-sonnet-5`), so a translator on
