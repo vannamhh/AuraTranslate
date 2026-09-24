@@ -53,7 +53,7 @@ context:
 |---|---|---|---|
 | Trang báo ca thuận | HTML có breadcrumb + bài + bài liên quan + bình luận | Dãy khối cả trang theo đúng thứ tự tài liệu; khối thân bài `tm-rule`, bốn khối ngoài `ornament` | N/A |
 | Bóc rỗng | `text_content` rỗng sau trim | `ExtractionEmpty` như hôm nay — **không** rơi về HTML thô | Lý do đã có, `webimport_contract.rs:249` |
-| Trang 0 khối | HTML không có phần tử khối nào | Mô hình **rỗng có lý do**, phân biệt được với "chưa nạp" | Không khẳng định "không có nội dung" khi chưa biết |
+| Trang 0 khối | HTML không có phần tử khối nào | Mô hình **rỗng có lý do**, phân biệt được với "chưa nạp". 🔵 **2026-09-24 (Ice chốt):** lưới an toàn cuối `build_blocks` luôn dựng ít nhất một khối khi `text_content` khác rỗng, và `text_content` rỗng đã bị `ExtractionEmpty` chặn trước, nên hàng này là **đường chết có chủ ý**; nhánh UI `tier2_empty_blocks` giữ làm hàng rào nếu lưới an toàn đổi | Không khẳng định "không có nội dung" khi chưa biết |
 | Người dùng bấm `Space` trên khối `ornament` | Khối máy đã loại | Khối thành `confirmed`, văn bản sẽ ghi **dài ra**; hai số ở đầu tầng đổi theo | N/A |
 | `[` rồi `]` | Chọn khối 3, `[`; chọn khối 9, `]` | Khối 3–9 `confirmed`, mọi khối ngoài dải `ornament`, **một lượt** | `]` trước `[` ⇒ kêu, không ném |
 | Đường tệp/dán tay | `extract_main_content == false` | Tầng 2 rỗng **kèm câu nói vì sao** (khoá `tier_empty_story_6_9` viết lại cho đúng lý do mới) | N/A |

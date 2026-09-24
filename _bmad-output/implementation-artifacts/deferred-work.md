@@ -1835,6 +1835,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   luật Markdown và cố ý không phải: mệnh đề thuần về kiểu chữ, không biết định dạng nào.
   ⚠️ Ghi ra ở đây vì nó là một luật **story không đặt hàng**, và tỷ lệ 12,8% → 0,47% là toàn bộ
   lý lẽ của nó. Nếu Ice thấy nó quá rộng, chỗ lật là một dòng ở `split_source_text`. **Chủ: Ice.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #1) — Ice giữ luật "câu phải có ít nhất một chữ"; số đo 26/99 → 0/99 ranh giới sai là lý do đủ.
 
 - ⚠️ **`work.source_lang` trong dữ liệu thật đang SAI ở ít nhất 3/21 Chương, và nó đổi kết quả
   tách.** Đo 2026-08-12: `Truyện Kiều.atproj` và `Thieu Chuu 3.atproj` khai `zh` nhưng chứa
@@ -1848,6 +1849,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   nghiệm của Epic 1 nên rủi ro thấp — nhưng nó là bằng chứng rằng **màn hình tạo Tác phẩm để
   người dùng chọn sai ngôn ngữ quá dễ**. **Chủ: Ice** — quyết định xem một lượt xác nhận ngôn
   ngữ lúc nhập (đối chiếu nội dung với nhãn, cảnh báo chứ không tự đổi) có đáng một story không.
+  → 2026-09-24 (phiếu quyết #2) — Ice chọn cảnh báo bằng heuristic tỉ lệ chữ (không tự đổi nhãn) khi nội dung lệch ngôn ngữ khai, lúc tạo Tác phẩm và lúc append (cùng quyết với #27). **Chủ: Story 11.6.**
 
 ## Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)
 
@@ -7493,6 +7495,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     cổng nào đỏ, và biểu hiện là *"bản gốc mất dòng trống"* sau một thao tác không ai nhớ.
     **(Chủ: Ice — câu hỏi là *"`chapter.source_text` có còn là bản LƯU TRỮ thô hay không"*,
     một quyết định về mô hình dữ liệu, không một lượt vá của một story cụ thể.)**
+  → 2026-09-24 (phiếu quyết #3) — Ice giữ: mở lại khi một chỗ đọc sản phẩm cần byte thô của chapter.source_text (ví dụ xuất giữ định dạng); hôm nay 0 chỗ đọc bị ảnh hưởng. **Chủ: Ice.**
 
 - ⚠️ **`work.last_chapter_id` — *"mở Tác phẩm ở Chương nào"* NAY quan sát được, và `open_work`
   vẫn mở Chương ĐẦU.**
@@ -7513,6 +7516,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Tác phẩm nhiều Chương ra đời theo đường sản phẩm.
     **(Chủ: Ice — đề xuất trên là một đề xuất, và giao lại một món nợ sang một Epic khác là
     quyết định của Ice, không của story đang chạy.)**
+  → 2026-09-24 (phiếu quyết #4) — điều kiện đã xảy ra (Epic 6 nhập nhiều Chương); Ice chọn thêm work.last_chapter_id, mở lại đúng Chương cuối. **Chủ: Story 11.6.**
 
 - ⚠️ **Bộ e2e KHÔNG đo đường bàn phím của `editor.split_chapter` (`Mod+Shift+Slash`) — lượt
   tách trong `story-5-8-reorganise-chapters.e2e.mjs` đi qua cầu IPC trần.**
@@ -7564,6 +7568,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     bảng đảo ngược `(ký tự, rowid)` thứ ba sẽ CỘNG THÊM vào đường nền 1,285 s này ở mỗi lượt
     `rebuild` — mức cộng thêm cụ thể vẫn CHƯA đo (đòi thật sự dựng bảng đó, ngoài phạm vi story
     này).
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #5) — Ice chấp nhận hạn chế truy vấn 1–2 ký tự Hán; dòng short_query trên màn hình nói ra vùng câm là đủ.
 
 - 🟡 **`đ`/`Đ` (U+0111/U+0110) không được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào —
   người dịch gõ `duong`/`duoc`/`dau`/`di` vẫn không tìm ra `đường`/`được`/`đầu`/`đi` kể cả ở
@@ -7579,6 +7584,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     một dòng vá của story kế tiếp.
     **(Chủ: Ice — `AGENTS.md:15` đòi trình phương án kèm số đo cho Ice chốt, không tự chọn rồi
     đi tiếp; số đo đã có sẵn ở §Design Notes của `5-10-hai-che-do-dau.md`.)**
+  → 2026-09-24 (phiếu quyết #6) — Ice chọn hàm gấp đ→d/Đ→D viết tay lúc lập chỉ mục và lúc tra; phối hợp với nợ NFC/NFD đã giao 11.3. **Chủ: Story 11.6.**
 
 - 🟡 **Nửa NGUYÊN VĂN của tìm kiếm Library (`library_source_fts`, `trigram`) không có bản
   khoan dung dấu — khoan dung ở Story 5.10 chỉ là chuyện của nửa BẢN DỊCH.**
@@ -7594,6 +7600,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (bỏ xác minh) được chấp nhận ở story nào, kể cả story đóng món nợ này.
     **(Chủ: Ice — cùng lý do và cùng số đo với món nợ `đ`/`Đ` ngay trên; hai món nợ đóng CÙNG
     một quyết định kiến trúc.)**
+  → 2026-09-24 (phiếu quyết #6) — Ice chọn hàm gấp đ→d/Đ→D viết tay lúc lập chỉ mục và lúc tra; phối hợp với nợ NFC/NFD đã giao 11.3. **Chủ: Story 11.6.**
 
 - 🟡 **Thu hoạch văn bản chạy TOÀN PHẦN mỗi lượt `Indexer::rebuild` — một guard tăng dần
   ("chỉ thu hoạch lại Tác phẩm có `updated_at` mới hơn lần quét trước") SẼ SAI ÂM THẦM hôm
@@ -7854,6 +7861,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     hàng loạt có kiểm soát — ví dụ một lệnh "Mở rồi đóng ngay" tuần tự qua từng `.atproj`, chạy
     dưới sự đồng ý tường minh của người dùng — hay giữ nguyên đường hiện tại (mở tay từng Tác
     phẩm) và chỉ dựa vào dòng độ phủ mới để người dùng TỰ BIẾT cần làm gì.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #7) — chưa phát hành nên Tác phẩm user_version ≤ 7 chỉ có trên máy dev; dòng độ phủ của SearchReport đã nói ra, mở tay khi cần.
 
 ## Deferred from: lượt nghiệm thu AI-2/AI-3 — phát hiện ngoài phạm vi spec (2026-09-03)
 
@@ -7902,6 +7910,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — cùng lượt quyết với món nợ FR8 ngay trên, vì hai mục cùng trả lời một câu hỏi:
     người dùng làm gì tiếp theo. Ba đường: danh sách trong khối kết quả quét lại · một dòng gộp
     theo `reason` · hay giữ con số và dựa vào đường nâng cấp hàng loạt nếu đường ấy được dựng.)**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #7) — chưa phát hành nên Tác phẩm user_version ≤ 7 chỉ có trên máy dev; dòng độ phủ của SearchReport đã nói ra, mở tay khi cần.
 
 - ⚠️ **Hai vùng `role="status"` liền kề trong `LibraryMode.vue` cùng đổi trên một lượt trả kết
   quả tìm kiếm, và chưa ai đo trình đọc màn hình đọc chúng theo thứ tự nào.**
@@ -8347,6 +8356,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   bản dịch neo theo `segment.source_text` cũ, không theo `chapter.source_text`, nên rủi ro
   thấp hơn thoạt nhìn — nhưng vẫn cần Ice xác nhận trước khi ai đó viết một script di trú).
   **Chủ: Ice.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #8) — chưa phát hành nên Chương nhập trước Story 6.4 chỉ có trên máy dev; bản dịch neo theo segment nên không hỏng.
 
 - ⚠️ **FR132 ("N Chương cần xem", Story 6.10) chưa liệt dấu hiệu FR125 (số dòng đã nối bởi
   bước chuẩn hoá) vào danh sách "cần xem" — một khoảng trống QUY HOẠCH, không tự sửa PRD.**
@@ -8434,6 +8444,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Vế đề mục con TRONG
   thân** vẫn hoàn toàn MỞ, không đổi — Story 6.6 chỉ tách Chương ở TẦNG TRÊN CÙNG, không đệ
   quy vào thân. **Chủ vế còn mở: Story 6.10** (không đổi).
+  → 2026-09-24 (phiếu quyết #9) — Ice chọn cảnh báo: khi mẫu có neo ^ mà chỉ ra 1 Chương, màn xem trước nói rõ nguyên nhân thiếu dòng trống ngăn cách; thứ tự bước AD-39 giữ nguyên. **Chủ: Story 11.6.**
 
 ## Deferred from: 6-4-chuan-hoa-xuong-dong-va-khoang-trang — vá vòng rà 1 (2026-09-05)
 
@@ -8606,6 +8617,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   vi (thêm tham số phạm vi ký tự vào `core::cleanup::apply`, hay một cơ chế khác) trước khi
   giao một story sau dựng nó; đây là quyết định kiến trúc, không phải một lượt vá tiện tay
   của dev kế thừa.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #10) — Ice không mở năng lực bật/tắt luật làm sạch theo khối; bật/tắt theo cả lượt nhập đã có. Câu kỹ thuật 9200 (cách cài phạm vi ký tự) mất lý do, đóng cùng.
 
 - ⚠️ **Số "trong cả lần nhập" == số "trong Chương này" khi một lần nhập chỉ có ĐÚNG MỘT
   Chương — không phải một lỗi đếm, một sự trùng hợp về HÌNH DẠNG hôm nay.** `CleanupRuleReportWire`
@@ -8659,6 +8671,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chưa hề tồn tại trong kho; đây là một quyết định kiến trúc (chi phí xây/độ phức tạp so với
   lợi ích một con số chi tiết hơn), không phải một việc mặc định giao cho story kế tiếp chạm
   Chương — Ice chốt có đáng xây hay không, và story nào, sau khi đã đo.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #11) — Ice không xây cơ chế theo dõi vị trí xuyên bước chuẩn hoá; báo cáo làm sạch đúng tổng là đủ (cùng quyết với #13).
 
 - 🔴 **ĐÃ VÁ 2026-09-06 — hai số đếm của mỗi luật bị tính trên CỬA SỔ HIỂN THỊ, không phải
   trên TOÀN Chương như doc-comment/§Always spec 6.5 đã khai.** Phát hiện bằng một ca test
@@ -8726,6 +8739,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   trước NHẬP, nơi Tác phẩm đích luôn chưa tồn tại tại thời điểm soạn) — CHƯA có story nào đặt
   tên cho màn đó trong `epics.md`, nên Ice quyết định nó thuộc story nào (mở rộng Story 6.9 ra
   ngoài riêng tầng 2, hay một story quản lý Tác phẩm mới) trước khi giao lại cho dev.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #12) — Ice không dựng bề mặt soạn luật làm sạch tầng Tác phẩm; tầng đó chỉ đọc/hợp nhất.
 
 ## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach (2026-09-05)
 
@@ -8805,6 +8819,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   câu hỏi ở mục "GIỚI HẠN THẬT" cạnh đó (tầng 3 của `Blob` + mẫu chỉ có MỘT báo cáo thật, gán
   cho `ord = 1`, vì bước làm sạch đứng TRƯỚC bước tách Chương trong `PIPELINE_ORDER`) — không
   giải quyết được câu hỏi đó thì mở rộng con trỏ sang đây chỉ đổi "chưa dựng" thành "dựng sai".
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #13) — cùng quyết với #11: con trỏ Chương giữ no-op có chủ ý trên đường tệp/dán; hàng 1 I/O Matrix spec 6.10a đã ghi con trỏ không dời trên đường này (🔵 2026-09-08).
 
 - ⚠️ **`NEGATIVE_OWNER_RE` của `check:debt-owner` là một danh sách CẤM, nên nó luôn thua một
   cách nói mới.** Đo 2026-09-08 (vòng nghiệm thu Story 6.10a): ba mục nợ ghi `Chủ: chưa ai nhận`
@@ -8917,6 +8932,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   vẫn là việc của một story khác. **Chủ: Ice** 🔵 *(gán 2026-09-08 ở vòng nghiệm thu — bản đầu
   ghi "chưa ai nhận", một mục MỒ CÔI trái AGENTS.md. Gán cho Ice vì dựng cơ chế theo dõi vị trí
   xuyên bước chuẩn hoá gần như chắc chắn là một `AD` mới, và spine cấm dev tự cấp số AD.)*
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #11) — Ice không xây cơ chế theo dõi vị trí xuyên bước chuẩn hoá; báo cáo làm sạch đúng tổng là đủ (cùng quyết với #13).
 
 - ⚠️ **`ChapterPattern::match_starts` biên dịch lại regex mỗi lượt gọi, không cache.**
   `resolve_chapter_pattern` biên dịch một lần CHỈ để nghiệm thu rồi vứt `Regex` đi; `match_starts`
@@ -9010,6 +9026,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   sách kèm lý do**, không phải cắt bớt; và con số phải đo trên một lượt nhập thật chứ không
   chọn bừa. **Chủ: Ice** — đây là một quyết định sản phẩm (bao nhiêu link là "quá nhiều" cho
   một lượt), không phải một chi tiết cài đặt.
+  → 2026-09-24 (phiếu quyết #14) — Ice chọn có trần số link mỗi lượt dán, vượt trần thì từ chối cả danh sách kèm lý do; Task 0 đo số trên lượt nhập thật. **Chủ: Story 11.6.**
 
 - ⚠️ **Không có phản hồi tiến độ trong lúc tải N link.** `start_url_import` tải tuần tự trọn N
   link trong MỘT lời gọi lệnh, và frontend chỉ đổi trạng thái khi cả lô xong. Đo 2026-09-07:
@@ -9032,6 +9049,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ký ghi THÔ mọi lần gọi, không khử trùng gì). **Chủ: Ice** — đây vẫn là một quyết định sản
   phẩm (khử trùng theo khoá gì: URL nguyên văn, URL chuẩn hoá, hay nội dung sau khi tải), và
   chưa story nào nhận nó.
+  → 2026-09-24 (phiếu quyết #15) — Ice chọn khử trùng theo URL chuẩn hoá (bỏ #fragment, host chữ thường); màn xem trước nói số link trùng đã bỏ. **Chủ: Story 11.6.**
 
 - ⚠️ **Tầng 2 của màn xem trước chỉ hiện văn bản đã bóc của Chương ĐẦU.** Với một danh sách N
   link, tải lại hay soát một mục thứ k > 1 không làm tầng 2 đổi gì — người dùng thao tác trên
@@ -9064,6 +9082,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   khác. Đối chứng: `cleanup_contract.rs::block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_chapter`
   (ĐỎ khi gỡ phép vá, đã tự kiểm tay). Câu "hiện khối ĐÚNG" ở trên nay đúng KHÔNG ĐIỀU KIỆN,
   không còn cần vế "khi không override" — phần CÒN HỞ (override không đi theo con trỏ) không đổi.
+  → 2026-09-24 (phiếu quyết #16) — Ice chọn khoá Space/[/] khi con trỏ ở Chương k > 0, StatusBar nói chỉ sửa khối được ở Chương đầu; không tách override theo Chương. **Chủ: Story 11.6.**
 
 - ⚠️ **Sửa luật làm sạch hoặc mẫu phân tách trong lúc màn URL đang mở thì bản xem trước KHÔNG
   tự dựng lại, và người dùng không được báo gì.** `importPreviewState.ts::runImportPreviewReload`
@@ -9260,6 +9279,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   quyết định kiến trúc (thêm tham số phạm vi ký tự vào `core::cleanup::apply`, hay một cơ chế
   khác) trước khi giao một story sau dựng thao tác này.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #10) — Ice không mở năng lực bật/tắt luật làm sạch theo khối; bật/tắt theo cả lượt nhập đã có. Câu kỹ thuật 9200 (cách cài phạm vi ký tự) mất lý do, đóng cùng.
 
 - ⚠️ **Không phép đo hiệu năng nào trên đường XEM TRƯỚC URL, và story này vừa làm nó nặng lên
   đáng kể.** Mỗi lượt bấm `Space`/`[`/`]` chạy lại trọn chuỗi cho **cả năm** ứng viên bảng mã,
@@ -9299,6 +9319,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   matrix nay mô tả sai hiện thực. **Chủ: Ice** — khối `<frozen-after-approval>` chỉ Ice sửa
   được: hoặc bỏ hàng đó, hoặc giữ nhánh UI như một hàng rào phòng thủ và ghi rõ nó là đường
   chết có chủ ý. *(Nêu ở vòng rà bước 4 của Story 6.9, lớp verification-gap.)*
+  → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #17)** — Ice giữ nhánh UI làm hàng rào; hàng I/O Matrix spec 6.9 sửa tại chỗ bằng 🔵 ghi đường chết có chủ ý.
 
 - 🔴 **Đối chứng đỏ ② của spec 6.9 MÙ với chính bộ chọn khối nó canh — đo 2026-09-11 bằng phép
   GỠ.** §Verification spec 6.9 khai đối chứng ② là "văn bản ghép không rỗng và không ngắn hơn
@@ -9463,6 +9484,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   dưới bốn Chương thì màn hình chỉ nói *"chưa đủ Chương để so"*, người dùng đọc link hỏng ở
   danh sách link. Đường ① đúng hơn về thông tin nhưng đòi hai vế của chip tách rời — một hình
   dạng dây khác với thứ spec 6.10 đã ký, nên không phải một dòng dev tự thêm.
+  → 2026-09-24 (phiếu quyết #18) — Ice chọn tách hai vế: "N cần xem" hiện từ link hỏng cả khi không có hàng rào, "M sạch" im lặng kèm lý do; đổi hình dây đã ký ở spec 6.10. **Chủ: Story 11.6.**
 
 - ⚠️ **`chapter_detail_for_index` chạy lại TRỌN `classify()` (sắp ba mảng + dựng ba hàng rào)
   ở MỖI lượt dời con trỏ, chỉ để đọc `chapter_count` rồi vứt phần còn lại.** Đường lazy-detail
@@ -9718,6 +9740,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đang chọn cho N Chương liền kề") cần quyết định UI trước (chọn dải theo `ord`? theo từng ô
   riêng hay cả bốn ô cùng lúc?) — Ice quyết định lúc nhận việc, đúng vai đã chốt ở
   §Quyết định spec 6.15.
+  → 2026-09-24 (phiếu quyết #19) — Ice lật quyết định 2026-09-10: thêm lượt áp cả bốn trường xuất xứ của Chương đang chọn cho một dải Chương theo ord. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Xem trước (`ChapterSplitPreviewEntryWire::origin`) chỉ hiện đúng override khi
@@ -9865,6 +9888,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — cần quyết định liệu header/footer có nên vào văn bản Chương (rủi ro lặp N
   lần nếu Word lưu một bản riêng mỗi trang) trước khi cài, không phải một lượt đọc-thêm-file
   đơn giản.
+  → 2026-09-24 (phiếu quyết #20) — Ice chọn đọc footnote/endnote nối vào cuối Chương; header/footer/comment bỏ có chủ ý và ghi ra. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: một `w:tbl` LỒNG bên trong một ô của bảng cha bị bỏ qua HOÀN TOÀN (đọc byte để cân
@@ -9894,6 +9918,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   văn bản phẳng, không qua `core::docx`)."
   chủ: Ice — một bộ đọc Markdown-bảng-CÓ-CẤU-TRÚC (song song với `core::docx` cho `.docx`)
   là phạm vi ngoài Epic 6 hôm nay; ghi nợ để không ai tưởng ":2214 đã đóng cho mọi định dạng".
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #21) — Ice không dựng bộ đọc bảng Markdown có cấu trúc; bảng hiếm trong văn truyện, người dùng gộp/tách segment tay được.
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: `tests/asset_contract.rs` (Story 6.11) đỏ ngẫu nhiên — tới **12/19 ca** — khi chạy
@@ -10249,6 +10274,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `.md` that leaves the prose path byte-identical. FR115 (`prd.md:371-379`) and Story 6.16 AC1
   (`epics.md:5243`) still name `.md`."
   **Chủ: Ice** — decide which story carries it (correct-course, or a follow-up story after 6.16).
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #22) — Ice bỏ .md khỏi nhập song ngữ; FR115 và AC1 Story 6.16 thu hẹp qua correct-course trong lượt này.
 
 - source_spec: `spec-6-16-nhap-tai-lieu-song-ngu-hai-cot.md`
   summary: "Bilingual import (FR115) does not read `.docx` tables — Story 6.16 ships
@@ -10261,6 +10287,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   points, zero network tokens) applies to that change. Story 6.16 AC1 (`epics.md:5243`) still
   names `.docx`."
   **Chủ: Ice** — decide which story carries it (correct-course, or a follow-up story after 6.16).
+  → 2026-09-24 (phiếu quyết #23) — Ice giữ .docx cho nhập song ngữ; một story theo sau 6.16 (thêm qua correct-course lượt này) cho bộ đọc .docx lộ hàng rồi nối vào hình dạng song ngữ. **Chủ: Story 6.16c.**
 
 - source_spec: `spec-6-17-khop-cau-trong-tung-cap-hang.md`
   summary: "`dict_boundary::the_webview_and_the_string_catalog_hardcode_no_source_identity`
@@ -10733,6 +10760,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     (Story 6.13) trên hình dạng "N sidecar, mỗi Chương một sidecar hoặc none" trước khi đổi kiểu
     `DocxSidecar`; ngoài phạm vi spec 6.6b (§Boundaries: "No new pipeline step... this story
     widens existing shells").
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #24) — Ice giữ từ chối .docx trong lượt nhập N tệp; người dùng nhập từng .docx rồi thêm Chương vào Tác phẩm có sẵn.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-6b-nhap-nhieu-tep-cung-luc.md`
   summary: Con trỏ *Chương đang chọn* (`⌥←`/`⌥→`, Story 6.10a) không dựng được chi tiết LAZY
@@ -10790,6 +10818,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mục gốc phía trên vẫn đứng, nhưng áp cho **cả hai** ca, không chỉ ca có mẫu — mở cả cửa ①
     và ② là hai thay đổi hình dạng riêng (một sửa vị từ TS, một vỏ IPC mới đọc
     `PendingImportSourceState`), không phải một bản vá tại chỗ.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #25) — nhất quán với #13: con trỏ Chương không có chi tiết tầng 2/3 cho đường nhiều tệp, tầng 4 là đủ.
 
 ## Deferred from: 6-7b-them-chuong-vao-tac-pham-co-san (2026-09-16)
 
@@ -10807,6 +10836,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   KHÔNG cho năng lực "thêm vào Tác phẩm sẵn có". Mục này CHƯA có story nào nhận — cần một mục
   quy hoạch mới (đi qua `correct-course`, cùng khuôn 6.6b/6.7b trước đó) trước khi một story kế
   tiếp có thể đóng nó.
+  → KHÔNG LÀM 2026-09-24 (phiếu quyết #26) — Ice không mở "thêm vào Tác phẩm sẵn có" cho nhập song ngữ; đường đó luôn tạo Tác phẩm mới.
 
 - ⚠️ **Một batch nhập vào một Tác phẩm sẵn có mà đích khác ngôn ngữ với `work.source_lang`
   bị tách câu theo LUẬT SAI — và không màn hình nào nói ra điều đó.** Quyết định 2 của spec
@@ -10822,6 +10852,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   không giống ngôn ngữ của Tác phẩm đích" trước khi xác nhận hay không, và nếu có thì tín hiệu
   đó dựa trên gì (dò ngôn ngữ bằng heuristic, hay để người dùng tự nhận ra qua bản xem trước).
   Không tự quyết ở đây — spec 6.7b Quyết định 2 chỉ ghi lại hệ quả, không chọn hướng sửa.
+  → 2026-09-24 (phiếu quyết #27) — cùng quyết với #2: cảnh báo heuristic tỉ lệ chữ khi append vào Tác phẩm khác ngôn ngữ. **Chủ: Story 11.6.**
 
 - ⚠️ **Không có lượt quét Glossary nào chạy trên đường APPEND cho các Chương vừa thêm.**
   `confirm_import_with_encoding`'s nhánh Tác phẩm MỚI gọi `spawn_import_scan` trên Chương ĐẦU
@@ -10837,6 +10868,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   quét lúc nào (ngay sau append, hay khi người dùng mở từng Chương). Không tự quyết ở đây —
   spec 6.7b không có AC nào đòi lượt quét này, và `append_chapters_to_work`'s doc-comment chỉ
   ghi lại khoảng trống, không chọn hướng sửa.
+  → 2026-09-24 (phiếu quyết #28) — Ice chọn quét Glossary toàn bộ N Chương vừa append; Task 0 đo thời gian quét. **Chủ: Story 11.6.**
 
 - ⚠️ **Một lỗi giao dịch SQL giữa chừng trên đường APPEND (sau khi ảnh đã tải và ghi xuống
   `assets/`) để lại tệp ảnh mồ côi trên đĩa — cùng lớp rủi ro đã ghi cho `create_work`
@@ -10889,6 +10921,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     đang bật ⇒ chip biến mất, danh sách lọc ra rỗng, chỉ còn `⌥W` (không nhìn thấy được) để gỡ.
     Sửa ở một màn mà không sửa màn kia là làm hai màn lệch nhau; cần một quyết định chung.
     **Chủ: Ice**
+  → 2026-09-24 (phiếu quyết #29) — Ice chọn tự tắt bộ lọc cần xem khi ứng viên mới không có tín hiệu, ở cả hai màn xem trước (cùng quyết với #31). **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: `split_bilingual_chapters` zip ba vector song song và index `bilingual_row_*[i]` trực
@@ -10922,6 +10955,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     có `⌥←`/`⌥→`, nên vạch ấy người dùng không dời được và trình đọc màn hình không thấy. Hai lối
     ra: nối hợp đồng a11y, hoặc bỏ vạch con trỏ khỏi màn song ngữ cho tới khi có điều hướng
     Chương. Là quyết định UX, không phải một lượt vá. **Chủ: Ice**
+  → 2026-09-24 (phiếu quyết #30) — Ice chọn thêm aria-pressed cho chip lọc ở cả hai màn và bỏ vạch Chương đang chọn khỏi màn song ngữ. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: Lỗi đường ống KHÔNG-phải-hỏng-bảng ở ứng viên ĐANG CHỌN bị nuốt im lặng — không nhãn
@@ -10932,6 +10966,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     lẽ; 6.16b chỉ thêm một thứ nữa vào danh sách biến mất, không tạo ra chỗ nuốt. Thứ sẽ giải
     quyết: nới vị từ, hoặc hiện dòng "chưa đủ dữ liệu" khi `chapters === null` mà `preview !== null`.
     **Chủ: Ice**
+  → 2026-09-24 (phiếu quyết #31) — cùng quyết với #29: mọi Err của ứng viên song ngữ đang chọn hiện lý do thật, không chỉ lỗi bảng. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: `bilingual_source_column == bilingual_target_column` ở lời gọi Rust trần đếm ĐÔI cả hai

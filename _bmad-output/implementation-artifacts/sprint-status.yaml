@@ -183,6 +183,8 @@ development_status:
   #   epics.md) -> 6-6b -> 6-7b -> 6-16b -> Epic 4. Ba story khong phu thuoc nhau; thu tu giua
   #   chung xep theo id va doi duoc.
   6-16b-bộ-lọc-cần-xem-cho-bản-xem-trước-song-ngữ: review
+  # 2026-09-24: THEM 6-16c (FR115 ve .docx, phieu quyet #23) — chay cung dot voi epic-11, sau epic-4.
+  6-16c-nhập-song-ngữ-từ-bảng-docx: backlog
   epic-6-retrospective: done
 
   epic-7: backlog

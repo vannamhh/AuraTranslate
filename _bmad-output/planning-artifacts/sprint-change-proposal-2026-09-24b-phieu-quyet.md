@@ -9,97 +9,97 @@ Mỗi câu trả lời một trong: **chọn (x)** · **KHÔNG LÀM** · **giữ
 ## Nhập & Library (31)
 
 1. `b8f22f7:1812` — Luật 'câu phải có ít nhất một chữ cái mới chốt ranh giới' khi tách segment: (a) giữ nguyên, (b) nới/thu hẹp?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ luật "câu phải có ít nhất một chữ"; số đo 26/99 → 0/99 ranh giới sai là lý do đủ.
 
 2. `b8f22f7:1824` — Thêm bước xác nhận ngôn ngữ lúc tạo Tác phẩm (đối chiếu nội dung với nhãn, chỉ cảnh báo) — (a) mở story, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn cảnh báo bằng heuristic tỉ lệ chữ (không tự đổi nhãn) khi nội dung lệch ngôn ngữ khai, lúc tạo Tác phẩm và lúc append (cùng quyết với #27).
 
 3. `b8f22f7:7430` — chapter.source_text có còn là bản lưu thô giữ nguyên byte khi tách Chương — (a) có, (b) không?
-   - Quyết: 
+   - Quyết: giữ Ice — mở lại khi một chỗ đọc sản phẩm cần byte thô của chapter.source_text (ví dụ xuất giữ định dạng); hôm nay 0 chỗ đọc bị ảnh hưởng.
 
 4. `b8f22f7:7455` — Mở Tác phẩm ở Chương nào: (a) thêm work.last_chapter_id ngay, hay (b) chờ Epic 6 nhập hàng loạt rồi quyết?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — điều kiện đã xảy ra (Epic 6 nhập nhiều Chương); Ice chọn thêm work.last_chapter_id, mở lại đúng Chương cuối.
 
 5. `b8f22f7:7490` — Tra Library bằng truy vấn 1-2 ký tự Hán: (a) thêm bảng char_idx thứ ba (tốn CPU rebuild), hay (b) chấp nhận hạn chế?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice chấp nhận hạn chế truy vấn 1–2 ký tự Hán; dòng short_query trên màn hình nói ra vùng câm là đủ.
 
 6. `b8f22f7:7525` (+ `7540`) — Tìm Library khoan dung đ/Đ: (a) dựng hàm gấp dấu Rust riêng, hay (b) chấp nhận đ không khớp d?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn hàm gấp đ→d/Đ→D viết tay lúc lập chỉ mục và lúc tra; phối hợp với nợ NFC/NFD đã giao 11.3.
 
 7. `b8f22f7:7795` (+ `7844`) — 35 Tác phẩm user_version≤7 ngoài chỉ mục: (a) dựng di trú hàng loạt có đồng ý người dùng, hay (b) giữ mở tay từng cái?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — chưa phát hành nên Tác phẩm user_version ≤ 7 chỉ có trên máy dev; dòng độ phủ của SearchReport đã nói ra, mở tay khi cần.
 
 8. `b8f22f7:8282` — Chương nhập trước Story 6.4 còn \r\n thô: (a) di trú một lần (xử lý Chương đã dịch thế nào?), hay (b) để nguyên?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — chưa phát hành nên Chương nhập trước Story 6.4 chỉ có trên máy dev; bản dịch neo theo segment nên không hỏng.
 
 9. `b8f22f7:8337` — Mẫu phân tách neo dòng khớp 0 lần: (a) chấp nhận+cảnh báo, (b) đổi thứ tự bước (AD mới), (c) sửa mẫu mặc định mockup?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn cảnh báo: khi mẫu có neo ^ mà chỉ ra 1 Chương, màn xem trước nói rõ nguyên nhân thiếu dòng trống ngăn cách; thứ tự bước AD-39 giữ nguyên.
 
 10. `b8f22f7:8531` — Mở năng lực 'bật/tắt luật làm sạch cho đúng khối đang chọn' ở màn xem trước nhập — (a) mở, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không mở năng lực bật/tắt luật làm sạch theo khối; bật/tắt theo cả lượt nhập đã có. Câu kỹ thuật 9200 (cách cài phạm vi ký tự) mất lý do, đóng cùng.
 
 11. `b8f22f7:8594` (+ `8833`) — Đường Blob+mẫu phân tách: (a) xây theo dõi vị trí xuyên bước chuẩn hoá để có báo cáo làm sạch từng Chương, hay (b) giữ một báo cáo?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không xây cơ chế theo dõi vị trí xuyên bước chuẩn hoá; báo cáo làm sạch đúng tổng là đủ (cùng quyết với #13).
 
 12. `b8f22f7:8657` — Bề mặt soạn luật làm sạch tầng Tác phẩm: (a) mở rộng Story 6.9, (b) story quản lý Tác phẩm mới, (c) chưa làm?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không dựng bề mặt soạn luật làm sạch tầng Tác phẩm; tầng đó chỉ đọc/hợp nhất.
 
 13. `b8f22f7:8730` — Mở con trỏ Chương ⌥←/⌥→ cho đường tệp/dán tay: (a) xây cơ chế theo dõi vị trí (có thể AD mới), hay (b) giữ no-op?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — cùng quyết với #11: con trỏ Chương giữ no-op có chủ ý trên đường tệp/dán; hàng 1 I/O Matrix spec 6.10a đã ghi con trỏ không dời trên đường này (🔵 2026-09-08).
 
 14. `b8f22f7:8950` — Đặt trần số link mỗi lượt dán (số đo trên lượt thật) và từ chối cả danh sách khi vượt — (a) có, (b) không?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn có trần số link mỗi lượt dán, vượt trần thì từ chối cả danh sách kèm lý do; Task 0 đo số trên lượt nhập thật.
 
 15. `b8f22f7:8969` — Khử trùng URL trong danh sách nhập theo: (a) nguyên văn, (b) chuẩn hoá, (c) nội dung sau tải, (d) không khử?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn khử trùng theo URL chuẩn hoá (bỏ #fragment, host chữ thường); màn xem trước nói số link trùng đã bỏ.
 
 16. `b8f22f7:8982` — Override khối tầng 2: (a) tách theo từng Chương theo con trỏ, hay (b) giữ chung một vector theo index khối?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn khoá Space/[/] khi con trỏ ở Chương k > 0, StatusBar nói chỉ sửa khối được ở Chương đầu; không tách override theo Chương.
 
 17. `b8f22f7:9236` — Hàng I/O Matrix 'Trang 0 khối' gần như không tới được: (a) bỏ hàng, hay (b) giữ nhánh UI làm hàng rào có ghi chú?
-   - Quyết: 
+   - Quyết: đóng (John sửa tài liệu) — Ice giữ nhánh UI làm hàng rào; hàng I/O Matrix spec 6.9 sửa tại chỗ bằng 🔵 ghi đường chết có chủ ý.
 
 18. `b8f22f7:9388` — Dưới bốn Chương 'N cần xem' không hiện: (a) tách 'N cần xem'/'M sạch' thành hai vế độc lập, hay (b) giữ nguyên?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn tách hai vế: "N cần xem" hiện từ link hỏng cả khi không có hàng rào, "M sạch" im lặng kèm lý do; đổi hình dây đã ký ở spec 6.10.
 
 19. `b8f22f7:9646` — Áp bốn trường xuất xứ cho nhiều Chương một lượt: (a) chọn dải theo ord, (b) từng ô, (c) cả bốn ô cùng lúc, (d) không làm?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice lật quyết định 2026-09-10: thêm lượt áp cả bốn trường xuất xứ của Chương đang chọn cho một dải Chương theo ord.
 
 20. `b8f22f7:9792` — Header/footer/footnote/comment của .docx: (a) đưa vào văn bản Chương, hay (b) bỏ như hiện tại?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn đọc footnote/endnote nối vào cuối Chương; header/footer/comment bỏ có chủ ý và ghi ra.
 
 21. `b8f22f7:9818` — Dựng bộ đọc bảng Markdown có cấu trúc cho .md/.txt — (a) có, phạm vi tới đâu, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không dựng bộ đọc bảng Markdown có cấu trúc; bảng hiếm trong văn truyện, người dùng gộp/tách segment tay được.
 
 22. `b8f22f7:10168` — Đọc bảng Markdown song ngữ .md (FR115): (a) qua correct-course, (b) story theo sau 6.16, (c) không làm?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice bỏ .md khỏi nhập song ngữ; FR115 và AC1 Story 6.16 thu hẹp qua correct-course trong lượt này.
 
 23. `b8f22f7:10179` — Đọc bảng .docx song ngữ (FR115): (a) qua correct-course, (b) story theo sau 6.16 khi docx reader lộ hàng, (c) không làm?
-   - Quyết: 
+   - Quyết: giao Story 6.16c — Ice giữ .docx cho nhập song ngữ; một story theo sau 6.16 (thêm qua correct-course lượt này) cho bộ đọc .docx lộ hàng rồi nối vào hình dạng song ngữ.
 
 24. `b8f22f7:10632` — Nhận .docx trong nhập hàng loạt N tệp: (a) mở story đổi DocxSidecar thành Vec, hay (b) giữ từ chối từng mục?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice giữ từ chối .docx trong lượt nhập N tệp; người dùng nhập từng .docx rồi thêm Chương vào Tác phẩm có sẵn.
 
 25. `b8f22f7:10653` — Con trỏ Chương LAZY cho đường Files: (a) chấp nhận vĩnh viễn không có, hay (b) dựng tách-lại-để-định-vị O(N tệp)?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — nhất quán với #13: con trỏ Chương không có chi tiết tầng 2/3 cho đường nhiều tệp, tầng 4 là đủ.
 
 26. `b8f22f7:10712` — Nhập song ngữ hai cột có thêm năng lực 'thêm vào Tác phẩm sẵn có' (mục quy hoạch mới qua correct-course) — (a) có, (b) không?
-   - Quyết: 
+   - Quyết: KHÔNG LÀM — Ice không mở "thêm vào Tác phẩm sẵn có" cho nhập song ngữ; đường đó luôn tạo Tác phẩm mới.
 
 27. `b8f22f7:10727` — Append vào Tác phẩm khác ngôn ngữ: (a) cảnh báo bằng heuristic, hay (b) để người dùng tự nhận qua xem trước?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — cùng quyết với #2: cảnh báo heuristic tỉ lệ chữ khi append vào Tác phẩm khác ngôn ngữ.
 
 28. `b8f22f7:10742` — Quét Glossary cho Chương vừa append: (a) không, (b) một Chương đại diện, (c) toàn bộ — ngay sau append hay khi mở?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn quét Glossary toàn bộ N Chương vừa append; Task 0 đo thời gian quét.
 
 29. `b8f22f7:10795` — Bộ lọc 'cần xem' kẹt bật không nút tắt ở hai màn xem trước: chọn một cách sửa chung — (a) tự tắt lọc, (b) giữ chip hiển thị?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn tự tắt bộ lọc cần xem khi ứng viên mới không có tín hiệu, ở cả hai màn xem trước (cùng quyết với #31).
 
 30. `b8f22f7:10828` — A11y màn xem trước: (a) nối đủ aria-pressed và listbox cho con trỏ song ngữ, hay (b) bỏ vạch con trỏ khỏi màn song ngữ?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — Ice chọn thêm aria-pressed cho chip lọc ở cả hai màn và bỏ vạch Chương đang chọn khỏi màn song ngữ.
 
 31. `b8f22f7:10839` — Lỗi pipeline khác ở ứng viên song ngữ bị nuốt: (a) nới is_bilingual_table_refusal, hay (b) hiện dòng 'chưa đủ dữ liệu'?
-   - Quyết: 
+   - Quyết: giao Story 11.6 — cùng quyết với #29: mọi Err của ứng viên song ngữ đang chọn hiện lý do thật, không chỉ lỗi bảng.
 
 ## CI & cổng (11)
 

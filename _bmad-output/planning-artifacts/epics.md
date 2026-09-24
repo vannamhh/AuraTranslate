@@ -67,7 +67,7 @@ FR43: Chế độ đọc hiển thị hình ảnh nhúng **đúng vị trí** c�
 
 FR45: Hình ảnh được **lưu bên trong `.atproj`**, không phụ thuộc đường dẫn ngoài; Tác phẩm mang đi nguyên vẹn khi copy sang máy khác.
 
-FR115: **Nhập tài liệu song ngữ tạo Tác phẩm hoàn chỉnh** từ file hai cột (bảng `.docx`, bảng `.md`, `.csv`/`.tsv`). Người dùng khai báo cột nguồn, cột đích và ngôn ngữ nguồn. **Bắt buộc xem trước trước khi ghi xuống đĩa.** Ranh giới Chương lấy từ mẫu phân tách của FR14, **áp lên cột nguồn**. Mọi Chương vào trạng thái *Đang dịch*, mọi segment **chưa xác nhận**.
+FR115: **Nhập tài liệu song ngữ tạo Tác phẩm hoàn chỉnh** từ file hai cột (bảng `.docx`, `.csv`/`.tsv`; 🔵 bảng `.md` bỏ 2026-09-24). Người dùng khai báo cột nguồn, cột đích và ngôn ngữ nguồn. **Bắt buộc xem trước trước khi ghi xuống đĩa.** Ranh giới Chương lấy từ mẫu phân tách của FR14, **áp lên cột nguồn**. Mọi Chương vào trạng thái *Đang dịch*, mọi segment **chưa xác nhận**.
 
 FR116: **Khớp câu trong phạm vi từng cặp hàng:** hệ thống tách cả hai phía thành câu và khớp bên trong từng cặp hàng; chỗ số câu lệch nhau **phải hiện ra cho người dùng nối tay**.
 
@@ -5354,6 +5354,7 @@ So that tôi biên tập lại nó trong môi trường của mình thay vì tro
 **Acceptance Criteria:**
 
 **Given** một file hai cột — bảng `.docx`, bảng `.md`, `.csv` hoặc `.tsv`
+> 🔵 *(2026-09-24 — Story này giao `.csv`/`.tsv`. Bảng `.md` bỏ khỏi FR115 (Ice chốt); bảng `.docx` sang **Story 6.16c**.)*
 **When** nhập
 **Then** người dùng **khai báo cột nào là nguồn, cột nào là đích**, và ngôn ngữ nguồn
 
@@ -5503,6 +5504,33 @@ So that tôi không bấm xác nhận mù chỉ vì tệp này do người khác
 >
 > Việc thu hẹp phép đo về **chỉ macOS** là quyết định trong *spec* 6.18, khi phần Windows còn đợi
 > bảng nghiệm thu cuối dự án (B7). Tới Story 10.9 bảng ấy đã mở, nên spec của 10.9 quyết lại.
+
+---
+
+### Story 6.16c: Nhập song ngữ từ bảng `.docx`
+
+**Covers:** FR115 *(vế `.docx` — vế `.csv`/`.tsv` ở Story 6.16)*
+**Thừa kế AC cắt ngang:** Story 6.16 *(toàn bộ)* · Story 6.16b *(bộ lọc "cần xem")*
+
+> 🔵 *(Thêm 2026-09-24 qua `correct-course` — `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`, phiếu quyết #23. Story 6.16 cắt `.docx` ở cổng token lúc soạn spec (2026-09-11), để lại nợ trong `deferred-work.md`.)*
+
+As a người biên tập nhận bản dịch của người khác dưới dạng bảng Word,
+I want nhập bảng hai cột trong `.docx` như nhập `.csv`,
+So that tôi không phải chép bảng sang bảng tính trước khi đưa vào công cụ.
+
+**Acceptance Criteria:**
+
+**Given** một `.docx` có bảng hai cột
+**When** nhập song ngữ
+**Then** bộ đọc `.docx` giao **hàng** của bảng (không làm phẳng ô thành đoạn rời), và đường song ngữ của Story 6.16 nhận chúng như hàng `.csv`
+
+**Given** một `.docx` có nhiều bảng hoặc không có bảng nào
+**When** xem trước
+**Then** màn xem trước nói rõ bảng nào được dùng, hoặc từ chối có tên lý do — không nhập im lặng một bảng đoán
+
+**Given** thay đổi bộ đọc `.docx`
+**When** kiểm
+**Then** đường nhập `.docx` đơn ngữ giữ nguyên từng byte, và `docx_boundary.rs` vẫn xanh
 
 ---
 

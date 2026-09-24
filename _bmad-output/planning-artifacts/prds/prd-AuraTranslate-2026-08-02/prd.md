@@ -368,7 +368,9 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 > *(FR115–FR116 mang số cuối dãy theo quy ước không đánh số lại — bổ sung 2026-08-02 sau khi chủ dự án làm rõ rằng có Tác phẩm do người khác dịch và bàn giao dưới dạng file hai cột.)*
 
-**FR115.** **Nhập tài liệu song ngữ tạo Tác phẩm hoàn chỉnh:** từ file hai cột — bảng trong `.docx`, bảng trong `.md`, hoặc `.csv`/`.tsv` — trong đó một cột là văn bản gốc và một cột là bản dịch. Người dùng **khai báo cột nào là nguồn, cột nào là đích** và ngôn ngữ nguồn. Kết quả là một Tác phẩm đầy đủ: có segment nguồn, có segment đích, đã khớp cặp.
+**FR115.** **Nhập tài liệu song ngữ tạo Tác phẩm hoàn chỉnh:** từ file hai cột — bảng trong `.docx`, hoặc `.csv`/`.tsv` — trong đó một cột là văn bản gốc và một cột là bản dịch. Người dùng **khai báo cột nào là nguồn, cột nào là đích** và ngôn ngữ nguồn. Kết quả là một Tác phẩm đầy đủ: có segment nguồn, có segment đích, đã khớp cặp.
+
+> 🔵 *(2026-09-24 — Ice bỏ bảng `.md` khỏi FR115: không bộ đọc bảng Markdown nào tồn tại, và bảng hiếm trong văn truyện. `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`.)*
 
 **Bắt buộc có màn hình xem trước trước khi ghi xuống đĩa**, cùng khuôn với FR14.
 
