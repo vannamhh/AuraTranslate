@@ -21,6 +21,7 @@
   - **`-webkit-font-smoothing: antialiased` trong `reset.css` là LÝ LẼ, chưa phải PHÉP ĐO** — chưa có ảnh chụp cạnh nhau của cùng một chuỗi trên hai nền tảng để chứng minh nó thu hẹp khoảng cách độ đậm nét thay vì nới rộng.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Story 1.4 đã đưa đường nạp font thật vào pipeline (src/tokens/fonts.ts qua resolveResource/convertFileSrc), nhưng chưa có bằng chứng nào mới về ảnh chụp WKWebView hay Windows trong repo; còn thiếu: WKWebView và Windows vẫn chưa có lượt đo bằng ảnh chụp; bẫy khoá wght=200 vẫn chưa tái lập được trên engine nào. **Chủ: Epic 10.**
 - **Rà NFR15 chưa đọc name ID 13/14 của tệp font phát hành** — đã mở `LICENSE` / `OFL.txt` trong zip mà đọc (đúng yêu cầu "rà tường minh"), nhưng chưa đối chiếu với trường License Description nhúng trong chính tệp `.otf`/`.ttf` sẽ được đóng gói. **(Chủ: Story 1.2 / 10.5.)**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: chưa đối chiếu name ID 13/14 trong tệp font; Story 1.2 đã done, việc rà giấy phép trong bản phát hành là phạm vi Story 10.5 (backlog). **Chủ: Story 10.5.**
 
 ## Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)
 
@@ -197,6 +198,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **Chốt chống rơi `body` bắn-và-quên: `rAF` không chạy khi cửa sổ ẩn, và blur cho cáo buộc sai** — `src/commands/focus.ts:103-113`. Đây là **chuông báo tự động duy nhất** cho AC4, và nó có hai lỗ không canh gác: (1) `requestAnimationFrame` không chạy khi cửa sổ bị ẩn/thu nhỏ, nên chốt bị **bỏ qua đúng trên đường khởi động nền** — chỗ nó cần kêu nhất; (2) nếu người dùng bấm ra ngoài hoặc cửa sổ mất focus trong khoảng giữa `enter()` và callback, `document.activeElement` đọc ra `body` và chốt in một **cáo buộc sai** nêu đích danh một owner đã focus hoàn toàn đúng. Không có đường huỷ. Hoãn vì đây là chuông báo chứ không phải cơ chế — cả hai lỗ làm chuông kém tin, không làm focus hỏng. **Nhặt lại cùng lượt** dựng nghiệm thu DOM tự động *(cùng mục với "Nghiệm thu DOM chạy trên Blink" ở trên)*. **(Chủ: story kế tiếp chạm `src/commands/focus.ts`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/commands/focus.ts:156-163 armBodyGuard() vẫn chỉ requestAnimationFrame + so document.activeElement === body, không canh cửa sổ ẩn (document.hidden) và không có cách huỷ khi blur xảy ra giữa enter() và callback. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: src/commands/focus.ts armBodyGuard vẫn không đọc document.hidden và không có đường huỷ; chủ Story 1.22 gán ở dòng trên đã done. **Chủ: Amelia.**
 
 ---
 
@@ -764,6 +766,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 📝 **Phép kiểm AC12 chạy bằng `Selection.modify()`, không bằng một cú KÉO CHUỘT thật.** `modify()` là thuật toán chọn của chính trình duyệt nên nó là bản mô phỏng gần nhất mà một trang tĩnh dựng được, nhưng nó không **là** một lượt kéo. Story 1.16 đo vế chuột bằng Playwright; story này không thêm phụ thuộc nào (NFR15) nên không chạy lại được vế đó. Hai vế cộng lại phủ đủ ý định của AC12, và khoảng trống ghi ở đây thay vì để người sau tự phát hiện. **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Không tìm thấy spec Story cho `1-22` (bộ chạy e2e trong webview thật) nhưng epics.md:2042 xác nhận story này đang xây hạ tầng driver Actions API thật, và sprint-status.yaml liệt `1-22-...: in-progress`. **Chủ: Story 1.22.**
+  → 🔵 2026-09-23 (rà sổ nợ AI-2) — dòng trên sai khi nói sprint-status ghi `1-22: in-progress`: sprint-status.yaml ghi `done`. Vẫn đúng: e2e/specs không có ca kéo chuột nào (grep pointerMove/dragAndDrop = 0); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - 📝 **Trần đường lui `SUBSTRING_FALLBACK_CEILING = 4` chưa có số đo hành vi người dùng đỡ lưng** (`src-tauri/src/commands/dict.rs`). Con số dựng trên một lý lẽ ngôn ngữ (*một thành ngữ tiếng Trung là bốn ký tự — đơn vị dài nhất còn đáng tra như chuỗi con*), không trên nhật ký bôi đen thật. Bench đo được **78/166** truy vấn đi qua đường lui, tức nó không phải một nhánh hiếm. Nhặt lại khi có dữ liệu dùng thật, hoặc ở **Story 7.7** (Concordance — chủ thật sự của `Substring`). **(Chủ: story kế tiếp đo hành vi người dùng thật trên `SUBSTRING_FALLBACK_CEILING`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/commands/dict.rs:139 `const SUBSTRING_FALLBACK_CEILING: usize = 4` không đổi; sprint-status.yaml liệt `7-7-concordance: backlog`. **Chủ: Story 7.7.**
@@ -1498,6 +1501,7 @@ file — cùng kết quả với lượt retrospective sáu ngày trước.
   chứng; ② `element.click()` bắn `click` **trước** `focusin` nên mọi tương tác có thứ tự phải
   đi Actions API; ③ máy chủ nhúng bám cổng cố định **4445** nên hai tệp spec cùng lượt làm
   phiên thứ hai trượt. Mục ① phải đóng **trước** khi dựng thêm bất kỳ hàng bàn đo nào.
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ AI-2) — ① và ③ đã đóng tại e2e/wdio.conf.mjs §1 (`$APPDATA` tạm mỗi lượt) và §3 (chạy cả bộ một lượt); ② nay là quy ước đã ghi ở §2 và `realClick()`, không còn là khuyết tật mở.
 
 - ⚠️ **Ba món nợ tài liệu cũ, xác nhận VẪN MỞ trong lượt này** *(không phải phát hiện mới —
   ghi lại để chúng không trôi thêm một epic)*: AD-23 còn liệt kê `$RESOURCE/dict/**` trong
@@ -1521,6 +1525,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   là đổi hành vi của hai ca đang xanh trong cùng một lượt vá hạ tầng, và nó vẫn giữ một
   nghĩa thật — cô lập **giữa các ca trong cùng một spec**, thứ thư mục tạm theo **lượt chạy**
   không cho. Mở lại khi có ca thứ ba trong một spec. **Chủ: Story 1.22.**
+  → KHÔNG LÀM 2026-09-23 (rà sổ nợ AI-2) — nút vẫn ở e2e/specs/shortcuts-capture-mouse.e2e.mjs (`resetRowToDefault`) có chủ ý; điều kiện mở lại đã ghi trong mục: một spec có ca thứ ba.
 
 ## Deferred from: Story 1.22 — C2, chuột thật thay `element.click()` (2026-08-11)
 
@@ -1557,6 +1562,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   ở chỗ khác**, không theo một phép đo của chính nó. Spec đã dựng
   (`e2e/specs/attribution-focus.e2e.mjs`) nhưng **`skip` có lý do in ra màn hình**.
   **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: attribution-focus.e2e.mjs:101 `this.skip()` khi `list_dict_sources` trả 0, và job nightly không dựng dữ liệu từ điển, nên AC11 của Story 1.19 vẫn chưa đo trong CI; hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - 🔴 **Hai món chặn đã đo được, và món thứ hai LỚN HƠN nó trông.**
   ① Nút `[data-attribution-open]` sống trong panel Lookup ⇒ chỉ tồn tại ở chế độ `workspace`,
@@ -1567,6 +1573,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tạo Tác phẩm hôm nay sẽ ghi vào thư mục **Documents THẬT** của người chạy, tức tái lập đúng
   lớp lỗi mà C1 vừa đóng, chỉ ở một thư mục khác. **Chuyển hướng Library root phải làm TRƯỚC
   fixture**, không sau. **Chủ: Story 1.22.**
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ AI-2) — ② đóng: gốc Library chuyển sang thư mục tạm (e2e/wdio.conf.mjs:40, e2e/specs/library-root-redirect.e2e.mjs); ① đóng: fixture `openWorkspaceWithWork` ở e2e/support/workspace.mjs.
 
 ## Deferred from: Story 1.22 — bề mặt dữ liệu thật THỨ HAI (2026-08-11)
 
@@ -1574,6 +1581,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   đóng, và `library-root-redirect.e2e.mjs` vừa chứng minh một Tác phẩm tạo được từ trong bàn
   đo. Việc còn lại là thuần giao diện: từ chế độ `library` sang `workspace` với Tác phẩm vừa
   tạo, để `[data-attribution-open]` tồn tại. **Chủ: Story 1.22.**
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ AI-2) — e2e/specs/attribution-focus.e2e.mjs:59 đi từ `library` sang `workspace` qua `openWorkspaceWithWork`; phần đo còn lại nằm ở mục `AttributionOverlay.vue` phía trên.
 
 ## Deferred from: Story 1.22 — fixture workspace, và một AC được làm rõ (2026-08-12)
 
@@ -1595,6 +1603,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tiếp — khác biệt duy nhất giữa hai nút là tổ tiên `tabindex="-1"`. Đường đào tiếp, nếu có
   ngày cần: dựng một trang tối giản NGOÀI kho để cô lập hành vi WKWebView. **(Chủ: một story kế tiếp — điều tra tiêu điểm WKWebView, nguyên nhân chưa đặt tên.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: AttributionOverlay.vue vẫn chưa được đo trên WKWebView thật; deferred-work.md dòng 843 và 4883 xác nhận nút Attribution vẫn chưa ai kiểm, nguyên nhân vẫn chưa được đặt tên. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: nguyên nhân tiêu điểm rơi khỏi nút trong `section.panel[tabindex="-1"]` trên WKWebView chưa đặt tên; đào tiếp hay không là quyết định sản phẩm. **Chủ: Ice.**
 
 - 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: dời nút mở
   ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính, nên nó đóng luôn mệnh
@@ -1619,6 +1628,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   lừa một lần. Luật cho lượt sau, đã ghi vào `wdio.conf.mjs`: gặp một lượt đỏ không tái lập
   được thì **bắt nguyên văn TRƯỚC**, đừng chạy lại cho tới khi xanh rồi đi tiếp. **Chủ: Dev.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Nguyên văn lỗi của lần đỏ attribution-focus đã bắt được 2026-08-15 (deferred-work.md:2590-2613): fixture openWorkspaceWithWork hết giờ chờ dải chip nguồn render, không phải hồi quy tiêu điểm. Bản ghi đó đã tự chuyển chủ sang Story 1.22; còn thiếu: Nguyên nhân gốc (giả thuyết dictSources cần thêm một lượt IPC) vẫn chưa được loại trừ hay xác nhận; Chủ: Dev ở dòng 1477 đã lỗi thời so với bản cập nhật 2026-08-15. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn thiếu ở dòng trên vẫn đúng (nguyên nhân gốc lượt đỏ `attribution-focus` chưa loại trừ); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 ## Deferred from: hai quyết định của Ice về CI và Windows (2026-08-12)
 
@@ -1809,6 +1819,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   Cùng lớp nợ `deferred-work.md §*Deferred from: 1-16-panel-source-va-tab-han-viet (2026-08-06)*`. **Chủ: treo cho tới khi có quyết định về một bộ chạy test
   frontend (NFR15).**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: NFR15 đã có quyết định: vitest + @vue/test-utils + happy-dom đã được thiết lập (package.json), và tests/frontend/editorTypingZone.test.ts mount THẬT GridPanel.vue (kế thừa EditorPanel.vue sau Story 2.5b) qua mount(), không còn là bản đo chép DOM một lần dùng; còn thiếu: happy-dom vẫn thiếu document.fonts và ResizeObserver không bắn thật (tests/frontend/support/setup.ts:22-52, cùng một giới hạn với mục nợ 4c937d6b4f), nên hình học UX-DR4 và pseudo-element vẫn chưa đo được ở tầng vitest. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn thiếu ở dòng trên vẫn đúng (happy-dom không đo được hình học UX-DR4 và pseudo-element); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - 🔴 **WKWebView THẬT (trong cửa sổ Tauri) vẫn CHƯA ĐO — bàn đo chạy WebKit của Playwright.**
   Đây là lượt đầu tiên của dự án có bằng chứng **WebKit** cho một bề mặt DOM *(mọi story trước đo
@@ -1822,6 +1833,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   **Nhặt lại:** một lượt `npm run tauri dev`, hoặc một spec e2e WebdriverIO khi bộ đó hết chập chờn.
   **Chủ: nợ chung "hai nền tảng" của 1.6/1.14/1.16/1.17/1.18/1.18b — nay thêm 2.2.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Story 1.22 đã dựng bộ e2e chạy THẬT trong webview sản phẩm (WKWebView/WebView2) qua @wdio/tauri-service (e2e/wdio.conf.mjs:17), đúng đường 'nhặt lại' mà mục nợ đề ra; còn thiếu: Grep getClientRects/innerText/WORD_JOINER trong e2e/specs/ không thấy spec nào lặp lại phép so hình học Blink-vs-WebKit cho chữ Hán Việt; phép đo trên WKWebView thật của sản phẩm vẫn chưa có. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn thiếu ở dòng trên vẫn đúng (chưa spec e2e nào so hình học chữ Hán Việt trên WKWebView thật); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - ⚠️ **Một luật hiển thị ngoài bảy AC: dòng *"Chương này đã tách thành câu, chưa câu nào có bản
   dịch"*.** Bảy AC không nói gì về ca *"đã tách, chưa câu nào có bản dịch"* — trước Quyết định #1
@@ -2316,6 +2328,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   **không** đo được rằng một phím **vật lý** `⌘↵` sinh ra đúng sự kiện đó — cùng hạng với vế *"một
   phím vật lý sinh ra `beforeinput`"* mà spec của Story 2.3 đã ghi.
   **Chủ: Story 1.22** *(nó sở hữu bộ chạy e2e và ba giới hạn chưa đóng của nó)*.
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: `editor-confirm-segment.e2e.mjs` vẫn phát `KeyboardEvent` tổng hợp, phím vật lý `⌘↵` chưa đo; hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - ⚠️ **Một `[Vue warn] Unhandled error during execution of native event handler` ở `EditorPanel`,
   BẮT NGUYÊN VĂN, CHƯA CHẨN ĐOÁN.** Xuất hiện trong mọi lượt chạy e2e của Story 2.5 *(kể cả lượt
@@ -2541,6 +2554,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   nó quyết định `contenteditable` đặt ở đâu.
 
   **Chủ: Story 2.5b** *(chuyển từ Story 2.4, Ice ký 2026-08-14)*.
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ AI-2) — spec Story 2.5b §Quyết định #6: Ice ký đường (a) không thư viện editor, và quyết định đứng sau phép đo Task 1.2.
 
 - 🔴 **BỘ E2E KHÔNG TỰ KIỂM DANH TÍNH PHIÊN — một lượt chạy có thể đo NHẦM ỨNG DỤNG.**
   *(Tìm ra 2026-08-14, Story 2.5b Task 1.2, vòng chẩn đoán 3.)*
@@ -2570,6 +2584,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 1.22** *(bộ chạy e2e trong webview thật — cùng chủ với ba giới hạn đã ghi ở
   `wdio.conf.mjs`)*.
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: hook `before` ở e2e/wdio.conf.mjs:856 chỉ nối cầu `invoke`, không khẳng định `location.href`/`#app`; cổng vẫn rơi về hằng 4445 khi không có `TAURI_WEBDRIVER_PORT`; hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - 🔴 **CÚ BẤM ĐẦU TIÊN VÀO MỘT PANEL GIẾT CARET VỪA ĐẶT — hợp đồng tiêu điểm AD-34 va vào
   hợp đồng vùng gõ.** *(Đo 2026-08-15, Story 2.5b Task 12.2, trong WKWebView 605.1.15 thật.)*
@@ -2648,6 +2663,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   chạy trọn và vẫn khẳng định được nhiều mệnh đề.
 
   **Chủ: Story 1.22** *(bộ chạy e2e — cùng chủ với ba giới hạn đã ghi ở `wdio.conf.mjs`)*.
+  → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ AI-2) — e2e/support/workspace.mjs:125 gọi `resetPanelState()` trong fixture dùng chung (Story 2.12 AC2).
 
 - ⚠️ **Command id nằm CỨNG trong spec e2e, và không cổng nào canh mối nối đó.**
   *(Tìm ra 2026-08-15, Story 2.5b.)*
@@ -2662,6 +2678,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   thật sẽ đóng nó, và nó rẻ — `check:commands` đã nạp bộ đăng ký sẵn.
 
   **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: không script `scripts/check-*.mjs` nào đọc `e2e/specs`; spec vẫn ghi cứng `TARGET_COMMAND` (shortcuts-capture-mouse.e2e.mjs:45). **Chủ: Amelia.**
 
 - 🟡 **TASK 7.3 ĐÃ ĐO — chiều cao hàng khi bật Hán Việt SONG SONG ở Ⓑ-2. Số XẤU HƠN ước
   lượng, và mối lo của `epics.md:2329` được XÁC NHẬN.** *(2026-08-15, WKWebView 605.1.15,
@@ -2753,6 +2770,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   bản ghi cũ nói là còn thiếu.
 
   **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: giả thuyết `dictSources` cần thêm một lượt IPC chưa đo; hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 ---
 
@@ -3807,6 +3825,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   ⚠️ Vế nghiệm thu *(một lượt trọn bộ tái lập được)* chưa chạy — xem món `AC7 · Task 8.4` ở cuối tệp.
   **Chủ: giữ nguyên — story hạ tầng e2e kế tiếp.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: _bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md:296-310 xác nhận cùng cảnh báo 'Tauri core.invoke not available after 5s' còn xuất hiện ở Epic 5 (nhiều tuần sau), nguyên nhân vẫn chưa ai đặt tên; còn thiếu: Nguyên nhân thật vì sao core.invoke của bàn đo không lên vẫn chưa được đặt tên; vế nghiệm thu trọn bộ tái lập được vẫn chưa chạy. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn hở vẫn đúng (vì sao `core.invoke` của bàn đo không lên chưa đặt tên); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 ## Deferred from: 2-9-gop-bang-backspace-dau-o (2026-08-17)
 
@@ -3897,6 +3916,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   `resetPanelState()` — một lượt `browser.execute` với năm `import()` — nên chi phí đó **phải được
   đo** ở lượt chạy trọn bộ đầu tiên. **Chủ: giữ nguyên.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: e2e/wdio.conf.mjs:599 mochaOpts.timeout vẫn đúng 120_000 (không nới, đúng luật cấm vá triệu chứng); epic-5-retro-2026-09-03.md xác nhận nguyên nhân gốc (core.invoke không lên) vẫn chưa đặt tên; còn thiếu: Trần 120s vẫn còn ít biên và nguyên nhân thật vẫn treo; một fixture nặng thêm vẫn có thể đẩy một ca qua trần bất cứ lúc nào. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn hở vẫn đúng (trần `mochaOpts.timeout` 120 s, nguyên nhân `core.invoke` chưa đặt tên); hạ tầng e2e chưa story nào nhận sau khi Story 1.22 done. **Chủ: Murat.**
 
 - 🔴 **Cử chỉ chuột của lưới KHÔNG CỔNG NÀO CANH, và nay chúng đã có ba.** Story 2.9 thêm cái
   thứ ba *(`Mod`+click đánh dấu chỗ cắt)* bên cạnh hai cái sẵn có ở cột nguyên văn — bấm trơn
@@ -4087,6 +4107,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: bộ e2e trong CI** *(hôm nay e2e không chạy trên runner nào — action item A5 của retro
   Epic 1 đã ghi vế Windows của cùng khoảng trống này)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Commit fffd9c2 (2026-08-20) thêm job e2e nightly trên macOS chạy tự động, gồm cả segment-navigation.e2e.mjs ca Ⓒ+Ⓔ (AC8) — lưới không còn 'chạy tay' như mục ghi lúc viết (2026-08-18); còn thiếu: Vẫn không cổng tĩnh nào canh scroll-behavior của engine; nửa Windows/WebView2 chưa chạy e2e lần nào (AGENTS.md gốc), và bộ e2e từng đỏ bảy đêm liên tiếp sau đó. **Chủ: Story 1.22.**
+  → 2026-09-23 (rà sổ nợ AI-2) — phần còn thiếu ở dòng trên là nửa Windows/WebView2; B7 nhận mọi nợ Windows của Epic 1 và Epic 2. **Chủ: B7.**
 
 - ⚠️ **Ba lượt đột biến của Story 2.10 cho một bài học phương pháp, ghi lại vì nó sẽ lặp.** Ca
   e2e §Ⓒ *("đã cuộn" + "hàng nằm trọn")* **xanh ở CẢ HAI** thế giới — có `cuonToiHang` và không.
@@ -4369,6 +4390,7 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   rủi ro thấp — **và luật của kho vẫn cấm chấm đạt bằng suy luận đó**.
   **Chủ: Story 1.22** *(hạ tầng e2e hai nền tảng — gộp cùng hai vế Blink đã ghi ở trên, một lượt
   chạy trả lời cả ba)*.
+  → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: chưa lượt e2e nào chạy trên WebView2; B7 nhận mọi nợ Windows của Epic 1 và Epic 2. **Chủ: B7.**
 
 - ⚠️ **Cạm bẫy 8 — vế phía CLIENT của AC1 chưa có phép kiểm nào, và Task 1.5 nói đừng lặng lẽ gộp
   nó vào AC1.** `devServerIsUp` + `assertModuleGraphHealthy` canh phía **máy chủ**; một cửa sổ

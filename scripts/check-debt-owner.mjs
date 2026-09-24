@@ -19,6 +19,9 @@
  * Kiểm B — TỰ KIỂM: chứng minh Kiểm A đỏ được, và không đỏ oan — trên chính hai lớp bẫy
  *          đã đo được lúc dựng bộ đếm này (Task 1.2 của story): một ngày bị đọc nhầm thành
  *          số Epic, và `Chủ:` viết nhiều dạng.
+ * Kiểm C — mục MỞ hoặc 🟡 mà `Chủ:` cụ thể CUỐI CÙNG trỏ vào một story/epic `sprint-status.yaml`
+ *          ghi `done`, hoặc không có trong đó, là mục treo: chủ đã đóng hoặc không tồn tại mà nợ
+ *          chưa đóng. Tự kiểm của C nằm trong Kiểm B.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÌ SAO LUẬT NHẬN DIỆN "MỘT MỤC" VÀ "CÓ CHỦ" LÀ DỤNG CỤ ĐO CỦA AC1 — VÀ CHƯA TỪNG ĐƯỢC
@@ -55,7 +58,7 @@
  *     văn xuôi tự do sẽ trượt.
  *
  * Chạy:
- *   npm run check:debt-owner            — Kiểm A + B, mã thoát là phán quyết (cổng)
+ *   npm run check:debt-owner            — Kiểm A + B + C, mã thoát là phán quyết (cổng)
  *   node scripts/check-debt-owner.mjs --report   — in bốn con số AC5, KHÔNG đổi mã thoát theo A
  *   node scripts/check-debt-owner.mjs --surface  — phân loại các mục mồ côi theo bề mặt (Q.định #5)
  *   node scripts/check-debt-owner.mjs --list     — liệt kê từng mục mồ côi kèm dòng
@@ -109,6 +112,7 @@ export function resolveDebtPath(argv, repoRoot, cwd) {
 
 /** Sổ nợ THẬT — đường duy nhất Kiểm A được phép đọc. */
 const REAL_DEBT_PATH = join(REPO_ROOT, '_bmad-output', 'implementation-artifacts', 'deferred-work.md')
+const SPRINT_STATUS_PATH = join(REPO_ROOT, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml')
 
 /**
  * 🔴 **LƯỢT RÀ 2026-08-19 — BẢN VÁ `--file` ĐẦU CỦA TÔI TỰ PHÁ CHÍNH LỜI HỨA CỦA NÓ.**
@@ -173,18 +177,67 @@ const BLOCK_START_RE = /^## /
 const CONCRETE_OWNER_RE =
   /^(?:(?:Ice|Winston|Sally|John|Amelia|Murat|Mary)\b|[Ss]tory\s+\d+\.\d+|[Ee]pic\s+\d+|[A-Z]\d+\b|\d+-\d+[a-z]?-)/u
 
-/** Tìm mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục; trả về có ít nhất MỘT chủ THẬT. */
-function detectOwner(text) {
+/** Mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục, theo thứ tự đọc: 60 ký tự sau nhãn. */
+function ownerMentions(text) {
   const re = /chủ:\**\s*/giu
+  const out = []
   let m
-  let any = false
-  let positive = false
   while ((m = re.exec(text))) {
-    any = true
-    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 60).replace(/^[\s*(`~_]+/u, '')
-    if (CONCRETE_OWNER_RE.test(after)) positive = true
+    out.push(text.slice(m.index + m[0].length, m.index + m[0].length + 60).replace(/^[\s*(`~_]+/u, ''))
   }
-  return { any, positive }
+  return out
+}
+
+/** Trả về có ít nhất MỘT chủ THẬT. */
+function detectOwner(text) {
+  const mentions = ownerMentions(text)
+  return { any: mentions.length > 0, positive: mentions.some((a) => CONCRETE_OWNER_RE.test(a)) }
+}
+
+const STORY_OWNER_RE = /^(?:[Ss]tory\s+(\d+)\.(\d+[a-z]?)\b|(\d+-\d+[a-z]?)-|[Ee]pic\s+(\d+)\b)/u
+
+// A later `Chủ:` replaces an earlier one; a vague later owner does not hide a dead concrete one.
+/** Khoá `sprint-status.yaml` (`3-4b`, `epic-7`) của chủ cụ thể cuối cùng; `null` nếu đó không phải story/epic. */
+function latestOwnerKey(text) {
+  let key = null
+  for (const after of ownerMentions(text)) {
+    if (!CONCRETE_OWNER_RE.test(after)) continue
+    const s = STORY_OWNER_RE.exec(after)
+    key = !s ? null : s[4] ? `epic-${s[4]}` : (s[3] ?? `${s[1]}-${s[2]}`)
+  }
+  return key
+}
+
+const SPRINT_STORY_RE = /^ {2}(\d+-\d+[a-z]?)-[^:\s]+:\s*([a-z-]+)\s*$/
+const SPRINT_EPIC_RE = /^ {2}(epic-\d+):\s*([a-z-]+)\s*$/
+const SPRINT_RETRO_RE = /^ {2}epic-\d+-retrospective:\s*[a-z-]+\s*$/
+
+/** Khối `development_status:` của `sprint-status.yaml` ⇒ Map khoá → trạng thái. Dòng lạ ⇒ ném. */
+function parseSprintStatus(yamlText) {
+  const lines = yamlText.split('\n')
+  const start = lines.findIndex((l) => /^development_status:\s*$/.test(l))
+  if (start === -1) throw new Error('khong thay khoi `development_status:`')
+  const status = new Map()
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (/^\S/.test(line)) break
+    if (/^\s*(#.*)?$/.test(line) || SPRINT_RETRO_RE.test(line)) continue
+    const m = SPRINT_STORY_RE.exec(line) ?? SPRINT_EPIC_RE.exec(line)
+    if (!m) throw new Error(`dong ${i + 1} khong dung hinh dang \`<khoa>: <trang thai>\`: ${line}`)
+    if (status.has(m[1])) throw new Error(`khoa ${m[1]} xuat hien hai lan (dong ${i + 1})`)
+    status.set(m[1], m[2])
+  }
+  return status
+}
+
+/** Mục mở/🟡 có chủ cụ thể cuối cùng là story/epic đã `done` hoặc không có trong sprint-status. */
+function staleOwnerItems(items, sprintStatus) {
+  return items.filter(
+    (i) =>
+      (i.status === 'open' || i.status === 'half') &&
+      i.latestOwnerKey !== null &&
+      (!sprintStatus.has(i.latestOwnerKey) || sprintStatus.get(i.latestOwnerKey) === 'done'),
+  )
 }
 
 /** Emoji dẫn đầu của chính dòng bullet (sau khi gỡ `- ` và bọc `**`/`*`/`🔴`/`⚠️`/`🔵` mở đầu
@@ -277,6 +330,7 @@ function parseItems(fileText) {
     const { any, positive } = detectOwner(it.text)
     it.hasOwnerMention = any
     it.hasOwner = positive
+    it.latestOwnerKey = latestOwnerKey(it.text)
   }
   return items
 }
@@ -379,6 +433,34 @@ const SELFTEST_CASES = [
   ['chủ mơ hồ cũ + chủ THẬT nối sau ⇒ có chủ', '- Việc M. **(Chủ: một story kế tiếp.)**\n  → 2026-09-23 (rà sổ nợ) — vẫn đúng. **Chủ: Story 7.3.**', false],
 ]
 
+/** Kiểm C: trạng thái sprint GIẢ, cố định — tự kiểm không đọc `sprint-status.yaml` thật. */
+const STALE_SELFTEST_STATUS = new Map([
+  ['1-2', 'backlog'],
+  ['1-22', 'done'],
+  ['3-4b', 'done'],
+  ['3-8', 'done'],
+  ['7-3', 'backlog'],
+  ['epic-3', 'done'],
+])
+/** [tên ca, mảnh văn bản một mục, mong: treo hay không] */
+const STALE_SELFTEST_CASES = [
+  ['chủ duy nhất là story đã done ⇒ TREO', '- Việc A. **(Chủ: Story 3.8.)**', true],
+  ['chủ story done + chủ Ice nối sau ⇒ không treo', '- Việc B. **(Chủ: Story 3.8.)**\n  → vẫn đúng. **Chủ: Ice.**', false],
+  ['chủ story done + story backlog nối sau ⇒ không treo', '- Việc C. **(Chủ: Story 3.8.)**\n  → vẫn đúng. **Chủ: Story 7.3.**', false],
+  ['chủ Ice + story done nối sau ⇒ TREO', '- Việc D. **(Chủ: Ice.)**\n  → giao lại. **Chủ: Story 1.22.**', true],
+  ['chủ story done + chủ mơ hồ nối sau ⇒ vẫn TREO', '- Việc E. **(Chủ: Story 3.8.)**\n  → **Chủ: một story kế tiếp.**', true],
+  ['mục 🟡 có chủ cuối là story done ⇒ TREO', '- Việc F. **(Chủ: Story 3.8.)**\n  → 🟡 một nửa xong.', true],
+  ['mục ✅ đóng, chủ story done ⇒ không treo', '- Việc G. **(Chủ: Story 3.8.)**\n  → ✅ ĐÃ ĐÓNG 2026-09-23.', false],
+  ['mục KHÔNG LÀM, chủ story done ⇒ không treo', '- Việc H. **(Chủ: Story 3.8.)**\n  → KHÔNG LÀM 2026-09-23 (Story 3.8) — lý do.', false],
+  ['`Chủ: Epic 3` đã done ⇒ TREO', '- Việc I. **(Chủ: Epic 3.)**', true],
+  ['khoá story `3-4b-…` đã done ⇒ TREO', '- Việc J. **(Chủ: 3-4b-ten-story.)**', true],
+  ['`Story 3.4b` đọc thành `3-4b` ⇒ TREO', '- Việc K. **(Chủ: Story 3.4b.)**', true],
+  ['`Story 1.2` (backlog) KHÔNG bị đọc thành `1-22` (done)', '- Việc L. **(Chủ: Story 1.2 / 10.5.)**', false],
+  ['`Story 9.99` không có trong sprint-status ⇒ TREO', '- Việc M. **(Chủ: Story 9.99.)**', true],
+  ['`Epic 99` không có trong sprint-status ⇒ TREO', '- Việc N. **(Chủ: Epic 99.)**', true],
+  ['chủ không phải story/epic (`B7`) ⇒ không treo', '- Việc O. **(Chủ: Story 3.8.)**\n  → **Chủ: B7.**', false],
+]
+
 function runSelftest() {
   console.log('Kiểm B — TỰ KIỂM: chứng minh Kiểm A đỏ được, và không đỏ oan\n')
   let bad = 0
@@ -424,6 +506,25 @@ function runSelftest() {
     }
   }
 
+  for (const [name, fragment, expectStale] of STALE_SELFTEST_CASES) {
+    const items = parseItems(fragment)
+    const stale = items.length === 1 && staleOwnerItems(items, STALE_SELFTEST_STATUS).length === 1
+    if (stale !== expectStale) {
+      fail(
+        `tự kiểm C — ca "${name}": mong ${expectStale ? 'TREO' : 'KHÔNG treo'}, ` +
+          `nhận ${items.length} mục, status=${items[0]?.status} latestOwnerKey=${items[0]?.latestOwnerKey}`,
+      )
+      bad += 1
+    }
+  }
+  try {
+    parseSprintStatus('development_status:\n  1-2-a: done\n  la dong: [khong hop le]\n')
+    fail('tự kiểm C — `parseSprintStatus` nhận một dòng lạ trong `development_status:` thay vì ném')
+    bad += 1
+  } catch {
+    // expected: unknown syntax must abort, never read as "no status"
+  }
+
   // 🔴 **GIÁ TRỊ MONG ĐỢI DỰNG BẰNG `join`, KHÔNG BẰNG MỘT CHUỖI POSIX VIẾT CỨNG.**
   //
   // ⚠️ Đo được trên CI 2026-08-19, lượt `32230261773`: bốn ca dưới đây **ĐỎ trên `windows-2025`**
@@ -458,6 +559,7 @@ function runSelftest() {
   if (bad === 0) {
     pass(
       `${SELFTEST_CASES.length} ca tự kiểm mục + 1 ca thẻ-trên-\`---\` + ` +
+        `${STALE_SELFTEST_CASES.length} + 1 ca Kiểm C + ` +
         `${caDuong.length} ca đường dẫn \`--file\` (đối chứng dương + âm) đều đúng`,
     )
   }
@@ -495,6 +597,20 @@ try {
 
 const items = parseItems(raw)
 const summary = summarize(items)
+
+let sprintStatus
+try {
+  sprintStatus = parseSprintStatus(readFileSync(SPRINT_STATUS_PATH, 'utf8'))
+} catch (err) {
+  abort(SPRINT_STATUS_PATH, err)
+}
+const SPRINT_KEY_FLOOR = 130
+if (sprintStatus.size < SPRINT_KEY_FLOOR) {
+  abort(
+    `sprint-status.yaml — chi ${sprintStatus.size} khoa, duoi san ${SPRINT_KEY_FLOOR}`,
+    new Error('Kiem C khong co trang thai story nao de doi chieu thi luon xanh.'),
+  )
+}
 
 /**
  * 🔴 **SÀN QUẦN THỂ — *"cây rỗng không phải cây sạch"*. Thêm ở lượt rà 2026-08-19 (tầng Edge Case).**
@@ -608,6 +724,20 @@ if (summary.orphans.length === 0) {
     detail(`deferred-work.md:${it.line}`)
   }
   if (summary.orphans.length > 20) detail(`… và ${summary.orphans.length - 20} mục khác. Chạy --list để xem hết.`)
+}
+
+console.log('')
+console.log('Kiểm C — mục MỞ/🟡 không được có chủ cuối cùng là story/epic đã done hoặc không tồn tại\n')
+const stale = staleOwnerItems(items, sprintStatus)
+if (stale.length === 0) {
+  pass(`0/${summary.open + summary.half} mục mở/🟡 treo trên chủ đã done hoặc không tồn tại — đối chiếu ${sprintStatus.size} khoá sprint-status`)
+} else {
+  fail(`${stale.length} mục mở/🟡 có chủ cuối cùng là story/epic đã done hoặc không tồn tại`)
+  for (const it of stale.slice(0, 20)) {
+    detail(`deferred-work.md:${it.line}  (${it.latestOwnerKey}: ${sprintStatus.get(it.latestOwnerKey) ?? 'không có trong sprint-status'})`)
+  }
+  if (stale.length > 20) detail(`… và ${stale.length - 20} mục khác.`)
+  detail('Nối một dòng `→ …` vào mục: đóng nó, hoặc ghi `Chủ:` mới còn sống. Đừng sửa chủ cũ.')
 }
 
 console.log('')

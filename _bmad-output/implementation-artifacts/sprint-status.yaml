@@ -592,7 +592,10 @@ action_items:
       thi DO. Ca hai ve deu nam trong tep nen phep kiem chay duoc khong can con nguoi.
       28 muc hien treo la bo ca do dau tien cua no. Do 2026-08-26: khoi Epic 3 cua
       deferred-work.md (dong 5413-7847) co 89 muc, 38 muc giao chu la mot STORY, 29
-      muc chua co dong dong, 28 trong so do tro vao story Epic 3 DA `done`."
+      muc chua co dong dong, 28 trong so do tro vao story Epic 3 DA `done`.
+      🔵 2026-09-23: doc `Chu:` CUOI CUNG cua muc (chu viet sau thay chu viet truoc),
+      va `-> 🟡` KHONG tinh la dong dong; doc theo cau chu cu thi 41 muc vua giao chu
+      moi do oan vi `Chu:` cu van nam trong van ban."
     owner: "Dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -606,9 +609,11 @@ action_items:
       gio duoc dung (`grep -rE 'HasScanned|hasScanned|ScanStatus' src/ src-tauri/src/`
       = 0). Hau qua la dung lop loi trung tam cua du an: man Duyet hang loat doc `status='loaded'`
       voi 0 hang, khong phan biet duoc \"rong vi mat\" voi \"rong vi khong co ung
-      vien\", va du lieu khong hoi phuc."
+      vien\", va du lieu khong hoi phuc.
+      🔵 2026-09-24: Ice xac nhan dong — `check:debt-owner` Kiem C cho 0/604 muc mo/🟡
+      co chu cuoi cung la story da done hoac khong ton tai."
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
   - id: "epic-3-retro-item-38-ai-4-cho-moi-cong-doc-src-mot-phep-tu-do"
     epic: 3
