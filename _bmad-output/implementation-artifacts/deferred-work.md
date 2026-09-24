@@ -2326,6 +2326,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 🔵 Đường thứ ba là đường sạch nhất về mặt phương pháp và **chưa ai thử**.
 
 **Chủ: Ice** · mở khi cần một bảng NFR2 nói được về tiếng Việt.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 10.9.**
 
 ---
 
@@ -3474,6 +3475,7 @@ mục nào mồ côi.
   ⚠️ Nhưng lý do đó áp cho **cả sáu** adapter kia y hệt, nên lượt này đóng lỗ ở **hai** chỗ và để
   hở ở **sáu**. Câu hỏi thật là một câu hỏi **quy ước**: nâng cả sáu lên, hay hạ hai cái này
   xuống và tin vào lưới Rust + e2e. Không cổng nào canh sự nhất quán này. **Chủ: Ice.**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.5.**
 
 ## Deferred from: code review of 2-6-lich-su-phien-ban-segment-va-khoi-phuc (2026-08-16)
 
@@ -6541,6 +6543,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hợp lệ và cần Ice chốt: ① nới trần thời gian cho nhóm ca mount component; ② ghim
     `fileParallelism` cho cây test frontend. **(Chủ: Ice — đây là một quyết định về cấu hình bộ
     chạy, không phải một dòng vá; lượt đầu tiên chạm `vitest.config` mở lại.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - source_spec: none
   summary: **Cụm F — 🔵 SỬA 2026-08-26: đúng mười bốn mục rải rác, không mười bảy** (danh sách
@@ -7281,6 +7284,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đi qua êm. **Vế "lượt đỏ đã xảy ra chưa chẩn đoán được" VẪN MỞ, không làm tròn lên ✅** — một
     hàng rào mới chỉ là một cơ chế PHÁT HIỆN cho lần sau, nó không giải thích được nguyên nhân của
     lượt đỏ đã xảy ra trong quá khứ. Chủ giữ nguyên Ice.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
   summary: **Mở Library hôm nay không có đường ĐỌC THUẦN — mọi lượt hiện danh sách mục mồ
@@ -7427,6 +7431,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     sang một bàn đo chạy tay có tiêu điểm hệ điều hành thật.
     **(Chủ: Ice — cùng chủ với hai mục "nhịp đêm đỏ, chết ở CẦU IPC" và "hai spec chập chờn":
     cả ba là câu hỏi về ĐỘ TIN CẬY và PHẠM VI của bộ e2e, không về một story cụ thể.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - ⚠️ **`story-5-6-library-grid.e2e.mjs` ĐỎ ở baseline `6b2cb24`, và Story 5.6 vẫn đang mở** —
   ghi ra để lượt chạy e2e kế tiếp không đọc nhầm nó thành hồi quy của Story 5.7.
@@ -7521,6 +7526,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⇒ Đây KHÔNG phải một mục thứ hai cần điều tra riêng — nó là cùng một khuyết tật bàn đo,
     ghi ra ở đây để lượt đọc sau không tưởng nhánh tách đã được phủ bằng bàn phím.
     **(Chủ: Ice — cùng chủ với mục gốc ở §"Deferred from: 5-7…".)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 ## Deferred from: 5-9-tim-kiem-full-text-xuyen-library (2026-08-29)
 
@@ -7631,6 +7637,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     thật trong dữ liệu người dùng. ⇒ Phải ĐO trước khi sửa: một lượt chuẩn hoá đặt sai chỗ
     (chỉ ở truy vấn mà không ở lúc lập chỉ mục, hoặc ngược lại) làm hỏng đúng thứ nó định sửa.
     **(Chủ: Ice — quyết định áp cho CẢ đường từ điển lẫn đường Library, tức rộng hơn một story.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.3.**
 
 - ⚠️ **Trần ứng viên của nhánh `trigram` sắp theo `(work_id, chapter_ord, segment_ord)`, không
   theo khả năng khớp — trên một thư viện lớn, ứng viên dương-tính-giả dồn ở các `work_id` đầu
@@ -7700,6 +7707,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nhắc riêng, không phải một dòng thêm.
     **(Chủ: Ice — quyết định "một Tác phẩm hỏng thì hỏng riêng nó" có đáng một giao dịch lồng
     hay một lượt ghi theo từng Tác phẩm hay không là một quyết định kiến trúc, không một bản vá.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 ---
 
@@ -7800,6 +7808,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Cùng hình dạng với mục AI-7 (`blocking_pick_file` treo cửa sổ vì chỗ tham chiếu khai `async fn`).
     **(Chủ: Ice — quyết xem bàn đo có phải mang một ca tự kiểm cho chính đường điều phối pha không,
     hay chấp nhận rằng harness chỉ được nghiệm thu bằng một lượt chạy thật.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 ## Deferred from: retro Epic 5 — lượt sửa AI-2/AI-3 (2026-09-03)
 
@@ -7875,6 +7884,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     hoặc nhận rằng bốn ca ấy đo mã CỘNG máy và viết lại chúng cho tất định. Đường thứ nhất là
     đường rẻ nhất và cũng là đường dễ thành "hạ ngưỡng cho cổng hết đỏ" nhất — nếu chọn nó thì
     con số phải đến từ một phép đo trên máy tải cao, ghi kèm ngày.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 ## Deferred from: vòng rà spec AI-2/AI-3 (2026-09-03)
 
@@ -8267,6 +8277,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
 
   **Chủ: Ice quyết chiến lược lấy mẫu (mở cửa sổ / lấy mẫu nhiều điểm / giữ nguyên và đổi câu
   cảnh báo) — sau đó, story nào cầm quyết định đó thi hành.**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - ⚠️ **Nhánh "`chardetng` đoán TRÚNG một bảng FR126 nhưng chính bảng ấy giải mã TRƯỢT" chưa
   có cổng, và lý do từ chối vá là một phép LẤY MẪU, không phải một phép chứng minh.** Vòng rà
@@ -8566,6 +8577,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   lẫn CI. **Chủ vế còn hở: Ice** — gỡ phụ thuộc wall-clock khỏi bốn tệp
   (`editorClearSourceCuts` · `editorTypingZone` · `glossaryHoverSelection` ·
   `glossaryMarksRefresh`) rồi mới bật lại song song được.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 ## Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)
 
@@ -9238,6 +9250,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mã đa byte giải sai HIẾM KHI tạo ra cú pháp thẻ HTML hợp lệ khác — ASCII `<`/`>`/`=`/`"` gần
   như luôn giữ nguyên byte qua mọi bảng mã phổ biến), hay (b) dựng cơ chế phát hiện "cấu trúc
   khối đã đổi" (so số khối/thứ tự) và RESET override kèm cảnh báo khi phát hiện lệch.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - ⚠️ **Vế "khớp một luật làm sạch với ĐÚNG khối đang chọn" (kế thừa từ Story 6.5, đóng lại ở
   Story 6.9 bằng đường khác — xem mục `## Deferred from: 6-5-…` phía trên) đòi
@@ -9246,6 +9259,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tầng 3"), không phải một hành động khớp-theo-khối như Story 6.5 từng gợi ý. **Chủ: Ice** —
   quyết định kiến trúc (thêm tham số phạm vi ký tự vào `core::cleanup::apply`, hay một cơ chế
   khác) trước khi giao một story sau dựng thao tác này.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - ⚠️ **Không phép đo hiệu năng nào trên đường XEM TRƯỚC URL, và story này vừa làm nó nặng lên
   đáng kể.** Mỗi lượt bấm `Space`/`[`/`]` chạy lại trọn chuỗi cho **cả năm** ứng viên bảng mã,
@@ -9321,6 +9335,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   80–85 % của 63) là một quyết định về SÀN, không phải một chi tiết cài đặt; cần một story/lượt
   riêng đo lại cả bốn cổng cùng họ (`check-i18n`/`check-commands`/`check-tokens`/
   `check-panel-refs`) một lượt, không phải sửa lẻ từng cổng.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.1.**
 
 - ⚠️ **Danh sách tầng 4 (tách Chương) vẫn KHÔNG chọn được bằng chuột — nợ 6.10a CHƯA đóng được
   vì một xung đột kiến trúc, không phải vì chưa làm tới.** Xem chi tiết đầy đủ tại chỗ mục nợ
@@ -9521,6 +9536,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chỉ mang `srcset` (không `src`) cao tới đâu trước khi quyết định `Extractor` có nên đọc thêm
   `srcset` (lấy ứng viên đầu tiên, hay ứng viên độ phân giải cao nhất) hay không — chưa story
   nào nhận việc này, cần Ice giao trước khi một dev tự chọn.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - ⚠️ **`image/svg+xml` bị loại VĨNH VIỄN — một quyết định kiến trúc (§Never spec 6.11, AD-16),
   không một chỗ tạm bợ chờ vá.** Ghi lại rõ để người sau không đọc nhầm đây là một việc "còn
@@ -9567,6 +9583,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `asset_contract.rs`, cùng ngày). Ca này giờ **cũng chỉ nghiệm thu trên Unix**, đúng lý do hệt
   ca kia (quyền thư mục kiểu Unix) — cùng hai lựa chọn ①/② ở trên áp dụng cho CẢ HAI ca, không
   chỉ ca đầu.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - ⚠️ **`core::webimport::assets::is_raster_image_mime` xuất khẩu công khai nhưng có **0 chỗ gọi
   sản phẩm** — đúng lớp nợ mà chính story này vừa đóng ba mục.** Đo 2026-09-08 bằng phép GỠ
@@ -9583,6 +9600,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   luật *"luật đã hiển nhiên thì gỡ"*, và không dựng thêm một hàm bỏ không); ② **giữ** như một
   mệnh đề công khai đặt tên cho danh mục ĐÓNG, chấp nhận nó là hàm không ai gọi cho tới khi có
   chỗ gọi thật. Đừng để mục này chết bằng cách quên.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 ## Deferred from: spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc — vòng rà đối kháng bước 4 (2026-09-08)
 
@@ -9648,6 +9666,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chú thích nhắc lại chuỗi `#[cfg(test)]`) — thứ CHƯA có là một ca gieo một vi phạm THẬT vào
   vùng mã sản phẩm của một tệp được quét rồi khẳng định cổng đỏ. **Chủ: Ice** — cùng họ với ba
   cổng khác dùng khuôn `code_lines` + vị từ + đếm; nên đo một lượt cho cả họ, không vá lẻ.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.1.**
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: "`asset.source_url` ghi URL YÊU CẦU (`src` đã phân giải tuyệt đối), không phải
@@ -9739,6 +9758,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — sửa đúng cần `extract_main_content` chuyển thành một quyết định THEO TỪNG
   Chương (không phải một cờ toàn cục cho cả `PipelineInput`), một thay đổi cấu trúc vượt
   phạm vi một lượt vá nhỏ.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Chưa ca nào phủ một ảnh chuyển hướng CHÉO Chương tới host của một ảnh Ở CHƯƠNG
@@ -9817,6 +9837,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — quyết định có cần chuyển phép kiểm tồn tại lên TRƯỚC `normalize_chapter_ord`
   hay không (một thay đổi hành vi ngoài phạm vi story 6.11 — Story 5.8 sở hữu hàm này); ghi
   nợ, không sửa trong story này.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.5.**
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: `core::docx` chỉ đọc ảnh nhúng dạng DrawingML (`<w:drawing>`/`a:blip`) và một phần
@@ -9858,6 +9879,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   RIÊNG trong danh sách phẳng, hay lồng vào `paragraphs_per_cell` của ô cha (đổi kiểu đó từ
   `Vec<usize>` sang một cấu trúc cây)? Đây là quyết định hình dạng dữ liệu, không phải một
   lượt vá.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: nợ `:2214` ("câu bị cắt giữa ô bảng") chỉ đóng cho `.docx` (bảng CÓ CẤU TRÚC,
@@ -9916,6 +9938,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   target `#[ignore]` chạy tay như `webimport_probe.rs`/`docx_probe.rs`) hay chấp nhận rủi ro
   đỏ ngẫu nhiên này ở CI/pre-push — đây là quyết định kiến trúc bộ test của Story 6.11, ngoài
   phạm vi Story 6.12 để tự quyết định sửa.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: bắt được sau code review — `DocxSidecar::blocks` gắn TRỌN VẸN vào Chương ĐẦU
@@ -9980,6 +10003,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   không ghi cột này) trước khi cân nhắc một luật lọc `alt` rác (ví dụ độ dài tối thiểu, hay
   loại các mẫu số thuần) — một luật lọc dựng SỚM mà không có số đo đứng sau là đúng lớp lỗi
   AGENTS.md cấm ("đo trước khi chốt kiến trúc").
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ④ vai bị MẤT khi người dùng gộp/tách câu chạm vào một segment vai — `write_regroup`
@@ -10044,6 +10068,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   lệnh IPC hẹp chỉ trả lại `assets` của Chương: giữ được chủ ý trên, nhưng thêm một lệnh mới
   và một lượt IPC thứ hai cho mỗi lượt gộp/tách. Webview KHÔNG được tự đoán neo mới — quy tắc
   dời neo là một luật có ca biên thật, AD-1 cấm nó sống ở webview.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Vế **hình học** của FR42/FR43 — "ảnh hiện đúng chỗ và năm cột của lưới CÒN thẳng
@@ -10088,6 +10113,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chỗ gọi nó đều nằm trong module `wire` — hàm thuần mà test gọi không đi qua đó."
   chủ: Ice — cùng chủ với mục gốc (Story 6.12). Mục này KHÔNG đề xuất sửa; nó chỉ ghi rằng lời
   giải thích đang có đã hết đủ, để lượt điều tra sau không dừng ở một cơ chế sai.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Đối chứng đỏ ② của spec 6.14 — *"gỡ lượt cấp scope động ⇒ `<img>` phải trượt với
@@ -10148,6 +10174,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   nguyên nhân thật. Không vá ngay vì sửa đúng đòi đổi kiểu trả về của cả hai lệnh IPC sang một
   nhánh lỗi mới — hơn hẳn một phép sửa thẳng, và chưa ai dựng được một `.atproj` như thế để đo."
   chủ: Ice — cùng lớp với mọi vế NFR14 chưa đo trên Windows của kho.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Lỗi *"gộp/tách làm ảnh biến mất khỏi lưới"* không có ca test nào ghim, nên nó có thể
@@ -10173,6 +10200,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   CSS: đúc một token chữ nghiêng thật trong `src/tokens/` (kèm cặp face/size như mọi token
   khác), hay cấp một miễn trừ CÓ TÊN cho `font-style` trong `check:tokens`. Cả hai đều mở một
   cửa cho MỌI component sau này, nên không phải phán quyết của một story.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Bốn cờ `*_confirmed` của `ChapterOriginWire` khai là 'người dùng đã chạm ĐÚNG ô
@@ -10189,6 +10217,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — sửa đúng đổi hình dạng draft (theo dõi từng ô đã chạm) CỘNG API `@commit` của
   component dùng chung bởi hai bề mặt; cả hai đều vượt một lượt vá nhỏ, và nếu phép đo trên cho
   thấy giá trị máy KHÔNG đổi giữa các ứng viên thì món này rớt xuống thuần tuý dọn hợp đồng.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Không ca test nào chạy `chapter.origin_url` qua một lượt CHUYỂN HƯỚNG thật — quyết
@@ -10265,6 +10294,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     the deadline is actually hit.
   **Chủ: Ice** — cần một quyết định (cho phép panic khi không hội tụ, hay chấp nhận đọc mù) chứ
   không phải một bản vá; và cần một lượt CI để biết hạn chót có bị chạm thật không.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.5.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ca-wal-do-tren-windows.md`
   summary: `file_len` swallows a `fs::metadata` error as `0`, which would turn a transient stat
@@ -10276,6 +10306,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     to read a missing sidecar as `0`; if none, make the helper panic with the path and the error.
   **Chủ: Ice** — helper dùng chung cho cả tệp, nên đổi nó là một quyết định ngoài phạm vi story
   này; không story nào đang chạy được phép tự siết nó.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.5.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ca-wal-do-tren-windows.md`
   summary: The seven `windows-2025` nightlies are cited by date and value but never by CI run ID,
@@ -10322,6 +10353,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `@wdio/cli` pins, or add a load-time assertion that both resolve to the same module.
   **Chủ: Ice** — đụng `package.json` và cửa rà gói phụ thuộc, nằm ngoài quyền của một spec
   harness.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
   summary: One prototype full run (E2, relaunch plus fresh dirs) had `story-5-7-open-chapter`
@@ -10431,6 +10463,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Ice** — cùng chủ với món nợ ngân sách thời gian / tiến độ / huỷ giữa chừng của vòng
     lặp ảnh (§*Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc*), vì đo cái này mà
     không đo cái kia thì vô nghĩa.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
   summary: Tám vỏ đồng bộ nữa đã bị lượt điều tra AI-4 ĐÁNH DẤU là ứng viên nhưng nằm ngoài
@@ -10527,6 +10560,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     (nơi đã ghi "VỎ RUST KHÔNG bị xoá") đang giữ một bề mặt IPC không ai dùng. Không sửa trong
     AI-4 vì xoá một vỏ IPC là một quyết định sản phẩm, không phải một bản vá của vòng rà.
   **Chủ: Ice**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-7-mot-ham-cat-khop-trim-cua-javascript.md`
   summary: Ba nơi cắt CÙNG hình dạng `trimmed_or_none` cho cột `title` (không phải
@@ -10543,6 +10577,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Ice** — trước khi gộp, đo lại y hệt cách D1 đã đo cho `ChapterOrigin` (đối chiếu tập
     ký tự hai máy JS với `str::trim()` của Rust cho ĐÚNG đường JS mà `title` đối chiếu), vì
     không có gì đảm bảo cùng một hình dạng thân hàm thì cùng một luật cắt là đúng.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-7-mot-ham-cat-khop-trim-cua-javascript.md`
   summary: D1 (luật cắt bốn cột `ChapterOrigin` nay khớp Y HỆT tập của JS `.trim()`) mở một hệ
@@ -10817,6 +10852,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mục tổng quát ở spec 6.11; cần một quyết định phạm vi CHUNG cho cả hai đường (một lượt quét
   đối chiếu `assets/` với bảng `asset` trên toàn `.atproj`, chạy khi nào) trước khi một dev tự
   chọn — xem mục 6.11 để không mở hai hướng giải quyết khác nhau cho cùng một lớp lỗi.
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 ## Deferred from: 6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu (2026-09-16)
 
@@ -10864,6 +10900,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     tiếng động — đúng là lớp lỗi mà cả Epic 6 tồn tại để chặn. Thứ sẽ giải quyết: hoặc một
     `debug_assert_eq!` ba độ dài, hoặc chở hai tín hiệu BÊN TRONG `BilingualRow` để lệch trở thành
     không biểu diễn được. **Chủ: Ice**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: Danh sách Chương song ngữ KHÔNG co gọn (đơn ngữ co >6 mục thành ba-đầu/`⋯`/ba-cuối), và
@@ -11053,6 +11090,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `currentMode`, hay (b) giữ proxy nhưng dựng một ca khoá mệnh đề "mode `library` ⟺
     `OpenWorkState` là `None`" để nó đỏ ngay ngày mệnh đề đó hết đúng. Ghi chú: hôm nay
     mệnh đề (b) ĐANG SAI, nên (b) đòi thêm một lệnh đóng Tác phẩm trước.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **Luật hợp lệ của cấu hình AI tồn tại hai bản chép tay (Rust và TypeScript) mà
@@ -11072,6 +11110,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     tay dựng trong lượt vá.
     **(Chủ: Ice — quyết có dựng bảng ca dùng chung cho `aiconfig` ngay, hay đợi tới story đầu
     tiên thêm trường thứ sáu vào cấu hình AI, lúc chi phí lệch nhau hiện rõ hơn.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **Khuôn "đọc từ authority" mà mục nợ `settingsState.ts` để ngỏ thì kho ĐÃ CÓ và đã
@@ -11089,6 +11128,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     mới — điều này làm nó rẻ hơn hẳn so với cách mục nợ gốc mô tả. Ghi ra để người xử mục kia
     không phải đi tìm lại.
     **(Chủ: Ice — cùng quyết định với mục nợ `settingsState.ts` ở trên.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: 🔴 **Không có lệnh ĐÓNG Tác phẩm — và sau bản vá "đọc tầng từ authority", hệ quả
@@ -11373,6 +11413,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     test) hay GIỮ làm hàm phơi-để-nghiệm-thu (khuôn `list_all_entries`) là quyết định của
     Ice, không phải một lượt dọn dẹp tiện tay trong story này — spec 4.6 cấm mọi thay đổi
     ngoài Code Map của nó.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **Phép tái cấu trúc dùng chung làm đường LƯỚI clone mọi mục đã phân giải ở mỗi lần
@@ -11697,6 +11738,7 @@ chính nó.
     Story 4.8 KHÔNG tạo ra món nợ zeroize (mục nợ của spec-4-3 đã có trước) — nhưng đây đúng là
     lớp phơi nhiễm thêm mà mục nợ ấy cảnh báo, nên nó được ghi ra thay vì ngầm hiểu.
     **(Chủ: Ice — cùng lúc với món nợ zeroize của spec-4-3; hai chỗ đóng chung một phép sửa.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.1.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **Bước CI cho FR77 neo vào TÊN một hàm test bằng một chuỗi trần, nên mọi lượt đổi tên
@@ -11838,6 +11880,7 @@ chính nó.
     và cùng lý do vòng rà 4.9 đã bác một phát hiện trên chính nhánh này. **(Chủ: Ice — quyết một
     nhánh không-tới-được-trong-release có đáng một khoá riêng hay không là một quyết định về
     ngưỡng, không phải một dòng mã.)**
+  → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **Con số CỘNG DỒN cả phiên làm việc (mọi lượt dịch, mọi segment, từ lúc mở ứng dụng)

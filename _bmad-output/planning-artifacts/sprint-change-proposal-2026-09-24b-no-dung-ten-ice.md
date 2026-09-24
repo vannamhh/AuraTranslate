@@ -3,7 +3,7 @@
 **Người soạn:** John (PM), `bmad-correct-course` chế độ Batch · **Người duyệt:** Ice
 **Baseline:** `b8f22f7` (master, cây sạch)
 **Nguồn:** `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md` §1 — *"239 mục ngoài lượt rà không thuộc phạm vi đề xuất này"*
-**Trạng thái:** Ice duyệt hướng 2026-09-24. Bước 1–2 đã thi hành; bước 3 còn mở.
+**Trạng thái:** Ice duyệt hướng 2026-09-24. Bước 1–2 và nửa K của bước 3 đã thi hành; phiên quyết hạng P còn mở.
 
 ---
 
@@ -58,8 +58,11 @@ Danh sách từng mục: `grep -n 'xếp nợ đứng tên Ice' deferred-work.md
 
 Sau bước 2: **177** mục mở/🟡 đứng tên Ice.
 
-## 6. Còn mở — bước 3, hạng A
+## 6. Bước 3 — hạng A
 
-Tách 162 câu thành hai loại. Câu sản phẩm/UX/quy trình vào phiên quyết với John. Câu kỹ thuật đi theo story thi hành (`Chủ: Story 11.x` hoặc `10.x`). Nếu tải vượt sức một story thì tách story (định tuyến thô đưa 11.6 từ 28 lên 87 mục).
+Một agent tách 162 câu: **119 P** (hành vi người dùng thấy, UX, phạm vi, chính sách quy trình, tài liệu đã ký) · **43 K** (lựa chọn cài đặt người dùng không thấy khác, phép đo trong story chọn được). Câu chạm tài liệu đã ký, ý định một AD hay chính sách test được xếp P dù nghe kỹ thuật.
 
-**Tiêu chí thành công:** `check:debt-owner` xanh; mỗi mục còn `Chủ: Ice` thuộc một trong ba loại: câu hỏi đang chờ phiên quyết, mục D có điều kiện ghi rõ, hoặc việc môi trường trên máy Ice.
+- **K, đã thi hành:** 43 mục → Story 10.9 · 11.1 · 11.2 · 11.3 · 11.5 · 11.6 · 11.7; Task 0 của story trình phương án kèm số đo cho Ice. Sau đó: **134** mục đứng tên Ice. Tải Epic 11 (`grep -c 'Chủ: Story 11.N.**'`): 49 · 34 · 35 · 33 · 33 · 50 · 23 — 11.1 và 11.6 nên tách đôi lúc `create-story`.
+- **P, còn mở:** 108 quyết định riêng trong `sprint-change-proposal-2026-09-24b-phieu-quyet.md`, gom theo mảng. John trình từng mảng; mỗi câu trả lời được thi hành vào `deferred-work.md` sau phiên.
+
+**Tiêu chí thành công:** `check:debt-owner` xanh; mỗi mục còn `Chủ: Ice` thuộc một trong ba loại: câu trong phiếu chưa trả lời, mục D có điều kiện ghi rõ, hoặc việc môi trường trên máy Ice.
