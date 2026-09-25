@@ -330,7 +330,7 @@ function trapTab(event: KeyboardEvent): void {
 
 /* Câu "tắt ≠ gỡ" là một mệnh đề pháp lý, không một chú thích — nó mang một nét dẫn. */
 .attr-note {
-  padding-left: 11px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-tm-rule);
   color: var(--color-tm-text);
 }
@@ -384,7 +384,7 @@ function trapTab(event: KeyboardEvent): void {
 .attr-layer,
 .attr-off {
   display: inline-block;
-  margin-left: 6px;
+  margin-left: 8px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);

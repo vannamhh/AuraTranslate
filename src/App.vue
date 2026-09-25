@@ -460,7 +460,7 @@ function focusOnPointerDown(event: MouseEvent) {
   position: absolute;
   width: 1px;
   height: 1px;
-  margin: -1px;
+  margin: -1px; /* aura-allow-spacing: kích thước hình học của kỹ thuật ẩn sr-only, không phải khoảng cách lưới */
   padding: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);

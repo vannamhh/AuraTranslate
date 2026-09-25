@@ -233,7 +233,7 @@ fn english_lowercasing_is_locale_independent() {
 /// 🔴 **AC8** — giới hạn *stemming ≠ lemmatization* là một **ca test có tên**, không
 /// phải một câu trong doc-comment.
 ///
-/// FR40 tuyên bố giới hạn này (`epics.md:156`). Ca này **đỏ** vào ngày ai đó đổi sang
+/// FR40 tuyên bố giới hạn này. Ca này **đỏ** vào ngày ai đó đổi sang
 /// một lemmatizer — và lúc đó người sửa **phải** đọc lý do trước khi đổi con số.
 ///
 /// 🔴 `happiest` là một phát hiện **đo được của chính story 1.12**, không nằm trong
@@ -255,7 +255,7 @@ fn stemming_is_not_lemmatization_irregular_and_comparative_forms_never_reach_the
             normalize(lemma, MatchLang::En),
             "{variant:?} và {lemma:?} ĐÃ gặp nhau ở dạng chuẩn hoá.\n\n\
              Nếu bạn vừa đổi `core::matching` sang một LEMMATIZER thì ca này đỏ ĐÚNG Ý — \
-             nhưng đọc trước khi đổi con số: FR40 (`epics.md:156`) tuyên bố giới hạn này \
+             nhưng đọc trước khi đổi con số: FR40 tuyên bố giới hạn này \
              là *stemming, KHÔNG phải lemmatization*, và AD-44 ③ đo được rằng đường tra \
              cứu từ điển không cần nó (16/16 mẫu thử đã có sẵn mọi biến thể làm đầu mục \
              riêng). Đổi thuật toán là đổi kết quả khớp của CẢ Glossary lẫn TM cùng lúc, \

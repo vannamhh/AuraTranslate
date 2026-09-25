@@ -112,8 +112,8 @@ export const aiTranslateBatchRunningSegmentId: ComputedRef<number | null> = comp
 })
 
 /**
- * Số liệu THÔ đã cộng dồn cho dòng "tổng token + tổng ước tính của lô" — Story 4.11
- * (`epics.md:3811-3813`, AC ký: *"hiển thị tổng token và tổng ước tính của cả lô"*). HÀM tính
+ * Số liệu THÔ đã cộng dồn cho dòng "tổng token + tổng ước tính của lô" — FR76,
+ * AC ký: *"hiển thị tổng token và tổng ước tính của cả lô"*. HÀM tính
  * toán số học thuần (đếm/cộng), KHÔNG chọn khoá/dựng câu — đúng ranh giới §Code Map spec 4.11:
  * chọn khoá `vi.json` (đầy đủ/một phần, có giá/không giá) và định dạng tham số là việc của
  * `AiTranslationPanel.vue`'s pure function, tệp này chỉ đưa ra SỰ THẬT để pure function đó đọc.

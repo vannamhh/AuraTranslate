@@ -51,9 +51,11 @@
 - **Tệp nguồn tới qua symlink bị loại khỏi Kiểm A và không tính vào sàn** — `scripts/check-i18n.mjs:162-165` đẩy symlink vào `skippedLinks` rồi `continue`; nó chỉ hiện ra như một dòng `detail(...)` ở `:603`, **không bao giờ là `fail`**. Với 18 tệp `.rs` trên sàn 14 có đủ dư địa để giấu tệp bằng đường này mà sàn vẫn qua. Hoãn: cây hiện không có symlink nào. Mở lại nếu một `.vue`/`.rs` symlink xuất hiện. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: check-i18n.mjs:169,186,924 vẫn đẩy symlink vào skippedLinks rồi continue, không bao giờ fail; git ls-files và find không thấy symlink .vue/.rs nào trong src/ hay src-tauri/src. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — mở lại khi một symlink `.vue`/`.rs` xuất hiện trong `src/`/`src-tauri/src`; lot C của Story 11.1 (`spec-11-1-lo-c-webview-gates.md`) không viết mã suy đoán cho một điều kiện chưa xảy ra.
 - **`scanStyle` không có trạng thái `line_comment`** — `scripts/check-i18n.mjs:455-499`. Doc `:455` biện minh đúng cho CSS thuần (`url(//host/x.png)` là URL, không phải comment), nhưng trong `<style lang="scss">` thì `//` **là** comment và một comment tiếng Việt ở đó sẽ bị báo là vi phạm. Đúng kiểu hỏng đắt nhất — cổng đỏ trên comment thì bị gỡ trong tuần. Hoãn: chưa có `.scss` nào và không gì trong repo cấm dùng. Mở lại ngày đầu tiên có `lang="scss"`. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scanStyle() ở check-i18n.mjs:659-700 vẫn chỉ có state code/block_comment/string, không có line_comment; grep lang="scss" trong src/ ra 0 kết quả. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — mở lại ngày đầu tiên có `lang="scss"` trong `src/**/*.vue`; cùng lý do với mục symlink ngay trên, không viết mã suy đoán cho một điều kiện chưa xảy ra.
 - **`process.exit()` ngay sau `console.log` có thể cắt cụt chẩn đoán trên pipe Windows** — `scripts/check-i18n.mjs:873,876`. Mã thoát — tức phán quyết — vẫn nguyên; thứ mất là các dòng `file:dòng:cột` làm cổng dùng được, đúng trên nền tảng mà cổng được viết bằng Node để có mặt. Hoãn tới lượt runner thật của Story 1.3; xác nhận trong cùng lượt đó. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
 ## Deferred from: 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)
@@ -117,6 +119,7 @@
 - **`scripts/check-tokens.mjs` không được type-check và không có test** — cùng hạng với mục *"không có clippy · rustfmt · ESLint · test runner frontend"* ở trên: `tsconfig.json` chỉ include `src/**` + `env.d.ts`, nên **cả tầng cưỡng chế** nằm ngoài mọi phép kiểm tĩnh. Bù lại một phần bằng nghiệm thu đỏ-rồi-xanh 28 ca (Task 3) — nhưng đó là test của *hành vi cổng*, chạy tay, không nằm trong CI. Một hồi quy trong chính script sẽ đi qua CI mà không ai biết. Thuộc lượt bổ sung công cụ frontend. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tsconfig.json include chỉ src/**, tests/frontend/**, vitest.config.ts — không có scripts/*.mjs; không tìm thấy tệp test nào cho check-tokens.mjs (chỉ có scripts/check-tokens.mjs, không .test.mjs kèm theo). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → 🟡 2026-09-25 (Story 11.1) — nửa type-check ĐÃ ĐÓNG: `scripts/lib/tokens-scan.mjs` tách sáu hàm thuần khỏi `check-tokens.mjs`, và `tsconfig.node.json` nay type-check cả hai (`vue-tsc --noEmit -p tsconfig.node.json` sạch) cộng `tests/frontend/checkTokensScan.test.ts` (19 ca) canh mô-đun đã tách. Nửa còn hở cùng hình dạng mục `check-commands.mjs` ngay trên (L187): `check-tokens.mjs` không nạp an toàn (`process.exit`) nên phán quyết của Kiểm A–K vẫn chỉ được canh bằng tự kiểm trong chính script, chưa nạp được vào vitest. **Chủ: Story 11.1.**
 
 - ⚠️ **BA MỆNH ĐỀ THỊ GIÁC của Task 4/5 đang đứng bằng VĂN XUÔI, không bằng bằng chứng tái lập được** *(Ice chấp nhận 2026-08-03 với điều kiện ghi ra đây)*. Trang thăm dò, bốn ảnh chụp và bộ đọc `fvar` sống ngoài repo có chủ ý (tiền lệ §Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào cây nguồn). Hệ quả là không lượt rà soát nào sau này tái lập lại được ba mệnh đề sau từ cây nguồn:
   - *"Bốn nét `Source Sans 3` (200/400/600/700) phân biệt rõ trên chuỗi dày dấu tiếng Việt"* — dựng trên **Blink/macOS**, chưa đo trên WKWebView, chưa đo trên Windows.
@@ -631,14 +634,17 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Kiểm B của `check-layout.mjs` đo NHỊP GHI, không đo rằng `WorkspaceDock.vue` thật sự dùng lịch đó.** Nó `import()` `src/layout/writeSchedule.ts` và đẩy 1.251 sự kiện qua `simulateWrites()` — kéo sash 3 s ⇒ **1** lượt ghi; kéo liên tục 20 s ⇒ **4** lượt ghi với không thay đổi nào chờ quá **5.000 ms**. Nhưng một lượt sửa `WorkspaceDock.vue` gọi `emit('persist')` thẳng ở mỗi `onDidLayoutChange` sẽ **đi qua cổng** — cổng không thấy chỗ nối. Lưới còn lại là một lượt đếm tay trong DevTools. Cùng hạng với *"cổng không được type-check"*. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/layout/WorkspaceDock.vue thực tế dùng đúng createWriteSchedule (dòng 54, flush() dòng 782-798) nên hôm nay hành vi đúng, nhưng scripts/check-layout.mjs Kiểm B vẫn chỉ import trực tiếp writeSchedule.ts và giả lập simulateWrites(), không mount/chạm WorkspaceDock.vue. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm F.1 mới của `check-layout.mjs:889-960` đối chiếu MỌI `emit('persist', …)` chỉ đứng trong thân `flush()`, và thân `flush()` phải canh cả `schedule.isDirty()` lẫn `schedule.onWrite(...)` trước khi gọi. Hai gỡ chỗ nối tay (bỏ canh `schedule` trong `flush()`; thêm một `emit('persist', …)` thẳng trong `onLayoutChange()`) đều đỏ đúng lý do đo, phục hồi xanh sau khi hoàn nguyên.
 
 - ⚠️ **`localStorage`/`sessionStorage` gọi TRẦN vẫn đi qua một mệnh đề CẤM, không qua danh sách cho phép.** Kiểm C của `check-layout.mjs` hỏi ngược *"mọi thành viên `window.`/`document.` phải nằm trong danh sách CHO PHÉP"* — đúng lập luận của `config_invariants.rs:92-94`. Nhưng `localStorage` không tiền tố là một **định danh tự do**, và liệt kê hết định danh tự do đòi một bộ phân tích cú pháp thật *(một phụ thuộc npm mới — NFR15)*. Ba cái tên đó vì vậy vẫn nằm trong một danh sách cấm hẹp. **Mở lại** khi dự án có lý do độc lập để thêm một parser. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: check-layout.mjs dòng 421-541 vẫn giữ ALLOWED_GLOBAL_MEMBERS và ghi chú dòng 880-882 lặp lại đúng giới hạn: localStorage/sessionStorage là định danh tự do, chưa có parser mới. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — mở lại khi dự án có lý do độc lập để thêm một bộ phân tích cú pháp JS/TS thật (NFR15); lot C không thêm phụ thuộc mới, ba định danh tự do vẫn nằm nguyên trong danh sách cấm hẹp của `check-layout.mjs`.
 
 - ⚠️ **Bảng `PANEL_COMPONENTS` và map `components` phải khớp nhau, và không cổng nào canh.** `src/layout/workspaceLayout.ts` khai tên component dạng chuỗi; `WorkspaceDock.vue` khai map thật. Một tên lệch cho ra **panel trắng** kèm `console.error` của chính dockview — không cổng nào đỏ. Rẻ nhất để đóng: cho `check-layout.mjs` đọc luôn map trong `.vue`. Không làm ở story này vì nó đòi một bộ phân tích `.vue` thứ ba trong cây script. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: WorkspaceDock.vue dòng 101-103 còn nguyên cảnh báo PANEL_COMPONENTS và map components (dòng 119) không cổng nào đối chiếu; check-layout.mjs không đọc map trong .vue. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm F.2 mới của `check-layout.mjs:962-1032` đọc thẳng `PANEL_COMPONENTS` (`workspaceLayout.ts`, qua `import()`) và map `components` (`WorkspaceDock.vue`), đối chiếu mọi giá trị của bảng đầu là một khoá thật của bảng sau. Gỡ chỗ nối tay (đổi một giá trị `PANEL_COMPONENTS` thành một khoá không tồn tại) đỏ đúng lý do, nêu đúng cả hai tệp; phục hồi xanh sau khi hoàn nguyên.
 
 - ⚠️ **Chín biến `--dv-tab-group-color-*` cố ý ĐỂ TRỐNG.** Chúng phục vụ tính năng "tab group có màu" mà sản phẩm không dùng ở đâu. Khai chúng đòi **chín màu MỚI** phải qua Kiểm C của `check-tokens.mjs` — tức mở một bảng màu thứ hai để phục vụ một tính năng không dùng. Ngày nào sản phẩm dùng tới, đó là một quyết định thiết kế **có chữ ký**. **(Chủ: story kế tiếp nếu tab-group màu được dùng thật.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: dockview-theme.css dòng 22-24: chín biến --dv-tab-group-color-* vẫn cố ý để trống, tính năng tab group màu chưa dùng ở đâu trong src/. **Chủ: Ice.**
@@ -664,6 +670,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - **Khoá tiêu đề panel chảy qua một lời gọi `t()` KHÔNG literal, ngoài tầm quét của `check-i18n.mjs`.** `PANEL_TITLE_KEYS` sống ở `src/layout/workspaceLayout.ts` (một tệp `.ts`, Kiểm A2 chỉ quét `.vue`) và đổ vào `PanelTab.vue:80` qua `t(props.params.params.titleKey ?? '')` — một biểu thức, không một literal. Giá trị hôm nay đều khớp `vi.json` (xác minh trực tiếp), nhưng một lỗi gõ tương lai trong bốn khoá đó sẽ không bị cổng nào bắt — `resolve.ts` cố ý không sập với khoá thiếu, nên hậu quả là khoá thô hiện ra màn hình. Cùng lớp rủi ro với mục *"Bảng `PANEL_COMPONENTS` và map `components` phải khớp nhau"* ở trên. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: PanelTab.vue dòng 80: t(props.params.params.titleKey ?? '') vẫn là biểu thức, không literal; check-i18n.mjs Kiểm A2 (dòng 927) chỉ quét TEXT NODE của template. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — `check-i18n.mjs:1224-1248` (Kiểm A2, phần mở rộng) nạp thẳng `PANEL_TITLE_KEYS` từ `workspaceLayout.ts` qua `import()` và đối chiếu từng giá trị với `vi.json` đã phân tích ở Kiểm B. Gỡ chỗ nối tay (đổi một giá trị `PANEL_TITLE_KEYS` thành một khoá không tồn tại) đỏ đúng lý do, nêu đúng `PanelTab.vue:80`; phục hồi xanh sau khi hoàn nguyên.
 - **`PANEL_SUFFIXES` ở `src/commands/index.ts:172-173` là bản chép tay của `PANEL_IDS`** (`src/layout/workspaceLayout.ts`), chỉ có một dòng comment "chép từ", không cổng nào đối chiếu hai bảng. Thêm/đổi tên/xoá một panel sau này có thể làm bốn `layout.toggle_*` trôi khỏi `PANEL_IDS` mà không cổng nào đỏ. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/index.ts dòng 1060 (PANEL_SUFFIXES) và workspaceLayout.ts dòng 54 (PANEL_IDS) vẫn là hai bảng chép tay riêng biệt; grep PANEL_SUFFIXES ngoài commands/index.ts ra 0 kết quả, không nơi nào đối chiếu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
@@ -1243,6 +1250,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   chọn thay vì một con số. ~~**Chủ: chưa gán.**~~ **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: `grep -n "z-index" scripts/check-layout.mjs` không ra kết quả — không cổng nào đọc `z-index` cao nhất của `dockview.css` để đối chiếu thứ tự xếp lớp. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm F.3 mới của `check-layout.mjs:1035-1078` đọc khối `.modeport { … }` (App.vue) và đòi `isolation: isolate` còn ở đó — cưỡng chế đúng CƠ CHẾ đã vá lỗi sash 2026-08-10, không một con số `z-index` (đúng hướng "đường bịt rẻ nhất" mục nêu). Gỡ `isolation: isolate` khỏi `.modeport` đỏ đúng lý do, trích cả tên lỗi cũ; phục hồi xanh sau khi hoàn nguyên.
 
 - 🔴 **`.lookup-head` CẮT NỘI DUNG khi thanh nhịp xuống dòng thứ hai — đo được, không suy
   đoán.** Ice nghi ngờ từ ảnh chụp 2026-08-10; đo bằng CDP trên app thật xác nhận.
@@ -1305,6 +1313,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   chế. ~~**Chủ: chưa gán.**~~ **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: src/i18n/vi.json:733,737 hai chuỗi `pinned_empty_body`/`history_hint` nay đúng nói "mọi Tác phẩm" (khớp phạm vi toàn ứng dụng), không còn câu "Tác phẩm này" sai — ca cụ thể mục nêu đã được sửa; còn thiếu: scripts/check-i18n.mjs vẫn chỉ kiểm khoá/placeholder/giọng văn (Kiểm A/A2/B), không đối chiếu NGHĨA chuỗi với hành vi thật — lỗ cấu trúc vẫn còn cho lượt đổi hành vi kế tiếp. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — Quyết định 3 của `spec-11-1-lo-c-webview-gates.md`: không có bộ quét tất định nào so được NGHĨA một chuỗi `vi.json` với hành vi nó mô tả; đây là một lỗ cấu trúc, không một lượt sơ ý đơn lẻ có thể vá bằng một Kiểm cục bộ. Ca cụ thể mục nêu đã đóng từ 2026-09-23; lỗ cấu trúc còn nguyên, ngoài phạm vi lot C.
 
 ## Deferred from: code review of 1-20-lich-su-tra-cuu-va-muc-da-ghim (2026-08-11)
 
@@ -2191,6 +2200,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   thuộc vào một bộ chạy mới thay vì Node thuần. **Chủ: chưa gán — cần một story riêng.** **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-layout.mjs Kiểm B (simulateWrites, dòng 323-350) và scripts/check-commands.mjs (import() thẳng src/commands/*.ts, dòng 909) vẫn đứng ở cổng tĩnh, chưa chuyển sang vitest. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — mục là một lời dặn, không một việc cần làm, và lot C (`spec-11-1-lo-c-webview-gates.md`) đã tuân theo: Kiểm F/I/J/K dựng BÊN TRONG cổng tĩnh sẵn có và `check:doc-refs` là một cổng tĩnh mới; Kiểm B (`check-layout.mjs`) và Kiểm C/D/E (`check-commands.mjs`) vẫn đứng ở cổng tĩnh, không phép kiểm hành vi nào chuyển sang vitest.
 
 - ⚠️ **Bàn đo `2-2-ban-do-editor.html:11` còn khai *"Dự án CỐ Ý không có bộ chạy test frontend"*.**
   Lời khai đó **hết đúng** từ 2026-08-12. Ba chỗ mà Task 0b.7 nêu đích danh
@@ -3388,6 +3398,7 @@ chạy trả lời cả hai)*.
   ghi ở trên — hai món cùng chạm một tệp)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/main.ts:698 và :742 vẫn viết sai phạm vi Kiểm A ('Kiểm A của check:i18n' áp cho .ts); check-i18n.mjs:221-222 xác nhận Kiểm A chỉ quét rsFiles/vueFiles, không quét .ts. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — ba chú thích của `src/main.ts` (nay `:698`, `:725-726`, `:742`) viết lại đúng phạm vi Kiểm A (`.rs`/`.vue`, không `.ts`), theo đúng cách diễn đạt đã đúng ở chú thích thứ tư trong cùng tệp; câu lịch sử cũ (số dòng cũ, ngày, story) bị xoá theo AGENTS.md §Code Comments.
 
 ---
 
@@ -4247,6 +4258,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   cưỡng chế nó.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep scroll-behavior trên src/ vẫn chỉ trúng chú thích ở LookupPanel.vue (dòng 270-285, 847-851), 0 dòng CSS thật; không cổng script nào (scripts/*.mjs) quét scroll-behavior. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm J mới của `check-tokens.mjs:1799-1846` đọc `allDecls` (đã tách chú thích/chuỗi trước khi phân tích khối CSS) và đòi mọi khai báo `scroll-behavior` là `auto`; 0 khai báo thật trên HEAD, hai chú thích ở `LookupPanel.vue` không tính (đúng I/O Matrix). Gỡ chỗ nối tay (chèn thẳng một khai báo `smooth` vào mảng đang chạy) đỏ đúng lý do, phục hồi xanh.
 
 - 🟡 **`goToNextSegment`/`goToPrevSegment` đăng ký mà KHÔNG có phím mặc định** — Quyết định #2
   đường (c), Ice ký. Đủ chữ AC9 *("command đăng ký, gán phím được")* và chúng có mặt trong bảng
@@ -4346,6 +4358,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   một phép quét chuỗi trên `src/**`)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-tokens.mjs không có phép quét đối chiếu tên var(--<token>) trong src/**/*.vue,*.css với bảng token — chỉ có phép kiểm hướng ngược (giá trị phải là token, dòng 995) và một phép kiểm cặp tương phản (dòng 1178). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm I mới của `check-tokens.mjs:1598-1796` đối chiếu mọi `var(--x)` trong `src/**` với hợp của BA nguồn thật (biến `tokens/index.ts` phát ra · biến khai trong `src/**` · biến khai trong `dockview.css`), hướng còn thiếu mục nêu. 12 tham chiếu chết thật tìm được (bao gồm đúng ca `--space-inline-sm` của `GridPanel.vue` mục nêu) đã vá tại năm tệp overlay. Gỡ guard sản xuất đỏ đúng 12 lý do đo được; phục hồi xanh sau khi vá.
 
 ## Deferred from: code review of 2-10-dieu-huong-segment, lượt HAI (2026-08-18)
 
@@ -5467,9 +5480,11 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep 'epics.md' trong scripts/*.mjs chỉ ra check-layout.mjs và check-commands.mjs — cả hai chỉ NHẮC epics.md:N trong chú thích; ls scripts/*.mjs không có script mới nào đọc epics.md để đối chiếu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Quyết định 5 của `spec-11-1-lo-c-webview-gates.md` chọn đường đơn giản hơn §TÊN: `scripts/check-doc-refs.mjs` mới CẤM tuyệt đối hình dạng `epics.md:<digits>` trong mã (`src/`, `src-tauri/src`, `src-tauri/tests`, `scripts/`, `tests/`, `e2e/`), thay vì đọc `epics.md` và đối chiếu §TÊN. Đo lại trên HEAD ra 42 trích dẫn/25 tệp (không phải 41/24 — số đã trôi từ lúc mục nợ này viết); cả 42 viết lại thành FR/NFR/AD/UX-DR mà chúng thật sự nói (tra theo nội dung trích dẫn, không theo số dòng hiện tại — nhiều số đã tự trôi sang đúng lớp lỗi mục nợ này mô tả, ví dụ `matching_boundary.rs` trỏ `epics.md:1510` vào một đoạn Story 1.12 khi mã đang bàn Story 1.12 thật, một trùng hợp che giấu drift) hoặc bị xoá khi id thật đã đứng sẵn cạnh đó (`UX-DR19`, `AD-10`, `FR40`, `UX-DR33`, `FR103`). Đăng ký ở cả ba danh sách (`package.json` · `ci.yml` · `.githooks/pre-push`), `check:gates` xanh. Tự kiểm 5 ca gọi thẳng `violationsIn`, đối chứng dương xác nhận qua gỡ chỗ nối tay.
 
 
 ## Deferred from: lượt lập spec Story 3.4 (2026-08-21)
+
 
 - source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
   summary: **Nửa GIAO DIỆN của FR50 — vẽ dấu ở cột nguyên văn của lưới, trên CẢ HAI đường
@@ -6754,6 +6769,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
   `check-tokens.mjs`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-tokens.mjs vẫn chỉ có Kiểm A/B/B2/C/D/E/F/G/H; không Kiểm nào đọc padding/margin/gap so bội số --space-unit. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — Kiểm K mới, Kiểm THỨ TÁM mục nêu, sống ở `check-tokens.mjs:1849-1976`: đòi mọi `padding`/`margin`/`gap` (kể cả bốn biến thể cạnh, kể cả `calc(var(--space-unit) * N)`) là bội nguyên của `--space-unit`. 53 khai báo của 10 tệp làm tròn về lưới 4px (tie làm tròn lên); bảy điểm "nét dẫn" (không sáu — chú thích `.gs-alert` của `GlossarySettingsOverlay.vue` đã tự sửa số trước lượt này) đồng bộ về `12px` cùng lúc; hai điểm sr-only (`App.vue`, `GlossaryQueueOverlay.vue`) giữ nguyên qua miễn trừ `aura-allow-spacing` có tên. Kiểm K (đọc `calc()` không điều kiện, đúng chữ "Fractional N fails" của Quyết định 2) đo thêm 12 khai báo/7 tệp ngoài phạm vi 53/10 mà mục nợ này liệt kê — Ice xử lý riêng (bảy làm tròn, năm giữ miễn trừ có tên: `ReadingMode.vue` `1em` ×3, `dockview-theme.css` `calc(var(--panel-gap)/2)`, sr-only ×2). Đây là một thay đổi HIỂN THỊ (lệch 1–3px) — lượt dùng thật đứng ở mục nợ mới cuối tệp này, `Chủ: Epic 11`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
   summary: **~104 họ phồn thể còn lại chưa có alias trong `TRADITIONAL_SURNAME_ALIASES`** —
@@ -7083,6 +7099,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: một story hạ tầng cổng — gộp cùng hai món `check-i18n` Kiểm A đã ghi ở trên.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/check-i18n.mjs::vueRegions (dòng 468) vẫn dùng regex trần /<(script|style)\b[^>]*>/gi, không loại trừ vùng <!-- --> trước khi khớp. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1) — `vueRegions()` viết lại thành một lượt quét tuyến tính, bỏ qua nguyên khối `<!-- … -->` trước khi thử khớp `<script|style …>` bằng regex sticky (`/iy`); tự kiểm ngay sau `scanVue` (ca âm: chú thích nhắc `<script setup>` không mở vùng giả VÀ vi phạm thật vẫn bị `scanVue` bắt; ca dương: vùng `<script>`/`<style>` thật vẫn đúng ranh giới). Gỡ về bản regex trần cũ tái lập đúng lớp lỗi "56 phát hiện oan" mục nêu; phục hồi xanh sau khi hoàn nguyên.
 
 ## Deferred from: 4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi (2026-08-26)
 
@@ -12214,3 +12231,13 @@ chính nó.
 ## Deferred from: 11-1-lo-a-check-commands (2026-09-24)
 
 - 📝 **`main.ts::boot()` có thêm hai bản sao dep chưa canh, cùng lớp `clearSourceCuts` vừa đóng.** `tests/frontend/aiTranslate.test.ts:133-178` chép NGUYÊN VĂN cách `main.ts` nối `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate`; `tests/frontend/aiTranslateBatch.test.ts:167-229` chép cổng loại-trừ-lẫn-nhau của `runAiTranslateBatch`/`cancelAiTranslate`. `main.ts` không nạp được trong vitest nên cả hai tệp tự chép thân dep xuống bàn test, và không cổng nào canh cho bản chép khớp bản thật — đúng khoảng hở mà Story 11.1 lot A vừa đóng cho `clearSourceCuts` bằng cách tách nó ra một tệp import chung (`src/editorClearSourceCuts.ts`). **Chủ: Story 11.7.**
+
+## Deferred from: 11-1-lo-c-webview-gates (2026-09-25)
+
+- 📝 **Lượt dùng thật cho các thay đổi thị giác của lot C.** Kiểm K mới của `check-tokens.mjs` làm tròn 53 khai báo `padding`/`margin`/`gap` (10 tệp `.vue`) về lưới 4px và đồng bộ bảy điểm "nét dẫn" về `12px` — lệch hiển thị 1–3px; Kiểm I mới vá 12 tham chiếu `var()` chết (`--face-read`→`--family-read`, bộ ba `read-body`→`read-sm`, nền `.hist-aimed`→`--color-surface-accent`) trong năm tệp overlay; bảy giá trị `calc(var(--space-unit) * 1.5|0.5)` ở sáu tệp làm tròn lên `×2`/`×1` (Quyết định 7). `check:tokens` xanh chứng minh đúng token/đúng lưới, không chứng minh mắt người thấy ổn ở cả mười tệp. **Chủ: Epic 11** (lượt dùng thật trước khi Epic 11 đóng, theo AGENTS.md §This machine).
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-1-lo-c-webview-gates.md`
+  summary: `scripts/check-i18n.mjs:1095` nhận `<!-- aura-allow-text: -->` KHÔNG lý do là miễn trừ hợp lệ — `\S` khớp dấu `-` của `-->`, cùng lớp lỗi lot C vừa vá ở `exemptAt`/`neverTextExemptAt` của `check-tokens.mjs`.
+  evidence: regex `/aura-allow-text\s*:\s*\S/` thử trên `<!-- aura-allow-text: -->` trả `true`; có từ trước lot C, lộ ra lúc triage review. Vá = một lookahead `(?!-->)` kèm một ca tự kiểm. **Chủ: Story 11.1.**
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-1-lo-c-webview-gates.md`
+  summary: `inlineStyleBlocks` (`scripts/lib/tokens-scan.mjs`) đọc `:style="'color: red'"` ra giá trị `red'` (thừa nháy đơn cuối); `tests/frontend/checkTokensScan.test.ts` nay ghim đúng hành vi sai đó.
+  evidence: lot C chỉ DỜI hàm (Quyết định 1), không sửa; ca test tự ghi "hành vi THẬT… không phải hành vi lý tưởng". Có từ trước lot C. **Chủ: Story 11.1.**

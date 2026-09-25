@@ -462,14 +462,36 @@ function scanRust(text) {
 // Máy trạng thái — Vue (ba vùng cú pháp)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/** `<script>` và `<style>`: JS/CSS. Phần còn lại của tệp là template. */
+/**
+ * `<script>` và `<style>`: JS/CSS. Phần còn lại của tệp là template.
+ *
+ * 🔴 QUÉT TUYẾN TÍNH, CÓ TRẠNG THÁI `<!-- -->` — trước lượt vá này, thẻ mở được tìm bằng
+ * một regex TRẦN chạy thẳng trên toàn văn bản, không phân biệt được một `<script …>` THẬT
+ * với hình dạng y hệt nằm TRONG một chú thích HTML của template. Một comment như
+ * `<!-- xem <script setup> -->` mở ra một "vùng script" giả kéo tới hết tệp — đo được:
+ * `GlossaryManageOverlay.vue` nhắc `` `<script setup>` `` trong một chú thích, cổng nổ 56
+ * phát hiện oan (`deferred-work.md` L7070). Cùng kỹ thuật với [`scanTemplate`]: `<!--`
+ * chỉ đóng khi có `-->`, và bị bỏ qua HOÀN TOÀN trước khi thử khớp thẻ mở — quét từng vị
+ * trí bằng regex DÍNH (`y`) thay vì để regex toàn cục tự tìm khớp kế tiếp ở bất kỳ đâu.
+ */
 function vueRegions(text) {
   const regions = []
-  const open = /<(script|style)\b[^>]*>/gi
-  let m
-  while ((m = open.exec(text))) {
+  const open = /<(script|style)\b[^>]*>/iy
+  let i = 0
+  while (i < text.length) {
+    if (text.startsWith('<!--', i)) {
+      const end = text.indexOf('-->', i + 4)
+      i = end === -1 ? text.length : end + 3
+      continue
+    }
+    open.lastIndex = i
+    const m = open.exec(text)
+    if (m === null) {
+      i += 1
+      continue
+    }
     const kind = m[1].toLowerCase()
-    const start = m.index + m[0].length
+    const start = i + m[0].length
     // ⚠️ Khớp thẻ đóng KHÔNG phân biệt hoa thường và cho phép khoảng trắng — cùng bài
     // học với `check-tokens.mjs`: `indexOf('</style>')` làm `</STYLE>` kéo vùng tới hết
     // tệp và một khối sau đó bị phân tích hai lần.
@@ -478,9 +500,9 @@ function vueRegions(text) {
     const c = close.exec(text)
     const end = c ? c.index : text.length
     regions.push({ kind, start, end })
-    open.lastIndex = end
+    i = end
   }
-  return regions.sort((a, b) => a.start - b.start)
+  return regions
 }
 
 /**
@@ -863,6 +885,59 @@ function scanVue(text) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Tự kiểm `vueRegions` — L7070. Mã tổng hợp, không phải một tệp `.vue` thật. Đặt SAU
+// `scanVue` (chứ không ngay sau `vueRegions`) vì nó lái cả đường ống — và ca ÂM dưới đây
+// tình cờ đi qua `scanScript`, thứ tham chiếu `REGEX_PRECEDERS` khai ở dưới xa hơn nữa.
+// ═════════════════════════════════════════════════════════════════════════════════
+{
+  const NEG = ['<template>', '  <!-- xem <script setup> để biết bối cảnh -->', '  <button>Đã lưu</button>', '</template>', ''].join('\n')
+  const negRegions = vueRegions(NEG)
+  const negHits = scanVue(NEG)
+  const negOk = negRegions.length === 0 && negHits.length > 0
+
+  const POS = [
+    '<template>',
+    '  <!-- một chú thích nhắc <style> như văn bản, không phải mã -->',
+    '  <button>Hi</button>',
+    '</template>',
+    '<script setup lang="ts">',
+    'const x = 1',
+    '</script>',
+    '<style scoped>',
+    '.a { color: red; }',
+    '</style>',
+    '',
+  ].join('\n')
+  const scriptOpen = POS.indexOf('<script setup lang="ts">')
+  const scriptStart = scriptOpen + '<script setup lang="ts">'.length
+  const scriptEnd = POS.indexOf('</script>')
+  const styleOpen = POS.indexOf('<style scoped>')
+  const styleStart = styleOpen + '<style scoped>'.length
+  const styleEnd = POS.indexOf('</style>')
+  const posRegions = vueRegions(POS)
+  const posOk =
+    posRegions.length === 2 &&
+    posRegions[0].kind === 'script' &&
+    posRegions[0].start === scriptStart &&
+    posRegions[0].end === scriptEnd &&
+    posRegions[1].kind === 'style' &&
+    posRegions[1].start === styleStart &&
+    posRegions[1].end === styleEnd
+
+  if (!negOk) {
+    fail('tự kiểm `vueRegions` — chú thích nhắc `<script setup>` vẫn mở một vùng script giả, hoặc nuốt mất vi phạm thật')
+    detail(`vùng tìm được: ${negRegions.length} (phải 0) · vi phạm bắt được: ${negHits.length} (phải > 0)`)
+  }
+  if (!posOk) {
+    fail('tự kiểm `vueRegions` — một `<script>`/`<style>` THẬT không còn được tìm đúng ranh giới')
+    detail(`vùng tìm được: ${JSON.stringify(posRegions)}`)
+  }
+  if (negOk && posOk) {
+    pass('tự kiểm `vueRegions` — chú thích nhắc thẻ không mở vùng giả (vi phạm thật vẫn bắt được) · `<script>`/`<style>` thật vẫn đúng ranh giới')
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm A — không chuỗi tiếng Việt ở vị trí mã trong `.rs` và `.vue` (AC2)')
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -1143,6 +1218,59 @@ if (entries.length === 0) {
   bBad += 1
 } else if (bBad === 0) {
   pass(`${entries.length} khoá, object phẳng, mọi giá trị là chuỗi không rỗng`)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Kiểm A2, phần MỞ RỘNG — `PANEL_TITLE_KEYS` (`workspaceLayout.ts`, một tệp `.ts`, ngoài
+// tầm quét của Kiểm A2 ở trên) đổ vào một lời gọi `t()` KHÔNG literal ở
+// `PanelTab.vue:80` (`t(props.params.params.titleKey ?? '')`) — một BIỂU THỨC, không một
+// chuỗi văn bản, nên vòng lặp Kiểm A2 không đọc được nó. `deferred-work.md` L664: nạp
+// THẲNG bảng thật bằng `import()` (cùng kỹ thuật `loadTs` của `check-commands.mjs`), rồi
+// tra từng giá trị trong CHÍNH `vi.json` vừa đọc ở Kiểm B.
+// ─────────────────────────────────────────────────────────────────────────────────
+const WORKSPACE_LAYOUT_TS = join(REPO_ROOT, 'src', 'layout', 'workspaceLayout.ts')
+const workspaceLayoutMod = await import(pathToFileURL(WORKSPACE_LAYOUT_TS).href).catch((err) =>
+  abort(`\`${posix(WORKSPACE_LAYOUT_TS)}\` — Kiểm A2 (PANEL_TITLE_KEYS) KHÔNG chạy được`, err),
+)
+if (workspaceLayoutMod.PANEL_TITLE_KEYS === undefined) {
+  abort(`\`${posix(WORKSPACE_LAYOUT_TS)}\``, new Error('không export `PANEL_TITLE_KEYS` — Kiểm A2 cần nó.'))
+}
+/**
+ * @param {Record<string, string>} titleKeys
+ * @param {Record<string, unknown>} keyCatalog
+ * @returns {[string, string][]}
+ */
+function missingTitleKeys(titleKeys, keyCatalog) {
+  return Object.entries(titleKeys).filter(([, key]) => keyCatalog[key] === undefined)
+}
+{
+  /** @type {[string, Record<string, string>, Record<string, unknown>, string[]][]} */
+  const TITLE_KEY_CASES = [
+    ['typo — red', { 'panel.grid': 'panel.grid.titel' }, { 'panel.grid.title': 'x' }, ['panel.grid']],
+    ['every key present — green', { 'panel.grid': 'panel.grid.title' }, { 'panel.grid.title': 'x' }, []],
+  ]
+  let bad = 0
+  for (const [name, keys, cat, want] of TITLE_KEY_CASES) {
+    const got = missingTitleKeys(keys, cat).map(([id]) => id)
+    if (got.join('|') !== want.join('|')) {
+      fail(`tự kiểm PANEL_TITLE_KEYS — ca \`${name}\`: mong [${want.join(', ')}], nhận [${got.join(', ')}]`)
+      bad += 1
+    }
+  }
+  if (bad === 0) pass(`tự kiểm PANEL_TITLE_KEYS — ${TITLE_KEY_CASES.length} ca`)
+}
+{
+  const missing = missingTitleKeys(workspaceLayoutMod.PANEL_TITLE_KEYS, catalog)
+  if (missing.length > 0) {
+    for (const [panelId, key] of missing) {
+      fail(`\`PANEL_TITLE_KEYS['${panelId}']\` = \`'${key}'\` — không có khoá này trong \`vi.json\``)
+      detail("`PanelTab.vue:80` gọi `t(props.params.params.titleKey ?? '')` — một biểu thức, không literal;")
+      detail('Kiểm A2 không đọc được nó. Một khoá thiếu ⇒ khoá thô hiện thẳng ra màn hình.')
+    }
+  } else {
+    const n = Object.keys(workspaceLayoutMod.PANEL_TITLE_KEYS).length
+    pass(`${n} giá trị của \`PANEL_TITLE_KEYS\` (workspaceLayout.ts) đều có khoá trong \`vi.json\``)
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

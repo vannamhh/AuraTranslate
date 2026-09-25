@@ -372,3 +372,50 @@ export function scanVueAttrs(parsedFiles) {
   }
   return found
 }
+
+/**
+ * The `{ … }` body immediately after the first match of `head`, found by brace-depth
+ * counting rather than a `[^}]*` regex (which stops at the first, possibly nested, `}`).
+ * @param {string} text
+ * @param {RegExp} head
+ * @returns {string | null}
+ */
+export function balancedBraceBody(text, head) {
+  const m = head.exec(text)
+  if (!m) return null
+  const open = text.indexOf('{', m.index)
+  if (open === -1) return null
+  let depth = 0
+  for (let i = open; i < text.length; i += 1) {
+    if (text[i] === '{') depth += 1
+    else if (text[i] === '}') {
+      depth -= 1
+      if (depth === 0) return text.slice(open + 1, i)
+    }
+  }
+  return null
+}
+
+/**
+ * Splits `body` on commas at depth 0 only, so a comma inside a nested `{}`/`()`/`[]` does
+ * not break an entry apart.
+ * @param {string} body
+ * @returns {string[]}
+ */
+export function splitTopLevel(body) {
+  /** @type {string[]} */
+  const parts = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < body.length; i += 1) {
+    const c = body[i]
+    if (c === '{' || c === '(' || c === '[') depth += 1
+    else if (c === '}' || c === ')' || c === ']') depth -= 1
+    else if (c === ',' && depth === 0) {
+      parts.push(body.slice(start, i))
+      start = i + 1
+    }
+  }
+  parts.push(body.slice(start))
+  return parts
+}

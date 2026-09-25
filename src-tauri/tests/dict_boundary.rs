@@ -376,8 +376,8 @@ const SRC_ONLY_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — s�
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///
 /// 🔴 **Không một chuỗi nào trong đây được xuất hiện ở VỊ TRÍ MÃ dưới `src-tauri/src/**`
-/// hay `src/**`.** AD-10 nói *"Runtime **không có mã riêng cho từng nguồn**"* và
-/// `epics.md:1543` lặp lại — cả hai là **văn xuôi**. Đây là chỗ mệnh đề đó thành máy.
+/// hay `src/**`.** AD-10 nói *"Runtime **không có mã riêng cho từng nguồn**"* —
+/// đây là chỗ mệnh đề đó thành máy.
 ///
 /// 🔴 **MỘT danh sách cho CẢ BA cổng, và đó là một sửa lỗi có bằng chứng.** Tới lượt code
 /// review 2026-08-10 đây là **hai** danh sách: một `SOURCE_CODES` chín phần tử phục vụ cổng

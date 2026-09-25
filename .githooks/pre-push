@@ -1,5 +1,5 @@
 #!/bin/sh
-# Push gate: 11 gates, vitest, build, cargo test. A red step blocks the push.
+# Push gate: 12 gates, vitest, build, cargo test. A red step blocks the push.
 # A push touching only documentation runs the gates and skips the rest (is_docs_only).
 # check:scope, check:scope:bundled and the e2e suite stay out on purpose; CI and the nightly run cover them.
 # History: _bmad-output/implementation-artifacts/agent-rules-evidence.md
@@ -48,9 +48,9 @@ done
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — mười một cổng, test frontend, build, cargo test.'
+echo 'pre-push — mười hai cổng, test frontend, build, cargo test.'
 
-for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint gates debt-owner; do
+for gate in deps tokens i18n commands layout panel-refs doc-refs dict dict-manifest lint gates debt-owner; do
   printf '  %-14s' "$gate"
   if npm run --silent "check:$gate" >/dev/null 2>&1; then
     green 'OK'

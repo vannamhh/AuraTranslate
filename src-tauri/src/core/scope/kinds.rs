@@ -42,7 +42,7 @@
 //! FR103 liệt kê nó ở tầng Tác phẩm, nên cám dỗ là hiển nhiên. Nhưng Story 5.1 định
 //! nghĩa nó là trường **bất biến** trong `meta.json`, đặt lúc tạo Tác phẩm và không đổi
 //! được, và bản PRD (`prd.md:765-774`) ghi rõ *"(cố định, đặt lúc tạo)"* — mệnh đề mà
-//! `epics.md:296` làm rơi mất. Nó **không có đối ứng ở tầng Global**, nên không có gì
+//! đoạn diễn giải FR103 trong `epics.md` làm rơi mất. Nó **không có đối ứng ở tầng Global**, nên không có gì
 //! để ghi đè và không có gì để hợp nhất. Nó là **thuộc tính của Work**, không phải cấu
 //! hình hai tầng. Ghi ở đây để Story 1.15 không phải đoán lại. *(Ice ký 2026-08-04.)*
 //!

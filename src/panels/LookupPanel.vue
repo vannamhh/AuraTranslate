@@ -732,7 +732,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   flex: none;
-  gap: 6px;
+  gap: 8px;
   padding-bottom: var(--space-panel-block);
   margin-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
@@ -753,7 +753,7 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   min-width: 0;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   max-height: 52px;
   overflow-y: auto;
 }
@@ -1006,7 +1006,7 @@ onBeforeUnmount(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 7px;
+  margin-top: 8px;
 }
 
 .lookup-spine-count,
@@ -1056,7 +1056,7 @@ onBeforeUnmount(() => {
 }
 
 .lookup-disagree {
-  padding-left: 11px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-tm-rule);
   color: var(--color-tm-text);
 }
@@ -1104,7 +1104,7 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: var(--space-panel-inline);
   margin: var(--space-panel-block) 0 var(--space-panel-block) 0;
-  padding-bottom: 5px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
@@ -1151,7 +1151,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: baseline;
   gap: var(--space-panel-inline);
-  padding: 2px 0 2px 11px;
+  padding: 4px 0 4px 12px;
   border-left: 2px solid transparent;
 }
 

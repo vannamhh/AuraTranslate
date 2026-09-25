@@ -41,7 +41,7 @@
 //! | Tách token | `jieba-rs` ([`tokenize`]) | run ký tự `char::is_ascii_alphanumeric` của `std` |
 //! | Chuẩn hoá | **đồng nhất** (chữ Hán không có hình thái từ) | hạ chữ thường **rồi** Porter2 |
 //! | n-gram | **ký tự** — không ranh giới từ (`epics.md` §Story 7.6) | **token** n-gram **sau** stemming (`epics.md` §Story 7.6) |
-//! | Khớp thuật ngữ | **khớp chính xác**, chặn theo ranh giới token (`epics.md:2532`) | so khớp trên **dạng đã chuẩn hoá của cả hai vế** |
+//! | Khớp thuật ngữ | **khớp chính xác**, chặn theo ranh giới token (FR51) | so khớp trên **dạng đã chuẩn hoá của cả hai vế** |
 //!
 //! 🔴 **Phép đếm độ dài n-gram là [`str::chars`]`().count()`, KHÔNG BAO GIỜ
 //! [`str::len`].** `"山".len()` là **3** và `"中國".len()` là **6**. Một n-gram ký tự
@@ -195,7 +195,7 @@ pub enum MatchLang {
 /// Một token cùng **span byte vào chuỗi GỐC**.
 ///
 /// 🔴 Span là **byte**, không phải chỉ số ký tự: Story 3.4 tô màu thuật ngữ trong
-/// Panel Source (`epics.md:2528`) và nó cắt chuỗi bằng byte. Span luôn là một cặp ranh
+/// Panel Source (FR51) và nó cắt chuỗi bằng byte. Span luôn là một cặp ranh
 /// giới UTF-8 hợp lệ ⇒ `text.get(token.span.clone())` luôn trả `Some`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchToken<'a> {
@@ -409,7 +409,7 @@ pub fn ngrams(text: &str, lang: MatchLang, n: usize) -> Vec<String> {
 /// Tìm mọi lượt xuất hiện của `terms` trong `text`, trả **span byte vào chuỗi gốc**.
 ///
 /// 🔴 **Vì sao module này giao cả điểm vào chứ không chỉ ba nguyên hàm:** AD-17 nói
-/// *"một **component**"*, không nói *"một túi hàm tiện ích"*, và `epics.md:1509` đòi
+/// *"một **component**"*, không nói *"một túi hàm tiện ích"*, và FR40 đòi
 /// *"tồn tại **đúng một** cài đặt khớp ngôn ngữ"*. Nếu Story 3.4 và Story 7.6 mỗi bên
 /// tự lắp một vòng khớp trên các nguyên hàm thì **vòng khớp thứ hai chính là cài đặt
 /// thứ hai** — đúng thứ AD-17 tồn tại để chặn.
@@ -422,7 +422,7 @@ pub fn ngrams(text: &str, lang: MatchLang, n: usize) -> Vec<String> {
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `Zh` — KHỚP CHÍNH XÁC, CHẶN THEO RANH GIỚI TOKEN
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `epics.md:2532` (Story 3.4): *"văn bản tiếng Trung → dùng khớp chính xác"*. Cài đặt
+/// FR51: *"văn bản tiếng Trung → dùng khớp chính xác"*. Cài đặt
 /// là phép tìm chuỗi con **thô** trên chuỗi gốc, **lọc** bằng ranh giới token của jieba:
 /// một lượt khớp chỉ được nhận khi **cả hai đầu** của nó rơi đúng một ranh giới token.
 ///

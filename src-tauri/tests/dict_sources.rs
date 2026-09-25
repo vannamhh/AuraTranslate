@@ -2099,7 +2099,7 @@ fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
     );
 
     // 🔴 *"Rơi về nhãn tiếng Anh của lớp nền, không có đường tra cứu nào hỏng"*
-    // (`epics.md:1575`) — và nó phải đúng **kể cả khi lớp Hán Việt còn đó**.
+    // (FR36) — và nó phải đúng **kể cả khi lớp Hán Việt còn đó**.
     let base = layers.layer("base").expect("lớp nền luôn có mặt");
     let senses = base.senses(&[1]).expect("đọc nghĩa lớp nền");
     assert_eq!(senses.len(), 2);
@@ -2140,7 +2140,7 @@ fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
 /// đây là lý do luật đó tồn tại.
 ///
 /// 🔴 Danh sách lớp gỡ rời **dẫn xuất từ chính tập lớp**, không viết cứng: mệnh đề của
-/// `epics.md:1572` là *"một lớp gỡ rời **BẤT KỲ**"*, và nó không nghiệm thu được bằng một
+/// FR36 là *"một lớp gỡ rời **BẤT KỲ**"*, và nó không nghiệm thu được bằng một
 /// lớp được chọn sẵn.
 #[test]
 fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {

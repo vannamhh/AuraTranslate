@@ -23,7 +23,7 @@
  * CÁI GÌ KHÔNG Ở ĐÂY
  * ─────────────────────────────────────────────────────────────────────────────
  * Không một `matchMedia`, không một ngưỡng kích thước màn hình, không ngăn kéo,
- * không "rút Tra cứu về thanh trạng thái". Cả bốn là **Story 4.12** và `epics.md:1617`
+ * không "rút Tra cứu về thanh trạng thái". Cả bốn là **Story 4.12** và UX-DR15
  * cấm tường minh việc đóng chúng ở đây. Story này giao đúng **CƠ CHẾ**: một thứ tự hy sinh
  * khai được, kiểm được bằng máy, và một hàm thuần không đọc kích thước cửa sổ — điều
  * kiện để 4.12 **chỉ phải nối ngưỡng vào**, không phải mổ lại bố cục.
@@ -152,7 +152,7 @@ const B1_GRID_TOP: readonly PanelPlacement[] = [
  * dùng mất im lặng**. Đường (b) *(đổi id + một bước di trú)* đắt hơn và không mua thêm gì
  * ngoài một cái tên đẹp.
  *
- * ⚠️ Preset **bốn cột** đã RÚT (`epics.md:539`) — nó tách `Nguyên văn` khỏi `Bản dịch`, thứ
+ * ⚠️ Preset **bốn cột** đã RÚT (FR16) — nó tách `Nguyên văn` khỏi `Bản dịch`, thứ
  * không còn tồn tại. Đừng dựng lại nó khi đọc thấy chữ `columns`.
  */
 export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
@@ -174,7 +174,7 @@ export function presetById(id: string): LayoutPreset | undefined {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * 🔴 THỨ TỰ HY SINH — AC7. CHÉP NGUYÊN VĂN `epics.md:1616`, KHÔNG DIỄN GIẢI LẠI
+ * 🔴 THỨ TỰ HY SINH — AC7. CHÉP NGUYÊN VĂN UX-DR15, KHÔNG DIỄN GIẢI LẠI
  * ═══════════════════════════════════════════════════════════════════════════════
  *
  * > **Đề xuất AI nhường trước · Tra cứu nhường sau nhưng rút về thanh trạng thái, không
@@ -209,7 +209,7 @@ export const NEVER_SACRIFICED: readonly PanelId[] = ['panel.grid']
  *
  * 🔴 **HÀM THUẦN.** Nó **không** đọc `window.innerWidth`, không `matchMedia`, không
  * biết một cái ngưỡng nào tồn tại. Đó chính là điều kiện để Story 4.12 chỉ phải viết
- * *"khi ngưỡng X chạm thì gọi hàm này"* thay vì mổ lại bố cục — và là điều `epics.md:1617`
+ * *"khi ngưỡng X chạm thì gọi hàm này"* thay vì mổ lại bố cục — và là điều UX-DR15
  * đòi bằng chữ.
  *
  * @returns panel kế tiếp trong thứ tự hy sinh mà **đang hiện**, hoặc `null` khi không

@@ -1,7 +1,7 @@
 /**
  * 🔴 **ĐO NFR1 ĐẦU-CUỐI** — Story 1.18, AC4 · Quyết định #7(a).
  *
- * `epics.md:1774` đòi *"độ trễ đầu-cuối **từ lúc thả chuột** tới lúc kết quả **hiển thị**"*,
+ * FR21 đòi *"độ trễ đầu-cuối **từ lúc thả chuột** tới lúc kết quả **hiển thị**"*,
  * p95 trên ≥ 100 lượt. Hai mốc đó nằm ở **hai module khác nhau**, nên chúng sống ở đây —
  * không rải `console.log` trong đường sản phẩm.
  *
@@ -65,7 +65,7 @@ export function resetLookupTiming(): void {
 /**
  * Mốc ĐẦU — gọi trong handler `mouseup` của hợp đồng, **TRƯỚC** `dispatch`.
  *
- * ⚠️ *"Từ lúc thả chuột"* là chữ của `epics.md:1774`. Một mốc đặt sau `dispatch` đo một
+ * ⚠️ *"Từ lúc thả chuột"* là chữ của FR21. Một mốc đặt sau `dispatch` đo một
  * đoạn **ngắn hơn** đoạn AC đòi rồi báo cáo như đã đo đủ — Quyết định #7(b), đã bác.
  */
 export function markDispatch(query: string): void {

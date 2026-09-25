@@ -1,7 +1,7 @@
 /**
  * 🔴 **HỢP ĐỒNG VÙNG CHỌN DÙNG CHUNG** — Story 1.18, AC2 · AC3 · Quyết định #1(a).
  *
- * `epics.md:1762` nói nguyên văn: Auto-Lookup *"gắn vào một hợp đồng vùng chọn dùng chung
+ * FR21 nói nguyên văn: Auto-Lookup *"gắn vào một hợp đồng vùng chọn dùng chung
  * cho mọi panel văn bản"*, và AI Translation + Editor *"nhận được cùng hành vi khi chúng có
  * nội dung ở các epic sau, không cần cài lại"*. Tệp này LÀ hợp đồng đó.
  *

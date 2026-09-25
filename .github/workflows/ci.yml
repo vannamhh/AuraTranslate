@@ -233,6 +233,12 @@ jobs:
       - name: check ô nhớ cấp module đi qua hàm reset (cổng thứ mười hai — Story 2.12)
         run: npm run check:panel-refs
 
+      # Cấm tham chiếu `epics.md` kèm số dòng trong mã nguồn — dòng đó trôi ở mọi lượt sửa
+      # `epics.md`, kể cả trong một tệp `src-tauri/` đã commit từ lâu, và không cổng nào
+      # từng canh việc đó. Cùng cụm đọc-tệp: chỉ đọc, không cần `dist/`.
+      - name: check tham chiếu epics.md không neo số dòng (Story 11.1)
+        run: npm run check:doc-refs
+
       # Cổng thứ MƯỜI — lint có kiểu (`01be1c2`, lượt code review Story 1.21). Nó đóng
       # đúng lớp lỗi mà chín cổng kia không canh được: `if (someRef)` trên một `Ref` của
       # Vue là TypeScript hợp lệ, `vue-tsc` im, và nhánh bên trong thành mã chết. Hai
@@ -277,7 +283,7 @@ jobs:
       # ═══════════════════════════════════════════════════════════════════════════════
       #
       # 🔴 VỊ TRÍ TRONG CHUỖI LÀ MỘT QUYẾT ĐỊNH, không một chỗ trống tiện tay:
-      #   - **SAU** 11 cổng `check:*` — chúng chỉ đọc tệp và xong trong vài giây, nên một
+      #   - **SAU** 12 cổng `check:*` — chúng chỉ đọc tệp và xong trong vài giây, nên một
       #     token sai hay một chuỗi tiếng Việt lọt vào `.vue` phải đỏ trước;
       #   - **TRƯỚC** `npm run build` — test frontend KHÔNG cần `dist/`;
       #   - và **trước** `cargo test` là điểm chính: đặt nó sau đó là bắt người ta chờ vài

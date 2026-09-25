@@ -2770,8 +2770,8 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    *    `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` (Story 1.14) viết *"không đụng `⌥←` `⌥→` trần (Chương trước/sau
    *    — `EXPERIENCE.md:148`, Story 2.11)"*. Dòng 148 của tệp đó **nay là đoạn Auto-Lookup**;
    *    hàng thật `| ⌥← ⌥→ | Chương trước / sau trong cùng lần nhập |` nằm ở **`:184`**, và nó
-   *    thuộc bảng *"Sửa ranh giới bóc"* (`:174-186`) — tức **màn xem trước NHẬP**, UX-DR33
-   *    (`epics.md:599`), không phải Workspace. Bảng Phím của **Workspace** (`:261-269`) không
+   *    thuộc bảng *"Sửa ranh giới bóc"* (`:174-186`) — tức **màn xem trước NHẬP**, UX-DR33,
+   *    không phải Workspace. Bảng Phím của **Workspace** (`:261-269`) không
    *    một hàng nào cho chuyển Chương. ⇒ `⌥←`/`⌥→` **chưa bao giờ** được đặt chỗ ở đây.
    *
    * ③ **Không phím mặc định** (khuôn `editor.next_segment`, chữ ký #2(c) của 2.10) — loại, vì
@@ -2920,7 +2920,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * ─────────────────────────────────────────────────────────────────────────────
    * ⚠️ HỢP ÂM: BA TÀI LIỆU NÓI BA ĐIỀU, và bảng Phím là bản CŨ
    * ─────────────────────────────────────────────────────────────────────────────
-   * `epics.md:2498, 2502` *(AC — nguồn chính thức)* và `EXPERIENCE.md:169` đều `⌘M`/`⌘/`;
+   * FR78 *(AC — nguồn chính thức)* và `EXPERIENCE.md:169` đều `⌘M`/`⌘/`;
    * chỉ bảng Phím `EXPERIENCE.md:267` viết `⌘T` cho tách. Ice chốt theo **AC**, và
    * `EXPERIENCE.md:267` đã sửa tại chỗ kèm 🔵 + ngày.
    *

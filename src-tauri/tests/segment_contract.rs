@@ -6183,7 +6183,7 @@ fn splitting_gives_the_tail_piece_no_translation_and_therefore_no_origin() {
     assert_eq!(
         pieces[1].target_text, "",
         "manh SAU khong co ban dich -- khong co phep chieu nao tu cho cat ben nguon sang \
-         ban dich (epics.md:2552)"
+         ban dich (FR78)"
     );
     assert_eq!(
         pieces[0].translation_origin, "self",

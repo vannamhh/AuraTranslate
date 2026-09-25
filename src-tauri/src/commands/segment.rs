@@ -1024,7 +1024,7 @@ fn select_chapter_assets(
 ///
 /// - Chữ ký #6(b) *(2026-08-17, sáng)* — **giữ** hàng về hưu trong lưới với vạch `ornament`
 ///   mờ. Ba thứ đứng sau nó: nhánh `ornament` chỉ có một nơi gọi là lưới; UX-DR19
-///   (`epics.md:555`) khai `ornament` là một trong **sáu** giá trị vạch; AD-5 hứa chỗ đánh
+///   khai `ornament` là một trong **sáu** giá trị vạch; AD-5 hứa chỗ đánh
 ///   dấu FR119 vẫn mở về đúng vị trí. Cái giá đã viết ra và nhận: *"lưới phình theo số lần
 ///   sửa, vĩnh viễn"*.
 /// - 🔴 **Lật, cùng ngày, sau khi Ice DÙNG THẬT:** *"đã tách ra 2 câu, nhưng câu cũ vẫn tồn

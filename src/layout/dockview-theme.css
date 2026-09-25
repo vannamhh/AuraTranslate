@@ -179,7 +179,7 @@
  */
 .dockview-theme-aura .dv-view:has(> .dv-groupview) {
   box-sizing: border-box;
-  padding: calc(var(--panel-gap) / 2);
+  padding: calc(var(--panel-gap) / 2); /* aura-allow-spacing: nửa --panel-gap RUNTIME (0px sáng / 2px tối), không phải khoảng cách lưới cố định */
 }
 
 /*

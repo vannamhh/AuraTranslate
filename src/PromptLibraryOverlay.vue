@@ -781,7 +781,7 @@ function onEscape(): void {
   border: none;
   border-left: 2px solid transparent;
   cursor: pointer;
-  font-family: var(--face-read);
+  font-family: var(--family-read);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
@@ -899,7 +899,7 @@ function onEscape(): void {
 }
 
 .pl-input {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);
@@ -909,10 +909,10 @@ function onEscape(): void {
 }
 
 .pl-textarea {
-  padding: calc(var(--space-unit) * 1.5);
+  padding: calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
-  font-family: var(--face-read);
+  font-family: var(--family-read);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);

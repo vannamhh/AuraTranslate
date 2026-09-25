@@ -344,7 +344,7 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 HÀNG ỨNG VIÊN KHÔNG BỊ XOÁ KHI BỎ — `resolution` GHI LẠI, KHÔNG `DELETE`
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `epics.md:2854-2857` viết *"nó rời bảng chờ"* khi đọc lướt qua nghe như một `DELETE`,
+/// FR55 viết *"nó rời bảng chờ"* khi đọc lướt qua nghe như một `DELETE`,
 /// nhưng "rời" ở đây là rời DANH SÁCH CHỜ DUYỆT (`resolution IS NULL`), không phải rời
 /// đĩa. Xoá hàng thật thì lần quét sau chèn lại được — `UNIQUE (source_term)` không còn gì
 /// để chặn — và AC kế tiếp ("không quay lại") chết ngay trong cùng một câu. `resolution`

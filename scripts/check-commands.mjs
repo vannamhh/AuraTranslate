@@ -68,6 +68,8 @@ import {
   attributesIn,
   scanVueAttrs,
   functionBodyRange,
+  balancedBraceBody,
+  splitTopLevel,
 } from './lib/commands-scan.mjs'
 
 /** @typedef {import('./lib/commands-scan.mjs').ParsedFile} ParsedFile */
@@ -1863,7 +1865,7 @@ console.log('\nKiểm F — BA panel đăng ký hợp đồng vùng chọn (Stor
 //
 // 🔴 VÌ SAO AC2 ĐÒI MỘT CỔNG, KHÔNG CHỈ ĐÒI MÃ
 //
-// `epics.md:1762` nói Auto-Lookup gắn vào *"một hợp đồng vùng chọn dùng chung cho **mọi**
+// FR21 nói Auto-Lookup gắn vào *"một hợp đồng vùng chọn dùng chung cho **mọi**
 // panel văn bản"*, và AI Translation + Editor *"nhận được cùng hành vi khi chúng có nội
 // dung ở các epic sau, **không cần cài lại**"*. Một cài đặt chỉ chạy cho `SourcePanel`
 // **đạt AC1 và trượt AC2**.
@@ -2081,53 +2083,6 @@ if (gridCalls.length > 0) {
       fBad += 1
     }
   }
-}
-
-/**
- * The `{ … }` body immediately after the first match of `head`, found by brace-depth
- * counting rather than a `[^}]*` regex (which stops at the first, possibly nested, `}`).
- * @param {string} text
- * @param {RegExp} head
- * @returns {string | null}
- */
-function balancedBraceBody(text, head) {
-  const m = head.exec(text)
-  if (!m) return null
-  const open = text.indexOf('{', m.index)
-  if (open === -1) return null
-  let depth = 0
-  for (let i = open; i < text.length; i += 1) {
-    if (text[i] === '{') depth += 1
-    else if (text[i] === '}') {
-      depth -= 1
-      if (depth === 0) return text.slice(open + 1, i)
-    }
-  }
-  return null
-}
-
-/**
- * Splits `body` on commas at depth 0 only, so a comma inside a nested `{}`/`()`/`[]` does
- * not break an entry apart.
- * @param {string} body
- * @returns {string[]}
- */
-function splitTopLevel(body) {
-  /** @type {string[]} */
-  const parts = []
-  let depth = 0
-  let start = 0
-  for (let i = 0; i < body.length; i += 1) {
-    const c = body[i]
-    if (c === '{' || c === '(' || c === '[') depth += 1
-    else if (c === '}' || c === ')' || c === ']') depth -= 1
-    else if (c === ',' && depth === 0) {
-      parts.push(body.slice(start, i))
-      start = i + 1
-    }
-  }
-  parts.push(body.slice(start))
-  return parts
 }
 
 // ⑥ `SELECTION_PANEL_FILES` is cross-checked two-way against the real `components` map of

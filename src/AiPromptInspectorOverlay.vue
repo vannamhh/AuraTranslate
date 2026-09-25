@@ -500,7 +500,7 @@ const tmSearched = computed(() => {
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
-  font-family: var(--face-read);
+  font-family: var(--family-read);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);

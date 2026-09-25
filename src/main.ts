@@ -695,7 +695,8 @@ async function boot(): Promise<void> {
       // qua `IpcError` thì không có bề mặt nào khác để nói, nên chúng nói ở đây — **kêu, không
       // ném**: một hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném.
       //
-      // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n` cấm chữ tiếng Việt ở vị trí mã.
+      // ⚠️ Chẩn đoán viết KHÔNG DẤU — quy ước TAY, không một cổng: Kiểm A của `check:i18n`
+      // chỉ quét `.rs`/`.vue`; `main.ts` là `.ts`, ngoài phạm vi đó.
       // Story 2.5b · AC12. Cùng cửa và cùng lý do với `confirmSegment`: phép chọn
       // sống ở `panels/segmentNavigation.ts` (module thuần), state ở `editorPanelState.ts`,
       // và `commands/index.ts` không được `import` cả hai (luật erasable-only).
@@ -723,8 +724,9 @@ async function boot(): Promise<void> {
           // `confirmCurrentSegment` ghi vào `editorConfirmNotice` và `StatusBar.vue` đọc.
           //
           // ⚠️ `console.warn` Ở LẠI, và nó không thừa: nó là đường **chẩn đoán** *(viết KHÔNG
-          // DẤU — Kiểm A của `check:i18n`)*, còn thanh trạng thái là đường **cho người dùng**.
-          // Hai người đọc khác nhau, hai mức chi tiết khác nhau.
+          // DẤU theo quy ước TAY — `main.ts` là `.ts`, ngoài phạm vi Kiểm A của `check:i18n`)*,
+          // còn thanh trạng thái là đường **cho người dùng**. Hai người đọc khác nhau, hai mức
+          // chi tiết khác nhau.
           console.warn(`[grid] khong ky duoc segment: ${result}`)
         })
       },
@@ -739,7 +741,8 @@ async function boot(): Promise<void> {
           // đó **chưa có component nào đọc**, đúng món nợ mà `editorPanelState.ts` ghi tại
           // chỗ khai nó. Đừng đọc dòng này thành "đã có đường ra màn hình".
           //
-          // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`.
+          // ⚠️ Chẩn đoán viết KHÔNG DẤU — quy ước TAY: `main.ts` là `.ts`, ngoài phạm vi Kiểm A
+          // của `check:i18n` (chỉ quét `.rs`/`.vue`).
           console.warn(`[grid] khong dat duoc co cat bo: ${result}`)
         })
       },
@@ -755,8 +758,6 @@ async function boot(): Promise<void> {
           // ⚠️ Chẩn đoán viết KHÔNG DẤU — **quy ước TAY, không một cổng**. Kiểm A của
           //    `check:i18n` quét đúng hai quần thể: `.rs` và `.vue` (`check-i18n.mjs:860-861`);
           //    `main.ts` là `.ts` nên nằm NGOÀI phạm vi và dòng này có dấu cũng không ai đỏ.
-          //    🔵 Ba dòng cùng kiểu ở trên (`:248` · `:264` · `:281`) còn ghi sai điều đó —
-          //    món nợ có chủ ở `deferred-work.md`, code review 2026-08-16.
           console.warn(`[grid] khong dat duoc co ket doan ban dich: ${result}`)
         })
       },
@@ -1235,7 +1236,7 @@ async function boot(): Promise<void> {
   // `void`: `attachSelectionWatcher` trả hàm gỡ, và cửa sổ này sống đúng bằng vòng đời
   // tiến trình — cùng lý lẽ `attachKeyboard` ở trên.
   void attachSelectionWatcher(document, () => {
-    // Mốc ĐẦU của phép đo NFR1 — *"từ lúc thả chuột"* (`epics.md:1774`), tức TRƯỚC
+    // Mốc ĐẦU của phép đo NFR1 — *"từ lúc thả chuột"* (FR21), tức TRƯỚC
     // `dispatch`. Khi cờ đo TẮT (mặc định) đây là một lời gọi rỗng. Quyết định #7.
     markDispatch(currentSelectionText())
     dispatch('lookup.lookup_selection')

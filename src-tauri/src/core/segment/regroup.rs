@@ -208,7 +208,7 @@ pub fn merge(parts: &[SegmentPart<'_>], source_lang: &str) -> Option<NewSegment>
 /// 🔵 2026-08-17 — NHẬN **MỘT TẬP** CHỖ CẮT. Chữ ký cho AC7 vế *"nhiều mảnh"*
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Bản đầu nhận `cut: usize` và viết cứng `split_into(part.flags, 2)` — tức **đúng hai**
-/// mảnh mỗi lượt. Code review 2026-08-17 bắt được rằng `epics.md:2522` đòi *"tách một
+/// mảnh mỗi lượt. Code review 2026-08-17 bắt được rằng FR78 đòi *"tách một
 /// segment thành **nhiều** mảnh ⇒ cờ theo mảnh cuối, mọi mảnh trước nhận cờ tắt"*, và khoảng
 /// hở đó — khác hẳn khoảng hở song sinh của AC6 — **không** có quyết định, **không** có chữ
 /// ký, **không** có một dòng nợ nào.
@@ -239,7 +239,7 @@ pub fn merge(parts: &[SegmentPart<'_>], source_lang: &str) -> Option<NewSegment>
 /// một chỉ số từ webview, nên nó là chỗ duy nhất phải chịu được một số bất kỳ.
 ///
 /// ⚠️ **Bản dịch đi theo mảnh ĐẦU** (chữ ký #3(b), vế tách): không có phép chiếu nào từ chỗ
-/// cắt bên nguồn sang bản dịch (`epics.md:2552`), và một lượt tách **xoá** bản dịch là cái
+/// cắt bên nguồn sang bản dịch (FR78), và một lượt tách **xoá** bản dịch là cái
 /// giá mà đường (c) phải trả còn đường đã ký thì không. Với `n` mảnh mệnh đề ấy **không đổi
 /// một chữ** — mảnh đầu giữ trọn, mọi mảnh sau rỗng.
 #[must_use]

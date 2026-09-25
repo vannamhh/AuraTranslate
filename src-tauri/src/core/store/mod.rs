@@ -64,7 +64,7 @@
 //! Không con số nào ở [`Tuning::default`] được đo. Chúng không đo được hôm nay vì phép
 //! đo cần Editor thật: `wal_threshold_bytes` và nhịp flush của AD-35 **đánh đổi lẫn
 //! nhau** — phải đạt NFR18 *(mất ≤ 5 s)* mà không phạm NFR2 *(không frame nào vượt
-//! 50 ms)*. `ARCHITECTURE-SPINE.md#Deferred` và `epics.md:454` xếp cả cặp vào Giai đoạn 2.
+//! 50 ms)*. `ARCHITECTURE-SPINE.md#Deferred` xếp cả cặp vào Giai đoạn 2.
 //! Đừng đọc các số này như đã hiệu chỉnh; xem `deferred-work.md`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────

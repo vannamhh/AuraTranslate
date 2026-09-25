@@ -52,8 +52,24 @@
  * Chạy:  npm run check:tokens
  */
 import { readFileSync, readdirSync, lstatSync, existsSync, realpathSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
+import { maskCommentsAndStrings, lineOf, parseCssBlocks, inlineStyleBlocks } from './lib/tokens-scan.mjs'
+
+/** @typedef {import('./lib/tokens-scan.mjs').CssDecl} CssDecl */
+/** @typedef {import('./lib/tokens-scan.mjs').CssBlock} CssBlock */
+/** @typedef {CssDecl & {file: string, text: string}} DeclWithFile */
+/**
+ * @typedef {object} ParsedSrcFile
+ * @property {string} file
+ * @property {string} text
+ * @property {string} masked
+ * @property {import('./lib/tokens-scan.mjs').MaskedComment[]} comments
+ * @property {CssBlock[]} blocks
+ * @property {boolean} isMarkup
+ * @property {boolean} isCss
+ * @property {{start: number, end: number}[]} cssRegions
+ */
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
@@ -108,18 +124,32 @@ const COMPONENT_FILE_FLOOR = 56 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬ
 // ngoài `src/tokens/**` — 52/63 = 82,5%.
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
 
-/** Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật. */
+/**
+ * @param {unknown} err
+ * @returns {string}
+ */
+const errorMessage = (err) => (err instanceof Error && err.message ? err.message : String(err))
+
+/**
+ * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
+ */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(errorMessage(err).trim())
   process.exit(1)
 }
 
@@ -340,9 +370,24 @@ if (!tokens || typeof tokens !== 'object' || Array.isArray(tokens)) {
   abort(`\`${relative(REPO_ROOT, TOKENS_PATH)}\``, new Error('Gốc tệp phải là một object.'))
 }
 
+/** @param {string} k */
 const isToken = (k) => k !== '$doc'
+/**
+ * Dữ liệu động của `tokens.json` (xem `asArray` ngay dưới) — `any` ở giá trị entry là chủ
+ * ý, không phải một chỗ bỏ sót kiểu.
+ * @param {Record<string, any> | undefined | null} obj
+ * @returns {[string, any][]}
+ */
 const entriesOf = (obj) => Object.entries(obj ?? {}).filter(([k]) => isToken(k))
+/** @param {Record<string, any> | undefined | null} obj */
 const keysOf = (obj) => entriesOf(obj).map(([k]) => k)
+/**
+ * Dữ liệu động của `tokens.json` — hình dạng được kiểm LÚC CHẠY (đúng việc của cổng này),
+ * không phải lúc biên dịch, nên `any[]` ở đây là chủ ý, không phải một chỗ bỏ sót kiểu.
+ * @param {unknown} v
+ * @param {string} what
+ * @returns {any[]}
+ */
 const asArray = (v, what) => {
   if (v === undefined || v === null) return []
   if (!Array.isArray(v)) abort(`\`${what}\` trong tokens.json`, new Error('Phải là một mảng.'))
@@ -365,6 +410,7 @@ const SCAN_EXT = [...CSS_EXT, ...MARKUP_EXT, ...CODE_EXT]
 /** Tệp ngoài `src/**` vẫn thuộc bề mặt giao diện. `index.html` là vỏ ứng dụng thật. */
 const EXTRA_FILES = [join(REPO_ROOT, 'index.html')]
 
+/** @type {string[]} */
 const skippedLinks = []
 
 /**
@@ -372,6 +418,10 @@ const skippedLinks = []
  * thư mục cha làm đệ quy không dừng, và một liên kết gãy ném `ENOENT` bị `abort()` báo
  * thành "cây nguồn không đọc được" — một liên kết hỏng làm sập cả cổng dưới danh nghĩa
  * lỗi hạ tầng. Symlink bị BỎ QUA và ghi tên ra, để việc bỏ qua không im lặng.
+ * @param {string} dir
+ * @param {string[]} out
+ * @param {Set<string>} seen
+ * @returns {string[]}
  */
 function walk(dir, out = [], seen = new Set()) {
   let key
@@ -411,7 +461,9 @@ if (files.length < FILE_FLOOR) {
 
 /** `src/tokens/**` là nơi màu ĐƯỢC PHÉP viết thẳng — đó là định nghĩa của chúng. */
 const TOKENS_DIR_PREFIX = `src${sep}tokens${sep}`
+/** @param {string} f */
 const rel = (f) => relative(REPO_ROOT, f)
+/** @param {string} f */
 const isTokenSource = (f) => rel(f).startsWith(TOKENS_DIR_PREFIX)
 
 const componentFiles = files.filter((f) => !isTokenSource(f))
@@ -425,184 +477,13 @@ if (componentFiles.length < COMPONENT_FILE_FLOOR) {
   )
 }
 
-// ── Che comment và chuỗi, GIỮ NGUYÊN offset ──────────────────────────────────────
+// ── Che comment/chuỗi, phân tích khối CSS, `style=""` trong markup ───────────────
 //
-// ⚠️ Che chứ không xoá: mọi số dòng báo lỗi bên dưới tính từ offset trong văn bản gốc.
-// Xoá đi thì mọi chẩn đoán trỏ sai dòng, và một cổng chỉ đường sai sẽ bị người sau
-// thêm ngoại lệ cho tới khi nó không bắt được gì.
-//
-// 🔴 `text.split('')` chứ KHÔNG phải `[...text]`. Spread đánh chỉ số theo CODE POINT
-// trong khi mọi chỉ số nạp vào nó (`i`, `indexOf`, `blankRange`) là UTF-16: một ký tự
-// ngoài BMP — một emoji trong comment, một chữ Hán mở rộng — làm lệch toàn bộ offset từ
-// đó trở đi, và cổng che nhầm vùng mà không có gì báo.
-const blankRange = (chars, s, e) => {
-  for (let i = s; i < e && i < chars.length; i++) if (chars[i] !== '\n') chars[i] = ' '
-}
-
-/**
- * 🔴 Chuỗi và comment KHÔNG ĐÓNG không được che.
- *
- * Bản trước quét `while (j < text.length && text[j] !== ch) j++` rồi che tới `j` — với
- * một dấu nháy lẻ thì `j` là hết tệp và toàn bộ phần còn lại bị xoá trắng. Lượt rà soát
- * chạy thật: `<p>don't</p>` trong template, cộng một khối mang `opacity: 0.4` trên chữ +
- * `box-shadow` + `z-index` trong `<style>` ⇒ **0 FAIL, exit 0**; đúng khối đó mà không có
- * dấu nháy lẻ ⇒ **3 FAIL, exit 1**. Một dấu nháy trong văn xuôi tiếng Việt hay tiếng Anh
- * tắt được Kiểm B, D và F cùng lúc.
- *
- * Luật: `'` và `"` phải đóng TRONG CÙNG MỘT DÒNG mới được coi là chuỗi (đúng ngữ nghĩa
- * của cả JS lẫn CSS); `` ` `` và `/* *\/` được phép nhiều dòng nhưng phải có chỗ đóng.
- * Không đóng ⇒ ký tự đó là ký tự thường, đi tiếp một bước.
- *
- * `cssRanges` tắt comment `//` bên trong vùng CSS: `background: url(//host/x.png)` không
- * phải một comment, và che nó nuốt luôn dấu `;` làm hai khai báo dính vào nhau.
- */
-function maskCommentsAndStrings(text, { cssRanges = [] } = {}) {
-  const chars = text.split('')
-  const comments = []
-  const inCss = (i) => cssRanges.some((r) => i >= r.start && i < r.end)
-  let i = 0
-  while (i < text.length) {
-    const two = text.slice(i, i + 2)
-    if (two === '/*') {
-      const end = text.indexOf('*/', i + 2)
-      if (end === -1) {
-        i += 1
-        continue
-      }
-      const stop = end + 2
-      comments.push({ index: i, text: text.slice(i, stop) })
-      blankRange(chars, i, stop)
-      i = stop
-      continue
-    }
-    if (two === '//' && !inCss(i)) {
-      let end = text.indexOf('\n', i)
-      if (end === -1) end = text.length
-      comments.push({ index: i, text: text.slice(i, end) })
-      blankRange(chars, i, end)
-      i = end
-      continue
-    }
-    const ch = text[i]
-    if (ch === '"' || ch === "'" || ch === '`') {
-      let j = i + 1
-      let closed = false
-      while (j < text.length) {
-        if (text[j] === '\\') {
-          j += 2
-          continue
-        }
-        if (text[j] === ch) {
-          closed = true
-          break
-        }
-        if (text[j] === '\n' && ch !== '`') break
-        j += 1
-      }
-      if (!closed) {
-        i += 1
-        continue
-      }
-      blankRange(chars, i + 1, j)
-      i = j + 1
-      continue
-    }
-    i += 1
-  }
-  return { masked: chars.join(''), comments }
-}
-
-const lineOf = (text, index) => text.slice(0, index).split('\n').length
-
-// ── Phân tích khối CSS ───────────────────────────────────────────────────────────
-//
-// Đủ để trả lời hai câu hỏi mà Kiểm B và Kiểm D cần, và không hơn: (1) khai báo nào
-// mang giá trị gì, (2) khai báo nằm ở đâu. Giới hạn của bộ phân tích này được ghi thẳng
-// ở `deferred-work.md` — khi Story 1.14 dựng CSS thật và nhiều, soát lại SỐ KHAI BÁO mà
-// cổng báo đã quét: con số tụt bất thường là dấu hiệu nó bỏ sót cả vùng.
-function parseCssBlocks(masked, source) {
-  const blocks = []
-  const stack = []
-  let buf = ''
-
-  const flush = (block, endIndex) => {
-    const raw = buf.trim()
-    buf = ''
-    if (!block || !raw) return
-    const colon = raw.indexOf(':')
-    if (colon <= 0) return
-    const prop = raw.slice(0, colon).trim().toLowerCase()
-    const value = raw.slice(colon + 1).trim()
-    if (!prop || prop.startsWith('@')) return
-    block.decls.push({ prop, value, index: endIndex, source })
-  }
-
-  for (let i = 0; i < masked.length; i++) {
-    const ch = masked[i]
-    if (ch === '{') {
-      stack.push({ prelude: buf.trim(), decls: [], source })
-      buf = ''
-    } else if (ch === '}') {
-      const block = stack.pop()
-      flush(block, i)
-      if (block) blocks.push(block)
-      buf = ''
-    } else if (ch === ';') {
-      flush(stack[stack.length - 1], i)
-    } else {
-      buf += ch
-    }
-  }
-  return blocks
-}
-
-// ── `style` trong markup ─────────────────────────────────────────────────────────
-//
-// 🔴 Bản trước chỉ bắt `style="…"` nháy kép TĨNH. Lượt rà soát chạy thật:
-// `:style="{ color: 'red', fontSize: '13px' }"` và `style='color: rebeccapurple'` ⇒
-// **exit 0**. `:style` là chính cách Vue khai style động — bỏ nó là bỏ đường dễ nhất.
-const STYLE_ATTR_RE = /(?:^|[\s])(:?|v-bind:)style\s*=\s*("([^"]*)"|'([^']*)')/gi
-const kebab = (s) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
-
-function inlineStyleBlocks(text, file) {
-  const blocks = []
-  let m
-  const re = new RegExp(STYLE_ATTR_RE.source, 'gi')
-  while ((m = re.exec(text))) {
-    const bound = m[1] !== '' // `:style` / `v-bind:style` → giá trị là biểu thức JS
-    const body = m[3] !== undefined ? m[3] : m[4]
-    const base = m.index + m[0].indexOf(body)
-    const decls = []
-    if (!bound) {
-      let off = 0
-      for (const piece of body.split(';')) {
-        const colon = piece.indexOf(':')
-        if (colon > 0) {
-          decls.push({
-            prop: piece.slice(0, colon).trim().toLowerCase(),
-            value: piece.slice(colon + 1).trim(),
-            index: base + off,
-            source: file,
-          })
-        }
-        off += piece.length + 1
-      }
-    } else {
-      // Hai hình dạng: một chuỗi (`:style="'color: red'"`) hoặc một object literal.
-      const objRe = /(['"]?)([A-Za-z-]+)\1\s*:\s*(?:(['"])(.*?)\3|([^,}]+))/g
-      let o
-      while ((o = objRe.exec(body))) {
-        const value = (o[4] !== undefined ? o[4] : o[5] || '').trim()
-        if (!value) continue
-        decls.push({ prop: kebab(o[2]).toLowerCase(), value, index: base + o.index, source: file })
-      }
-    }
-    // ⚠️ MỘT khối cho MỖI thuộc tính, không gộp cả tệp. Gộp thì Kiểm D nhiễu chéo giữa
-    // các thẻ không liên quan, và mọi khai báo báo về cùng một số dòng.
-    if (decls.length) blocks.push({ prelude: 'style=""', decls, source: file })
-  }
-  return blocks
-}
+// `blankRange` · `maskCommentsAndStrings` · `lineOf` · `parseCssBlocks` · `inlineStyleBlocks`
+// sống ở `scripts/lib/tokens-scan.mjs` (Decision 1, Story 11.1 lot C, L117) — cùng lý do
+// `commands-scan.mjs` tồn tại: chúng không đụng `fs`/`process.exit` nên an toàn để
+// `tests/frontend/checkTokensScan.test.ts` `import()` trực tiếp, còn bản thân tệp này thì
+// không (top-level `await`, `process.exit`). Xem doc-comment đầy đủ của từng hàm tại đó.
 
 /** Một tệp đã đọc, đã che, đã phân tích. */
 const parsed = files.map((file) => {
@@ -616,7 +497,8 @@ const parsed = files.map((file) => {
     abort(`tệp \`${rel(file)}\``, err)
   }
 
-  /** Vùng CSS thật của tệp: cả tệp `.css`, hoặc từng khối `<style>` của markup. */
+  /** Vùng CSS thật của tệp: cả tệp `.css`, hoặc từng khối `<style>` của markup.
+   * @type {{start: number, end: number}[]} */
   const cssRegions = []
   if (isCss) cssRegions.push({ start: 0, end: text.length })
   else if (isMarkup) {
@@ -638,6 +520,7 @@ const parsed = files.map((file) => {
 
   const { masked, comments } = maskCommentsAndStrings(text, { cssRanges: cssRegions })
 
+  /** @type {CssBlock[]} */
   const blocks = []
   for (const r of cssRegions) {
     // Giữ offset tuyệt đối bằng cách đệm khoảng trắng phía trước vùng.
@@ -652,12 +535,19 @@ const parsed = files.map((file) => {
 const allDecls = parsed.flatMap((p) =>
   p.blocks.flatMap((b) => b.decls.map((d) => ({ ...d, file: p.file, text: p.text }))),
 )
+/** @param {DeclWithFile} d */
 const where = (d) => `${rel(d.file)}:${lineOf(d.text, d.index)}`
 
-/** Miễn trừ có tên: một comment `/* aura-allow-<gì>: <lý do> *\/` trong phạm vi một dòng. */
+/**
+ * Miễn trừ có tên: một comment `/* aura-allow-<gì>: <lý do> *\/` trong phạm vi một dòng.
+ * @param {{ text: string, comments: { text: string, index: number }[] }} p
+ * @param {number} index
+ * @param {string} kind
+ * @returns {boolean}
+ */
 const exemptAt = (p, index, kind) => {
   const line = lineOf(p.text, index)
-  const re = new RegExp(`aura-allow-${kind}\\s*:\\s*\\S`)
+  const re = new RegExp(`aura-allow-${kind}\\s*:\\s*(?!\\*\\/)\\S`)
   return p.comments.some((c) => re.test(c.text) && Math.abs(lineOf(p.text, c.index) - line) <= 1)
 }
 
@@ -665,8 +555,10 @@ const exemptAt = (p, index, kind) => {
 // Tương phản WCAG 2.x
 // ═════════════════════════════════════════════════════════════════════════════════
 const HEX6_RE = /^#[0-9a-fA-F]{6}$/
+/** @param {number} c */
 const srgbChannel = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 
+/** @param {string} hex */
 function luminance(hex) {
   const n = parseInt(hex.slice(1), 16)
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => srgbChannel(v / 255))
@@ -678,6 +570,9 @@ function luminance(hex) {
  * một giá trị SAI; với `rgb(…)` hay tên màu thì ra `NaN`, và `NaN < 4.5` là `false`, tức
  * cặp được tuyên bố ĐẠT. Một phép so sánh im lặng nhận `NaN` là chỗ mà mọi phán quyết
  * của Kiểm C thành rác kèm hai chữ số thập phân trông rất thuyết phục.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
  */
 function contrast(a, b) {
   if (!HEX6_RE.test(a) || !HEX6_RE.test(b)) {
@@ -716,9 +611,17 @@ console.log('\nKiểm A — đủ token, đúng giá trị (AC1)')
  * KHÔNG có trường `reason` nào ⇒ exit 0. Sổ deviation vừa *ghi nhận* vừa *cấp phép*, và
  * phần cấp phép không đòi gì cả.
  */
+/** @type {Map<string, any>} */
 const deviations = new Map(asArray(tokens.deviations, 'deviations').map((d) => [d?.path, d]))
+/** @type {Set<string>} */
 const deviationsUsed = new Set()
 
+/**
+ * @param {string} path
+ * @param {unknown} wantV
+ * @param {unknown} gotV
+ * @returns {boolean}
+ */
 const deviationOk = (path, wantV, gotV) => {
   const dev = deviations.get(path)
   if (!dev) return false
@@ -734,9 +637,17 @@ const deviationOk = (path, wantV, gotV) => {
   return true
 }
 
+/**
+ * @param {string} group
+ * @param {Record<string, unknown>} expected
+ * @param {Record<string, unknown> | undefined} actual
+ * @param {(v: unknown) => any} [pick]
+ * @returns {number}
+ */
 function compare(group, expected, actual, pick = (v) => v) {
+  const safeActual = actual ?? {}
   const expKeys = Object.keys(expected)
-  const actKeys = keysOf(actual)
+  const actKeys = keysOf(safeActual)
   const missing = expKeys.filter((k) => !actKeys.includes(k))
   const extra = actKeys.filter((k) => !expKeys.includes(k))
   let bad = 0
@@ -782,8 +693,8 @@ function compare(group, expected, actual, pick = (v) => v) {
   for (const key of expKeys) {
     if (missing.includes(key)) continue
     const want = expected[key]
-    const got = pick(actual[key])
-    if (typeof want === 'object') {
+    const got = pick(safeActual[key])
+    if (want !== null && typeof want === 'object') {
       for (const [field, wantV] of Object.entries(want)) {
         const gotV = got?.[field] === undefined ? undefined : String(got[field])
         if (gotV === String(wantV)) continue
@@ -938,11 +849,20 @@ const ALLOWED_COLOR_KEYWORDS = new Set([
   'none',
 ])
 
-/** `!important` là chỉ thị ưu tiên, không phải một phần của giá trị. */
+/**
+ * `!important` là chỉ thị ưu tiên, không phải một phần của giá trị.
+ * @param {string} v
+ * @returns {string}
+ */
 const stripImportant = (v) => v.replace(/\s*!\s*important\s*$/i, '').trim()
 
-/** Tách giá trị thành các phần ở TẦNG NGOÀI — `border-color` hợp lệ nhận 1..4 giá trị. */
+/**
+ * Tách giá trị thành các phần ở TẦNG NGOÀI — `border-color` hợp lệ nhận 1..4 giá trị.
+ * @param {string} value
+ * @returns {string[]}
+ */
 function topLevelParts(value) {
+  /** @type {string[]} */
   const parts = []
   let depth = 0
   let buf = ''
@@ -1006,18 +926,21 @@ for (const d of componentDecls) {
 let bTs = 0
 for (const p of parsed) {
   if (isTokenSource(p.file) || p.isCss) continue
+  /** @param {number} i */
   const inCss = (i) => p.cssRegions.some((r) => i >= r.start && i < r.end)
   const re = new RegExp(LITERAL_COLOR_RE.source, 'g')
+  /** @type {RegExpExecArray | null} */
   let m
   while ((m = re.exec(p.text))) {
-    if (inCss(m.index)) continue
-    const inComment = p.comments.some((c) => m.index >= c.index && m.index < c.index + c.text.length)
+    const match = m
+    if (inCss(match.index)) continue
+    const inComment = p.comments.some((c) => match.index >= c.index && match.index < c.index + c.text.length)
     if (inComment) continue
-    if (exemptAt(p, m.index, 'literal')) {
-      pass(`${rel(p.file)}:${lineOf(p.text, m.index)} — \`${m[0]}\` có miễn trừ có tên`)
+    if (exemptAt(p, match.index, 'literal')) {
+      pass(`${rel(p.file)}:${lineOf(p.text, match.index)} — \`${match[0]}\` có miễn trừ có tên`)
       continue
     }
-    fail(`${rel(p.file)}:${lineOf(p.text, m.index)} — màu viết thẳng trong mã: \`${m[0]}\``)
+    fail(`${rel(p.file)}:${lineOf(p.text, match.index)} — màu viết thẳng trong mã: \`${match[0]}\``)
     detail('Nếu đây là một selector/anchor chứ không phải màu: thêm `/* aura-allow-literal: <lý do> */`.')
     bTs += 1
   }
@@ -1062,14 +985,17 @@ for (const d of componentDecls) {
 // là một chỗ mù. Hôm nay nó RỖNG — giá trị màu sống trong `tokens.json` (không phải tệp
 // được quét), còn `.ts`/`.css` của tầng token chỉ đọc lại chúng. Khẳng định điều đó
 // thành một phép kiểm để nó không lặng lẽ thôi đúng.
+/** @type {string[]} */
 const tokenLayerLiterals = []
 for (const p of parsed) {
   if (!isTokenSource(p.file)) continue
   const re = new RegExp(LITERAL_COLOR_RE.source, 'g')
+  /** @type {RegExpExecArray | null} */
   let m
   while ((m = re.exec(p.text))) {
-    const inComment = p.comments.some((c) => m.index >= c.index && m.index < c.index + c.text.length)
-    if (!inComment) tokenLayerLiterals.push(`${rel(p.file)}:${lineOf(p.text, m.index)} \`${m[0]}\``)
+    const match = m
+    const inComment = p.comments.some((c) => match.index >= c.index && match.index < c.index + c.text.length)
+    if (!inComment) tokenLayerLiterals.push(`${rel(p.file)}:${lineOf(p.text, match.index)} \`${match[0]}\``)
   }
 }
 
@@ -1199,7 +1125,7 @@ for (const theme of ['light', 'dark']) {
     try {
       r = contrast(fg, bg)
     } catch (err) {
-      fail(`cặp \`${pair.fg}\` × \`${pair.bg}\` [${theme}] không tính được: ${err.message}`)
+      fail(`cặp \`${pair.fg}\` × \`${pair.bg}\` [${theme}] không tính được: ${errorMessage(err)}`)
       themeBad += 1
       continue
     }
@@ -1220,6 +1146,7 @@ for (const theme of ['light', 'dark']) {
 // ⚠️ `tokens.json` NẰM TRONG tầm quét ở đây, dù nó không phải tệp `.css`/`.ts`. Mệnh đề
 // của AC3 là "vắng mặt hoàn toàn"; một màu đã loại quay lại làm GIÁ TRỊ của một token là
 // đúng chỗ tệ nhất, và đó là chỗ duy nhất lượt quét cũ không nhìn thấy.
+/** @param {string} s */
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**
@@ -1229,6 +1156,8 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * thì lệnh cấm tự làm mình đỏ. Đừng nới bằng cách bỏ `tokens.json` khỏi tầm quét:
  * một màu đã loại quay lại làm GIÁ TRỊ của một token là đúng chỗ tệ nhất, và đó là chỗ
  * duy nhất lượt quét cũ không nhìn thấy. Che một khối tên rõ ràng, không che cả tệp.
+ * @param {string} text
+ * @returns {string}
  */
 function maskBannedDeclaration(text) {
   const key = '"bannedColorValues"'
@@ -1312,13 +1241,36 @@ const TEXT_COLOR_PROPS = new Set(['color', '-webkit-text-fill-color'])
  * Khuôn: `/* aura-allow-never-text: <tên token> — <lý do> *​/` **ngay trên** khai báo (cùng
  * luật khoảng cách một dòng của [`exemptAt`], nên một dấu đặt ở một `color:` KHÁC không cấp
  * cho khai báo này).
+ * @param {{ text: string, comments: { text: string, index: number }[] }} p
+ * @param {number} index
+ * @param {string} token
+ * @returns {boolean}
  */
 const neverTextExemptAt = (p, index, token) => {
   const line = lineOf(p.text, index)
   // `\\b` sau tên token: một miễn trừ cho `tm-rule` KHÔNG được khớp khi token là `tm`.
   // `\\S` cuối: tên token một mình chưa đủ — phải có LÝ DO viết ra sau nó.
-  const re = new RegExp(`aura-allow-never-text\\s*:\\s*${escapeRe(token)}\\b\\s*\\S`)
+  const re = new RegExp(`aura-allow-never-text\\s*:\\s*${escapeRe(token)}\\b\\s*(?!\\*\\/)\\S`)
   return p.comments.some((c) => re.test(c.text) && Math.abs(lineOf(p.text, c.index) - line) <= 1)
+}
+
+/** @type {[string, string, boolean][]} */
+const NEVER_TEXT_EXEMPT_CASES = [
+  ['token and reason — exempt', '/* aura-allow-never-text: tm-rule — decorative rule */', true],
+  ['token without a reason — not exempt', '/* aura-allow-never-text: tm-rule */', false],
+  ['a different token — not exempt', '/* aura-allow-never-text: tm — reason */', false],
+]
+{
+  let bad = 0
+  for (const [name, comment, want] of NEVER_TEXT_EXEMPT_CASES) {
+    const text = `${comment}\n.x { color: var(--color-tm-rule); }`
+    const got = neverTextExemptAt({ text, comments: [{ text: comment, index: 0 }] }, text.indexOf('color'), 'tm-rule')
+    if (got !== want) {
+      fail(`tự kiểm miễn trừ never-text — ca \`${name}\`: mong ${want ? 'MIỄN' : 'KHÔNG MIỄN'}, nhận ${got ? 'MIỄN' : 'KHÔNG MIỄN'}`)
+      bad += 1
+    }
+  }
+  if (bad === 0) pass(`tự kiểm miễn trừ never-text — ${NEVER_TEXT_EXEMPT_CASES.length} ca`)
 }
 
 for (const token of EXPECTED_NEVER_TEXT) {
@@ -1373,7 +1325,11 @@ console.log('\nKiểm D — lùi chữ bằng token, không bằng `opacity` (AC
 // chữ", không nói "cùng khối với `color:`". Nên: MỌI giá trị trung gian là FAIL, và nét
 // với nền hợp lệ đi qua miễn trừ CÓ TÊN — đường thoát đã có sẵn và đã nghiệm thu.
 
-/** `50%` là 0.5. `var(--x)` và `calc(…)` không chứng minh được ⇒ `NaN` ⇒ phải khai miễn trừ. */
+/**
+ * `50%` là 0.5. `var(--x)` và `calc(…)` không chứng minh được ⇒ `NaN` ⇒ phải khai miễn trừ.
+ * @param {string} v
+ * @returns {number}
+ */
 function parseOpacity(v) {
   const s = stripImportant(v).toLowerCase()
   if (/^[+-]?(?:\d+\.?\d*|\.\d+)%$/.test(s)) return parseFloat(s) / 100
@@ -1480,7 +1436,7 @@ for (const d of allDecls) {
     fBad += 1
   }
   if (EXEMPTABLE_PROPS.has(d.prop)) {
-    if (p && exemptAt(p, d.index, EXEMPTABLE_PROPS.get(d.prop))) {
+    if (p && exemptAt(p, d.index, EXEMPTABLE_PROPS.get(d.prop) ?? d.prop)) {
       pass(`${where(d)} — \`${d.prop}\` có miễn trừ có tên`)
       fExempt += 1
     } else {
@@ -1530,7 +1486,11 @@ console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabin
 const FOCUS_ROOT_CLASSES = ['.mode', '.panel', '.dock']
 const OUTLINE_OFF_RE = /^(?:none|0|0px)$/
 
-/** Selector có chọn ĐÚNG một gốc chế độ/panel, không quét rộng hơn? */
+/**
+ * Selector có chọn ĐÚNG một gốc chế độ/panel, không quét rộng hơn?
+ * @param {string} prelude
+ * @returns {boolean}
+ */
 function isFocusRootSelector(prelude) {
   const parts = prelude
     .split(',')
@@ -1594,6 +1554,7 @@ console.log('\nKiểm G — phân tách panel ĐẢO NGƯỢC giữa hai theme (
 // tồn tại hôm nay (Story 1.14 mới dựng), nên "nhìn thấy khe 2px" là chưa đo được.
 
 const PX_RE = /^(\d+(?:\.\d+)?)px$/
+/** @param {unknown} v */
 const px = (v) => (PX_RE.test(String(v)) ? parseFloat(String(v)) : NaN)
 const sepL = tokens.panelSeparator?.light
 const sepD = tokens.panelSeparator?.dark
@@ -1651,6 +1612,402 @@ if (!sepL || !sepD) {
     pass('hai cơ chế khác nhau — `rule` ≠ `gap`')
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log("\nKiểm I — mọi `var(--x)` trong `src/**` trỏ tới biến có thật (deferred-work.md L4323)")
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Trước phép kiểm này một token CHẾT — `var(--space-inline-sm)` mà không token nào tên đó
+// — render thành `gap: 0` (chuỗi CSS không hợp lệ ⇒ trình duyệt bỏ qua khai báo, giá trị
+// kế thừa hoặc mặc định thắng) trên BA story liên tiếp, và không cổng nào thấy.
+//
+// ⚠️ Đối chiếu với MỘT DANH SÁCH LOẠI TRỪ ĐÓNG BĂNG sẽ không bắt được ca đó: một danh sách
+// phải liệt kê trước mọi biến hợp lệ, và một biến `--panel-*`/`--dv-*` MỚI luôn cần thêm
+// tay. Nên L4323 đối chiếu với HỢP CỦA BA NGUỒN THẬT, không một danh sách đóng băng nào:
+//   (1) biến do `src/tokens/index.ts` PHÁT — tính lại từ chính `tokens.json` đã nạp ở trên
+//       (không `import()` `index.ts`: nó `import`s `tokens.json` bằng cú pháp cần bundler,
+//       và Node bóc kiểu mặc định từ chối cú pháp đó — xem thử ngay dưới);
+//   (2) biến KHAI trong `src/**` (mọi khai báo `--tên: …` mà Kiểm B/D/F đã đọc được);
+//   (3) biến do `dockview.css` của gói `dockview-vue` khai.
+// Một `var(--panel-gapp)` gõ nhầm vẫn bị bắt vì nó không nằm trong CẢ BA.
+
+/** Quy ước đặt tên của `src/tokens/index.ts` — đóng băng Ở ĐÂY, ĐO ĐƯỢC bằng tự kiểm dưới. */
+const EMITTED_VAR_PREFIXES = ['color', 'family', 'font', 'leading', 'weight', 'style', 'tracking', 'synthesis', 'face', 'space', 'radius']
+const EMITTED_PANEL_VARS = [
+  '--panel-separator-mechanism',
+  '--panel-gap',
+  '--panel-border-width',
+  '--panel-border-color',
+  '--panel-radius',
+]
+
+const TOKENS_INDEX_TS = join(SRC_ROOT, 'tokens', 'index.ts')
+let tokensIndexSource = ''
+try {
+  tokensIndexSource = readFileSync(TOKENS_INDEX_TS, 'utf8')
+} catch (err) {
+  abort(`\`${rel(TOKENS_INDEX_TS)}\``, err)
+}
+
+/**
+ * Tự kiểm đồng bộ — không `import()` được `index.ts` (nó `import`s `tokens.json`; Node
+ * bóc kiểu TypeScript mặc định đòi cú pháp `with { type: 'json' }` mà `index.ts` không
+ * có, nên `import()` ném `ERR_IMPORT_ATTRIBUTE_MISSING` — đã thử thật). `EMITTED_VAR_PREFIXES`
+ * và `EMITTED_PANEL_VARS` vì thế là một BẢN CHÉP quy ước đặt tên, và một bản chép không tự
+ * kiểm là một bản chép sẽ trôi: nếu ai đổi tiền tố trong `index.ts` mà quên sửa ở đây, Kiểm
+ * I bắt đầu LOẠI SAI mọi biến thật của tiền tố đó — im lặng, vì `abort()` không chạy, phép
+ * kiểm chỉ đỏ. Tự kiểm dưới biến "im lặng" đó thành một FAIL đọc được.
+ */
+let iSyncBad = 0
+for (const prefix of EMITTED_VAR_PREFIXES) {
+  if (!tokensIndexSource.includes(`--${prefix}-`)) {
+    fail(`tự kiểm Kiểm I — \`src/tokens/index.ts\` không còn phát biến tiền tố \`--${prefix}-\` — quy ước đặt tên đã đổi, \`EMITTED_VAR_PREFIXES\` lệch khỏi nguồn thật`)
+    iSyncBad += 1
+  }
+}
+for (const name of EMITTED_PANEL_VARS) {
+  if (!tokensIndexSource.includes(name)) {
+    fail(`tự kiểm Kiểm I — \`src/tokens/index.ts\` không còn phát \`${name}\` — \`EMITTED_PANEL_VARS\` lệch khỏi nguồn thật`)
+    iSyncBad += 1
+  }
+}
+if (iSyncBad === 0) {
+  pass(`tự kiểm Kiểm I — ${EMITTED_VAR_PREFIXES.length} tiền tố + ${EMITTED_PANEL_VARS.length} biến panel đều còn thật trong \`tokens/index.ts\``)
+}
+
+/**
+ * Biến do `tokens/index.ts` phát, tính lại từ `tokens.json` — KHÔNG chạy `applyTheme()`
+ * thật (nó cần DOM). Cùng phép tính, đọc thẳng từ dữ liệu THẬT đã nạp, không phải một
+ * bảng đóng băng các TÊN token — token nào tồn tại đến từ chính `tokens.json`, y hệt Kiểm A.
+ * @param {Record<string, any>} tok
+ * @returns {Set<string>}
+ */
+function emittedVarNames(tok) {
+  /** @type {Set<string>} */
+  const names = new Set()
+  for (const k of keysOf(tok.colors?.light)) names.add(`--color-${k}`)
+  for (const k of keysOf(tok.families)) names.add(`--family-${k}`)
+  for (const k of keysOf(tok.typography)) {
+    for (const p of ['font', 'leading', 'weight', 'style', 'tracking', 'synthesis', 'face']) names.add(`--${p}-${k}`)
+  }
+  for (const k of keysOf(tok.spacing)) names.add(`--space-${k}`)
+  for (const k of keysOf(tok.rounded)) names.add(`--radius-${k === 'DEFAULT' ? 'default' : k}`)
+  for (const name of EMITTED_PANEL_VARS) names.add(name)
+  return names
+}
+const emittedVars = emittedVarNames(tokens)
+
+const EMITTED_VAR_FLOOR = 100 // 🔵 Đo 2026-09-25: 161 biến thật (17 màu + 4 họ chữ + 17×7
+// biến typography + 10 khoảng cách + 6 bo góc + 5 panel) — 100 là ~62%, đủ bắt một lượt
+// tính RỖNG hoặc gãy nửa chừng mà không đòi cập nhật mỗi khi thêm một token.
+if (emittedVars.size < EMITTED_VAR_FLOOR) {
+  abort(
+    `phép tính biến do \`tokens/index.ts\` phát — chỉ ${emittedVars.size} biến, dưới sàn ${EMITTED_VAR_FLOOR}`,
+    new Error('Một tập rỗng hoặc gãy nửa chừng làm Kiểm I loại SAI mọi biến thật.'),
+  )
+}
+
+/** Biến khai `--tên: …` ở bất kỳ đâu trong quần thể đã quét (`src/**` + `index.html`). */
+const declaredLocally = new Set(allDecls.filter((d) => d.prop.startsWith('--')).map((d) => d.prop))
+
+const DOCKVIEW_CSS_PATH = join(REPO_ROOT, 'node_modules', 'dockview-vue', 'dist', 'styles', 'dockview.css')
+let dockviewCssText = ''
+try {
+  dockviewCssText = readFileSync(DOCKVIEW_CSS_PATH, 'utf8')
+} catch (err) {
+  abort(`\`${rel(DOCKVIEW_CSS_PATH)}\``, err)
+}
+const { masked: dockviewMasked } = maskCommentsAndStrings(dockviewCssText)
+const dockviewBlocks = parseCssBlocks(dockviewMasked, DOCKVIEW_CSS_PATH)
+const dockviewVars = new Set(
+  dockviewBlocks.flatMap((b) => b.decls.filter((d) => d.prop.startsWith('--')).map((d) => d.prop)),
+)
+const DOCKVIEW_VAR_FLOOR = 90 // 🔵 Đo 2026-09-25 qua ĐÚNG pipeline (mask + parseCssBlocks) mà
+// phép kiểm dưới đây dùng: 110 biến `--dv-*` khai trong dockview.css (grep dòng-đầu-khớp thô
+// cho 135 — cao hơn vì nó không gộp trùng đúng cách qua `Set`; số đáng tin là số ĐI QUA CÙNG
+// pipeline với phán quyết, không phải số đo bằng công cụ khác).
+if (dockviewVars.size < DOCKVIEW_VAR_FLOOR) {
+  abort(
+    `\`${rel(DOCKVIEW_CSS_PATH)}\` — chỉ ${dockviewVars.size} biến \`--dv-*\` đọc được, dưới sàn ${DOCKVIEW_VAR_FLOOR}`,
+    new Error('Gói dockview-vue đổi hình dạng, hoặc phân tích CSS gãy nửa chừng.'),
+  )
+}
+
+const declaredVars = new Set([...emittedVars, ...declaredLocally, ...dockviewVars])
+
+const VAR_REF_RE = /var\(\s*(--[a-zA-Z0-9-]+)/g
+
+/**
+ * Mọi tên biến tham chiếu qua `var(--x)` trong một giá trị — kể cả các fallback lồng nhau
+ * (`var(--a, var(--b))` trả về CẢ HAI tên).
+ * @param {string} value
+ * @returns {string[]}
+ */
+function varRefsIn(value) {
+  /** @type {string[]} */
+  const names = []
+  const re = new RegExp(VAR_REF_RE.source, 'g')
+  let m
+  while ((m = re.exec(value))) names.push(m[1])
+  return names
+}
+
+/**
+ * @param {{prop: string, value: string}[]} decls
+ * @param {Set<string>} declared
+ * @returns {{prop: string, value: string, varName: string}[]}
+ */
+function unresolvedVarRefs(decls, declared) {
+  const bad = []
+  for (const d of decls) {
+    for (const name of varRefsIn(d.value)) {
+      if (!declared.has(name)) bad.push({ prop: d.prop, value: d.value, varName: name })
+    }
+  }
+  return bad
+}
+
+let iChecked = 0
+let iBad = 0
+for (const d of allDecls) {
+  for (const name of varRefsIn(d.value)) {
+    iChecked += 1
+    if (!declaredVars.has(name)) {
+      fail(`${where(d)} — \`var(${name})\` không trỏ tới biến nào có thật — \`${d.prop}: ${d.value}\``)
+      detail('Biến phải do `tokens/index.ts` phát, khai trong `src/**`, hoặc khai bởi `dockview.css`.')
+      iBad += 1
+    }
+  }
+}
+if (iBad === 0) {
+  pass(
+    `${iChecked} lượt tham chiếu \`var(--x)\` đều trỏ tới biến có thật ` +
+      `(${emittedVars.size} do tokens phát · ${declaredLocally.size} khai trong src/** · ${dockviewVars.size} khai bởi dockview.css)`,
+  )
+}
+
+// Tự kiểm I — mã tổng hợp, đối chiếu ĐÚNG bốn ca của I/O Matrix (spec L40-50), dùng lại
+// `unresolvedVarRefs` (⇒ `varRefsIn`) — CÙNG hàm mà lượt quét thật ở trên gọi, không một
+// bản chép riêng cho tự kiểm.
+/** @type {[string, {prop: string, value: string}[], string[], string[]][]} */
+const I_CASES = [
+  ['token chết — không nguồn nào khai', [{ prop: 'gap', value: 'var(--space-inline-sm)' }], [], ['--space-inline-sm']],
+  ['khai cục bộ trong src/** — xanh', [{ prop: 'height', value: 'var(--row-h)' }], ['--row-h'], []],
+  ['biến dockview thật — xanh', [{ prop: 'color', value: 'var(--dv-tabs-and-actions-container-height)' }], ['--dv-tabs-and-actions-container-height'], []],
+  ['biến do tokens phát — xanh', [{ prop: 'color', value: 'var(--color-primary)' }], ['--color-primary'], []],
+  [
+    'fallback lồng nhau — biến ngoài chết, biến trong (fallback) thật',
+    [{ prop: 'color', value: 'var(--dead-outer, var(--space-unit))' }],
+    ['--space-unit'],
+    ['--dead-outer'],
+  ],
+]
+let iSelfBad = 0
+for (const [name, decls, declaredNames, wantBad] of I_CASES) {
+  const got = unresolvedVarRefs(decls, new Set(declaredNames)).map((b) => b.varName)
+  const gotSorted = [...got].sort()
+  const wantSorted = [...wantBad].sort()
+  if (JSON.stringify(gotSorted) !== JSON.stringify(wantSorted)) {
+    fail(`tự kiểm Kiểm I — ca \`${name}\`: mong đỏ [${wantSorted.join(', ')}], nhận [${gotSorted.join(', ')}]`)
+    iSelfBad += 1
+  }
+}
+if (iSelfBad === 0) pass(`tự kiểm Kiểm I — ${I_CASES.length} ca (bốn hàng I/O Matrix + một ca fallback lồng)`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log("\nKiểm J — `scroll-behavior` không được khác `auto` (deferred-work.md L4235)")
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// `src/panels/LookupPanel.vue:269-287` ghi thẳng: mệnh đề "không `scroll-behavior` ở đâu
+// trong `src/**`" sống trong HAI khối chú thích, KHÔNG một cổng nào canh — "Ai thêm một
+// dòng `scroll-behavior: smooth` sẽ đi qua trọn cả mười một cổng". Kiểm J đóng đúng lỗ đó.
+//
+// ⚠️ Comment-an toàn là MIỄN PHÍ ở đây: `allDecls` đến từ văn bản đã `maskCommentsAndStrings`
+// che trước khi `parseCssBlocks` chạy, nên một dòng `// scroll-behavior: smooth` trong
+// comment (đúng ca `LookupPanel.vue`) không bao giờ tạo ra một khai báo — không cần luật
+// riêng cho nó.
+
+let jBad = 0
+let jChecked = 0
+for (const d of allDecls) {
+  if (d.prop !== 'scroll-behavior') continue
+  jChecked += 1
+  const v = stripImportant(d.value).toLowerCase()
+  if (v !== 'auto') {
+    fail(`${where(d)} — \`scroll-behavior: ${d.value}\` — chỉ \`auto\` được phép, không hiệu ứng cuộn nào khác`)
+    detail('`DESIGN.md` (bảng Motion của từng panel) đòi vị trí cuộn đổi TỨC THÌ, không bao giờ có hiệu ứng.')
+    jBad += 1
+  }
+}
+if (jBad === 0) {
+  pass(`không \`scroll-behavior\` nào khác \`auto\` (${jChecked} khai báo đã soi trong \`src/**\`)`)
+}
+
+// Tự kiểm J — mã tổng hợp.
+/** @type {[string, string, boolean][]} */
+const J_CASES = [
+  ['scroll-behavior: smooth — đỏ', '.x { scroll-behavior: smooth; }', false],
+  ['scroll-behavior: auto — xanh', '.x { scroll-behavior: auto; }', true],
+  ['comment nhắc scroll-behavior: smooth — không tính, xanh', '/* scroll-behavior: smooth */\n.x { color: red; }', true],
+  ['không khai scroll-behavior nào — xanh (không có gì để soi)', '.x { color: red; }', true],
+]
+let jSelfBad = 0
+for (const [name, css, shouldPass] of J_CASES) {
+  const { masked } = maskCommentsAndStrings(css)
+  const blocks = parseCssBlocks(masked, 'fixture')
+  const decls = blocks.flatMap((b) => b.decls).filter((d) => d.prop === 'scroll-behavior')
+  const ok = decls.every((d) => stripImportant(d.value).toLowerCase() === 'auto')
+  if (ok !== shouldPass) {
+    fail(`tự kiểm Kiểm J — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    jSelfBad += 1
+  }
+}
+if (jSelfBad === 0) pass(`tự kiểm Kiểm J — ${J_CASES.length} ca (smooth đỏ · auto xanh · comment không tính · vắng mặt xanh)`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm K — lưới 4px cho padding/margin/gap (deferred-work.md L6724)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Mọi giá trị `padding`/`margin`/`gap` (kể cả các biến thể theo cạnh) phải là một token
+// khoảng cách (`var(--space-*)`) hoặc một bội số NGUYÊN của `--space-unit` (4px, đã kiểm
+// ở Kiểm A qua `EXPECTED_SPACING.unit`). Một giá trị lẻ (`7px`, `calc(var(--space-unit) *
+// 2.75)`) là ĐỎ — trừ khi nó chỉ bù đúng một bề dày viền và mang miễn trừ có tên
+// `/* aura-allow-spacing: <lý do> */` trong phạm vi một dòng (cùng khuôn `exemptAt` mà
+// Kiểm D/F/H đã dùng).
+
+const SPACE_UNIT_PX = 4 // `tokens.json` → `spacing.unit` = "4px", đã đối chiếu ở Kiểm A.
+const GRID_PROPS = new Set([
+  'padding',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'gap',
+  'row-gap',
+  'column-gap',
+])
+const GRID_KEYWORDS = new Set(['auto', 'inherit', 'initial', 'unset', 'revert', 'revert-layer', 'normal'])
+const SPACE_VAR_TOKEN_RE = /^var\(\s*--space-[a-z0-9-]+\s*(?:,[\s\S]*)?\)$/i
+const PX_TOKEN_RE = /^(-?\d+(?:\.\d+)?)px$/
+const SPACE_UNIT_CALC_RE = /^calc\(\s*var\(\s*--space-unit\s*\)\s*\*\s*(-?\d+(?:\.\d+)?)\s*\)$/i
+
+/**
+ * Tách một giá trị shorthand (`padding: 8px 12px`) trên khoảng trắng Ở TẦNG NGOÀI CÙNG —
+ * không tách bên trong `var(...)`/`calc(...)`.
+ * @param {string} value
+ * @returns {string[]}
+ */
+function splitTopLevelSpace(value) {
+  /** @type {string[]} */
+  const parts = []
+  let depth = 0
+  let buf = ''
+  for (const ch of value) {
+    if (ch === '(') depth += 1
+    if (ch === ')') depth -= 1
+    if (/\s/.test(ch) && depth === 0) {
+      if (buf) parts.push(buf)
+      buf = ''
+    } else {
+      buf += ch
+    }
+  }
+  if (buf) parts.push(buf)
+  return parts
+}
+
+/**
+ * Một token đơn (sau khi tách shorthand) có nằm trên lưới 4px không.
+ * Cú pháp không nhận ra được (`%`, `calc()` hình dạng khác, `var()` không phải `--space-*`)
+ * ⇒ ĐỎ — cú pháp lạ không được coi là xanh mặc định (`scripts/AGENTS.md`).
+ * @param {string} tok
+ * @returns {boolean}
+ */
+function isOnGridToken(tok) {
+  const low = tok.toLowerCase()
+  if (GRID_KEYWORDS.has(low)) return true
+  if (tok === '0' || tok === '0px') return true
+  if (SPACE_VAR_TOKEN_RE.test(tok)) return true
+  const calcM = SPACE_UNIT_CALC_RE.exec(tok)
+  if (calcM) return Number.isInteger(parseFloat(calcM[1]))
+  const pxM = PX_TOKEN_RE.exec(tok)
+  if (pxM) return Number.isInteger(parseFloat(pxM[1]) / SPACE_UNIT_PX)
+  return false
+}
+
+let kChecked = 0
+let kBad = 0
+let kExempted = 0
+for (const p of parsed) {
+  for (const b of p.blocks) {
+    for (const d of b.decls) {
+      if (!GRID_PROPS.has(d.prop)) continue
+      const value = stripImportant(d.value)
+      const toks = splitTopLevelSpace(value)
+      if (toks.length === 0) continue
+      kChecked += 1
+      const offGrid = toks.filter((t) => !isOnGridToken(t))
+      if (offGrid.length === 0) continue
+      if (exemptAt(p, d.index, 'spacing')) {
+        kExempted += 1
+        continue
+      }
+      fail(`${where({ ...d, file: p.file, text: p.text })} — \`${d.prop}: ${d.value}\` lệch lưới 4px — \`${offGrid.join(', ')}\``)
+      detail('Làm tròn tới bội số 4 gần nhất (hoà làm tròn lên), hoặc dùng một token `var(--space-*)`.')
+      detail('Nếu đây chỉ bù đúng một bề dày viền: thêm `/* aura-allow-spacing: <lý do> */` ngay trên khai báo.')
+      kBad += 1
+    }
+  }
+}
+if (kBad === 0) {
+  pass(
+    `${kChecked} khai báo \`padding\`/\`margin\`/\`gap\` (kể cả biến thể theo cạnh) đều trên lưới 4px` +
+      (kExempted ? ` (${kExempted} miễn trừ có tên)` : ''),
+  )
+}
+
+// Tự kiểm K — đúng bốn hàng I/O Matrix liên quan (spec L49-50) qua ĐÚNG hàm sản xuất dùng
+// (`isOnGridToken`/`splitTopLevelSpace`), không một bản chép riêng cho tự kiểm.
+/** @type {[string, string, boolean][]} */
+const K_CASES = [
+  ['7px lẻ lưới — đỏ', '7px', false],
+  ['calc(var(--space-unit) * 2.75) lẻ lưới — đỏ', 'calc(var(--space-unit) * 2.75)', false],
+  ['calc(var(--space-unit) * 3) đúng lưới — xanh', 'calc(var(--space-unit) * 3)', true],
+  ['var(--space-panel-inline) — xanh', 'var(--space-panel-inline)', true],
+  ['12px (bội số 4) — xanh', '12px', true],
+  ['0 — xanh', '0', true],
+  ['8px 12px (shorthand, cả hai đúng lưới) — xanh', '8px 12px', true],
+  ['8px 7px (shorthand, một cạnh lệch) — đỏ', '8px 7px', false],
+]
+let kSelfBad = 0
+for (const [name, value, shouldPass] of K_CASES) {
+  const ok = splitTopLevelSpace(value).every(isOnGridToken)
+  if (ok !== shouldPass) {
+    fail(`tự kiểm Kiểm K — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    kSelfBad += 1
+  }
+}
+/** @type {[string, string, boolean][]} */
+const K_EXEMPT_CASES = [
+  ['margin: -1px with a named reason — exempt', '.x {\n  margin: -1px; /* aura-allow-spacing: sr-only clip */\n}', true],
+  ['margin: -1px without a comment — not exempt', '.x {\n  margin: -1px;\n}', false],
+  ['exemption without a reason — not exempt', '.x {\n  margin: -1px; /* aura-allow-spacing: */\n}', false],
+]
+for (const [name, text, shouldExempt] of K_EXEMPT_CASES) {
+  const at = text.indexOf('/*')
+  const fixture = { text, comments: at < 0 ? [] : [{ text: text.slice(at), index: at }] }
+  const exempt = exemptAt(fixture, text.indexOf('margin'), 'spacing')
+  if (exempt !== shouldExempt) {
+    fail(`tự kiểm Kiểm K — ca \`${name}\`: mong ${shouldExempt ? 'MIỄN' : 'KHÔNG MIỄN'}, nhận ${exempt ? 'MIỄN' : 'KHÔNG MIỄN'}`)
+    kSelfBad += 1
+  }
+}
+if (kSelfBad === 0) pass(`tự kiểm Kiểm K — ${K_CASES.length + K_EXEMPT_CASES.length} ca`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('')

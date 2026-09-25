@@ -1530,7 +1530,7 @@ watch(libraryChapterCursor, (cursor) => {
 .import-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .field {
@@ -1552,7 +1552,7 @@ watch(libraryChapterCursor, (cursor) => {
   background: var(--color-surface);
   border: 1px solid var(--color-outline);
   border-radius: 4px;
-  padding: 6px 8px;
+  padding: 8px 8px;
 }
 
 /* 🔴 STORY 6.7b — "Đưa vào" (radio đích + picker Tác phẩm đã có). */
@@ -1575,14 +1575,14 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
 }
 
 .radio-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .radio-title {
@@ -1617,7 +1617,7 @@ watch(libraryChapterCursor, (cursor) => {
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-outline);
   border-radius: 4px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   cursor: pointer;
 }
 
@@ -1678,7 +1678,7 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .root-value {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1717,8 +1717,8 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .orphan-row {
-  margin-top: 10px;
-  padding: 10px;
+  margin-top: 12px;
+  padding: 12px;
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface-sunken);
@@ -1765,7 +1765,7 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 /*
@@ -1785,7 +1785,7 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .filter-selects .field {
@@ -1797,7 +1797,7 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
 }
 
 .grid-nav-position {
@@ -1809,11 +1809,11 @@ watch(libraryChapterCursor, (cursor) => {
 /* Story 5.6 — lưới Tác phẩm, thay `.works-list` (danh sách phẳng) của Story 5.4. */
 .works-grid {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .work-cell {
@@ -1927,7 +1927,7 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .chapter-rename {
@@ -1947,7 +1947,7 @@ watch(libraryChapterCursor, (cursor) => {
   background: var(--color-surface);
   border: 1px solid var(--color-outline);
   border-radius: 4px;
-  padding: 6px 8px;
+  padding: 8px 8px;
 }
 
 .chapter-reorg-buttons {
@@ -1958,7 +1958,7 @@ watch(libraryChapterCursor, (cursor) => {
 
 /* Story 6.15 — khối xuất xứ, cùng khoảng cách dọc với `.chapter-reorg` ngay trên. */
 .chapter-origin-block {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 /* Story 5.7 — danh sách Chương, cùng khuôn `.open-work-block` (đường viền trên tách khối). */
@@ -1975,7 +1975,7 @@ watch(libraryChapterCursor, (cursor) => {
  */
 .chapters-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   max-height: 240px;
   overflow-y: auto;
@@ -1992,7 +1992,7 @@ watch(libraryChapterCursor, (cursor) => {
 .chapter-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 0 8px;
   border-bottom: 1px solid var(--color-outline);
 }
@@ -2035,7 +2035,7 @@ watch(libraryChapterCursor, (cursor) => {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .search-form .field {
@@ -2049,7 +2049,7 @@ watch(libraryChapterCursor, (cursor) => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .mode-actions-label {
@@ -2064,7 +2064,7 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .search-results {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
   display: flex;
@@ -2073,7 +2073,7 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .search-hit {
-  padding: 10px;
+  padding: 12px;
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface-sunken);
@@ -2092,7 +2092,7 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .search-hit-field {
-  margin-left: 6px;
+  margin-left: 8px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   font-weight: normal;

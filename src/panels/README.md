@@ -61,7 +61,7 @@ Bốn biến do `applyTheme()` ghi (`--panel-border-width` · `--panel-border-co
 ## Hợp đồng vùng chọn (Story 1.18) — một module, ba panel, không một listener toàn cục
 
 `src/panels/selectionContract.ts` là bề mặt mà **mọi** panel văn bản đi qua để Auto-Lookup
-hoạt động. `epics.md:1762` đòi nó bằng chữ: một hợp đồng dùng chung, và AI Translation +
+hoạt động. FR21 đòi nó bằng chữ: một hợp đồng dùng chung, và AI Translation +
 Editor *"nhận được cùng hành vi khi chúng có nội dung ở các epic sau, **không cần cài
 lại"***.
 

@@ -425,7 +425,7 @@ function onKeydown(event: KeyboardEvent): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--face-read);
+  font-family: var(--family-read);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
 }
@@ -455,7 +455,7 @@ function onKeydown(event: KeyboardEvent): void {
   position: absolute;
   width: 1px;
   height: 1px;
-  margin: -1px;
+  margin: -1px; /* aura-allow-spacing: kích thước hình học của kỹ thuật ẩn sr-only, không phải khoảng cách lưới */
   padding: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);

@@ -878,7 +878,7 @@ function onKeydown(event: KeyboardEvent): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--face-read);
+  font-family: var(--family-read);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);

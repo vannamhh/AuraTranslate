@@ -169,7 +169,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 }
 
 .lookup-source-head {
-  padding-bottom: 5px;
+  padding-bottom: 4px;
   margin-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline-faint);
 }
@@ -267,14 +267,14 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 }
 
 .lookup-sense {
-  padding-left: 13px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-outline-faint);
   margin-bottom: var(--space-panel-block);
 }
 
 /* AC3 — "từ loại: họ read in nghiêng màu on-surface-variant" — khai token `lookup-example`. */
 .lookup-pos {
-  margin: 0 0 2px 0;
+  margin: 0 0 4px 0;
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
   font-style: var(--style-lookup-example);
@@ -308,8 +308,8 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 
 /* AC3 — vạch trái `primary`, PHÂN BIỆT với vạch `--color-outline-faint` của khối nghĩa. */
 .lookup-citation {
-  margin: 4px 0 0 11px;
-  padding-left: 11px;
+  margin: 4px 0 0 12px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-primary);
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
@@ -331,7 +331,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 
 /* AC4 — dấu hiệu ngoại ngữ khai `ui-label`, tách biệt màu để "đánh dấu RÕ". */
 .lookup-foreign-flag {
-  margin-left: 6px;
+  margin-left: 8px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);

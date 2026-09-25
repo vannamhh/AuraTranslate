@@ -691,7 +691,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .ai-field-input {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);

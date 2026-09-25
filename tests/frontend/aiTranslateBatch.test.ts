@@ -326,7 +326,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fak
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════════
-// Story 4.11 — tổng token + tổng ƯỚC TÍNH của LÔ (`epics.md:3811-3813`, AC ký: "hiển thị tổng
+// FR76 — tổng token + tổng ƯỚC TÍNH của LÔ (AC ký: "hiển thị tổng
 // token và tổng ước tính của cả lô"). Bốn hàng thật: "Batch completes" × {mô hình có giá / mô
 // hình không có giá} và "Batch partly without usage" × {có giá / không có giá} — trong MỘT lô
 // mọi câu dùng CHUNG một mô hình (`prepare_batch_call` phân giải cấu hình một lần cho cả lô),

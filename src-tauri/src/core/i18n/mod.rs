@@ -846,7 +846,7 @@ message_keys! {
     /// hình của lô KHÔNG có giá — tổng cộng dồn ở webview (`aiTranslateBatchState.ts`) trên
     /// các `usage` mà từng khung `AiTranslateBatchEventWire::Done` mang.
     AiTranslateBatchUsageTotal => "ai.translate.batch_usage_total" ["token_count", "sentence_count"],
-    /// 🔵 **THÊM (rà soát coordinator) — `epics.md:3811-3813`'s AC ký: *"hiển thị tổng token VÀ
+    /// 🔵 **THÊM (rà soát coordinator) — FR76's AC ký: *"hiển thị tổng token VÀ
     /// tổng ước tính của cả lô"*.** Cùng hàng `AiTranslateBatchUsageTotal` (mọi câu đã dịch đều
     /// báo số liệu) nhưng mô hình của lô CÓ giá — tổng tiền CỘNG DỒN từ `cost_usd` của từng
     /// hàng đã báo (`aiTranslateBatchUsageSummary`, `aiTranslateBatchState.ts`), không phải

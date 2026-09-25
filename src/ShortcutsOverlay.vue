@@ -429,7 +429,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 /* Câu "một tầng" là một mệnh đề kiến trúc, không một chú thích — nó mang một nét dẫn. */
 .sc-note {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 11px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -443,7 +443,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  */
 .sc-alert {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 11px;
+  padding-left: 12px;
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -490,7 +490,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  */
 .sc-table td:first-child {
   border-left: 2px solid transparent;
-  padding-left: 6px;
+  padding-left: 8px;
 }
 
 .sc-aimed td:first-child {
@@ -514,7 +514,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-key {
-  padding: 2px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--color-outline);
   background: none;
   cursor: pointer;
@@ -536,7 +536,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-aimed-tag {
   display: inline-block;
-  margin-left: 6px;
+  margin-left: 8px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);

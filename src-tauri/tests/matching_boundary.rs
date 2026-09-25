@@ -8,7 +8,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 VÌ SAO MỘT CỔNG CHỨ KHÔNG MỘT LƯỢT ĐỌC BẰNG MẮT
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `epics.md:1510` viết cho Story 1.12: *"**And** `dict/` **dùng nó**"*. Vế đó **KHÔNG
+//! Câu chữ mà `epics.md` viết cho FR40: *"**And** `dict/` **dùng nó**"*. Vế đó **KHÔNG
 //! CÒN ĐÚNG** — AD-17 đã được sửa Rule (`ARCHITECTURE-SPINE.md`) và
 //! thân Rule nói thẳng: *"AD này nói mọi nơi cần khớp ngôn ngữ dùng chung MỘT cài đặt —
 //! nó KHÔNG nói mọi đường đều phải gọi Matcher. Đường tra cứu **từ điển** tiếng Anh không
@@ -259,9 +259,9 @@ fn the_dictionary_lookup_path_never_calls_the_matcher() {
         violations.is_empty(),
         "{} chỗ dưới `core/dict/**` chạm tới Matcher:\n{}\n\n\
          ══════════════════════════════════════════════════════════════════════════\n\
-         🔴 ĐỌC TRƯỚC KHI GỠ CỔNG NÀY — `epics.md:1510` ĐANG LỆCH, KHÔNG PHẢI CỔNG\n\
+         🔴 ĐỌC TRƯỚC KHI GỠ CỔNG NÀY — CÂU CHỮ CỦA epics.md CHO FR40 ĐANG LỆCH, KHÔNG PHẢI CỔNG\n\
          ══════════════════════════════════════════════════════════════════════════\n\
-         `epics.md:1510` viết cho Story 1.12: *\"And `dict/` dùng nó\"*. Vế đó KHÔNG \
+         Câu chữ mà epics.md viết cho FR40: *\"And `dict/` dùng nó\"*. Vế đó KHÔNG \
          CÒN ĐÚNG, và chủ sở hữu lượt sửa là John (PM) — xem `deferred-work.md`.\n\n\
          **AD-17, thân Rule (`ARCHITECTURE-SPINE.md`)**: *\"AD này nói mọi nơi cần \
          khớp ngôn ngữ dùng chung MỘT cài đặt — nó KHÔNG nói mọi đường đều phải gọi \

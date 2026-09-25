@@ -1932,7 +1932,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
    (một cảnh báo/hướng dẫn tầng 2), khác MÀU — đây KHÔNG phải lỗi, dùng `primary` (cùng tông
    tiêu điểm bàn phím `.ip-block-focused`) thay `error`. */
 .ip-block-range-marker {
-  padding: calc(var(--space-unit) * 0.5) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2079,7 +2079,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-cleanup-tick {
-  margin-top: calc(var(--space-unit) * 0.5);
+  margin-top: calc(var(--space-unit) * 1);
   flex: none;
 }
 

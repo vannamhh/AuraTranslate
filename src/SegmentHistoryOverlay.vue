@@ -406,9 +406,9 @@ function aimRow(id: number): void {
   margin: 0 0 var(--space-panel-block) 0;
   padding: var(--space-panel-block);
   border-left: 2px solid var(--color-draft);
-  font-family: var(--face-read-body);
-  font-size: var(--font-read-body);
-  line-height: var(--leading-read-body);
+  font-family: var(--face-read-sm);
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
   color: var(--color-on-surface);
 }
 
@@ -435,7 +435,7 @@ function aimRow(id: number): void {
  * thứ hai cho viền trái sẽ không âm thầm đâm vào cái này.
  */
 .hist-aimed {
-  background: var(--color-surface-variant);
+  background: var(--color-surface-accent);
 }
 
 .hist-row {
@@ -462,9 +462,9 @@ function aimRow(id: number): void {
    * nó đang cho xem.
    */
   white-space: pre-line;
-  font-family: var(--face-read-body);
-  font-size: var(--font-read-body);
-  line-height: var(--leading-read-body);
+  font-family: var(--face-read-sm);
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
   color: var(--color-on-surface);
 }
 </style>

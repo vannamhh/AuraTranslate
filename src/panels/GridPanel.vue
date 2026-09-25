@@ -2023,7 +2023,7 @@ const chapterId = computed(() => editorChapterId.value)
  * được**. Cùng luật cho `.para-end` bên dưới.
  */
 .cell {
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--color-outline-faint);
   min-width: 0;
 }
@@ -2048,13 +2048,13 @@ const chapterId = computed(() => editorChapterId.value)
  * bộ e2e đếm đúng thứ đó. Một `padding-bottom` không sinh phần tử nào.
  */
 .cell.para-end {
-  padding-bottom: 14px;
+  padding-bottom: 16px;
   border-bottom-color: var(--color-outline);
 }
 
 /* Cột ① — vạch. `padding: 0` để vạch cao đúng bằng track hàng. */
 .cell-rule {
-  padding: 2px 0;
+  padding: 4px 0;
   border-bottom: none;
 }
 

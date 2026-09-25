@@ -17,6 +17,7 @@
     "check:commands": "node scripts/check-commands.mjs",
     "check:layout": "node scripts/check-layout.mjs",
     "check:panel-refs": "node scripts/check-panel-refs.mjs",
+    "check:doc-refs": "node scripts/check-doc-refs.mjs",
     "check:scope": "node scripts/check-scope.mjs",
     "check:scope:bundled": "node scripts/check-scope-bundled.mjs",
     "check:dict": "node scripts/check-dict-build.mjs",

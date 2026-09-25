@@ -34,6 +34,7 @@
 import { readFileSync, readdirSync, lstatSync, realpathSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
+import { functionBodyRange, balancedBraceBody, splitTopLevel } from './lib/commands-scan.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
@@ -222,7 +223,7 @@ console.log('\nKiểm A — thứ tự hy sinh của UX-DR15 (AC7)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // Ba mệnh đề dưới đây là **QUYẾT ĐỊNH**, không phải số hiệu chỉnh được. Bốn ngưỡng
-// kích thước màn hình là **Story 4.12**, và `epics.md:1617` cấm tường minh việc đóng chúng
+// kích thước màn hình là **Story 4.12**, và UX-DR15 cấm tường minh việc đóng chúng
 // ở story này. Cổng này canh CƠ CHẾ, không canh ngưỡng.
 
 const layoutMod = await import(pathToFileURL(join(SRC_ROOT, 'layout', 'workspaceLayout.ts')).href).catch(
@@ -284,7 +285,7 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
   if (ai === -1 || lookup === -1) {
     fail(`thứ tự hy sinh thiếu một trong hai panel — đang là [${SACRIFICE_ORDER.join(', ')}]`)
   } else if (ai >= lookup) {
-    fail('`panel.ai_translation` phải nhường TRƯỚC `panel.lookup` (epics.md:1616)')
+    fail('`panel.ai_translation` phải nhường TRƯỚC `panel.lookup` (UX-DR15)')
   } else if (nextToSacrifice([...PANEL_IDS]) !== 'panel.ai_translation') {
     fail(`đủ ba panel ⇒ cái nhường đầu tiên phải là \`panel.ai_translation\``)
   } else if (nextToSacrifice(['panel.grid', 'panel.lookup']) !== 'panel.lookup') {
@@ -859,6 +860,224 @@ for (const id of PRESET_IDS) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm F — ba khớp nối bỏ ngỏ giữa WorkspaceDock.vue và workspaceLayout.ts/App.vue')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Ba mệnh đề, mỗi mệnh đề canh một khớp nối mà Kiểm A-E ở trên không chạm tới —
+// `deferred-work.md` L631, L639, L1233:
+//   F.1  `WorkspaceDock.vue` ghi bố cục xuống đĩa CHỈ qua `flush()`, và `flush()` CHỈ ghi
+//        khi `schedule` báo bẩn — Kiểm B đo nhịp ghi của `writeSchedule.ts` một mình, nó
+//        không thấy một `emit('persist', …)` đứng thẳng ở `onLayoutChange`.
+//   F.2  Mọi giá trị của `PANEL_COMPONENTS` (`workspaceLayout.ts`) là một khoá của
+//        `components` (`WorkspaceDock.vue`) — lệch một tên là một panel TRẮNG kèm
+//        `console.error` của chính dockview, và không cổng nào thấy được hôm nay.
+//   F.3  Phần tử host cây dockview (`.modeport`, `App.vue`) còn giữ `isolation: isolate`
+//        — cơ chế đã vá lỗi sash vẽ đè lớp phủ (Ice bắt bằng mắt 2026-08-10). Đây KHÔNG so
+//        hai số `z-index`, nó canh đúng CƠ CHẾ vừa chọn — z-index của dockview đổi bao
+//        nhiêu cũng không chạm phép kiểm này.
+
+const dockVueSource = sources.find((s) => posix(s.file) === 'src/layout/WorkspaceDock.vue')
+if (dockVueSource === undefined) {
+  abort('`src/layout/WorkspaceDock.vue`', new Error('không có trong quần thể quét — Kiểm F cần nó.'))
+}
+const appVueSource = sources.find((s) => posix(s.file) === 'src/App.vue')
+if (appVueSource === undefined) {
+  abort('`src/App.vue`', new Error('không có trong quần thể quét — Kiểm F cần nó.'))
+}
+
+// ───────────────────────────────────────────────────────────────────────────────────
+// F.1 — persist chỉ qua `flush()`, và `flush()` canh `schedule` trước khi ghi.
+// ───────────────────────────────────────────────────────────────────────────────────
+const EMIT_PERSIST_RE = /\bemit\(\s*(['"])persist\1/g
+
+/**
+ * @param {string} masked
+ * @returns {{hasFlush: boolean, emitCount: number, outsideCount: number, guarded: boolean}}
+ */
+function scanPersistViaSchedule(masked) {
+  const body = functionBodyRange(masked, 'flush')
+  const emitAt = []
+  const re = new RegExp(EMIT_PERSIST_RE.source, 'g')
+  let m
+  while ((m = re.exec(masked))) emitAt.push(m.index)
+  const outsideCount = emitAt.filter((i) => body === null || i < body.start || i >= body.end).length
+  const inner = body === null ? '' : masked.slice(body.start, body.end)
+  const guarded = /schedule\s*\.\s*isDirty\s*\(/.test(inner) && /schedule\s*\.\s*onWrite\s*\(/.test(inner)
+  return { hasFlush: body !== null, emitCount: emitAt.length, outsideCount, guarded }
+}
+
+{
+  const r = scanPersistViaSchedule(dockVueSource.masked)
+  if (!r.hasFlush) {
+    fail('`WorkspaceDock.vue` — không tìm thấy `function flush(...)`, F.1 không đối chiếu được')
+  } else if (r.emitCount === 0) {
+    fail("`WorkspaceDock.vue` — không còn lời gọi `emit('persist', …)` nào, AC4 mất đường ghi")
+  } else if (r.outsideCount > 0) {
+    fail(
+      `\`WorkspaceDock.vue\` — ${r.outsideCount} lời gọi \`emit('persist', …)\` đứng NGOÀI ` +
+        '`flush()` — đi tắt qua mặt nhịp ghi mà Kiểm B đo',
+    )
+  } else if (!r.guarded) {
+    fail('`WorkspaceDock.vue` — `flush()` không còn canh `schedule.isDirty()`/`schedule.onWrite(...)` trước khi ghi')
+  } else {
+    pass("F.1 — `emit('persist', …)` chỉ đứng trong `flush()`, và `flush()` canh `schedule` trước khi ghi")
+  }
+}
+
+// Tự kiểm F.1 — mã tổng hợp, không phải `WorkspaceDock.vue` thật.
+const F1_CASES = [
+  [
+    'đúng: emit trong flush, có canh schedule',
+    "function flush(): void {\n  if (!schedule.isDirty()) return\n  schedule.onWrite(now)\n  emit('persist', json)\n}",
+    true,
+  ],
+  [
+    'sai: emit thẳng ở onLayoutChange, ngoài flush',
+    "function flush(): void {\n  if (!schedule.isDirty()) return\n  schedule.onWrite(now)\n}\nfunction onLayoutChange(): void {\n  emit('persist', json)\n}",
+    false,
+  ],
+  [
+    'sai: flush() ghi thẳng, không canh schedule',
+    "function flush(): void {\n  emit('persist', json)\n}",
+    false,
+  ],
+  [
+    'sai: không còn function flush nào',
+    "function save(): void {\n  emit('persist', json)\n}",
+    false,
+  ],
+]
+let f1Bad = 0
+for (const [name, code, shouldPass] of F1_CASES) {
+  const r = scanPersistViaSchedule(maskComments(code))
+  const ok = r.hasFlush && r.emitCount > 0 && r.outsideCount === 0 && r.guarded
+  if (ok !== shouldPass) {
+    fail(`tự kiểm F.1 — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    f1Bad += 1
+  }
+}
+if (f1Bad === 0) pass(`tự kiểm F.1 — ${F1_CASES.length} ca (1 xanh thật · 3 đỏ đúng lý do)`)
+
+// ───────────────────────────────────────────────────────────────────────────────────
+// F.2 — mọi giá trị của `PANEL_COMPONENTS` là một khoá của `components`.
+// ───────────────────────────────────────────────────────────────────────────────────
+const COMPONENTS_HEAD_RE = /\bconst\s+components(?::[^=]*)?\s*=\s*\{/
+
+/**
+ * @param {string} masked
+ * @returns {string[] | null}
+ */
+function componentKeysOf(masked) {
+  const body = balancedBraceBody(masked, new RegExp(COMPONENTS_HEAD_RE.source))
+  if (body === null) return null
+  const keys = []
+  for (const raw of splitTopLevel(body)) {
+    const entry = raw.trim()
+    if (entry === '') continue
+    const m = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*:/.exec(entry)
+    if (m) keys.push(m[1])
+  }
+  return keys
+}
+
+if (layoutMod.PANEL_COMPONENTS === undefined) {
+  abort('`src/layout/workspaceLayout.ts`', new Error('không export `PANEL_COMPONENTS` — F.2 cần nó.'))
+}
+
+{
+  const keys = componentKeysOf(dockVueSource.masked)
+  if (keys === null) {
+    fail('`WorkspaceDock.vue` — không tìm thấy `const components = { … }`, F.2 không đối chiếu được')
+  } else {
+    const values = Object.values(layoutMod.PANEL_COMPONENTS)
+    const missing = values.filter((v) => !keys.includes(v))
+    if (missing.length > 0) {
+      fail(
+        `\`PANEL_COMPONENTS\` (workspaceLayout.ts) khai [${missing.join(', ')}] — không phải khoá ` +
+          `nào của \`components\` ([${keys.join(', ')}]) trong WorkspaceDock.vue — panel TRẮNG`,
+      )
+      detail('`PANEL_COMPONENTS` sống ở workspaceLayout.ts, `components` sống ở WorkspaceDock.vue —')
+      detail('một tên lệch giữa hai bảng chỉ hiện ra lúc chạy, bằng console.error của dockview.')
+    } else {
+      pass(`F.2 — ${values.length} giá trị của \`PANEL_COMPONENTS\` đều là khoá của \`components\``)
+    }
+  }
+}
+
+// Tự kiểm F.2 — mã tổng hợp, không phải các tệp thật.
+const F2_CASES = [
+  ['đúng: mọi giá trị đều là khoá', ['grid', 'lookup'], 'const components = { grid: GridPanel, lookup: LookupPanel }', true],
+  [
+    'sai: một giá trị lệch tên',
+    ['grid', 'lookupX'],
+    'const components = { grid: GridPanel, lookup: LookupPanel }',
+    false,
+  ],
+  [
+    'comment nhắc tên không tính',
+    ['grid'],
+    '// const components = { grid: GridPanel }\nconst components = { lookup: LookupPanel }',
+    false,
+  ],
+]
+let f2Bad = 0
+for (const [name, values, code, shouldPass] of F2_CASES) {
+  const keys = componentKeysOf(maskComments(code))
+  const ok = keys !== null && values.every((v) => keys.includes(v))
+  if (ok !== shouldPass) {
+    fail(`tự kiểm F.2 — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    f2Bad += 1
+  }
+}
+if (f2Bad === 0) pass(`tự kiểm F.2 — ${F2_CASES.length} ca (1 xanh thật · 2 đỏ đúng lý do)`)
+
+// ───────────────────────────────────────────────────────────────────────────────────
+// F.3 — phần tử host cây dockview (`.modeport`) còn giữ `isolation: isolate`.
+// ───────────────────────────────────────────────────────────────────────────────────
+const MODEPORT_HEAD_RE = /\.modeport\s*\{/
+const ISOLATION_RE = /\bisolation\s*:\s*isolate\b/
+
+/**
+ * @param {string} masked
+ * @param {RegExp} selectorHead
+ * @returns {boolean | null}
+ */
+function hostKeepsIsolation(masked, selectorHead) {
+  const body = balancedBraceBody(masked, new RegExp(selectorHead.source))
+  if (body === null) return null
+  return ISOLATION_RE.test(body)
+}
+
+{
+  const kept = hostKeepsIsolation(appVueSource.masked, MODEPORT_HEAD_RE)
+  if (kept === null) {
+    fail('`App.vue` — không tìm thấy khối `.modeport { … }`, F.3 không canh được `isolation: isolate`')
+  } else if (!kept) {
+    fail('`App.vue` — `.modeport` KHÔNG còn `isolation: isolate` — sash lại vẽ đè lớp phủ (Ice bắt bằng mắt 2026-08-10)')
+  } else {
+    pass('F.3 — `.modeport` (App.vue) vẫn giữ `isolation: isolate`, ngữ cảnh xếp lớp của cây dockview còn cô lập')
+  }
+}
+
+// Tự kiểm F.3 — mã tổng hợp, không phải App.vue thật.
+const F3_CASES = [
+  ['đúng: còn isolation: isolate', '.modeport {\n  flex: 1;\n  isolation: isolate;\n}', true],
+  ['sai: isolation bị gỡ', '.modeport {\n  flex: 1;\n}', false],
+  ['comment nhắc tên không tính', '/* .modeport { isolation: isolate; } */\n.modeport {\n  flex: 1;\n}', false],
+  ['sai: selector .modeport mất hẳn', '.otherport {\n  isolation: isolate;\n}', false],
+]
+let f3Bad = 0
+for (const [name, code, shouldPass] of F3_CASES) {
+  const kept = hostKeepsIsolation(maskComments(code), MODEPORT_HEAD_RE)
+  const ok = kept === true
+  if (ok !== shouldPass) {
+    fail(`tự kiểm F.3 — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    f3Bad += 1
+  }
+}
+if (f3Bad === 0) pass(`tự kiểm F.3 — ${F3_CASES.length} ca (1 xanh thật · 3 đỏ đúng lý do)`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log('')
 if (skippedLinks.length) {
   console.log(`\x1b[33mĐã BỎ QUA ${skippedLinks.length} symlink:\x1b[0m ${skippedLinks.join(' · ')}`)
@@ -882,6 +1101,6 @@ console.log('     qua danh sách cho phép — chúng là định danh tự do, 
 console.log('     tự do đòi một bộ phân tích cú pháp thật (một phụ thuộc npm mới — NFR15).')
 console.log('  2. Kiểm B đo NHỊP, không đo rằng `WorkspaceDock.vue` thật sự dùng lịch đó.')
 console.log('     Vế đó là một lượt đếm tay trong DevTools — §Debug Log References của story.')
-console.log('  3. AC7 khai CƠ CHẾ. Bốn ngưỡng màn hình hẹp là Story 4.12, và `epics.md:1617`')
+console.log('  3. AC7 khai CƠ CHẾ. Bốn ngưỡng màn hình hẹp là Story 4.12, và UX-DR15')
 console.log('     cấm tường minh việc đóng chúng ở Story 1.14. Đừng thêm `matchMedia` vào đây.')
 process.exit(0)

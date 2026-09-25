@@ -836,7 +836,7 @@ function paragraphRuns(
 }
 
 .source-note {
-  margin: 0 0 1em 0;
+  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
 }
 
 .column {
@@ -863,7 +863,7 @@ function paragraphRuns(
 }
 
 .paragraph {
-  margin: 0 0 1em 0;
+  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
 }
 
 /*
@@ -872,7 +872,7 @@ function paragraphRuns(
  * khi một ảnh chen vào giữa hai đoạn/hai câu.
  */
 .reading-figure {
-  margin: 0 0 1em 0;
+  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
 }
 
 /*

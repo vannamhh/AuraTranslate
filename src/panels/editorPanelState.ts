@@ -2078,7 +2078,7 @@ export type RegroupResultCode =
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔵 2026-08-17 — MỘT ĐIỂM thành MỘT TẬP. Chữ ký của Ice cho AC7 vế *"nhiều mảnh"*
  * ─────────────────────────────────────────────────────────────────────────────
- * `epics.md:2522` đòi tách thành **nhiều** mảnh; bản đầu cài đúng **hai**. Ice ký cơ chế
+ * FR78 đòi tách thành **nhiều** mảnh; bản đầu cài đúng **hai**. Ice ký cơ chế
  * **tích luỹ**: mỗi cú bấm vào cột nguyên văn **thêm** một điểm, `⌘/` cắt tại tất cả cùng một
  * lượt. Đây là một tương tác **chưa tài liệu nào của dự án mô tả** — nó được nêu ra và ký,
  * không suy ra từ một đặc tả có sẵn.
@@ -2657,7 +2657,7 @@ export async function mergeCurrentSegment(): Promise<RegroupResultCode> {
  * **Tách câu tại điểm cắt đang có ở CỘT NGUYÊN VĂN** — Story 2.8, AC2.
  *
  * 🔴 **Đích là `sourceCut.segmentId`, KHÔNG `caretSegmentId`** — và đó là ngữ nghĩa của
- * `epics.md:2552`: *"không có phép chiếu nào từ vị trí con trỏ bên tiếng Việt sang chỗ cắt
+ * FR78: *"không có phép chiếu nào từ vị trí con trỏ bên tiếng Việt sang chỗ cắt
  * bên tiếng Trung. Cùng lý do Trados và memoQ đều bắt tách ở cột nguồn"*. Người dùng bấm vào
  * cột nguyên văn của **hàng X** rồi gõ `⌘/`; caret gõ chữ có thể đang ở một hàng khác, và
  * lấy nó làm đích là tách nhầm câu.

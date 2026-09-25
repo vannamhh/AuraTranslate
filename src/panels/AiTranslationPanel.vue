@@ -17,7 +17,7 @@
 // 🔴 STORY 1.18 · AC2 — ĐĂNG KÝ HỢP ĐỒNG VÙNG CHỌN, KHÔNG NỘI DUNG
 // ─────────────────────────────────────────────────────────────────────────────────
 // Panel này hôm nay **không có chữ**, và đó chính là lý do lượt đăng ký phải nằm ở đây NGAY
-// BÂY GIỜ: `epics.md:1762` đòi AI Translation *"nhận được cùng hành vi khi nó có nội dung
+// BÂY GIỜ: FR21 đòi AI Translation *"nhận được cùng hành vi khi nó có nội dung
 // ở các epic sau, **không cần cài lại**"*. Một lượt đăng ký thiếu ở đây không để lại **bất
 // kỳ triệu chứng nào** cho tới Epic 4 — tức hai epic sau, và tới lúc đó không ai nhớ AC này
 // tồn tại. Cổng đếm của `check-commands.mjs` (Kiểm F) là thứ giữ mệnh đề đó bằng MÁY.
@@ -255,7 +255,7 @@ const aiTranslateUsageLineValue = computed<AiTranslateUsageLine | null>(() =>
  * whole"). `null` khi CHƯA câu nào báo số (lô chưa xong câu nào, hoặc mọi câu đã xong đều
  * không mang usage) — không một dòng "0 token" giả nào được vẽ.
  *
- * `epics.md:3811-3813` (AC ký): *"hiển thị tổng token VÀ tổng ước tính của cả lô"* — cùng
+ * FR76 (AC ký): *"hiển thị tổng token VÀ tổng ước tính của cả lô"* — cùng
  * khuôn lượt dịch MỘT segment ([`aiTranslateUsageLine`] ngay trên: MỘT khoá khi có giá, MỘT
  * khoá khi không), áp riêng cho từng trường hợp đầy-đủ/một-phần — bốn khoá, không hai, vì
  * "đầy đủ hay một phần" và "có giá hay không" là hai trục ĐỘC LẬP.
@@ -640,7 +640,7 @@ const canRetryAiTranslateBatch = computed<boolean>(
   color: var(--color-on-surface);
   background: var(--color-background);
   border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
 .ai-prompt-open {

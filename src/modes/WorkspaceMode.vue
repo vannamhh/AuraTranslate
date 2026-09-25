@@ -8,7 +8,7 @@
 //   3. đẩy lượt ghi ngược lên `putConfig`.
 //
 // Không ngưỡng màn hình hẹp, không `matchMedia`, không ngăn kéo — **Story 4.12**,
-// và `epics.md:1617` cấm tường minh việc đóng chúng ở đây.
+// và UX-DR15 cấm tường minh việc đóng chúng ở đây.
 //
 // 🔵 2026-09-23 (Phase 3b) — vế trên vẫn đúng theo NGHĨA đó: chế độ này không TỰ đo
 // ngưỡng, không tự quyết sacrifice. Nó có thêm một việc thứ tư, thuần hiển thị: nghe
