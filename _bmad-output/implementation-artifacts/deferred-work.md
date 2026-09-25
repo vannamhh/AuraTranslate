@@ -12241,3 +12241,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-1-lo-c-webview-gates.md`
   summary: `inlineStyleBlocks` (`scripts/lib/tokens-scan.mjs`) đọc `:style="'color: red'"` ra giá trị `red'` (thừa nháy đơn cuối); `tests/frontend/checkTokensScan.test.ts` nay ghim đúng hành vi sai đó.
   evidence: lot C chỉ DỜI hàm (Quyết định 1), không sửa; ca test tự ghi "hành vi THẬT… không phải hành vi lý tưởng". Có từ trước lot C. **Chủ: Story 11.1.**
+
+## Deferred from: fix-hanviet-parallel-row-overflow (2026-09-25)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-hanviet-parallel-row-overflow.md`
+  summary: **Lượt dùng thật trên app đóng gói, cho fix tràn/đè hàng của Hán Việt kiểu song song.** `.hv-surface` đã gỡ `flex: 1; min-height: 0; overflow: auto` (`SourceHanViet.vue`), và `e2e/specs/hanviet-parallel-row-height.e2e.mjs` xanh 4/4 hai lượt liên tiếp trên WKWebView thật (đo dưới cột bị ép hẹp bằng CSS chỉ-dành-cho-bàn-đo, vì bề rộng cửa sổ thật không cố định giữa các lượt chạy — không ép, bug không tái lập đáng tin). Vế còn lại đúng AC2 của spec là một lượt Ice tự mở một Chương tiếng Trung dài, chuyển tab Hán Việt sang kiểu song song, và xác nhận bằng mắt: không ô nào hiện thanh cuộn riêng, không dòng âm đọc nào đè lên hàng kế.
+  evidence: đối chứng đỏ/xanh chạy hai lượt: khôi phục `.hv-surface{overflow:auto}` ⇒ 4/4 ca đỏ đúng lý do (chiều cao/đè hàng ×3, `overflow-y !== 'visible'` ×1); khôi phục bản vá ⇒ 4/4 ca xanh, lặp lại lần hai để loại trừ may rủi (bug tự thân là một lượt CHUYỂN kiểu xem, không chỉ một bề rộng cửa sổ — ép CSS phải khai TRƯỚC lượt chuyển, không phải sau). **Chủ: Ice.**

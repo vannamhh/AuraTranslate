@@ -980,24 +980,6 @@ onBeforeUnmount(() => {
 }
 
 /*
- * 🔴 VÙNG CUỘN — ĐỪNG BỎ `flex: 1` HAY `overflow: auto`.
- *
- * `.panel` của `PanelFrame.vue` mang `overflow: hidden`, và `.panel-body` không khai
- * `overflow` nào. 🔵 **2026-08-15 — mệnh đề này ĐỔI cùng lượt lật hình dạng:** không còn
- * `.original` nào, và **không nhánh nào có vùng cuộn riêng**. Hộp cuộn duy nhất là
- * `.grid-scroll` của `GridPanel.vue`, và năm cột `subgrid` phải cuộn CÙNG nhau;
- * bản đầu của bề mặt này thì không, nên **mọi thứ vượt chiều cao panel bị cắt và không
- * không với tới được bằng bất kỳ thao tác nào** — với trần 50.000 ký tự mà Quyết định #7
- * vừa chốt, đó là ≥99 % nội dung. Chính AC9 mở đầu bằng *"đã cuộn xuống"*, tức trạng thái
- * đó không tồn tại được. Bắt ở lượt code review 2026-08-06 bởi cả ba tầng review.
- */
-.hv-surface {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-/*
  * Một dòng trạng thái cho CẢ bề mặt — không nhân theo số ký tự.
  *
  * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) — token thứ 17 `ui-md-wrap`

@@ -284,8 +284,9 @@ onBeforeUnmount(() => {
  * ⚠️ Đã rà **cả ba** panel tiêu thụ trước khi đổi, không chỉ chỗ hỏng: `AiTranslationPanel`
  * (`.ai-surface`) và `LookupPanel` (`.lookup-body`) mỗi cái đặt **đúng một** con vào slot và con
  * ấy khai `height: 100%` — với một con duy nhất không tràn thì flex column cho **cùng** hình
- * dạng. `.hv-surface` của `SourceHanViet` nằm sâu trong `.grid-scroll` (`GridPanel.vue:1408`),
- * **không** phải con trực tiếp, nên `flex: 1` của nó trơ như trước và lượt này không đụng nó.
+ * dạng. `.hv-surface` của `SourceHanViet` nằm sâu trong `.grid-scroll` của `GridPanel.vue`,
+ * **không** phải con trực tiếp của `.panel-body`, và không khai `flex`/`overflow` riêng:
+ * hộp cuộn duy nhất của lưới là `.grid-scroll`.
  */
 .panel-body {
   flex: 1;
