@@ -1,16 +1,21 @@
 /**
  * Cổng thứ MƯỜI MỘT — BA danh sách cổng phải khai cùng một bộ.
  *
- * Sáu phép kiểm:
+ * Bảy phép kiểm:
  *
  *   A  mọi script `check:*` trong `package.json` được `ci.yml` GỌI.
  *   B  mọi `npm run <x>` trong `ci.yml` tồn tại trong `package.json`.
- *   C  TỰ KIỂM — chứng minh A, B, F và bộ đọc pre-push đỏ được, và không đỏ oan.
+ *   C  TỰ KIỂM — chứng minh A, B, F, G và bộ đọc pre-push đỏ được, và không đỏ oan.
  *   D  mọi script `check:*` trong `package.json` được `.githooks/pre-push` CHẠY.
  *   E  mọi cổng `.githooks/pre-push` chạy tồn tại trong `package.json`.
  *   F  cổng KHÔNG mang tiền tố `check:` (hôm nay: `test`) có mặt ở **cả ba** danh sách.
  *      Thêm 2026-08-12, Story 2.3 — xem [`REQUIRED_SCRIPTS`]: A và D chỉ duyệt `check:*`,
  *      nên một cổng đặt tên khác đi là một cổng **vô hình** với cả năm phép kiểm kia.
+ *   G  mọi hằng `*_FLOOR`/`*_FLOORS` trong `scripts/**\/*.mjs` và
+ *      `src-tauri/tests/**\/*.rs` đi TỚI bộ đo sàn chung (`judgeFloor`/
+ *      `assert_population_floor`). Một hằng mới không
+ *      đi qua bộ đo chung là một sàn quần thể tự viết tay lại, đúng lớp trôi mà bộ đo
+ *      chung ra đời để chặn.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * VÌ SAO CỔNG NÀY TỒN TẠI — một phép đo, không một lo xa
@@ -53,9 +58,9 @@
  *
  * Chạy:  npm run check:gates
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, lstatSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PKG_PATH = join(REPO_ROOT, 'package.json')
@@ -142,6 +147,62 @@ const REQUIRED_SCRIPTS = new Map(
     ],
   ]),
 )
+
+/**
+ * Hằng `*_FLOOR`/`*_FLOORS` được phép KHÔNG đi qua bộ đo sàn chung — mỗi mục PHẢI kèm
+ * một lý do. Cả hai mục dưới đây là NGƯỠNG (một tỉ lệ/hằng số cố định), không phải một
+ * QUẦN THỂ đếm được — `judgeFloor`/`assert_population_floor` chỉ có nghĩa cho quần thể.
+ */
+const FLOOR_EXEMPT = new Map(
+  /** @type {[string, string][]} */ ([
+    ['CONTRAST_FLOORS', 'ngưỡng tỉ lệ tương phản WCAG (`check-tokens.mjs`), không phải một quần thể đếm được'],
+    ['LINE_HEIGHT_FLOOR', 'ngưỡng giãn dòng (`check-tokens.mjs`), không phải một quần thể đếm được'],
+  ]),
+)
+
+// 🔴 `_FLOOR`/`_FLOORS` phải mang một dấu `_` NGAY TRƯỚC nó — không chỉ ở CUỐI tên.
+// `RS_FLOOR_FOR_DIALOG_CHECK` (`config_invariants.rs`) mang `FLOOR` ở GIỮA, không ở
+// cuối; một regex neo cuối tên (`_FLOORS?$`) bỏ sót đúng hằng đó.
+// ⚠️ Dấu `_` bắt buộc TRƯỚC `FLOOR` cũng LOẠI đúng các hằng của CHÍNH tệp này
+// (`FLOOR_EXEMPT`, `FLOOR_HELPER_CASES`, …) — `FLOOR` đứng ở ĐẦU tên, không có `_`
+// đứng trước. Không loại chúng thì Kiểm G tự bắt oan cả kho vũ khí của chính nó.
+const CONST_DECL_JS_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*=/g
+const CONST_DECL_RUST_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*:\s*usize\s*=/g
+/** @param {string} name */
+const isFloorConst = (name) => /_FLOORS?(_|$)/.test(name)
+
+/** `judgeFloor(NAME, …)` gọi `NAME` làm đối số ĐẦU — đúng khuôn mọi chỗ gọi thật dùng. */
+const reachesJsFloorHelper = (text, name) => new RegExp(String.raw`judgeFloor\(\s*${name}\b`).test(text)
+/** `assert_population_floor(NAME, …)`, cùng khuôn phía Rust (`boundary_scan.rs`). */
+const reachesRustFloorHelper = (text, name) =>
+  new RegExp(String.raw`assert_population_floor\(\s*${name}\b`).test(text)
+
+/**
+ * Duyệt `dir` đệ quy, trả các tệp có đuôi `ext`. Bỏ symlink (đúng khuôn các cổng khác
+ * trong `scripts/`) — Kiểm G không cần theo chúng, chỉ cần không panic trên một đường
+ * dẫn vòng.
+ */
+function walkExt(dir, ext, out = []) {
+  let names
+  try {
+    names = readdirSync(dir)
+  } catch (err) {
+    abort(`thư mục ${relative(REPO_ROOT, dir).split(sep).join('/')}`, err)
+  }
+  for (const name of names) {
+    const full = join(dir, name)
+    let st
+    try {
+      st = lstatSync(full)
+    } catch (err) {
+      abort(`${relative(REPO_ROOT, full).split(sep).join('/')}`, err)
+    }
+    if (st.isSymbolicLink()) continue
+    if (st.isDirectory()) walkExt(full, ext, out)
+    else if (name.endsWith(ext)) out.push(full)
+  }
+  return out
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 let pkg
@@ -322,6 +383,59 @@ console.log('')
   }
 }
 
+// ── Kiểm G — mọi hằng `*_FLOOR`/`*_FLOORS` đi TỚI bộ đo sàn chung ─────────────────
+{
+  let gBad = 0
+  let gScanned = 0
+
+  const jsFiles = walkExt(join(REPO_ROOT, 'scripts'), '.mjs')
+  for (const file of jsFiles) {
+    const rel = relative(REPO_ROOT, file).split(sep).join('/')
+    let text
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch (err) {
+      abort(rel, err)
+    }
+    for (const m of text.matchAll(CONST_DECL_JS_RE)) {
+      const name = m[1]
+      if (!isFloorConst(name) || FLOOR_EXEMPT.has(name)) continue
+      gScanned += 1
+      if (!reachesJsFloorHelper(text, name)) {
+        fail(`Kiểm G — \`${name}\` (${rel}) KHÔNG đi qua judgeFloor`)
+        detail(`Thêm một lời gọi \`judgeFloor(${name}, …)\` — mọi hằng *_FLOOR phải qua bộ đo chung.`)
+        gBad += 1
+      }
+    }
+  }
+
+  const rustFiles = walkExt(join(REPO_ROOT, 'src-tauri', 'tests'), '.rs')
+  for (const file of rustFiles) {
+    const rel = relative(REPO_ROOT, file).split(sep).join('/')
+    let text
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch (err) {
+      abort(rel, err)
+    }
+    for (const m of text.matchAll(CONST_DECL_RUST_RE)) {
+      const name = m[1]
+      if (!isFloorConst(name) || FLOOR_EXEMPT.has(name)) continue
+      gScanned += 1
+      if (!reachesRustFloorHelper(text, name)) {
+        fail(`Kiểm G — \`${name}\` (${rel}) KHÔNG đi qua assert_population_floor`)
+        detail(`Thêm một lời gọi \`boundary_scan::assert_population_floor(${name}, …)\`.`)
+        gBad += 1
+      }
+    }
+  }
+
+  if (gBad === 0) {
+    pass(`Kiểm G — ${gScanned} hằng *_FLOOR/*_FLOORS đều đi qua bộ đo sàn chung`)
+    for (const [name, why] of FLOOR_EXEMPT) detail(`miễn trừ: ${name} — ${why}`)
+  }
+}
+
 // ── Kiểm C — TỰ KIỂM ─────────────────────────────────────────────────────────────
 {
   const CASES = [
@@ -401,7 +515,98 @@ console.log('')
     },
   ]
 
+  /**
+   * Ca cho **Kiểm G** — gọi CHÍNH `reachesJsFloorHelper`/`reachesRustFloorHelper` và hai
+   * regex trích hằng, không một bản chép. Chứng minh: (a) một hằng ĐI QUA bộ đo chung
+   * được nhận; (b) một hằng khai xong bỏ đó — không lời gọi nào truyền nó — bị bắt; (c)
+   * cùng cặp đó ở phía Rust (`assert_population_floor`); (d) hai regex trích đúng TÊN
+   * hằng từ cả hình dạng JS (`const X = …`) lẫn Rust (`const X: usize = …;`).
+   */
+  // ⚠️ Mọi chuỗi mẫu dưới đây GHÉP RỜI từ "const" và tên hằng — nếu viết liền, Kiểm G tự
+  // quét CHÍNH tệp này và bắt nhầm fixture làm một khai báo `*_FLOOR` thật (cùng thủ
+  // thuật một cổng khác trong `scripts/` dùng để né tự bắt chính fixture của nó).
+  const FLOOR_HELPER_CASES = [
+    {
+      why: 'JS: hằng truyền vào judgeFloor(...) làm đối số đầu ⇒ được nhận',
+      fn: () =>
+        reachesJsFloorHelper(
+          'const ' + 'RS_FLOOR' + " = 5\njudgeFloor(" + 'RS_FLOOR' + ", live, 'RS_FLOOR', 'x')",
+          'RS_FLOOR',
+        ),
+      expect: true,
+    },
+    {
+      why: 'JS: hằng khai xong bỏ đó, không lời gọi judgeFloor nào ⇒ KHÔNG được nhận',
+      fn: () =>
+        reachesJsFloorHelper('const ' + 'RS_FLOOR' + ' = 5\nif (files.length < ' + 'RS_FLOOR' + ') fail("x")', 'RS_FLOOR'),
+      expect: false,
+    },
+    {
+      why: 'Rust: hằng truyền vào assert_population_floor(...) làm đối số đầu ⇒ được nhận',
+      fn: () =>
+        reachesRustFloorHelper(
+          'const ' +
+            'RS_FLOOR' +
+            ': usize = 5;\nboundary_scan::assert_population_floor(\n    ' +
+            'RS_FLOOR' +
+            ',\n    live,\n    "RS_FLOOR",\n    "x",\n);',
+          'RS_FLOOR',
+        ),
+      expect: true,
+    },
+    {
+      why: 'Rust: hằng khai xong bỏ đó, `assert!` tay chứ không qua helper ⇒ KHÔNG được nhận',
+      fn: () =>
+        reachesRustFloorHelper('const ' + 'RS_FLOOR' + ': usize = 5;\nassert!(live >= ' + 'RS_FLOOR' + ', "x");', 'RS_FLOOR'),
+      expect: false,
+    },
+  ]
+  const FLOOR_CONST_EXTRACT_CASES = [
+    {
+      why: 'CONST_DECL_JS_RE + isFloorConst: nhận `_FLOOR`/`_FLOORS`, bỏ hằng KHÔNG mang đoạn đó',
+      names: [
+        ...(
+          'const ' +
+          'CLICK_FLOOR' +
+          ' = 27\nconst ' +
+          'CONTRAST_FLOORS' +
+          ' = { normal: 4.5 }\nconst REPO_ROOT = 1'
+        ).matchAll(CONST_DECL_JS_RE),
+      ]
+        .map((m) => m[1])
+        .filter(isFloorConst),
+      expect: 'CLICK_FLOOR,CONTRAST_FLOORS',
+    },
+    {
+      why: 'CONST_DECL_RUST_RE + isFloorConst: `FLOOR` ở GIỮA tên cũng được nhận (RS_FLOOR_FOR_DIALOG_CHECK), hằng không phải usize thì không',
+      names: [
+        ...(
+          'const ' +
+          'RS_FLOOR_FOR_DIALOG_CHECK' +
+          ': usize = 84;\nconst OTHER: &str = "x";'
+        ).matchAll(CONST_DECL_RUST_RE),
+      ]
+        .map((m) => m[1])
+        .filter(isFloorConst),
+      expect: 'RS_FLOOR_FOR_DIALOG_CHECK',
+    },
+  ]
+
   let wrong = 0
+  for (const c of FLOOR_HELPER_CASES) {
+    const got = c.fn()
+    if (got !== c.expect) {
+      wrong += 1
+      fail(`Kiểm C — ca "${c.why}" cho ${got}, mong đợi ${c.expect}`)
+    }
+  }
+  for (const c of FLOOR_CONST_EXTRACT_CASES) {
+    const got = c.names.join(',')
+    if (got !== c.expect) {
+      wrong += 1
+      fail(`Kiểm C — ca "${c.why}" cho "${got}", mong đợi "${c.expect}"`)
+    }
+  }
   for (const c of REQUIRED_CASES) {
     // ⚠️ Gọi CHÍNH bộ so mà Kiểm F dùng — không một bản chép. Hai biểu thức cho cùng một
     // mệnh đề sẽ rẽ nhau ở lượt sửa thứ hai, và lúc đó ca tự kiểm này xanh cho một bộ so
@@ -433,7 +638,13 @@ console.log('')
   }
   if (wrong === 0) {
     pass(
-      `Kiểm C — ${CASES.length + HOOK_CASES.length + REQUIRED_CASES.length} ca tự kiểm đúng chiều`,
+      `Kiểm C — ${
+        CASES.length +
+        HOOK_CASES.length +
+        REQUIRED_CASES.length +
+        FLOOR_HELPER_CASES.length +
+        FLOOR_CONST_EXTRACT_CASES.length
+      } ca tự kiểm đúng chiều`,
     )
   }
 }

@@ -43,25 +43,11 @@ const STORE_DIR: &str = "core/store";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
 ///
-/// Số thật lúc dựng (Story 1.7): **22** tệp — 17 kế thừa + 5 tệp của `core/store/`. Sàn
-/// đặt **dưới** số thật đúng khuôn `RS_FLOOR`/`VUE_FLOOR` của `check-i18n.mjs`: nó bắt
-/// một cây bị cắt mất, không bắt việc thêm tệp mới.
-///
-/// ⚠️ Story 1.8: số thật là **26** — thêm 3 tệp `core/scope/` và `commands/config.rs`. Sàn
-/// lên **20** (~77%).
-///
-/// ⚠️ Story 2.1 (2026-08-12): số thật là **42** — cây đã đi xa khỏi 26, và một sàn 20 trên
-/// 42 tệp (47,6%) không còn canh được *"cây bị cắt"* nữa: mất hơn nửa cây vẫn xanh. Sàn lên
-/// **34** (81,0%), cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` đang giữ. Hai tệp
-/// mới của story này là `core/segment/split.rs` và `commands/segment.rs`.
-///
-/// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`
-/// (26 tệp), ở đó là `src-tauri/**` sau miễn trừ `tests/**` (27 tệp, gồm `build.rs`). Hai
-/// con số gần nhau và chúng **không** thay thế nhau được; chép số của tệp kia sang đây là
-/// đặt một cái sàn cho một cây khác.
-const RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
-// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
-// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
+/// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`,
+/// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm `build.rs`). Hai con số gần nhau và
+/// chúng **không** thay thế nhau được; chép số của tệp kia sang đây là đặt một cái sàn cho
+/// một cây khác.
+const RS_FLOOR: usize = 84;
 
 /// Những chuỗi mà **chỉ** `core::store` được mang.
 ///
@@ -94,12 +80,11 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let (_, files) = all_rust_sources();
-    assert!(
-        files.len() >= RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RS_FLOOR}). \
-         Cây quá nhỏ để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà \
-         không kiểm gì cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR,
+        files.len(),
+        "RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

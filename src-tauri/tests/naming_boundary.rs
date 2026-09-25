@@ -98,6 +98,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+
 /// Bốn từ cấm cho khái niệm tầng Tác phẩm — `AGENTS.md:41`. So khớp **PHÂN BIỆT HOA/THƯỜNG**
 /// trên đúng dạng viết hoa đầu chữ này; xem doc-comment đầu tệp §API NỀN TẢNG.
 const FORBIDDEN_WORDS: [&str; 4] = ["Project", "Book", "Novel", "Document"];
@@ -116,15 +120,10 @@ const STORE_EXEMPT: [&str; 8] = [
 ];
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (2026-08-27, sau đổi tên của story này): **55**. Sàn **44** (80%),
-/// cùng khuôn `RS_FLOOR`/`SRC_RS_FLOOR` của các tệp `*_boundary.rs` khác.
-const RUST_FLOOR: usize = 44;
+const RUST_FLOOR: usize = 84;
 
 /// Số tệp `.ts`/`.vue` tối thiểu dưới `src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (2026-08-27): **73** (51 `.ts` + 22 `.vue`). Sàn **58** (~79%).
-const FRONTEND_FLOOR: usize = 58;
+const FRONTEND_FLOOR: usize = 94;
 
 fn is_word_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
@@ -518,19 +517,19 @@ fn ipc_error_code_violations_in_file(file: &ScannedFile) -> Vec<String> {
 #[test]
 fn the_scanned_trees_are_both_large_enough_to_be_real() {
     let rust_files = rust_sources();
-    assert!(
-        rust_files.len() >= RUST_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RUST_FLOOR}). Cây quá nhỏ để \
-         là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        rust_files.len()
+    boundary_scan::assert_population_floor(
+        RUST_FLOOR,
+        rust_files.len(),
+        "RUST_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     let frontend_files = frontend_sources();
-    assert!(
-        frontend_files.len() >= FRONTEND_FLOOR,
-        "chỉ tìm thấy {} tệp `.ts`/`.vue` dưới `src/**` (sàn {FRONTEND_FLOOR}). Cây quá nhỏ để \
-         là thật.",
-        frontend_files.len()
+    boundary_scan::assert_population_floor(
+        FRONTEND_FLOOR,
+        frontend_files.len(),
+        "FRONTEND_FLOOR",
+        "tệp `.ts`/`.vue` dưới `src/**`",
     );
 }
 

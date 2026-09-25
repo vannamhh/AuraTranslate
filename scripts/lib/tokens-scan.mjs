@@ -223,12 +223,32 @@ export function inlineStyleBlocks(text, file) {
       }
     } else {
       // Hai hình dạng: một chuỗi (`:style="'color: red'"`) hoặc một object literal.
-      const objRe = /(['"]?)([A-Za-z-]+)\1\s*:\s*(?:(['"])(.*?)\3|([^,}]+))/g
-      let o
-      while ((o = objRe.exec(body))) {
-        const value = (o[4] !== undefined ? o[4] : o[5] || '').trim()
-        if (!value) continue
-        decls.push({ prop: kebab(o[2]).toLowerCase(), value, index: base + o.index, source: file })
+      //
+      // A whole-body string must be caught before `objRe`, whose `([^,}]+)` fallback would
+      // keep the closing quote in the value.
+      const stringLiteral = /^(['"])([\s\S]*)\1$/.exec(body)
+      if (stringLiteral) {
+        let off = 0
+        for (const piece of stringLiteral[2].split(';')) {
+          const colon = piece.indexOf(':')
+          if (colon > 0) {
+            decls.push({
+              prop: piece.slice(0, colon).trim().toLowerCase(),
+              value: piece.slice(colon + 1).trim(),
+              index: base + 1 + off,
+              source: file,
+            })
+          }
+          off += piece.length + 1
+        }
+      } else {
+        const objRe = /(['"]?)([A-Za-z-]+)\1\s*:\s*(?:(['"])(.*?)\3|([^,}]+))/g
+        let o
+        while ((o = objRe.exec(body))) {
+          const value = (o[4] !== undefined ? o[4] : o[5] || '').trim()
+          if (!value) continue
+          decls.push({ prop: kebab(o[2]).toLowerCase(), value, index: base + o.index, source: file })
+        }
       }
     }
     if (decls.length) blocks.push({ prelude: 'style=""', decls, source: file })

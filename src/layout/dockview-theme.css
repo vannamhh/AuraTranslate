@@ -77,13 +77,7 @@
   --dv-drag-over-border: 1px solid var(--color-primary);
 
   /* ── Nhóm nổi (undock — AC2) ───────────────────────────────────────────────── */
-  /*
-   * 🔴 `--dv-floating-box-shadow: none` — AC7 của Story 1.4 cấm elevation, và Kiểm F của
-   * `check-tokens.mjs` cưỡng chế điều đó trên `src/**`. Biến này mang tên `--dv-floating-
-   * box-shadow` nên nó KHÔNG khớp `box-shadow` mà Kiểm F đọc — tức cổng không bắt
-   * được nó. Đặt `none` ở đây là giữ đúng luật ở chỗ cổng không với tới, không phải vì
-   * cổng bắt.
-   */
+  /* aura-allow-shadow: giá trị "none" tắt bóng mặc định của dockview, không vẽ bóng mới (AC7 cấm elevation) */
   --dv-floating-box-shadow: none;
   --dv-floating-border: 1px solid var(--color-outline);
   --dv-floating-group-border: 1px solid var(--color-outline);
@@ -95,8 +89,6 @@
    * `check-tokens.mjs`: `opacity` trung gian trên một khối CÓ CHỮ hạ tương phản của chữ
    * xuống dưới sàn AA, và ở đây khối đang kéo chở đúng nội dung panel. Phản hồi kéo–thả
    * đã có đủ ở lớp phủ đích thả ngay phía trên.
-   * ⚠️ Tên biến là `--dv-floating-group-dragging-opacity`, không phải `opacity` — Kiểm D
-   * không thấy dòng này. Cùng ghi chú với `--dv-floating-box-shadow`.
    */
   --dv-floating-group-dragging-opacity: 1;
 
@@ -128,12 +120,7 @@
   --dv-tab-group-line-height: calc(var(--space-unit) / 2);
   --dv-tab-group-line-opacity: 1;
 
-  /*
-   * ⚠️ Ngữ cảnh xếp lớp CƠ HỌC của lớp phủ kéo–thả, không phải elevation. Cùng phân
-   * biệt mà Kiểm F của `check-tokens.mjs` đã ghi khi cho `z-index` một đường miễn trừ có
-   * tên còn `box-shadow` thì không. Tên biến ở đây (`--dv-overlay-z-index`) không khớp
-   * `z-index` nên cổng không đọc tới — ghi lý do ra thay vì để nó im lặng.
-   */
+  /* aura-allow-z-index: ngữ cảnh xếp lớp CƠ HỌC của lớp phủ kéo–thả, không phải elevation */
   --dv-overlay-z-index: 999;
 
   --dv-transition-duration: 70ms;

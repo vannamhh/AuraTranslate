@@ -60,6 +60,10 @@ for gate in deps tokens i18n commands layout panel-refs doc-refs dict dict-manif
   fi
 done
 
+# Warns when the previous push's CI run failed; never blocks, and skips silently when
+# offline, unauthenticated or timed out. Not a gate, so it has no `check:*` name.
+node scripts/ci-previous-verdict.mjs || true
+
 if [ "$DOCS_ONLY" = 1 ]; then
   echo '  (chỉ đổi tài liệu — bỏ qua test, build, cargo test)'
 else

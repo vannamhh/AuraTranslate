@@ -120,6 +120,7 @@
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tsconfig.json include chỉ src/**, tests/frontend/**, vitest.config.ts — không có scripts/*.mjs; không tìm thấy tệp test nào cho check-tokens.mjs (chỉ có scripts/check-tokens.mjs, không .test.mjs kèm theo). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
   → 🟡 2026-09-25 (Story 11.1) — nửa type-check ĐÃ ĐÓNG: `scripts/lib/tokens-scan.mjs` tách sáu hàm thuần khỏi `check-tokens.mjs`, và `tsconfig.node.json` nay type-check cả hai (`vue-tsc --noEmit -p tsconfig.node.json` sạch) cộng `tests/frontend/checkTokensScan.test.ts` (19 ca) canh mô-đun đã tách. Nửa còn hở cùng hình dạng mục `check-commands.mjs` ngay trên (L187): `check-tokens.mjs` không nạp an toàn (`process.exit`) nên phán quyết của Kiểm A–K vẫn chỉ được canh bằng tự kiểm trong chính script, chưa nạp được vào vitest. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1 lô D) — nửa còn lại (nạp phán quyết Kiểm A–K của `check-tokens.mjs` thẳng vào vitest) không làm: tự kiểm trong chính script đã chạy mỗi lượt `pre-push`/CI, và đó là lưới thật hôm nay. Lớp khiếm khuyết nó bỏ sót, ghi ra thay vì giấu: một khối Kiểm bị một `return`/`process.exit` sớm DÙNG CHUNG nhảy qua sẽ xanh vì VẮNG MẶT, không vì đã qua. Mở lại khi lớp đó xảy ra thật một lần.
 
 - ⚠️ **BA MỆNH ĐỀ THỊ GIÁC của Task 4/5 đang đứng bằng VĂN XUÔI, không bằng bằng chứng tái lập được** *(Ice chấp nhận 2026-08-03 với điều kiện ghi ra đây)*. Trang thăm dò, bốn ảnh chụp và bộ đọc `fvar` sống ngoài repo có chủ ý (tiền lệ §Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào cây nguồn). Hệ quả là không lượt rà soát nào sau này tái lập lại được ba mệnh đề sau từ cây nguồn:
   - *"Bốn nét `Source Sans 3` (200/400/600/700) phân biệt rõ trên chuỗi dày dấu tiếng Việt"* — dựng trên **Blink/macOS**, chưa đo trên WKWebView, chưa đo trên Windows.
@@ -191,6 +192,7 @@
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Cùng tsconfig.json không include scripts/*.mjs; không có tệp test tự động cho check-commands.mjs trong repo. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
   → 🟡 2026-09-24 (Story 11.1) — nửa type-check ĐÃ ĐÓNG: `tsconfig.node.json` nay type-check `check-commands.mjs` cộng `scripts/lib/commands-scan.mjs` (module vừa tách) dưới `checkJs` nghiêm ngặt, 0 lỗi. Nửa test tự động CÒN HỞ: `tests/frontend/checkCommandsScan.test.ts` (22 ca) canh mô-đun THUẦN đã tách, nhưng phán quyết của Kiểm K (`judgeHandlerInventory`) và các Kiểm khác trong `check-commands.mjs` chỉ được canh bằng tự kiểm trong chính script cộng gỡ chỗ nối tay — tệp không nạp an toàn (`process.exit`, top-level `await`) nên không import được thẳng vào một tệp vitest. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1 lô D) — cùng quyết định với mục `check-tokens.mjs` ở `:119`: nửa test tự động còn lại không làm. Tự kiểm trong chính `check-commands.mjs` (gồm Kiểm K mới, `judgeHandlerInventory`) đã chạy mỗi lượt `pre-push`/CI — cùng lớp khiếm khuyết: một khối Kiểm bị một `return`/`process.exit`/`await` đỉnh sớm DÙNG CHUNG nhảy qua sẽ xanh vì vắng mặt. Mở lại khi lớp đó xảy ra thật một lần.
 
 - ⚠️ **Sàn của cổng đếm TỆP, không đếm nội dung** — `VUE_FLOOR = 4` (thật: 5) và `TS_FLOOR = 10` (thật: 13) đóng được *"cây rỗng đọc thành sạch"* nhưng không đóng *"tệp rỗng đọc thành sạch"*. Cùng mục đã ghi cho `check-i18n.mjs:207-218`. Mở lại khi Story 1.14 dựng bốn panel. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — check-commands.mjs:211,236 (Story 3.6, 2026-08-22) nâng VUE_FLOOR 4→16 (thật 19) và TS_FLOOR 10→39 (thật 47); dòng 194-198 ghi rõ sàn nội dung CLICK_FLOOR/DISPATCH_FLOOR/COMMAND_FLOOR bù cho lỗ "tệp rỗng đọc thành sạch" mà sàn đếm tệp không canh được.
@@ -289,6 +291,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Sàn quần thể vẫn đếm TỆP, không đếm nội dung** — `scope_boundary.rs::RS_FLOOR = 20` (thật: 26) và `check-i18n.mjs::RS_FLOOR = 21` (thật: 27). Cùng mục đã ghi ba lần trước cho `check-i18n.mjs:207-218` và `check-commands.mjs`. ⚠️ **Hai quần thể này KHÁC nhau** — `src-tauri/src/**` so với `src-tauri/**` sau miễn trừ `tests/**` *(gồm `build.rs`)* — và chép số của tệp này sang tệp kia là đặt một cái sàn cho một cây khác. Đã ghi vào doc-comment của cả hai. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scope_boundary.rs:45 RS_FLOOR=43 (thật 53, ghi 2026-08-24 Story 3.7) và check-i18n.mjs:288 RS_FLOOR=44 (thật 53, ghi 2026-08-22 Story 3.5) -- cả hai vẫn là sàn đếm TỆP, không đổi nội dung. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 2) — cả hai sàn tự giữ gốc quần thể RIÊNG của chính nó qua một helper dùng chung: `scope_boundary.rs::RS_FLOOR` 43→**84** (`src-tauri/src/**` = 98, `boundary_scan::assert_population_floor`), `check-i18n.mjs::RS_FLOOR` 44→**85** (đo trực tiếp bằng chính cổng: live 99, không phải 98 — gốc `.rs` của cổng này khác nhẹ so với các cổng khác, ghi lại chứ không giả định, `scripts/lib/floor-judge.mjs::judgeFloor`). Không còn chép số giữa hai quần thể khác nhau — mỗi lời gọi truyền quần thể của chính mình. Đối chứng đỏ: hạ `RS_FLOOR` xuống dưới 80% quần thể thật ở cả hai tệp, cổng đỏ đúng lý do (`đã trôi dưới 80%`); phục hồi, xanh lại.
 
 ## Deferred from: code review of 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)
 
@@ -653,6 +656,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Ba biến `--dv-*` mang tên KHÔNG khớp thuộc tính CSS mà cổng đọc.** `--dv-floating-box-shadow` không khớp `box-shadow` của Kiểm F; `--dv-overlay-z-index` không khớp `z-index`; `--dv-floating-group-dragging-opacity` không khớp `opacity` của Kiểm D. Cả ba **đã được đặt đúng luật bằng tay** *(`none` · một ngữ cảnh xếp lớp cơ học có ghi lý do · `1`)* và lý do viết ngay cạnh — nhưng đó là **kỷ luật, không phải cưỡng chế**. Ngày dockview thêm một biến kiểu này, không gì báo. `epics.md:381` nói ranh giới kiến trúc phải cưỡng chế **bằng test**; đây là một chỗ nó chưa được. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: dockview-theme.css dòng 87,101,137: --dv-floating-box-shadow, --dv-floating-group-dragging-opacity, --dv-overlay-z-index vẫn đặt tay, không cổng nào cưỡng chế tên biến khớp thuộc tính CSS. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 4) — `check-tokens.mjs::classifyCustomProp` phân loại một biến `--dv-*` theo HẬU TỐ tên (`-box-shadow`/`-text-shadow`/`-opacity`/`-z-index`) về đúng thuộc tính CSS trước khi Kiểm D/F đọc, thay vì để tên biến không khớp thuộc tính làm hai Kiểm mù. Cả ba biến của mục này, cộng biến thứ tư `--dv-tab-group-line-opacity` (`dockview-theme.css:129`, trước đó không ai ghi), nay được cưỡng chế thật: `--dv-floating-box-shadow`/`--dv-overlay-z-index` mang `aura-allow-shadow`/`aura-allow-z-index` có lý do (`dockview-theme.css:87,137`), hai biến `-opacity` qua Kiểm D sạch (giá trị 1). Tự kiểm Kiểm F (`F_CLASSIFY_CASES`, `F_SHADOW_EXEMPT_CASES`) canh phép phân loại và miễn trừ. Đối chứng: xoá comment `aura-allow-shadow` phía trên `--dv-floating-box-shadow` ⇒ cổng đỏ đúng dòng đó; phục hồi, xanh lại.
 
 - ⚠️ **`ui-md` chạy giãn dòng 1.5 nhưng câu trạng thái panel AI XUỐNG DÒNG THẬT** — xem mục *"Kiểm E không phát hiện được một cờ `wraps` khai sai"* ở trên. **Chưa chốt, quyết định của Ice**, và nó chạm `DESIGN.md`. **(Chủ: story kế tiếp dựng panel chạm `ui-md`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: PanelFrame.vue dòng 234 vẫn ghi ui-md khai wraps:false, giãn dòng 1,5 dưới sàn 1,66 của DESIGN.md; SourceHanViet.vue:1004 xác nhận cùng ghi chú. **Chủ: Ice.**
@@ -674,6 +678,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - **`PANEL_SUFFIXES` ở `src/commands/index.ts:172-173` là bản chép tay của `PANEL_IDS`** (`src/layout/workspaceLayout.ts`), chỉ có một dòng comment "chép từ", không cổng nào đối chiếu hai bảng. Thêm/đổi tên/xoá một panel sau này có thể làm bốn `layout.toggle_*` trôi khỏi `PANEL_IDS` mà không cổng nào đỏ. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/index.ts dòng 1060 (PANEL_SUFFIXES) và workspaceLayout.ts dòng 54 (PANEL_IDS) vẫn là hai bảng chép tay riêng biệt; grep PANEL_SUFFIXES ngoài commands/index.ts ra 0 kết quả, không nơi nào đối chiếu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, L674) — sửa tại NGUỒN, không phải một cổng mới: `src/commands/index.ts::PANEL_SUFFIXES` nay suy trực tiếp từ `PANEL_IDS` (`src/layout/workspaceLayout.ts:54`, `.map(id => id.slice('panel.'.length))`), không còn bản chép tay, không vòng lặp import. Đo hình dạng trôi cũ: khôi phục tạm `PANEL_SUFFIXES` về 2/3 giá trị cũ ⇒ `check:commands` VẪN XANH, số lệnh rơi 177→176 mà không cổng nào biết — xác nhận đúng khiếm khuyết mục này nêu, và xác nhận sửa tại nguồn là lời giải đúng (một sàn đếm không phân biệt được 176 lệnh đúng với 177 lệnh đúng). Phục hồi, `check:commands` lại 177.
 - **`applyPreset()` luôn `api.clear()` rồi dựng lại TOÀN BỘ bốn panel**, kể cả khi preset yêu cầu đã là preset đang áp — vô hại hôm nay vì bốn panel là khung rỗng, nhưng sẽ mất trạng thái thật (cuộn, nội dung đang gõ, state AI) một khi panel có nội dung thật. **Nhặt lại ở Story 1.16 / 1.17 / Epic 2**, nơi panel lần đầu có trạng thái đáng giữ.
   - ✅ **ĐÓNG cho Panel Source — Story 1.16, AC9 (2026-08-06).** State (Chương đã nạp, âm Hán
     Việt đã tra, tab/kiểu xem đang chọn) chuyển ra `src/panels/sourcePanelState.ts` —
@@ -4171,6 +4176,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: một story hạ tầng cổng** *(hoặc một token dùng chung cho hình dạng dấu cắt)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: GridPanel.vue .cut-mark và SourceHanViet.vue .cut-here::before vẫn là hai khối CSS rời (GridPanel.vue:2217-2227 tự ghi 'Hai khối này phải đổi CÙNG LÚC. Không cổng nào canh'); không token dùng chung nào trong tokens.json. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 5) — `src/tokens/reset.css::root` nay khai `--cut-mark-width`/`--cut-mark-height` dùng chung; `GridPanel.vue::.cut-mark` và `SourceHanViet.vue::.cut-here::before` đều đọc `var(--cut-mark-width)`/`var(--cut-mark-height)` thay vì hai bản `2px`/`1.3em` chép tay. `display`/`vertical-align`/`background-color` (đã dùng `var(--color-primary)` sẵn) vẫn là hai khai báo tay riêng, ghi rõ tại chỗ. Đối chứng: đổi tên biến `:root` thành một tên sai chính tả ⇒ Kiểm I (`check:tokens`) đỏ đúng hai dòng tiêu thụ, báo `var()` không trỏ tới biến có thật — một khiếm khuyết Kiểm I trước đây không thấy vì hai khối từng là literal, không `var()`. Phục hồi, xanh lại.
 
 ---
 
@@ -4652,6 +4658,7 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   chiếu mỗi sàn với quần thể thật của chính cổng đó, và đỏ khi tỷ lệ rơi dưới 80%)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Không script nào trong scripts/*.mjs tự động đối chiếu các sàn COMPONENT_FILE_FLOOR/CLICK_FLOOR/DISPATCH_FLOOR/COMMAND_FLOOR/SELECTION_SURFACE_FLOOR/RS_FLOOR/RS_FILE_FLOOR với quần thể thật; các lần nâng sàn (vd RS_FLOOR :288) đều làm thủ công theo từng story. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 2) — cơ chế chống trôi đã dựng: `scripts/lib/floor-judge.mjs::judgeFloor` (JS) và `boundary_scan::assert_population_floor` (Rust), mỗi cổng tự truyền quần thể thật của chính nó, cùng công thức `floor ≥ 0.8 × live` (cận trôi) và `min(live, ceil(0.85 × live))` (cận nâng). Toàn bộ danh sách CÒN HỞ mục này nêu (`check-tokens.mjs::COMPONENT_FILE_FLOOR`, `check-commands.mjs::CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR`/`SELECTION_SURFACE_FLOOR`/`TS_FLOOR`, `check-i18n.mjs::RS_FLOOR`, `check-dict-build.mjs::RS_FILE_FLOOR`) nay đi qua `judgeFloor`. Cổng bắt bypass thật (Kiểm G, `check-gates.mjs`): quét MỌI hằng `*_FLOOR(S)?` trong `scripts/**/*.mjs` và `src-tauri/tests/**/*.rs`, đòi mỗi hằng chạm helper — chạy sạch 48/48. Đối chứng: gỡ `judgeFloor(...)` khỏi một cổng thật (`check-dict-build.mjs`) ⇒ Kiểm G đỏ đúng tên hằng; phục hồi, 48/48 lại xanh. `TS_FLOOR` (`check-commands.mjs`) riêng: 30→39 (nâng trước đó)→nay **68** (live 79, `ceil(0.85×79)=68`).
 
 ---
 
@@ -4781,6 +4788,7 @@ trước đó `npm test` đứng **trước** nó trong job và chết sớm, n�
 Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa hình dạng đã giao ở `8a4a060`
 *(đảo thứ tự hai mệnh đề · gỡ phép so tự tham chiếu)*, và cả hai **không** trả lời câu dưới đây:
   → 2026-09-24 (phiếu quyết #37) — Ice chọn một bước pre-push hỏi `gh run list` phán quyết lượt push trước và cảnh báo khi đỏ, không chặn. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, phiếu quyết #37) — `.githooks/pre-push` gọi `node scripts/ci-previous-verdict.mjs || true`, một script KHÔNG mang tên `check:*` (nên `check:gates` không đếm nó vào ba danh sách cổng). Nó hỏi `gh run list --workflow ci.yml --branch master --event push` qua `spawnSync` có `timeout` 8 s (không shell, không `perl`, chạy được trên Windows) và so `headSha` với `git rev-parse @{u}`. Lượt push TRƯỚC đỏ ⇒ một dòng cảnh báo vàng, KHÔNG chặn push (đường ⒝ của mục); không có `gh`/chưa đăng nhập/mất mạng/hết giờ ⇒ im lặng bỏ qua. `tests/frontend/ciPreviousVerdict.test.ts` phủ mọi nhánh; đối chứng: nới phép so `headSha` ⇒ ca "không khớp SHA" đỏ.
 
 - **Cửa sổ hồi quy:** `cargo test` **XANH** trên `macos-26` ở `64cf7cb` *(2026-08-16)*, rồi
   **không chạy trong CI lần nào** cho tới `fa70fe3` *(2026-08-19)*. Trong khoảng ấy:
@@ -4790,6 +4798,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
     **và di trú chạy lúc `Store::open`**, tức nó đổi nội dung WAL ở thời điểm ca test bắt đầu. **(Chủ: một story hạ tầng kiểm thử kế tiếp — điều tra cửa sổ hồi quy CI.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Không tìm thấy dòng đóng nào cho 'Cửa sổ hồi quy' 64cf7cb→fa70fe3 trong deferred-work.md; investigation về WAL do di trú chạy tại Store::open vẫn treo, gắn với B7 (bảng nghiệm thu Windows cuối dự án, Story 10.9 vẫn backlog). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → 2026-09-25 (Story 11.1 lô D, Quyết định 8) — reassign: 14 lượt CI lấy mẫu (2026-09-14→09-25) cho thấy ca WAL đỏ **7/14** lần, trên CẢ HAI hệ điều hành, luôn cùng chữ ký `wal_checkpoint(PASSIVE) blocked: busy=1` — đúng hình dạng chập chờn ⒜ (biến động runner) mục này đã nghi, không phải hồi quy của 208 dòng di trú ⒝ mà cửa sổ hồi quy gốc còn để ngỏ. Số đo đủ để đóng câu hỏi ⒜/⒝ nhưng KHÔNG đủ để tự sửa mã đường checkpoint — chuyển cho story chạm `core/store` kế tiếp. **Chủ: Story 11.5.**
 - ⚠️ **Số đo đã có, và nó KHÔNG kết luận được:** `after_first` bằng nhau **từng byte** trên hai
   máy *(94.792 B)*, nên phần mở kho là **tất định**. Khác biệt nằm trọn ở đợt hai — máy Ice lớn
   thêm **0 B**, `macos-26` lớn thêm **115.360 B**. Điều đó **tương thích với cả hai** giả thuyết:
@@ -5638,6 +5647,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: story hạ tầng cổng kế tiếp — cùng chủ với món nợ "8/13 cổng chưa có phép tự kiểm".)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: _bmad-output/implementation-artifacts/3-4b-ban-do-danh-dau.html:35 vẫn ghi banner 'Token: chép từ src/tokens/tokens.json'; không script nào trong scripts/*.mjs tham chiếu tên tệp này để đối chiếu màu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1 lô D, Quyết định 6) — không dựng cổng đối chiếu màu. Đo lại: `3-4b-ban-do-danh-dau.html` và `src/tokens/tokens.json` vẫn khớp ở toàn bộ 14 giá trị màu hôm nay. Mở lại khi bàn đo này được đưa ra dùng lại một lần nữa (đối chứng tương phản mới) mà không đối chiếu tay với `tokens.json` trước.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
   summary: **Chưa ai tách bạch *"mở Chương ĐỨNG HÌNH"* với *"mở Chương CHẬM"* — lượt hâm `Jieba`
@@ -5805,6 +5815,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     "8/13 cổng chưa có phép tự kiểm".)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scripts/ không có script nào đọc sprint-status.yaml; check:gates chỉ canh package.json/ci.yml/.githooks/pre-push, không canh cặp trạng thái sprint-status.yaml với status: của tệp story. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → KHÔNG LÀM 2026-09-25 (Story 11.1) — Ice bỏ task này: cổng và test chỉ canh mã nguồn và hành vi của app, không canh trạng thái task hay tài liệu trong `_bmad-output`. Kiểm D dựng trong lô D đã gỡ hẳn khỏi `check-debt-owner.mjs`: nó chấm các trạng thái trung gian hợp lệ của workflow (spec `in-review` so sprint `in-progress`) là lệch và chặn mọi lần push. `2-13` và `spec-5-14` giữ nguyên trạng.
 
 ## Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)
 
@@ -5880,6 +5891,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: story hạ tầng cổng kế tiếp — cùng hạng với mục *"8/13 cổng chưa có phép tự kiểm"*.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tests/frontend/glossaryConfirmStripTemplate.test.ts và glossaryConfirmStripSuggestion.test.ts chỉ vi.doMock('../../src/commands', ...) ở tầng component; không tệp nào gọi portMissing cho glossary.confirm.* hay lái Mod+Alt+C qua registerAll thật. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, L5868) — `tests/frontend/commandsRegistryPortMissing.test.ts` (mới, 4 ca): (1) cài `installCommands` chỉ với `setMode` bắt buộc rồi chạy MỌI lệnh đã đăng ký (đo trực tiếp: **177** lệnh, không phải 132 như ghi chú cũ) — 174/177 gọi `console.error` nêu đúng id của chính nó qua `portMissing`; ba ngoại lệ đúng cấu trúc là `mode.*` (không cần port nào khác `setMode`); (2) `Mod+Alt+C` lái qua `attachKeyboard` bằng một `KeyboardEvent` thật: thiếu `focusGlossaryConfirmStrip` ⇒ đúng một `portMissing` nêu tên; có ⇒ 0 tiếng gọi, dep được gọi với giá trị thật (đối chứng dương). Đối chứng đỏ: gỡ nhánh bảo vệ `portMissing` khỏi handler `glossary.confirm.focus` ⇒ đúng 2/4 ca đỏ đúng lý do; phục hồi, 4/4 xanh.
 
 ## Deferred from: 3-7-de-xuat-ban-dich-bang-am-han-viet (2026-08-24)
 
@@ -7193,6 +7205,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (b) dựng một phép kiểm tính tỉ lệ sàn/quần thể thật và đỏ khi tỉ lệ tụt dưới ~70%.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Đếm lại 2026-09-23: 98 tệp .rs thật dưới src-tauri/src/** (find … | wc -l), mọi SRC_RS_FLOOR/RS_FLOOR hiện tại (43-70) lệch xa hơn nữa; không phép kiểm tỉ lệ sàn/quần thể nào tồn tại. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 2) — cùng cơ chế với mục sàn ở `:11117`: bảy hằng `SRC_RS_FLOOR`/tương đương của bảy tệp `*_boundary.rs` nay đi qua `boundary_scan::assert_population_floor`, nâng lên **84** trên quần thể `src-tauri/src/**` = **98** đo lại hôm nay (không còn 53/55 như mục này ghi). Bảng đầy đủ (27 hằng Rust) nằm trong mục nợ chung `:11117`. Phép kiểm tỉ lệ sàn/quần thể mà phương án (b) mục này đề xuất chính là helper này — không còn là một đề xuất chưa chọn.
 
 ## Deferred from: 5-1-mo-hinh-library-hai-tang (2026-08-27)
 
@@ -9443,6 +9456,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   riêng đo lại cả bốn cổng cùng họ (`check-i18n`/`check-commands`/`check-tokens`/
   `check-panel-refs`) một lượt, không phải sửa lẻ từng cổng.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 2) — `check-panel-refs.mjs::FILE_FLOOR` nay đi qua `judgeFloor`; live đo lại hôm nay **79** tệp `.ts` (không phải 63 như mục này ghi — kho đã lớn thêm), sàn nâng lên **68** (`ceil(0.85×79)`). Cùng cổng bắt bypass (Kiểm G, `check-gates.mjs`) nay canh cả bốn cổng họ này (`check-i18n`/`check-commands`/`check-tokens`/`check-panel-refs`) một lượt, đúng như mục này đòi 'không phải sửa lẻ từng cổng' — không phải một quyết định về MỘT con số nữa mà một cơ chế chung.
 
 - ⚠️ **Danh sách tầng 4 (tách Chương) vẫn KHÔNG chọn được bằng chuột — nợ 6.10a CHƯA đóng được
   vì một xung đột kiến trúc, không phải vì chưa làm tới.** Xem chi tiết đầy đủ tại chỗ mục nợ
@@ -11209,6 +11223,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     tật nó sắp canh — gieo một hằng tụt dưới ngưỡng và xem nó có đỏ không.
     **(Chủ: Ice — xếp lịch story; nội dung và điều kiện đã chốt ở trên.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 2) — chọn phương án (b): `boundary_scan::assert_population_floor` (Rust) + `floor-judge.mjs::judgeFloor` (JS), mỗi hằng tự khai gốc quần thể của chính nó — đo lại hôm nay: `src-tauri/src/**` = **98** tệp (sàn chung mới **84**), `src-tauri/{src,tests}/**` = **161** (`SRC_TAURI_RS_FLOOR`, sàn **137**), frontend `src/**` = **110** (sàn **94**), `core/dict` = 5 (sàn 5, `DICT_FLOOR` nâng tiếp từ 4), `core/matching` = 1 (sàn 1), `core/ai` = 4 (sàn 4), `core/aiconfig` = 3 (sàn 3) — đúng điều kiện thiết kế mục này đặt ra (không giả định MỘT quần thể duy nhất). Toàn bộ 21 hằng bảng trên nâng theo `min(live, ceil(0.85×live))`; tổng cộng 27 hằng Rust + 21 hằng JS = 48, khớp Kiểm G. Thiết kế đã CHẠY THỬ đúng yêu cầu cuối mục: gieo `store_boundary.rs::RS_FLOOR` = 78 (79,6% của 98) ⇒ đỏ đúng lý do 'đã trôi dưới 80%'; phục hồi 84, xanh.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: 🔴 **Tầng ghi của màn cấu hình AI được suy từ CHẾ ĐỘ GIAO DIỆN, không hỏi
@@ -11966,6 +11981,7 @@ chính nó.
   đóng` chứa đúng cụm *"còn hở"* trong một câu nói ngược lại. Ai vá thì đo trên cả hai chiều.
   **(Chủ: Ice — đổi vị từ của một cổng là một quyết định về cổng, không phải một lượt sửa mã.)**
   → 2026-09-24 (phiếu quyết #42) — Ice chọn sửa vị từ để ✅ ĐÓNG MỘT NỬA và dòng tự nói còn vế hở chấm half, kèm ca tự kiểm đỏ-rồi-xanh cho từng nhánh. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, phiếu quyết #42, ứng viên 4) — vị từ cuối: một dòng ✅ (bullet đầu hoặc dòng →) tự nhận còn dang dở bằng bốn cách diễn đạt khác nhau (xem nguyên văn đã liệt ở đầu mục này) chấm `half`; luật cũ hạ `half` cho BẤT KỲ dòng → nào tự nhận còn dang dở theo hai trong bốn cách đó vẫn giữ nguyên; cụm `còn hở` KHÔNG kích hoạt (tránh dương tính giả kiểu `CẢ HAI VẾ CÒN HỞ đã đóng`). Đo trên sổ THẬT (đánh số HEAD): đúng **4** mục lật trạng thái (`:105`, `:204`, `:268`, `:2012`), **0** dương tính giả, bốn con số AC5 mới: mở **406** · nửa **105** · đóng **136** · quyết **63**, cổng xanh. ⚠️ Một bản vị từ ở lô 3 từng lặng lẽ lật HAI mục 🟡 (`:139`, `:9170`) về trạng thái mở — bắt được và sửa bằng một ca tự kiểm mới trước khi chốt bản trên.
 
 ---
 
@@ -12238,9 +12254,11 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-1-lo-c-webview-gates.md`
   summary: `scripts/check-i18n.mjs:1095` nhận `<!-- aura-allow-text: -->` KHÔNG lý do là miễn trừ hợp lệ — `\S` khớp dấu `-` của `-->`, cùng lớp lỗi lot C vừa vá ở `exemptAt`/`neverTextExemptAt` của `check-tokens.mjs`.
   evidence: regex `/aura-allow-text\s*:\s*\S/` thử trên `<!-- aura-allow-text: -->` trả `true`; có từ trước lot C, lộ ra lúc triage review. Vá = một lookahead `(?!-->)` kèm một ca tự kiểm. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D) — `scripts/check-i18n.mjs::AURA_ALLOW_TEXT_RE = /aura-allow-text\s*:\s*(?!-->)\S/` (tách khỏi regex nội tuyến cũ), cùng khuôn lookahead `exemptAt`/`neverTextExemptAt` của lot C. Một khối tự kiểm nội tuyến (không có `SELFTEST_CASES` chung trong tệp này) thử cả hai chiều trên chính regex; `grep` xác nhận 0 tệp thật dựa vào hình dạng miễn trừ rỗng cũ. Đối chứng: bỏ `(?!-->)` ⇒ tự kiểm đỏ đúng lý do; phục hồi, xanh. Thử trực tiếp: một `.vue` nháp mang `<!-- aura-allow-text: -->` cạnh văn bản không `t()` nay ĐỎ đúng (trước đây lọt).
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-1-lo-c-webview-gates.md`
   summary: `inlineStyleBlocks` (`scripts/lib/tokens-scan.mjs`) đọc `:style="'color: red'"` ra giá trị `red'` (thừa nháy đơn cuối); `tests/frontend/checkTokensScan.test.ts` nay ghim đúng hành vi sai đó.
   evidence: lot C chỉ DỜI hàm (Quyết định 1), không sửa; ca test tự ghi "hành vi THẬT… không phải hành vi lý tưởng". Có từ trước lot C. **Chủ: Story 11.1.**
+  → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D) — `scripts/lib/tokens-scan.mjs::inlineStyleBlocks` nay nhận diện `body` là một chuỗi TRỌN VẸN (`/^(['\"])([\s\S]*)\1$/`) TRƯỚC khi thử `objRe`, nên `:style="'color: red'"` đọc ra đúng `red`, không còn thừa nháy đơn. Ca ghim cũ trong `tests/frontend/checkTokensScan.test.ts` sửa lại thành giá trị đúng, cộng một ca nhiều khai báo mới; 18→20 ca, xanh. Không có hiện trạng THẬT nào trong `src/**` dùng hình dạng này hôm nay (`grep` xác nhận), nên đây là vá lý thuyết chứ chưa đổi kết quả quét sống. Đối chứng: đổi `stringLiteral` regex thành `null` ⇒ đúng 2 ca ghim mới đỏ; phục hồi, 20/20 xanh.
 
 ## Deferred from: fix-hanviet-parallel-row-overflow (2026-09-25)
 

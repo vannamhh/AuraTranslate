@@ -795,10 +795,11 @@ fn all_src_rust_files() -> Vec<PathBuf> {
 #[test]
 fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
     let files = all_src_rust_files();
-    assert!(
-        files.len() >= RS_FLOOR_FOR_DIALOG_CHECK,
-        "chỉ tìm thấy {} tệp .rs dưới src-tauri/src/** — cây quá nhỏ để là thật",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR_FOR_DIALOG_CHECK,
+        files.len(),
+        "RS_FLOOR_FOR_DIALOG_CHECK",
+        "tệp .rs dưới src-tauri/src/**",
     );
 
     let mut dialog_init_registered = false;
@@ -836,17 +837,9 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
     );
 }
 
-/// Sàn quần thể RIÊNG cho ca trên — cùng khuôn `RS_FLOOR` của `glossary_boundary.rs`
-/// (dải 80–85% số thật). Đo 2026-08-25 (Story 3.10b, `find src-tauri/src -name "*.rs" |
-/// wc -l`): **55** tệp `.rs` dưới `src-tauri/src/**`.
-///
-/// 🔵 **ĐO LẠI 2026-09-15 (AI-4, vòng rà 3): 80 tệp.** Hằng số cũ `44` là **55%** của quần
-/// thể hôm nay, tức nó vi phạm chính luật 80–85% mà doc-comment này khai — một phép quét có
-/// thể mất 45% cây mà vẫn xanh. Đây không phải lỗi của lượt đo 2026-08-25; quần thể lớn thêm
-/// 25 tệp kể từ đó và không ai đo lại sàn. ⚠️ Sàn đi theo quần thể, nên nó **phải được đo
-/// lại**, không phải để yên: `find src-tauri/src -name "*.rs" | wc -l`, rồi lấy 80–85%.
-/// 80 × 0,82 ≈ 65.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 65;
+/// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
+/// `glossary_boundary.rs`.
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 84;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -1677,11 +1670,11 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     // `glossary_boundary.rs`: neu cay quet tra ve rong (sai duong dan, mot lan doi bo cuc),
     // vong duoi khong tim thay gi va ca test XANH OAN -- dung lop "rong im lang" ma
     // `AGENTS.md` goi la lop loi trung tam cua kho nay.
-    assert!(
-        files.len() >= RS_FLOOR_FOR_DIALOG_CHECK,
-        "chi tim thay {} tep .rs duoi src-tauri/src/** (san {RS_FLOOR_FOR_DIALOG_CHECK}) -- \
-         cay qua nho de la that. Phep quet duoi day se khong thay gi va ca test se xanh OAN.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR_FOR_DIALOG_CHECK,
+        files.len(),
+        "RS_FLOOR_FOR_DIALOG_CHECK",
+        "tep .rs duoi src-tauri/src/**",
     );
 
     let (mut tree_plain, mut tree_async) = (0usize, 0usize);

@@ -25,9 +25,8 @@ use boundary_scan::{code_lines, is_inside, src_root};
 const WEBIMPORT_DIR: &str = "core/webimport";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ
-/// `segment_pipeline_boundary.rs::SRC_RS_FLOOR`. Story 6.3 thêm `core/segment/encoding.rs`,
-/// nên số thật chỉ TĂNG — sàn cũ (50, ~80,6%) vẫn đúng, không hạ.
-const SRC_RS_FLOOR: usize = 50;
+/// `segment_pipeline_boundary.rs::SRC_RS_FLOOR`.
+const SRC_RS_FLOOR: usize = 84;
 
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())
@@ -45,11 +44,11 @@ fn line_names_chardetng(code: &str) -> bool {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = all_rust_sources();
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

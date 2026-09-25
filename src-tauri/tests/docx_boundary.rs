@@ -23,9 +23,7 @@ mod boundary_scan;
 use boundary_scan::{code_lines, src_root};
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ mọi `*_boundary.rs` khác.
-/// Story 6.12 thêm `core/docx/mod.rs`, nên số thật chỉ TĂNG — sàn cũ (50,
-/// `webimport_boundary.rs`) vẫn đúng, không hạ.
-const SRC_RS_FLOOR: usize = 50;
+const SRC_RS_FLOOR: usize = 84;
 
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())
@@ -73,11 +71,11 @@ const DOCX_MODULE: &str = "core/docx/mod.rs";
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = all_rust_sources();
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

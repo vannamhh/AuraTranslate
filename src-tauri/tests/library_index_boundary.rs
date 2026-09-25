@@ -45,11 +45,7 @@ const EXEMPT_FILES: [&str; 2] = ["core/library/indexer.rs", "core/store/mod.rs"]
 const FORBIDDEN: [&str; 2] = ["StoreSpec::library_index", "StoreKind::LibraryIndex"];
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (Story 5.2, 2026-08-27, sau khi thêm `core/library/indexer.rs`): **56**
-/// (55 kế thừa từ `naming_boundary.rs` + 1). Sàn **44** (~78,6%), cùng khuôn tỷ lệ dư địa mà
-/// `RS_FLOOR`/`RUST_FLOOR` của các tệp `*_boundary.rs` khác đang giữ.
-const RS_FLOOR: usize = 44;
+const RS_FLOOR: usize = 84;
 
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();
@@ -73,12 +69,11 @@ fn line_names_the_library_index_store(code: &str) -> Option<&'static str> {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let (_, files) = all_rust_sources();
-    assert!(
-        files.len() >= RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RS_FLOOR}). Cây quá nhỏ để \
-         là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả. \
-         Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR,
+        files.len(),
+        "RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

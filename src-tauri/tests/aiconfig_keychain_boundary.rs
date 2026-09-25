@@ -66,19 +66,10 @@ use boundary_scan::{code_lines, rel_posix, src_root};
 const AICONFIG_DIR: &str = "core/aiconfig";
 
 /// Số tệp `.rs` tối thiểu dưới `core/aiconfig/**` để phép quét là thật.
-///
-/// Số thật hôm nay (2026-09-17, Story 4.3): **3** (`mod.rs` · `store.rs` · `keychain.rs`).
-/// Sàn = số thật, đúng lý lẽ `ai_boundary.rs::AI_FLOOR` (quần thể nhỏ thì không có chỗ
-/// "cắt bớt mà vẫn còn tệp").
 const AICONFIG_FLOOR: usize = 3;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-///
-/// Số thật lúc dựng ca này (2026-09-17, Phase 3): **86** tệp (`find src -name '*.rs' |
-/// wc -l`). Sàn = **70** (~81,4%), trong dải 80–85% mà `ai_boundary.rs`/
-/// `glossary_boundary.rs`/`matching_boundary.rs` đã dùng — bắt một cây bị cắt mất,
-/// không bắt việc thêm tệp mới.
-const SRC_RS_FLOOR: usize = 70;
+const SRC_RS_FLOOR: usize = 84;
 
 /// Hai chuỗi bị cấm ngoài `AICONFIG_DIR`, ở **vị trí mã** — không neo tiền tố `use `,
 /// đúng lý lẽ `ai_boundary.rs::FORBIDDEN_BARE_TOKENS`: một bản chỉ so `"use …"` bỏ lọt
@@ -216,20 +207,19 @@ fn is_the_approved_ai_translate_keychain_caller_file(rel: &str) -> bool {
 fn the_scanned_tree_and_the_aiconfig_module_are_both_large_enough_to_be_real() {
     let files = all_rust_sources();
 
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì \
-         cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     let aiconfig_files = files.iter().filter(|(rel, _)| is_inside_aiconfig_module(rel)).count();
-    assert!(
-        aiconfig_files >= AICONFIG_FLOOR,
-        "chỉ tìm thấy {aiconfig_files} tệp `.rs` dưới `src/{AICONFIG_DIR}/**` (sàn \
-         {AICONFIG_FLOOR}). Một đường dẫn gõ sai làm `walk` khớp 0 tệp, và khi đó cổng ranh \
-         giới bên dưới xanh y hệt trên một thư mục RỖNG."
+    boundary_scan::assert_population_floor(
+        AICONFIG_FLOOR,
+        aiconfig_files,
+        "AICONFIG_FLOOR",
+        &format!("tệp `.rs` dưới `src/{AICONFIG_DIR}/**`"),
     );
 }
 

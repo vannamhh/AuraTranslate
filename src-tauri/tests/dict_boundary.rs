@@ -33,27 +33,7 @@ use boundary_scan::is_inside;
 const DICT_DIR: &str = "core/dict";
 
 /// Số tệp `.rs` tối thiểu dưới `src/core/dict/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (Story 1.11): **2** — `mod.rs` + `query.rs`. Sàn **1**, đúng khuôn
-/// `RS_FLOOR` của `store_boundary.rs`: nó bắt một cây **bị cắt**, không bắt việc thêm
-/// tệp. *"Cây rỗng đọc thành sạch"* — một đường dẫn gõ sai làm `walk` khớp 0 tệp và cổng
-/// này xanh mà không kiểm gì cả, ngay ngày nó ra đời.
-///
-/// 🔵 **NÂNG 2026-09-16 (lượt rà Story 4.2, Ice duyệt) — 1 → 4, và câu viện khuôn ở trên
-/// đọc SAI chính tiền lệ nó trỏ tới.** Đo: `src/core/dict/**` nay có **5** tệp `.rs`, nên
-/// sàn 1 là **20%** — `core/dict/` mất 4 trong 5 tệp mà cổng này vẫn xanh.
-///
-/// `store_boundary.rs` không hề giữ một sàn ở tỉ lệ thấp; nó có đúng một hằng và đã nâng
-/// hai lần theo đúng lý do đang xảy ra ở đây: Story 1.8 đặt 20/26 (~77%), Story 2.1 nâng
-/// lên 34/42 (81,0%) với câu ghi thẳng *"sàn 20 trên 42 tệp (47,6%) không còn canh được
-/// 'cây bị cắt' nữa: mất hơn nửa cây vẫn xanh"*, Story 3.7 nâng tiếp 43/53 (81,1%). Vậy
-/// khuôn được viện là **giữ ở ~80% và nâng khi quần thể lớn lên** — không phải "để yên ở 1".
-/// Câu cũ giữ nguyên văn ở trên thay vì xoá, để chỗ đọc sai còn kiểm được.
-///
-/// **Sàn mới 4/5 = 80,0%.** Giới hạn thật của phép nâng này, ghi ra thay vì để người sau
-/// tưởng nhiều hơn: nó canh quần thể `core/dict/**` bị cắt, nó KHÔNG nói gì về 23 hằng sàn
-/// còn lại của kho — chúng vẫn trôi và có mục nợ riêng.
-const DICT_FLOOR: usize = 4;
+const DICT_FLOOR: usize = 5;
 
 /// Ba token bị cấm ở **vị trí mã** dưới `core/dict/**`.
 ///
@@ -124,12 +104,11 @@ fn dict_sources() -> Vec<(String, String)> {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = dict_sources();
-    assert!(
-        files.len() >= DICT_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src/{DICT_DIR}/**` (sàn {DICT_FLOOR}). Cây quá \
-         nhỏ để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không \
-         kiểm gì cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        DICT_FLOOR,
+        files.len(),
+        "DICT_FLOOR",
+        &format!("tệp `.rs` dưới `src/{DICT_DIR}/**`"),
     );
 }
 
@@ -284,22 +263,10 @@ fn the_routing_predicate_lives_in_exactly_one_file_and_the_adapter_never_calls_i
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/{src,tests}/**` để phép đếm dưới đây là thật.
 ///
-/// Số thật lúc dựng (Story 1.11b): **36**. Sàn **20**, cùng khuôn `RS_FLOOR` của
-/// `store_boundary.rs`: nó bắt một cây **bị cắt**, không bắt việc thêm tệp.
-///
-/// ⚠️ Story 2.1 (2026-08-12): số thật là **57** — 42 tệp dưới `src/**` cộng 15 dưới
-/// `tests/**` (story này thêm `segment_contract.rs` và `segment_boundary.rs`). Sàn lên
-/// **46** (80,7%).
-///
 /// 🔴 **Quần thể này KHÁC bốn sàn `src/**` khác của kho** — nó gồm cả `tests/**`, vì bản sao
-/// `is_han` đã bị xoá sống ở `tests/**`. Chép số 34 của `store_boundary.rs` sang đây là đặt
-/// một cái sàn cho một cây khác.
-const SRC_TAURI_RS_FLOOR: usize = 61; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 75 tệp
-// `.rs` (53 dưới src/** + 22 dưới tests/**, gồm `han_viet_suggestion.rs` VÀ
-// `glossary_han_viet_suggestion_contract.rs` mới của story này) — 61/75 = 81,3%. Sàn cũ (46,
-// đặt 2026-08-12) đã trôi xuống 46/75 = 61,3%, xa dưới dải 80–85% qua nhiều story không ai
-// nâng lại — cùng bài học "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" áp NGƯỢC
-// chiều ở đây: số thật đã đổi rất nhiều mà sàn đứng yên là sàn RỚT theo cảm giác.
+/// `is_han` đã bị xoá sống ở `tests/**`. Chép sàn `RS_FLOOR` của `store_boundary.rs` sang
+/// đây là đặt một cái sàn cho một cây khác.
+const SRC_TAURI_RS_FLOOR: usize = 137;
 
 /// 🔴 **AC2 vế cuối** — trong toàn bộ `src-tauri/**` chỉ còn **MỘT** định nghĩa `is_han`.
 ///
@@ -328,12 +295,11 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
     );
     files.sort();
 
-    assert!(
-        files.len() >= SRC_TAURI_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` và `src-tauri/tests/**` (sàn \
-         {SRC_TAURI_RS_FLOOR}). Cây quá nhỏ để là thật — một danh sách rỗng làm phép đếm \
-         dưới đây ra 0 và cổng xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_TAURI_RS_FLOOR,
+        files.len(),
+        "SRC_TAURI_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**` và `src-tauri/tests/**`",
     );
 
     let carriers: Vec<String> = files
@@ -360,18 +326,9 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 // Story 1.13 · AC2 — RUNTIME KHÔNG CÓ MÃ RIÊNG CHO TỪNG NGUỒN
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để bốn cổng dưới đây là thật.
-///
-/// Số thật lúc dựng (Story 1.13): **31**. Sàn **20**, cùng khuôn mọi sàn khác của dự án:
-/// nó bắt một cây **bị cắt**, không bắt việc thêm tệp. *"Cây rỗng đọc thành sạch"* — một
-/// gốc quét gõ sai làm `walk` khớp 0 tệp và **cả bốn** cổng xanh mà không kiểm gì cả.
-///
-/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
-/// `store_boundary.rs`/`scope_boundary.rs`/`matching_boundary.rs`. Quần thể ở đây là
-/// `src-tauri/src/**` — **không** gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
-const SRC_ONLY_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs`
-// dưới `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ
-// (34, đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
+/// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để bốn cổng dưới đây là thật — **không**
+/// gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
+const SRC_ONLY_RS_FLOOR: usize = 84;
 
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///
@@ -427,11 +384,11 @@ fn src_only_sources() -> Vec<(String, String)> {
 #[test]
 fn the_whole_src_tree_is_large_enough_to_be_real() {
     let files = src_only_sources();
-    assert!(
-        files.len() >= SRC_ONLY_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_ONLY_RS_FLOOR}). Cây \
-         quá nhỏ để là thật.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_ONLY_RS_FLOOR,
+        files.len(),
+        "SRC_ONLY_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     // Đối chứng dương: quần thể **thật sự** chứa vùng mã mà bốn cổng canh.

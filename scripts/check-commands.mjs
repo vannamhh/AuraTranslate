@@ -71,6 +71,7 @@ import {
   balancedBraceBody,
   splitTopLevel,
 } from './lib/commands-scan.mjs'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 /** @typedef {import('./lib/commands-scan.mjs').ParsedFile} ParsedFile */
 /** @typedef {import('./lib/commands-scan.mjs').TemplateRegion} TemplateRegion */
@@ -218,204 +219,47 @@ const vueFiles = keep(vueAll)
 const tsFiles = keep(tsAll)
 
 /**
- * 🔴 NGƯỠNG SÀN, BẮT BUỘC — không phải nice-to-have.
+ * SÀN QUẦN THỂ — cây rỗng không phải cây sạch. Một glob viết sai khớp 0 tệp `.vue` ⇒
+ * Kiểm A và Kiểm B in "không tìm thấy vi phạm" ⇒ exit 0 ⇒ cổng chết im lặng ngay ngày
+ * nó ra đời.
  *
- * `check-deps.mjs:15-17` đã đâm vào đúng bẫy này một lần (*"cây rỗng đọc thành sạch"*) và
- * `check-i18n.mjs:212-222` phải dựng lại nó lần nữa. Ở đây tương đương là một glob viết
- * sai khớp 0 tệp `.vue` ⇒ Kiểm A và Kiểm B in "không tìm thấy vi phạm" ⇒ exit 0 ⇒ cổng
- * chết im lặng ngay ngày nó ra đời.
- *
- * Số THẬT lúc dựng (2026-08-04): **5** tệp `.vue` (`App` · ba chế độ · `PanelFrame`) ·
- * **13** tệp `.ts` · **4** command. Sàn đặt dưới số thật một khoảng nhỏ để một lần xoá
- * tệp có chủ ý không làm cổng `abort()`, nhưng một lượt quét hỏng thì có.
- *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
- *
- * Số THẬT sau Story 1.14: **11** tệp `.vue` *(`App` · ba chế độ · `PanelFrame` ·
- * `PanelTab` · bốn panel · `WorkspaceDock`)* · **18** tệp `.ts` · **11** command.
- *
- * ⚠️ Nâng sàn **KHÔNG** phải "sửa cho vừa". Ba con số trên là quần thể ĐO ĐƯỢC hôm nay
- * và chúng nằm trong comment này chính để lượt nâng sau đối chiếu được — cùng khuôn mà
- * `RS_FLOOR` của `check-i18n.mjs` đã dùng. Sàn thấp hơn số thật một khoảng nhỏ; một lượt
- * quét hỏng (glob sai, `SKIP_DIRS` nuốt nhầm) tụt sâu hơn khoảng đó rất nhiều.
- *
- * ⚠️ Và sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — đó là giới hạn thật của cơ chế này, và nó
- * được bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
+ * Sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — đó là giới hạn thật của cơ chế này, và nó được
+ * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
+ * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-// 🔴 NÂNG SÀN 2026-08-06 — Story 1.17 · Task 10 (AC13). Số THẬT sau story: 13 tệp `.vue` ·
-// 24 tệp `.ts` · 17 command · 8 `@click` · 12 lời gọi `dispatch()` (trước story: 12/23/16/8/12).
-//
-// ⚠️ **Sửa sổ sách 2026-08-07 (code review).** Bản đầu ghi *"trước story: … 8"* cho
-// `dispatch()` và dùng con số đó để biện minh cho một lượt nâng sàn 6 → 10. Đếm lại bằng
-// CHÍNH `DISPATCH_CALL_RE` của cổng: **12 trước, 12 sau** — Story 1.17 không thêm hay bớt một
-// lời gọi `dispatch()` nào (`git diff` trên `src/**` không một dòng `dispatch(` nào). Số "8"
-// là ghi chép cũ chưa cập nhật từ 1.16, và nó đã bị chép lại thành một mệnh đề nhân quả
-// SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
-// thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
-// thứ rot mà AC13 tồn tại để chặn.
-const VUE_FLOOR = 16 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 19 tệp `.vue`
-// (+GlossaryConfirmStrip.vue) — 16/19 = 84,2%
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
-// (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
-// ⚠️ 15 → 17 KHÔNG chỉ từ story này: sàn cũ (13) đặt từ số thật 15 hồi Story 1.21. Story
-// 3.3 tự nó thêm ĐÚNG MỘT tệp `.vue` (`GlossaryQuickAdd.vue`); tệp thứ hai là nợ đo lại
-// tồn đọng từ một story giữa 1.21 và 3.3 không ai nâng sàn lại — cùng bài học đã ghi ở
-// `RS_FLOOR`/`VUE_FLOOR` của `check-i18n.mjs`.
-// 🔴 NÂNG 2026-08-12 (Story 2.1) — số thật lên **32**: `src/config/segment.ts`, wrapper IPC
-// của lệnh tách tường minh. Sàn 26 trên 32 là 81,3%; lên **27** để giữ dải ~84% của lượt
-// trước. `VUE_FLOOR`/`COMMAND_FLOOR`/`CLICK_FLOOR`/`DISPATCH_FLOOR` KHÔNG đổi — story này
-// thêm 0 tệp `.vue`, 0 command của `CommandRegistry`, 0 `@click`, 0 lời gọi `dispatch()`.
-// 🔴 NÂNG 2026-08-12 (Story 2.2 · AC16) — số thật lên **35** (thêm `editorSegments.ts`,
-// `editorGutter.ts`, `editorPanelState.ts`), nên sàn 27 tụt xuống 77,1%, dưới dải ~81–85%
-// mà chính doc-comment ở trên đặt ra. Đo chứ không ước.
-// 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b) — **KHÔNG đổi số, và đó là một kết quả chứ không một
-// lượt bỏ qua.** Story gỡ `editorGutter.ts` và thêm `hanVietSurfaces.ts` + `segmentNavigation.ts`
-// ⇒ 36 → **37**. Sàn 30 nay là 81,1%, vẫn trong dải ~81–85% mà doc-comment trên đặt ra.
-// ⚠️ Sàn là **cận dưới**: bớt tệp không làm cổng đỏ, nó chỉ làm sàn vô nghĩa — nên lượt đếm
-// lại này là bắt buộc kể cả khi kết luận là "giữ nguyên".
-// 🔴 NÂNG 2026-08-18 (Story 2.12 · Task 7.5) — số thật lên **39**, nên sàn 30 tụt xuống
-// **76,9%**, dưới dải ~81–85% mà chính doc-comment trên đặt ra.
-// ⚠️ **Sàn này KHÔNG nằm trong việc story 2.12 được giao** — Task 7.5 chỉ nêu đích danh
-// `check-layout.mjs`. Nó lòi ra vì lượt đo lại của Task 7.5 đếm CẢ HAI sàn đọc `src/**` thay
-// vì đúng một, và bỏ qua nó sau khi đã thấy thì đúng bằng việc biết một cổng đã tắt mà im.
-const TS_FLOOR = 39 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 47 tệp `.ts`
-// (+glossaryConfirmStripState.ts, +panels/inlineStripPriority.ts) — 39/47 = 83,0%.
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts`
-// (+glossarySettingsState.ts) — 37/45 = 82,2%.
-/**
- * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
- * hai `layout.preset_*` · **ba** `layout.toggle_*` *(🔵 bốn → ba, Story 2.5b)* · hai
- * `library.import_*` · ba
- * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17) ·
- * `editor.confirm_segment` (2.5) · `editor.next_untranslated` (2.5b).
- * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
- */
-// 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b): **+1** (`editor.next_untranslated`) và **−1**
-// (`layout.toggle_*` từ bốn xuống ba, theo `PANEL_SUFFIXES`) ⇒ 34 → **35**. Giữ sàn 29.
-// 🔵 ĐO LẠI 2026-08-16 (Story 2.6), không chép: **41** command thật — 35/41 = 85,4 %.
-// Dòng cũ ghi *"ĐO LẠI 2026-08-16 (Story 2.5d): 39 command — 33/39 = 84,6 %"*, và nó hết đúng
-// khi 2.6 thêm `history.open`/`history.close` (→ 41).
-// 🔵 **SỬA 2026-08-16 (code review Story 2.6): con số 41 ở dòng trên SAI, số thật là 44.**
-// Story 2.6 đăng ký **năm** command `history.*` (`commands/index.ts:827-834`), không hai —
-// dòng trên chỉ đếm `open`/`close` rồi bỏ quên `restore`/`confirm_restore`/`cancel_restore`.
-// Đo bằng cách chạy chính cổng này: `OK   44 command`. ⇒ 35/44 = **79,5 %**, tức sàn đã rơi
-// **dưới** dải 80–85 % và chín command có thể biến mất mà cổng vẫn xanh. Sàn nay là **37**
-// (37/44 = 84,1 %).
-// 🔴 Bài học đắt hơn con số: dòng sai nằm ngay dưới một dòng tự xưng *"không chép"*, trong một
-// story mà luật đo của nó là *"đo lại, đừng chép"*. Một phép đo **tự khai** là đã đo vẫn phải
-// đối chứng bằng cách CHẠY thứ nó đo — `npm run check:commands` in ra con số thật, và nó rẻ.
-// ⚠️ Một sàn không được nâng **không làm cổng đỏ** — nó chỉ lặng lẽ mất ý nghĩa, vì sàn là
-// **cận dưới**.
-// 🔴 Khuôn này đã lặp lại **ba** lượt liên tiếp (2.5c · 2.5d · 2.6) và mỗi lượt phải sửa bằng
-// tay. Không cổng nào canh chính cái sàn này — nó là một con số người phải nâng, và cái duy
-// nhất nhắc là dòng chú thích đang đọc.
-// 🔵 2026-08-17, Story 2.8 — 37 → 38. Số THẬT do lại **từ chính cổng này in ra**, không từ
-// một lượt đếm bằng mắt: `npm run check:commands` báo **46 command** sau khi thêm
-// `editor.merge_segments` và `editor.split_segment` (baseline 44). 38 / 46 = **82,6 %**, nằm
-// giữa dải 80–85 % mà luật sàn quần thể đặt ra.
-// ⚠️ Đây đúng lớp lỗi mà code review Story 2.6 bắt được: chú thích ở đó tự khai *"đo lại,
-// không chép"* rồi ghi **41** trong khi cổng in **44** — nó chỉ đếm 2 trong 5 command mới của
-// chính story đó. ⇒ Lượt này chạy cổng trước, đọc số, rồi mới sửa dòng dưới.
-// 🔵 **38 → 39, Story 2.9 (2026-08-17).** Cổng in **47** command sau khi thêm
-// `editor.clear_source_cuts` *(Story 2.8 ghi 46 — đúng +1, không hơn)*. Đo lại bằng cách chạy
-// cổng RỒI sửa dòng này, đúng thứ tự mà chú thích ngay trên đòi. 39/47 = **83 %**, giữa dải
-// 80–85 %; để nguyên 38 thì sàn tụt xuống 81 % và mất dần ý nghĩa qua từng story.
-// 🔵 **39 → 41, Story 2.10 (2026-08-18).** Cổng in **49** command sau khi thêm
-// `editor.next_segment` và `editor.prev_segment` *(Story 2.9 ghi 47 — đúng +2, không hơn)*.
-// Chạy cổng, đọc số, rồi mới sửa dòng này. 41/49 = **83,7 %**, giữa dải 80–85 %; để nguyên 39
-// thì tụt xuống 79,6 %, tức **ra khỏi dải** — đúng thứ ba story liên tiếp trước đây phải sửa.
-//
-// ⚠️ **Một lượt đọc sai của chính lượt này, ghi lại vì nó là bài học chứ không vì thủ tục:**
-// Task 0.1 đo được *"sàn 39, số thật 47"* và đọc nó thành *"sàn thấp hơn thực tế 8 đơn vị ⇒ nó
-// không canh được gì"*, rồi đề xuất nâng thẳng lên **49**. Sai, và sai vì **chưa đọc doc-comment
-// ngay trên đây**: sàn là **cận dưới có chủ ý**, đặt ở ~80–85 % số thật, chính vì *"một lượt
-// quét hỏng (glob sai, `SKIP_DIRS` nuốt nhầm) tụt sâu hơn khoảng đó rất nhiều"*. 39/47 = 83 % là
-// **đúng thiết kế**, không một khuyết tật. Một sàn đặt **bằng** số thật thì mọi lượt thêm
-// command đều làm cổng đỏ oan — nó đổi một cận dưới thành một phép so bằng.
-// ⇒ Cùng lớp với luật đã ghi ở `project-context.md`: *"cây nguồn thắng"*, và ở đây cây nguồn là
-//   doc-comment của chính cơ chế mình đang sửa.
-// 🔵 **41 → 43, Story 2.11 (2026-08-18).** Cổng in **51** command sau khi thêm
-// `editor.next_chapter` và `editor.prev_chapter` *(Story 2.10 ghi 49 — đúng +2, không hơn)*.
-// Chạy cổng, đọc số, rồi mới sửa dòng này — đúng thứ tự mà lượt code review Story 2.6 đã trả
-// giá để dựng ra. 43/51 = **84,3 %**, giữa dải 80–85 %; để nguyên 41 thì tụt xuống 80,4 %,
-// tức chạm mép dưới và mất ý nghĩa ở story kế tiếp.
-// ⚠️ **Ba sàn kia KHÔNG đổi, và đó là một kết luận đã đo chứ không một lượt bỏ qua:** story
-// này thêm **0** tệp `.vue`, **0** tệp `.ts` *(mọi thay đổi nằm trong tệp đã có)*, **0**
-// `@click` và **0** lời gọi `dispatch()` — hai lệnh mới tới được bằng **phím**, không bằng một
-// bề mặt bấm. Cổng in lại đúng 16 `.vue` · 39 `.ts` · 25 `@click` · 34 `dispatch()`.
-// 🔵 NÂNG 2026-08-20 (Story 3.3): cổng in 54 command sau khi thêm
-// `glossary.add_term`/`glossary.save_term`/`glossary.close_quick_add` (51 → 54, đúng +3,
-// không hơn — chạy cổng, đọc số, rồi mới sửa dòng này, đúng thứ tự luật đã đúc từ Story
-// 2.6). 44/54 = 81,5%, giữa dải 80–85%.
-// 🔵 NÂNG 2026-08-22 (Story 3.5): cổng in 57 command sau khi thêm `glossary.settings.open`/
-// `glossary.settings.close`/`glossary.settings.save` (54 → 57, đúng +3, không hơn). Sàn
-// 44 → 47 (47/57 = 82,5%, giữa dải 80–85%).
-// 🔵 NÂNG 2026-08-22 (Story 3.6): cổng in 60 command sau khi thêm `glossary.confirm.focus`/
-// `glossary.confirm.save`/`glossary.confirm.defer` (57 → 60, đúng +3). Sàn 47 → 50
-// (50/60 = 83,3%, giữa dải 80–85%).
-// 🔵 NÂNG 2026-08-28 (Story 5.6): cổng in **95** command sau khi thêm `library.work_next`/
-// `library.work_prev` (chỉ +2 — bàn phím di chuyển con trỏ lưới, chép khuôn
-// `library.orphan_next`/`orphan_prev`). Sàn +2 theo đúng con số vừa thêm (50 → 52).
-// ⚠️ 52/95 = 54,7% — DƯỚI hẳn dải 80–85% mà doctrine này đặt ra: khoảng cách đó đã tồn tại
-// TỪ TRƯỚC story này (95 − 60 = 35 command thêm ở các story giữa 3.6 và 5.6 mà không ai
-// nâng sàn theo), không phải một khoản nợ do story này để lại. Đóng dứt điểm khoảng cách
-// đó cần đọc lại TOÀN BỘ lịch sử các story ở giữa — ngoài phạm vi của story này, ghi ra để
-// người sau không tưởng nhầm 52 là con số "đã canh sát".
-const COMMAND_FLOOR = 52
+const VUE_FLOOR = 27
+const TS_FLOOR = 68
 
 /**
- * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
- *
- * Sàn tệp ở trên đóng được *"cây rỗng đọc thành sạch"*. Nhưng Kiểm A và Kiểm B vẫn `pass`
- * trên một danh sách **thuộc tính** rỗng: `aBad === 0` đúng khi không có `@click` nào để
- * kiểm. Đó chính là thứ làm cho lỗ `vueRegions` *(vùng `<style>` giả nuốt mọi `@click`
- * phía sau)* trở nên **im lặng** — cổng vẫn in `OK` và vẫn exit 0.
- *
- * Số THẬT hôm nay: **3** `@click` (ba tab chế độ ở `App.vue`) · **3** lời gọi `dispatch()`
- * literal. Sàn đặt đúng bằng số thật: hôm nay không có lý do chính đáng nào để một trong
- * hai con số đó giảm, và ngày Story 1.14 dựng panel thật thì chúng chỉ tăng.
+ * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
+ * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-// 🔴 NÂNG 2026-08-07 (code review) — AC13 gọi ĐÍCH DANH sàn này (*"`CLICK/DISPATCH_FLOOR`
-// **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
-// đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
-// ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
-// 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 26 thuộc tính `@click`
-// — 21/26 = 80,8%. ⚠️ **Chỉ MỘT** `@click` mới, không hai: `GlossaryQuickAdd.vue` có hai
-// nút, nhưng nút Lưu là `type="submit"` đi qua `@submit.prevent` (Kiểm A KHÔNG canh
-// `@submit`) — chỉ nút Huỷ (`type="button"`) mang `@click="dispatch('glossary.close_
-// quick_add')"`. Đo lại bằng cách đọc chính tệp, không suy từ số nút bấm trên màn hình.
-// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 29 thuộc tính `@click` — ba `@click` mới
-// (`App.vue` nút mở lớp phủ, `GlossarySettingsOverlay.vue` nút đóng + nút Huỷ; nút Lưu là
-// `type="submit"` đi qua `@submit.prevent`, cùng lý do `GlossaryQuickAdd.vue`). 24/29 = 82,8%.
-// 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 30 thuộc tính `@click` — MỘT `@click` mới
-// (`GlossaryConfirmStrip.vue` nút "Để sau"; nút Lưu là `type="submit"` đi qua
-// `@submit.prevent`, cùng lý do hai dải kia). 25/30 = 83,3%.
-// 🔵 NÂNG 2026-08-28 (Story 5.6): số THẬT **65** — hai `@click` mới (`LibraryMode.vue`, nút
-// `‹`/`›` con trỏ lưới, `dispatch('library.work_prev'/'work_next')`). Sàn +2 theo đúng số
-// vừa thêm (25 → 27) — cùng ghi chú về khoảng cách 80–85% đã ghi ở `COMMAND_FLOOR`, khoảng
-// cách đó không phải nợ của story này.
-const CLICK_FLOOR = 27
-// 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 37 lời gọi `dispatch()` — 30/37 = 81,1%
-// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 42 lời gọi `dispatch()` (+5: nút mở ở `App.vue`,
-// `@keydown.esc`/nút đóng/nút Huỷ và `@submit` của `GlossarySettingsOverlay.vue`, mỗi
-// lời gọi `dispatch('glossary.settings.*')` một chỗ). 34/42 = 81,0%.
-// 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 45 lời gọi `dispatch()` (+3: `@keydown.esc`/nút
-// "Để sau" và `@submit` của `GlossaryConfirmStrip.vue`, mỗi lời gọi
-// `dispatch('glossary.confirm.*')` một chỗ). 38/45 = 84,4%.
-// 🔵 NÂNG 2026-08-28 (Story 5.6): số THẬT **93** lời gọi `dispatch()` — hai lời gọi mới
-// (`dispatch('library.work_prev')`/`dispatch('library.work_next')`). Sàn +2 theo đúng số
-// vừa thêm (38 → 40) — cùng ghi chú khoảng cách 80–85% đã ghi ở `COMMAND_FLOOR`.
-const DISPATCH_FLOOR = 40
+const COMMAND_FLOOR = 151
 
-if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
-  abort(
-    `quần thể quét — ${vueFiles.length} tệp \`.vue\` (sàn ${VUE_FLOOR}) · ` +
-      `${tsFiles.length} tệp \`.ts\` (sàn ${TS_FLOOR})`,
-    new Error(
-      'Cây quá nhỏ để là thật. Một danh sách rỗng làm Kiểm A và Kiểm B xanh mà không kiểm gì cả.\n' +
-        `Đã miễn trừ ${exemptedFiles.length} tệp — kiểm lại danh sách EXEMPT nếu con số đó bất thường.`,
-    ),
-  )
+/**
+ * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
+ * đọc thành sạch", nhưng Kiểm A và Kiểm B vẫn `pass` trên một danh sách THUỘC TÍNH rỗng:
+ * `aBad === 0` đúng khi không có `@click` nào để kiểm — đúng lớp lỗi từng để lọt thật
+ * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
+ * `ceil(0.85 × live)`, qua `judgeFloor`.
+ */
+const CLICK_FLOOR = 111
+const DISPATCH_FLOOR = 157
+
+{
+  const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
+  const v2 = judgeFloor(TS_FLOOR, tsFiles.length, 'TS_FLOOR', 'tệp `.ts` dưới `src/**`')
+  if (!v1.ok || !v2.ok) {
+    const msgs = [v1, v2].filter((v) => !v.ok).map((v) => v.message)
+    abort(
+      `quần thể quét — ${vueFiles.length} tệp \`.vue\` (sàn ${VUE_FLOOR}) · ` +
+        `${tsFiles.length} tệp \`.ts\` (sàn ${TS_FLOOR})`,
+      new Error(
+        `${msgs.join('\n')}\n` +
+          `Đã miễn trừ ${exemptedFiles.length} tệp — kiểm lại danh sách EXEMPT nếu con số đó bất thường.`,
+      ),
+    )
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -659,14 +503,18 @@ for (const { p, a } of clickAttrs) {
 }
 // 🔴 SÀN NỘI DUNG. `aBad === 0` trên một danh sách RỖNG là một lượt "đạt" không kiểm gì
 // cả — và nó là thứ làm cho một lỗ ở tầng quét (vùng `<style>` giả) trở nên im lặng.
-if (clickAttrs.length < CLICK_FLOOR) {
-  abort(
-    `thuộc tính \`@click\` quét được — ${clickAttrs.length} (sàn ${CLICK_FLOOR})`,
-    new Error(
-      'Ba tab chế độ ở `App.vue` phải luôn có mặt. Ít hơn sàn nghĩa là tầng quét đã mất\n' +
-        'một vùng template — kiểm `vueRegions` và `maskTemplate` trước khi hạ sàn.',
-    ),
-  )
+{
+  const v = judgeFloor(CLICK_FLOOR, clickAttrs.length, 'CLICK_FLOOR', 'thuộc tính `@click` quét được')
+  if (!v.ok) {
+    abort(
+      'thuộc tính `@click` quét được',
+      new Error(
+        `${v.message}\n` +
+          'Ba tab chế độ ở `App.vue` phải luôn có mặt. Ít hơn sàn nghĩa là tầng quét đã mất\n' +
+          'một vùng template — kiểm `vueRegions` và `maskTemplate` trước khi hạ sàn.',
+      ),
+    )
+  }
 }
 if (aBad === 0) {
   pass(
@@ -1617,11 +1465,9 @@ if (callSiteKeys.length > 0) {
   )
 }
 
-if (registered.length < COMMAND_FLOOR) {
-  abort(
-    `bộ command đã đăng ký — ${registered.length} command (sàn ${COMMAND_FLOOR})`,
-    new Error('Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì cả.'),
-  )
+{
+  const v = judgeFloor(COMMAND_FLOOR, registered.length, 'COMMAND_FLOOR', 'command đã đăng ký')
+  if (!v.ok) abort('bộ command đã đăng ký', new Error(v.message))
 }
 
 const registeredIds = new Set(registered.map((/** @type {any} */ s) => s.id))
@@ -1827,14 +1673,18 @@ if (oBad === 0) {
 // ── Kiểm B, phần phán quyết (cần bộ đăng ký của Kiểm E) ──────────────────────────
 // 🔴 SÀN NỘI DUNG, cùng lý lẽ với `CLICK_FLOOR`: `bBad === 0` trên danh sách rỗng là một
 // lượt "đạt" không kiểm gì. Ba lời gọi `dispatch()` literal của ba tab chế độ là số thật.
-if (dispatched.length < DISPATCH_FLOOR) {
-  abort(
-    `lời gọi \`dispatch()\` literal quét được — ${dispatched.length} (sàn ${DISPATCH_FLOOR})`,
-    new Error(
-      `Ngoài ra thấy ${nonLiteralDispatchCalls} lời gọi truyền biến (không đọc tĩnh được).\n` +
-        'Ít hơn sàn nghĩa là tầng quét hỏng, hoặc ba tab chế độ đã mất — kiểm trước khi hạ sàn.',
-    ),
-  )
+{
+  const v = judgeFloor(DISPATCH_FLOOR, dispatched.length, 'DISPATCH_FLOOR', 'lời gọi `dispatch()` literal quét được')
+  if (!v.ok) {
+    abort(
+      'lời gọi `dispatch()` literal quét được',
+      new Error(
+        `${v.message}\n` +
+          `Ngoài ra thấy ${nonLiteralDispatchCalls} lời gọi truyền biến (không đọc tĩnh được).\n` +
+          'Ít hơn sàn nghĩa là tầng quét hỏng, hoặc ba tab chế độ đã mất — kiểm trước khi hạ sàn.',
+      ),
+    )
+  }
 }
 let bBad = 0
 for (const d of dispatched) {
@@ -1958,10 +1808,8 @@ const SELECTION_PANEL_FILES = {
  * ⚠️ Sàn là **cận dưới**: nó canh chính CỔNG *(regex thôi khớp ⇒ mọi phép kiểm trên xanh
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
-// 🔵 2026-08-22 (Story 3.5 review) — đếm lại bằng chính cổng: trước lượt này có 7 lời gọi
-// thật (sàn 6 đã thấp một đơn vị); `GlossarySettingsOverlay` thêm bề mặt `display` thứ tám.
-// Nâng thẳng lên số thật, không giữ phần dư khiến xoá một bề mặt mà cổng vẫn xanh.
-const SELECTION_SURFACE_FLOOR = 8
+/** `ceil(0.85 × live)`, qua `judgeFloor`. */
+const SELECTION_SURFACE_FLOOR = 14
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 
@@ -2055,10 +1903,13 @@ for (const want of DISPLAY_ONLY_FILES) {
 
 // ④ Sàn NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: `fBad === 0` trên một danh sách rỗng là một
 //    lượt xanh vô nghĩa (một lượt đổi tên hàm làm regex không khớp gì nữa).
-if (surfaceCalls.length < SELECTION_SURFACE_FLOOR) {
-  fail(`lời gọi đăng ký vùng chọn quét được — ${surfaceCalls.length} (sàn ${SELECTION_SURFACE_FLOOR})`)
-  detail('Sàn này canh chính CỔNG: nếu regex thôi khớp thì mọi phép kiểm trên đều xanh rỗng.')
-  fBad += 1
+{
+  const v = judgeFloor(SELECTION_SURFACE_FLOOR, surfaceCalls.length, 'SELECTION_SURFACE_FLOOR', 'lời gọi đăng ký vùng chọn quét được')
+  if (!v.ok) {
+    fail(v.message)
+    detail('Sàn này canh chính CỔNG: nếu regex thôi khớp thì mọi phép kiểm trên đều xanh rỗng.')
+    fBad += 1
+  }
 }
 
 // ⑤ 🔴 `GridPanel.vue` phải có ĐÚNG MỘT `'source'` VÀ ĐÚNG MỘT `'display'` — Story 2.5b.
@@ -2751,13 +2602,20 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 75
-if (handlerAttrCount < HANDLER_ATTR_FLOOR) {
-  abort(
-    `thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit quét được — ${handlerAttrCount} ` +
-      `(sàn ${HANDLER_ATTR_FLOOR})`,
-    new Error('Ít hơn sàn nghĩa là tầng quét đã mất một vùng template — kiểm `vueRegions` trước khi hạ sàn.'),
+const HANDLER_ATTR_FLOOR = 78
+{
+  const v = judgeFloor(
+    HANDLER_ATTR_FLOOR,
+    handlerAttrCount,
+    'HANDLER_ATTR_FLOOR',
+    'thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit quét được',
   )
+  if (!v.ok) {
+    abort(
+      'thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit quét được',
+      new Error(`${v.message}\nÍt hơn sàn nghĩa là tầng quét đã mất một vùng template — kiểm \`vueRegions\` trước khi hạ sàn.`),
+    )
+  }
 }
 if (kBad === 0) {
   pass(

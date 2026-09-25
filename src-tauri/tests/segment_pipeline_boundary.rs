@@ -39,11 +39,7 @@ use boundary_scan::{code_lines, is_inside, src_root};
 const SEGMENT_DIR: &str = "core/segment";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (Story 6.2, 2026-09-04, sau khi thêm `core/segment/pipeline.rs`):
-/// **62** tệp. Sàn **50** (~80,6%, cùng khuôn 80-85% mà các tệp `*_boundary.rs` khác dùng) —
-/// bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
-const SRC_RS_FLOOR: usize = 50;
+const SRC_RS_FLOOR: usize = 84;
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {
@@ -82,11 +78,11 @@ fn line_calls_run_import_with_order(code: &str) -> bool {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = all_rust_sources();
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

@@ -942,9 +942,11 @@ onBeforeUnmount(() => {
  * Cùng hình dạng và cùng token với `.cut-mark` của nhánh văn bản thuần
  * (`GridPanel.vue`) — một dấu cắt phải trông **y hệt** ở cả ba bề mặt, nếu không người dùng
  * phải học ba ký hiệu cho một khái niệm.
- * 🔴 **Hai khối này phải đổi CÙNG LÚC.** Không cổng nào canh việc chúng khớp nhau; lượt
- * 2026-08-17 *(cao 1em → 1,3em, `ornament` → `primary`)* đã sửa cả hai, và lượt sau cũng phải
- * thế. Lý lẽ đầy đủ ở doc-comment của `.cut-mark` trong `GridPanel.vue`.
+ * 🔴 `width`/`height` đọc `--cut-mark-width`/`--cut-mark-height`, khai một lần ở
+ * `src/tokens/reset.css` — sửa ở đó là sửa cả hai khối, không còn hai con số chép tay phải
+ * đổi cùng lúc. `display`/`vertical-align`/`background-color` vẫn là hai khai báo riêng (cấu
+ * trúc CSS, không phải giá trị token) — đổi một bên vẫn cần đổi bên kia bằng tay. Lý lẽ đầy
+ * đủ ở doc-comment của `.cut-mark` trong `GridPanel.vue`.
  *
  * 🔴 `::before`, KHÔNG một phần tử con — xem doc-comment của [`cutSet`]. Và `content: ''`
  * cộng `inline-block`: một pseudo-element rỗng không đi vào `Selection.toString()`.
@@ -952,8 +954,8 @@ onBeforeUnmount(() => {
 .cut-here::before {
   content: '';
   display: inline-block;
-  width: 2px;
-  height: 1.3em;
+  width: var(--cut-mark-width);
+  height: var(--cut-mark-height);
   vertical-align: text-bottom;
   background-color: var(--color-primary);
 }

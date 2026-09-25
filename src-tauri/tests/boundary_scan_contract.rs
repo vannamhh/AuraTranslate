@@ -273,3 +273,46 @@ fn an_unbalanced_cfg_test_module_fails_loudly() {
     let text = "#[cfg(test)]\nmod tests {\n    fn t() { if true {\n}\n";
     boundary_scan::without_test_modules(text);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// I/O matrix row: floor drifted / tree truncated (population-floor helper)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn a_floor_at_exactly_85_percent_of_live_does_not_go_red() {
+    boundary_scan::assert_population_floor(85, 100, "TEST_FLOOR", "tệp giả");
+}
+
+#[test]
+fn a_floor_at_exactly_80_percent_of_live_does_not_go_red() {
+    boundary_scan::assert_population_floor(80, 100, "TEST_FLOOR", "tệp giả");
+}
+
+#[test]
+#[should_panic(expected = "Cây quá nhỏ để là thật")]
+fn live_below_floor_is_the_truncated_tree_case() {
+    boundary_scan::assert_population_floor(50, 49, "TEST_FLOOR", "tệp giả");
+}
+
+#[test]
+#[should_panic(expected = "đã trôi dưới 80%")]
+fn a_floor_below_80_percent_of_live_is_the_drifted_case() {
+    boundary_scan::assert_population_floor(79, 100, "TEST_FLOOR", "tệp giả");
+}
+
+#[test]
+fn a_drifted_floor_names_the_constant_and_ceil_0_85_times_live() {
+    let result = std::panic::catch_unwind(|| {
+        boundary_scan::assert_population_floor(21, 98, "SRC_RS_FLOOR", "tệp `.rs`");
+    });
+    let err = result.expect_err("sàn 21/98 = 21.4% phải panic");
+    let message = err
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
+        .unwrap_or_default();
+    assert!(
+        message.contains("SRC_RS_FLOOR") && message.contains("84"),
+        "thông báo lỗi phải nêu tên hằng số VÀ ceil(0.85 × 98) = 84: {message:?}"
+    );
+}

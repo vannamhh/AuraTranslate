@@ -48,16 +48,7 @@ const SCOPE_DIR: &str = "core/scope";
 const STORE_DIR: &str = "core/store";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (Story 1.8): **26** tệp — 22 kế thừa + 3 tệp của `core/scope/` +
-/// `commands/config.rs`. Sàn đặt **dưới** số thật đúng khuôn `RS_FLOOR` của
-/// `store_boundary.rs`: nó bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
-///
-/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn 20 trên 42 tệp không còn canh được gì
-/// (mất hơn nửa cây vẫn xanh). Sàn lên **34** (81,0%), nâng cùng lượt với `store_boundary.rs`.
-const RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
-// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
-// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
+const RS_FLOOR: usize = 84;
 
 /// 🔴 Vế test của AC1 — những chuỗi mà **chỉ** `core::scope` được mang.
 ///
@@ -117,12 +108,11 @@ fn code_lines(file: &Path) -> Vec<(usize, String)> {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let (_, files) = all_rust_sources();
-    assert!(
-        files.len() >= RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RS_FLOOR}). \
-         Cây quá nhỏ để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà \
-         không kiểm gì cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR,
+        files.len(),
+        "RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

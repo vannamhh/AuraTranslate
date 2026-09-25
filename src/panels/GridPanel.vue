@@ -2154,8 +2154,8 @@ const chapterId = computed(() => editorChapterId.value)
  */
 .cut-mark {
   display: inline-block;
-  width: 2px;
-  height: 1.3em;
+  width: var(--cut-mark-width);
+  height: var(--cut-mark-height);
   vertical-align: text-bottom;
   background-color: var(--color-primary);
 }

@@ -66,6 +66,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, isAbsolute, join } from 'node:path'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -240,6 +241,11 @@ function staleOwnerItems(items, sprintStatus) {
   )
 }
 
+// A ✅ line that itself says a half is still open scores `half`. "còn hở" is left out on
+// purpose: `… CẢ HAI VẾ CÒN HỞ đã đóng` uses it to say the opposite.
+const HALF_ON_CLOSED_LINE_RE = /một nửa|một phần|vẫn (?:còn )?mở|còn mở/iu
+const STILL_OPEN_RE = /vẫn (?:còn )?mở|còn mở/i
+
 /** Emoji dẫn đầu của chính dòng bullet (sau khi gỡ `- ` và bọc `**`/`*`/`🔴`/`⚠️`/`🔵` mở đầu
  *  không mang nghĩa trạng thái — chỉ ✅/🟡 dẫn đầu MỚI là trạng thái tự khai của mục). */
 function leadingStatus(firstLine) {
@@ -255,30 +261,26 @@ function leadingStatus(firstLine) {
     if (body === truoc) break
   }
   body = body.trim()
-  if (body.startsWith('✅')) return 'closed'
+  if (body.startsWith('✅')) return HALF_ON_CLOSED_LINE_RE.test(body) ? 'half' : 'closed'
   if (body.startsWith('🟡')) return 'half'
   return null
 }
 
-/** Trạng thái ghi trên một dòng tiếp nối bắt đầu bằng `→` (đúng luật đóng mục ở
- *  `project-context.md:449`). Luật đo được 2026-08-19 (Task 1 của Story 2.13):
- *   - `→ ✅ …`                         ⇒ closed  (mọi ca `→ ✅` đã đọc đều là đóng thật, dù
- *                                        văn bản dùng "ĐÃ ĐÓNG"/"ĐÓNG"/"ĐÃ SOÁT"/"ĐÃ KÝ"/"ĐÃ GỠ")
- *   - `→ 🟡 …`                         ⇒ half    (mọi ca `→ 🟡` đã đọc đều là nửa thật)
- *   - `→ ⚠️ …một nửa|một phần…`        ⇒ half    (⚠️ dùng cho NHIỀU việc khác — bẫy, giới hạn,
- *                                        "CHƯA đóng" — nên chỉ đếm khi văn bản tự nói nửa/phần)
- *   - `→ KHÔNG LÀM <ngày> (`           ⇒ decided (trạng thái thứ tư, Quyết định #4 Ice ký) */
+/** Trạng thái ghi trên một dòng tiếp nối bắt đầu bằng `→`:
+ *   - dòng tự nói "vẫn mở/còn mở"      ⇒ half    (kể cả `→ ✅ …` — một dòng mang hai tín hiệu
+ *                                        trái nhau thì hạ xuống nửa, an toàn hơn closed)
+ *   - `→ ✅ …một nửa|một phần…`        ⇒ half
+ *   - `→ ✅ …`                         ⇒ closed
+ *   - `→ 🟡 …`                         ⇒ half
+ *   - `→ ⚠️ …một nửa|một phần…`        ⇒ half    (⚠️ dùng cho nhiều việc khác, nên chỉ đếm khi
+ *                                        văn bản tự nói nửa/phần)
+ *   - `→ KHÔNG LÀM <ngày> (`           ⇒ decided */
 function continuationStatus(line) {
   const m = /^\s*→\s*(.*)$/.exec(line)
   if (!m) return null
   const rest = m[1]
-  // 🔴 Bẫy đo được 2026-08-19 (Task 1 của Story 2.13): `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` mở bằng
-  // `→ ✅ **Phần quyết định đã đóng…**` nhưng CHÍNH DÒNG ĐÓ kết bằng "**Phần phép đo vẫn
-  // mở**" — một dòng mang HAI tín hiệu trái nhau. Tin ✅ mù quáng sẽ tự nhận đạt bằng suy
-  // luận đúng thứ AC2 cấm. ⇒ nếu dòng đóng còn tự nói "vẫn mở/còn mở", hạ xuống `half` —
-  // an toàn hơn `closed`, và đúng nghĩa: một phần đã quyết, một phần chưa xong.
-  if (/vẫn (còn )?mở|còn mở/i.test(rest)) return 'half'
-  if (/^\**\s*✅/.test(rest)) return 'closed'
+  if (STILL_OPEN_RE.test(rest)) return 'half'
+  if (/^\**\s*✅/.test(rest)) return HALF_ON_CLOSED_LINE_RE.test(rest) ? 'half' : 'closed'
   if (/^\**\s*🟡/.test(rest)) return 'half'
   if (/^\**\s*⚠️/.test(rest) && /một nửa|một phần/i.test(rest)) return 'half'
   if (/^\**\s*KHÔNG LÀM\s+\d{4}-\d{2}-\d{2}\s*\(/.test(rest)) return 'decided'
@@ -433,6 +435,47 @@ const SELFTEST_CASES = [
   ['chủ mơ hồ cũ + chủ THẬT nối sau ⇒ có chủ', '- Việc M. **(Chủ: một story kế tiếp.)**\n  → 2026-09-23 (rà sổ nợ) — vẫn đúng. **Chủ: Story 7.3.**', false],
 ]
 
+/**
+ * [tên ca, mảnh văn bản mô phỏng MỘT MỤC, trạng thái `status` mong đợi].
+ */
+const HALF_PHRASE_SELFTEST_CASES = [
+  [
+    'bullet đầu tự khai ✅ NHƯNG tự nói "ĐÓNG MỘT NỬA" ⇒ half, không closed',
+    '- ✅ **ĐÓNG MỘT NỬA — isTypingZone chỉ chặn một phím.**',
+    'half',
+  ],
+  [
+    'dòng → ✅ tự nói "ĐÓNG MỘT NỬA" (không phải "vẫn mở") ⇒ half',
+    '- Việc, không chủ nào ghi.\n  → ✅ **ĐÓNG MỘT NỬA 2026-08-12 (Story 2.3).**',
+    'half',
+  ],
+  [
+    'dòng → ✅ ĐÃ ĐÓNG cùng dòng với ⚠️ "Còn mở" ⇒ half',
+    '- Việc, không chủ nào ghi.\n  → ✅ **ĐÃ ĐÓNG 2026-08-06.** ⚠️ **Còn mở: DESIGN.md chưa sửa.**',
+    'half',
+  ],
+  [
+    'cụm "còn hở" bị chính câu đảo lại bằng "đã đóng" đứng SAU ⇒ vẫn closed, không half',
+    '- Việc, không chủ nào ghi.\n  → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — CẢ HAI VẾ CÒN HỞ đã đóng.',
+    'closed',
+  ],
+  [
+    'dòng → ✅ ĐÓNG MỘT NỬA mà một vế "đã đóng" đứng sau ⇒ vẫn half',
+    '- Việc, không chủ nào ghi.\n  → ✅ **ĐÓNG MỘT NỬA 2026-08-12** — chiều chạm tới đã đóng, hai chiều kia còn chờ.',
+    'half',
+  ],
+  [
+    'dòng → không ✅ tự nói "VẪN MỞ" ⇒ half (luật cũ giữ nguyên)',
+    '- Việc, không chủ nào ghi.\n  → ⚠️ **VẪN MỞ 2026-09-08 — đã đo, chưa đóng.**',
+    'half',
+  ],
+  [
+    'cụm "một nửa" giữa câu trên một dòng → KHÔNG dẫn đầu bằng ✅ ⇒ không đổi trạng thái (vẫn open)',
+    '- Việc, không chủ nào ghi.\n  → Ghi chú: việc này một nửa đã bàn ở Story 2.3, chưa quyết.',
+    'open',
+  ],
+]
+
 /** Kiểm C: trạng thái sprint GIẢ, cố định — tự kiểm không đọc `sprint-status.yaml` thật. */
 const STALE_SELFTEST_STATUS = new Map([
   ['1-2', 'backlog'],
@@ -481,6 +524,20 @@ function runSelftest() {
       bad += 1
     }
   }
+  for (const [name, fragment, expectStatus] of HALF_PHRASE_SELFTEST_CASES) {
+    const items = parseItems(fragment)
+    if (items.length !== 1) {
+      fail(`tự kiểm dòng ✅ còn vế hở — ca "${name}": mong đúng 1 mục phân tích được, nhận ${items.length}`)
+      bad += 1
+      continue
+    }
+    const it = items[0]
+    if (it.status !== expectStatus) {
+      fail(`tự kiểm dòng ✅ còn vế hở — ca "${name}": mong status=${expectStatus}, nhận ${it.status}`)
+      bad += 1
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // 🔵 NĂM CA CHO `--file` — lượt rà 2026-08-19, tầng Verification Gap
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -559,6 +616,7 @@ function runSelftest() {
   if (bad === 0) {
     pass(
       `${SELFTEST_CASES.length} ca tự kiểm mục + 1 ca thẻ-trên-\`---\` + ` +
+        `${HALF_PHRASE_SELFTEST_CASES.length} ca dòng ✅ còn vế hở + ` +
         `${STALE_SELFTEST_CASES.length} + 1 ca Kiểm C + ` +
         `${caDuong.length} ca đường dẫn \`--file\` (đối chứng dương + âm) đều đúng`,
     )
@@ -604,62 +662,35 @@ try {
 } catch (err) {
   abort(SPRINT_STATUS_PATH, err)
 }
-const SPRINT_KEY_FLOOR = 130
-if (sprintStatus.size < SPRINT_KEY_FLOOR) {
-  abort(
-    `sprint-status.yaml — chi ${sprintStatus.size} khoa, duoi san ${SPRINT_KEY_FLOOR}`,
-    new Error('Kiem C khong co trang thai story nao de doi chieu thi luon xanh.'),
-  )
+/** ceil(0.85 × live), qua `judgeFloor`. */
+const SPRINT_KEY_FLOOR = 139
+{
+  const v = judgeFloor(SPRINT_KEY_FLOOR, sprintStatus.size, 'SPRINT_KEY_FLOOR', 'khoa trong sprint-status.yaml')
+  if (!v.ok) {
+    abort(
+      'sprint-status.yaml',
+      new Error(`${v.message}\nKiem C khong co trang thai story nao de doi chieu thi luon xanh.`),
+    )
+  }
 }
 
 /**
- * 🔴 **SÀN QUẦN THỂ — *"cây rỗng không phải cây sạch"*. Thêm ở lượt rà 2026-08-19 (tầng Edge Case).**
+ * SÀN QUẦN THỂ — cây rỗng không phải cây sạch. Không sàn thì chĩa cổng vào một sổ không
+ * còn dòng `^- ` nào in `0/0 mục mở thiếu Chủ:` và ĐẠT — một Kiểm A không quét gì cả là
+ * một Kiểm A luôn xanh. `ceil(0.85 × live)`, qua `judgeFloor`.
  *
- * Bản đầu **không có sàn**, và hậu quả đo được: chĩa cổng vào một sổ không còn dòng `^- ` nào thì
- * nó in `0/0 mục mở thiếu Chủ:` và **ĐẠT**. Một Kiểm A không quét gì cả là một Kiểm A luôn xanh —
- * đúng lớp lỗi mà `project-context.md` §Luật của một CỔNG gọi tên: *"Cổng đếm số tệp và `abort()`
- * khi dưới sàn"*. Một lượt sửa `ITEM_START_RE` hỏng, một lượt đổi hình dạng bullet của sổ, hay một
- * tệp bị ghi rỗng đều đi qua cửa đó.
- *
- * Số THẬT 2026-08-19: **467** mục. Sàn 397/467 = **85,0 %**, trong dải 80-85 % mà `project-context.md`
- * đặt — cùng khuôn `check-panel-refs.mjs` *(39 tệp, sàn 33 = 84,6 %)*.
- * ⚠️ Sàn là **cận dưới**: nó không đỏ oan khi sổ dài thêm, nhưng một sàn cũ là một sàn vô nghĩa —
- * sổ này chỉ dài ra *(AC4 cấm xoá mục)*, nên xét lại số này khi nó đã cách xa thực tế.
- * 🔴 Sàn chỉ áp cho **Kiểm A trên sổ THẬT**. `--report --file <bản cũ>` được phép nhỏ hơn: một bản
- * lịch sử **đúng là** có ít mục hơn, và chấm nó là lỗi hạ tầng thì cổng tự chặn vế TRƯỚC của AC5.
+ * Sàn chỉ áp cho Kiểm A trên sổ THẬT. `--report --file <bản cũ>` được phép nhỏ hơn: một
+ * bản lịch sử đúng là có ít mục hơn, và chấm nó là lỗi hạ tầng thì cổng tự chặn vế TRƯỚC
+ * của AC5.
  */
-// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 522 mục.
-// 🔵 SỬA 2026-08-22 (rà ba lớp) — 444/522 = 85,06 %, NHỈNH TRÊN dải 80-85 % mà chính khối
-// doc-comment ngay trên đặt ra (làm tròn cẩu thả: 0,85 × 522 = 443,7, làm tròn LÊN thay vì
-// XUỐNG). Hạ về 443 (443/522 = 84,87 %), đúng bên TRONG dải.
-// 🔵 NÂNG 2026-08-26 (cụm F, vòng rà 1) — số THẬT nay 577 mục (spec cụm F đóng tám bản vá,
-// nối `→` vào một mục sẵn có, và thêm hai mục nợ mới). 443/577 = 76,8 % — TRƯỢT dưới dải
-// 80-85 % mà chính khối doc-comment ngay trên đặt ra, đúng lớp lỗi mà đoạn 🔴 SÀN QUẦN THỂ
-// ở trên cảnh báo ("một sàn cũ là một sàn vô nghĩa — sổ này chỉ dài ra"). Làm tròn ĐÚNG bài
-// học của lượt sửa 2026-08-22 ngay trên: 0,85 × 577 = 490,45 — làm tròn XUỐNG (không lặp lại
-// lỗi làm tròn LÊN mà lượt đó đã bắt), thành 490 (490/577 = 84,9 %, đúng bên TRONG dải).
-// 🔵 SỬA 2026-08-26 (vòng rà 2, P7) — căn cứ "577 mục" ở trên đã LỆCH: Ice nối thêm hai mục
-// nợ vào sổ SAU khi đoạn trên được viết (không phải một lỗi của lượt vá). Đo NGAY TRƯỚC khi
-// ghi dòng này (sau khi chính lượt vá P1-P8 nối thêm một mục nợ nữa, "list.value !== null
-// chưa co phep kiem hoi quy"): số THẬT **580** mục. Sàn **490** vẫn ĐÚNG dải: 490/580 =
-// 84,5 %, vẫn bên TRONG 80-85 % — chỉ con số CĂN CỨ lệch theo mỗi lượt sổ dài thêm, giá trị
-// sàn không cần đổi mỗi lần. Ghi lại để lượt sau không tưởng nhầm 577/579 là số thật — và
-// đo LẠI (không tin số ở đây) nếu khoảng cách với sàn đã hẹp đáng kể.
-// 🔵 SỬA 2026-09-19 (lượt lược sổ, Ice chốt) — căn cứ ĐỔI CHIỀU lần đầu: sổ **ngắn lại**.
-// Mọi lập luận ở trên dựng trên giả định *"sổ này chỉ dài ra"* (AC4 cấm xoá mục). Ice đã sửa
-// luật đó ở nguồn (`project-context.md` §Sổ nợ) và lượt này gỡ **139** mục đã đóng trọn khỏi
-// sổ. Quần thể THẬT sau lượt gỡ: **683** mục *(549 mở · 92 nửa · 42 đóng được chừa lại vì văn
-// xuôi của chúng tự nói còn một vế hở)* — 682 ngay sau lượt gỡ, cộng **một** mục nợ mà chính
-// lượt này mở *(§lượt lược sổ nợ — khuyết tật `✅ ĐÓNG MỘT NỬA`)*. Sàn cũ 490 cho 490/683 =
-// **71,7 %**, rơi khỏi dải 80-85 % mà chính khối doc-comment trên đặt ra — tức nó sẽ dung thứ
-// việc mất thêm ~190 mục trong im lặng. Sàn mới: 0,85 × 683 = 580,5 → làm tròn **XUỐNG** thành
-// **579** (579/683 = 84,8 %, đúng bên trong dải), giữ đúng tiền lệ làm tròn xuống ở trên.
-const ITEM_FLOOR = 579
-if (DEBT_PATH === REAL_DEBT_PATH && summary.total < ITEM_FLOOR) {
-  abort(
-    `so no THAT — chi ${summary.total} muc, duoi san ${ITEM_FLOOR}`,
+const ITEM_FLOOR = 604
+if (DEBT_PATH === REAL_DEBT_PATH) {
+  const v = judgeFloor(ITEM_FLOOR, summary.total, 'ITEM_FLOOR', 'muc trong so no THAT')
+  if (!v.ok) abort(
+    'so no THAT',
     new Error(
-      'Mot Kiem A khong quet gi ca la mot Kiem A luon xanh ("cay rong khong phai cay sach").\n' +
+      `${v.message}\n` +
+        'Mot Kiem A khong quet gi ca la mot Kiem A luon xanh ("cay rong khong phai cay sach").\n' +
         'Hoac `ITEM_START_RE` da hong, hoac hinh dang bullet cua so da doi, hoac tep bi ghi rong.',
     ),
   )

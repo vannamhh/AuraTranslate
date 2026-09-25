@@ -59,6 +59,7 @@
 import { readFileSync, readdirSync, lstatSync, realpathSync, existsSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const VI_JSON_PATH = join(REPO_ROOT, 'src', 'i18n', 'vi.json')
@@ -222,107 +223,31 @@ const rsFiles = keep(rsAll)
 const vueFiles = keep(vueAll)
 
 /**
- * 🔴 NGƯỠNG SÀN, BẮT BUỘC — không phải nice-to-have.
+ * NGƯỠNG SÀN — cây rỗng không phải cây sạch. Áp lên quần thể SAU miễn trừ (đó mới là
+ * quần thể Kiểm A thật sự chạy trên): đo trước miễn trừ thì một `EXEMPT` phình ra tới
+ * mức nuốt cả `src/` vẫn qua sàn.
  *
- * `check-deps.mjs:15-17` đã đâm vào đúng bẫy này một lần: *"cây rỗng đọc thành sạch"*.
- * Ở đây tương đương là một glob viết sai (`src/**.vue` thay vì `src/**\/*.vue`) khớp 0
- * tệp ⇒ script in "không tìm thấy vi phạm" ⇒ exit 0 ⇒ cổng chết im lặng ngay ngày nó
- * ra đời. Số thật lúc dựng: **18** tệp `.rs` sau miễn trừ (20 tệp đi qua `walk`, 2 tệp
- * `tests/**` miễn trừ) và 1 tệp `.vue`.
+ * Sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — sàn nội dung tương ứng là Kiểm B (khoá
+ * `vi.json`, object phẳng) và Kiểm E (hành vi thật của `resolve.ts`).
  *
- * ⚠️ Sàn áp lên quần thể SAU miễn trừ — đó mới là quần thể Kiểm A thật sự chạy trên.
- * Đo trước miễn trừ thì một `EXEMPT` phình ra tới mức nuốt cả `src/` vẫn qua sàn.
- *
- * ⚠️ Số cập nhật ở Story 1.7 (tầng ghi dữ liệu): **23** tệp `.rs` sau miễn trừ — 27 tệp
- * đi qua `walk`, 4 tệp `tests/**` miễn trừ. Cây mọc thêm 5 tệp dưới
- * `src-tauri/src/core/store/` và 2 tệp test. Sàn giữ nguyên tỷ lệ dư địa cũ (~78% số
- * thật): nó tồn tại để bắt một cây bị CẮT MẤT, không phải để đếm tệp mới.
- *
- * ⚠️ Số cập nhật ở Story 1.8 (phân giải cấu hình hai tầng): **27** tệp `.rs` sau miễn trừ
- * — 33 tệp đi qua `walk`, 6 tệp `tests/**` miễn trừ. Cây mọc thêm 3 tệp dưới
- * `src-tauri/src/core/scope/`, `src-tauri/src/commands/config.rs`, và 2 tệp test.
- *
- * 🔴 Sàn đặt ở **21** (~78% của 27), **không** đặt bằng 27. Story 1.7 §Completion Notes
- * #10 ghi lại nguyên văn vì sao: *"sàn tồn tại để bắt một cây bị cắt mất, không phải để
- * đếm tệp mới"* — đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và cổng đỏ vì
- * một lý do không có thật là cổng bị gỡ.
- *
- * ⚠️ Story 1.9 (dữ liệu từ điển lớp nền) thêm gốc quét `tools/**` (nhánh thứ ba, đóng
- * `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*`) VÀ miễn trừ nó TRỌN ở `EXEMPT`. Quần thể SAU miễn trừ vì vậy
- * **không đổi** — vẫn 27 tệp `.rs` + 5 tệp `.vue` (đã cập nhật sau Story 1.8; xem lịch
- * sử ở trên). Sàn `RS_FLOOR`/`VUE_FLOOR` giữ nguyên 21/1 — thêm một nhánh MIỄN TRỪ TRỌN
- * không phải lý do dời sàn.
- *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
- *
- * Số THẬT sau Story 1.14: **32** tệp `.rs` sau miễn trừ · **11** tệp `.vue`. Quần thể
- * `.vue` nhảy từ 5 lên 11 vì bốn panel + `PanelTab` + `WorkspaceDock` ra đời.
- *
- * `VUE_FLOOR = 1` là con số **không còn canh được gì**: nó đúng ở ngày `PanelFrame` là
- * `.vue` duy nhất, và từ đó tới nay một lượt quét khớp 2 trong 11 tệp vẫn đi qua. Nay
- * nâng lên **9** (~82% của 11), cùng tỷ lệ dư địa mà `RS_FLOOR` đang giữ.
- *
- * ⚠️ `RS_FLOOR` lên **26** (~81% của 32). Nâng vì con số thật đã đi xa khỏi 21 sau các
- * story 1.9–1.13, không phải vì story này thêm tệp `.rs` nào — Story 1.14 thêm đúng
- * **không** tệp Rust mới, nó chỉ sửa hai tệp có sẵn.
- *
- * ⚠️ Và nhắc lại vì nó là lý do sàn này tồn tại ở dạng này: sàn ĐẾM TỆP thì một tệp RỖNG
- * vẫn qua. Sàn nội dung tương ứng của cổng này là Kiểm B (`16` khoá `vi.json`, object
- * phẳng) và Kiểm E (hành vi thật của `resolve.ts`).
+ * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-// 🔴 NÂNG 2026-08-07 (code review) — cùng lý do `CLICK_FLOOR` của `check-commands.mjs`:
-// AC13 gọi đích danh sàn này (*"`RS_FLOOR` **32** vs 39"*) và bản đầu đánh dấu nó *"không
-// đổi"* thay vì nâng. 32/40 = 80%, sát mép dưới; 34/40 = 85%, khớp doctrine.
-// 🔴 NÂNG 2026-08-12 (Story 2.1) — số thật lên **43**: `core/segment/split.rs` và
-// `commands/segment.rs`. Sàn 35 trên 43 là 81,4%, đã tụt khỏi dải ~85% mà lượt nâng trước
-// đặt ra; sàn lên **36** để giữ đúng dải đó. AC15 của story đòi đo chứ không ước.
-// ⚠️ **ĐO LẠI 2026-08-21 (Story 3.4) — KHÔNG NÂNG, số thật KHÔNG đổi.** Story sửa bảy tệp
-// `.rs` có sẵn dưới `src-tauri/src/**` và thêm **một** tệp MỚI dưới `tests/**`
-// (`glossary_marks_contract.rs`) — miễn trừ TRỌN khỏi quần thể này (`EXEMPT`).
-// 🔵 Sửa tại chỗ 2026-08-21: bản đầu của chú thích này viết *"thêm HAI tệp mới … ·
-// `zzz_scratch_bench_marks.rs`, tệp đo tạm sẽ xoá"*. Tệp đo tạm **đã xoá thật** sau khi lấy
-// xong bảng số ở `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`, nên mệnh đề "hai tệp" hết đúng ngay trong cùng
-// lượt. Một chú thích trỏ vào tệp không tồn tại là đúng thứ luật "sửa tại chỗ" tồn tại để
-// chống. Số thật vẫn **51** tệp `.rs`; cùng luật
-// "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" đã áp cho Story 1.20/1.21.
-const RS_FLOOR = 44 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 53 tệp `.rs` (+core/glossary/scan.rs
-// +core/glossary/surnames.rs) — 44/53 = 83,0%
-// 🔵 ĐO LẠI 2026-08-24 (Story 3.7) — KHÔNG NÂNG, số thật đã đổi nhưng vẫn trong dải 80–85%:
-// +1 tệp (`core/glossary/han_viet_suggestion.rs`) — 54 tệp `.rs` thật, 44/54 = 81,5%. Đính
-// chính con số "53" ở dòng trên: đã hết đúng kể từ lượt này.
-// ⚠️ **Bước nhảy 43 → 51 KHÔNG phải một mình Story 3.3 gây ra** — đọc kỹ trước khi tưởng
-// story này tự thêm tám tệp. Sàn cũ (36) đặt từ số thật 43 hồi Story 2.1 (2026-08-12) và
-// KHÔNG ai nâng lại qua bảy story liền sau (2.2 → 3.2) dù cây tiếp tục mọc — đúng lớp trôi
-// mà chính doc-comment "sàn là cận dưới, không phải một lần đặt rồi quên" cảnh báo. Story
-// 3.3 tự nó chỉ thêm ĐÚNG MỘT tệp vào quần thể này, `commands/glossary.rs`
-// (`glossary_commands_contract.rs`/`glossary_boundary.rs` sống dưới `tests/**`, miễn trừ
-// TRỌN khỏi cả Kiểm A lẫn quần thể sàn — xem `EXEMPT`); bảy tệp còn lại là nợ đo lại tồn
-// đọng từ các story trước, nay được trả CÙNG LƯỢT vì lượt sửa này đã phải đọc lại số thật.
-// ⚠️ **KHÔNG nâng ở Story 1.20** — số thật vẫn là 14 (`commands/pinned.rs` là `.rs`, và
-// story này không thêm một component `.vue` nào; dải tab và tab Lịch sử sống trong
-// `LookupPanel.vue` đã có). Một sàn nâng mà số thật không đổi là một sàn nâng theo cảm
-// giác, đúng thứ AC13 đòi *"số THẬT, không ước"*.
-//
-// ⚠️ **`RS_FLOOR` KHÔNG nâng ở Story 1.21, và đó là cùng luật đọc ngược lại.** Story đó có
-// chạm Rust (`delete_config` · `delete_value`), nhưng nó **sửa hai tệp đã có** và không tạo
-// tệp `.rs` nào — số thật đứng nguyên ở 41. `VUE_FLOOR` thì nâng, vì `ShortcutsOverlay.vue`
-// là một tệp mới (14 → 15).
-const VUE_FLOOR = 16 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 19 tệp `.vue`
-// (+GlossaryConfirmStrip.vue) — 16/19 = 84,2%
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
-// (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
-// ⚠️ Cùng bài học `RS_FLOOR` ở trên, ở quy mô nhỏ hơn: sàn cũ (13) đặt từ số thật 15 hồi
-// Story 1.21 (2026-08-11). Story 3.3 tự nó thêm ĐÚNG MỘT tệp (`GlossaryQuickAdd.vue`);
-// tệp `.vue` thứ hai làm 15 → 17 tới từ một story giữa 1.21 và 3.3 không ai nâng sàn lại.
-if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
-  abort(
-    `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +
-      `${vueFiles.length} tệp \`.vue\` (sàn ${VUE_FLOOR})`,
-    new Error(
-      'Cây quá nhỏ để là thật. Một danh sách rỗng làm Kiểm A xanh mà không kiểm gì cả.\n' +
-        `Đã miễn trừ ${exemptedFiles.length} tệp — kiểm lại danh sách EXEMPT nếu con số đó bất thường.`,
-    ),
-  )
+const RS_FLOOR = 85
+const VUE_FLOOR = 27
+{
+  const v1 = judgeFloor(RS_FLOOR, rsFiles.length, 'RS_FLOOR', 'tệp `.rs` sau miễn trừ')
+  const v2 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` sau miễn trừ')
+  if (!v1.ok || !v2.ok) {
+    const msgs = [v1, v2].filter((v) => !v.ok).map((v) => v.message)
+    abort(
+      `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +
+        `${vueFiles.length} tệp \`.vue\` (sàn ${VUE_FLOOR})`,
+      new Error(
+        `${msgs.join('\n')}\n` +
+          `Đã miễn trừ ${exemptedFiles.length} tệp — kiểm lại danh sách EXEMPT nếu con số đó bất thường.`,
+      ),
+    )
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1032,6 +957,23 @@ const INTERPOLATION_RE = /\{\{([\s\S]*?)\}\}/g
 const ALLOWED_CALL_RE = /^\s*(?:t|tError)\s*\(/
 const HAS_WORD_RE = /[\p{L}\p{N}]/u
 
+// Without `(?!-->)`, `\S` matches the `-` of `-->`, so an exemption with no reason passes.
+const AURA_ALLOW_TEXT_RE = /aura-allow-text\s*:\s*(?!-->)\S/
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Tự kiểm `AURA_ALLOW_TEXT_RE`
+// ═════════════════════════════════════════════════════════════════════════════════
+{
+  const withReason = AURA_ALLOW_TEXT_RE.test('<!-- aura-allow-text: lý do thật -->')
+  const withoutReason = AURA_ALLOW_TEXT_RE.test('<!-- aura-allow-text: -->')
+  if (!withReason || withoutReason) {
+    fail('tự kiểm `aura-allow-text` — regex miễn trừ không phân biệt được có/không có lý do')
+    detail(`có lý do: ${withReason} (phải true) · không lý do: ${withoutReason} (phải false)`)
+  } else {
+    pass('tự kiểm `aura-allow-text` — miễn trừ đòi một lý do thật, không khớp dấu `-` mở đầu `-->` rỗng')
+  }
+}
+
 let a2Bad = 0
 let a2Checked = 0
 let a2Exempt = 0
@@ -1092,7 +1034,7 @@ for (const file of vueFiles) {
       const open = text.lastIndexOf('<!--', cut)
       if (open !== -1) window = text.slice(open, cut)
     }
-    if (/aura-allow-text\s*:\s*\S/.test(window)) {
+    if (AURA_ALLOW_TEXT_RE.test(window)) {
       pass(`${posix(file)}:${line}:${col} — text node có miễn trừ có tên`)
       a2Exempt += 1
       continue

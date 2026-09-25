@@ -129,14 +129,17 @@ describe('inlineStyleBlocks — `style="…"` / `:style="…"` trong markup', ()
     expect(props).toEqual(['color', 'font-size'])
   })
 
-  it('đọc một `:style` là một chuỗi (`:style="\'color: red\'"`) — hành vi THẬT của `objRe`', () => {
-    // ⚠️ `objRe` không biết đây là một chuỗi (không phải object literal): nhánh dự phòng
-    // `([^,}]+)` nuốt luôn dấu nháy đơn đóng chuỗi vào `value`. Đây là hành vi ĐÃ CÓ của
-    // `check-tokens.mjs` trước lượt tách tệp này (Decision 1 chỉ DI CHUYỂN, không sửa) —
-    // bài test này khoá lại hành vi thật, không phải hành vi lý tưởng.
+  it('đọc một `:style` là một chuỗi (`:style="\'color: red\'"`) — bóc đúng lớp nháy ngoài', () => {
     const src = `<div :style="'color: red'"></div>`
     const blocks = inlineStyleBlocks(src, 'fixture.vue')
-    expect(blocks[0].decls[0]).toEqual(expect.objectContaining({ prop: 'color', value: "red'" }))
+    expect(blocks[0].decls[0]).toEqual(expect.objectContaining({ prop: 'color', value: 'red' }))
+  })
+
+  it('nhiều khai báo trong một `:style` chuỗi, phân tách bởi `;`', () => {
+    const src = `<div :style="'color: red; gap: 4px'"></div>`
+    const blocks = inlineStyleBlocks(src, 'fixture.vue')
+    expect(blocks[0].decls.map((d) => d.prop)).toEqual(['color', 'gap'])
+    expect(blocks[0].decls.map((d) => d.value)).toEqual(['red', '4px'])
   })
 
   it('mỗi thẻ mang MỘT khối riêng — không gộp hai `style=""` không liên quan vào một khối', () => {

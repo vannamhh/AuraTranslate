@@ -42,6 +42,7 @@
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CARGO_MANIFEST = join(REPO_ROOT, 'src-tauri', 'Cargo.toml')
@@ -56,11 +57,11 @@ const CARGO_MANIFEST = join(REPO_ROOT, 'src-tauri', 'Cargo.toml')
 // ⚠️ `cargo` là `cargo.exe` nên KHÔNG cần shell — và không truyền là đúng hơn.
 const IS_WIN = process.platform === 'win32'
 
-// Ngưỡng sàn — số thật đo 2026-08-03 là 343 (Rust) và 59 (npm). Sàn đặt thấp hơn hẳn
-// để một lần thêm/bớt phụ thuộc bình thường không làm đỏ, nhưng một CÂY RỖNG (chưa
-// `npm ci`, cargo không resolve được) thì không thể lọt qua thành "sạch".
-const RUST_TREE_FLOOR = 200
-const NPM_TREE_FLOOR = 30
+// Ngưỡng sàn ceil(0.85 × live), qua `judgeFloor` — thấp hơn số thật đủ để một lần
+// thêm/bớt phụ thuộc bình thường không làm đỏ, nhưng một CÂY RỖNG (chưa `npm ci`, cargo
+// không resolve được) thì không thể lọt qua thành "sạch".
+const RUST_TREE_FLOOR = 306
+const NPM_TREE_FLOOR = 444
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
@@ -94,11 +95,9 @@ try {
 } catch (err) {
   abort('cây phụ thuộc Rust (`cargo tree`)', err)
 }
-if (rustCrates.length < RUST_TREE_FLOOR) {
-  abort(
-    `cây phụ thuộc Rust — chỉ ${rustCrates.length} mục, dưới sàn ${RUST_TREE_FLOOR}`,
-    new Error('Cây quá nhỏ để là thật. Nhiều khả năng cargo không resolve được.'),
-  )
+{
+  const v = judgeFloor(RUST_TREE_FLOOR, rustCrates.length, 'RUST_TREE_FLOOR', 'crate trong cây phụ thuộc Rust')
+  if (!v.ok) abort('cây phụ thuộc Rust', new Error(v.message))
 }
 /** Tên crate đứng đầu mỗi dòng `cargo tree --prefix none`: `name vX.Y.Z (path)`. */
 const rustNames = new Set(rustCrates.map((l) => l.replace(/^[├└─│\s]+/, '').split(' ')[0]))
@@ -140,11 +139,9 @@ try {
 } catch (err) {
   abort('cây phụ thuộc npm (`npm ls --all --json`)', err)
 }
-if (npmNames.size < NPM_TREE_FLOOR) {
-  abort(
-    `cây phụ thuộc npm — chỉ ${npmNames.size} gói, dưới sàn ${NPM_TREE_FLOOR}`,
-    new Error('Cây quá nhỏ để là thật. Nhiều khả năng chưa chạy `npm ci`.'),
-  )
+{
+  const v = judgeFloor(NPM_TREE_FLOOR, npmNames.size, 'NPM_TREE_FLOOR', 'gói ĐÃ CÀI trong cây phụ thuộc npm')
+  if (!v.ok) abort('cây phụ thuộc npm', new Error(v.message))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

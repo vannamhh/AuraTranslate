@@ -55,6 +55,7 @@ import { readFileSync, readdirSync, lstatSync, existsSync, realpathSync } from '
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
 import { maskCommentsAndStrings, lineOf, parseCssBlocks, inlineStyleBlocks } from './lib/tokens-scan.mjs'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 /** @typedef {import('./lib/tokens-scan.mjs').CssDecl} CssDecl */
 /** @typedef {import('./lib/tokens-scan.mjs').CssBlock} CssBlock */
@@ -76,52 +77,19 @@ const SRC_ROOT = join(REPO_ROOT, 'src')
 const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
 
 /**
- * "Cây rỗng không phải cây sạch" — thừa kế nguyên từ `check-deps.mjs`. Một lượt quét
- * KHÔNG tìm thấy tệp nào phải là LỖI QUÉT, không phải "đạt": mọi phép kiểm dưới đây
- * đều xanh trên một danh sách rỗng.
+ * "Cây rỗng không phải cây sạch". Một lượt quét KHÔNG tìm thấy tệp nào phải là LỖI
+ * QUÉT, không phải "đạt": mọi phép kiểm dưới đây đều xanh trên một danh sách rỗng.
  *
- * ⚠️ Hai sàn, không phải một. `FILE_FLOOR` canh cây nguồn; `COMPONENT_FILE_FLOOR` canh
+ * Hai sàn, không phải một. `FILE_FLOOR` canh cây nguồn; `COMPONENT_FILE_FLOOR` canh
  * đúng quần thể mà Kiểm B/B2 cưỡng chế trên đó — tệp KHÔNG thuộc `src/tokens/**`. Sàn
  * đầu không thay được sàn sau: khi `src/tokens/` mọc thêm tệp, `files.length` vẫn qua
  * sàn trong khi số component có thể về 0, và toàn bộ AD-34 xanh rỗng.
  *
- * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md §*Deferred from: code review of 1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc (2026-08-04)*` và `:146`.
- * NÂNG LẠI 2026-08-06 — Story 1.17 · Task 10 (AC13): sàn 1.14 (26/23) đã tụt xuống
- * ~62–65% số thật sau ba story liên tiếp (1.15/1.16/1.17) — dưới hẳn tỷ lệ ~81% mà chính
- * comment này đặt ra, tức sàn đã "canh không được gì" đúng như cảnh báo ở dưới.
- *
- * Số THẬT sau Story 1.17: **40** tệp trong tầm quét, trong đó **37** là component (ngoài
- * `src/tokens/**`). Sau Story 1.14 là 32/29. Cây mọc thêm `LookupPanel.vue` (nội dung
- * thật), `LookupRecord.vue`, `lookupPanelState.ts`, cộng các tệp trước đó của 1.15/1.16.
- *
- * ⚠️ Sàn đặt ở ~81% số thật — cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` giữ,
- * và cùng lý lẽ: sàn tồn tại để bắt một cây bị **CẮT MẤT**, không phải để đếm tệp mới.
- * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
- * không có thật là một cổng sắp bị gỡ.
+ * Sàn tồn tại để bắt một cây bị CẮT MẤT, không phải để đếm tệp mới. `ceil(0.85 × live)`,
+ * qua `judgeFloor`.
  */
-// 🔴 NÂNG LẠI 2026-08-12 — Story 2.2 · AC16, và lượt này là một lượt **bắt kịp**, không chỉ
-// một lượt cộng thêm. Đo ngày 2026-08-12: **53** tệp trong tầm quét, **50** là component.
-// Sàn cũ (37/35, đặt theo số của Story 1.19) đã tụt xuống **69,8% / 70,0%** — dưới hẳn dải
-// ~81% mà doc-comment ngay trên đặt ra, tức đúng trạng thái *"canh không được gì"* mà chính
-// nó cảnh báo. Ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn.
-const FILE_FLOOR = 58 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 69 tệp trong tầm quét (+1 tệp
-// `.vue` mới, `GlossaryConfirmStrip.vue`, +2 tệp `.ts` mới, `glossaryConfirmStripState.ts` và
-// `panels/inlineStripPriority.ts`) — 58/69 = 84,1%.
-// 🔵 SỬA 2026-08-22 (rà ba lớp) — LÝ DO dòng trên SAI, sửa tại chỗ: bản đầu viết hai tệp `.ts`
-// mới "có style/khai báo CSS liên quan" — ĐO LẠI: cả hai mang **0** dòng CSS (`grep -c
-// 'style\|css\|color:\|font-'` = 0 trên cả hai). Chúng vào quần thể vì `componentFiles`
-// (`:409`) lọc TOÀN `src/**` NGOÀI `src/tokens/**` — không lọc theo có CSS hay không — nên
-// MỌI tệp `.ts`/`.vue` mới thêm vào `src/**` đều vào mẫu số này, có CSS hay không không quan
-// trọng. Con số (58/69, 84,1%) không đổi — chỉ lý do được sửa.
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 66 tệp trong tầm quét (+1 tệp
-// `.vue` mới, `GlossarySettingsOverlay.vue`, +1 tệp `.ts` mới có style, `App.vue` không đổi
-// tên) — 55/66 = 83,3%.
-const COMPONENT_FILE_FLOOR = 56 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 66 tệp component
-// ngoài `src/tokens/**` — 56/66 = 84,8%. Cùng lý do đã sửa ở `FILE_FLOOR` ngay trên: ba tệp
-// mới (một `.vue`, hai `.ts`) đều KHÔNG nằm dưới `src/tokens/**` nên đều tính vào đây, bất kể
-// có CSS hay không.
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 63 tệp component
-// ngoài `src/tokens/**` — 52/63 = 82,5%.
+const FILE_FLOOR = 97
+const COMPONENT_FILE_FLOOR = 93
 
 let failures = 0
 /** @param {string} m */
@@ -452,11 +420,9 @@ try {
 } catch (err) {
   abort('cây nguồn `src/**`', err)
 }
-if (files.length < FILE_FLOOR) {
-  abort(
-    `cây nguồn \`src/**\` — chỉ ${files.length} tệp, dưới sàn ${FILE_FLOOR}`,
-    new Error('Cây quá nhỏ để là thật. Một danh sách rỗng làm MỌI phép kiểm dưới đây xanh.'),
-  )
+{
+  const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp trong tầm quét')
+  if (!v.ok) abort('cây nguồn `src/**`', new Error(v.message))
 }
 
 /** `src/tokens/**` là nơi màu ĐƯỢC PHÉP viết thẳng — đó là định nghĩa của chúng. */
@@ -467,14 +433,18 @@ const rel = (f) => relative(REPO_ROOT, f)
 const isTokenSource = (f) => rel(f).startsWith(TOKENS_DIR_PREFIX)
 
 const componentFiles = files.filter((f) => !isTokenSource(f))
-if (componentFiles.length < COMPONENT_FILE_FLOOR) {
-  abort(
-    `quần thể component — chỉ ${componentFiles.length} tệp ngoài \`src/tokens/**\`, dưới sàn ${COMPONENT_FILE_FLOOR}`,
-    new Error(
-      'Kiểm B và B2 chỉ cưỡng chế trên quần thể này. `FILE_FLOOR` không thay được sàn này: ' +
-        'khi `src/tokens/` mọc thêm tệp thì cây vẫn qua sàn trong khi số component về 0.',
-    ),
-  )
+{
+  const v = judgeFloor(COMPONENT_FILE_FLOOR, componentFiles.length, 'COMPONENT_FILE_FLOOR', 'tệp component ngoài `src/tokens/**`')
+  if (!v.ok) {
+    abort(
+      'quần thể component',
+      new Error(
+        `${v.message}\n` +
+          'Kiểm B và B2 chỉ cưỡng chế trên quần thể này. `FILE_FLOOR` không thay được sàn này: ' +
+          'khi `src/tokens/` mọc thêm tệp thì cây vẫn qua sàn trong khi số component về 0.',
+      ),
+    )
+  }
 }
 
 // ── Che comment/chuỗi, phân tích khối CSS, `style=""` trong markup ───────────────
@@ -549,6 +519,29 @@ const exemptAt = (p, index, kind) => {
   const line = lineOf(p.text, index)
   const re = new RegExp(`aura-allow-${kind}\\s*:\\s*(?!\\*\\/)\\S`)
   return p.comments.some((c) => re.test(c.text) && Math.abs(lineOf(p.text, c.index) - line) <= 1)
+}
+
+/** @type {[RegExp, string][]} */
+const CUSTOM_PROP_SHADOW_OPACITY_ZINDEX_SUFFIX = [
+  [/-box-shadow$/, 'box-shadow'],
+  [/-text-shadow$/, 'text-shadow'],
+  [/-opacity$/, 'opacity'],
+  [/-z-index$/, 'z-index'],
+]
+
+/**
+ * Một biến TUỲ CHỈNH (`--dv-floating-box-shadow`, …) mang
+ * TÊN của thuộc tính nó phục vụ ở HẬU TỐ, nên Kiểm D/F trước đây không thấy nó: `d.prop` là
+ * `--dv-floating-box-shadow`, không khớp `box-shadow`. Phân loại theo hậu tố đưa nó vào
+ * ĐÚNG Kiểm mà giá trị của nó lẽ ra phải qua. Một thuộc tính CSS thật (không `--`) trả về
+ * chính nó, không đổi hành vi hiện có.
+ * @param {string} prop
+ * @returns {string}
+ */
+function classifyCustomProp(prop) {
+  if (!prop.startsWith('--')) return prop
+  for (const [re, kind] of CUSTOM_PROP_SHADOW_OPACITY_ZINDEX_SUFFIX) if (re.test(prop)) return kind
+  return prop
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1343,19 +1336,19 @@ let dExempt = 0
 for (const p of parsed) {
   for (const block of p.blocks) {
     for (const d of block.decls) {
-      if (d.prop !== 'opacity') continue
+      if (classifyCustomProp(d.prop) !== 'opacity') continue
       dChecked += 1
       const o = parseOpacity(d.value)
       if (o === 0 || o === 1) continue
       const line = lineOf(p.text, d.index)
       if (exemptAt(p, d.index, 'opacity')) {
-        pass(`${rel(p.file)}:${line} — \`opacity: ${d.value}\`, có miễn trừ có tên`)
+        pass(`${rel(p.file)}:${line} — \`${d.prop}: ${d.value}\`, có miễn trừ có tên`)
         dExempt += 1
         continue
       }
       const why = Number.isFinite(o)
-        ? `\`opacity: ${d.value}\` là giá trị trung gian`
-        : `\`opacity: ${d.value}\` không tĩnh — cổng không chứng minh được nó là 0 hay 1`
+        ? `\`${d.prop}: ${d.value}\` là giá trị trung gian`
+        : `\`${d.prop}: ${d.value}\` không tĩnh — cổng không chứng minh được nó là 0 hay 1`
       fail(`${rel(p.file)}:${line} — ${why}`)
       detail('Lùi chữ bằng cách đổi sang `var(--color-on-surface-variant)`.')
       detail('Nếu đây thật sự là nét/nền: thêm `/* aura-allow-opacity: <lý do> */` ngay trên khai báo.')
@@ -1418,11 +1411,15 @@ console.log('\nKiểm F — không elevation (AC7)')
 // Chiều sâu duy nhất của sản phẩm là SẮC ĐỘ (`surface-sunken`). Ngoại lệ duy nhất là
 // bóng của chính cửa sổ ứng dụng, do hệ điều hành vẽ — không mã nào ở đây vẽ nó.
 //
-// ⚠️ `z-index` có miễn trừ CÓ TÊN, `box-shadow`/`text-shadow` thì không. Lý do bất đối
-// xứng: bóng đổ là quyết định thị giác mà AC7 cấm thẳng, còn ngữ cảnh xếp lớp là nhu cầu
-// CƠ HỌC — panel của Story 1.14, dropdown, tooltip và chính dockview đều cần. Không có
-// đường thoát có tên thì cái `z-index` hợp lệ đầu tiên sẽ được "sửa" bằng cách xoá nó
-// khỏi `BANNED_PROPS`, và hai lệnh cấm bóng đổ dùng chung tập đó mất theo.
+// ⚠️ `z-index` có miễn trừ CÓ TÊN, `box-shadow`/`text-shadow` THẬT (không `--`) thì không.
+// Lý do bất đối xứng: bóng đổ là quyết định thị giác mà AC7 cấm thẳng, còn ngữ cảnh xếp lớp
+// là nhu cầu CƠ HỌC — panel của Story 1.14, dropdown, tooltip và chính dockview đều cần.
+// Không có đường thoát có tên thì cái `z-index` hợp lệ đầu tiên sẽ được "sửa" bằng cách xoá
+// nó khỏi `BANNED_PROPS`, và hai lệnh cấm bóng đổ dùng chung tập đó mất theo.
+//
+// Chỉ một biến TUỲ CHỈNH được `classifyCustomProp` gộp vào lớp `box-shadow`/
+// `text-shadow` (`--dv-floating-box-shadow`, …) MỚI được phép qua `aura-allow-shadow: <lý
+// do>` — thuộc tính THẬT vẫn không có đường thoát, đúng bất đối xứng ở trên.
 const BANNED_PROPS = new Set(['box-shadow', 'text-shadow'])
 const EXEMPTABLE_PROPS = new Map([['z-index', 'z-index']])
 const BANNED_VALUE_RE =
@@ -1431,17 +1428,25 @@ let fBad = 0
 let fExempt = 0
 for (const d of allDecls) {
   const p = parsed.find((x) => x.file === d.file)
-  if (BANNED_PROPS.has(d.prop)) {
-    fail(`${where(d)} — \`${d.prop}\` bị cấm (không bóng đổ, không lớp nổi)`)
-    fBad += 1
+  const eff = classifyCustomProp(d.prop)
+  const isCustom = d.prop.startsWith('--')
+  if (BANNED_PROPS.has(eff)) {
+    if (isCustom && p && exemptAt(p, d.index, 'shadow')) {
+      pass(`${where(d)} — \`${d.prop}\` có miễn trừ có tên (aura-allow-shadow)`)
+      fExempt += 1
+    } else {
+      fail(`${where(d)} — \`${d.prop}\` bị cấm (không bóng đổ, không lớp nổi)`)
+      if (isCustom) detail('Nếu đây là giá trị vô hiệu hoá bóng của thư viện: thêm `/* aura-allow-shadow: <lý do> */`.')
+      fBad += 1
+    }
   }
-  if (EXEMPTABLE_PROPS.has(d.prop)) {
-    if (p && exemptAt(p, d.index, EXEMPTABLE_PROPS.get(d.prop) ?? d.prop)) {
+  if (EXEMPTABLE_PROPS.has(eff)) {
+    if (p && exemptAt(p, d.index, EXEMPTABLE_PROPS.get(eff) ?? eff)) {
       pass(`${where(d)} — \`${d.prop}\` có miễn trừ có tên`)
       fExempt += 1
     } else {
       fail(`${where(d)} — \`${d.prop}\` bị cấm (không lớp nổi)`)
-      detail(`Nếu đây là ngữ cảnh xếp lớp cơ học: thêm \`/* aura-allow-${EXEMPTABLE_PROPS.get(d.prop)}: <lý do> */\`.`)
+      detail(`Nếu đây là ngữ cảnh xếp lớp cơ học: thêm \`/* aura-allow-${EXEMPTABLE_PROPS.get(eff)}: <lý do> */\`.`)
       fBad += 1
     }
   }
@@ -1453,6 +1458,68 @@ for (const d of allDecls) {
 if (fBad === 0) {
   pass(`không \`box-shadow\` · \`text-shadow\` · \`drop-shadow\` · gradient · \`z-index\` (${fExempt} miễn trừ có tên)`)
 }
+
+// Tự kiểm F — phân loại hậu tố của biến tuỳ chỉnh và miễn trừ `aura-allow-shadow` (spec
+// hàng "Shadow var" của I/O Matrix), qua ĐÚNG `classifyCustomProp`/`exemptAt`/`BANNED_PROPS`
+// sản xuất dùng, không một bản chép riêng cho tự kiểm.
+/** @type {[string, string, string][]} */
+const F_CLASSIFY_CASES = [
+  ['--x-box-shadow → box-shadow', '--x-box-shadow', 'box-shadow'],
+  ['--x-text-shadow → text-shadow', '--x-text-shadow', 'text-shadow'],
+  ['--x-opacity → opacity', '--x-opacity', 'opacity'],
+  ['--x-z-index → z-index', '--x-z-index', 'z-index'],
+  ['--x-color giữ nguyên', '--x-color', '--x-color'],
+  ['box-shadow thật giữ nguyên', 'box-shadow', 'box-shadow'],
+]
+let fSelfBad = 0
+for (const [name, prop, want] of F_CLASSIFY_CASES) {
+  const got = classifyCustomProp(prop)
+  if (got !== want) {
+    fail(`tự kiểm Kiểm F — phân loại \`${name}\`: mong \`${want}\`, nhận \`${got}\``)
+    fSelfBad += 1
+  }
+}
+/** @type {[string, string, boolean][]} */
+const F_SHADOW_EXEMPT_CASES = [
+  ['--x-box-shadow: none không có marker — không miễn', '.x {\n  --x-box-shadow: none;\n}', false],
+  [
+    '--x-box-shadow: none có marker và lý do — miễn',
+    '.x {\n  --x-box-shadow: none; /* aura-allow-shadow: vô hiệu hoá bóng thư viện */\n}',
+    true,
+  ],
+  ['--x-box-shadow: none có marker nhưng không lý do — không miễn', '.x {\n  --x-box-shadow: none; /* aura-allow-shadow: */\n}', false],
+  [
+    'box-shadow thật mang marker — vẫn không miễn, không có đường thoát',
+    '.x {\n  box-shadow: 0 1px 2px black; /* aura-allow-shadow: cố ý */\n}',
+    false,
+  ],
+]
+/**
+ * Đi qua ĐÚNG đường ống Kiểm F thật dùng (`maskCommentsAndStrings` → `parseCssBlocks`) rồi
+ * áp ĐÚNG phán quyết từng khai báo của Kiểm F — canh cả phần NỐI DÂY từ parser tới phán
+ * quyết, không chỉ gọi thẳng `classifyCustomProp`/`exemptAt` (root AGENTS.md: một ca gọi
+ * thẳng hàm đã vá chỉ canh chính nó, không canh phần nối dây).
+ * @param {string} text
+ * @returns {boolean}
+ */
+function fShadowVerdictThroughPipeline(text) {
+  const cssRanges = [{ start: 0, end: text.length }]
+  const { masked, comments } = maskCommentsAndStrings(text, { cssRanges })
+  const decls = parseCssBlocks(masked, 'fixture.css').flatMap((b) => b.decls)
+  const d = decls.find((x) => BANNED_PROPS.has(classifyCustomProp(x.prop)))
+  if (!d) return false
+  const eff = classifyCustomProp(d.prop)
+  const isCustom = d.prop.startsWith('--')
+  return BANNED_PROPS.has(eff) && isCustom && exemptAt({ text, comments }, d.index, 'shadow')
+}
+for (const [name, text, shouldExempt] of F_SHADOW_EXEMPT_CASES) {
+  const got = fShadowVerdictThroughPipeline(text)
+  if (got !== shouldExempt) {
+    fail(`tự kiểm Kiểm F — ca \`${name}\`: mong ${shouldExempt ? 'MIỄN' : 'KHÔNG MIỄN'}, nhận ${got ? 'MIỄN' : 'KHÔNG MIỄN'}`)
+    fSelfBad += 1
+  }
+}
+if (fSelfBad === 0) pass(`tự kiểm Kiểm F — ${F_CLASSIFY_CASES.length + F_SHADOW_EXEMPT_CASES.length} ca`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabindex="-1"` (NFR17)')
@@ -1697,14 +1764,16 @@ function emittedVarNames(tok) {
 }
 const emittedVars = emittedVarNames(tokens)
 
-const EMITTED_VAR_FLOOR = 100 // 🔵 Đo 2026-09-25: 161 biến thật (17 màu + 4 họ chữ + 17×7
-// biến typography + 10 khoảng cách + 6 bo góc + 5 panel) — 100 là ~62%, đủ bắt một lượt
-// tính RỖNG hoặc gãy nửa chừng mà không đòi cập nhật mỗi khi thêm một token.
-if (emittedVars.size < EMITTED_VAR_FLOOR) {
-  abort(
-    `phép tính biến do \`tokens/index.ts\` phát — chỉ ${emittedVars.size} biến, dưới sàn ${EMITTED_VAR_FLOOR}`,
-    new Error('Một tập rỗng hoặc gãy nửa chừng làm Kiểm I loại SAI mọi biến thật.'),
-  )
+/** `ceil(0.85 × live)`, qua `judgeFloor` — bắt một lượt tính RỖNG hoặc gãy nửa chừng. */
+const EMITTED_VAR_FLOOR = 137
+{
+  const v = judgeFloor(EMITTED_VAR_FLOOR, emittedVars.size, 'EMITTED_VAR_FLOOR', 'biến do `tokens/index.ts` phát')
+  if (!v.ok) {
+    abort(
+      'phép tính biến do `tokens/index.ts` phát',
+      new Error(`${v.message}\nMột tập rỗng hoặc gãy nửa chừng làm Kiểm I loại SAI mọi biến thật.`),
+    )
+  }
 }
 
 /** Biến khai `--tên: …` ở bất kỳ đâu trong quần thể đã quét (`src/**` + `index.html`). */
@@ -1722,15 +1791,19 @@ const dockviewBlocks = parseCssBlocks(dockviewMasked, DOCKVIEW_CSS_PATH)
 const dockviewVars = new Set(
   dockviewBlocks.flatMap((b) => b.decls.filter((d) => d.prop.startsWith('--')).map((d) => d.prop)),
 )
-const DOCKVIEW_VAR_FLOOR = 90 // 🔵 Đo 2026-09-25 qua ĐÚNG pipeline (mask + parseCssBlocks) mà
-// phép kiểm dưới đây dùng: 110 biến `--dv-*` khai trong dockview.css (grep dòng-đầu-khớp thô
-// cho 135 — cao hơn vì nó không gộp trùng đúng cách qua `Set`; số đáng tin là số ĐI QUA CÙNG
-// pipeline với phán quyết, không phải số đo bằng công cụ khác).
-if (dockviewVars.size < DOCKVIEW_VAR_FLOOR) {
-  abort(
-    `\`${rel(DOCKVIEW_CSS_PATH)}\` — chỉ ${dockviewVars.size} biến \`--dv-*\` đọc được, dưới sàn ${DOCKVIEW_VAR_FLOOR}`,
-    new Error('Gói dockview-vue đổi hình dạng, hoặc phân tích CSS gãy nửa chừng.'),
-  )
+/**
+ * Đo qua ĐÚNG pipeline (mask + parseCssBlocks) mà phép kiểm dưới đây dùng — không qua một
+ * công cụ đo khác. `ceil(0.85 × live)`, qua `judgeFloor`.
+ */
+const DOCKVIEW_VAR_FLOOR = 94
+{
+  const v = judgeFloor(DOCKVIEW_VAR_FLOOR, dockviewVars.size, 'DOCKVIEW_VAR_FLOOR', `biến \`--dv-*\` đọc được từ \`${rel(DOCKVIEW_CSS_PATH)}\``)
+  if (!v.ok) {
+    abort(
+      `\`${rel(DOCKVIEW_CSS_PATH)}\``,
+      new Error(`${v.message}\nGói dockview-vue đổi hình dạng, hoặc phân tích CSS gãy nửa chừng.`),
+    )
+  }
 }
 
 const declaredVars = new Set([...emittedVars, ...declaredLocally, ...dockviewVars])

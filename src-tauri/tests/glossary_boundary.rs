@@ -50,37 +50,11 @@ const GLOSSARY_DIR: &str = "core/glossary";
 /// (`schema.rs` sở hữu MỌI tên bảng, không chỉ hai tên này).
 const SCHEMA_FILE: &str = "core/store/schema.rs";
 
-/// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — đo lại, nâng sàn về dải 80–85%.** Số thật lúc dựng
-/// story này: **50** tệp — cây đi từ 49 (Story 3.2) qua đúng MỘT tệp mới,
-/// `commands/glossary.rs` (bề mặt IPC đầu tiên của module). Sàn cũ (**38**, ~77,6%) đã tụt
-/// dưới dải 80–85% mà tác vụ cổng biên của story này đòi kiểm lại; nâng lên **40** (80%) —
-/// vẫn dưới số thật đúng khuôn `RS_FLOOR` của `scope_boundary.rs`/`store_boundary.rs`: nó
-/// bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
-///
-/// ⚠️ **ĐO LẠI 2026-08-21 (Story 3.4) — KHÔNG NÂNG, số thật KHÔNG đổi.** Story này sửa **bảy**
-/// tệp `.rs` có sẵn (`core/matching/mod.rs` · `core/glossary/entry.rs` · `…/store.rs` ·
-/// `…/mod.rs` · `commands/glossary.rs` · `commands/chapter.rs` · `lib.rs`) và không thêm một
-/// tệp `.rs` MỚI nào dưới `src-tauri/src/**` — quần thể vẫn **50**. Một sàn nâng khi số thật
-/// đứng nguyên là một sàn nâng theo cảm giác, đúng thứ `check-i18n.mjs::RS_FLOOR` (Story
-/// 1.20) đã từ chối một lần.
-const RS_FLOOR: usize = 44; // 🔵 SUA 2026-08-22 (ra ba lop) -- 43/53 = 81% VA `check-i18n.mjs::RS_FLOOR`
-// = 44/53 = 83% khong khop nhau tren CUNG mot quan the (53 tep .rs duoi src-tauri/src/**,
-// da doi chieu: check-i18n.mjs quet ca `src-tauri/**` + `tools/**` roi tru mien tru
-// `tests/**`/`tools/**`, con lai dung 53 -- cung so voi cong nay). Hai cong khong co ly do
-// chinh dang de lech nhau tren cung mot con so; nang len 44 cho khop.
-//
-// 🔵 SUA 2026-08-24 (Story 3.7, doc lai truoc khi tin) -- menh de "cung mot quan the" o tren
-// SAI. `all_rust_sources()` cua CHINH cong nay chi quet `CARGO_MANIFEST_DIR/src` (tuc
-// `src-tauri/src/**`, KHONG `tests/**`) -- do 2026-08-22 (TRUOC luot Story 3.7): 52 tep, KHONG
-// 53. `check-i18n.mjs:288` quet `src-tauri/**` (gom ca `build.rs`, tep nam CANH `src/`, khong
-// nam TRONG no) CONG `tools/**` roi tru EXEMPT (`tests/**`/`tools/**`) -- quan the do rieng
-// mang `build.rs` ma quan the cua cong nay KHONG BAO GIO co. Hai con so 52/53 trung nhau
-// TRUOC luot nay la MOT SU TRUNG HOP tren hai quan the KHAC NHAU, khong phai bang chung "cung
-// mot quan the" nhu cau tren da khang dinh -- doc so THAT truoc khi tin mot cau da viet san.
-// Story 3.7 them `core/glossary/han_viet_suggestion.rs` -- do lai NGAY DUOI day
-// (`the_scanned_tree_is_large_enough_to_be_real`).
+/// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật — quần thể này
+/// KHÔNG chung với quần thể `check-i18n.mjs::RS_FLOOR` quét (nó thêm `tools/**`, trừ
+/// `tests/**`/`tools/**`); hai con số trùng nhau ở một số lần đo là trùng hợp, không phải
+/// bằng chứng cùng quần thể.
+const RS_FLOOR: usize = 84;
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
@@ -283,12 +257,11 @@ fn code_lines(file: &Path) -> Vec<(usize, String)> {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let (_, files) = all_rust_sources();
-    assert!(
-        files.len() >= RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RS_FLOOR}). \
-         Cây quá nhỏ để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà \
-         không kiểm gì cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR,
+        files.len(),
+        "RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

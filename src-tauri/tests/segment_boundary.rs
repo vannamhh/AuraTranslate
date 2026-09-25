@@ -40,28 +40,13 @@ const CHAPTER_READ_FILE: &str = "commands/chapter.rs";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
 ///
-/// Số thật lúc dựng (Story 2.1): **42** tệp — 40 kế thừa sau Story 1.21, cộng
-/// `core/segment/split.rs` và `commands/segment.rs`. Sàn đặt **dưới** số thật đúng khuôn
-/// `RS_FLOOR` của `store_boundary.rs`: nó bắt một cây **bị cắt**, không bắt việc thêm tệp mới.
-///
 /// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`,
 /// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm cả `build.rs`). Hai con số gần nhau
 /// và chúng **không** thay thế nhau được.
-const SRC_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
-// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34)
-// đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
+const SRC_RS_FLOOR: usize = 84;
 
 /// Số tệp `.ts` + `.vue` tối thiểu dưới `src/**`.
-///
-/// Số thật lúc dựng (Story 2.1): **47** — 31 tệp `.ts` (30 kế thừa + `config/segment.ts`)
-/// và 15 tệp `.vue` … cộng lại 47. Sàn **38** (~81%), cùng tỷ lệ dư địa mà `TS_FLOOR`/
-/// `VUE_FLOOR` của `check-commands.mjs` đang giữ.
-///
-/// 🔵 NÂNG 2026-08-22 (Story 3.6) — số THẬT lên **66** (47 `.ts` + 19 `.vue`, +
-/// `glossaryConfirmStripState.ts` + `panels/inlineStripPriority.ts` + `GlossaryConfirmStrip.vue`).
-/// Sàn 38 tụt xuống 57,6%, dưới hẳn dải 80–85% — nâng lên **56** (56/66 = 84,8%), cùng con
-/// số mà `check-commands.mjs`/`check-layout.mjs` đang giữ cho đúng quần thể này.
-const WEBVIEW_FLOOR: usize = 56;
+const WEBVIEW_FLOOR: usize = 94;
 
 /// Bảng chữ cái kết câu tiếng Trung — AC1. **Chỉ** `core/segment/**` được mang nó.
 ///
@@ -113,19 +98,19 @@ fn read(file: &Path) -> String {
 #[test]
 fn the_scanned_trees_are_large_enough_to_be_real() {
     let (_, rust) = rust_sources();
-    assert!(
-        rust.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        rust.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        rust.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     let (_, webview) = webview_sources();
-    assert!(
-        webview.len() >= WEBVIEW_FLOOR,
-        "chỉ tìm thấy {} tệp `.ts`/`.vue` dưới `src/**` (sàn {WEBVIEW_FLOOR}). Gốc quét sai, \
-         hoặc một thư mục bị bỏ.",
-        webview.len()
+    boundary_scan::assert_population_floor(
+        WEBVIEW_FLOOR,
+        webview.len(),
+        "WEBVIEW_FLOOR",
+        "tệp `.ts`/`.vue` dưới `src/**`",
     );
 }
 

@@ -17,6 +17,7 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
@@ -116,13 +117,11 @@ for (const root of ROOTS) {
 }
 files = files.sort()
 
-/** SÀN QUẦN THỂ — cây rỗng không phải cây sạch (~80–85% số tệp thật quét được). */
-const FILE_FLOOR = 350
-if (files.length < FILE_FLOOR) {
-  abort(
-    'quần thể tệp',
-    new Error(`chỉ ${files.length} tệp dưới sàn ${FILE_FLOOR} — một danh sách rỗng làm cổng xanh mà không quét gì.`),
-  )
+/** An empty tree must not read as clean; judged by `judgeFloor`. */
+const FILE_FLOOR = 369
+{
+  const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp trong tầm quét doc-refs')
+  if (!v.ok) abort('quần thể tệp', new Error(v.message))
 }
 
 let violationCount = 0

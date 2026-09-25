@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-24-2026 15:29'
+last_updated: '09-25-2026 17:01'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -250,7 +250,7 @@ development_status:
   #   Danh sach muc no cua moi story: grep 'Chủ: Story 11.N' deferred-work.md.
   #   Chi tiet: planning-artifacts/sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md
   epic-11: in-progress
-  11-1-trả-nợ-cổng-và-công-cụ-kiểm: in-progress
+  11-1-trả-nợ-cổng-và-công-cụ-kiểm: review
   11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test: backlog
   11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển: backlog
   11-4-trả-nợ-glossary: backlog

@@ -32,9 +32,7 @@ use boundary_scan::{code_lines, is_inside, src_root};
 const CLEANUP_DIR: &str = "core/cleanup";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ mọi `*_boundary.rs` khác.
-/// Story 6.5 thêm `core/cleanup/mod.rs` + `core/cleanup/store.rs` + `commands/cleanup.rs`,
-/// nên số thật chỉ TĂNG — sàn cũ (50, `segment_pipeline_boundary.rs`) vẫn đúng, không hạ.
-const SRC_RS_FLOOR: usize = 50;
+const SRC_RS_FLOOR: usize = 84;
 
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())
@@ -47,11 +45,11 @@ fn all_rust_sources() -> Vec<(String, String)> {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = all_rust_sources();
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 

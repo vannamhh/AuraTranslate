@@ -63,35 +63,10 @@ use boundary_scan::{code_lines, rel_posix, src_root};
 const AI_DIR: &str = "core/ai";
 
 /// Số tệp `.rs` tối thiểu dưới `core/ai/**` để phép quét là thật.
-///
-/// Số thật hôm nay: **1** (`mod.rs`, stub 10 dòng doc-comment). Sàn = số thật, không phải
-/// một tỉ lệ dưới nó — không có chỗ nào để "cắt bớt mà vẫn còn tệp" khi quần thể chỉ có một
-/// phần tử; sàn 1 vẫn bắt đúng ca `walk` khớp 0 tệp (gốc quét sai / thư mục bị xoá).
-const AI_FLOOR: usize = 1;
+const AI_FLOOR: usize = 4;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-///
-/// Số thật lúc dựng story này (2026-08-26): **55** tệp. Bốn tệp `*_boundary.rs` cũ (dựng ở
-/// các story trước) còn ghi **53** trong hằng số riêng của chúng — số đã trôi qua các lượt
-/// thêm tệp không ai nâng lại sàn cũ, đúng bài học mà chính các tệp đó đã ghi lại. Sàn ở đây
-/// đo LẠI, không chép: **44** (80%, dưới khuôn 80–85% mà `scope_boundary.rs`/
-/// `matching_boundary.rs`/`glossary_boundary.rs` đã dùng) — bắt một cây bị cắt mất, không
-/// bắt việc thêm tệp mới.
-///
-/// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2) — 44 chống lại một quần thể thật 82 đã ngừng là một
-/// tripwire.** Đo lần đầu tại Story 4.2 (trước khi module `core::aiconfig`/`commands::aiconfig`
-/// ra đời): **82** tệp `.rs` dưới `src-tauri/src/**`.
-///
-/// 🔵 **SỬA TẠI CHỖ, cùng ngày — 65 (80% của 82) tính trên quần thể TRƯỚC ba tệp của chính
-/// story này, không phải quần thể cây sẽ MANG hằng số này.** Sàn phải đúng 80–85% của cây
-/// SAU khi story đóng (nó sống cùng ba tệp mới `core/aiconfig/mod.rs`,
-/// `core/aiconfig/store.rs`, `commands/aiconfig.rs`), không phải một ảnh chụp giữa chừng.
-/// Đo lại SAU khi ba tệp đó tồn tại: **85** tệp `.rs`. Sàn đúng là **68** (85 × 80% = 68,0 —
-/// tròn, không cần làm tròn lên/xuống), không 65 (65/85 = 76,5%, DƯỚI dải 80–85% mà chính
-/// đoạn văn này trích dẫn). Đóng nửa đã đo được của món nợ được giao (`deferred-work.md`:
-/// "21 hằng floor khác trên 18 tệp `tests/*.rs` đã trôi cùng kiểu — đếm lại 2026-09-16 THẮNG
-/// ước lượng '22 trên 16' viết lúc lập kế hoạch — ghi nợ riêng, không sửa ở đây").
-const SRC_RS_FLOOR: usize = 68;
+const SRC_RS_FLOOR: usize = 84;
 
 /// Hai chuỗi BARE (không tiền tố `use `) mà chỉ `core/ai/**` được phép mang ở **vị trí mã**.
 ///
@@ -595,21 +570,19 @@ fn statement_reexports_the_ai_module(stmt: &str) -> bool {
 fn the_scanned_tree_and_the_ai_module_are_both_large_enough_to_be_real() {
     let files = all_rust_sources();
 
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá nhỏ \
-         để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì \
-         cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     let ai_files = files.iter().filter(|(rel, _)| is_inside_ai_module(rel)).count();
-    assert!(
-        ai_files >= AI_FLOOR,
-        "chỉ tìm thấy {ai_files} tệp `.rs` dưới `src/{AI_DIR}/**` (sàn {AI_FLOOR}). Một \
-         đường dẫn gõ sai làm `walk` khớp 0 tệp, và khi đó cổng ranh giới bên dưới xanh y \
-         hệt trên một thư mục RỖNG — \"không ai vi phạm\" và \"không có gốc quét\" đọc giống \
-         nhau."
+    boundary_scan::assert_population_floor(
+        AI_FLOOR,
+        ai_files,
+        "AI_FLOOR",
+        &format!("tệp `.rs` dưới `src/{AI_DIR}/**`"),
     );
 }
 

@@ -64,6 +64,7 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
@@ -569,23 +570,14 @@ try {
 }
 
 /**
- * 🔴 SÀN QUẦN THỂ — *"cây rỗng không phải cây sạch"*.
- *
- * Số THẬT 2026-08-18 (Story 2.12, đo chứ không ước): **39** tệp `.ts` dưới `src/**`.
- * Sàn 33/39 = **84,6 %**, trong dải 80-85 % mà `project-context.md` đặt.
- * ⚠️ Sàn là **cận dưới**: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa
- * — thêm tệp vào `src/**` thì xét lại số này.
+ * SÀN QUẦN THỂ — *"cây rỗng không phải cây sạch"*. `ceil(0.85 × live)`, qua `judgeFloor`.
+ * Sàn là cận dưới: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa —
+ * thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 39 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 47 tệp `.ts` dưới `src/**`
-// (+glossaryConfirmStripState.ts +panels/inlineStripPriority.ts) — 39/47 = 83,0%, giữa
-// dải 80-85%. Đo bằng `find src -name '*.ts' | wc -l`.
-// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts` dưới `src/**`
-// (+glossarySettingsState.ts) — 37/45 = 82,2%, giữa dải 80-85%.
-if (files.length < FILE_FLOOR) {
-  abort(
-    `cây nguồn \`src/**\` — chỉ ${files.length} tệp \`.ts\`, dưới sàn ${FILE_FLOOR}`,
-    new Error('Mot danh sach rong lam Kiem A xanh ma khong quet gi ca.'),
-  )
+const FILE_FLOOR = 68
+{
+  const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp `.ts` dưới `src/**`')
+  if (!v.ok) abort('cây nguồn `src/**`', new Error(v.message))
 }
 
 const seenKeys = new Set()

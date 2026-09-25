@@ -16,6 +16,7 @@
     "scripts/check-commands.mjs",
     "scripts/lib/commands-scan.mjs",
     "scripts/check-tokens.mjs",
-    "scripts/lib/tokens-scan.mjs"
+    "scripts/lib/tokens-scan.mjs",
+    "scripts/ci-previous-verdict.mjs"
   ]
 }

@@ -50,16 +50,7 @@ const MATCHING_DIR: &str = "core/matching";
 const MATCHING_FLOOR: usize = 1;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-///
-/// Số thật lúc dựng (Story 1.12): **28**. Sàn **20**, cùng khuôn `SRC_TAURI_RS_FLOOR`
-/// của `dict_boundary.rs`.
-///
-/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
-/// `store_boundary.rs`/`scope_boundary.rs` — một sàn 20 trên 42 tệp để mất hơn nửa cây mà
-/// vẫn xanh, tức nó thôi canh được đúng thứ nó tồn tại để canh.
-const SRC_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
-// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
-// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
+const SRC_RS_FLOOR: usize = 84;
 
 /// Hai crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
 const MATCHING_ONLY_CRATES: [&str; 2] = ["jieba_rs", "tantivy_stemmers"];
@@ -139,23 +130,22 @@ fn src_sources() -> Vec<(String, String)> {
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let files = src_sources();
 
-    assert!(
-        files.len() >= SRC_RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_RS_FLOOR}). Cây quá \
-         nhỏ để là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không \
-         kiểm gì cả. Nghi phạm: gốc quét sai, hoặc một thư mục bị bỏ.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        SRC_RS_FLOOR,
+        files.len(),
+        "SRC_RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
     let matching = files
         .iter()
         .filter(|(rel, _)| is_inside(rel, MATCHING_DIR))
         .count();
-    assert!(
-        matching >= MATCHING_FLOOR,
-        "chỉ tìm thấy {matching} tệp `.rs` dưới `src/{MATCHING_DIR}/**` (sàn \
-         {MATCHING_FLOOR}). Một đường dẫn gõ sai làm `walk` khớp 0 tệp, và khi đó cổng \
-         *\"chỉ `core/matching/**` được gõ hai crate\"* xanh y hệt trên một thư mục RỖNG."
+    boundary_scan::assert_population_floor(
+        MATCHING_FLOOR,
+        matching,
+        "MATCHING_FLOOR",
+        &format!("tệp `.rs` dưới `src/{MATCHING_DIR}/**`"),
     );
 }
 

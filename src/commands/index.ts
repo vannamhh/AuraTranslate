@@ -19,6 +19,7 @@
 import { createRegistry } from './registry.ts'
 import { createFocusRegistry } from './focus.ts'
 import { attachKeymap, createKeymap, resolveChord } from './keys.ts'
+import { PANEL_IDS } from '../layout/workspaceLayout.ts'
 import type { CommandId, CommandSpec, Registry } from './registry.ts'
 import type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
 import type { Binding, ChordOverrides, Keymap, KeymapGate } from './keys.ts'
@@ -1051,13 +1052,14 @@ export type CommandDeps = {
 }
 
 /**
- * **Ba** panel của Workspace, theo thứ tự khai báo. ⚠️ Chép từ `src/layout/workspaceLayout.ts`.
+ * **Ba** panel của Workspace, theo thứ tự khai báo. Suy ra từ `PANEL_IDS` của
+ * `src/layout/workspaceLayout.ts` — không còn một mảng chép tay để trôi khỏi nó.
  *
  * 🔵 2026-08-14 (Story 2.5b): bốn → **ba** ⇒ **ba** command `layout.toggle_*`, không bốn.
  * Đây là chỗ duy nhất con số đó sống trong `src/commands/`; sàn `COMMAND_FLOOR` của
  * `check-commands.mjs` phải được đếm lại cùng lượt.
  */
-const PANEL_SUFFIXES: readonly string[] = ['grid', 'lookup', 'ai_translation']
+const PANEL_SUFFIXES: readonly string[] = PANEL_IDS.map((id) => id.slice('panel.'.length))
 
 /**
  * Cổng vắng mặt ⇒ **kêu**, không ném và không im.

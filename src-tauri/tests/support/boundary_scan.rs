@@ -346,6 +346,25 @@ fn matching_close_brace(chars: &[char], start: usize) -> Option<usize> {
     None
 }
 
+/// Asserts a population floor: `live >= floor` (the tree is too small to be a real
+/// population — an empty list would pass silently) AND `floor` has not drifted below 80%
+/// of `live` (a floor frozen while its population grows stops guarding anything). `label`
+/// names the `*_FLOOR` constant, `population` names what was counted; both appear in the
+/// panic message, which states `ceil(0.85 × live)` as the value to raise a drifted floor to.
+pub fn assert_population_floor(floor: usize, live: usize, label: &str, population: &str) {
+    assert!(
+        live >= floor,
+        "chỉ tìm thấy {live} {population} (sàn `{label}` = {floor}). Cây quá nhỏ để là thật \
+         — một danh sách rỗng làm phép đếm này im lặng bằng 0."
+    );
+    assert!(
+        floor * 5 >= live * 4,
+        "sàn `{label}` = {floor} đã trôi dưới 80% số thật {live} {population} -- nâng lên \
+         ceil(0.85 × live) = {}.",
+        (live * 85).div_ceil(100)
+    );
+}
+
 /// `text` with every `#[cfg(test)] mod NAME { … }` block removed (line count preserved: a
 /// removed char other than `\n` becomes nothing, `\n` stays, so line numbers after the block
 /// are unchanged). Product code after the block is still scanned.

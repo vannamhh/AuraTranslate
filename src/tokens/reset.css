@@ -75,3 +75,17 @@ body {
  * `z-index` hay gradient nào trong tệp này, và `check-tokens.mjs` Kiểm F canh điều đó
  * trên toàn bộ `src/**` — kể cả chính tệp này, không miễn trừ.
  */
+
+/*
+ * Hình dạng DẤU CẮT — dùng chung bởi `.cut-mark` (`GridPanel.vue`) và `.cut-here::before`
+ * (`SourceHanViet.vue`). Một nguồn duy nhất: sửa ở đây là sửa cả hai, không còn hai khối
+ * phải đổi CÙNG LÚC bằng tay. Màu vẫn đọc thẳng `--color-primary` ở từng khối — đã là một
+ * token thật, không cần thêm biến trung gian.
+ *
+ * `--cut-mark-height` đo bằng `em`, có chủ ý: cột nguồn dùng `subgrid`, nên chiều cao này
+ * phải nằm trong line box của cỡ chữ nguồn — đo lại nếu ai đổi `--leading-*` của cột đó.
+ */
+:root {
+  --cut-mark-width: 2px;
+  --cut-mark-height: 1.3em;
+}

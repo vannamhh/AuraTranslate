@@ -57,12 +57,7 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 }
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-///
-/// Số thật lúc dựng (Story 5.5, 2026-08-28): **57** (56 kế thừa từ
-/// `library_index_boundary.rs`, cộng `commands/lifecycle.rs` đã tồn tại từ Story 5.4 — story
-/// này không thêm tệp `.rs` mới). Sàn **46** (~80,7%), cùng khuôn tỷ lệ dư địa mà
-/// `RS_FLOOR`/`RUST_FLOOR` của các tệp `*_boundary.rs` khác đang giữ.
-const RS_FLOOR: usize = 46;
+const RS_FLOOR: usize = 84;
 
 /// Vị từ THUẦN trên một DÒNG MÃ đã biết KHÔNG PHẢI comment — chỗ gọi thật (mỗi Phần 1 dưới
 /// đây) lọc dòng `//` TRƯỚC khi gọi hàm này, đúng khuôn
@@ -183,11 +178,11 @@ fn file_names_one_of_in_code(file: &Path, needles: &[&str]) -> bool {
 #[test]
 fn the_scanned_tree_is_large_enough_to_be_real() {
     let (_, files) = all_rust_sources();
-    assert!(
-        files.len() >= RS_FLOOR,
-        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {RS_FLOOR}). Cây quá nhỏ để \
-         là thật — một danh sách rỗng làm mọi phép kiểm dưới đây xanh mà không kiểm gì cả.",
-        files.len()
+    boundary_scan::assert_population_floor(
+        RS_FLOOR,
+        files.len(),
+        "RS_FLOOR",
+        "tệp `.rs` dưới `src-tauri/src/**`",
     );
 }
 
