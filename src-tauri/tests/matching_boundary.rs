@@ -26,8 +26,11 @@
 //! của Story 1.11b lấy **~0 recall**. Đó là NFR1 bị tiêu ngân sách mà không test hành
 //! vi nào đỏ.
 
-use std::fs;
-use std::path::{Path, PathBuf};
+
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, is_inside, src_root};
 
 /// Thư mục sở hữu cài đặt khớp ngôn ngữ. Không phải một danh sách miễn trừ — đây là
 /// **phạm vi**.
@@ -122,75 +125,9 @@ fn contains_forbidden_token(code: &str, needle: &str) -> bool {
     false
 }
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp — bài học NFR14 ở
-/// `store_boundary.rs:68-73`: `starts_with` trên Windows so với `core\matching` và
-/// **không bao giờ khớp**, nên cổng quét 0 tệp và chỉ đỏ trên **một** nhánh của ma
-/// trận CI.
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata`: `metadata` giải symlink, nên một
-        // liên kết trỏ về thư mục cha làm đệ quy không dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX.
 fn src_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-/// Dòng mã, không phải dòng comment.
-///
-/// ⚠️ Chỉ dòng bắt đầu bằng `//` được bỏ qua — cùng luật với `store_boundary.rs:155` và
-/// `dict_boundary.rs:172`, và vì cùng một lý do: doc-comment của `core/matching/mod.rs`
-/// **giải thích** vì sao `dict/` không gọi nó, kèm số đo, và một cổng đỏ trên chính
-/// câu giải thích luật nó canh là một cổng bị gỡ trong tuần.
-///
-/// Comment đuôi dòng (`… jieba …; // ghi chú`) vẫn bị bắt, vì phần mã vẫn ở đầu dòng.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines()
-        .enumerate()
-        .map(|(index, line)| (index + 1, line.trim_start()))
-        .filter(|(_, code)| !code.starts_with("//"))
+    boundary_scan::rust_sources(&src_root())
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -212,7 +149,7 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 
     let matching = files
         .iter()
-        .filter(|(rel, _)| rel.starts_with(MATCHING_DIR))
+        .filter(|(rel, _)| is_inside(rel, MATCHING_DIR))
         .count();
     assert!(
         matching >= MATCHING_FLOOR,
@@ -233,12 +170,12 @@ fn only_the_matching_module_ever_names_the_two_language_crates() {
 
     let mut violations: Vec<String> = Vec::new();
     for (rel, text) in &files {
-        if rel.starts_with(MATCHING_DIR) {
+        if is_inside(rel, MATCHING_DIR) {
             continue;
         }
         for (line_no, code) in code_lines(text) {
             for needle in MATCHING_ONLY_CRATES {
-                if contains_forbidden_token(code, needle) {
+                if contains_forbidden_token(&code, needle) {
                     violations.push(format!("{rel}:{line_no}  {needle}  |  {code}"));
                 }
             }
@@ -269,7 +206,7 @@ fn only_the_matching_module_ever_names_the_two_language_crates() {
 fn the_matching_module_actually_uses_both_language_crates() {
     let all: String = src_sources()
         .into_iter()
-        .filter(|(rel, _)| rel.starts_with(MATCHING_DIR))
+        .filter(|(rel, _)| is_inside(rel, MATCHING_DIR))
         .map(|(_, text)| text)
         .collect::<Vec<_>>()
         .join("\n");
@@ -296,7 +233,7 @@ fn the_dictionary_lookup_path_never_calls_the_matcher() {
 
     let dict_files = files
         .iter()
-        .filter(|(rel, _)| rel.starts_with("core/dict"))
+        .filter(|(rel, _)| is_inside(rel, "core/dict"))
         .count();
     assert!(
         dict_files >= 1,
@@ -306,12 +243,12 @@ fn the_dictionary_lookup_path_never_calls_the_matcher() {
 
     let mut violations: Vec<String> = Vec::new();
     for (rel, text) in &files {
-        if !rel.starts_with("core/dict") {
+        if !is_inside(rel, "core/dict") {
             continue;
         }
         for (line_no, code) in code_lines(text) {
             for needle in DICT_FORBIDDEN {
-                if contains_forbidden_token(code, needle) {
+                if contains_forbidden_token(&code, needle) {
                     violations.push(format!("{rel}:{line_no}  {needle}  |  {code}"));
                 }
             }
@@ -358,12 +295,12 @@ fn the_matching_module_is_a_leaf_in_the_dependency_graph() {
 
     let mut violations: Vec<String> = Vec::new();
     for (rel, text) in &files {
-        if !rel.starts_with(MATCHING_DIR) {
+        if !is_inside(rel, MATCHING_DIR) {
             continue;
         }
         for (line_no, code) in code_lines(text) {
             for needle in MATCHING_FORBIDDEN_USES {
-                if contains_forbidden_token(code, needle) {
+                if contains_forbidden_token(&code, needle) {
                     violations.push(format!("{rel}:{line_no}  {needle}  |  {code}"));
                 }
             }
@@ -411,7 +348,7 @@ fn the_matching_module_never_guesses_the_language_from_the_content() {
     let files = src_sources();
     let mut violations: Vec<String> = Vec::new();
     for (rel, text) in &files {
-        if !rel.starts_with(MATCHING_DIR) {
+        if !is_inside(rel, MATCHING_DIR) {
             continue;
         }
         for (line_no, code) in code_lines(text) {
@@ -491,7 +428,7 @@ fn the_jieba_dictionary_is_constructed_at_exactly_one_place() {
     );
 
     assert!(
-        sites[0].starts_with(MATCHING_DIR),
+        is_inside(&sites[0], MATCHING_DIR),
         "điểm khởi tạo `Jieba` nằm ở {} — chờ nó ở dưới `{MATCHING_DIR}/`",
         sites[0]
     );
@@ -507,7 +444,7 @@ fn the_jieba_dictionary_is_constructed_at_exactly_one_place() {
 fn the_single_jieba_instance_is_actually_lazily_initialised_once() {
     let all: String = src_sources()
         .into_iter()
-        .filter(|(rel, _)| rel.starts_with(MATCHING_DIR))
+        .filter(|(rel, _)| is_inside(rel, MATCHING_DIR))
         .map(|(_, text)| text)
         .collect::<Vec<_>>()
         .join("\n");

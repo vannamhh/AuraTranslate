@@ -33,6 +33,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::is_inside;
+
 /// Thư mục DUY NHẤT được phép nhắc tới `rusqlite`.
 const STORE_DIR: &str = "core/store";
 
@@ -69,50 +74,19 @@ const RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT
 const FORBIDDEN: [&str; 2] = ["rusqlite", "Connection::open"];
 
 fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
+    boundary_scan::src_root()
 }
 
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp: `starts_with(STORE_DIR)`
-/// trên Windows so với `core\store` và **không bao giờ khớp**, nên miễn trừ biến mất và
-/// mọi tệp của chính `core::store` bị báo vi phạm — một test đỏ **chỉ trên một nhánh**
-/// của ma trận, đúng lớp lỗi NFR14.
 fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta = fs::symlink_metadata(&path)
-            .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata`: cùng bài học với `check-i18n.mjs:155-160`.
-        // `metadata` giải symlink, nên một liên kết trỏ về thư mục cha làm đệ quy không
-        // dừng. Symlink bị bỏ qua — cây hiện không có cái nào, và nếu có thì sàn tệp bên
-        // dưới là thứ bắt được việc đó.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
+    boundary_scan::rel_posix(root, file)
 }
 
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
+    let files = boundary_scan::rust_sources(&root)
+        .into_iter()
+        .map(|(rel, _)| root.join(rel))
+        .collect();
     (root, files)
 }
 
@@ -139,7 +113,7 @@ fn only_core_store_may_name_rusqlite() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if rel.starts_with(STORE_DIR) {
+        if is_inside(&rel, STORE_DIR) {
             store_files += 1;
             continue;
         }
@@ -147,25 +121,10 @@ fn only_core_store_may_name_rusqlite() {
         let text = fs::read_to_string(file)
             .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
 
-        for (index, line) in text.lines().enumerate() {
-            let code = line.trim_start();
-
-            // ⚠️ Dòng comment **không** phải vi phạm — cùng luật mà `check-i18n.mjs` Kiểm A
-            // áp cho chuỗi tiếng Việt, và vì cùng một lý do: `core/dict/mod.rs:6` ghi
-            // *"crate dành cho module này: `rusqlite` — dùng chung cài đặt với
-            // `core::store`"*, và đó là **tài liệu về một ranh giới**, không phải một lời
-            // gọi vượt qua nó. Một cổng đỏ trên câu giải thích chính luật nó canh là một
-            // cổng bị gỡ trong tuần.
-            //
-            // Chỉ dòng bắt đầu bằng `//` được bỏ qua. Comment đuôi dòng
-            // (`Connection::open(p); // ghi chú`) vẫn bị bắt, vì phần mã vẫn ở đầu dòng.
-            if code.starts_with("//") {
-                continue;
-            }
-
+        for (index, code) in boundary_scan::code_lines(&text) {
             for needle in FORBIDDEN {
                 if code.contains(needle) {
-                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                    violations.push(format!("{rel}:{index}  {needle}  |  {code}"));
                 }
             }
         }
@@ -203,7 +162,7 @@ fn core_store_actually_uses_rusqlite() {
 
     let hits = files
         .iter()
-        .filter(|f| rel_posix(&root, f).starts_with(STORE_DIR))
+        .filter(|f| is_inside(&rel_posix(&root, f), STORE_DIR))
         .filter(|f| {
             fs::read_to_string(f)
                 .map(|t| t.contains("rusqlite"))
@@ -232,20 +191,14 @@ fn core_store_does_not_depend_on_tauri() {
     let mut violations = Vec::new();
     for file in &files {
         let rel = rel_posix(&root, file);
-        if !rel.starts_with(STORE_DIR) {
+        if !is_inside(&rel, STORE_DIR) {
             continue;
         }
         let text = fs::read_to_string(file)
             .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-        for (index, line) in text.lines().enumerate() {
-            let code = line.trim_start();
-            // Chỉ vị trí MÃ. Doc-comment của module nói về `app.path().app_data_dir()`
-            // đúng như nó phải nói, và đó không phải một phụ thuộc.
-            if code.starts_with("//") {
-                continue;
-            }
+        for (index, code) in boundary_scan::code_lines(&text) {
             if code.contains("use tauri") || code.contains("tauri::") {
-                violations.push(format!("{rel}:{}  {}", index + 1, code));
+                violations.push(format!("{rel}:{index}  {code}"));
             }
         }
     }

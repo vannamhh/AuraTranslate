@@ -16,86 +16,19 @@
 //! `webimport_boundary.rs`/`cleanup_boundary.rs`.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, src_root};
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ mọi `*_boundary.rs` khác.
 /// Story 6.12 thêm `core/docx/mod.rs`, nên số thật chỉ TĂNG — sàn cũ (50,
 /// `webimport_boundary.rs`) vẫn đúng, không hạ.
 const SRC_RS_FLOOR: usize = 50;
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root).unwrap_or(file).to_string_lossy().replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-        // ⚠️ `symlink_metadata`, không `metadata` — một liên kết trỏ về thư mục cha làm đệ
-        // quy không dừng (bài học các tệp `*_boundary.rs` khác).
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 fn all_rust_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-/// Dòng KHÔNG phải chú thích — cùng khuôn `webimport_boundary.rs::code_lines`.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines().enumerate().map(|(index, line)| (index + 1, line.trim_start())).filter(|(_, code)| {
-        !code.is_empty()
-            && !code.starts_with("//")
-            && !code.starts_with("///")
-            && !code.starts_with("/*")
-            && !code.starts_with("* ")
-            && !code.starts_with("*/")
-    })
-}
-
-/// Cắt `text` tại dòng ĐẦU TIÊN mà, sau khi trim, khớp NGUYÊN VĂN `#[cfg(test)]` — trả phần
-/// TRƯỚC dòng đó. Neo THEO DÒNG, không phải `str::find` trên toàn văn bản (cùng bài học
-/// `webimport_boundary.rs::text_before_first_cfg_test_line`) — mã sản phẩm là thứ hai mệnh đề
-/// này ràng buộc; mã test trong cùng tệp thì không (một fixture test tự dựng gieo `.unwrap()`
-/// không được làm cổng đỏ oan).
-fn text_before_first_cfg_test_line(text: &str) -> &str {
-    let mut end = text.len();
-    let mut offset = 0usize;
-    for line in text.split_inclusive('\n') {
-        if line.trim() == "#[cfg(test)]" {
-            end = offset;
-            break;
-        }
-        offset += line.len();
-    }
-    &text[..end]
+    boundary_scan::rust_sources(&src_root())
 }
 
 /// `haystack` mang `needle` như một TỪ trọn vẹn — cùng khuôn `webimport_boundary.rs::contains_word`.
@@ -157,8 +90,7 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 fn pointing_the_scan_root_at_an_empty_directory_yields_zero_files_not_a_silent_green() {
     let empty = std::env::temp_dir().join(format!("docx_boundary_empty_probe_{}", std::process::id()));
     fs::create_dir_all(&empty).unwrap_or_else(|e| panic!("tạo {}: {e}", empty.display()));
-    let mut files = Vec::new();
-    walk(&empty, &mut files);
+    let files = boundary_scan::rust_sources(&empty);
     assert_eq!(files.len(), 0, "thư mục vừa tạo phải rỗng — nếu không, phép đo bên dưới vô nghĩa");
     let _ = fs::remove_dir_all(&empty);
 }
@@ -172,7 +104,7 @@ const NETWORK_TOKENS: [&str; 4] = ["reqwest", "TcpStream", "http://", "https://"
 #[test]
 fn docx_module_carries_zero_lines_naming_a_network_client_or_a_literal_url_scheme() {
     let text = text_of(DOCX_MODULE);
-    let offenders: Vec<String> = code_lines(text_before_first_cfg_test_line(&text))
+    let offenders: Vec<String> = code_lines(&boundary_scan::without_test_modules(&text))
         .filter(|(_, code)| line_names_any_forbidden_token(code, &NETWORK_TOKENS))
         .map(|(line, code)| format!("{DOCX_MODULE}:{line}  {code}"))
         .collect();
@@ -251,7 +183,7 @@ fn line_has_a_panic_point(code: &str) -> bool {
 #[test]
 fn docx_module_carries_zero_panic_points_in_product_code() {
     let text = text_of(DOCX_MODULE);
-    let offenders: Vec<String> = code_lines(text_before_first_cfg_test_line(&text))
+    let offenders: Vec<String> = code_lines(&boundary_scan::without_test_modules(&text))
         .filter(|(_, code)| line_has_a_panic_point(code))
         .map(|(line, code)| format!("{DOCX_MODULE}:{line}  {code}"))
         .collect();
@@ -293,7 +225,7 @@ fn the_panic_point_check_would_actually_flag_seeded_violations_and_ignore_clean_
 #[test]
 fn a_forbidden_token_seeded_only_inside_a_cfg_test_block_is_not_counted_against_the_product_code() {
     let seeded = "fn read() {}\n#[cfg(test)]\nmod tests {\n    fn x() { let v = data[0]; let _ = v.unwrap(); }\n}\n";
-    let offenders: Vec<&str> = code_lines(text_before_first_cfg_test_line(seeded))
+    let offenders: Vec<String> = code_lines(&boundary_scan::without_test_modules(seeded))
         .filter(|(_, code)| line_has_a_panic_point(code))
         .map(|(_, code)| code)
         .collect();
@@ -304,25 +236,8 @@ fn a_forbidden_token_seeded_only_inside_a_cfg_test_block_is_not_counted_against_
     );
     let product = "fn read() { let v = data[0]; }\n";
     assert_eq!(
-        code_lines(text_before_first_cfg_test_line(product)).filter(|(_, code)| line_has_a_panic_point(code)).count(),
+        code_lines(&boundary_scan::without_test_modules(product)).filter(|(_, code)| line_has_a_panic_point(code)).count(),
         1,
         "cùng token đó ở mã SẢN PHẨM phải bị bắt — phép cắt không được nuốt luôn thứ cần canh"
     );
-}
-
-#[test]
-fn text_before_first_cfg_test_line_is_not_fooled_by_a_comment_mentioning_the_attribute() {
-    let text = "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n#[cfg(test)]\nmod tests {}\n";
-    let got = text_before_first_cfg_test_line(text);
-    assert_eq!(
-        got, "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n",
-        "phai cat tai DONG khop NGUYEN VAN `#[cfg(test)]`, khong cat som tai dong chu thich \
-         chi NHAC LAI chuoi do"
-    );
-}
-
-#[test]
-fn text_before_first_cfg_test_line_returns_the_whole_text_when_there_is_no_such_line() {
-    let text = "fn a() {}\nfn b() {}\n";
-    assert_eq!(text_before_first_cfg_test_line(text), text);
 }

@@ -55,8 +55,12 @@
 //! gốc quét sai hay một thư mục bị cắt làm `walk` khớp 0 tệp, và khi đó MỌI phép kiểm
 //! dưới đây xanh mà không kiểm gì cả — kể cả phép kiểm ranh giới thật.
 
-use std::fs;
 use std::path::{Path, PathBuf};
+
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, rel_posix, src_root};
 
 /// Thư mục DUY NHẤT được phép gọi bộ truy cập giá trị thật của khoá API.
 const AICONFIG_DIR: &str = "core/aiconfig";
@@ -86,67 +90,9 @@ const SRC_RS_FLOOR: usize = 70;
 /// cả câu `use` đặt tên `read` (xem §GIỚI HẠN THẬT đầu tệp) lẫn một lời gọi đủ điều kiện.
 const FORBIDDEN_RAW_VALUE_TOKENS: [&str; 2] = ["expose_secret", "keychain::read"];
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng — cùng lý do NFR14 mà
-/// `ai_boundary.rs::rel_posix`/`glossary_boundary.rs::rel_posix` đã ghi.
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata` — cùng lý do các `*_boundary.rs` khác:
-        // `metadata` giải symlink, nên một liên kết trỏ về thư mục cha làm đệ quy không
-        // dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-/// Dòng **mã** của một khối văn bản: `(số dòng 1-based, nội dung đã trim đầu)` — chỉ dòng
-/// bắt đầu bằng `//` bị bỏ qua, đúng luật mọi tệp `*_boundary.rs` khác áp. Comment đuôi
-/// dòng vẫn bị bắt vì phần mã vẫn ở đầu dòng.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines()
-        .enumerate()
-        .map(|(index, line)| (index + 1, line.trim_start()))
-        .filter(|(_, code)| !code.starts_with("//"))
+    boundary_scan::rust_sources(&src_root())
 }
 
 /// `code` mang một trong hai [`FORBIDDEN_RAW_VALUE_TOKENS`] — vị từ THUẦN, dùng bởi CẢ
@@ -222,7 +168,7 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
 /// `rel.starts_with(AICONFIG_DIR)` trần sẽ miễn trừ im lặng một thư mục anh em như
 /// `core/aiconfig2/` hay `core/aiconfig_legacy/`.
 fn is_inside_aiconfig_module(rel: &str) -> bool {
-    rel == AICONFIG_DIR || rel.starts_with(&format!("{AICONFIG_DIR}/"))
+    boundary_scan::is_inside(rel, AICONFIG_DIR)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -310,7 +256,7 @@ fn no_file_outside_core_aiconfig_calls_the_raw_value_accessor_of_the_api_key() {
             continue;
         }
         for (line, code) in code_lines(text) {
-            if let Some(needle) = line_names_a_forbidden_raw_value_access(code) {
+            if let Some(needle) = line_names_a_forbidden_raw_value_access(&code) {
                 violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
             }
         }
@@ -388,13 +334,13 @@ fn the_raw_value_accessor_check_would_actually_flag_a_seeded_violation_and_ignor
     let synthetic = "// secret.expose_secret() se duoc goi o Story 4.8\n\
                       fn stub() {}\n\
                       // crate::core::aiconfig::keychain::read() -- vi du trong comment\n";
-    let code_only: Vec<&str> = code_lines(synthetic).map(|(_, code)| code).collect();
+    let code_only: Vec<String> = code_lines(synthetic).map(|(_, code)| code).collect();
     assert!(
         !code_only.iter().any(|code| line_names_a_forbidden_raw_value_access(code).is_some()),
         "hai dong CHU THICH nhac toi token bi cam khong duoc lot vao tap DONG MA"
     );
     assert!(
-        code_only.contains(&"fn stub() {}"),
+        code_only.iter().any(|code| code == "fn stub() {}"),
         "dong MA that su (khong phai comment) phai con lai sau code_lines"
     );
 }

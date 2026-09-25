@@ -36,6 +36,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::is_inside;
+
 /// Thư mục DUY NHẤT được phép mang tên bảng `glossary_entry`/`glossary_candidate` bằng mã
 /// sản phẩm SQL (`insert`/`select`/`update` thật).
 const GLOSSARY_DIR: &str = "core/glossary";
@@ -251,64 +256,27 @@ fn line_spells_a_non_manual_term_origin_token(code: &str) -> Option<&'static str
 }
 
 fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
+    boundary_scan::src_root()
 }
 
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp — cùng lý do
-/// `scope_boundary.rs::rel_posix`: `starts_with(GLOSSARY_DIR)` trên Windows so với
-/// `core\glossary` và **không bao giờ khớp**, nên miễn trừ biến mất và mọi tệp của chính
-/// `core::glossary` bị báo vi phạm — một test đỏ **chỉ trên một nhánh** của ma trận, đúng
-/// lớp lỗi NFR14.
 fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata` — cùng lý do `scope_boundary.rs::walk`:
-        // `metadata` giải symlink, nên một liên kết trỏ về thư mục cha làm đệ quy không dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
+    boundary_scan::rel_posix(root, file)
 }
 
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
+    let files = boundary_scan::rust_sources(&root)
+        .into_iter()
+        .map(|(rel, _)| root.join(rel))
+        .collect();
     (root, files)
 }
 
 /// Dòng **mã** của một tệp: `(số dòng 1-based, nội dung đã trim đầu)`.
-///
-/// ⚠️ Chỉ dòng bắt đầu bằng `//` được bỏ qua, đúng luật `scope_boundary.rs::code_lines` áp
-/// và `check-i18n.mjs` Kiểm A áp — Comment đuôi dòng vẫn bị bắt vì phần mã vẫn ở đầu dòng.
 fn code_lines(file: &Path) -> Vec<(usize, String)> {
     let text =
         fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-    text.lines()
-        .enumerate()
-        .map(|(i, l)| (i + 1, l.trim_start().to_owned()))
-        .filter(|(_, code)| !code.starts_with("//"))
-        .collect()
+    boundary_scan::code_lines(&text).collect()
 }
 
 /// Sàn quần thể — chạy trước mọi phép kiểm khác. Xem doc-comment đầu tệp.
@@ -340,7 +308,7 @@ fn only_glossary_and_schema_may_name_glossary_tables() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if rel.starts_with(GLOSSARY_DIR) || rel == SCHEMA_FILE {
+        if is_inside(&rel, GLOSSARY_DIR) || rel == SCHEMA_FILE {
             allowed_files += 1;
             continue;
         }
@@ -390,7 +358,7 @@ fn core_glossary_actually_names_both_glossary_tables() {
     for needle in FORBIDDEN_TABLES {
         let hits = files
             .iter()
-            .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+            .filter(|f| is_inside(&rel_posix(&root, f), GLOSSARY_DIR))
             .filter(|f| {
                 fs::read_to_string(f)
                     .map(|t| t.contains(needle))
@@ -453,7 +421,7 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if rel.starts_with(GLOSSARY_DIR) {
+        if is_inside(&rel, GLOSSARY_DIR) {
             continue;
         }
 
@@ -487,7 +455,7 @@ fn core_glossary_actually_defines_the_restricted_surface() {
     for needle in GLOSSARY_ONLY_SURFACE {
         let hit = files
             .iter()
-            .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+            .filter(|f| is_inside(&rel_posix(&root, f), GLOSSARY_DIR))
             .any(|f| {
                 fs::read_to_string(f)
                     .map(|t| t.contains(needle))
@@ -530,7 +498,7 @@ fn only_core_glossary_may_spell_the_non_manual_term_origin_tokens() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if rel.starts_with(GLOSSARY_DIR) {
+        if is_inside(&rel, GLOSSARY_DIR) {
             continue;
         }
 
@@ -624,7 +592,7 @@ fn core_glossary_actually_spells_every_non_manual_origin_token() {
     for needle in NON_MANUAL_ORIGIN_TOKENS {
         let hits = files
             .iter()
-            .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+            .filter(|f| is_inside(&rel_posix(&root, f), GLOSSARY_DIR))
             .filter(|f| {
                 fs::read_to_string(f)
                     .map(|t| t.contains(needle))
@@ -749,7 +717,7 @@ fn zero_scan_functions_under_core_glossary_accept_a_bool_dictionary_callback() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if !rel.starts_with(GLOSSARY_DIR) {
+        if !is_inside(&rel, GLOSSARY_DIR) {
             continue;
         }
         for (line, code) in code_lines(file) {
@@ -780,7 +748,7 @@ fn core_glossary_still_defines_the_three_state_dictionary_probe() {
     let (root, files) = all_rust_sources();
     let hit = files
         .iter()
-        .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+        .filter(|f| is_inside(&rel_posix(&root, f), GLOSSARY_DIR))
         .any(|f| {
             fs::read_to_string(f)
                 .map(|t| t.contains("enum DictionaryProbe"))

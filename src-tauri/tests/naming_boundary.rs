@@ -80,8 +80,8 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 HAI CÂY NGUỒN, HAI CÁCH BỎ COMMENT — VÌ SAO KHÔNG DÙNG CHUNG MỘT HÀM
 //! ─────────────────────────────────────────────────────────────────────────────
-//! Bốn tệp `*_boundary.rs` khác chỉ bỏ dòng bắt đầu bằng `//`, và điều đó ĐÚNG cho
-//! `src-tauri/src/**`: kho không dùng khối `/* … */` một lần nào (đo 2026-08-27, 0 chỗ). Cây
+//! Các tệp `*_boundary.rs` khác dùng chung `boundary_scan::code_lines`, bỏ cả `//` lẫn khối
+//! `/* … */` cho `src-tauri/src/**`. Cây
 //! `src/**` thì khác — riêng `GridPanel.vue` mang **886** dòng bắt đầu bằng ` * ` (khối
 //! JSDoc). Một bộ lọc chỉ-`//` để lọt nguyên văn dòng `GridPanel.vue:578`
 //! (*"… của `Document`, nên …"*) vào tập DÒNG MÃ và báo ĐỎ OAN trên một câu giải thích, không

@@ -14,10 +14,13 @@
 //!
 //! Sàn quần thể + kiểm chứng dương là bắt buộc, khuôn `segment_pipeline_boundary.rs`.
 
-use std::fs;
-use std::path::{Path, PathBuf};
 
 use auratranslate_lib::core::segment::encoding::FR126_LABELS;
+
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, is_inside, src_root};
 
 const WEBIMPORT_DIR: &str = "core/webimport";
 
@@ -26,59 +29,8 @@ const WEBIMPORT_DIR: &str = "core/webimport";
 /// nên số thật chỉ TĂNG — sàn cũ (50, ~80,6%) vẫn đúng, không hạ.
 const SRC_RS_FLOOR: usize = 50;
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root).unwrap_or(file).to_string_lossy().replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 fn all_rust_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    // 🔴 SỬA (vòng rà đối kháng 2, mục 17) — bản trước KHÔNG loại dòng TRẮNG (chuỗi rỗng sau
-    // `trim_start`), nên `webimport_code_lines == 0` xanh chỉ vì tệp đó TÌNH CỜ không có
-    // dòng trắng nào: thêm một dòng trắng làm cổng ĐỎ vì lý do SAI (dòng trắng không phải
-    // mã), còn XOÁ HẲN tệp lại làm cổng XANH vì lý do SAI (không phải vì 0 dòng mã, mà vì 0
-    // tệp nào được quét — xem sàn quần thể THEO THƯ MỤC ngay dưới, đóng vế thứ hai).
-    text.lines()
-        .enumerate()
-        .map(|(index, line)| (index + 1, line.trim_start()))
-        .filter(|(_, code)| !code.is_empty() && !code.starts_with("//") && !code.starts_with("///"))
+    boundary_scan::rust_sources(&src_root())
 }
 
 /// `code` nêu tên `chardetng` — vị từ THUẦN, dùng bởi CẢ cổng thật lẫn đối chứng dương.
@@ -129,7 +81,7 @@ fn chardetng_is_named_in_exactly_one_product_file_inside_core_segment() {
     for (rel, text) in &files {
         let mut hit_here = false;
         for (line, code) in code_lines(text) {
-            if line_names_chardetng(code) {
+            if line_names_chardetng(&code) {
                 sites.push(format!("{rel}:{line}  {code}"));
                 hit_here = true;
             }
@@ -166,7 +118,7 @@ fn chardetng_is_named_in_exactly_one_product_file_inside_core_segment() {
     // điều này chỉ vì nó kiểm NHIỀU HƠN mức cần (0 dòng mã nói riêng ⇒ 0 dòng gõ `chardetng`
     // nói chung), và phần "nhiều hơn" đó nay sai với thực tế đã ký (Story 6.7 §Intent).
     let webimport_files: Vec<&(String, String)> =
-        files.iter().filter(|(rel, _)| rel.starts_with(WEBIMPORT_DIR)).collect();
+        files.iter().filter(|(rel, _)| is_inside(rel, WEBIMPORT_DIR)).collect();
     assert!(
         !webimport_files.is_empty(),
         "`core/webimport/` phải có ÍT NHẤT MỘT tệp — 0 tệp làm phép quét ngay dưới xanh một \
@@ -234,7 +186,7 @@ fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_pro
     let mut sites: Vec<String> = Vec::new();
     for (rel, text) in &files {
         for (line, code) in code_lines(text) {
-            if line_calls_create_work(code) {
+            if line_calls_create_work(&code) {
                 sites.push(format!("{rel}:{line}  {code}"));
             }
         }

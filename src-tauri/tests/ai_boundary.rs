@@ -54,6 +54,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, rel_posix, src_root};
+
 /// Thư mục DUY NHẤT được phép mang từ vựng của module `ai/` (AD-13).
 const AI_DIR: &str = "core/ai";
 
@@ -517,77 +522,9 @@ fn ai_client_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_n
     );
 }
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp — cùng bài học NFR14 mà
-/// `scope_boundary.rs::rel_posix`/`matching_boundary.rs::rel_posix` đã ghi: `starts_with(AI_DIR)`
-/// trên Windows so với `core\ai` và KHÔNG BAO GIỜ khớp, nên miễn trừ biến mất và chính
-/// `core/ai/mod.rs` tự tố cáo mình là vi phạm — một test đỏ chỉ trên MỘT nhánh của ma trận CI.
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata`: `metadata` giải symlink, nên một liên
-        // kết trỏ về thư mục cha làm đệ quy không dừng. Cùng bài học các tệp `*_boundary.rs`
-        // khác đã ghi.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-/// Dòng **mã** của một khối văn bản: `(số dòng 1-based, nội dung đã trim đầu)`.
-///
-/// ⚠️ Chỉ dòng bắt đầu bằng `//` được bỏ qua, đúng luật mà mọi tệp `*_boundary.rs` khác áp:
-/// một doc-comment GIẢI THÍCH một ranh giới không phải một lời gọi vượt qua nó. Nhận `&str`
-/// thay vì một đường dẫn tệp (khác `scope_boundary.rs`, giống `matching_boundary.rs`) có chủ
-/// ý: đây là hàm DUY NHẤT mà cả phép quét cây thật LẪN ca gieo vi phạm tổng hợp bên dưới
-/// cùng gọi — hai bên không thể lệch nhau bằng cách tự lặp lại logic đọc-dòng ở hai chỗ.
-///
-/// **Comment đuôi dòng vẫn bị bắt** — phần mã vẫn ở đầu dòng.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines()
-        .enumerate()
-        .map(|(index, line)| (index + 1, line.trim_start()))
-        .filter(|(_, code)| !code.starts_with("//"))
+    boundary_scan::rust_sources(&src_root())
 }
 
 /// `code` mang một trong hai [`FORBIDDEN_BARE_TOKENS`] — vị từ THUẦN, dùng bởi CẢ cổng thật
@@ -628,7 +565,7 @@ fn line_names_a_forbidden_ai_dependency(code: &str) -> Option<&'static str> {
 /// xanh trên một AD-13 đã bị phá — và trong đúng một epic tên `ai`, một thư mục anh em bắt
 /// đầu bằng "ai" là chuyện dễ xảy ra, không phải một khả năng lý thuyết.
 fn is_inside_ai_module(rel: &str) -> bool {
-    rel == AI_DIR || rel.starts_with(&format!("{AI_DIR}/"))
+    boundary_scan::is_inside(rel, AI_DIR)
 }
 
 /// Phần CÂU LỆNH của một dòng — bỏ chú thích đuôi dòng.
@@ -723,9 +660,9 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
             //
             // 🔴 finding P8 (loop 2), cùng lý luận với nhánh `lib.rs` ở trên -- xoá CHUỖI CON đã
             // duyệt rồi quét PHẦN CÒN LẠI, không `continue` bỏ qua trọn dòng.
-            if line_is_the_approved_ai_prompt_import_in_command_file(rel, code) {
+            if line_is_the_approved_ai_prompt_import_in_command_file(rel, &code) {
                 let remainder =
-                    line_with_marker_occurrences_removed(code, AI_PROMPT_SEAM_COMMAND_FILE_MARKER);
+                    line_with_marker_occurrences_removed(&code, AI_PROMPT_SEAM_COMMAND_FILE_MARKER);
                 if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
                     violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
                 }
@@ -735,9 +672,9 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
             // `core::ai::client`). Cùng lý luận finding P8 ở seam ① ngay trên: XOÁ chuỗi con
             // đã duyệt rồi quét PHẦN CÒN LẠI, không `continue` bỏ qua TRỌN dòng -- một token
             // cấm THỨ HAI đứng cùng dòng với tiền tố đã duyệt vẫn phải bị bắt.
-            if line_is_the_approved_ai_translate_import_in_command_file(rel, code) {
+            if line_is_the_approved_ai_translate_import_in_command_file(rel, &code) {
                 let remainder = line_with_marker_occurrences_removed(
-                    code,
+                    &code,
                     AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER,
                 );
                 if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
@@ -745,7 +682,7 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
                 }
                 continue;
             }
-            if let Some(needle) = line_names_a_forbidden_ai_dependency(code) {
+            if let Some(needle) = line_names_a_forbidden_ai_dependency(&code) {
                 violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
             }
         }
@@ -829,7 +766,7 @@ fn the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_c
     let synthetic = "// core::ai sẽ được gọi ở đây khi Epic 4 tới lượt\n\
                       fn stub() {}\n\
                       // crate::core::ai::build_prompt() -- vi du trong comment, khong phai ma\n";
-    let code_only: Vec<&str> = code_lines(synthetic).map(|(_, code)| code).collect();
+    let code_only: Vec<String> = code_lines(synthetic).map(|(_, code)| code).collect();
     assert!(
         !code_only.iter().any(|code| line_names_a_forbidden_ai_dependency(code).is_some()),
         "hai dong CHU THICH nhac toi token bi cam khong duoc lot vao tap DONG MA -- \
@@ -837,7 +774,7 @@ fn the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_c
     );
     // Và một chuỗi sạch còn lại sau khi lọc (dòng `fn stub() {}`) đúng là thứ vẫn ở lại.
     assert!(
-        code_only.contains(&"fn stub() {}"),
+        code_only.iter().any(|code| code == "fn stub() {}"),
         "dong MA that su (khong phai comment) phai con lai sau `code_lines`"
     );
 }
@@ -869,7 +806,7 @@ fn core_mod_rs_declares_the_ai_module_bare_with_no_reexport() {
         // bản đầu so `code == "pub mod ai;"` nguyên văn, nên một lượt sửa vô hại như
         // `pub mod ai; // AD-13` làm `found_bare_decl` ở lại `false` và ca báo ĐỎ OAN rằng
         // khai bao da bien mat.
-        let stmt = statement_of(code);
+        let stmt = statement_of(&code);
         if stmt == "pub mod ai;" {
             found_bare_decl = true;
         }
@@ -1049,7 +986,7 @@ const ALLOWED_GLOSSARY_NAMES_UNDER_AI: [&str; 5] = [
 fn joined_code(text: &str) -> String {
     let mut out = String::new();
     for (_, line) in code_lines(text) {
-        out.push_str(line);
+        out.push_str(&line);
         out.push('\n');
     }
     out
@@ -1073,12 +1010,6 @@ fn is_ident_char(c: char) -> bool {
 ///   phải bí danh một tên) làm chuỗi `glossary::` biến mất khỏi chính lời gọi sau đó. Không
 ///   tệp nào trong cây hôm nay viết vậy; nếu có ngày nào đó viết, đây là một khoảng trống có
 ///   tên, không phải một khoảng trống bị giấu.
-/// - `joined` (qua [`joined_code`]/[`code_lines`]) chỉ bỏ dòng MÃ bắt đầu bằng `//` — một
-///   chú thích ĐUÔI DÒNG (`let x = 1; // glossary::load_tier`) hay một khối `/* … */` nhắc
-///   tên cấm vẫn còn nguyên trong `joined`, nên gate THẬT ([`no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four`])
-///   sẽ đỏ KHÔNG VÌ MỘT VI PHẠM THẬT — một đỏ OAN, không phải một đỏ bỏ sót. Cùng giới hạn
-///   `code_lines` đã mang từ mọi tệp `*_boundary.rs` khác trong kho; sửa đòi một bộ tách
-///   chú thích thật (không còn là so chuỗi), ngoài phạm vi rà soát này.
 /// - Một nhóm LỒNG (`use …::{a, b::{c}}`) dừng ở dấu `}` ĐẦU TIÊN gặp được — `inner` sẽ chỉ
 ///   là `"a, b::{c"`, thiếu dấu đóng của nhóm ngoài; hình dạng này không xuất hiện trong kho
 ///   hôm nay (Glossary tái xuất phẳng ở gốc module, không lồng theo `store::{...}`), nên đây

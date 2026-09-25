@@ -8,6 +8,10 @@
 use std::fs;
 use std::path::PathBuf;
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -770,34 +774,12 @@ fn the_e2e_runner_and_the_rust_side_name_the_same_variables() {
 // ─────────────────────────────────────────────────────────────────────────────────
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, đường dẫn tuyệt đối.
-///
-/// ⚠️ Bản chép tối giản của `glossary_boundary.rs::walk`/`all_rust_sources` — tệp này
-/// không có sẵn một cây quét, và dựng lại đúng khuôn đó (đệ quy, bỏ symlink) là chỗ rẻ
-/// nhất để không phụ thuộc chéo giữa hai tệp test.
 fn all_src_rust_files() -> Vec<PathBuf> {
-    fn walk(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
-        let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("doc {}: {e}", dir.display()));
-        for entry in entries {
-            let entry = entry.unwrap_or_else(|e| panic!("duyet {}: {e}", dir.display()));
-            let path = entry.path();
-            let meta = fs::symlink_metadata(&path)
-                .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-            if meta.file_type().is_symlink() {
-                continue;
-            }
-            if meta.is_dir() {
-                walk(&path, out);
-            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-                out.push(path);
-            }
-        }
-    }
-
     let root = manifest_dir().join("src");
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-    files
+    boundary_scan::rust_sources(&root)
+        .into_iter()
+        .map(|(rel, _)| root.join(rel))
+        .collect()
 }
 
 /// 🔴 **`tauri_plugin_dialog::init()` PHẢI được đăng ký, và `tauri_plugin_fs::init()` PHẢI

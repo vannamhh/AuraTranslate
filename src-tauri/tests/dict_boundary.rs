@@ -24,6 +24,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::is_inside;
+
 /// Thư mục được quét. Không phải một danh sách miễn trừ — đây là **phạm vi**.
 const DICT_DIR: &str = "core/dict";
 
@@ -101,56 +106,17 @@ fn contains_forbidden_token(code: &str, needle: &str) -> bool {
 }
 
 fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
+    boundary_scan::src_root()
 }
 
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp — bài học NFR14 ở
-/// `store_boundary.rs:68-73`: `starts_with` trên Windows so với `core\dict` và **không
-/// bao giờ khớp**, nên cổng quét 0 tệp và chỉ đỏ trên **một** nhánh của ma trận CI.
 fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata`: `metadata` giải symlink, nên một liên
-        // kết trỏ về thư mục cha làm đệ quy không dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
+    boundary_scan::rel_posix(root, file)
 }
 
 fn dict_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root.join("core").join("dict"), &mut files);
-    files.sort();
-
-    files
+    boundary_scan::rust_sources(&src_root())
         .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
+        .filter(|(rel, _)| is_inside(rel, DICT_DIR))
         .collect()
 }
 
@@ -351,9 +317,15 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
     const NEEDLE: &str = concat!("fn ", "is_han(");
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut files = Vec::new();
-    walk(&manifest.join("src"), &mut files);
-    walk(&manifest.join("tests"), &mut files);
+    let mut files: Vec<(String, String)> = boundary_scan::rust_sources(&manifest.join("src"))
+        .into_iter()
+        .map(|(rel, text)| (format!("src/{rel}"), text))
+        .collect();
+    files.extend(
+        boundary_scan::rust_sources(&manifest.join("tests"))
+            .into_iter()
+            .map(|(rel, text)| (format!("tests/{rel}"), text)),
+    );
     files.sort();
 
     assert!(
@@ -366,12 +338,8 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 
     let carriers: Vec<String> = files
         .iter()
-        .filter(|file| {
-            fs::read_to_string(file)
-                .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()))
-                .contains(NEEDLE)
-        })
-        .map(|file| rel_posix(&manifest, file))
+        .filter(|(_, text)| text.contains(NEEDLE))
+        .map(|(rel, _)| rel.clone())
         .collect();
 
     assert_eq!(
@@ -452,20 +420,7 @@ const REAL_SOURCE_CODES: [&str; 10] = [
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối POSIX.
 fn src_only_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
+    boundary_scan::rust_sources(&src_root())
 }
 
 /// Sàn quần thể của bốn cổng Story 1.13 — chạy trước chúng.
@@ -740,10 +695,10 @@ fn ports_declare_shape_and_never_open_anything() {
         "PathBuf",
     ];
 
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root.join("ports"), &mut files);
-    files.sort();
+    let files: Vec<(String, String)> = boundary_scan::rust_sources(&src_root())
+        .into_iter()
+        .filter(|(rel, _)| is_inside(rel, "ports"))
+        .collect();
 
     assert!(
         files.len() >= 2,
@@ -754,23 +709,15 @@ fn ports_declare_shape_and_never_open_anything() {
     let mut violations: Vec<String> = Vec::new();
     let mut declares_the_port = false;
 
-    for file in &files {
-        let rel = rel_posix(&root, file);
-        let text =
-            fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-
+    for (rel, text) in &files {
         if text.contains("trait DictionarySource") {
             declares_the_port = true;
         }
 
-        for (index, line) in text.lines().enumerate() {
-            let code = line.trim_start();
-            if code.starts_with("//") {
-                continue;
-            }
+        for (index, code) in boundary_scan::code_lines(text) {
             for needle in FORBIDDEN_IN_PORTS {
-                if contains_forbidden_token(code, needle) {
-                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                if contains_forbidden_token(&code, needle) {
+                    violations.push(format!("{rel}:{index}  {needle}  |  {code}"));
                 }
             }
         }
@@ -959,9 +906,7 @@ fn the_webview_and_the_string_catalog_hardcode_no_source_identity() {
         .join("..")
         .join("src");
 
-    let mut files: Vec<PathBuf> = Vec::new();
-    walk_any(&webview, &mut files);
-    files.sort();
+    let (files, skipped) = boundary_scan::any_sources(&webview);
 
     assert!(
         files.len() >= 30,
@@ -970,21 +915,33 @@ fn the_webview_and_the_string_catalog_hardcode_no_source_identity() {
         files.len()
     );
 
+    // Only `.gitkeep` dotfiles are expected under src/; any other skip means a real source
+    // file silently dropped out of this scan.
+    let non_utf8: Vec<&str> = skipped
+        .iter()
+        .filter(|(_, reason)| matches!(reason, boundary_scan::Skip::NonUtf8))
+        .map(|(rel, _)| rel.as_str())
+        .collect();
+    assert!(
+        non_utf8.is_empty(),
+        "{} tệp dưới `src/**` bị bỏ qua vì không phải UTF-8: {non_utf8:?} — tệp có thể mang \
+         một chỗ viết cứng danh tính nguồn mà phép cấm dưới đây không bao giờ thấy",
+        non_utf8.len()
+    );
+
     // 🔴 Tên tác giả gắn với chỗ giữ `author-grant` trong mockup và trong AC gốc của epic.
     // Nó **không** được xuất hiện ở đâu trong cây webview: `attribution` của chính tệp `.db`
     // là nguồn sự thật duy nhất cho danh tính tác giả.
     const FORBIDDEN_AUTHOR: &str = "Đặng Thế Kiệt";
 
     let mut violations: Vec<String> = Vec::new();
-    for file in &files {
-        let rel = rel_posix(&webview, file);
-        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {rel}: {e}"));
+    for (rel, text) in &files {
         // 🔴 **Che chú thích TRƯỚC khi quét, không lọc theo dòng đầu.** Một khối `<!-- … -->`
         // nhiều dòng có dòng thứ hai **không** bắt đầu bằng `<!--`, nên phép lọc theo dòng
         // để lọt đúng thứ nó định bỏ qua — và cổng đỏ trên chính câu GIẢI THÍCH luật nó
         // canh. Cổng `LIKE` ở trên đã ghi bằng chữ vì sao đó là đường ngắn nhất tới việc
         // cổng bị gỡ.
-        let text = mask_comments(&text);
+        let text = mask_comments(text);
         for (index, line) in text.lines().enumerate() {
             let code = line.trim_start();
             for needle in REAL_SOURCE_CODES {
@@ -1007,25 +964,6 @@ fn the_webview_and_the_string_catalog_hardcode_no_source_identity() {
         violations.len(),
         violations.join("\n")
     );
-}
-
-/// Mọi tệp thường dưới `dir`, bỏ symlink — cùng luật [`walk`], khác ở chỗ không lọc đuôi.
-fn walk_any(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk_any(&path, out);
-        } else {
-            out.push(path);
-        }
-    }
 }
 
 /// Thay mọi ký tự **trong chú thích** bằng khoảng trắng, **giữ nguyên số dòng**.
@@ -1122,15 +1060,9 @@ fn mask_comments(text: &str) -> String {
 // Story 3.7 — cạnh `glossary/ → dict/` LÀ THẬT, chiều ngược lại vẫn KHÔNG tồn tại (AD-36)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Dòng **mã** của một tệp (bỏ dòng bắt đầu bằng `//`) — khuôn
-/// `glossary_boundary.rs::code_lines`, chép lại vì hai tệp test không được `use` chéo nhau.
 fn code_lines_for_dependency_check(file: &Path) -> Vec<(usize, String)> {
     let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-    text.lines()
-        .enumerate()
-        .map(|(i, l)| (i + 1, l.trim_start().to_owned()))
-        .filter(|(_, code)| !code.starts_with("//"))
-        .collect()
+    boundary_scan::code_lines(&text).collect()
 }
 
 /// 🔴 AC "có cạnh `glossary/ → dict/`, không tạo chu trình" là mệnh đề DUY NHẤT của Story
@@ -1146,9 +1078,10 @@ fn code_lines_for_dependency_check(file: &Path) -> Vec<(usize, String)> {
 #[test]
 fn glossary_depends_on_dict_and_the_reverse_edge_still_does_not_exist() {
     let glossary_dir = src_root().join("core").join("glossary");
-    let mut glossary_files = Vec::new();
-    walk(&glossary_dir, &mut glossary_files);
-    glossary_files.sort();
+    let glossary_files: Vec<PathBuf> = boundary_scan::rust_sources(&glossary_dir)
+        .into_iter()
+        .map(|(rel, _)| glossary_dir.join(rel))
+        .collect();
     assert!(
         glossary_files.len() >= 5,
         "chi tim thay {} tep duoi core/glossary/** -- qua nho de la that",
@@ -1168,9 +1101,10 @@ fn glossary_depends_on_dict_and_the_reverse_edge_still_does_not_exist() {
     );
 
     let dict_dir = src_root().join("core").join("dict");
-    let mut dict_files = Vec::new();
-    walk(&dict_dir, &mut dict_files);
-    dict_files.sort();
+    let dict_files: Vec<PathBuf> = boundary_scan::rust_sources(&dict_dir)
+        .into_iter()
+        .map(|(rel, _)| dict_dir.join(rel))
+        .collect();
     assert!(
         dict_files.len() >= 2,
         "chi tim thay {} tep duoi core/dict/** -- qua nho de la that",

@@ -27,6 +27,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::is_inside;
+
 /// Thư mục DUY NHẤT được phép mang bảng chữ cái kết câu.
 const SEGMENT_DIR: &str = "core/segment";
 
@@ -67,7 +72,7 @@ const WEBVIEW_FLOOR: usize = 56;
 const ZH_TERMINATORS: [char; 4] = ['。', '！', '？', '；'];
 
 fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
+    boundary_scan::src_root()
 }
 
 /// Gốc của cây webview — `src/` ở **thư mục kho**, không phải `src-tauri/src/`.
@@ -78,69 +83,27 @@ fn webview_root() -> PathBuf {
         .join("src")
 }
 
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng.
-///
-/// ⚠️ Chuẩn hoá `\` thành `/` là bắt buộc chứ không phải làm đẹp: `starts_with(SEGMENT_DIR)`
-/// trên Windows so với `core\segment` và **không bao giờ khớp**, nên miễn trừ biến mất và
-/// mọi tệp của chính `core::segment` bị báo vi phạm — một test đỏ **chỉ trên một nhánh** của
-/// ma trận, đúng lớp lỗi NFR14.
 fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, extensions: &[&str], out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata`: `metadata` giải symlink, nên một liên kết
-        // trỏ về thư mục cha làm đệ quy không dừng. Cùng bài học `store_boundary.rs`.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, extensions, out);
-        } else if path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| extensions.contains(&e))
-        {
-            out.push(path);
-        }
-    }
-}
-
-fn sources(root: PathBuf, extensions: &[&str]) -> (PathBuf, Vec<PathBuf>) {
-    let mut files = Vec::new();
-    walk(&root, extensions, &mut files);
-    files.sort();
-    (root, files)
+    boundary_scan::rel_posix(root, file)
 }
 
 fn rust_sources() -> (PathBuf, Vec<PathBuf>) {
-    sources(src_root(), &["rs"])
+    let root = src_root();
+    let files = boundary_scan::rust_sources(&root)
+        .into_iter()
+        .map(|(rel, _)| root.join(rel))
+        .collect();
+    (root, files)
 }
 
 fn webview_sources() -> (PathBuf, Vec<PathBuf>) {
-    sources(webview_root(), &["ts", "vue"])
+    let root = webview_root();
+    let files = boundary_scan::paths_with_extensions(&root, &["ts", "vue"]);
+    (root, files)
 }
 
 fn read(file: &Path) -> String {
     fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()))
-}
-
-/// Dòng bắt đầu bằng `//` là **tài liệu về một ranh giới**, không phải một lời gọi vượt qua
-/// nó — cùng luật mà `store_boundary.rs` và `check-i18n.mjs` Kiểm A đều áp, và vì cùng lý do:
-/// một cổng đỏ trên câu giải thích chính luật nó canh là một cổng bị gỡ trong tuần.
-fn is_comment(line: &str) -> bool {
-    let code = line.trim_start();
-    code.starts_with("//") || code.starts_with("* ") || code.starts_with("*/")
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -179,18 +142,15 @@ fn only_core_segment_may_name_the_sentence_terminators() {
 
     for file in &files {
         let rel = rel_posix(&root, file);
-        if rel.starts_with(SEGMENT_DIR) {
+        if is_inside(&rel, SEGMENT_DIR) {
             segment_files += 1;
             continue;
         }
 
-        for (index, line) in read(file).lines().enumerate() {
-            if is_comment(line) {
-                continue;
-            }
+        for (index, code) in boundary_scan::code_lines(&read(file)) {
             for needle in ZH_TERMINATORS {
-                if line.contains(needle) {
-                    violations.push(format!("{rel}:{}  {needle}  |  {}", index + 1, line.trim()));
+                if code.contains(needle) {
+                    violations.push(format!("{rel}:{index}  {needle}  |  {code}"));
                 }
             }
         }
@@ -283,12 +243,9 @@ fn no_webview_file_asks_for_sentence_granularity() {
 fn the_chapter_read_path_never_calls_the_splitter() {
     let text = read(&src_root().join(CHAPTER_READ_FILE));
 
-    let offenders: Vec<String> = text
-        .lines()
-        .enumerate()
-        .filter(|(_, line)| !is_comment(line))
-        .filter(|(_, line)| line.contains("split_source_text") || line.contains("segment::split"))
-        .map(|(index, line)| format!("{CHAPTER_READ_FILE}:{}  {}", index + 1, line.trim()))
+    let offenders: Vec<String> = boundary_scan::code_lines(&text)
+        .filter(|(_, code)| code.contains("split_source_text") || code.contains("segment::split"))
+        .map(|(index, code)| format!("{CHAPTER_READ_FILE}:{index}  {code}"))
         .collect();
 
     assert!(
@@ -329,15 +286,12 @@ fn the_splitter_has_exactly_one_product_call_site_outside_core_segment() {
         let rel = rel_posix(&root, file);
         // Chính module định nghĩa bộ tách, và pipeline dùng nó — không phải một "chỗ gọi
         // ngoài" theo nghĩa của phép kiểm này.
-        if rel.starts_with(SEGMENT_DIR) {
+        if is_inside(&rel, SEGMENT_DIR) {
             continue;
         }
-        for (index, line) in read(file).lines().enumerate() {
-            if is_comment(line) {
-                continue;
-            }
-            if line.contains("split_source_text") {
-                call_sites.push(format!("{rel}:{}  {}", index + 1, line.trim()));
+        for (index, code) in boundary_scan::code_lines(&read(file)) {
+            if code.contains("split_source_text") {
+                call_sites.push(format!("{rel}:{index}  {code}"));
             }
         }
     }
@@ -373,9 +327,10 @@ fn the_splitter_has_exactly_one_product_call_site_outside_core_segment() {
 fn the_pipeline_module_actually_calls_the_splitter() {
     // 🔵 SỬA (vòng rà đối kháng 2026-09-04, item 12) — bản đầu dùng `text.contains(..)` trên
     // TOÀN VĂN BẢN tệp; một lời gọi bị comment hoặc một dòng doc-comment nhắc chuỗi này vẫn
-    // giữ ca xanh. Lọc chú thích qua `is_comment`, đúng khuôn mọi phép kiểm khác của tệp này.
+    // giữ ca xanh. Lọc chú thích qua `boundary_scan::code_lines`.
     let text = read(&src_root().join("core/segment/pipeline.rs"));
-    let has_call = text.lines().filter(|line| !is_comment(line)).any(|line| line.contains("split_source_text("));
+    let has_call =
+        boundary_scan::code_lines(&text).any(|(_, code)| code.contains("split_source_text("));
     assert!(
         has_call,
         "`core/segment/pipeline.rs` không còn gọi `split_source_text` (ngoài chú thích) — \
@@ -397,17 +352,14 @@ fn the_pipeline_module_actually_calls_the_splitter() {
 fn the_splitter_stays_pure() {
     let text = read(&src_root().join("core/segment/split.rs"));
 
-    let offenders: Vec<String> = text
-        .lines()
-        .enumerate()
-        .filter(|(_, line)| !is_comment(line))
-        .filter(|(_, line)| {
-            line.contains("Transaction")
-                || line.contains("std::fs")
-                || line.contains("Store")
-                || line.contains("use tauri")
+    let offenders: Vec<String> = boundary_scan::code_lines(&text)
+        .filter(|(_, code)| {
+            code.contains("Transaction")
+                || code.contains("std::fs")
+                || code.contains("Store")
+                || code.contains("use tauri")
         })
-        .map(|(index, line)| format!("split.rs:{}  {}", index + 1, line.trim()))
+        .map(|(index, code)| format!("split.rs:{index}  {code}"))
         .collect();
 
     assert!(
@@ -454,12 +406,9 @@ fn the_target_write_path_never_takes_a_store_below_the_command_shell() {
 
     // Không hàm nào Ở TẦNG DƯỚI được nhận `&Store`. Vỏ lệnh nhận `Option<&OpenWork>` và đọc
     // `open.store` — đó là tầng TRÊN, và nó được phép.
-    let offenders: Vec<String> = text
-        .lines()
-        .enumerate()
-        .filter(|(_, line)| !is_comment(line))
-        .filter(|(_, line)| line.contains("&Store") || line.contains("Connection::open"))
-        .map(|(index, line)| format!("segment.rs:{}  {}", index + 1, line.trim()))
+    let offenders: Vec<String> = boundary_scan::code_lines(&text)
+        .filter(|(_, code)| code.contains("&Store") || code.contains("Connection::open"))
+        .map(|(index, code)| format!("segment.rs:{index}  {code}"))
         .collect();
 
     assert!(

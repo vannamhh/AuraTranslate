@@ -28,7 +28,11 @@
 //! chạy LẠI tệp này (không `git stash`) phải ĐỎ ở mệnh đề 1.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{code_lines, is_inside, src_root};
 
 /// Thư mục ĐỊNH NGHĨA module — không phải một "chỗ gọi ngoài" cho mệnh đề 3.
 const CHAPTERPATTERN_FILE: &str = "core/segment/chapterpattern.rs";
@@ -40,78 +44,8 @@ const SEGMENT_DIR: &str = "core/segment";
 /// 6.6 thêm `core/segment/chapterpattern.rs`, nên số thật chỉ TĂNG — sàn cũ (50) vẫn đúng.
 const SRC_RS_FLOOR: usize = 50;
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root).unwrap_or(file).to_string_lossy().replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta =
-            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-        // ⚠️ `symlink_metadata`, không `metadata` — cùng bài học các tệp `*_boundary.rs`
-        // khác: `metadata` giải symlink, một liên kết trỏ về thư mục cha làm đệ quy không
-        // dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 fn all_rust_sources() -> Vec<(String, String)> {
-    let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
-
-    files
-        .into_iter()
-        .map(|file| {
-            let rel = rel_posix(&root, &file);
-            let text =
-                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
-            (rel, text)
-        })
-        .collect()
-}
-
-/// Dòng KHÔNG phải chú thích — cùng khuôn `cleanup_boundary.rs::code_lines`.
-fn code_lines(text: &str) -> impl Iterator<Item = (usize, &str)> {
-    text.lines().enumerate().map(|(index, line)| (index + 1, line.trim_start())).filter(|(_, code)| {
-        !code.is_empty()
-            && !code.starts_with("//")
-            && !code.starts_with("///")
-            && !code.starts_with("/*")
-            && !code.starts_with("* ")
-            && !code.starts_with("*/")
-    })
-}
-
-/// Cắt `text` tại dòng ĐẦU TIÊN mà, sau khi trim, khớp NGUYÊN VĂN `#[cfg(test)]` — trả phần
-/// TRƯỚC dòng đó. Chép NGUYÊN VĂN từ `cleanup_boundary.rs::text_before_first_cfg_test_line`
-/// (bài học đã ghi ở đó: quét TRẦN bắt oan một khối `#[cfg(test)]` của chính tệp đang quét).
-fn text_before_first_cfg_test_line(text: &str) -> &str {
-    let mut end = text.len();
-    let mut offset = 0usize;
-    for line in text.split_inclusive('\n') {
-        if line.trim() == "#[cfg(test)]" {
-            end = offset;
-            break;
-        }
-        offset += line.len();
-    }
-    &text[..end]
+    boundary_scan::rust_sources(&src_root())
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -144,8 +78,8 @@ fn line_calls_chapterpattern_match_starts(code: &str) -> bool {
 fn the_pipeline_module_actually_calls_the_chapterpattern_module() {
     let text = fs::read_to_string(src_root().join("core/segment/pipeline.rs"))
         .expect("đọc core/segment/pipeline.rs");
-    let product_only = text_before_first_cfg_test_line(&text);
-    let has_call = code_lines(product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(code));
+    let product_only = boundary_scan::without_test_modules(&text);
+    let has_call = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
     assert!(
         has_call,
         "`core/segment/pipeline.rs` không còn gọi `ChapterPattern::match_starts` (ngoài chú \
@@ -159,8 +93,8 @@ fn the_pipeline_module_actually_calls_the_chapterpattern_module() {
 #[test]
 fn a_call_living_only_inside_the_pipeline_files_own_test_block_does_not_count_as_the_real_call() {
     let seeded_file = "fn step() {\n    // than that da bi go, khong con goi match_starts nua\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = super::chapterpattern::ChapterPattern::literal(\"x\").match_starts(\"y\");\n    }\n}\n";
-    let product_only = text_before_first_cfg_test_line(seeded_file);
-    let has_call = code_lines(product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(code));
+    let product_only = boundary_scan::without_test_modules(seeded_file);
+    let has_call = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
     assert!(
         !has_call,
         "một lời gọi CHỈ sống trong khối `#[cfg(test)]` không được tính là 'pipeline.rs gọi \
@@ -242,13 +176,13 @@ fn core_segment_carries_zero_lines_naming_store_or_scope_kind() {
     let mut offenders: Vec<String> = Vec::new();
     let mut segment_files = 0usize;
     for (rel, text) in &files {
-        if !rel.starts_with(SEGMENT_DIR) {
+        if !is_inside(rel, SEGMENT_DIR) {
             continue;
         }
         segment_files += 1;
-        let product_only = text_before_first_cfg_test_line(text);
-        for (line, code) in code_lines(product_only) {
-            if line_names_a_forbidden_token(code) {
+        let product_only = boundary_scan::without_test_modules(text);
+        for (line, code) in code_lines(&product_only) {
+            if line_names_a_forbidden_token(&code) {
                 offenders.push(format!("{rel}:{line}  {code}"));
             }
         }
@@ -308,9 +242,9 @@ fn the_chapterpattern_compile_function_has_exactly_one_named_product_call_site()
             // "chỗ gọi ngoài" theo nghĩa của phép kiểm này.
             continue;
         }
-        let product_only = text_before_first_cfg_test_line(text);
-        for (line, code) in code_lines(product_only) {
-            if line_calls_chapterpattern_compile(code) {
+        let product_only = boundary_scan::without_test_modules(text);
+        for (line, code) in code_lines(&product_only) {
+            if line_calls_chapterpattern_compile(&code) {
                 sites.push(format!("{rel}:{line}  {code}"));
             }
         }
@@ -339,8 +273,8 @@ fn the_chapterpattern_compile_function_has_exactly_one_named_product_call_site()
 fn a_call_seeded_only_inside_another_files_test_block_is_not_counted_as_a_second_product_call_site()
  {
     let seeded_file = "fn helper() {}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = crate::core::segment::chapterpattern::compile(\"x\");\n    }\n}\n";
-    let product_only = text_before_first_cfg_test_line(seeded_file);
-    let found = code_lines(product_only).any(|(_, code)| line_calls_chapterpattern_compile(code));
+    let product_only = boundary_scan::without_test_modules(seeded_file);
+    let found = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_compile(&code));
     assert!(
         !found,
         "một lời gọi chỉ tồn tại trong khối `#[cfg(test)]` của MỘT TỆP KHÁC không được đếm là \
@@ -363,24 +297,4 @@ fn the_chapterpattern_compile_call_check_would_actually_flag_a_seeded_violation_
         !line_calls_chapterpattern_compile("    let n = normalize::normalize(&text, &source_lang);"),
         "ca ÂM: một dòng KHÔNG gọi `chapterpattern::compile` không được bị bắt oan"
     );
-}
-
-/// Đối chứng dương thứ hai — `text_before_first_cfg_test_line` không bị lừa bởi một chú
-/// thích NHẮC LẠI chuỗi `"#[cfg(test)]"` đứng TRƯỚC bản khai thật (khuôn `cleanup_boundary.rs`).
-#[test]
-fn text_before_first_cfg_test_line_is_not_fooled_by_a_comment_mentioning_the_attribute() {
-    let text = "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n#[cfg(test)]\nmod tests {}\n";
-    let got = text_before_first_cfg_test_line(text);
-    assert_eq!(
-        got, "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n",
-        "phai cat tai DONG khop NGUYEN VAN `#[cfg(test)]`, khong cat som tai dong chu thich \
-         chi NHAC LAI chuoi do"
-    );
-}
-
-/// Ca ÂM của cùng hàm — không có dòng `#[cfg(test)]` nào ⇒ trả NGUYÊN VĂN toàn bộ input.
-#[test]
-fn text_before_first_cfg_test_line_returns_the_whole_text_when_there_is_no_such_line() {
-    let text = "fn a() {}\nfn b() {}\n";
-    assert_eq!(text_before_first_cfg_test_line(text), text);
 }

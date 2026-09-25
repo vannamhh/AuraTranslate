@@ -28,6 +28,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(dead_code)] // shared module: not every helper is used in this file
+mod boundary_scan;
+use boundary_scan::{rel_posix, src_root};
+
 /// Hai tệp DUY NHẤT được phép nhắc `FORBIDDEN` — chỗ gọi ([`indexer.rs`]) và điểm khai
 /// (`core/store/mod.rs`: biến thể `enum StoreKind`, `as_str()`, và hàm dựng
 /// `StoreSpec::library_index`). Xem doc-comment của `StoreSpec::library_index` — nhánh
@@ -46,46 +51,12 @@ const FORBIDDEN: [&str; 2] = ["StoreSpec::library_index", "StoreKind::LibraryInd
 /// `RS_FLOOR`/`RUST_FLOOR` của các tệp `*_boundary.rs` khác đang giữ.
 const RS_FLOOR: usize = 44;
 
-fn src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
-}
-
-/// Đường dẫn tương đối, dùng dấu `/` trên cả hai nền tảng — bắt buộc cho NFR14, cùng lý do
-/// mọi tệp `*_boundary.rs` khác đã ghi: `starts_with`/so sánh trên Windows so với `core\library`
-/// và không bao giờ khớp nếu không chuẩn hoá.
-fn rel_posix(root: &Path, file: &Path) -> String {
-    file.strip_prefix(root)
-        .unwrap_or(file)
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
-fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
-        let path = entry.path();
-        let meta = fs::symlink_metadata(&path)
-            .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
-
-        // ⚠️ `symlink_metadata`, không `metadata` — cùng bài học mọi tệp `*_boundary.rs` khác:
-        // một liên kết trỏ về thư mục cha làm đệ quy không dừng.
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            walk(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            out.push(path);
-        }
-    }
-}
-
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();
-    let mut files = Vec::new();
-    walk(&root, &mut files);
-    files.sort();
+    let files = boundary_scan::rust_sources(&root)
+        .into_iter()
+        .map(|(rel, _)| root.join(rel))
+        .collect();
     (root, files)
 }
 
