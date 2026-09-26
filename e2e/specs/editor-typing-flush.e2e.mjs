@@ -210,10 +210,10 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await expect(after.segments.map((s) => s.ord)).toEqual(before.segments.map((s) => s.ord))
 
     // ── ⑤ Thanh trạng thái nói *"Đã lưu N giây trước"* — AC7 ─────────────────────────
-    // ⚠️ `footer.status`, KHÔNG `.status` trần: đo được trong webview thật rằng lớp `status` có
-    // **ba** chỗ dùng (vỏ `PanelFrame` mang câu trạng thái của panel cũng dùng nó).
+    // Reads `[data-status-saved]`, not `footer.status` — the footer also holds the Lookup
+    // button now, and their combined `textContent` runs together with no separating space.
     const status = await browser.execute(
-      () => document.querySelector('footer.status')?.textContent?.trim() ?? '',
+      () => document.querySelector('[data-status-saved]')?.textContent?.trim() ?? '',
     )
     await expect(status).toMatch(/^Đã lưu \d+ giây trước$/)
   })

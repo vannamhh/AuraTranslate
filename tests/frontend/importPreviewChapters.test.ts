@@ -13,8 +13,9 @@
  * `chapterPattern`) — tệp này cần khẳng định CHÍNH tham số đó, các tệp khác không cần nên
  * wrapper của chúng cắt bớt cho gọn.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import type {
   ChapterOriginWire,
   ChapterDetailWire,
@@ -154,6 +155,10 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
     ...over,
   }
 }
+
+beforeAll(async () => {
+  await freshOverlay()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''
@@ -729,7 +734,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     // Doi con tro toi chi so 4 (Chuong 5) -- nam giua dai bi elide [3,6).
     for (let i = 0; i < 4; i += 1) {
       state.nextImportPreviewChapter()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await flushPromises()
     }
     expect(state.importPreviewChapterCursor.value).toBe(4)
     await wrapper.vm.$nextTick()
@@ -850,7 +855,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
 
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(1)
     expect(previewChapterDetailMock).toHaveBeenCalledTimes(1)
@@ -871,7 +876,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
 
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(previewChapterDetailMock).toHaveBeenCalledWith(1, 'UTF-8', 'en', null)
 
@@ -884,7 +889,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1')
 
     // Lượt dựng chi tiết KẾ TIẾP (Chương 2) trượt — chi tiết của Chương 1 KHÔNG được phép
@@ -894,7 +899,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
       error: { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false },
     })
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(2)
     expect(state.importPreviewSelectedCleanup.value).toBeNull()
@@ -909,14 +914,14 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1')
 
     // Mẫu phân tách vừa đổi làm N đổi dưới chân — Rust trả trạng thái CŨ (`detail: null`,
     // `error: null`), KHÔNG được giữ lại chi tiết của Chương 1 dưới nhãn Chương 2.
     previewChapterDetailMock.mockResolvedValue({ detail: null, error: null })
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(2)
     expect(state.importPreviewSelectedCleanup.value).toBeNull()
@@ -947,11 +952,11 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
 
     // Lượt SAU (thứ hai) resolve TRƯỚC.
     resolveSecond({ detail: chapterDetail('tu luot sau'), error: null })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     // Lượt ĐẦU (thứ nhất, CŨ HƠN) resolve SAU — kết quả của nó phải bị BỎ, không được ghi đè
     // dữ liệu của lượt sau.
     resolveFirst({ detail: chapterDetail('tu luot dau, cu hon'), error: null })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('tu luot sau')
 
@@ -965,14 +970,14 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('x'), error: null })
 
     state.nextImportPreviewChapter() // 0 -> 1
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     state.nextImportPreviewChapter() // 1 -> 2 (Chương cuối, index 2 của 3 Chương)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     expect(state.importPreviewChapterCursor.value).toBe(2)
     previewChapterDetailMock.mockClear()
 
     state.nextImportPreviewChapter() // đứng yên
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(2)
     expect(previewChapterDetailMock).not.toHaveBeenCalled()
@@ -986,7 +991,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
 
     state.prevImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(0)
     expect(previewChapterDetailMock).not.toHaveBeenCalled()
@@ -1001,7 +1006,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     state.resetImportPreview() // đóng lớp phủ, cursor về 0
 
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(0)
     expect(previewChapterDetailMock).not.toHaveBeenCalled()
@@ -1021,7 +1026,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewChapterCursor.value).toBe(0)
     expect(previewChapterDetailMock).not.toHaveBeenCalled()
@@ -1038,7 +1043,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     // Dời con trỏ sang Chương 1 (chỉ số 1) trên ứng viên UTF-8.
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1 utf8'), error: null })
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     expect(state.importPreviewChapterCursor.value).toBe(1)
     expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1 utf8')
 
@@ -1046,7 +1051,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     previewChapterDetailMock.mockClear()
     previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1 gbk'), error: null })
     state.selectImportPreviewCandidate('GBK')
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
     expect(state.importPreviewChapterCursor.value).toBe(1) // KHÔNG nhảy về 0
@@ -1073,7 +1078,7 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     expect(rows[1]?.attributes('aria-selected')).toBe('false')
 
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(list.attributes('aria-activedescendant')).toBe('ip-chapter-2')
@@ -1240,7 +1245,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
     })
     // Con trỏ dời sang Chương 1 (chỉ số 1, `needs_review: false` trong `mixedChapters()`).
     state.nextImportPreviewChapter()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     expect(state.importPreviewChapterCursor.value).toBe(1)
 
     state.toggleImportPreviewChapterFilter()

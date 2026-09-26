@@ -152,8 +152,13 @@ fn read_asset_anchors_sorted(store: &auratranslate_lib::core::store::Store) -> V
 // 0 cột text nào thêm vào `asset`.
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/// Mọi ca trong tệp này serialise qua khoá này -- chúng dựng `TcpListener`/luồng canh gác
+/// thời gian thật, dễ tranh chấp CPU khi chạy song song với nhau.
+static SERIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_anchor_in_order() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("ac1-alt-caption");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(
@@ -218,6 +223,7 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
 
 #[test]
 fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("shift-two-images");
     let body: &'static [u8] = b"jpeg-bytes-anh-a";
     let port_a = spawn_image_server(4, body);
@@ -261,6 +267,7 @@ fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
 
 #[test]
 fn an_image_whose_asset_fetch_fails_still_gets_its_alt_segment() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("alt-independent-of-fetch");
     let img_url = format!("http://127.0.0.1:{}/khong-ai-nghe.jpg", unreachable_port());
     let html = html_with_image_and_tail(&img_url, Some("mo ta du anh khong tai duoc"), "");
@@ -293,6 +300,7 @@ fn an_image_whose_asset_fetch_fails_still_gets_its_alt_segment() {
 
 #[test]
 fn a_whitespace_only_alt_generates_no_role_segment() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("alt-whitespace-only");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(&img_url, Some("   "), "");
@@ -312,6 +320,7 @@ fn a_whitespace_only_alt_generates_no_role_segment() {
 
 #[test]
 fn an_image_with_no_alt_attribute_generates_no_role_segment_and_does_not_shift_anchors() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("no-alt-attribute");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(&img_url, None, "");
@@ -335,6 +344,7 @@ fn an_image_with_no_alt_attribute_generates_no_role_segment_and_does_not_shift_a
 
 #[test]
 fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_segment() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("caption-three-sentences");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(
@@ -369,6 +379,7 @@ fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_
 
 #[test]
 fn a_caption_with_no_preceding_kept_image_gets_no_role_and_the_chapter_still_imports() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("caption-no-image-before");
     let html = "<html><head><title>Bai viet</title></head><body><article>\
         <figcaption>Chu thich mo dau, khong anh nao dung truoc no ca.</figcaption>\
@@ -401,6 +412,7 @@ fn a_caption_with_no_preceding_kept_image_gets_no_role_and_the_chapter_still_imp
 
 #[test]
 fn a_plain_text_import_with_no_images_leaves_every_role_null() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("no-images-role-null");
     let opened = create_work_from_text(&root, "Khong anh", "zh", "", "一。二。\n三。".to_owned())
         .expect("tao tac pham that bai");
@@ -420,6 +432,7 @@ fn a_plain_text_import_with_no_images_leaves_every_role_null() {
 
 #[test]
 fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("confirm-caption-segment");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(&img_url, None, "<figcaption>Chu thich can dich.</figcaption>");
@@ -511,6 +524,7 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
 
 #[test]
 fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role_null() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // Đúng MƯỜI CHÍN bước THẬT của `PROJECT_MIGRATIONS` trước bước 21 (role) -- cùng khuôn
     // `segment_contract.rs::a_project_database_stranded_at_the_burned_version_four_...`:
     // dùng lát cắt của CHÍNH hằng thật, không một fixture chép tay sẽ trôi khỏi sự thật.
@@ -609,6 +623,7 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
 
 #[test]
 fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("merge-vai-khong-nhan-ban");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(
@@ -714,6 +729,7 @@ fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
 
 #[test]
 fn two_adjacent_figcaptions_for_one_image_produce_exactly_one_caption_role_row() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("two-figcaptions-one-image");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let html = html_with_image_and_tail(
@@ -752,6 +768,7 @@ fn two_adjacent_figcaptions_for_one_image_produce_exactly_one_caption_role_row()
 
 #[test]
 fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose_row_bare() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("cleanup-erases-caption");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let caption_text = "Chu thich se bi mot luat lam sach xoa trang.";
@@ -805,6 +822,7 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
 
 #[test]
 fn splitting_a_role_bearing_segment_gives_new_rows_with_no_role_at_all() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("split-vai-khong-nhan-ban");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let caption_text = "Chu thich se bi tach lam doi.";
@@ -856,6 +874,7 @@ fn splitting_a_role_bearing_segment_gives_new_rows_with_no_role_at_all() {
 
 #[test]
 fn block_overrides_only_apply_to_chapter_zero_on_the_weave_path() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("block-overrides-chapter-zero-only");
     let img_url_a = format!("http://127.0.0.1:{}/a.jpg", unreachable_port());
     let img_url_b = format!("http://127.0.0.1:{}/b.jpg", unreachable_port());

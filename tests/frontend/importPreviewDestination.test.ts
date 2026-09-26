@@ -16,8 +16,9 @@
  * yêu cầu của Task list — một hiệu số phân biệt được "0 lần gọi thừa" với "chưa từng gọi gì
  * cả", điều `not.toHaveBeenCalled()` không phân biệt được khi test khác đã gọi trước đó.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import type { WorkRow } from '../../src/config/library'
 
 const previewTextMock = vi.fn()
@@ -84,6 +85,14 @@ function mockInvokeWithWorks(works: WorkRow[]): void {
     return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
   })
 }
+
+// Tệp này không có một khuôn `freshState()`/`freshOverlay()` chung — mỗi ca tự `import()` một
+// trong hai NHÁNH độc lập (`modes/LibraryMode.vue`, kéo theo `modes/libraryImport` ở tầng
+// module, và `ImportPreviewOverlay.vue`, kéo theo `importPreviewState`). Nạp CẢ HAI cùng lúc
+// (`Promise.all`, không nối tiếp — hai nhánh không chia sẻ trạng thái) ở `beforeAll`.
+beforeAll(async () => {
+  await Promise.all([import('../../src/modes/LibraryMode.vue'), import('../../src/ImportPreviewOverlay.vue')])
+})
 
 beforeEach(() => {
   vi.resetModules()

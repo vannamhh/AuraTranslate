@@ -10,7 +10,13 @@
  * `Date.now()` vào hàm.
  *
  * ⚠️ Bốn nhánh, và ca cuối cùng của tệp này là ca **biên** — một mốc ở tương lai.
+ *
+ * 🔴 `TZ` đặt CỐ ĐỊNH ngay dưới đây, TRƯỚC mọi import — CI chạy ở UTC (offset 0), nơi ca
+ * "cùng ngày địa phương" rơi vào nhánh rỗng nghĩa `offsetMin === 0` và không bao giờ canh hai
+ * nhánh `> 0`/`< 0` thật. Chỉ tệp NÀY đặt `TZ` — không đặt toàn cục, để không chạm tệp khác.
  */
+process.env.TZ = 'Asia/Ho_Chi_Minh'
+
 import { describe, expect, it } from 'vitest'
 
 import { historyTimeLabel } from '../../src/panels/segmentHistoryTime'

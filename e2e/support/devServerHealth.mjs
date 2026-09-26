@@ -65,6 +65,15 @@ export const ENTRY_MODULE = '/src/main.ts'
 const MODULE_CEILING = 250
 
 /**
+ * Hai hình dạng DUY NHẤT đo được là "Vite hấp hối" cho một đường module KHÔNG phải
+ * `.json` — content-type RỖNG, hoặc trang lỗi/SPA fallback `text/html`. Đây là một
+ * DENY-LIST, không một allow-list theo "javascript": một asset hợp lệ dưới `src/**`
+ * (`.svg`/`.wasm`/`.css`…) trả về content-type GỐC của nó trên một Vite hoàn toàn lành,
+ * không chứa "javascript".
+ */
+const DENIED_NON_JSON_CONTENT_TYPES = ['text/html']
+
+/**
  * Phán quyết cho MỘT lượt trả lời — **hàm thuần, không I/O**, và đó là điều kiện để
  * [`selfCheckDevServerHealth`] gọi được **chính hàm này** thay vì một bản chép.
  *
@@ -91,10 +100,13 @@ export function judgeModuleResponse({ url, status, contentType }) {
       ? { ok: true, reason: null }
       : { ok: false, reason: `content-type "${ct || '(rong)'}" — mot .json phai la application/json` }
   }
-  if (!ct.includes('javascript')) {
+
+  // Deny-list, not allow-list: a valid non-JS asset (`.svg`/`.wasm`/`.css`) keeps its own
+  // content-type on a healthy Vite, so only an empty or HTML-fallback content-type is bad.
+  if (ct === '' || DENIED_NON_JSON_CONTENT_TYPES.some((bad) => ct.includes(bad))) {
     return {
       ok: false,
-      reason: `content-type "${ct || '(rong)'}" — Vite tra HTML/khong-JS cho mot duong module`,
+      reason: `content-type "${ct || '(rong)'}" — Vite tra trang loi hoac rong cho mot duong module`,
     }
   }
   return { ok: true, reason: null }
@@ -107,12 +119,19 @@ export function judgeModuleResponse({ url, status, contentType }) {
  * thành `/src/…` tuyệt đối, nên một phép khớp trên tiền tố `/src/` là đủ và **không** cần
  * một parser JS. Truy vấn `?v=…`/`?t=…` bị cắt để hai lượt HMR không sinh hai đỉnh khác nhau.
  *
+ * Matches `"…"`/`'…'`/`` `…` `` with a matching backreference, and skips any interpolated
+ * template literal since its value can't be resolved statically.
+ *
  * @param {string} body
  * @returns {string[]}
  */
 export function extractSrcImports(body) {
   const out = []
-  for (const m of body.matchAll(/["'](\/src\/[^"'?]+)(\?[^"']*)?["']/g)) out.push(m[1])
+  for (const m of body.matchAll(/(["'`])(\/src\/[^"'`]+?)\1/g)) {
+    const path = m[2]
+    if (path.includes('${')) continue
+    out.push(path.split('?')[0])
+  }
   return out
 }
 
@@ -349,6 +368,77 @@ export async function selfCheckDevServerHealth() {
       `tu kiem devServerHealth DO OAN: ${MODULE_CEILING} dinh duyet TRON VEN bi cham la CAT. ` +
         'Vi tu `truncated` dang doc "hang doi khong rong" hay "seen.size >= tran" thay vi "con ' +
         'viec CHUA LAM" — ca hai deu do oan o dung bien nay. Xem chu thich tai cho.',
+    )
+  }
+
+  // Negative/positive cases for the deny-list in `judgeModuleResponse`.
+
+  // Negative: a valid non-JS/non-JSON asset (original content-type) on a healthy Vite is not bad.
+  const withAsset = {
+    '/src/main.ts': `import "/src/icon.svg";`,
+    '/src/icon.svg': '<svg></svg>',
+  }
+  const serveAsset = async (url) => {
+    if (!(url in withAsset)) throw new Error(`tu kiem: dinh la "${url}" khong co trong graph asset gia lap`)
+    if (url.endsWith('.svg')) return { status: 200, contentType: 'image/svg+xml', body: withAsset[url] }
+    return { status: 200, contentType: JS, body: withAsset[url] }
+  }
+  const assetGraph = await crawlModuleGraph(serveAsset)
+  if (assetGraph.bad.length !== 0) {
+    throw new Error(
+      'tu kiem devServerHealth DO OAN: mot asset non-JS hop le (content-type GOC, khong chua ' +
+        '"javascript") bi cham bad. Deny-list phai chi chan hai hinh dang that su vo, khong chan ' +
+        'moi content-type khac "javascript".',
+    )
+  }
+
+  // Ca DƯƠNG ④: một đường module trả 200 + `text/html` (trang lỗi/SPA fallback) vẫn phải ĐỎ,
+  // dù status là 200 — deny-list không được rút gọn thành "chỉ nhìn status".
+  const serveHtmlFallback = async (url) => {
+    if (url === ENTRY_MODULE) return { status: 200, contentType: JS, body: `import "/src/vo.ts";` }
+    return { status: 200, contentType: 'text/html; charset=utf-8', body: '<!DOCTYPE html>' }
+  }
+  const htmlFallback = await crawlModuleGraph(serveHtmlFallback)
+  if (htmlFallback.bad.length !== 1 || htmlFallback.bad[0].url !== '/src/vo.ts') {
+    throw new Error(
+      'tu kiem devServerHealth KHONG DO DUOC tren mot duong tra 200 + text/html (trang loi/SPA ' +
+        'fallback cua Vite) — deny-list phai bat duoc hinh dang nay du status la 200.',
+    )
+  }
+
+  // `extractSrcImports` backtick-matching cases.
+
+  // Positive: a static (non-interpolated) backtick dynamic import still yields a real edge.
+  const withBacktick = {
+    '/src/main.ts': 'import(`/src/lazy.ts`);',
+    '/src/lazy.ts': 'export default {}',
+  }
+  const serveBacktick = async (url) => {
+    if (!(url in withBacktick)) throw new Error(`tu kiem: dinh la "${url}" khong co trong graph backtick gia lap`)
+    return { status: 200, contentType: JS, body: withBacktick[url] }
+  }
+  const backtickGraph = await crawlModuleGraph(serveBacktick)
+  if (backtickGraph.visited.length !== 2 || !backtickGraph.visited.includes('/src/lazy.ts')) {
+    throw new Error(
+      'tu kiem devServerHealth: mot `import()` bang backtick TINH khong sinh canh nao toi ' +
+        '`/src/lazy.ts` — module do se khong bao gio duoc tham, va mot loi cu phap o do se lot.',
+    )
+  }
+
+  // Ca ÂM ⑤: một template literal có NỘI SUY (`${…}`) không được sinh một cạnh vô nghĩa.
+  const withInterpolation = {
+    '/src/main.ts': 'const x = 1; import(`/src/${x}.ts`);',
+  }
+  const serveInterpolation = async (url) => {
+    if (!(url in withInterpolation)) throw new Error(`tu kiem: dinh la "${url}" khong co trong graph noi suy gia lap`)
+    return { status: 200, contentType: JS, body: withInterpolation[url] }
+  }
+  const interpolationGraph = await crawlModuleGraph(serveInterpolation)
+  if (interpolationGraph.visited.length !== 1 || interpolationGraph.bad.length !== 0) {
+    throw new Error(
+      'tu kiem devServerHealth DO OAN: mot template literal co noi suy (`${…}`) sinh ra mot ' +
+        'canh — gia tri do KHONG resolve tinh duoc, va mot URL `${x}` vo nghia se bao mot dinh ' +
+        'hop le la vo.',
     )
   }
 }

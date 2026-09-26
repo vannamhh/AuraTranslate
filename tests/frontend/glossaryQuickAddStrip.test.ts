@@ -19,7 +19,7 @@
  * Vế THỊ GIÁC (dải ĐẨY `.modeport` lên chứ không PHỦ) và vế vùng chọn trên engine thật thuộc
  * `e2e/specs/glossary-quick-add.e2e.mjs` và bàn đo tay — `happy-dom` không có bố cục.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { IpcError } from '../../src/i18n'
 
@@ -84,6 +84,10 @@ const WORK_TIER_ERROR: IpcError = {
   params: {},
   retryable: false,
 }
+
+beforeAll(async () => {
+  await freshStrip()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

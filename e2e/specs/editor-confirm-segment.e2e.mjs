@@ -87,6 +87,87 @@ async function readSegmentsFromDisk() {
   })
 }
 
+/** Trần chờ — cùng số với `support/flushWait.mjs`, cùng lý do: một hàng rào an toàn. */
+const CONFIRM_TIMEOUT_MS = 30_000
+
+/**
+ * Chờ **tiêu điểm** đáp xuống đúng segment — không một khoảng thời gian cố định. Xem
+ * `support/gridWait.mjs`/`support/flushWait.mjs`: câu báo dựng SAU vòng chờ, không nội
+ * suy vào tham số của `waitUntil`.
+ *
+ * @param {number} id
+ * @param {string} what
+ */
+async function waitForCaretOn(id, what) {
+  let seen = null
+  let lastErr = null
+  try {
+    await browser.waitUntil(
+      async () => {
+        try {
+          seen = await browser.execute(
+            () => document.activeElement?.getAttribute?.('data-segment-id') ?? null,
+          )
+          lastErr = null
+        } catch (err) {
+          lastErr = err
+          return false
+        }
+        return String(seen) === String(id)
+      },
+      { timeout: CONFIRM_TIMEOUT_MS, timeoutMsg: 'hết giờ' },
+    )
+  } catch {
+    throw new Error(
+      `${what} không đạt sau ${CONFIRM_TIMEOUT_MS} ms.\n` +
+        `Mong đợi tiêu điểm ở segment ${id}, lần đọc cuối: ${seen === null ? '`null`' : seen}\n` +
+        (lastErr !== null
+          ? `\n🔴 NGUYÊN VĂN lỗi mà vòng chờ nuốt:\n${lastErr instanceof Error ? (lastErr.stack ?? lastErr.message) : String(lastErr)}\n`
+          : ''),
+    )
+  }
+  return seen
+}
+
+/**
+ * Chờ segment `id` đạt `status` trên đĩa — không một khoảng thời gian cố định.
+ *
+ * @param {number} id
+ * @param {string} status
+ * @param {string} what
+ */
+async function waitForSegmentStatus(id, status, what) {
+  let seen = null
+  let lastErr = null
+  try {
+    await browser.waitUntil(
+      async () => {
+        try {
+          seen = await readSegmentsFromDisk()
+          lastErr = null
+        } catch (err) {
+          lastErr = err
+          return false
+        }
+        const s = seen.segments.find((x) => x.id === id)
+        return s !== undefined && s.status === status
+      },
+      { timeout: CONFIRM_TIMEOUT_MS, timeoutMsg: 'hết giờ' },
+    )
+  } catch {
+    const found = seen?.segments?.find((x) => x.id === id)
+    throw new Error(
+      `${what} không đạt sau ${CONFIRM_TIMEOUT_MS} ms.\n` +
+        `Mong đợi status="${status}" ở segment ${id}, lần đọc cuối: ` +
+        `${found === undefined ? '(không thấy segment)' : found.status}\n` +
+        (lastErr !== null
+          ? `\n🔴 NGUYÊN VĂN lỗi mà vòng chờ nuốt:\n${lastErr instanceof Error ? (lastErr.stack ?? lastErr.message) : String(lastErr)}\n`
+          : ''),
+    )
+  }
+  return seen
+}
+
 /** Đổ bản dịch qua ĐÚNG lệnh flush của sản phẩm — Story 2.3. */
 async function seedTranslation(chapterId, id, text) {
   return browser.execute(
@@ -124,15 +205,14 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
 
     // ── ③ Đặt con trỏ vào câu đó bằng CHUỘT THẬT ────────────────────────────────────
     await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
-    await browser.pause(300)
 
     // 🔵 B11 (Story 2.5b): đọc `document.activeElement`, **KHÔNG**
     // `querySelector('[contenteditable="true"]')`. Từ Quyết định #3(b) **mọi** ô bản dịch gõ
     // được, nên selector cũ trả về **ô đầu tiên** của Chương ở mọi lượt — một phép kiểm vẫn
     // XANH khi con trỏ đang ở đúng chỗ, và **xanh giả** ở mọi lượt khác.
-    const caretOn = await browser.execute(
-      () => document.activeElement?.getAttribute?.('data-segment-id') ?? null,
-    )
+    // Waits for the caret to land, not a fixed `pause()` — same convention as
+    // `support/flushWait.mjs`/`support/gridWait.mjs`.
+    const caretOn = await waitForCaretOn(targetId, 'tiêu điểm sau lượt bấm chuột')
     await expect(String(caretOn)).toBe(String(targetId))
 
     // ── ④ Hợp âm `⌘↵` — đây là mệnh đề mới của spec này ─────────────────────────────
@@ -140,9 +220,9 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
     //    `browser.keys(['Meta','Enter'])` tới với `metaKey: false`, trong khi `Meta+1` và
     //    `Meta+2` cùng lượt chạy tới với `metaKey: true`. Giới hạn của BỘ ĐO, không của sản phẩm.
     await pressChordOnFocusedElement('Enter')
-    await browser.pause(1_000)
 
-    const after = await readSegmentsFromDisk()
+    // Waits for `status` to change on disk, not a fixed `pause()`.
+    const after = await waitForSegmentStatus(targetId, 'confirmed', 'lượt xác nhận qua hợp âm phím')
     const confirmed = after.segments.find((s) => s.id === targetId)
     await expect(confirmed.status).toBe('confirmed')
     // Văn bản KHÔNG bị lượt xác nhận đụng tới.
@@ -173,16 +253,16 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
     await seedTranslation(before.chapter_id, targetId, 'Một lần ký là đủ.')
 
     await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
-    await browser.pause(300)
+    await waitForCaretOn(targetId, 'tiêu điểm trước lượt ký đầu tiên')
     await pressChordOnFocusedElement('Enter')
-    await browser.pause(800)
+    await waitForSegmentStatus(targetId, 'confirmed', 'lượt ký đầu tiên')
 
     // Con trỏ đã dời đi (Quyết định #1a) ⇒ bấm lại vào chính câu vừa ký rồi ký thêm bốn lần.
     for (let i = 0; i < 4; i += 1) {
       await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
-      await browser.pause(200)
+      await waitForCaretOn(targetId, `tiêu điểm trước lượt ký lặp lại #${i + 1}`)
       await pressChordOnFocusedElement('Enter')
-      await browser.pause(400)
+      await waitForSegmentStatus(targetId, 'confirmed', `lượt ký lặp lại #${i + 1}`)
     }
 
     const after = await readSegmentsFromDisk()

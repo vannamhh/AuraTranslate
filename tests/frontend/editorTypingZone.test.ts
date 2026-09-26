@@ -30,7 +30,7 @@
  * một bản mô phỏng DOM trong Node. Vế đó thuộc **bàn đo** (`2-3-ban-do-vung-go.html`, mũi thăm
  * dò Task 0.1, hai engine thật) và **e2e trong WKWebView**. Bốn đường, bốn vai — AC25.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { FIXTURE_SEGMENTS, readFixture, recordSave, resetRecorder, saveCalls } from './support/segmentFixture'
 
@@ -56,6 +56,18 @@ async function mountEditor() {
   await wrapper.vm.$nextTick()
   return { state, wrapper }
 }
+
+/** Chỉ NẠP (không `resetModules`, không mount) — cùng lý do `editorClearSourceCuts.test.ts`:
+ * `mountEditor()` gắn một wrapper vào `document.body` mà không ca nào gỡ hộ ở `beforeAll`.
+ * `GridPanel.vue` đã kéo theo `editorPanelState` ở tầng module (đọc `GridPanel.vue:97-115`) —
+ * một lượt `import()` là đủ. */
+async function warmModules() {
+  await import('../../src/panels/GridPanel.vue')
+}
+
+beforeAll(async () => {
+  await warmModules()
+})
 
 /**
  * **Ô BẢN DỊCH** của một câu, đọc từ DOM thật đã mount.

@@ -867,8 +867,6 @@ export async function previewBilingualImportFromFile(
       sourceColumn,
       targetColumn,
       hasHeader,
-      // Lượt MỞ luôn bắt đầu 0 quy nhóm — chưa hàng lệch cặp nào từng hiện ra để mà sửa.
-      regroupings: [] as BilingualRegroupingInput[],
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(

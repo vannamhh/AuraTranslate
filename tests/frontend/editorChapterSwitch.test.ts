@@ -37,6 +37,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import {
   failNextSave,
   FIXTURE_CHAPTER_ID,
@@ -222,7 +223,7 @@ async function tuoi() {
 }
 
 /** Nhường một vòng microtask cho lượt chuyển mà `goToNextChapter` phát bằng `void`. */
-const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+const settle = flushPromises
 
 /** Câu đang hiện trên thanh trạng thái, đọc qua **chính** component. */
 function cauTrenThanh(wrapper: ReturnType<typeof mount>): string | null {

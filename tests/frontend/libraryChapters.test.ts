@@ -6,7 +6,7 @@
  * (`tests/AGENTS.md`). `chapterWindow()` là một hàm THUẦN nhận toạ độ qua tham số — nó
  * không đọc DOM, nên vitest kiểm được nó TẤT ĐỊNH mà không cần bố cục thật.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 const mockInvoke = vi.fn()
@@ -56,6 +56,16 @@ const WORK_NONE_OPEN_ERROR = {
   params: {},
   retryable: false,
 }
+
+// Tệp này không `resetModules()` giữa các ca (dùng `resetLibraryChapters()`/`resetLibraryWorks()`
+// thay vì nạp lại module) — nhưng lượt `import()` ĐẦU của mỗi specifier vẫn trả giá dịch một
+// lần. MỘT lượt `import('.../LibraryMode.vue')` kéo theo cả `libraryChapters`/`libraryWorks`/
+// `editorPanelState` (nó tự `import` cả ba ở tầng module, đọc `LibraryMode.vue:15-110`) — nạp
+// đúng NÓ ở `beforeAll` thay vì bốn lượt `await` nối tiếp, để giá dịch rơi vào `hookTimeout`
+// một lượt DUY NHẤT thay vì bốn.
+beforeAll(async () => {
+  await import('../../src/modes/LibraryMode.vue')
+})
 
 beforeEach(async () => {
   mockInvoke.mockReset()

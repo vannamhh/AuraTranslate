@@ -16,11 +16,13 @@
  * ═════════════════════════════════════════════════════════════════════════════════
  * HAI LỰA CHỌN CÓ CHỦ Ý
  * ═════════════════════════════════════════════════════════════════════════════════
- * ① **Tạo Tác phẩm bằng IPC, không bằng form Library.** Form đó không có một mối nối
- *    `data-` nào (`LibraryMode.vue` — `v-model` trên `<input>` trần), nên một fixture đi
- *    qua nó phải chọn phần tử theo cấu trúc DOM và sẽ vỡ ở lượt đổi bố cục đầu tiên. Quan
- *    trọng hơn: mọi hàng dùng fixture này đo **một thứ khác** — Panel Lookup, tiêu điểm,
- *    Attribution — nên một fixture giòn sẽ làm chúng đỏ vì lý do không liên quan.
+ * ① **Tạo Tác phẩm bằng IPC, không bằng form Library.** Ba nút nộp của form đó MANG
+ *    `data-import-preview-open` (nút nhập song ngữ mang `data-bilingual-import-preview-open`)
+ *    — nhưng các Ô NHẬP của nó vẫn không một mối nối `data-` nào (`LibraryMode.vue` —
+ *    `v-model` trên `<input>` trần), nên một fixture đi qua nó vẫn phải chọn những ô đó
+ *    theo cấu trúc DOM và sẽ vỡ ở lượt đổi bố cục đầu tiên. Quan trọng hơn: mọi hàng dùng
+ *    fixture này đo **một thứ khác** — Panel Lookup, tiêu điểm, Attribution — nên một
+ *    fixture giòn sẽ làm chúng đỏ vì lý do không liên quan.
  *    ⚠️ Đánh đổi phải nói ra: fixture này **không** đo đường nhập của người dùng thật.
  *    Ngày có một hàng bàn đo cho chính form Library, nó phải đi qua giao diện, không qua
  *    đây.
@@ -82,6 +84,29 @@ export async function openWorkspaceWithWork(
         'Đây là lỗi HẠ TẦNG của bàn đo — app chưa nạp xong, hoặc webview đang ở\n' +
         '`about:blank` (nhị phân debug nạp `devUrl`, nên Vite phải sống trước). KHÔNG\n' +
         'một hồi quy sản phẩm; đừng đọc ca đỏ phía sau nó thành một khuyết tật.',
+    )
+  }
+
+  // The IPC bridge exists before any Vite module runs, so a stale load (webview ready,
+  // `main.ts` never mounted) would pass the wait above silently.
+  let mounted = null
+  try {
+    await browser.waitUntil(
+      async () => {
+        mounted = await browser.execute(() => document.querySelector('#app')?.children.length ?? 0)
+        return mounted > 0
+      },
+      { timeout: 30_000, interval: 250 },
+    )
+  } catch {
+    const url = await browser.execute(() => window.location.href)
+    throw new Error(
+      `Cầu IPC có mặt nhưng \`#app\` KHÔNG mang phần tử con nào sau 30 giây ` +
+        `(lần đọc cuối: ${mounted === null ? 'chưa đọc được lần nào' : mounted}). ` +
+        `URL đang mở: ${url}\n\n` +
+        'Đây đúng hình dạng Cạm bẫy 8: webview nạp trước khi Vite sẵn sàng, hoặc một\n' +
+        'lượt điều hướng trượt — KHÔNG một hồi quy sản phẩm; đừng đọc ca đỏ phía sau nó\n' +
+        'thành một khuyết tật.',
     )
   }
 

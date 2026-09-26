@@ -146,8 +146,13 @@ fn read_asset_rows(store: &auratranslate_lib::core::store::Store) -> Vec<AssetRo
 // Ảnh GIỮ, host tầng 2, MIME raster — một tệp thật + một hàng `asset` mang neo đúng
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/// Mọi ca trong tệp này serialise qua khoá này -- chúng dựng `TcpListener`/luồng canh gác
+/// thời gian thật, dễ tranh chấp CPU khi chạy song song với nhau.
+static SERIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn a_kept_image_gets_a_real_file_on_disk_and_an_asset_row_with_the_right_anchor() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("kept-image-anchor");
     let body: &'static [u8] = b"fake-jpeg-bytes-0123456789";
     let (port, counter, _handle) = spawn_counting_image_server(4, body, "image/jpeg; charset=binary");
@@ -187,6 +192,7 @@ fn a_kept_image_gets_a_real_file_on_disk_and_an_asset_row_with_the_right_anchor(
 
 #[test]
 fn an_image_without_alt_still_keeps_its_position() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("kept-image-no-alt");
     let body: &'static [u8] = b"no-alt-body";
     let (port, _counter, _handle) = spawn_counting_image_server(4, body, "image/png");
@@ -214,6 +220,7 @@ fn an_image_without_alt_still_keeps_its_position() {
 
 #[test]
 fn an_svg_response_is_rejected_writes_no_file_and_the_chapter_text_survives_intact() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("svg-rejected");
     let svg_body: &'static [u8] = b"<svg xmlns='http://www.w3.org/2000/svg'><script>evil()</script></svg>";
     let (port, _counter, _handle) = spawn_counting_image_server(4, svg_body, "image/svg+xml");
@@ -269,6 +276,7 @@ fn an_svg_response_is_rejected_writes_no_file_and_the_chapter_text_survives_inta
 
 #[test]
 fn a_failed_image_fetch_does_not_fail_the_whole_import() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("image-fetch-failed");
     let dead_port = unreachable_port();
     let img_url = format!("http://127.0.0.1:{dead_port}/khong-ai-nghe.jpg");
@@ -299,6 +307,7 @@ fn a_failed_image_fetch_does_not_fail_the_whole_import() {
 
 #[test]
 fn the_same_image_url_across_two_chapters_is_fetched_exactly_once_and_shares_one_file() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("dedup-same-url");
     let body: &'static [u8] = b"shared-image-body";
     let (port, counter, _handle) = spawn_counting_image_server(4, body, "image/gif");
@@ -355,6 +364,7 @@ fn the_same_image_url_across_two_chapters_is_fetched_exactly_once_and_shares_one
 
 #[test]
 fn a_failing_image_url_reused_across_two_chapters_counts_two_failed_positions_from_exactly_one_network_call() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("dedup-same-failing-url");
     // Máy chủ đếm KẾT NỐI (cùng khuôn `spawn_counting_image_server`) nhưng trả 404 — dedup
     // (AD-41) cache CẢ chiều thất bại, nên một URL lỗi dùng lại vẫn chỉ đáng ĐÚNG một kết nối.
@@ -407,6 +417,7 @@ fn a_failing_image_url_reused_across_two_chapters_counts_two_failed_positions_fr
 
 #[test]
 fn the_paste_text_path_has_zero_images_and_touches_the_asset_table_not_at_all() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("blob-path-zero-images");
     let opened = create_work_from_text(&root, "Dan Tay", "en", "", "Cau mot. Cau hai.".to_owned())
         .expect("tao Tac pham tu van ban dan tay that bai");
@@ -426,6 +437,7 @@ fn the_paste_text_path_has_zero_images_and_touches_the_asset_table_not_at_all() 
 
 #[test]
 fn asset_source_url_allows_null_and_file_name_rejects_every_white_space_code_point() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("asset-ddl-invariants");
     let opened = create_work_from_text(&root, "DDL Asset", "en", "", "Cau mot.".to_owned())
         .expect("tao Tac pham that bai");
@@ -570,6 +582,7 @@ fn spawn_oversized_image_server() -> (u16, thread::JoinHandle<()>) {
 /// dừng ở mức "đã cho phép" — tên hàm đổi theo cho khớp.
 #[test]
 fn an_oversized_image_response_is_cut_off_with_a_too_large_outcome_no_file_and_the_chapter_still_imports() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("image-too-large");
     let (port, _handle) = spawn_oversized_image_server();
     let img_url = format!("http://127.0.0.1:{port}/khong-lo.jpg");
@@ -646,6 +659,7 @@ fn an_oversized_image_response_is_cut_off_with_a_too_large_outcome_no_file_and_t
 #[cfg(unix)]
 #[test]
 fn a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     use std::os::unix::fs::PermissionsExt;
 
     let root = temp_dir("asset-write-failure");
@@ -764,6 +778,7 @@ fn a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_a
 #[cfg(unix)]
 #[test]
 fn a_later_image_write_failure_does_not_erase_the_domain_log_entry_of_an_earlier_successful_image() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     use std::os::unix::fs::PermissionsExt;
 
     let root = temp_dir("b1-domain-log-survives-failure");
@@ -900,6 +915,7 @@ fn a_later_image_write_failure_does_not_erase_the_domain_log_entry_of_an_earlier
 
 #[test]
 fn create_work_computes_the_anchor_with_a_real_enabled_cleanup_rule_not_an_empty_slice() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("anchor-with-real-cleanup-rule");
     let body: &'static [u8] = b"anh-voi-luat-lam-sach";
     let (port, _counter, _handle) = spawn_counting_image_server(4, body, "image/jpeg");
@@ -966,6 +982,7 @@ fn create_work_computes_the_anchor_with_a_real_enabled_cleanup_rule_not_an_empty
 
 #[test]
 fn create_work_counts_the_image_as_failed_not_a_panic_when_compute_anchor_self_check_rejects_the_prefix() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("compute-anchor-err-through-create-work");
     let body: &'static [u8] = b"anh-vat-qua-ranh-gioi";
     let (port, counter, _handle) = spawn_counting_image_server(4, body, "image/jpeg");
@@ -1028,6 +1045,7 @@ fn create_work_counts_the_image_as_failed_not_a_panic_when_compute_anchor_self_c
 /// `images_failed` (nó không hề được THỬ, không phải một lượt thử thất bại).
 #[test]
 fn block_overrides_force_off_an_otherwise_kept_image_zero_connections_zero_file_zero_row() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("block-override-force-off");
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = Arc::clone(&counter);
@@ -1087,6 +1105,7 @@ fn block_overrides_force_off_an_otherwise_kept_image_zero_connections_zero_file_
 /// `webimport::extract` trước khi viết ca này, không phải suy diễn từ tài liệu.
 #[test]
 fn block_overrides_force_on_an_otherwise_excluded_image_gets_fetched_and_gets_a_row() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("block-override-force-on");
     let body: &'static [u8] = b"logo-bytes";
     let (port, counter, _handle) = spawn_counting_image_server(4, body, "image/png");
@@ -1147,6 +1166,7 @@ fn block_overrides_force_on_an_otherwise_excluded_image_gets_fetched_and_gets_a_
 
 #[test]
 fn a_naturally_excluded_image_host_never_enters_tier_two_and_receives_zero_connections() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("naturally-excluded-image");
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = Arc::clone(&counter);
@@ -1219,6 +1239,7 @@ fn a_naturally_excluded_image_host_never_enters_tier_two_and_receives_zero_conne
 
 #[test]
 fn an_image_at_the_end_of_the_chapter_anchors_after_every_segment() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("image-at-the-end");
     let body: &'static [u8] = b"anh-cuoi-chuong";
     let (port, counter, _handle) = spawn_counting_image_server(4, body, "image/jpeg");
@@ -1273,6 +1294,7 @@ fn an_image_at_the_end_of_the_chapter_anchors_after_every_segment() {
 
 #[test]
 fn two_images_in_one_chapter_each_get_their_own_file_and_their_own_correctly_ordered_anchor() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("two-images-one-chapter");
     let body1: &'static [u8] = b"anh-thu-nhat";
     let body2: &'static [u8] = b"anh-thu-hai-khac-noi-dung";
@@ -1352,6 +1374,7 @@ fn two_images_in_one_chapter_each_get_their_own_file_and_their_own_correctly_ord
 
 #[test]
 fn a_real_imported_image_survives_a_chapter_reorganisation_of_an_unrelated_chapter_byte_for_byte() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("m6-end-to-end-reorg");
     let body1: &'static [u8] = b"anh-chuong-mot-that";
     let body2: &'static [u8] = b"anh-chuong-hai-that-khac-noi-dung";

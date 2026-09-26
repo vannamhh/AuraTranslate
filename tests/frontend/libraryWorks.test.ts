@@ -13,7 +13,7 @@
  * tính (`aria-value*`), KHÔNG đủ cho hình học (bề rộng thanh THẬT trên màn hình) — đúng ranh
  * giới `tests/AGENTS.md` đã vạch.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 
@@ -53,6 +53,14 @@ const WORK_ROW_UNKNOWN = {
   status: null,
   status_is_override: false,
 }
+
+// Cùng lý do `libraryChapters.test.ts` — MỘT lượt `import('.../LibraryMode.vue')` đã kéo theo
+// `libraryWorks`/`libraryChapters`/`commands`/`config/library`/`config/lifecycle` ở tầng
+// module (đọc `LibraryMode.vue:15-89`, `libraryWorks.ts:29-31`); nạp đúng NÓ ở `beforeAll`
+// thay vì sáu lượt `await` nối tiếp.
+beforeAll(async () => {
+  await import('../../src/modes/LibraryMode.vue')
+})
 
 beforeEach(async () => {
   mockInvoke.mockReset()

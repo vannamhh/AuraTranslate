@@ -13,5 +13,6 @@ Behaviour in a real WKWebView/WebView2. Runs nightly on macOS (`schedule` 18:00 
 - Keyboard activation of a `<button>` does not work here; the "by keyboard" half of an AC has no automated path — record the debt.
 - 🔴 A red nightly is not proof of a product regression (the IPC bridge has failed before). Read the error first; never add `continue-on-error` or a retry loop.
 - 🔴 Each spec FILE gets a fresh app process and fresh `$APPDATA`/Library root (`wdio.conf.mjs::onWorkerEnd`). State still carries between cases inside one file; `openWorkspaceWithWork()` resets only the five panels named in `support/panelReset.mjs`. A red case in an untouched file ⇒ read that file's case order first.
+- 🔴 A bench that COPIES a product function measures the copy, and the copy goes stale silently once the original is patched — call the real function directly (`export` it and reuse it, as `devServerHealth.mjs`'s self-check does), never re-implement its logic inline in a bench.
 
 <!-- /bmad:context -->

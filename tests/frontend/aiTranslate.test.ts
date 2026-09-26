@@ -42,8 +42,9 @@
  * (`data-ai-translate-state`, `.ai-translate-text`, `.ai-translate-alert`) — không chỉ gọi hàm
  * thuần của `aiTranslateState.ts` rồi đọc giá trị trả về.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import { ref } from 'vue'
 import type { Component, Ref } from 'vue'
 import type { AiTranslateOutcomeWire } from '../../src/config/aitranslate'
@@ -204,6 +205,12 @@ async function freshPanel() {
 function mountPanel(AiTranslationPanel: Component) {
   return mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
 }
+
+// Cùng khuôn `aiPromptInspector.test.ts` — trả giá dịch một lần của `AiTranslationPanel.vue` ở
+// `beforeAll` (`hookTimeout`), không ở ca đầu tiên (`testTimeout`).
+beforeAll(async () => {
+  await freshPanel()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

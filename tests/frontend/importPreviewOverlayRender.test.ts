@@ -21,7 +21,7 @@
  * `import` tĩnh component + một `import` động state sau `resetModules()` sẽ là HAI thể hiện
  * `importPreviewState.ts` khác nhau — component không thấy state test vừa đổi).
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 import type { ChapterOriginWire, EncodingCandidateWire, ImportEncodingPreview } from '../../src/config/project'
@@ -112,6 +112,10 @@ async function freshOverlay(deps: Partial<CommandDeps> = {}) {
   const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
   return { commands, state, ImportPreviewOverlay }
 }
+
+beforeAll(async () => {
+  await freshOverlay()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

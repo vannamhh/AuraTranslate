@@ -25,7 +25,7 @@
  * ② `onEditKeydown` bắt trực tiếp rồi `dispatch` **chính** id đó. Cùng khuôn `Backspace` của
  * AC1, và cùng lý do: một cử chỉ trong vùng gõ **là** hệ quả của việc gõ.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
@@ -87,6 +87,24 @@ async function mountEditor() {
   await wrapper.vm.$nextTick()
   return { state, commands, quickAdd, confirmStrip, wrapper }
 }
+
+/** Chỉ NẠP (không `resetModules`, không mount) — trả giá dịch một lần của `GridPanel.vue` (nó
+ * đã kéo theo `editorPanelState`/`commands` ở tầng module, đọc `GridPanel.vue:78,97-115`) ở
+ * `beforeAll`, cùng lúc (`Promise.all`, bốn specifier không chia sẻ trạng thái) với hai dải
+ * cùng `editorClearSourceCuts` — không dùng `mountEditor()` ở đây vì nó gắn một wrapper vào
+ * `document.body` ngoài vòng `afterEach`/`daMount` (xem doc-comment ①). */
+async function warmModules() {
+  await Promise.all([
+    import('../../src/panels/GridPanel.vue'),
+    import('../../src/glossaryQuickAddState'),
+    import('../../src/glossaryConfirmStripState'),
+    import('../../src/editorClearSourceCuts'),
+  ])
+}
+
+beforeAll(async () => {
+  await warmModules()
+})
 
 beforeEach(() => {
   resetRecorder()

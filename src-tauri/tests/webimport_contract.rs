@@ -88,8 +88,13 @@ fn ok_html_response(body: &str) -> String {
 // host của `port_a` (URL gốc) — `localhost` (đích chuyển hướng) không hề có mặt, đúng ca
 // "ngoài allowlist", KHÔNG chỉ "khác host" (xem ca kế tiếp: hai host khác nhau NHƯNG cùng
 // allowlist thì ĐƯỢC theo).
+/// Mọi ca trong tệp này serialise qua khoá này -- chúng dựng `TcpListener`/luồng canh gác
+/// thời gian thật, dễ tranh chấp CPU khi chạy song song với nhau.
+static SERIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_the_target_host_receives_zero_connections() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached_b = Arc::new(AtomicUsize::new(0));
     let reached_b_clone = Arc::clone(&reached_b);
     let (port_b, _handle_b) = spawn_once(move |mut stream| {
@@ -127,6 +132,7 @@ fn a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_the_target_host_rec
 /// KHÔNG ca nào phủ chiều này (mọi chuyển hướng khác host đều bị chặn tuyệt đối).
 #[test]
 fn a_redirect_between_two_hosts_both_inside_the_allowlist_is_followed() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port_b, _handle_b) = spawn_once(move |mut stream| {
         let _ = stream.write_all(ok_html_response("noi dung that o host B").as_bytes());
     });
@@ -158,6 +164,7 @@ fn a_redirect_between_two_hosts_both_inside_the_allowlist_is_followed() {
 
 #[test]
 fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // 200 MiB quảng cáo — gấp 10 lần trần sản phẩm (20 MiB, `webimport::MAX_RESPONSE_BYTES`),
     // đủ lớn để "đọc dừng sớm" là kết luận không thể chối cãi từ số byte server SẢN XUẤT được
     // trước khi client đóng kết nối.
@@ -213,6 +220,7 @@ fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
 
 #[test]
 fn a_dead_connection_is_classified_as_connect_failed_not_some_other_error() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     const MAX_ATTEMPTS: usize = 5;
     for _ in 0..MAX_ATTEMPTS {
         let port = {
@@ -245,6 +253,7 @@ fn a_dead_connection_is_classified_as_connect_failed_not_some_other_error() {
 /// "giữ".
 #[test]
 fn extracted_text_never_contains_an_angle_bracket_from_the_source_markup() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let html = "<html><head><title>Bai viet</title></head><body>\
         <nav><a href=\"/menu\">Menu</a></nav>\
         <article><h1>Tieu de bai viet</h1>\
@@ -293,6 +302,7 @@ fn extracted_text_never_contains_an_angle_bracket_from_the_source_markup() {
 
 #[test]
 fn a_page_with_no_extractable_content_fails_extraction_instead_of_falling_back_to_raw_html() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // Trang gần như trống — không đủ để `dom_smoothie` chấm điểm ra một khối nội dung nào.
     let html = "<html><head><title>Trong</title></head><body></body></html>".to_owned();
     let result = extract(&html, "https://example.com/trong");
@@ -308,6 +318,7 @@ fn a_page_with_no_extractable_content_fails_extraction_instead_of_falling_back_t
 
 #[test]
 fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port_ok_1, _h1) = spawn_once(|mut stream| {
         let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
     });
@@ -351,6 +362,7 @@ fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
 #[test]
 fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_while_the_write_predicate_stays_locked()
  {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port_ok_1, _h1) = spawn_once(|mut stream| {
         let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
     });
@@ -409,6 +421,7 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
 /// Danh sách rỗng/toàn dòng trắng ⇒ 0 mục (đóng vế I/O Matrix "Danh sách rỗng").
 #[test]
 fn blank_and_empty_lines_are_dropped_before_counting_and_never_produce_an_item() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (items, _log) = fetch_url_import_items(vec!["   ".to_owned(), "".to_owned(), "\t".to_owned()]);
     assert!(items.is_empty(), "dòng rỗng/toàn khoảng trắng không được sinh ra một mục nào");
 }
@@ -419,6 +432,7 @@ fn blank_and_empty_lines_are_dropped_before_counting_and_never_produce_an_item()
 /// hoặc treo — cả hai đều làm assert dưới đây SAI.
 #[test]
 fn a_garbage_line_becomes_one_broken_item_with_zero_network_calls() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (items, log) = fetch_url_import_items(vec!["day khong phai url".to_owned()]);
     assert_eq!(items.len(), 1);
     assert!(items[0].error.is_some(), "dòng rác phải thành một mục hỏng");
@@ -451,6 +465,7 @@ fn a_garbage_line_becomes_one_broken_item_with_zero_network_calls() {
 // N luồng riêng) — không phụ thuộc mạng ngoài, lặp lại được.
 #[test]
 fn perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     const N: usize = 20;
 
     fn html_page(i: usize) -> String {
@@ -569,6 +584,7 @@ fn perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline() {
 /// đó, mục giữ vị trí và mang đúng lý do `NotHtml`.
 #[test]
 fn a_response_that_is_not_html_becomes_one_broken_item_carrying_the_not_html_reason() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port, _h) = spawn_once(|mut stream| {
         let body = b"%PDF-1.7 khong phai mot trang HTML";
         let head = format!(
@@ -595,6 +611,7 @@ fn a_response_that_is_not_html_becomes_one_broken_item_carrying_the_not_html_rea
 /// `status` đi vào `params` dưới dạng DỮ LIỆU (AD-21), không phải một câu.
 #[test]
 fn a_404_becomes_one_broken_item_carrying_the_http_status_reason_and_the_numeric_code() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port, _h) = spawn_once(|mut stream| {
         let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
     });
@@ -634,6 +651,7 @@ fn a_404_becomes_one_broken_item_carrying_the_http_status_reason_and_the_numeric
 /// đó thành đúng `ExtractionEmpty` chứ không phải một lý do khác — và KHÔNG rơi về HTML thô.
 #[test]
 fn a_page_with_no_main_content_maps_to_the_extraction_empty_reason_inside_the_pipeline() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let barren = "<html><head><title>t</title></head><body></body></html>";
     let shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
         bytes: barren.as_bytes().to_vec(),
@@ -662,6 +680,7 @@ fn a_page_with_no_main_content_maps_to_the_extraction_empty_reason_inside_the_pi
 /// sửa làm bước 5 chạy lại trên đường URL sẽ cắt một Chương thành nhiều, và không cổng nào đỏ.
 #[test]
 fn exactly_one_link_yields_exactly_one_chapter_even_when_a_chapter_pattern_would_match_inside_it() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let html = "<html><body><article>\
         <p>Chuong 1 mo dau cua bai viet nay du dai de Readability giu lai lam noi dung chinh \
         cua trang, khong phai menu hay quang cao gi ca.</p>\
@@ -701,6 +720,7 @@ fn exactly_one_link_yields_exactly_one_chapter_even_when_a_chapter_pattern_would
 /// canh đúng nhánh ấy, tất định, 0 giây.
 #[test]
 fn a_timeout_maps_to_the_timeout_reason_and_its_own_message_key_not_a_generic_failure() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reason = WebImportItemFailureReason::from(FetchError::Timeout {
         detail: "qua han doc".to_owned(),
     });
@@ -741,6 +761,7 @@ fn a_timeout_maps_to_the_timeout_reason_and_its_own_message_key_not_a_generic_fa
 /// Chuyển hướng khác host, ĐI QUA `fetch_url_import_items` — lý do phải là `RedirectBlocked`.
 #[test]
 fn a_blocked_cross_host_redirect_reaches_the_user_as_the_redirect_blocked_reason() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port_b, _hb) = spawn_once(|mut s| {
         let _ = s.write_all(ok_html_response("hi").as_bytes());
     });
@@ -767,6 +788,7 @@ fn a_blocked_cross_host_redirect_reaches_the_user_as_the_redirect_blocked_reason
 /// Thân vượt trần, ĐI QUA `fetch_url_import_items` — lý do phải là `TooLarge`.
 #[test]
 fn an_oversized_body_reaches_the_user_as_the_too_large_reason() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // 🔴 200 MiB, KHÔNG phải 20: `MAX_RESPONSE_BYTES` = 20 MiB và điều kiện cắt là
     // `out.len() > MAX`, nên một thân đúng 20 MiB KHÔNG vượt trần. Cùng con số
     // `ADVERTISED_LEN` mà `a_response_advertising_far_more_than_the_cap...` đã dùng.
@@ -803,6 +825,7 @@ fn an_oversized_body_reaches_the_user_as_the_too_large_reason() {
 /// mạng. Đây là ca bắt đúng đột biến `InvalidUrl => ConnectFailed`.
 #[test]
 fn a_garbage_line_reaches_the_user_as_the_invalid_url_reason_not_a_network_failure() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let url = "day khong phai url";
     let (items, _log) = fetch_url_import_items(vec![url.to_owned()]);
 
@@ -823,6 +846,7 @@ fn a_garbage_line_reaches_the_user_as_the_invalid_url_reason_not_a_network_failu
 /// KHÔNG được là một trong bốn lý do KHÔNG phải mạng.
 #[test]
 fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reason() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let dead_port = {
         let l = TcpListener::bind("127.0.0.1:0").expect("bind");
         l.local_addr().expect("addr").port()
@@ -864,6 +888,7 @@ fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reaso
 /// `commands::project::trim_like_the_paste_box`.
 #[test]
 fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_screen_count() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // ① Dòng CHỈ có BOM — JS đếm 0, Rust phải cũng cho 0 mục.
     let (items, _log) = fetch_url_import_items(vec!["\u{FEFF}".to_owned(), "  \u{FEFF} ".to_owned()]);
     assert!(
@@ -898,6 +923,7 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
 /// ngược với ca BOM ngay trên.
 #[test]
 fn a_next_line_character_only_pasted_line_still_produces_exactly_one_item_matching_pasted_url_lines() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (items, _log) = fetch_url_import_items(vec!["\u{0085}".to_owned()]);
     assert_eq!(
         items.len(),
@@ -923,6 +949,7 @@ fn a_next_line_character_only_pasted_line_still_produces_exactly_one_item_matchi
 // thứ nó dựng ra để canh (trần SỐ CHẶNG, không phải chuyện allowlist).
 #[test]
 fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
     let port = listener.local_addr().expect("local_addr").port();
     let handle = thread::spawn(move || {
@@ -989,6 +1016,7 @@ fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
 // năng "bị chặn vì không allowlist" khỏi ca kiểm — thứ ca này canh là chuyện KHÁC hẳn.
 #[test]
 fn a_benign_3xx_with_no_location_header_is_not_reported_as_a_blocked_redirect() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port, _h) = spawn_once(|mut stream| {
         let _ = stream.write_all(b"HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\n\r\n");
     });
@@ -1014,6 +1042,7 @@ fn a_benign_3xx_with_no_location_header_is_not_reported_as_a_blocked_redirect() 
 
 #[test]
 fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     assert!(looks_like_html(Some("text/html; charset=utf-8")), "kiểu HTML kèm charset phải khớp");
     assert!(looks_like_html(Some("TEXT/HTML")), "so sánh không phân biệt hoa/thường");
     assert!(looks_like_html(Some("application/xhtml+xml")), "xhtml cũng được coi là HTML");
@@ -1049,6 +1078,7 @@ fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
 /// Acceptance Criteria đầu tiên của spec 6.8).
 #[test]
 fn ad41_case_1_a_host_outside_both_tiers_is_denied_before_any_connection_opens() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached = Arc::new(AtomicUsize::new(0));
     let reached_clone = Arc::clone(&reached);
     let (port, _handle) = spawn_once(move |mut stream| {
@@ -1075,6 +1105,7 @@ fn ad41_case_1_a_host_outside_both_tiers_is_denied_before_any_connection_opens()
 /// `Image`, lẽ ra được phép (xem ca ngay dưới).
 #[test]
 fn ad41_case_3_a_document_request_to_a_tier_2_only_host_is_denied() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached = Arc::new(AtomicUsize::new(0));
     let reached_clone = Arc::clone(&reached);
     let (port, _handle) = spawn_once(move |mut stream| {
@@ -1100,6 +1131,7 @@ fn ad41_case_3_a_document_request_to_a_tier_2_only_host_is_denied() {
 /// không phải "đúng tầng 2 thì từ chối Document").
 #[test]
 fn an_image_request_to_a_tier_2_only_host_is_allowed() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port, _handle) = spawn_once(|mut stream| {
         let _ = stream.write_all(ok_html_response("anh duoc phep o tang 2").as_bytes());
     });
@@ -1120,6 +1152,7 @@ fn an_image_request_to_a_tier_2_only_host_is_allowed() {
 /// đỏ — chính điều mệnh đề 4 cấm.
 #[test]
 fn ad41_case_4_building_an_allowlist_makes_no_network_call_on_its_own() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached = Arc::new(AtomicUsize::new(0));
     let reached_clone = Arc::clone(&reached);
     let (port, handle) = spawn_once(move |mut stream| {
@@ -1148,6 +1181,7 @@ fn ad41_case_4_building_an_allowlist_makes_no_network_call_on_its_own() {
 /// sách — xem doc-comment [`fetch_url_import_items`]).
 #[test]
 fn fetch_url_import_items_returns_one_domain_log_entry_per_item() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (port_a, _ha) = spawn_once(|mut s| {
         let _ = s.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
     });
@@ -1217,6 +1251,7 @@ fn html_page_with_paragraphs_and_one_image(img_src: &str) -> String {
 /// `deferred-work.md` thay vì để tên ca nói quá thứ nó đo.
 #[test]
 fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_the_work() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached_b = Arc::new(AtomicUsize::new(0));
     let reached_b_clone = Arc::clone(&reached_b);
     let (port_b, _handle_b) = spawn_once(move |mut stream| {
@@ -1346,6 +1381,7 @@ fn fixture_text_content(html: &str, url: &str) -> String {
 #[test]
 #[ignore = "ban do can bay trang HTML THAT o 6-1-ban-do/fixtures/html (gitignore vi co ban quyen), khong co tren CI"]
 fn extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     for name in ["a01.html", "a02.html", "a03.html", "a04.html", "a05.html", "a06.html", "a07.html"] {
         let html = fixture_html(name);
         let url = format!("https://example.com/{name}");
@@ -1471,6 +1507,7 @@ const HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML: &str = r#"<!DOCTYPE html>
 /// chọn vòng 1 (`p, img, figcaption`) — ca xanh mà không canh gì.
 #[test]
 fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     for tag in ["<h2", "<h3", "<li", "<blockquote", "<pre"] {
         assert!(HAND_WRITTEN_ARTICLE_HTML.contains(tag), "fixture bai viet phai co {tag}");
     }
@@ -1571,6 +1608,7 @@ fn kept_text_bodies(blocks: &[auratranslate_lib::core::webimport::Block]) -> Vec
 
 #[test]
 fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_several_real_scenarios() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut all_entries: Vec<auratranslate_lib::core::webimport::DomainLogEntry> = Vec::new();
 
     // (a) Thành công thẳng.
@@ -1658,6 +1696,7 @@ fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_se
 
 #[test]
 fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw_bytes() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let items = vec![
         UrlImportItem { url: "https://a.example/1".to_owned(), raw: Some(b"<html>a</html>".to_vec()), error: None },
         UrlImportItem { url: "https://a.example/2".to_owned(), raw: Some(b"<html>b</html>".to_vec()), error: None },
@@ -1758,11 +1797,13 @@ fn perf_probe_client_per_link_cost(n: usize) {
 #[test]
 #[ignore = "nang: dung n luong server cuc bo + n lan goi Client moi -- khong phai mot cong mac dinh"]
 fn perf_probe_client_per_link_cost_on_one_hundred_links() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     perf_probe_client_per_link_cost(100);
 }
 
 #[test]
 #[ignore = "nang: dung 1000 luong server cuc bo + 1000 lan goi Client moi -- khong phai mot cong mac dinh"]
 fn perf_probe_client_per_link_cost_on_one_thousand_links() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     perf_probe_client_per_link_cost(1_000);
 }

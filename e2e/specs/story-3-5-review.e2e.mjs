@@ -2,8 +2,11 @@
  * Story 3.5 review — đường IPC/event và tính độc quyền của modal trên WKWebView thật.
  *
  * Hai lớp test rẻ hơn đã canh thuật toán thuần và state Vue. Tệp này chỉ giữ những vế
- * chúng không thể chứng minh: command import trả trước event nền, config ĐÃ GHI thật sự
- * đổi kết quả của hai Work mới, và keymap gắn ở `window` không chạy xuyên qua modal.
+ * chúng không thể chứng minh: config ĐÃ GHI thật sự đổi kết quả của lượt quét nền qua
+ * hai Work mới, và keymap gắn ở `window` không chạy xuyên qua modal.
+ *
+ * No ordering claim between the IPC reply and the background event — they travel
+ * independent channels, and neither is guaranteed to arrive first.
  */
 import { realClick } from '../support/pointer.mjs'
 
@@ -63,19 +66,23 @@ async function persistThreshold(value) {
   }, value)
 }
 
+/**
+ * The command's IPC response and this background scan's event travel independent
+ * channels (a direct reply vs. a separate OS thread's `emit`); their arrival order is
+ * not guaranteed and must not be asserted.
+ */
 async function importEnglishWork(name) {
   const text = Array.from(
     { length: 5 },
     (_, i) => `a beast called ${TERM} appeared at hour ${i}.`,
   ).join(' ')
-  return browser.execute(async (workName, sourceText) => {
+  await browser.execute(async (workName, sourceText) => {
     await window.__TAURI_INTERNALS__.invoke('create_work_from_text', {
       name: workName,
       sourceLang: 'en',
       genre: 'general',
       text: sourceText,
     })
-    return window.__story35ScanEvents.length
   }, name, text)
 }
 
@@ -135,12 +142,11 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
     await unregisterScanListener()
   })
 
-  it('config persisted 6 rồi 5 điều khiển hai Work mới; command trả trước event', async () => {
+  it('config persisted 6 rồi 5 điều khiển hai Work mới; sự kiện quét nền đến đúng ngưỡng', async () => {
     await persistThreshold(6)
     await registerScanListener()
 
-    const eventsWhenSixReturned = await importEnglishWork('Story 3.5 review threshold 6')
-    expect(eventsWhenSixReturned).toBe(0)
+    await importEnglishWork('Story 3.5 review threshold 6')
     const eventSix = await waitForOneScanEvent()
     expect(eventSix.outcome).toBe('completed')
     expect((await pendingCandidates()).some((row) => row.source_term === TERM)).toBe(false)
@@ -149,8 +155,7 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
     await persistThreshold(5)
     await registerScanListener()
 
-    const eventsWhenFiveReturned = await importEnglishWork('Story 3.5 review threshold 5')
-    expect(eventsWhenFiveReturned).toBe(0)
+    await importEnglishWork('Story 3.5 review threshold 5')
     const eventFive = await waitForOneScanEvent()
     expect(eventFive.outcome).toBe('completed')
 

@@ -19,7 +19,8 @@
  * dùng chung một thể hiện.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 
 const promptSetListMock = vi.fn()
 const promptSetCreateMock = vi.fn()

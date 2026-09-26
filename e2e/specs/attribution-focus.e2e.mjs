@@ -24,6 +24,7 @@
 
 import { realClick } from '../support/pointer.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
+import { ensureFullLayoutTier } from '../support/layoutTier.mjs'
 
 /** Mối nối `data-`, không tên lớp CSS — cùng doctrine với `data-shortcuts-open`. */
 const OPENER = '[data-attribution-open]'
@@ -58,14 +59,16 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
   it('đóng lớp phủ bằng Escape thì tiêu điểm về nút mở hoặc khung chứa nó, không rơi về <body>', async function () {
     await openWorkspaceWithWork(`e2e-attribution-focus-${Date.now()}`)
 
+    // The default window size lands at layout tier `short`, which tabs Lookup away behind
+    // the AI panel — see `layoutTier.mjs` for why this must be `full` instead.
+    await ensureFullLayoutTier()
+
     // ── 🔴 TIỀN ĐỀ CÓ ĐIỀU KIỆN — thêm 2026-08-20, sau lượt CI đầu tiên ─────────────
     //
     // Ca này là spec DUY NHẤT của bộ thật sự cần dữ liệu từ điển: nút `[data-attribution-
     // open]` nằm trong dải chip nguồn, và dải chỉ render khi `dictSources.length > 0`.
-    // Trên runner GitHub `src-tauri/target/debug/dict/*.db` không tồn tại (356 MB, do
-    // `tools/dict-build` sinh ra; AC cuối của Story 1.3 cấm CI tải dữ liệu từ điển), nên
-    // ca này KHÔNG chạy được ở đó. `openWorkspaceWithWork` thôi đợi nút này từ cùng ngày —
-    // nó đợi lưới — nên tiền đề phải được hỏi TẠI ĐÂY.
+    // CI now builds four tiny fixture `.db` files before `npm run test:e2e`, so this case
+    // runs there too; the source-count check below still guards a bare local machine.
     //
     // 🔴 VÀ NÓ HỎI ĐÚNG CÂU, KHÔNG HỎI CÂU DỄ. Hỏi *"nút có mặt không"* rồi bỏ qua khi
     // vắng sẽ nuốt luôn một hồi quy thật — ngày nút biến mất trên máy CÓ từ điển, ca này
@@ -102,6 +105,11 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
     }
 
     const opener = await $(OPENER)
+    // `realClick`'s Actions API needs the element resolved and laid out — `dictSourceCount`
+    // above only proves the IPC source list is non-empty, not that Vue has already rendered
+    // the chip strip around this same tick (same race `shortcuts-focus.e2e.mjs` already waits
+    // out for its own opener).
+    await opener.waitForExist({ timeout: 30_000 })
 
     // ── Mở bằng CHUỘT THẬT ───────────────────────────────────────────────────────
     // Đây là đường mà khuyết tật WKWebView sống. Một ca mở bằng bàn phím sẽ XANH kể cả

@@ -21,6 +21,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS, resetRecorder, saveCalls } from './support/segmentFixture'
 import type { ChapterSegment, RegroupOutcome } from '../../src/config/segment'
 import type { GlossaryMark } from '../../src/config/glossary'
@@ -158,7 +159,7 @@ async function mountGrid() {
   await editorState.ensureSegmentsLoaded()
   await sourceState.ensureChapterLoaded()
   await wrapper.vm.$nextTick()
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  await flushPromises()
   await wrapper.vm.$nextTick()
 
   return { editorState, sourceState, quickAdd, wrapper }
@@ -350,7 +351,7 @@ describe('Story 3.4b — thêm nhanh một thuật ngữ làm dấu xuất hiệ
     quickAdd.quickAddTranslation.value = 'Một'
     // Chờ lượt tra `lookupGlossaryTerm` (chạy ngoài Tauri ⇒ `found: 'unknown', error: null`)
     // để `quickAddMode` thoát khỏi `'unknown'` — cùng điều kiện mà `saveGlossaryQuickAdd` đòi.
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
 
     const ok = await quickAdd.saveGlossaryQuickAdd()
     expect(ok).toBe(true)
@@ -391,9 +392,9 @@ describe('Story 3.4b — chuyển Chương KỀ nạp đúng dấu của Chươn
     // `switchChapter()` là một chuỗi `await` dài (flush → `open_adjacent_chapter` →
     // `ensureSegmentsLoaded` → `ensureChapterLoaded` → `ensureGlossaryMarksLoaded`) chạy dưới
     // một `void` ở `goToNextChapter()` — nhường đủ vòng microtask/macrotask cho TRỌN chuỗi đó.
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     await wrapper.vm.$nextTick()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
     await wrapper.vm.$nextTick()
 
     // 🔴 Mệnh đề trung tâm: dấu của Chương B có mặt trên segment 50 (hàng DUY NHẤT của Chương
@@ -481,7 +482,7 @@ describe('Story 3.4b — `refreshGlossaryMarksAfterSave` (P11): nhánh guard "ch
     // nơi chưa chắc đã có Chương nào đang mở. `editorChapterId`/`sourceChapter` ở nguyên `null`.
     quickAdd.openGlossaryQuickAdd('một thuật ngữ bất kỳ')
     quickAdd.quickAddTranslation.value = 'bản dịch'
-    await new Promise((resolve) => setTimeout(resolve, 0)) // chờ `lookupGlossaryTerm` giả về
+    await flushPromises() // chờ `lookupGlossaryTerm` giả về
 
     const ok = await quickAdd.saveGlossaryQuickAdd()
 

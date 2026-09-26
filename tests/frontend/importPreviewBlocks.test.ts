@@ -14,7 +14,7 @@
  *    gọi ĐÚNG `dispatch('<id>')` → `CommandRegistry` thật → `deps.xxx()` — không một đường tắt
  *    tự dựng trong test. Cộng đối chứng AC "tiêu điểm ở NÚT thì `Space` không bị cướp".
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import type { CommandDeps } from '../../src/commands'
@@ -146,6 +146,10 @@ const THREE_BLOCKS: BlockWire[] = [
   block({ body: { kind: 'paragraph', text: 'than bai may doan' }, kept: true, confirmed: false }),
   block({ body: { kind: 'caption', text: 'chu thich da xac nhan' }, kept: true, confirmed: true }),
 ]
+
+beforeAll(async () => {
+  await freshOverlay()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

@@ -25,8 +25,9 @@
  * trực tiếp: nếu một lượt sửa sau này lỡ nối `openAiPromptInspector` sang
  * `assembleCurrentAiPrompt`, ca này đỏ ngay, nêu đích danh.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type {
@@ -213,6 +214,14 @@ async function freshPanel() {
 
   return { commands, state, i18n, promptSetState, AiTranslationPanel, caretSegmentId }
 }
+
+// Nạp trước cả hai nhánh `.vue` ở `beforeAll` (ngân sách `hookTimeout`, rộng hơn `testTimeout`)
+// — lượt `import()` ĐẦU của mỗi nhánh phải dịch cả đồ thị phụ thuộc, và dưới tải máy nặng chi
+// phí dịch một lần đó riêng nó có thể vượt `testTimeout` của ca ĐẦU nếu để nó trả bằng đúng ca đó.
+beforeAll(async () => {
+  await freshOverlay()
+  await freshPanel()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

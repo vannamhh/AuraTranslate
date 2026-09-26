@@ -20,6 +20,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import { FIXTURE_CHAPTER_ID, readFixture, resetRecorder } from './support/segmentFixture'
 import type { GlossaryMark } from '../../src/config/glossary'
 
@@ -88,7 +89,7 @@ async function mountGrid() {
   // Funnel của Story 3.4b là một `watch` — nhường vài vòng microtask/macrotask cho nó VÀ cho
   // `ensureGlossaryMarksLoaded()` (một `await` IPC giả bên trong) hoàn tất trước khi đo DOM.
   await wrapper.vm.$nextTick()
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  await flushPromises()
   await wrapper.vm.$nextTick()
 
   return { editorState, hover, wrapper }

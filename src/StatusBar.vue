@@ -449,7 +449,8 @@ const glossaryHoverText = computed<string | null>(() => {
       I/O Matrix: "Thanh hiện bản dịch của thuật ngữ, xướng qua role=status".
     -->
     <span v-else-if="glossaryHoverText !== null" class="notice">{{ glossaryHoverText }}</span>
-    <span v-else-if="secondsSinceSave !== null" class="saved">{{
+    <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+    <span v-else-if="secondsSinceSave !== null" class="saved" data-status-saved>{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>
 

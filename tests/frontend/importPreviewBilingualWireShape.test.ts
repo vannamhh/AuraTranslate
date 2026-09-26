@@ -237,7 +237,6 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
       sourceColumn: 0,
       targetColumn: 1,
       hasHeader: true,
-      regroupings: [],
     })
   })
 })

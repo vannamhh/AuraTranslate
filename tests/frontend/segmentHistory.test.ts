@@ -22,7 +22,7 @@
  * đang hỏng ở Story 2.5. Lưới cho vế *"Rust có thật sự gửi bốn trường không"* nằm ở
  * `segment_contract.rs`, **không** ở đây.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
@@ -160,6 +160,11 @@ async function freshState() {
   const history = await import('../../src/panels/segmentHistoryState')
   return { editor, history }
 }
+
+// Cùng khuôn `importPreviewUrls.test.ts` — trả giá dịch một lần của `freshState()` ở `beforeAll`.
+beforeAll(async () => {
+  await freshState()
+})
 
 beforeEach(() => {
   resetRecorder()

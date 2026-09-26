@@ -863,6 +863,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `typescript-eslint` | 8.67.0 | MIT ✓ |
 | `@wdio/cli` · `@wdio/local-runner` · `@wdio/mocha-framework` · `@wdio/spec-reporter` | 9.30.1 | MIT ✓ |
 | `@wdio/tauri-service` | 1.3.0 | MIT ✓ |
+| `webdriverio` *(nâng từ bắc cầu thành phụ thuộc trực tiếp — `wdio.conf.mjs` `import`s `SevereServiceError` từ đây, và `@wdio/cli`'s `instanceof` chỉ khớp khi cả hai resolve về CÙNG một module; 0 gói MỚI vào `package-lock.json`)* | 9.30.1 | MIT ✓ |
 | `vitest` *(bộ chạy test frontend)* | 4.1.10 | MIT ✓ |
 | `@vue/test-utils` | 2.4.11 | MIT ✓ |
 | `happy-dom` | 20.11.2 | MIT ✓ |

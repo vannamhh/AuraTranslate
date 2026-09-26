@@ -13,7 +13,7 @@
  * ⚠️ **Thứ tự bắt buộc trong mỗi ca**: `freshState()` TRƯỚC, cấu hình `mockResolvedValue` SAU
  * — `freshState()` tự `mockReset()` mọi mock.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type {
   ChapterOriginWire,
@@ -157,6 +157,13 @@ function batchWithOneBroken(
     domain_log_domain_count: domainLogDomainCount,
   }
 }
+
+// Nạp trước cả nhánh module ở `beforeAll` (ngân sách `hookTimeout`, rộng hơn `testTimeout`) —
+// lượt `import()` ĐẦU của tệp phải dịch cả đồ thị phụ thuộc, và dưới tải máy nặng chi phí dịch
+// một lần đó riêng nó có thể vượt `testTimeout` của ca ĐẦU nếu để nó trả bằng đúng ca đó.
+beforeAll(async () => {
+  await freshState()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

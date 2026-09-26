@@ -234,7 +234,7 @@
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { SevereServiceError } from 'webdriverio'
@@ -244,6 +244,7 @@ import {
   describeTruncatedGraph,
   selfCheckDevServerHealth,
 } from './support/devServerHealth.mjs'
+import { checkPairDataBarriers } from './support/pairDataBarriers.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -735,107 +736,19 @@ export const config = {
     }
 
     const failures = []
+    // The three barriers (write/read/`global.db`) live in `checkPairDataBarriers` so a
+    // vitest case can drive them with a synthetic pair.
 
     for (const pair of usedPairs) {
-      // ── Hàng rào chiều ÂM: thư mục Library THẬT phải y nguyên ────────────────────
-      if (pair.realLibraryBefore !== pair.realLibraryAfter) {
-        failures.push(
-          `Thư mục Library THẬT của bạn đã ĐỔI trong lượt e2e này, khi app chạy trên cặp\n` +
-            `  ${pair.dataDir}\n  ${pair.libraryDir}\n` +
-            `Đường dẫn thật: ${realLibraryPath()}\n` +
-            `  trước: ${pair.realLibraryBefore}\n  sau:   ${pair.realLibraryAfter}\n\n` +
-            'Bộ e2e không được chạm vào đó. Nguyên nhân hay gặp:\n' +
-            `  1. nhị phân dựng thiếu \`--features wdio\` ⇒ \`${LIBRARY_ROOT_ENV}\` không được đọc;\n` +
-            '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
-            '  3. một đường ghi mới không đi qua `default_library_root()` — đó là một bề\n' +
-            '     mặt THỨ BA, và nó cần một móc riêng chứ không một ngoại lệ ở đây.\n\n' +
-            'Nếu bạn vừa mở ứng dụng thật song song với lượt chạy này thì đây là báo động\n' +
-            'giả — chạy lại khi app đã đóng, đừng gỡ phép kiểm.',
-        )
-      }
-
-      // ── Hàng rào chiều ĐỌC: `library-index.db` không được nhắc đường dẫn Library THẬT ──
-      //
-      // 🔴 PHÁN QUYẾT Ice 2026-08-27 — hàng rào ÂM ở trên (`realLibrarySignature`) chỉ canh
-      // chiều GHI (thư mục thật có mọc/mất mục hay không); nó KHÔNG canh chiều ĐỌC. Một lượt
-      // chạy đã lọt qua nó trong khi vẫn ĐỌC `~/Documents/AuraTranslate` thật và lập chỉ mục
-      // các Tác phẩm ở đó (xem mục nợ "Một lượt e2e ĐỎ chưa chẩn đoán được",
-      // `deferred-work.md`) — dấu vết mà hàng rào GHI không để lại, vì không byte nào bị ghi
-      // vào chính thư mục thật đó.
-      //
-      // Hàng rào DƯƠNG ở đây: đọc `library-index.db` (nằm trong `$APPDATA` tạm, CÙNG thư mục
-      // với `global.db`) DẠNG BYTE — không phân tích SQLite, không thêm phụ thuộc npm
-      // (`scripts/AGENTS.md`) — và ghi nhận thất bại nếu nội dung chứa chuỗi con đúng đường
-      // dẫn Library THẬT. SQLite lưu một cột `TEXT` dưới dạng UTF-8 thô ngay trong trang dữ
-      // liệu của tệp `.db`, nên một chuỗi con khớp byte-cho-byte là bằng chứng THẬT, không
-      // suy luận — đúng cách `atproj_path`/`library_orphan.atproj_path` (phán quyết Ice #1)
-      // sẽ mang nguyên văn đường dẫn nếu ứng dụng lỡ lập chỉ mục thư viện thật.
-      //
-      // ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:** hàng rào này chỉ bắt được đường dẫn ĐÃ ĐI
-      // VÀO chỉ mục. Một lượt chỉ ĐỌC thư mục thật mà không lập chỉ mục được gì vẫn LỌT qua
-      // đây — hàng rào canh DẤU VẾT còn lại trên đĩa, không canh hành vi ĐỌC tại đúng thời
-      // điểm nó xảy ra.
-      const indexPath = join(pair.dataDir, LIBRARY_INDEX_DB_FILE)
-      let indexBytes = null
-      try {
-        indexBytes = readFileSync(indexPath)
-      } catch (err) {
-        if (err.code === 'ENOENT') {
-          // Chưa từng mở/lập chỉ mục trên cặp này -- KHÔNG phải lỗi, bỏ qua êm.
-          indexBytes = null
-        } else {
-          // Lỗi HẠ TẦNG (quyền, đĩa hỏng, …) -- KHÔNG phải một phép kiểm ĐỎ.
-          console.warn(
-            `[e2e] không đọc được ${indexPath} để kiểm hàng rào chiều ĐỌC (${err.code}) -- ` +
-              'bỏ qua phép kiểm này, đây là lỗi HẠ TẦNG, không phải một phát hiện.',
-          )
-          indexBytes = null
-        }
-      }
-      if (indexBytes !== null) {
-        const needle = Buffer.from(realLibraryPath(), 'utf8')
-        if (indexBytes.includes(needle)) {
-          failures.push(
-            `${indexPath} (${LIBRARY_INDEX_DB_FILE}) chứa đường dẫn Library THẬT của bạn:\n` +
-              `  ${realLibraryPath()}\n\n` +
-              'Nghĩa là ứng dụng đã ĐỌC và lập chỉ mục thư viện thật trong lượt e2e này, dù\n' +
-              'không byte nào bị GHI vào thư mục đó (hàng rào chữ ký ở trên không bắt được\n' +
-              'chiều này). Đây chính là dấu vết của "Một lượt e2e ĐỎ chưa chẩn đoán được"\n' +
-              '(`deferred-work.md`) — đọc mục đó trước khi sửa bất cứ dòng nào.',
-          )
-        }
-      }
-
-      // ── Hàng rào chiều DƯƠNG: `global.db` phải NẰM trong `$APPDATA` tạm ───────────
-      //
-      // ⚠️ KHÔNG nối định danh bundle vào đây. `app_data_dir()` của Tauri là
-      // `data_dir()/<identifier>`, nhưng biến môi trường THAY THẾ TRỌN kết quả đó — nên kho
-      // nằm thẳng trong `dataDir`. Chỉ khẳng định khi WORKER CỦA CHÍNH CẶP NÀY đã xanh — một
-      // spec đỏ sớm có thể dừng trước khi app kịp tạo kho.
-      if (pair.exitCode === 0) {
-        const storePath = join(pair.dataDir, GLOBAL_DB_FILE)
-        if (!existsSync(storePath)) {
-          failures.push(
-            `Tệp spec chạy trên cặp ${pair.dataDir} xanh nhưng KHÔNG thấy ${GLOBAL_DB_FILE}\n` +
-              'trong đó.\n\n' +
-              'Phần lớn nguyên nhân nghĩa là app con đã ghi vào `$APPDATA` THẬT của bạn, không\n' +
-              'vào thư mục tạm — một lượt xanh ở đây là một lượt xanh giả. Theo thứ tự hay gặp:\n' +
-              `  1. nhị phân dựng THIẾU \`--features wdio\` ⇒ \`${DATA_DIR_ENV}\` không được đọc\n` +
-              '     (`npm run test:e2e` truyền sẵn; một lượt `cargo build` tay thì không);\n' +
-              '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
-              '  3. `open_global_store` thôi không đi qua `data_dir_override()` nữa;\n' +
-              '  4. `onWorkerEnd` không kịp giết app cũ trước khi ghi biến môi trường mới,\n' +
-              '     nên tệp spec này chạy trên `$APPDATA` của cặp TRƯỚC;\n' +
-              '  5. KHÔNG kho nào được mở cả — `open_global_store` (`src-tauri/src/lib.rs:899-\n' +
-              '     940`) chỉ `eprintln!` rồi `return` khi `create_dir_all` trên thư mục tạm\n' +
-              '     hay `Store::open` thất bại, nên app tiếp tục chạy KHÔNG store, không panic,\n' +
-              '     không rơi vào nhánh dữ liệu thật; xem log stderr của app cho dòng\n' +
-              '     `store[global] …`.\n\n' +
-              'Đừng bỏ phép kiểm này để cho xanh — nó là thứ duy nhất đứng giữa bộ đo và\n' +
-              'cấu hình thật của bạn.',
-          )
-        }
-      }
+      failures.push(
+        ...checkPairDataBarriers(pair, {
+          realLibraryPathValue: realLibraryPath(),
+          globalDbFile: GLOBAL_DB_FILE,
+          libraryIndexDbFile: LIBRARY_INDEX_DB_FILE,
+          dataDirEnv: DATA_DIR_ENV,
+          libraryRootEnv: LIBRARY_ROOT_ENV,
+        }),
+      )
 
       // Xoá dù cặp này có lỗi hay không — một cặp lỗi không được phép rò thư mục
       // (Review Triage Log #7).

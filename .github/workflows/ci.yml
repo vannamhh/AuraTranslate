@@ -789,6 +789,12 @@ jobs:
           # thì hai job ghi đè cache của nhau và cả hai cùng biên dịch lại mỗi lượt.
           key: e2e-wdio
 
+      # `tools/dict-build` is its own Cargo workspace — cached separately from `src-tauri`.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tools/dict-build
+          key: e2e-dict-fixture
+
       - name: npm ci
         run: npm ci
 
@@ -798,6 +804,15 @@ jobs:
       # Nó cũng chạy `vue-tsc --noEmit` hai lượt, nên `e2e/**` được kiểm kiểu luôn.
       - name: npm run build
         run: npm run build
+
+      # Builds tiny fixture `.db` files from the committed raw dict fixture — no network
+      # access, and no `.db` enters git (AD-25).
+      - name: build tiny dict fixture .db (no download, AD-25)
+        run: |
+          cargo run --locked --manifest-path tools/dict-build/Cargo.toml -- \
+            --raw tools/dict-build/tests/fixtures/raw \
+            --out-dir src-tauri/target/debug/dict \
+            --layer all
 
       # Bộ e2e trọn vẹn. `test:e2e` tự dựng nhị phân debug có feature `wdio` rồi gọi
       # `wdio run` — `wdio.conf.mjs::onPrepare` tự dựng Vite, tự cấp `$APPDATA` và thư

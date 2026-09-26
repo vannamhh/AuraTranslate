@@ -36,7 +36,8 @@
  * làm cho lượt đơn.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import type { Component } from 'vue'
 import { FIXTURE_SEGMENTS, FIXTURE_CHAPTER_ID } from './support/segmentFixture'
 import type { AiTranslateBatchEventWire, AiTranslateOutcomeWire } from '../../src/config/aitranslate'

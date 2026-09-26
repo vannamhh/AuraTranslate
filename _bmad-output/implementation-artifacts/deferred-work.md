@@ -956,6 +956,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: món nợ hai nền tảng chung, đóng khi CI macOS dựng được bản thật.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: CI (.github/workflows/ci.yml:755-763) nay chạy job `e2e (macos-26)` dựng webview thật — điều kiện đóng mà mục này nêu đã có hạ tầng — nhưng `grep -rl 'Intl.Segmenter\|WKWebView' e2e/specs` không ra kết quả; còn thiếu: Chưa có spec e2e nào đo lại ba mệnh đề (ranh giới Intl.Segmenter, U+2060 trên WebKit, Selection.modify trên .hv-unit) trên WKWebView thật. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 4) — `e2e/specs/hanviet-segmenter-webkit.e2e.mjs` mới đo cả ba mệnh đề trên WKWebView thật (605.1.15): ranh giới `Intl.Segmenter` khớp `hanVietCutAnchors.test.ts`; U+2060 giữ liền âm tiết (đo bằng `Selection.modify`, đối chứng gỡ `WORD_JOINER` ⇒ đỏ đúng lý do); `Selection.modify('extend','right','word')` băng qua ranh `.hv-unit`. Chi tiết: `11-2-phases-2026-09-26.md` §Pha 4. **Chủ: Story 11.2.**
 
 - ⚠️ **ICU cắt SAI ở một tỉ lệ có thật trên văn xuôi TIỂU THUYẾT — danh sách ca sai đã đo,
   không phải một lo xa.** Story 1.18b chạy `Intl.Segmenter('zh')` trên bốn đoạn mở đầu của
@@ -995,6 +996,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: treo cho tới khi có quyết định về một bộ chạy test frontend.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: package.json xác nhận vitest 4.1.10 + @vue/test-utils 2.4.11 + happy-dom 20.11.2 đã tồn tại (từ 2026-08-12), và `tests/frontend/hanVietCutAnchors.test.ts` nay MOUNT component thật `SourceHanViet.vue` (dòng 24-37) — tiền đề gốc của mục (không có bộ chạy test frontend) đã hết đúng; còn thiếu: Bộ test mount thật mới canh phần EMIT/DOM (neo chỗ cắt, biên Glossary), chưa canh double-click/kéo chọn/clipboard bằng Selection API — phần đó vẫn nghiệm thu bằng bàn đo HTML chạy tay cũ. Quyết định hình dạng chung (B10) vẫn `status: open` trong sprint-status.yaml. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 4) — B10 gộp vào spec của L947: `hanVietCutAnchors.test.ts` đã MOUNT component thật từ Story 3.4b (không đổi), và `hanviet-segmenter-webkit.e2e.mjs` mới đo double-click/kéo chọn bằng `Selection.modify` thật trên WKWebView (không còn cần bàn đo HTML chạy tay). ⚠️ Phát hiện mới, chưa đóng: mệnh đề ③ *"inline-block thì kẹt hẳn"* trong doc-comment `.hv-unit`/`SourceHanViet.vue` KHÔNG tái lập được khi ép `display:inline-block` trên WebKit + markup `<ruby>` hôm nay — xem mục riêng cuối tệp này. **Chủ: Story 11.2.**
 
 ---
 
@@ -2197,6 +2199,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   điều thứ hai nữa. **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Bộ test frontend đã lớn (hàng chục tệp tests/frontend/*.test.ts, ví dụ commandsRegistry.test.ts, editorTypingZone.test.ts) phủ được phần lớn mã Story 1.x/2.x một cách tự nhiên qua các story sau; còn thiếu: Chưa có một story riêng nào chủ đích rà soát lại từng mệnh đề CŨ đã nêu đối chiếu với test hiện có; sự phủ là ngẫu nhiên theo story mới, không phải một lượt phủ hồi tố có chủ đích. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — phủ test hồi tố cho mã Story 1.x/2.1/2.2 vẫn là một hạng mục không giới hạn (retroactive), đúng như rà sổ nợ 09-23 đã kết luận; mở lại khi có một hồi quy NÊU TÊN được, không phải một lượt quét chủ động. **Chủ: Ice.**
 
 - ⚠️ **KHÔNG di chuyển các phép kiểm HÀNH VI từ cổng tĩnh sang vitest** — `check-layout.mjs`
   Kiểm B *(chạy `simulateWrites`)* và `check-commands.mjs` Kiểm C/D/E *(`import()` thẳng
@@ -2221,6 +2224,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   như một danh sách tiện tay. **Chủ: Dev** *(giữ danh sách ngắn, mỗi mục một dòng lý do)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tests/frontend/support/setup.ts:22-52 vẫn liệt đúng hai khoảng hở đã nêu: document.fonts (happy-dom không cài FontFaceSet, dòng 22) và ResizeObserver (cài nhưng không bao giờ bắn thật, dòng 42-51). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2) — tự thoả: `tests/frontend/support/setup.ts:22-52` đã ghi mỗi giới hạn `happy-dom` một dòng, đúng bar mà mục này đòi; không cần thêm gì. **Chủ: Story 11.2.**
 
 ---
 
@@ -3509,6 +3513,7 @@ mục nào mồ côi.
   **Chủ: một story hạ tầng cổng** *(gộp cùng hai món `check-i18n` đã ghi ở trên)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: segmentHistoryTime.ts đã tự tránh toISOString (dùng getFullYear/getMonth/getDate), nhưng test:139 vẫn giữ nhánh expect(offsetMin).toBe(0), không tệp cấu hình nào đặt TZ, nên ca vẫn vô nghĩa ở CI UTC như mục mô tả. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 2) — `segmentHistoryTime.test.ts` đặt `process.env.TZ='Asia/Ho_Chi_Minh'` ở đầu tệp trước mọi import; đối chứng `TZ=UTC npx vitest run tests/frontend/segmentHistoryTime.test.ts` vẫn 11/11 xanh, tức biến `TZ` của tệp thắng biến của runner. **Chủ: Story 11.2.**
 
 - ⚠️ **Sau Story 2.6, `src/config/segment.ts` có HAI loại adapter, và một kho nửa này nửa kia là
   một kho không đoán được luật.** Sáu adapter cũ *(`splitChapterIntoSegments` ·
@@ -3710,6 +3715,7 @@ mục nào mồ côi.
   **Chủ: story nào dựng bề mặt xác nhận thứ hai** *(nối tiếp món cũ, không mở món thứ ba)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: wire::confirm_segment vẫn cần AppHandle nên tests/** không gọi được trực tiếp; chưa đo được liệu tầng tests/** có đọc được danh sách tham số #[tauri::command] mà không dựng webview. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 1) — `src-tauri/tests/ipc_argument_contract.rs` mới (quét văn bản, không thêm phụ thuộc) đối chiếu 98 vỏ `#[tauri::command]` đăng ký trong `generate_handler!` với mọi `invoke()`; đối chứng gỡ khoá `textAtLoad` khỏi lời gọi `confirm_segment` ⇒ đỏ đúng tên khoá đó. Lượt quét cũng bắt một khoá chết thật (`regroupings: []` ở `previewBilingualImportFromFile`), đã gỡ. **Chủ: Story 11.2.**
 
 - 🔴 **Mốc ghim theo PHIÊN panel, xuất xứ đọc SỐNG từ đĩa — hai thứ lệch pha, và vòng ký thứ
   hai trong cùng phiên không trả lại được xuất xứ gốc.** Edge Case Hunter nêu; phép rà xác nhận
@@ -3854,6 +3860,7 @@ mục nào mồ côi.
   🔵 Gộp vào cùng chủ với hai món đã có: `devServerIsUp()` tin một Vite hấp hối (`:3345-3354`)
   và `FLUSH_WAIT_MS` thua một máy đang biên dịch (`:3902-3906`).
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2, Pha 4) — `realClick` đo được KHÔNG còn đúng như mục này khai: nó CÓ giao `mouseup` tới `document`. Cái chặn thật là hai lớp khác: ⓐ nguồn hai dòng khiến toạ độ gốc phần tử của WebDriver rơi vào khe giữa hai dòng; ⓑ `mouseup` tổng hợp của driver mang `metaKey:false`/`isTrusted:false` dù một input-source phím riêng đang giữ mã W3C của Meta ⇒ `onSourceCellMouseUp`'s `hasPrimaryModifier` không bao giờ qua — ⓑ một mình đã đủ chặn, bất kể toạ độ. `segment-merge-split.e2e.mjs` giữ nguyên `MouseEvent` tổng hợp. **Chủ: Epic 11** (lượt dùng thật, đúng như Quyết định 11 đã hẹn).
 
 - 🔴 **Auto-Lookup bằng chuột ở cột nguồn CHƯA CÓ đường nghiệm thu, và có thể đang chết.**
   Đo 2026-08-17 (`2-8-ban-do/README.md` vòng 2–3): trên WKWebView, **không cử chỉ chuột nào**
@@ -4154,6 +4161,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: một luật cho bàn đo** — hoặc cấm chép, hoặc buộc cập nhật cùng lượt với hàm gốc.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep 'CHÉP' và các biến thể trong e2e/AGENTS.md và agent-rules-evidence.md cho 0 kết quả — chưa có luật nào cấm bàn đo chép hàm sản phẩm hoặc buộc đồng bộ. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — thêm một dòng cạm bẫy vào khối quản lý của `e2e/AGENTS.md`: một bàn đo CHÉP hàm sản phẩm đo bản chép và đi lạc trong im lặng — gọi thẳng hàm sản phẩm, như tự-kiểm của `devServerHealth.mjs` đã làm. **Chủ: Story 11.2.**
 
 - ⚠️ **`hasPrimaryModifier` và `caretAtCellStart` nay sống cạnh `sourceCutOffsetOf` trong
   `editorSegments.ts`, và tệp đó khai bằng chữ *"KHÔNG `import` giá trị nào, KHÔNG Vue, KHÔNG
@@ -4387,6 +4395,8 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   đúng một điều kiện khởi hành)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Selector đã neo bằng .grid-scroll rồi closest('.panel') (segment-navigation.e2e.mjs:253-262); nightly job e2e (macos-26) xanh 6 lượt liên tiếp 2026-09-16→2026-09-22 (vd run 35782683524); còn thiếu: Phép so sánh trực tiếp thước cũ (querySelector('.panel') trần) với thước mới trên cùng một lượt chạy, để chứng minh thước cũ từng đo nhầm panel, chưa bao giờ được thực hiện. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  🔵 SỬA 2026-09-26 (Story 11.2) — chuỗi *"nightly job e2e (macos-26) xanh 6 lượt liên tiếp 2026-09-16→2026-09-22"* mà rà sổ nợ 09-23 ghi (dòng ngay trên) đã ĐỨT: nightly đỏ 2026-09-23 (`editor-typing-flush.e2e.mjs:218`, `story-3-5-review.e2e.mjs:143`) và 2026-09-24 (`editor-typing-flush.e2e.mjs:218`) — cả hai nguyên nhân đã chẩn đoán và vá trong Story 11.2 (xem L10530/Quyết định 8 dưới).
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — phép so sánh trực tiếp thước cũ (`querySelector('.panel')` trần) với thước mới (`.grid-scroll`+`closest('.panel')`) trên cùng một lượt CI vẫn chưa từng chạy; mở lại khi CI thật sự phân biệt được hai thước, không phải một lượt suy luận mới. **Chủ: Ice.**
 
 - 🟡 **Nhánh `if (s.retiredAt !== null) continue` trong `segmentNavigation.ts::buocTu` là mã phòng
   thủ KHÔNG ĐO ĐƯỢC ở sản phẩm.** Hai hàng rào đứng trước, mỗi hàng đủ một mình:
@@ -4504,6 +4514,8 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: giữ nguyên.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Nightly e2e (macos-26) xanh 6 lượt liên tiếp 2026-09-16→2026-09-22 (vd 35148735115…35782683524); attribution-focus nay skip trên CI do thiếu dữ liệu từ điển (deferred-work.md:4984, cập nhật 2026-09-23); còn thiếu: Lượt đối chứng lô-so-đơn của 2.11 chưa được lặp lại chính thức; nguyên nhân chập chờn gốc của attribution-focus (lần đỏ ②) chưa bao giờ được chẩn đoán, chỉ đang bị né bằng skip. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  🔵 SỬA 2026-09-26 (Story 11.2) — cùng chuỗi 6-xanh-liên-tiếp ở dòng rà 09-23 ngay trên đã đứt (đỏ 09-23/09-24, xem mục L4371); và `attribution-focus` (lần đỏ ②) NAY ĐÃ được chẩn đoán (Pha 4b, Story 11.2): nguyên nhân là `WorkspaceDock.vue::applyMerge` kích hoạt tab AI thay Lookup ở tier `short`, vá bằng `e2e/support/layoutTier.mjs::ensureFullLayoutTier()` trong bộ đo, không phải sản phẩm.
+  → 🟡 2026-09-26 (Story 11.2) — Bốn nguyên nhân cũ (AC1-AC4) và cả hai spec chập chờn (`editor-typing-flush`, `attribution-focus`) nay có bản vá kèm nguyên nhân nêu tên; còn thiếu đúng như mục này tự đòi: một lượt xanh trọn bộ TÁI LẬP ĐƯỢC trên runner GitHub thật — 5 lượt `workflow_dispatch` của Quyết định 3 trên commit cuối chưa chạy. **Chủ: Story 11.2.**
 
 ## Deferred from: SCP 2026-08-18b — rút `⌘Z` cho gộp/tách (2026-08-18)
 
@@ -4583,6 +4595,8 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   phân xử bằng tay một ca đỏ trong lô, như lượt 2.11 đã tốn ~25 phút)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: 6 lượt schedule liên tiếp (2026-09-16→2026-09-22) cho job e2e (macos-26) xanh trên các cây nguồn khác nhau — bằng chứng ổn định mạnh hơn n=1 ban đầu, dù không phải phép đo n≥3 trên CÙNG một cây như mục yêu cầu; còn thiếu: attribution-focus (lần đỏ ②) vẫn chưa được chẩn đoán — CI hiện skip spec đó nên nó không còn cơ hội gây chập chờn để đo lại. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  🔵 SỬA 2026-09-26 (Story 11.2) — cùng chuỗi 6-xanh-liên-tiếp đã đứt (xem L4371); `attribution-focus` (lần đỏ ②) nay có chẩn đoán và bản vá (xem L4492).
+  → 🟡 2026-09-26 (Story 11.2) — `n=1` (hay `n=6` nightly) vẫn không phải bằng chứng tất định; phép đo đọc được duy nhất là 5 lượt `workflow_dispatch` xanh trên CÙNG một commit (Quyết định 3), chưa chạy. **Chủ: Story 11.2.**
 
 - 🔴 **`AC7` của Story 2.12 là một mệnh đề MỘT NỀN TẢNG — Ice ký đường (c) của quyết định #1.**
   Mọi phép đo, mọi bản vá và mọi lượt nghiệm thu của story này chạy trên **macOS/WKWebView**. Không
@@ -4614,6 +4628,7 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   với món `AC7 · Task 8.4` ở trên. **Chủ: story hạ tầng e2e kế tiếp.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Nightly e2e (macos-26) xanh 6 lượt liên tiếp gần nhất, cho thấy hiện tượng cửa sổ trắng phía client hiện không xảy ra thường xuyên; resetPanelState() vẫn là hàng rào gián tiếp duy nhất; còn thiếu: Không có phép kiểm riêng nào cho vế CLIENT của AC1 (webview nạp trước khi Vite sẵn sàng); chưa có lượt cố ý đo lại xem cạm bẫy 8 còn tái lập được không. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — `openWorkspaceWithWork` (`e2e/support/workspace.mjs`) nay hỏi thẳng `document.querySelector('#app')?.children.length` ngay sau cầu IPC, trước khi tạo Tác phẩm — bắt trực tiếp bẫy cửa sổ trắng; đối chứng đổi selector thành `#not-app` ⇒ cả hai ca của `editor-typing-flush.e2e.mjs` đỏ trong 30s với thông điệp mới, đúng lý do. **Chủ: Story 11.2.**
 
 - ⚠️ **Bộ đo nay bám `editorLastSavedAt` — một export của mã sản phẩm, và không cổng nào canh dây
   đó.** Ice ký **(a′)** của quyết định #4 *(2026-08-18)*: `e2e/support/flushWait.mjs` đọc
@@ -4629,6 +4644,7 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   thật của `src/**` — hoặc một chữ ký của Ice rằng vế "tự kêu" là đủ)*.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep 'e2e/support' trong scripts/*.mjs không ra kết quả — chưa cổng tĩnh nào đối chiếu tên trong e2e/support/** với export thật của src/**. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → KHÔNG LÀM 2026-09-26 (Story 11.2, Quyết định 2) — không dựng `check:e2e-wires`; lượt vá L10530 (`data-status-saved`) đã cho `editorLastSavedAt` một chỗ đọc DOM độc lập, và một hồi quy dây `editorLastSavedAt` sẽ tự lộ bằng một throw nêu tên trong chính lượt nightly, đúng mức an toàn mục này đòi. **Chủ: Ice.**
 
 - ⚠️ **`resetDictSources()` không nằm trên đường gọi nào của sản phẩm.** Ice ký #2c *(dựng reset thay
   vì miễn trừ)*, và hàm ra đời đúng thế. Nhưng `disabled` là cấu hình tầng **Global**, chỉ nạp lại
@@ -4678,6 +4694,7 @@ hôm nay**, và chính vì thế chúng đi vào sổ chứ không thành một 
   **Chủ:** story đầu tiên thêm một asset non-JS/non-JSON vào `src/**` *(chưa có lịch)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: e2e/support/devServerHealth.mjs:78-100 judgeModuleResponse vẫn chỉ đặc cách đuôi .json; find src -name '*.css' cho 2 tệp nhưng Vite dev vẫn trả text/javascript cho .css nên chưa trúng bẫy; 0 tệp .svg/.wasm/.png dưới src/**; còn thiếu: Bẫy dương tính giả vẫn treo cho ngày một asset non-JS/non-JSON (svg, wasm…) được import vào src/**; chưa có lịch cho story nào làm việc đó. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — `judgeModuleResponse` (`e2e/support/devServerHealth.mjs`) đổi từ allow-list sang deny-list (`ct === '' || ct.includes('text/html')`); 4 ca `selfCheckDevServerHealth` mới (2 âm/2 dương) khoá đúng hành vi; đối chứng lùi về allow-list cũ ⇒ ca mới đỏ đúng tên. **Chủ: Story 11.2.**
 
 - 🟡 **`extractSrcImports` bỏ template literal, và một chuỗi `"/src/…"` trong chú thích thành cạnh
   giả** — `e2e/support/devServerHealth.mjs:113-116`. Regex chỉ khớp `'…'`/`"…"`, không backtick.
@@ -4688,6 +4705,7 @@ hôm nay**, và chính vì thế chúng đi vào sổ chứ không thành một 
   **Chủ:** story đầu tiên dựng một `import()` động dưới `src/**` *(chưa có lịch)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: extractSrcImports (devServerHealth.mjs:113-116) vẫn chỉ khớp regex nháy đơn/kép, không backtick; grep -rn "['\"]/src/" src/ vẫn cho 0 kết quả, đúng số đo gốc 2026-08-19; còn thiếu: Cả hai chiều hỏng (import động bằng backtick bị bỏ sót, chú thích chứa /src/... thành cạnh giả) vẫn chưa từng xảy ra thật, nhưng regex vẫn chưa sửa. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — `extractSrcImports` nay khớp cả literal backtick (`(['"\`])(\/src\/[^'"\`]+?)\1`) và bỏ qua match chứa `${`; đối chứng lùi về regex nháy đơn/kép cũ ⇒ ca mới đỏ đúng tên. **Chủ: Story 11.2.**
 
 - 🟡 **Test AC6 chỉ phủ nhánh GỘP của đường `INSERT` thứ hai, không phủ nhánh TÁCH** —
   `src-tauri/tests/segment_contract.rs:6324`
@@ -5358,6 +5376,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     là bằng chứng cho chính lý do đổi này.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: e2e/specs/editor-confirm-segment.e2e.mjs vẫn dựa vào nhiều browser.pause() (dòng 127,143,176,178,183,185) — dùng khuôn chập chờn đã ghi; Ice đã nhận chủ 2026-08-24 vì không story nào còn ở Epic 3 để gắn. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — sáu `browser.pause()` của `editor-confirm-segment.e2e.mjs` thay bằng `waitForCaretOn`/`waitForSegmentStatus` (thông điệp dựng trong `catch`, cùng khuôn `flushWait.mjs`); đối chứng tắt `dispatchEvent` của hợp âm + hạ trần 2s ⇒ đỏ đúng tên (`status="confirmed"` không tới, thấy `draft`). **Chủ: Story 11.2.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Không spec e2e nào bôi đen được chữ bằng **chuột thật** — WebDriver pointer action
@@ -5375,6 +5394,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     diện mới hiện được một dấu sai; nửa Rust của 3.4 không vẽ một pixel nào.)*
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: e2e/specs/glossary-quick-add.e2e.mjs và các spec khác vẫn dùng realClick()/dùng Range dựng mã thay vì kéo chuột thật (giới hạn WebKit, không phải lỗi mã dự án) — chưa có đường nghiệm thu chuột thật nào mới. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — điều kiện tự mục nêu (chủ là Story 3.4b) đã `done`; đây là giới hạn WebKit đo được (kéo chuột thật không sinh `Selection` trong WKWebView), không phải lỗi mã dự án. Mở lại khi Story 3.4b (hoặc kế nhiệm của nó) cần nghiệm thu chuột kéo thật. **Chủ: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Job `e2e` vừa thêm vào `.github/workflows/ci.yml` (nhịp đêm, `macos-26`) **chưa
@@ -5434,6 +5454,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     là bằng chứng cho chính lý do đổi này.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: attribution-focus.e2e.mjs:56-101 vẫn skip khi list_dict_sources trả 0 nguồn; grep dict/.db trong .github/workflows/ci.yml không thấy bước nào dùng .db mẫu, chỉ có check:dict/check:dict-manifest không tải dữ liệu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → 🟡 2026-09-26 (Story 11.2, Pha 3) — `ci.yml` job `e2e` nay dựng một `.db` fixture từ `tools/dict-build/tests/fixtures/raw/**` (không tải gì, AD-25 giữ nguyên) ngay trước `test:e2e`; đo local: exit 0, bốn tệp `.db` (~37s nguội). `attribution-focus.e2e.mjs`'s doc-comment khai CI không có dict đã sửa. Còn thiếu: chưa chạy được trên runner GitHub thật — 5 lượt `workflow_dispatch` của Quyết định 3 là phép đo đó. **Chủ: Story 11.2.**
 
 ## Deferred from: lượt `correct-course` tách Story 3.4b (2026-08-21)
 
@@ -5681,6 +5702,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     mở Chương và món nợ "đứng hình vs chậm"; ba mệnh đề cùng cần một bản dựng thật, đo một lượt.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Commit de5f3fd ("bộ e2e xanh 12/12 trên WKWebView thật — và phép đếm phơi ra rằng 0/12 spec chạm bề mặt story này dựng") và retro dòng 508 ("0/13 spec chạm bề mặt đánh dấu") xác nhận vẫn chưa có spec e2e nào cho bề mặt đánh dấu thuật ngữ. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2, Quyết định 11) — không viết spec e2e riêng cho bề mặt đánh dấu Glossary trong story này. **Chủ: Epic 11** (lượt dùng thật trên bản đóng gói, đúng như mục này tự đòi).
 
 ## Deferred from: 3-5-quet-ung-vien-khi-nhap-tai-lieu (2026-08-22)
 
@@ -6211,6 +6233,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: lượt QA tay kế tiếp, hoặc story đầu tiên mở rộng bộ e2e sang Glossary.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: e2e/specs/ chỉ có glossary-quick-add.e2e.mjs, story-3-5-review.e2e.mjs, story-5-13-reading-marks.e2e.mjs chạm Glossary — không tệp nào lái bàn phím qua overlay chọn tệp Xuất/Nhập. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2, Quyết định 7) — không làm spike bàn phím cho overlay chọn tệp Xuất/Nhập Glossary. **Chủ: Epic 11** (lượt dùng thật).
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
   summary: **Nửa Windows của hộp thoại chưa chạy lần nào** — hộp thoại đi qua một cài đặt hệ điều
@@ -6627,6 +6650,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `fileParallelism` cho cây test frontend. **(Chủ: Ice — đây là một quyết định về cấu hình bộ
     chạy, không phải một dòng vá; lượt đầu tiên chạm `vitest.config` mở lại.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 2, Quyết định 6) — đóng trọn cùng L8654: nguyên nhân tranh CPU dưới `fileParallelism` đã root-cause theo tệp và vá (xem L8654); không cần `fileParallelism:false` vĩnh viễn nữa. **Chủ: Story 11.2.**
 
 - source_spec: none
   summary: **Cụm F — 🔵 SỬA 2026-08-26: đúng mười bốn mục rải rác, không mười bảy** (danh sách
@@ -7378,6 +7402,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hàng rào mới chỉ là một cơ chế PHÁT HIỆN cho lần sau, nó không giải thích được nguyên nhân của
     lượt đỏ đã xảy ra trong quá khứ. Chủ giữ nguyên Ice.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — không tái lập kể từ đo gốc; hàng rào âm (`wdio.conf.mjs::onComplete` đọc `library-index.db`) vẫn đứng canh chiều ĐỌC. Mở lại đúng như mục tự đòi: khi lượt đỏ này TÁI XUẤT (nêu tên `6d68dce` làm mốc), bắt nguyên văn trước khi vá. **Chủ: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
   summary: **Mở Library hôm nay không có đường ĐỌC THUẦN — mọi lượt hiện danh sách mục mồ
@@ -7525,6 +7550,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — cùng chủ với hai mục "nhịp đêm đỏ, chết ở CẦU IPC" và "hai spec chập chờn":
     cả ba là câu hỏi về ĐỘ TIN CẬY và PHẠM VI của bộ e2e, không về một story cụ thể.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2, Quyết định 7) — không làm spike WebDriver BiDi cho kích hoạt bàn phím. **Chủ: Epic 11** (lượt dùng thật).
 
 - ⚠️ **`story-5-6-library-grid.e2e.mjs` ĐỎ ở baseline `6b2cb24`, và Story 5.6 vẫn đang mở** —
   ghi ra để lượt chạy e2e kế tiếp không đọc nhầm nó thành hồi quy của Story 5.7.
@@ -7622,6 +7648,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ghi ra ở đây để lượt đọc sau không tưởng nhánh tách đã được phủ bằng bàn phím.
     **(Chủ: Ice — cùng chủ với mục gốc ở §"Deferred from: 5-7…".)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2, Quyết định 7) — cùng gốc và cùng chủ với L7502. **Chủ: Epic 11** (lượt dùng thật).
 
 ## Deferred from: 5-9-tim-kiem-full-text-xuyen-library (2026-08-29)
 
@@ -7910,6 +7937,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — quyết xem bàn đo có phải mang một ca tự kiểm cho chính đường điều phối pha không,
     hay chấp nhận rằng harness chỉ được nghiệm thu bằng một lượt chạy thật.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 1) — `src-tauri/tests/nfr_bench_wiring_contract.rs` mới (chạy luôn, không cần feature `nfr-bench`) khẳng định nhánh `"usable"` của `nfr_bench_mark_and_wait_phase` vẫn gọi `spawn_phase_controller(`; đối chứng gỡ lời gọi đó ⇒ đỏ đúng tên. **Chủ: Story 11.2.**
 
 ## Deferred from: retro Epic 5 — lượt sửa AI-2/AI-3 (2026-09-03)
 
@@ -7987,6 +8015,8 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     đường rẻ nhất và cũng là đường dễ thành "hạ ngưỡng cho cổng hết đỏ" nhất — nếu chọn nó thì
     con số phải đến từ một phép đo trên máy tải cao, ghi kèm ngày.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 2, Quyết định 6) — nguyên nhân root-cause theo TỆP (không phải một hằng số `testTimeout`): các tệp dựa `setTimeout(0)`/`flushPromises()` (macrotask) đổi sang `flushMicrotasks.ts` (thuần microtask); `fileParallelism` bật lại; 3 lượt trọn bộ dưới tải (16× `yes`, load ~90-346) xanh liên tiếp (99 tệp/1485 ca) cộng 1 lượt không tải xanh (100 tệp/1493 ca). **Chủ: Story 11.2.**
+  🔵 SỬA 2026-09-26 (Story 11.2, Pha 6) — số đo trên vẫn ĐÚNG như đã đo (quần thể VÀ tải của chính Pha 2), nhưng không đọc thành *"`fileParallelism: true` an toàn ở mọi tải"*: Pha 5 đo lại (cùng phiên, không đổi mã) và tái lập đỏ ở quần thể RỘNG hơn (xem mục `Chủ: Ice` — *"Đo lại Pha 5 KHÔNG khớp phán quyết đóng…"* — ngay dưới `Deferred from: 11-2-e2e-va-bo-chay-test`); Pha 6 áp `beforeAll` cho 11 tệp còn lại theo đúng khuôn, đo lại 3 lượt trọn bộ hai lần (tải đã ổn định `<80` trước khi bắt đầu cả hai lần, không lẫn việc khác) — CẢ HAI lần đều không đạt 3 lượt xanh liên tiếp, ở tải đo được cao hơn cả đỉnh của Pha 2 (317–473 so với 346). Số đo đầy đủ nằm ở mục `Chủ: Ice` đó, dòng `→` mới nhất.
 
 ## Deferred from: vòng rà spec AI-2/AI-3 (2026-09-03)
 
@@ -8683,6 +8713,8 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (`editorClearSourceCuts` · `editorTypingZone` · `glossaryHoverSelection` ·
   `glossaryMarksRefresh`) rồi mới bật lại song song được.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 2, Quyết định 6) — đo lại dưới tải cho quần thể **12 tệp/19 ca** (khác cả danh sách sổ nợ gốc lẫn Code Map của spec — quần thể đổi theo lượt đo, không phải một tập cố định); root-cause: `setTimeout`/`setImmediate` cần pha timer của event loop, bị trì hoãn dưới CPU starvation, khác microtask. Vá bằng `tests/frontend/support/flushMicrotasks.ts` (thuần `Promise.resolve()`×12+`nextTick()`) cộng một `beforeAll` cho chi phí module-transform một lần của `importPreviewUrls.test.ts`. Chứng minh: 3 lượt trọn bộ liên tiếp dưới tải xanh (không đỏ), cộng `check:i18n`/`check:tokens`/`check:commands`/`check:layout`/`check:gates`/`check:doc-refs`/`check:debt-owner` xanh. ⚠️ Một dị thường Vitest nội bộ (`EnvironmentTeardownError`, 1 lần/6 lượt tải, tiến trình vẫn exit 0) ghi ở mục riêng cuối tệp. **Chủ: Story 11.2.**
+  → 2026-09-26 (Story 11.2) — Ice chọn phương án B sau Pha 6: GIỮ `fileParallelism: true` và chấp nhận rủi ro còn lại. Đo được: song song xanh 3/3 lượt trọn bộ khi máy rảnh; dưới tải 243–473 (16× `yes` + máy ảo nền) mỗi lượt có 2–4 tệp đỏ vì hết giờ ở lần nạp module lạnh đầu tiên, tập tệp đổi theo lượt. Tuần tự đo 1485/1485 ở tải ≈270 nhưng chậm hơn ~110 s mỗi lượt. Mở lại khi `pre-push` đỏ vì hết giờ nạp module lạnh ở tải bình thường (dưới ~100).
 
 ## Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)
 
@@ -10076,6 +10108,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đỏ ngẫu nhiên này ở CI/pre-push — đây là quyết định kiến trúc bộ test của Story 6.11, ngoài
   phạm vi Story 6.12 để tự quyết định sửa.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 1, Quyết định 4 phương án B) — `asset_contract.rs` (19 ca) nay có một `static SERIAL_LOCK: Mutex<()>` khoá tuần tự đầu mỗi `#[test]`, không đổi lời gọi `cargo test`/CI; đo lại: 3/3 lượt mặc định đa luồng xanh 19/19. **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: bắt được sau code review — `DocxSidecar::blocks` gắn TRỌN VẸN vào Chương ĐẦU
@@ -10227,6 +10260,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ("khoảng trống đối diện ảnh có chấp nhận được không") là một phán quyết thiết kế, không một
   phép đo kỹ thuật.
   → 2026-09-24 (phiếu quyết #68) — Ice nhận ô bản dịch trống đối diện ảnh là đúng ý; 11.2 thêm e2e đo năm cột thẳng hàng trên WKWebView thật. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 4) — `e2e/specs/grid-image-row-alignment.e2e.mjs` + `e2e/support/miniDocx.mjs` mới (zip STORE dựng tay, không phụ thuộc, không nhị phân commit) đo năm cột `.col-*` cùng `top` (±1px) dù hàng mang ảnh cao hơn, trên WKWebView thật; đối chứng gỡ `grid-template-rows: subgrid` khỏi `.col` ⇒ đỏ đúng tên (lệch 4.5px). Xác nhận trước khi viết spec: bytes JS dựng cho ra đúng `images_saved:1/images_failed:0` khi chạy qua `read_docx`/`create_work_from_file` thật (ca tạm ở `docx_contract.rs`, đã gỡ). **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: 🔵 Cơ chế của món nợ "test dựng `TcpListener` thật đỏ trong thư mục dự án" đo lại
@@ -10254,6 +10288,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — cùng chủ với mục gốc (Story 6.12). Mục này KHÔNG đề xuất sửa; nó chỉ ghi rằng lời
   giải thích đang có đã hết đủ, để lượt điều tra sau không dừng ở một cơ chế sai.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 1, Quyết định 4) — cùng khoá tuần tự trong tệp áp cho `segment_role_contract.rs` (15 ca) và `webimport_contract.rs` (37 ca, 3 bị `#[ignore]`); đo lại: 3/3 lượt mỗi tệp xanh trọn (15/15, 34/34+3 ignored). **Chủ: Story 11.2.**
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Đối chứng đỏ ② của spec 6.14 — *"gỡ lượt cấp scope động ⇒ `<img>` phải trượt với
@@ -10485,6 +10520,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   là quyết định của story đó, không phải của spec này.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: e2e/wdio.conf.mjs vẫn không có hàm được tách riêng cho unit test; grep tests/ cho onComplete/onWorkerEnd trả 0 kết quả. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 2) — tách `checkPairDataBarriers(pair, context)` (I/O thật, `readFileSync`/`existsSync`) ra `e2e/support/pairDataBarriers.mjs`; `wdio.conf.mjs::onComplete` gọi hàm đó thay vì cài trực tiếp. `tests/frontend/wdioPairDataBarriers.test.ts` mới (8 ca, `mkdtempSync` thật) canh từng hàng rào riêng + cả ba đứt cùng lúc; đối chứng vô hiệu một hàng rào ⇒ đúng 2 ca đỏ, đúng tên. **Chủ: Story 11.2.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
   summary: `e2e/wdio.conf.mjs` imports `SevereServiceError` from `webdriverio`, which
@@ -10500,6 +10536,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Ice** — đụng `package.json` và cửa rà gói phụ thuộc, nằm ngoài quyền của một spec
   harness.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3, NFR15) — đọc `node_modules/webdriverio/LICENSE` (MIT, tương thích GPLv3) trước khi khai `webdriverio: 9.30.1` trong `package.json` devDependencies — đúng bản `@wdio/cli`/`@wdio/local-runner` đã ghim; `npm ls webdriverio` xác nhận gốc nay resolve trực tiếp, dedupe với `@wdio/cli`. Thêm hàng Stack table ở `ARCHITECTURE-SPINE.md`. **Chủ: Story 11.2.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e2e-cach-ly-trang-thai-giua-cac-spec.md`
   summary: One prototype full run (E2, relaunch plus fresh dirs) had `story-5-7-open-chapter`
@@ -10515,6 +10552,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   có nguyên văn.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Nightly gần nhất (run 35782683524, 2026-09-22) story-5-7-open-chapter.e2e.mjs XANH, nhưng nguyên nhân lượt đỏ nguyên bản vẫn chưa được đặt tên ở đâu trong sổ nợ. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — không tái lập kể từ đo gốc; mọi lượt trọn bộ đã kiểm trong story này (kể cả lượt e2e 27/27 xanh của Pha 4/4b) đều thấy `story-5-7-open-chapter.e2e.mjs` xanh. Mở lại đúng điều kiện mục tự đòi: bắt nguyên văn ở lần tái xuất kế tiếp trên nightly. **Chủ: Ice.**
 
 ## Deferred from: spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc (review, 2026-09-14)
 
@@ -10524,6 +10562,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Dev** — correct the sentence in the next story that touches `e2e/support/workspace.mjs`.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: e2e/support/workspace.mjs:19-20 vẫn ghi form Library không có mối nối data- nào, trong khi src/modes/LibraryMode.vue:1339/1375/1423 vẫn mang data-import-preview-open từ Story 6.3. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — sửa câu chép sai ở `e2e/support/workspace.mjs:19-20`: biểu mẫu Library đã mang `data-import-preview-open`/`data-bilingual-import-preview-open` trên ba nút submit từ Story 6.3 (`LibraryMode.vue:1340,1376,1424`); lý do dùng IPC để tạo Tác phẩm trong fixture vẫn đứng nguyên (mỗi bên tiêu thụ đo một thứ khác). **Chủ: Story 11.2.**
 
 ## Deferred from: spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc (post-patch verification, 2026-09-14)
 
@@ -10533,6 +10572,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Dev** — chẩn đoán ở lần tái xuất tiếp theo; không gán nguyên nhân trước khi có thêm dữ kiện.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Không tìm thấy ghi chú chẩn đoán tiếp theo trong deferred-work.md cho editor-typing-flush.e2e.mjs:155; nightly gần nhất (2026-09-22) case này XANH. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 3) — đúng nguyên nhân nightly đỏ 09-23/09-24: `StatusBar.vue:452` nay có `data-status-saved` trên `<span>` câu đã lưu; `editor-typing-flush.e2e.mjs` đọc mốc đó thay vì `footer.status.textContent` (vốn dính cả nút Tra cứu do `505c8bc` thêm vào cùng footer). Xanh 2/2 lượt. **Chủ: Story 11.2.**
 
 ## Deferred from: spec-6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that (2026-09-14)
 
@@ -12265,3 +12305,35 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-hanviet-parallel-row-overflow.md`
   summary: **Lượt dùng thật trên app đóng gói, cho fix tràn/đè hàng của Hán Việt kiểu song song.** `.hv-surface` đã gỡ `flex: 1; min-height: 0; overflow: auto` (`SourceHanViet.vue`), và `e2e/specs/hanviet-parallel-row-height.e2e.mjs` xanh 4/4 hai lượt liên tiếp trên WKWebView thật (đo dưới cột bị ép hẹp bằng CSS chỉ-dành-cho-bàn-đo, vì bề rộng cửa sổ thật không cố định giữa các lượt chạy — không ép, bug không tái lập đáng tin). Vế còn lại đúng AC2 của spec là một lượt Ice tự mở một Chương tiếng Trung dài, chuyển tab Hán Việt sang kiểu song song, và xác nhận bằng mắt: không ô nào hiện thanh cuộn riêng, không dòng âm đọc nào đè lên hàng kế.
   evidence: đối chứng đỏ/xanh chạy hai lượt: khôi phục `.hv-surface{overflow:auto}` ⇒ 4/4 ca đỏ đúng lý do (chiều cao/đè hàng ×3, `overflow-y !== 'visible'` ×1); khôi phục bản vá ⇒ 4/4 ca xanh, lặp lại lần hai để loại trừ may rủi (bug tự thân là một lượt CHUYỂN kiểu xem, không chỉ một bề rộng cửa sổ — ép CSS phải khai TRƯỚC lượt chuyển, không phải sau). **Chủ: Ice.**
+
+## Deferred from: 11-2-e2e-va-bo-chay-test (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-e2e-and-test-runner-debt.md`
+  summary: **`attribution-focus.e2e.mjs` đỏ cục bộ, tái lập 100% trên cây sạch `717196d`** — không phải hồi quy của Story 11.2, và không trùng món nợ cũ cùng thông điệp driver (§*Deferred from: 2-9…*, về batch-vs-solo).
+  evidence: Pha 3 bắt được `Error: Couldn't find element for "pointerMove" action sequence` tại `realClick(opener)`, tái lập 3/3 kể cả trên cây `git stash` sạch. Pha 4 khoanh sâu hơn: `$(OPENER)` không bao giờ tồn tại — sau khi thêm `waitForExist` mới lộ đúng thông điệp: `[data-attribution-open]` không xuất hiện sau 30s. Pha 4b đo trực tiếp trong cửa sổ e2e: ở cỡ cửa sổ mặc định (1280×832), `data-layout-tier` đọc là `short`, không phải `narrow` như giả thuyết ban đầu của Pha 4 — `505c8bc`/Story 4.12 (đã đóng bởi L10530) không phải nguyên nhân ở đây. Nguyên nhân thật: `WorkspaceDock.vue::applyMerge` (`:636`) ở tier `short` gộp panel `panel.ai_translation` VÀO group dockview của `panel.lookup` (`direction: 'within'`), và dockview tự kích hoạt tab vừa thêm — Đề xuất AI thành tab active, nội dung Tra cứu rời khỏi cây render tới khi tab của nó được bấm lại. Đọc AC11 (Story 1.19) trước khi chọn hướng vá: AC chỉ đòi `CommandRegistry` + focus trả về đúng opener/tổ tiên, không đòi Lookup ở dạng dock — nên vá chọn RESIZE cửa sổ về tier `full` trong bộ đo (giữ nguyên hình dạng `section.panel[tabindex="-1"]` đã đo trước đây), không đổi hướng sang lái qua `LookupDrawer.vue` (hình dạng `.ld-panel` chưa từng được đo).
+  **Chủ: Story 11.2.**
+  → ✅ ĐÃ ĐÓNG 2026-09-26 (Story 11.2, Pha 4b) — `e2e/support/layoutTier.mjs::ensureFullLayoutTier()` mới: `browser.setWindowSize(10_000,10_000)` (kích cỡ vật lý, bị OS kẹp về vùng màn hình khả dụng — không phụ thuộc `devicePixelRatio`) rồi `waitUntil` `[data-layout-tier="full"]`, ném lỗi nêu tên tier cuối đọc được nếu không tới — không bao giờ lặng lẽ coi là `full`. Chỉ nối vào `attribution-focus.e2e.mjs`, không nối vào `openWorkspaceWithWork` dùng chung (grep xác nhận không spec nào khác phụ thuộc tier: `segment-navigation`/`editor-typing-flush` neo theo cách khác). Đối chứng: đo đỏ ở tier mặc định (đúng thông điệp cũ), rồi xanh 2/2 sau khi thêm `ensureFullLayoutTier()`. Lượt `npm run test:e2e` trọn bộ sau vá: 27 passed, 27 total.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-e2e-and-test-runner-debt.md`
+  summary: **Doc-comment `.hv-unit` trong `SourceHanViet.vue` có thể đã hết đúng** — mệnh đề *"`display:inline-block` làm `Selection.modify('extend','right','word')` kẹt hẳn"* không tái lập được trên WebKit + markup `<ruby>` hôm nay.
+  evidence: Pha 4 (spec `hanviet-segmenter-webkit.e2e.mjs`, ca ③) ép `.hv-unit{display:inline-block}` thẳng trong sản phẩm rồi rebuild — assertion *"vùng chọn băng qua ranh `.hv-unit` sang từ ICU kế tiếp"* vẫn ĐẠT, không kẹt. Một lượt đo lại không đủ để tự tin 🔵-sửa doc-comment tại chỗ (có thể khác engine/khác markup so với thời điểm ghi gốc); ghi ra để Ice quyết định có cần đo thêm hay sửa lại câu.
+  **Chủ: Ice.**
+  → 2026-09-26 (Story 11.2) — flag, chưa vá; xem `11-2-phases-2026-09-26.md` §Pha 4 để biết bước đo đã chạy.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-e2e-and-test-runner-debt.md`
+  summary: **`EnvironmentTeardownError` một lần trong vitest ở tải cực cao** — `[vitest-worker]: Closing rpc while "onUserConsoleLog" was pending`, gán cho `editorConfirmSegment.test.ts` (tệp Story 11.2 không chạm).
+  evidence: Pha 2, 1/6 lượt tải (đúng lượt tải cao nhất đo được, uptime 1-phút ~346, 16 tiến trình `yes` chuyên dụng cộng chừng 12 phiên người dùng khác đã đăng nhập trên máy) — tiến trình vẫn thoát mã 0 và cả 1485 ca vẫn xanh lượt đó. Không tái lập ở 5 lượt tải còn lại (kể cả 3 lượt được tính là bằng chứng chính cho Quyết định 6). Giống một cuộc đua RPC-teardown nội bộ của Vitest lộ ra dưới `fileParallelism:true` ở mức tranh chấp cực đoan, không phải một khuyết tật của Story 11.2.
+  **Chủ: Ice.**
+  → 2026-09-26 (Story 11.2) — ghi lại làm bằng chứng, không vá mù; mở lại nếu tái lập ở tải bình thường.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-e2e-and-test-runner-debt.md`
+  summary: 🔴 **Đo lại Pha 5 KHÔNG khớp phán quyết đóng của Quyết định 6 — `npm run test` đỏ 3/3 lượt trọn bộ trong chính phiên này, dưới CẢ tải cực cao lẫn tải bình thường.** Quần thể ĐÃ RỘNG hơn danh sách Pha 2 đóng: 12 tệp lặp lại ở CẢ BA lượt — `aiPromptInspector` · `aiTranslate` · `editorClearSourceCuts` · `editorTypingZone` · `glossaryQuickAddStrip` · `importPreviewBlocks` · `importPreviewChapters` · `importPreviewDestination` · `importPreviewOverlayRender` · `libraryChapters` · `libraryWorks` · `segmentHistory`. Hai tệp Pha 2 đã tự kiểm "0 timer, để nguyên" (`editorClearSourceCuts`, `editorTypingZone`) NAY đỏ lặp lại — mâu thuẫn trực tiếp với kết luận đó.
+  evidence: Ba lượt `npm run test` trọn bộ, cùng phiên, cùng cây (không đổi mã giữa các lượt — đúng luật "đo lại trước khi sửa"): lượt 1 tải rất cao (`uptime` 250→440, 14 tệp/27 ca đỏ), lượt 2 cùng tải rất cao (14 tệp/33 ca đỏ, cộng 1 lần `EnvironmentTeardownError` tái lập — xem mục ngay trên), lượt 3 SAU KHI tải hạ xuống 31→128 (12 tệp/18 ca đỏ) — tức đỏ không biến mất khi tải hạ, chỉ đỡ hơn. MỌI ca đỏ đọc lên đúng biên `5000`–`5100`ms (bản sao `10028`/`10030`ms là hai lượt 5s liên tiếp trong cùng ca), khớp cơ chế Pha 2 đã đặt tên (`testTimeout` mặc định), nhưng ca đầu tiên bị mỗi tệp luôn là ca ĐẦU TIÊN gọi `freshState()`/`freshPanel()` (`vi.resetModules()` + `import()` động) trong tệp đó — đúng cơ chế "chi phí nguội một lần" mà Pha 2 đã chẩn đoán và vá cho RIÊNG `importPreviewUrls.test.ts` bằng một `beforeAll` khởi động trước, nhưng KHÔNG áp cho 11 tệp còn lại dùng cùng khuôn `freshState()`/`freshPanel()` mỗi `it()`. Vài ca đỏ thứ hai/ba trong cùng tệp (`editorClearSourceCuts` ②③: 3168ms/1317ms, dưới trần) là hệ quả DÂY CHUYỀN từ ca đầu bị huỷ giữa chừng, không phải timeout độc lập.
+    ⚠️ Không phải một cách đọc khác của cùng bằng chứng: Quyết định 6 đóng dựa trên 3 lượt XANH liên tiếp CỦA PHA 2 (đo được, không suy diễn) — số đo đó KHÔNG sai, nhưng quần thể "còn hở" mà Pha 2 tự ghi ("để nguyên, chưa vá") nay đã CÓ bằng chứng đỏ lặp lại, đúng điều Pha 2 tự nhắc *"nếu một lượt đo sau tái lập chúng, `vi.waitFor` là nghi can kế tiếp"* — nghi can thật hoá ra rộng hơn: là chính khuôn `freshState()`/`freshPanel()` không có `beforeAll`, không riêng `vi.waitFor`.
+  **Chủ: Ice.**
+  → 2026-09-26 (Story 11.2, Pha 5) — không tự vá (đây là quyết định kỹ thuật cùng hạng Quyết định 6, cần Ice chốt lại phạm vi: áp `beforeAll` khởi động cho 11 tệp còn lại theo đúng khuôn `importPreviewUrls.test.ts`, hay một hướng khác). `check:debt-owner`, 12 cổng, `npm run build`, và `cargo test --locked` (68/68 target, 0 đỏ) đều xanh trong cùng phiên — chỉ `npm run test` đỏ.
+  → 2026-09-26 (Story 11.2, Pha 6) — Ice chốt phạm vi (áp `beforeAll` cho cả 11 tệp, đúng khuôn Pha 2); đã làm, KHÔNG đạt tiêu chí "3 lượt xanh liên tiếp". Áp `beforeAll(async () => { await <khuôn nạp module của chính tệp> })` cho cả 12 tệp (11 tệp còn lại + xác nhận lại `importPreviewUrls.test.ts`); ba tệp không có một khuôn `freshState()`/`freshOverlay()` chung (`libraryChapters`, `libraryWorks`, `importPreviewDestination`) đổi sang nạp đúng MỘT tệp `.vue` "ô dù" đã kéo theo cả phần còn lại ở tầng module (`LibraryMode.vue` kéo `libraryChapters`/`libraryWorks`/`editorPanelState`/`commands`/`config/library`/`config/lifecycle`; đo trực tiếp từ import list của chính `LibraryMode.vue`), thay vì 4-6 lượt `await import()` nối tiếp — giảm hẳn số lượt `import()` tuần tự trong một hook. Đối chứng KHÔNG tải: 12 tệp riêng lẻ xanh 297/297 ca (13,59s), `npm run build` xanh, 3 lượt `npx vitest run` trọn bộ không tải xanh liên tiếp (100 tệp/1493 ca mỗi lượt). Đối chứng CÓ tải — hai lượt đo TÁCH BIỆT, cả hai đều chờ `uptime` 1-phút giảm dưới 80 và không chạy việc gì khác song song trước khi bắt đầu 16× `yes` (đúng luật "hai lượt đo phải cùng điều kiện", loại bỏ một lượt đo thứ ba bị nhiễm vì chạy `cargo build`/`cargo test` song song — ghi lại chứ không tính là bằng chứng):
+    - Lượt A (tải bắt đầu 65-70, leo lên 317→473 qua 3 lượt chạy): trước khi áp bản rút gọn "ô dù" — `libraryChapters`/`libraryWorks`/`importPreviewDestination` đỏ Hook timeout 10000ms** cả ba lượt (3/3), đúng tại chính dòng `beforeAll` mới thêm — cơ chế đổi từ "ca đầu tiên vượt `testTimeout` 5000ms" (trước Pha 6) sang "cả hook vượt `hookTimeout` 10000ms" (sau khi thêm `beforeAll` nhưng còn 4-6 `await import()` nối tiếp) — một NGÂN SÁCH lớn hơn vẫn không đủ ở tải này.
+    - Sau khi rút còn 1-2 lượt `import()` "ô dù" mỗi hook: Lượt B (tải bắt đầu 62-65, leo lên 243→406 qua 3 lượt chạy) — `libraryChapters`/`libraryWorks` KHÔNG còn đỏ ở CẢ BA lượt (bản rút gọn có tác dụng đo được); `importPreviewDestination`/`importPreviewUrls.test.ts` (Pha 2 tự đóng) vẫn đỏ Hook timeout 10000ms ở lượt tải cao nhất (lượt 2-3, tải >243); MỚI XUẤT HIỆN, không nằm trong danh sách 12 tệp của Pha 5: `promptLibraryOverlayRender`/`glossaryHoverSelection`/`glossaryMarksRefresh`/`aiTranslateBatch` đỏ `Test timed out in 5000ms` ở ĐÚNG MỘT ca đầu tiên mỗi tệp, LẶP LẠI ở cả 3 lượt — cùng cơ chế (lượt `freshState()`/`mountGrid()`/tương đương ĐẦU TIÊN của tệp), nhưng CHƯA được Pha 2/Pha 5 đặt tên trong quần thể của chúng, và không tái lập giống hệt ở lượt A — khớp đúng điều `AGENTS.md` đã ghi: quần thể ồn theo phiên, không phải một tập cố định.
+    ⇒ Không đạt "3 lượt xanh liên tiếp" ở CẢ HAI lượt đo tách biệt. Không tự vá tiếp phần "mới xuất hiện" (bốn tệp ở Lượt B) — mở rộng thêm sẽ là một quyết định phạm vi cùng hạng, và tải đo được ở cả hai lượt (317–473 / 243–406) đều VƯỢT đỉnh của chính Pha 2 (346), tức phép so sánh "cùng điều kiện" với Quyết định 6 đã không còn giữ được trên máy này hôm nay. Không đổi `fileParallelism` (vẫn `true`). Không nâng `testTimeout`/`hookTimeout`, không thu hẹp `include`. **Dừng và báo số đo theo đúng điều khoản của Pha 6** — mở lại phép đo (không nhất thiết vá thêm) khi tải nền của máy về gần dải Pha 2 đã đo (~90-346) để so sánh đúng điều kiện.
+  → KHÔNG LÀM 2026-09-26 (Story 11.2) — Ice chọn phương án B: giữ `fileParallelism: true`, chấp nhận rủi ro hết giờ nạp module lạnh ở tải cực cao (đo: xanh 3/3 khi rảnh, 2–4 tệp đỏ luân phiên ở tải 243–473). Mở lại khi `pre-push` đỏ vì hết giờ nạp module lạnh ở tải bình thường (dưới ~100); chi tiết ở dòng cuối của mục "Chín tệp vitest mang ca phụ thuộc TẢI MÁY".
