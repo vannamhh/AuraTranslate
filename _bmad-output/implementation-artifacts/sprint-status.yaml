@@ -250,9 +250,9 @@ development_status:
   #   Danh sach muc no cua moi story: grep 'Chủ: Story 11.N' deferred-work.md.
   #   Chi tiet: planning-artifacts/sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md
   epic-11: in-progress
-  11-1-trả-nợ-cổng-và-công-cụ-kiểm: review
-  11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test: review
-  11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển: review
+  11-1-trả-nợ-cổng-và-công-cụ-kiểm: done
+  11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test: done
+  11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển: done
   11-4-trả-nợ-glossary: backlog
   11-5-trả-nợ-editor-segment-và-tầng-ghi: backlog
   11-6-trả-nợ-nhập-và-library: backlog
