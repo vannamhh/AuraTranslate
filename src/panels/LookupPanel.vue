@@ -26,6 +26,7 @@ import { markPainted } from './lookupTiming'
 import {
   currentQuery,
   groupedLookup,
+  layerSensesFailed,
   layersLoaded,
   lookupDisplayable,
   lookupError,
@@ -592,6 +593,7 @@ onBeforeUnmount(() => {
               :key="`${group.layer}:${group.source.code}`"
               :group="group"
               :senses="sensesFor(group)"
+              :senses-failed="layerSensesFailed(group.layer)"
             />
           </template>
         </template>

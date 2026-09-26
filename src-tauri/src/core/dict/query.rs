@@ -208,6 +208,23 @@ pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<
     Ok(cap(hits, limit))
 }
 
+/// A query already measured at two characters or fewer — the only shape [`char_idx`] accepts.
+///
+/// [`Self::new`] is the only constructor; a caller with an unchecked length gets `None` and
+/// must decide what to do with it instead of `char_idx` silently truncating.
+pub(super) struct ShortQuery<'a>(&'a str);
+
+impl<'a> ShortQuery<'a> {
+    /// `None` when `query` is longer than two characters.
+    pub(super) fn new(query: &'a str) -> Option<Self> {
+        (query.chars().count() <= 2).then(|| ShortQuery(query))
+    }
+
+    fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
 /// **Nhánh 2** — bảng đảo ngược `char_idx`, cho chuỗi con **1–2 ký tự**.
 ///
 /// Hai đường tách nhau theo số **ký tự**, không theo byte:
@@ -229,14 +246,8 @@ pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<
 /// tra cứu **tiếng Trung**; đường tra cứu tiếng Anh là [`exact_en`] và [`fts_trigram_en`]
 /// (Story 1.11b), **không** một nhánh thứ tư ở đây. Story 1.11 viết dòng này khi hai
 /// hàm đó chưa tồn tại; chúng không vẫn không tồn tại **trong nhánh này**, và đó là điểm.
-pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
-    debug_assert!(
-        query.chars().count() <= 2,
-        "char_idx() expects a query of at most 2 characters (pick_branch() must filter \
-         first); calling it directly with a longer query silently truncates to the first \
-         two characters"
-    );
-
+pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+    let query = query.as_str();
     let mut chars = query.chars();
     let Some(first) = chars.next() else {
         // Truy vấn rỗng: không hàng nào, và không một lượt chạm database nào. Một
@@ -496,7 +507,11 @@ pub(super) fn count_by_source(
             }
 
             // 2 ký tự — PHẢI xác minh trước khi đếm (xem doc-comment hàm này).
-            let (hits, _) = char_idx(db, query, usize::MAX)?;
+            let Some(short) = ShortQuery::new(query) else {
+                // Unreachable via `branch`, same invariant as `super::lookup_with_branch`.
+                return Ok(Vec::new());
+            };
+            let (hits, _) = char_idx(db, short, usize::MAX)?;
             Ok(tally(&hits))
         }
 
@@ -511,5 +526,30 @@ pub(super) fn count_by_source(
 
         // Không câu SQL nào chạy ở nhánh này (AD-44 ④) ⇒ không có gì để đếm.
         QueryBranch::NoBranchQueryTooShort => Ok(Vec::new()),
+    }
+}
+
+#[cfg(test)]
+mod short_query_tests {
+    use super::ShortQuery;
+
+    #[test]
+    fn zero_one_or_two_characters_all_construct() {
+        assert!(ShortQuery::new("").is_some());
+        assert!(ShortQuery::new("A").is_some());
+        assert!(ShortQuery::new("AB").is_some());
+    }
+
+    #[test]
+    fn more_than_two_characters_never_constructs() {
+        assert!(ShortQuery::new("ABC").is_none());
+        assert!(ShortQuery::new("中國人").is_none());
+    }
+
+    /// Counts by character, not byte: a three-byte Han character must not slip past `len()`.
+    #[test]
+    fn the_measure_is_characters_not_bytes() {
+        assert!(ShortQuery::new("中國").is_some(), "two Han characters, six bytes — must pass");
+        assert!(ShortQuery::new("中國人").is_none(), "three Han characters — must be blocked");
     }
 }

@@ -237,6 +237,23 @@ export const someLayerTruncated = computed(
 )
 
 /**
+ * Layer names whose sense hydration failed. Distinct from `someLayerFailed`, which reads
+ * `grouped.skipped` (a layer skipped in phase one); this reads `senses_failed` (a layer that
+ * matched in phase one but failed to hydrate senses in phase two).
+ */
+export const sensesFailedLayers = computed<ReadonlySet<string>>(
+  () => new Set(lookupDisplayable.value ? (response.value?.senses_failed ?? []) : []),
+)
+
+/**
+ * `LookupRecord.vue` reads this instead of inferring failure from an empty `senses` array,
+ * which can also mean "this entry genuinely has no senses" — a valid, different state.
+ */
+export function layerSensesFailed(layer: string): boolean {
+  return sensesFailedLayers.value.has(layer)
+}
+
+/**
  * 🔴 Vùng chọn dài hơn trần `QUERY_LENGTH_CEILING` ⇒ truy vấn đã bị CẮT trước khi tra.
  * Banner riêng, không gộp vào "không tìm thấy" — câu đó SAI ở đây (hệ thống không hề tra thứ người
  * dùng chọn). Cùng hạng banner với hai vị từ trên: hiện SONG SONG, không loại trừ.

@@ -99,14 +99,46 @@ fn version_or_warn(source_code: &str, detected: Option<String>) -> String {
     }
 }
 
+/// Threshold for the genuine-skip ratio below which a source is considered readable.
+const MAX_GENUINE_SKIP_RATIO: f64 = 0.60;
+
+/// Skip reasons carrying the `"filtered, expected"` marker are a deliberate known re-read,
+/// not a decode failure, and are excluded before dividing.
+fn genuine_skip_ratio(stats: &SourceStats) -> f64 {
+    if stats.lines_read == 0 {
+        return 0.0;
+    }
+    let genuine: usize = stats
+        .skip_reasons
+        .iter()
+        .filter(|(reason, _)| !reason.contains("filtered, expected"))
+        .map(|(_, count)| count)
+        .sum();
+    genuine as f64 / stats.lines_read as f64
+}
+
 /// Một nguồn cho ra 0 entry là nguồn đọc hỏng nặng (tệp sai/rỗng/hỏng mã hoá) — dừng và
 /// báo, không lặng lẽ sinh tệp thiếu nguồn (doc-comment `BuildReport`, Review Findings
 /// Group A: trước đây build vẫn `ExitCode::SUCCESS` dù một nguồn đọc ra 0 entry).
+///
+/// A source with at least one entry but a genuine-skip ratio above `MAX_GENUINE_SKIP_RATIO`
+/// also fails: a lone surviving entry amid mostly-failed lines still signals a decode bug.
 fn require_nonempty(stats: &SourceStats) -> Result<(), Box<dyn std::error::Error>> {
     if stats.entries == 0 {
         return Err(format!(
             "nguồn '{}' cho ra 0 entry (đọc {} dòng, bỏ {}) — dừng build, không sinh tệp thiếu nguồn",
             stats.source_code, stats.lines_read, stats.lines_skipped
+        )
+        .into());
+    }
+    let ratio = genuine_skip_ratio(stats);
+    if ratio > MAX_GENUINE_SKIP_RATIO {
+        return Err(format!(
+            "nguồn '{}' bỏ {:.1}% dòng vì lý do THẬT (loại 'filtered, expected'), vượt ngưỡng {:.0}% \
+             — dừng build, nghi giải mã hỏng chứ không phải nguồn nghèo",
+            stats.source_code,
+            ratio * 100.0,
+            MAX_GENUINE_SKIP_RATIO * 100.0
         )
         .into());
     }
@@ -653,6 +685,79 @@ mod distribution_table_tests {
         names.extend(DETACHABLE_LAYERS.iter().map(|l| output_file_name(l.meta.code)));
         let distinct: std::collections::HashSet<&String> = names.iter().collect();
         assert_eq!(names.len(), distinct.len(), "tên tệp đầu ra bị trùng: {names:?}");
+    }
+}
+
+/// Fixtures use `SourceStats::new`/`record_skip`/`record_entry` directly, no real raw tree
+/// needed; the function under test is the real production function.
+#[cfg(test)]
+mod require_nonempty_ratio_tests {
+    use super::*;
+    use crate::model::RawEntry;
+
+    fn one_entry_fixture() -> RawEntry {
+        RawEntry {
+            lang: "zh".to_string(),
+            headword: "占".to_string(),
+            headword_simp: None,
+            reading: None,
+            han_viet: None,
+            nom_reading: None,
+            senses: Vec::new(),
+        }
+    }
+
+    /// `record_entry`/`record_skip` do not themselves bump `lines_read`; the real ingest
+    /// loop does that for every line, `Ok` or `Err`, so the fixture must do it too.
+    fn record_ok(stats: &mut SourceStats) {
+        stats.lines_read += 1;
+        stats.record_entry(&one_entry_fixture());
+    }
+
+    fn record_bad(stats: &mut SourceStats, reason: &str) {
+        stats.lines_read += 1;
+        stats.record_skip(reason);
+    }
+
+    #[test]
+    fn a_near_empty_decode_fixture_fails_the_build() {
+        let mut stats = SourceStats::new("fixture-source");
+        record_ok(&mut stats);
+        for _ in 0..9 {
+            record_bad(&mut stats, "could not parse line as JSON");
+        }
+        assert_eq!(stats.lines_read, 10);
+        assert_eq!(stats.entries, 1);
+
+        let err = require_nonempty(&stats).expect_err("90% genuine skip ratio must fail the build");
+        let msg = err.to_string();
+        assert!(msg.contains("fixture-source"), "lỗi phải nêu tên nguồn: {msg}");
+        assert!(msg.contains("60"), "lỗi phải nêu ngưỡng: {msg}");
+    }
+
+    #[test]
+    fn filtered_expected_skips_do_not_count_toward_the_ratio() {
+        let mut stats = SourceStats::new("fixture-source");
+        record_ok(&mut stats);
+        for _ in 0..9 {
+            record_bad(&mut stats, "lang_code != vi (filtered, expected — không phải lỗi đọc)");
+        }
+        assert_eq!(genuine_skip_ratio(&stats), 0.0);
+        require_nonempty(&stats).expect("filtered-expected skips must not trip the ratio check");
+    }
+
+    #[test]
+    fn a_source_under_the_threshold_still_passes() {
+        let mut stats = SourceStats::new("fixture-source");
+        for _ in 0..8 {
+            record_ok(&mut stats);
+        }
+        for _ in 0..2 {
+            record_bad(&mut stats, "missing 'word' field");
+        }
+        assert_eq!(stats.lines_read, 10);
+        assert!(genuine_skip_ratio(&stats) < MAX_GENUINE_SKIP_RATIO);
+        require_nonempty(&stats).expect("20% genuine skip ratio is under N = 60% and must pass");
     }
 }
 

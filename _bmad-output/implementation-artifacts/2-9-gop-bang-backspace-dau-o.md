@@ -143,6 +143,13 @@ driver đó, theo cấu tạo**. Ice xác nhận 2026-08-17: **double-click TRA 
 gốc không có trên màn hình)*, **chính xác từng chữ** ở `parallel` *(base `<ruby>` có mặt)*
 **And** dấu cắt **hiện ra** ở cả hai kiểu xem
 
+🔵 2026-09-26 (phiếu quyết #89, Ice, Story 11.3) — vế **"chính xác từng chữ ở `parallel`"**
+ở trên không còn đúng: Ice **đảo** chữ ký 2026-08-17 này ngày 2026-09-24 — `.hv-unit` (base
+`<ruby>` ở kiểu `parallel`) nay mang `data-src-atomic="1"`, cùng khuôn `.hv-word` ở `switch`.
+Một chỗ cắt giữa một từ Hán ở `parallel` nay lấy **ranh giới từ**, giống `switch`, không còn
+đếm từng chữ bên trong từ đó. Xem `deferred-work.md` mục L4142 và Story 11.3
+(`SourceHanViet.vue` ~L926, `tests/frontend/hanVietCutAnchors.test.ts`).
+
 🔴 **Đây là một lỗ HỎNG DỮ LIỆU IM LẶNG, không một khuyết tật hiển thị.** Đo trên WKWebView
 thật (`2-9-ban-do/han-viet-cho-cat.e2e.mjs`), nguyên văn `京都春風。` — **5 ký tự**:
 

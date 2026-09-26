@@ -353,10 +353,8 @@ const SRC_START = 'data-src-start'
  *    cấm bằng chữ**: nó đổi số con của host, và `resolveSwitch` ánh xạ `children[i]` ↔
  *    `segments[i]`, nên mỗi lượt tra từ sau dấu cắt trả **sai chữ**, không lỗi nào ném.
  *
- * ⚠️ **Neo này KHÔNG phủ ca base `<ruby>` ở kiểu `parallel`** (`.hv-unit`, một TỪ Hán nhiều
- * chữ): ở đó AC9 đòi bằng chữ *"chính xác từng chữ"* nên nó **phải** giữ phép đếm, và một chỗ
- * cắt giữa từ vẫn không vẽ được dấu. Đó là món nợ đã ghi có chủ ở `GridPanel.vue` §`pendingCuts`
- * — lượt này **không** đóng nó, và cũng không được lặng lẽ đóng nó bằng cách thêm neo vào đây.
+ * ③ Also covers `.hv-unit` (parallel view's Han-word base `<ruby>`), same rule as `.hv-word`
+ *    in `switch`: a cut mid-word snaps to the word's start instead of counting its characters.
  */
 const SRC_ATOMIC = 'data-src-atomic'
 

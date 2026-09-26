@@ -27,11 +27,12 @@
 //! `Option<&Store>`. Test gọi thẳng hàm thuần đó: không cần webview, không cần fixture,
 //! và thứ được serialize là thứ máy người dùng phát ra.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
 use auratranslate_lib::commands::config::{BootstrapConfig, bootstrap_config};
+use auratranslate_lib::core::dict::{SkipReason, SkippedLayer, SourceAttributions};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 
 /// `CARGO_MANIFEST_DIR` trỏ `src-tauri/`, nên phải lùi một cấp. Cùng khuôn
@@ -220,6 +221,68 @@ fn ipc_error_wire_shape() {
         !vietnamese_diacritic,
         "payload lỗi mang ký tự có dấu tiếng Việt ⇒ có văn bản hiển thị trên dây. \
          AD-21: *Rust không bao giờ trả về văn bản hiển thị*. Payload: {wire}"
+    );
+}
+
+/// Wire shape only; the hydrate-failure behavior itself is covered by `dict_sources.rs`.
+#[test]
+fn lookup_response_wire_shape_carries_senses_failed() {
+    let response = auratranslate_lib::commands::dict::lookup(None, "khong quan trong", &BTreeSet::new());
+
+    let value = serde_json::to_value(&response).expect("LookupResponse phải serialize được");
+    let object = value.as_object().expect("LookupResponse phải serialize thành một JSON object");
+    let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["grouped", "query_truncated", "senses_by_layer", "senses_failed"],
+        "khoá trên dây là snake_case, bốn trường ĐÚNG tên. Nhận được: {keys:?}. Nghi phạm \
+         số một: `#[serde(rename_all = \"camelCase\")]` biến `senses_failed` thành \
+         `sensesFailed`."
+    );
+    assert_eq!(
+        object.get("senses_failed"),
+        Some(&serde_json::Value::Array(Vec::new())),
+        "0 lớp gắn ⇒ khong lop nao de hydrate hong ⇒ `senses_failed` phai la MOT MANG \
+         RONG, khong `null` va khong vang mat"
+    );
+}
+
+/// Wire shape only; skip detail/path redaction itself is covered by `dict_sources.rs`.
+#[test]
+fn source_attributions_wire_shape_hides_skip_detail_and_path() {
+    let raw_detail = "disk I/O error tren may nguoi dung, khong ai can biet";
+    let value = serde_json::to_value(SourceAttributions {
+        sources: Vec::new(),
+        skipped: vec![SkippedLayer {
+            path: PathBuf::from("/Users/vi-du/rieng-tu/dict-core.db"),
+            reason: SkipReason::OpenFailed { detail: raw_detail.to_owned() },
+        }],
+    })
+    .expect("SourceAttributions phải serialize được");
+
+    let object = value.as_object().expect("phải serialize thành một JSON object");
+    let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["skipped", "sources"],
+        "khoá trên dây là snake_case, đúng hai trường. Nhận được: {keys:?}."
+    );
+
+    let json = value.to_string();
+    assert!(
+        !json.contains(raw_detail),
+        "🔴 AD-21 vỡ — lỗi thô SQLite lộ ra JSON đi qua dây: {json}"
+    );
+    assert!(
+        !json.contains("dict-core.db") && !json.contains("rieng-tu"),
+        "đường dẫn TỆP của máy người dùng không được đi qua dây: {json}"
+    );
+    assert_eq!(
+        object.get("skipped"),
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String("open_failed".to_owned())])),
+        "`skipped` phải ra một MẢNG MÃ MÁY, cùng khuôn `GroupedLookup::skipped`"
     );
 }
 

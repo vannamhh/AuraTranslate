@@ -94,18 +94,11 @@ describe('SourceHanViet — neo chỗ cắt phát ra DOM', () => {
     })
   }
 
-  it('⚠️ base `<ruby>` ở `parallel` KHÔNG nguyên khối — AC9 đòi chính xác từng chữ', () => {
-    // Ghi bằng một ca, không bằng một chú thích: neo `data-src-atomic` **không** được lan sang đây.
-    // AC9 viết nguyên văn *"chính xác từng chữ ở `parallel` (base `<ruby>` có mặt)"*, nên một lượt
-    // *"cho nhất quán"* thêm cờ vào đây là một lượt **lệch AC**, không một lượt dọn dẹp.
-    //
-    // 🔴 Và ca *"chỗ cắt giữa một TỪ HÁN ở `parallel` không vẽ được dấu"* vì thế **vẫn hở** — nó là
-    // món nợ đã ghi có chủ ở `GridPanel.vue` §`pendingCuts`. Lượt code review 2026-08-17 **không**
-    // đóng nó, và ca này là chỗ giữ cho nó không bị lặng lẽ đóng bằng một dòng thuộc tính.
+  it('base `<ruby>` ở `parallel` NGUYÊN KHỐI, cùng luật `.hv-word` ở `switch`', () => {
     const w = dung('parallel')
     const unit = w.find('.hv-unit')
     expect(unit.exists()).toBe(true)
-    expect(unit.attributes('data-src-atomic')).toBeUndefined()
+    expect(unit.attributes('data-src-atomic')).toBe('1')
     w.unmount()
   })
 
@@ -164,13 +157,9 @@ describe('SourceHanViet — biên thuật ngữ Glossary cắt tại tầng dữ
       const nodes = w.findAll(selector)
       // 🔴 Mảnh sinh bởi biên thuật ngữ giữ đúng khuôn mảnh do ICU sinh — `data-src-atomic`
       // báo đầu nhóm nguyên tử CỦA CHÍNH NÓ (không phải đầu nhóm ICU gốc trước khi bị chia),
-      // đúng chữ ký của Ice *"từ chối offset giữa mảnh"*: mỗi mảnh MỚI vẫn nguyên khối theo
-      // đúng luật cũ của kiểu xem đó (`switch` atomic, `parallel` không).
-      if (viewMode === 'switch') {
-        for (const n of nodes) expect(n.attributes('data-src-atomic')).toBe('1')
-      } else {
-        for (const n of nodes) expect(n.attributes('data-src-atomic')).toBeUndefined()
-      }
+      // đúng chữ ký của Ice *"từ chối offset giữa mảnh"*. Cả hai kiểu xem đều nguyên khối —
+      // `switch` (`.hv-word`) lẫn `parallel` (`.hv-unit`).
+      for (const n of nodes) expect(n.attributes('data-src-atomic')).toBe('1')
       w.unmount()
     })
   }

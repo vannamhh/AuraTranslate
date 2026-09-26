@@ -8,17 +8,15 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 VÌ SAO MỘT CỔNG CHỨ KHÔNG MỘT LƯỢT ĐỌC BẰNG MẮT
 //! ─────────────────────────────────────────────────────────────────────────────
-//! Câu chữ mà `epics.md` viết cho FR40: *"**And** `dict/` **dùng nó**"*. Vế đó **KHÔNG
-//! CÒN ĐÚNG** — AD-17 đã được sửa Rule (`ARCHITECTURE-SPINE.md`) và
-//! thân Rule nói thẳng: *"AD này nói mọi nơi cần khớp ngôn ngữ dùng chung MỘT cài đặt —
-//! nó KHÔNG nói mọi đường đều phải gọi Matcher. Đường tra cứu **từ điển** tiếng Anh không
-//! không gọi"*.
+//! AD-17 đã được sửa Rule (`ARCHITECTURE-SPINE.md`) và thân Rule nói thẳng: *"AD này nói
+//! mọi nơi cần khớp ngôn ngữ dùng chung MỘT cài đặt — nó KHÔNG nói mọi đường đều phải gọi
+//! Matcher. Đường tra cứu **từ điển** tiếng Anh không gọi"*.
 //!
-//! Nhưng câu cũ **vẫn còn nguyên trong `epics.md`** (chủ sở hữu John/PM,
-//! `deferred-work.md`), và sơ đồ mermaid của AD-13 (`ARCHITECTURE-SPINE.md`) **vẫn
-//! còn cạnh `dict --> matching`** (chủ sở hữu Winston). Một dev đọc epics — hoặc một lượt
-//! review sau — sẽ đọc thấy hai thứ đó **trước** khi đọc thân Rule của AD-17. **Cổng này
-//! là chỗ duy nhất mệnh đề đúng sống sót qua một lượt đọc ẩu.**
+//! Sơ đồ mermaid của AD-13 (`ARCHITECTURE-SPINE.md`) **vẫn còn cạnh `dict --> matching`**
+//! (chủ sở hữu Winston) — vẽ TRƯỚC lượt sửa Rule của AD-17, nay mâu thuẫn với chính thân
+//! Rule. Một dev đọc sơ đồ trước — hoặc một lượt review sau — sẽ đọc thấy mũi tên đó
+//! **trước** khi đọc thân Rule. **Cổng này là chỗ duy nhất mệnh đề đúng sống sót qua một
+//! lượt đọc ẩu.**
 //!
 //! Cái giá của việc mất mệnh đề này không phải một lỗi trả sai: AD-44 ③ đo trên corpus
 //! thật rằng mọi biến thể hình thái **đã có sẵn làm đầu mục riêng** (16/16 mẫu thử, gồm
@@ -249,10 +247,8 @@ fn the_dictionary_lookup_path_never_calls_the_matcher() {
         violations.is_empty(),
         "{} chỗ dưới `core/dict/**` chạm tới Matcher:\n{}\n\n\
          ══════════════════════════════════════════════════════════════════════════\n\
-         🔴 ĐỌC TRƯỚC KHI GỠ CỔNG NÀY — CÂU CHỮ CỦA epics.md CHO FR40 ĐANG LỆCH, KHÔNG PHẢI CỔNG\n\
+         🔴 ĐỌC TRƯỚC KHI GỠ CỔNG NÀY — SƠ ĐỒ MERMAID CỦA AD-13 ĐANG LỆCH, KHÔNG PHẢI CỔNG\n\
          ══════════════════════════════════════════════════════════════════════════\n\
-         Câu chữ mà epics.md viết cho FR40: *\"And `dict/` dùng nó\"*. Vế đó KHÔNG \
-         CÒN ĐÚNG, và chủ sở hữu lượt sửa là John (PM) — xem `deferred-work.md`.\n\n\
          **AD-17, thân Rule (`ARCHITECTURE-SPINE.md`)**: *\"AD này nói mọi nơi cần \
          khớp ngôn ngữ dùng chung MỘT cài đặt — nó KHÔNG nói mọi đường đều phải gọi \
          Matcher. Đường tra cứu TỪ ĐIỂN tiếng Anh không gọi […] Glossary (FR51) và TM \

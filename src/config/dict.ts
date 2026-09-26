@@ -238,6 +238,11 @@ export type LookupResponse = {
    * dùng chọn (bắt ở code review 2026-08-07).
    */
   query_truncated: boolean
+  /**
+   * Names of layers whose sense hydration failed after the entry lookup already matched.
+   * A layer name appears here or in `senses_by_layer`, never in both.
+   */
+  senses_failed: string[]
 }
 
 /** Tên command trên dây. Khớp `src-tauri/src/commands/dict.rs` (module `wire`). */
@@ -337,12 +342,24 @@ export type SourceAttribution = {
   is_base: boolean
 }
 
+/**
+ * Hình dạng `SourceAttributions` phía Rust — khớp `commands::dict::wire::list_dict_sources`.
+ *
+ * `skipped` is an array of machine codes (same shape as `GroupedLookup.skipped`), not paths
+ * or raw errors: a layer that failed to load or to read stays named here, not silently dropped.
+ */
+export type SourceAttributions = {
+  sources: SourceAttribution[]
+  skipped: string[]
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/dict.rs` (module `wire`). */
 const CMD_LIST_DICT_SOURCES = 'list_dict_sources'
 
 /** Kết quả một lượt đọc danh sách nguồn. Cùng khuôn `ReadHanVietResult`. */
 export type ListDictSourcesResult = {
   sources: SourceAttribution[] | null
+  skipped: string[] | null
   error: IpcError | null
 }
 
@@ -355,21 +372,21 @@ export type ListDictSourcesResult = {
  */
 export async function listDictSources(): Promise<ListDictSourcesResult> {
   try {
-    const sources = await invoke<SourceAttribution[]>(CMD_LIST_DICT_SOURCES)
-    return { sources, error: null }
+    const result = await invoke<SourceAttributions>(CMD_LIST_DICT_SOURCES)
+    return { sources: result.sources, skipped: result.skipped, error: null }
   } catch (err) {
-    if (isIpcError(err)) return { sources: null, error: err }
+    if (isIpcError(err)) return { sources: null, skipped: null, error: err }
 
     if (hasIpcBridge()) {
       console.error(
         `[dict] \`${CMD_LIST_DICT_SOURCES}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
       )
-      return { sources: null, error: UNKNOWN_IPC_ERROR }
+      return { sources: null, skipped: null, error: UNKNOWN_IPC_ERROR }
     }
 
     console.info(
       `[dict] không gọi được \`${CMD_LIST_DICT_SOURCES}\` — chạy ngoài Tauri? ${String(err)}`,
     )
-    return { sources: null, error: null }
+    return { sources: null, skipped: null, error: null }
   }
 }

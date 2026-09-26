@@ -21,7 +21,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::core::dict::{
-    DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, SourceAttribution,
+    DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, SourceAttributions,
     list_source_attributions, lookup_grouped, lookup_han_viet,
 };
 use crate::core::store::Store;
@@ -86,7 +86,9 @@ pub fn read_han_viet(
 /// khỏi **kết quả tra cứu** — nó vẫn phải có mặt **đầy đủ** trong bảng ghi công. *"Gỡ"* là xoá
 /// tệp dữ liệu, việc của người đóng gói (FR112), và đó là đường **duy nhất** làm một hàng ở
 /// đây biến mất.
-pub fn list_sources(layers: Option<&DictLayers>) -> Vec<SourceAttribution> {
+///
+/// `skipped` distinguishes an empty result from a dictionary layer that failed to read.
+pub fn list_sources(layers: Option<&DictLayers>) -> SourceAttributions {
     let empty = DictLayers::empty();
     list_source_attributions(layers.unwrap_or(&empty))
 }
@@ -171,6 +173,10 @@ pub struct LookupResponse {
     /// thống không hề tra thứ người dùng chọn. Bản đầu của 1.17 cắt im lặng (bắt ở code review
     /// 2026-08-07). Panel đọc cờ này để nói ra rằng vùng chọn quá dài, không im.
     pub query_truncated: bool,
+
+    /// Names of layers whose sense hydration failed after the entry lookup already matched.
+    /// A layer name appears here or in [`Self::senses_by_layer`], never in both.
+    pub senses_failed: Vec<String>,
 }
 
 /// Tra `query` — **hàm thuần, đây là thứ test gọi** (khuôn `read_han_viet`).
@@ -242,25 +248,33 @@ pub fn lookup(
     }
 
     let mut senses_by_layer = BTreeMap::new();
+    let mut senses_failed: Vec<String> = Vec::new();
     for (layer_name, entry_ids) in entry_ids_by_layer {
         let Some(layer) = layers.layer(layer_name) else {
             // Bất khả trong một tập lớp toàn vẹn: `group.layer` đến từ chính
             // `layers.layers()` mà `lookup_grouped` vừa duyệt qua. Rỗng còn hơn panic.
             continue;
         };
-        // Lớp hỏng lúc hydrate pha hai không được làm hỏng cả lượt tra — pha một của
-        // nó đã trả lời được, nên rỗng ở đây chỉ là "chưa hydrate xong", không phải
-        // "lớp đó không tồn tại". Cùng tinh thần rỗng-có-lý-do của `lookup_grouped`.
-        let senses = layer.senses(&entry_ids).unwrap_or_default();
-        senses_by_layer.insert(layer_name.to_owned(), senses);
+        match layer.senses(&entry_ids) {
+            Ok(senses) => {
+                senses_by_layer.insert(layer_name.to_owned(), senses);
+            }
+            Err(err) => {
+                eprintln!(
+                    "dict[commands] layer {layer_name} failed to hydrate senses for {} entries: {err}",
+                    entry_ids.len()
+                );
+                senses_failed.push(layer_name.to_owned());
+            }
+        }
     }
 
-    LookupResponse { grouped, senses_by_layer, query_truncated }
+    LookupResponse { grouped, senses_by_layer, query_truncated, senses_failed }
 }
 
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{DictLayers, HanVietLookup, LookupResponse, SourceAttribution, Store};
+    use super::{DictLayers, HanVietLookup, LookupResponse, SourceAttributions, Store};
 
     /// Vỏ IPC của [`super::read_han_viet`].
     ///
@@ -296,7 +310,7 @@ pub mod wire {
     /// ⚠️ **Không** hỏi `Store`: bảng ghi công liệt kê **mọi** nguồn có mặt, kể cả nguồn đang
     /// tắt (AC10). Chỉ `DictLayers` mới trả lời được câu *"những tệp nào đang gắn"*.
     #[tauri::command]
-    pub fn list_dict_sources(app: tauri::AppHandle) -> Vec<SourceAttribution> {
+    pub fn list_dict_sources(app: tauri::AppHandle) -> SourceAttributions {
         use tauri::Manager as _;
 
         let managed = app.try_state::<DictLayers>();

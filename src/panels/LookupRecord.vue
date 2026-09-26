@@ -27,6 +27,11 @@ import type { SenseRecord, SourceGroup } from '../config/dict'
 const props = defineProps<{
   group: SourceGroup
   senses: readonly SenseRecord[]
+  /**
+   * `true` when `group`'s layer failed to hydrate senses. The template must read this
+   * field instead of inferring failure from `senses.length === 0`, a legitimate empty shape.
+   */
+  sensesFailed?: boolean
 }>()
 
 /** Một đầu mục cùng đúng những nghĩa của RIÊNG nó. */
@@ -112,7 +117,8 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
         >{{ t(pinLabelKey(cluster.pinned)) }}</button>
       </div>
 
-      <div v-for="sense in cluster.senses" :key="sense.sense_id" class="lookup-sense">
+      <p v-if="sensesFailed" class="lookup-senses-failed">{{ t('panel.lookup.senses_failed') }}</p>
+      <div v-else v-for="sense in cluster.senses" :key="sense.sense_id" class="lookup-sense">
         <!-- AC3 — từ loại vắng mặt (`pos = null`) ⇒ không render một hàng rỗng nào. -->
         <p v-if="sense.pos !== null" class="lookup-pos">
           <!-- aura-allow-text: nhãn từ loại — DỮ LIỆU từ điển. -->
@@ -321,6 +327,17 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 
 .lookup-note {
   margin: 4px 0 0 0;
+  font-family: var(--face-lookup-example);
+  font-size: var(--font-lookup-example);
+  font-style: var(--style-lookup-example);
+  font-synthesis: var(--synthesis-lookup-example);
+  line-height: var(--leading-lookup-example);
+  color: var(--color-on-surface-variant);
+}
+
+/* Reuses the `lookup-example` tokens: a diagnostic line, not a dictionary sense. */
+.lookup-senses-failed {
+  margin: 0;
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
   font-style: var(--style-lookup-example);

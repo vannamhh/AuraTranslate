@@ -3905,7 +3905,7 @@ fn the_attribution_table_lists_every_source_of_every_present_file() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
 
     assert_eq!(
         rows.iter().map(|r| r.code.as_str()).collect::<Vec<_>>(),
@@ -3949,7 +3949,7 @@ fn every_attribution_carries_the_language_routes_measured_from_its_own_entries()
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
 
     let core_a = attribution_of(&rows, "fx-core-a").expect("fx-core-a phải có mặt");
     assert_eq!(
@@ -3998,7 +3998,7 @@ fn deleting_a_file_removes_its_whole_attribution_block_and_leaves_no_orphan() {
     build_all_layers(&dir);
 
     let layers = DictLayers::open(&dir);
-    let before = list_source_attributions(&layers);
+    let before = list_source_attributions(&layers).sources;
     assert!(
         attribution_of(&before, "fx-hv").is_some(),
         "đối chứng dương — fx-hv phải có mặt TRƯỚC khi xoá tệp của nó"
@@ -4012,7 +4012,7 @@ fn deleting_a_file_removes_its_whole_attribution_block_and_leaves_no_orphan() {
     fs::remove_file(&victim).unwrap_or_else(|e| panic!("xoá {}: {e}", victim.display()));
 
     let layers = DictLayers::open(&dir);
-    let after = list_source_attributions(&layers);
+    let after = list_source_attributions(&layers).sources;
 
     assert!(
         attribution_of(&after, "fx-hv").is_none(),
@@ -4057,7 +4057,7 @@ fn a_disabled_source_still_appears_in_full_in_the_attribution_table() {
     );
 
     // …mà vẫn có mặt ĐẦY ĐỦ trong bảng ghi công.
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
     let hv = attribution_of(&rows, "fx-hv").expect("fx-hv vẫn phải được ghi công khi đang TẮT");
     assert_eq!(hv.display_name, "Fixture Han Viet");
     assert!(!hv.attribution.is_empty(), "ghi công không được rỗng");
@@ -4090,7 +4090,7 @@ fn a_null_license_id_stays_none_and_never_becomes_an_empty_string() {
     );
     let layers = DictLayers::open(&dir);
 
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
     let vp = attribution_of(&rows, "fx-vp").expect("fx-vp phải có mặt");
 
     assert_eq!(vp.license_kind, "unknown");
@@ -4130,7 +4130,7 @@ fn a_license_kind_never_seen_before_travels_verbatim_and_never_panics() {
     );
     let layers = DictLayers::open(&dir);
 
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
     let vp = attribution_of(&rows, "fx-vp").expect("fx-vp phải có mặt");
 
     assert_eq!(
@@ -4186,7 +4186,7 @@ fn the_author_grant_placeholder_lands_and_leaves_with_its_file() {
     );
 
     let layers = DictLayers::open(&dir);
-    let rows = list_source_attributions(&layers);
+    let rows = list_source_attributions(&layers).sources;
     let grant = attribution_of(&rows, "fx-grant").expect("thả tệp vào ⇒ nguồn phải hiện");
 
     assert_eq!(grant.license_kind, "author-grant");
@@ -4206,7 +4206,7 @@ fn the_author_grant_placeholder_lands_and_leaves_with_its_file() {
 
     fs::remove_file(&dropped).unwrap_or_else(|e| panic!("xoá {}: {e}", dropped.display()));
     let layers = DictLayers::open(&dir);
-    let after = list_source_attributions(&layers);
+    let after = list_source_attributions(&layers).sources;
     assert!(
         attribution_of(&after, "fx-grant").is_none(),
         "xoá tệp ⇒ ghi công biến mất, không mồ côi: {:?}",
@@ -4438,6 +4438,7 @@ fn a_disabled_code_with_no_file_behind_it_is_ignored_in_silence() {
     );
     assert!(
         list_source_attributions(&layers)
+            .sources
             .iter()
             .all(|row| row.code != "fx-mot-nguon-khong-ton-tai"),
         "và nó không dựng ra một hàng ghi công mồ côi"
@@ -4617,7 +4618,7 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
 
     // 🔴 Danh sách nguồn DẪN XUẤT từ tệp có mặt (AC1) — không một `code` viết cứng trong
     // chính phép đo. Đây cũng là đối chứng dương của `list_source_attributions`.
-    let all = list_source_attributions(&layers);
+    let all = list_source_attributions(&layers).sources;
     println!(
         "\n═══ {} lớp · {} nguồn từ {} ═══",
         layers.layers().len(),
@@ -4745,4 +4746,730 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
          webview (mon no cua Story 1.17, story nay KHONG dong no), va khong gom luot doc\n\
          `global.db` de lay tap bi tat."
     );
+}
+
+#[test]
+fn layers_loaded_is_true_when_every_layer_is_skipped_not_only_when_some_load() {
+    let dir = temp_dir("all-skipped");
+    fs::write(dir.join("garbage.db"), b"day khong phai mot database SQLite")
+        .unwrap_or_else(|e| panic!("ghi garbage: {e}"));
+
+    let layers = DictLayers::open(&dir);
+    assert!(layers.layers().is_empty(), "khong lop nao nap duoc trong fixture nay");
+    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+
+    let grouped = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    assert!(
+        grouped.layers_loaded,
+        "GroupedLookup::layers_loaded — một thư mục TOÀN tệp hỏng vẫn là 'đã tra', \
+         không được giống thư mục RỖNG"
+    );
+
+    let han_viet = lookup_han_viet(&layers, &["山"]);
+    assert!(
+        han_viet.layers_loaded,
+        "HanVietLookup::layers_loaded — cùng vế còn thiếu, ở MỘT HÀM KHÁC; sửa \
+         GroupedLookup không kéo theo mặt này tự sửa"
+    );
+
+    cleanup(&dir);
+}
+
+#[test]
+fn a_directory_named_dot_db_is_rejected_as_open_failed() {
+    let dir = temp_dir("dir-as-db");
+    build_all_layers(&dir);
+    fs::create_dir_all(dir.join("looks-like-a-layer.db"))
+        .unwrap_or_else(|e| panic!("dung thu muc gia lam .db: {e}"));
+
+    let layers = DictLayers::open(&dir);
+
+    assert_eq!(
+        layer_ids(&layers),
+        EXPECTED_LAYER_ORDER,
+        "thư mục giả KHÔNG được nạp như một lớp"
+    );
+    let reasons: Vec<&SkipReason> = layers
+        .skipped()
+        .iter()
+        .filter(|s| {
+            s.path
+                .file_name()
+                .map(|n| n == "looks-like-a-layer.db")
+                .unwrap_or(false)
+        })
+        .map(|s| &s.reason)
+        .collect();
+    assert_eq!(
+        reasons.len(),
+        1,
+        "chờ đúng một mục bị bỏ qua cho thư mục giả: {:?}",
+        layers.skipped()
+    );
+    assert!(
+        matches!(reasons[0], SkipReason::OpenFailed { .. }),
+        "một THƯ MỤC mang đuôi `.db` phải bị từ chối bằng `OpenFailed`, không panic và \
+         không một lý do khác: {:?}",
+        reasons[0]
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn a_missing_meta_row_names_which_key_is_absent() {
+    let dir = temp_dir("meta-row-missing");
+
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "no-schema-version.db",
+            layer: "nsv-fixture",
+            sources: &[(1, "fx-nsv", "Fixture No Schema Version")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    {
+        let conn = rusqlite::Connection::open(dir.join("no-schema-version.db"))
+            .unwrap_or_else(|e| panic!("mo lai no-schema-version.db: {e}"));
+        conn.execute("DELETE FROM dict_meta WHERE key = 'schema_version'", [])
+            .unwrap_or_else(|e| panic!("xoa hang schema_version: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "no-layer.db",
+            layer: "nl-fixture",
+            sources: &[(1, "fx-nl", "Fixture No Layer")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    {
+        let conn = rusqlite::Connection::open(dir.join("no-layer.db"))
+            .unwrap_or_else(|e| panic!("mo lai no-layer.db: {e}"));
+        conn.execute("DELETE FROM dict_meta WHERE key = 'layer'", [])
+            .unwrap_or_else(|e| panic!("xoa hang layer: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    let layers = DictLayers::open(&dir);
+    let skipped: Vec<(String, SkipReason)> = layers
+        .skipped()
+        .iter()
+        .map(|s| {
+            (
+                s.path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                s.reason.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(skipped.len(), 2, "chờ đúng hai tệp bị bỏ qua: {skipped:?}");
+
+    let reason_of = |file: &str| -> SkipReason {
+        skipped
+            .iter()
+            .find(|(name, _)| name == file)
+            .map(|(_, reason)| reason.clone())
+            .unwrap_or_else(|| panic!("không thấy {file} trong danh sách bỏ qua: {skipped:?}"))
+    };
+    assert_eq!(
+        reason_of("no-schema-version.db"),
+        SkipReason::MetaRowMissing { key: "schema_version".to_owned() },
+        "thiếu hàng `schema_version` phải gọi TÊN đúng khoá vắng mặt"
+    );
+    assert_eq!(
+        reason_of("no-layer.db"),
+        SkipReason::MetaRowMissing { key: "layer".to_owned() },
+        "thiếu hàng `layer` phải gọi TÊN đúng khoá vắng mặt, KHÔNG lẫn với khoá kia"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn a_layer_whose_dict_source_table_is_gone_is_sources_unreadable() {
+    let dir = temp_dir("sources-unreadable");
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "no-dict-source.db",
+            layer: "nds-fixture",
+            sources: &[(1, "fx-nds", "Fixture No Dict Source")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    {
+        let conn = rusqlite::Connection::open(dir.join("no-dict-source.db"))
+            .unwrap_or_else(|e| panic!("mo lai no-dict-source.db: {e}"));
+        conn.execute_batch("PRAGMA foreign_keys = OFF; DROP TABLE dict_source;")
+            .unwrap_or_else(|e| panic!("xoa dict_source: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    let layers = DictLayers::open(&dir);
+    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+    assert!(
+        matches!(layers.skipped()[0].reason, SkipReason::SourcesUnreadable { .. }),
+        "bảng `dict_source` mất phải bị từ chối bằng `SourcesUnreadable`: {:?}",
+        layers.skipped()[0].reason
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn two_files_declaring_the_same_layer_identity_is_a_duplicate_layer() {
+    let dir = temp_dir("dup-layer");
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "aaa-dup.db",
+            layer: "dup-layer",
+            sources: &[(1, "fx-dup-a", "Fixture Dup A")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "bbb-dup.db",
+            layer: "dup-layer",
+            sources: &[(1, "fx-dup-b", "Fixture Dup B")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+
+    let layers = DictLayers::open(&dir);
+
+    assert_eq!(
+        layer_ids(&layers),
+        vec!["dup-layer".to_owned()],
+        "chỉ MỘT lớp 'dup-layer' được nhận"
+    );
+    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+    assert!(
+        matches!(&layers.skipped()[0].reason, SkipReason::DuplicateLayer { layer } if layer == "dup-layer"),
+        "{:?}",
+        layers.skipped()[0].reason
+    );
+    assert_eq!(
+        layers.skipped()[0].path.file_name().map(|n| n.to_string_lossy().into_owned()),
+        Some("bbb-dup.db".to_owned()),
+        "tệp thắng là tệp đến TRƯỚC theo đường dẫn đã sắp (aaa < bbb) — bbb phải là tệp bị bỏ"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn a_layer_whose_entry_table_is_gone_fails_lookup_without_taking_down_the_rest() {
+    let dir = temp_dir("lookup-failed");
+    build_all_layers(&dir);
+    {
+        // `zzz.db` is the `base` layer (see `LAYERS`).
+        let conn = rusqlite::Connection::open(dir.join("zzz.db"))
+            .unwrap_or_else(|e| panic!("mo lai zzz.db: {e}"));
+        conn.execute_batch("PRAGMA foreign_keys = OFF; DROP TABLE dict_entry;")
+            .unwrap_or_else(|e| panic!("xoa dict_entry: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    let layers = DictLayers::open(&dir);
+    assert!(
+        layers.skipped().is_empty(),
+        "mở lớp KHÔNG chạm `dict_entry` — chưa có gì bị bỏ qua lúc này: {:?}",
+        layers.skipped()
+    );
+
+    let result = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    assert_eq!(
+        groups_of(&result).into_iter().map(|(code, _)| code).collect::<Vec<_>>(),
+        vec!["fx-hv".to_owned(), "fx-vp".to_owned()],
+        "hai lớp lành vẫn trả lời bình thường dù lớp base hỏng lúc tra"
+    );
+    let lookup_failed: Vec<&SkipReason> = result
+        .skipped
+        .iter()
+        .map(|s| &s.reason)
+        .filter(|r| matches!(r, SkipReason::LookupFailed { .. }))
+        .collect();
+    assert_eq!(
+        lookup_failed.len(),
+        1,
+        "lớp hỏng lúc TRA phải báo `LookupFailed`, không làm hỏng cả lượt tra: {:?}",
+        result.skipped
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn an_uppercase_db_extension_is_still_recognized_as_a_layer() {
+    let dir = temp_dir("uppercase-ext");
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "UPPER.DB",
+            layer: "upper-fixture",
+            sources: &[(1, "fx-upper", "Fixture Upper")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+
+    let layers = DictLayers::open(&dir);
+
+    assert_eq!(
+        layer_ids(&layers),
+        vec!["upper-fixture".to_owned()],
+        "đuôi `.DB` (hoa) phải được nhận y hệt `.db`"
+    );
+    assert!(layers.skipped().is_empty(), "{:?}", layers.skipped());
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// `#[cfg(unix)]`: POSIX chmod permissions don't exist on Windows, and `ci.yml` only runs
+/// macOS/Windows, so this test simply doesn't compile there rather than being skipped.
+#[cfg(unix)]
+#[test]
+fn a_permission_denied_scan_is_an_empty_layer_set_not_a_panic() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = temp_dir("perm-denied");
+    let sub = dir.join("locked");
+    fs::create_dir_all(&sub).unwrap_or_else(|e| panic!("dung thu muc con: {e}"));
+    build_layer(
+        &sub,
+        &LayerSeed {
+            file: "inside.db",
+            layer: "inside-fixture",
+            sources: &[(1, "fx-inside", "Fixture Inside")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+
+    let original = fs::metadata(&sub)
+        .unwrap_or_else(|e| panic!("doc quyen thu muc con: {e}"))
+        .permissions();
+    fs::set_permissions(&sub, std::fs::Permissions::from_mode(0o000))
+        .unwrap_or_else(|e| panic!("khoa quyen thu muc con: {e}"));
+
+    let layers = DictLayers::open(&sub);
+    assert!(
+        layers.layers().is_empty(),
+        "không đọc được thư mục ⇒ tập lớp RỖNG, không panic"
+    );
+    assert!(
+        layers.skipped().is_empty(),
+        "lỗi `read_dir` KHÔNG phải một lớp bị bỏ qua — nó là lỗi QUÉT, khác ca từng tệp \
+         hỏng riêng lẻ"
+    );
+
+    fs::set_permissions(&sub, original).unwrap_or_else(|e| panic!("mở lại quyền để xoá: {e}"));
+    cleanup(&dir);
+}
+
+/// File names deliberately don't match layer-name order (`one.db` holds `beta-fixture`),
+/// so this can't pass by coincidence instead of exercising `order_key` for real.
+#[test]
+fn deleting_the_layer_holding_a_source_code_frees_it_for_the_loser_on_reopen() {
+    let dir = temp_dir("free-on-delete");
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "one.db",
+            layer: "beta-fixture",
+            sources: &[(1, "fx-shared", "Fixture Beta")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "two.db",
+            layer: "alpha-fixture",
+            sources: &[(1, "fx-shared", "Fixture Alpha")],
+            entries: HV_ENTRIES,
+        },
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+
+    let first = DictLayers::open(&dir);
+    assert_eq!(
+        layer_ids(&first),
+        vec!["alpha-fixture".to_owned()],
+        "'alpha-fixture' đến trước 'beta-fixture' theo TÊN LỚP ⇒ nó thắng khoá `fx-shared`, \
+         bất kể tên tệp của nó (`two.db`) đến sau theo bảng chữ cái"
+    );
+    assert_eq!(first.skipped().len(), 1, "{:?}", first.skipped());
+    assert!(
+        matches!(&first.skipped()[0].reason, SkipReason::DuplicateSourceCode { code, .. } if code == "fx-shared")
+    );
+    first.close();
+
+    fs::remove_file(dir.join("two.db")).unwrap_or_else(|e| panic!("xoá tệp thắng: {e}"));
+
+    let second = DictLayers::open(&dir);
+    assert_eq!(
+        layer_ids(&second),
+        vec!["beta-fixture".to_owned()],
+        "🔴 xoá tệp ĐANG GIỮ mã nguồn phải GIẢI PHÓNG nó cho lớp trước đó bị từ chối — \
+         'khoá' không phải một trạng thái sống qua lần mở, nó là một phép tính LẠI mỗi \
+         lần `open()`"
+    );
+    assert!(
+        second.skipped().is_empty(),
+        "không còn xung đột nào ⇒ lớp còn lại phải được nhận: {:?}",
+        second.skipped()
+    );
+
+    second.close();
+    cleanup(&dir);
+}
+
+static FTS_COUNT_ENTRIES: &[EntrySeed] = &[
+    EntrySeed {
+        id: 1,
+        source_id: 1,
+        lang: "zh",
+        headword: "中國人民",
+        simp: None,
+        senses: &[],
+    },
+    EntrySeed {
+        id: 2,
+        source_id: 1,
+        lang: "zh",
+        headword: "老中國人",
+        simp: None,
+        senses: &[],
+    },
+    EntrySeed {
+        id: 3,
+        source_id: 1,
+        lang: "zh",
+        headword: "中國人士",
+        simp: None,
+        senses: &[],
+    },
+];
+
+static FTS_COUNT_LAYER: LayerSeed = LayerSeed {
+    file: "ftscount.db",
+    layer: "ftscount-fixture",
+    sources: &[(1, "fx-ftscount", "Fixture Fts Count")],
+    entries: FTS_COUNT_ENTRIES,
+};
+
+#[test]
+fn verified_counts_survive_the_fts_trigram_branch_too() {
+    let dir = temp_dir("fts-count-verify");
+    build_layer(
+        &dir,
+        &FTS_COUNT_LAYER,
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    let layers = DictLayers::open(&dir);
+
+    // Trần 1 ⇒ chắc chắn `truncated` ⇒ đường `COUNT` (qua xác minh) chạy.
+    let result = lookup_grouped(&layers, "中國人", LookupMode::Substring, 1);
+    assert_eq!(result.branch, QueryBranch::FtsTrigram);
+
+    let total: i64 = result.groups.iter().filter_map(|g| g.total_entries).sum::<i64>()
+        + result.hidden_sources.iter().map(|(_, n)| n).sum::<i64>();
+
+    let verified = lookup_grouped(&layers, "中國人", LookupMode::Substring, UNLIMITED)
+        .groups
+        .iter()
+        .map(|g| g.entries.len() as i64)
+        .sum::<i64>();
+
+    assert_eq!(
+        total, verified,
+        "🔴 số đếm đầy đủ phải BẰNG số hàng đã xác minh — lớn hơn nghĩa là đang đếm ứng \
+         viên trigram thô"
+    );
+    assert_eq!(
+        verified, 3,
+        "cả ba đầu mục fixture đều chứa '中國人' làm chuỗi con THẬT — không dương tính giả \
+         nào cần loại ở ca này, chỉ cần chứng minh đường COUNT-qua-verify chạy được"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// `build_layer`/`LayerSeed` require `&'static str`, which doesn't fit a fixture built by a
+/// loop; this runs the same DDL (`COPIED_DDL`) but inserts rows programmatically.
+///
+/// Fixture size and the `headword_simp` null ratio are load-bearing: too small or too
+/// uniform makes SQLite's planner pick `SCAN dict_entry` over the index regardless of its presence.
+fn build_query_plan_fixture(dir: &Path) -> PathBuf {
+    let path = dir.join("planscale.db");
+    let conn = rusqlite::Connection::open(&path)
+        .unwrap_or_else(|e| panic!("dung fixture ke hoach truy van: {e}"));
+
+    for (name, ddl) in COPIED_DDL {
+        conn.execute_batch(ddl)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    conn.execute(
+        "INSERT INTO dict_source
+           (id, code, display_name, license_kind, license_id, license_text,
+            attribution, source_version, source_url)
+         VALUES (1, 'fx-scale', 'Fixture Scale', 'public-domain', NULL, 'x', 'x', '1', 'x')",
+        [],
+    )
+    .unwrap_or_else(|e| panic!("nap dict_source: {e}"));
+
+    const N: i64 = 300;
+    for i in 1..=N {
+        let headword = format!("w{i}");
+        let simp: Option<String> = if i % 4 == 0 { Some(format!("s{i}")) } else { None };
+        conn.execute(
+            "INSERT INTO dict_entry (id, source_id, lang, headword, headword_simp) \
+             VALUES (?1, 1, 'zh', ?2, ?3)",
+            rusqlite::params![i, headword, simp],
+        )
+        .unwrap_or_else(|e| panic!("nap dict_entry {i}: {e}"));
+
+        let ch = char::from_u32(0x4e00 + (i as u32 % 200)).unwrap_or('山');
+        conn.execute(
+            "INSERT OR IGNORE INTO char_idx (ch, entry_id) VALUES (?1, ?2)",
+            rusqlite::params![ch.to_string(), i],
+        )
+        .unwrap_or_else(|e| panic!("nap char_idx {i}: {e}"));
+    }
+
+    // Một đầu mục THẬT để tra — khớp nhánh 1 (chính xác) và mang hai ký tự dùng riêng
+    // cho ca 2-ký-tự của nhánh 2 (`INTERSECT`), không trộn với 200 ký tự đã rải ở trên.
+    conn.execute(
+        "INSERT INTO dict_entry (id, source_id, lang, headword, headword_simp) \
+         VALUES (?1, 1, 'zh', 'TARGET', NULL)",
+        rusqlite::params![N + 1],
+    )
+    .unwrap_or_else(|e| panic!("nap dict_entry TARGET: {e}"));
+    conn.execute(
+        "INSERT INTO char_idx (ch, entry_id) VALUES ('X', ?1)",
+        rusqlite::params![N + 1],
+    )
+    .unwrap_or_else(|e| panic!("nap char_idx X: {e}"));
+    conn.execute(
+        "INSERT INTO char_idx (ch, entry_id) VALUES ('Y', ?1)",
+        rusqlite::params![N + 1],
+    )
+    .unwrap_or_else(|e| panic!("nap char_idx Y: {e}"));
+
+    conn.execute_batch("ANALYZE;")
+        .unwrap_or_else(|e| panic!("ANALYZE: {e}"));
+    conn.close().unwrap_or_else(|(_, e)| panic!("dong fixture ke hoach truy van: {e}"));
+    path
+}
+
+/// This SQL is a hand copy of `query.rs`'s branch 1/2 shape (`store_boundary.rs` forbids
+/// calling `pub(super)` query functions or opening a connection here); nothing keeps the
+/// copy in sync if `query.rs` changes its `WHERE`/`JOIN` shape.
+#[test]
+fn branch_one_and_two_never_scan_the_table() {
+    let dir = temp_dir("query-plan");
+    let path = build_query_plan_fixture(&dir);
+
+    let conn = rusqlite::Connection::open(&path)
+        .unwrap_or_else(|e| panic!("mo lai fixture ke hoach truy van: {e}"));
+
+    let assert_indexed_never_scanned = |sql: &str, label: &str| {
+        let plan_sql = format!("EXPLAIN QUERY PLAN {sql}");
+        let mut stmt = conn
+            .prepare(&plan_sql)
+            .unwrap_or_else(|e| panic!("{label}: chuẩn bị EXPLAIN QUERY PLAN: {e}"));
+        let rows: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(3))
+            .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"))
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"));
+        let plan = rows.join(" | ");
+        assert!(
+            !plan.contains("SCAN dict_entry") && !plan.contains("SCAN e"),
+            "{label}: kế hoạch quét TOÀN BẢNG `dict_entry` — nhánh này phải luôn đi qua \
+             một chỉ mục: {plan}"
+        );
+        assert!(
+            plan.contains("USING INDEX") || plan.contains("USING PRIMARY KEY"),
+            "{label}: kế hoạch không nhắc tên một chỉ mục nào: {plan}"
+        );
+    };
+
+    // Nhánh 1 — `ExactBtree` (`query::exact`).
+    assert_indexed_never_scanned(
+        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
+         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
+         WHERE (e.headword = 'TARGET' OR e.headword_simp = 'TARGET') AND e.lang = 'zh' \
+         ORDER BY e.id LIMIT 21",
+        "nhánh 1 (ExactBtree)",
+    );
+
+    // Nhánh 2 — `CharIdx`, 1 ký tự.
+    assert_indexed_never_scanned(
+        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
+         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
+         WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = 'X') \
+           AND e.lang = 'zh' \
+         ORDER BY e.id LIMIT 21",
+        "nhánh 2 (CharIdx, 1 ký tự)",
+    );
+
+    // Nhánh 2 — `CharIdx`, 2 ký tự (`INTERSECT`).
+    assert_indexed_never_scanned(
+        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
+         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
+         WHERE e.id IN ( \
+             SELECT entry_id FROM char_idx WHERE ch = 'X' \
+             INTERSECT \
+             SELECT entry_id FROM char_idx WHERE ch = 'Y' \
+           ) \
+           AND e.lang = 'zh' \
+         ORDER BY e.id LIMIT 1000",
+        "nhánh 2 (CharIdx, 2 ký tự)",
+    );
+
+    conn.close().unwrap_or_else(|(_, e)| panic!("đóng kết nối: {e}"));
+    cleanup(&dir);
+}
+
+#[test]
+fn a_layer_whose_hydrate_breaks_after_a_hit_is_named_failed_not_emptied() {
+    let dir = temp_dir("hydrate-fail");
+    build_all_layers(&dir);
+
+    // Breaks `dict_sense` for one layer after build: phase one (`dict_entry`/`char_idx`)
+    // stays intact, only phase two (`senses()`) loses the table it needs.
+    {
+        // `mmm.db` is the `hv-fixture` layer (see `LAYERS`).
+        let conn = rusqlite::Connection::open(dir.join("mmm.db"))
+            .unwrap_or_else(|e| panic!("mo lai mmm.db: {e}"));
+        conn.execute_batch("PRAGMA foreign_keys = OFF; DROP TABLE dict_sense;")
+            .unwrap_or_else(|e| panic!("xoa dict_sense: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    let layers = DictLayers::open(&dir);
+    assert!(
+        layers.skipped().is_empty(),
+        "`open()` không đọc `dict_sense` — xoá nó KHÔNG được làm layer bị bỏ qua từ lúc \
+         mở: {:?}",
+        layers.skipped()
+    );
+
+    let result = command_lookup(Some(&layers), "山");
+
+    // Phase một vẫn khớp cả ba lớp — `dict_entry`/`char_idx` không bị chạm.
+    let layers_in_groups: Vec<&str> =
+        result.grouped.groups.iter().map(|g| g.layer.as_str()).collect();
+    assert_eq!(
+        layers_in_groups,
+        vec!["base", "hv-fixture", "vp-fixture"],
+        "phase một không được ảnh hưởng bởi một bảng phase hai đã mất"
+    );
+
+    assert_eq!(
+        result.senses_failed,
+        vec!["hv-fixture".to_owned()],
+        "lớp hỏng lúc hydrate PHẢI được GỌI TÊN trong `senses_failed`"
+    );
+    assert!(
+        !result.senses_by_layer.contains_key("hv-fixture"),
+        "🔴 một lớp hỏng KHÔNG được mang một khoá danh sách nghĩa RỖNG trong \
+         `senses_by_layer` — đó là đúng hình dạng mà `unwrap_or_default()` cũ tạo ra, và \
+         nó không phân biệt được với 'đầu mục này thật sự không có nghĩa nào': {:?}",
+        result.senses_by_layer.get("hv-fixture")
+    );
+    assert_eq!(
+        result.senses_by_layer["base"].len(),
+        2,
+        "hai lớp lành phải hydrate bình thường, không bị kéo theo lỗi của lớp kia"
+    );
+    assert_eq!(result.senses_by_layer["vp-fixture"].len(), 1);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// `open()` only reads `code`/`display_name`; `attributions()` selects further license
+/// columns, so a layer can pass `open()` and still fail here.
+#[test]
+fn a_layer_whose_attribution_columns_go_missing_after_open_is_named_in_skipped() {
+    let dir = temp_dir("attr-cols-missing");
+    build_all_layers(&dir);
+
+    {
+        // `mmm.db` is the `hv-fixture` layer, source `fx-hv`.
+        let conn = rusqlite::Connection::open(dir.join("mmm.db"))
+            .unwrap_or_else(|e| panic!("mo lai mmm.db: {e}"));
+        conn.execute_batch("ALTER TABLE dict_source DROP COLUMN license_kind;")
+            .unwrap_or_else(|e| panic!("xoa cot license_kind: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
+
+    let layers = DictLayers::open(&dir);
+    assert!(
+        layers.skipped().is_empty(),
+        "`open()` chỉ SELECT `code, display_name` — một cột KHÁC thiếu KHÔNG được làm \
+         layer bị bỏ qua từ lúc mở: {:?}",
+        layers.skipped()
+    );
+
+    let attributions = list_source_attributions(&layers);
+    assert!(
+        attributions.sources.iter().all(|row| row.code != "fx-hv"),
+        "nguồn của lớp hỏng không được có mặt trong bảng ghi công: {:?}",
+        attributions.sources
+    );
+    assert_eq!(
+        attributions.skipped.len(),
+        1,
+        "lớp hỏng lúc đọc ghi công PHẢI được GỌI TÊN trong `skipped`, không biến mất \
+         không dấu vết: {:?}",
+        attributions.skipped
+    );
+    assert!(
+        matches!(attributions.skipped[0].reason, SkipReason::SourcesUnreadable { .. }),
+        "lý do phải là `SourcesUnreadable`: {:?}",
+        attributions.skipped[0].reason
+    );
+
+    assert!(attributions.sources.iter().any(|row| row.code == "fx-core-a"));
+    assert!(attributions.sources.iter().any(|row| row.code == "fx-core-b"));
+    assert!(attributions.sources.iter().any(|row| row.code == "fx-vp"));
+
+    layers.close();
+    cleanup(&dir);
 }

@@ -26,6 +26,7 @@ import {
   dictSourcesError,
   layerKeyFor,
   licenseKeyFor,
+  someDictSourceUnreadable,
   sourceIsDisabled,
 } from './panels/dictSourcesState'
 import { useSelectionSurface } from './panels/selectionContract'
@@ -194,13 +195,22 @@ function trapTab(event: KeyboardEvent): void {
       -->
       <p v-if="dictSourcesError !== null" class="attr-empty">{{ t('attribution.load_failed') }}</p>
 
-      <!--
-        🔴 AC8 — bảng DẪN XUẤT từ tệp có mặt. Danh sách rỗng là một trạng thái BÌNH THƯỜNG
-        có tên (AD-25: `src-tauri/resources/dict/` rỗng trong git), không một lỗi.
-      -->
-      <p v-else-if="dictSources.length === 0" class="attr-empty">{{ t('attribution.empty') }}</p>
+      <template v-else>
+        <!--
+          A third state, distinct from `dictSourcesError` (the call failed) and from an
+          empty `dictSources` with nothing skipped: some layers loaded, one couldn't be read.
+        -->
+        <p v-if="someDictSourceUnreadable" class="attr-partial">{{ t('attribution.some_unreadable') }}</p>
 
-      <table v-else class="attr-table">
+        <!--
+          `attribution.empty` must not show while `someDictSourceUnreadable` is true — a
+          directory where every `.db` was skipped would otherwise falsely say no layer is attached.
+        -->
+        <p v-if="dictSources.length === 0 && !someDictSourceUnreadable" class="attr-empty">
+          {{ t('attribution.empty') }}
+        </p>
+
+        <table v-else-if="dictSources.length > 0" class="attr-table">
         <thead>
           <tr>
             <th>{{ t('attribution.col_source') }}</th>
@@ -254,7 +264,8 @@ function trapTab(event: KeyboardEvent): void {
             <td class="attr-credit">{{ src.attribution }}</td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </template>
 
       <!-- 🔴 AC10 / FR112 — màn hình phải NÓI RA rằng tắt không phải gỡ. -->
       <p class="attr-note">{{ t('attribution.off_is_not_removed') }}</p>
@@ -320,7 +331,8 @@ function trapTab(event: KeyboardEvent): void {
 
 .attr-intro,
 .attr-note,
-.attr-empty {
+.attr-empty,
+.attr-partial {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

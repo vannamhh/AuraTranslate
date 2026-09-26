@@ -34,6 +34,7 @@ import { refreshHanViet } from './sourcePanelState'
 
 const sources = shallowRef<readonly SourceAttribution[]>([])
 const sourcesError = shallowRef<IpcError | null>(null)
+const sourcesSkipped = shallowRef<readonly string[]>([])
 const disabled = ref<ReadonlySet<string>>(new Set())
 const attributionOpen = ref(false)
 
@@ -42,6 +43,15 @@ export const dictSources: DeepReadonly<Ref<readonly SourceAttribution[]>> = read
 
 /** Lỗi gần nhất Rust trả lời khi đọc danh sách nguồn. */
 export const dictSourcesError: DeepReadonly<Ref<IpcError | null>> = readonly(sourcesError)
+
+/**
+ * Machine codes for layers that could not be read, whether they failed to open or opened
+ * but their `dict_source` didn't. Distinct from `dictSourcesError`, an IPC-level failure —
+ * this is part of a successful call where part of the dictionary is unreadable.
+ */
+export const dictSourcesSkipped: DeepReadonly<Ref<readonly string[]>> = readonly(sourcesSkipped)
+
+export const someDictSourceUnreadable = computed(() => sourcesSkipped.value.length > 0)
 
 /** Lớp phủ Attribution có đang mở không — AC11. */
 export const attributionIsOpen: DeepReadonly<Ref<boolean>> = readonly(attributionOpen)
@@ -133,9 +143,10 @@ export function decodeDisabled(raw: string): Set<string> {
  */
 export async function loadDictSources(raw: string): Promise<void> {
   disabled.value = decodeDisabled(raw)
-  const { sources: loaded, error } = await listDictSources()
+  const { sources: loaded, skipped, error } = await listDictSources()
   sourcesError.value = error
   if (loaded !== null) sources.value = loaded
+  sourcesSkipped.value = skipped ?? []
 }
 
 /**
@@ -369,6 +380,7 @@ export function resetDictSources(): void {
   toggleSequence += 1
   sources.value = []
   sourcesError.value = null
+  sourcesSkipped.value = []
   disabled.value = new Set()
   attributionOpen.value = false
   aimedCode = null

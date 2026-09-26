@@ -394,7 +394,12 @@ pub(crate) fn lookup_with_branch(
         // Nhánh 2 là **của riêng đường `zh`** — [`pick_branch`] không bao giờ chọn nó
         // cho đường `En`. Câu SQL bên trong lọc `lang = 'zh'`, nên tổ hợp đó (nếu ai đó
         // dựng ra bằng tay) trả rỗng chứ không trả nhầm hàng tiếng Anh.
-        QueryBranch::CharIdx => query::char_idx(db, query, limit)?,
+        QueryBranch::CharIdx => match query::ShortQuery::new(query) {
+            Some(short) => query::char_idx(db, short, limit)?,
+            // Unreachable via `pick_branch`, which never selects `CharIdx` for a query this
+            // long; a caller that forces the mismatch gets empty results, not a panic or a truncated query.
+            None => (Vec::new(), false),
+        },
 
         QueryBranch::FtsTrigram => match route {
             QueryRoute::Zh => query::fts_trigram(db, query, limit)?,
@@ -932,7 +937,8 @@ pub fn lookup_grouped(
         skipped,
         truncated_layers,
         hidden_sources,
-        layers_loaded: !layers.layers().is_empty(),
+        // A directory where every layer failed to load still counts as loaded, not empty.
+        layers_loaded: !layers.layers().is_empty() || !layers.skipped().is_empty(),
     }
 }
 
@@ -954,23 +960,46 @@ pub fn lookup_grouped(
 /// ghi công rụng mất một hàng vì người dùng tắt một chip là bảng ghi công **sai** — nghĩa vụ
 /// CC-BY-SA gắn với việc **phân phối** dữ liệu, không với việc hiển thị nó.
 ///
-/// ⚠️ Một lớp mà `dict_source` **không đọc được lúc này** bị bỏ khỏi bảng, kèm một dòng
-/// chẩn đoán ra `stderr`: nửa bảng còn hơn không bảng nào, và cùng luật rỗng-có-lý-do mà
-/// [`lookup_grouped`] áp cho một lớp hỏng lúc tra.
+/// A layer whose `dict_source` fails to read here is dropped from [`SourceAttributions::sources`]
+/// but recorded in [`SourceAttributions::skipped`] instead of vanishing without a trace.
 ///
 /// Thứ tự tất định: thứ tự lớp của [`DictLayers::layers`], rồi `ORDER BY code` trong tệp.
-pub fn list_source_attributions(layers: &DictLayers) -> Vec<SourceAttribution> {
-    let mut out: Vec<SourceAttribution> = Vec::new();
+pub fn list_source_attributions(layers: &DictLayers) -> SourceAttributions {
+    let mut sources: Vec<SourceAttribution> = Vec::new();
+    let mut skipped: Vec<SkippedLayer> = layers.skipped().to_vec();
     for layer in layers.layers() {
         match layer.attributions() {
-            Ok(mut rows) => out.append(&mut rows),
-            Err(err) => eprintln!(
-                "dict[layers] cannot read dict_source for attribution from {}: {err}",
-                layer.path().display()
-            ),
+            Ok(mut rows) => sources.append(&mut rows),
+            Err(err) => {
+                eprintln!(
+                    "dict[layers] cannot read dict_source for attribution from {}: {err}",
+                    layer.path().display()
+                );
+                skipped.push(SkippedLayer {
+                    path: layer.path().to_path_buf(),
+                    reason: SkipReason::SourcesUnreadable {
+                        detail: err.to_string(),
+                    },
+                });
+            }
         }
     }
-    out
+    SourceAttributions { sources, skipped }
+}
+
+/// Result of [`list_source_attributions`] — full attribution plus the layers that could
+/// not be read.
+///
+/// [`Self::skipped`] serializes through [`serialize_skipped_as_wire_codes`], never
+/// [`SkippedLayer`] as-is (AD-21).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SourceAttributions {
+    /// Attribution of every source whose file could be read.
+    pub sources: Vec<SourceAttribution>,
+    /// Layers that failed to load, or loaded but whose `dict_source` could not be read —
+    /// distinct from "looked up and found no sources".
+    #[serde(serialize_with = "serialize_skipped_as_wire_codes")]
+    pub skipped: Vec<SkippedLayer>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1215,7 +1244,9 @@ pub fn lookup_han_viet(
     HanVietLookup {
         characters,
         sources_used: sources_used.into_iter().collect(),
-        layers_loaded: !layers.layers().is_empty(),
+        // Same invariant as `lookup_grouped`: a directory where every layer failed to load
+        // still counts as loaded, not empty.
+        layers_loaded: !layers.layers().is_empty() || !layers.skipped().is_empty(),
     }
 }
 

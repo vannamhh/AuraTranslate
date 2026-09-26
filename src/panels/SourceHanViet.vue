@@ -774,24 +774,23 @@ function resolveSelection(selection: Selection): string | null {
 }
 
 /**
- * 🔴 **`U+2060` KHÔNG ĐƯỢC RA CLIPBOARD** — Story 1.18b, AC5. Hàng rào **MỚI**: trước story
- * này không cơ chế nào trong dự án biết tới ký tự đó.
- *
- * Người dùng bôi đen ở kiểu **chuyển đổi** rồi `⌘C`. `Selection.toString()` mang trọn
- * `WORD_JOINER` — một ký tự **rộng bằng 0, không nhìn thấy được** — và nó dán ra Word,
- * ra ô tìm kiếm, ra một tin nhắn. Không ai lần ra được vì sao chuỗi *"trông đúng"* lại không
- * khớp với chính nó.
- *
- * 🔴 **Đổi về một dấu cách, KHÔNG xoá trắng.** Xoá trắng cho ra `thailoan` dính liền — đúng
- * thứ mà `WORD_JOINER` sinh ra để tránh trên màn hình, chỉ dời sang clipboard.
- *
- * ⚠️ Đặt trên `.hv-surface` (bọc ngoài), không trên từng đoạn: sự kiện `copy` nổi bọt, và
- * một handler phủ được **cả hai** kiểu xem. Kiểu song song không sinh `WORD_JOINER` nào, nên
- * ở đó nhánh `includes` thoát sớm và lượt copy đi đường mặc định của trình duyệt.
+ * `.hv-surface` handler (copy bubbles): parallel view rebuilds via `resolveParallel`, since
+ * WKWebView copy ignores `user-select: none` on `<rt>` and would otherwise leak Han readings.
  */
 function onCopy(event: ClipboardEvent): void {
   const selection = window.getSelection()
   if (selection === null) return
+
+  if (effectiveViewMode.value === 'parallel') {
+    const rebuilt = resolveParallel(selection)
+    if (rebuilt === null) return
+
+    const clipboard = event.clipboardData
+    if (clipboard === null) return
+    clipboard.setData('text/plain', rebuilt)
+    event.preventDefault()
+    return
+  }
 
   const text = selection.toString()
   if (!text.includes(WORD_JOINER)) return
@@ -925,6 +924,7 @@ onBeforeUnmount(() => {
           'glossary-pending': glossarySpanFor(seg)?.isConfirmed === false,
         }"
         :data-src-start="seg.srcStart"
+        data-src-atomic="1"
         @mouseenter="onGlossaryEnter(seg)"
         @mouseleave="onGlossaryLeave()"
       ><!-- aura-allow-text: chuỗi ký tự Hán của MỘT TỪ trong nguyên
