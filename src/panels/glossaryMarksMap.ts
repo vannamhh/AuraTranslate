@@ -78,6 +78,8 @@ export type SegmentTermSpan = {
    * (`'dict_unavailable'`).
    */
   hanVietStatus: HanVietSuggestionStatus
+  /** Copied from `GlossaryMark.occurrence_count`. */
+  occurrenceCount: number | null
 }
 
 /** Dấu thuật ngữ của MỘT segment — biên cắt (không nhãn) cộng span (có nhãn). */
@@ -160,6 +162,7 @@ export function glossaryMarksBySegment(
         tier: mark.tier,
         hanVietSuggestion: mark.han_viet_suggestion,
         hanVietStatus: mark.han_viet_status,
+        occurrenceCount: mark.occurrence_count,
       })
       if (localStart > 0) boundarySet.add(localStart)
       if (localEnd < len) boundarySet.add(localEnd)

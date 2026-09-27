@@ -129,6 +129,9 @@ message_keys! {
     StoreWalUnavailable => "err.store.wal_unavailable" ["store", "mode"],
     /// Một job ghi trượt ⇒ giao dịch đã rollback, không có nửa ghi nào trên đĩa.
     StoreWriteFailed => "err.store.write_failed" ["store"],
+    /// A business rule refused the write (e.g. deciding an already-decided candidate) —
+    /// distinct from [`MessageKey::StoreWriteFailed`] (I/O failure): retrying won't help here.
+    StoreConflict => "err.store.conflict" ["store"],
     /// Một job đọc trượt.
     StoreReadFailed => "err.store.read_failed" ["store"],
 
@@ -187,9 +190,9 @@ message_keys! {
     /// nhánh này (`.docx`/`.csv`/`.tsv` đơn tệp không đổi hành vi — §Always). `format` là phần
     /// mở rộng đọc được, dữ liệu chứ không phải câu (AD-21).
     ImportBatchUnsupportedFormat => "err.import.batch_unsupported_format" ["format"],
-    /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `size`/`limit` là
-    /// **số byte thô**: dữ liệu, không phải câu (AD-21).
-    ImportTooLarge => "err.import.too_large" ["size", "limit"],
+    /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `limit` là **số byte
+    /// thô**: dữ liệu, không phải câu (AD-21).
+    ImportTooLarge => "err.import.too_large" ["limit"],
     /// **THÊM 2026-09-09 (Story 6.12)** — `.docx` không đọc được (không phải zip hợp lệ,
     /// zip cắt cụt, `word/document.xml` hỏng XML). `path` là tệp đưa vào.
     DocxUnreadable => "err.docx.unreadable" ["path"],
@@ -402,7 +405,7 @@ message_keys! {
     // Hộp thoại chọn tệp nối vào xuất/nhập Glossary. Ba ca I/O mượn khoá CHUNG với
     // `core::segment::import` (khoá thứ hai của bộ ba, `ImportNotUtf8`, chuyển hẳn XUỐNG
     // ĐÂY 2026-09-04 — xem doc-comment nó) vì câu ĐÚNG là câu chung, không câu riêng của
-    // Glossary: `ImportTooLarge` (["size","limit"], `core::glossary::store::GlossaryError::
+    // Glossary: `ImportTooLarge` (["limit"], `core::glossary::store::GlossaryError::
     // ImportFileTooLarge` dùng trần 16 MiB thay vì 100 MiB — cùng khoá, hai con số
     // khác), `ImportNotUtf8` (["path"], `GlossaryError::ImportNotUtf8`), `IoReadFailed`
     // (["path"], `GlossaryError::ImportReadFailed` — lỗi mở/đọc tệp KHÁC hai ca trên,

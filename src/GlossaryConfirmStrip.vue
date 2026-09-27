@@ -21,6 +21,7 @@ import {
   confirmStripEmptyInputError,
   confirmStripFocusRequest,
   confirmStripIsOpen,
+  confirmStripOccurrenceCount,
   confirmStripSaveError,
   confirmStripSaving,
   confirmStripSourceTerm,
@@ -119,6 +120,9 @@ watch(confirmStripFocusRequest, () => {
         <span v-if="confirmStripSuggestionStatus === 'ok'" class="gcs-suggestion-label">
           {{ t('glossary.confirm.suggestion_label') }}
         </span>
+        <span v-if="confirmStripOccurrenceCount !== null" class="gcs-occurrence">
+          {{ t('glossary.confirm.occurrence_count_label', { count: String(confirmStripOccurrenceCount) }) }}
+        </span>
       </div>
 
       <label class="gcs-field">
@@ -212,6 +216,13 @@ watch(confirmStripFocusRequest, () => {
 }
 
 .gcs-tier {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gcs-occurrence {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

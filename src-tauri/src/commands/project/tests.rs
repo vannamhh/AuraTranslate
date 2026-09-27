@@ -4,7 +4,8 @@
         filter_and_enqueue_current_import_scan, guarded_dict_layers, guarded_open_store,
         import_scan_next_step, keep_committed_import_when_scan_spawn_fails,
         read_chapter_segment_texts, saved_asset_chapter_index_is_in_range,
-        saved_asset_satisfies_asset_check_constraints, swap_locked,
+        saved_asset_satisfies_asset_check_constraints, scan_failed_event,
+        scan_with_configured_threshold, swap_locked,
     };
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
@@ -236,6 +237,21 @@
                 "inserted": 0,
                 "skipped": 0,
                 "outcome": "dictionary_inconclusive",
+            })
+        );
+    }
+
+    #[test]
+    fn the_scan_failed_payload_serializes_the_failed_outcome_and_zero_counts() {
+        let payload = scan_failed_event(7);
+
+        assert_eq!(
+            serde_json::to_value(payload).expect("serialize payload"),
+            serde_json::json!({
+                "chapter_id": 7,
+                "inserted": 0,
+                "skipped": 0,
+                "outcome": "scan_failed",
             })
         );
     }
@@ -890,5 +906,79 @@
         let mut d = well_formed_saved_asset();
         d.chapter_index = 99;
         assert!(!saved_asset_chapter_index_is_in_range(&d, 3), "chapter_index vuot xa dai phai bi bat");
+    }
+
+    /// Fixture is pinned at threshold 1, not the default 5, so this can't pass on a hardcoded
+    /// default masquerading as the configured one.
+    #[test]
+    fn scan_with_configured_threshold_uses_the_stored_threshold_not_the_default() {
+        let dir = guard_test_dir("scan-threshold");
+        let store = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+        crate::core::scope::save_value(&store, "app_config", "glossary_scan_threshold", "1")
+            .unwrap_or_else(|e| panic!("ghi nguong: {e}"));
+
+        let config = crate::core::scope::load_global_config(&store).expect("doc config");
+        assert_eq!(
+            config.glossary_scan_threshold(),
+            1,
+            "fixture phai dung o nguong 1, khac mac dinh 5 -- neu khong ca nay khong do gi ca"
+        );
+
+        let segments = ["慕容出现了慕容走了"];
+        let lang = crate::core::matching::MatchLang::Zh;
+
+        let mut probe_a = |_term: &str| crate::core::glossary::DictionaryProbe::Missing;
+        let mut cancelled_a = || false;
+        let via_helper = scan_with_configured_threshold(
+            &config,
+            &segments,
+            lang,
+            &mut probe_a,
+            &mut cancelled_a,
+        );
+
+        let mut probe_b = |_term: &str| crate::core::glossary::DictionaryProbe::Missing;
+        let mut cancelled_b = || false;
+        let via_direct = crate::core::glossary::scan_candidates_controlled(
+            &segments,
+            lang,
+            1,
+            crate::core::glossary::COMMON_SURNAMES,
+            &mut probe_b,
+            &mut cancelled_b,
+        );
+
+        assert_eq!(
+            via_helper, via_direct,
+            "nguong doc tu GlobalConfig phai chay THANG vao scan_candidates_controlled"
+        );
+
+        drop(store);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Source-scanning, not a real `spawn_import_scan` call: it needs a live `AppHandle`
+    /// (Tauri runtime) for `app.emit(...)` to run, and the six branches share no pure
+    /// decision to call independently — `emit_import_scan_failed` is already their one
+    /// shared call target, so what's left to guard is "does source code really call it six
+    /// times", a compiled-text question, same genre as `segment_boundary.rs`.
+    #[test]
+    fn spawn_import_scan_calls_emit_import_scan_failed_at_all_six_infrastructure_failure_branches() {
+        // Reads code lines, not commented ones (a commented call starts with `//`, not the
+        // call text itself, so `starts_with` excludes it without stripping comments).
+        let source = include_str!("mod.rs");
+        let call_site = "emit_import_scan_failed(&app, chapter_id);";
+        let count = source
+            .lines()
+            .filter(|line| line.trim_start().starts_with(call_site))
+            .count();
+        assert_eq!(
+            count, 6,
+            "found {count} call sites of `{call_site}` in commands/project/mod.rs, expected 6 \
+             (one per genuine infrastructure-failure branch of spawn_import_scan)"
+        );
     }
 

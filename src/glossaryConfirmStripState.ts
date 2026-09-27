@@ -53,11 +53,18 @@ type CurrentTarget = {
   sourceTerm: string
   hanVietSuggestion: string | null
   hanVietStatus: HanVietSuggestionStatus
+  occurrenceCount: number | null
 }
 
+/** Identity only (`tier`+`id`), not the Hán Việt suggestion — two targets with the same
+ * identity can carry a different suggestion between two `sync` calls; see [`applyTarget`]. */
 function targetsEqual(a: CurrentTarget | null, b: CurrentTarget | null): boolean {
   if (a === null || b === null) return a === b
   return a.tier === b.tier && a.id === b.id
+}
+
+function suggestionChanged(a: CurrentTarget, b: CurrentTarget): boolean {
+  return a.hanVietSuggestion !== b.hanVietSuggestion || a.hanVietStatus !== b.hanVietStatus
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,6 +129,9 @@ export const confirmStripSourceTerm = computed<string | null>(() => current.valu
 export const confirmStripSuggestionStatus = computed<HanVietSuggestionStatus | null>(
   () => current.value?.hanVietStatus ?? null,
 )
+export const confirmStripOccurrenceCount = computed<number | null>(
+  () => current.value?.occurrenceCount ?? null,
+)
 /** `true` ⇔ có một mục đang chờ hỏi — điều kiện ĐỦ ĐIỀU KIỆN của `'glossary_confirm'` cho
  * `topmostStrip`. Không tự là điều kiện HIỂN THỊ — xem doc-comment đầu tệp. */
 export const confirmStripIsOpen = computed<boolean>(() => current.value !== null)
@@ -162,6 +172,7 @@ function selectPendingSpan(
         sourceTerm: next.sourceTerm,
         hanVietSuggestion: next.hanVietSuggestion,
         hanVietStatus: next.hanVietStatus,
+        occurrenceCount: next.occurrenceCount,
       }
 }
 
@@ -172,9 +183,22 @@ function selectPendingSpan(
  * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — ô nhập ĐIỀN SẴN bằng `next.hanVietSuggestion` khi
  * có (§I/O Matrix: "Dải chốt mọc ⇒ Ô nhập điền sẵn đề xuất"; đổi sang một mục KHÔNG đề xuất
  * được ⇒ ô RỖNG LẠI, không giữ chữ của mục trước — cùng đúng chỗ mà bản trước đã `= ''`).
+ *
+ * Three branches, not two: same identity but a changed suggestion (e.g. toggling a
+ * dictionary source) updates `current` and refills the input only if it still holds the
+ * previous suggestion verbatim, so a same-identity `sync` can't be silently ignored.
  */
 function applyTarget(next: CurrentTarget | null): void {
-  if (targetsEqual(current.value, next)) return
+  const prev = current.value
+
+  if (targetsEqual(prev, next)) {
+    if (prev !== null && next !== null && suggestionChanged(prev, next)) {
+      const unedited = translationInput.value === (prev.hanVietSuggestion ?? '')
+      current.value = next
+      if (unedited) translationInput.value = next.hanVietSuggestion ?? ''
+    }
+    return
+  }
 
   // 🔵 SỬA 2026-08-22 (rà ba lớp, vòng 2 — Ice bắt) — danh tính THẬT SỰ đổi: vô hiệu hoá mọi
   // lượt ghi đang bay của mục CŨ ([`sequence`], xem [`confirmGlossaryConfirmStrip`]) VÀ dọn

@@ -39,7 +39,7 @@ use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{Category, GlossaryTier, insert_import_scan_candidates};
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::store::{Store, StoreSpec};
+use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -262,6 +262,93 @@ fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
         rows[0].context_example.as_deref(),
         Some("萧炎在乌坦城第一次登场。")
     );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Two pending candidates, each occurring in a different set of real Chapters -- each row's
+/// `chapter_span_count` must belong to its OWN `source_term`, not to whichever row a
+/// position/order-based zip would have paired it with. Counter-check: replace the keyed
+/// `BTreeMap` join in `commands::glossary::glossary_pending_candidates` with a positional
+/// `zip` and this goes red on a swapped count.
+#[test]
+fn glossary_pending_candidates_keys_chapter_span_count_by_its_own_source_term() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("pending-candidates-chapter-span-keyed");
+    let opened = open_work(&root, "Nhieu Chuong");
+
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (2, NULL, '', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (),
+            )?;
+            let chapter_two = tx.last_insert_rowid();
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (3, NULL, '', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (),
+            )?;
+            let chapter_three = tx.last_insert_rowid();
+
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+                 created_at, updated_at) VALUES (?1, 1, '萧炎在城中。', 1, \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [chapter_two],
+            )?;
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+                 created_at, updated_at) VALUES (?1, 1, '萧炎和青丘的传说。', 1, \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [chapter_three],
+            )?;
+            Ok(())
+        })
+        .expect("dung them hai Chuong that");
+
+    // `青丘` gets the HIGHER `occurrence_count` so `pending_candidates`'s `ORDER BY
+    // occurrence_count DESC` returns it BEFORE `萧炎` -- the opposite of insertion order --
+    // so a positional zip against `terms` (built from the returned row order) would attach
+    // `萧炎`'s count (2) to `青丘` and vice versa.
+    insert_import_scan_candidates(
+        &opened.store,
+        &[
+            ScanCandidate {
+                source_term: "萧炎".to_owned(),
+                occurrence_count: 1,
+                context_example: String::new(),
+            },
+            ScanCandidate {
+                source_term: "青丘".to_owned(),
+                occurrence_count: 99,
+                context_example: String::new(),
+            },
+        ],
+    )
+    .expect("chen hai ung vien");
+
+    let rows = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho qua commands::glossary");
+    assert_eq!(rows.len(), 2);
+
+    let xiao_yan = rows
+        .iter()
+        .find(|r| r.source_term == "萧炎")
+        .expect("萧炎 phai co mat");
+    assert_eq!(xiao_yan.chapter_span_count, 2, "萧炎 xuat hien o CA HAI Chuong vua them");
+
+    let qing_qiu = rows
+        .iter()
+        .find(|r| r.source_term == "青丘")
+        .expect("青丘 phai co mat");
+    assert_eq!(qing_qiu.chapter_span_count, 1, "青丘 chi xuat hien o MOT Chuong");
 
     drop(opened);
     cleanup(&root);
@@ -618,7 +705,8 @@ fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() 
     let err =
         glossary_approve_candidate(Some(&opened), candidate_id, Some("Ban Dich Khac"), Category::Other)
             .expect_err("ung vien da quyet khong duoc quyet lai");
-    assert_eq!(err.message_key(), MessageKey::StoreWriteFailed);
+    // Now `StoreConflict`, not `StoreWriteFailed`: a business-rule refusal, not I/O failure.
+    assert_eq!(err.message_key(), MessageKey::StoreConflict);
 
     let after_second_call = glossary_lookup_term(Some(&global), Some(&opened), "青丘")
         .expect("tra lai lan hai")
@@ -751,7 +839,8 @@ fn glossary_reject_candidate_on_an_already_approved_candidate_changes_nothing() 
 
     let err = glossary_reject_candidate(Some(&opened), candidate_id)
         .expect_err("ung vien da duyet khong the bo lai");
-    assert_eq!(err.message_key(), MessageKey::StoreWriteFailed);
+    // Now `StoreConflict`, not `StoreWriteFailed`.
+    assert_eq!(err.message_key(), MessageKey::StoreConflict);
 
     // Muc Glossary da sinh tu luot Nhan van con nguyen.
     let found = glossary_lookup_term(Some(&global), Some(&opened), "焚炎谷")

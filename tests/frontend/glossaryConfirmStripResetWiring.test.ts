@@ -76,6 +76,7 @@ const PENDING_MARK: GlossaryMark = {
   source_term: '一',
   han_viet_suggestion: null,
   han_viet_status: 'not_requested',
+  occurrence_count: null,
 }
 
 beforeEach(() => {

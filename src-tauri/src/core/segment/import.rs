@@ -422,11 +422,9 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
-            ImportError::TooLarge { size, limit } => {
+            ImportError::TooLarge { size: _, limit } => {
                 let mut params = BTreeMap::new();
-                // `params` mang DỮ LIỆU, không mang CÂU (AD-21) — hai con số thô,
-                // tầng hiển thị tự lo cách đọc chúng ra tiếng người.
-                params.insert("size".to_owned(), size.to_string());
+                // `params` mang DỮ LIỆU, không mang CÂU (AD-21).
                 params.insert("limit".to_owned(), limit.to_string());
                 IpcError::new("import.too_large", MessageKey::ImportTooLarge, params, false)
             }

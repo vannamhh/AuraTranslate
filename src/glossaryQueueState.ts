@@ -76,6 +76,16 @@ const actionError = ref<IpcError | null>(null)
  * hoá một lượt Nhận/Bỏ đang bay từ một PHIÊN MỞ trước đó. */
 let sequence = 0
 
+/** Client-only error (no IPC round-trip) for accepting/rejecting an already-decided row,
+ * instead of silently no-op'ing. Shaped like `IpcError` so `queueActionError`/`tError()`
+ * can display it unchanged. */
+const ALREADY_DECIDED_ERROR: IpcError = {
+  code: 'glossary.queue_already_decided',
+  message_key: 'err.glossary.queue_already_decided',
+  params: {},
+  retryable: false,
+}
+
 export const queueOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 export const queueStatus: DeepReadonly<Ref<GlossaryQueueStatus>> = readonly(status)
 export const queueLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
@@ -212,14 +222,21 @@ export function closeGlossaryQueue(): void {
   overlayOpen.value = false
 }
 
+/** Bounds-checked to `[0, rows.length)`. The one shared setter both mouse (a row's hidden
+ * radio) and keyboard navigation call — row selection is data (AD-34 §1). */
+export function setGlossaryQueueCursor(index: number): void {
+  if (rows.value.length === 0) return
+  cursor.value = Math.min(Math.max(index, 0), rows.value.length - 1)
+}
+
 /** Chuyển con trỏ xuống hàng kế tiếp (mọi hàng, kể cả đã xử lý) — không vòng. */
 export function nextGlossaryQueueCandidate(): void {
-  if (cursor.value < rows.value.length - 1) cursor.value += 1
+  setGlossaryQueueCursor(cursor.value + 1)
 }
 
 /** Chuyển con trỏ lên hàng trước (mọi hàng, kể cả đã xử lý) — không vòng. */
 export function prevGlossaryQueueCandidate(): void {
-  if (cursor.value > 0) cursor.value -= 1
+  setGlossaryQueueCursor(cursor.value - 1)
 }
 
 /**
@@ -251,7 +268,11 @@ export async function acceptGlossaryQueueCandidate(): Promise<void> {
   if (saving.value) return
   const index = cursor.value
   const row = rows.value.at(index) // 🔴 `.at()` — xem doc-comment `queueCurrentRow`.
-  if (row === undefined || row.outcome !== null) return
+  if (row === undefined) return
+  if (row.outcome !== null) {
+    actionError.value = ALREADY_DECIDED_ERROR
+    return
+  }
 
   saving.value = true
   actionError.value = null
@@ -286,7 +307,11 @@ export async function rejectGlossaryQueueCandidate(): Promise<void> {
   if (saving.value) return
   const index = cursor.value
   const row = rows.value.at(index) // 🔴 `.at()` — xem doc-comment `queueCurrentRow`.
-  if (row === undefined || row.outcome !== null) return
+  if (row === undefined) return
+  if (row.outcome !== null) {
+    actionError.value = ALREADY_DECIDED_ERROR
+    return
+  }
 
   saving.value = true
   actionError.value = null

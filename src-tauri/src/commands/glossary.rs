@@ -39,21 +39,21 @@
 //! `src-tauri/**/*.rs`.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::commands::project::OpenWork;
 use crate::core::dict::DictLayers;
 use crate::core::glossary::{
     Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryMark,
-    GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind, add_manual_term,
-    approve_candidate, classify_import_rows, confirm_pending_translation, delete_manual_term,
-    export_tier, import_into_tier, list_all_entries, match_lang_for_source_lang,
-    marks_for_source_text, parse as parse_glossary_import, pending_candidates, promote_to_global,
-    read_import_file, reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
-    update_manual_term, write_export_file,
+    GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind, WorkContext,
+    add_manual_term, approve_candidate, candidate_chapter_span_counts, classify_import_rows,
+    confirm_pending_translation, delete_manual_term, export_tier, import_into_tier,
+    list_all_entries, match_lang_for_source_lang, marks_for_source_text,
+    parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
+    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch, update_manual_term,
+    write_export_file,
 };
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn và cùng lý do
@@ -67,11 +67,10 @@ fn store_is_missing() -> IpcError {
     .into()
 }
 
-/// Đọc `(&Store, &ScopeResolver)` của Tác phẩm **đang mở** — `None` khi chưa mở Tác phẩm
-/// nào. Đây là hàm mà đoạn 🔴 đầu tệp nhắc tới: nó là chỗ ĐẦU TIÊN `OpenWork::scope` được
-/// đọc trong mã sản phẩm.
-fn work_context(open: Option<&OpenWork>) -> Option<(&Store, &ScopeResolver)> {
-    open.map(|w| (&w.store, &w.scope))
+/// The only place this module builds a [`WorkContext`], always from one `OpenWork`'s own
+/// `scope`/`store`, so the two can't come from different Works.
+fn work_context(open: Option<&OpenWork>) -> Result<WorkContext<'_>, GlossaryError> {
+    WorkContext::new(open.map(|w| (&w.scope, &w.store)))
 }
 
 /// Hình dạng trên dây của một mục Glossary tìm thấy qua [`glossary_lookup_term`] — mang
@@ -145,20 +144,11 @@ pub fn glossary_lookup_term(
     source_term: &str,
 ) -> Result<QuickAddLookup, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
+    let scope = work_context(open)?;
 
-    // ⚠️ `default_resolver` sống ĐỦ LÂU cho lượt gọi này: `ScopeResolver::global_only()`
-    // không mang gì cần `Drop`, nên giữ một bản `const` cục bộ rẻ hơn `Clone` từ
-    // `open.scope` mỗi lượt gọi khi `open` là `Some`.
-    let default_resolver = ScopeResolver::global_only();
-    let context = work_context(open);
-    let (resolver, work_store) = match context {
-        Some((store, resolver)) => (resolver, Some(store)),
-        None => (&default_resolver, None),
-    };
-
-    let found = resolve_term_for_quick_add(resolver, global, work_store, source_term)?;
+    let found = resolve_term_for_quick_add(&scope, global, source_term)?;
     Ok(QuickAddLookup {
-        work_tier_available: context.is_some(),
+        work_tier_available: scope.work().is_some(),
         entry: found.map(|(tier, entry)| QuickAddTerm::from_resolved(tier, entry)),
     })
 }
@@ -179,7 +169,7 @@ pub fn glossary_add_term(
     category: Category,
 ) -> Result<i64, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
 
     let id = add_manual_term(global, work_store, tier, source_term, translation, note, category)?;
     Ok(id)
@@ -202,7 +192,7 @@ pub fn glossary_update_term(
     category: Category,
 ) -> Result<(), IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
 
     update_manual_term(global, work_store, tier, id, translation, note, category)?;
     Ok(())
@@ -241,6 +231,8 @@ pub struct GlossaryMarkWire {
     /// `"no_reading"` · `"dict_unavailable"` · `"not_requested"`). `"not_requested"` cho MỌI
     /// mục ĐÃ CHỐT (`is_confirmed == true`) — dấu đó chưa từng đi qua một lượt tra Hán Việt.
     pub han_viet_status: String,
+    /// `None` for a manual/imported entry, a Global entry, or one predating this column.
+    pub occurrence_count: Option<i64>,
 }
 
 impl From<GlossaryMark> for GlossaryMarkWire {
@@ -255,6 +247,7 @@ impl From<GlossaryMark> for GlossaryMarkWire {
             source_term: mark.source_term,
             han_viet_suggestion: mark.han_viet_suggestion,
             han_viet_status: mark.han_viet_status.to_owned(),
+            occurrence_count: mark.occurrence_count,
         }
     }
 }
@@ -301,18 +294,19 @@ pub fn glossary_marks_for_chapter(
     disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryMarkWire>, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-
-    let default_resolver = ScopeResolver::global_only();
-    let context = work_context(open);
-    let (resolver, work_store) = match context {
-        Some((store, resolver)) => (resolver, Some(store)),
-        None => (&default_resolver, None),
-    };
+    let scope = work_context(open)?;
 
     let lang = match_lang_for_source_lang(source_lang);
 
-    let marks =
-        marks_for_source_text(resolver, global, work_store, text, lang, layers, disabled)?;
+    let marks = marks_for_source_text(
+        scope.resolver(),
+        global,
+        scope.work(),
+        text,
+        lang,
+        layers,
+        disabled,
+    )?;
     Ok(marks.into_iter().map(GlossaryMarkWire::from).collect())
 }
 
@@ -343,6 +337,9 @@ pub struct GlossaryCandidateWire {
     /// không bao giờ xuất hiện ở đây (khác `GlossaryMarkWire`, nơi mục đã chốt gán nhãn đó).
     pub han_viet_suggestion: Option<String>,
     pub han_viet_status: String,
+    /// Count of distinct Chapters where `source_term` occurs across the whole Work,
+    /// through the shared Matcher (AD-17).
+    pub chapter_span_count: i64,
 }
 
 /// Mọi ứng viên **chờ duyệt** của Tác phẩm đang mở — **hàm thuần, đây là thứ test gọi**.
@@ -383,6 +380,15 @@ pub fn glossary_pending_candidates(
         "suggest_han_viet_batch phai tra dung mot phan tu cho moi thuat ngu dau vao"
     );
 
+    // One call for the whole set, same reason as suggest_han_viet_batch above.
+    let lang = match_lang_for_source_lang(&open.meta.source_lang);
+    let chapter_span_counts = candidate_chapter_span_counts(&open.store, &terms, lang)?;
+    debug_assert_eq!(
+        rows.len(),
+        chapter_span_counts.len(),
+        "candidate_chapter_span_counts phai tra dung mot phan tu cho moi thuat ngu dau vao"
+    );
+
     // 🔵 SỬA 2026-08-24 (vòng rà Bước 4) — ghép theo KHOÁ, không theo VỊ TRÍ.
     //
     // Bản đầu dùng `rows.into_iter().zip(suggestions)`, tức đúng cặp CHỈ KHI hai vế cùng độ
@@ -398,6 +404,9 @@ pub fn glossary_pending_candidates(
     // `core::glossary::store::marks_for_source_text` đã dùng, vì cùng một lý do.
     let suggestion_by_term: BTreeMap<&str, HanVietSuggestion> =
         terms.iter().copied().zip(suggestions).collect();
+    // Same reason as suggestion_by_term above: keyed by source_term, not position.
+    let chapter_span_by_term: BTreeMap<&str, i64> =
+        terms.iter().copied().zip(chapter_span_counts).collect();
 
     Ok(rows
         .iter()
@@ -405,15 +414,20 @@ pub fn glossary_pending_candidates(
             let suggestion = suggestion_by_term
                 .get(c.source_term.as_str())
                 .unwrap_or(&HanVietSuggestion::NotRequested);
-            (c, suggestion)
+            let chapter_span_count = chapter_span_by_term
+                .get(c.source_term.as_str())
+                .copied()
+                .unwrap_or(0);
+            (c, suggestion, chapter_span_count)
         })
-        .map(|(c, suggestion)| GlossaryCandidateWire {
+        .map(|(c, suggestion, chapter_span_count)| GlossaryCandidateWire {
             id: c.id,
             source_term: c.source_term.clone(),
             candidate_origin: c.candidate_origin.as_str().to_owned(),
             resolution: c.resolution.map(|r| r.as_str().to_owned()),
             created_at: c.created_at.clone(),
             occurrence_count: c.occurrence_count,
+            chapter_span_count,
             context_example: c.context_example.clone(),
             han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
             han_viet_status: suggestion.as_status_str().to_owned(),
@@ -446,7 +460,7 @@ pub fn glossary_confirm_pending_translation(
     translation: &str,
 ) -> Result<(), IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
 
     confirm_pending_translation(global, work_store, tier, id, translation)?;
     Ok(())
@@ -529,6 +543,8 @@ pub struct GlossaryEntryWire {
     /// `true` ⇔ một mục Work cùng `source_term` đang thắng — hàng này KHÔNG được ép vào
     /// prompt (AD-36) dù vẫn hiện trên màn hình quản lý.
     pub is_shadowed: bool,
+    /// `None` for a manual/imported entry, a Global entry, or one predating this column.
+    pub occurrence_count: Option<i64>,
 }
 
 impl GlossaryEntryWire {
@@ -543,6 +559,7 @@ impl GlossaryEntryWire {
             term_origin: entry.term_origin.as_str().to_owned(),
             created_at: entry.created_at,
             is_shadowed,
+            occurrence_count: entry.occurrence_count,
         }
     }
 }
@@ -559,15 +576,9 @@ pub fn glossary_list_entries(
     open: Option<&OpenWork>,
 ) -> Result<Vec<GlossaryEntryWire>, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
+    let scope = work_context(open)?;
 
-    let default_resolver = ScopeResolver::global_only();
-    let context = work_context(open);
-    let (resolver, work_store) = match context {
-        Some((store, resolver)) => (resolver, Some(store)),
-        None => (&default_resolver, None),
-    };
-
-    let rows = list_all_entries(resolver, global, work_store)?;
+    let rows = list_all_entries(&scope, global)?;
     Ok(rows
         .into_iter()
         .map(|(tier, entry, shadowed)| GlossaryEntryWire::from_resolved(tier, entry, shadowed))
@@ -587,7 +598,7 @@ pub fn glossary_delete_term(
     id: i64,
 ) -> Result<(), IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
 
     delete_manual_term(global, work_store, tier, id)?;
     Ok(())
@@ -686,13 +697,28 @@ pub fn glossary_export_tier(
     path: &Path,
 ) -> Result<(), IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
     let store = resolve_tier_store(global, work_store, tier)?;
 
     let delimiter = delimiter_from_path(path);
     let contents = export_tier(store, delimiter)?;
     write_export_file(path, &contents)?;
     Ok(())
+}
+
+/// The pure half of the export dialog: takes the already-converted dialog result so the
+/// cancel branch (`None` ⇒ `Ok(None)`, no file touched) is testable without a real dialog.
+pub fn glossary_export_tier_after_dialog(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: GlossaryTier,
+    picked_path: Option<PathBuf>,
+) -> Result<Option<String>, IpcError> {
+    let Some(path) = picked_path else {
+        return Ok(None);
+    };
+    glossary_export_tier(global, open, tier, &path)?;
+    Ok(Some(path.display().to_string()))
 }
 
 /// Hình dạng "mô hình đã kiểm" của MỘT hàng bất đồng cho màn hình xem trước — AD-48 §Rule
@@ -798,7 +824,7 @@ pub fn glossary_open_import_preview(
     path: &Path,
 ) -> Result<ImportPreviewWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
     // Xac nhan tang chon duoc TRUOC khi cham dia -- cung mot mon voi duong xuat.
     resolve_tier_store(global_store, work_store, tier)?;
 
@@ -880,7 +906,7 @@ pub fn glossary_confirm_import(
     decisions: &BTreeMap<String, ConflictDecision>,
 ) -> Result<ImportSummaryWire, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let work_store = work_context(open).map(|(store, _)| store);
+    let work_store = work_context(open)?.work();
 
     let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(batch) = guard.as_ref() else {
@@ -1329,16 +1355,22 @@ pub mod wire {
         // (`delimiter_from_path`, §I/O Matrix "Đuôi tệp quyết dấu phân cách") — người dùng
         // muốn TSV vẫn gõ được `….tsv` trong ô tên, chỉ là hộp thoại không còn GỢI Ý một
         // lựa chọn mà tên mặc định không theo kịp.
-        let Some(picked) = app
+        // Only the dialog-to-PathBuf conversion stays here; both branches are handed to
+        // `glossary_export_tier_after_dialog` below.
+        let picked_path: Option<std::path::PathBuf> = match app
             .dialog()
             .file()
             .add_filter("CSV", &["csv"])
             .set_file_name(format!("{extension}.csv"))
             .blocking_save_file()
-        else {
-            return Ok(None);
+        {
+            None => None,
+            Some(picked) => Some(
+                picked
+                    .into_path()
+                    .map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?,
+            ),
         };
-        let path = picked.into_path().map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?;
 
         // Khoá MỚI, sau khi hộp thoại đã đóng — không tái dùng bất kỳ giá trị nào đọc
         // trước dialog (P1).
@@ -1348,8 +1380,7 @@ pub mod wire {
             .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
-        super::glossary_export_tier(global.as_deref(), open, tier, &path)?;
-        Ok(Some(path.display().to_string()))
+        super::glossary_export_tier_after_dialog(global.as_deref(), open, tier, picked_path)
     }
 
     /// Vỏ IPC của [`super::glossary_open_import_preview`] — mở hộp thoại CHỌN rồi gọi hàm

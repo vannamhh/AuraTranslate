@@ -1766,8 +1766,9 @@ pub struct GlossaryImportScanEvent {
     pub chapter_id: i64,
     pub inserted: i64,
     pub skipped: i64,
-    /// `completed` hoặc `dictionary_inconclusive`. Worker bị huỷ KHÔNG phát sự kiện —
-    /// một scan cũ không được giả làm một lượt đã hoàn tất.
+    /// `completed`, `dictionary_inconclusive`, or `scan_failed`. A cancelled worker still
+    /// emits nothing; `scan_failed` is only for the six genuine infrastructure branches
+    /// (segment read, `app_config` read, missing `global.db`, filter/enqueue, write).
     pub outcome: &'static str,
 }
 
@@ -1775,6 +1776,7 @@ pub struct GlossaryImportScanEvent {
 pub const GLOSSARY_IMPORT_SCAN_EVENT: &str = "aura://glossary-import-scan-completed";
 const IMPORT_SCAN_COMPLETED: &str = "completed";
 const IMPORT_SCAN_DICTIONARY_INCONCLUSIVE: &str = "dictionary_inconclusive";
+const IMPORT_SCAN_FAILED: &str = "scan_failed";
 
 /// Generation huỷ lượt quét cũ khi một import mới thay Tác phẩm đang mở.
 ///
@@ -1823,6 +1825,48 @@ fn dictionary_inconclusive_event(chapter_id: i64) -> GlossaryImportScanEvent {
         skipped: 0,
         outcome: IMPORT_SCAN_DICTIONARY_INCONCLUSIVE,
     }
+}
+
+/// Same shape as [`dictionary_inconclusive_event`]: kept separate from `emit` so the wire
+/// shape is testable without an `AppHandle`.
+fn scan_failed_event(chapter_id: i64) -> GlossaryImportScanEvent {
+    GlossaryImportScanEvent {
+        chapter_id,
+        inserted: 0,
+        skipped: 0,
+        outcome: IMPORT_SCAN_FAILED,
+    }
+}
+
+/// The one place all six infrastructure-failure branches of [`spawn_import_scan`] emit
+/// `scan_failed`, so they can't drift from each other. Swallows its own emit failure —
+/// already on an error path, so a second error here only goes to `stderr`.
+fn emit_import_scan_failed(app: &tauri::AppHandle, chapter_id: i64) {
+    use tauri::Emitter as _;
+    if let Err(err) = app.emit(GLOSSARY_IMPORT_SCAN_EVENT, scan_failed_event(chapter_id)) {
+        eprintln!("glossary[import_scan] phat su kien that bai: {err}");
+    }
+}
+
+/// Pulled out of `spawn_import_scan`'s thread closure so the threshold read and its use in
+/// `scan_candidates_controlled` are testable together without a background thread or an
+/// `AppHandle`; `config` comes in as a plain parameter instead of `app.try_state`.
+fn scan_with_configured_threshold(
+    config: &crate::core::scope::GlobalConfig,
+    segments: &[&str],
+    lang: crate::core::matching::MatchLang,
+    probe_dictionary: &mut dyn FnMut(&str) -> crate::core::glossary::DictionaryProbe,
+    is_cancelled: &mut dyn FnMut() -> bool,
+) -> crate::core::glossary::ScanOutcome {
+    let threshold = config.glossary_scan_threshold();
+    crate::core::glossary::scan_candidates_controlled(
+        segments,
+        lang,
+        threshold,
+        crate::core::glossary::COMMON_SURNAMES,
+        probe_dictionary,
+        is_cancelled,
+    )
 }
 
 /// Quyết định DUY NHẤT ngay sau thuật toán thuần. Chỉ `Enqueue` mang candidates xuống
@@ -2012,6 +2056,7 @@ fn spawn_import_scan(
 
     let Some(generation_state) = app.try_state::<ImportScanGeneration>() else {
         eprintln!("glossary[import_scan] generation state chua duoc quan ly -- bo qua luot quet");
+        emit_import_scan_failed(&app, chapter_id);
         return Ok(());
     };
     let generation_state = generation_state.inner().clone();
@@ -2041,6 +2086,7 @@ fn spawn_import_scan(
                 Ok(rows) => rows,
                 Err(err) => {
                     eprintln!("glossary[import_scan] doc segment that bai: {err}");
+                    emit_import_scan_failed(&app, chapter_id);
                     return;
                 }
             }
@@ -2048,16 +2094,17 @@ fn spawn_import_scan(
 
         let Some(global) = app.try_state::<Store>() else {
             eprintln!("glossary[import_scan] global.db chua duoc quan ly -- bo qua luot quet");
+            emit_import_scan_failed(&app, chapter_id);
             return;
         };
         let config = match crate::core::scope::load_global_config(&global) {
             Ok(c) => c,
             Err(err) => {
                 eprintln!("glossary[import_scan] doc app_config that bai: {err}");
+                emit_import_scan_failed(&app, chapter_id);
                 return;
             }
         };
-        let threshold = config.glossary_scan_threshold();
         let disabled = config.disabled_source_codes();
 
         let layers_state = app.try_state::<crate::core::dict::DictLayers>();
@@ -2083,14 +2130,13 @@ fn spawn_import_scan(
                 dictionary_probe_from_grouped(&result)
         };
             let mut is_cancelled = || !current();
-            let scan_outcome = crate::core::glossary::scan_candidates_controlled(
-            &segment_refs,
-            lang,
-            threshold,
-            crate::core::glossary::COMMON_SURNAMES,
+            let scan_outcome = scan_with_configured_threshold(
+                &config,
+                &segment_refs,
+                lang,
                 &mut probe_dictionary,
                 &mut is_cancelled,
-        );
+            );
 
             let mut candidates = match import_scan_next_step(scan_outcome, current()) {
                 ImportScanNextStep::Enqueue(candidates) => candidates,
@@ -2123,7 +2169,8 @@ fn spawn_import_scan(
                     Ok(None) => return,
                     Err(err) => {
                         eprintln!("glossary[import_scan] loc/xep lo that bai: {err}");
-                return;
+                        emit_import_scan_failed(&app, chapter_id);
+                        return;
                     }
                 }
             };
@@ -2132,6 +2179,7 @@ fn spawn_import_scan(
                 Ok(counts) => counts,
                 Err(err) => {
                     eprintln!("glossary[import_scan] ghi lo that bai: {err}");
+                    emit_import_scan_failed(&app, chapter_id);
                     return;
                 }
         };

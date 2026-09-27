@@ -33,8 +33,12 @@
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
+use std::collections::BTreeSet;
+
+use crate::core::matching::{MatchLang, find_terms};
 use crate::core::store::{
-    SqlError, SqlResult, SqlType, Store, StoreError, Transaction, WriteTicket,
+    BusinessRuleConflict, SqlError, SqlResult, SqlType, Store, StoreError, Transaction,
+    WriteTicket,
 };
 
 use super::candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
@@ -120,6 +124,46 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
         }
         Ok(out)
     })
+}
+
+/// Count of distinct Chapters where each `source_term` of `terms` occurs, across the
+/// whole Work. Returned in the same order as `terms`.
+///
+/// Goes through the shared Matcher ([`find_terms`], AD-17) rather than SQL `LIKE`, since a
+/// `source_term` can carry `%`/`_`. Loads every Chapter's `segment.source_text` once
+/// (`group_concat`, `char(10)`-joined) and calls `find_terms` once per Chapter with the
+/// whole `terms` slice, rather than one query per term per Chapter.
+pub fn candidate_chapter_span_counts(
+    store: &Store,
+    terms: &[&str],
+    lang: MatchLang,
+) -> Result<Vec<i64>, StoreError> {
+    if terms.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let chapters: Vec<(i64, String)> = store.read(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT chapter_id, group_concat(source_text, char(10)) \
+             FROM segment WHERE retired_at IS NULL GROUP BY chapter_id",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            let chapter_id: i64 = row.get(0)?;
+            let text: Option<String> = row.get(1)?;
+            out.push((chapter_id, text.unwrap_or_default()));
+        }
+        Ok(out)
+    })?;
+
+    let mut seen: Vec<BTreeSet<i64>> = terms.iter().map(|_| BTreeSet::new()).collect();
+    for (chapter_id, text) in &chapters {
+        for term_match in find_terms(text, terms, lang) {
+            seen[term_match.term_index].insert(*chapter_id);
+        }
+    }
+    Ok(seen.iter().map(|s| s.len() as i64).collect())
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -246,12 +290,12 @@ pub(crate) fn enqueue_import_scan_candidates(
 /// — duyệt một ứng viên không bắt buộc phải chốt bản dịch ngay.
 ///
 /// # Lỗi
-/// [`StoreError::WriteFailed`] khi: `id` không khớp hàng nào; ứng viên `id` ĐÃ quyết (đã
-/// duyệt hoặc đã bỏ — xem doc-comment đầu module); `translation` là `Some("")`/khoảng
-/// trắng (`CHECK` của `GLOSSARY_ENTRY_DDL`, qua `insert_entry_row`); hoặc `source_term`
-/// của ứng viên trùng một `glossary_entry` đã có (`UNIQUE INDEX
-/// idx_glossary_entry_source_term`) — ca này để lại ứng viên vĩnh viễn ở bảng chờ, món nợ
-/// có chủ cho Story 3.5 (`deferred-work.md`).
+/// [`StoreError::Conflict`] khi `id` ĐÃ quyết (đã duyệt hoặc đã bỏ — xem doc-comment đầu
+/// module). [`StoreError::WriteFailed`] khi: `id` không khớp
+/// hàng nào; `translation` là `Some("")`/khoảng trắng (`CHECK` của `GLOSSARY_ENTRY_DDL`,
+/// qua `insert_entry_row`); hoặc `source_term` của ứng viên trùng một `glossary_entry` đã
+/// có (`UNIQUE INDEX idx_glossary_entry_source_term`) — ca này để lại ứng viên vĩnh viễn ở
+/// bảng chờ, món nợ có chủ cho Story 3.5 (`deferred-work.md`).
 pub fn approve_candidate(
     store: &Store,
     id: i64,
@@ -265,13 +309,17 @@ pub fn approve_candidate(
     let category = category.as_str();
 
     store.write(move |tx: &Transaction<'_>| {
-        let (source_term, candidate_origin_raw, resolution_raw): (String, String, Option<String>) =
-            tx.query_row(
-                "SELECT source_term, candidate_origin, resolution
+        let (source_term, candidate_origin_raw, resolution_raw, occurrence_count): (
+            String,
+            String,
+            Option<String>,
+            i64,
+        ) = tx.query_row(
+            "SELECT source_term, candidate_origin, resolution, occurrence_count
                  FROM glossary_candidate WHERE id = ?1",
-                [id],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-            )?;
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
 
         if let Some(resolution_raw) = resolution_raw {
             let resolution = decode_resolution(2, &resolution_raw)?;
@@ -293,6 +341,8 @@ pub fn approve_candidate(
             category,
             term_origin.as_str(),
             None,
+            // Copied once from the candidate row being approved; never recomputed later.
+            Some(occurrence_count),
         )
     })
 }
@@ -302,9 +352,10 @@ pub fn approve_candidate(
 /// việc quét lại chèn cùng chuỗi.
 ///
 /// # Lỗi
-/// [`StoreError::WriteFailed`] khi: `id` không khớp hàng nào; ứng viên `id` ĐÃ quyết —
-/// gồm cả ca `id` đã ĐƯỢC DUYỆT: mục Glossary đã sinh ra không bao giờ bị gỡ bởi một lượt
-/// `reject_candidate` muộn màng, hai bảng không được phép nói ngược nhau.
+/// [`StoreError::Conflict`] khi ứng viên `id` ĐÃ quyết — gồm cả ca `id` đã ĐƯỢC DUYỆT: mục
+/// Glossary đã sinh ra không bao giờ bị gỡ bởi một lượt `reject_candidate` muộn màng, hai
+/// bảng không được phép nói ngược nhau. [`StoreError::WriteFailed`] khi `id` không khớp
+/// hàng nào.
 pub fn reject_candidate(store: &Store, id: i64) -> Result<(), StoreError> {
     store.write(move |tx: &Transaction<'_>| {
         let resolution_raw: Option<String> = tx.query_row(
@@ -352,11 +403,10 @@ fn already_decided_error(col: usize, id: i64, resolution: Resolution) -> SqlErro
     SqlError::FromSqlConversionFailure(
         col,
         SqlType::Text,
-        format!(
+        Box::new(BusinessRuleConflict(format!(
             "glossary_candidate id={id} da co resolution={resolution} -- khong the quyet \
              lai (vong doi mot chieu, AD-36)"
-        )
-        .into(),
+        ))),
     )
 }
 

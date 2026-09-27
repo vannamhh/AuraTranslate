@@ -711,3 +711,52 @@ fn an_english_multi_word_term_placed_right_across_the_newline_joiner_produces_no
     drop(global);
     cleanup(&global_dir);
 }
+
+#[test]
+fn marks_for_source_text_fails_loudly_when_the_resolver_reports_work_but_no_store_is_given() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("marks-mismatch-resolver-only");
+    let global_dir = temp_dir("marks-mismatch-resolver-only-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Mismatch Resolver Only");
+
+    let result =
+        marks_for_source_text(&opened.scope, &global, None, "hello", MatchLang::En, &layers, &disabled);
+    assert!(
+        matches!(result, Err(GlossaryError::WorkContextMismatch)),
+        "resolver bao co tang Tac pham nhung khong co &Store nao di kem phai bi tu choi, nhan: \
+         {result:?}"
+    );
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn marks_for_source_text_fails_loudly_when_a_store_is_given_without_a_work_tier_resolver() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("marks-mismatch-store-only");
+    let global_dir = temp_dir("marks-mismatch-store-only-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Mismatch Store Only");
+    let resolver = ScopeResolver::global_only();
+
+    let result = marks_for_source_text(
+        &resolver,
+        &global,
+        Some(&opened.store),
+        "hello",
+        MatchLang::En,
+        &layers,
+        &disabled,
+    );
+    assert!(
+        matches!(result, Err(GlossaryError::WorkContextMismatch)),
+        "mot &Store di kem resolver global_only() phai bi tu choi, nhan: {result:?}"
+    );
+
+    drop(global);
+    cleanup(&global_dir);
+}

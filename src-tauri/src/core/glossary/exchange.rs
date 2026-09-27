@@ -506,7 +506,11 @@ const ZERO_WIDTH_CHARS: [char; 5] = ['\u{200B}', '\u{200C}', '\u{200D}', '\u{206
 /// vốn chỉ cắt biên): một ký tự zero-width GIỮA một thuật ngữ (ví dụ ai đó dán hai tệp xuất
 /// nối liền, để lại một U+FEFF giữa văn bản) cũng phải bị loại khỏi giá trị LƯU XUỐNG, không
 /// chỉ khỏi phép kiểm rỗng.
-fn strip_zero_width(s: &str) -> String {
+///
+/// `pub(crate)`: `insert_manual_entry` also calls this. `GLOSSARY_ENTRY_DDL` itself stays
+/// unchanged; a twin migration adds triggers instead, since an already-migrated store never
+/// reruns old DDL.
+pub(crate) fn strip_zero_width(s: &str) -> String {
     s.chars().filter(|c| !ZERO_WIDTH_CHARS.contains(c)).collect()
 }
 

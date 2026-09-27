@@ -80,6 +80,7 @@ const searchQuery = ref('')
 const categoryFilterState = ref<GlossaryCategory | 'all'>('all')
 const originFilterState = ref<GlossaryManageOriginFilter>('all')
 const confirmedFilterState = ref<GlossaryManageConfirmedFilter>('all')
+const sortByFrequencyState = ref(false)
 const cursor = ref(0)
 const editing = ref(false)
 /**
@@ -141,6 +142,7 @@ export const manageSearchQuery: DeepReadonly<Ref<string>> = readonly(searchQuery
 export const manageCategoryFilter: DeepReadonly<Ref<GlossaryCategory | 'all'>> = readonly(categoryFilterState)
 export const manageOriginFilter: DeepReadonly<Ref<GlossaryManageOriginFilter>> = readonly(originFilterState)
 export const manageConfirmedFilter: DeepReadonly<Ref<GlossaryManageConfirmedFilter>> = readonly(confirmedFilterState)
+export const manageSortByFrequency: DeepReadonly<Ref<boolean>> = readonly(sortByFrequencyState)
 export const manageCursor: DeepReadonly<Ref<number>> = readonly(cursor)
 export const manageEditing: DeepReadonly<Ref<boolean>> = readonly(editing)
 export const manageEditTranslation: Ref<string> = editTranslationInput
@@ -174,16 +176,25 @@ export const manageTotalRows = computed<number>(() => rows.value.length)
 /**
  * Danh sách đã qua BA bộ lọc + ô tìm — tính lại mỗi lần một trong bốn đầu vào đổi,
  * KHÔNG một round-trip IPC nào (§Design Notes của spec).
+ *
+ * When [`manageSortByFrequency`] is on, sorts by `occurrence_count` descending with `null`
+ * always last (a stable sort, so same-rank rows keep their filtered order).
  */
 export const manageFilteredRows = computed<GlossaryEntry[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  return rows.value.filter((entry) => {
+  const filtered = rows.value.filter((entry) => {
     if (categoryFilterState.value !== 'all' && entry.category !== categoryFilterState.value) return false
     if (originFilterState.value !== 'all' && entry.term_origin !== originFilterState.value) return false
     if (confirmedFilterState.value === 'confirmed' && entry.translation === null) return false
     if (confirmedFilterState.value === 'pending' && entry.translation !== null) return false
     if (q === '') return true
     return entry.source_term.toLowerCase().includes(q) || (entry.translation ?? '').toLowerCase().includes(q)
+  })
+  if (!sortByFrequencyState.value) return filtered
+  return [...filtered].sort((a, b) => {
+    if (a.occurrence_count === null) return b.occurrence_count === null ? 0 : 1
+    if (b.occurrence_count === null) return -1
+    return b.occurrence_count - a.occurrence_count
   })
 })
 
@@ -289,6 +300,7 @@ export async function openGlossaryManage(): Promise<void> {
   categoryFilterState.value = 'all'
   originFilterState.value = 'all'
   confirmedFilterState.value = 'all'
+  sortByFrequencyState.value = false
   cursor.value = 0
   editing.value = false
   deletePendingKey.value = null
@@ -322,9 +334,16 @@ export function closeGlossaryManage(): void {
   overlayOpen.value = false
 }
 
+/** The real guard for the four filter/search setters below; the template's
+ * `:disabled="manageEditing"` is UX only, since a setter can still be called directly. */
+function isEditingBlocked(): boolean {
+  return editing.value
+}
+
 /** Đổi ô tìm — lọc chạy trong bộ nhớ, 0 round-trip IPC. Reset con trỏ về đầu danh sách đã
  * lọc mới và đóng form Sửa đang mở (hàng đang sửa có thể không còn khớp bộ lọc mới). */
 export function setGlossaryManageSearch(query: string): void {
+  if (isEditingBlocked()) return
   searchQuery.value = query
   cursor.value = 0
   discardOpenEdit()
@@ -332,6 +351,7 @@ export function setGlossaryManageSearch(query: string): void {
 
 /** Đổi bộ lọc phân loại — cùng chủ ý `setGlossaryManageSearch`. */
 export function setGlossaryManageCategoryFilter(value: GlossaryCategory | 'all'): void {
+  if (isEditingBlocked()) return
   categoryFilterState.value = value
   cursor.value = 0
   discardOpenEdit()
@@ -339,6 +359,7 @@ export function setGlossaryManageCategoryFilter(value: GlossaryCategory | 'all')
 
 /** Đổi bộ lọc xuất xứ — cùng chủ ý `setGlossaryManageSearch`. */
 export function setGlossaryManageOriginFilter(value: GlossaryManageOriginFilter): void {
+  if (isEditingBlocked()) return
   originFilterState.value = value
   cursor.value = 0
   discardOpenEdit()
@@ -346,9 +367,25 @@ export function setGlossaryManageOriginFilter(value: GlossaryManageOriginFilter)
 
 /** Đổi bộ lọc trạng thái chốt — cùng chủ ý `setGlossaryManageSearch`. */
 export function setGlossaryManageConfirmedFilter(value: GlossaryManageConfirmedFilter): void {
+  if (isEditingBlocked()) return
   confirmedFilterState.value = value
   cursor.value = 0
   discardOpenEdit()
+}
+
+/** Not blocked by `isEditingBlocked`: sorting only reorders, it doesn't change the row set,
+ * so the open edit form's row just gets its cursor relocated instead of being closed. */
+export function setGlossaryManageSortByFrequency(value: boolean): void {
+  const currentRow = manageCurrentRow.value
+  const currentKey = currentRow !== null ? rowKey(currentRow) : null
+  sortByFrequencyState.value = value
+  if (currentKey === null) {
+    cursor.value = 0
+    discardOpenEdit()
+    return
+  }
+  const newIndex = manageFilteredRows.value.findIndex((r) => rowKey(r) === currentKey)
+  cursor.value = newIndex === -1 ? 0 : newIndex
 }
 
 /** Chuyển con trỏ xuống hàng kế tiếp trong danh sách ĐÃ LỌC — không vòng. */
@@ -608,6 +645,7 @@ export function resetGlossaryManage(): void {
   categoryFilterState.value = 'all'
   originFilterState.value = 'all'
   confirmedFilterState.value = 'all'
+  sortByFrequencyState.value = false
   cursor.value = 0
   editing.value = false
   deletePendingKey.value = null

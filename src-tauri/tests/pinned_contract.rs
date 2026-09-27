@@ -76,6 +76,9 @@ fn open_global(dir: &Path) -> Store {
 ///
 /// 🔵 **CẬP NHẬT 2026-09-17 (Story 4.4):** đích chuyển từ **8** lên **9** — bước
 /// `prompt_set` (bộ prompt theo thể loại, FR69). Cùng lý do trên: tên hàm test vẫn không đổi.
+///
+/// Target moved 9 -> 10 (occurrence_count + zero-width triggers step); also asserts step 3
+/// (index 2) really is `PINNED_ENTRY_DDL`, not just that the step COUNT is right.
 #[test]
 fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
     let dir = temp_dir("fresh-global-target");
@@ -83,16 +86,22 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        9,
-        "`GLOBAL_MIGRATIONS` co chin buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        10,
+        "`GLOBAL_MIGRATIONS` co muoi buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
-         bang prompt_set), nen mot `global.db` moi phai ket thuc o phien ban 9"
+         bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an), nen mot `global.db` \
+         moi phai ket thuc o phien ban 10"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        9,
+        10,
         "so buoc va so phien ban dich phai di cung nhau"
+    );
+    assert_eq!(
+        GLOBAL_MIGRATIONS[2].sql, PINNED_ENTRY_DDL,
+        "buoc 3 (chi muc 2) cua `GLOBAL_MIGRATIONS` phai la `PINNED_ENTRY_DDL` -- dem dung so \
+         buoc khong bao dam dung NOI DUNG buoc do"
     );
 
     let pinned = list_pinned_entries(Some(&store)).expect("doc bo ghim");
@@ -146,7 +155,9 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich 8 → 9 — buoc `prompt_set`. Menh de van khong
     // doi: di tru khong dung toi cau hinh cu.
-    assert_eq!(migrated.schema_version(), 9, "buoc 3, 4, 5, 6, 7, 8 va 9 phai da chay");
+    // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
+    // migration doesn't touch old config.
+    assert_eq!(migrated.schema_version(), 10, "buoc 3, 4, 5, 6, 7, 8, 9 va 10 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -240,20 +251,23 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // 🔵 CAP NHAT 2026-09-17 (Story 4.4): hai muoi hai buoc → HAI MUOI BA, dich 23 → 24 (bang
     //    `prompt_set`, FR69, CUNG mot hang voi buoc 9 cua `global.db`). Hai con so duoi day
     //    van chi la NEO.
+    // Steps 23 -> 24, target 24 -> 25 (occurrence_count + zero-width triggers, same row as
+    // global.db step 10). The two numbers below are just anchors.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        23,
-        "`PROJECT_MIGRATIONS` phai co hai muoi ba buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        24,
+        "`PROJECT_MIGRATIONS` phai co hai muoi bon buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
          5.13, 19 cua Story 6.5, 20 cua Story 6.11, 21 cua Story 6.13, 22 cua Story 6.15, 23 \
-         cua Story 4.2, 24 cua Story 4.4"
+         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4"
     );
     assert_eq!(
         opened.store.schema_version(),
-        24,
-        "mot `project.db` moi phai dung o phien ban 24 (so 4 da chay, Story 4.4 them prompt_set)"
+        25,
+        "mot `project.db` moi phai dung o phien ban 25 (so 4 da chay, Story 11.4 them \
+         occurrence_count + trigger ky-tu-an)"
     );
 
     let has_table: i64 = opened

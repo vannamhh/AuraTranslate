@@ -25,6 +25,23 @@ import { flushPromises } from './support/flushMicrotasks'
 import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS, resetRecorder, saveCalls } from './support/segmentFixture'
 import type { ChapterSegment, RegroupOutcome } from '../../src/config/segment'
 import type { GlossaryMark } from '../../src/config/glossary'
+import type { SourceAttribution } from '../../src/config/dict'
+
+/** A fake dict source, enough for `toggleDictSource` (the real `lookup.toggle_source` handler)
+ * to find `code` and not no-op. */
+const FAKE_DICT_SOURCE: SourceAttribution = {
+  code: 'test-src',
+  display_name: 'Nguồn Thử',
+  license_kind: 'open',
+  license_id: null,
+  license_text_len: 0,
+  attribution: 'Thử nghiệm',
+  source_version: '1',
+  source_url: 'https://example.invalid',
+  lang: 'zh',
+  layer: 'test-layer',
+  is_base: true,
+}
 
 /** Hàng đợi câu trả lời của `glossaryMarksForChapter` — tiêu thụ THEO THỨ TỰ lượt gọi, giữ
  * nguyên câu trả lời CUỐI nếu hàng đợi cạn. */
@@ -133,6 +150,15 @@ vi.mock('../../src/config/glossary', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/glossary')>()
   return { ...actual, glossaryMarksForChapter: traDauGia, addGlossaryTerm: addTermGia, lookupGlossaryTerm: lookupGia }
 })
+// Fake source for `toggleDictSource`; `putConfig` needs no fake of its own since running
+// outside real Tauri already falls back to a harmless `null`.
+vi.mock('../../src/config/dict', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/dict')>()
+  return {
+    ...actual,
+    listDictSources: async () => ({ sources: [FAKE_DICT_SOURCE], skipped: [], error: null }),
+  }
+})
 
 const STUBS = { PanelFrame: { template: '<div class="panel-frame"><slot /></div>' } }
 
@@ -147,6 +173,7 @@ async function mountGrid() {
   const editorState = await import('../../src/panels/editorPanelState')
   const sourceState = await import('../../src/panels/sourcePanelState')
   const quickAdd = await import('../../src/glossaryQuickAddState')
+  const dictSourcesState = await import('../../src/panels/dictSourcesState')
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
 
   const wrapper = mount(GridPanel, {
@@ -162,7 +189,7 @@ async function mountGrid() {
   await flushPromises()
   await wrapper.vm.$nextTick()
 
-  return { editorState, sourceState, quickAdd, wrapper }
+  return { editorState, sourceState, quickAdd, dictSourcesState, wrapper }
 }
 
 beforeEach(() => {
@@ -312,7 +339,7 @@ describe('Story 3.4b — gộp segment làm MỚI dấu, không dấu nào trỏ
     // Lượt IPC THỨ HAI (do `refreshGlossaryMarks` phát sau gộp) trả một dấu phủ '一' của hàng
     // MỚI (offset [0,1) trong `source_text` của hàng 99).
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Ghép', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Ghép', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
       error: null,
     })
 
@@ -343,7 +370,7 @@ describe('Story 3.4b — thêm nhanh một thuật ngữ làm dấu xuất hiệ
 
     // Lượt IPC THỨ HAI (do lưu thành công phát ra) trả một dấu phủ '一' của segment 11.
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
       error: null,
     })
 
@@ -366,12 +393,77 @@ describe('Story 3.4b — thêm nhanh một thuật ngữ làm dấu xuất hiệ
   })
 })
 
+describe('bật/tắt một nguồn từ điển làm mới dấu Glossary của Chương đang mở', () => {
+  it('🔴 removing `watch(dictSourcesDisabled, ...)` from `editorPanelState.ts` turns this red: the second glossaryMarksForChapter call never happens', async () => {
+    const { dictSourcesState, wrapper } = await mountGrid()
+    // `loadDictSources('')` assigns a NEW `Set` to `disabled.value`; Vue's `watch()` compares by
+    // reference, so this alone fires the watcher once, before the toggle under test runs.
+    await dictSourcesState.loadDictSources('')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    const soLuotSauKhiNapNguon = soLuotGoiMarks
+
+    // Next IPC call (from the toggle triggering `refreshGlossaryMarks`) returns a mark covering
+    // '一' on segment 11, same shape as the "quick add" case above.
+    hangDoiMarks.push({
+      marks: [
+        {
+          start: 0,
+          end: 1,
+          tier: 'global',
+          is_confirmed: true,
+          translation: 'Một',
+          id: 1,
+          source_term: '一',
+          han_viet_suggestion: null,
+          han_viet_status: 'not_requested',
+          occurrence_count: null,
+        },
+      ],
+      error: null,
+    })
+
+    // The real `lookup.toggle_source` handler -- doesn't call `refreshGlossaryMarks` directly,
+    // doesn't touch `editorPanelState.ts`'s internal state.
+    dictSourcesState.toggleDictSource('test-src')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // 🔴 Central claim: a NEW mark appears on segment 11 after one dict-source toggle, with
+    // no `ensureChapterLoaded`/chapter reload running in between.
+    const o = document.querySelector('[data-col="src"][data-segment-id="11"] .glossary-confirmed')
+    expect(o).not.toBeNull()
+    expect(soLuotGoiMarks).toBe(soLuotSauKhiNapNguon + 1)
+    wrapper.unmount()
+  })
+
+  it('Chương đang mở KHÁC Chương ban đầu (đổi Chương giữa chừng) — bật/tắt nguồn vẫn làm mới ĐÚNG Chương đang mở, không dùng `chapterId` cũ', async () => {
+    const { editorState, dictSourcesState, wrapper } = await mountGrid()
+    await dictSourcesState.loadDictSources('')
+
+    editorState.goToNextChapter()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    const soLuotSauKhiChuyenChuong = soLuotGoiMarks
+
+    hangDoiMarks.push({ marks: [], error: null })
+    dictSourcesState.toggleDictSource('test-src')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(soLuotGoiMarks).toBe(soLuotSauKhiChuyenChuong + 1)
+    wrapper.unmount()
+  })
+})
+
 describe('Story 3.4b — chuyển Chương KỀ nạp đúng dấu của Chương MỚI, không sót dấu Chương cũ', () => {
   it('🔴 gỡ `ensureGlossaryMarksLoaded()` khỏi `switchChapter()` sẽ làm ca này ĐỎ: sau chuyển, KHÔNG dấu nào hiện', async () => {
     // Chương A (mở lúc mount): mark phủ '你' của segment 11 — KHÔNG, segment 11 là '一。' —
     // dùng đúng nội dung FIXTURE: mark phủ '一' [0,1).
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một (A)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }], error: null },
+      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một (A)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
     ]
     const { editorState, wrapper } = await mountGrid()
     await wrapper.vm.$nextTick()
@@ -384,7 +476,7 @@ describe('Story 3.4b — chuyển Chương KỀ nạp đúng dấu của Chươn
     // Lượt IPC THỨ HAI (do `switchChapter()` phát ra cho Chương B) trả một dấu KHÁC hẳn, phủ
     // '你' của segment 50 (Chương B, '你好').
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Chào (B)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Chào (B)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
       error: null,
     })
 
@@ -420,7 +512,7 @@ describe('Story 3.4b — `GridPanel → SourceHanViet` qua prop `:glossary-terms
   it('🔴 chuyển tab Hán Việt ⇒ `.hv-word` mang ĐÚNG lớp dấu mà `GridPanel` tính cho segment đó', async () => {
     // Mark phủ '一' của segment 11 ('一。') — segment ĐẦU của FIXTURE, [0, 1).
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }], error: null },
+      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
     ]
     const { sourceState, wrapper } = await mountGrid()
 
@@ -501,7 +593,7 @@ describe('Story 3.4b — điểm cắt NGƯỜI DÙNG rơi vào GIỮA một spa
     // được sinh ra (`glossaryMarksBySegment` chỉ thêm biên khi span dừng TRƯỚC cuối segment).
     // Điểm cắt duy nhất trong ca này phải đến từ CHÍNH `pendingCuts`.
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 2, tier: 'global', is_confirmed: true, translation: 'Cả câu', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested' }], error: null },
+      { marks: [{ start: 0, end: 2, tier: 'global', is_confirmed: true, translation: 'Cả câu', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
     ]
     const { editorState, wrapper } = await mountGrid()
 

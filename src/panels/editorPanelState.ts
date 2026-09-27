@@ -17,7 +17,7 @@
  * ⚠️ Bảng ánh xạ *trạng thái → vạch* **không** ở đây: nó sống ở `./editorSegments.ts`, một
  * module thuần mà cổng `import()` chạy được. Đừng kéo nó về đây cho gần.
  */
-import { nextTick, readonly, ref, shallowRef } from 'vue'
+import { nextTick, readonly, ref, shallowRef, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { openAdjacentChapter, openChapter, splitChapterAtSegment } from '../config/chapter'
@@ -57,6 +57,9 @@ import { createPositionFlush } from './positionFlush'
 // reset (cạnh `ensureChapterLoaded()`), `applyRegroup()` làm mới sau gộp/tách. Xem doc-comment
 // đầu `glossaryMarksState.ts` cho lý do tệp đó KHÔNG import ngược lại tệp này.
 import { ensureGlossaryMarksLoaded, refreshGlossaryMarks, resetGlossaryMarks } from './glossaryMarksState'
+// Call site #4 of `refreshGlossaryMarks` (see doc-comment in glossaryMarksState.ts): a
+// dictionary source toggle changes what the Rust side matches against, so marks refresh too.
+import { dictSourcesDisabled } from './dictSourcesState'
 // 🔵 Story 3.6 — dải "Chờ chốt lần đầu gặp" mang một sổ "Để sau" phạm vi ĐÚNG MỘT Chương;
 // hai chỗ dọn dấu Glossary (đổi Chương/Tác phẩm, gộp/tách) cũng là hai chỗ dọn sổ đó. Xem
 // doc-comment đầu `../glossaryConfirmStripState.ts` cho lý do tệp đó KHÔNG import ngược lại
@@ -75,6 +78,15 @@ const chapterId = shallowRef<number | null>(null)
 const loadError = shallowRef<IpcError | null>(null)
 const pending = ref(false)
 let requested = false
+
+/** Not `immediate`: no Chapter is open yet at module load, and the guard inside skips any
+ * tick where the open Chapter doesn't match. */
+watch(dictSourcesDisabled, () => {
+  const id = chapterId.value
+  const chapter = sourceChapter.value
+  if (id === null || chapter === null || id !== chapter.chapter_id) return
+  void refreshGlossaryMarks(id, segments.value, chapter.source_lang)
+})
 
 /**
  * 🔵 **THÊM Story 6.14 (FR42/FR43)** — ảnh của Chương đang mở + đường dẫn tuyệt đối tới

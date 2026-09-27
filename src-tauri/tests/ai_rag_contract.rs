@@ -1149,3 +1149,42 @@ fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_s
     drop(work);
     cleanup(&dir);
 }
+
+#[test]
+fn confirmed_terms_for_injection_fails_loudly_when_a_store_is_given_without_a_work_tier_resolver()
+{
+    let dir = temp_dir("confirmed-terms-mismatch");
+    let global_dir = temp_dir("confirmed-terms-mismatch-global");
+    let global = open_global(&global_dir);
+    let work = open_project(&dir);
+    let resolver = ScopeResolver::global_only();
+
+    let result =
+        confirmed_terms_for_injection(&resolver, &global, Some(&work), "A dragon roared.", MatchLang::En);
+    assert!(
+        matches!(result, Err(GlossaryError::WorkContextMismatch)),
+        "mot &Store di kem resolver global_only() phai bi tu choi"
+    );
+
+    drop(global);
+    drop(work);
+    cleanup(&dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn confirmed_terms_for_injection_fails_loudly_when_the_resolver_reports_work_but_no_store_is_given()
+{
+    let global_dir = temp_dir("confirmed-terms-mismatch-resolver-only-global");
+    let global = open_global(&global_dir);
+    let resolver = ScopeResolver::with_work(WorkScope { work_id: "mismatch-resolver-only".to_owned() });
+
+    let result = confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En);
+    assert!(
+        matches!(result, Err(GlossaryError::WorkContextMismatch)),
+        "resolver bao co tang Tac pham nhung khong co &Store nao di kem phai bi tu choi"
+    );
+
+    drop(global);
+    cleanup(&global_dir);
+}

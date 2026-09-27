@@ -44,6 +44,7 @@ function markWire(opts: {
   translation?: string | null
   hanVietSuggestion?: string | null
   hanVietStatus?: 'ok' | 'not_chinese' | 'no_reading' | 'dict_unavailable' | 'not_requested'
+  occurrenceCount?: number | null
 }) {
   return {
     start: opts.start,
@@ -58,6 +59,7 @@ function markWire(opts: {
     // đề xuất được canh riêng ở `glossaryConfirmStripSuggestion.test.ts`.
     han_viet_suggestion: opts.hanVietSuggestion ?? null,
     han_viet_status: opts.hanVietStatus ?? 'not_requested',
+    occurrence_count: opts.occurrenceCount ?? null,
   }
 }
 
@@ -307,6 +309,73 @@ describe('confirmGlossaryConfirmStrip — chốt bản dịch', () => {
     // Mệnh đề trung tâm: tiêu điểm trả về đúng `anchorForB` (ô của mục MỚI, B) -- KHÔNG nhảy
     // ngược về `anchorForA` (ô của mục CŨ, A) như lỗi đã bắt.
     expect(document.activeElement).toBe(anchorForB)
+  })
+})
+
+describe('applyTarget — nhánh GIỮA: cùng danh tính, đề xuất Hán Việt đổi', () => {
+  it('sync lại CHO ĐÚNG MỤC ĐANG HỎI với một đề xuất Hán Việt KHÁC ⇒ ô nhập tự cập nhật khi còn mang ĐÚNG đề xuất cũ', async () => {
+    // Counter-check: removing applyTarget's middle branch (leaving only "same identity -> skip"
+    // / "different identity -> reset") turns this red, since the second sync gets skipped.
+    const { state } = await freshState()
+    const segments = [seg(1, '萧炎登场')]
+    const before = markWire({
+      start: 0,
+      end: 2,
+      id: 7,
+      sourceTerm: '萧炎',
+      hanVietSuggestion: 'Tieu Viem',
+      hanVietStatus: 'ok',
+    })
+    state.syncGlossaryConfirmStripTarget(1, segments, true, [before])
+    expect(state.confirmStripSuggestionStatus.value).toBe('ok')
+    expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem')
+
+    // Same sentence, same tier+id (same identity) -- only the Han Viet suggestion changed, as
+    // when a dict source toggle re-triggers refreshGlossaryMarks then sync.
+    const after = markWire({
+      start: 0,
+      end: 2,
+      id: 7,
+      sourceTerm: '萧炎',
+      hanVietSuggestion: null,
+      hanVietStatus: 'dict_unavailable',
+    })
+    state.syncGlossaryConfirmStripTarget(1, segments, true, [after])
+
+    expect(state.confirmStripSuggestionStatus.value).toBe('dict_unavailable')
+    // Input still shows the OLD suggestion ('Tieu Viem'); user hasn't overtyped it, so it's
+    // refilled with the NEW suggestion (empty here, since `dict_unavailable` has none).
+    expect(state.confirmStripTranslationInput.value).toBe('')
+  })
+
+  it('người dùng ĐÃ SỬA ô nhập trước khi đề xuất đổi ⇒ chữ đã gõ SỐNG SÓT, không bị điền đè', async () => {
+    const { state } = await freshState()
+    const segments = [seg(1, '萧炎登场')]
+    const before = markWire({
+      start: 0,
+      end: 2,
+      id: 7,
+      sourceTerm: '萧炎',
+      hanVietSuggestion: 'Tieu Viem',
+      hanVietStatus: 'ok',
+    })
+    state.syncGlossaryConfirmStripTarget(1, segments, true, [before])
+    expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem')
+
+    state.confirmStripTranslationInput.value = 'Tieu Viem, da sua tay'
+
+    const after = markWire({
+      start: 0,
+      end: 2,
+      id: 7,
+      sourceTerm: '萧炎',
+      hanVietSuggestion: 'Mot de xuat khac',
+      hanVietStatus: 'ok',
+    })
+    state.syncGlossaryConfirmStripTarget(1, segments, true, [after])
+
+    expect(state.confirmStripSuggestionStatus.value).toBe('ok') // status updated
+    expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem, da sua tay') // input untouched
   })
 })
 

@@ -285,6 +285,9 @@ export type GlossaryMark = {
   /** Một trong NĂM chuỗi đóng: `"ok"` · `"not_chinese"` · `"no_reading"` ·
    * `"dict_unavailable"` · `"not_requested"` (mục ĐÃ CHỐT — `0` lượt tra Hán Việt). */
   han_viet_status: HanVietSuggestionStatus
+  /** `null` for a manual/imported entry, or one predating this column — display as "—",
+   * never as `0`. */
+  occurrence_count: number | null
 }
 
 /** Năm trạng thái đóng của `han_viet_status` — khớp NGUYÊN VĂN
@@ -349,7 +352,11 @@ function isGlossaryMark(value: unknown): value is GlossaryMark {
     isHanVietSuggestionStatus(v.han_viet_status) &&
     (v.han_viet_status === 'ok'
       ? typeof v.han_viet_suggestion === 'string'
-      : v.han_viet_suggestion === null)
+      : v.han_viet_suggestion === null) &&
+    (v.occurrence_count === null ||
+      (typeof v.occurrence_count === 'number' &&
+        Number.isInteger(v.occurrence_count) &&
+        v.occurrence_count >= 0))
   )
 }
 
@@ -433,6 +440,9 @@ export type GlossaryCandidate = {
    * dạng KHỚP `GlossaryMark` (cùng cặp trường, cùng năm chuỗi trạng thái). */
   han_viet_suggestion: string | null
   han_viet_status: HanVietSuggestionStatus
+  /** Count of distinct Chapters where `source_term` occurs. Never `null` — unlike
+   * `occurrence_count`, `0` is a real answer here. */
+  chapter_span_count: number
 }
 
 function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
@@ -451,7 +461,10 @@ function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
     isHanVietSuggestionStatus(v.han_viet_status) &&
     (v.han_viet_status === 'ok'
       ? typeof v.han_viet_suggestion === 'string'
-      : v.han_viet_suggestion === null)
+      : v.han_viet_suggestion === null) &&
+    typeof v.chapter_span_count === 'number' &&
+    Number.isInteger(v.chapter_span_count) &&
+    v.chapter_span_count >= 0
   )
 }
 
@@ -659,6 +672,8 @@ export type GlossaryEntry = {
   /** `true` ⇔ một mục Work cùng `source_term` đang thắng — hàng này (LUÔN ở tầng `"global"`
    * khi `true`) không được ép vào prompt nhưng vẫn hiện trên màn hình quản lý. */
   is_shadowed: boolean
+  /** Same field, same rule as [`GlossaryMark.occurrence_count`]. */
+  occurrence_count: number | null
 }
 
 function isGlossaryEntry(value: unknown): value is GlossaryEntry {
@@ -679,7 +694,11 @@ function isGlossaryEntry(value: unknown): value is GlossaryEntry {
     // (`:608-610`) đã khai: `is_shadowed === true` chỉ có nghĩa cho một hàng LUÔN ở tầng
     // `'global'` (`ScopeResolver::apply_override` chỉ che một mục Global bằng một mục Work
     // cùng `source_term`, không bao giờ ngược lại).
-    (!v.is_shadowed || v.tier === 'global')
+    (!v.is_shadowed || v.tier === 'global') &&
+    (v.occurrence_count === null ||
+      (typeof v.occurrence_count === 'number' &&
+        Number.isInteger(v.occurrence_count) &&
+        v.occurrence_count >= 0))
   )
 }
 

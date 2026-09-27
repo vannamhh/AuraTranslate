@@ -349,6 +349,21 @@ impl StoreSpec {
     }
 }
 
+/// Boxed marker inside `SqlError::FromSqlConversionFailure` meaning "a business rule
+/// refused this write", so [`WriteTicket::wait`] can `downcast_ref` it to route to
+/// [`StoreError::Conflict`] instead of [`StoreError::WriteFailed`] — matching by type, not
+/// by sniffing the message string other callers of that same variant box a plain `String`.
+#[derive(Debug)]
+pub struct BusinessRuleConflict(pub String);
+
+impl std::fmt::Display for BusinessRuleConflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for BusinessRuleConflict {}
+
 /// Mọi cách tầng ghi dữ liệu hỏng — và **mỗi biến thể mang sẵn một [`MessageKey`]**.
 ///
 /// Vì sao khoá nằm ở đây từ hôm nay chứ không đợi tới lúc có gì hiển thị nó: Story 1.8
@@ -402,6 +417,15 @@ pub enum StoreError {
         detail: String,
     },
 
+    /// A business rule refused the write (e.g. deciding an already-decided candidate),
+    /// unlike [`StoreError::WriteFailed`] (I/O failure): retrying a `Conflict` never helps.
+    Conflict {
+        /// Kho nào.
+        store: StoreKind,
+        /// Lỗi thô. Không đi lên giao diện.
+        detail: String,
+    },
+
     /// Luồng writer không còn nhận việc — kho đã đóng, hoặc luồng đã chết.
     ///
     /// 🔴 Biến thể này tồn tại để [`Store::write`] **trả về trong thời gian hữu hạn**
@@ -436,6 +460,7 @@ impl StoreError {
             | StoreError::WalUnavailable { store, .. }
             | StoreError::SchemaTooNew { store, .. }
             | StoreError::WriteFailed { store, .. }
+            | StoreError::Conflict { store, .. }
             | StoreError::WriterGone { store }
             | StoreError::ReadFailed { store, .. }
             | StoreError::PoolClosed { store } => *store,
@@ -451,6 +476,7 @@ impl StoreError {
             StoreError::WriteFailed { .. } | StoreError::WriterGone { .. } => {
                 MessageKey::StoreWriteFailed
             }
+            StoreError::Conflict { .. } => MessageKey::StoreConflict,
             StoreError::ReadFailed { .. } | StoreError::PoolClosed { .. } => {
                 MessageKey::StoreReadFailed
             }
@@ -469,6 +495,7 @@ impl StoreError {
             StoreError::WalUnavailable { .. } => "store.wal_unavailable",
             StoreError::SchemaTooNew { .. } => "store.schema_too_new",
             StoreError::WriteFailed { .. } => "store.write_failed",
+            StoreError::Conflict { .. } => "store.conflict",
             StoreError::WriterGone { .. } => "store.writer_gone",
             StoreError::ReadFailed { .. } => "store.read_failed",
             StoreError::PoolClosed { .. } => "store.pool_closed",
@@ -512,6 +539,9 @@ impl std::fmt::Display for StoreError {
             ),
             StoreError::WriteFailed { store, detail } => {
                 write!(f, "store[{}] write failed: {detail}", store.as_str())
+            }
+            StoreError::Conflict { store, detail } => {
+                write!(f, "store[{}] conflict: {detail}", store.as_str())
             }
             StoreError::WriterGone { store } => {
                 write!(f, "store[{}] writer thread is gone", store.as_str())

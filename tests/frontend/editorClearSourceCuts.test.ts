@@ -222,6 +222,7 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
     source_term: '萧炎',
     han_viet_suggestion: null,
     han_viet_status: 'not_requested' as const,
+    occurrence_count: null,
   }
 
   it('🔴 ⑥ dải "Thêm nhanh" ĐANG MỞ ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {

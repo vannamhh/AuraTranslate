@@ -58,6 +58,7 @@ import {
   manageSaving,
   manageSavingAction,
   manageSearchQuery,
+  manageSortByFrequency,
   manageStatus,
   manageWorkTierAvailable,
   setGlossaryManageCategoryFilter,
@@ -65,6 +66,7 @@ import {
   setGlossaryManageExchangeTier,
   setGlossaryManageOriginFilter,
   setGlossaryManageSearch,
+  setGlossaryManageSortByFrequency,
 } from './glossaryManageState'
 import type { GlossaryManageConfirmedFilter, GlossaryManageOriginFilter } from './glossaryManageState'
 
@@ -267,6 +269,12 @@ function onConfirmedFilterChange(event: Event): void {
   setGlossaryManageConfirmedFilter(target.value as GlossaryManageConfirmedFilter)
 }
 
+function onSortByFrequencyChange(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) return
+  setGlossaryManageSortByFrequency(target.checked)
+}
+
 /** Story 3.10b — radio (KHÔNG `<select>`, hai lựa chọn cố định) chọn tầng Xuất/Nhập. */
 function onExchangeTierChange(value: GlossaryTierWire, event: Event): void {
   const target = event.target
@@ -371,14 +379,23 @@ function onKeydown(event: KeyboardEvent): void {
       </p>
 
       <div class="gm-toolbar">
+        <!-- `:disabled` here is UX only; the real guard is `isEditingBlocked` in
+             glossaryManageState.ts. -->
         <label class="gm-field">
           <span class="gm-field-label">{{ t('glossary.manage.search_label') }}</span>
-          <input type="text" class="gm-input" autocomplete="off" :value="manageSearchQuery" @input="onSearchInput" />
+          <input
+            type="text"
+            class="gm-input"
+            autocomplete="off"
+            :value="manageSearchQuery"
+            :disabled="manageEditing"
+            @input="onSearchInput"
+          />
         </label>
 
         <label class="gm-field">
           <span class="gm-field-label">{{ t('glossary.manage.category_filter_label') }}</span>
-          <select class="gm-input" :value="manageCategoryFilter" @change="onCategoryFilterChange">
+          <select class="gm-input" :value="manageCategoryFilter" :disabled="manageEditing" @change="onCategoryFilterChange">
             <option value="all">{{ t('glossary.manage.category_filter_all') }}</option>
             <option v-for="opt in CATEGORY_OPTIONS" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
@@ -388,18 +405,29 @@ function onKeydown(event: KeyboardEvent): void {
 
         <label class="gm-field">
           <span class="gm-field-label">{{ t('glossary.manage.origin_filter_label') }}</span>
-          <select class="gm-input" :value="manageOriginFilter" @change="onOriginFilterChange">
+          <select class="gm-input" :value="manageOriginFilter" :disabled="manageEditing" @change="onOriginFilterChange">
             <option v-for="opt in ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
           </select>
         </label>
 
         <label class="gm-field">
           <span class="gm-field-label">{{ t('glossary.manage.confirmed_filter_label') }}</span>
-          <select class="gm-input" :value="manageConfirmedFilter" @change="onConfirmedFilterChange">
+          <select
+            class="gm-input"
+            :value="manageConfirmedFilter"
+            :disabled="manageEditing"
+            @change="onConfirmedFilterChange"
+          >
             <option v-for="opt in CONFIRMED_OPTIONS" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
             </option>
           </select>
+        </label>
+
+        <!-- Not disabled while editing: sorting only reorders, it doesn't change the row set. -->
+        <label class="gm-field gm-field-checkbox">
+          <input type="checkbox" :checked="manageSortByFrequency" @change="onSortByFrequencyChange" />
+          <span class="gm-field-label">{{ t('glossary.manage.sort_by_frequency_label') }}</span>
         </label>
       </div>
 
@@ -492,6 +520,10 @@ function onKeydown(event: KeyboardEvent): void {
             <span v-else class="gm-badge gm-badge-pending">{{ t('glossary.manage.pending_badge') }}</span>
             <!-- aura-allow-text: DỮ LIỆU (`note` của chính hàng). -->
             <span class="gm-note-cell" :title="row.note">{{ row.note }}</span>
+            <!-- aura-allow-text: DỮ LIỆU (`occurrence_count` của chính hàng) hoặc dấu "—" cố định. -->
+            <span class="gm-count" :title="t('glossary.manage.occurrence_count_title')">{{
+              row.occurrence_count === null ? '—' : row.occurrence_count
+            }}</span>
           </li>
         </ul>
       </template>
@@ -741,6 +773,13 @@ function onKeydown(event: KeyboardEvent): void {
   min-width: 8rem;
 }
 
+/* Checkbox and label on one row, unlike `.gm-field`'s column layout. */
+.gm-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
 .gm-field-label {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -881,6 +920,13 @@ function onKeydown(event: KeyboardEvent): void {
   font-family: var(--family-read);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gm-count {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
   color: var(--color-on-surface-variant);
 }
 

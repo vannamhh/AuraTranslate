@@ -593,7 +593,9 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     // chay THEM sau buoc 22, khong anh huong menh de nay.
     // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich moi nhat la 24 — buoc 24 (prompt_set, FR69)
     // chay THEM sau buoc 23, khong anh huong menh de nay.
-    assert_eq!(migrated.schema_version(), 24, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
+    // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
+    // and doesn't affect this assertion.
+    assert_eq!(migrated.schema_version(), 25, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
 
     let role: Option<String> = migrated
         .read(move |conn| conn.query_row("SELECT role FROM segment WHERE chapter_id = ?1", [chapter_id], |r| r.get(0)))

@@ -32,7 +32,7 @@ use std::thread::JoinHandle;
 use rusqlite::{Connection, Transaction};
 
 use super::checkpoint::Shared;
-use super::{SqlResult, StoreError, StoreKind};
+use super::{BusinessRuleConflict, SqlResult, StoreError, StoreKind};
 
 /// Một việc đã đóng gói. `FnOnce` vì mỗi job chạy đúng một lần và mang theo kênh phản
 /// hồi **riêng của lời gọi sinh ra nó** — không có kênh phản hồi dùng chung, nên không
@@ -140,13 +140,27 @@ pub(crate) struct WriteTicket<T> {
 
 impl<T> WriteTicket<T> {
     /// Chờ job đã xếp trả lời. Kênh đứt là `WriterGone`, không một đường treo vô hạn.
+    ///
+    /// A boxed [`BusinessRuleConflict`] routes to [`StoreError::Conflict`] instead of
+    /// [`StoreError::WriteFailed`].
     pub(crate) fn wait(self) -> Result<T, StoreError> {
         match self.reply_rx.recv() {
             Ok(Ok(value)) => Ok(value),
-            Ok(Err(err)) => Err(StoreError::WriteFailed {
-                store: self.kind,
-                detail: err.to_string(),
-            }),
+            Ok(Err(err)) => {
+                let store = self.kind;
+                if let rusqlite::Error::FromSqlConversionFailure(_, _, boxed) = &err {
+                    if let Some(conflict) = boxed.downcast_ref::<BusinessRuleConflict>() {
+                        return Err(StoreError::Conflict {
+                            store,
+                            detail: conflict.0.clone(),
+                        });
+                    }
+                }
+                Err(StoreError::WriteFailed {
+                    store,
+                    detail: err.to_string(),
+                })
+            }
             Err(_) => Err(StoreError::WriterGone { store: self.kind }),
         }
     }

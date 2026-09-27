@@ -37,6 +37,7 @@ function pendingMarkWire(overrides: Record<string, unknown> = {}) {
     source_term: '萧',
     han_viet_suggestion: null,
     han_viet_status: 'not_requested',
+    occurrence_count: null,
     ...overrides,
   }
 }

@@ -34,6 +34,7 @@ const MARK: GlossaryMark = {
   source_term: 'thuật ngữ',
   han_viet_suggestion: null,
   han_viet_status: 'not_requested',
+  occurrence_count: null,
 }
 
 async function docNguyenVanGia() {

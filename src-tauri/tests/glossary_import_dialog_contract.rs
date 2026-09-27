@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::glossary::{
     PendingImportState, clear_pending_import_for_tier, first_issue_or_unknown,
     glossary_cancel_import, glossary_confirm_import, glossary_export_tier,
-    glossary_open_import_preview,
+    glossary_export_tier_after_dialog, glossary_open_import_preview,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::{
@@ -261,6 +261,33 @@ fn cancelling_clears_the_pending_batch_and_is_harmless_when_there_is_none() {
     let err = glossary_confirm_import(Some(&global), None, &pending, &BTreeMap::new())
         .expect_err("xac nhan sau khi huy phai tra NoPendingImport");
     assert_eq!(err.message_key(), MessageKey::GlossaryNoPendingImport);
+
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+/// Export's cancel branch, mirroring the import cancel test above. Before extracting the
+/// pure `glossary_export_tier_after_dialog`, this branch was untestable without a real dialog.
+#[test]
+fn export_cancelling_the_dialog_returns_ok_none_and_writes_no_file() {
+    let root = temp_dir("export-cancel");
+    let global_dir = temp_dir("export-cancel-global");
+    let global = open_global(&global_dir);
+
+    let result = glossary_export_tier_after_dialog(Some(&global), None, GlossaryTier::Global, None)
+        .expect("huy hop thoai khong duoc la mot loi");
+    assert_eq!(
+        result, None,
+        "huy hop thoai XUAT phai tra Ok(None), dung khuon voi NHAP (§Always)"
+    );
+
+    let entries: Vec<_> = fs::read_dir(&root)
+        .unwrap_or_else(|e| panic!("doc thu muc {}: {e}", root.display()))
+        .collect();
+    assert!(
+        entries.is_empty(),
+        "huy hop thoai KHONG duoc de lai mot tep nao trong thu muc dich. Con: {entries:?}"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);

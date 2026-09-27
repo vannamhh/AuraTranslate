@@ -41,6 +41,7 @@ function entry(over: Partial<GlossaryEntry> = {}): GlossaryEntry {
     term_origin: 'manual',
     created_at: '2026-08-24T00:00:00.000Z',
     is_shadowed: false,
+    occurrence_count: null,
     ...over,
   }
 }

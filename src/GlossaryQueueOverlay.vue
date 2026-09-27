@@ -29,7 +29,21 @@ import {
   queueStatus,
   queueUnprocessedCount,
   setGlossaryQueueCategory,
+  setGlossaryQueueCursor,
 } from './glossaryQueueState'
+
+/** Row selection is data (AD-34 §1): keyboard and the hidden per-row radio share this one
+ *  get/set instead of two parallel selection mechanisms. */
+const cursorModel = computed<number>({
+  get: () => queueCursor.value,
+  set: (index) => setGlossaryQueueCursor(index),
+})
+
+/** Same shape as [`cursorModel`], for the current row's category. */
+const currentCategoryModel = computed<GlossaryCategory>({
+  get: () => queueCurrentRow.value?.category ?? 'other',
+  set: (value) => setGlossaryQueueCategory(value),
+})
 
 /** 🔴 UX-DR17 — trả tiêu điểm về chỗ cũ. Khuôn và lý lẽ chép từ `GlossarySettingsOverlay.vue`. */
 let returnFocusTo: HTMLElement | null = null
@@ -232,37 +246,46 @@ function onKeydown(event: KeyboardEvent): void {
             class="gq-row"
             :class="{ 'gq-row-current': i === queueCursor, 'gq-row-done': row.outcome !== null }"
           >
-            <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
-            <span class="gq-term">{{ row.candidate.source_term }}</span>
-            <!-- aura-allow-text: DỮ LIỆU (`occurrence_count`, một con số). -->
-            <span class="gq-count">{{ row.candidate.occurrence_count }}</span>
-            <!--
-              aura-allow-text: DỮ LIỆU (`context_example` của chính hàng).
-              🔵 THÊM 2026-08-24 (vòng rà ba lớp) — `:title` cho phần bị `text-overflow:
-              ellipsis` cắt cụt: AC đòi mỗi hàng có ÍT NHẤT một ví dụ ngữ cảnh đọc được, và
-              một chuỗi dài hơn bề ngang cột trước đó KHÔNG có lối đọc lại nào (không cuộn,
-              không mở rộng). `title` là tooltip gốc trình duyệt, 0 CSS/JS mới cần viết.
-            -->
-            <span class="gq-context" :title="row.candidate.context_example ?? ''">{{
-              row.candidate.context_example ?? ''
-            }}</span>
-            <span v-if="row.candidate.han_viet_status === 'ok'" class="gq-suggestion">
-              <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
-              {{ row.candidate.han_viet_suggestion }}
-            </span>
-            <span v-if="row.outcome === 'accepted'" class="gq-mark" aria-hidden="true">✓</span>
-            <span v-else-if="row.outcome === 'rejected'" class="gq-mark" aria-hidden="true">✕</span>
-            <!--
-              🔵 THÊM 2026-08-24 (vòng rà ba lớp) — tín hiệu ĐỌC ĐƯỢC cho hàng đã xử lý,
-              KHÔNG chỉ màu + một dấu `aria-hidden`. `.gq-mark` ở trên là DECORATIVE (đúng
-              chủ ý AC — dấu ✓/✕ là phần NHÌN, không đổi); span này là văn bản THẬT, ẩn về
-              THỊ GIÁC bằng kỹ thuật `.gq-sr-only` (cùng khuôn `App.vue::.sr-announcer`), nên
-              trình đọc màn hình biết hàng đã quyết mà không cần suy từ một lượt đổi màu.
-            -->
-            <!-- aura-allow-text: KẾT QUẢ của `t()`, cùng khuôn `GlossaryQuickAdd.vue:104-107`. -->
-            <span v-if="row.outcome !== null" class="gq-sr-only">
-              {{ row.outcome === 'accepted' ? t('glossary.queue.row_status_accepted') : t('glossary.queue.row_status_rejected') }}
-            </span>
+            <!-- `<label>` wraps the row so a hidden radio can select it; `.gq-row-label` is
+                 `display: contents` so the flex layout stays on `.gq-row` (see <style>). -->
+            <label class="gq-row-label">
+              <input v-model="cursorModel" type="radio" name="gq-row-cursor" class="gq-sr-only" :value="i" />
+              <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
+              <span class="gq-term">{{ row.candidate.source_term }}</span>
+              <!-- aura-allow-text: DỮ LIỆU (`occurrence_count`, một con số). -->
+              <span class="gq-count">{{ row.candidate.occurrence_count }}</span>
+              <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+              <span class="gq-chapter-span">{{
+                t('glossary.queue.chapter_span_count', { count: String(row.candidate.chapter_span_count) })
+              }}</span>
+              <!--
+                aura-allow-text: DỮ LIỆU (`context_example` của chính hàng).
+                🔵 THÊM 2026-08-24 (vòng rà ba lớp) — `:title` cho phần bị `text-overflow:
+                ellipsis` cắt cụt: AC đòi mỗi hàng có ÍT NHẤT một ví dụ ngữ cảnh đọc được, và
+                một chuỗi dài hơn bề ngang cột trước đó KHÔNG có lối đọc lại nào (không cuộn,
+                không mở rộng). `title` là tooltip gốc trình duyệt, 0 CSS/JS mới cần viết.
+              -->
+              <span class="gq-context" :title="row.candidate.context_example ?? ''">{{
+                row.candidate.context_example ?? ''
+              }}</span>
+              <span v-if="row.candidate.han_viet_status === 'ok'" class="gq-suggestion">
+                <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
+                {{ row.candidate.han_viet_suggestion }}
+              </span>
+              <span v-if="row.outcome === 'accepted'" class="gq-mark" aria-hidden="true">✓</span>
+              <span v-else-if="row.outcome === 'rejected'" class="gq-mark" aria-hidden="true">✕</span>
+              <!--
+                🔵 THÊM 2026-08-24 (vòng rà ba lớp) — tín hiệu ĐỌC ĐƯỢC cho hàng đã xử lý,
+                KHÔNG chỉ màu + một dấu `aria-hidden`. `.gq-mark` ở trên là DECORATIVE (đúng
+                chủ ý AC — dấu ✓/✕ là phần NHÌN, không đổi); span này là văn bản THẬT, ẩn về
+                THỊ GIÁC bằng kỹ thuật `.gq-sr-only` (cùng khuôn `App.vue::.sr-announcer`), nên
+                trình đọc màn hình biết hàng đã quyết mà không cần suy từ một lượt đổi màu.
+              -->
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, cùng khuôn `GlossaryQuickAdd.vue:104-107`. -->
+              <span v-if="row.outcome !== null" class="gq-sr-only">
+                {{ row.outcome === 'accepted' ? t('glossary.queue.row_status_accepted') : t('glossary.queue.row_status_rejected') }}
+              </span>
+            </label>
           </li>
         </ul>
 
@@ -270,16 +293,21 @@ function onKeydown(event: KeyboardEvent): void {
              phân loại không còn ý nghĩa để đổi). -->
         <div v-if="queueCurrentRow !== null && queueCurrentRow.outcome === null" class="gq-category">
           <span class="gq-category-label">{{ t('glossary.queue.category_label') }}</span>
-          <span
+          <!-- A real radio per chip, same precedent as `GlossaryQuickAdd.vue`. -->
+          <label
             v-for="opt in CATEGORY_OPTIONS"
             :key="opt.value"
             class="gq-chip"
             :class="{ on: queueCurrentRow.category === opt.value }"
-            :aria-pressed="queueCurrentRow.category === opt.value"
           >
+            <input v-model="currentCategoryModel" type="radio" name="gq-category" :value="opt.value" />
             {{ t(opt.labelKey) }}
-          </span>
+          </label>
         </div>
+        <!-- Always shown, not an error: category choice isn't kept across a close. -->
+        <p v-if="queueCurrentRow !== null && queueCurrentRow.outcome === null" class="gq-hint">
+          {{ t('glossary.queue.category_not_persisted_hint') }}
+        </p>
 
         <p v-if="queueActionError !== null" class="gq-status gq-error" role="alert">
           <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
@@ -387,10 +415,16 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+  cursor: pointer;
 }
 
 .gq-row:last-child {
   border-bottom: none;
+}
+
+/* Keeps `.gq-row`'s flex layout even though its content is now wrapped in a `<label>`. */
+.gq-row-label {
+  display: contents;
 }
 
 .gq-row-current {
@@ -417,6 +451,13 @@ function onKeydown(event: KeyboardEvent): void {
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   line-height: var(--leading-ui-mono);
+}
+
+.gq-chapter-span {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .gq-context {
@@ -478,13 +519,25 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.gq-hint {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
 .gq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+  cursor: pointer;
 }
 
 .gq-chip.on {

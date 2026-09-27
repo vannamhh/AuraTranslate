@@ -58,7 +58,9 @@ use crate::core::store::{
 };
 
 use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
-use super::exchange::{ConflictDecision, Delimiter, ImportRow, ImportSummary, RowPlan, RowPlanKind};
+use super::exchange::{
+    ConflictDecision, Delimiter, ImportRow, ImportSummary, RowPlan, RowPlanKind, strip_zero_width,
+};
 use super::han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
@@ -96,6 +98,8 @@ const GLOSSARY_SCOPE_KIND: &str = "glossary";
 /// ⚠️ Chữ ký nhận **chuỗi đã chuẩn bị sẵn** (đã trim, đã `as_str()`) — không tự trim, không
 /// tự gọi `Category::as_str()`/`TermOrigin::as_str()`. Cắt khoảng trắng là việc của TỪNG
 /// chỗ gọi vì mỗi chỗ gọi cắt đầu vào của chính nó theo quy tắc riêng.
+/// `occurrence_count` is `None` for every caller except [`approve_candidate`], which
+/// passes the candidate's own count once, at approval time.
 pub(super) fn insert_entry_row(
     tx: &Transaction<'_>,
     source_term: &str,
@@ -104,19 +108,30 @@ pub(super) fn insert_entry_row(
     category: &str,
     term_origin: &str,
     created_at: Option<&str>,
+    occurrence_count: Option<i64>,
 ) -> SqlResult<i64> {
     match created_at {
         None => tx.execute(
             "INSERT INTO glossary_entry
-                (source_term, translation, note, category, term_origin, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            (&source_term, &translation, &note, &category, &term_origin),
+                (source_term, translation, note, category, term_origin, created_at,
+                 occurrence_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?6)",
+            (&source_term, &translation, &note, &category, &term_origin, &occurrence_count),
         )?,
         Some(created_at) => tx.execute(
             "INSERT INTO glossary_entry
-                (source_term, translation, note, category, term_origin, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            (&source_term, &translation, &note, &category, &term_origin, &created_at),
+                (source_term, translation, note, category, term_origin, created_at,
+                 occurrence_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            (
+                &source_term,
+                &translation,
+                &note,
+                &category,
+                &term_origin,
+                &created_at,
+                &occurrence_count,
+            ),
         )?,
     };
     Ok(tx.last_insert_rowid())
@@ -177,9 +192,12 @@ pub fn insert_manual_entry(
     // `"   "` từng đứng nguyên trên đĩa thay vì gọn về `""`. Ice ký 2026-08-20: một cách
     // biểu diễn duy nhất cho "không có ghi chú" — trim trước, để `""` và `"   "` không
     // phải hai hàng khác nhau trong mắt người đọc màn hình quản lý Glossary (Story 3.9).
-    let source_term = source_term.trim().to_owned();
-    let translation = translation.map(|t| t.trim().to_owned());
-    let note = note.trim().to_owned();
+    // Strip zero-width code points before trimming plain whitespace, same order as
+    // `exchange::parse`, so a source_term made only of invisible characters isn't stored
+    // as non-empty.
+    let source_term = strip_zero_width(source_term).trim().to_owned();
+    let translation = translation.map(|t| strip_zero_width(t).trim().to_owned());
+    let note = strip_zero_width(note).trim().to_owned();
     let category = category.as_str();
 
     store.write(move |tx: &Transaction<'_>| {
@@ -190,6 +208,7 @@ pub fn insert_manual_entry(
             &note,
             category,
             TermOrigin::Manual.as_str(),
+            None,
             None,
         )
     })
@@ -262,7 +281,8 @@ pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<
 pub fn load_tier(store: &Store) -> Result<BTreeMap<String, GlossaryEntry>, StoreError> {
     store.read(|conn: ReadHandle<'_>| {
         let mut stmt = conn.prepare(
-            "SELECT id, source_term, translation, note, category, term_origin, created_at
+            "SELECT id, source_term, translation, note, category, term_origin, created_at,
+                    occurrence_count
              FROM glossary_entry
              ORDER BY source_term",
         )?;
@@ -282,6 +302,7 @@ pub fn load_tier(store: &Store) -> Result<BTreeMap<String, GlossaryEntry>, Store
                 category: decode_category(4, &category_raw)?,
                 term_origin: decode_term_origin(5, &term_origin_raw)?,
                 created_at: row.get(6)?,
+                occurrence_count: row.get(7)?,
             };
             out.insert(source_term, entry);
         }
@@ -553,6 +574,9 @@ pub enum GlossaryError {
     /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn (huỷ, mở
     /// lô khác, đóng Tác phẩm ở tầng Work khi lô đang treo thuộc tầng đó).
     NoPendingImport,
+    /// A `ScopeResolver`/`Store` pair passed to [`WorkContext::new`] disagreed about
+    /// whether a Work is open. Programming error, same bucket as [`GlossaryError::Scope`].
+    WorkContextMismatch,
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -587,6 +611,7 @@ impl std::fmt::Display for GlossaryError {
                 write!(f, "glossary[import_decision_unknown_term] term={term}")
             }
             GlossaryError::NoPendingImport => write!(f, "glossary[no_pending_import]"),
+            GlossaryError::WorkContextMismatch => write!(f, "glossary[work_context_mismatch]"),
         }
     }
 }
@@ -675,9 +700,8 @@ impl From<GlossaryError> for IpcError {
             // 🔵 Story 3.10b — ba biến thể ĐẦU mượn khoá CHUNG với `core::segment::import`
             // (`MessageKey::ImportTooLarge`/`ImportNotUtf8`/`IoReadFailed`): câu đúng là
             // câu chung, không câu riêng của Glossary — xem chú thích tại khai báo khoá.
-            GlossaryError::ImportFileTooLarge { size, limit } => {
+            GlossaryError::ImportFileTooLarge { size: _, limit } => {
                 let mut params = BTreeMap::new();
-                params.insert("size".to_owned(), size.to_string());
                 params.insert("limit".to_owned(), limit.to_string());
                 IpcError::new(
                     "glossary.import_file_too_large",
@@ -728,7 +752,58 @@ impl From<GlossaryError> for IpcError {
                 BTreeMap::new(),
                 false,
             ),
+            // Same wire shape as `Scope(_)` above: a WorkContext mismatch is the same class
+            // of "should not happen on the correct call path" programming error.
+            GlossaryError::WorkContextMismatch => IpcError::new(
+                "glossary.scope_error",
+                MessageKey::GlossaryScopeError,
+                BTreeMap::new(),
+                false,
+            ),
         }
+    }
+}
+
+/// Pairs a Work-tier `ScopeResolver` with its `Store` (AD-18) so the two two-tier resolve
+/// functions below can't be handed a resolver and a store from different Works. `None`
+/// means global-only.
+pub struct WorkContext<'a> {
+    pair: Option<(&'a ScopeResolver, &'a Store)>,
+}
+
+/// `static`, not `const`: `ScopeResolver` owns a `String` and isn't promotable to
+/// `'static` on the fly, but a `static` has one fixed address for the program's lifetime.
+static GLOBAL_ONLY_RESOLVER: ScopeResolver = ScopeResolver::global_only();
+
+impl<'a> WorkContext<'a> {
+    /// The only public constructor. Rejects a `Some` pair whose resolver reports no Work
+    /// tier — that combination cannot come from the same `OpenWork` — as
+    /// [`GlossaryError::WorkContextMismatch`] instead of silently building a mismatched
+    /// context.
+    pub fn new(pair: Option<(&'a ScopeResolver, &'a Store)>) -> Result<Self, GlossaryError> {
+        if let Some((resolver, _)) = pair {
+            if !resolver.has_work_tier() {
+                return Err(GlossaryError::WorkContextMismatch);
+            }
+        }
+        Ok(Self { pair })
+    }
+
+    // Returns `&'a` explicitly so it doesn't get tied to `&self` by elision, which would
+    // borrow from a temporary (e.g. `work_context(open)?.work()`) that dies at the end of
+    // the statement.
+    /// `pub`: `marks_for_source_text` keeps a two-argument signature (`ai_boundary.rs`
+    /// locks its imports) and needs the loose resolver back at its own call site.
+    pub fn resolver(&self) -> &'a ScopeResolver {
+        match self.pair {
+            Some((resolver, _)) => resolver,
+            None => &GLOBAL_ONLY_RESOLVER,
+        }
+    }
+
+    /// The Work-tier `Store`, or `None` for global-only.
+    pub fn work(&self) -> Option<&'a Store> {
+        self.pair.map(|(_, work)| work)
     }
 }
 
@@ -751,28 +826,11 @@ impl From<GlossaryError> for IpcError {
 /// `ScopeKind::Glossary::Override`
 /// (`scope_contract.rs::the_semantics_table_matches_ad_18_row_by_row` canh mệnh đề đó).
 pub fn entries_eligible_for_injection(
-    resolver: &ScopeResolver,
+    scope: &WorkContext<'_>,
     global: &Store,
-    work: Option<&Store>,
 ) -> Result<Vec<GlossaryEntry>, GlossaryError> {
-    // 🔵 THÊM 2026-08-20 (Story 3.3) — `deferred-work.md §*🔵 2026-08-18 — Sprint Change Proposal 2026-08-18c: nửa NFR2 của Story 2.4 đã có AC SỐNG trở lại*`: không chỗ gọi nào bắt
-    // khớp `resolver.has_work_tier()` với `work.is_some()`. Hai giá trị này PHẢI đi cùng
-    // nhau trên mọi đường gọi đúng: `resolver` chỉ mang `Some(WorkScope)` sau
-    // `ScopeResolver::with_work`, và đó chính xác là lúc `OpenWork::store` (tầng
-    // `project.db`) tồn tại để truyền vào đây làm `work`. Lệch nhau (resolver nói "có Tác
-    // phẩm" mà `work` lại `None`, hoặc ngược lại) là một lỗi LẬP TRÌNH ở chỗ gọi — hai
-    // trường của cùng một `OpenWork` bị tách rời nhau khi truyền xuống. `debug_assert_eq!`
-    // không bắn ở bản release (`Chủ: Story 3.9` — `deferred-work.md`), nên đây là lưới cho
-    // debug/`cargo test`, không phải một cưỡng chế production.
-    debug_assert_eq!(
-        resolver.has_work_tier(),
-        work.is_some(),
-        "entries_eligible_for_injection -- resolver.has_work_tier()={} nhung work.is_some()={} \
-         -- hai gia tri nay phai di cung nhau tren moi duong goi dung \
-         (deferred-work.md, section Sprint Change Proposal 2026-08-18c)",
-        resolver.has_work_tier(),
-        work.is_some()
-    );
+    let resolver = scope.resolver();
+    let work = scope.work();
 
     let global_tier = load_tier(global)?;
     let work_tier = work.map(load_tier).transpose()?;
@@ -825,20 +883,12 @@ pub fn entries_eligible_for_injection(
 /// # Lỗi
 /// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
 pub fn resolve_term_for_quick_add(
-    resolver: &ScopeResolver,
+    scope: &WorkContext<'_>,
     global: &Store,
-    work: Option<&Store>,
     source_term: &str,
 ) -> Result<Option<(GlossaryTier, GlossaryEntry)>, GlossaryError> {
-    // Cùng lưới `entries_eligible_for_injection` — hai trường của `OpenWork` không được
-    // tách rời nhau trên đường xuống đây.
-    debug_assert_eq!(
-        resolver.has_work_tier(),
-        work.is_some(),
-        "resolve_term_for_quick_add -- resolver.has_work_tier()={} nhung work.is_some()={}",
-        resolver.has_work_tier(),
-        work.is_some()
-    );
+    let resolver = scope.resolver();
+    let work = scope.work();
 
     // ⚠️ Trim TRƯỚC khi tra — `insert_manual_entry`/`insert_candidate` đều lưu `source_term`
     // đã trim (`idx_glossary_entry_source_term` khoá trên giá trị ĐÃ trim), nên một truy
@@ -867,6 +917,15 @@ pub fn resolve_term_for_quick_add(
 /// vẫn chỉ có một cửa — [`crate::core::glossary::candidate_store::approve_candidate`] —
 /// hàm này không mở thêm cửa nào, nó chỉ định tuyến `&Store` theo tầng).
 ///
+/// Either way, after the insert, any still-pending candidate (`resolution IS NULL`) with the
+/// same `source_term` is marked `approved` — otherwise it would sit on the queue forever even
+/// though the term now exists in the Glossary. `glossary_candidate` only exists in
+/// `project.db`, so the resolve always runs against `work`, never `global`; it is skipped
+/// only when no Work is open. At the Work tier the insert and the resolve share one
+/// `store.write` transaction (same `project.db`); at the Global tier they are two separate
+/// writes, since the entry lands in `global.db` while the candidate lives in `work`'s
+/// `project.db`.
+///
 /// # Lỗi
 /// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
 /// `None`. Còn lại, xem [`insert_manual_entry`] (`source_term`/`translation` rỗng ⇒
@@ -885,8 +944,56 @@ pub fn add_manual_term(
         GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
     };
 
-    insert_manual_entry(store, source_term, translation, note, category)
-        .map_err(GlossaryError::from)
+    let trimmed_source_term = strip_zero_width(source_term).trim().to_owned();
+
+    let id = if tier == GlossaryTier::Work {
+        // Same `project.db`: the entry insert and the pending-candidate resolve run in one
+        // `store.write` transaction, so a failed second statement rolls back the first.
+        let source_term_for_insert = trimmed_source_term.clone();
+        let translation_owned = translation.map(|t| strip_zero_width(t).trim().to_owned());
+        let note_owned = strip_zero_width(note).trim().to_owned();
+        let category_str = category.as_str();
+        store
+            .write(move |tx: &Transaction<'_>| {
+                let id = insert_entry_row(
+                    tx,
+                    &source_term_for_insert,
+                    translation_owned.as_deref(),
+                    &note_owned,
+                    category_str,
+                    TermOrigin::Manual.as_str(),
+                    None,
+                    None,
+                )?;
+                tx.execute(
+                    "UPDATE glossary_candidate SET resolution = 'approved' \
+                     WHERE source_term = ?1 AND resolution IS NULL",
+                    [source_term_for_insert],
+                )?;
+                Ok(id)
+            })
+            .map_err(GlossaryError::from)?
+    } else {
+        let id = insert_manual_entry(store, source_term, translation, note, category)
+            .map_err(GlossaryError::from)?;
+        // A Global add can't share a transaction with the Work's `project.db`, but the same
+        // `source_term` still needs its pending Work candidate resolved so it doesn't get
+        // stuck on the queue after the term now exists at Global.
+        if let Some(work_store) = work {
+            work_store
+                .write(move |tx: &Transaction<'_>| {
+                    tx.execute(
+                        "UPDATE glossary_candidate SET resolution = 'approved' \
+                         WHERE source_term = ?1 AND resolution IS NULL",
+                        [trimmed_source_term],
+                    )
+                })
+                .map_err(GlossaryError::from)?;
+        }
+        id
+    };
+
+    Ok(id)
 }
 
 /// Sửa `translation`/`note`/`category` của mục `(tier, id)` — chế độ SỬA của dải.
@@ -922,8 +1029,8 @@ pub fn update_manual_term(
     };
 
     // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry`.
-    let translation = translation.map(|t| t.trim().to_owned());
-    let note = note.trim().to_owned();
+    let translation = translation.map(|t| strip_zero_width(t).trim().to_owned());
+    let note = strip_zero_width(note).trim().to_owned();
     let category = category.as_str();
 
     let changed = store.write(move |tx: &Transaction<'_>| {
@@ -969,17 +1076,11 @@ pub fn update_manual_term(
 /// # Lỗi
 /// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
 pub fn list_all_entries(
-    resolver: &ScopeResolver,
+    scope: &WorkContext<'_>,
     global: &Store,
-    work: Option<&Store>,
 ) -> Result<Vec<(GlossaryTier, GlossaryEntry, bool)>, GlossaryError> {
-    debug_assert_eq!(
-        resolver.has_work_tier(),
-        work.is_some(),
-        "list_all_entries -- resolver.has_work_tier()={} nhung work.is_some()={}",
-        resolver.has_work_tier(),
-        work.is_some()
-    );
+    let resolver = scope.resolver();
+    let work = scope.work();
 
     let global_tier = load_tier(global)?;
     let work_tier = work.map(load_tier).transpose()?;
@@ -1124,6 +1225,9 @@ pub fn promote_to_global(global: &Store, work: &Store, id: i64) -> Result<(), Gl
             &note,
             &category_raw,
             &term_origin_raw,
+            None,
+            // Always None: a Global row serves every Work, so a per-Work occurrence count
+            // stops meaning anything once promoted, even if the Work row had a real count.
             None,
         )
     })?;
@@ -1330,21 +1434,13 @@ fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
 /// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
 /// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
 fn resolve_and_match(
-    resolver: &ScopeResolver,
+    scope: &WorkContext<'_>,
     global: &Store,
-    work: Option<&Store>,
     text: &str,
     lang: MatchLang,
 ) -> Result<(Vec<(GlossaryTier, GlossaryEntry)>, Vec<TermMatch>), GlossaryError> {
-    // Cùng lưới `entries_eligible_for_injection`/`resolve_term_for_quick_add` — hai trường
-    // của cùng một `OpenWork` không được tách rời nhau trên đường xuống đây.
-    debug_assert_eq!(
-        resolver.has_work_tier(),
-        work.is_some(),
-        "resolve_and_match -- resolver.has_work_tier()={} nhung work.is_some()={}",
-        resolver.has_work_tier(),
-        work.is_some()
-    );
+    let resolver = scope.resolver();
+    let work = scope.work();
 
     let global_tier = load_tier(global)?;
     let work_tier = work.map(load_tier).transpose()?;
@@ -1408,7 +1504,15 @@ pub fn marks_for_source_text(
     layers: &DictLayers,
     disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryMark>, GlossaryError> {
-    let (payload, raw_matches) = resolve_and_match(resolver, global, work, text, lang)?;
+    // Keeps the two-arg signature here (`ai_boundary.rs` locks `core::ai::rag`'s five
+    // allowed imports from this module); bundles a WorkContext internally instead. A
+    // resolver/work pair that disagrees about the Work tier fails loudly rather than
+    // silently resolving global-only.
+    if resolver.has_work_tier() != work.is_some() {
+        return Err(GlossaryError::WorkContextMismatch);
+    }
+    let scope = WorkContext::new(work.map(|w| (resolver, w)))?;
+    let (payload, raw_matches) = resolve_and_match(&scope, global, text, lang)?;
     let selected = resolve_overlaps(raw_matches);
 
     // 🔵 THÊM 2026-08-24 (Story 3.7) — gom `source_term` của các mục CHỜ CHỐT trong tập ĐÃ
@@ -1471,6 +1575,7 @@ pub fn marks_for_source_text(
                 // 🔵 THÊM 2026-08-24 (Story 3.7) — xem khối `suggestion` ngay trên.
                 han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
                 han_viet_status: suggestion.as_status_str(),
+                occurrence_count: entry.occurrence_count,
             }
         })
         .collect();
@@ -1563,7 +1668,12 @@ pub fn confirmed_terms_for_injection(
     text: &str,
     lang: MatchLang,
 ) -> Result<GlossaryInjectionOutcome, GlossaryError> {
-    let (payload, raw_matches) = resolve_and_match(resolver, global, work, text, lang)?;
+    // Same reason as `marks_for_source_text` above.
+    if resolver.has_work_tier() != work.is_some() {
+        return Err(GlossaryError::WorkContextMismatch);
+    }
+    let scope = WorkContext::new(work.map(|w| (resolver, w)))?;
+    let (payload, raw_matches) = resolve_and_match(&scope, global, text, lang)?;
     let selected = resolve_overlaps(raw_matches.clone());
     let boundaries = codepoint_boundaries(text);
 
@@ -1852,6 +1962,9 @@ pub fn import_into_tier(
                         plan.category.as_str(),
                         TermOrigin::FileImport.as_str(),
                         plan.created_at.as_deref(),
+                        // CSV/TSV imports carry no occurrence count; None is the only
+                        // honest value.
+                        None,
                     );
                     match inserted {
                         Ok(_) => summary.inserted += 1,

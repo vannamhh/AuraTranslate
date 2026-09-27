@@ -555,6 +555,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   đây (`## Deferred from: 3-4b-…`). **(Chủ: Story 3.4b — vế trải nghiệm, tiếp tục mở.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Câu hỏi kiến trúc đã đóng (Ice ký 2026-08-21, không cache); đo Rust thuần LẠNH 351-436ms / ẤM 169-218ms đã có, đúng theo hướng dẫn của chính mục nó; còn thiếu: Phiên nghiệm thu tay trên bản dựng đóng gói macOS chưa chạy; deferred-work.md:5156-5178 vẫn ghi mở, chứ Story 3.4b đã done nhưng không ai làm. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ: vế kiến trúc đã đóng từ 2026-08-21, vế còn lại là một phiên nghiệm thu tay trên bản dựng đóng gói macOS ("mở Chương có cảm thấy chậm không") — việc chỉ Ice làm được. **Chủ: Epic 11.**
 
 ## Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)
 
@@ -4550,6 +4551,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
   🔵 SỬA 2026-09-26 (Story 11.2) — cùng chuỗi 6-xanh-liên-tiếp ở dòng rà 09-23 ngay trên đã đứt (đỏ 09-23/09-24, xem mục L4371); và `attribution-focus` (lần đỏ ②) NAY ĐÃ được chẩn đoán (Pha 4b, Story 11.2): nguyên nhân là `WorkspaceDock.vue::applyMerge` kích hoạt tab AI thay Lookup ở tier `short`, vá bằng `e2e/support/layoutTier.mjs::ensureFullLayoutTier()` trong bộ đo, không phải sản phẩm.
   → 🟡 2026-09-26 (Story 11.2) — Bốn nguyên nhân cũ (AC1-AC4) và cả hai spec chập chờn (`editor-typing-flush`, `attribution-focus`) nay có bản vá kèm nguyên nhân nêu tên; còn thiếu đúng như mục này tự đòi: một lượt xanh trọn bộ TÁI LẬP ĐƯỢC trên runner GitHub thật — 5 lượt `workflow_dispatch` của Quyết định 3 trên commit cuối chưa chạy. **Chủ: Story 11.2.**
+  → 2026-09-27 (Story 11.4, dọn nợ treo phát hiện trong lúc chạy `check:debt-owner`) — chuyển chủ: Story 11.2 nay `done` trong `sprint-status.yaml` nhưng mục này vẫn mở đúng vế nó tự đòi (5 lượt `workflow_dispatch` của Quyết định 3 trên commit cuối chưa chạy) — một phép đo CI thật, không phải một dòng mã của Story 11.4. **Chủ: Epic 11.**
 
 ## Deferred from: SCP 2026-08-18b — rút `⌘Z` cho gộp/tách (2026-08-18)
 
@@ -4631,6 +4633,7 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
   🔵 SỬA 2026-09-26 (Story 11.2) — cùng chuỗi 6-xanh-liên-tiếp đã đứt (xem L4371); `attribution-focus` (lần đỏ ②) nay có chẩn đoán và bản vá (xem L4492).
   → 🟡 2026-09-26 (Story 11.2) — `n=1` (hay `n=6` nightly) vẫn không phải bằng chứng tất định; phép đo đọc được duy nhất là 5 lượt `workflow_dispatch` xanh trên CÙNG một commit (Quyết định 3), chưa chạy. **Chủ: Story 11.2.**
+  → 2026-09-27 (Story 11.4, dọn nợ treo phát hiện trong lúc chạy `check:debt-owner`) — chuyển chủ, cùng lý do và cùng phép đo còn thiếu với mục ngay trên (5 lượt `workflow_dispatch` của Quyết định 3, chưa chạy trên CÙNG một commit). **Chủ: Epic 11.**
 
 - 🔴 **`AC7` của Story 2.12 là một mệnh đề MỘT NỀN TẢNG — Ice ký đường (c) của quyết định #1.**
   Mọi phép đo, mọi bản vá và mọi lượt nghiệm thu của story này chạy trên **macOS/WKWebView**. Không
@@ -4986,6 +4989,8 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   tham số) vẫn chưa dựng.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: debug_assert_eq! vẫn là lớp canh duy nhất, nay ở BỐN chỗ gọi (store.rs:767,835,976,1341); [profile.release] không đặt debug-assertions = true; không tìm thấy kiểu WorkContext hay tương đương nào trong kho; còn thiếu: Trên đường sản phẩm PHÁT HÀNH, hai giá trị vẫn có thể lệch trong im lặng nếu một chỗ gọi tương lai tách rời (&open.store, &open.scope); chủ Story 3.9 đã done nhưng chưa dựng chữ ký ngăn chặn cấu trúc. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — `core::glossary::store::WorkContext<'a>` bọc `Option<(&ScopeResolver, &Store)>` sau một hàm dựng công khai DUY NHẤT (`WorkContext::new`, `commands::glossary::work_context(open)` là chỗ gọi duy nhất); bốn hàm từng nhận cặp `(resolver, work)` rời (bốn vị trí `debug_assert_eq!` cũ) nay nhận `&WorkContext<'_>` — cặp không còn lệch được kể cả ở bản release, vì lệch chữ ký nay là lỗi biên dịch chứ không còn là một assert bị strip. Đối chứng: đổi chỗ gọi của `glossary_lookup_term` về lại chữ ký hai tham số rời cũ ⇒ `cargo check --lib` từ chối biên dịch (`E0061`, `expected &WorkContext<'_>, found &ScopeResolver`) — đúng lớp lệch mà bốn `debug_assert_eq!` cũ canh, nay là một cổng biên dịch. Khôi phục; xanh lại. Cùng một bản vá với L5315 ngay dưới.
+  → 🔵 2026-09-27 (rà soát trước review) — câu trên chỉ đúng cho bốn vị trí `debug_assert_eq!` gốc; `marks_for_source_text`/`confirmed_terms_for_injection` (giữ chữ ký hai tham số rời vì `ai_boundary.rs`) vẫn có thể bó một cặp lệch trong im lặng, và `WorkContext::new` chưa tự canh gì. Sửa: `WorkContext::new` nay trả `Result<Self, GlossaryError>`, từ chối `Some((resolver, store))` khi `resolver.has_work_tier()` là `false` (biến thể mới `GlossaryError::WorkContextMismatch`, cùng mã dây `glossary.scope_error`); hai hàm bundling tự kiểm `resolver.has_work_tier() != work.is_some()` TRƯỚC khi gọi `WorkContext::new`. `commands::glossary::work_context` đổi theo, trả `Result`. Đối chứng (cả hai chiều, cả hai hàm bundling): gỡ phép kiểm tại `marks_for_source_text` ⇒ `glossary_marks_contract.rs` đỏ đúng ca "resolver báo có Tác phẩm, `work` là `None`"; gỡ tại `confirmed_terms_for_injection` ⇒ `ai_rag_contract.rs` đỏ đúng ca đối xứng. Khôi phục; xanh lại.
 
 - ⚠️ **`Vec<GlossaryEntry>` trả ra đánh rơi nhãn tầng, và `id` chỉ duy nhất TRONG một
   `Store`.** `entries_eligible_for_injection` gọi `resolved_entry.value().clone()` rồi bỏ
@@ -5139,6 +5144,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   trở lại. **Chủ: story kế tiếp thêm một bước vào `GLOBAL_MIGRATIONS`.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: pinned_contract.rs:80-93 a_fresh_global_database_ends_at_the_pinned_entry_step chỉ assert_eq! độ dài và version (9), không có assert nào xác nhận đúng bước pinned_entry nằm ở vị trí GLOBAL_MIGRATIONS[2]. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — `pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay thêm `assert_eq!(GLOBAL_MIGRATIONS[2].sql, PINNED_ENTRY_DDL)` ngay sau hai assert cũ. Đối chứng: đổi tạm SQL của bước 2 thành một hằng migration khác ⇒ đỏ đúng ở dòng assert mới, in cả hai chuỗi DDL; khôi phục, xanh lại.
 
 ## Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (thực thi 2026-08-20)
 
@@ -5161,6 +5167,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     **(Chủ: Story 3.9 — quản lý Glossary, chủ tự nhiên của mọi quyết định xoá/tái sinh.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: candidate_store.rs chỉ có insert_candidate/approve_candidate/reject_candidate (INSERT hoặc UPDATE resolution), không tìm thấy đường DELETE FROM glossary_candidate nào trong core::glossary; Story 3.9 không dựng đường xóa ứng viên. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — điều kiện mở lại vẫn chưa xảy ra: không đường ghi nào trong `core::glossary::candidate_store` đi lối `DELETE`/`INSERT OR REPLACE` cho `glossary_candidate` hôm nay (`insert_candidate`/`approve_candidate`/`reject_candidate` chỉ `INSERT` hoặc `UPDATE resolution`); thêm trigger `BEFORE DELETE` bây giờ sẽ canh một chỗ nối chưa ai gọi tới, không đối chứng gỡ-thật được. Mở lại khi một story dựng đường `DELETE`/`INSERT OR REPLACE` thật cho `glossary_candidate`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: `pending_candidates` sắp theo `ORDER BY source_term` — đối chiếu BYTE của
@@ -5185,6 +5192,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     mở một bước di trú vì lý do khác.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: candidate_store.rs:86 tự ghi WHERE resolution IS NULL vẫn chưa có chỉ mục riêng; schema.rs:432 chỉ có idx_glossary_candidate_source_term, không có chỉ mục trên resolution; còn thiếu: Về chỉ mục vẫn mở như Story 3.8 đã ghi; bảng chờ vẫn chưa đủ lớn để đo chi phí quét toàn bảng. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — điều kiện mở lại vẫn chưa xảy ra: bảng `glossary_candidate` chưa lớn tới mức đo được chi phí quét toàn bảng trên `WHERE resolution IS NULL`, và Story 3.8 đã cố ý giữ nguyên `project.db` ở bước không thêm chỉ mục này. Mở lại khi một bảng chờ thật hoặc dựng-bằng-fixture đủ lớn khiến `EXPLAIN QUERY PLAN` chọn `SCAN` dưới tải, theo đúng tiền lệ 300 dòng mà Story 11.3 đã cần cho ca tương tự.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Bốn hàm của `candidate_store` (`insert_candidate` · `pending_candidates` ·
@@ -5246,6 +5254,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     "đã xử lý lúc nào".)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: schema.rs:416-432 (GLOSSARY_CANDIDATE_DDL) không có cột resolved_at; grep resolved_at trên src-tauri/src/ và src/ trả 0 kết quả. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — năng lực chưa dựng, không phải lệch spec: không AC nào đòi một mốc thời điểm quyết định trên `glossary_candidate`. Mở lại khi một PM request (Chủ: John) hoặc một màn hình duyệt hàng loạt/báo cáo cần hiển thị "đã xử lý lúc nào".
 
 ## Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (rà soát ba lớp, 2026-08-20)
 
@@ -5261,6 +5270,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     trên `approve_candidate` và có khả năng cần một ô ghi chú nhanh.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: candidate_store.rs:284-292, approve_candidate vẫn gọi insert_entry_row với tham số note cứng ""; hàm không nhận tham số note, và glossary_approve_candidate (commands/glossary.rs:475-482) cũng không có tham số note. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — năng lực chưa dựng, không phải lệch spec: `approve_candidate` vẫn cố ý ghi `note = ""`, không AC nào của Story 3.8 đòi một ô ghi chú lúc duyệt. Mở lại khi một PM request (Chủ: John) hoặc một bề mặt duyệt hàng loạt cần một ô ghi chú nhanh.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: `already_decided_error` (`candidate_store.rs`) mượn hình dạng lỗi
@@ -5295,6 +5305,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     đã nêu tên từ trước.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: core/store/mod.rs:395-401, StoreError::WriteFailed vẫn chỉ là { store, detail: String }, không có biến thể riêng cho lỗi nghiệp vụ "đã quyết"; không nơi nào trong commands/glossary.rs ánh xạ một message_key riêng cho lỗi này. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — `StoreError::Conflict { store, detail }` mới, với `MessageKey::StoreConflict`/mã `err.store.conflict` riêng (không retry được), tách khỏi `WriteFailed`; `candidate_store::already_decided_error` nay đóng gói lỗi nghiệp vụ trong một kiểu đánh dấu `BusinessRuleConflict(String)` (không còn mượn hình dạng `FromSqlConversionFailure` vốn dành cho hỏng dữ liệu thật), và `WriteTicket::wait` gỡ kiểu đó ra để định tuyến đúng biến thể. Guard: `glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing` cộng ca song sinh reject. Đối chứng: hoàn `already_decided_error` về lại đóng gói một `String` trần ⇒ cả hai ca đỏ ĐÚNG ở khẳng định `MessageKey::StoreConflict` (không đỏ ở chỗ khác); khôi phục, xanh lại.
 
 ## Deferred from: 3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao (2026-08-20)
 
@@ -5332,6 +5343,8 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     một đích giao được riêng — 3.9 cố ý KHÔNG làm, và ghi số mới thay vì làm tròn lên.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Cargo.toml:204-209 [profile.release] không đặt debug-assertions=true nên 4 debug_assert_eq! ở glossary/store.rs (dòng 767,835,976,1341) vẫn không chạy ở release; grep WorkContext trên src-tauri/src/ trả 0 kết quả, chưa có kiểu gọi cặp (&Store,&ScopeResolver). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — cùng một bản vá với L4966 ở trên (một `WorkContext<'a>` DUY NHẤT thay cho mọi cặp `(&Store, &ScopeResolver)` rời, tại cả 4/4 vị trí `debug_assert_eq!` cũ, kể cả ba hàm Story 3.9 đã thêm sau — số chỗ gọi không còn tăng lên 6 rời rạc mà gộp về một kiểu). Đối chứng đã ghi ở mục L4966, không lặp lại ở đây.
+  → 🔵 2026-09-27 — cùng bản sửa với L4966 ở trên (`WorkContext::new` nay trả `Result`, hai hàm bundling tự canh trước khi gọi nó); xem mục L4966 cho lý do và đối chứng, không lặp lại ở đây.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Một ứng viên (`glossary_candidate`) trùng `source_term` với một mục vừa được
@@ -5348,6 +5361,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     này chỉ nối thêm bằng chứng rằng Story 3.3 làm lỗ đó DỄ CHẠM hơn, không phải chủ mới.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Story 3.5 đã đóng đúng hướng được mục nó chỉ tên: filter_import_scan_candidates_by_scope (glossary/store.rs:333-343), wired ở commands/project/mod.rs:1932, được canh bởi test global_and_work_glossary_terms_are_resolved_before_the_batch_and_counted_as_skipped (commands/project/tests.rs:379-447) — quét không còn sinh ứng viên trùng một glossary_entry đã có; còn thiếu: Chiều ngược vẫn hở: insert_manual_entry/add_manual_term (glossary/store.rs:874-889) và resolve_term_for_quick_add không trả glossary_candidate, nên một ứng viên có sẵn TRƯỚC rồi một mục tay thêm SAU vẫn có thể làm ứng viên đó kẹt resolution=NULL vĩnh viễn cho tới khi ai reject tay. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — `add_manual_term`, tại tầng `GlossaryTier::Work`, nay chạy thêm một `store.write` sau khi mục thủ công chèn thành công: `UPDATE glossary_candidate SET resolution='approved' WHERE source_term=?1 AND resolution IS NULL` (hai giao dịch, không một — `glossary_candidate` chỉ sống ở `project.db`, còn mục mới có thể rơi vào `global.db`). Guard: `adding_a_manual_term_at_the_work_tier_resolves_a_pending_candidate_with_the_same_source_term`. Đối chứng: gỡ khối ghi thứ hai (giữ nguyên phần còn lại của `insert_manual_entry`) ⇒ ca đỏ đúng (ứng viên vẫn nằm ở bảng chờ); khôi phục, xanh lại. ⚠️ Cửa sổ đua hẹp giữa hai giao dịch được ghi lại có chủ trong mã, không phải một lỗ giấu.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Ba vỏ `#[tauri::command]` của `commands/glossary.rs` giữ khoá `OpenWorkState`
@@ -5362,6 +5376,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     lượt ghi Glossary qua cùng ba vỏ đó, tức chỗ đầu tiên có lý do đo phạm vi giữ khoá.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Đã so sánh phạm vi khóa: commands/glossary.rs:996-1007, commands/chapter.rs:1267-1270 và segment.rs:397-417 đều giữ MutexGuard của OpenWorkState xuyên suốt lời gọi Store::write — cả ba module NHẤT QUÁN, là một lựa chọn có chủ ý và có đo lường riêng (segment.rs:413-417, Chương lớn nhất đo được 48.640 ký tự); còn thiếu: NFR2 (frame <=50ms) cho riêng lượt ghi Glossary vẫn chưa được đo bằng tay ở webview thật; không công nào canh phạm vi giữ khóa. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4, Quyết định 6 của Ice, phương án B) — giữ nguyên phạm vi giữ khoá `OpenWorkState` xuyên suốt `Store::write` ở cả ba vỏ Glossary/Chapter/Segment, nhất quán như đã đo; NFR2 cho riêng lượt ghi Glossary vẫn chưa đo bằng tay, chi phí đó chấp nhận được vì không lệnh nào gọi lại theo từng phím gõ hôm nay. Mở lại khi một chỗ gọi mới đi qua ba vỏ này theo tần suất mỗi phím gõ (per-keystroke).
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: `openGlossaryQuickAdd` luôn đặt `tierChoice = 'global'` kể cả khi đang có một
@@ -5375,6 +5390,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     **(Chủ: Ice — đây là một lựa chọn sản phẩm, không phải một lỗi kỹ thuật; nêu lại ở
     Story 3.9 khi màn hình quản lý cho thấy hậu quả thật.)**
   → 2026-09-24 (phiếu quyết #53) — Ice chọn mặc định tầng Tác phẩm cho thêm nhanh thuật ngữ khi có Tác phẩm mở; ghi nhầm xuống Tác phẩm rẻ hơn rò lên Global. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #53) — `glossaryQuickAddState.ts` gán `workTierDefaultApplied`, một chốt lần-đầu: `tierChoice` chuyển `'work'` đúng MỘT lần, ở lượt tra đầu tiên báo `workTierAvailable: true` trong phiên mở hiện tại; mọi lượt tra sau đó — dù trả `true` hay `false` — không còn đổi `tierChoice` nữa. Guard: ca "phiếu quyết #53" mới trong `glossaryQuickAddStrip.test.ts` — người dùng lật tay về `'global'` sau chốt lần đầu, một lượt tra thứ hai báo lại `true` KHÔNG được đè lại `tierChoice`. Đối chứng: gỡ điều kiện `!workTierDefaultApplied &&` ⇒ đỏ đúng (`expected 'work' to be 'global'`), 17 ca còn lại trong tệp vẫn xanh; khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: `<form>` của dải "Thêm thuật ngữ" không có tên khả truy cập nối với tiêu đề
@@ -5490,6 +5506,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: attribution-focus.e2e.mjs:56-101 vẫn skip khi list_dict_sources trả 0 nguồn; grep dict/.db trong .github/workflows/ci.yml không thấy bước nào dùng .db mẫu, chỉ có check:dict/check:dict-manifest không tải dữ liệu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.2.**
   → 🟡 2026-09-26 (Story 11.2, Pha 3) — `ci.yml` job `e2e` nay dựng một `.db` fixture từ `tools/dict-build/tests/fixtures/raw/**` (không tải gì, AD-25 giữ nguyên) ngay trước `test:e2e`; đo local: exit 0, bốn tệp `.db` (~37s nguội). `attribution-focus.e2e.mjs`'s doc-comment khai CI không có dict đã sửa. Còn thiếu: chưa chạy được trên runner GitHub thật — 5 lượt `workflow_dispatch` của Quyết định 3 là phép đo đó. **Chủ: Story 11.2.**
+  → 2026-09-27 (Story 11.4, dọn nợ treo phát hiện trong lúc chạy `check:debt-owner`) — chuyển chủ, cùng lý do và cùng phép đo còn thiếu với hai mục e2e ở trên (5 lượt `workflow_dispatch` của Quyết định 3, chưa chạy trên runner GitHub thật). **Chủ: Epic 11.**
 
 ## Deferred from: lượt `correct-course` tách Story 3.4b (2026-08-21)
 
@@ -5653,6 +5670,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   khác của story này.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: epic-3-retro-2026-08-26.md dòng 490-513 ghi thẳng "không một luồng Glossary nào được bấm bằng tay" và liệt "Bấm tay trên cửa sổ thật" vào mục CHƯA CHẠY, sau cả Story 3.4b. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ: đây là một phiên nghiệm thu tay trên bản dựng đóng gói macOS (chuỗi `⌘⌥S` → `Shift+←/→` → bản dịch thuật ngữ hiện trên `StatusBar`), không phải một dòng mã Story 11.4 có thể sửa. **Chủ: Epic 11.**
 
 - ⚠️ **Chuột kéo thật vẫn chưa nghiệm thu được trong WKWebView cho ĐÚNG bề mặt này** —
   `deferred-work.md` §*Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai
@@ -5669,6 +5687,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   **(Chủ: Story 3.4b, tiếp tục — cần một phiên nghiệm thu tay trên bản dựng đóng gói macOS.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Cùng epic-3-retro-2026-08-26.md dòng 490-513 xác nhận chưa có lượt chuột kéo thật trên WKWebView nào chạy, và bộ e2e 0/13 spec chạm bề mặt đánh dấu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ, cùng lý do với L5641 ngay trên: chuột kéo thật trong WKWebView chỉ nghiệm thu được bằng một phiên bấm tay trên bản dựng đóng gói macOS. **Chủ: Epic 11.**
 
 ## Deferred from: vòng rà ba lớp của Story 3.4b (2026-08-21)
 
@@ -5829,6 +5848,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (màn duyệt hàng loạt — nơi tự nhiên cần biết "lượt quét vừa xong bao nhiêu ứng viên").
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/project/mod.rs còn nhiều eprintln! cho các nhánh thất bại của import scan (dòng 2014,2043,2050,2056,2103,2125,2134,2151); grep GLOSSARY_IMPORT_SCAN_EVENT trên src/ trả 0 người nghe, kể cả sau Story 3.8/3.9. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, Quyết định 7 của Ice, phương án A) — sáu nhánh thất bại hạ tầng THẬT của `spawn_import_scan` (thiếu generation state · lỗi đọc segment · thiếu `global.db` · lỗi đọc `app_config` · lỗi lọc/enqueue · lỗi write-ticket) nay đều gọi `emit_import_scan_failed(app, chapter_id)` trước `return`, phát `GlossaryImportScanEvent{outcome: "scan_failed", inserted:0, skipped:0}` — hai nhánh "chính lượt emit thất bại" và nhánh `guarded_dict_layers` (silent-by-design, thuộc L5833) giữ nguyên. Guard: ca đếm nguồn `spawn_import_scan_calls_emit_import_scan_failed_at_all_six_infrastructure_failure_branches` (đọc DÒNG MÃ THẬT qua `include_str!`, không đếm dòng đã comment) cộng `the_scan_failed_payload_serializes_the_failed_outcome_and_zero_counts`. Đối chứng: xoá một trong sáu chỗ gọi ⇒ đỏ đúng (`left: 5, right: 6`); comment một chỗ gọi (không xoá) ⇒ vẫn đỏ đúng số đó (chứng minh cổng đọc mã, không đọc chuỗi con); đổi payload `outcome` ⇒ ca payload đỏ đúng lý do. Khôi phục cả hai; xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **Mở một Tác phẩm thứ hai giữa hai lần khoá ⇒ kết quả quét của Chương đầu MẤT
@@ -5846,6 +5866,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     một vị từ `…HasScanned` chứ không chỉ một danh sách rỗng.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep -rE 'HasScanned|hasScanned|ScanStatus' src/ src-tauri/src/ vẫn ra 0 kết quả hôm nay; vị từ …HasScanned chưa từng được dựng, đúng như retro Epic 3 AI-3 đo 2026-08-26 (sprint-status.yaml:597-610). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4, Quyết định 7 của Ice) — không dựng vị từ `…HasScanned`: cả hai hình dạng (đọc-chỉ vs. hàng đợi thử lại chéo Tác phẩm) được trình cho Ice kèm chi phí, và Ice không chọn dựng speculatively trong story này. Mở lại khi Ice chọn một trong hai hình dạng đã trình.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **Không có móc dùng chung ở mức "vừa chèn một Chương" — lượt quét gắn thẳng vào hai
@@ -5903,6 +5924,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     epic nào đã lập, và quyết định phạm vi (thuộc Epic nào, hay một năng lực mới) là của Ice.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: grep 'bạn vừa viết'/'căn chỉnh cụm' trên sprint-status.yaml và *-correct-course*.md không thấy hồ sơ nào theo sau; năng lực căn chỉnh cụm gần chưa xuất hiện ở module core nào. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — năng lực chưa dựng, không phải lệch spec: phép căn chỉnh cụm "bạn vừa viết" (khớp mờ, chịu biến thể chính tả) chưa xuất hiện ở epic nào đã lập. Mở lại khi một PM request/epic mới đặt tên năng lực căn chỉnh cụm trên `target_text`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Hoàn tác một lượt chốt (`⌘Z` trong mockup) — story KHÔNG dựng, mô hình hoàn tác
@@ -5930,6 +5952,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     một truy vấn đếm riêng — quyết định thiết kế, không phải một trường có sẵn đang bị bỏ sót.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: GlossaryMark (src-tauri/src/core/glossary/entry.rs:265-295) và GlossaryEntry (:209-225) vẫn không có trường occurrence_count; trường này chỉ tồn tại trên GlossaryCandidate (candidate.rs:126-128). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — gộp cùng bản vá với L6103 (Quyết định 8 của Ice): `GlossaryEntry`/`GlossaryMark` nay mang `occurrence_count: Option<i64>`, xem đối chứng ở mục L6103.
 
 ## Deferred from: vòng rà ba lớp của Story 3.6 (2026-08-22)
 
@@ -6016,6 +6039,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     phải sửa câu đó tại chỗ để mở chỗ gọi thứ ba; chỗ thứ tư là cùng loại quyết định.
     **(Chủ: Ice — phán quyết về chỗ gọi `refreshGlossaryMarks` thứ tư.)**
   → 2026-09-24 (phiếu quyết #55) — Ice chọn làm mới dấu Glossary khi tắt/bật nguồn từ điển, tách đổi danh tính khỏi đổi đề xuất để không xoá chữ đang gõ; sửa doc-comment đã ký 2026-08-21 cùng lượt. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #55) — `editorPanelState.ts` thêm chỗ gọi `refreshGlossaryMarks` thứ TƯ, một `watch(dictSourcesDisabled, …)` cấp module (không đặt ở `dictSourcesState.ts` để tránh một vòng import thật); doc-comment `glossaryMarksState.ts:17-24` cập nhật ghi nhận chỗ gọi thứ tư, cùng lượt với L6020 ngay dưới (bắt buộc đi cùng, tách riêng sẽ mở đúng cửa sổ mất chữ đang gõ mà L6020 đóng). Guard: ca mới trong `glossaryMarksRefresh.test.ts` ("Story 11.4 (L6003…)", cả cùng Chương lẫn đổi Chương giữa phiên), gọi qua đúng `dictSourcesState.toggleDictSource` (đường sản phẩm thật), không gọi thẳng hàm nội bộ. Đối chứng: làm rỗng thân `watch` ⇒ cả hai ca mới đỏ đúng lý do, 10 ca còn lại trong tệp vẫn xanh; khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
   summary: **`targetsEqual` chỉ so `tier`+`id`, nên một đề xuất ĐỔI cho CÙNG một mục sẽ không
@@ -6033,6 +6057,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — cùng một quyết định với mục ngay trên; sửa mục kia mà không sửa mục này là
     mở đúng cửa sổ mất chữ đang gõ.)**
   → 2026-09-24 (phiếu quyết #55) — Ice chọn làm mới dấu Glossary khi tắt/bật nguồn từ điển, tách đổi danh tính khỏi đổi đề xuất để không xoá chữ đang gõ; sửa doc-comment đã ký 2026-08-21 cùng lượt. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #55, cùng lượt với L6003) — `glossaryConfirmStripState.ts::applyTarget` nay có BA nhánh thay vì hai: danh tính không đổi VÀ đề xuất không đổi (như cũ) · danh tính không đổi NHƯNG đề xuất mới (điền lại `translationInput` CHỈ khi ô còn nguyên vẹn với đề xuất cũ) · danh tính đổi (như cũ, reset trọn). `targetsEqual` giữ nguyên (chỉ so `tier`+`id`); một hàm thuần mới `suggestionChanged` tách riêng phép so đề xuất. Guard: nhóm ca mới trong `glossaryConfirmStrip.test.ts` ("applyTarget — nhánh GIỮA (L6020…)"). Đối chứng: hoàn `applyTarget` về lại hình dạng hai nhánh cũ ⇒ ca đầu đỏ đúng (đề xuất không cập nhật), ca thứ hai (người dùng đã gõ đè) và 21 ca khác vẫn xanh; khôi phục, xanh lại.
 
 ## Deferred from: 3-8-duyet-hang-loat-mot-phim (2026-08-24)
 
@@ -6051,6 +6076,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — phán quyết mockup nào còn hiệu lực; mỗi năng lực trong năm cái cần một cột
     hoặc một bài toán nhận diện thực thể riêng.)**
   → 2026-09-24 (phiếu quyết #56) — Ice chọn xây riêng số Chương một thuật ngữ xuất hiện trên bảng chờ; bốn năng lực còn lại của mockup (lọc phân loại kèm đếm, bỏ hàng loạt, nhiều ví dụ ngữ cảnh, phân loại do máy đoán) không làm. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #56) — chỉ xây riêng số Chương một thuật ngữ xuất hiện trên bảng chờ: `candidate_store::candidate_chapter_span_counts` (một lượt đọc SQL `group_concat`-theo-Chương cộng `find_terms` qua Matcher dùng chung, không dùng `LIKE`), phơi qua `GlossaryCandidateWire.chapter_span_count: i64` (không bao giờ `null` — `0` là câu trả lời thật), và hiển thị ở `.gq-chapter-span` trong `GlossaryQueueOverlay.vue`. Bốn năng lực còn lại của mockup (lọc phân loại kèm số đếm, bỏ hàng loạt theo điều kiện, nhiều ví dụ ngữ cảnh, phân loại do máy đoán) KHÔNG LÀM — trích `mockups/glossary-queue.html` + Story 3.8 §Never + phiếu quyết #56 làm ghi chú đóng, không sửa mockup. Guard: `candidate_chapter_span_counts_counts_distinct_chapters_through_the_shared_matcher` (Rust) cộng hai ca hiển thị trong `glossaryQueue.test.ts` (đếm 3 và 0). Đối chứng: thay số đếm thật bằng hằng `0` ⇒ ca Rust đỏ đúng (`[0,0,0]` vs `[2,1,0]`); đổi tên class `.gq-chapter-span` ⇒ đúng hai ca hiển thị đỏ, 31/33 ca khác vẫn xanh. Khôi phục cả hai; xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
   summary: **Chip phân loại và hàng ứng viên KHÔNG bấm chuột được** — chỉ bàn phím `1`–`4`
@@ -6066,6 +6092,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     chuột đầy đủ; hoặc Ice, nếu muốn nó đứng sớm hơn.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/GlossaryQueueOverlay.vue:276 .gq-chip vẫn là <span> trần không @click/role/tabindex; .gq-row (:232) cũng không có handler chuột. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, Quyết định 9 của Ice, phương án A) — mỗi `.gq-chip` nay là một `<label>` bọc `<input type="radio" v-model="currentCategoryModel">` thật (tiền lệ `GlossaryQuickAdd.vue:173-174` verbatim), và mỗi hàng (`<li class="gq-row">`) bọc thêm một `<label class="gq-row-label">` (`display: contents`) giữ một radio ẩn `v-model="cursorModel"` — bàn phím và chuột cùng gọi một hàm `setGlossaryQueueCursor` (bounds-checked), khớp mệnh đề "chọn hàng là dữ liệu" (AD-34 §1). Guard: hai nhóm ca mới trong `glossaryQueue.test.ts` (chip phân loại là radio thật · chọn hàng bằng chuột). Đối chứng: gỡ `v-model` khỏi radio phân loại ⇒ đỏ đúng (`expected 'other' to be 'person'`); làm `cursorModel`'s setter thành no-op ⇒ đỏ đúng (`expected +0 to be 1`) — cả hai lần 36/37 ca khác vẫn xanh. Khôi phục cả hai; xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
   summary: **Hai lượt IM LẶNG trong lớp phủ duyệt** — bấm Nhận/Bỏ trên một hàng đã xử lý
@@ -6083,6 +6110,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     cho cột phân loại của bảng chờ.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/glossaryQueueState.ts:254 và :289 vẫn `if (row===undefined||row.outcome!==null) return` không set actionError; openGlossaryQueue (:176-180) luôn gán lại category:'other', closeGlossaryQueue (:210-213) cố ý không lưu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — phần 1: `acceptGlossaryQueueCandidate`/`rejectGlossaryQueueCandidate` nay gán `actionError` (mã `glossary.queue_already_decided`, một `IpcError` chỉ-phía-client, 0 lượt IPC) thay vì thoát câm khi hàng đã quyết. Phần 2 (reset phân loại khi đóng lại) giữ nguyên BY DESIGN (quyết định "0 bước di trú" của Ice 2026-08-24) — chỉ thêm một dòng chú thích luôn hiện cạnh chip phân loại nói rõ điều đó (`glossary.queue.category_not_persisted_hint`). Guard: hai ca mới ở cuối khối Nhận/Bỏ trong `glossaryQueue.test.ts`. Đối chứng: gỡ dòng `row.outcome !== null` (đường Nhận) ⇒ chỉ ca Nhận đỏ đúng, ca Bỏ và 34 ca khác vẫn xanh; lặp lại cho đường Bỏ ⇒ chỉ ca Bỏ đỏ. Khôi phục cả hai; xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **`source_term` của một mục Glossary KHÔNG sửa được** — màn hình quản lý sửa được
@@ -6099,6 +6127,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nhập, nên nhánh va `UNIQUE` phải được viết ra ở đó dù story này có dựng hay không.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: update_manual_term (src-tauri/src/core/glossary/store.rs:910-940) vẫn chỉ UPDATE translation/note/category, không nhận source_term làm tham số. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4, Ice, phương án A) — `source_term` của một mục Glossary giữ nguyên bất biến; xoá rồi thêm lại vẫn là đường làm việc đã ghi tài liệu, AC của Story 3.9 không đòi cột này sửa được. Cùng quyết định cho L6462 C2 (một `UPDATE … SET source_term`) — cả hai mở lại cùng lúc khi một story thêm đường đổi tên thuật ngữ.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Không cột "Dùng" (số lần thuật ngữ xuất hiện trong Tác phẩm), và không sắp xếp
@@ -6114,6 +6143,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     tồn tại được nếu chấp nhận một bước di trú thêm cột đếm vào `glossary_entry` và một đường
     cập nhật nó, tức một đích giao được riêng.)**
   → 2026-09-24 (phiếu quyết #57) — Ice chọn thêm cột đếm cho glossary_entry (một bước di trú) để hiện cột "Dùng" và sắp theo tần suất; cùng lượt với #56. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #57, gộp cùng L5920) — cột mới `occurrence_count INTEGER` (nullable — một số CHƯA BIẾT là `NULL`, không phải `0`) trên `glossary_entry`, một bước di trú song sinh (project bước 25 / global bước 10, chung một hằng DDL với hai trigger zero-width của L6423). `approve_candidate` gieo giá trị này MỘT LẦN từ `glossary_candidate.occurrence_count`; `promote_to_global` luôn ghi `NULL`; mục thủ công/nhập tệp giữ `NULL`. `GlossaryEntry`/`GlossaryMark`/*Wire đều mang `occurrence_count: Option<i64>`. Webview: cột "Dùng" (hiện "—" khi `NULL`) và sắp theo tần suất (`NULL` luôn cuối, ổn định) trong `GlossaryManageOverlay.vue`; `GlossaryConfirmStrip.vue` hiện số khi không `NULL`. Guard: `approving_a_candidate_seeds_the_glossary_entry_occurrence_count_from_the_candidates_own_count` · `promote_to_global_always_writes_a_null_occurrence_count_even_when_the_work_row_has_a_real_count` (Rust) cộng ba nhóm ca vitest (`setGlossaryManageSortByFrequency`, cột `.gm-count`, `.gcs-occurrence`). Đối chứng (mỗi seam gỡ thật, chạy đúng ca, khôi phục): đổi `Some(occurrence_count)`→`None` ở `approve_candidate` ⇒ đỏ đúng; đổi `None`→`Some(999)` ở `promote_to_global` ⇒ đỏ đúng; xoá bước sắp ⇒ hai ca sắp đỏ đúng; bỏ nhánh `=== null ? '—' : …` ⇒ cột `.gm-count` đỏ đúng; bỏ `v-if` của `.gcs-occurrence` ⇒ đỏ đúng ở ca `null`. Tất cả khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Xoá một mục Glossary KHÔNG có bước xác nhận** — một phím `Backspace`/`Delete` khi
@@ -6130,6 +6160,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hay một đường HOÀN TÁC sau khi xoá. Đường thứ hai hợp gu kho hơn nhưng đắt hơn nhiều vì
     mục ở tầng Tác phẩm và tầng Toàn cục nằm ở hai kho không có giao dịch chung.)**
   → 2026-09-24 (phiếu quyết #58) — Ice chọn một hộp xác nhận cho mọi lượt xoá mục Glossary; không dựng đường hoàn tác (khớp AD-49). **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG (tự đóng, xác nhận lại 2026-09-27, Story 11.4) — `3be0f5f` (2026-08-26, trước phiếu quyết #58) đã dựng đúng hộp xác nhận hai nhịp (`deleteGlossaryManageEntry`, `deletePendingKey`/`manageDeletePending`) và chữ AD-49 ở `vi.json:876-878`; phiếu quyết #58 ghi lại một quyết định mà mã đã khớp từ trước, không cần sửa gì thêm.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Gõ vào ô tìm hoặc đổi một bộ lọc XOÁ bản sửa đang dở, không một câu nào** — người
@@ -6143,6 +6174,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     lượt lọc · hoặc nói ra bằng một câu trước khi bỏ. Chọn đường nào là một quyết định sản
     phẩm, không phải một lượt vá.)**
   → 2026-09-24 (phiếu quyết #59) — Ice chọn vô hiệu ô tìm và bộ lọc khi đang sửa một mục Glossary. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #59) — bốn setter tìm/lọc của `glossaryManageState.ts` (search, phân loại, nguồn gốc, đã chốt) nay gác bằng `isEditingBlocked()` và không-làm-gì khi đang sửa; template thêm `:disabled="manageEditing"` trên ô tìm và ba `<select>` (belt-and-suspenders — lớp trạng thái là thứ một đối chứng gỡ được mà không phụ thuộc ngữ nghĩa `disabled` của jsdom). ⚠️ Phát hiện một lỗi thật khi viết đối chứng: `setGlossaryManageSearch` THIẾU hẳn cờ gác này dù chính doc-comment của module đã hứa cả bốn setter đều có — vá thẳng như một lỗi, không phải một bất biến mới. Guard: nhóm ca mới "Tìm/bộ lọc BỊ CHẶN" trong `glossaryManage.test.ts`. Đối chứng: gỡ cờ gác khỏi từng setter một trong bốn ⇒ mỗi lần chỉ đúng ca của setter đó đỏ, 41/42 ca khác vẫn xanh. Khôi phục cả bốn; xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
   summary: **Hàng trong lưới quản lý không bấm chuột để chọn được** — con trỏ chỉ dời bằng mũi
@@ -6243,6 +6275,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     kiện khác hẳn. **(Chủ vế còn lại: B7 — bảng nghiệm thu Windows, chủ Ice.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Vế macOS đã đóng bằng phép đo, còn nguyên trong lượt này — không có phát hiện mới nào lật lại nó; còn thiếu: Vế Windows (B7, bảng nghiệm thu Windows) và nhánh Huỷ hộp thoại vẫn chưa có phép đo nào mới. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ, không đụng mã: vế macOS đã đóng bằng phép đo (2026-08-25), không đổi. Vế nhánh Huỷ hộp thoại là L6247 — đã đóng ở mục riêng của nó, không lặp ở đây. Vế còn lại DUY NHẤT là bảng nghiệm thu Windows, một việc chỉ người mới làm được trên nền đó. **Chủ: B7.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
   summary: **Hàng §I/O Matrix *"Xuất, huỷ hộp thoại"* không có ca test nào** — mệnh đề *"không tệp
@@ -6255,6 +6288,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: cùng lượt QA tay với mục trên — huỷ hộp thoại Xuất và xác nhận không tệp nào sinh ra.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/glossary.rs:1337 .blocking_save_file() vẫn nằm trong vỏ wire; grep glossary_import_dialog_contract.rs không thấy ca nào canh nhánh Ok(None) của chiều Xuất. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — tách `glossary_export_tier` đúng khuôn hai lớp: một hàm thuần mới `glossary_export_tier_after_dialog(global, open, tier, picked_path: Option<PathBuf>)` nhận kết quả hộp thoại đã quy về `Option<PathBuf>`, `None` ⇒ `Ok(None)` không ghi tệp; vỏ `#[tauri::command]` chỉ còn gọi `.blocking_save_file()` rồi chuyển giao. Guard: `export_cancelling_the_dialog_returns_ok_none_and_writes_no_file` (`glossary_import_dialog_contract.rs`). Đối chứng: bỏ nhánh kiểm `None` bên trong hàm thuần (giữ nguyên chữ ký) ⇒ đỏ đúng (`Some("aura-export-fallback.csv")` vs `None`); khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
   summary: **AC *"mọi thao tác làm được bằng bàn phím"* chưa có phép kiểm tự động** — nó đúng theo
@@ -6419,6 +6453,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ô `=1+1` và xác nhận ô đó KHÔNG chạy công thức.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Không tìm thấy log nghiệm thu tay nào cho ô công thức CSV trong sprint-status.yaml hay ghi chú kèm ngày sau 2026-08-25. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ: cơ chế (tiền tố `'`, OWASP CSV Injection) và vòng tròn xuất→nhập đã đo tự động từ trước; phần còn lại là một xác nhận bằng MẮT trên một bảng tính thật (Numbers/Excel/LibreOffice), việc chỉ một người làm được. **Chủ: Epic 11.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
   summary: **Lỗ zero-width (mục ⑥ của cụm B) chỉ được vá ở lớp Rust của ĐƯỜNG NHẬP CSV/TSV** —
@@ -6458,6 +6493,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nguyên lý "hai lớp phòng thủ không được lệch nhau" mà `schema.rs:231-235` đã ghi.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: core/glossary/store.rs::insert_manual_entry (dòng 179) vẫn chỉ .trim(); core/store/schema.rs::GLOSSARY_ENTRY_DDL không liệt 200B/200C/200D/2060/FEFF trong CHECK; còn thiếu: Vế SQL CHECK và vế insert_manual_entry vẫn thủng đúng như mục đã ghi; chưa có bước di trú mới. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — `exchange::strip_zero_width` mở rộng `pub(crate)`; `insert_manual_entry` gọi nó TRƯỚC `.trim()` trên cả ba cột chữ tự do (khớp thứ tự `exchange::parse`). Lớp thứ hai: một bước di trú song sinh (chung với L6103) thêm hai trigger `BEFORE INSERT/UPDATE` trên `glossary_entry` chặn một giá trị co về rỗng khi năm điểm mã `Cf` (U+200B/200C/200D/2060/FEFF) cũng bị coi là có thể cắt — không sửa `GLOSSARY_ENTRY_DDL` tại chỗ, không dựng lại bảng. Guard: `insert_manual_entry_strips_zero_width_characters_from_all_three_free_text_columns` · `the_zero_width_trigger_alone_refuses_a_source_term_or_translation_of_only_invisible_characters`. Đối chứng (hai lớp, gỡ riêng từng lớp): hoàn `insert_manual_entry` về `.trim()` trần ⇒ chỉ ca đầu đỏ đúng; gỡ riêng hai câu `CREATE TRIGGER` (giữ `ALTER TABLE`) ⇒ trên trọn bộ `glossary_contract` (77 ca) đúng MỘT ca đỏ, ca trigger. Khôi phục cả hai; xanh lại — hai lớp phòng thủ canh độc lập nhau, đúng luật "hai lớp không được lệch nhau".
 
 - source_spec: none
   summary: **Cụm C — sáu phát hiện về đồng thời ở lượt nhập hai nhịp** (`core/glossary/store.rs`),
@@ -6581,6 +6617,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
       chỉ nổ khi có một chỗ thả thật.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: grep 'SET source_term' trên core/glossary/store.rs vẫn 0 khớp — điều kiện mở lại C2 (một đường ĐỔI TÊN thuật ngữ) chưa xảy ra, C1/C3/C5 vẫn đứng vững; spine chưa có AD mới nào sau AD-48 cho C4; còn thiếu: C4 (bốn hàm đọc hai tầng qua hai kết nối SQLite không snapshot chung) vẫn cần một AD mới, chưa được xếp lịch. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — năm nhánh của mục này xử lý riêng, không một dòng mã mới: C1 (`TakeTheirs` optimistic update `WHERE translation IS ?3`), C3 (`ImportDecisionUnknownTerm` ở lớp lõi) và C5 (`unused_must_use = "deny"` + `config_invariants.rs`) đã tự đóng từ lượt vá 2026-08-25, xác nhận lại không cần sửa gì thêm. C2 (một `UPDATE … SET source_term`) KHÔNG LÀM — điều kiện mở lại (đường đổi tên thuật ngữ) chưa xảy ra, cùng quyết định với L6087. C4 (bốn hàm đọc hai tầng qua hai kết nối SQLite không snapshot chung) là bản sao của L7052 — không vá ở Story 11.4 (§Never của spec), chuyển hẳn về đó. **Chủ: Winston.**
 
 - source_spec: none
   summary: **Cụm E — ba lỗ hổng canh gác ĐÃ ĐO BẰNG PHÉP CẮT-THỬ THẬT**, không suy luận: cắt vệ đi
@@ -6664,6 +6701,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `commands/project.rs` ↔ `core::glossary`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/project/mod.rs::spawn_import_scan (dòng 2005-2060) vẫn tính threshold ngay trong closure std::thread::Builder::spawn; chỉ scope_contract.rs::the_glossary_scan_threshold_survives_a_write_and_a_reopen canh nửa webview. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — hàm thuần mới `scan_with_configured_threshold` kéo `config.glossary_scan_threshold()` cộng lời gọi `scan_candidates_controlled` ra khỏi thân closure luồng OS của `spawn_import_scan`, đúng khuôn hai lớp. Guard: `scan_with_configured_threshold_uses_the_stored_threshold_not_the_default` (so kết quả với một lời gọi `scan_candidates_controlled` trực tiếp ở ngưỡng phi mặc định = 1). Đối chứng: hardcode `threshold = 5` thay vì đọc từ `config` ⇒ đỏ đúng (`Completed([])` thay vì 6 ứng viên, fixture ghim ở ngưỡng 1); khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-e-le-hong-canh-gac.md`
   summary: **Bộ vitest của Glossary ĐỎ NGẪU NHIÊN 5–8 ca khi máy đang tải nặng** — và lượt đỏ
@@ -6753,7 +6791,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `TRADITIONAL_SURNAME_ALIASES` (đo xác nhận, 5/134 cặp) · ⑥ bốn khai báo px thô của
     `GlossarySettingsOverlay.vue` đổi `calc(var(--space-unit) * N)`, giữ NGUYÊN pixel (kể cả
     `11px` — khuôn "nét dẫn" ~~6 chỗ/5 tệp~~ 🔵 **7 chỗ/5 tệp** (SỬA 2026-08-26, vòng rà 2 P5
-    — xem ngay dưới), Ice chốt KHÔNG làm tròn 12px).
+    — xem ngay dưới), Ice chốt KHÔNG làm tròn 12px 🔵 **SỬA 2026-09-27 (Story 11.4) — hết đúng: `a9464f4` (Story 11.1 lô C) đã đồng bộ CẢ BẢY chỗ về `12px`; xem mục nợ ở cuối mục này.** 🔵 **SỬA 2026-09-27 (rà soát Story 11.4) — hết đúng: Ice ký lại 12px ngày 2026-09-26 (`spec-11-4-glossary-debt.md`, Quyết định 11); nay có cả chữ ký lẫn hệ quả, không phải chỉ hệ quả.**).
     ⚠️ **THÊM 2026-08-26 (vòng rà 1) — khuôn "nét dẫn" còn một `11px` THỨ HAI, chưa được đếm
     vào bảy chỗ vì nó không đứng cạnh `border-left`.** `panels/LookupRecord.vue:311`
     `.lookup-citation` mang `margin: 4px 0 0 11px;` NGAY TRÊN `padding-left: 11px;` (`:312`,
@@ -6806,6 +6844,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     spec cụm F) — cùng chủ với món nợ e2e sẵn có.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: 8/11 vị trí cụm F đã vá đúng như spec ghi (①-⑦); ba vị trí bị bác (a/b/c) vẫn đứng nguyên với dư địa có chủ; còn thiếu: C4 cần AD mới (spine vẫn dừng ở AD-48); ba món e2e/NFR2 (GridPanel vẽ dấu, GlossaryQueueOverlay/ConfirmStrip, chi phí vẽ NFR2) vẫn chưa có ca nào. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — năm nhánh còn mở của mục này xử lý riêng: ⑥ tự đóng — `a9464f4` (Story 11.1 lô C, cổng lưới 4px `check-tokens.mjs` Kiểm K) đã đồng bộ CẢ BẢY chỗ "nét dẫn" về `12px`; 🔵 sửa tại chỗ ngay trên (câu "Ice chốt KHÔNG làm tròn 12px" đã hết đúng — bẫy trôi tự đóng vì hệ quả, 0 `11px` còn lại trong `src/*.vue`). 🔵 **SỬA 2026-09-27 (rà soát Story 11.4) — hết đúng: câu trên nói "không có chữ ký Ice mới" đã sai — Ice ký lại 12px ngày 2026-09-26 (`spec-11-4-glossary-debt.md`, Quyết định 11); bẫy trôi đóng vì CẢ chữ ký lẫn hệ quả.** (a) KHÔNG LÀM — `scan.rs:319`'s `freq: &HashMap` vẫn được borrow-checker cưỡng chế trọn hàm, chưa có đường nổ; mở lại khi `freq` đổi thành `&mut`. (b) KHÔNG LÀM — chi phí hai lượt `SELECT source_term` giữ khoá `work_state` vẫn chưa đo; **Chủ: Ice**, chưa xếp lịch. (c) là bản sao của L7052/C4 (bốn hàm đọc hai tầng không snapshot chung) — không vá ở Story 11.4, chuyển hẳn về đó, **Chủ: Winston**. Ba món e2e/NFR2 (đường vẽ dấu `GridPanel.vue`, e2e cho `GlossaryQueueOverlay`/`GlossaryConfirmStrip`, chi phí VẼ NFR2) là hạ tầng rộng hơn một story — chuyển cùng L5641/L5657/L6894/L7136. **Chủ: Epic 11.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
   summary: **16 tệp `.vue` còn lại mang px thô ngoài lưới 4px** — cụm F chỉ vá MỘT tệp
@@ -6890,6 +6929,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
   KHÔNG dán nguyên bảng vào mã sản phẩm mà không qua bước duyệt đó.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: core/glossary/surnames.rs:103 TRADITIONAL_SURNAME_ALIASES vẫn đúng 6 cặp (5 mới cụm F + Tiêu sẵn có Story 3.5), không cặp nào trong 128 cặp còn lại được thêm. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4) — không nhập hàng loạt 128 cặp còn lại: bảng đo mang ít nhất một cặp SAI (`於→于`, chính họ đó đã tự đứng riêng trong `COMMON_SURNAMES`) nên dán nguyên bảng là nhét lỗi mới. Mở lại khi một lượt vá dựng tay từng cặp qua đúng ca quần thể `every_traditional_surname_alias_maps_to_a_real_surname_and_the_traditional_side_is_not_itself_a_listed_surname` trước khi thêm.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
   summary: **`focusInitialTarget()` (`src/GlossaryManageOverlay.vue`) kiểm `list.value !== null`
@@ -6913,6 +6953,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
   một lượt dựng cơ chế kiểm soát thứ tự flush/DOM-patch có chủ đích cho riêng ca này.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tests/frontend/glossaryManage.test.ts vẫn dựa vào mock IPC gần-tức-thời tình cờ tái hiện khoảng hở flush; không thấy cơ chế Promise treo tay có chủ đích nào được thêm. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ, cùng chủ với mục e2e/NFR2 của L6690: một ca WebKit/WebView2 thật là thứ duy nhất khẳng định được `document.activeElement` sau khi Quản lý Glossary mở — `happy-dom` không tái hiện được khoảng hở flush/DOM-patch có chủ đích. **Chủ: Epic 11.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
   summary: **Cổng `clearSourceCuts` của `main.ts` có một BẢN SAO ở `tests/frontend/editorClearSourceCuts.test.ts`,
@@ -6999,6 +7040,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `store.rs:715-719 · 787-791 · 922-926 · 1299-1303` của cụm C.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/commands/glossary.rs vẫn còn 26 chỗ chạm work_state/OpenWorkState và 16 vỏ đồng bộ; không thấy dấu hiệu thu hẹp phạm vi MutexGuard theo khuôn hai-khoá-ngắn. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → KHÔNG LÀM 2026-09-27 (Story 11.4, Quyết định 12 của Ice, phương án C, sửa lại 2026-09-27) — không nhả khoá `OpenWorkState` trước lời gọi lõi: `OpenWork` giữ một `Store` không `Clone` (`Drop` chạy `close()`/TRUNCATE — một bản sao sẽ làm mơ hồ "ai đóng"), và mọi lời gọi lõi (`resolve_term_for_quick_add`, `add_manual_term`, …) cần một `&Store` sống suốt lượt gọi — không nhả guard mà vẫn giữ được tham chiếu đó qua borrow checker. Mở rộng `OpenWorkState` sang `Arc<Store>` để nhả khoá sớm là một đổi bất biến kiến trúc, việc của một `AD` mới do Winston ký, không phải một dòng mã của story này. Đếm tại HEAD: 7/15 vỏ Glossary là `(async)`, chỉ `glossary_confirm_import` có ghi. Mở lại khi luồng chính được đo THẬT là đứng sau một lệnh Glossary giữ khoá.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
   summary: **Câu lỗi "tệp quá lớn" nay báo cho người dùng một con số KHÔNG phải kích thước tệp
@@ -7018,6 +7060,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ② tách khoá riêng cho Glossary. **(Chủ: Ice — đây là một quyết định hiển thị, không phải một
     dòng vá. Lượt đầu tiên chạm `err.import.too_large` mở lại.)**
   → 2026-09-24 (phiếu quyết #60) — Ice chọn bỏ {size} khỏi câu err.import.too_large, chỉ nêu {limit}, một câu dùng chung. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4, phiếu quyết #60) — bỏ `{size}` khỏi `MessageKey::ImportTooLarge`'s `required_params` (`core/i18n/mod.rs`) và khỏi câu `vi.json:17`, chỉ còn `{limit}`; ba chỗ gọi (`core::segment::import`, `core::glossary::store`, `core::promptset::store`) không còn chèn `"size"` vào `params`. Guard: cổng có sẵn `check:i18n` + `ipc_contract.rs::every_message_key_declares_the_params_its_string_needs`. Đối chứng: thêm lại `"size"` vào `required_params()` mà không đổi `vi.json` ⇒ đỏ đúng (khai `["limit","size"]` nhưng chuỗi chỉ dùng `["limit"]`); khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
   summary: **Hai lượt xuất Glossary song song cùng một đích đều trả `Ok(())`, nhưng chỉ MỘT lượt
@@ -7076,6 +7119,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     chặn AD và soạn hồ sơ bàn giao cho Winston, đừng tự soạn AD.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Spine (ARCHITECTURE-SPINE.md) không có AD nào mới sau AD-48; core/glossary/store.rs::entries_eligible_for_injection/resolve_term_for_quick_add/list_all_entries/marks_for_source_text vẫn gọi load_tier hai lượt riêng. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ, không vá ở đây theo đúng §Never của spec: đóng nó thật sự là lật một bất biến đã ký (`resolved_source_terms` cố ý không `ATTACH`/giao dịch chéo hai kho) — cần một `AD` mới của Winston (ATTACH/giao dịch chéo, hay chấp nhận formal race), không phải một dòng mã. Cùng nhánh với L6462 C4 (bản sao). **Chủ: Winston.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`
   summary: **Một hàng bị XOÁ giữa hai nhịp làm biến mất mọi va chạm đã gom được của những hàng
@@ -7153,6 +7197,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     một ca WebKit thật khẳng định `document.activeElement` là `<ul>` sau khi bảng Quản lý mở.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/GlossaryManageOverlay.vue dòng 459 vẫn mang tabindex="-1" trên <ul class="gm-list">; e2e/specs/ vẫn không có tệp nào chạm GlossaryManageOverlay để xác nhận .focus() thật hoạt động trên WebKit/WebView2. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.4.**
+  → 2026-09-27 (Story 11.4) — chuyển chủ, cùng chủ với mục e2e/NFR2 của L6690/L6894: gỡ `tabindex="-1"` khỏi `<ul class="gm-list">` không làm ca nào đỏ trên `happy-dom` (đo được 2026-08-26) — chỉ một ca WebKit/WebView2 thật mới canh được vế "focus ĐƯỢC", không chỉ "được GỌI". **Chủ: Epic 11.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
   summary: **`check-i18n.mjs` dò vùng `<script>`/`<style>` bằng regex không hiểu chú thích HTML**,
@@ -12093,6 +12138,7 @@ chính nó.
     ngoài phạm vi story này. **(Chủ: Ice — ba tệp thuộc hai bề mặt khác, và sửa chúng là một lượt
     quét quy ước test chứ không phải một phép vá của một story sản phẩm.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.4.**
+  → ✅ ĐÃ ĐÓNG 2026-09-27 (Story 11.4) — ba ca tự-so ở `glossaryQuickAddStrip.test.ts:114,156` và `glossaryConfirmStripTemplate.test.ts:243` nay so với CHUỖI LITERAL chép nguyên văn từ `vi.json` (đúng hình dạng Story 4.10 đã dùng cho `aiTranslate.test.ts`), không còn gọi lại `i18n.tError(...)` ở cả hai vế. Đối chứng: tạm đổi tên khoá `vi.json` tương ứng ⇒ ca đỏ đúng (bản literal không tự khớp theo `safeKey` nữa); khôi phục, xanh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-10-loi-mang-va-loi-api.md`
   summary: **`editorPromoteAiTranslationError` được export và KHÔNG ai đọc, nên một lượt "đưa
@@ -12378,3 +12424,7 @@ chính nó.
 
 - **`lookupHistoryState.ts::targetsOf` chụp `gloss: null` cho một đầu mục thuộc lớp có trong `LookupResponse.senses_failed`** — ghim lúc đó ghi `null` vĩnh viễn vào `pinned_entry.gloss` (`commands/pinned.rs`, ảnh chụp lúc ghim), không phân biệt được với một đầu mục thật sự không có gloss. Có từ trước Story 11.3 (`unwrap_or_default()` cũng cho `[]`); 11.3 mới làm cho tín hiệu phân biệt tồn tại. Chủ: Ice — chọn giữa chặn ghim, ghim không ảnh chụp, hay chụp lại sau.
 
+
+## Deferred from: code review of spec-11-4-glossary-debt (2026-09-27)
+
+- **`candidate_chapter_span_counts` đọc và quét Matcher toàn bộ `segment.source_text` của Tác phẩm mỗi lần mở bảng chờ Glossary** (`core/glossary/candidate_store.rs`, gọi từ `glossary_pending_candidates`) — chưa đo trên Tác phẩm thật lớn nhất; nếu chậm, mở bảng chờ chậm theo số Chương. Chưa kiểm chứng (maybe-false, medium nếu đúng): đo thời gian lệnh trên Tác phẩm thật lớn nhất, bản release. Chủ: Epic 11.

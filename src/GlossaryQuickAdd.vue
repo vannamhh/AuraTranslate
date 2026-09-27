@@ -28,11 +28,11 @@ import {
   quickAddSaveError,
   quickAddSaving,
   quickAddSourceTerm,
-  quickAddTierChoice,
   quickAddTranslation,
   quickAddWorkTierAvailable,
   quickAddWorkTierBlocked,
   setQuickAddSourceTerm,
+  setQuickAddTierChoice,
 } from './glossaryQuickAddState'
 
 /** Bốn phân loại theo phím số (FR46) — khớp `Category::as_str()` phía Rust. */
@@ -91,7 +91,7 @@ function onTierChange(event: Event): void {
   const target = event.target
   if (!(target instanceof HTMLInputElement)) return
   if (quickAddMode.value === 'edit') return // ghim — không cho đổi.
-  quickAddTierChoice.value = target.value as GlossaryTierWire
+  setQuickAddTierChoice(target.value as GlossaryTierWire)
 }
 
 const sourceInput = useTemplateRef<HTMLInputElement>('sourceInput')

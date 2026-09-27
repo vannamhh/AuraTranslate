@@ -25,12 +25,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::aiprompt::GlossaryTierWire;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
-    CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, add_manual_term,
-    approve_candidate, confirm_translation, delete_manual_term, entries_eligible_for_injection,
-    insert_candidate, insert_import_scan_candidates, insert_manual_entry, list_all_entries,
-    load_tier, pending_candidates, promote_to_global, reject_candidate,
-    resolve_term_for_quick_add, update_manual_term,
+    CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, WorkContext,
+    add_manual_term, approve_candidate, candidate_chapter_span_counts, confirm_translation,
+    delete_manual_term, entries_eligible_for_injection, insert_candidate,
+    insert_import_scan_candidates, insert_manual_entry, list_all_entries, load_tier,
+    pending_candidates, promote_to_global, reject_candidate, resolve_term_for_quick_add,
+    update_manual_term,
 };
+use auratranslate_lib::core::matching::MatchLang;
 use auratranslate_lib::core::scope::{ScopeError, ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{
     GLOBAL_MIGRATIONS, GLOSSARY_CANDIDATE_DDL, GLOSSARY_ENTRY_DDL, Store, StoreError, StoreSpec,
@@ -83,9 +85,8 @@ fn a_confirmed_global_only_entry_is_eligible_for_injection() {
     )
     .expect("chen muc da chot");
 
-    let resolver = ScopeResolver::global_only();
 
-    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
 
     assert_eq!(eligible.len(), 1, "muc da chot phai du dieu kien chen");
@@ -127,7 +128,7 @@ fn when_both_tiers_confirm_the_same_term_the_work_tier_wins() {
         work_id: "0192f3c4-5678-4abc-8def-0123456789ab".to_owned(),
     });
 
-    let eligible = entries_eligible_for_injection(&resolver, &global_store, Some(&work_store))
+    let eligible = entries_eligible_for_injection(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
 
     assert_eq!(
@@ -187,7 +188,7 @@ fn a_pending_work_tier_entry_shadows_and_disqualifies_a_confirmed_global_entry()
     // phân giải": nếu cài đặt bên trong lỡ lọc TRƯỚC (bỏ mục chưa chốt ở mỗi tầng rồi mới
     // hợp hai tầng), mục Global đã chốt sẽ lộ ra và `eligible` sẽ KHÔNG rỗng — đúng lỗi mà
     // ca này tồn tại để bắt, đo được từ NGOÀI mà không cần nhìn vào cài đặt bên trong.
-    let eligible = entries_eligible_for_injection(&resolver, &global_store, Some(&work_store))
+    let eligible = entries_eligible_for_injection(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
 
     assert!(
@@ -228,8 +229,7 @@ fn a_pending_global_only_entry_is_listed_but_not_eligible_for_injection() {
     );
     assert!(!global["青丘"].is_confirmed());
 
-    let resolver = ScopeResolver::global_only();
-    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
 
     assert!(
@@ -265,7 +265,7 @@ fn with_no_work_open_resolution_is_the_whole_global_tier() {
         "global_only() khong duoc mang tang Tac pham"
     );
 
-    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
 
     assert_eq!(eligible.len(), 1);
@@ -1152,6 +1152,117 @@ fn the_check_constraint_alone_refuses_every_blank_form_on_both_columns() {
     cleanup(&dir);
 }
 
+/// A `source_term`/`translation` made only of invisible characters (not `White_Space`, so old
+/// `trim()`/CHECK missed them) must be refused by the new trigger, even via raw SQL bypassing `insert_manual_entry`.
+#[test]
+fn the_zero_width_trigger_alone_refuses_a_source_term_or_translation_of_only_invisible_characters()
+{
+    let dir = temp_dir("zero-width-trigger-alone");
+    let store = open_global(&dir);
+
+    let refused_source = store.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO glossary_entry \
+             (source_term, translation, note, category, term_origin, created_at) \
+             VALUES ('\u{200B}\u{FEFF}', 'ban dich that', '', 'other', 'manual', 'x')",
+            [],
+        )?;
+        Ok(())
+    });
+    assert!(
+        refused_source.is_err(),
+        "source_term chi gom ky tu an phai bi trigger moi tu choi. Nhan: {refused_source:?}"
+    );
+
+    let refused_translation = store.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO glossary_entry \
+             (source_term, translation, note, category, term_origin, created_at) \
+             VALUES ('thuat ngu that', '\u{200C}\u{2060}', '', 'other', 'manual', 'x')",
+            [],
+        )?;
+        Ok(())
+    });
+    assert!(
+        refused_translation.is_err(),
+        "translation chi gom ky tu an phai bi trigger moi tu choi. Nhan: {refused_translation:?}"
+    );
+
+    // Doi chung duong: mot ban dich THAT boc quanh boi ky tu an van di qua duoc va duoc luu
+    // o dang DA GO KY TU AN (khong phai bi tu choi, khong phai giu nguyen ky tu an).
+    let accepted = store.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO glossary_entry \
+             (source_term, translation, note, category, term_origin, created_at) \
+             VALUES ('\u{200B}那個\u{FEFF}', '\u{200B}Kia\u{FEFF}', '', 'person', 'manual', 'x')",
+            [],
+        )?;
+        Ok(())
+    });
+    assert!(
+        accepted.is_ok(),
+        "noi dung THAT boc quanh boi ky tu an phai DI QUA -- trigger chi cam chuoi CHI GOM \
+         ky tu an. Nhan: {accepted:?}"
+    );
+
+    let rows: i64 = store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM glossary_entry", [], |r| r.get(0)))
+        .expect("dem hang");
+    assert_eq!(rows, 1, "chi luot chap nhan duoc de lai dung mot hang");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `insert_manual_entry` must strip invisible characters from all three free-text columns
+/// before writing (same norm as `exchange::parse`), refusing an all-invisible `source_term` too.
+#[test]
+fn insert_manual_entry_strips_zero_width_characters_from_all_three_free_text_columns() {
+    let dir = temp_dir("insert-manual-entry-strips-zero-width");
+    let store = open_global(&dir);
+
+    let refused = insert_manual_entry(
+        &store,
+        "\u{200B}\u{FEFF}",
+        Some("ban dich that"),
+        "",
+        Category::Other,
+    );
+    assert!(
+        refused.is_err(),
+        "source_term chi gom ky tu an phai bi tu choi qua insert_manual_entry. Nhan: {refused:?}"
+    );
+
+    let id = insert_manual_entry(
+        &store,
+        "\u{200B}那個\u{FEFF}",
+        Some("\u{200C}Kia\u{2060}"),
+        "\u{FEFF}ghi chu\u{200B}",
+        Category::Person,
+    )
+    .expect("noi dung that boc quanh boi ky tu an phai duoc chap nhan");
+
+    let (source_term, translation, note): (String, Option<String>, String) = store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT source_term, translation, note FROM glossary_entry WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+        })
+        .expect("doc lai hang vua chen");
+    assert_eq!(source_term, "那個", "ky tu an phai bi go khoi source_term luu xuong");
+    assert_eq!(
+        translation.as_deref(),
+        Some("Kia"),
+        "ky tu an phai bi go khoi translation luu xuong"
+    );
+    assert_eq!(note, "ghi chu", "ky tu an phai bi go khoi note luu xuong");
+
+    drop(store);
+    cleanup(&dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Story 3.2 — Bảng chờ ứng viên tách hẳn khỏi Glossary, I/O & Edge-Case Matrix
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1176,6 +1287,238 @@ fn inserting_a_new_candidate_makes_it_visible_in_pending_candidates() {
     assert_eq!(pending[0].candidate_origin, CandidateOrigin::ImportScan);
     assert_eq!(pending[0].resolution, None, "ung vien moi phai o resolution = NULL");
     assert!(pending[0].is_pending());
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Manually adding an entry with the same `source_term` as a pending candidate must resolve
+/// that candidate so it doesn't sit in the queue forever; the reverse direction was already covered.
+#[test]
+fn adding_a_manual_term_at_the_work_tier_resolves_a_pending_candidate_with_the_same_source_term()
+{
+    let dir = temp_dir("candidate-resolved-by-manual-add");
+    let store = open_project(&dir);
+    let global_dir = temp_dir("candidate-resolved-by-manual-add-global");
+    let global = open_global(&global_dir);
+
+    let candidate_id =
+        insert_candidate(&store, "慕容", CandidateOrigin::ImportScan).expect("chen ung vien");
+
+    add_manual_term(
+        &global,
+        Some(&store),
+        GlossaryTier::Work,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    )
+    .expect("them muc nhap tay o tang Tac pham");
+
+    let pending = pending_candidates(&store).expect("nap bang cho");
+    assert!(
+        pending.is_empty(),
+        "ung vien cung source_term phai roi khoi hang cho sau khi them muc nhap tay, con: \
+         {pending:?}"
+    );
+
+    // Doi chung gian tiep: hang ung vien KHONG bi xoa (AD-36 -- xem doc-comment
+    // GLOSSARY_CANDIDATE_DDL), chi duoc DANH DAU da duyet.
+    let resolution: Option<String> = store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT resolution FROM glossary_candidate WHERE id = ?1",
+                [candidate_id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc lai resolution");
+    assert_eq!(resolution.as_deref(), Some("approved"));
+
+    drop(store);
+    drop(global);
+    cleanup(&dir);
+    cleanup(&global_dir);
+}
+
+/// `add_manual_term` must resolve the pending candidate using the SAME normalization
+/// `insert_manual_entry` stores the new entry under (zero-width stripped, then trimmed) --
+/// not a plain `.trim()` of the raw input.
+#[test]
+fn adding_a_manual_term_with_zero_width_characters_still_resolves_the_clean_pending_candidate()
+{
+    let dir = temp_dir("candidate-resolved-by-manual-add-zero-width");
+    let store = open_project(&dir);
+    let global_dir = temp_dir("candidate-resolved-by-manual-add-zero-width-global");
+    let global = open_global(&global_dir);
+
+    let candidate_id =
+        insert_candidate(&store, "慕容", CandidateOrigin::ImportScan).expect("chen ung vien");
+
+    add_manual_term(
+        &global,
+        Some(&store),
+        GlossaryTier::Work,
+        "\u{200b}慕容\u{200b}",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    )
+    .expect("them muc nhap tay o tang Tac pham");
+
+    let pending = pending_candidates(&store).expect("nap bang cho");
+    assert!(
+        pending.is_empty(),
+        "ung vien cung source_term (sau khi cat zero-width) phai roi khoi hang cho, con: \
+         {pending:?}"
+    );
+
+    let resolution: Option<String> = store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT resolution FROM glossary_candidate WHERE id = ?1",
+                [candidate_id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc lai resolution");
+    assert_eq!(resolution.as_deref(), Some("approved"));
+
+    let work_tier = load_tier(&store).expect("nap tang Tac pham");
+    assert_eq!(
+        work_tier.keys().collect::<Vec<_>>(),
+        vec!["慕容"],
+        "muc vua chen phai luu source_term da cat zero-width, khop dung ca cho voi WHERE cua \
+         luot duyet ung vien"
+    );
+
+    drop(store);
+    drop(global);
+    cleanup(&dir);
+    cleanup(&global_dir);
+}
+
+/// A manual add at the Global tier must never touch `glossary_candidate` -- that table
+/// doesn't exist in `global.db`; an unconditional UPDATE into it would break every Global add.
+#[test]
+fn adding_a_manual_term_at_the_global_tier_never_touches_glossary_candidate() {
+    let global_dir = temp_dir("manual-add-global-no-candidate-table");
+    let global = open_global(&global_dir);
+
+    let id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "青丘",
+        Some("Thanh Khau"),
+        "",
+        Category::Place,
+    )
+    .expect("them muc nhap tay o tang Global khong duoc dung toi glossary_candidate");
+    assert!(id > 0);
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+/// A manual add at the Global tier, while a Work is open, must still resolve a pending Work
+/// candidate with the same `source_term` -- otherwise it sits stuck on the Work's queue even
+/// though the term now exists (at Global). Counter-check: gate the resolve on `tier == Work`
+/// (drop the `else` branch's resolve call) and this goes red on the leftover `resolution`.
+#[test]
+fn adding_a_manual_term_at_the_global_tier_still_resolves_the_open_works_pending_candidate() {
+    let dir = temp_dir("candidate-resolved-by-global-add");
+    let store = open_project(&dir);
+    let global_dir = temp_dir("candidate-resolved-by-global-add-global");
+    let global = open_global(&global_dir);
+
+    let candidate_id =
+        insert_candidate(&store, "慕容", CandidateOrigin::ImportScan).expect("chen ung vien");
+
+    add_manual_term(
+        &global,
+        Some(&store),
+        GlossaryTier::Global,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    )
+    .expect("them muc nhap tay o tang Global trong khi mot Tac pham dang mo");
+
+    let pending = pending_candidates(&store).expect("nap bang cho");
+    assert!(
+        pending.is_empty(),
+        "ung vien cua Tac pham dang mo phai roi khoi hang cho sau lot them tang Global, con: \
+         {pending:?}"
+    );
+
+    let resolution: Option<String> = store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT resolution FROM glossary_candidate WHERE id = ?1",
+                [candidate_id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc lai resolution");
+    assert_eq!(resolution.as_deref(), Some("approved"));
+
+    drop(store);
+    drop(global);
+    cleanup(&dir);
+    cleanup(&global_dir);
+}
+
+/// `candidate_chapter_span_counts` must count distinct chapters a term appears in through the
+/// shared matcher (AD-17), not raw string comparison.
+#[test]
+fn candidate_chapter_span_counts_counts_distinct_chapters_through_the_shared_matcher() {
+    let dir = temp_dir("chapter-span-counts");
+    let store = open_project(&dir);
+
+    store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (1, NULL, '', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (),
+            )?;
+            let chapter_one = tx.last_insert_rowid();
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (2, NULL, '', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (),
+            )?;
+            let chapter_two = tx.last_insert_rowid();
+
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+                 created_at, updated_at) VALUES (?1, 1, '慕容和青丘的故事。', 1, \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [chapter_one],
+            )?;
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+                 created_at, updated_at) VALUES (?1, 1, '慕容又出现了。', 1, \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [chapter_two],
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture hai Chuong");
+
+    let terms = ["慕容", "青丘", "khong-co"];
+    let counts = candidate_chapter_span_counts(&store, &terms, MatchLang::Zh)
+        .expect("candidate_chapter_span_counts khong loi");
+    assert_eq!(
+        counts,
+        vec![2, 1, 0],
+        "\"慕容\" phai o CA HAI Chuong, \"青丘\" chi o Chuong mot, \"khong-co\" khong o dau ca"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -1369,6 +1712,37 @@ fn approving_an_import_scan_candidate_marks_it_approved_and_creates_a_glossary_e
     cleanup(&dir);
 }
 
+/// Counter-check: change `Some(occurrence_count)` to `None` at the `insert_entry_row` call
+/// inside `approve_candidate` -- this red should fail on `entry.occurrence_count` exactly.
+#[test]
+fn approving_a_candidate_seeds_the_glossary_entry_occurrence_count_from_the_candidates_own_count() {
+    let dir = temp_dir("candidate-approve-seeds-occurrence-count");
+    let store = open_project(&dir);
+
+    let (inserted, _skipped) =
+        insert_import_scan_candidates(&store, &[scan_candidate("新词", 42, "cau vi du。")])
+            .expect("ghi lo ung vien");
+    assert_eq!(inserted, 1);
+    let id = pending_candidates(&store)
+        .expect("nap bang cho")
+        .into_iter()
+        .find(|c| c.source_term == "新词")
+        .expect("ung vien vua chen phai co mat")
+        .id;
+
+    approve_candidate(&store, id, Some("Từ Mới"), Category::Other).expect("duyet ung vien");
+
+    let global = load_tier(&store).expect("nap glossary_entry");
+    assert_eq!(
+        global["新词"].occurrence_count,
+        Some(42),
+        "occurrence_count cua muc Glossary phai la SO THAT cua ung vien goc, khong phai None"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
 /// Hàng 5 — duyệt một ứng viên `review_harvest`: cùng bảng chờ, `glossary_entry.term_origin
 /// = 'review_harvest'` — không bảng thứ hai cho xuất xứ này.
 #[test]
@@ -1403,8 +1777,7 @@ fn approving_a_candidate_with_no_translation_leaves_the_glossary_entry_pending_c
     assert_eq!(entry.translation, None);
     assert!(!entry.is_confirmed(), "muc vua sinh phai o trang thai cho chot");
 
-    let resolver = ScopeResolver::global_only();
-    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
     assert!(
         eligible.is_empty(),
@@ -1644,8 +2017,9 @@ fn approving_a_rejected_candidate_is_refused_and_no_glossary_entry_is_born() {
 
     let approved = approve_candidate(&store, id, Some("Mộ Dung"), Category::Person);
     assert!(
-        matches!(approved, Err(StoreError::WriteFailed { .. })),
-        "duyet mot ung vien DA BO phai bi tu choi. Nhan: {approved:?}"
+        // Now `StoreError::Conflict`, not `WriteFailed`: a business-rule refusal, not I/O failure.
+        matches!(approved, Err(StoreError::Conflict { .. })),
+        "duyet mot ung vien DA BO phai bi tu choi qua StoreError::Conflict. Nhan: {approved:?}"
     );
 
     let global = load_tier(&store).expect("nap glossary_entry");
@@ -1682,8 +2056,9 @@ fn rejecting_an_approved_candidate_is_refused_and_the_glossary_entry_survives() 
 
     let rejected = reject_candidate(&store, id);
     assert!(
-        matches!(rejected, Err(StoreError::WriteFailed { .. })),
-        "bo mot ung vien DA DUYET phai bi tu choi. Nhan: {rejected:?}"
+        // Now `StoreError::Conflict`, not `WriteFailed`: a business-rule refusal, not I/O failure.
+        matches!(rejected, Err(StoreError::Conflict { .. })),
+        "bo mot ung vien DA DUYET phai bi tu choi qua StoreError::Conflict. Nhan: {rejected:?}"
     );
 
     let global = load_tier(&store).expect("nap glossary_entry");
@@ -1994,7 +2369,8 @@ fn each_resolution_variant_round_trips_through_the_already_decided_decode() {
     let reapproved = approve_candidate(&store, approved_id, Some("Mo Dung Khac"), Category::Person);
     let err = format!("{reapproved:?}");
     assert!(
-        matches!(reapproved, Err(StoreError::WriteFailed { .. })) && err.contains("approved"),
+        // Now StoreError::Conflict, not WriteFailed.
+        matches!(reapproved, Err(StoreError::Conflict { .. })) && err.contains("approved"),
         "loi 'da quyet' phai giai ma DUNG bien the Approved tu dia, khong chi lap lai \
          chuoi tho khong qua kiem tra. Nhan: {reapproved:?}"
     );
@@ -2006,7 +2382,7 @@ fn each_resolution_variant_round_trips_through_the_already_decided_decode() {
     let rerejected = reject_candidate(&store, rejected_id);
     let err = format!("{rerejected:?}");
     assert!(
-        matches!(rerejected, Err(StoreError::WriteFailed { .. })) && err.contains("rejected"),
+        matches!(rerejected, Err(StoreError::Conflict { .. })) && err.contains("rejected"),
         "loi 'da quyet' phai giai ma DUNG bien the Rejected tu dia. Nhan: {rerejected:?}"
     );
 
@@ -2068,9 +2444,8 @@ fn the_whitespace_char_table_is_byte_identical_between_glossary_entry_and_glossa
 fn resolve_term_for_quick_add_returns_none_when_the_term_exists_nowhere() {
     let dir = temp_dir("quick-add-lookup-not-found");
     let store = open_global(&dir);
-    let resolver = ScopeResolver::global_only();
 
-    let found = resolve_term_for_quick_add(&resolver, &store, None, "慕容")
+    let found = resolve_term_for_quick_add(&WorkContext::new(None).unwrap(), &store, "慕容")
         .expect("resolve_term_for_quick_add khong loi voi kind hop le");
     assert!(found.is_none(), "chua tung chen gi, phai la None");
 
@@ -2086,9 +2461,8 @@ fn resolve_term_for_quick_add_finds_a_global_only_term() {
     let store = open_global(&dir);
     insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
         .expect("chen muc global");
-    let resolver = ScopeResolver::global_only();
 
-    let (tier, entry) = resolve_term_for_quick_add(&resolver, &store, None, "慕容")
+    let (tier, entry) = resolve_term_for_quick_add(&WorkContext::new(None).unwrap(), &store, "慕容")
         .expect("resolve khong loi")
         .expect("phai tim thay");
     assert_eq!(tier, GlossaryTier::Global);
@@ -2114,7 +2488,7 @@ fn resolve_term_for_quick_add_prefers_the_work_tier_when_both_tiers_have_the_ter
     });
 
     let (tier, entry) =
-        resolve_term_for_quick_add(&resolver, &global_store, Some(&work_store), "慕容")
+        resolve_term_for_quick_add(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store, "慕容")
             .expect("resolve khong loi")
             .expect("phai tim thay");
     assert_eq!(tier, GlossaryTier::Work, "tang Tac pham phai thang");
@@ -2133,9 +2507,8 @@ fn resolve_term_for_quick_add_finds_a_pending_term_without_filtering_it_out() {
     let dir = temp_dir("quick-add-lookup-pending");
     let store = open_global(&dir);
     insert_manual_entry(&store, "青丘", None, "", Category::Place).expect("chen muc cho chot");
-    let resolver = ScopeResolver::global_only();
 
-    let (tier, entry) = resolve_term_for_quick_add(&resolver, &store, None, "青丘")
+    let (tier, entry) = resolve_term_for_quick_add(&WorkContext::new(None).unwrap(), &store, "青丘")
         .expect("resolve khong loi")
         .expect("mot muc CHO CHOT van phai tim thay duoc");
     assert_eq!(tier, GlossaryTier::Global);
@@ -2143,7 +2516,7 @@ fn resolve_term_for_quick_add_finds_a_pending_term_without_filtering_it_out() {
 
     // Doi chung: `entries_eligible_for_injection` LOC muc nay ra — hai ham tra loi hai cau
     // hoi khac nhau tren cung du lieu.
-    let eligible = entries_eligible_for_injection(&resolver, &store, None).expect("eligible");
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store).expect("eligible");
     assert!(
         eligible.is_empty(),
         "muc cho chot khong duoc du dieu kien chen prompt"
@@ -2161,9 +2534,8 @@ fn resolve_term_for_quick_add_trims_the_query_before_looking_up() {
     let store = open_global(&dir);
     insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
         .expect("chen muc");
-    let resolver = ScopeResolver::global_only();
 
-    let found = resolve_term_for_quick_add(&resolver, &store, None, "  慕容\t")
+    let found = resolve_term_for_quick_add(&WorkContext::new(None).unwrap(), &store, "  慕容\t")
         .expect("resolve khong loi");
     assert!(found.is_some(), "truy van co dem bien phai van khop hang da trim");
 
@@ -2461,6 +2833,45 @@ fn update_manual_term_trims_translation_and_note() {
     cleanup(&dir);
 }
 
+/// `update_manual_term` must also strip zero-width code points from `translation`/`note`, the
+/// same order `insert_manual_entry` uses -- a plain `.trim()` leaves them on disk. Counter-check:
+/// drop the `strip_zero_width` call here (keep `.trim()` alone) and this goes red on the
+/// leftover `\u{200b}`.
+#[test]
+fn update_manual_term_strips_zero_width_characters_from_translation_and_note() {
+    let dir = temp_dir("quick-add-update-strips-zero-width");
+    let store = open_global(&dir);
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        None,
+        "",
+        Category::Person,
+    )
+    .expect("them muc cho chot");
+
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("\u{200b}Mộ Dung\u{200b}"),
+        "\u{200b}ghi chu\u{200b}",
+        Category::Person,
+    )
+    .expect("sua muc");
+
+    let global = load_tier(&store).expect("nap tang global");
+    let entry = &global["慕容"];
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dung"));
+    assert_eq!(entry.note, "ghi chu");
+
+    drop(store);
+    cleanup(&dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Story 3.3 (Ice bắt, 2026-08-20) — hai bản chép của cùng một hợp đồng dây không được lệch
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -2588,7 +2999,7 @@ fn list_all_entries_includes_a_shadowed_global_row_flagged_true() {
         .expect("chen muc work");
 
     let resolver = ScopeResolver::with_work(work_scope());
-    let rows = list_all_entries(&resolver, &global_store, Some(&work_store))
+    let rows = list_all_entries(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store)
         .expect("list_all_entries khong loi voi kind hop le");
 
     assert_eq!(
@@ -2629,9 +3040,8 @@ fn list_all_entries_includes_pending_entries_unlike_entries_eligible_for_injecti
 
     insert_manual_entry(&store, "青丘", None, "", Category::Place).expect("chen muc cho chot");
 
-    let resolver = ScopeResolver::global_only();
     let rows =
-        list_all_entries(&resolver, &store, None).expect("list_all_entries khong loi voi kind hop le");
+        list_all_entries(&WorkContext::new(None).unwrap(), &store).expect("list_all_entries khong loi voi kind hop le");
 
     assert_eq!(rows.len(), 1, "muc cho chot phai co mat khi liet ke ca hai tang");
     assert!(!rows[0].1.is_confirmed(), "muc van o trang thai cho chot");
@@ -2639,7 +3049,7 @@ fn list_all_entries_includes_pending_entries_unlike_entries_eligible_for_injecti
 
     // Đối chứng: `entries_eligible_for_injection` KHÔNG trả mục này — hai hàm phục vụ hai
     // câu hỏi khác nhau (§Design Notes của Story 3.3).
-    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
         .expect("entries_eligible_for_injection khong loi voi kind hop le");
     assert!(eligible.is_empty(), "mot muc cho chot khong duoc du dieu kien chen");
 
@@ -2731,6 +3141,45 @@ fn promote_to_global_moves_an_entry_when_the_destination_is_empty() {
 
     let work = load_tier(&work_store).expect("nap lai tang work");
     assert!(!work.contains_key("青丘"), "muc phai bien khoi tang Work sau khi day thanh cong");
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// Counter-check: change `None` to `Some(occurrence_count)` (read back from the Work row) at
+/// the `insert_entry_row` call inside `promote_to_global` -- this red should fail.
+#[test]
+fn promote_to_global_always_writes_a_null_occurrence_count_even_when_the_work_row_has_a_real_count() {
+    let dir = temp_dir("promote-occurrence-count-always-null");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    let (inserted, _skipped) =
+        insert_import_scan_candidates(&work_store, &[scan_candidate("青丘", 7, "cau vi du。")])
+            .expect("ghi lo ung vien o tang Work");
+    assert_eq!(inserted, 1);
+    let candidate_id = pending_candidates(&work_store)
+        .expect("nap bang cho tang Work")
+        .into_iter()
+        .find(|c| c.source_term == "青丘")
+        .expect("ung vien vua chen phai co mat")
+        .id;
+    let entry_id = approve_candidate(&work_store, candidate_id, Some("Thanh Khâu"), Category::Place)
+        .expect("duyet ung vien o tang Work");
+    assert_eq!(
+        load_tier(&work_store).expect("nap tang work")["青丘"].occurrence_count,
+        Some(7),
+        "tien de: hang Work truoc khi day phai mang mot con so THAT, khong phai None"
+    );
+
+    promote_to_global(&global_store, &work_store, entry_id).expect("day tang phai thanh cong");
+
+    let global = load_tier(&global_store).expect("nap tang global");
+    assert_eq!(
+        global["青丘"].occurrence_count, None,
+        "hang Global sau khi day phai la NULL, du hang Work nguon mang so 7"
+    );
 
     drop(global_store);
     drop(work_store);
@@ -2909,8 +3358,10 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
     // (khong cham `glossary_entry`), cung khong anh huong menh de nay.
     // 🔵 SUA (2026-09-17, Story 4.4) -- dich chuyen tu 8 len 9: buoc 9 them bang `prompt_set`
     // (khong cham `glossary_entry`), cung khong anh huong menh de nay.
+    // Schema moved 9 -> 10 (added column + zero-width triggers on `glossary_entry`), but
+    // neither touches the index/trigger this test guards nor blocks the plain ASCII values used here.
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
-    assert_eq!(migrated.schema_version(), 9, "buoc 5, 6, 7, 8 VA 9 phai da chay");
+    assert_eq!(migrated.schema_version(), 10, "buoc 5, 6, 7, 8, 9 VA 10 phai da chay");
 
     // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
     // don lai).
@@ -2988,5 +3439,22 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
         .expect("CHECK sau di tru phai nhan 'file_import' -- gia tri thu tu");
 
     drop(migrated);
+    cleanup(&dir);
+}
+
+#[test]
+fn work_context_new_rejects_a_resolver_reporting_no_work_tier_paired_with_a_store() {
+    let dir = temp_dir("work-context-mismatch");
+    let store = open_project(&dir);
+    let resolver = ScopeResolver::global_only();
+
+    let err = WorkContext::new(Some((&resolver, &store))).err();
+    assert_eq!(
+        err,
+        Some(GlossaryError::WorkContextMismatch),
+        "mot resolver global_only() ghep voi Some(&store) phai bi tu choi"
+    );
+
+    drop(store);
     cleanup(&dir);
 }

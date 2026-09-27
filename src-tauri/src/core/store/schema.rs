@@ -563,6 +563,102 @@ BEFORE UPDATE OF translation ON glossary_entry
 WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL
 BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 
+/// Adds nullable `glossary_entry.occurrence_count` (never `NOT NULL`/`DEFAULT`: `NULL` means
+/// no count to report, for a manual/imported/Global row) plus two triggers rejecting a
+/// `source_term`/`translation`/`note` that trims to `''` once zero-width code points are
+/// also treated as trimmable. Triggers, not an in-place `CHECK` edit, because SQLite has no
+/// `ALTER ... ALTER CHECK` and an in-place edit would desync an already-migrated store.
+pub const GLOSSARY_ENTRY_OCCURRENCE_COUNT_AND_ZERO_WIDTH_GUARD_DDL: &str = "\
+ALTER TABLE glossary_entry ADD COLUMN occurrence_count INTEGER;
+CREATE TRIGGER glossary_entry_rejects_zero_width_only_text
+BEFORE INSERT ON glossary_entry
+WHEN
+  (trim(NEW.source_term, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                             || char(133) || char(160) || char(5760)
+                             || char(8192) || char(8193) || char(8194) || char(8195)
+                             || char(8196) || char(8197) || char(8198) || char(8199)
+                             || char(8200) || char(8201) || char(8202)
+                             || char(8232) || char(8233) || char(8239) || char(8287)
+                             || char(12288)) <> ''
+   AND trim(NEW.source_term, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                 || char(133) || char(160) || char(5760)
+                                 || char(8192) || char(8193) || char(8194) || char(8195)
+                                 || char(8196) || char(8197) || char(8198) || char(8199)
+                                 || char(8200) || char(8201) || char(8202)
+                                 || char(8232) || char(8233) || char(8239) || char(8287)
+                                 || char(12288) || char(8203) || char(8204) || char(8205)
+                                 || char(8288) || char(65279)) = '')
+  OR
+  (NEW.translation IS NOT NULL
+   AND trim(NEW.translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                 || char(133) || char(160) || char(5760)
+                                 || char(8192) || char(8193) || char(8194) || char(8195)
+                                 || char(8196) || char(8197) || char(8198) || char(8199)
+                                 || char(8200) || char(8201) || char(8202)
+                                 || char(8232) || char(8233) || char(8239) || char(8287)
+                                 || char(12288)) <> ''
+   AND trim(NEW.translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                 || char(133) || char(160) || char(5760)
+                                 || char(8192) || char(8193) || char(8194) || char(8195)
+                                 || char(8196) || char(8197) || char(8198) || char(8199)
+                                 || char(8200) || char(8201) || char(8202)
+                                 || char(8232) || char(8233) || char(8239) || char(8287)
+                                 || char(12288) || char(8203) || char(8204) || char(8205)
+                                 || char(8288) || char(65279)) = '')
+  OR
+  (trim(NEW.note, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                      || char(133) || char(160) || char(5760)
+                      || char(8192) || char(8193) || char(8194) || char(8195)
+                      || char(8196) || char(8197) || char(8198) || char(8199)
+                      || char(8200) || char(8201) || char(8202)
+                      || char(8232) || char(8233) || char(8239) || char(8287)
+                      || char(12288)) <> ''
+   AND trim(NEW.note, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                          || char(133) || char(160) || char(5760)
+                          || char(8192) || char(8193) || char(8194) || char(8195)
+                          || char(8196) || char(8197) || char(8198) || char(8199)
+                          || char(8200) || char(8201) || char(8202)
+                          || char(8232) || char(8233) || char(8239) || char(8287)
+                          || char(12288) || char(8203) || char(8204) || char(8205)
+                          || char(8288) || char(65279)) = '')
+BEGIN SELECT RAISE(ABORT, 'glossary entry text is zero-width only'); END;
+CREATE TRIGGER glossary_entry_update_rejects_zero_width_only_text
+BEFORE UPDATE OF translation, note ON glossary_entry
+WHEN
+  (NEW.translation IS NOT NULL
+   AND trim(NEW.translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                 || char(133) || char(160) || char(5760)
+                                 || char(8192) || char(8193) || char(8194) || char(8195)
+                                 || char(8196) || char(8197) || char(8198) || char(8199)
+                                 || char(8200) || char(8201) || char(8202)
+                                 || char(8232) || char(8233) || char(8239) || char(8287)
+                                 || char(12288)) <> ''
+   AND trim(NEW.translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                 || char(133) || char(160) || char(5760)
+                                 || char(8192) || char(8193) || char(8194) || char(8195)
+                                 || char(8196) || char(8197) || char(8198) || char(8199)
+                                 || char(8200) || char(8201) || char(8202)
+                                 || char(8232) || char(8233) || char(8239) || char(8287)
+                                 || char(12288) || char(8203) || char(8204) || char(8205)
+                                 || char(8288) || char(65279)) = '')
+  OR
+  (trim(NEW.note, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                      || char(133) || char(160) || char(5760)
+                      || char(8192) || char(8193) || char(8194) || char(8195)
+                      || char(8196) || char(8197) || char(8198) || char(8199)
+                      || char(8200) || char(8201) || char(8202)
+                      || char(8232) || char(8233) || char(8239) || char(8287)
+                      || char(12288)) <> ''
+   AND trim(NEW.note, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                          || char(133) || char(160) || char(5760)
+                          || char(8192) || char(8193) || char(8194) || char(8195)
+                          || char(8196) || char(8197) || char(8198) || char(8199)
+                          || char(8200) || char(8201) || char(8202)
+                          || char(8232) || char(8233) || char(8239) || char(8287)
+                          || char(12288) || char(8203) || char(8204) || char(8205)
+                          || char(8288) || char(65279)) = '')
+BEGIN SELECT RAISE(ABORT, 'glossary entry text is zero-width only'); END;";
+
 /// Lược đồ bảng `library_orphan` — **bước 6 của `global.db`, KHÔNG có bước song sinh ở
 /// `PROJECT_MIGRATIONS`/`LIBRARY_INDEX_MIGRATIONS`** — phán quyết Ice #1 (2026-08-27, lật
 /// §Design Notes vòng một của `5-3-quet-lai-thu-muc.md`).
@@ -626,7 +722,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Chín bước, và đích là phiên bản 9.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười bước, và đích là phiên bản 10.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -708,6 +804,10 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 9,
         sql: PROMPT_SET_DDL,
+    },
+    Migration {
+        to_version: 10,
+        sql: GLOSSARY_ENTRY_OCCURRENCE_COUNT_AND_ZERO_WIDTH_GUARD_DDL,
     },
 ];
 
@@ -1743,7 +1843,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi ba bước, và đích là phiên bản 24.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi bốn bước, và đích là phiên bản 25.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2066,6 +2166,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 24,
         sql: PROMPT_SET_DDL,
+    },
+    Migration {
+        to_version: 25,
+        sql: GLOSSARY_ENTRY_OCCURRENCE_COUNT_AND_ZERO_WIDTH_GUARD_DDL,
     },
 ];
 

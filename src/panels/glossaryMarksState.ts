@@ -29,7 +29,10 @@
  * tác RỜI RẠC — người dùng bấm Lưu, đúng một lượt — không phải một lời gọi trên đường gõ, nên
  * nó không phá bảo đảm "đúng một lượt IPC mỗi lần MỞ Chương" mà đoạn trên nói: bảo đảm đó chỉ
  * về [`ensureGlossaryMarksLoaded`]; [`refreshGlossaryMarks`] luôn được phép có nhiều chỗ gọi
- * có chủ, và nay có BA (gộp/tách · thêm nhanh · chốt lần đầu gặp), không hai.
+ * có chủ.
+ *
+ * Call site #4: `editorPanelState.ts` also calls it from a `watch(dictSourcesDisabled, …)`,
+ * since toggling a dictionary source changes what the Rust side matches against.
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'

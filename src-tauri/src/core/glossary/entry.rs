@@ -222,6 +222,10 @@ pub struct GlossaryEntry {
     pub term_origin: TermOrigin,
     /// ISO-8601 UTC, sinh ở tầng SQL.
     pub created_at: String,
+    /// Copied once from the source candidate's own count when `approve_candidate` runs,
+    /// never updated afterward. `None` for a manual/imported entry or a Global entry (one
+    /// Global row serves every Work, so a per-Work count is meaningless for it).
+    pub occurrence_count: Option<i64>,
 }
 
 impl GlossaryEntry {
@@ -292,4 +296,6 @@ pub struct GlossaryMark {
     /// `"dict_unavailable"` · `"not_requested"`). Ba lý do RỖNG của `han_viet_suggestion`
     /// phải phân biệt được trên dây; trường này là chỗ chúng phân biệt được (§I/O Matrix).
     pub han_viet_status: &'static str,
+    /// Copied from the resolved entry's [`GlossaryEntry::occurrence_count`].
+    pub occurrence_count: Option<i64>,
 }

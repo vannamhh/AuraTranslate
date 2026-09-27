@@ -73,6 +73,7 @@ fn entry(id: i64, source_term: &str, translation: Option<&str>) -> GlossaryEntry
         category: Category::Other,
         term_origin: TermOrigin::Manual,
         created_at: "2026-08-24T00:00:00.000Z".to_owned(),
+        occurrence_count: None,
     }
 }
 
@@ -248,6 +249,7 @@ fn round_trip_preserves_five_user_visible_fields_and_marks_origin_as_file_import
             category: Category::Person,
             term_origin: TermOrigin::Manual,
             created_at: "2026-08-01T12:00:00.000Z".to_owned(),
+            occurrence_count: None,
         },
     );
     tier.insert("plain".to_owned(), entry(2, "plain", None));

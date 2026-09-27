@@ -289,8 +289,8 @@ pub mod surnames;
 
 pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 pub use candidate_store::{
-    approve_candidate, insert_candidate, insert_import_scan_candidates, pending_candidates,
-    reject_candidate,
+    approve_candidate, candidate_chapter_span_counts, insert_candidate,
+    insert_import_scan_candidates, pending_candidates, reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 pub use exchange::{
@@ -305,10 +305,10 @@ pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_cand
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, SuppressedByPendingOverlap,
-    add_manual_term, classify_import_rows, confirm_pending_translation, confirm_translation,
-    confirmed_terms_for_injection, delete_manual_term, entries_eligible_for_injection,
-    export_tier, import_into_tier, insert_manual_entry, list_all_entries, load_tier,
-    marks_for_source_text, match_lang_for_source_lang, promote_to_global,
-    resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
+    WorkContext, add_manual_term, classify_import_rows, confirm_pending_translation,
+    confirm_translation, confirmed_terms_for_injection, delete_manual_term,
+    entries_eligible_for_injection, export_tier, import_into_tier, insert_manual_entry,
+    list_all_entries, load_tier, marks_for_source_text, match_lang_for_source_lang,
+    promote_to_global, resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

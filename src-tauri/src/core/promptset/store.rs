@@ -615,9 +615,8 @@ impl From<PromptSetError> for IpcError {
             // `core::glossary` (`MessageKey::ImportTooLarge`/`ImportNotUtf8`/`IoReadFailed`):
             // câu đúng là câu chung, không câu riêng của domain này — cùng lý lẽ Glossary đã
             // ghi tại chỗ nó mượn ba khoá này (`core/glossary/store.rs`).
-            PromptSetError::ImportFileTooLarge { size, limit } => {
+            PromptSetError::ImportFileTooLarge { size: _, limit } => {
                 let mut params = BTreeMap::new();
-                params.insert("size".to_owned(), size.to_string());
                 params.insert("limit".to_owned(), limit.to_string());
                 IpcError::new("prompt_set.import_file_too_large", MessageKey::ImportTooLarge, params, false)
             }

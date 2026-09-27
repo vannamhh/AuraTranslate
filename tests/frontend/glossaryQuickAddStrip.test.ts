@@ -111,7 +111,12 @@ describe('dải "Thêm thuật ngữ" — lượt tra TRƯỢT phải nói LÝ D
     // "rỗng im lặng" mà story viện dẫn ba lần.
     const alert = wrapper.find('.gqa-status.gqa-error')
     expect(alert.exists()).toBe(true)
-    expect(alert.text()).toBe(i18n.tError(SCOPE_ERROR))
+    // Literal string copied from `src/i18n/vi.json` (`err.glossary.scope_error`), not a
+    // second call to `tError(...)` — comparing two `tError` calls would stay green even if
+    // the key vanished from `vi.json`.
+    expect(alert.text()).toBe(
+      'Có lỗi khi phân giải phạm vi dữ liệu Glossary — lỗi của ứng dụng, không phải một lượt nhập dữ liệu sai.',
+    )
     expect(alert.attributes('role')).toBe('alert')
 
     // Và dòng "đang kiểm tra" KHÔNG được đứng cùng lúc — một lượt tra đã trượt thì nó
@@ -138,7 +143,7 @@ describe('dải "Thêm thuật ngữ" — lượt tra TRƯỢT phải nói LÝ D
   })
 
   it('lỗi lượt GHI đứng TRÊN lỗi lượt TRA — tin mới hơn thắng', async () => {
-    const { state, i18n, GlossaryQuickAdd } = await freshStrip()
+    const { state, GlossaryQuickAdd } = await freshStrip()
     lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
     addMock.mockResolvedValue({ value: null, error: WORK_TIER_ERROR })
 
@@ -153,7 +158,10 @@ describe('dải "Thêm thuật ngữ" — lượt tra TRƯỢT phải nói LÝ D
     // Dải ở lại MỞ kèm lỗi (AC: lỗi phải đọc được, không rỗng im lặng) — và câu hiện ra là
     // câu của lượt ghi vừa trượt.
     expect(state.quickAddIsOpen.value).toBe(true)
-    expect(wrapper.find('.gqa-status.gqa-error').text()).toBe(i18n.tError(WORK_TIER_ERROR))
+    // Literal string, same reason as above (`err.glossary.work_tier_unavailable`).
+    expect(wrapper.find('.gqa-status.gqa-error').text()).toBe(
+      'Chưa có Tác phẩm nào đang mở, nên không lưu được vào tầng Tác phẩm. Chọn tầng Toàn cục, hoặc mở một Tác phẩm trước.',
+    )
 
     wrapper.unmount()
   })
@@ -320,6 +328,79 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     const workTierAfter = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="work"]')
     expect(workTierAfter.element.checked).toBe(true)
     expect(workTierAfter.attributes('disabled')).toBeDefined() // mục ⑰ — vẫn khoá đúng.
+
+    wrapper.unmount()
+  })
+
+  it('chốt tự chuyển sang tầng Tác phẩm chỉ chạy MỘT LẦN: người dùng chuyển lại "global", một lượt tra SAU vẫn báo workTierAvailable true KHÔNG được đè tierChoice trở lại tầng Tác phẩm', async () => {
+    // Counter-check: removing the `workTierDefaultApplied` latch (so every `workTierAvailable:
+    // true` result re-sets `tierChoice.value = 'work'`) turns this red on the `tierChoice` value.
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+
+    // Chốt tự chuyển đã chạy đúng một lần — tierChoice đang là 'work'.
+    expect(state.quickAddTierChoice.value).toBe('work')
+
+    // User manually switches back to 'global' -- through the real `onTierChange` path, not by
+    // forcing internal state.
+    const globalTier = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="global"]')
+    await globalTier.setValue(true)
+    expect(state.quickAddTierChoice.value).toBe('global')
+
+    // Editing the source field fires a new lookup that still reports `workTierAvailable: true`
+    // (same Work still open); the latch is spent, so this second lookup must not touch 'global'.
+    const sourceInput = wrapper.find<HTMLInputElement>('input.gqa-input')
+    await sourceInput.setValue('新')
+    await settle(wrapper)
+
+    expect(state.quickAddTierChoice.value).toBe('global')
+    const globalTierAfter = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="global"]')
+    expect(globalTierAfter.element.checked).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('một lượt CHỌN TAY trước khi lượt tra ĐẦU TIÊN về không bị chốt tự chuyển ghi đè', async () => {
+    // Counter-check: route `onTierChange` back through a direct `quickAddTierChoice.value =`
+    // write (drop the call through `setQuickAddTierChoice`, so `workTierDefaultApplied` never
+    // latches) and this goes red -- the resolved lookup below stomps 'global' back to 'work'.
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    let resolveLookup: (value: { found: 'none'; workTierAvailable: boolean }) => void = () => {}
+    lookupMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveLookup = resolve
+      }),
+    )
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await wrapper.vm.$nextTick()
+
+    // Lượt tra ĐẦU TIÊN vẫn đang bay (`workTierAvailable` chưa biết, radio "work" chưa
+    // `:disabled`). Người dùng đổi sang "work" RỒI đổi lại "global" -- hai lượt chuyển THẬT
+    // qua ĐÚNG đường `onTierChange`, không chỉ set lại giá trị đã chọn (một cú nhấp trên radio
+    // đã `checked` không phát `change` thật ở trình duyệt, cũng như ở đây).
+    const workTier = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="work"]')
+    await workTier.setValue(true)
+    expect(state.quickAddTierChoice.value).toBe('work')
+
+    const globalTier = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="global"]')
+    await globalTier.setValue(true)
+    expect(state.quickAddTierChoice.value).toBe('global')
+
+    // Lượt tra về BÁO CÓ tầng Tác phẩm -- chốt tự chuyển (nếu còn mở) sẽ đổi sang 'work'.
+    resolveLookup({ found: 'none', workTierAvailable: true })
+    await settle(wrapper)
+
+    // Mệnh đề trung tâm: lựa chọn tay đứng TRƯỚC lượt tra vẫn phải thắng -- chốt tự chuyển chỉ
+    // được chạy khi CHƯA có lựa chọn tay nào, và một `setQuickAddTierChoice` đã latch nó rồi.
+    expect(state.quickAddTierChoice.value).toBe('global')
+    const globalTierAfter = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="global"]')
+    expect(globalTierAfter.element.checked).toBe(true)
 
     wrapper.unmount()
   })

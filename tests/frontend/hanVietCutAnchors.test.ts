@@ -50,6 +50,7 @@ function term(start: number, end: number, isConfirmed = true, translation: strin
     tier: 'global',
     hanVietSuggestion: null,
     hanVietStatus: 'not_requested',
+    occurrenceCount: null,
   }
 }
 

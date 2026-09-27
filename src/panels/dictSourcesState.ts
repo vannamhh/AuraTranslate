@@ -61,6 +61,10 @@ export function sourceIsDisabled(code: string): boolean {
   return disabled.value.has(code)
 }
 
+/** `editorPanelState.ts` watches this to refresh Glossary marks after a source toggle; the
+ * wiring lives there, not here, to avoid an import cycle. */
+export const dictSourcesDisabled: DeepReadonly<Ref<ReadonlySet<string>>> = readonly(disabled)
+
 /**
  * Nguồn `src` có phục vụ đường `route` không — **hàm THUẦN, xuất được, test được**.
  *

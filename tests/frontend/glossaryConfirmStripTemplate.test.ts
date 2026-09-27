@@ -59,6 +59,7 @@ function pendingMarkWire(overrides: Record<string, unknown> = {}) {
     // Story 3.6, không canh đề xuất Hán Việt (canh riêng ở `glossaryConfirmStripSuggestion.test.ts`).
     han_viet_suggestion: null,
     han_viet_status: 'not_requested',
+    occurrence_count: null,
     ...overrides,
   }
 }
@@ -219,7 +220,7 @@ describe('`<fieldset>` bị vô hiệu lúc đang lưu, nhánh lỗi render đú
   })
 
   it('lượt ghi TRƯỢT ⇒ nhánh `.gcs-error` render đúng câu `tError()`', async () => {
-    const { state, marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
+    const { state, marksState, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
     const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
     segments.value = segs
     const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
@@ -240,7 +241,9 @@ describe('`<fieldset>` bị vô hiệu lúc đang lưu, nhánh lỗi render đú
 
     const alert = wrapper.find('.gcs-status.gcs-error')
     expect(alert.exists()).toBe(true)
-    expect(alert.text()).toBe(i18n.tError(err))
+    // Literal string, not a second `tError(...)` call — `params: {}` above carries no
+    // `store`, so `{store}` stays un-interpolated (same convention as `aiTranslate.test.ts`).
+    expect(alert.text()).toBe('Không ghi được vào kho dữ liệu {store} — thay đổi vừa rồi chưa được lưu.')
     expect(alert.attributes('role')).toBe('alert')
     // Ô nhập phải nối `aria-describedby` tới đúng đoạn đang hiện.
     expect(wrapper.find('.gcs-input').attributes('aria-describedby')).toBe('gcs-status-msg')
@@ -307,6 +310,53 @@ describe('`@submit`/`@keydown.esc` phát ĐÚNG `dispatch`', () => {
     await wrapper.find('.gcs-act:not(.gcs-act-primary)').trigger('click')
 
     expect(dispatchMock).toHaveBeenCalledWith('glossary.confirm.defer')
+    wrapper.unmount()
+  })
+})
+
+describe('`.gcs-occurrence` — chỉ hiện khi `occurrence_count` KHÔNG `null`', () => {
+  it('mục sinh từ một ứng viên (occurrence_count là một số) ⇒ `.gcs-occurrence` hiện đúng số đó', async () => {
+    // Counter-check: removing `v-if="confirmStripOccurrenceCount !== null"` from
+    // GlossaryConfirmStrip.vue turns the "manual entry" case below red (span shows even when null).
+    const { marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
+    const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
+    segments.value = segs
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'glossary_marks_for_chapter') {
+        return Promise.resolve([pendingMarkWire({ occurrence_count: 12 })])
+      }
+      return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
+    })
+    await marksState.ensureGlossaryMarksLoaded(1, segs, 'zh')
+    caretSegmentId.value = 1
+
+    const wrapper = mount(GlossaryConfirmStrip)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.gcs-occurrence').exists()).toBe(true)
+    expect(wrapper.get('.gcs-occurrence').text()).toBe(
+      i18n.t('glossary.confirm.occurrence_count_label', { count: '12' }),
+    )
+    wrapper.unmount()
+  })
+
+  it('mục nhập tay/nhập CSV (occurrence_count là `null`) ⇒ `.gcs-occurrence` KHÔNG hiện, không phải "0" giả', async () => {
+    const { marksState, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
+    const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
+    segments.value = segs
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'glossary_marks_for_chapter') {
+        return Promise.resolve([pendingMarkWire({ occurrence_count: null })])
+      }
+      return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
+    })
+    await marksState.ensureGlossaryMarksLoaded(1, segs, 'zh')
+    caretSegmentId.value = 1
+
+    const wrapper = mount(GlossaryConfirmStrip)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.gcs-occurrence').exists()).toBe(false)
     wrapper.unmount()
   })
 })

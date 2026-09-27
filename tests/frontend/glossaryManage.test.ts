@@ -81,6 +81,7 @@ function entry(over: Partial<GlossaryEntry> = {}): GlossaryEntry {
     term_origin: 'manual',
     created_at: '2026-08-24T00:00:00.000Z',
     is_shadowed: false,
+    occurrence_count: null,
     ...over,
   }
 }
@@ -217,6 +218,130 @@ describe('Tìm và ba bộ lọc — chạy TRONG BỘ NHỚ, 0 lượt IPC', ()
     setGlossaryManageConfirmedFilter('confirmed')
 
     expect(manageFilteredRows.value.map((r) => r.id)).toEqual([1])
+  })
+})
+
+describe('setGlossaryManageSortByFrequency — sắp theo `occurrence_count` GIẢM DẦN, `null` LUÔN xuống cuối', () => {
+  it('bật sắp ⇒ sắp lại đúng thứ tự tần suất, `null` xuống cuối, KHÔNG một lượt IPC nào', async () => {
+    // Counter-check: removing the sort step from `manageFilteredRows` (keeping `filtered` only
+    // when `sortByFrequencyState.value` is on) turns this red on the `map(r => r.id)` order.
+    const { openGlossaryManage, setGlossaryManageSortByFrequency, manageFilteredRows } = await freshState()
+    listMock.mockResolvedValue({
+      entries: [
+        entry({ id: 1, source_term: 'A', occurrence_count: 5 }),
+        entry({ id: 2, source_term: 'B', occurrence_count: null }),
+        entry({ id: 3, source_term: 'C', occurrence_count: 20 }),
+        entry({ id: 4, source_term: 'D', occurrence_count: 0 }),
+      ],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+    listMock.mockClear()
+
+    // Trước khi bật: thứ tự backend trả nguyên vẹn (KHÔNG tự sắp).
+    expect(manageFilteredRows.value.map((r) => r.id)).toEqual([1, 2, 3, 4])
+
+    setGlossaryManageSortByFrequency(true)
+
+    expect(manageFilteredRows.value.map((r) => r.id)).toEqual([3, 1, 4, 2]) // 20, 5, 0, null(cuối)
+    expect(listMock).not.toHaveBeenCalled() // 0 round-trip IPC — sắp chạy trong bộ nhớ.
+
+    setGlossaryManageSortByFrequency(false)
+    expect(manageFilteredRows.value.map((r) => r.id)).toEqual([1, 2, 3, 4]) // trả lại thứ tự backend.
+  })
+
+  it('hai hàng CÙNG `null` giữ nguyên thứ tự tương đối với nhau (sắp ỔN ĐỊNH)', async () => {
+    const { openGlossaryManage, setGlossaryManageSortByFrequency, manageFilteredRows } = await freshState()
+    listMock.mockResolvedValue({
+      entries: [
+        entry({ id: 1, source_term: 'A', occurrence_count: null }),
+        entry({ id: 2, source_term: 'B', occurrence_count: 3 }),
+        entry({ id: 3, source_term: 'C', occurrence_count: null }),
+      ],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    setGlossaryManageSortByFrequency(true)
+
+    expect(manageFilteredRows.value.map((r) => r.id)).toEqual([2, 1, 3]) // 3, rồi hai null GIỮ thứ tự cũ (1 trước 3).
+  })
+
+  it('KHÔNG đang Sửa ⇒ con trỏ đi THEO đúng hàng (bằng source_term), không tụt về hàng đầu', async () => {
+    // Counter-check: restore the old unconditional `cursor.value = 0` branch for the
+    // not-editing case and this goes red -- the cursor lands on 'C' (index 0 post-sort)
+    // instead of following 'D'.
+    const { openGlossaryManage, setGlossaryManageSortByFrequency, nextGlossaryManageRow, manageCursor, manageCurrentRow } =
+      await freshState()
+    listMock.mockResolvedValue({
+      entries: [
+        entry({ id: 1, source_term: 'A', occurrence_count: 5 }),
+        entry({ id: 2, source_term: 'B', occurrence_count: null }),
+        entry({ id: 3, source_term: 'C', occurrence_count: 20 }),
+        entry({ id: 4, source_term: 'D', occurrence_count: 0 }),
+      ],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    // Đứng ở hàng 'D' (chỉ số 3 trong thứ tự backend), KHÔNG đang Sửa.
+    nextGlossaryManageRow()
+    nextGlossaryManageRow()
+    nextGlossaryManageRow()
+    expect(manageCurrentRow.value?.source_term).toBe('D')
+
+    setGlossaryManageSortByFrequency(true)
+
+    // Thứ tự sau khi sắp: C(20), A(5), D(0), B(null) -- 'D' rơi vào chỉ số 2, không phải 0.
+    expect(manageCurrentRow.value?.source_term).toBe('D')
+    expect(manageCursor.value).toBe(2)
+  })
+})
+
+describe('Tìm/bộ lọc BỊ CHẶN trong lúc đang Sửa', () => {
+  it('🔴 all four setters no-op while `manageEditing` is true -- guarded at STATE level, not just `:disabled` on the control', async () => {
+    // Counter-check: removing `if (isEditingBlocked()) return` from just one of the four
+    // functions turns only that one red, proving the other three don't cover for it.
+    const {
+      openGlossaryManage,
+      beginGlossaryManageEdit,
+      setGlossaryManageSearch,
+      setGlossaryManageCategoryFilter,
+      setGlossaryManageOriginFilter,
+      setGlossaryManageConfirmedFilter,
+      manageEditing,
+      manageSearchQuery,
+      manageCategoryFilter,
+      manageOriginFilter,
+      manageConfirmedFilter,
+    } = await freshState()
+    listMock.mockResolvedValue({
+      entries: [entry({ id: 1, category: 'person', term_origin: 'manual', translation: 'A' })],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    beginGlossaryManageEdit()
+    expect(manageEditing.value).toBe(true)
+
+    setGlossaryManageSearch('khâu')
+    expect(manageSearchQuery.value).toBe('')
+    expect(manageEditing.value).toBe(true) // KHÔNG bị `discardOpenEdit()` chạm tới.
+
+    setGlossaryManageCategoryFilter('place')
+    expect(manageCategoryFilter.value).toBe('all')
+
+    setGlossaryManageOriginFilter('import_scan')
+    expect(manageOriginFilter.value).toBe('all')
+
+    setGlossaryManageConfirmedFilter('pending')
+    expect(manageConfirmedFilter.value).toBe('all')
+
+    expect(manageEditing.value).toBe(true) // vẫn còn đang Sửa sau cả bốn lượt bấm.
   })
 })
 
@@ -1158,6 +1283,51 @@ describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con
 
     // Mệnh đề TRUNG TÂM: tiêu điểm KHÔNG bị cướp về `<ul>` hay `panel` -- nó vẫn ở ô tìm.
     expect(document.activeElement).toBe(searchInput)
+
+    wrapper.unmount()
+  })
+})
+
+describe('GlossaryManageOverlay.vue — cột "Dùng" (`.gm-count`)', () => {
+  async function freshOverlay(deps: Partial<CommandDeps> = {}) {
+    vi.resetModules()
+    listMock.mockReset()
+    deleteMock.mockReset()
+    promoteMock.mockReset()
+    updateMock.mockReset()
+    lookupMock.mockReset()
+    refreshMarksMock.mockReset()
+    fakeChapterId.value = 42
+    fakeSegments.value = [{ id: 1 }]
+    fakeSourceChapter.value = { chapter_id: 42, source_lang: 'zh' }
+
+    const commands = await import('../../src/commands')
+    commands.installCommands(deps as CommandDeps)
+
+    const state = await import('../../src/glossaryManageState')
+    const GlossaryManageOverlay = (await import('../../src/GlossaryManageOverlay.vue')).default
+    return { state, GlossaryManageOverlay }
+  }
+
+  it('mục đã duyệt (occurrence_count là một số) hiện đúng số đó, mục nhập tay (`null`) hiện "—" — cùng hàng một danh sách', async () => {
+    // Counter-check: changing `row.occurrence_count === null ? '—' : row.occurrence_count` in
+    // GlossaryManageOverlay.vue to always show the raw value turns this red on the manual entry's cell.
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({
+      entries: [
+        entry({ id: 1, source_term: '慕容', occurrence_count: 42 }),
+        entry({ id: 2, source_term: '青丘', occurrence_count: null }),
+      ],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const counts = wrapper.findAll('.gm-count').map((c) => c.text())
+    expect(counts).toEqual(['42', '—'])
 
     wrapper.unmount()
   })

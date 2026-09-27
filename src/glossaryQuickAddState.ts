@@ -93,6 +93,11 @@ const saveError = ref<IpcError | null>(null)
  * đè lên một lượt SAU nó đã về nhanh hơn (đua round-trip IPC). */
 let sequence = 0
 
+/** Latches once per open session: the first lookup reporting `workTierAvailable: true` sets
+ * `tierChoice` to `'work'`, and no lookup after that touches it again — so a later `true`
+ * can't stomp a choice the user already made. */
+let workTierDefaultApplied = false
+
 /** Phần tử đang giữ tiêu điểm NGAY TRƯỚC khi dải mở — trả lại khi đóng (Esc hoặc sau Lưu). */
 let savedFocusEl: HTMLElement | null = null
 /** Vùng chọn NGAY TRƯỚC khi dải mở — trả lại khi đóng, cùng lúc với tiêu điểm. */
@@ -107,6 +112,17 @@ export const quickAddTranslation: Ref<string> = translation
 export const quickAddNote: Ref<string> = note
 export const quickAddCategory: Ref<GlossaryCategory> = category
 export const quickAddTierChoice: Ref<GlossaryTierWire> = tierChoice
+
+/**
+ * A manual tier pick in THÊM mode goes through this, not a direct `.value =` write — it also
+ * latches `workTierDefaultApplied`, so a pick made before the first lookup resolves can't be
+ * stomped by the Work default once that lookup comes back (`scheduleQuickAddLookup` checks the
+ * same latch).
+ */
+export function setQuickAddTierChoice(tier: GlossaryTierWire): void {
+  tierChoice.value = tier
+  workTierDefaultApplied = true
+}
 export const quickAddLookup: DeepReadonly<Ref<GlossaryLookupResult | null>> = readonly(lookup)
 export const quickAddSaving: DeepReadonly<Ref<boolean>> = readonly(saving)
 export const quickAddSaveError: DeepReadonly<Ref<IpcError | null>> = readonly(saveError)
@@ -199,6 +215,13 @@ function scheduleQuickAddLookup(term: string): void {
   void lookupGlossaryTerm(term).then((result) => {
     if (mySequence !== sequence) return // bị một lượt SAU vượt mặt — bỏ, không ghi đè.
     lookup.value = result
+
+    // See doc-comment on `workTierDefaultApplied`. `'unknown'` isn't a real answer to latch on.
+    if (!workTierDefaultApplied && result.found !== 'unknown' && result.workTierAvailable) {
+      workTierDefaultApplied = true
+      tierChoice.value = 'work'
+    }
+
     if (result.found === 'entry') {
       translation.value = result.entry.translation ?? ''
       note.value = result.entry.note
@@ -247,6 +270,7 @@ export function openGlossaryQuickAdd(initialSourceTerm: string): void {
   note.value = ''
   category.value = 'person'
   tierChoice.value = 'global'
+  workTierDefaultApplied = false
   saveError.value = null
   saving.value = false
 
@@ -379,6 +403,7 @@ export function resetGlossaryQuickAdd(): void {
   note.value = ''
   category.value = 'person'
   tierChoice.value = 'global'
+  workTierDefaultApplied = false
   lookup.value = null
   saving.value = false
   saveError.value = null
