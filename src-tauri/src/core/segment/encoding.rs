@@ -207,14 +207,15 @@ pub fn detect(bytes: &[u8]) -> EncodingVerdict {
         if guess_index.is_some() && all_same { Confidence::HighGuess } else { Confidence::LowGuess };
 
     let encoding = match guess_index {
-        // Đoán rơi trong FR126 — chọn nó, DÙ tin cậy cao hay thấp (ca "GBK/GB18030 hiện
-        // chữ y hệt": vẫn chọn GBK, dải vẫn mở nếu Big5 khác chuỗi).
-        Some(i) => FR126_CANDIDATE_ENCODINGS[i],
-        // Đoán ngoài năm bảng (Shift_JIS/EUC-KR/windows-1252/…) ⇒ rơi về ứng viên GIẢI MÃ
-        // ĐƯỢC đầu tiên theo thứ tự FR126 (hàng ma trận I/O Matrix "chardetng đoán ngoài
-        // năm bảng"). Không ứng viên nào giải mã được ⇒ UTF-8 (mọi bảng đều thất bại,
-        // không có gì hợp lý hơn để chọn mặc định).
-        None => decodable.first().map(|&i| FR126_CANDIDATE_ENCODINGS[i]).unwrap_or(UTF_8),
+        // Đoán rơi trong FR126 VÀ bảng đó giải mã được cửa sổ bằng chứng — chọn nó, DÙ tin
+        // cậy cao hay thấp (ca "GBK/GB18030 hiện chữ y hệt": vẫn chọn GBK, dải vẫn mở nếu
+        // Big5 khác chuỗi).
+        Some(i) if decodable.contains(&i) => FR126_CANDIDATE_ENCODINGS[i],
+        // Đoán ngoài năm bảng, hoặc đoán TRONG FR126 nhưng bảng đó tự nó không giải mã được
+        // cửa sổ bằng chứng ⇒ rơi về ứng viên GIẢI MÃ ĐƯỢC đầu tiên theo thứ tự FR126. Không
+        // ứng viên nào giải mã được ⇒ UTF-8 (mọi bảng đều thất bại, không có gì hợp lý hơn
+        // để chọn mặc định).
+        _ => decodable.first().map(|&i| FR126_CANDIDATE_ENCODINGS[i]).unwrap_or(UTF_8),
     };
 
     EncodingVerdict { encoding, confidence }
@@ -277,31 +278,98 @@ pub struct EncodingCandidate {
 /// `bytes`. Đây KHÔNG phải một lời gọi IPC thứ hai: `source_lang` đã có sẵn ở tầng frontend
 /// TRƯỚC khi màn xem trước mở (`sourceLang` của form nhập), chỉ là trước story này chưa có
 /// chỗ nào cần nó ở đây.
-pub fn render_candidates(bytes: &[u8], source_lang: &str) -> Vec<EncodingCandidate> {
+///
+/// `extract_main_content`/`url_label`: `true` trên đường URL — `normalized`/`pipeline_window`
+/// của MỖI ứng viên khi đó chạy [`crate::core::webimport::extract`] trên TOÀN VĂN `bytes` đã
+/// giải mã dưới CHÍNH ứng viên đó (không phải `window` 4 KiB: trang chắn/điều hướng thường
+/// chiếm hết 4 KiB đầu, văn bản chính chỉ bắt đầu sau đó), rồi chuẩn hoá + cắt cửa sổ hiển thị
+/// từ văn bản ĐÃ BÓC (xem [`extracted_normalized_and_window`]) — cùng cơ chế
+/// [`normalized_self_declared`]/[`pipeline_window_for_self_declared`] (văn bản THẬT trong bộ
+/// nhớ, so `len()` với [`EVIDENCE_WINDOW_BYTES`]), không phải cơ chế cắt-trước-giải-mã của
+/// nhánh `false`. Điều kiện để dây `cleanup`/`chapters` (tính từ CHÍNH `pipeline_window` này,
+/// xem `commands::project::encoding_candidate_wire`) đếm trên đúng văn bản sẽ được ghi lúc xác
+/// nhận, không phải trên phần chắn/điều hướng đã bị bóc bỏ lúc xác nhận nhưng còn nguyên ở
+/// đây. `preview` (8 ký tự cho mắt phân biệt bảng mã) không đổi ở cả hai nhánh — nó chỉ cần
+/// vài ký tự ĐẦU của cửa sổ giải mã, không cần bóc. `false` (mọi đường khác) giữ NGUYÊN cơ chế
+/// cũ, byte-for-byte.
+pub fn render_candidates(
+    bytes: &[u8],
+    source_lang: &str,
+    extract_main_content: bool,
+    url_label: &str,
+) -> Vec<EncodingCandidate> {
     let window = evidence_window(bytes);
     let five = decode_all_five(window);
     // Nguồn DÀI HƠN cửa sổ ⇒ `window` là một tiền tố CẮT NGẮN của một Chương dài hơn — bản
     // dựng chuẩn hoá của MỖI ứng viên phải bỏ dòng cuối (xem `NormalizedCandidate::window_truncated`
     // và `normalize_window`). Nguồn NGẮN HƠN HOẶC BẰNG cửa sổ ⇒ `window` LÀ toàn bộ nguồn,
-    // không có gì để mà bỏ.
+    // không có gì để mà bỏ. Chỉ có nghĩa cho nhánh `extract_main_content == false` — nhánh
+    // `true` tự tính cờ cắt riêng từ văn bản ĐÃ BÓC ([`extracted_normalized_and_window`]).
     let window_truncated = bytes.len() > EVIDENCE_WINDOW_BYTES;
 
     FR126_LABELS
         .iter()
         .zip(FR126_CANDIDATE_ENCODINGS.iter())
         .zip(five.iter())
-        .map(|((&label, &encoding), decoded)| EncodingCandidate {
-            label,
-            wire_id: encoding.name(),
-            preview: decoded.as_ref().map(|s| truncate_chars(s, PREVIEW_CHARS)),
-            normalized: decoded.as_ref().map(|full_text| {
-                normalized_candidate(full_text, source_lang, window_truncated)
-            }),
-            pipeline_window: decoded
-                .as_ref()
-                .and_then(|full_text| pipeline_window_for(full_text, window_truncated)),
+        .map(|((&label, &encoding), decoded)| {
+            let (normalized, pipeline_window) = if extract_main_content {
+                extracted_normalized_and_window(bytes, encoding, source_lang, url_label)
+            } else {
+                (
+                    decoded.as_ref().map(|full_text| {
+                        normalized_candidate(full_text, source_lang, window_truncated)
+                    }),
+                    decoded
+                        .as_ref()
+                        .and_then(|full_text| pipeline_window_for(full_text, window_truncated)),
+                )
+            };
+            EncodingCandidate {
+                label,
+                wire_id: encoding.name(),
+                preview: decoded.as_ref().map(|s| truncate_chars(s, PREVIEW_CHARS)),
+                normalized,
+                pipeline_window,
+            }
         })
         .collect()
+}
+
+/// Nhánh `extract_main_content == true` của [`render_candidates`] — giải mã TOÀN BỘ `bytes`
+/// (không phải `window`) dưới `encoding`, bóc nội dung chính, rồi chuẩn hoá + cắt cửa sổ hiển
+/// thị từ văn bản ĐÃ BÓC. `(None, None)` khi `encoding` không giải mã được TOÀN VĂN `bytes` —
+/// nghiêm ngặt như bước 1 của chuỗi thật ([`super::pipeline::decode_unit`]), KHÔNG dùng
+/// [`decode_prefix_streaming`] (hàm đó dung thứ một chuỗi multi-byte dang dở Ở CUỐI CỬA SỔ,
+/// nghĩa hẹp không áp dụng cho một lượt giải mã toàn văn) — hoặc khi bước bóc thất bại/trả
+/// rỗng (`ExtractError`), cùng khuôn dung thứ "ứng viên này không ra chữ" mà `preview`/
+/// `normalized` đã theo cho nhánh `false`.
+fn extracted_normalized_and_window(
+    bytes: &[u8],
+    encoding: &'static Encoding,
+    source_lang: &str,
+    url_label: &str,
+) -> (Option<NormalizedCandidate>, Option<String>) {
+    let Some(decoded) = encoding.decode_without_bom_handling_and_without_replacement(bytes) else {
+        return (None, None);
+    };
+    let html = strip_leading_bom(&decoded);
+    let Ok(blocks) = crate::core::webimport::extract(html, url_label) else {
+        return (None, None);
+    };
+    let effective_kept = super::pipeline::effective_kept_for_blocks(&blocks, &[]);
+    let extracted = super::pipeline::join_kept_blocks(&blocks, &effective_kept);
+    (
+        Some(normalized_from_full_text(&extracted, source_lang)),
+        pipeline_window_for_self_declared(&extracted),
+    )
+}
+
+/// Cắt `U+FEFF` ở ĐẦU `s`, nếu có — bản riêng của tệp này (`&str → &str`) cùng luật
+/// [`super::pipeline::decode_unit`]'s `strip_bom` (`String → String`):
+/// [`extracted_normalized_and_window`] chỉ cần một lát cắt để nạp vào
+/// [`crate::core::webimport::extract`], không cần một `String` sở hữu riêng.
+fn strip_leading_bom(s: &str) -> &str {
+    s.strip_prefix('\u{feff}').unwrap_or(s)
 }
 
 /// Bản dựng AN TOÀN (cửa sổ đã cắt, chưa chuẩn hoá) cho MỘT ứng viên — cùng khuôn
@@ -360,6 +428,14 @@ fn normalized_candidate(
 /// sách Chương rỗng/không mang byte).
 #[must_use]
 pub fn normalized_self_declared(text: &str, source_lang: &str) -> NormalizedCandidate {
+    normalized_from_full_text(text, source_lang)
+}
+
+/// Thân dùng CHUNG của [`normalized_self_declared`] và [`extracted_normalized_and_window`] —
+/// cả hai đều có văn bản THẬT, trọn vẹn trong bộ nhớ (không phải một `window` đã cắt trước
+/// khi giải mã), nên cùng so `text.len()` với [`EVIDENCE_WINDOW_BYTES`] rồi để
+/// [`super::normalize::normalize_window`] tự quyết cắt/không cắt.
+fn normalized_from_full_text(text: &str, source_lang: &str) -> NormalizedCandidate {
     let window_truncated = text.len() > EVIDENCE_WINDOW_BYTES;
     let normalized = super::normalize::normalize_window(text, source_lang, EVIDENCE_WINDOW_BYTES);
     NormalizedCandidate {
@@ -553,9 +629,66 @@ mod tests {
     }
 
     #[test]
+    fn a_guess_inside_fr126_that_cannot_decode_the_window_falls_back_to_a_decodable_candidate() {
+        // A long run of valid GB18030 text with one byte corrupted mid-window: chardetng's
+        // guess still lands on GB18030 (the statistical signal from the rest of the text
+        // dominates), but `decode_prefix_streaming(GB18030, window)` now fails on the
+        // corrupted byte -- the `Some(i)` branch must not blindly trust the guess.
+        let source_text = "萧炎登场".repeat(200);
+        let (encoded, _, had_errors) = GB18030.encode(&source_text);
+        assert!(!had_errors, "fixture phai ma hoa GB18030 sach truoc khi bi lam hong");
+        let mut bytes = encoded.into_owned();
+        let mid = bytes.len() / 2;
+        bytes[mid] = 0xFF;
+        let window = evidence_window(&bytes);
+
+        let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
+        detector.feed(window, false);
+        let guess = detector.guess(None, chardetng::Utf8Detection::Allow);
+        let guess_index = FR126_CANDIDATE_ENCODINGS[..4].iter().position(|&e| e == guess);
+        // GBK va GB18030 dung chung mot decoder cho dai byte nay (xem
+        // `gbk_and_gb18030_candidates_render_the_identical_string`), nen chardetng co the
+        // doan mot trong hai -- ca hai deu la ung vien HOP LE cho fixture nay.
+        assert!(
+            matches!(guess_index, Some(1) | Some(2)),
+            "fixture phai lam chardetng doan GB18030/GBK (chi so 1 hoac 2) de bai test cham \
+             dung nhanh Some(i); nhan {guess_index:?}"
+        );
+        let guessed_encoding = FR126_CANDIDATE_ENCODINGS[guess_index.unwrap()];
+        assert_eq!(
+            decode_prefix_streaming(guessed_encoding, window),
+            None,
+            "fixture phai lam chinh ung vien duoc doan khong giai ma duoc cua so nay, de bai \
+             test cham dung ca 'doan trung FR126 nhung khong ra chu'"
+        );
+
+        // Ca bon ung vien byte-don-vi dung chung mot byte da bi lam hong o vi tri `mid` --
+        // nen tap `decodable` (theo dung luat cua `detect()`) co the RONG. Ca do, luat roi-ve
+        // dung LA UTF-8 mac dinh (khong ung vien nao giai ma duoc), giong het nhanh `None`;
+        // hau dieu kien can kiem la KHONG con la ung vien da doan-nhung-khong-ra-chu.
+        let decodable: Vec<usize> = VOTING_CANDIDATE_INDICES
+            .iter()
+            .copied()
+            .filter(|&i| decode_prefix_streaming(FR126_CANDIDATE_ENCODINGS[i], window).is_some())
+            .collect();
+        let expected = decodable.first().map(|&i| FR126_CANDIDATE_ENCODINGS[i]).unwrap_or(UTF_8);
+
+        let v = detect(&bytes);
+        assert_ne!(
+            v.encoding, guessed_encoding,
+            "ung vien doan trung khong giai ma duoc cua so bang chung -- khong duoc chon"
+        );
+        assert_eq!(
+            v.encoding, expected,
+            "detect() phai roi ve dung ung vien GIAI MA DUOC dau tien theo thu tu FR126 (hoac \
+             UTF-8 khi khong ung vien nao giai ma duoc) -- cung luat voi nhanh `None`"
+        );
+    }
+
+    #[test]
     fn gbk_and_gb18030_candidates_render_the_identical_string() {
         let (gbk_bytes, _, _) = GBK.encode("萧炎登场");
-        let candidates = render_candidates(&gbk_bytes, "en");
+        let candidates = render_candidates(&gbk_bytes, "en", false, "");
         assert_eq!(candidates.len(), 5);
         assert_eq!(candidates[1].label, "GB18030");
         assert_eq!(candidates[2].label, "GBK");
@@ -567,7 +700,7 @@ mod tests {
 
     #[test]
     fn render_candidates_is_always_five_cells_in_fr126_order() {
-        let candidates = render_candidates(b"plain ascii text", "en");
+        let candidates = render_candidates(b"plain ascii text", "en", false, "");
         assert_eq!(
             candidates.iter().map(|c| c.label).collect::<Vec<_>>(),
             FR126_LABELS.to_vec()
@@ -612,7 +745,7 @@ mod tests {
         assert_eq!(decode_prefix_streaming(GBK, b"   \n\t  "), None);
         assert_eq!(decode_prefix_streaming(BIG5, b"   \n\t  "), None);
 
-        let candidates = render_candidates(b"   \n\t  ", "en");
+        let candidates = render_candidates(b"   \n\t  ", "en", false, "");
         for label in ["UTF-8", "GB18030", "GBK", "Big5"] {
             let cell = candidates.iter().find(|c| c.label == label).unwrap();
             assert_eq!(cell.preview, None, "o {label} phai la None cho input toan khoang trang");

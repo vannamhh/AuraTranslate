@@ -308,8 +308,12 @@ const CMD_RESCAN = 'library_rescan'
 const CMD_CHOOSE_ROOT = 'library_choose_root'
 const CMD_FORGET_ORPHAN = 'library_forget_orphan'
 const CMD_LIST_WORKS = 'library_list_works'
+/** Lệnh ĐỌC THUẦN — không tham số, không gọi
+ * `Indexer::rebuild` — cho danh sách mồ côi hiện có trong `library-index.db`, KHÔNG cần một
+ * lượt Quét lại. */
+const CMD_LIST_ORPHANS = 'library_list_orphans'
 /** 🔵 **THÊM Story 5.7.** Khớp `commands::project::wire::open_work`, KHÔNG `commands::library::*`
- * — lệnh này sống ở `commands/project.rs` vì nó ghi vào `OpenWorkState`. */
+ * — lệnh này sống ở `commands/project/mod.rs` vì nó ghi vào `OpenWorkState`. */
 const CMD_OPEN_WORK = 'open_work'
 /** 🔵 **THÊM Story 5.9.** Khớp `commands::library::wire::library_search`. */
 const CMD_SEARCH = 'library_search'
@@ -430,6 +434,26 @@ export async function forgetLibraryOrphan(workId: string, name: string): Promise
       return { orphans: null, error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[library] không gọi được \`${CMD_FORGET_ORPHAN}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { orphans: null, error: null }
+  }
+}
+
+/**
+ * Danh sách mồ côi HIỆN CÓ trong chỉ mục, không quét
+ * lại thư mục gốc — lệnh `library_list_orphans`. Cùng hình dạng ba trạng thái
+ * [`ForgetOrphanResult`] (một `SELECT`, không `RescanReport`).
+ */
+export async function listOrphans(): Promise<ForgetOrphanResult> {
+  try {
+    const orphans = await invoke<OrphanEntry[]>(CMD_LIST_ORPHANS)
+    return { orphans, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { orphans: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_LIST_ORPHANS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { orphans: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_LIST_ORPHANS}\` — chạy ngoài Tauri? ${String(err)}`)
     return { orphans: null, error: null }
   }
 }

@@ -253,21 +253,22 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     //    van chi la NEO.
     // Steps 23 -> 24, target 24 -> 25 (occurrence_count + zero-width triggers, same row as
     // global.db step 10). The two numbers below are just anchors.
+    // Steps 24 -> 25, target 25 -> 26 (work.last_chapter_id).
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        24,
-        "`PROJECT_MIGRATIONS` phai co hai muoi bon buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        25,
+        "`PROJECT_MIGRATIONS` phai co hai muoi lam buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
          5.13, 19 cua Story 6.5, 20 cua Story 6.11, 21 cua Story 6.13, 22 cua Story 6.15, 23 \
-         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4"
+         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id"
     );
     assert_eq!(
         opened.store.schema_version(),
-        25,
-        "mot `project.db` moi phai dung o phien ban 25 (so 4 da chay, Story 11.4 them \
-         occurrence_count + trigger ky-tu-an)"
+        26,
+        "mot `project.db` moi phai dung o phien ban 26 (so 4 da chay, buoc 26 them \
+         work.last_chapter_id)"
     );
 
     let has_table: i64 = opened

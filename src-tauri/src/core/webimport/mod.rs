@@ -19,7 +19,7 @@
 //! story này module chỉ có doc-comment, 0 dòng mã. Xem `fetcher.rs`/`extractor.rs`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! TASK 0 — ĐO TRƯỚC KHI VIẾT: `reqwest::blocking` SỐNG ĐƯỢC trong `sync_threadpool`
+//! TASK 0 — ĐO TRƯỚC KHI VIẾT: `reqwest::blocking` SỐNG ĐƯỢC trong `tauri::async_runtime::spawn_blocking`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! **Đo 2026-09-06.** Hai phần bằng chứng, không chỉ một:
 //!
@@ -32,15 +32,20 @@
 //!    context Tokio khác — không có "runtime lồng runtime" để mà panic.
 //! 2. **Đo thật, không chỉ đọc nguồn:** một `#[test]` (không phải `#[tokio::test]`) gọi
 //!    `tauri::async_runtime::spawn_blocking(|| reqwest::blocking::Client::…get(url).send())`
-//!    rồi `tauri::async_runtime::block_on(join)` — ĐÚNG cơ chế mà `#[tauri::command(async)]`
-//!    trên một hàm ĐỒNG BỘ dùng để đẩy thân hàm ra khỏi luồng chính (17 tiền lệ đã có,
-//!    `library.rs:640`). Server cục bộ `TcpListener::bind("127.0.0.1:0")`. Kết quả: **3/3
-//!    lượt chạy — `status=200`, không panic, không treo** (lượt đầu tiên trong phiên đo gặp
-//!    một lần `TimedOut` cô lập, không tái lập ở hai lượt sau lẫn một ca đối chứng chạy
-//!    TRỰC TIẾP không qua Tauri cùng thời điểm — đọc như nhiễu hạ tầng một lần của máy đo,
-//!    không phải một hành vi của cơ chế `spawn_blocking`/`reqwest::blocking`).
+//!    rồi `tauri::async_runtime::block_on(join)` — KHÁC cơ chế mà `#[tauri::command(async)]`
+//!    trên một hàm ĐỒNG BỘ dùng để đẩy thân hàm ra khỏi luồng chính (đó là
+//!    `async_runtime::spawn` trên runtime tokio đa luồng, không phải `spawn_blocking`; xem
+//!    `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` cho số vỏ hiện
+//!    hành). Phép đo ở đây riêng trả lời câu hỏi *"`reqwest::blocking` có sống được bên
+//!    trong `spawn_blocking` không"*, không nói về vỏ `#[tauri::command(async)]`. Server cục
+//!    bộ `TcpListener::bind("127.0.0.1:0")`. Kết quả: **3/3 lượt chạy — `status=200`, không
+//!    panic, không treo** (lượt đầu tiên trong phiên đo gặp một lần `TimedOut` cô lập, không
+//!    tái lập ở hai lượt sau lẫn một ca đối chứng chạy TRỰC TIẾP không qua Tauri cùng thời
+//!    điểm — đọc như nhiễu hạ tầng một lần của máy đo, không phải một hành vi của cơ chế
+//!    `spawn_blocking`/`reqwest::blocking`).
 //!
-//! ⇒ **KHÔNG DỪNG.** `reqwest::blocking` sống được trong `sync_threadpool` của Tauri.
+//! ⇒ **KHÔNG DỪNG.** `reqwest::blocking` sống được khi gọi bên trong
+//! `tauri::async_runtime::spawn_blocking`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! TASK 1 — xem doc-comment đầu `extractor.rs` (`TextMode::Formatted` giữ ranh giới đoạn).

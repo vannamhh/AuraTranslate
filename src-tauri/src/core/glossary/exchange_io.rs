@@ -112,7 +112,7 @@ pub fn read_import_file(path: &Path) -> Result<String, GlossaryError> {
 /// `pid` một mình không đủ — HAI lượt xuất trong CÙNG một tiến trình (hai lần bấm Xuất)
 /// chia nhau cùng pid. Một `AtomicU64` một mình cũng không đủ — nó chết theo tiến trình,
 /// nên một lượt xuất của phiên TRƯỚC để lại `.tmp` mồ côi vẫn va với phiên SAU. `uuid` đã có
-/// sẵn trong `Cargo.toml` (`=1.24.0`, feature `v4`) và đã dùng ở `commands/project.rs:24` —
+/// sẵn trong `Cargo.toml` (`=1.24.0`, feature `v4`) và đã dùng ở `commands/project/work_creation.rs` —
 /// dùng lại nó tốn ĐÚNG một dòng `use`, KHÔNG phải một phụ thuộc mới (NFR15).
 pub fn write_export_file(path: &Path, contents: &str) -> Result<(), GlossaryError> {
     let path_str = path.display().to_string();

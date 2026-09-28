@@ -1054,7 +1054,7 @@ fn the_written_rule_and_the_enforced_exemption_list_name_the_same_eight_things()
 fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
     let seeded_nine = "Exactly eight exemptions, all naming the STORE: `.atproj` · `project.db` · \
                         `StoreKind::Project` · `ProjectStore` · `PROJECT_MIGRATIONS` · \
-                        `commands/project.rs` · `ports/project_store.rs` · \
+                        `commands/project/mod.rs` · `ports/project_store.rs` · \
                         `tests/project_contract.rs` · `một-mục-thứ-chín-gieo-tay`. Cổng canh.";
 
     let quoted = exemption_items_named_in_rule_line(seeded_nine);
@@ -1074,7 +1074,7 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
     // Đối chứng ÂM: mệnh đề TÁM mục thật (không gieo) phải khớp đúng `STORE_EXEMPT`.
     let clean_eight = "Exactly eight exemptions, all naming the STORE: `.atproj` · `project.db` · \
                         `StoreKind::Project` · `ProjectStore` · `PROJECT_MIGRATIONS` · \
-                        `commands/project.rs` · `ports/project_store.rs` · \
+                        `commands/project/mod.rs` · `ports/project_store.rs` · \
                         `tests/project_contract.rs`. Cổng canh.";
     let clean_quoted = exemption_items_named_in_rule_line(clean_eight);
     assert_eq!(

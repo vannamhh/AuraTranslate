@@ -171,7 +171,7 @@ pub fn extension_for_mime(content_type: Option<&str>) -> Option<&'static str> {
 /// `reqwest` ở tầng gọi (`commands::project`): `webimport_boundary.rs::reqwest_is_named_only_inside_core_webimport_or_core_ai`
 /// cấm nguyên chữ `reqwest` xuất hiện ngoài `core/webimport/`/`core/ai/` — đây là chỗ DUY
 /// NHẤT tầng gọi cần đọc một host từ một chuỗi URL, nên nó thuộc về MODULE NÀY, không phải
-/// một lời gọi `reqwest::Url::parse` rải ở `commands/project.rs`. Cùng khuôn
+/// một lời gọi `reqwest::Url::parse` rải ở `commands/project/`. Cùng khuôn
 /// `allowlist::host_of` (RIÊNG TƯ, module đó không cần lộ nó ra ngoài).
 pub fn host_of(url: &str) -> Option<String> {
     reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_owned))

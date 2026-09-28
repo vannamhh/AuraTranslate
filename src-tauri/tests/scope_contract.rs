@@ -740,7 +740,7 @@ fn the_last_mode_survives_a_write_and_a_reopen() {
 ///
 /// ⚠️ **PHẠM VI, ghi ra thay vì để người sau tưởng đã được xét:** ca này canh đường đọc
 /// `Store → GlobalConfig → bootstrap_config`, tức nửa đi tới **webview**. Nửa còn lại —
-/// `commands/project.rs` đọc cùng getter rồi bơm ngưỡng vào `scan_candidates_controlled` của
+/// `commands/project/mod.rs` đọc cùng getter rồi bơm ngưỡng vào `scan_candidates_controlled` của
 /// lượt quét khi nhập — nằm trong closure của `spawn_import_scan`, một **luồng OS** dựng bằng
 /// `std::thread::Builder::new().spawn(...)` mà closure BẮT một `tauri::AppHandle` rồi gọi
 /// `app.try_state`/`app.emit`. ⇒ `tests/**` không gọi tới đó được nếu không dựng một app, nên

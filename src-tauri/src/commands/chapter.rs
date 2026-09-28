@@ -104,6 +104,21 @@ pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
     )
 }
 
+/// Đặt CẢ HAI: con trỏ Chương đang mở trong bộ nhớ (`OpenWork::chapter_id`) VÀ
+/// `work.last_chapter_id` trên đĩa — MỘT hàm cho cả hai để không có đường nào đổi cái này mà
+/// quên đổi cái kia. Ghi ngay lập tức (một thao tác RỜI RẠC, không
+/// qua bộ đệm auto-save của Editor — cùng lớp `set_chapter_status`).
+///
+/// Gọi SAU khi mọi kiểm tra khác (hàng `chapter` tồn tại, …) đã qua — cùng luật đã ghi ở
+/// [`open_adjacent_chapter`]/[`open_chapter`]: con trỏ chỉ đổi SAU một lượt xác nhận thành
+/// công, không trước.
+pub(crate) fn set_open_chapter(open: &mut OpenWork, chapter_id: i64) -> Result<(), IpcError> {
+    open.store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE work SET last_chapter_id = ?1", [chapter_id]))?;
+    open.chapter_id = chapter_id;
+    Ok(())
+}
+
 /// Đọc Chương đang mở — **hàm thuần, đây là thứ test gọi**.
 ///
 /// 🔵 **SỬA 2026-08-18 (Story 2.11 · Quyết định #2(a), Ice ký).** Câu SQL cũ là
@@ -305,7 +320,7 @@ pub fn open_adjacent_chapter(
 
     // 🔴 Con tro doi SAU khi truy van thanh cong, khong truoc. Dat truoc roi truy van truot
     // la de `OpenWork` tro vao mot Chuong ma webview chua bao gio nap.
-    open.chapter_id = chapter_id;
+    set_open_chapter(open, chapter_id)?;
 
     Ok(ChapterSwitch {
         outcome: ChapterSwitchOutcome::Moved,
@@ -424,7 +439,7 @@ pub fn open_chapter(
     crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);
 
     // Con tro doi SAU khi truy van thanh cong — xem doc-comment cua ham nay.
-    open.chapter_id = chapter_id;
+    set_open_chapter(open, chapter_id)?;
 
     Ok(OpenChapter {
         chapter_id,

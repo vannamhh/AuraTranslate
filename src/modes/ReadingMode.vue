@@ -51,6 +51,7 @@ import {
   readingTocHaveLoaded,
   readingTocOpen,
   readingTunerOpen,
+  resetReading,
   setReadingAnchor,
   setFontSize,
   setLineHeight,
@@ -171,6 +172,16 @@ onDeactivated(() => {
   rememberReadingViewportAnchor()
   readingModeActive = false
   clearReadingAim()
+  // `<KeepAlive>` giữ subtree của BA chế độ sống, nhưng `readingRun` (Chương + đoạn + câu của
+  // TOÀN BỘ lượt đọc đang mở) sống
+  // ở module-level `readingState.ts`, không theo vòng đời component — không dọn ở đây thì
+  // mảng đó nằm lại trong bộ nhớ suốt phiên kể cả khi người dùng đã rời hẳn Chế độ đọc.
+  // `preserveAnchor: true` — `rememberReadingViewportAnchor()` ngay trên vừa ghi neo vị trí
+  // cuộn, và `resetReading()` mặc định xoá nó; `restoreReadingAnchor()` ở `onActivated` cần
+  // giữ nguyên neo đó để cuộn về đúng chỗ khi quay lại. `ensureReadingLoaded()` idempotent
+  // qua cờ `requested` (`readingState.ts`) — `resetReading()` hạ cờ đó, nên lượt `onActivated`
+  // kế tiếp nạp lại THẬT, không phải một no-op đọc từ bộ nhớ đã vứt.
+  resetReading({ preserveAnchor: true })
 })
 
 function onSegmentFocusOut(event: FocusEvent, segmentId: number): void {

@@ -11,8 +11,9 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! (a) `write_atomic(` trên `WorkMeta` chỉ được NHẮC TỚI Ở VỊ TRÍ MÃ trong BA tệp: nơi hàm
 //!     được khai (`core/library/meta.rs`) và hai chỗ gọi sản phẩm đã đóng của FR7
-//!     (`commands/project.rs` sau `create_work`, `commands/lifecycle.rs` sau mỗi lượt đổi
-//!     trạng thái) — §Never của story: "không thêm một chỗ gọi ghi `meta.json` thứ ba".
+//!     (`commands/project/work_creation.rs` sau `create_work`, `commands/lifecycle.rs` sau
+//!     mỗi lượt đổi trạng thái) — §Never của story: "không thêm một chỗ gọi ghi `meta.json`
+//!     thứ ba".
 //! (b) `META_FILE` và chuỗi `"meta.json"` Ở VỊ TRÍ MÃ chỉ được nhắc tới trong
 //!     `core/library/meta.rs` — chỗ DUY NHẤT tên tệp trên đĩa được viết ra; mọi nơi khác phải
 //!     đi qua `WorkMeta::read`/`write_atomic`, không tự lắp một chuỗi `"meta.json"` song song.
@@ -20,7 +21,7 @@
 //!     (định nghĩa), `core/library/indexer.rs` (đường quét sản phẩm — AC2 của Story 5.2 đã
 //!     đóng việc `Indexer` là nơi duy nhất mở kho dẫn xuất; đây là nửa còn lại, "nơi duy
 //!     nhất đọc `meta.json` lúc quét"), và 🔵 **THÊM (2026-08-29, Story 5.7) —
-//!     `commands/project.rs`** (`open_work`, đường mở lại một `.atproj` **đã có trên đĩa**
+//!     `commands/project/mod.rs`** (`open_work`, đường mở lại một `.atproj` **đã có trên đĩa**
 //!     mà story 5.5 từng ghi là "chưa tồn tại" — xem doc-comment của `WorkMeta::read`).
 //!     Đây là chỗ đọc thứ BA, không phải một chỗ đi vòng: số chỗ đọc thật sự tăng từ 2 lên
 //!     3, và con số trong cổng tăng theo đúng nó (xem §Design Notes "`meta_write_boundary.rs`
@@ -78,7 +79,7 @@ fn line_names_one_of<'a>(code: &str, needles: &[&'a str]) -> Option<&'a str> {
 /// 🔵 **SỬA (2026-08-28, vòng rà thứ hai) — mệnh đề "không tệp nào ở đây có `//` bên trong một
 /// chuỗi" đã SAI, không phải "hết đúng theo thời gian" mà sai NGAY TỪ ĐẦU.** Đếm lại cùng ngày:
 /// **5** dòng trong `src-tauri/src` mang một hằng `"aura://…"` — ví dụ
-/// `commands/project.rs:388`:
+/// `commands/project/mod.rs::GLOSSARY_IMPORT_SCAN_EVENT`:
 /// `pub const GLOSSARY_IMPORT_SCAN_EVENT: &str = "aura://glossary-import-scan-completed";`
 /// (bốn dòng còn lại: `lib.rs:160,164,247,250`, cùng họ hằng sự kiện `aura://…`). Bản CŨ của
 /// hàm này cắt tại dấu `//` ĐẦU TIÊN trên dòng bất kể nó nằm trong hay ngoài một chuỗi ký tự —
@@ -193,7 +194,7 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 /// Ba tệp DUY NHẤT được phép nhắc `write_atomic(` — nơi hàm được khai, cộng hai chỗ gọi sản
 /// phẩm mà §Code Map của story đã liệt kê là "danh mục đóng".
 const WRITE_ATOMIC_EXEMPT: [&str; 3] =
-    ["core/library/meta.rs", "commands/project/mod.rs", "commands/lifecycle.rs"];
+    ["core/library/meta.rs", "commands/project/work_creation.rs", "commands/lifecycle.rs"];
 
 /// Cố ý KHÔNG kèm dấu `.` phía trước: needle khớp CẢ chữ ký hàm
 /// (`pub fn write_atomic(&self, ...)`, chỗ hàm được KHAI) LẪN mọi lời gọi
@@ -209,7 +210,7 @@ fn only_the_three_closed_sites_may_name_write_atomic() {
         violations.is_empty(),
         "{} chỗ ngoài danh mục đóng {:?} nhắc `write_atomic(`:\n{}\n\n\
          §Never của story 5.5: 'không thêm một chỗ gọi ghi meta.json thứ ba' — hai chỗ đang có \
-         (`commands/project/mod.rs`, `commands/lifecycle.rs`) là danh mục ĐÓNG.",
+         (`commands/project/work_creation.rs`, `commands/lifecycle.rs`) là danh mục ĐÓNG.",
         violations.len(),
         WRITE_ATOMIC_EXEMPT,
         violations.join("\n")
@@ -219,7 +220,7 @@ fn only_the_three_closed_sites_may_name_write_atomic() {
 #[test]
 fn commands_project_and_lifecycle_actually_call_write_atomic() {
     let root = src_root();
-    for rel in ["commands/project/mod.rs", "commands/lifecycle.rs"] {
+    for rel in ["commands/project/work_creation.rs", "commands/lifecycle.rs"] {
         let file = root.join(rel);
         assert!(
             file_names_one_of_in_code(&file, &[WRITE_ATOMIC_NEEDLE]),
@@ -296,7 +297,7 @@ fn every_meta_file_exemption_matches_a_real_file() {
 // Mệnh đề (c) — `WorkMeta::read` chỉ ở `core/library/meta.rs` + `core/library/indexer.rs`.
 // ═════════════════════════════════════════════════════════════════════════════════
 
-// 🔵 SUA (2026-08-29, Story 5.7) — tu HAI len BA phan tu. `commands/project.rs::open_work`
+// 🔵 SUA (2026-08-29, Story 5.7) — tu HAI len BA phan tu. `commands/project/mod.rs::open_work`
 // la cho doc `meta.json` THU BA, va no la mot chu MOI cua mon no ma Story 5.5 da ghi bang
 // chu ("story nay khong dung mot duong mo lai .atproj"). Xem khoi doc-comment dau tep.
 const WORK_META_READ_EXEMPT: [&str; 3] =
@@ -325,8 +326,8 @@ fn only_meta_rs_indexer_rs_and_project_rs_may_call_work_meta_read() {
 /// ⚠️ `core/library/meta.rs` KHÔNG kiểm ở đây: định nghĩa (`impl WorkMeta { pub fn read(..) }`)
 /// không tự nhắc chuỗi ĐỦ ĐỦ ĐIỀU KIỆN `WorkMeta::read` (nó chỉ viết `read`, không
 /// `WorkMeta::read`, bên trong chính `impl` của nó) — miễn trừ nó là ĐƯỢC PHÉP im lặng, không
-/// BẮT BUỘC phải khớp needle, khác hẳn `commands/project.rs`/`commands/lifecycle.rs` ở mệnh đề
-/// (a) hay chính `core/library/meta.rs` ở mệnh đề (b).
+/// BẮT BUỘC phải khớp needle, khác hẳn `commands/project/work_creation.rs`/
+/// `commands/lifecycle.rs` ở mệnh đề (a) hay chính `core/library/meta.rs` ở mệnh đề (b).
 #[test]
 fn core_library_indexer_actually_calls_work_meta_read() {
     let file = src_root().join("core/library/indexer.rs");
@@ -338,7 +339,7 @@ fn core_library_indexer_actually_calls_work_meta_read() {
 }
 
 /// **THÊM (2026-08-29, Story 5.7)** — đối chứng dương cho chỗ đọc thứ BA:
-/// `commands/project.rs::open_work` thật sự gọi `WorkMeta::read`, không phải một miễn trừ
+/// `commands/project/mod.rs::open_work` thật sự gọi `WorkMeta::read`, không phải một miễn trừ
 /// canh một tập RỖNG.
 #[test]
 fn commands_project_actually_calls_work_meta_read() {
@@ -439,9 +440,9 @@ fn the_predicate_itself_does_not_filter_comment_lines_the_caller_does() {
 }
 
 /// **THÊM (2026-08-28, vòng rà thứ hai) — neo đúng hình dạng của lỗi VÁ 1.** Một lời gọi
-/// `write_atomic(` đứng CÙNG DÒNG, SAU một hằng chuỗi `"aura://…"` (hình dạng có thật ở
-/// `commands/project.rs:388`/`lib.rs:160,164,247,250`, xem doc-comment của
-/// `code_without_trailing_comment`) PHẢI vẫn bị bắt — bản CŨ của hàm đó cắt tại `//` bên
+/// `write_atomic(` đứng CÙNG DÒNG, SAU một hằng chuỗi `"aura://…"` (họ hằng `aura://…` có thật
+/// ở `commands/project/mod.rs::GLOSSARY_IMPORT_SCAN_EVENT`/`lib.rs:160,164,247,250`, xem
+/// doc-comment của `code_without_trailing_comment`) PHẢI vẫn bị bắt — bản CŨ của hàm đó cắt tại `//` bên
 /// TRONG chuỗi, nuốt mất `write_atomic(` đứng sau. Đối chứng ÂM đứng cạnh: một dòng COMMENT
 /// THẬT SỰ mang đúng hình dạng đó (bắt đầu bằng `//`) không được để lại "mã" nào để kiểm — nó
 /// bị lọc bởi `code_position_of` TRƯỚC khi chạm `code_without_trailing_comment`, không phải vì

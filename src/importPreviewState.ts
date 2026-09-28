@@ -546,7 +546,7 @@ export const importPreviewCurrentChapterOrigin = computed<ChapterOriginWire>(() 
   const draft = chapterOriginDrafts.value[chapterCursor.value]
   if (draft !== undefined) {
     // ⚠️ `str::trim()`, KHÔNG `=== ''` trần — khớp ĐÚNG luật ghi xuống đĩa
-    // (`commands/project.rs::trimmed_or_none`/`commands/chapter.rs::update_chapter_origin`):
+    // (`core/webimport/origin.rs::chapter_origin_trim_or_none`/`commands/chapter.rs::update_chapter_origin`):
     // một ô chỉ toàn khoảng trắng cũng ghi `NULL`. Lệch quy tắc ở đây làm màn xem trước hiện
     // một ô "có chữ" trong khi đĩa sẽ ghi `NULL` — hai nơi nói hai điều khác nhau về CÙNG một
     // giá trị (lượt rà 2026-09-10).

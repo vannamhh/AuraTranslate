@@ -122,10 +122,14 @@ describe('Story 5.3 · FR99 — quét lại thư mục trong cửa sổ thật',
     workDir = join(libraryRoot, `${WORK_NAME}.atproj`)
   })
 
-  it('trước lượt quét đầu, màn hình nói CHƯA BIẾT chứ không nói "không có"', async () => {
-    // 🔴 Đây là vế `…HasLoaded` của `AGENTS.md::Known pitfalls`: một danh sách rỗng TRƯỚC
-    // lượt quét đầu tiên là "chưa biết", không phải "không có mục mồ côi nào".
-    expect(await orphanLine()).toContain('Bấm Quét lại')
+  it('mục mồ côi hiện đúng trạng thái NGAY khi vào Library, không đợi một lượt Quét lại', async () => {
+    // Khối mồ côi tự đọc (`library_list_orphans`, một `SELECT` thuần) ngay khi Library mode
+    // được kích hoạt — không còn đợi người dùng tự bấm Quét lại như trước. Ở đây gốc chưa có
+    // `.atproj` nào (thư mục gốc riêng của lượt chạy, `workDir` chưa từng được tạo), nên câu
+    // đúng là "Không có mục mồ côi nào", không phải câu "chưa biết" cũ.
+    expect(await orphanLine()).toContain('Không có mục mồ côi nào')
+    // Danh sách Tác phẩm/kết quả Quét lại là một cơ chế KHÁC (`library_rescan`, không tự
+    // chạy) — vế này vẫn "chưa quét lần nào" cho tới lượt Quét lại đầu tiên ở ca dưới.
     expect(await (await $(ROOT_VALUE)).getText()).toContain('Chưa quét lần nào')
     expect(await resultLine()).toBe('')
   })

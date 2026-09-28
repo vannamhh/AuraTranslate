@@ -1324,9 +1324,12 @@ pub mod wire {
     /// chờ ⇒ bế tắc, macOS báo *"Open and Save Panel Service (auratranslate) (Not
     /// Responding)"*. Đo 2026-08-25 trên cửa sổ thật của Ice.
     ///
-    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ cho `sync_threadpool`
-    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) — chạy ngoài luồng chính, **không
-    /// đổi một dòng thân hàm**. Cùng vai với việc lệnh `open` của chính plugin là
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ đưa thân hàm sang một luồng worker của
+    /// runtime tokio đa luồng (`async_runtime::spawn`, `tauri-2.11.5/src/ipc/mod.rs:343-375`)
+    /// — chạy ngoài luồng chính, **không đổi một dòng thân hàm**. Chuỗi `"sync_threadpool"`
+    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) chỉ là một nhãn `tracing::debug_span!`
+    /// đọc ở `:278`, không điều khiển luồng nào — `spawn_blocking` không nằm trên đường này.
+    /// Cùng vai với việc lệnh `open` của chính plugin là
     /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
     /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
     /// một lệnh đồng bộ. Cổng canh:
@@ -1403,9 +1406,12 @@ pub mod wire {
     /// chờ ⇒ bế tắc, macOS báo *"Open and Save Panel Service (auratranslate) (Not
     /// Responding)"*. Đo 2026-08-25 trên cửa sổ thật của Ice.
     ///
-    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ cho `sync_threadpool`
-    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) — chạy ngoài luồng chính, **không
-    /// đổi một dòng thân hàm**. Cùng vai với việc lệnh `open` của chính plugin là
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ đưa thân hàm sang một luồng worker của
+    /// runtime tokio đa luồng (`async_runtime::spawn`, `tauri-2.11.5/src/ipc/mod.rs:343-375`)
+    /// — chạy ngoài luồng chính, **không đổi một dòng thân hàm**. Chuỗi `"sync_threadpool"`
+    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) chỉ là một nhãn `tracing::debug_span!`
+    /// đọc ở `:278`, không điều khiển luồng nào — `spawn_blocking` không nằm trên đường này.
+    /// Cùng vai với việc lệnh `open` của chính plugin là
     /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
     /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
     /// một lệnh đồng bộ. Cổng canh:

@@ -769,6 +769,8 @@ pub fn run() {
             crate::commands::library::wire::library_forget_orphan,
             // Story 5.4 -- "Bon trang thai vong doi" (FR5/FR6). Doc thuan, khong `(async)`.
             crate::commands::library::wire::library_list_works,
+            // Doc thuan danh sach mo coi, cung khuon library_list_works.
+            crate::commands::library::wire::library_list_orphans,
             // Story 5.9 -- "Tim kiem full-text xuyen Library" (FR8). `(async)` -- chay CA HAI
             // chi muc FTS5 roi hop ket qua, nhanh trigram con xac minh chuoi con o Rust.
             crate::commands::library::wire::library_search,
@@ -1621,7 +1623,7 @@ fn confirm_exit_flush(app: tauri::AppHandle) {
 // Vì sao `#[cfg(test)]` trong nguồn chứ không một tệp ở `tests/`: `ExitFlush::wait` và trường
 // `armed` đều **riêng tư**, và mở chúng ra `pub` chỉ để một test integration với tới được là
 // nới bề mặt công khai vì một lý do không phải sản phẩm. Tiền lệ đã có: `core/dict/mod.rs` và
-// `commands/project.rs`.
+// `commands/project/mod.rs`.
 //
 // 🔴 Vì sao lưới này tồn tại: trước lượt review, cơ chế đồng thời **mới và phức tạp nhất** của
 // story — một `Condvar` bắt tay qua biên IPC — được nghiệm thu bằng **doc-comment**. Cả hai

@@ -251,12 +251,12 @@ fn the_chapter_read_path_never_calls_the_splitter() {
 /// (Chương cũ, một Chương một lượt — Quyết định #4 của `commands::segment`).
 ///
 /// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39) — từ "đúng HAI" xuống "đúng MỘT".** Trước story
-/// này, `commands/project.rs::create_work` cũng gọi thẳng `split_source_text` (Chương MỚI,
-/// cùng giao dịch — AC13 cũ). Story 6.2 dời lời gọi đó vào `core/segment/pipeline.rs`
-/// (bước 7 của chuỗi AD-39, "tách segment + cờ kết đoạn"), nơi `SEGMENT_DIR` miễn trừ nó
-/// khỏi phép quét này — [`the_pipeline_module_actually_calls_the_splitter`] ngay dưới là
-/// đối chứng dương rằng chỗ gọi đó THẬT SỰ có mặt, không phải biến mất khỏi cả hai nơi.
-/// `commands/project.rs` giờ chỉ gọi `run_import` (`core::segment::pipeline`), không còn tự
+/// này, `create_work` (nay `commands/project/work_creation.rs::create_work`) cũng gọi thẳng
+/// `split_source_text` (Chương MỚI, cùng giao dịch — AC13 cũ). Story 6.2 dời lời gọi đó vào
+/// `core/segment/pipeline.rs` (bước 7 của chuỗi AD-39, "tách segment + cờ kết đoạn"), nơi
+/// `SEGMENT_DIR` miễn trừ nó khỏi phép quét này — [`the_pipeline_module_actually_calls_the_splitter`]
+/// ngay dưới là đối chứng dương rằng chỗ gọi đó THẬT SỰ có mặt, không phải biến mất khỏi cả
+/// hai nơi. `create_work` giờ chỉ gọi `run_import` (`core::segment::pipeline`), không còn tự
 /// tách gì — xem `segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site`.
 ///
 /// Một chỗ gọi **thứ hai** ngoài `core/segment/` là thứ phải có người ký: nó hoặc là một

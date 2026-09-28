@@ -286,6 +286,14 @@ pub enum ImportError {
         /// Số hàng file (1-based) đã bị từ chối.
         row_number: usize,
     },
+    /// `source_lang` ngoài `zh`/`en`, ở CẢ đường tạo (`create_work`)
+    /// lẫn đường thêm Chương (`append_chapters_to_work`). Trước bản vá này chỉ webview kiểm
+    /// (`=== 'zh'`); một `.atproj` sửa tay hoặc một lời gọi `invoke` trần với giá trị lạ ghi
+    /// thẳng xuống đĩa, không một dòng nào chặn.
+    UnsupportedSourceLang {
+        /// Giá trị đã nhận — dữ liệu, không phải câu.
+        source_lang: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -348,6 +356,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::BilingualSkipNotAllowed { row_number } => {
                 write!(f, "import[bilingual row {row_number}]: skip not allowed, both sides have sentences")
+            }
+            ImportError::UnsupportedSourceLang { source_lang } => {
+                write!(f, "import: unsupported source_lang {source_lang:?}, expected zh or en")
             }
         }
     }
@@ -535,6 +546,16 @@ impl From<ImportError> for IpcError {
                 IpcError::new(
                     "import.bilingual_skip_not_allowed",
                     MessageKey::ImportBilingualSkipNotAllowed,
+                    params,
+                    false,
+                )
+            }
+            ImportError::UnsupportedSourceLang { source_lang } => {
+                let mut params = BTreeMap::new();
+                params.insert("source_lang".to_owned(), source_lang);
+                IpcError::new(
+                    "import.unsupported_source_lang",
+                    MessageKey::ImportUnsupportedSourceLang,
                     params,
                     false,
                 )

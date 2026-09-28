@@ -492,6 +492,8 @@ fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
         chapter_id: opened.chapter_id,
         images_saved: opened.images_saved,
         images_failed: opened.images_failed,
+        source_lang_mismatch: opened.source_lang_mismatch,
+        new_chapter_ids: Vec::new(),
     };
 
     let fields = ai_config_get(Some(&global), Some(&reopened)).expect("doc sau khi mo lai").fields;

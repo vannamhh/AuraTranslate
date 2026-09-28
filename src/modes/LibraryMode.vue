@@ -27,6 +27,7 @@ import {
   destinationWorks,
   destinationWorksError,
   effectiveFilePaths,
+  effectiveName,
   filePath,
   genre,
   isDragOver,
@@ -55,11 +56,13 @@ import {
   libraryOrphans,
   libraryRescanBusy,
   libraryRescanError,
+  libraryRescanResultHasLoadedState,
   libraryRootMissing,
   libraryScanHasLoadedState,
   libraryConflictCount,
   librarySkippedCount,
   libraryTextSkippedCount,
+  loadLibraryOrphans,
 } from './libraryRescan'
 import {
   libraryFilterIsEmpty,
@@ -165,6 +168,12 @@ onActivated(() => {
   // Story 5.7 — cùng lý do: danh sách Chương của Tác phẩm ĐANG MỞ phải phản ánh giá trị mới
   // nhất mỗi lần quay lại Library (một Chương có thể vừa đổi trạng thái từ Workspace).
   void loadChapters()
+  // Khối "Mồ côi" phải hiện đúng trạng thái NGAY khi vào
+  // Library, không đợi người dùng tự bấm Quét lại: `.atproj` mồ côi có thể đã xuất hiện trên
+  // đĩa (ví dụ đồng bộ đám mây) từ một phiên trước. `loadLibraryOrphans` là một lượt ĐỌC
+  // thuần, không `Indexer::rebuild` — cùng nguyên lý `loadWorks` ngay trên (danh sách phải
+  // phản ánh trạng thái thật, không giữ ảnh chụp của lần hiện trước).
+  void loadLibraryOrphans()
 })
 
 // 🔵 THÊM (2026-08-28) — KHUYẾT TẬT ĐO ĐƯỢC, tìm ra ở lượt chạy e2e đầu tiên của Story 5.4.
@@ -358,7 +367,7 @@ watch(libraryChapterCursor, (cursor) => {
       -->
       <!-- aura-allow-text: nhánh đúng đi qua t() với tham số root (dữ liệu); nhánh sai là chuỗi rỗng. -->
       <p class="root-missing" role="status">
-        {{ libraryScanHasLoadedState && libraryRootMissing ? t('mode.library.root_missing', { root: currentLibraryRoot ?? '' }) : '' }}
+        {{ libraryRescanResultHasLoadedState && libraryRootMissing ? t('mode.library.root_missing', { root: currentLibraryRoot ?? '' }) : '' }}
       </p>
       <div class="root-actions">
         <button
@@ -384,7 +393,7 @@ watch(libraryChapterCursor, (cursor) => {
       <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
       <p class="status" role="status">
         {{
-          libraryScanHasLoadedState
+          libraryRescanResultHasLoadedState
             ? t('mode.library.rescan_result', {
                 indexed: String(libraryIndexedCount),
                 conflicts: String(libraryConflictCount),
@@ -1338,7 +1347,7 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || pastedText.trim() === '' || destinationPending"
+          :disabled="busy || pastedText.trim() === '' || destinationPending || effectiveName.trim() === ''"
           @click="dispatch('library.import_text')"
         >
           <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
@@ -1374,7 +1383,7 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || effectiveFilePaths.length === 0 || destinationPending"
+          :disabled="busy || effectiveFilePaths.length === 0 || destinationPending || effectiveName.trim() === ''"
           @click="dispatch('library.import_file')"
         >
           <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
@@ -1396,7 +1405,7 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-bilingual-import-preview-open
-          :disabled="busy || bilingualFilePath.trim() === ''"
+          :disabled="busy || bilingualFilePath.trim() === '' || name.trim() === ''"
           @click="dispatch('library.import_bilingual')"
         >
           {{ t('mode.library.submit_bilingual') }}
@@ -1422,7 +1431,7 @@ watch(libraryChapterCursor, (cursor) => {
           type="button"
           class="btn"
           data-import-preview-open
-          :disabled="busy || pastedUrlCount === 0 || destinationPending"
+          :disabled="busy || pastedUrlCount === 0 || destinationPending || effectiveName.trim() === ''"
           @click="dispatch('library.import_urls')"
         >
           <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
@@ -1432,7 +1441,7 @@ watch(libraryChapterCursor, (cursor) => {
       </form>
 
       <!--
-        Ba node LUÔN có mặt (không `v-if`) để trình đọc màn hình công bố được nội
+        Bốn node LUÔN có mặt (không `v-if`) để trình đọc màn hình công bố được nội
         dung ĐỔI — cùng lý lẽ với dải báo lỗi cấu hình của `App.vue`. `role="status"`,
         không `role="alert"`: đây là kết quả một thao tác, không phải tình huống khẩn.
       -->
@@ -1440,6 +1449,16 @@ watch(libraryChapterCursor, (cursor) => {
            nào — Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
       <p class="status" role="status">
         {{ createdWork ? t('mode.library.created', { name: createdWork.meta.name, folder: createdWork.folder }) : '' }}
+      </p>
+      <!--
+        `source_lang_mismatch` là một
+        CẢNH BÁO không chặn (script của văn bản không khớp `source_lang` đã khai): Rust vẫn
+        ghi, và dải này chỉ NÓI, không khoá gì. Đứng CẠNH `.status`, không lồng vào trong —
+        cùng khuôn ba node kia, mỗi node một câu độc lập.
+      -->
+      <!-- aura-allow-text: qua t()/chuỗi rỗng, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="notice source-lang-warning" role="status">
+        {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}
       </p>
       <!-- aura-allow-text: như trên. -->
       <p class="notice" role="status">{{ noticeKey ? t(noticeKey) : '' }}</p>

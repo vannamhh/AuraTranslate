@@ -22,10 +22,10 @@ use auratranslate_lib::commands::cleanup::{
     cleanup_list_rules, cleanup_set_enabled,
 };
 use auratranslate_lib::commands::project::{
-    BlockBodyWire, OpenWork, PendingImportSourceState, chapter_detail_for_index,
-    cleanup_and_chapters_preview_for, confirm_import_with_encoding, create_work,
-    preview_import_encoding, resolve_work_tier_cleanup_rules_for_destination, set_block_override,
-    stash_pending_import_source,
+    BlockBodyWire, OpenWork, PendingImportSourceState, UrlImportItem, chapter_detail_for_index,
+    chapters_shape_if_all_ok, cleanup_and_chapters_preview_for, confirm_import_with_encoding,
+    create_work, preview_import_encoding, resolve_work_tier_cleanup_rules_for_destination,
+    set_block_override, stash_pending_import_source,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -1108,7 +1108,7 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
 // Bàn đo — chi phí CPU của SÁU lượt chạy chuỗi thật trên TOÀN văn bản
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 ĐO, ĐỪNG KHAI (vòng rà 2026-09-06). `cleanup_preview_for` (`commands/project.rs`) nay
+// 🔴 ĐO, ĐỪNG KHAI (vòng rà 2026-09-06). `cleanup_preview_for` (`commands/project/mod.rs`) nay
 // chạy TRỌN chuỗi bảy bước trên TOÀN văn bản — một lần cho MỖI ứng viên (năm ô FR126) CỘNG
 // một lần cho đường tự khai, tức TỐI ĐA SÁU lượt `run_pipeline` trên cùng một Chương ở MỘT
 // lượt mở màn xem trước. Doc-comment của `cleanup_preview_for` từng khẳng định "CPU của
@@ -1289,6 +1289,85 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         rule_wire.count_in_chapter, rule_wire.count_in_import,
         "hai so nay phai THAT SU khac nhau o day -- neu bang nhau, ca nay khong chung minh \
          duoc gi ve phep CONG, chi chung minh duoc mot phep sao chep"
+    );
+}
+
+/// Cùng đối chứng trên, nhưng `shape` dựng qua ĐÚNG hàm sản phẩm mà đường URL (Story 6.7) tự
+/// nó dùng (`chapters_shape_if_all_ok`, từ `UrlImportItem::raw`) — N Chương ở đây đi qua bước
+/// GIẢI MÃ thật (`ChapterInput::RawBytes`), đúng thứ `wire::start_url_import`/
+/// `chapter_detail_for_index` chạy trên sản phẩm, không `ChapterInput::AlreadyText` gõ tay.
+/// `extract_main_content = false` có chủ ý: mệnh đề đang kiểm là phép CỘNG qua N đơn vị,
+/// không độ chính xác của bước trích nội dung chính (đã có `webimport_contract.rs` canh riêng).
+#[test]
+fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_shape_product_path()
+ {
+    let rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "QUANGCAO".to_owned(),
+        kind: CleanupRuleKind::Literal,
+        enabled: true,
+    };
+    let chapter_1 = "QUANGCAO dau. noi dung. QUANGCAO cuoi.".to_owned();
+    let chapter_2 = "QUANGCAO mot. QUANGCAO hai. QUANGCAO ba. QUANGCAO bon.".to_owned();
+    let chapter_3 = "khong co gi de xoa o day ca.".to_owned();
+    let hand_counted_total = 2 + 4 + 0;
+
+    let items = vec![
+        UrlImportItem {
+            url: "https://vi.example.test/1".to_owned(),
+            raw: Some(chapter_1.clone().into_bytes()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://vi.example.test/2".to_owned(),
+            raw: Some(chapter_2.into_bytes()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://vi.example.test/3".to_owned(),
+            raw: Some(chapter_3.into_bytes()),
+            error: None,
+        },
+    ];
+    let shape = chapters_shape_if_all_ok(&items)
+        .expect("ba muc deu OK -- shape phai dung duoc, dung DUONG SAN PHAM cua wire URL");
+    match &shape {
+        PipelineShape::Chapters(cs) => assert!(
+            cs.iter().all(|c| matches!(c, ChapterInput::RawBytes { .. })),
+            "shape phai mang ChapterInput::RawBytes -- dung dung don vi ma URL wire dua vao \
+             pipeline, khong AlreadyText"
+        ),
+        _ => panic!("chapters_shape_if_all_ok phai tra PipelineShape::Chapters cho 3 muc OK"),
+    }
+
+    let (cleanup_wire, chapters_wire, _blocks_wire) = cleanup_and_chapters_preview_for(
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        &chapter_1,
+        "en",
+        &[rule.clone()],
+        false,
+        false,
+        &[],
+        0,
+        0, &[]);
+
+    assert_eq!(chapters_wire.chapter_count, 3, "tien de: dung ba Chuong tu ba muc URL OK");
+    assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
+    let rule_wire = &cleanup_wire.rules[0];
+    assert_eq!(
+        rule_wire.count_in_chapter, 2,
+        "count_in_chapter phai la so khop CUA CHUONG DANG HIEN (Chuong 1, 2 cho khop)"
+    );
+    assert_eq!(
+        rule_wire.count_in_import, hand_counted_total,
+        "count_in_import qua duong ChapterInput::RawBytes (URL wire that) phai DUNG BANG tong tinh tay"
+    );
+    assert_ne!(
+        rule_wire.count_in_chapter, rule_wire.count_in_import,
+        "hai so nay phai THAT SU khac nhau o day, cung ly do ca tren"
     );
 }
 

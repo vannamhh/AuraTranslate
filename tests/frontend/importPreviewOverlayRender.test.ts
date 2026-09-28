@@ -42,12 +42,14 @@ const ORIGIN_STUB: ChapterOriginWire = {
 
 
 const previewTextMock = vi.fn()
+const confirmMock = vi.fn()
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
   return {
     ...actual,
     previewImportEncodingFromText: (text: string) => previewTextMock(text),
+    confirmImportWithEncoding: (...args: unknown[]) => confirmMock(...args),
   }
 })
 
@@ -105,6 +107,7 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
 async function freshOverlay(deps: Partial<CommandDeps> = {}) {
   vi.resetModules()
   previewTextMock.mockReset()
+  confirmMock.mockReset()
 
   const commands = await import('../../src/commands')
   commands.installCommands(deps as CommandDeps)
@@ -124,8 +127,8 @@ beforeEach(() => {
 describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng ĐÚNG chữ (mục 22)', () => {
   it.each([
     ['self_declared', 'Nguồn tự khai bảng mã'],
-    ['high', 'Tự đoán · độ tin cậy cao'],
-    ['low', 'Tự đoán · độ tin cậy thấp'],
+    ['high', 'Tự đoán từ 4 KiB đầu tệp · độ tin cậy cao'],
+    ['low', 'Tự đoán từ 4 KiB đầu tệp · độ tin cậy thấp'],
   ] as const)('confidence=%s dựng đúng chip "%s"', async (confidence, expectedText) => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview({ confidence }), error: null })
@@ -595,6 +598,184 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
     expect(bar).not.toContain('0 Chương sạch')
     expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(2)
     expect(state.importPreviewSelectedChapters.value?.clean_count).toBe(8)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bốn mảnh DOM chưa từng có test: bẫy Tab, Xác nhận/Huỷ khi
+// `confirming`, radio `@change` THẬT, ba nhánh dựng `unknown`/`ipc_unavailable`/`error`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('ImportPreviewOverlay.vue — bẫy tiêu điểm Tab trong `.ip-scrim` (L8557)', () => {
+  it('Tab từ phần tử CUỐI focusable trong `.ip-panel` vòng về phần tử ĐẦU', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const panelEl = wrapper.get('.ip-panel').element as HTMLElement
+    const focusable = Array.from(
+      panelEl.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+          'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    expect(focusable.length).toBeGreaterThan(1)
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    last.focus()
+    expect(document.activeElement).toBe(last)
+
+    await wrapper.get('.ip-scrim').trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('Shift+Tab từ phần tử ĐẦU vòng về phần tử CUỐI', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const panelEl = wrapper.get('.ip-panel').element as HTMLElement
+    const focusable = Array.from(
+      panelEl.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+          'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    first.focus()
+    expect(document.activeElement).toBe(first)
+
+    await wrapper.get('.ip-scrim').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+describe('ImportPreviewOverlay.vue — nút Xác nhận/Huỷ khoá lại khi `importPreviewConfirming` (L8557)', () => {
+  it('lượt xác nhận ĐANG BAY ⇒ cả nút Xác nhận LẪN nút Huỷ (đầu VÀ chân màn) đều `disabled`', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+
+    let resolveConfirm: (value: unknown) => void = () => {}
+    confirmMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveConfirm = resolve
+        }),
+    )
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect((wrapper.get('.ip-close').element as HTMLButtonElement).disabled).toBe(false)
+    expect((wrapper.get('.ip-act-primary').element as HTMLButtonElement).disabled).toBe(false)
+
+    const confirming = state.confirmImportPreview()
+    await wrapper.vm.$nextTick()
+
+    expect(state.importPreviewConfirming.value).toBe(true)
+    expect((wrapper.get('.ip-close').element as HTMLButtonElement).disabled).toBe(true)
+    expect((wrapper.get('.ip-act-primary').element as HTMLButtonElement).disabled).toBe(true)
+    const footerCancel = wrapper.findAll('.ip-act').find((b) => !b.classes().includes('ip-act-primary'))
+    expect((footerCancel?.element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.get('.ip-status').text()).toBe('Đang tạo Tác phẩm…')
+
+    resolveConfirm({
+      meta: { meta_schema_version: 1, work_id: 'w-1', name: 'Ten', source_lang: 'en', genre: '', created_at: '', updated_at: '', chapter_count: 1 },
+      folder: '/tmp/Ten.atproj',
+      images_saved: 0,
+      images_failed: 0,
+      source_lang_mismatch: false,
+    })
+    await confirming
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+describe('ImportPreviewOverlay.vue — radio `.ip-candidate-radio` qua `@change` THẬT gọi `selectImportPreviewCandidate` (L8557)', () => {
+  it('click một radio KHÁC ứng viên đang chọn đổi `importPreviewSelectedEncoding`, qua chính handler DOM, không gọi thẳng hàm state', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({
+      preview: preview({
+        confidence: 'low', // dải `.ip-strip` mở SẴN — không cần bấm nút mở dải trước.
+        selected_encoding: 'UTF-8',
+        candidates: [candidate({ encoding: 'UTF-8', label: 'UTF-8' }), candidate({ encoding: 'GBK', label: 'GBK' })],
+      }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+    expect(state.importPreviewSelectedEncoding.value).toBe('UTF-8')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const radios = wrapper.findAll('.ip-candidate-radio')
+    expect(radios).toHaveLength(2)
+    expect((radios[0]?.element as HTMLInputElement).checked).toBe(true)
+    expect((radios[1]?.element as HTMLInputElement).checked).toBe(false)
+
+    // `.setValue(true)` trên một radio phát ĐÚNG sự kiện `change` DOM thật -- đi qua
+    // `onCandidateChange` (`@change` trên `<input>`), không gọi tắt `selectImportPreviewCandidate`.
+    await radios[1]?.setValue(true)
+
+    expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
+    await wrapper.vm.$nextTick()
+    expect((radios[0]?.element as HTMLInputElement).checked).toBe(false)
+    expect((radios[1]?.element as HTMLInputElement).checked).toBe(true)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+describe('ImportPreviewOverlay.vue — ba nhánh dựng `unknown`/`ipc_unavailable`/`error` (L8557)', () => {
+  it('`unknown` (chưa mở lượt xem trước nào) ⇒ KHÔNG dựng gì (lớp phủ đóng, `v-if="importPreviewIsOpen"` false)', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    expect(state.importPreviewStatus.value).toBe('unknown')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('`ipc_unavailable` (không cầu IPC — `{ preview: null, error: null }`) ⇒ `.ip-empty` hiện đúng câu', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: null, error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+    expect(state.importPreviewStatus.value).toBe('ipc_unavailable')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.get('.ip-empty').text()).not.toBe('')
+    expect(wrapper.find('.ip-error').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('`error` (Rust trả lỗi thật) ⇒ `.ip-empty.ip-error` hiện đúng câu của `tError()`', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const ipcError = { code: 'store.read_failed', message_key: 'err.store.read_failed', params: { store: 'project.db' }, retryable: false }
+    previewTextMock.mockResolvedValue({ preview: null, error: ipcError })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+    expect(state.importPreviewStatus.value).toBe('error')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const errorNode = wrapper.get('.ip-empty.ip-error')
+    expect(errorNode.attributes('role')).toBe('alert')
+    expect(errorNode.text()).not.toBe('')
 
     wrapper.unmount()
     state.resetImportPreview()

@@ -131,6 +131,13 @@ pub const DEFAULT_GLOSSARY_SCAN_THRESHOLD: u32 = 5;
 /// đi qua.
 const KEY_LIBRARY_ROOT: &str = "library_root";
 
+/// Khoá của [`ScopeKind::AppConfig`] mang **tuỳ chọn đọc đã lưu** (mức đọc, song ngữ, cỡ
+/// chữ/dãn dòng ghi đè) — một chuỗi JSON do frontend `stringify`, cùng quy ước [`KEY_LAYOUT`]:
+/// tầng này không phân tích hay kiểm hình dạng của nó. Ở [`ScopeKind::AppConfig`], **tầng
+/// Global**, cùng lý do đã ghi cho [`KEY_DICT_DISABLED`]/[`KEY_GLOSSARY_SCAN_THRESHOLD`]/
+/// [`KEY_LIBRARY_ROOT`]: tuỳ chọn đọc không phải dữ liệu của một Tác phẩm cụ thể.
+const KEY_READING_PREFERENCES: &str = "reading_preferences";
+
 /// Phân giải thư mục gốc Library từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test
 /// gọi**. Chép khuôn [`parse_glossary_scan_threshold`]: đây là chỗ DUY NHẤT biết một giá trị
 /// trên đĩa hỏng, vì `config_value.value` không mang `CHECK` nào (phục vụ MỌI khoá của MỌI
@@ -263,6 +270,14 @@ impl GlobalConfig {
     /// [`crate::commands::project::default_library_root`].
     pub fn library_root(&self) -> Option<String> {
         resolve_library_root_value(self.app.get(KEY_LIBRARY_ROOT).map(|r| r.value().as_str()))
+    }
+
+    /// Tuỳ chọn đọc đã lưu, ở dạng chuỗi JSON của frontend — chuỗi rỗng khi chưa ai lưu gì,
+    /// cùng luật [`Self::workspace_layout`].
+    pub fn reading_preferences(&self) -> &str {
+        self.app
+            .get(KEY_READING_PREFERENCES)
+            .map_or("", |r| r.value().as_str())
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

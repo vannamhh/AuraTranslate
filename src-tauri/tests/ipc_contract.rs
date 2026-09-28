@@ -176,6 +176,8 @@ fn ipc_error_wire_shape() {
         // ⚠️ Story 3.5 — trường thứ **bảy**. Cùng lời dừng như hai trường trên: một trường
         // mới đi qua IPC phải làm ai đó dừng lại và đối chiếu danh sách khoá đóng băng.
         glossary_scan_threshold: 5,
+        // ⚠️ Trường thứ **tám**. Cùng lời dừng như các trường trên.
+        reading_preferences: String::new(),
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -196,6 +198,7 @@ fn ipc_error_wire_shape() {
             "glossary_scan_threshold",
             "layout_presets",
             "mode",
+            "reading_preferences",
             "shortcuts",
             "theme",
             "workspace_layout",
@@ -1057,7 +1060,7 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
         );
     }
 
-    // `confirm_bilingual_import` co HAI khoi `pub fn` cung ten (ham thuan o `commands/project/mod.rs`,
+    // `confirm_bilingual_import` co HAI khoi `pub fn` cung ten (ham thuan o `commands/project/bilingual.rs`,
     // vo IPC o `commands/project/wire.rs`), cung bay ma ca Story 6.3 ben duoi da ghi -- doc thang
     // `wire.rs` la du de tranh nham lan, khong can neo `pub mod wire {` nua.
     let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1162,7 +1165,7 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         // xem trước: `encoding::render_candidates` cần biết nhánh Trung/Anh để dựng bản
         // chuẩn hoá của mỗi ứng viên (`normalize::normalize`) — KHÔNG một lệnh mới, `source_lang`
         // đã có sẵn ở form phía frontend trước khi lệnh này chạy (xem doc-comment
-        // `preview_import_encoding_from_text` ở `commands/project.rs`).
+        // `preview_import_encoding_from_text` ở `commands/project/wire.rs`).
         //
         // 🔵 SỬA 2026-09-05 (Story 6.6) — thêm tham số `chapter_pattern:
         // Option<ChapterPatternWire>` vào CẢ BA vỏ: mẫu phân tách Chương là tham số MỖI LƯỢT
@@ -1395,7 +1398,7 @@ fn normalize_param_list(s: &str) -> String {
 /// Đối chứng dương cho [`fn_param_list`] — khuôn `segment_encoding_boundary.rs`: chứng minh
 /// hàm bóc THẬT SỰ khớp đúng khối, không khớp lung tung/khớp rỗng oan; VÀ chứng minh cạm
 /// bẫy "hai khối cùng tên" là có thật (đúng hình dạng `confirm_import_with_encoding` trong
-/// `commands/project.rs`) — không thu hẹp phạm vi trước thì hàm khớp nhầm khối ĐẦU TIÊN.
+/// `commands/project/mod.rs`) — không thu hẹp phạm vi trước thì hàm khớp nhầm khối ĐẦU TIÊN.
 #[test]
 fn fn_param_list_would_actually_bind_to_the_right_function_block() {
     let src = "pub fn foo(a: i32, b: String) -> bool { true }\npub fn bar(c: u8) -> u8 { c }";

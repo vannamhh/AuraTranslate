@@ -440,6 +440,55 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// `commands::library::list_orphans` -- đọc thuần, không quét lại
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Đọc lại đúng danh sách mồ côi đã có sẵn trên đĩa (`global.db`) mà KHÔNG cần một lượt quét
+/// nào của lượt gọi này -- chữ ký `list_orphans(indexer, global)` không nhận `root: &Path`,
+/// nên nó KHÔNG THỂ tự gọi `Indexer::rebuild` (hàm đó đòi `root`); xoá hẳn gốc thư mục sau khi
+/// mồ côi đã được tạo là bằng chứng thêm: nếu hàm này lỡ cần quét lại, nó sẽ trượt ở bước tìm
+/// `root`, không phải trả về đúng danh sách.
+#[test]
+fn list_orphans_reads_an_existing_orphan_without_rescanning_and_even_after_the_root_is_gone() {
+    let dir = temp_dir("commands-list-orphans");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Mo Coi", "id-mo-coi", "Mo Coi");
+
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("rescan dau");
+
+    fs::remove_dir_all(&work_dir).expect("xoa .atproj");
+    let outcome = rescan(Some(&indexer), Some(&global), &root).expect("rescan sau khi xoa");
+    assert_eq!(outcome.orphans.len(), 1, "lan quet nay phai tao ra dung mot hang mo coi");
+
+    // Xoa het GOC thu vien -- neu `list_orphans` lo tu quet lai, no se trot o day.
+    fs::remove_dir_all(&root).expect("xoa goc thu vien");
+
+    let orphans = auratranslate_lib::commands::library::list_orphans(Some(&indexer), Some(&global))
+        .expect("list_orphans phai doc duoc du goc da mat");
+    assert_eq!(orphans.len(), 1, "phai thay dung hang mo coi da tao, khong can bam Rescan");
+    assert_eq!(orphans[0].work_id, "id-mo-coi");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn list_orphans_without_an_indexer_reports_the_named_indexer_missing_error() {
+    let dir = temp_dir("commands-list-orphans-no-indexer");
+    let global = open_global(&dir);
+
+    let err = auratranslate_lib::commands::library::list_orphans(None, Some(&global))
+        .expect_err("Indexer vang mat phai la mot loi, khong phai mot danh sach rong");
+    assert_eq!(err.code(), "library.indexer_missing");
+
+    drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // P11 (vòng rà THỨ HAI, 2026-08-27) — `apply_chosen_root` với `store: None` không ca nào
 // chạm, dù doc-comment của nó khai nhánh "ghi cấu hình trượt ⇒ lỗi kho".
 // ═════════════════════════════════════════════════════════════════════════════════

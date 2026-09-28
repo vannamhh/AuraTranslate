@@ -133,7 +133,7 @@ fn read_role_rows(store: &auratranslate_lib::core::store::Store, chapter_id: i64
 }
 
 /// Mọi neo `anchor_after_segment_ord` đã ghi, sắp tăng dần. `file_name` là một UUID ngẫu
-/// nhiên (`Uuid::new_v4()`, `commands/project.rs`) — KHÔNG mang lại dấu vết nào của URL nguồn,
+/// nhiên (`Uuid::new_v4()`, `commands/project/work_creation.rs`) — KHÔNG mang lại dấu vết nào của URL nguồn,
 /// nên đọc THEO NEO (thứ tự tài liệu, không suy từ tên tệp) là cách đúng để phân biệt ảnh A
 /// với ảnh B trong ca này.
 fn read_asset_anchors_sorted(store: &auratranslate_lib::core::store::Store) -> Vec<i64> {
@@ -595,7 +595,7 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     // chay THEM sau buoc 23, khong anh huong menh de nay.
     // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
     // and doesn't affect this assertion.
-    assert_eq!(migrated.schema_version(), 25, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
+    assert_eq!(migrated.schema_version(), 26, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
 
     let role: Option<String> = migrated
         .read(move |conn| conn.query_row("SELECT role FROM segment WHERE chapter_id = ?1", [chapter_id], |r| r.get(0)))

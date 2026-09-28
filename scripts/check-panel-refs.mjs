@@ -214,6 +214,11 @@ const EXEMPT = new Map([
       'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
   ],
   [
+    'src/config/bootstrap.ts::readingPreferences',
+    'Chuỗi JSON bốn tuỳ chọn đọc đã nạp — cùng loại "chỉ toàn cục" với `layout`/`glossaryScanThreshold`: ' +
+      'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
     'src/modes/modeState.ts::mode',
     'Chế độ đang mở (library/workspace). Dọn nó khi đổi Tác phẩm sẽ ném người dùng về màn ' +
       'hình Library ngay giữa lượt họ vừa mở một Tác phẩm — nó là state của PHIÊN.',

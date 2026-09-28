@@ -1130,7 +1130,30 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "tron pipeline cong mot lo chen `segment` cong cac luot ghi dia, roi \
              `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
              (`core/segment/pipeline.rs:1011`) va `prepare_chapter_images` bo qua dung nhung \
-             Chuong do (`commands/project.rs:1011`, `let Some(blocks) = ... else { continue }`)",
+             Chuong do (`commands/project/work_creation.rs`, `let Some(blocks) = ... else { continue }`)",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn preview_import_encoding_from_text(\n        app: tauri::AppHandle",
+            "`.lock()` PendingImportSourceState tren luong chinh; \
+             confirm_import_with_encoding/confirm_bilingual_import (`(async)`) giu khoa do XUYEN \
+             SUOT toi N x 20 giay khi dang tai anh (REQUEST_TIMEOUT), nen mot vo dong bo goi \
+             `.lock()` trong cua so do chan LUONG CHINH toi khi luot kia xong",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn rebuild_bilingual_import_preview(\n        app: tauri::AppHandle",
+            "cung ly do preview_import_encoding_from_text ngay tren -- `.lock()` \
+             PendingImportSourceState tren luong chinh, cung mutex ma confirm_import_with_encoding/ \
+             confirm_bilingual_import co the giu toi N x 20 giay",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn remove_url_import_item(\n        app: tauri::AppHandle",
+            "cung ly do preview_import_encoding_from_text ngay tren -- doc \
+             PendingImportSourceState qua current_pending_destination tren luong chinh, cung mutex \
+             ma mot luot xac nhan (async) co the giu toi N x 20 giay; 0 loi goi mang CUA CHINH \
+             VO NAY khong doi duoc dieu do",
         ),
         (
             "src/commands/promptset.rs",
@@ -1218,7 +1241,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
 /// xa hơn xuống dưới) — ca đó đã đọc nhiều hơn một tệp từ trước.
 ///
 /// 🔵 **MỞ LẦN TƯ 2026-09-15 (AI-4), từ 18 lên 24 — và ba thay đổi về HÌNH DẠNG.**
-/// ① `commands/project.rs`, tệp có nhiều lời gọi mạng nhất Epic 6, chưa từng có một hàng nào
+/// ① `commands/project/wire.rs`, tệp có nhiều lời gọi mạng nhất Epic 6, chưa từng có một hàng nào
 /// ở đây; sáu vỏ nhập của nó vào danh sách. ② Mảng `cases` dọn ra [`blocking_wire_cases`] để
 /// ca "đọc nhiều hơn một tệp" DẪN XUẤT tập tệp thay vì chép tay (bản chép tay đã trôi: nó bỏ
 /// sót `chapter.rs`). ③ Ba assert đếm `(async)` theo tệp rời khỏi đây sang
@@ -1457,6 +1480,18 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// `blocking_wire_cases()` mới (không `(async)` nào đổi). Đếm lại: **71 plain / 28 async** trên
 /// **mười lăm** tệp — 70 + 1 = 71.
 ///
+/// `commands/library.rs` thêm MỘT vỏ plain nữa: `library_list_orphans` (đọc thuần danh sách
+/// mồ côi, không `(async)` — cùng lý do `library_list_works`). Không tệp mới, không hàng
+/// `blocking_wire_cases()` mới. Đếm lại: **72 plain / 28 async** trên **mười lăm** tệp.
+///
+/// Ba vỏ của `commands/project/wire.rs`
+/// (`preview_import_encoding_from_text` · `rebuild_bilingual_import_preview` ·
+/// `remove_url_import_item`) chuyển `plain` → `(async)`: cả ba `.lock()` `PendingImportSourceState`
+/// trên luồng chính trong khi `confirm_import_with_encoding`/`confirm_bilingual_import` (đã
+/// `(async)`) có thể giữ đúng mutex đó tới N × 20 giây khi đang tải ảnh — đối xứng khoá với hai
+/// vỏ xác nhận, không phải một quy tắc nghiệp vụ mới. Không tệp mới, không hàng `mod` mới. Đếm
+/// lại: **69 plain / 31 async** trên **mười lăm** tệp — 72 − 3 = 69, 28 + 3 = 31.
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1465,9 +1500,9 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 ///
 /// **Cột `cases` giữ số hàng của tệp đó trong [`blocking_wire_cases`].** Không có nó, xoá một
 /// hàng `cases` đi qua mọi cổng: số `(async)` trong mã nguồn không đổi, nên phép đếm vẫn
-/// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (6 hàng /
-/// 8 `(async)`): `start_url_import` và `reload_url_import_item` mang `(async)` từ Story 6.7
-/// và không có hàng — đúng cái lỗ mà cột `async` bịt.
+/// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
+/// 11 `(async)`): `start_url_import` và `reload_url_import_item`
+/// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     (
         "src/commands/aiconfig.rs",
@@ -1529,7 +1564,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
          ai do no o TANG VO.",
     ),
     ("src/commands/glossary.rs", 8, 7, 7, ""),
-    ("src/commands/library.rs", 1, 4, 4, ""),
+    ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
     (
         "src/commands/pinned.rs",
@@ -1538,7 +1573,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
         0,
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
-    ("src/commands/project/wire.rs", 9, 8, 6, ""),
+    ("src/commands/project/wire.rs", 6, 11, 9, ""),
     (
         "src/commands/promptset.rs",
         7,
@@ -1704,14 +1739,11 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (71, 28),
+        (69, 31),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         71/28 (do lai 2026-09-21, Story 4.9 Phase 2 them MOT vo plain moi vao tep DA CO \
-         `commands/aitranslate.rs` -- `ai_translate_batch` (async fn LITERAL, dich theo lo, van \
-         dem la plain vi cong nay doc VAN BAN dong thuoc tinh chu khong doc asyncness chu ky), \
-         khong tep moi, khong `(async)` moi: 70 + 1 = 71 (70 tu lan do truoc, Story 4.8 Phase 2 \
-         them tep moi `commands/aitranslate.rs` voi hai vo plain cong MOT vo plain moi o \
-         `commands/segment.rs`: 67 + 2 + 1 = 70).\n\n\
+         69/31 (72/28 tu lan do truoc, BA vo cua \
+         `commands/project/wire.rs` chuyen tu plain sang `(async)` -- doi xung khoa voi \
+         confirm_import_with_encoding/confirm_bilingual_import: 72 - 3 = 69, 28 + 3 = 31).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
@@ -1930,7 +1962,7 @@ fn the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied() {
 /// Trước bản vá cụm F, cả hai vỏ tự viết `layers.as_deref().unwrap_or(&empty_layers)` mà
 /// KHÔNG qua `guarded_dict_layers` — gộp "chưa từng `app.manage`" (lỗi cấu hình `setup()`,
 /// đáng chẩn đoán) với "đã quản lý nhưng rỗng" (AD-25, bình thường) vào MỘT nhánh im lặng,
-/// đúng anti-pattern mà doc-comment của `commands/project.rs::guarded_dict_layers` gọi tên
+/// đúng anti-pattern mà doc-comment của `commands/project/mod.rs::guarded_dict_layers` gọi tên
 /// hai ngày TRƯỚC nó. Hình dạng ĐÚNG (vòng rà 1, Ice chốt) là một COMBINATOR, không một
 /// khối `match`/`if let` viết tay: `guarded_dict_layers(...).unwrap_or(&empty_layers)` —
 /// một khối `match` ở đây có nhánh để gõ nhầm mà 0 phép kiểm nào chạy qua (vỏ `wire::`
@@ -2013,7 +2045,7 @@ fn commands_glossary_uses_the_shared_guarded_dict_layers_helper_not_a_bare_unwra
         violations.is_empty(),
         "{} cau lenh goi `layers.as_deref()` (diem DUY NHAT mo `Option<&DictLayers>` tu \
          `try_state`) ma KHONG qua `guarded_dict_layers(` truoc khi roi ve gia tri du phong:\n{}\n\n\
-         Day dung la anti-pattern ma doc-comment cua `commands/project.rs::guarded_dict_layers` \
+         Day dung la anti-pattern ma doc-comment cua `commands/project/mod.rs::guarded_dict_layers` \
          da goi ten: gop ca \"DictLayers chua tung duoc quan ly\" (loi setup(), dang chan doan) \
          voi \"da quan ly nhung rong\" (AD-25, binh thuong) vao MOT nhanh im lang -- du chо goi \
          roi ve gia tri du phong duoi ten bien nao. Dung `guarded_dict_layers(...).unwrap_or(&empty_layers)`.",

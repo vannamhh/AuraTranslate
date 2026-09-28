@@ -20,6 +20,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { IDLE_MS } from '../../src/layout/writeSchedule'
 
 const mockInvoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
@@ -499,6 +500,222 @@ describe('modes/readingState — mở một Chương từ mục lục (nhánh TH
     expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.id).toBe(9)
     // ② Lớp phủ đóng lại.
     expect(state.readingTocOpen.value).toBe(false)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// `onDeactivated` vứt mảng đoạn/câu, giữ neo vị trí
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('modes/readingState — `resetReading({ preserveAnchor: true })` (đúng lời gọi của `ReadingMode.vue::onDeactivated`)', () => {
+  /**
+   * ⚠️ Không mount `ReadingMode.vue` trong một `<KeepAlive>` thật để kích `onDeactivated` —
+   * cùng bẫy mà `libraryWorks.test.ts` đã ghi lại bằng chữ cho `onActivated` (`@vue/test-utils`
+   * `mount()`/`unmount()` không tin cậy chạy các hook KeepAlive trong `happy-dom`). Gọi thẳng
+   * ĐÚNG hàm/ĐÚNG tham số mà hook đó gọi — `resetReading({ preserveAnchor: true })` — để ca
+   * này tất định.
+   */
+  it('vứt `readingRun` (mảng Chương/đoạn/câu) NHƯNG giữ nguyên `readingAnchorSegmentId`', async () => {
+    mockInvoke.mockResolvedValueOnce(
+      runFixture([chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])]),
+    )
+    const state = await import('../../src/modes/readingState')
+    await state.ensureReadingLoaded()
+    expect(state.readingRun.value).not.toBeNull()
+
+    state.setReadingAnchor(1)
+    expect(state.readingAnchorSegmentId.value).toBe(1)
+
+    state.resetReading({ preserveAnchor: true })
+
+    expect(state.readingRun.value).toBeNull()
+    expect(state.readingHasLoaded.value).toBe(false)
+    expect(state.readingAnchorSegmentId.value).toBe(1) // neo KHÔNG bị xoá
+  })
+
+  it('sau lượt vứt, `ensureReadingLoaded()` nạp lại THẬT (không còn no-op) — cờ `requested` đã bị hạ', async () => {
+    mockInvoke.mockResolvedValue(runFixture([chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])]))
+    const state = await import('../../src/modes/readingState')
+
+    await state.ensureReadingLoaded()
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+
+    // Idempotent TRƯỚC lượt vứt — gọi lại không phát thêm một lượt IPC nào (hành vi đã có từ
+    // trước, đối chứng ở đây để phân biệt với hành vi SAU lượt vứt ngay dưới).
+    await state.ensureReadingLoaded()
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+
+    state.resetReading({ preserveAnchor: true })
+    await state.ensureReadingLoaded()
+
+    expect(mockInvoke).toHaveBeenCalledTimes(2) // một vòng `read_reading_run` THẬT thứ hai
+    expect(state.readingRun.value).not.toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bốn tuỳ chọn đọc (mức/song ngữ/cỡ chữ/giãn dòng) ghi xuống đĩa qua `put_config`, qua nhịp
+// ghi debounce của `layout/writeSchedule.ts` (cặp hằng MẶC ĐỊNH — không đúc cặp thứ tư), và
+// khôi phục lại từ đúng chuỗi JSON đó — vòng GHI → khởi động lại → KHÔI PHỤC.
+//
+// Mọi ca dưới đây dùng `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync`: đây là tầng NỐI
+// (đọc `Date.now()`, giữ `setTimeout`), không phải bản thân hàm thuần `createWriteSchedule`
+// (hàm đó đã nhận `now` qua tham số, và không kiểm bằng đồng hồ giả — cùng luật
+// `tests/AGENTS.md`).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('modes/readingState — bốn tuỳ chọn đọc ghi xuống `app_config`/`reading_preferences` qua `putConfig`', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('mỗi setter (mức/song ngữ/cỡ chữ/giãn dòng) ghi ĐÚNG MỘT lượt `put_config` với hình dạng bốn ô hiện có, sau khi hết nhịp yên', async () => {
+    const state = await import('../../src/modes/readingState')
+
+    state.setReadingLevel('lg')
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'lg', bilingual: false, fontSizeOverride: null, lineHeightOverride: null }),
+    })
+
+    state.toggleBilingual()
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'lg', bilingual: true, fontSizeOverride: null, lineHeightOverride: null }),
+    })
+
+    state.setFontSize(22)
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'lg', bilingual: true, fontSizeOverride: 22, lineHeightOverride: null }),
+    })
+
+    state.setLineHeight(1.9)
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'lg', bilingual: true, fontSizeOverride: 22, lineHeightOverride: 1.9 }),
+    })
+
+    expect(mockInvoke).toHaveBeenCalledTimes(4)
+  })
+
+  it('một loạt lượt `@input` cỡ chữ dồn dập chỉ ra ĐÚNG MỘT lượt `put_config` sau khi yên, mang giá trị CUỐI CÙNG', async () => {
+    const state = await import('../../src/modes/readingState')
+
+    state.setFontSize(16)
+    await vi.advanceTimersByTimeAsync(IDLE_MS / 5)
+    state.setFontSize(18)
+    await vi.advanceTimersByTimeAsync(IDLE_MS / 5)
+    state.setFontSize(20)
+    await vi.advanceTimersByTimeAsync(IDLE_MS / 5)
+    state.setFontSize(24)
+
+    // Chưa hết nhịp yên kể từ lượt cuối ⇒ chưa ghi gì.
+    expect(mockInvoke).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'md', bilingual: false, fontSizeOverride: 24, lineHeightOverride: null }),
+    })
+  })
+
+  it('`beforeunload` ghi NGAY một thay đổi còn trong cửa sổ yên chưa hết hạn, cùng khuôn `WorkspaceDock.vue`', async () => {
+    const state = await import('../../src/modes/readingState')
+
+    state.setFontSize(21)
+    // Chưa hết nhịp yên ⇒ chưa ghi gì trên đường timer bình thường.
+    expect(mockInvoke).not.toHaveBeenCalled()
+
+    window.dispatchEvent(new Event('beforeunload'))
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'md', bilingual: false, fontSizeOverride: 21, lineHeightOverride: null }),
+    })
+
+    // Timer đã lên lịch trước đó không được bắn thêm một lượt ghi thừa sau khi đã flush.
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('`setReadingLevel` xoá cả hai tinh chỉnh, và lượt ghi phản ánh đúng điều đó (không cộng dồn giá trị cũ)', async () => {
+    const state = await import('../../src/modes/readingState')
+
+    state.setFontSize(20)
+    state.setLineHeight(2)
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    mockInvoke.mockClear()
+
+    state.setReadingLevel('sm')
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenLastCalledWith('put_config', {
+      kind: 'app_config',
+      key: 'reading_preferences',
+      value: JSON.stringify({ level: 'sm', bilingual: false, fontSizeOverride: null, lineHeightOverride: null }),
+    })
+  })
+
+  it('vòng GHI → khởi động lại → KHÔI PHỤC: `initReadingPreferencesFromBootstrap` đọc lại ĐÚNG chuỗi vừa `put_config` ghi, khôi phục cả bốn ô CÙNG LƯỢT', async () => {
+    const state = await import('../../src/modes/readingState')
+
+    // ① GHI — bốn lượt đổi dồn dập; nhịp debounce gộp thành MỘT lượt `put_config` sau khi yên,
+    // mang đúng chuỗi JSON của giá trị CUỐI CÙNG.
+    state.setReadingLevel('lg')
+    state.toggleBilingual()
+    state.setFontSize(24)
+    state.setLineHeight(2.1)
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    const lastCall = mockInvoke.mock.calls.at(-1)
+    expect(lastCall?.[0]).toBe('put_config')
+    const writtenValue = (lastCall?.[1] as { value: string }).value
+
+    // ② KHỞI ĐỘNG LẠI — mô phỏng một phiên MỚI: bốn ô về lại mặc định, đúng trạng thái module
+    // mang trước khi `main.ts::boot()` gọi `initReadingPreferencesFromBootstrap`.
+    state.resetReadingPreferences()
+    expect(state.currentReadingLevel.value).toBe('md')
+    expect(state.readingBilingual.value).toBe(false)
+
+    // ③ KHÔI PHỤC — đọc lại ĐÚNG chuỗi vừa ghi ở bước ①, không phải một fixture viết tay.
+    state.initReadingPreferencesFromBootstrap(writtenValue)
+
+    expect(state.currentReadingLevel.value).toBe('lg')
+    expect(state.readingBilingual.value).toBe(true)
+    expect(state.effectiveFontSize.value).toBe(24)
+    expect(state.effectiveLineHeight.value).toBe(2.1)
+  })
+
+  it('chuỗi rỗng (chưa ai lưu gì) hoặc JSON hỏng ⇒ giữ nguyên bốn mặc định, không ném', async () => {
+    const state = await import('../../src/modes/readingState')
+    state.setReadingLevel('sm')
+    state.setFontSize(18)
+    await vi.advanceTimersByTimeAsync(IDLE_MS)
+
+    expect(() => state.initReadingPreferencesFromBootstrap('')).not.toThrow()
+    expect(state.currentReadingLevel.value).toBe('sm')
+    expect(state.effectiveFontSize.value).toBe(18)
+
+    expect(() => state.initReadingPreferencesFromBootstrap('{ khong phai JSON hop le')).not.toThrow()
+    expect(state.currentReadingLevel.value).toBe('sm')
+    expect(state.effectiveFontSize.value).toBe(18)
   })
 })
 

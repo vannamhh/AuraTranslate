@@ -83,6 +83,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use unicode_normalization::char::decompose_canonical;
+
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{
     LIBRARY_INDEX_MIGRATIONS, PROJECT_MIGRATIONS, ReadHandle, ReadOnlyDb, Row, SqlError, SqlResult,
@@ -383,11 +385,14 @@ impl Indexer {
                 match harvest_work_text(dir) {
                     Ok(rows) => {
                         for row in rows {
+                            let source_text_fold = fold_diacritics_case_preserving(&row.source_text);
+                            let target_text_fold = fold_dd_letter(&row.target_text);
                             tx.execute(
                                 "INSERT INTO library_segment \
                                  (work_id, chapter_id, chapter_ord, chapter_title, segment_id, \
-                                  segment_ord, source_text, target_text) \
-                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                                  segment_ord, source_text, target_text, source_text_fold, \
+                                  target_text_fold) \
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                                 (
                                     &meta.work_id,
                                     row.chapter_id,
@@ -397,6 +402,8 @@ impl Indexer {
                                     row.segment_ord,
                                     &row.source_text,
                                     &row.target_text,
+                                    &source_text_fold,
+                                    &target_text_fold,
                                 ),
                             )?;
                         }
@@ -416,13 +423,14 @@ impl Indexer {
                 }
             }
 
-            // Nạp lại TOÀN BỘ ba chỉ mục FTS5 (🔵 hai → ba, Story 5.10) từ nội dung
-            // `library_segment` VỪA ghi xong — khuôn 'rebuild' external-content chuẩn của FTS5.
-            // Chạy SAU khi mọi `INSERT` ở trên đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng
-            // nội dung tại thời điểm nó chạy, không phải một API tăng dần theo từng hàng.
+            // Nạp lại TOÀN BỘ bốn chỉ mục FTS5 từ nội dung `library_segment` VỪA ghi xong —
+            // khuôn 'rebuild' external-content chuẩn của FTS5. Chạy SAU khi mọi `INSERT` ở
+            // trên đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng nội dung tại thời điểm nó
+            // chạy, không phải một API tăng dần theo từng hàng.
             tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')", [])?;
 
             // Mọi hàng CÒN LẠI (không vừa UPSERT ở trên): mồ côi khi và chỉ khi `atproj_path`
             // của nó KHÔNG nằm trong `unreadable_paths` — vế HAI của vị từ (P3). Đọc lại toàn
@@ -552,6 +560,7 @@ impl Indexer {
             tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')", [])?;
             Ok(())
         })?;
 
@@ -760,14 +769,17 @@ impl Indexer {
     /// ─────────────────────────────────────────────────────────────────────────────
     /// 🔴 STORY 5.10 — HAI CHẾ ĐỘ DẤU (FR9), VÀ VÌ SAO CHÍNH XÁC LUÔN CHẠY TRƯỚC
     /// ─────────────────────────────────────────────────────────────────────────────
-    /// `mode` quyết định chỉ mục CHÍNH có đủ hay cần thêm `library_target_fts_nd`
-    /// (`unicode61 remove_diacritics 2`) — chỉ mục KHOAN DUNG DẤU chỉ tồn tại ở NỬA BẢN DỊCH
-    /// (xem `5-10-hai-che-do-dau.md` §Design Notes "Vì sao nửa nguyên văn không có bản khoan
-    /// dung"). Lượt CHÍNH XÁC (target + source, đúng khuôn Story 5.9) LUÔN chạy TRƯỚC, không
-    /// ngoại lệ — kể cả khi `mode == Lenient`: đây là bằng chứng cho tập rowid dùng để dán nhãn
-    /// [`SearchHit::match_kind`] (xem dưới), và nửa nguyên văn (`source`) không có nhánh `_nd`
-    /// nên nó GIỮ NGUYÊN, phân biệt dấu, ở CẢ HAI chế độ — chuyển chế độ không được làm MẤT một
-    /// hit đã có (§Always).
+    /// `mode` quyết định chỉ mục CHÍNH có đủ hay cần thêm hai chỉ mục PHỤ khoan dung dấu —
+    /// `library_target_fts_nd` (`unicode61 remove_diacritics 2`, nửa bản dịch) và
+    /// `library_source_fts_nd` (`trigram`, nửa nguyên văn). Cả hai đọc một cột ĐÃ GẤP riêng cho
+    /// mình (`target_text_fold`/`source_text_fold`) — `đ`/`Đ` không tokenizer nào gấp được, và
+    /// `trigram` (khác `unicode61`) còn không gấp CẢ dấu tổ hợp tiếng Việt (đo trực tiếp, xem
+    /// chú thích [`LIBRARY_WORK_DDL`]) — nên truy vấn cũng phải gấp qua ĐÚNG cùng phép trước khi
+    /// đưa vào `MATCH` (xem [`search_target_text_nd`]/[`search_source_text_nd`]). Lượt CHÍNH
+    /// XÁC (target + source, đúng khuôn Story 5.9) LUÔN
+    /// chạy TRƯỚC, không ngoại lệ — kể cả khi `mode == Lenient`: đây là bằng chứng cho tập
+    /// rowid dùng để dán nhãn [`SearchHit::match_kind`] (xem dưới) — chuyển chế độ không được
+    /// làm MẤT một hit đã có (§Always).
     ///
     /// `effective_mode` là [`SearchMode::Lenient`] khi và chỉ khi:
     /// - `mode == Lenient` (người dùng chọn tường minh bằng nút), HOẶC
@@ -779,16 +791,17 @@ impl Indexer {
     /// `widened == (mode == Exact && effective_mode == Lenient)` là một BẤT BIẾN của hàm này,
     /// đúng theo cấu tạo (không một nhánh nào gán `widened` ngoài định nghĩa `widened` ở trên).
     ///
-    /// Khi `effective_mode == Lenient`, nửa BẢN DỊCH đổi nguồn: thay vì đọc `target` (chỉ mục
-    /// CHÍNH), nó đọc `library_target_fts_nd` — vì `_nd` gấp dấu trên CẢ NỘI DUNG lẫn TRUY VẤN
-    /// nên tập kết quả của nó là TẬP CHA của tập `target` (mọi hit chính xác cũng khớp `_nd`,
-    /// đo 2026-08-29). ⇒ Không cộng gộp `target + nd_target` (sẽ đúp mọi hit chính xác); output
-    /// nửa bản dịch ở chế độ khoan dung là ĐÚNG MỘT truy vấn trên `_nd`, dán nhãn theo tập
-    /// rowid của `target` vừa lấy được ở lượt chính xác (§Always: *"nhãn `match_kind` phải đến
-    /// từ một phép đo CÙNG VỊ TỪ, không từ một phép so chuỗi thứ hai"*) — rowid nằm trong tập
-    /// đó ⇒ `Exact`, ngoài ⇒ `Lenient`. Ở lượt TỰ NỚI, `target` vừa đo được RỖNG (đó là lý do
-    /// nới), nên tập rowid rỗng và mọi hit `_nd` là `Lenient` theo cấu tạo — không cần một phép
-    /// so thứ hai.
+    /// Khi `effective_mode == Lenient`, CẢ HAI nửa đổi nguồn sang chỉ mục `_nd` của mình — vì
+    /// `_nd` gấp dấu trên CẢ NỘI DUNG lẫn TRUY VẤN nên tập kết quả của nó là TẬP CHA của tập
+    /// chính xác tương ứng (mọi hit chính xác cũng khớp `_nd`). ⇒ Không cộng gộp `target +
+    /// nd_target` (hay `source + nd_source`) — sẽ đúp mọi hit chính xác; output mỗi nửa ở chế
+    /// độ khoan dung là ĐÚNG MỘT truy vấn trên `_nd` của nó, dán nhãn theo tập rowid của lượt
+    /// chính xác tương ứng (§Always: *"nhãn `match_kind` phải đến từ một phép đo CÙNG VỊ TỪ,
+    /// không từ một phép so chuỗi thứ hai"*) — rowid nằm trong tập đó ⇒ `Exact`, ngoài ⇒
+    /// `Lenient`. Ở lượt TỰ NỚI, lượt chính xác vừa đo được RỖNG (đó là lý do nới), nên tập
+    /// rowid rỗng và mọi hit `_nd` là `Lenient` theo cấu tạo — không cần một phép so thứ hai.
+    /// Nửa nguyên văn vẫn tôn trọng sàn [`MIN_SUBSTRING_QUERY_CHARS`] của `trigram` ở CẢ hai chỉ
+    /// mục của nó (chính xác lẫn `_nd`) — một truy vấn ngắn không chạy nhánh nguyên văn nào.
     pub fn search(&self, query: &str, limit: usize, mode: SearchMode) -> Result<SearchReport, StoreError> {
         let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
         let trimmed = query.trim().to_owned();
@@ -876,13 +889,12 @@ impl Indexer {
                 });
             }
 
-            // ── Lượt KHOAN DUNG — chỉ nửa BẢN DỊCH đổi nguồn sang `_nd`; `source` (nguyên
-            // văn) ở trên GIỮ NGUYÊN, phân biệt dấu (§Always: "chuyển chế độ không được làm
-            // MẤT kết quả"). Xem khối doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
+            // ── Lượt KHOAN DUNG — CẢ HAI nửa đổi nguồn sang `_nd` của mình. Xem khối
+            // doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
             let exact_target_rowids: std::collections::HashSet<i64> =
                 target.iter().map(|hit| hit.rowid).collect();
             let mut nd_target = search_target_text_nd(&conn, &trimmed, limit + 1)?;
-            let nd_truncated = nd_target.len() > limit;
+            let nd_target_truncated = nd_target.len() > limit;
             nd_target.truncate(limit);
             for hit in &mut nd_target {
                 hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
@@ -892,15 +904,32 @@ impl Indexer {
                 };
             }
 
+            let exact_source_rowids: std::collections::HashSet<i64> =
+                source.iter().map(|hit| hit.rowid).collect();
+            let mut nd_source = Vec::new();
+            let mut nd_source_truncated = false;
+            if !short_query {
+                nd_source = search_source_text_nd(&conn, &trimmed, limit + 1)?;
+                nd_source_truncated = nd_source.len() > limit;
+                nd_source.truncate(limit);
+                for hit in &mut nd_source {
+                    hit.match_kind = if exact_source_rowids.contains(&hit.rowid) {
+                        MatchKind::Exact
+                    } else {
+                        MatchKind::Lenient
+                    };
+                }
+            }
+
             let mut hits = nd_target;
-            hits.extend(source);
+            hits.extend(nd_source);
             let total = hits.len();
             Ok(SearchReport {
                 hits,
                 total,
                 indexed_segments,
                 short_query,
-                truncated: nd_truncated || source_truncated,
+                truncated: nd_target_truncated || nd_source_truncated,
                 mode,
                 effective_mode,
                 widened,
@@ -962,6 +991,155 @@ fn fts_phrase(query: &str) -> String {
     format!("\"{}\"", query.replace('"', "\"\""))
 }
 
+/// Gấp `đ`/`Đ` về `d`/`D` — chữ DUY NHẤT mà `remove_diacritics` của SQLite (mọi tham số, đo
+/// trực tiếp: `unicode61` mức 1/2 lẫn `trigram` mức 1) không gấp được, vì đây là hai ký tự ĐỘC
+/// LẬP, không phải `d`/`D` cộng dấu tổ hợp mà bảng gấp dấu built-in xử lý. Dùng khi ghi
+/// `library_segment.target_text_fold` (xem [`harvest_work_text`]) và truy vấn
+/// [`search_target_text_nd`] — `unicode61 remove_diacritics 2` tự gấp phần dấu tổ hợp còn lại
+/// của nửa BẢN DỊCH, nên riêng nửa đó chỉ cần đúng phép gấp này. Nửa NGUYÊN VĂN cần thêm
+/// [`fold_diacritics_case_preserving`] — xem hàm đó cho lý do.
+fn fold_dd_letter(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            '\u{0111}' => 'd',
+            '\u{0110}' => 'D',
+            other => other,
+        })
+        .collect()
+}
+
+/// Gấp dấu ĐẦY ĐỦ, GIỮ NGUYÊN hoa/thường — [`fold_dd_letter`] cộng phép tách NFD rồi bỏ mọi
+/// dấu tổ hợp (`U+0300..=U+036F`). Dùng cho nửa NGUYÊN VĂN (`library_segment.source_text_fold`
+/// và truy vấn của [`search_source_text_nd`]): **đo trực tiếp (SQLite 3.53.2 nhúng)**, tokenizer
+/// `trigram` — dù đặt `remove_diacritics 1` hay không — KHÔNG gấp dấu tổ hợp tiếng Việt (`à`,
+/// `ẵ`, …), khác hẳn `unicode61 remove_diacritics 2` của nửa bản dịch; xem chú thích
+/// [`LIBRARY_WORK_DDL`] cho số đo đầy đủ. ⇒ Nửa nguyên văn phải tự gấp TRỌN VẸN trước khi ghi/
+/// truy vấn, không dựa được vào tokenizer. Giữ hoa/thường nguyên vẹn vì `trigram` đã tự phân
+/// biệt-hoa-thường KHÔNG cần tham số nào (xem [`search_source_text`]) — phép gấp này không
+/// phải chỗ để lo chuyện đó.
+fn fold_diacritics_case_preserving(input: &str) -> String {
+    fold_dd_letter(input).chars().map(fold_one_char_case_preserving).collect()
+}
+
+/// Gấp ĐÚNG MỘT ký tự -- luôn trả về ĐÚNG MỘT ký tự, giữ bất biến một-ký-tự-một-ký-tự mà
+/// [`original_text_snippet`] dựa vào để ánh xạ chỉ số ký tự giữa cột đã gấp và `original`.
+///
+/// NFD trên MỘT ký tự Việt có dấu tổ hợp (`ẵ` → `a` + hai dấu tổ hợp U+0300..=U+036F) luôn ra
+/// ĐÚNG một ký tự nền sau khi bỏ dấu -- nhưng NFD KHÔNG luôn vậy cho mọi ký tự: `が` (U+304C)
+/// tách thành `か` (U+304B) + U+3099 (dấu đục tiếng Nhật, NGOÀI dải U+0300..=U+036F), và một
+/// âm tiết Hangul dựng sẵn (`가`) tách thành HAI/BA Jamo rời, không dấu tổ hợp nào cả. Cả hai
+/// ca đó: giữ NGUYÊN ký tự gốc, không tách -- một ký tự "chưa gấp" còn đúng vị trí hơn hai ký
+/// tự lệch vị trí.
+fn fold_one_char_case_preserving(c: char) -> char {
+    let mut parts: Vec<char> = Vec::new();
+    decompose_canonical(c, |part| parts.push(part));
+    let Some((&base, marks)) = parts.split_first() else { return c };
+    if marks.iter().all(|m| ('\u{0300}'..='\u{036f}').contains(m)) {
+        base
+    } else {
+        c
+    }
+}
+
+/// Gấp dấu ĐẦY ĐỦ, KHÔNG PHÂN BIỆT hoa/thường — cho bước xác minh chuỗi con ở Rust của
+/// [`search_source_text_nd`]. [`fold_diacritics_case_preserving`] trên bản đã hạ chữ thường
+/// (`to_lowercase()`) — xác minh dùng `.contains()` trần (không phân biệt hoa/thường như
+/// chính `trigram`, xem [`search_source_text`]), nên CẢ HAI vế phải hạ chữ thường trước khi so.
+/// Xác minh phải gấp CẢ HAI vế bằng đúng phép này — nếu không, một ứng viên `trigram` thật
+/// (khớp sau khi nội dung ĐÃ được gấp lúc ghi) sẽ bị loại bởi một phép so trên bản CHƯA gấp,
+/// biến hàng rào chống dương-tính-giả thành một cỗ máy sinh âm-tính-giả.
+fn fold_for_tolerant_verification(input: &str) -> String {
+    fold_diacritics_case_preserving(&input.to_lowercase())
+}
+
+/// Số ký tự NGỮ CẢNH lấy mỗi bên của lần khớp cho đoạn trích khoan dung nửa BẢN DỊCH —
+/// [`search_target_text_nd`]. Không phải một phép ngoại suy từ `max_tokens = 10` cũ của
+/// `snippet()` (`search_target_text`): [`original_text_snippet`] tự cắt cửa sổ bằng KÝ TỰ,
+/// không bằng token `unicode61`, nên hai con số không so được trực tiếp — 40 chọn để đủ đọc
+/// một cụm từ quanh lần khớp, cùng cỡ cảm nhận với ví dụ đo ở doc-comment
+/// [`search_source_text`].
+const TARGET_LENIENT_SNIPPET_CONTEXT_CHARS: usize = 40;
+
+/// Cùng vai trò [`TARGET_LENIENT_SNIPPET_CONTEXT_CHARS`], cho nửa NGUYÊN VĂN
+/// ([`search_source_text_nd`]) — lớn hơn vì nhánh chính xác tương ứng (`search_source_text`)
+/// cũng dùng ngân sách `snippet()` lớn hơn (`max_tokens = 64`, xem doc-comment của nó).
+const SOURCE_LENIENT_SNIPPET_CONTEXT_CHARS: usize = 60;
+
+/// Vị trí (chỉ số KÝ TỰ, không tính marker) và độ dài KÝ TỰ của cặp marker NỘI BỘ ĐẦU TIÊN
+/// trong đầu ra `highlight()`. Một đoạn trích chỉ cần MỘT lần khớp; `highlight()` (không như
+/// `snippet()`) đánh dấu MỌI lần khớp trên toàn cột, nên các cặp SAU cặp đầu bị bỏ qua có chủ
+/// ý.
+///
+/// Marker là U+E000/U+E001 (Private Use Area), KHÔNG phải `‹`/`›` hiển thị cho người dùng: cột
+/// ĐÃ GẤP mà `highlight()` chạy trên có thể tự mang một `‹`/`›` THẬT đứng trước lần khớp, và
+/// hàm này sẽ đọc nhầm ký tự đó là điểm bắt đầu marker, lệch cả vị trí lẫn độ dài. `‹`/`›` hiển
+/// thị vẫn do [`original_text_snippet`] tự đặt trên `original`, không đổi.
+fn first_marker_span_chars(highlighted: &str) -> Option<(usize, usize)> {
+    let mut start: Option<usize> = None;
+    let mut len = 0usize;
+    let mut chars_seen = 0usize;
+    for ch in highlighted.chars() {
+        match (ch, start) {
+            ('\u{e000}', None) => start = Some(chars_seen),
+            ('\u{e001}', Some(s)) => return Some((s, len)),
+            _ => {
+                chars_seen += 1;
+                if start.is_some() {
+                    len += 1;
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Đoạn trích khoan dung hiện NGUYÊN
+/// VĂN, không hiện cột ĐÃ GẤP. `snippet()` của SQLite đọc thẳng cột được lập chỉ mục
+/// (`target_text_fold`/`source_text_fold`), nên gọi thẳng nó luôn trả chữ ĐÃ GẤP
+/// (`"duong"` thay vì `"đường"`) cho MỌI hit khoan dung — không có tham số nào của `snippet()`
+/// đổi được cột nguồn của nó sang một cột KHÁC cột đã lập chỉ mục.
+///
+/// Thay vào đó: gọi `highlight()` trên cột ĐÃ GẤP chỉ để tìm VỊ TRÍ (không cắt bớt, không
+/// `"…"` — khác `snippet()`), rồi tự cắt cửa sổ ngữ cảnh và tự đặt marker `‹›` trên
+/// `original` ở ĐÚNG chỉ số ký tự đó. Hợp lệ vì [`fold_dd_letter`]/
+/// [`fold_diacritics_case_preserving`] là phép MỘT-KÝ-TỰ-MỘT-KÝ-TỰ ([`fold_one_char_case_preserving`]
+/// gấp từng ký tự riêng, giữ nguyên ký tự gốc khi NFD của nó không rút gọn về đúng một ký tự
+/// nền cộng dấu tổ hợp) —
+/// chỉ số ký tự thứ *i* của cột ĐÃ GẤP luôn ứng với chỉ số ký tự thứ *i* của `original`, vì
+/// `target_text_fold`/`source_text_fold` được ghi bằng ĐÚNG hai hàm này áp lên
+/// `target_text`/`source_text` (xem [`harvest_work_text`]).
+///
+/// Không tìm được marker nào (không nên xảy ra trên một hàng đã `MATCH`) hoặc chỉ số vượt độ
+/// dài `original` (bất biến một-ký-tự-một-ký-tự bị vi phạm ở đâu đó) ⇒ trả `original` nguyên
+/// vẹn, không marker bịa, không panic.
+fn original_text_snippet(original: &str, folded_highlighted: &str, context_chars: usize) -> String {
+    let original_chars: Vec<char> = original.chars().collect();
+    let Some((match_start, match_len)) = first_marker_span_chars(folded_highlighted) else {
+        return original.to_owned();
+    };
+    if match_start + match_len > original_chars.len() {
+        return original.to_owned();
+    }
+
+    let window_start = match_start.saturating_sub(context_chars);
+    let window_end = (match_start + match_len + context_chars).min(original_chars.len());
+
+    let mut out = String::new();
+    if window_start > 0 {
+        out.push('\u{2026}');
+    }
+    out.extend(&original_chars[window_start..match_start]);
+    out.push('\u{2039}');
+    out.extend(&original_chars[match_start..match_start + match_len]);
+    out.push('\u{203a}');
+    out.extend(&original_chars[match_start + match_len..window_end]);
+    if window_end < original_chars.len() {
+        out.push('\u{2026}');
+    }
+    out
+}
+
 /// Nửa nào của một segment một hit khớp — danh mục ĐÓNG, hai giá trị. Story 5.9.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchField {
@@ -990,10 +1168,12 @@ pub enum SearchMode {
     /// Chỉ chạy hai chỉ mục CHÍNH (`library_target_fts`/`library_source_fts`), PHÂN BIỆT dấu
     /// tiếng Việt ở cả hai (AD-27). **Mặc định** — khoan dung KHÔNG BAO GIỜ là mặc định.
     Exact,
-    /// Nửa BẢN DỊCH đọc thêm `library_target_fts_nd` (`unicode61 remove_diacritics 2`) — do
-    /// người dùng chọn tường minh, HOẶC do một lượt tự nới (xem [`SearchReport::widened`]).
-    /// Nửa NGUYÊN VĂN không đổi — nó không có chỉ mục `_nd` (§Design Notes của
-    /// `5-10-hai-che-do-dau.md`, "Vì sao nửa nguyên văn không có bản khoan dung").
+    /// Nửa BẢN DỊCH đọc thêm `library_target_fts_nd` (`unicode61 remove_diacritics 2`) và nửa
+    /// NGUYÊN VĂN đọc thêm `library_source_fts_nd` (`trigram`) — do người dùng chọn tường
+    /// minh, HOẶC do một lượt tự nới (xem [`SearchReport::widened`]). Cả hai chỉ mục PHỤ đọc
+    /// một cột ĐÃ GẤP riêng cho mình trước khi đưa vào tokenizer — [`fold_dd_letter`] (chỉ
+    /// `đ/Đ`) cho nửa bản dịch, [`fold_diacritics_case_preserving`] (thêm dấu tổ hợp) cho nửa
+    /// nguyên văn.
     Lenient,
 }
 
@@ -1180,16 +1360,21 @@ fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
 
 /// **Nhánh khoan dung của nửa bản dịch** — Story 5.10 (FR9). Khuôn TRỰC TIẾP của
 /// [`search_target_text`] ngay trên, chỉ đổi tên bảng FTS sang `library_target_fts_nd`
-/// (`unicode61 remove_diacritics 2`) và đọc THÊM `s.rowid` (đã có sẵn ở bản khuôn, không phải
-/// một cột mới). `match_kind` gán TẠM `Lenient` ở đây — [`Indexer::search`] sửa lại theo tập
-/// rowid của lượt chính xác TRƯỚC khi trả ra (xem doc-comment của nó), không phải một hằng số
-/// cuối cùng.
+/// (`unicode61 remove_diacritics 2`, đọc cột ĐÃ GẤP `target_text_fold`) và đọc THÊM `s.rowid`
+/// (đã có sẵn ở bản khuôn, không phải một cột mới). `query` phải qua [`fold_dd_letter`] TRƯỚC
+/// khi bọc cụm — cột đã gấp mà truy vấn không gấp sẽ không khớp một `đ`/`Đ` nào của người dùng.
+/// `match_kind` gán TẠM `Lenient` ở đây — [`Indexer::search`] sửa lại theo tập rowid của lượt
+/// chính xác TRƯỚC khi trả ra (xem doc-comment của nó), không phải một hằng số cuối cùng.
+///
+/// Đọc THÊM `s.target_text` (cột chưa gấp) và gọi `highlight()` thay
+/// `snippet()`; đoạn trích dựng bằng [`original_text_snippet`], xem doc-comment hàm đó.
 fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
-    let phrase = fts_phrase(query);
+    let phrase = fts_phrase(&fold_dd_letter(query));
     let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
     let sql = "\
         SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
-               snippet(library_target_fts_nd, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10) \
+               s.target_text, \
+               highlight(library_target_fts_nd, 0, '\u{e000}', '\u{e001}') \
         FROM library_target_fts_nd f \
         JOIN library_segment s ON s.rowid = f.rowid \
         JOIN library_work w ON w.work_id = s.work_id \
@@ -1198,6 +1383,8 @@ fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> Sq
         LIMIT ?2";
     let mut stmt = conn.prepare_cached(sql)?;
     let rows = stmt.query_map((&phrase, limit_i64), |row| {
+        let target_text: String = row.get(7)?;
+        let folded_highlighted: String = row.get(8)?;
         Ok(SearchHit {
             rowid: row.get(0)?,
             work_id: row.get(1)?,
@@ -1208,7 +1395,11 @@ fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> Sq
             segment_id: row.get(6)?,
             field: SearchField::Target,
             match_kind: MatchKind::Lenient,
-            snippet: row.get(7)?,
+            snippet: original_text_snippet(
+                &target_text,
+                &folded_highlighted,
+                TARGET_LENIENT_SNIPPET_CONTEXT_CHARS,
+            ),
         })
     })?;
     rows.collect()
@@ -1262,8 +1453,9 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
             chapter_title: row.get(5)?,
             segment_id: row.get(6)?,
             field: SearchField::Source,
-            // Nửa NGUYÊN VĂN không có nhánh `_nd` (§Design Notes của story) -- luôn `Exact`,
-            // kể cả trong một lượt khoan dung (§Always: "chuyển chế độ không làm mất kết quả").
+            // Hàm này chỉ ĐỌC chỉ mục CHÍNH (`library_source_fts`) -- mọi hit của nó là
+            // `Exact` theo cấu tạo. Nhánh khoan dung riêng là `search_source_text_nd` ngay
+            // dưới, đọc `library_source_fts_nd`.
             match_kind: MatchKind::Exact,
             snippet: row.get(8)?,
         };
@@ -1282,12 +1474,79 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
     Ok(verified)
 }
 
+/// **Nhánh khoan dung của nửa nguyên văn** — đóng nợ `deferred-work.md` (Story 5.10 chỉ gấp
+/// dấu cho nửa bản dịch; nửa nguyên văn giữ nguyên phân biệt dấu). Khuôn TRỰC TIẾP của
+/// [`search_source_text`] ngay trên, đổi bảng FTS sang `library_source_fts_nd` (`trigram`,
+/// đọc cột ĐÃ GẤP `source_text_fold`) — KHÁC nửa bản dịch, `trigram` không tự gấp dấu tổ hợp
+/// nào (đo trực tiếp, xem chú thích [`LIBRARY_WORK_DDL`]), nên `query` phải qua
+/// [`fold_diacritics_case_preserving`] TƯỜNG MINH TRƯỚC khi bọc cụm — cùng phép đã dùng để ghi
+/// `source_text_fold` lúc thu hoạch.
+///
+/// 🔴 Xác minh chuỗi con vẫn BẮT BUỘC (cùng lý lẽ [`search_source_text`]), nhưng phải qua
+/// [`fold_for_tolerant_verification`] thay vì `.to_lowercase().contains()` trần: hàng
+/// (`s.source_text`, CHƯA gấp — cột hiển thị) vẫn còn nguyên dấu, trong khi ứng viên đã khớp
+/// dưới dạng ĐÃ GẤP ở tầng tokenizer — so sánh trên bản CHƯA gấp sẽ loại nhầm chính những hàng
+/// vừa tìm được.
+///
+/// Gọi `highlight()` thay `snippet()`; đoạn trích dựng bằng
+/// [`original_text_snippet`] trên CHÍNH `s.source_text` đã đọc cho bước xác minh ngay dưới
+/// (không cần đọc cột nào thêm — khác `search_target_text_nd`, hàm này vốn đã chọn cột chưa
+/// gấp).
+fn search_source_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+    let phrase = fts_phrase(&fold_diacritics_case_preserving(query));
+    let ceiling = search_candidate_ceiling(limit);
+    let sql = "\
+        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+               s.source_text, \
+               highlight(library_source_fts_nd, 0, '\u{e000}', '\u{e001}') \
+        FROM library_source_fts_nd f \
+        JOIN library_segment s ON s.rowid = f.rowid \
+        JOIN library_work w ON w.work_id = s.work_id \
+        WHERE library_source_fts_nd MATCH ?1 \
+        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
+        LIMIT ?2";
+    let mut stmt = conn.prepare_cached(sql)?;
+    let rows = stmt.query_map((&phrase, ceiling), |row| {
+        let source_text: String = row.get(7)?;
+        let folded_highlighted: String = row.get(8)?;
+        let hit = SearchHit {
+            rowid: row.get(0)?,
+            work_id: row.get(1)?,
+            work_name: row.get(2)?,
+            chapter_id: row.get(3)?,
+            chapter_ord: row.get(4)?,
+            chapter_title: row.get(5)?,
+            segment_id: row.get(6)?,
+            field: SearchField::Source,
+            // Gán TẠM -- `Indexer::search` sửa lại theo tập rowid của lượt chính xác, cùng
+            // khuôn `search_target_text_nd`.
+            match_kind: MatchKind::Lenient,
+            snippet: original_text_snippet(
+                &source_text,
+                &folded_highlighted,
+                SOURCE_LENIENT_SNIPPET_CONTEXT_CHARS,
+            ),
+        };
+        Ok((hit, source_text))
+    })?;
+    let candidates: Vec<(SearchHit, String)> = rows.collect::<SqlResult<Vec<_>>>()?;
+
+    let needle = fold_for_tolerant_verification(query);
+    let mut verified: Vec<SearchHit> = candidates
+        .into_iter()
+        .filter(|(_, source_text)| fold_for_tolerant_verification(source_text).contains(&needle))
+        .map(|(hit, _)| hit)
+        .collect();
+    verified.truncate(limit);
+    Ok(verified)
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Story 5.9 — THU HOẠCH VĂN BẢN. Xem [`harvest_work_text`] cho hợp đồng đầy đủ.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Tên tệp `project.db` bên trong một thư mục `.atproj` — cùng literal đã dùng ở
-/// `commands/project.rs` (`dir.join("project.db")`); chưa đủ chỗ dùng xuyên module để đáng một
+/// `commands/project/work_creation.rs` (`dir.join("project.db")`); chưa đủ chỗ dùng xuyên module để đáng một
 /// hằng `pub(crate)` dùng chung.
 const PROJECT_DB_FILE: &str = "project.db";
 

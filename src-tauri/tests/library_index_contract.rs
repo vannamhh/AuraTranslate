@@ -421,12 +421,14 @@ fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_th
     // đường" — số đích thay đổi không làm hỏng ý nghĩa ca này.
     // 🔵 SỬA (2026-08-29, Story 5.10) — đích lại nâng 6 → 7 (`library_target_fts_nd`); fixture
     // vẫn dựng hình dạng `to_version` 4, nay là một NHẢY BA BẬC, cùng ý nghĩa ca này không đổi.
+    // Đích nay là 8 (cột `source_text_fold`/`target_text_fold` cộng `library_source_fts_nd`) —
+    // fixture vẫn dựng hình dạng `to_version` 4, nay là một NHẢY BỐN BẬC, cùng ý nghĩa không đổi.
     {
         let conn = rusqlite::Connection::open(&idx).expect("mở lại để kiểm tra");
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
-        assert_eq!(version, 7, "library-index.db phải ở đúng to_version 7 sau lượt mở lại");
+        assert_eq!(version, 8, "library-index.db phải ở đúng to_version 8 sau lượt mở lại");
     }
 
     drop(global);
@@ -531,7 +533,7 @@ fn an_index_file_at_schema_version_6_is_deleted_and_rebuilt_at_version_7_with_th
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
-        assert_eq!(version, 7, "library-index.db phải ở đúng to_version 7 sau lượt mở lại");
+        assert_eq!(version, 8, "library-index.db phải ở đúng to_version 8 sau lượt mở lại (đích hiện hành)");
     }
 
     drop(global);
@@ -3026,8 +3028,10 @@ fn a_two_diacritic_query_widens_and_the_snippet_keeps_the_original_accented_text
     assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
     assert!(report.widened);
     assert_eq!(report.effective_mode, SearchMode::Lenient);
-    // `snippet` phai mang chu GOC con nguyen dau -- _nd lap chi muc tren chinh cot `target_text`,
-    // khong tren mot ban da gap (§Design Notes "Vi sao _nd lap chi muc tren chinh cot target_text").
+    // `snippet` phai mang chu GOC con nguyen dau -- KHONG vi _nd lap chi muc tren
+    // `target_text_fold` (cot da gap `đ`/`Đ`), ma vi `original_text_snippet` tu dung lai doan
+    // trich tren `s.target_text` (chua gap), chi dung `highlight()` tren cot da gap de tim VI
+    // TRI khop (xem doc-comment `original_text_snippet` trong `core/library/indexer.rs`).
     assert!(
         report.hits[0].snippet.contains("Nguyễn") || report.hits[0].snippet.contains("Huệ"),
         "doan trich phai giu dau GOC, khong bi bop meo: {}",
@@ -3827,20 +3831,15 @@ fn an_empty_index_with_mode_lenient_still_returns_a_well_formed_empty_report() {
     cleanup(&dir);
 }
 
-/// **THÊM (vòng rà bốn lớp, mục 5)** — GIỚI HẠN CÓ CHỦ, không phải hành vi mong muốn: `đ`/`Đ`
-/// (U+0111/U+0110) KHÔNG được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào, kể cả mức `2`
-/// mà `library_target_fts_nd` dùng (đo ở §Design Notes của `5-10-hai-che-do-dau.md`:
-/// `remove_diacritics` gỡ DẤU PHỤ TỔ HỢP, còn `đ` là một CHỮ CÁI riêng, không phân rã được
-/// thành `d` + dấu). Mọi ca khoan dung KHÁC của tệp này né đúng chữ này (ví dụ `nguyen hue`
-/// trên `Nguyễn Huệ` — không bao giờ `dai pha`), nên một bộ lưới đi vòng qua đúng lớp ký tự đã
-/// biết là hỏng sẽ không ai biết ngày nó được sửa.
-///
-/// 🔴 ĐÂY LÀ HÀNH VI ĐANG SAI VỚI NGƯỜI DÙNG, ghi lại CÓ CHỦ Ý để ngày món nợ đóng (hàm gấp
-/// dấu trong Rust, `deferred-work.md`, chủ **Ice**) thì CHÍNH CA NÀY phải ĐỎ và buộc người sửa
-/// đọc lại — không một `#[ignore]`, không một `#[should_panic]` mập mờ.
+/// `remove_diacritics` (SQLite, cả hai tham số 1 và 2) không gấp `đ`/`Đ` (U+0111/U+0110) về
+/// `d`/`D` -- hai chữ này là ký tự ĐỘC LẬP, không phân rã được thành `d` + dấu tổ hợp. Guard
+/// này khoá cột `library_segment.target_text_fold`/`fold_dd_letter` sửa đúng lỗ hổng đó ở nửa
+/// BẢN DỊCH: đối chứng bằng cách xoá lời gọi `fold_dd_letter` khỏi `search_target_text_nd`
+/// (hoặc khỏi INSERT ghi `target_text_fold`) -- ca này phải quay lại đỏ với `report.hits`
+/// rỗng.
 #[test]
-fn a_query_without_the_d_stroke_still_does_not_find_the_d_stroke_word_documented_gap() {
-    let dir = temp_dir("gap-d-stroke-not-folded");
+fn a_query_without_the_d_stroke_finds_the_d_stroke_word_in_the_translation_half() {
+    let dir = temp_dir("d-stroke-folded-translation-half");
     let global = open_global(&dir);
     let root = library_root(&dir);
     let (_dir, store) = write_atproj_with_real_project_db(
@@ -3855,12 +3854,59 @@ fn a_query_without_the_d_stroke_still_does_not_find_the_d_stroke_word_documented
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
     let report = rebuild_and_search(&indexer, &root, &global, "duong phuong", 20, SearchMode::Lenient);
 
-    assert!(
-        report.hits.is_empty(),
-        "GIOI HAN CO CHU (deferred-work.md, chu Ice): remove_diacritics KHONG gap duoc `d` -- \
-         neu ca nay do la vi mon no da dong, xoa doc-comment nay va doi assert thanh len 1: {:?}",
+    assert_eq!(
+        report.hits.len(),
+        1,
+        "fold_dd_letter phai gap `đ` ve `d` o CA hai ve (noi dung da index lan truy van) de tim \
+         ra hang nay: {:?}",
         report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()
     );
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Cùng lớp guard ngay trên nhưng cho nửa NGUYÊN VĂN (`library_source_fts_nd`, `trigram`
+/// cộng `fold_diacritics_case_preserving`) -- trước bản vá này nửa nguyên văn không có nhánh
+/// `_nd` nào, nên một truy vấn không dấu/không `đ` không bao giờ tìm ra một từ có `đ`/dấu tổ
+/// hợp ở ĐÂY dù đã ở chế độ khoan dung. Đối chứng: xoá lời gọi `fold_diacritics_case_preserving`
+/// khỏi `search_source_text_nd` (hoặc khỏi INSERT ghi `source_text_fold`) -- ca này phải đỏ.
+///
+/// ⚠️ Cụm "Đà Nẵng" phải nằm ở `segment.source_text` (KHÔNG phải `chapter.source_text`) --
+/// [`harvest_work_text`] chỉ đọc cấp-Chương khi Chương CHƯA có segment nào (§I/O Matrix "Chương
+/// chưa tách segment"); một Chương ĐÃ có segment bỏ qua hẳn `chapter.source_text` của nó.
+#[test]
+fn a_query_without_diacritics_finds_the_d_stroke_word_in_the_verbatim_half() {
+    let dir = temp_dir("d-stroke-folded-verbatim-half");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![("Đà Nẵng là một thành phố ven biển", "irrelevant")],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "da nang", 20, SearchMode::Lenient);
+
+    assert_eq!(
+        report.hits.len(),
+        1,
+        "fold_diacritics_case_preserving phai tim ra 'Đà Nẵng' tu truy van 'da nang' o nua \
+         nguyen van: {:?}",
+        report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()
+    );
+    assert_eq!(report.hits[0].field, SearchField::Source);
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
 
     drop(indexer);
     drop(global);
@@ -3899,6 +3945,196 @@ fn every_match_kind_variant_has_a_distinct_non_empty_wire_string() {
         vec!["exact", "lenient"],
         "hai bien the phai la hai chuoi PHAN BIET nhau, dung hinh dang da khai"
     );
+}
+
+/// Đoạn trích khoan dung nửa BẢN DỊCH
+/// phải hiện NGUYÊN VĂN (`đường phượng`, còn dấu), không hiện cột đã gấp
+/// (`target_text_fold`) mà `snippet()` từng đọc thẳng (`duong phuong`, mất `đ` VÀ mất dấu
+/// tổ hợp — `unicode61 remove_diacritics 2` gấp cả hai trên cột đó). Đối chứng: đổi
+/// `search_target_text_nd` gọi lại `snippet(library_target_fts_nd, ...)` thay vì
+/// `original_text_snippet(...)` trên `s.target_text` -- ca này phải đỏ (snippet chứa
+/// `"duong phuong"`, không còn `đ`/dấu nào).
+#[test]
+fn a_lenient_translation_snippet_shows_the_original_d_stroke_not_the_folded_letter() {
+    let dir = temp_dir("d-stroke-snippet-translation-half");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "đường phượng bay rất đẹp")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "duong phuong", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 1);
+    let snippet = &report.hits[0].snippet;
+    assert!(
+        snippet.contains("đường phượng"),
+        "doan trich khoan dung phai hien NGUYEN VAN co dau ('đường phượng'), nhan duoc: {snippet:?}"
+    );
+    assert!(
+        !snippet.contains("duong phuong"),
+        "doan trich khong duoc hien chu DA GAP (cot target_text_fold), nhan duoc: {snippet:?}"
+    );
+    assert!(
+        snippet.contains("\u{2039}đường phượng\u{203a}"),
+        "marker ‹› phai dat DUNG vi tri ky tu tren nguyen van, nhan duoc: {snippet:?}"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Cùng lớp guard ngay trên nhưng cho nửa NGUYÊN VĂN (`search_source_text_nd`) — đoạn trích
+/// phải hiện `Đà Nẵng` (còn `Đ`-stroke và dấu tổ hợp `ẵ`), không hiện `Da Nang` (cột
+/// `source_text_fold` mà `snippet()` từng đọc thẳng). Đối chứng: đổi `search_source_text_nd`
+/// gọi lại `snippet(library_source_fts_nd, ...)` thay vì `original_text_snippet(...)` trên
+/// `s.source_text` -- ca này phải đỏ.
+#[test]
+fn a_lenient_verbatim_snippet_shows_the_original_diacritics_not_the_folded_column() {
+    let dir = temp_dir("d-stroke-snippet-verbatim-half");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![("Đà Nẵng là một thành phố ven biển", "irrelevant")],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "da nang", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 1);
+    let snippet = &report.hits[0].snippet;
+    assert!(
+        snippet.contains("Đà Nẵng"),
+        "doan trich khoan dung phai hien NGUYEN VAN co dau ('Đà Nẵng'), nhan duoc: {snippet:?}"
+    );
+    assert!(
+        !snippet.contains("Da Nang"),
+        "doan trich khong duoc hien chu DA GAP (cot source_text_fold), nhan duoc: {snippet:?}"
+    );
+    assert!(
+        snippet.contains("\u{2039}Đà Nẵng\u{203a}"),
+        "marker ‹› phai dat DUNG vi tri ky tu tren nguyen van, nhan duoc: {snippet:?}"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Một `‹` THẬT đã có sẵn trong văn bản, ĐỨNG TRƯỚC lần khớp -- `highlight()` SQL nội bộ
+/// KHÔNG được dùng chính `‹`/`›` làm marker (chúng phải là ký tự thuộc Private Use Area,
+/// không bao giờ trùng ký tự THẬT), nếu không [`first_marker_span_chars`] đọc nhầm cái `‹`
+/// có sẵn đó là điểm bắt đầu marker và lệch cả vị trí lẫn độ dài khớp. Đối chứng: đổi hai
+/// đối số marker của `highlight()` (`search_target_text_nd`) về lại `'\u{2039}'`/`'\u{203a}'`
+/// -- ca này phải đỏ (marker hiển thị bọc SAI đoạn, từ cái `‹` có sẵn tới hết lần khớp thật).
+#[test]
+fn a_literal_marker_character_already_in_the_text_before_the_match_does_not_shift_the_snippet_span() {
+    let dir = temp_dir("literal-marker-before-match");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![("irrelevant", "Trước dấu ‹ ở đây rồi mới có đường phượng bay rất đẹp")],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "duong phuong", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 1);
+    let snippet = &report.hits[0].snippet;
+    assert!(
+        snippet.contains("Trước dấu ‹ ở đây"),
+        "‹ co san trong van ban phai con nguyen tai cho, khong bi nuot/doi cho: {snippet:?}"
+    );
+    assert!(
+        snippet.contains("‹đường phượng›"),
+        "marker HIEN THI phai bao DUNG lan khop that ('đường phượng'), nhan duoc: {snippet:?}"
+    );
+    assert_eq!(
+        snippet.matches('›').count(),
+        1,
+        "chi DUNG MOT dau dong marker -- lech vi tri se lam marker bao ca doan tu ‹ co san toi het lan khop, khong the ra dung mot cap: {snippet:?}"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// `fold_diacritics_case_preserving` (nửa NGUYÊN VĂN, `search_source_text_nd`) phải gấp
+/// MỘT-KÝ-TỰ-MỘT-KÝ-TỰ -- `が` (dấu đục tiếng Nhật NGOÀI dải U+0300..=U+036F) và một âm tiết
+/// Hangul dựng sẵn (tách thành nhiều Jamo, không dấu tổ hợp nào) đứng TRƯỚC lần khớp phải
+/// KHÔNG làm lệch vị trí đoạn trích -- nếu không, tổng ký tự của cột đã gấp khác cột gốc, và
+/// chỉ số [`first_marker_span_chars`] tính trên cột đã gấp không còn khớp `original`.
+#[test]
+fn a_tolerant_verbatim_snippet_marks_the_right_span_when_japanese_and_hangul_text_precedes_the_match()
+ {
+    let dir = temp_dir("fold-one-char-japanese-hangul-before-match");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![(
+                "がっこう 가나 rồi mới có đường phượng bay rất đẹp",
+                "irrelevant",
+            )],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "duong phuong", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 1);
+    let snippet = &report.hits[0].snippet;
+    assert!(
+        snippet.contains("がっこう 가나 rồi mới có"),
+        "van ban tieng Nhat/Hangul dung TRUOC lan khop phai con nguyen tai cho: {snippet:?}"
+    );
+    assert!(
+        snippet.contains("‹đường phượng›"),
+        "marker phai bao DUNG lan khop that ('đường phượng'), khong lech vi tri: {snippet:?}"
+    );
+    assert_eq!(
+        snippet.matches('›').count(),
+        1,
+        "chi DUNG MOT dau dong marker -- lech vi tri se lam marker bao sai doan hoac panic \
+         boundary: {snippet:?}"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

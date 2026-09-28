@@ -28,6 +28,8 @@ import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { listChapters } from '../config/chapter'
 import type { ChapterRow } from '../config/chapter'
+import { KEY_READING_PREFERENCES, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
+import { createWriteSchedule } from '../layout/writeSchedule'
 import { listReadingMarks, markReadingSegment, readReadingRun } from '../config/reading'
 import type { ReadingMark, ReadingRun, ReadingSegment } from '../config/reading'
 import { openChapterById, requestCurrentEditorCaretPlacement } from '../panels/editorPanelState'
@@ -427,7 +429,9 @@ export function resetReadingToc(): void {
 // ④ TYPOGRAPHY — tuỳ chọn ỨNG DỤNG, không theo Tác phẩm
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 KHÔNG đưa vào `resetReading()` — xem `resetReadingPreferences()` ở cuối nhóm này.
-// Không lưu xuống đĩa ở story này (§Never — món nợ có chủ, `deferred-work.md`).
+// Bốn ô LƯU xuống đĩa, qua khoá thứ tám của
+// `app_config` (`KEY_READING_PREFERENCES`, `src/config/bootstrap.ts`). [`initReadingPreferencesFromBootstrap`]
+// đọc lại lúc khởi động; [`persistReadingPreferences`] ghi lại sau mỗi lượt đổi.
 
 export type ReadingLevel = 'lg' | 'md' | 'sm'
 
@@ -476,10 +480,12 @@ export function setReadingLevel(level: ReadingLevel): void {
   readingLevel.value = level
   fontSizeOverride.value = null
   lineHeightOverride.value = null
+  persistReadingPreferences()
 }
 
 export function toggleBilingual(): void {
   bilingual.value = !bilingual.value
+  persistReadingPreferences()
 }
 
 export function toggleTuner(): void {
@@ -494,12 +500,14 @@ export function toggleTuner(): void {
  */
 export function setFontSize(px: number): void {
   fontSizeOverride.value = Math.min(READING_FONT_SIZE_MAX, Math.max(READING_FONT_SIZE_MIN, px))
+  persistReadingPreferences()
 }
 
 /** 🔴 GHÌM ở [`READING_LINE_HEIGHT_FLOOR`] — kể cả khi giá trị đến từ thanh trượt, gõ số,
  * hay một lời gọi hàm trực tiếp. Đây là sàn LÚC CHẠY, cổng tĩnh không canh được nó. */
 export function setLineHeight(value: number): void {
   lineHeightOverride.value = Math.max(READING_LINE_HEIGHT_FLOOR, value)
+  persistReadingPreferences()
 }
 
 /** Cỡ chữ HIỆU LỰC, dạng số (px) — nguồn cho `:value` của thanh trượt cỡ chữ. */
@@ -553,6 +561,117 @@ export const readingStyle: ComputedRef<{ fontSize: string; lineHeight: string; m
 }))
 
 /**
+ * Hình dạng đã `JSON.stringify` xuống `KEY_READING_PREFERENCES`. Rust không đọc bên trong
+ * chuỗi này (`reading_preferences: String` trần), nên hình
+ * dạng này là quyết định RIÊNG của tệp này, không một hợp đồng đóng băng ở `ipc_contract.rs`.
+ */
+type StoredReadingPreferences = {
+  level: ReadingLevel
+  bilingual: boolean
+  fontSizeOverride: number | null
+  lineHeightOverride: number | null
+}
+
+/**
+ * Nhịp ghi của bốn tuỳ chọn đọc — dùng LẠI hình dạng `createWriteSchedule` của
+ * `layout/writeSchedule.ts` với cặp hằng MẶC ĐỊNH của nó (cặp bố cục, không mang bảo đảm
+ * AD-35): không đúc cặp hằng thứ tư. Cần vì hai thanh trượt (cỡ chữ, giãn dòng) bắn `@input`
+ * liên tục trong lúc kéo — ghi thẳng một lượt `put_config` ở mỗi lần bắn là đúng bẫy
+ * `onDidLayoutChange` mà tệp đó tồn tại để chặn. Mức/song ngữ là hành động rời nên đi qua
+ * CÙNG lịch — mất tối đa một nhịp `IDLE_MS` là chấp nhận được, và một chỗ ghi thay vì hai.
+ */
+const readingPreferencesSchedule = createWriteSchedule()
+let readingPreferencesTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearReadingPreferencesTimer(): void {
+  if (readingPreferencesTimer !== null) {
+    clearTimeout(readingPreferencesTimer)
+    readingPreferencesTimer = null
+  }
+}
+
+function armReadingPreferencesTimer(): void {
+  clearReadingPreferencesTimer()
+  const due = readingPreferencesSchedule.deadline()
+  if (due === null) return
+  readingPreferencesTimer = setTimeout(() => {
+    readingPreferencesTimer = null
+    flushReadingPreferences()
+  }, Math.max(0, due - Date.now()))
+}
+
+/**
+ * Ghi NGAY bốn ô hiện có nếu còn bẩn — đọc state SỐNG tại thời điểm chạy, không một ảnh chụp
+ * cũ từ lúc lên lịch, cùng khuôn `WorkspaceDock.vue::flush`/`jsonForPersist`: người dùng có
+ * thể đã kéo tiếp trong lúc chờ, và giá trị ghi xuống phải là giá trị CUỐI CÙNG.
+ */
+function flushReadingPreferences(): void {
+  clearReadingPreferencesTimer()
+  if (!readingPreferencesSchedule.isDirty()) return
+  readingPreferencesSchedule.onWrite(Date.now())
+
+  const payload: StoredReadingPreferences = {
+    level: readingLevel.value,
+    bilingual: bilingual.value,
+    fontSizeOverride: fontSizeOverride.value,
+    lineHeightOverride: lineHeightOverride.value,
+  }
+  void putConfig(SCOPE_APP_CONFIG, KEY_READING_PREFERENCES, JSON.stringify(payload)).then((err) => {
+    if (err !== null) console.error(`[reading] lưu tuỳ chọn đọc trượt: ${err.code}`)
+  })
+}
+
+/**
+ * Đánh dấu bốn ô hiện có là BẨN và đặt lại timer về đúng mốc phải ghi — gọi sau MỖI lượt đổi
+ * ([`setReadingLevel`]/[`toggleBilingual`]/[`setFontSize`]/[`setLineHeight`]). Lượt ghi thật
+ * xảy ra ở [`flushReadingPreferences`], không ở đây.
+ */
+function persistReadingPreferences(): void {
+  readingPreferencesSchedule.onChange(Date.now())
+  armReadingPreferencesTimer()
+}
+
+// Cùng lý do `WorkspaceDock.vue::onBeforeUnload`: một thay đổi trong cửa sổ idle chưa hết
+// hạn khi cửa sổ đóng phải được ghi NGAY, không mất theo lượt timer chưa kịp nổ.
+window.addEventListener('beforeunload', flushReadingPreferences)
+
+
+/**
+ * Khôi phục bốn ô từ chuỗi JSON đã đọc lúc khởi động (`bootstrapReadingPreferences.value`,
+ * `src/config/bootstrap.ts`) — gọi ĐÚNG một lần từ `src/main.ts`, sau `loadBootstrapConfig()`.
+ *
+ * 🔴 Gán `readingLevel.value` **trực tiếp**, KHÔNG qua [`setReadingLevel`]: hàm đó xoá cả hai
+ * override để khớp ngữ nghĩa "bấm một preset" — đúng lúc khôi phục thì hai override đang
+ * được khôi phục CÙNG LƯỢT này, và gọi qua hàm đó sẽ tự xoá thứ vừa đọc được.
+ *
+ * Chuỗi rỗng (`''` — chưa ai lưu gì) hoặc JSON hỏng ⇒ giữ nguyên bốn mặc định đã có, không
+ * ném — cùng kỷ luật "không đọc được cấu hình không phải lý do ứng dụng không lên"
+ * (`src/config/bootstrap.ts`).
+ */
+export function initReadingPreferencesFromBootstrap(raw: string): void {
+  if (raw === '') return
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return
+  }
+  if (typeof parsed !== 'object' || parsed === null) return
+  const p = parsed as Partial<StoredReadingPreferences>
+
+  if (p.level === 'lg' || p.level === 'md' || p.level === 'sm') readingLevel.value = p.level
+  if (typeof p.bilingual === 'boolean') bilingual.value = p.bilingual
+  if (p.fontSizeOverride === null) fontSizeOverride.value = null
+  else if (typeof p.fontSizeOverride === 'number') {
+    fontSizeOverride.value = Math.min(READING_FONT_SIZE_MAX, Math.max(READING_FONT_SIZE_MIN, p.fontSizeOverride))
+  }
+  if (p.lineHeightOverride === null) lineHeightOverride.value = null
+  else if (typeof p.lineHeightOverride === 'number') {
+    lineHeightOverride.value = Math.max(READING_LINE_HEIGHT_FLOOR, p.lineHeightOverride)
+  }
+}
+
+/**
  * Vứt state TYPOGRAPHY — `check:panel-refs` đòi mọi ô nhớ cấp module đi qua một hàm
  * `reset*()`. Sản phẩm KHÔNG có chỗ gọi (đây là tuỳ chọn ứng dụng, không theo Tác phẩm —
  * cùng lý lẽ `resetThemeState()`), hàm tồn tại cho bàn đo/test.
@@ -563,4 +682,6 @@ export function resetReadingPreferences(): void {
   tunerOpen.value = false
   fontSizeOverride.value = null
   lineHeightOverride.value = null
+  clearReadingPreferencesTimer()
+  readingPreferencesSchedule.onWrite(0)
 }

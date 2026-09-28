@@ -683,6 +683,14 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
         opened.chapter_id, rows[0].0,
         "OpenWork::chapter_id phai tro dung Chuong ord = 1, khong phai Chuong duoc chen sau cung"
     );
+    // `new_chapter_ids` phai mang DU CA BA id, dung thu tu ord,
+    // khac han `chapter_id` (chi Chuong DANG MO) -- day la danh sach spawn_import_scan can de
+    // quet CA BA Chuong cua mot lan nhap tach mau/URL, khong chi Chuong dau.
+    assert_eq!(
+        opened.new_chapter_ids,
+        rows.iter().map(|r| r.0).collect::<Vec<_>>(),
+        "new_chapter_ids phai dung bang CA BA id Chuong vua ghi, dung thu tu ord"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -2443,6 +2451,102 @@ fn opening_the_same_work_twice_in_a_row_succeeds() {
     assert!(second.scope.has_work_tier());
 
     drop(second);
+    cleanup(&dir);
+}
+
+/// `open_work` mở lại đúng `work.last_chapter_id`, không luôn Chương đầu. Đối chứng: gỡ lời
+/// gọi `set_open_chapter` khỏi `open_adjacent_chapter` (quay lại gán thẳng `open.chapter_id`)
+/// -- ca này phải đỏ vì `work.last_chapter_id` không còn được ghi.
+#[test]
+fn open_work_reopens_the_last_chapter_after_a_switch() {
+    let root = temp_dir("open-work-last-chapter");
+    let mut opened = create_destination_work(&root, "Nho Chuong Cuoi", 3);
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+
+    let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("chuyen sang Chuong ke that bai");
+    assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
+    let second_chapter_id = opened.chapter_id;
+    drop(opened);
+
+    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai Tac pham that bai");
+    assert_eq!(
+        reopened.chapter_id, second_chapter_id,
+        "mo lai phai tro dung Chuong da roi di, khong roi ve Chuong dau"
+    );
+
+    drop(reopened);
+    cleanup(&dir);
+}
+
+/// Cùng ca ngay trên nhưng cho nửa RƠI VỀ: một `last_chapter_id` đã lưu nhưng hàng `chapter` đó
+/// không còn sống (gộp mất) phải rơi về Chương đầu, không phải một lỗi kho.
+#[test]
+fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_away() {
+    let root = temp_dir("open-work-stale-last-chapter");
+    let mut opened = create_destination_work(&root, "Chuong Cuoi Da Mat", 2);
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    let first_chapter_id = opened.chapter_id;
+
+    let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("chuyen sang Chuong ke that bai");
+    assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
+    let second_chapter_id = opened.chapter_id;
+    assert_ne!(first_chapter_id, second_chapter_id);
+
+    // Gop Chuong dang mo (Chuong 2) vao Chuong truoc -- hang Chuong 2 khong con song, con tro
+    // trong bo nho doi theo (`merge_chapter_into_previous`), nhung `work.last_chapter_id` tren
+    // dia van con tro vao id da mat (chi `set_open_chapter` moi ghi lai no).
+    merge_chapter_into_previous(Some(&mut opened), second_chapter_id)
+        .expect("gop Chuong that bai");
+    assert_eq!(opened.chapter_id, first_chapter_id, "con tro trong bo nho phai doi theo lan gop");
+    drop(opened);
+
+    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai Tac pham that bai");
+    assert_eq!(
+        reopened.chapter_id, first_chapter_id,
+        "last_chapter_id cu (da gop mat) phai roi ve Chuong dau, khong phai loi kho"
+    );
+
+    drop(reopened);
+    cleanup(&dir);
+}
+
+/// `open_chapter` (khác `open_adjacent_chapter`) cũng phải ghi `work.last_chapter_id` — đối
+/// chứng RIÊNG vì hai đường MỞ CHƯƠNG gọi `set_open_chapter` từ hai lời gọi khác nhau
+/// (`commands/chapter.rs::open_chapter`/`open_adjacent_chapter`), và ca `open_work_reopens_
+/// the_last_chapter_after_a_switch` ngay trên chỉ đi qua `open_adjacent_chapter`. Đối chứng:
+/// gỡ lời gọi `set_open_chapter` khỏi `open_chapter` (quay lại gán thẳng
+/// `open.chapter_id = chapter_id`) -- ca này phải đỏ.
+#[test]
+fn open_work_reopens_the_chapter_switched_to_via_open_chapter() {
+    let root = temp_dir("open-work-last-chapter-open-chapter");
+    let mut opened = create_destination_work(&root, "Nho Chuong Qua Open Chapter", 3);
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+
+    let chapters = auratranslate_lib::commands::chapter::list_chapters(Some(&opened))
+        .expect("liet ke Chuong that bai");
+    let target = chapters.get(2).expect("phai co Chuong thu ba").chapter_id;
+    assert_ne!(target, opened.chapter_id, "tien de: Chuong dich phai KHAC Chuong dang mo");
+
+    auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), target)
+        .expect("open_chapter that bai");
+    assert_eq!(opened.chapter_id, target, "tien de: con tro trong bo nho phai doi ngay");
+    drop(opened);
+
+    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai Tac pham that bai");
+    assert_eq!(
+        reopened.chapter_id, target,
+        "mo lai phai tro dung Chuong da mo qua open_chapter, khong roi ve Chuong dau"
+    );
+
+    drop(reopened);
     cleanup(&dir);
 }
 
@@ -4471,9 +4575,9 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
 // Story 6.9 — THÊM 2026-09-07 (vòng rà bước 4, mục 13/14). `block_overrides_for_range`,
 // `set_block_override`, `reset_block_overrides` + `mutated_index_invalidates_tier2_blocks` là
 // bốn hàm THUẦN, `pub`, đúng khuôn `chapters_shape_if_all_ok` ngay trên — doc-comment của
-// `reset_block_overrides` (`commands/project.rs`) tự khai "Hàm thuần, `pub` để
+// `reset_block_overrides` (`commands/project/mod.rs`) tự khai "Hàm thuần, `pub` để
 // `tests/project_contract.rs` gọi được không cần `tauri::AppHandle`", nên bốn ca dưới đây
-// sống ở ĐÚNG tệp đó, không phải một `#[cfg(test)] mod tests` nội bộ của `commands/project.rs`.
+// sống ở ĐÚNG tệp đó, không phải một `#[cfg(test)] mod tests` nội bộ của `commands/project/mod.rs`.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -4584,6 +4688,7 @@ fn created_work_images_saved_and_images_failed_stay_snake_case_on_the_wire() {
         folder: "/tmp/Anh Tai Ve.atproj".to_owned(),
         images_saved: 3,
         images_failed: 1,
+        source_lang_mismatch: false,
     };
 
     let json = serde_json::to_value(&created).expect("serialize `CreatedWork`");
@@ -4732,6 +4837,15 @@ fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_
     assert_eq!(rows[4].1, 5, "Chuong moi thu hai phai mang ord = 5, dung THU TU xem truoc");
     assert_eq!(rows[3].2, "Chuong moi bon. Cau mot.");
     assert_eq!(rows[4].2, "Chuong moi nam. Cau mot.");
+    // `OpenWork::new_chapter_ids` phai mang DUNG hai id VUA THEM
+    // (rows[3], rows[4]), khong mang ba id CU (rows[0..3]) -- day la danh sach spawn_import_scan
+    // se quet, nen mot Chuong CU lot vao day se quet lai nham, va mot Chuong MOI thieu se
+    // khong bao gio duoc quet.
+    assert_eq!(
+        opened.new_chapter_ids,
+        vec![rows[3].0, rows[4].0],
+        "new_chapter_ids phai dung bang hai id Chuong VUA them, dung thu tu, khong lan CU"
+    );
     for (id, ord, _, status) in rows.iter().skip(3) {
         assert_eq!(status, "not_started", "Chuong moi id={id} ord={ord} phai mang status not_started");
     }
@@ -5543,4 +5657,280 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
         "phep cat than ham co the sai vi tri -- hai nguoi lang gieng da co (Story 3.10b/4.5) \
          phai nam trong CUNG than nay:\n{body}"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// `source_lang` ngoài zh/en bị từ chối; nội dung lệch `source_lang` đã khai chỉ cảnh báo,
+// không chặn ghi.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn create_work_from_text_rejects_a_source_lang_outside_zh_or_en_and_writes_nothing() {
+    let root = temp_dir("reject-source-lang-create");
+
+    let err = create_work_from_text(&root, "Sai Ngon Ngu", "ja", "", "noi dung".to_owned())
+        .expect_err("source_lang ngoai zh/en phai bi tu choi");
+
+    assert_eq!(
+        err.message_key(),
+        MessageKey::ImportUnsupportedSourceLang,
+        "loi phai la `import.unsupported_source_lang`"
+    );
+    let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
+    assert!(
+        entries.is_empty(),
+        "khong thu muc .atproj nao duoc tao khi source_lang bi tu choi TRUOC ca create_work_folder"
+    );
+
+    cleanup(&root);
+}
+
+#[test]
+fn append_chapters_to_work_rejects_a_source_lang_outside_zh_or_en_and_writes_nothing() {
+    let root = temp_dir("reject-source-lang-append");
+    let mut opened = create_destination_work(&root, "Dich Ba Chuong", 3);
+
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "Chuong moi. Cau mot.".to_owned(),
+    )]);
+    let err = append_chapters_to_work(
+        &mut opened,
+        "ja",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect_err("source_lang ngoai zh/en phai bi tu choi o duong append");
+
+    assert_eq!(err.message_key(), MessageKey::ImportUnsupportedSourceLang);
+    assert_eq!(
+        opened.meta.chapter_count, 3,
+        "mot loi source_lang phai KHONG ghi them Chuong nao -- van dung 3 nhu luc dung"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn create_work_from_text_warns_when_content_does_not_match_the_declared_source_lang() {
+    let root = temp_dir("mismatch-warn-create");
+
+    let opened = create_work_from_text(
+        &root,
+        "Nham Ngon Ngu",
+        "zh",
+        "",
+        "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
+         du de heuristic ti le chu do duoc tin hieu that."
+            .to_owned(),
+    )
+    .expect("noi dung lech source_lang van phai ghi duoc -- canh bao KHONG CHAN");
+
+    assert!(
+        opened.source_lang_mismatch,
+        "noi dung Latin thuan khai source_lang=zh phai bat canh bao khong chan"
+    );
+
+    cleanup(&root);
+}
+
+/// Đối chứng ÂM của ca ngay trên — nội dung KHỚP `source_lang` đã khai không được bật cờ,
+/// tránh một fixture đối xứng (luôn `true`) làm guard trên không canh gì thật.
+#[test]
+fn create_work_from_text_does_not_warn_when_content_matches_the_declared_source_lang() {
+    let root = temp_dir("mismatch-no-warn-create");
+
+    let opened = create_work_from_text(
+        &root,
+        "Dung Ngon Ngu",
+        "zh",
+        "",
+        "萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+
+    assert!(
+        !opened.source_lang_mismatch,
+        "noi dung Trung van khai source_lang=zh khong duoc bat canh bao lech ngon ngu"
+    );
+
+    cleanup(&root);
+}
+
+/// `source_lang_mismatch` trước bản vá này chỉ nhìn `chapters.first()` -- một lượt nhập
+/// N > 1 Chương mà CHỈ Chương thứ hai lệch ngôn ngữ không bao giờ bật cảnh báo. Ca này dựng
+/// hai Chương qua CHÍNH `create_work` (không qua `create_work_from_text`, hàm đó luôn cho ra
+/// đúng một Chương): Chương 1 Trung văn khớp `source_lang=zh`, Chương 2 Latin thuần lệch hẳn.
+#[test]
+fn create_work_flags_a_source_lang_mismatch_when_only_the_second_chapter_mismatches() {
+    let root = temp_dir("mismatch-warn-create-second-chapter");
+
+    let shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText("萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned()),
+        ChapterInput::AlreadyText(
+            "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
+             du de heuristic ti le chu do duoc tin hieu that."
+                .to_owned(),
+        ),
+    ]);
+    let opened = create_work(
+        &root, "Lech Chuong Hai", "zh", "", shape, encoding_rs::UTF_8, Vec::new(), None,
+        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+    )
+    .expect("tao Tac pham hai Chuong that bai");
+
+    assert!(
+        opened.source_lang_mismatch,
+        "Chuong 2 Latin thuan lech han source_lang=zh phai bat canh bao, du Chuong 1 khop"
+    );
+
+    cleanup(&root);
+}
+
+/// `create_work_from_text`/`create_work_from_file` không một ca `thread::scope` nào canh
+/// trước bản vá này, dù cả hai đứng NGAY TRƯỚC `wire::reindex_library` (`Indexer::rebuild`,
+/// khoá bằng `rebuild_lock`) trên đường sản phẩm thật. Ca này dựng lại ĐÚNG chuỗi
+/// "tạo rồi tái lập chỉ mục" mà vỏ chạy, từ HAI LUỒNG — một qua văn bản dán tay, một qua
+/// tệp — cùng `documents_root`, cùng MỘT `Indexer` dùng chung (đúng khuôn Tauri managed
+/// state: một `Indexer` cho cả tiến trình).
+#[test]
+fn concurrent_create_work_from_text_and_create_work_from_file_into_the_same_root_both_land_in_the_index()
+ {
+    let root = temp_dir("concurrent-create-reindex");
+    let side = temp_dir("concurrent-create-reindex-side");
+    let indexer = std::sync::Arc::new(
+        auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+            .unwrap_or_else(|e| panic!("mo indexer: {e}")),
+    );
+    let global = std::sync::Arc::new(
+        Store::open(StoreSpec::global(side.join("global.db"))).unwrap_or_else(|e| panic!("mo global.db: {e}")),
+    );
+    let file_path = write_file(&root, "tu-tep.txt", "Chuong tu tep.".as_bytes());
+
+    let (result_a, result_b) = std::thread::scope(|scope| {
+        let indexer_a = std::sync::Arc::clone(&indexer);
+        let global_a = std::sync::Arc::clone(&global);
+        let root_a = root.clone();
+        let h1 = scope.spawn(move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
+            let opened = create_work_from_text(&root_a, "Dua Van Ban", "en", "", "Chuong dan tay.".to_owned())?;
+            let work_id = opened.meta.work_id.clone();
+            drop(opened);
+            indexer_a.rebuild(&root_a, Some(&global_a)).unwrap_or_else(|e| panic!("rebuild luong 1: {e}"));
+            Ok(work_id)
+        });
+
+        let indexer_b = std::sync::Arc::clone(&indexer);
+        let global_b = std::sync::Arc::clone(&global);
+        let root_b = root.clone();
+        let h2 = scope.spawn(move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
+            let opened = create_work_from_file(&root_b, "Dua Tep", "en", "", &file_path)?;
+            let work_id = opened.meta.work_id.clone();
+            drop(opened);
+            indexer_b.rebuild(&root_b, Some(&global_b)).unwrap_or_else(|e| panic!("rebuild luong 2: {e}"));
+            Ok(work_id)
+        });
+
+        (h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic"))
+    });
+
+    let work_id_a = result_a.expect("tao Tac pham qua van ban that bai");
+    let work_id_b = result_b.expect("tao Tac pham qua tep that bai");
+    assert_ne!(work_id_a, work_id_b, "hai Tac pham phai la HAI thuc the khac nhau");
+
+    let works = indexer
+        .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
+        .unwrap_or_else(|e| panic!("list_works: {e}"))
+        .works;
+    assert!(
+        works.iter().any(|w| w.work_id == work_id_a),
+        "Tac pham dua VAN BAN phai co mat trong chi muc sau luot tai lap dong thoi"
+    );
+    assert!(
+        works.iter().any(|w| w.work_id == work_id_b),
+        "Tac pham dua TEP phai co mat trong chi muc sau luot tai lap dong thoi"
+    );
+    assert_eq!(works.len(), 2, "khong Tac pham nao bi mat, khong Tac pham nao bi trung");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&root);
+    cleanup(&side);
+}
+
+#[test]
+fn append_chapters_to_work_warns_when_content_does_not_match_the_declared_source_lang() {
+    let root = temp_dir("mismatch-warn-append");
+    let mut opened = create_destination_work(&root, "Dich Lech", 1);
+
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
+         du de heuristic ti le chu do duoc tin hieu that."
+            .to_owned(),
+    )]);
+    append_chapters_to_work(
+        &mut opened,
+        "zh",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect("noi dung lech source_lang van phai them Chuong duoc -- canh bao KHONG CHAN");
+
+    assert!(
+        opened.source_lang_mismatch,
+        "them Chuong Latin thuan voi source_lang=zh phai bat canh bao khong chan"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Cùng lý do `create_work_flags_a_source_lang_mismatch_when_only_the_second_chapter_mismatches`,
+/// cho đường APPEND: hai Chương MỚI trong CÙNG một lượt append, chỉ Chương thứ hai lệch.
+#[test]
+fn append_chapters_to_work_flags_a_source_lang_mismatch_when_only_the_second_new_chapter_mismatches()
+ {
+    let root = temp_dir("mismatch-warn-append-second-chapter");
+    let mut opened = create_destination_work(&root, "Dich Lech Chuong Hai", 1);
+
+    let new_shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText("萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned()),
+        ChapterInput::AlreadyText(
+            "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
+             du de heuristic ti le chu do duoc tin hieu that."
+                .to_owned(),
+        ),
+    ]);
+    append_chapters_to_work(
+        &mut opened,
+        "zh",
+        new_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+    )
+    .expect("them hai Chuong that bai");
+
+    assert!(
+        opened.source_lang_mismatch,
+        "Chuong moi thu hai Latin thuan lech han source_lang=zh phai bat canh bao, du Chuong moi dau khop"
+    );
+
+    drop(opened);
+    cleanup(&root);
 }

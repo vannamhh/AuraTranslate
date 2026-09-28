@@ -10,15 +10,29 @@
  * `src/main.ts` nối chúng vào `installCommands({...})`. Module này là phía CUNG CẤP.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 `libraryScanHasLoaded` — LÝ DO NÓ TỒN TẠI (`AGENTS.md::Known pitfalls`)
+ * 🔴 `libraryScanHasLoaded` — LÝ DO NÓ TỒN TẠI (`AGENTS.md::Known pitfalls`), VÀ VÌ SAO
+ * MỘT CỜ THỨ HAI (`rescanResultHasLoaded`) ĐỨNG RIÊNG
  * ─────────────────────────────────────────────────────────────────────────────
- * "Không có mục mồ côi nào" chỉ được phép nói SAU khi đã quét ít nhất một lần trong phiên
- * này. Trước lượt quét đầu, danh sách mồ côi cũng rỗng — nhưng đó là "chưa biết", không phải
- * "không có". `LibraryMode.vue` phải hỏi vị từ này TRƯỚC khi kết luận.
+ * "Không có mục mồ côi nào" chỉ được phép nói SAU khi đã đọc trạng thái THẬT ít nhất một lần
+ * trong phiên này. Trước lượt đọc đầu, danh sách mồ côi cũng rỗng — nhưng đó là "chưa biết",
+ * không phải "không có". `LibraryMode.vue` phải hỏi vị từ này TRƯỚC khi kết luận.
+ *
+ * Cờ này không còn CHỈ bật bởi một lượt Quét lại thư mục (`rescanLibraryFolder`/
+ * `chooseLibraryRootFolder`): [`loadLibraryOrphans`] (một `SELECT` thuần, không
+ * `Indexer::rebuild`) cũng bật nó, vì nó cũng là một lượt đọc trạng thái mồ côi THẬT từ
+ * `library-index.db`.
+ *
+ * ⚠️ Chính vì thế nó KHÔNG được dùng để canh ba-con-số Quét lại (`indexedCount`/
+ * `conflictCount`/`skippedCount`/`textSkippedCount`) hay `rootMissing`: những trường đó chỉ
+ * [`applyReport`] (một lượt Quét lại/Đổi thư mục gốc THẬT) ghi; [`loadLibraryOrphans`] không
+ * chạm tới chúng. Gộp chung một cờ nghĩa là bật `libraryScanHasLoaded` qua đường mồ côi sẽ
+ * làm dòng "Đã lập chỉ mục 0 · …" hiện ra như một kết quả THẬT dù chưa lượt Quét lại nào từng
+ * chạy — đúng lớp lỗi "0 hàng, không lỗi, im lặng thành một con số" mà `…HasLoaded` sinh ra để
+ * chặn, chỉ đổi chỗ. `rescanResultHasLoaded` vì thế đứng riêng, [`applyReport`] MỚI bật nó.
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { chooseLibraryRoot, forgetLibraryOrphan, rescanLibrary } from '../config/library'
+import { chooseLibraryRoot, forgetLibraryOrphan, listOrphans, rescanLibrary } from '../config/library'
 import type { ConflictEntry, OrphanEntry, TextSkippedEntry } from '../config/library'
 import type { IpcError } from '../i18n'
 
@@ -45,6 +59,7 @@ const skippedCount = ref(0)
 const textSkippedCount = ref(0)
 const rescanBusy = ref(false)
 const libraryScanHasLoaded = ref(false)
+const rescanResultHasLoaded = ref(false)
 const lastError = ref<IpcError | null>(null)
 
 /** Số thứ tự lượt gọi — chặn một lượt CŨ ghi đè lên state của một lượt MỚI hơn (round-trip
@@ -62,6 +77,9 @@ export const librarySkippedCount: DeepReadonly<Ref<number>> = readonly(skippedCo
 export const libraryTextSkippedCount: DeepReadonly<Ref<number>> = readonly(textSkippedCount)
 export const libraryRescanBusy: DeepReadonly<Ref<boolean>> = readonly(rescanBusy)
 export const libraryScanHasLoadedState: DeepReadonly<Ref<boolean>> = readonly(libraryScanHasLoaded)
+/** Bật DUY NHẤT bởi [`applyReport`] (một lượt Quét lại/Đổi thư mục gốc THẬT) — xem khối lý
+ * do đầu tệp cho vì sao đây KHÔNG phải cùng cờ với `libraryScanHasLoadedState`. */
+export const libraryRescanResultHasLoadedState: DeepReadonly<Ref<boolean>> = readonly(rescanResultHasLoaded)
 export const libraryRescanError: DeepReadonly<Ref<IpcError | null>> = readonly(lastError)
 
 /**
@@ -112,6 +130,7 @@ function applyReport(report: {
   // nhận một con số rời từ Rust.
   textSkippedCount.value = report.text_skipped.length
   libraryScanHasLoaded.value = true
+  rescanResultHasLoaded.value = true
   clampCursor()
 }
 
@@ -189,6 +208,35 @@ export async function forgetCurrentLibraryOrphan(): Promise<void> {
   clampCursor()
 }
 
+/**
+ * Đọc danh sách mồ côi HIỆN CÓ trong chỉ mục — lệnh
+ * `library_list_orphans`, KHÔNG quét lại thư mục gốc (`Indexer::rebuild` không chạy — chữ ký
+ * của lệnh phía Rust không nhận `root: &Path` nên về cấu trúc không gọi được hàm đó).
+ * `LibraryMode.vue::onActivated` gọi hàm này (không phải `rescanLibraryFolder`) để khối
+ * "Mồ côi" hiện đúng trạng thái NGAY khi vào Library, không cần người dùng tự bấm Quét lại.
+ *
+ * Dùng CHUNG bộ đếm `sequence` với `rescanLibraryFolder`/`chooseLibraryRootFolder`/
+ * `forgetCurrentLibraryOrphan` (một lượt Quét lại đang bay không bị một lượt đọc mồ côi cũ
+ * hơn ghi đè, và ngược lại) — nhưng KHÔNG canh `rescanBusy`: đây là một lượt ĐỌC nhẹ (một
+ * `SELECT`), không cần khoá nút Quét lại trong lúc nó chạy.
+ */
+export async function loadLibraryOrphans(): Promise<void> {
+  const mySequence = ++sequence
+
+  const result = await listOrphans()
+  if (mySequence !== sequence) return // Một lượt MỚI hơn đã bắt đầu -- bỏ, không ghi đè.
+
+  if (result.error !== null) {
+    lastError.value = result.error
+    return
+  }
+  if (result.orphans === null) return // Không có cầu IPC -- im lặng, cùng nhánh mọi adapter khác.
+
+  orphans.value = result.orphans
+  libraryScanHasLoaded.value = true
+  clampCursor()
+}
+
 /** Chuyển con trỏ xuống mục mồ côi kế tiếp — không vòng. */
 export function nextLibraryOrphan(): void {
   if (orphanCursor.value < orphans.value.length - 1) orphanCursor.value += 1
@@ -217,5 +265,6 @@ export function resetLibraryRescan(): void {
   textSkippedCount.value = 0
   rescanBusy.value = false
   libraryScanHasLoaded.value = false
+  rescanResultHasLoaded.value = false
   lastError.value = null
 }

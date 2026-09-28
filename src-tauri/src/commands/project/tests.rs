@@ -969,16 +969,120 @@
     fn spawn_import_scan_calls_emit_import_scan_failed_at_all_six_infrastructure_failure_branches() {
         // Reads code lines, not commented ones (a commented call starts with `//`, not the
         // call text itself, so `starts_with` excludes it without stripping comments).
+        //
+        // The six sites split across two call shapes: three sit in
+        // `spawn_import_scan` itself, where `app` is an owned `AppHandle` and a failure before
+        // the per-Chapter loop starts must emit for EVERY id in the batch (`&app`, looped); the
+        // other three sit in `run_one_chapter_import_scan`, called once per Chapter, where `app`
+        // is already `&tauri::AppHandle` (no `&`). Both patterns are counted so the guard still
+        // catches a removed branch on either side.
         let source = include_str!("mod.rs");
-        let call_site = "emit_import_scan_failed(&app, chapter_id);";
-        let count = source
+        let batch_call_site = "emit_import_scan_failed(&app, chapter_id);";
+        let per_chapter_call_site = "emit_import_scan_failed(app, chapter_id);";
+        let batch_count = source
             .lines()
-            .filter(|line| line.trim_start().starts_with(call_site))
+            .filter(|line| line.trim_start().starts_with(batch_call_site))
+            .count();
+        let per_chapter_count = source
+            .lines()
+            .filter(|line| line.trim_start().starts_with(per_chapter_call_site))
             .count();
         assert_eq!(
-            count, 6,
-            "found {count} call sites of `{call_site}` in commands/project/mod.rs, expected 6 \
-             (one per genuine infrastructure-failure branch of spawn_import_scan)"
+            batch_count, 3,
+            "found {batch_count} call sites of `{batch_call_site}` in spawn_import_scan, expected 3 \
+             (one per infrastructure-failure branch that fires BEFORE the per-Chapter loop starts)"
         );
+        assert_eq!(
+            per_chapter_count, 3,
+            "found {per_chapter_count} call sites of `{per_chapter_call_site}` in \
+             run_one_chapter_import_scan, expected 3 (one per infrastructure-failure branch that \
+             fires WHILE scanning a single Chapter)"
+        );
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // ĐO trước khi chọn nền/đồng bộ cho spawn_import_scan hợp nhất N Chương.
+    // `run_one_chapter_import_scan`'s hai lần khoá `OpenWorkState` là chi phí
+    // KHÔNG đổi theo N (mỗi Chương một cặp khoá ngắn, không cộng dồn); thứ MỚI và CỘNG DỒN
+    // theo N là N lượt enqueue-rồi-ghi tuần tự qua CÙNG một writer nối tiếp của AD-11
+    // (`filter_and_enqueue_current_import_scan` + `ImportScanWriteTicket::wait()`) — đây là
+    // đúng hai hàm production dùng, không phải một bản mô phỏng. Không đo phần probe từ điển
+    // (`crate::core::dict::lookup_grouped`): ca này không nạp `DictLayers` thật từ
+    // `resources/dict/` (đo được cho lượt build+population NÀY, không suy diễn phần chưa đo).
+    // ═════════════════════════════════════════════════════════════════════════════════
+
+    /// Đo chi phí ghi tuần tự của lượt quét N Chương — build `cargo test` (dev, không tối ưu),
+    /// máy Ice's Mac, N ∈ {20, 50, 2000}, mỗi Chương 3 ứng viên MỚI (không trùng term cũ, để
+    /// không bị lọc bởi Glossary đã có — mỗi lượt ghi 3 hàng thật). In ra bằng `eprintln!`
+    /// (`--nocapture` để thấy) thay vì assert một trần — không có một NFR/trần bằng số nào đặt
+    /// tên "ngân sách quét nền N Chương" trong PRD/spine/spec; số ĐƯỢC SO là suy từ NFR18 (trần
+    /// mất dữ liệu ≤ 5 giây, `AGENTS.md`/PRD): writer nối tiếp DUY NHẤT (AD-11) phục vụ CẢ lượt
+    /// quét lẫn auto-save Editor, nên nếu N lượt ghi quét cộng dồn tới gần 5s, một flush
+    /// auto-save xếp SAU nó trong hàng đợi có thể trượt trần NFR18 dù auto-save của CHÍNH nó
+    /// tức thời.
+    #[test]
+    fn perf_probe_sequential_import_scan_writes_at_twenty_fifty_and_two_thousand_chapters() {
+        for &n in &[20usize, 50, 2000] {
+            let dir = guard_test_dir(&format!("perf-scan-writes-{n}"));
+            let global = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+                dir.join("global.db"),
+            ))
+            .expect("mo global.db");
+            let opened = create_work_from_text(&dir, "Do Luot Quet N Chuong", "en", "", "nguon".to_owned())
+                .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+            let work_id = opened.meta.work_id.clone();
+            let state = Mutex::new(Some(opened));
+
+            let t0 = std::time::Instant::now();
+            let mut total_inserted: i64 = 0;
+            for chapter_index in 0..n {
+                let mut candidates = vec![
+                    crate::core::glossary::ScanCandidate {
+                        source_term: format!("Fire Dragon {chapter_index}"),
+                        occurrence_count: 3,
+                        context_example: format!("A beast called Fire Dragon {chapter_index} arrived."),
+                    },
+                    crate::core::glossary::ScanCandidate {
+                        source_term: format!("Ice Phoenix {chapter_index}"),
+                        occurrence_count: 3,
+                        context_example: format!("A beast called Ice Phoenix {chapter_index} arrived."),
+                    },
+                    crate::core::glossary::ScanCandidate {
+                        source_term: format!("Storm Tiger {chapter_index}"),
+                        occurrence_count: 3,
+                        context_example: format!("A beast called Storm Tiger {chapter_index} arrived."),
+                    },
+                ];
+                let ticket = filter_and_enqueue_current_import_scan(
+                    &state,
+                    &work_id,
+                    &global,
+                    &mut candidates,
+                    &|| true,
+                )
+                .expect("loc va enqueue")
+                .expect("work_id dang mo phai cho phep enqueue");
+                let (inserted, _skipped) = ticket.wait().expect("writer tra loi");
+                total_inserted += inserted;
+            }
+            let elapsed = t0.elapsed();
+
+            assert_eq!(
+                total_inserted,
+                (3 * n) as i64,
+                "tien de: moi Chuong phai ghi dung 3 hang moi (khong trung term de bi loc)"
+            );
+            eprintln!(
+                "[perf_probe_sequential_import_scan_writes_at_twenty_fifty_and_two_thousand_chapters] \
+                 N={n} luot enqueue-roi-ghi tuan tu qua writer AD-11: {elapsed:?} \
+                 ({:.4} ms/Chuong trung binh)",
+                elapsed.as_secs_f64() * 1000.0 / n as f64
+            );
+
+            let opened = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take();
+            drop(opened);
+            drop(global);
+            guard_test_cleanup(&dir);
+        }
     }
 

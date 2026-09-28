@@ -1686,7 +1686,7 @@ fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_se
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // D6 (vòng rà đối kháng 2, 3 lớp) — hai bộ dựng SẢN PHẨM DUY NHẤT của `PipelineShape::Chapters`
-// phải luôn cho ra một danh sách ĐỒNG NHẤT (toàn `RawBytes`) — `commands/project.rs` chỉ đọc
+// phải luôn cho ra một danh sách ĐỒNG NHẤT (toàn `RawBytes`) — `commands/project/mod.rs` chỉ đọc
 // `cs.first()` để quyết định `extract_main_content` cho CẢ danh sách (§Ask First — sửa đúng
 // cần một cờ THEO TỪNG Chương, ngoài phạm vi lượt vá này, xem `deferred-work.md`); nếu một
 // trong hai hàm dựng này lỡ trộn hình dạng, mục sau `RawBytes` đầu tiên sẽ bị bỏ qua pha ảnh
@@ -1806,4 +1806,99 @@ fn perf_probe_client_per_link_cost_on_one_hundred_links() {
 fn perf_probe_client_per_link_cost_on_one_thousand_links() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     perf_probe_client_per_link_cost(1_000);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Man xem truoc bang ma tren duong URL boc noi dung
+// chinh TRUOC khi chuan hoa, dem tren dung van ban se duoc ghi luc xac nhan
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Trang HTML co "chrom" (nav dieu huong + footer) that su bi `webimport::extract` loai bo --
+/// noi dung chinh nam trong `<article>`, du dai de Readability tin day la mot bai viet that.
+fn html_page_with_chrome_the_extractor_drops() -> String {
+    "<html><body>\
+     <nav><a href=\"/\">Trang chu</a> <a href=\"/lien-he\">Lien he</a> <a href=\"/gioi-thieu\">Gioi thieu</a></nav>\
+     <article>\
+     <p>Doan mot cua chuong that su, du dai de Readability giu lai lam noi dung chinh cua \
+     trang, khong phai menu dieu huong hay chan trang xung quanh no.</p>\
+     <p>Doan hai tiep noi doan mot, van la noi dung that su can duoc giu nguyen ven khi ban \
+     len den luc xac nhan, khong bi thay doi boi buoc boc noi dung chinh.</p>\
+     </article>\
+     <footer>Ban quyen trang web nam trong footer, khong lien quan gi den noi dung chuong.</footer>\
+     </body></html>"
+        .to_owned()
+}
+
+/// Vi tri chinh: dai `normalized` cua man xem truoc bang ma tren duong URL phai
+/// da BOC noi dung chinh (khong con "Trang chu"/"Ban quyen" cua nav/footer), va van ban do
+/// phai bang DUNG TUNG KY TU voi `chapter.source_text` ma `run_import` thuc su ghi -- truoc
+/// ban va nay, `render_candidates` chi giai ma `window` 4 KiB tho, khong boc, nen hai ben lech
+/// nhau ca noi dung lan so dem.
+#[test]
+fn a_url_chapters_preview_normalized_text_equals_what_confirm_actually_writes_when_chrome_is_dropped() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let html = html_page_with_chrome_the_extractor_drops();
+    let label = "http://127.0.0.1:1/chuong-that";
+    let shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: html.as_bytes().to_vec(),
+        label: label.to_owned(),
+    }]);
+
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
+    let utf8_candidate = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .expect("UTF-8 phai la mot trong nam o");
+    let normalized = utf8_candidate
+        .normalized
+        .as_ref()
+        .expect("UTF-8 phai giai ma duoc va co ban dung chuan hoa");
+
+    assert!(
+        !normalized.text.contains("Trang chu") && !normalized.text.contains("Ban quyen"),
+        "ban dung chuan hoa cua man xem truoc phai da BO chrom trang (nav/footer), con lai: {:?}",
+        normalized.text
+    );
+    assert!(
+        normalized.text.contains("Doan mot cua chuong that su"),
+        "ban dung chuan hoa phai giu noi dung THAT cua Chuong: {:?}",
+        normalized.text
+    );
+
+    let outcome = run_import(
+        PipelineInput::default_shaped(shape, "en".to_owned()).with_extract_main_content(true),
+    )
+    .expect("mot trang HTML tot phai di het chuoi");
+    assert_eq!(outcome.chapters.len(), 1);
+
+    assert_eq!(
+        normalized.text, outcome.chapters[0].source_text,
+        "so/van ban man xem truoc phai bang DUNG van ban duoc ghi luc xac nhan"
+    );
+}
+
+/// Doi chung do (phep GO that): tat boc noi dung chinh o nhanh `extract_main_content == true`
+/// (mo phong trang thai TRUOC ban va) bang cach dung truc tiep
+/// `render_candidates` voi `extract_main_content = false` tren CUNG mot `bytes` -- ung vien
+/// UTF-8 phai lo ca chrom trang trong `normalized.text`, dung dai bang chung cho phep tren
+/// pha DUNG, khong phai mot phep so tinh co.
+#[test]
+fn counter_check_without_extraction_the_normalized_preview_leaks_page_chrome() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let html = html_page_with_chrome_the_extractor_drops();
+    let candidates = auratranslate_lib::core::segment::encoding::render_candidates(
+        html.as_bytes(),
+        "en",
+        false,
+        "",
+    );
+    let utf8_candidate = candidates.iter().find(|c| c.label == "UTF-8").expect("UTF-8 phai co");
+    let normalized = utf8_candidate.normalized.as_ref().expect("UTF-8 phai giai ma duoc");
+
+    assert!(
+        normalized.text.contains("Trang chu"),
+        "doi chung: nhanh KHONG boc phai con chrom trang trong ban dung chuan hoa -- neu \
+         khong con, phep do nay khong con canh dung dieu ban va sua"
+    );
 }

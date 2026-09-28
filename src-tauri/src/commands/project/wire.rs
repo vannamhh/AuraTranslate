@@ -337,6 +337,10 @@
         /// Bề mặt HIỂN THỊ con số này là nợ có chủ (`deferred-work.md`) — trường có mặt ở đây
         /// để KHÔNG bị bịa lại một lần nữa khi bề mặt đó được dựng.
         pub images_failed: u32,
+        /// Cảnh báo KHÔNG CHẶN — `true` khi nội dung vừa ghi/thêm trông như một ngôn ngữ khác
+        /// `source_lang` đã khai. Xem
+        /// `commands::project::OpenWork::source_lang_mismatch`/`source_lang_looks_mismatched`.
+        pub source_lang_mismatch: bool,
     }
 
     impl CreatedWork {
@@ -347,6 +351,7 @@
                 folder: open.dir.display().to_string(),
                 images_saved: open.images_saved,
                 images_failed: open.images_failed,
+                source_lang_mismatch: open.source_lang_mismatch,
             }
         }
     }
@@ -497,10 +502,10 @@
         let opened = super::create_work_from_text(&root, &name, &source_lang, &genre, text)?;
         let created = CreatedWork::from_open(&opened);
         reindex_library(&app, &root);
-        // 🔴 Chốt `work_id`/`chapter_id`/`source_lang` TRƯỚC khi `opened` bị `move` vào
+        // 🔴 Chốt `work_id`/`chapter_ids`/`source_lang` TRƯỚC khi `opened` bị `move` vào
         // `replace_open_work` — Story 3.5, spawn lượt quét SAU khi Tác phẩm đã vào state.
         let work_id = opened.meta.work_id.clone();
-        let chapter_id = opened.chapter_id;
+        let chapter_ids = opened.new_chapter_ids.clone();
         let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
         // Import đã commit và `OpenWorkState` đã thay xong. Spawn lỗi chỉ làm mất lượt
@@ -508,7 +513,7 @@
         // dùng thử lại và tạo một Tác phẩm trùng.
         Ok(super::keep_committed_import_when_scan_spawn_fails(
             created,
-            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+            || spawn_import_scan(app, work_id, chapter_ids, scan_source_lang),
         ))
     }
 
@@ -545,12 +550,12 @@
         reindex_library(&app, &root);
         // 🔴 Cùng lý do nhánh `create_work_from_text` ngay trên — chốt trước khi `move`.
         let work_id = opened.meta.work_id.clone();
-        let chapter_id = opened.chapter_id;
+        let chapter_ids = opened.new_chapter_ids.clone();
         let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
         Ok(super::keep_committed_import_when_scan_spawn_fails(
             created,
-            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+            || spawn_import_scan(app, work_id, chapter_ids, scan_source_lang),
         ))
     }
 
@@ -582,7 +587,18 @@
     /// không từ `OpenWorkState` (AC3). Chỉ ảnh hưởng màn xem trước hiển thị — xác nhận đọc
     /// LẠI đích của chính nó, không tin tham số này (§Always: mọi tham số per-call của vỏ
     /// này đều nạp lại lúc xác nhận, cùng khuôn `cleanup_rules`/`chapter_pattern`).
-    #[tauri::command]
+    ///
+    /// 🔴 **`(async)`.** Vỏ này `.lock()`
+    /// [`PendingImportSourceState`] (qua [`super::stash_pending_import_source`]) TRÊN LUỒNG
+    /// CHÍNH nếu còn đồng bộ, trong khi `confirm_import_with_encoding`/`confirm_bilingual_import`
+    /// (đã `(async)`) GIỮ khoá đó xuyên suốt phần đọc-rồi-ghi — có thể tới N × 20 giây khi đang
+    /// tải ảnh (xem doc-comment `confirm_import_with_encoding`). Một vỏ ĐỒNG BỘ gọi `.lock()`
+    /// trong cửa sổ đó chặn LUỒNG CHÍNH tới khi lượt kia xong — đúng lớp rủi ro mà
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`'s doc-comment đã tự
+    /// nêu tên cho `OpenWorkState` ("GIỚI HẠN THẬT của cổng này"), áp lại cho
+    /// `PendingImportSourceState`. `(async)` đưa thân hàm ra khỏi luồng chính — cùng cơ chế
+    /// `tokio::spawn` trên runtime đa luồng, xem doc-comment `create_work_from_text`.
+    #[tauri::command(async)]
     pub fn preview_import_encoding_from_text(
         app: tauri::AppHandle,
         text: String,
@@ -836,12 +852,12 @@
             let created = CreatedWork::from_open(&opened);
             reindex_library(&app, &root);
             let work_id = opened.meta.work_id.clone();
-            let chapter_id = opened.chapter_id;
+            let chapter_ids = opened.new_chapter_ids.clone();
             let scan_source_lang = source_lang.clone();
             replace_open_work(&app, opened);
             return Ok(super::keep_committed_import_when_scan_spawn_fails(
                 created,
-                || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+                || spawn_import_scan(app, work_id, chapter_ids, scan_source_lang),
             ));
         };
 
@@ -856,7 +872,7 @@
             guard.as_ref().is_some_and(|open| open.meta.work_id == work_id)
         });
 
-        let created = if already_open {
+        let (created, new_chapter_ids) = if already_open {
             let state = open_state.as_ref().expect("already_open vua xac nhan Some o tren");
             let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             // 🔴 SUA 2026-09-16 (vong ra) — khoa da NHA giua lan kiem tra `already_open` o tren
@@ -884,7 +900,7 @@
                 origin_overrides,
                 domain_log_state_ref,
             )?;
-            CreatedWork::from_open(open)
+            (CreatedWork::from_open(open), open.new_chapter_ids.clone())
         } else {
             let Some(indexer) = app.try_state::<Indexer>() else {
                 return Err(indexer_is_missing());
@@ -924,8 +940,9 @@
                 &root,
             )?;
             let created = CreatedWork::from_open(&opened);
+            let new_chapter_ids = opened.new_chapter_ids.clone();
             replace_open_work(&app, opened);
-            created
+            (created, new_chapter_ids)
         };
 
         reset_tier2_block_overrides(&app);
@@ -943,12 +960,15 @@
         if already_open {
             reindex_library(&app, &root);
         }
-        // Story 6.7b — không spawn quét Glossary trên đường APPEND: `Chương đang mở` (điểm
-        // `spawn_import_scan` nhắm tới) KHÔNG đổi (§I/O Matrix "open editor state stays
-        // valid"), nên rescan nó không nói gì về nội dung MỚI vừa thêm. Bề mặt "quét Glossary
-        // cho Chương mới thêm" là nợ có chủ, chưa mở ở story này (không AC nào của Phase 2
-        // đòi nó) — xem Implementation Notes.
-        Ok(created)
+        // Đường APPEND nay CŨNG quét Glossary, đúng khuôn nhánh
+        // Tác phẩm MỚI ngay trên: `new_chapter_ids` là Chương VỪA GHI bởi CHÍNH lượt gọi này
+        // (`OpenWork::new_chapter_ids`, không phải `Chương đang mở` — hai khái niệm khác nhau,
+        // xem doc-comment trường đó), nên quét nó nói đúng về nội dung MỚI. Import đã commit —
+        // spawn lỗi chỉ làm mất lượt quét nền, không phải lỗi IPC (cùng lý lẽ nhánh Tác phẩm
+        // MỚI).
+        Ok(super::keep_committed_import_when_scan_spawn_fails(created, || {
+            spawn_import_scan(app, work_id, new_chapter_ids, source_lang)
+        }))
     }
 
     /// Vỏ IPC — màn xem trước bảng mã của đường nhập song ngữ (Story 6.16, FR115). Cùng
@@ -1036,7 +1056,12 @@
     /// # Lỗi
     /// - không có nguồn đang chờ ⇒ `import.no_pending_source`;
     /// - lỗi hình dạng bảng của ứng viên đang chọn ⇒ như [`super::preview_bilingual_import`].
-    #[tauri::command]
+    ///
+    /// 🔴 **`(async)`.** `.lock()` [`PendingImportSourceState`]
+    /// TRỰC TIẾP ngay dưới, cùng lý do doc-comment `preview_import_encoding_from_text` (đọc ở
+    /// đó cho chuỗi dẫn chứng đầy đủ) — một lượt xác nhận `(async)` đang tải ảnh có thể giữ khoá
+    /// đó tới N × 20 giây.
+    #[tauri::command(async)]
     pub fn rebuild_bilingual_import_preview(
         app: tauri::AppHandle,
         source_lang: String,
@@ -1175,9 +1200,10 @@
     /// [`PendingImportSourceState`] (khoá/mở xác nhận tự động qua máy Story 6.3 — xem
     /// doc-comment [`super::sync_pending_from_url_items`]).
     ///
-    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ — khuôn đã có 17 tiền lệ
-    /// (`library.rs:640`) để `reqwest::blocking` (gọi tuần tự, có thể mất tới N × 20 giây)
-    /// không chặn luồng chính (Task 0 — xem `core::webimport` doc-comment cho phép đo).
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ — khuôn đã có nhiều tiền lệ trong kho
+    /// này (đếm hiện hành ở `config_invariants.rs::COMMAND_FILE_CENSUS`, đừng chép tay một
+    /// con số ở đây) để `reqwest::blocking` (gọi tuần tự, có thể mất tới N × 20 giây) không
+    /// chặn luồng chính (Task 0 — xem `core::webimport` doc-comment cho phép đo).
     ///
     /// 🔴 **THÊM 2026-09-16 (Story 6.7b) — tham số `destination`**, cùng lý do nhánh DÁN VĂN
     /// BẢN/TỆP (`preview_import_encoding_from_text`) — đây là mục thứ ba trong BA đường đơn
@@ -1293,8 +1319,14 @@
     }
 
     /// Vỏ IPC — bỏ MỘT mục khỏi danh sách (I/O Matrix spec 6.7: "N−1 link · N−1 Chương — hai
-    /// số cùng giảm"). **0 lời gọi mạng.** Không `(async)` — chỉ đổi state trong bộ nhớ.
-    #[tauri::command]
+    /// số cùng giảm"). **0 lời gọi mạng** — chỉ đổi state trong bộ nhớ.
+    ///
+    /// 🔴 **`(async)`.** `.lock()` [`super::UrlImportItemsState`]
+    /// TRỰC TIẾP ngay dưới, cùng lý do doc-comment `preview_import_encoding_from_text` (đọc ở
+    /// đó cho chuỗi dẫn chứng đầy đủ) — 0 lời gọi mạng CỦA CHÍNH VỎ NÀY không đổi được việc một
+    /// lượt xác nhận `(async)` khác có thể đang giữ khoá `PendingImportSourceState` (đọc qua
+    /// [`super::current_pending_destination`] ngay dưới) tới N × 20 giây.
+    #[tauri::command(async)]
     pub fn remove_url_import_item(
         app: tauri::AppHandle,
         index: usize,

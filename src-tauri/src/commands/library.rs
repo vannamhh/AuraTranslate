@@ -253,6 +253,26 @@ pub fn forget_orphan(
     }
 }
 
+/// **Hàm thuần** — ĐỌC THUẦN danh sách mồ côi, không quét lại `library-index.db`. Trước bản
+/// vá này khối "gốc thư mục + mồ côi" của `LibraryMode.vue`
+/// chỉ nạp sau khi người dùng bấm Rescan/đổi gốc — khác khối "Works" (đã tự nạp qua
+/// [`list_works`] từ Story 5.4/5.6) — một mồ côi có thật không hiện ra cho tới lượt bấm đó.
+///
+/// `Indexer::list_orphans` đã là một đường ĐỌC THUẦN từ trước (Story 5.3); hàm này chỉ là vỏ
+/// chuyển đổi kiểu dây, cùng khuôn [`list_works`].
+///
+/// # Lỗi
+/// `indexer = None` ⇒ `library.indexer_missing`; `global = None` hoặc lỗi kho ⇒ lỗi kho toàn
+/// cục, qua `From<IndexError>`.
+pub fn list_orphans(
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+) -> Result<Vec<OrphanEntry>, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    let orphans = indexer.list_orphans(global)?;
+    Ok(orphans.into_iter().map(OrphanEntry::from).collect())
+}
+
 /// **Hàm thuần** — mọi thứ xảy ra SAU khi hộp thoại chọn thư mục đã đóng.
 ///
 /// `picked = None` (người dùng HUỶ) ⇒ `Ok(None)`: **không** ghi cấu hình, **không** quét
@@ -572,8 +592,8 @@ pub fn search_library(
     Ok(SearchReport::from(report))
 }
 
-/// Năm vỏ `#[tauri::command]` — ba của Story 5.3, [`library_list_works`] của Story 5.4, cộng
-/// [`library_search`] của Story 5.9.
+/// Sáu vỏ `#[tauri::command]` — ba của Story 5.3, [`library_list_works`] của Story 5.4,
+/// [`library_search`] của Story 5.9, cộng [`library_list_orphans`].
 /// **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use tauri::Manager as _;
@@ -594,8 +614,9 @@ pub mod wire {
     /// trên một thư viện lớn đó là I/O đồng bộ đáng kể cộng một lượt ghi qua
     /// `store::Writer`; chạy trên luồng chính sẽ chặn đúng vòng lặp sự kiện mà AC1 đòi giữ
     /// mượt ("giao diện còn bấm/gõ được suốt lượt"). `#[tauri::command(async)]` đưa THÂN HÀM
-    /// ra `sync_threadpool`, không đổi một dòng thân hàm — cùng khuôn năm vỏ CHẶN của
-    /// `commands/glossary.rs`. Cổng canh: `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    /// sang một luồng worker của runtime tokio đa luồng (`async_runtime::spawn`), không đổi
+    /// một dòng thân hàm — cùng khuôn năm vỏ CHẶN của `commands/glossary.rs`. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
     #[tauri::command(async)]
     pub fn library_rescan(app: tauri::AppHandle) -> Result<RescanReport, IpcError> {
         let indexer = app.try_state::<Indexer>();
@@ -639,8 +660,8 @@ pub mod wire {
     ///
     /// 🔴 **`(async)` KHÔNG PHẢI TRANG TRÍ — thiếu nó là TREO ỨNG DỤNG.**
     /// `blocking_pick_folder()` chặn vòng lặp sự kiện mà chính hộp thoại đang chờ, đúng lớp
-    /// lỗi đã ĐO ở Story 3.10b (macOS báo "Not Responding"). `#[tauri::command(async)]` cho
-    /// `sync_threadpool` chạy nó ngoài luồng chính.
+    /// lỗi đã ĐO ở Story 3.10b (macOS báo "Not Responding"). `#[tauri::command(async)]` chạy
+    /// nó trên một luồng worker của runtime tokio đa luồng, ngoài luồng chính.
     #[tauri::command(async)]
     pub fn library_choose_root(app: tauri::AppHandle) -> Result<Option<RescanReport>, IpcError> {
         // 🔵 THÊM (2026-08-27, vòng rà bốn lớp P8) — kiểm CẢ `Store` lẫn `Indexer` TRƯỚC khi
@@ -694,6 +715,16 @@ pub mod wire {
             source_lang.as_deref(),
             sort.as_deref(),
         )
+    }
+
+    /// Vỏ IPC của [`super::list_orphans`] — cùng khuôn [`library_list_works`]: đọc
+    /// thuần, không `(async)` (một câu `SELECT` qua kết nối đọc của pool cộng một lượt đọc
+    /// `global.db`, không I/O đồng bộ trên `.atproj`/hộp thoại).
+    #[tauri::command]
+    pub fn library_list_orphans(app: tauri::AppHandle) -> Result<Vec<OrphanEntry>, IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        let store = app.try_state::<Store>();
+        super::list_orphans(indexer.as_deref(), store.as_deref())
     }
 
     /// Vỏ IPC của [`super::search_library`] — Story 5.9, FR8.

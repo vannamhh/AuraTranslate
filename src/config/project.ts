@@ -3,10 +3,10 @@
  *
  * Cùng khuôn `./bootstrap.ts`: một lời gọi `invoke`, một `try/catch`, không quy tắc
  * nghiệp vụ nào ở đây — quy tắc sống ở Rust (`core/segment/import.rs`,
- * `commands/project.rs`).
+ * `commands/project/`).
  *
  * ⚠️ `invoke()` mặc định gửi tham số ở dạng **camelCase** dù hàm Rust nhận `snake_case`
- * (`tauri-macros` `ArgumentCase::Camel` — mặc định, `commands/project.rs` không đổi nó).
+ * (`tauri-macros` `ArgumentCase::Camel` — mặc định, `commands/project/` không đổi nó).
  * ⇒ `sourceLang` ở lời gọi, không `source_lang`.
  *
  * ⚠️ Hàm ở đây **không bao giờ ném** — cùng lý do `loadBootstrapConfig` không ném:
@@ -48,6 +48,13 @@ export type CreatedWork = {
   folder: string
   images_saved: number
   images_failed: number
+  /**
+   * `true` ⇔ script của văn bản KHÔNG
+   * khớp `source_lang` đã khai (ví dụ tiếng Việt nhập với `source_lang = "zh"`). Tính lại
+   * MỖI lời gọi, "của LƯỢT NÀY" — cùng ngữ nghĩa `images_saved`/`images_failed`, không cộng
+   * dồn. Cảnh báo KHÔNG chặn: Rust vẫn ghi bình thường dù trường này `true`.
+   */
+  source_lang_mismatch: boolean
 }
 
 /** Ba trạng thái, cùng khuôn `BootstrapResult` — xem doc-comment ở đó về vì sao ba. */

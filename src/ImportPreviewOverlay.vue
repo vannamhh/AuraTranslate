@@ -599,6 +599,22 @@ const tier2Counts = computed<{ kept: number; excluded: number } | null>(() => {
  * ghi chú vị trí con trỏ (`ip-chapter-cursor-note`) hay không. */
 const chapterCursorTotal = computed<number>(() => importPreviewSelectedChapters.value?.chapter_count ?? 0)
 
+/**
+ * `true` ⇔ mẫu ĐÃ ÁP (không phải ô nháp còn đang gõ) là `regex` mở đầu bằng `^` VÀ chỉ nhận
+ * ra ĐÚNG một Chương. `^` khớp đầu MỖI DÒNG (`multi_line(true)` luôn bật, `chapterpattern.rs`),
+ * nhưng bước làm sạch nối dòng chạy TRƯỚC bước tách Chương trong thứ tự AD-39 (giữ nguyên,
+ * không đổi thứ tự) — thiếu một dòng trống ngăn cách, tiêu đề Chương bị nối vào đoạn văn
+ * TRƯỚC nó và không còn đứng đầu dòng nữa, nên `^` chỉ còn khớp Chương ĐẦU (vị trí 0 của toàn
+ * văn bản). Chỉ hiện cho `kind === 'regex'` — `'literal'` không hề đọc `^` như một neo, nên
+ * nguyên nhân này không áp dụng.
+ */
+const chapterPatternAnchoredSingleChapterHint = computed<boolean>(
+  () =>
+    importPreviewChapterPatternKind.value === 'regex' &&
+    importPreviewChapterPatternText.value.startsWith('^') &&
+    importPreviewSelectedChapters.value?.chapter_count === 1,
+)
+
 /** Ba vạch lề hiển thị — `switch` cạn, cùng khuôn [`confidenceMessageKey`]/[`tierEmptyMessageKey`]
  * (không ghép chuỗi khoá bằng nội suy). */
 function blockStateMessageKey(block: BlockWire): string {
@@ -1461,6 +1477,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             <p class="ip-chapters-count">
               <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
               {{ t('mode.library.preview.chapters_count', { count: String(importPreviewSelectedChapters.chapter_count) }) }}
+            </p>
+            <!--
+              Mẫu `regex` neo `^` mà chỉ ra 1 Chương gần như luôn là thiếu dòng trống ngăn
+              cách trước tiêu đề, không phải mẫu sai — nói rõ NGUYÊN NHÂN thay vì để người
+              dùng tự đoán.
+            -->
+            <p v-if="chapterPatternAnchoredSingleChapterHint" class="ip-chapters-anchor-hint" role="status">
+              {{ t('mode.library.preview.chapters_anchor_single_chapter_hint') }}
             </p>
 
             <!--

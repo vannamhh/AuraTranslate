@@ -101,6 +101,16 @@ pub struct BootstrapConfig {
     /// lượt `parseInt` phía TS mà `src/AGENTS.md` cấm ("không quy tắc nghiệp vụ nào ở
     /// TypeScript"): phân tích số nguyên tự nó là một quy tắc, dù nhỏ.
     pub glossary_scan_threshold: u32,
+    /// Tuỳ chọn đọc đã lưu (mức đọc, song ngữ, cỡ chữ/dãn dòng ghi đè), chuỗi JSON của
+    /// frontend — chuỗi rỗng khi chưa ai lưu gì, cùng luật `workspace_layout`.
+    ///
+    /// ⚠️ Trường thứ TÁM trên dây. `tests/ipc_contract.rs` đóng băng danh sách tên trường và
+    /// nó phải được sửa cùng lượt — đó là hành vi ĐÚNG, cùng lý do các trường trước.
+    ///
+    /// Vẫn KHÔNG `#[serde(rename_all = "camelCase")]`, cùng lý do các trường trên. Ghi qua
+    /// `put_config('app_config', 'reading_preferences', <json>)` đã có sẵn — không có vỏ
+    /// `#[tauri::command]` riêng cho trường này.
+    pub reading_preferences: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -144,6 +154,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         workspace_layout: config.workspace_layout().to_owned(),
         dict_sources_disabled: config.dict_sources_disabled().to_owned(),
         glossary_scan_threshold: config.glossary_scan_threshold(),
+        reading_preferences: config.reading_preferences().to_owned(),
     })
 }
 

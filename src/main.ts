@@ -26,7 +26,7 @@ import { initTheme } from './tokens/themeState'
 import { attachKeyboard, dispatch, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
-import { loadBootstrapConfig, putConfig } from './config/bootstrap'
+import { bootstrapReadingPreferences, loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
   // 🔴 Handler thật của `ai.translate.confirm_promote`/`ai.translate.cancel_promote`, cùng
@@ -384,6 +384,7 @@ import {
 import {
   closeTableOfContents,
   closeReadingMarks,
+  initReadingPreferencesFromBootstrap,
   markAimedReadingSegment,
   nextReadingMark,
   nextTocChapter,
@@ -484,6 +485,12 @@ async function boot(): Promise<void> {
   // 🔵 SỬA LẦN HAI (lượt rà 2026-08-30) — `initTheme()`, KHÔNG `setTheme()`: đường khởi động
   // chỉ ÁP, không GHI. Xem doc-comment của `initTheme` cho hai hệ quả đo được của bản trước.
   initTheme(isTheme(config?.theme) ? config.theme : DEFAULT_THEME)
+
+  // Mức đọc/song ngữ/cỡ chữ/giãn dòng nay đến TỪ ĐĨA,
+  // cùng cửa `app_config` với theme ngay trên. Không có thứ tự bắt buộc với `mount()`
+  // (Chế độ đọc chưa vẽ gì ở đây) — gọi trước `installCommands()` chỉ để đi cùng nhóm với
+  // lượt đọc cấu hình khởi động khác, không phải một ràng buộc thật.
+  initReadingPreferencesFromBootstrap(bootstrapReadingPreferences.value)
 
   // ⚠️ THỨ TỰ BẮT BUỘC #2 — `installCommands()` phải chạy TRƯỚC `mount()`.
   //

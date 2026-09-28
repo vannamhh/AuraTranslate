@@ -1377,3 +1377,61 @@ describe('importPreviewState — chaptersShowAll ở quy mô 1.000 Chương (deb
     state.resetImportPreview()
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Mẫu regex neo `^` chỉ ra 1 Chương ⇒ dòng giải thích
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `^` chỉ ra 1 Chương', () => {
+  it('kind regex, mẫu bắt đầu bằng `^`, chapter_count === 1 ⇒ dòng giải thích HIỆN', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
+    previewTextMock.mockResolvedValue({
+      preview: preview({ candidates: [candidate({ chapters: chapters({ chapter_count: 1, chapters: [chapters().chapters[0]!] }) })] }),
+      error: null,
+    })
+    await state.setImportPreviewChapterPattern('^Chuong', 'regex')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('.ip-chapters-count').text()).toContain('1')
+    expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(true)
+    expect(wrapper.find('.ip-chapters-anchor-hint').text().length).toBeGreaterThan(0)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('cùng mẫu `^…` nhưng chapter_count 2+ ⇒ dòng giải thích VẮNG MẶT', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: chapters({ chapter_count: 2 }) })] }), error: null })
+    await state.setImportPreviewChapterPattern('^Chuong', 'regex')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('.ip-chapters-count').text()).toContain('2')
+    expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('kind literal (KHÔNG regex), mẫu bắt đầu bằng `^`, chapter_count === 1 ⇒ dòng giải thích VẮNG MẶT (literal không đọc `^` như một neo)', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
+    previewTextMock.mockResolvedValue({
+      preview: preview({ candidates: [candidate({ chapters: chapters({ chapter_count: 1, chapters: [chapters().chapters[0]!] }) })] }),
+      error: null,
+    })
+    await state.setImportPreviewChapterPattern('^Chuong', 'literal')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('.ip-chapters-count').text()).toContain('1')
+    expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})

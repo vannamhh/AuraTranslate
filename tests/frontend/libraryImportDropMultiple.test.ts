@@ -183,6 +183,7 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b)', () => {
       folder: '/tmp/Ten.atproj',
       images_saved: 0,
       images_failed: 0,
+      source_lang_mismatch: false,
     }
     nhap.finishImportSubmission(created, null)
 

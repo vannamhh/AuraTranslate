@@ -2,9 +2,13 @@
  * Story 11.5 — Disposition 3, L140 (Ice quyết định #62): sau một lượt ĐỔI TÁC PHẨM
  * (`openWorkById`), một lượt NHẬP xong (`finishImportSubmission`), hay một lượt GỘP CHƯƠNG
  * (`mergeCurrentChapterUp`), tiêu điểm phải rơi vào lưới, không rơi về `body` — ba trong năm
- * chỗ gọi `enterFocus('panel.grid')` mà story này thêm (hai chỗ còn lại, `switchChapter`/
- * `openChapterById`, có TỪ TRƯỚC story này và tự khai "🔴 VẾ NÀY CHƯA CÓ ĐƯỜNG NGHIỆM THU" —
- * ngoài phạm vi ở đây).
+ * chỗ gọi `enterFocus('panel.grid')` mà story này thêm (`openChapterById` — chỗ còn lại — có
+ * TỪ TRƯỚC story này và vẫn tự khai "🔴 VẾ NÀY CHƯA CÓ ĐƯỜNG NGHIỆM THU" — ngoài phạm vi ở
+ * đây).
+ *
+ * `switchChapter` (`editorPanelState.ts`, cùng cơ chế `nextTick()`/`enterFocus('panel.grid')`)
+ * có một ca ở cuối tệp này, gọi qua đúng bề mặt sản phẩm (`goToNextChapter`) sau một lượt
+ * CHUYỂN CHƯƠNG THẬT trong lúc Workspace đang mở.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * 🔴 VÌ SAO GỌI HÀM SẢN PHẨM QUA `import()`, KHÔNG BẤM MỘT NÚT
@@ -55,6 +59,8 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const MODULE_LIBRARY_CHAPTERS = '/src/modes/libraryChapters.ts'
 const MODULE_LIBRARY_IMPORT = '/src/modes/libraryImport.ts'
+/** `goToNextChapter` sống ở đây, không `libraryChapters.ts`. */
+const MODULE_EDITOR_PANEL_STATE = '/src/panels/editorPanelState.ts'
 
 /** Tạo một Tác phẩm qua cầu IPC trần — trả nguyên văn `CreatedWork` (§Rust) cộng `work_id`. */
 async function createWorkViaIpc(name, text) {
@@ -240,6 +246,60 @@ describe('Story 11.5 · L140 — tiêu điểm rơi vào lưới sau ba lượt 
     // Chương A (đang mở trong Editor) nay mang lại đủ BỐN câu — bằng chứng lượt gộp đã ghi
     // VÀ Editor đã nạp lại đúng Chương gộp, không phải một Chương rỗng/cũ.
     await waitForGridRows(4)
+
+    const after = await focusProbe()
+    expect(after.isBody).toBe(false)
+    expect(after.hasGridDescendant).toBe(true)
+  })
+
+  /**
+   * `switchChapter`'s cơ chế `nextTick()`/`enterFocus('panel.grid')` chưa từng có một bàn đo
+   * thật trước ca này (chỉ `happy-dom` ở `editorChapterSwitch.test.ts`). Gọi qua
+   * `goToNextChapter` (bề mặt THẬT của hợp âm `editor.next_chapter`), không viết lại logic của
+   * nó — cùng lý do và cùng khuôn ba ca trên.
+   *
+   * ⚠️ **GIỚI HẠN THẬT, cùng lớp với khối lý do đầu tệp** — đối chứng thật (gỡ dòng
+   * `enterFocus('panel.grid')` khỏi `switchChapter`) vẫn XANH ở CA NÀY: Chương đích (B) có
+   * segment (`caret_segment_id` khác `null`), nên cơ chế đặt-caret-lúc-nạp của
+   * `ensureSegmentsLoaded()`/watcher `editorCaretPlacement` của `GridPanel.vue` (đã có TỪ
+   * Story 5.7, không phải của dòng `enterFocus` đang canh) một mình đã đủ đưa tiêu điểm vào
+   * lưới. Cô lập RIÊNG đóng góp của dòng `enterFocus` này cần một Chương đích RỖNG (0 câu) —
+   * món nợ có chủ, cùng nợ đã ghi ở khối lý do đầu tệp cho ba ca trên.
+   */
+  it('CHUYỂN CHƯƠNG thật (`goToNextChapter`) khi Workspace đang mở ⇒ tiêu điểm rơi vào lưới', async () => {
+    const tag = `${Date.now() % 1_000_000}`
+
+    // Bốn câu ⇒ tách ở câu thứ hai cho 1 + 3, cùng fixture và cùng lý lẽ ca GỘP CHƯƠNG ở trên
+    // (hai con số KHÁC nhau nên mọi phép kiểm đỏ được).
+    await openWorkspaceWithWork(`e2e-focus-switchchapter-E-${tag}`, 'Cau mot。Cau hai。Cau ba。Cau bon。')
+    await waitForGridRows(4)
+
+    const before1 = await readSegmentsFromDisk()
+    expect(before1.segments).toHaveLength(4)
+
+    // Tách Chương ĐANG MỞ thành hai — phần ĐẦU (A, đang mở) giữ 1 câu, phần SAU (B, mới) nhận
+    // 3 câu còn lại. Cùng lệnh IPC thật, cùng lý lẽ ca GỘP CHƯƠNG ở trên — và cùng giới hạn đã
+    // ghi ở đó: đường IPC trần không qua `ensureChapterLoaded`, nên lưới KHÔNG tự cập nhật
+    // ngay sau lượt tách (vẫn hiện 4 câu cũ) tới khi một lượt nạp lại THẬT chạy — chính là
+    // `goToNextChapter` ngay dưới. Không `waitForGridRows(1)` ở đây vì thế — mệnh đề của ca
+    // này là tiêu điểm SAU lượt CHUYỂN, không phải hình dạng lưới NGAY SAU lượt tách.
+    await splitAtSegmentViaIpc(before1.segments[1].id)
+
+    await blurActiveElement()
+    const before2 = await focusProbe()
+    expect(before2.isBody).toBe(true)
+
+    // `goToNextChapter` — ĐÚNG bề mặt của hợp âm `editor.next_chapter` (Story 2.11) — dời con
+    // trỏ Chương phía Rust sang B (Chương kề NGAY SAU A theo `(ord, id)`) rồi nạp lại Editor.
+    await browser.execute(async (modulePath) => {
+      const mod = await import(/* @vite-ignore */ modulePath)
+      mod.goToNextChapter()
+    }, MODULE_EDITOR_PANEL_STATE)
+
+    // Chương B mang 3 câu, câu đầu là "Cau hai。" — bằng chứng lượt chuyển đã THẬT SỰ nạp
+    // Chương KHÁC, không phải Chương A đứng yên.
+    await waitForGridRows(3)
+    await waitForGridText(0, 'Cau hai。')
 
     const after = await focusProbe()
     expect(after.isBody).toBe(false)

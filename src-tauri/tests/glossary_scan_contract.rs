@@ -28,7 +28,7 @@ fn nothing_known(_term: &str) -> bool {
 /// F ③). `core::glossary::scan::scan_candidates` (vỏ `bool` công khai) đã bị xoá: nó có 0
 /// chỗ gọi sản phẩm và biến một layer LỖI thành "không có trong từ điển", đúng lớp rỗng im
 /// lặng trung tâm của dự án. Mọi ca dưới đây chỉ cần một vị từ `bool` tất định nên tự giữ
-/// đúng phần thân adapter đã xoá, không phục hồi một API sản phẩm. ⚠️ `commands/project.rs`
+/// đúng phần thân adapter đã xoá, không phục hồi một API sản phẩm. ⚠️ `commands/project/tests.rs`
 /// (`#[cfg(test)] mod tests::scan_candidates_bool_probe`) giữ một bản CHÉP SONG SONG của
 /// đúng phần thân này — hai crate test khác nhau (tích hợp `tests/**` so với đơn vị trong
 /// `src/`) không chia sẻ mã được, và NFR15 cấm thêm một crate hỗ trợ mới chỉ để hợp nhất

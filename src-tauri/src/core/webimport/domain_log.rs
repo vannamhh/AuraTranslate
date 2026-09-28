@@ -143,7 +143,7 @@ pub type DomainLogState = Mutex<Vec<DomainLogEntry>>;
 
 /// Nối thêm `entries` vào cuối — **hàm thuần, `pub`**, nhận `&DomainLogState` trần (không
 /// `AppHandle`) để `tests/**` gọi được không cần dựng webview, đúng khuôn
-/// `clear_url_import_items_after_successful_confirm` (`commands/project.rs`).
+/// `clear_url_import_items_after_successful_confirm` (`commands/project/url_import.rs`).
 pub fn append_domain_log_entries(state: &DomainLogState, entries: Vec<DomainLogEntry>) {
     if entries.is_empty() {
         return;

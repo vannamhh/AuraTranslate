@@ -84,6 +84,14 @@ export type BootstrapConfig = {
    * `src/AGENTS.md` cấm quy tắc nghiệp vụ ở tầng này.
    */
   glossary_scan_threshold: number
+  /**
+   * Ba tuỳ chọn typography của Chế độ đọc + `bilingual`, đã `JSON.stringify` — trường thứ
+   * **tám**. Cùng quy ước `workspace_layout`: chuỗi RỖNG =
+   * chưa ai lưu gì ⇒ mặc định phía `src/modes/readingState.ts` đứng nguyên; Rust không đọc
+   * bên trong chuỗi này (`put_config('app_config', 'reading_preferences', <json>)` ghi
+   * thẳng, không cần một vỏ `#[tauri::command]` riêng).
+   */
+  reading_preferences: string
 }
 
 /**
@@ -192,6 +200,14 @@ export const SCOPE_SHORTCUT = 'shortcut'
  * `KEY_GLOSSARY_SCAN_THRESHOLD` ở `src-tauri/src/core/scope/store.rs`.
  */
 export const KEY_GLOSSARY_SCAN_THRESHOLD = 'glossary_scan_threshold'
+/**
+ * Khoá thứ tám đi qua cửa `app_config`.
+ *
+ * ⚠️ Cùng lý do các hằng số khác ở tệp này tồn tại: `put_config` nhận `kind`/`key` là
+ * **chuỗi trên dây**, nên một lỗi gõ ở đây không có kiểu nào bắt được. Khớp
+ * `core::scope::store::KEY_READING_PREFERENCES` phía Rust.
+ */
+export const KEY_READING_PREFERENCES = 'reading_preferences'
 
 /** Mặc định khi chưa đọc được cấu hình — khớp `DEFAULT_GLOSSARY_SCAN_THRESHOLD` phía Rust. */
 export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
@@ -199,6 +215,7 @@ export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')
 const glossaryScanThreshold = ref(DEFAULT_GLOSSARY_SCAN_THRESHOLD)
+const readingPreferences = ref('')
 
 /**
  * Bố cục đã lưu, đọc **một lần** lúc khởi động (AC4).
@@ -231,6 +248,14 @@ export const configError: DeepReadonly<Ref<IpcError | null>> = readonly(lastErro
 export const bootstrapGlossaryScanThreshold: DeepReadonly<Ref<number>> = readonly(glossaryScanThreshold)
 
 /**
+ * Chuỗi JSON của ba tuỳ chọn typography + `bilingual`, đọc **một lần** lúc khởi động. Cùng
+ * khuôn [`bootstrapLayout`]: `src/modes/readingState.ts` tự
+ * `JSON.parse` (`try { } catch { mặc định }`) và không đọc lại tệp này sau lượt khởi động —
+ * lượt GHI đi qua `putConfig`, không quay ngược về đây.
+ */
+export const bootstrapReadingPreferences: DeepReadonly<Ref<string>> = readonly(readingPreferences)
+
+/**
  * Nạp cấu hình khởi động. Không ném — xem doc-comment đầu tệp.
  */
 export async function loadBootstrapConfig(): Promise<BootstrapResult> {
@@ -253,6 +278,11 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
       typeof rawThreshold === 'number' && Number.isInteger(rawThreshold) && rawThreshold > 0
         ? rawThreshold
         : DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    // ⚠️ Cùng canh gác `workspace_layout` ngay trên — một bản Rust trước story này không có
+    // trường thứ tám, và giá trị vừa vượt ranh giới IPC nên kiểu TypeScript không nói được
+    // gì về nó.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
+    readingPreferences.value = typeof config?.reading_preferences === 'string' ? config.reading_preferences : ''
     return { config, error: null }
   } catch (err) {
     if (isIpcError(err)) {

@@ -151,7 +151,7 @@ impl WorkMeta {
     /// crate nhị phân, liên kết vào `auratranslate_lib` như một phụ thuộc ngoài) — `pub(crate)`
     /// KHÔNG thấy được từ đó dù có nâng tầm nhìn hay không; nâng lên hẳn `pub` mới đổi được gì
     /// cho `tests/**`. Người nâng tầm nhìn đúng lý do CHỈ có một chỗ gọi thật:
-    /// `commands/project.rs:1123`, một `#[cfg(test)] mod tests` sống TRONG CÙNG crate `lib`
+    /// `commands/project/tests.rs`, một `#[cfg(test)] mod tests` sống TRONG CÙNG crate `lib`
     /// (biên dịch cùng `auratranslate_lib`, không phải một crate test riêng) — `pub(crate)` là
     /// đủ và đúng tầm cho đúng một chỗ gọi đó, thay vì tự lắp chuỗi `"meta.json"`/nhắc
     /// `META_FILE` mà `meta_write_boundary.rs` khoá CHỈ ở module này (AC4). KHÔNG `pub`: đây
@@ -272,7 +272,7 @@ impl WorkMeta {
     ///
     /// 🔵 **THÊM (2026-08-28, Story 5.6) — `updated_at` nay TÍNH, không còn CHÉP.** Trước bản
     /// vá, câu `SELECT` chép thẳng `work.updated_at` — cột đó có ĐÚNG MỘT lượt `INSERT`
-    /// (`commands/project.rs:265`, lúc tạo Tác phẩm) và **0** lượt `UPDATE` toàn kho (đo
+    /// (`commands/project/work_creation.rs::create_work`, lúc tạo Tác phẩm) và **0** lượt `UPDATE` toàn kho (đo
     /// 2026-08-28), nên cột "ngày sửa" mà AC4 sắp theo đứng yên vĩnh viễn ở mốc TẠO. Giá trị
     /// đúng là `MAX(work.created_at, MAX(chapter.updated_at), MAX(segment.updated_at))` — ba
     /// nguồn ĐANG SỐNG: `chapter.updated_at` từ `commands/lifecycle.rs:143` (Story 5.4),
@@ -282,7 +282,7 @@ impl WorkMeta {
     /// trên `String` không cần phân tích ngày tháng.
     ///
     /// 🔴 **Dư địa còn lại, không được làm tròn lên "đã đóng":** hàm này chỉ chạy sau khi một
-    /// giao dịch ghi đã commit (`commands/project.rs` sau `create_work`,
+    /// giao dịch ghi đã commit (`commands/project/work_creation.rs` sau `create_work`,
     /// `commands/lifecycle.rs` sau mỗi lượt đổi trạng thái Chương — `meta_write_boundary.rs`
     /// cưỡng chế đúng ba tệp ghi). Một loạt SỬA VĂN BẢN THUẦN không đổi trạng thái Chương nào
     /// vẫn đẩy `segment.updated_at` tiến lên (`segment.rs:1186`), nhưng `meta.json` không được

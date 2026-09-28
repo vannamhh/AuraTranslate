@@ -25,7 +25,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
-/** Khớp `DOCUMENTS_SUBFOLDER` ở `src-tauri/src/commands/project.rs`. */
+/** Khớp `DOCUMENTS_SUBFOLDER` ở `src-tauri/src/commands/project/mod.rs`. */
 const DOCUMENTS_SUBFOLDER = 'AuraTranslate'
 
 /**

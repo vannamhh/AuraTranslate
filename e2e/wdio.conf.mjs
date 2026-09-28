@@ -279,7 +279,7 @@ const GLOBAL_DB_FILE = 'global.db'
  */
 const LIBRARY_INDEX_DB_FILE = 'library-index.db'
 
-/** Thư mục con dưới `~/Documents/` — khớp `DOCUMENTS_SUBFOLDER` ở `commands/project.rs`. */
+/** Thư mục con dưới `~/Documents/` — khớp `DOCUMENTS_SUBFOLDER` ở `commands/project/mod.rs`. */
 const DOCUMENTS_SUBFOLDER = 'AuraTranslate'
 
 /**

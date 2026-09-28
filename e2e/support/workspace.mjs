@@ -36,7 +36,7 @@
 
 import { resetPanelState } from './panelReset.mjs'
 
-/** Khớp `DOCUMENTS_SUBFOLDER` ở `src-tauri/src/commands/project.rs`. */
+/** Khớp `DOCUMENTS_SUBFOLDER` ở `src-tauri/src/commands/project/mod.rs`. */
 export const WORK_SUFFIX = '.atproj'
 
 /**

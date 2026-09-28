@@ -5,13 +5,13 @@
 //! OpenWork>` — thứ `tests/**` gọi được không cần webview.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 KHUÔN BỐN BƯỚC CỦA MỘT LƯỢT GHI TRẠNG THÁI — chép từ `commands/project.rs:266-340`
+//! 🔴 KHUÔN BỐN BƯỚC CỦA MỘT LƯỢT GHI TRẠNG THÁI — chép từ `commands/project/work_creation.rs::create_work`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 1. `open.store.write(|tx| { UPDATE ... })` — giao dịch commit, chỉ SQL.
 //! 2. `WorkMeta::rebuild_from_store(&open.store)` — đọc lại từ nguồn sự thật, không dùng số
 //!    trong bộ nhớ (đây là chỗ [`crate::core::lifecycle::derive_work_status`] chạy).
 //! 3. `meta.write_atomic(&open.dir)` — NGOÀI closure ghi (Quyết định #3, Story 1.15). Lỗi ở
-//!    bước này **NÓI RA**, không nuốt (lý lẽ đã ghi ở `project.rs:317-332`).
+//!    bước này **NÓI RA**, không nuốt (lý lẽ đã ghi ở `commands/project/work_creation.rs::create_work`).
 //! 4. `reindex_library(app, root)` — ở LỚP VỎ (`mod wire`), CHỈ `Indexer` ghi
 //!    `library-index.db` (AD-8). Hàm thuần ở tệp này KHÔNG gọi bước 4 — nó không có
 //!    `AppHandle`.

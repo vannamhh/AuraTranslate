@@ -156,7 +156,7 @@ fn the_chardetng_name_check_would_actually_flag_a_seeded_violation_and_ignore_cl
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Vòng rà đối kháng 2, mục 5 — `create_work` (hàm THUẦN, điểm GHI duy nhất của cả chuỗi
-// AD-39) phải có ĐÚNG BA chỗ gọi sản phẩm, TẤT CẢ trong `commands/project.rs`, TẤT CẢ đã
+// AD-39) phải có ĐÚNG BA chỗ gọi sản phẩm, TẤT CẢ trong `commands/project/`, TẤT CẢ đã
 // biết tên: `create_work_from_text`, `create_work_from_file` (hai hàm thuần cũ, không đi
 // qua xem trước — chỉ còn sống nhờ `e2e/**` và `tests/**`), và
 // `confirm_import_with_encoding` (đường CÓ xem trước, Story 6.3). Một chỗ gọi THỨ TƯ xuất
@@ -164,9 +164,14 @@ fn the_chardetng_name_check_would_actually_flag_a_seeded_violation_and_ignore_cl
 // `segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site`.
 //
 // 🔵 SỬA 2026-09-11 (Story 6.16) — từ BA lên BỐN, chỗ gọi thứ tư CÓ TÊN: `confirm_bilingual_import`
-// (đường xác nhận nhập song ngữ, cùng file `commands/project.rs`, cùng vai trò với
-// `confirm_import_with_encoding` — "điểm GHI duy nhất" cho đường `.csv`/`.tsv`, không phải
-// một đường ghi thứ hai không ai ký).
+// (đường xác nhận nhập song ngữ, cùng vai trò với `confirm_import_with_encoding` — "điểm GHI
+// duy nhất" cho đường `.csv`/`.tsv`, không phải một đường ghi thứ hai không ai ký).
+//
+// Bốn chỗ gọi nay trải trên BA tệp:
+// `create_work_from_text`/`create_work_from_file` sống ở `commands/project/work_creation.rs`;
+// `confirm_bilingual_import` sống ở `commands/project/bilingual.rs`; `confirm_import_with_encoding`
+// vẫn ở `commands/project/mod.rs`. Cổng bên dưới canh `commands/project/` (tiền tố thư mục),
+// không còn một tệp `mod.rs` đơn lẻ.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// `code` gọi `create_work(...)` — vị từ THUẦN. Neo bằng `create_work(` (có dấu mở ngoặc)
@@ -202,8 +207,11 @@ fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_pro
     );
     for site in &sites {
         assert!(
-            site.starts_with("commands/project/mod.rs"),
-            "chỗ gọi `create_work` phải ở `commands/project/mod.rs` — tìm thấy ở đây thay vì đó: {site}"
+            site.starts_with("commands/project/"),
+            "chỗ gọi `create_work` phải ở `commands/project/` (\
+             `create_work_from_text`/`create_work_from_file` nay sống ở `work_creation.rs`, \
+             `confirm_bilingual_import` ở `bilingual.rs`, `confirm_import_with_encoding` vẫn ở \
+             `mod.rs`) — tìm thấy ở đây thay vì đó: {site}"
         );
     }
 }

@@ -456,6 +456,7 @@ describe('libraryImport.ts::finishImportSubmission — tải lại destinationWo
         folder: '/tmp/Truyen Vua Tao.atproj',
         images_saved: 0,
         images_failed: 0,
+        source_lang_mismatch: false,
       },
       null,
     )
@@ -617,5 +618,163 @@ describe('ImportPreviewOverlay.vue — dải .ip-destination đọc đúng đíc
 
     wrapper.unmount()
     state.resetImportPreview()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bốn nút nộp giữ nguyên `disabled` khi tên (đã cắt khoảng trắng) rỗng
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần khoảng trắng rỗng (L726)', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: cả ba nút dán/tệp/URL VÀ nút song ngữ đều disabled dù các ô khác đã điền đủ', async () => {
+    mockInvokeWithWorks([])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    wrapper = mount(LibraryMode)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // Hai `<textarea>` theo thứ tự tài liệu: dán văn bản, danh sách URL.
+    const textareas = wrapper.findAll('.import-form textarea')
+    expect(textareas).toHaveLength(2)
+    await textareas[0]?.setValue('mot doan van ban')
+    await textareas[1]?.setValue('https://example.com/1')
+
+    // Thứ tự tài liệu của bốn ô văn bản trần trong form: Tên, Thể loại, Đường dẫn tệp,
+    // Đường dẫn song ngữ (§Nguồn là một `<select>`, không nằm trong tập này).
+    const textInputs = wrapper.findAll('.import-form .field input[type="text"]')
+    expect(textInputs).toHaveLength(4)
+    const [nameInput, , filePathInput, bilingualPathInput] = textInputs
+    await filePathInput.setValue('/tmp/mot-tep.txt')
+    await nameInput.setValue('   ')
+
+    const previewButtons = wrapper.findAll('[data-import-preview-open]')
+    expect(previewButtons).toHaveLength(3)
+    for (const btn of previewButtons) {
+      expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+    }
+
+    await bilingualPathInput.setValue('/tmp/song-ngu.csv')
+    const bilingualButton = wrapper.get('[data-bilingual-import-preview-open]')
+    expect((bilingualButton.element as HTMLButtonElement).disabled).toBe(true)
+
+    // Gõ một cái tên thật -- cả bốn nút hết `disabled` (mọi ô khác đã điền đủ ngay trên).
+    await nameInput.setValue('Ten Tac Pham')
+    await wrapper.vm.$nextTick()
+    for (const btn of wrapper.findAll('[data-import-preview-open]')) {
+      expect((btn.element as HTMLButtonElement).disabled).toBe(false)
+    }
+    expect((wrapper.get('[data-bilingual-import-preview-open]').element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('đích là một Tác phẩm đã có: effectiveName kế thừa từ đích (không rỗng) nên ba nút dán/tệp/URL không bị khoá vì lý do Tên', async () => {
+    mockInvokeWithWorks([workRow()])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    wrapper = mount(LibraryMode)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const existingRadio = wrapper.get('[data-import-destination] input[value="existing"]')
+    await existingRadio.setValue(true)
+    await wrapper.vm.$nextTick()
+    const picker = wrapper.get('[data-import-destination-picker] select')
+    await picker.setValue('w-1')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('.import-form textarea').setValue('mot doan van ban')
+    await wrapper.vm.$nextTick()
+
+    const textBtn = wrapper.findAll('[data-import-preview-open]')[0]
+    expect((textBtn.element as HTMLButtonElement).disabled).toBe(false)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// AC — "Given Vietnamese text imported as zh, when the Work is created or appended to, then
+// the warning is shown and the write still happens."
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust phase, L847/L1916)', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('`createdWork.source_lang_mismatch === true` ⇒ dải cảnh báo hiện, VÀ dải "đã tạo" vẫn hiện cùng lúc (ghi vẫn xảy ra)', async () => {
+    mockInvokeWithWorks([])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const nhap = await import('../../src/modes/libraryImport')
+    wrapper = mount(LibraryMode)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    nhap.createdWork.value = {
+      meta: {
+        meta_schema_version: 2,
+        work_id: 'w-1',
+        name: 'Truyen Tieng Viet',
+        source_lang: 'zh',
+        genre: '',
+        created_at: '2026-09-28T00:00:00.000Z',
+        updated_at: '2026-09-28T00:00:00.000Z',
+        chapter_count: 1,
+      },
+      folder: '/tmp/Truyen Tieng Viet.atproj',
+      images_saved: 0,
+      images_failed: 0,
+      source_lang_mismatch: true,
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.source-lang-warning').text()).not.toBe('')
+    expect(wrapper.get('.empty .status').text()).toContain('Truyen Tieng Viet') // lượt ghi vẫn có thật
+  })
+
+  it('`createdWork` là `null` (chưa nộp gì) ⇒ dải cảnh báo rỗng', async () => {
+    mockInvokeWithWorks([])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    wrapper = mount(LibraryMode)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.source-lang-warning').text()).toBe('')
+  })
+
+  it('`createdWork.source_lang_mismatch === false` (khớp ngôn ngữ) ⇒ dải cảnh báo rỗng dù đã tạo', async () => {
+    mockInvokeWithWorks([])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const nhap = await import('../../src/modes/libraryImport')
+    wrapper = mount(LibraryMode)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    nhap.createdWork.value = {
+      meta: {
+        meta_schema_version: 2,
+        work_id: 'w-2',
+        name: 'Truyen Trung Van',
+        source_lang: 'zh',
+        genre: '',
+        created_at: '2026-09-28T00:00:00.000Z',
+        updated_at: '2026-09-28T00:00:00.000Z',
+        chapter_count: 1,
+      },
+      folder: '/tmp/Truyen Trung Van.atproj',
+      images_saved: 0,
+      images_failed: 0,
+      source_lang_mismatch: false,
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.empty .status').text()).toContain('Truyen Trung Van')
+    expect(wrapper.get('.source-lang-warning').text()).toBe('')
   })
 })

@@ -654,6 +654,10 @@ message_keys! {
     /// on a row whose two sides both have at least one sentence").
     ImportBilingualSkipNotAllowed => "err.import.bilingual_skip_not_allowed" ["row"],
 
+    /// `source_lang` ngoài `zh`/`en` ở đường tạo/thêm Chương. Không hàng nào được ghi khi
+    /// khoá này ném ra.
+    ImportUnsupportedSourceLang => "err.import.unsupported_source_lang" ["source_lang"],
+
     // ── Story 4.2 (FR68, AD-18) — ba khoá, cấu hình nhà cung cấp AI ─────────────────
     //
     // Bề mặt IPC `commands::aiconfig` (đọc hai tầng đã phân giải · ghi một trường · trả một

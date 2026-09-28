@@ -868,6 +868,17 @@ CREATE TABLE work (
 /// tới khi người dùng bỏ ghi đè.
 pub const WORK_STATUS_OVERRIDE_DDL: &str = "ALTER TABLE work ADD COLUMN status_override TEXT;";
 
+/// Thêm cột `work.last_chapter_id` — **bước 26 MỚI** của [`PROJECT_MIGRATIONS`]: `open_work`
+/// mở lại đúng Chương người dùng đã rời đi, không luôn luôn Chương đầu.
+///
+/// `NULL`-hoặc-giá-trị, không một cờ boolean riêng — cùng khuôn [`WORK_STATUS_OVERRIDE_DDL`].
+/// `NULL` (chưa từng chuyển Chương lần nào sau bản vá này, hoặc Chương đã lưu vừa bị xoá) ⇒
+/// `open_work` rơi về Chương đầu (`ORDER BY ord, id LIMIT 1`, hành vi đã có từ trước) — không
+/// `FOREIGN KEY` nào ép giá trị này phải trỏ vào một hàng `chapter` còn sống: một Chương bị
+/// xoá/gộp SAU khi được lưu ở đây phải để lại một giá trị "cũ", đọc được nhưng KHÔNG hợp lệ,
+/// đúng ca `open_work` cần phát hiện và rơi về Chương đầu, không phải một lỗi kho.
+pub const WORK_LAST_CHAPTER_ID_DDL: &str = "ALTER TABLE work ADD COLUMN last_chapter_id INTEGER;";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1843,7 +1854,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi bốn bước, và đích là phiên bản 25.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi lăm bước, và đích là phiên bản 26.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2171,6 +2182,11 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
         to_version: 25,
         sql: GLOSSARY_ENTRY_OCCURRENCE_COUNT_AND_ZERO_WIDTH_GUARD_DDL,
     },
+    // work.last_chapter_id, xem doc-comment cua WORK_LAST_CHAPTER_ID_DDL.
+    Migration {
+        to_version: 26,
+        sql: WORK_LAST_CHAPTER_ID_DDL,
+    },
 ];
 
 /// Lược đồ bảng `library_work` — **bước 1, VÀ DUY NHẤT, MÃI MÃI, của `library-index.db`** —
@@ -2334,9 +2350,28 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   không còn lý do để đứng: trên 3.53.2 (bản NHÚNG thật) tham số đó CÓ THẬT, và `CREATE VIRTUAL TABLE …
 ///   tokenize="trigram remove_diacritics 1"` chạy SẠCH — mặc định của `trigram` vẫn là `0`
 ///   (không đặt tường minh thì giữ `0`), đây không phải chuyện tồn tại hay không.
-///   ⇒ Không nửa nào của chỉ mục chính khoan dung dấu; chỉ mục khoan dung là `library_target_fts_nd`
-///   của Story 5.10 (`unicode61 remove_diacritics 2`, chỉ trên NỬA BẢN DỊCH — xem khối "NÂNG
-///   LẦN SÁU" dưới đây). Thêm `remove_diacritics 1` vào dòng trên là phá AD-27 ở nửa nguyên văn.
+///   ⇒ Không nửa nào của chỉ mục CHÍNH khoan dung dấu; chỉ mục khoan dung sống ở hai bảng PHỤ
+///   riêng — `library_target_fts_nd` và `library_source_fts_nd` — xem khối lịch sử phiên bản
+///   dưới đây. Thêm `remove_diacritics` vào MỘT TRONG HAI dòng trên (chỉ mục CHÍNH) là phá
+///   AD-27.
+///
+///   ⚠️ **`remove_diacritics` không gấp `đ`/`Đ` về `d`/`D` ở BẤT KỲ tham số nào (`unicode61`
+///   mức 1/2 lẫn `trigram` mức 1)** — hai chữ này là ký tự ĐỘC LẬP (không phải `d` cộng dấu tổ
+///   hợp), ngoài bảng gấp dấu built-in của SQLite. **Đo trực tiếp (SQLite 3.53.2 nhúng):**
+///   `trigram remove_diacritics 1` KHÔNG gấp cả những dấu tổ hợp tiếng Việt thường (`à`, `ẵ`,
+///   …) — kho một hàng `"Đà Nẵng là một thành phố ven biển"`, truy vấn `"da nang"` trả **0**
+///   hàng dưới tokenizer đó; `unicode61 remove_diacritics 2` (nửa bản dịch) THÌ gấp được lớp
+///   dấu này (đo ở khối "NÂNG LẦN SÁU" dưới đây, ca `"Nguyễn Huệ"` → `"nguyen hue"`). Vì vậy:
+///   - `library_target_fts_nd` chỉ cần gấp riêng `đ/Đ` (hàm `fold_dd_letter`,
+///     `core/library/indexer.rs`) VÀO cột `target_text_fold` — `unicode61 remove_diacritics 2`
+///     tự lo phần dấu tổ hợp còn lại.
+///   - `library_source_fts_nd` phải gấp CẢ `đ/Đ` LẪN dấu tổ hợp trước khi ghi vào
+///     `source_text_fold` (hàm `fold_diacritics_case_preserving`, cùng tệp) — tokenizer
+///     `trigram` không gấp gì thay nó, nên dòng DDL không còn tham số `remove_diacritics` (vô
+///     dụng, đã đo).
+///
+///   Cả hai cột `_fold` chở bản ĐÃ GẤP, không phải `source_text`/`target_text` gốc — hai bảng
+///   `_nd` đọc đúng cột đó.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -2357,14 +2392,16 @@ CREATE TABLE library_work (
   chapter_done_count  INTEGER
 );
 CREATE TABLE library_segment (
-  work_id       TEXT    NOT NULL,
-  chapter_id    INTEGER NOT NULL,
-  chapter_ord   INTEGER NOT NULL,
-  chapter_title TEXT,
-  segment_id    INTEGER,
-  segment_ord   INTEGER NOT NULL,
-  source_text   TEXT    NOT NULL,
-  target_text   TEXT    NOT NULL
+  work_id           TEXT    NOT NULL,
+  chapter_id        INTEGER NOT NULL,
+  chapter_ord       INTEGER NOT NULL,
+  chapter_title     TEXT,
+  segment_id        INTEGER,
+  segment_ord       INTEGER NOT NULL,
+  source_text       TEXT    NOT NULL,
+  target_text       TEXT    NOT NULL,
+  source_text_fold  TEXT    NOT NULL,
+  target_text_fold  TEXT    NOT NULL
 );
 CREATE INDEX idx_library_segment_work ON library_segment(work_id);
 CREATE VIRTUAL TABLE library_target_fts USING fts5(
@@ -2374,8 +2411,11 @@ CREATE VIRTUAL TABLE library_source_fts USING fts5(
   source_text, content='library_segment', content_rowid='rowid',
   tokenize=\"trigram\");
 CREATE VIRTUAL TABLE library_target_fts_nd USING fts5(
-  target_text, content='library_segment', content_rowid='rowid',
-  tokenize=\"unicode61 remove_diacritics 2\");";
+  target_text_fold, content='library_segment', content_rowid='rowid',
+  tokenize=\"unicode61 remove_diacritics 2\");
+CREATE VIRTUAL TABLE library_source_fts_nd USING fts5(
+  source_text_fold, content='library_segment', content_rowid='rowid',
+  tokenize=\"trigram\");";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
 /// [`LIBRARY_WORK_DDL`] cho lý do đây KHÔNG phải một thiếu sót: kho dẫn xuất không di trú
@@ -2415,16 +2455,27 @@ CREATE VIRTUAL TABLE library_target_fts_nd USING fts5(
 /// hoạch lại toàn bộ văn bản từ `project.db` của mỗi Tác phẩm).
 ///
 /// 🔵 **NÂNG LẦN SÁU (2026-08-29, Story 5.10): `to_version` 6 → 7** — chỉ mục FTS5 PHỤ
-/// `library_target_fts_nd` (`unicode61 remove_diacritics 2`, cùng cột `target_text` của
-/// `library_segment`, ngoài — KHÔNG thay — `library_target_fts` đã có) thêm vào
-/// [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ bảy). Mọi
-/// `library-index.db` ở `to_version` 1..6 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
-/// phiên bản bình thường — không mất dữ liệu người dùng thật, cùng lý lẽ các lần nâng trên.
-/// Đây là chỉ mục "khoan dung dấu" của FR9 (`5-10-hai-che-do-dau.md`, §Approach): nó KHÔNG
-/// thay thế `library_target_fts`, `Indexer::search` chạy chỉ mục CHÍNH trước MỖI LƯỢT (AD-27)
-/// rồi mới quyết định có chạy `_nd` hay không.
+/// `library_target_fts_nd` (`unicode61 remove_diacritics 2`, ngoài — KHÔNG thay —
+/// `library_target_fts` đã có) thêm vào [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước
+/// di trú thứ bảy). Mọi `library-index.db` ở `to_version` 1..6 bị `Indexer::open`
+/// xoá-và-dựng-lại như một tệp lệch phiên bản bình thường — không mất dữ liệu người dùng thật,
+/// cùng lý lẽ các lần nâng trên. Đây là chỉ mục "khoan dung dấu" của FR9
+/// (`5-10-hai-che-do-dau.md`, §Approach): nó KHÔNG thay thế `library_target_fts`,
+/// `Indexer::search` chạy chỉ mục CHÍNH trước MỖI LƯỢT (AD-27) rồi mới quyết định có chạy
+/// `_nd` hay không.
+///
+/// **`to_version` 7 → 8** — hai cột `source_text_fold`/`target_text_fold` thêm vào
+/// `library_segment` (bản đã gấp của `source_text`/`target_text` — xem chú thích ở
+/// [`LIBRARY_WORK_DDL`] cho lý do hai cột gấp KHÁC nhau: `target_text_fold` chỉ gấp riêng
+/// `đ/Đ`, `source_text_fold` gấp cả `đ/Đ` lẫn dấu tổ hợp); `library_target_fts_nd` đổi cột nó
+/// đọc từ `target_text` sang `target_text_fold`, và bảng PHỤ thứ hai `library_source_fts_nd`
+/// (`trigram`, đọc `source_text_fold`) ra đời — chỉ mục khoan dung dấu giờ có mặt ở CẢ HAI
+/// nửa, không riêng nửa bản dịch. Cùng luật viết lại TẠI CHỖ, không di trú thứ hai: mọi
+/// `library-index.db` ở `to_version` 1..7 bị xoá-và-dựng-lại. ⚠️ Đoạn xem trước (`snippet()`)
+/// của lượt khoan dung giờ trích từ cột ĐÃ GẤP — một hit khoan dung trên `"đường"` hiện
+/// `"duong"`, không phải `"đường"` nguyên bản; lượt CHÍNH XÁC không đổi.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 7,
+    to_version: 8,
     sql: LIBRARY_WORK_DDL,
 }];
 

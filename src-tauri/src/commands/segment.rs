@@ -93,7 +93,7 @@ pub struct SplitOutcome {
 /// ⇒ Vá, và lý do là con số chứ không phải linh cảm: **~60 ms tiết kiệm được** nằm **trên**
 /// trần một frame của NFR2 (50 ms) chỉ bằng một mình nó, và nó nằm trong closure của
 /// `Store::write` — tức trên writer **duy nhất, nối tiếp** của AD-11, nơi nó chặn **mọi**
-/// lượt ghi khác của tiến trình. Cùng điểm nghẽn mà `commands/project.rs:120-127` đã kéo
+/// lượt ghi khác của tiến trình. Cùng điểm nghẽn mà `commands/project/` đã kéo
 /// `split_source_text` ra ngoài để né.
 ///
 /// ⚠️ `prepare_cached` (không phải `prepare`): bộ nhớ đệm sống trên **kết nối**, mà kết nối
