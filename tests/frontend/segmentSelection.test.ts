@@ -40,6 +40,7 @@ const CHAPTER_B_SEGMENTS: readonly ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: null,
+    translation_origin: '',
   },
   {
     id: 22,
@@ -52,6 +53,7 @@ const CHAPTER_B_SEGMENTS: readonly ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: null,
+    translation_origin: '',
   },
 ]
 

@@ -3106,7 +3106,7 @@ fn a_cell_holding_only_newlines_is_still_refused_by_confirm() {
         save_segment_targets(Some(&opened), chapter_id, &[edit(id, only_whitespace)])
             .expect("lo ghi that bai");
 
-        let err = confirm_segment(Some(&opened), id, "")
+        let err = confirm_segment(Some(&opened), id, "", "")
             .err()
             .unwrap_or_else(|| panic!("mot o chi co {only_whitespace:?} PHAI bi tu choi ky"));
         assert_eq!(
@@ -3125,7 +3125,7 @@ fn a_cell_holding_only_newlines_is_still_refused_by_confirm() {
     // khac (vi du `confirm_segment` hong han).
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Dong mot.\nDong hai.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id, "").expect("mot o CO chu va co `\\n` phai ky duoc");
+    confirm_segment(Some(&opened), id, "", "").expect("mot o CO chu va co `\\n` phai ky duoc");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     let dir = opened.dir.clone();
@@ -3148,7 +3148,7 @@ fn confirming_a_segment_sets_it_confirmed_and_writes_exactly_one_version() {
 
     assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
 
-    let outcome = confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    let outcome = confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     assert_eq!(outcome.segment_id, id);
     assert_eq!(outcome.status, "confirmed");
@@ -3198,7 +3198,7 @@ fn an_auto_save_that_changes_nothing_leaves_the_state_machine_untouched() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau da dich.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     // Mot nhip flush mang DUNG van ban da co -- ca thuong nhat cua AD-35 (tran cung 5 giay
@@ -3232,7 +3232,7 @@ fn editing_a_confirmed_segment_returns_it_to_draft_without_writing_a_version() {
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban dau.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     // Nguoi dung go tiep vao cau da ky -- di qua DUNG duong flush cua san pham.
@@ -3271,7 +3271,7 @@ fn the_flush_path_lowers_the_state_before_it_writes_the_new_text() {
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban cu.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     let (lowered, saved) =
         flush_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban moi.")])
@@ -3305,7 +3305,7 @@ fn a_flush_carrying_identical_text_never_unconfirms_because_the_contract_compare
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     let touched = unconfirm_edited_segments(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")])
         .expect("ha trang thai that bai");
@@ -3336,13 +3336,13 @@ fn confirming_an_already_confirmed_segment_writes_no_second_version_and_no_new_t
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Mot lan thoi.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan lan dau that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan lan dau that bai");
 
     let before = read_all_segment_rows(&opened);
 
     // Giu phim: nam luot xac nhan lien tiep tren cung mot cau.
     for _ in 0..5 {
-        let again = confirm_segment(Some(&opened), id, "").expect("xac nhan lai PHAI vo hai");
+        let again = confirm_segment(Some(&opened), id, "", "").expect("xac nhan lai PHAI vo hai");
         assert_eq!(again.status, "confirmed");
         assert!(
             !again.version_created,
@@ -3379,13 +3379,13 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
 
     // ① Chua Tac pham nao mo.
     assert_eq!(
-        confirm_segment(None, id, "").expect_err("phai tu choi").message_key(),
+        confirm_segment(None, id, "", "").expect_err("phai tu choi").message_key(),
         MessageKey::WorkNoneOpen
     );
 
     // ② `segment.id` khong ton tai.
     assert_eq!(
-        confirm_segment(Some(&opened), 9_999_999, "")
+        confirm_segment(Some(&opened), 9_999_999, "", "")
             .expect_err("phai tu choi")
             .message_key(),
         MessageKey::SegmentNotFound
@@ -3393,7 +3393,7 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
 
     // ③ Cau CHUA DICH (`target_text` rong) -- Quyet dinh #7, Ice ky 2026-08-14.
     assert_eq!(
-        confirm_segment(Some(&opened), id, "")
+        confirm_segment(Some(&opened), id, "", "")
             .expect_err("mot cau chua dich PHAI bi tu choi")
             .message_key(),
         MessageKey::SegmentNothingToConfirm,
@@ -3415,7 +3415,7 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
         .expect("dung trang thai ve huu that bai");
 
     assert_eq!(
-        confirm_segment(Some(&opened), retired_id, "")
+        confirm_segment(Some(&opened), retired_id, "", "")
             .expect_err("mot segment da ve huu PHAI bi tu choi")
             .message_key(),
         MessageKey::SegmentRetired
@@ -3473,7 +3473,7 @@ fn the_load_command_carries_the_status_column_over_the_wire() {
     // Xac nhan DUNG MOT cau, roi doc lai qua chinh lenh cua san pham.
     save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), first, "", "").expect("xac nhan that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap lai segment that bai");
     let a = loaded
@@ -3747,7 +3747,7 @@ fn omitting_a_segment_touches_the_flag_and_nothing_else() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Da dich va da ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
 
@@ -3816,7 +3816,7 @@ fn restoring_a_segment_brings_back_the_exact_old_state_and_the_old_text() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau nay da duoc ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
 
@@ -4024,7 +4024,7 @@ fn the_output_filter_looks_at_exactly_one_axis() {
     // Cau 1: da dich VA da ky. Cau 2 va 3: CHUA DICH (`target_text` rong, `status` 'draft').
     save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich va da ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), first, "", "").expect("xac nhan that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     assert_eq!(
@@ -4585,7 +4585,7 @@ fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
     // Dung mot chu ky THAT, khong mot co gia: ghi van ban roi xac nhan.
     save_segment_targets(Some(&opened), chapter_id, &[edit(signed, "Ban dich da ky.")])
         .expect("ghi van ban that bai");
-    confirm_segment(Some(&opened), signed, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), signed, "", "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
     assert_eq!(
@@ -4649,7 +4649,7 @@ fn a_target_of_only_whitespace_is_refused_exactly_like_an_empty_one() {
         save_segment_targets(Some(&opened), chapter_id, &[edit(target, blank)])
             .expect("ghi van ban that bai");
 
-        let err = confirm_segment(Some(&opened), target, "")
+        let err = confirm_segment(Some(&opened), target, "", "")
             .expect_err("mot cau chi co khoang trang phai bi tu choi");
 
         assert_eq!(err.code(), "segment.nothing_to_confirm", "voi {blank:?}");
@@ -4710,7 +4710,7 @@ fn the_history_command_returns_every_version_newest_first_with_the_real_text() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "", "").expect("xac nhan that bai");
     }
 
     let history = read_segment_history(Some(&opened), first).expect("doc lich su that bai");
@@ -4835,7 +4835,7 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "", "").expect("xac nhan that bai");
     }
 
     // Cho ve huu bang SQL truc tiep -- duong DUY NHAT hom nay.
@@ -4851,7 +4851,7 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
         .expect("cho segment ve huu that bai");
 
     // Duong GHI tu choi -- day la doi chung, khong phai muc tieu cua ca nay.
-    let write_refused = confirm_segment(Some(&opened), first, "");
+    let write_refused = confirm_segment(Some(&opened), first, "", "");
     assert_eq!(
         write_refused
             .err()
@@ -4905,11 +4905,11 @@ fn the_history_of_one_segment_never_carries_a_row_belonging_to_another() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "", "").expect("xac nhan that bai");
     }
     save_segment_targets(Some(&opened), chapter_id, &[edit(second, "B mot.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), second, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), second, "", "").expect("xac nhan that bai");
 
     let a = read_segment_history(Some(&opened), first).expect("doc lich su cau mot that bai");
     let b = read_segment_history(Some(&opened), second).expect("doc lich su cau hai that bai");
@@ -5009,7 +5009,7 @@ fn sign_repeatedly(
         unconfirm_edited_segments(Some(opened), chapter_id, &[edit(id, text)])
             .expect("ha trang thai that bai");
         save_segment_targets(Some(opened), chapter_id, &[edit(id, text)]).expect("lo ghi that bai");
-        confirm_segment(Some(opened), id, "").expect("xac nhan that bai");
+        confirm_segment(Some(opened), id, "", "").expect("xac nhan that bai");
     }
     (id, chapter_id)
 }
@@ -5086,7 +5086,7 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
     );
 
     // Va no dai them o LUOT XAC NHAN KE TIEP, dung nhu loi hua cua mockup -- chi muon mot nhip.
-    confirm_segment(Some(&opened), id, "").expect("xac nhan lai that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan lai that bai");
     let grown = read_segment_history(Some(&opened), id).expect("doc lai lich su that bai");
     assert_eq!(
         grown.len(),
@@ -5300,7 +5300,7 @@ fn a_version_belonging_to_another_segment_is_refused_and_never_crosses_over() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(id, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+        confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
     }
 
     // Phien ban cua cau HAI, dem ap len cau MOT.
@@ -5387,6 +5387,73 @@ fn restoring_onto_a_retired_segment_is_refused_because_writing_is_not_reading() 
     // Va lich su van doc duoc -- hai nua cua cung mot menh de, khang dinh canh nhau.
     let still = read_segment_history(Some(&opened), id).expect("AC4: doc van phai duoc");
     assert_eq!(still.len(), 2);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// `restore_segment_version` trên một hàng do GỘP sinh ra, khi cả hai câu nguồn đều CHƯA XÁC
+/// NHẬN và `target_text` rỗng (`regroup::merge`/`split_at` đã lọc mảnh rỗng từ trước, nên
+/// khuôn này không phải mã sản phẩm mới): một hàng gộp từ hai câu chưa từng ký không mang
+/// một hàng `segment_version` nào — không phương án khôi phục nào để chọn.
+///
+/// Không sửa mã sản phẩm: `regroup::merge`'s bộ lọc mảnh rỗng và miễn trừ
+/// `!current_text.is_empty()` ở `restore_segment_version` đều ĐÃ ĐÚNG (xem doc-comment hàm
+/// đó) — ca này chỉ ghi lại hành vi THẬT hôm nay.
+#[test]
+fn restoring_a_row_born_from_merging_two_unsigned_empty_segments_finds_no_version_to_restore() {
+    let root = temp_dir("restore-merge-empty");
+    let opened = create_work_from_text(&root, "Gop Rong Chua Ky", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows_before = read_all_segment_rows(&opened);
+    assert_eq!(rows_before.len(), 2, "tien de: hai cau nguon, CHUA cau nao xac nhan");
+    for row in &rows_before {
+        assert_eq!(row.8, "", "tien de: target_text rong -- chua ai dich cau nao");
+        assert_eq!(row.9, "draft", "tien de: chua cau nao xac nhan");
+    }
+    let second_id = rows_before[1].0;
+
+    let out = merge_segments(Some(&opened), second_id).expect("gop hai cau chua ky that bai");
+    assert_eq!(out.new_segments.len(), 1, "mot luot gop sinh dung MOT hang moi");
+    let merged_id = out.new_segments[0].id;
+    assert_eq!(
+        out.new_segments[0].target_text, "",
+        "hai ve rong ghep lai van la rong -- khong mot ky tu nao tu dau ra"
+    );
+
+    // Menh de THAT can khoa: khong mot hang `segment_version` nao ton tai cho hang moi nay.
+    let version_count: i64 = opened
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1",
+                [merged_id],
+                |r| r.get(0),
+            )
+        })
+        .expect("dem hang segment_version that bai");
+    assert_eq!(
+        version_count, 0,
+        "hai cau nguon chua tung duoc ky ⇒ hang gop ra doi tu chung KHONG the mang mot ban \
+         sao nao trong segment_version -- `segment_version` chi sinh o DUNG mot cho, ben trong \
+         `confirm_segment`, sau chot AC13"
+    );
+
+    // Khong mot `version_id` nao THUOC hang nay -- moi lan goi deu roi vao nhanh
+    // `VersionNotOfThisSegment`, tai dung `segment.not_found` (xem doc-comment cua ham).
+    let refused = restore_segment_version(Some(&opened), merged_id, 999_999, false);
+    assert_eq!(
+        refused
+            .err()
+            .expect("khoi phuc len mot version khong ton tai phai bi tu choi")
+            .code(),
+        "segment.not_found",
+        "khong mot phien ban nao THUOC hang gop rong nay -- moi `version_id` deu la mot phien \
+         ban KHONG THUOC segment nay, kha nang duy nhat khi 0 hang segment_version ton tai"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -5492,7 +5559,7 @@ fn confirming_text_the_user_typed_records_it_as_their_own() {
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Chu cua toi.")])
         .expect("lo ghi that bai");
     // Moc luc nap la chuoi rong -- day la mot Chuong vua nhap.
-    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5538,7 +5605,7 @@ fn confirming_an_edit_of_a_sentence_that_came_from_elsewhere_claims_it_as_their_
     // Nguoi dung SUA no roi xac nhan. Moc la van ban luc nap.
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Toi sua lai roi.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id, "Nguoi khac dich.").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "Nguoi khac dich.", "").expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5584,7 +5651,13 @@ fn reviewing_a_sentence_word_for_word_keeps_the_origin_it_was_loaded_with() {
         .expect("dung fixture that bai");
 
     // Khong mot lan `save_segment_targets` nao: nguoi dung KHONG go mot ky tu.
-    confirm_segment(Some(&opened), id, "Nhap tu tai lieu song ngu.").expect("xac nhan that bai");
+    confirm_segment(
+        Some(&opened),
+        id,
+        "Nhap tu tai lieu song ngu.",
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+    )
+    .expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5635,7 +5708,8 @@ fn typing_and_undoing_back_to_the_mark_counts_as_untouched() {
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban goc.")])
         .expect("luot flush thu hai that bai");
 
-    confirm_segment(Some(&opened), id, "Ban goc.").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "Ban goc.", TRANSLATION_ORIGIN_OTHER)
+        .expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5694,7 +5768,8 @@ fn a_stray_invisible_space_is_not_an_edit() {
         .expect("luot flush that bai");
 
     // Moc van la ban LUC NAP, khong mang ky tu vo hinh nao.
-    confirm_segment(Some(&opened), id, "Ban goc.").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "Ban goc.", TRANSLATION_ORIGIN_OTHER)
+        .expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5702,6 +5777,55 @@ fn a_stray_invisible_space_is_not_an_edit() {
         "mot `U+00A0` do contenteditable de lai KHONG phai mot luot sua. So THO o day gan nhan \
          `self` cho mot cau nguoi dung chi DUYET, va nhan sai do di vinh vien vao kho TM cua \
          Epic 7 -- `str::trim()` cat theo `char::is_whitespace` cua Unicode nen no phu `U+00A0`"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// An NFC-composed `text_at_load` and an NFD-equivalent on-disk `target_text` render as the
+/// same string but differ byte-for-byte. `confirm_segment` normalizes both sides before
+/// comparing, so this must not flip the origin to `self`.
+///
+/// Red-then-green: replace `.nfc().collect()` with a plain `.trim()` on either side in
+/// `segment.rs`, this case must go red.
+#[test]
+fn text_that_differs_only_by_unicode_normalization_form_keeps_the_origin_it_was_loaded_with() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
+
+    let root = temp_dir("origin-nfc-nfd");
+    let opened = create_work_from_text(&root, "Chuan hoa Unicode", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, _chapter_id) = (rows[0].0, rows[0].1);
+
+    // "café" — NFD form: "e" followed by a combining acute accent (U+0301), not the
+    // single precomposed "é" (U+00E9).
+    let target_nfd = "cafe\u{0301}.";
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                (target_nfd, TRANSLATION_ORIGIN_OTHER, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // Same string, NFC-composed: the precomposed "é" (U+00E9).
+    let text_at_load_nfc = "café.";
+    confirm_segment(Some(&opened), id, text_at_load_nfc, TRANSLATION_ORIGIN_OTHER)
+        .expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_OTHER,
+        "NFC-composed text_at_load and an NFD-equivalent on-disk target_text are the same text \
+         on screen; a byte-for-byte compare would wrongly flip this to `self`"
     );
 
     let dir = opened.dir.clone();
@@ -5736,11 +5860,14 @@ fn re_confirming_an_already_signed_segment_leaves_the_origin_alone() {
         })
         .expect("dung fixture that bai");
 
-    confirm_segment(Some(&opened), id, "Cua nguoi khac.").expect("luot ky dau that bai");
+    confirm_segment(Some(&opened), id, "Cua nguoi khac.", TRANSLATION_ORIGIN_OTHER)
+        .expect("luot ky dau that bai");
     assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER);
 
-    // Luot thu hai, VA voi mot moc sai han. Nhanh ③ phai chan no truoc khi toi phep phan xu.
-    let again = confirm_segment(Some(&opened), id, "mot moc hoan toan khac")
+    // Luot thu hai, VA voi mot moc sai han. Nhanh ③ phai chan no truoc khi toi phep phan xu --
+    // xuat xu lucnap cung sai han o day, va no PHAI vo hai vi luot nay khong toi duoc phep
+    // phan xu.
+    let again = confirm_segment(Some(&opened), id, "mot moc hoan toan khac", "mot xuat xu sai")
         .expect("xac nhan lai PHAI vo hai");
     assert!(
         !again.version_created,
@@ -5753,6 +5880,90 @@ fn re_confirming_an_already_signed_segment_leaves_the_origin_alone() {
          KE CA khi cho goi truyen mot moc sai"
     );
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// **Mốc xuất xứ đến từ đúng dây `read_open_chapter_segments` gọi, không đọc lại đĩa giữa
+/// chừng.** Dựng lại nguyên văn kịch bản ghi trong doc-comment của [`confirm_segment`]:
+/// *ký → sửa → ký lại → sửa về đúng văn bản lúc nạp → ký lần nữa*.
+///
+/// ⚠️ `origin_at_load` được đọc **một lần duy nhất** ở [`ChapterSegment`], y hệt cách
+/// `text_at_load` đã được đọc, rồi dùng lại cho CẢ BA lượt `confirm_segment` — không đọc lại
+/// dây giữa các lượt. Đó là mệnh đề mà một chỗ gọi đọc lại `translation_origin` từ đĩa (thay
+/// vì từ ảnh chụp lúc nạp) sẽ làm sai: lượt ký thứ hai ghi `self` xuống đĩa, và một chỗ gọi
+/// "tiện tay" đọc lại dây ở lượt ký thứ ba sẽ mang `self` chứ không phải xuất xứ lúc nạp.
+#[test]
+fn re_signing_after_an_edit_and_an_undo_uses_the_origin_the_wire_reported_at_load() {
+    use auratranslate_lib::commands::segment::{TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_SELF};
+
+    let root = temp_dir("origin-wire-round-trip");
+    let opened = create_work_from_text(&root, "Vong tron qua day", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                (
+                    "Nhap tu tai lieu song ngu.",
+                    TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+                    id,
+                ),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // Read through the wire the webview loads a Chapter with, not raw SQL.
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    let row = loaded.segments.iter().find(|s| s.id == id).expect("segment phai co trong Chuong");
+    let text_at_load = row.target_text.clone();
+    let origin_at_load = row.translation_origin.clone();
+    assert_eq!(
+        origin_at_load, TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+        "day phai tra dung xuat xu vua ghi fixture -- day la tien de cua ca ca test nay"
+    );
+
+    // Ký lần một — văn bản y hệt mốc, xuất xứ GIỮ NGUYÊN.
+    confirm_segment(Some(&opened), id, &text_at_load, &origin_at_load).expect("luot ky dau that bai");
+    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
+
+    // Sửa. `flush_segment_targets` -- ĐÚNG đường sản phẩm (`unconfirm_edited_segments` rồi
+    // `save_segment_targets`), không `save_segment_targets` trần: câu vừa ký cần hạ về
+    // `'draft'` trước khi một lượt ký thứ hai có gì để chuyển tiếp.
+    flush_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(id, "Nhap tu tai lieu song ngu. Them chu.")],
+    )
+    .expect("luot flush thu nhat that bai");
+
+    // Ký lần hai — văn bản KHÁC mốc ⇒ nhánh `self`, dùng LẠI đúng `origin_at_load` đọc ở trên
+    // (không đọc lại dây).
+    confirm_segment(Some(&opened), id, &text_at_load, &origin_at_load).expect("luot ky hai that bai");
+    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_SELF);
+
+    // Sửa VỀ ĐÚNG văn bản lúc nạp.
+    flush_segment_targets(Some(&opened), chapter_id, &[edit(id, &text_at_load)])
+        .expect("luot flush thu hai that bai");
+
+    // Ký lần ba, vẫn TRUYỀN đúng mốc và xuất xứ đọc được ở bước nạp Chương — không đọc lại đĩa
+    // (đĩa giờ mang `self`, thứ lượt ký hai vừa ghi).
+    confirm_segment(Some(&opened), id, &text_at_load, &origin_at_load).expect("luot ky ba that bai");
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+        "van ban lai y het moc ⇒ GIU NGUYEN xuat xu doc duoc TU DAY luc nap Chuong, khong phai \
+         xuat xu `self` ma luot ky hai vua ghi xuong dia"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -5797,7 +6008,7 @@ fn a_signed_sentence_can_never_be_left_claiming_it_has_no_translation() {
     );
 
     // Phien HAI: moc luc nap nay BANG van ban tren dia. Xac nhan ma khong sua mot ky tu.
-    confirm_segment(Some(&opened), id, "Ban nhap cua toi.").expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "Ban nhap cua toi.", "").expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -6475,7 +6686,7 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
             }],
         )
         .expect("ghi ban dich");
-        confirm_segment(Some(&opened), id, "").expect("xac nhan");
+        confirm_segment(Some(&opened), id, "", "").expect("xac nhan");
     }
 
     let out = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren no");
@@ -6536,7 +6747,7 @@ fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merg
         }],
     )
     .expect("ghi ban dich");
-    confirm_segment(Some(&opened), 1, "").expect("xac nhan -- day la luot sinh ra hang lich su");
+    confirm_segment(Some(&opened), 1, "", "").expect("xac nhan -- day la luot sinh ra hang lich su");
 
     let truoc = read_segment_history(Some(&opened), 1).expect("doc lich su truoc khi gop");
     assert_eq!(truoc.len(), 1, "tien de: cau 1 co dung mot phien ban truoc luot gop");
@@ -6772,7 +6983,7 @@ fn neither_merge_nor_split_ever_writes_a_segment_version_row() {
         }],
     )
     .expect("ghi ban dich");
-    confirm_segment(Some(&opened), 1, "").expect("xac nhan -- luot DUY NHAT duoc phep sinh version");
+    confirm_segment(Some(&opened), 1, "", "").expect("xac nhan -- luot DUY NHAT duoc phep sinh version");
 
     let dem = |opened: &auratranslate_lib::commands::project::OpenWork| -> i64 {
         opened
@@ -6947,7 +7158,7 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
             }],
         )
         .expect("ghi ban dich");
-        confirm_segment(Some(&opened), id, "").expect("xac nhan -- day la cho xuat xu duoc dat");
+        confirm_segment(Some(&opened), id, "", "").expect("xac nhan -- day la cho xuat xu duoc dat");
     }
 
     let out = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren no");
@@ -7002,6 +7213,61 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
         "mot hang vua sinh khong the co `created_at` khac `updated_at` -- hai `strftime` cua \
          cung mot cau INSERT"
     );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// Cùng lưới cột 14-cột-có-chủ-ý của
+/// [`a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default`], nhưng phía
+/// **TÁCH**: AC6 khoá phía đó cho `merge_segments`; cả hai lệnh đi qua CHUNG một
+/// `write_regroup` (`commands/segment.rs`), nên khoảng hở là một ca test chưa viết, không
+/// một dòng sản phẩm còn thiếu. Ca này khoá đúng vế mà `regroup::split_at`'s doc-comment
+/// khai: mảnh ĐẦU giữ nguyên bản dịch VÀ xuất xứ của hàng gốc (AD-47 ④), mọi mảnh SAU mang
+/// `target_text`/`translation_origin` RỖNG — không một cột nào rơi về `DEFAULT` ngoài ý muốn.
+#[test]
+fn a_row_born_from_split_has_every_column_set_on_purpose_not_by_default() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_SELF;
+
+    let root = temp_dir("split-cot-14-column");
+    let opened = create_work_from_text(&root, "Cot split", "zh", "", "一二三四。".to_owned())
+        .expect("tao tac pham");
+
+    let id = read_all_segment_rows(&opened)[0].0;
+    save_segment_targets(
+        Some(&opened),
+        1,
+        &[SegmentTargetEdit { id, target_text: "Mot hai ba bon.".to_owned() }],
+    )
+    .expect("ghi ban dich");
+    confirm_segment(Some(&opened), id, "", "").expect("xac nhan -- day la cho xuat xu duoc dat");
+
+    // Cat sau ky tu thu hai cua "一二三四。" (5 ky tu) -- mot lat bat ky nam GIUA nguon, khong
+    // cham hai dau (`split_at` tu choi ca do).
+    let out = split_segment(Some(&opened), id, vec![2]).expect("tach that bai");
+    assert_eq!(out.new_segments.len(), 2, "mot lat cat sinh dung HAI hang moi");
+    let (dau_id, sau_id) = (out.new_segments[0].id, out.new_segments[1].id);
+
+    let rows = read_all_segment_rows(&opened);
+    let dau = rows.iter().find(|r| r.0 == dau_id).expect("manh dau phai doc lai duoc");
+    let sau = rows.iter().find(|r| r.0 == sau_id).expect("manh sau phai doc lai duoc");
+
+    assert_eq!(
+        (dau.8.as_str(), dau.12.as_str()),
+        ("Mot hai ba bon.", TRANSLATION_ORIGIN_SELF),
+        "manh DAU giu tron ban dich VA xuat xu cua hang goc (AD-47 ④, doc-comment split_at)"
+    );
+    assert_eq!(
+        (sau.8.as_str(), sau.12.as_str()),
+        ("", ""),
+        "manh SAU khong co ban dich -- xuat xu phai RONG, khong roi ve gia tri cua hang goc \
+         (mot xuat xu KHONG rong tren mot `target_text` rong la mot hang TU MAU THUAN)"
+    );
+    assert_eq!(dau.13, None, "vai KHONG nhan ban tren mot hang moi (Story 6.13)");
+    assert_eq!(sau.13, None, "vai KHONG nhan ban tren mot hang moi (Story 6.13)");
+    assert_eq!(dau.9, "draft", "AC3 cua 2.8: hang moi CHUA xac nhan, ke ca khi hang goc DA");
 
     let dir = opened.dir.clone();
     drop(opened);

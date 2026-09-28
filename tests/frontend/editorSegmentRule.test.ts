@@ -2,7 +2,7 @@
  * Bảng ánh xạ *trạng thái segment → giá trị vạch lề* — Story 2.5, AC10 · Quyết định #1 và #3.
  *
  * ⚠️ **Vai của tệp này, và nó KHÔNG chồng lên cổng tĩnh.** Kiểm I của `check-commands.mjs`
- * canh một mệnh đề **khai báo trên toàn cây** — *"`SEGMENT_RULE_VALUES` có ĐÚNG sáu giá trị,
+ * canh một mệnh đề **khai báo trên toàn cây** — *"`SEGMENT_RULE_VALUES` có ĐÚNG năm giá trị,
  * và mỗi giá trị có đúng một khối `.gmark.rule-*`"*. Tệp này canh một hạng **khác**: hàm phân
  * giải **trả về đúng giá trị nào** cho từng tổ hợp dữ kiện. Hai đường, hai mệnh đề (AC25).
  *
@@ -34,6 +34,7 @@ function segment(over: Partial<ChapterSegment> = {}): ChapterSegment {
     // Mặc định BẰNG `is_paragraph_end` ngay trên, đúng AC2 lúc nhập.
     is_target_paragraph_end: false,
     role: null,
+    translation_origin: '',
     ...over,
   }
 }
@@ -63,9 +64,19 @@ describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu 
     expect(resolveSegmentRule(segmentRuleInputOf(s, 7))).toBe('primary')
   })
 
-  it('câu đã về hưu thắng tất cả, kể cả khi đã xác nhận', () => {
+  /**
+   * 🔴 **Thay ca `ornament` đã RÚT.**
+   *
+   * `retired_at` KHÔNG còn là một dữ kiện của `SegmentRuleInput` (không đường sản phẩm nào
+   * cho một segment về hưu còn SỐNG trong ảnh chụp khi hàm này chạy — `editorPanelState.ts`
+   * lọc trước). Ca cũ khẳng định `'ornament'` thắng tất cả; ca này khẳng định phần còn ĐÚNG
+   * của mệnh đề đó: `retired_at` có mặt trên `ChapterSegment` (cột thật) nhưng
+   * `segmentRuleInputOf` không đọc nó — một hàng "về hưu mà vẫn xác nhận" hôm nay vẫn resolve
+   * đúng theo NĂM nhánh còn lại (ở đây: `confirmed`, vì không có tiêu điểm).
+   */
+  it('`retired_at` không còn là dữ kiện của phép phân giải — hàng vẫn đọc theo năm nhánh còn lại', () => {
     const s = segment({ id: 7, status: 'confirmed', retired_at: '2026-08-14T00:00:00.000Z' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 7))).toBe('ornament')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('confirmed')
   })
 })
 
@@ -143,7 +154,7 @@ describe('hai chỗ đọc trạng thái phải ĐỒNG Ý với nhau', () => {
 
 describe('bảng giá trị vạch KHÔNG mọc thêm ngoài lượt ký của Story 2.5b', () => {
   /**
-   * ⚠️ Mệnh đề *"đúng sáu giá trị"* có chủ ở Kiểm I (cổng tĩnh). Ca này canh vế **khác**: mọi
+   * ⚠️ Mệnh đề *"đúng năm giá trị"* có chủ ở Kiểm I (cổng tĩnh). Ca này canh vế **khác**: mọi
    * giá trị mà hàm phân giải **thật sự trả về** đều nằm trong bảng đó — một nhánh trả về một
    * chuỗi ngoài bảng sẽ đi lọt Kiểm I, vì Kiểm I đếm **mảng khai báo**, không chạy hàm.
    */

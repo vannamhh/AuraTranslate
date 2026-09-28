@@ -47,6 +47,7 @@ const HANG_GOP: ChapterSegment = {
   is_omitted: false,
   is_target_paragraph_end: true,
   role: null,
+  translation_origin: '',
 }
 
 /** Lượt gộp kế tiếp trả gì. Đặt lại ở mỗi ca. */

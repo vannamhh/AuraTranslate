@@ -265,6 +265,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-wdio-webdriver",
+ "unicode-normalization",
  "uuid",
  "zip",
 ]

@@ -218,6 +218,7 @@ mod tests {
             is_omitted,
             is_target_paragraph_end,
             role: role.map(str::to_owned),
+            translation_origin: String::new(),
         }
     }
 

@@ -80,6 +80,7 @@ const CHUONG_B_SEGMENTS: ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: true,
     role: null,
+    translation_origin: '',
   },
 ]
 
@@ -332,6 +333,7 @@ describe('Story 3.4b — gộp segment làm MỚI dấu, không dấu nào trỏ
       is_omitted: false,
       is_target_paragraph_end: true,
       role: null,
+      translation_origin: '',
     }
     const cu11 = FIXTURE_SEGMENTS.find((s) => s.id === 11)
     const cu12 = FIXTURE_SEGMENTS.find((s) => s.id === 12)

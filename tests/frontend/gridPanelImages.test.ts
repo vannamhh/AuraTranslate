@@ -33,6 +33,7 @@ const SEGMENTS: ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: null,
+    translation_origin: '',
   },
   {
     id: 2,
@@ -45,6 +46,7 @@ const SEGMENTS: ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: 'alt',
+    translation_origin: '',
   },
   {
     id: 3,
@@ -57,6 +59,7 @@ const SEGMENTS: ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: 'caption',
+    translation_origin: '',
   },
   {
     id: 4,
@@ -69,6 +72,7 @@ const SEGMENTS: ChapterSegment[] = [
     is_omitted: false,
     is_target_paragraph_end: false,
     role: null,
+    translation_origin: '',
   },
 ]
 

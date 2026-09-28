@@ -1508,8 +1508,9 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
     let open = open_work(&work_dir, "PromoteAC4", "en", "A dragon roared.");
     let segment_id = first_segment_id(&open);
 
-    let outcome = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.")
+    let outcome = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", false)
         .expect("promote khong duoc loi");
+    assert!(!outcome.needs_confirmation, "segment chua tung dich -- khong co gi de mat");
     assert_eq!(outcome.target_text, "Con rồng gầm.");
     assert_eq!(outcome.translation_origin, TRANSLATION_ORIGIN_OTHER);
     assert_eq!(
@@ -1522,12 +1523,70 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
     // xác nhận KHÔNG sửa một chữ phải GIỮ NGUYÊN 'other', không rơi về 'self'. Đếm bằng cách
     // GỠ dòng ghi `translation_origin` khỏi `promote_ai_translation` sẽ làm chính ca này đỏ,
     // đúng counter-check AC4 đòi ("removing the origin write makes a named case go red").
-    confirm_segment(Some(&open), segment_id, "Con rồng gầm.").expect("confirm khong duoc loi");
+    confirm_segment(Some(&open), segment_id, "Con rồng gầm.", TRANSLATION_ORIGIN_OTHER)
+        .expect("confirm khong duoc loi");
     assert_eq!(
         read_origin(&open, segment_id),
         TRANSLATION_ORIGIN_OTHER,
         "AC4: xac nhan khong sua mot chu phai GIU NGUYEN 'other'"
     );
+
+    drop(open);
+    cleanup(&work_dir);
+}
+
+/// **AD-49 iii** — `promote_ai_translation` KHÔNG được ghi đè vô điều
+/// kiện một bản nháp chưa từng ký. Cùng khuôn `restore_segment_version`
+/// (`segment_contract.rs::restoring_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms`):
+/// khi văn bản hiện tại KHÔNG rỗng và KHÔNG có bản sao trong `segment_version`, lượt gọi
+/// `force = false` giữ lại lượt ghi.
+///
+/// ⚠️ Lượt promote ĐẦU không tạo một hàng `segment_version` nào (đúng doc-comment của hàm —
+/// chỉ `confirm_segment` làm điều đó), nên bản nháp nó để lại chính là ca "chưa từng ký"
+/// cần cho ca này, không cần dựng fixture bằng SQL trực tiếp.
+#[test]
+fn promoting_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() {
+    let work_dir = temp_dir("promote-l12359-holds");
+    let open = open_work(&work_dir, "PromoteHolds", "en", "A dragon roared.");
+    let segment_id = first_segment_id(&open);
+
+    let first = promote_ai_translation(Some(&open), segment_id, "Ban nhap AI thu nhat.", false)
+        .expect("promote thu nhat khong duoc loi");
+    assert!(!first.needs_confirmation, "segment chua tung dich -- khong co gi de mat");
+
+    let held = promote_ai_translation(Some(&open), segment_id, "Ban nhap AI thu hai.", false)
+        .expect("mot luot giu lai KHONG phai mot loi -- no la mot ket qua");
+    assert!(
+        held.needs_confirmation,
+        "van ban hien tai chua tung duoc ky (khong co ban sao trong segment_version) ⇒ PHAI \
+         hoi lai truoc khi ghi de -- AD-49 iii, cung khuon restore_segment_version"
+    );
+    assert_eq!(
+        held.unsigned_draft.as_deref(),
+        Some("Ban nhap AI thu nhat."),
+        "ban nhap sap mat phai di ra ngoai de webview HIEN NO RA, khong chi noi \"co thu se mat\""
+    );
+    assert_eq!(
+        held.target_text, "Ban nhap AI thu nhat.",
+        "khong ghi mot byte nao ⇒ target_text tra ve phai la ban DANG CO, khong phai de xuat moi"
+    );
+
+    let on_disk = read_open_chapter_segments(Some(&open)).expect("nap lai segment that bai");
+    let seg = on_disk
+        .segments
+        .iter()
+        .find(|s| s.id == segment_id)
+        .expect("khong thay segment");
+    assert_eq!(
+        seg.target_text, "Ban nhap AI thu nhat.",
+        "mot luot GIU LAI khong duoc dung toi mot byte nao cua dia"
+    );
+
+    let forced = promote_ai_translation(Some(&open), segment_id, "Ban nhap AI thu hai.", true)
+        .expect("promote voi force khong duoc loi");
+    assert!(!forced.needs_confirmation, "voi `force` thi no phai ghi");
+    assert_eq!(forced.target_text, "Ban nhap AI thu hai.");
+    assert_eq!(read_origin(&open, segment_id), TRANSLATION_ORIGIN_OTHER);
 
     drop(open);
     cleanup(&work_dir);

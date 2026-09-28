@@ -652,14 +652,18 @@ pub fn move_chapter(
     let khong_ton_tai_in = Arc::clone(&khong_ton_tai);
 
     let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
-        normalize_chapter_ord(tx)?;
-
-        // 🔴 KIEM HANG TON TAI TRUOC MOI THU KHAC — luot ra 2026-08-29 bat duoc: khong co
-        // khoi nay, `query_row` duoi day tra `QueryReturnedNoRows` cho mot `chapter_id` la, va
-        // `Store::write` goi no thanh `StoreError::WriteFailed` ⇒ nguoi dung doc mot cau LOI
-        // KHO ("khong ghi duoc kho du lieu") cho mot Tac pham hoan toan lanh lan. Do 2026-08-29
-        // trước lượt vá: `move_chapter`/`merge_chapter_into_previous` tra `store.write_failed`,
-        // trong khi `rename_chapter` ngay tren tra `segment.chapter_not_found`.
+        // 🔴 KIEM HANG TON TAI TRUOC MOI THU KHAC, KE CA TRUOC `normalize_chapter_ord`:
+        // `normalize_chapter_ord(tx)?` chay TRUOC kiem hang ton tai se DANH LAI `ord` that su
+        // cho MOI Chuong con song, roi moi phat hien `chapter_id` la va tra `Ok(0)` —
+        // `Store::write` van COMMIT boi vi `Ok` la `Ok`, du "0 hang bi cham" chi dung cho
+        // BANG `chapter`. Duong tach Chuong (`:988`) da lam DUNG thu tu nay tu truoc; hai ham
+        // nay giờ khop no.
+        //
+        // Khong co khoi kiem nay, `query_row` duoi day tra `QueryReturnedNoRows` cho mot
+        // `chapter_id` la, va `Store::write` goi no thanh `StoreError::WriteFailed` ⇒ nguoi
+        // dung doc mot cau LOI KHO ("khong ghi duoc kho du lieu") cho mot Tac pham hoan toan
+        // lanh lan, trong khi `rename_chapter` ngay tren tra `segment.chapter_not_found` cho
+        // đúng ca đó.
         //
         // ⚠️ Day DUNG lop loi ma Story 2.11 da sua MOT LAN cho `chapter_not_found` (xem
         // doc-comment cua ham do: mot cau SAI VE LOAI, khong tep nao hong). Mot lop loi da co
@@ -673,6 +677,8 @@ pub fn move_chapter(
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
             return Ok(0);
         }
+
+        normalize_chapter_ord(tx)?;
 
         let current_ord: i64 =
             tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
@@ -760,14 +766,17 @@ pub fn merge_chapter_into_previous(
     let khong_ton_tai_in = Arc::clone(&khong_ton_tai);
 
     let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
-        normalize_chapter_ord(tx)?;
-
-        // 🔴 KIEM HANG TON TAI TRUOC MOI THU KHAC — luot ra 2026-08-29 bat duoc: khong co
-        // khoi nay, `query_row` duoi day tra `QueryReturnedNoRows` cho mot `chapter_id` la, va
-        // `Store::write` goi no thanh `StoreError::WriteFailed` ⇒ nguoi dung doc mot cau LOI
-        // KHO ("khong ghi duoc kho du lieu") cho mot Tac pham hoan toan lanh lan. Do 2026-08-29
-        // trước lượt vá: `move_chapter`/`merge_chapter_into_previous` tra `store.write_failed`,
-        // trong khi `rename_chapter` ngay tren tra `segment.chapter_not_found`.
+        // 🔴 KIEM HANG TON TAI TRUOC MOI THU KHAC, KE CA TRUOC `normalize_chapter_ord` — cung
+        // ly do da ghi o `move_chapter`: chay `normalize_chapter_ord` TRUOC kiem ton tai danh
+        // lai `ord` that su cho moi Chuong con song roi moi phat hien `chapter_id` la, va
+        // `Store::write` van COMMIT lan danh lai do vi `Ok(0)` van la `Ok`. Duong tach Chuong
+        // (`:988`) da lam DUNG thu tu nay tu truoc.
+        //
+        // Khong co khoi kiem nay, `query_row` duoi day tra `QueryReturnedNoRows` cho mot
+        // `chapter_id` la, va `Store::write` goi no thanh `StoreError::WriteFailed` ⇒ nguoi
+        // dung doc mot cau LOI KHO ("khong ghi duoc kho du lieu") cho mot Tac pham hoan toan
+        // lanh lan, trong khi `rename_chapter` ngay tren tra `segment.chapter_not_found` cho
+        // đúng ca đó.
         //
         // ⚠️ Day DUNG lop loi ma Story 2.11 da sua MOT LAN cho `chapter_not_found` (xem
         // doc-comment cua ham do: mot cau SAI VE LOAI, khong tep nao hong). Mot lop loi da co
@@ -781,6 +790,8 @@ pub fn merge_chapter_into_previous(
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
             return Ok(0);
         }
+
+        normalize_chapter_ord(tx)?;
 
         let b_ord: i64 =
             tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;

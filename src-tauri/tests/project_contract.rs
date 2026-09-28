@@ -2526,6 +2526,52 @@ fn opening_a_work_whose_project_db_is_newer_than_the_app_is_refused_through_open
     cleanup(&dir);
 }
 
+/// Một `project.db` mang một giá trị `translation_origin` NGOÀI danh mục
+/// đóng `TRANSLATION_ORIGINS` phải bị `open_work` TỪ CHỐI, cùng mức nghiêm trọng với
+/// `SchemaTooNew`. Không `CHECK` nào trong DDL chặn giá trị đó ở lượt ghi — lớp chặn DUY
+/// NHẤT là lượt quét lúc mở, và ca này là bằng chứng nó thật sự chạy trên đường `open_work`,
+/// không chỉ trên hàm thuần bị cô lập.
+#[test]
+fn opening_a_work_whose_project_db_has_an_unknown_translation_origin_is_refused_through_open_work()
+{
+    let root = temp_dir("open-db-unknown-origin");
+    let opened = create_work_from_text(&root, "Xuat Xu La", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    let db = dir.join("project.db");
+    drop(opened);
+
+    // Ghi tay MOT gia tri NGOAI danh muc dong -- khong duong san pham nao lam duoc dieu nay
+    // hom nay, dung khuon fixture "sua tay/hong" cua ca SchemaTooNew o tren.
+    {
+        let store = Store::open(StoreSpec::project(db.clone())).expect("mo kho de dung fixture");
+        store
+            .write(|tx: &Transaction<'_>| {
+                tx.execute(
+                    "UPDATE segment SET translation_origin = 'mot-gia-tri-la'",
+                    [],
+                )?;
+                Ok(())
+            })
+            .expect("dung fixture that bai");
+        store.close();
+    }
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("mot gia tri translation_origin la PHAI bi tu choi qua `open_work`");
+
+    assert_eq!(
+        err.message_key(),
+        MessageKey::StoreUnknownTranslationOrigin,
+        "phep tu choi phai PHAN BIET DUOC o tang lenh — khong duoc nuot thanh mot loi mo kho \
+         chung chung"
+    );
+    assert_eq!(err.code(), "store.unknown_translation_origin");
+
+    cleanup(&dir);
+}
+
 /// 🔴 **`meta.json` LÀNH nhưng `project.db` VẮNG ⇒ TỪ CHỐI, và KHÔNG tạo một tệp nào.**
 ///
 /// Ca này ra đời ở lượt review 2026-08-29. `Store::open` đi qua `pragmas::open_connection`,
@@ -4315,6 +4361,60 @@ fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_er
 
     assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
     assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Nếu `move_chapter`/`merge_chapter_into_previous` gọi `normalize_chapter_ord(tx)?` TRƯỚC
+/// khi kiểm `chapter_id` tồn tại thì sai: `normalize_chapter_ord` COMMIT thật (nó chạy trong
+/// CÙNG giao dịch, không rollback khi hàm sau đó trả `Ok(0)`) — nên trên một dãy `ord` THƯA,
+/// một `chapter_id` lạ vẫn để lại một lượt đánh số lại đã chạy, trái với doc-comment
+/// *"0 hàng bị chạm"*.
+///
+/// ⚠️ **Vì sao ca `moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_error`
+/// ở trên KHÔNG bắt được lỗ này** — fixture của nó chèn Chương thứ hai ở `ord = 2`, cạnh
+/// Chương mặc định `ord = 1`: dãy đã ĐẶC SẴN, nên `normalize_chapter_ord` là một no-op dù
+/// chạy trước hay sau kiểm tồn tại — một ca ĐỐI CHỨNG đối xứng, xanh cả hai phía. Ca này
+/// dùng một dãy THƯA (`ord` 1 và 5) để hai thứ tự thật sự cho hai kết quả khác nhau.
+#[test]
+fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence() {
+    let root = temp_dir("unknown-id-sparse-ord");
+    let mut opened = create_work_from_text(&root, "Id La Thua", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    insert_chapter_directly(&opened, 5, "");
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    assert_eq!(
+        chapters_before.iter().map(|&(_, ord)| ord).collect::<Vec<_>>(),
+        vec![1, 5],
+        "tien de cua ca nay: day `ord` phai THUA truoc lan goi -- xem doc-comment ve vi sao"
+    );
+
+    let khong_ton_tai = 999_999_i64;
+
+    move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Next)
+        .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "L10067: `move_chapter` tren mot `chapter_id` la KHONG duoc danh lai `ord` cua BAT KY \
+         Chuong nao khac, ke ca khi dãy dang THUA"
+    );
+
+    move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Prev)
+        .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN");
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "L10067: huong Prev cung vay");
+
+    merge_chapter_into_previous(Some(&mut opened), khong_ton_tai)
+        .expect_err("gop mot Chuong khong ton tai phai la mot loi CO TEN");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "L10067: `merge_chapter_into_previous` tren mot `chapter_id` la cung khong duoc danh \
+         lai `ord`"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);

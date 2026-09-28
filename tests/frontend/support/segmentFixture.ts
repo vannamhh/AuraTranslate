@@ -59,6 +59,10 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // `role: null` — đúng vai trò segment VĂN XUÔI, hiển thị theo vai là Story 6.14, chưa
     // dựng ở webview.
     role: null,
+    // 🔴 Cột `translation_origin` ra đời cùng bước di trú 7 (Story 2.7). Khớp đúng luật
+    // backfill nhập song ngữ thật (`commands/segment.rs`): `target_text` không rỗng ⇒
+    // `bilingual_import`.
+    translation_origin: 'bilingual_import',
   },
   {
     id: 12,
@@ -75,6 +79,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // đều `false` sẽ xanh với cả một `DEFAULT 0` không bao giờ được backfill.
     is_target_paragraph_end: true,
     role: null,
+    translation_origin: 'bilingual_import',
   },
   {
     id: 13,
@@ -89,6 +94,8 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // Câu CUỐI Chương ⇒ cờ tắt, luôn luôn (AD-37, ca biên có mã thi hành) — ở cả hai cột.
     is_target_paragraph_end: false,
     role: null,
+    // Chưa dịch ⇒ cùng luật backfill trên: `target_text` rỗng ⇒ `''` (`TRANSLATION_ORIGIN_NONE`).
+    translation_origin: '',
   },
 ]
 

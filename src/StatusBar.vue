@@ -314,6 +314,9 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   //    áp cho ba đường còn lại — xem `editorPanelState.ts::NavNotice`.
   'chapter-switch-failed': 'panel.grid.nav_chapter_switch_failed',
   'chapter-flush-failed': 'panel.grid.nav_chapter_flush_failed',
+  // 🔴 Khoá thứ MƯỜI MỘT. `Record` đóng lại làm đúng việc nó được dựng để làm: thêm
+  //    `'confirm-in-flight'` vào `NavNotice` mà chưa sửa đây thì `vue-tsc` đỏ.
+  'confirm-in-flight': 'panel.grid.nav_confirm_in_flight',
   'chapter-still-dirty': 'panel.grid.nav_chapter_still_dirty',
 }
 

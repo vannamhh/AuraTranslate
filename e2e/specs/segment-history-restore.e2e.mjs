@@ -66,20 +66,24 @@ async function readSegmentsFromDisk() {
  * ồn ào**, không âm thầm cấp một giá trị mặc định — nếu nó im lặng cấp `""` thì lượt này đã
  * XANH trong khi mọi câu duyệt-nguyên-văn bị gắn nhãn *tôi dịch*, và không ai biết.
  */
-async function signWith(chapterId, id, text, textAtLoad = '') {
+// 🔴 Tham số thứ năm `originAtLoad`, cùng mặc định `''` và cùng lý do với `textAtLoad`:
+// Chương của mọi ca trong tệp này được tạo TRONG chính ca đó, nên xuất xứ lúc nạp cũng là
+// chuỗi rỗng (`insert_segments` ghi `''`).
+async function signWith(chapterId, id, text, textAtLoad = '', originAtLoad = '') {
   return browser.execute(
-    async (c, i, t, m) => {
+    async (c, i, t, m, o) => {
       const internals = window.__TAURI_INTERNALS__
       await internals.invoke('save_segment_targets', {
         chapterId: c,
         edits: [{ id: i, target_text: t }],
       })
-      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: m })
+      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: m, originAtLoad: o })
     },
     chapterId,
     id,
     text,
     textAtLoad,
+    originAtLoad,
   )
 }
 
@@ -172,7 +176,8 @@ describe('Story 2.6 — lịch sử phiên bản và khôi phục, trong WKWebVi
       const internals = window.__TAURI_INTERNALS__
       // 🔵 Story 2.7 — mốc so của FR117. `''` là bản LÚC NẠP: Chương này vừa được tạo trong
       // chính ca test, nên bản dịch lúc nạp là chuỗi rỗng. Xem khối lý do ở `signWith`.
-      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: '' })
+      // `originAtLoad: ''`, cùng lý do.
+      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: '', originAtLoad: '' })
     }, targetId)
 
     const grown = await readHistory(targetId)

@@ -1920,7 +1920,7 @@ fn read_chapter_segment_texts(
     store.read(move |conn: crate::core::store::ReadHandle<'_>| {
         let mut stmt = conn.prepare(
             "SELECT source_text FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL \
-             ORDER BY ord",
+             ORDER BY ord, id",
         )?;
         let mut rows = stmt.query([chapter_id])?;
         let mut out = Vec::new();
@@ -5020,6 +5020,45 @@ fn work_not_indexed(work_id: &str) -> IpcError {
     )
 }
 
+/// Từ chối mở một `project.db` mà cột `segment.translation_origin` mang một giá trị NGOÀI
+/// danh mục đóng [`TRANSLATION_ORIGINS`].
+///
+/// [`SEGMENT_DDL`] không có `CHECK` trên cột này (cùng lý do cột `status`, xem doc-comment
+/// của nó), và [`Store::open`]'s [`StoreError::SchemaTooNew`] chỉ so SỐ BƯỚC di trú: thêm
+/// một giá trị thứ năm không cần một bước di trú nào, nên `PRAGMA user_version` không đổi
+/// và ca đó trượt sạch qua vế đó. Đây là lớp chặn DUY NHẤT ở tầng đọc, gọi ngay sau
+/// [`Store::open`] trước khi bất kỳ hàng nào khác được đọc/ghi.
+///
+/// [`TRANSLATION_ORIGINS`]: crate::commands::segment::TRANSLATION_ORIGINS
+/// [`SEGMENT_DDL`]: crate::core::store::SEGMENT_DDL
+fn reject_unknown_translation_origin(
+    store: &Store,
+) -> Result<(), crate::core::store::StoreError> {
+    use crate::commands::segment::TRANSLATION_ORIGINS;
+    use crate::core::store::{StoreError, StoreKind, params_from_iter};
+
+    let placeholders = (1..=TRANSLATION_ORIGINS.len())
+        .map(|i| format!("?{i}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let found: Option<String> = store.read(|conn| {
+        let mut stmt = conn.prepare(&format!(
+            "SELECT DISTINCT translation_origin FROM segment \
+             WHERE translation_origin NOT IN ({placeholders}) LIMIT 1",
+        ))?;
+        let mut rows = stmt.query(params_from_iter(TRANSLATION_ORIGINS.iter()))?;
+        match rows.next()? {
+            Some(row) => Ok(Some(row.get::<_, String>(0)?)),
+            None => Ok(None),
+        }
+    })?;
+
+    match found {
+        Some(value) => Err(StoreError::UnknownTranslationOrigin { store: StoreKind::Project, value }),
+        None => Ok(()),
+    }
+}
+
 /// **Hàm thuần** — mở lại một `.atproj` **đã có trên đĩa** (Story 5.7, FR12). Khuôn thứ
 /// tự chép NGUYÊN VĂN của [`create_work`], chỉ thay bước *tạo* bằng bước *đọc*: `WorkMeta::
 /// read` → `Store::open` → chọn `chapter_id` → `ScopeResolver::with_work`.
@@ -5046,7 +5085,10 @@ fn work_not_indexed(work_id: &str) -> IpcError {
 /// - `meta.json` đọc trượt vì lý do KHÁC (thư mục biến mất, quyền đọc, …) ⇒
 ///   [`crate::core::library::WorkError::OpenFailed`] (`work.open_failed`);
 /// - `project.db` mở trượt (kể cả `SchemaTooNew`) ⇒ lỗi kho (`store.*`), qua
-///   `From<StoreError>`.
+///   `From<StoreError>`;
+/// - `project.db` mở được nhưng cột `segment.translation_origin` mang một giá trị NGOÀI
+///   danh mục đóng `TRANSLATION_ORIGINS` ⇒ `store.unknown_translation_origin`, không một
+///   byte nào bị ghi — xem doc-comment của [`reject_unknown_translation_origin`].
 pub fn open_work(
     work_id: &str,
     indexed: Option<&crate::core::library::indexer::IndexedWork>,
@@ -5103,6 +5145,16 @@ pub fn open_work(
     }
 
     let store = Store::open(StoreSpec::project(db_path))?;
+
+    // 🔴 TỪ CHỐI MỞ một `project.db` mang một `translation_origin` NGOÀI
+    // danh mục đóng `TRANSLATION_ORIGINS`. `SEGMENT_DDL` không có `CHECK` trên cột này
+    // (cùng lý do cột `status`, xem doc-comment của nó), và `SchemaTooNew` chỉ so SỐ BƯỚC
+    // di trú — thêm một giá trị thứ năm không cần một bước di trú nào, nên nó không đổi
+    // `PRAGMA user_version` và trượt sạch qua vế đó. Đây là lớp chặn DUY NHẤT ở tầng đọc.
+    if let Err(err) = reject_unknown_translation_origin(&store) {
+        store.close();
+        return Err(err.into());
+    }
 
     // Chương đầu theo `(ord, id)` -- §Design Notes "Vì sao KHÔNG có Chương mở gần nhất":
     // hôm nay mọi Tác phẩm có ĐÚNG một Chương, nên đây luôn là hàng duy nhất; câu SQL vẫn

@@ -159,6 +159,7 @@ describe('navigationSegmentOf — văn bản ĐANG GÕ thắng bản lúc nạp'
       // Mặc định BẰNG `is_paragraph_end` ngay trên, đúng AC2 lúc nhập.
       is_target_paragraph_end: false,
       role: null,
+      translation_origin: '',
       ...over,
     }
   }
@@ -217,7 +218,6 @@ describe('ba chỗ đọc `draft` phải ĐỒNG Ý với nhau', () => {
     expect(isUntranslated(seg({ status: 'draft', targetText: '' }))).toBe(true)
     expect(
       resolveSegmentRule({
-        retiredAt: null,
         hasCaret: false,
         isConfirmed: false,
         isTmFilled: false,
@@ -229,7 +229,6 @@ describe('ba chỗ đọc `draft` phải ĐỒNG Ý với nhau', () => {
     expect(isUntranslated(seg({ status: 'draft', targetText: 'X' }))).toBe(false)
     expect(
       resolveSegmentRule({
-        retiredAt: null,
         hasCaret: false,
         isConfirmed: false,
         isTmFilled: false,

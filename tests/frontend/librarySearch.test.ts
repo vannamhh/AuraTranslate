@@ -706,6 +706,8 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
             is_target_paragraph_end: false,
             is_omitted: false,
             role: null,
+            retired_at: null,
+            translation_origin: '',
           })),
           caret_segment_id: caretSegmentId,
           // 🔵 THÊM Story 6.14 — cùng lý do khối `read_open_chapter_segments` ngay trên.

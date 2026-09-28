@@ -2513,10 +2513,28 @@ pub(crate) fn backup_before_migration(
     name.push(format!(".bak-v{from}"));
     let target = path.with_file_name(name);
 
-    std::fs::copy(path, &target).map_err(|e| StoreError::OpenFailed {
-        store: kind,
-        detail: format!("copy backup to {}: {e}", target.display()),
-    })?;
+    let mut tmp_name = path.file_name().unwrap_or_default().to_owned();
+    tmp_name.push(format!(".bak-v{from}.tmp"));
+    let tmp_target = path.with_file_name(tmp_name);
+
+    let copy_result = std::fs::copy(path, &tmp_target).and_then(|_| {
+        let source_len = std::fs::metadata(path)?.len();
+        let tmp_len = std::fs::metadata(&tmp_target)?.len();
+        if source_len != tmp_len {
+            return Err(std::io::Error::other(format!(
+                "backup size mismatch: source {source_len} bytes, tmp {tmp_len} bytes"
+            )));
+        }
+        std::fs::rename(&tmp_target, &target)
+    });
+
+    if let Err(e) = copy_result {
+        let _ = std::fs::remove_file(&tmp_target);
+        return Err(StoreError::OpenFailed {
+            store: kind,
+            detail: format!("copy backup to {}: {e}", target.display()),
+        });
+    }
 
     Ok(())
 }

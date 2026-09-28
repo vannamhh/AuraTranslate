@@ -28,9 +28,10 @@
  * [`finishImportSubmission`] (đổi tên từ `finishSubmit` cũ, giờ EXPORT vì `main.ts` gọi nó
  * SAU khi lượt xác nhận — không còn ngay trong `submitPastedText`/`submitFilePath` nữa).
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { UnlistenFn } from '@tauri-apps/api/event'
+import { enterFocus } from '../commands'
 import {
   importPreviewIsOpen,
   importPreviewLastSubmittedFrom,
@@ -489,7 +490,12 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // Cùng nguyên văn lập luận trên, áp cho cột bản dịch (Story 2.2): `GridPanel.vue`
     // cũng chỉ gọi `ensureSegmentsLoaded()` ở `onMounted`, và `<KeepAlive>` làm lượt hiện
     // thứ hai trở đi không có `mounted`.
-    void ensureSegmentsLoaded()
+    //
+    // Vue has not patched the grid DOM when the load resolves; an earlier `enterFocus` is a no-op.
+    void ensureSegmentsLoaded().then(async () => {
+      await nextTick()
+      enterFocus('panel.grid')
+    })
 
     // 🔵 THÊM Story 6.3 — xoá ĐÚNG ô đã nộp thành công (nhánh dán hoặc nhánh tệp, theo
     // `importPreviewLastSubmittedFrom` — sống ở `importPreviewState.ts`, đọc CHỈ Ở ĐÂY,

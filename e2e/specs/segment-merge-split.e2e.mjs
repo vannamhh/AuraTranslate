@@ -44,11 +44,15 @@ async function chupLuoi() {
         nguyenVan: el.textContent,
       })),
       // 🔵 2026-08-17 — chữ ký #6(b) ĐÃ BỊ LẬT sau một lượt Ice dùng thật: hàng về hưu
-      // **không** ở lại lưới nữa. Trường này vì thế đổi vai — nó thôi là *"đếm cái phải
-      // có"* và thành *"chốt canh cái KHÔNG được có"*: một số khác 0 nghĩa là bộ lọc
-      // `retired_at IS NULL` đã bị gỡ ở đâu đó, và triệu chứng ở người dùng là nguyên văn
-      // báo cáo hôm đó — *"câu cũ vẫn tồn tại và số thứ tự vẫn chiếm, gây rối nội dung"*.
-      soVachVeHuu: document.querySelectorAll('.rule-ornament').length,
+      // **không** ở lại lưới nữa.
+      //
+      // 🔴 **`soVachVeHuu` (đếm `.rule-ornament`) ĐÃ GỠ.** Vạch `ornament` rút khỏi
+      // `SEGMENT_RULE_VALUES`; `.rule-ornament` không
+      // còn tồn tại trong CSS (`check:commands` Kiểm I ① đỏ nếu nó còn), nên đếm nó luôn cho
+      // `0` — một chốt đối XỨNG không còn khoá được gì. `soHang` ngay dưới đây đã và vẫn
+      // khoá ĐÚNG mệnh đề mà trường này từng khoá cùng: `waitUntil(... soHang === 2)` +
+      // `expect(sau.soHang).toBe(2)` KHÔNG đỏ được nếu một hàng về hưu còn kẹt trong lưới.
+      //
       // Số thứ tự NGƯỜI DÙNG NHÌN THẤY, đọc thẳng từ cột số — không suy từ chỉ số mảng.
       soThuTu: [...document.querySelectorAll('.cell-num')].map((el) => el.textContent?.trim()),
     }
@@ -72,7 +76,6 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
     await waitForGridText(0, '一。')
 
     const truoc = await chupLuoi()
-    await expect(truoc.soVachVeHuu).toBe(0)
 
     // ── ① Đặt caret vào ô bản dịch của câu THỨ HAI ────────────────────────────────
     //
@@ -101,7 +104,6 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
     // 🔴 **AC1 + lượt LẬT chữ ký #6(b), cùng lúc:** hai hàng cũ về hưu và **BIẾN KHỎI LƯỚI**,
     // một hàng mới thế chỗ ⇒ ba hàng thành **HAI**. Trước lượt lật, chỗ này khẳng định `4`.
     await expect(sau.soHang).toBe(2)
-    await expect(sau.soVachVeHuu).toBe(0)
     // 🔴 Và SỐ THỨ TỰ đọc lại liên tục từ 1 — đúng vế thứ hai của báo cáo 2026-08-17.
     await expect(sau.soThuTu).toEqual(['1', '2'])
 
@@ -245,7 +247,6 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
     const sau = await chupLuoi()
     // Một hàng về hưu **biến khỏi lưới**, HAI mảnh mới thế chỗ ⇒ 2 thành **3**.
     await expect(sau.soHang).toBe(3)
-    await expect(sau.soVachVeHuu).toBe(0)
     await expect(sau.soThuTu).toEqual(['1', '2', '3'])
 
     const idCu = new Set(truoc.hang.map((h) => h.id))
@@ -376,7 +377,6 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
 
     const sau = await chupLuoi()
     await expect(sau.soHang).toBe(4)
-    await expect(sau.soVachVeHuu).toBe(0)
     await expect(sau.soThuTu).toEqual(['1', '2', '3', '4'])
 
     const idCu = new Set(truoc.hang.map((h) => h.id))

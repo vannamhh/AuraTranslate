@@ -40,6 +40,16 @@ export type SplitChapterResult = {
   error: IpcError | null
 }
 
+/**
+ * Kiểm **lúc chạy** hình dạng `SplitOutcome`, cùng
+ * mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này.
+ */
+function isSplitOutcome(value: unknown): value is SplitOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<SplitOutcome>
+  return typeof v.chapter_id === 'number' && typeof v.segment_count === 'number'
+}
+
 function isIpcError(value: unknown): value is IpcError {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<IpcError>
@@ -131,6 +141,16 @@ export type ChapterSegment = {
    * trường này CHỞ ĐƯỢC từ story này, nhưng chưa nơi nào ở webview ĐỌC nó.
    */
   role: string | null
+  /**
+   * Xuất xứ của [`target_text`] — mốc `origin_at_load` mà `confirmSegment` cần (FR117,
+   * AD-47). `''` khi chưa một lượt ghi không-phải-người-dùng nào đặt nó.
+   *
+   * 🔴 Đọc **một lần lúc nạp Chương** và giữ nguyên trong ảnh chụp cho tới lượt ký kế tiếp —
+   * cùng khuôn [`target_text`] ngay trên. Đọc lại cột này giữa chừng (thay vì đọc từ chính
+   * hàng trong ảnh chụp) làm một lượt ký thứ hai trong cùng phiên đọc xuất xứ đĩa VỪA đổi bởi
+   * lượt ký thứ nhất, thay vì xuất xứ lúc nạp.
+   */
+  translation_origin: string
 }
 
 /**
@@ -201,12 +221,31 @@ export type ChapterSegments = {
  * 🔵 **THÊM Story 6.14** — kiểm thêm `assets`/`assets_dir` cùng mức chặt: mảng có mặt, chuỗi
  * có mặt. Không đào sâu từng `ChapterAsset` — cùng mức chặt đã chấp nhận cho `segments`.
  */
+function isChapterSegmentRow(row: unknown): row is ChapterSegment {
+  if (typeof row !== 'object' || row === null) return false
+  const v = row as Partial<ChapterSegment>
+  return (
+    typeof v.id === 'number' &&
+    typeof v.ord === 'number' &&
+    typeof v.source_text === 'string' &&
+    typeof v.target_text === 'string' &&
+    typeof v.is_paragraph_end === 'boolean' &&
+    (typeof v.retired_at === 'string' || v.retired_at === null) &&
+    typeof v.status === 'string' &&
+    typeof v.is_omitted === 'boolean' &&
+    typeof v.is_target_paragraph_end === 'boolean' &&
+    (typeof v.role === 'string' || v.role === null) &&
+    typeof v.translation_origin === 'string'
+  )
+}
+
 function isChapterSegments(value: unknown): value is ChapterSegments {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ChapterSegments>
   return (
     typeof v.chapter_id === 'number' &&
     Array.isArray(v.segments) &&
+    v.segments.every(isChapterSegmentRow) &&
     (typeof v.caret_segment_id === 'number' || v.caret_segment_id === null) &&
     Array.isArray(v.assets) &&
     typeof v.assets_dir === 'string'
@@ -234,6 +273,17 @@ export type SaveOutcome = {
   chapter_id: number
   /** Số hàng thật sự được `UPDATE`. **0 là hợp lệ** — một lô rỗng. */
   saved: number
+}
+
+/**
+ * Kiểm **lúc chạy** hình dạng `SaveOutcome`, cùng
+ * mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này: trường có mặt, đúng kiểu,
+ * không đào sâu hơn.
+ */
+function isSaveOutcome(value: unknown): value is SaveOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<SaveOutcome>
+  return typeof v.chapter_id === 'number' && typeof v.saved === 'number'
 }
 
 /** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
@@ -270,6 +320,20 @@ export type ConfirmOutcome = {
   version_created: boolean
 }
 
+/**
+ * Kiểm **lúc chạy** hình dạng `ConfirmOutcome`,
+ * cùng mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này.
+ */
+function isConfirmOutcome(value: unknown): value is ConfirmOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ConfirmOutcome>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.status === 'string' &&
+    typeof v.version_created === 'boolean'
+  )
+}
+
 /** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
 export type ConfirmSegmentResult = {
   outcome: ConfirmOutcome | null
@@ -290,6 +354,16 @@ export type OmitOutcome = {
   is_omitted: boolean
 }
 
+/**
+ * Kiểm **lúc chạy** hình dạng `OmitOutcome`, cùng
+ * mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này.
+ */
+function isOmitOutcome(value: unknown): value is OmitOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<OmitOutcome>
+  return typeof v.segment_id === 'number' && typeof v.is_omitted === 'boolean'
+}
+
 /** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
 export type SetSegmentOmittedResult = {
   outcome: OmitOutcome | null
@@ -307,6 +381,16 @@ export type ParagraphEndOutcome = {
   segment_id: number
   /** Trạng thái **sau** lượt gọi. */
   is_target_paragraph_end: boolean
+}
+
+/**
+ * Kiểm **lúc chạy** hình dạng `ParagraphEndOutcome`,
+ * cùng mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này.
+ */
+function isParagraphEndOutcome(value: unknown): value is ParagraphEndOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ParagraphEndOutcome>
+  return typeof v.segment_id === 'number' && typeof v.is_target_paragraph_end === 'boolean'
 }
 
 /** Ba trạng thái, cùng khuôn `SetSegmentOmittedResult`. */
@@ -372,6 +456,22 @@ export type RestoreOutcome = {
   unsigned_draft: string | null
 }
 
+/**
+ * Kiểm **lúc chạy** hình dạng `RestoreOutcome`,
+ * cùng mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp này.
+ */
+function isRestoreOutcome(value: unknown): value is RestoreOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<RestoreOutcome>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.status === 'string' &&
+    typeof v.restored === 'boolean' &&
+    typeof v.needs_confirmation === 'boolean' &&
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+  )
+}
+
 /** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
 export type RestoreSegmentVersionResult = {
   outcome: RestoreOutcome | null
@@ -381,15 +481,13 @@ export type RestoreSegmentVersionResult = {
 /**
  * Payload trả về có **đúng bốn trường, đúng kiểu** không — kiểm **lúc chạy**, Story 2.6.
  *
- * 🔴 Vì sao guard này tồn tại trong khi sáu adapter cũ của tệp này **không** có cái tương
- * đương: nó đóng một lớp lỗi **đã xảy ra thật** *(nguyên vụ ghi ở `commands/segment.rs`)* —
+ * 🔴 Guard này đóng một lớp lỗi **đã xảy ra thật** *(nguyên vụ ghi ở `commands/segment.rs`)* —
  * Rust quên gửi một trường ⇒ `undefined` phía webview ⇒ một giá trị falsy đọc thành một câu
  * trả lời hợp lệ, và **mọi** test frontend vẫn xanh vì fixture chép tay có sẵn trường đó.
  *
- * ⚠️ **Lệch quy ước có chủ ý, và nó là một món nợ chứ không một cải tiến trọn vẹn:** sau lượt
- * này tệp có **hai** loại adapter — sáu cái tin payload, hai cái kiểm nó. Một kho nửa này nửa
- * kia là một kho mà người sau không đoán được luật. Ghi nợ có chủ **Ice** *(câu hỏi quy ước:
- * nâng cả sáu cái kia lên, hay hạ hai cái này xuống)*.
+ * Mọi adapter khác của tệp này mang một guard cùng khuôn — xem `isSplitOutcome`,
+ * `isSaveOutcome`, `isConfirmOutcome`, `isOmitOutcome`, `isParagraphEndOutcome`,
+ * `isRestoreOutcome`, `isPromoteAiTranslationOutcome`, `isRegroupOutcome`.
  */
 function isSegmentVersionArray(value: unknown): value is SegmentVersion[] {
   if (!Array.isArray(value)) return false
@@ -456,10 +554,19 @@ const CMD_RESTORE_SEGMENT_VERSION = 'restore_segment_version'
 export type PromoteAiTranslationOutcome = {
   segment_id: number
   /** Văn bản vừa ghi — chỗ gọi mirror lại bằng `replaceEditorSegment` (§Code Map spec 4.8:
-   * "that mirror is not cosmetic — the confirm baseline is read from the loaded snapshot"). */
+   * "that mirror is not cosmetic — the confirm baseline is read from the loaded snapshot").
+   * Khi `needs_confirmation`, đây là văn bản HIỆN CÓ trên đĩa (không đổi). */
   target_text: string
-  /** Luôn `"other"` khi thành công — AD-47③. */
+  /** Xuất xứ SAU lượt gọi. Khi `needs_confirmation`, đây là xuất xứ hiện có (không đổi). */
   translation_origin: string
+  /**
+   * 🔴 Lượt ghi bị GIỮ LẠI vì nó sắp xoá vĩnh viễn một bản nháp chưa từng được ký — cùng
+   * khuôn [`RestoreOutcome.needs_confirmation`]. Khi `true`, không một byte nào được ghi;
+   * chỗ gọi hỏi lại người dùng rồi gọi lại với `force = true`.
+   */
+  needs_confirmation: boolean
+  /** Bản nháp sắp bị ghi đè. `Some` khi và chỉ khi `needs_confirmation`. */
+  unsigned_draft: string | null
 }
 
 /** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
@@ -469,8 +576,25 @@ export type PromoteAiTranslationResult = {
 }
 
 /**
- * Tên command trên dây — Story 4.8 · FR72 · AD-47①/③. `segment_id`/`target_text` đi dưới tên
- * `segmentId`/`targetText`.
+ * Kiểm **lúc chạy** hình dạng
+ * `PromoteAiTranslationOutcome`, cùng mức chặt mà [`isChapterSegments`] đã chấp nhận cho tệp
+ * này.
+ */
+function isPromoteAiTranslationOutcome(value: unknown): value is PromoteAiTranslationOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<PromoteAiTranslationOutcome>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    typeof v.translation_origin === 'string' &&
+    typeof v.needs_confirmation === 'boolean' &&
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+  )
+}
+
+/**
+ * Tên command trên dây — Story 4.8 · FR72 · AD-47①/③. `segment_id`/`target_text`/`force` đi
+ * dưới tên `segmentId`/`targetText`/`force`.
  */
 const CMD_PROMOTE_AI_TRANSLATION = 'promote_ai_translation'
 
@@ -511,7 +635,13 @@ const UNKNOWN_IPC_ERROR: IpcError = {
  */
 export async function splitChapterIntoSegments(chapterId: number): Promise<SplitChapterResult> {
   try {
-    const outcome = await invoke<SplitOutcome>(CMD_SPLIT_CHAPTER, { chapterId })
+    const outcome = await invoke<unknown>(CMD_SPLIT_CHAPTER, { chapterId })
+    if (!isSplitOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_SPLIT_CHAPTER}\` trả một SplitOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -599,7 +729,13 @@ export async function saveSegmentTargets(
   edits: readonly SegmentTargetEdit[],
 ): Promise<SaveSegmentTargetsResult> {
   try {
-    const outcome = await invoke<SaveOutcome>(CMD_SAVE_TARGETS, { chapterId, edits })
+    const outcome = await invoke<unknown>(CMD_SAVE_TARGETS, { chapterId, edits })
+    if (!isSaveOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_SAVE_TARGETS}\` trả một SaveOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -696,13 +832,27 @@ export async function saveChapterPosition(
  *
  * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `text_at_load` phía Rust đi trên dây dưới
  * tên `textAtLoad`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
+ *
+ * `originAtLoad`, trusted verbatim like `textAtLoad`: Rust's unchanged-branch echoes it back
+ * without re-reading disk, so a second confirm in one session keeps the load-time origin.
  */
 export async function confirmSegment(
   segmentId: number,
   textAtLoad: string,
+  originAtLoad: string,
 ): Promise<ConfirmSegmentResult> {
   try {
-    const outcome = await invoke<ConfirmOutcome>(CMD_CONFIRM_SEGMENT, { segmentId, textAtLoad })
+    const outcome = await invoke<unknown>(CMD_CONFIRM_SEGMENT, {
+      segmentId,
+      textAtLoad,
+      originAtLoad,
+    })
+    if (!isConfirmOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_CONFIRM_SEGMENT}\` trả một ConfirmOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -749,7 +899,13 @@ export async function setSegmentOmitted(
   omitted: boolean,
 ): Promise<SetSegmentOmittedResult> {
   try {
-    const outcome = await invoke<OmitOutcome>(CMD_SET_SEGMENT_OMITTED, { segmentId, omitted })
+    const outcome = await invoke<unknown>(CMD_SET_SEGMENT_OMITTED, { segmentId, omitted })
+    if (!isOmitOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_SET_SEGMENT_OMITTED}\` trả một OmitOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -788,10 +944,16 @@ export async function setSegmentParagraphEnd(
   endsParagraph: boolean,
 ): Promise<SetSegmentParagraphEndResult> {
   try {
-    const outcome = await invoke<ParagraphEndOutcome>(CMD_SET_SEGMENT_PARAGRAPH_END, {
+    const outcome = await invoke<unknown>(CMD_SET_SEGMENT_PARAGRAPH_END, {
       segmentId,
       endsParagraph,
     })
+    if (!isParagraphEndOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_SET_SEGMENT_PARAGRAPH_END}\` trả một ParagraphEndOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -901,11 +1063,17 @@ export async function restoreSegmentVersion(
   force: boolean,
 ): Promise<RestoreSegmentVersionResult> {
   try {
-    const outcome = await invoke<RestoreOutcome>(CMD_RESTORE_SEGMENT_VERSION, {
+    const outcome = await invoke<unknown>(CMD_RESTORE_SEGMENT_VERSION, {
       segmentId,
       versionId,
       force,
     })
+    if (!isRestoreOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_RESTORE_SEGMENT_VERSION}\` trả một RestoreOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -938,22 +1106,33 @@ export async function restoreSegmentVersion(
  * phải văn bản người dùng đang gõ. Khác `confirmSegment` (ký văn bản **trên đĩa**, phải flush
  * trước), lệnh này không có gì để chờ.
  *
- * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `segment_id`/`target_text` phía Rust đi trên
- * dây dưới tên `segmentId`/`targetText`.
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `segment_id`/`target_text`/`force` phía Rust
+ * đi trên dây dưới tên `segmentId`/`targetText`/`force`.
  *
  * ⚠️ **Nghĩa vụ của chỗ gọi:** mirror kết quả bằng `replaceEditorSegment` NGAY sau khi lượt này
- * thành công — đó là nửa còn lại của AD-47①(a), không phải việc của adapter này (cùng khuôn
- * `restoreSegmentVersion`/`segmentHistoryState.ts::restoreVersion`).
+ * thành công (`needs_confirmation = false`) — đó là nửa còn lại của AD-47①(a), không phải
+ * việc của adapter này (cùng khuôn `restoreSegmentVersion`/`segmentHistoryState.ts::restoreVersion`).
+ *
+ * `force`: call with `false` first. `needs_confirmation = true` means nothing was written yet;
+ * `unsigned_draft` carries the draft about to be lost — ask, then call again with `force = true`.
  */
 export async function promoteAiTranslation(
   segmentId: number,
   targetText: string,
+  force: boolean,
 ): Promise<PromoteAiTranslationResult> {
   try {
-    const outcome = await invoke<PromoteAiTranslationOutcome>(CMD_PROMOTE_AI_TRANSLATION, {
+    const outcome = await invoke<unknown>(CMD_PROMOTE_AI_TRANSLATION, {
       segmentId,
       targetText,
+      force,
     })
+    if (!isPromoteAiTranslationOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_PROMOTE_AI_TRANSLATION}\` trả một PromoteAiTranslationOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -999,6 +1178,22 @@ export type RegroupOutcome = {
   new_segments: ChapterSegment[]
 }
 
+/**
+ * Kiểm **lúc chạy** hình dạng `RegroupOutcome`,
+ * cùng mức chặt [`isSegmentVersionArray`]: mỗi hàng của cả hai mảng đi qua
+ * [`isChapterSegmentRow`], không chỉ `Array.isArray` trần.
+ */
+function isRegroupOutcome(value: unknown): value is RegroupOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<RegroupOutcome>
+  return (
+    Array.isArray(v.retired) &&
+    v.retired.every(isChapterSegmentRow) &&
+    Array.isArray(v.new_segments) &&
+    v.new_segments.every(isChapterSegmentRow)
+  )
+}
+
 /** Ba trạng thái, cùng khuôn mọi adapter của tệp này. */
 export type RegroupResult = {
   outcome: RegroupOutcome | null
@@ -1015,18 +1210,20 @@ export type RegroupResult = {
  * vào hàng mới đọc từ **đĩa**, và `editorEditedText` có thể còn giữ ký tự chưa xuống WAL
  * (AD-35). Cùng nghĩa vụ mà `restoreSegmentVersion` đã mang.
  *
- * 🔴 **TIN payload, không kiểm lúc chạy** — và lựa chọn đó nói ra thay vì để im lặng. Tệp
- * này có chín adapter, **tám** tin payload và đúng một (`readSegmentHistory`) kiểm; lệch
- * quy ước ấy là một món nợ **đang mở, chủ Ice** (`deferred-work.md`). Đi theo số đông là
- * giữ món nợ ở đúng một chỗ thay vì tách nó làm hai.
- *
- * ⚠️ **Cái giá, ghi ra:** hình dạng dây của lệnh này **không** có lưới nào ngoài **e2e** —
- * đúng lớp lỗi đã lọt hai lần *(cột `status` ở 2.5, tham số `textAtLoad` ở 2.7)*, cả hai lần
- * đều qua sạch toàn bộ test Rust lẫn vitest vì fixture chép tay luôn có sẵn trường.
+ * `mergeSegments` kiểm hình dạng lúc chạy qua [`isRegroupOutcome`] — mỗi hàng của cả `retired`
+ * lẫn `new_segments` đi qua [`isChapterSegmentRow`], cùng mức chặt [`isSegmentVersionArray`]:
+ * trường có mặt, đúng kiểu. Không đào sâu hơn *(giá trị hợp lệ theo NGHĨA nghiệp vụ vẫn là
+ * việc của Rust, AD-1)*.
  */
 export async function mergeSegments(segmentId: number): Promise<RegroupResult> {
   try {
-    const outcome = await invoke<RegroupOutcome>(CMD_MERGE_SEGMENTS, { segmentId })
+    const outcome = await invoke<unknown>(CMD_MERGE_SEGMENTS, { segmentId })
+    if (!isRegroupOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_MERGE_SEGMENTS}\` trả một RegroupOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -1062,14 +1259,20 @@ export async function mergeSegments(segmentId: number): Promise<RegroupResult> {
  * ⚠️ Tên tham số trên dây là **`cuts`** (camelCase — `invoke` gửi camelCase dù hàm Rust nhận
  * `snake_case`); trường của `RegroupOutcome` **trả về** thì giữ `snake_case`.
  *
- * ⚠️ Cùng nghĩa vụ flush và cùng quy ước *"tin payload"* như [`mergeSegments`].
+ * ⚠️ Cùng nghĩa vụ flush và cùng guard lúc chạy như [`mergeSegments`].
  */
 export async function splitSegment(
   segmentId: number,
   cuts: readonly number[],
 ): Promise<RegroupResult> {
   try {
-    const outcome = await invoke<RegroupOutcome>(CMD_SPLIT_SEGMENT, { segmentId, cuts })
+    const outcome = await invoke<unknown>(CMD_SPLIT_SEGMENT, { segmentId, cuts })
+    if (!isRegroupOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_SPLIT_SEGMENT}\` trả một RegroupOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }

@@ -505,6 +505,15 @@ export function createKeymap(
     // Không đụng vào event — đây không phải hợp âm của ứng dụng.
     if (event.isComposing === true) return false
     const mods = modsOf(event)
+    // 🔴 AD-49 Rule ① — `Mod+Z`/`Mod+Shift+Z` LUÔN nhường vùng gõ, BẤT KỂ gì đã đăng ký.
+    // Trình soạn thảo gốc
+    // (contenteditable) giữ ngăn xếp hoàn tác RIÊNG của nó; một command tương lai đăng ký
+    // `KeyZ` mang phím bổ trợ chính sẽ vẫn `preventDefault()` trong Editor nếu luật này
+    // không đứng TRƯỚC vòng lặp so khớp — nó không dựa vào việc `entry.mods` có `lacksPrimaryMod`
+    // hay không, vì hai hợp âm này LUÔN mang phím bổ trợ chính.
+    if (event.code === 'KeyZ' && (mods.meta || mods.ctrl) && isTypingZone(event.target)) {
+      return false
+    }
     for (const entry of compiled) {
       if (entry.code !== event.code || !sameMods(entry.mods, mods)) continue
       if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target)) return false

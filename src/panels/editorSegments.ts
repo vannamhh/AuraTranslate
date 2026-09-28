@@ -23,12 +23,17 @@
  * trong `.atproj` của người dùng.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ TỆP NÀY LÀ **MODULE THUẦN** — KHÔNG `import` GIÁ TRỊ NÀO, KHÔNG VUE, KHÔNG DOM
+ * ⚠️ TỆP NÀY NẠP ĐƯỢC BẰNG NODE THUẦN — VÌ NÓ KHÔNG `import` GIÁ TRỊ NÀO, KHÔNG VÌ THÂN HÀM
+ * KHÔNG CHẠM DOM
  * ─────────────────────────────────────────────────────────────────────────────
- * Đó là điều kiện để `scripts/check-commands.mjs` `import()` **thẳng hàm thật** ở đây và
- * chạy nó bằng **Node thuần**. Một `import` giá trị *(kể cả `../config/segment`, vốn kéo
- * `@tauri-apps/api`)* giết phép kiểm đó ngay. State của panel sống ở
- * `./editorPanelState.ts`.
+ * 🔴 **Điều kiện thật, câu trên nói rộng hơn cổng thật sự cưỡng chế.**
+ * `createTreeWalker`/`caretAtCellStart`/`hasPrimaryModifier` đã chạm DOM/`Selection`
+ * trong THÂN hàm từ Story 2.8/2.9 — điều đó không giết được cổng nào, vì `check-commands.mjs`
+ * chỉ `import()` tệp này rồi **gọi hàm thuần** như `resolveSegmentRule` bằng Node thuần; nó
+ * không bao giờ thật sự chạy nhánh chạm DOM. Điều kiện thật, và là điều kiện DUY NHẤT cổng
+ * đó cần: tệp chỉ mang `import type` ở đầu tệp *(kể cả `../config/segment`, vốn kéo
+ * `@tauri-apps/api` nếu là một `import` GIÁ TRỊ)* — không một `import` giá trị nào từ
+ * `vue`/`dockview`/bất kỳ đâu. State của panel sống ở `./editorPanelState.ts`.
  * 🔵 *(2026-08-15 — mệnh đề "hình học sống ở `./editorGutter.ts`" đã hết đúng: tệp đó bị GỠ ở
  * Story 2.5b. Trong lưới, vạch lấy chiều cao từ **track hàng** của `subgrid`, nên không còn
  * hình học nào để tính. Phép đo của nó sống tiếp trong `deferred-work.md`.)*
@@ -45,10 +50,17 @@
 import type { ChapterSegment } from '../config/segment'
 
 /**
- * 🔴 **ĐÚNG SÁU GIÁ TRỊ, VÀ CON SỐ SÁU LÀ MỘT MỆNH ĐỀ NGHIỆM THU** (AC4 của Story 2.5b).
+ * 🔴 **ĐÚNG NĂM GIÁ TRỊ, VÀ CON SỐ NĂM LÀ MỘT MỆNH ĐỀ NGHIỆM THU** (AC4 của Story 2.5b).
  *
  * `scripts/check-commands.mjs` (Kiểm *"vạch lề segment"*) đếm mảng này và **đỏ** ở giá trị
- * thứ bảy.
+ * thứ sáu.
+ *
+ * 🔴 **SÁU → NĂM.** `'ornament'` (câu đã về
+ * hưu, vạch mờ) bị rút khỏi UX-DR19: không đường sản phẩm nào cho một segment về hưu còn
+ * SỐNG trong `segments.value` khi `resolveSegmentRule` chạy — `editorPanelState.ts` đã lọc
+ * hàng về hưu ra khỏi ảnh chụp TRƯỚC khi lưới render — nên nhánh này chết theo cấu tạo, không
+ * theo một khiếm khuyết. Token màu `--color-ornament` KHÔNG bị xoá — nó còn được dùng ở nơi
+ * khác (`LookupPanel.vue`, `ImportPreviewOverlay.vue`, `ReadingMode.vue`).
  *
  * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5b) — con số NĂM đã hết đúng, và lý do thì KHÔNG đổi.**
  * Bản trước viết: *"đừng thêm một giá trị để 'tạm phân biệt' một trạng thái mới —
@@ -66,16 +78,9 @@ import type { ChapterSegment } from '../config/segment'
  * ⚠️ `'none'` **là** một trong sáu, không phải "không có giá trị": *"chưa dịch ⇒ không vạch"*
  * là một mệnh đề hiển thị có chủ, và gộp nó vào `null` sẽ làm phép đếm của cổng đọc ra năm.
  */
-export const SEGMENT_RULE_VALUES = [
-  'confirmed',
-  'primary',
-  'tm-rule',
-  'draft',
-  'none',
-  'ornament',
-] as const
+export const SEGMENT_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none'] as const
 
-/** Một trong sáu giá trị vạch lề. */
+/** Một trong năm giá trị vạch lề. */
 export type SegmentRuleValue = (typeof SEGMENT_RULE_VALUES)[number]
 
 /**
@@ -86,13 +91,6 @@ export type SegmentRuleValue = (typeof SEGMENT_RULE_VALUES)[number]
  * dữ liệu sẽ buộc phải nói dối ở đúng hai chỗ đó.
  */
 export type SegmentRuleInput = {
-  /**
-   * `segment.retired_at` — `null` cho mọi segment hôm nay.
-   *
-   * 🔴 Cột **đã có** từ Story 2.1, nhưng **chưa đường nào cho segment về hưu**.
-   * **Chủ: Story 2.8** *(gộp/tách segment)*.
-   */
-  retiredAt: string | null
   /** Con trỏ / tiêu điểm bàn phím đang chạm câu này. Nguồn: DOM, xem `./editorPanelState.ts`. */
   hasCaret: boolean
   /**
@@ -117,20 +115,23 @@ export type SegmentRuleInput = {
 }
 
 /**
- * 🔴 **THỨ TỰ CỦA SÁU NHÁNH LÀ MỘT QUYẾT ĐỊNH, KHÔNG PHẢI THỨ TỰ GÕ RA.**
+ * 🔴 **THỨ TỰ CỦA NĂM NHÁNH LÀ MỘT QUYẾT ĐỊNH, KHÔNG PHẢI THỨ TỰ GÕ RA.**
  *
- * 1. `ornament` **thắng tất cả** — một câu đã về hưu không còn là câu người dùng đang làm
- *    việc trên đó; vẽ nó thành *"đang sửa"* là một lời nói dối về chính thao tác vừa xảy ra.
- * 2. `primary` thắng `confirmed` — `DESIGN.md:380` định nghĩa nó là *"đang sửa, con trỏ ở
+ * 1. `primary` thắng `confirmed` — `DESIGN.md:380` định nghĩa nó là *"đang sửa, con trỏ ở
  *    đây"*, tức một mệnh đề về **hiện tại**; trạng thái đã xác nhận là mệnh đề về quá khứ, và
  *    vạch chỉ có một chỗ để nói.
- * 3. `confirmed` thắng `tm-rule` — một câu TM điền sẵn rồi được xác nhận **không còn** là
+ * 2. `confirmed` thắng `tm-rule` — một câu TM điền sẵn rồi được xác nhận **không còn** là
  *    *"máy đề xuất, chưa ai xác nhận"* (`EXPERIENCE.md:99`).
- * 4. `tm-rule` thắng `draft` — cả hai đều nói *"có chữ, chưa ai ký"*, nhưng `tm-rule` nói
+ * 3. `tm-rule` thắng `draft` — cả hai đều nói *"có chữ, chưa ai ký"*, nhưng `tm-rule` nói
  *    thêm **ai viết chữ đó**. Một câu máy điền rồi người sửa tay vẫn là một câu **máy khởi
  *    xướng**, và đó là thứ FR58 cần đọc được.
- * 5. `draft` thắng *không vạch* — nó **có** bản dịch, chỉ là do tay người dùng và chưa ai ký.
- * 6. Còn lại ⇒ *không vạch*, và ở đây *"còn lại"* nghĩa là **`target_text` rỗng**.
+ * 4. `draft` thắng *không vạch* — nó **có** bản dịch, chỉ là do tay người dùng và chưa ai ký.
+ * 5. Còn lại ⇒ *không vạch*, và ở đây *"còn lại"* nghĩa là **`target_text` rỗng**.
+ *
+ * 🔴 **Nhánh `ornament` đã RÚT.** Nó từng
+ * thắng cả năm nhánh trên (câu về hưu vẽ vạch mờ); UX-DR19 rút giá trị đó, và
+ * `editorPanelState.ts` đã lọc hàng về hưu ra khỏi ảnh chụp TRƯỚC khi lưới render, nên nhánh
+ * đó chết theo cấu tạo trước khi bị rút — xem doc-comment của [`SEGMENT_RULE_VALUES`].
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔵 **KHE HỞ CỦA BẢNG NĂM GIÁ TRỊ ĐÃ ĐÓNG — 2026-08-14, Story 2.5b.** Ghi cả hai lượt ký
@@ -159,7 +160,6 @@ export type SegmentRuleInput = {
  * một trạng thái mới xin chỗ. Xem [`SEGMENT_RULE_VALUES`].
  */
 export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
-  if (input.retiredAt !== null) return 'ornament'
   if (input.hasCaret) return 'primary'
   if (input.isConfirmed) return 'confirmed'
   if (input.isTmFilled) return 'tm-rule'
@@ -187,7 +187,6 @@ export function segmentRuleInputOf(
   caretSegmentId: number | null,
 ): SegmentRuleInput {
   return {
-    retiredAt: segment.retired_at,
     hasCaret: caretSegmentId === segment.id,
     // 🔴 CHUỖI `'confirmed'` VIẾT THẲNG Ở ĐÂY, KHÔNG `import` TỪ `../config/segment` — và đó
     // là một **điều kiện kỹ thuật**, không một lượt lười.

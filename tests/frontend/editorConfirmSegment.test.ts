@@ -35,13 +35,20 @@ const confirmCalls: number[] = []
  * cùng một câu thông báo cho cả hai.
  */
 const confirmMarks: string[] = []
+/**
+ * `originAtLoad`, tham số thứ ba của `confirmSegment` (FR117, AD-47) — đọc từ
+ * `ChapterSegment.translation_origin` của ảnh chụp lúc nạp Chương, cùng khuôn
+ * [`confirmMarks`] đọc `target_text`.
+ */
+const confirmOrigins: string[] = []
 /** Bật để lượt `confirmSegment` kế tiếp trả về một lỗi từ chối. */
 const failNextConfirm = { value: false }
 
-async function recordConfirm(segmentId: number, textAtLoad: string) {
+async function recordConfirm(segmentId: number, textAtLoad: string, originAtLoad: string) {
   callOrder.push('confirm')
   confirmCalls.push(segmentId)
   confirmMarks.push(textAtLoad)
+  confirmOrigins.push(originAtLoad)
   if (failNextConfirm.value) {
     failNextConfirm.value = false
     return {
@@ -105,6 +112,7 @@ beforeEach(() => {
   callOrder.length = 0
   confirmCalls.length = 0
   confirmMarks.length = 0
+  confirmOrigins.length = 0
   failNextConfirm.value = false
   midFlightHooks.length = 0
   saveIndex = 0
@@ -382,6 +390,9 @@ describe('④ FR117 — mốc so là bản LÚC NẠP, không phải văn bản 
 
     expect(confirmCalls).toEqual([12])
     expect(confirmMarks).toEqual(['Gió thổi tới từ cuối hành lang.'])
+    // Xuất xứ của id 12 trong `FIXTURE_SEGMENTS` là `'bilingual_import'` — đúng thứ ảnh chụp
+    // lúc nạp mang theo, bất kể văn bản vừa gõ.
+    expect(confirmOrigins).toEqual(['bilingual_import'])
   })
 
   /**

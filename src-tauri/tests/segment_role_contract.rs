@@ -470,8 +470,8 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
     )
     .expect("ghi ban dich that bai");
 
-    let caption_outcome = confirm_segment(Some(&opened), caption_id, "").expect("xac nhan caption that bai");
-    let prose_outcome = confirm_segment(Some(&opened), prose_id, "").expect("xac nhan van xuoi that bai");
+    let caption_outcome = confirm_segment(Some(&opened), caption_id, "", "").expect("xac nhan caption that bai");
+    let prose_outcome = confirm_segment(Some(&opened), prose_id, "", "").expect("xac nhan van xuoi that bai");
 
     assert_eq!(caption_outcome.status, "confirmed");
     assert!(caption_outcome.version_created);

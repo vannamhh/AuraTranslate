@@ -103,6 +103,7 @@ import {
   editorChapterId,
   editorConfirmError,
   editorEditedText,
+  editorFlushError,
   editorHasLoaded,
   editorLoadError,
   editorPending,
@@ -113,6 +114,9 @@ import {
   setEditorCaret,
   setEditorSourceCut,
 } from './editorPanelState'
+// 🔴 Ba nhánh từ chối của lượt khôi phục FR101 vào CHUNG một bề mặt với lỗi xác nhận/flush
+// (cột nhãn trạng thái của hàng).
+import { historyRestoreError } from './segmentHistoryState'
 import ChapterImage from '../ChapterImage.vue'
 // 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
 // là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
@@ -312,7 +316,7 @@ const selectedRowClassById = computed(() => {
 })
 
 /**
- * AC4 + Quyết định #8 — **cột nhãn trạng thái**, sáu nhãn, khoá phẳng có tiền tố miền.
+ * AC4 — **cột nhãn trạng thái**, năm nhãn, khoá phẳng có tiền tố miền.
  *
  * 🔴 Đây là cột thứ năm, và nó là **kênh đọc được** cho đúng thứ vạch lề nói bằng màu. Vạch
  * là một lớp thông tin **thị giác**; một người dùng đọc bằng bàn phím hoặc bằng trình đọc màn
@@ -324,7 +328,6 @@ const STATE_LABEL_KEYS: Readonly<Record<SegmentRuleValue, string>> = {
   draft: 'panel.grid.state_draft',
   'tm-rule': 'panel.grid.state_tm',
   none: 'panel.grid.state_untranslated',
-  ornament: 'panel.grid.state_retired',
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1564,23 +1567,79 @@ const confirmErrorKey = computed(() => editorConfirmError.value?.message_key ?? 
 const confirmErrorParams = computed(() => editorConfirmError.value?.params ?? null)
 
 /**
- * Hàng nào mang lỗi. `null` ⇒ không hàng nào.
- *
- * 🔴 Đọc `segment_id` từ **`params` của chính lỗi**, không từ *"câu đang có con trỏ"*: lượt
+ * Đọc `segment_id` từ **`params` của chính lỗi**, không từ *"câu đang có con trỏ"*: lượt
  * xác nhận **dời con trỏ sang câu kế** khi nó thành công, và ba khoá `err.segment.*` đều mang
  * `segment_id`. Gắn lỗi vào con trỏ sẽ dán nó lên **hàng sai** ngay ở ca thường nhất.
  *
  * ⚠️ `params` là dữ liệu **đã đi qua dây**, nên nó được kiểm kiểu **lúc chạy** — Rust có thể
  * trả `null` cho `params` sau một lượt đổi lược đồ, và chỗ này là chỗ duy nhất biết.
  */
-const errorSegmentId = computed<number | null>(() => {
-  const raw = confirmErrorParams.value?.segment_id
+function segmentIdFromErrorParams(params: Readonly<Record<string, string>> | null | undefined): number | null {
+  const raw = params?.segment_id
   if (raw === undefined) return null
   const id = Number(raw)
   return Number.isFinite(id) ? id : null
+}
+
+const errorSegmentId = computed<number | null>(() => segmentIdFromErrorParams(confirmErrorParams.value))
+
+// Restore (FR101) and flush (AD-35) errors join confirm errors on the same row surface.
+const restoreErrorParams = computed(() => historyRestoreError.value?.params ?? null)
+const restoreErrorSegmentId = computed<number | null>(() => segmentIdFromErrorParams(restoreErrorParams.value))
+
+/** Tập `segment.id` của lô flush vừa trượt — `editorFlushError` chở cả lô, không một câu. */
+const flushErrorSegmentIds = computed<ReadonlySet<number>>(() => new Set(editorFlushError.value?.segmentIds ?? []))
+
+/**
+ * `message_key`/`params` THẬT cho MỖI hàng đang mang lỗi — thay cho chuỗi cố định cũ
+ * `panel.grid.state_refused`. `null` ⇒ hàng không có lỗi nào, nhãn trạng thái bình thường vẽ.
+ *
+ * Thứ tự ưu tiên khi nhiều nguồn cùng trỏ vào một hàng (hiếm — ví dụ một lô flush trượt
+ * ĐÚNG hàng vừa bị từ chối xác nhận): xác nhận trước — thao tác **gần nhất, người dùng vừa
+ * chủ động bấm trên chính hàng này** — rồi khôi phục, rồi flush — một LÔ, gắn với một hàng
+ * lỏng lẻo nhất trong ba nguồn.
+ */
+const rowErrorLabelById = computed<ReadonlyMap<number, { key: string; params: Readonly<Record<string, string>> | null }>>(() => {
+  const map = new Map<number, { key: string; params: Readonly<Record<string, string>> | null }>()
+  const confirmId = errorSegmentId.value
+  if (confirmId !== null && confirmErrorKey.value !== null) {
+    map.set(confirmId, { key: confirmErrorKey.value, params: confirmErrorParams.value })
+  }
+  const restoreId = restoreErrorSegmentId.value
+  const restoreKey = historyRestoreError.value?.message_key ?? null
+  if (restoreId !== null && restoreKey !== null && !map.has(restoreId)) {
+    map.set(restoreId, { key: restoreKey, params: restoreErrorParams.value })
+  }
+  const flush = editorFlushError.value
+  if (flush !== null) {
+    for (const id of flushErrorSegmentIds.value) {
+      if (!map.has(id)) map.set(id, { key: flush.error.message_key, params: flush.error.params })
+    }
+  }
+  return map
 })
 
 const chapterId = computed(() => editorChapterId.value)
+
+// `@keydown` arrow handlers must also `.focus()` the newly active tab button: dispatch alone
+// flips `tabindex`, not DOM focus, so a second arrow press would otherwise be a no-op.
+const tabOriginalBtnRef = useTemplateRef<HTMLButtonElement>('tabOriginalBtn')
+const tabHanVietBtnRef = useTemplateRef<HTMLButtonElement>('tabHanVietBtn')
+
+/**
+ * ⚠️ HAI lời gọi `dispatch('<id>')` **TĨNH**, không một tham số ternary — `check-commands.mjs`
+ * Kiểm K đọc thân hàm bằng máy để đối chiếu HANDLER_TABLE (AD-34 §1: mọi `dispatch` phải đọc
+ * được tĩnh), và một `dispatch(cond ? 'a' : 'b')` không phải một chuỗi literal nó đọc được.
+ */
+function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+  if (target === 'original') {
+    dispatch('source.select_tab_original')
+    tabOriginalBtnRef.value?.focus()
+    return
+  }
+  dispatch('source.select_tab_han_viet')
+  tabHanVietBtnRef.value?.focus()
+}
 </script>
 
 <template>
@@ -1607,6 +1666,7 @@ const chapterId = computed(() => editorChapterId.value)
     <div v-if="hasSegments && isChinese" class="tabs" role="tablist">
       <button
         id="grid-tab-original"
+        ref="tabOriginalBtn"
         type="button"
         class="tab"
         role="tab"
@@ -1615,11 +1675,12 @@ const chapterId = computed(() => editorChapterId.value)
         :tabindex="activeTab === 'original' ? 0 : -1"
         :class="{ active: activeTab === 'original' }"
         @click="dispatch('source.select_tab_original')"
-        @keydown.right.prevent="dispatch('source.select_tab_han_viet')"
-        @keydown.left.prevent="dispatch('source.select_tab_han_viet')"
+        @keydown.right.prevent="selectTabViaArrow('han_viet')"
+        @keydown.left.prevent="selectTabViaArrow('han_viet')"
       >{{ t('panel.source.tab_original') }}</button>
       <button
         id="grid-tab-han-viet"
+        ref="tabHanVietBtn"
         type="button"
         class="tab"
         role="tab"
@@ -1628,8 +1689,8 @@ const chapterId = computed(() => editorChapterId.value)
         :tabindex="activeTab === 'han_viet' ? 0 : -1"
         :class="{ active: activeTab === 'han_viet' }"
         @click="dispatch('source.select_tab_han_viet')"
-        @keydown.right.prevent="dispatch('source.select_tab_original')"
-        @keydown.left.prevent="dispatch('source.select_tab_original')"
+        @keydown.right.prevent="selectTabViaArrow('original')"
+        @keydown.left.prevent="selectTabViaArrow('original')"
       >{{ t('panel.source.tab_han_viet') }}</button>
       <!-- aura-allow-text: cả hai nhánh đi qua t(), không chuỗi viết thẳng nào — Kiểm A2
            không đọc tĩnh được toán tử ba ngôi (cùng khuôn `LibraryMode.vue:143`). -->
@@ -1857,14 +1918,14 @@ const chapterId = computed(() => editorChapterId.value)
             :class="[
               {
                 'para-end': s.is_paragraph_end,
-                refused: errorSegmentId === s.id,
+                refused: rowErrorLabelById.has(s.id),
                 omitted: s.is_omitted,
               },
               selectedRowClassById.get(s.id),
             ]"
           >
-            <template v-if="errorSegmentId === s.id && confirmErrorKey !== null">{{
-              t('panel.grid.state_refused')
+            <template v-if="rowErrorLabelById.get(s.id)">{{
+              t(rowErrorLabelById.get(s.id)!.key, rowErrorLabelById.get(s.id)!.params ?? undefined)
             }}</template>
             <template v-else>{{ t(STATE_LABEL_KEYS[ruleById.get(s.id) ?? 'none']) }}</template>
           </div>
@@ -2100,18 +2161,18 @@ const chapterId = computed(() => editorChapterId.value)
 /*
  * 🔵 Token thứ **17**, thêm ở Story 2.5b (Quyết định #2(a), Ice ký 2026-08-14).
  *
- * ⚠️ `draft` mượn **đúng giá trị** của `ornament` ở cả hai theme, nên nó là một **cái tên mới
- * cho một màu đã kiểm** — không một màu mới chưa ai đo, và **0 cặp mới** cho `contrast.pairs`.
- * 🔴 Trùng giá trị **không** phải trùng nghĩa: `ornament` nói *đã về hưu*, `draft` nói *đã dịch
- * tay, chưa ai ký*. Hai vạch không bao giờ cùng xuất hiện — `ornament` thắng tất cả trong
- * thứ tự nhánh của `resolveSegmentRule`.
+ * ⚠️ `draft` mượn **đúng giá trị** mà token `--color-ornament` mang ở cả hai theme, nên nó là
+ * một **cái tên mới cho một màu đã kiểm** — không một màu mới chưa ai đo, và **0 cặp mới**
+ * cho `contrast.pairs`.
+ *
+ * 🔴 Vạch `ornament` (câu về hưu) đã RÚT khỏi `resolveSegmentRule`/`SEGMENT_RULE_VALUES`;
+ * khối `.rule.rule-ornament` từng đứng ngay
+ * dưới đây bị GỠ theo (một class ngoài `SEGMENT_RULE_VALUES` làm `check:commands` Kiểm I ①
+ * đỏ). Token `--color-ornament` KHÔNG bị xoá — nó còn được dùng ở nơi khác
+ * (`LookupPanel.vue`, `ImportPreviewOverlay.vue`, `ReadingMode.vue`, dấu điểm cắt ngay dưới).
  */
 .rule.rule-draft {
   background-color: var(--color-draft);
-}
-
-.rule.rule-ornament {
-  background-color: var(--color-ornament);
 }
 
 /*

@@ -58,6 +58,12 @@ quick-xml = "=0.41.0"          # core::docx -- phan tich XML cua word/document.x
 # lượt bảy (spine §Stack, 2026-09-05): MIT OR Apache-2.0, đã ghim sẵn trong Cargo.lock từ
 # trước (bắc cầu qua jieba-rs/tantivy-stemmers) — khai tường minh ở đây thêm 0 byte payload.
 regex = "=1.13.1"
+# commands::segment::confirm_segment — NFC hoá cả hai vế phép so mốc FR117,
+# composed với `trim()`, không thay nó. Rà NFR15: chỉ BẮC CẦU trước lượt này (Cargo.lock,
+# qua một phụ thuộc đã ghim), MIT OR Apache-2.0 đọc trong nguồn đã tải
+# (`~/.cargo/registry/src/…/unicode-normalization-0.1.25/Cargo.toml:50`, LICENSE-MIT và
+# LICENSE-APACHE khớp) — khai tường minh ở đây thêm 0 gói MỚI.
+unicode-normalization = "=0.1.25"
 # TRỰC TIẾP, không qua `tauri-plugin-keyring` (AD-29). core::ai / Story 4.3.
 # Feature mặc định `v1` đã kéo sẵn backend gốc của cả ba nền tảng
 # (`apple-native-keyring-store/keychain` · `windows-native-keyring-store` ·

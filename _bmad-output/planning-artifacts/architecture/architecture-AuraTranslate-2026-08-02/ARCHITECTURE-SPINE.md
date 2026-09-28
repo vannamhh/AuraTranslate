@@ -853,6 +853,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `encoding_rs` *(core::webimport — giải mã theo bảng mã đã dò; khai tường minh thêm 0 byte)* | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause ✓ |
 | `regex` *(core::cleanup — luật làm sạch dạng biểu thức chính quy; khai tường minh thêm 0 byte)* | =1.13.1 | MIT OR Apache-2.0 ✓ |
 | `dom_query` *(core::webimport::Extractor — nâng từ bắc cầu thành phụ thuộc trực tiếp; 0 gói MỚI vào `Cargo.lock`)* | =0.28.0 | MIT ✓ |
+| `unicode-normalization` *(commands::segment — NFC hoá cả hai vế phép so mốc FR117 trong `confirm_segment`; đã bắc cầu qua `Cargo.lock`, khai tường minh thêm 0 gói MỚI)* | =0.1.25 | MIT OR Apache-2.0 ✓ |
 | `zip` *(core::docx — đọc kho zip của `.docx`; thêm 0 gói MỚI, chỉ đổi từ bắc cầu sang trực tiếp)* | =8.6.0 | MIT ✓ |
 | `quick-xml` *(core::docx — phân tích `word/document.xml`/rels; khai đúng **0.41.0** để không thêm một phiên bản thứ ba)* | =0.41.0 | MIT ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |

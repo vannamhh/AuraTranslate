@@ -79,8 +79,16 @@ fn sidecar(db: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
+/// `NotFound` là hợp lệ (sidecar chưa từng tồn tại) và trả `0`; mọi
+/// lỗi `fs::metadata` KHÁC (quyền đọc, đĩa rớt, …) panic với đường dẫn + lỗi thay vì lặng
+/// lẽ trở thành cùng số `0` như "chưa tồn tại" — ca sai đó có thể lẫn với một tệp THẬT SỰ
+/// rỗng ở đúng chỗ một khẳng định đang đo kích thước.
 fn file_len(path: &Path) -> u64 {
-    fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+    match fs::metadata(path) {
+        Ok(m) => m.len(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(e) => panic!("khong doc duoc metadata cua {}: {e}", path.display()),
+    }
 }
 
 /// `Tuning` cho các ca **không** quan tâm tới checkpoint: nhịp chậm, ngưỡng vô cực, nên
@@ -560,7 +568,18 @@ const WAL_CEILING_DEN: u64 = 4;
 /// điểm chụp SỚM không nói được đỉnh đã ổn định hay chưa. Đứng yên thật (frame đếm không
 /// đổi qua nhiều lượt đọc) là điều kiện để một phép so *"đỉnh không tăng"* có nghĩa: nếu
 /// điểm chụp còn giữa chừng một lượt checkpoint, "không tăng" chỉ vì ta chưa nhìn đủ lâu.
-fn settled_wal_len(store: &Store, wal: &Path, deadline: Duration) -> u64 {
+/// Kết quả một lượt [`settled_wal_len`]. `len` một mình KHÔNG
+/// phân biệt được "3 lượt dò liên tiếp thấy đứng yên" với "hết trần mà vẫn còn đang chạy":
+/// cả hai đều trả về CÙNG một số, và số đó có thể là số bắt SỚM của lượt "còn đang chạy".
+/// `settled` mang đúng tín hiệu đó ra ngoài; mỗi chỗ gọi tự quyết định một lượt đọc CHƯA ỔN
+/// ĐỊNH nghĩa là gì cho phép khẳng định của nó (Ice: mỗi chỗ gọi một quyết định riêng,
+/// không một ngưỡng chung).
+struct WalRead {
+    len: u64,
+    settled: bool,
+}
+
+fn settled_wal_len(store: &Store, wal: &Path, deadline: Duration) -> WalRead {
     let stop = Instant::now() + deadline;
     let mut last = store.checkpoint_stats().frames_checkpointed;
     let mut stable_polls = 0u32;
@@ -574,7 +593,7 @@ fn settled_wal_len(store: &Store, wal: &Path, deadline: Duration) -> u64 {
             stable_polls = 0;
         }
     }
-    file_len(wal)
+    WalRead { len: file_len(wal), settled: stable_polls >= 3 }
 }
 
 /// **Mệnh đề 2, tái hiệu chỉnh 2026-09-13 — tự hiệu chuẩn TRONG lượt chạy.**
@@ -841,30 +860,40 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     let round_bytes = (rounds * blob) as u64;
     let written = 2 * round_bytes;
     let ceiling_verdict = wal_ceiling_holds(
-        before_writes,
-        after_first,
+        before_writes.len,
+        after_first.len,
         written,
         WAL_CEILING_NUM,
         WAL_CEILING_DEN,
     );
-    let rise_verdict = wal_peak_did_not_rise(after_first, after_second);
+    let rise_verdict = wal_peak_did_not_rise(after_first.len, after_second.len);
     // 🔴 Một nguồn duy nhất cho con số in ra VÀ cho phán quyết: chuỗi chẩn đoán lấy thẳng từ
     // `Err` của hai hàm trên, không dựng lại bằng tay. Bản 2026-09-13 vòng một tính lại
     // `ceiling`/`grown` ở đây một lần nữa để ghép câu thông báo, nên một lượt sửa công thức
     // trong hàm có thể làm câu in ra nói khác phán quyết thật mà không cổng nào bắt.
-    let grown = after_first.saturating_sub(before_writes);
+    let grown = after_first.len.saturating_sub(before_writes.len);
     let ceiling = written * WAL_CEILING_NUM / WAL_CEILING_DEN;
-    let growth = after_second.saturating_sub(after_first);
+    let growth = after_second.len.saturating_sub(after_first.len);
 
     // ⚠️ `cargo test` NUỐT stdout của ca xanh, nên dòng dưới chỉ hiện khi ca này đỏ hoặc khi
     // chạy `cargo test --test store_contract -- --nocapture`. Bốn con số này là TOÀN BỘ số
     // liệu cần để phân biệt mệnh đề nào trượt và vì sao — ghi ở đây thay vì để người sau tự
-    // dựng lại bằng tay.
+    // dựng lại bằng tay. Cờ `settled` đi kèm mỗi lượt đọc `after_*`: một lượt ĐỌC
+    // CHƯA ỔN ĐỊNH ở đây (không như `before_writes`, xem assert ngay chỗ đo) không tự nó là
+    // một lỗi -- ca ghi liên tục có thể chưa rảnh trong 500ms -- nhưng nó đổi cách đọc một
+    // lượt ĐỎ: một phán quyết trượt kèm `settled = false` có thể là tải máy, không phải hồi
+    // quy `core::store`.
     println!(
-        "\n  WAL: nền {before_writes} B (trước khi ghi) -> {after_first} B sau đợt một -> \
-         {after_second} B sau đợt hai · tổng đã ghi {written} B · [2b] đợt một lớn thêm {grown} B \
-         kể từ nền (trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN}, {:.1}%) · [2a] đợt hai \
-         đẩy đỉnh thêm {growth} B (dung sai 0)",
+        "\n  WAL: nền {} B (trước khi ghi, settled={}) -> {} B sau đợt một (settled={}) -> \
+         {} B sau đợt hai (settled={}) · tổng đã ghi {written} B · [2b] đợt một lớn thêm \
+         {grown} B kể từ nền (trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN}, {:.1}%) \
+         · [2a] đợt hai đẩy đỉnh thêm {growth} B (dung sai 0)",
+        before_writes.len,
+        before_writes.settled,
+        after_first.len,
+        after_first.settled,
+        after_second.len,
+        after_second.settled,
         (grown as f64 / written as f64) * 100.0
     );
 
@@ -996,8 +1025,14 @@ fn close_truncates_the_wal_to_nothing() {
 
     let wal = sidecar(&db, "-wal");
     let len = file_len(&wal);
+    // 🔴 `Path::exists()` nuốt MỌI lỗi stat (không chỉ `NotFound`), trả `false` cho
+    // cả hai. `try_exists()` để lỗi đi qua thành `Err`, và ca này panic thay vì đọc nhầm một
+    // lỗi thật thành "tệp đã mất, coi như 0" -- đúng lớp hỏng mà `file_len` chặn.
+    let wal_absent = !wal
+        .try_exists()
+        .unwrap_or_else(|e| panic!("khong stat duoc {}: {e}", wal.display()));
     assert!(
-        !wal.exists() || len == 0,
+        wal_absent || len == 0,
         "`.db-wal` còn {len} byte sau `close()`. Chỉ `wal_checkpoint(TRUNCATE)` cắt được \
          tệp về 0; một `close()` chỉ dừng luồng thì để nguyên nó. Chẩn đoán: {:?}",
         store.diagnostics()
@@ -1261,6 +1296,12 @@ fn one_step_runs_and_a_backup_is_written_first() {
     assert!(
         file_len(&backup) > 0,
         "bản sao lưu rỗng — `fs::copy` chạy trước khi `wal_checkpoint(TRUNCATE)` chép xong (Bẫy 5)"
+    );
+    let tmp_backup = dir.join("global.db.bak-v1.tmp");
+    assert!(
+        !tmp_backup.exists(),
+        "bản sao lưu phải đổi tên nguyên tử sang tên cuối — còn sót {}",
+        tmp_backup.display()
     );
 
     let (rows, versions) = store

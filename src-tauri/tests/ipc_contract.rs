@@ -2169,9 +2169,38 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     let promote_params = fn_param_list(segment_wire_src, "promote_ai_translation");
     assert_eq!(
         normalize_param_list(&promote_params),
-        normalize_param_list("app: tauri::AppHandle, segment_id: i64, target_text: String,"),
+        normalize_param_list(
+            "app: tauri::AppHandle, segment_id: i64, target_text: String, force: bool,"
+        ),
         "vo `promote_ai_translation` trong `pub mod wire` cua commands/segment.rs khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
          `src/config/segment.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+}
+
+/// `confirm_segment` mang tham số thứ ba `origin_at_load`, trên
+/// dây `originAtLoad`: mốc xuất xứ lúc nạp segment, cùng vai và cùng cách tin như
+/// `text_at_load`. Đổi tên/thứ tự tham số này là đổi DÂY, và `src/config/segment.ts` +
+/// `e2e/specs/segment-history-restore.e2e.mjs` là hai chỗ duy nhất gõ lại theo đúng tên đó.
+#[test]
+fn the_confirm_segment_wire_keeps_its_origin_at_load_parameter() {
+    let segment_rs =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+    let segment_src = fs::read_to_string(&segment_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
+    let wire_mod_marker = "pub mod wire {";
+    let wire_mod_start = segment_src
+        .find(wire_mod_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{wire_mod_marker}` trong {}", segment_rs.display()));
+    let segment_wire_src = &segment_src[wire_mod_start..];
+
+    let confirm_params = fn_param_list(segment_wire_src, "confirm_segment");
+    assert_eq!(
+        normalize_param_list(&confirm_params),
+        normalize_param_list(
+            "app: tauri::AppHandle, segment_id: i64, text_at_load: String, origin_at_load: String,"
+        ),
+        "vo `confirm_segment` trong `pub mod wire` cua commands/segment.rs khong con dung danh \
+         sach tham so mong doi -- doi ten/thu tu tham so la doi DAY."
     );
 }

@@ -147,7 +147,14 @@ async function freshOverlay() {
   readRecordMock.mockReset()
 
   const caretSegmentId: Ref<number | null> = ref(null)
-  vi.doMock('../../src/panels/editorPanelState', () => ({ editorCaretSegmentId: caretSegmentId }))
+  // 🔴 `AiTranslationPanel.vue` (mount ở `freshPanel()` bên dưới, cùng tệp) đọc thêm hai
+  // export này; thiếu một trong hai làm component mount trượt ở `undefined.value`, nên cả
+  // hai factory của tệp này phải giữ cùng hình dạng.
+  vi.doMock('../../src/panels/editorPanelState', () => ({
+    editorCaretSegmentId: caretSegmentId,
+    editorPendingPromote: ref(null),
+    editorPromoteAiTranslationError: ref(null),
+  }))
 
   const commands = await import('../../src/commands')
   const state = await import('../../src/aiPromptInspectorState')
@@ -196,7 +203,13 @@ async function freshPanel() {
   readRecordMock.mockResolvedValue(null)
 
   const caretSegmentId: Ref<number | null> = ref(null)
-  vi.doMock('../../src/panels/editorPanelState', () => ({ editorCaretSegmentId: caretSegmentId }))
+  // 🔴 `AiTranslationPanel.vue` mount THẬT ở hàm này đọc thêm hai export này (lỗi PROMOTE
+  // qua `tError()`, câu hỏi chống mất bản nháp).
+  vi.doMock('../../src/panels/editorPanelState', () => ({
+    editorCaretSegmentId: caretSegmentId,
+    editorPendingPromote: ref(null),
+    editorPromoteAiTranslationError: ref(null),
+  }))
 
   const commands = await import('../../src/commands')
   const state = await import('../../src/aiPromptInspectorState')

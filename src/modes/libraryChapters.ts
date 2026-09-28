@@ -29,8 +29,9 @@
  * `resetSegmentHistory` — `finishSubmit` là tiền lệ đầy đủ, xem doc-comment của nó) rồi nạp
  * lại NGAY, không để màn hình đứng ở Tác phẩm cũ vì ba chế độ sống trong `<KeepAlive>`.
  */
-import { computed, readonly, ref, watch } from 'vue'
+import { computed, nextTick, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { enterFocus } from '../commands'
 import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter, updateChapterOrigin } from '../config/chapter'
 import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
 import { openWork } from '../config/library'
@@ -325,6 +326,12 @@ export async function openWorkById(workId: string): Promise<void> {
   // thay vì "hỏng". Chờ xong rồi mới trả về làm lượt mở kế tiếp TẤT ĐỊNH.
   await ensureChapterLoaded()
   await ensureSegmentsLoaded()
+  // 🔴 TIÊU ĐIỂM phải Ở LẠI trong lưới sau lượt nạp này, cùng khuôn đuôi
+  // `await nextTick(); enterFocus('panel.grid')` của
+  // `editorPanelState.ts::switchChapter`/`openChapterById` — Vue chưa vá DOM ngay khi lượt
+  // nạp segment về, và một `enterFocus` sớm hơn là no-op.
+  await nextTick()
+  enterFocus('panel.grid')
 
   // Danh sách Chương của Tác phẩm mới — bề mặt riêng của story này. (`chapterCursor` đã về 0
   // ở khối vứt phía trên, cùng lượt với `chapters`/`chaptersHaveLoaded`.)
@@ -469,6 +476,10 @@ export async function mergeCurrentChapterUp(): Promise<void> {
     resetReadingToc()
     await ensureChapterLoaded()
     await ensureSegmentsLoaded()
+    // 🔴 Cùng khuôn đuôi của `openWorkById` ngay trên: TIÊU ĐIỂM phải Ở LẠI trong lưới sau
+    // lượt nạp lại này.
+    await nextTick()
+    enterFocus('panel.grid')
   }
 
   await loadChapters()

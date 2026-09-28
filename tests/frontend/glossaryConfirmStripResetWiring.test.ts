@@ -35,6 +35,7 @@ const HANG_GOP: ChapterSegment = {
   is_omitted: false,
   is_target_paragraph_end: true,
   role: null,
+  translation_origin: '',
 }
 
 const ketQuaGop: {

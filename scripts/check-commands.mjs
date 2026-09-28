@@ -2075,7 +2075,10 @@ const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridPanel.vue')
 // (*"đã dịch tay, chưa xác nhận, con trỏ ở chỗ khác"*), không xin một kênh thị giác cho một
 // trạng thái mới ⇒ UX-DR22 không bị đụng. Lý lẽ đầy đủ + hai lượt ký theo thứ tự ở
 // doc-comment của `src/panels/editorSegments.ts::resolveSegmentRule`.
-const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none', 'ornament']
+// 🔴 SÁU → NĂM. `'ornament'` rút khỏi danh mục: không đường sản phẩm nào cho một segment
+// về hưu còn SỐNG trong ảnh chụp khi phép phân giải chạy, nên nhánh đó chết theo cấu tạo
+// trước khi bị rút.
+const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none']
 
 if (!existsSync(EDITOR_SEGMENTS_TS)) {
   abort(`\`${posix(EDITOR_SEGMENTS_TS)}\``, new Error('Tệp không tồn tại — Kiểm I KHÔNG chạy được.'))
@@ -2106,14 +2109,14 @@ if (typeof segmentsMod.resolveSegmentRule !== 'function') {
   iBad += 1
 } else {
   const base = {
-    retiredAt: null,
     hasCaret: false,
     isConfirmed: false,
     isTmFilled: false,
     targetText: '',
   }
+  // 🔴 Ca `'ornament'` đã GỠ cùng lúc với `retiredAt` khỏi `base`: `SegmentRuleInput`
+  // không còn trường đó, và nhánh `'ornament'` không còn tồn tại để đo.
   const cases = [
-    ['ornament', { ...base, retiredAt: '2026-08-12T00:00:00.000Z', hasCaret: true, isConfirmed: true }],
     ['primary', { ...base, hasCaret: true, isConfirmed: true, isTmFilled: true }],
     ['confirmed', { ...base, isConfirmed: true, isTmFilled: true }],
     ['tm-rule', { ...base, isTmFilled: true, targetText: 'ban dich' }],
@@ -2186,7 +2189,7 @@ if (editorVue === undefined) {
   }
   for (const cls of declaredClasses) {
     if (!ruleValues.includes(cls)) {
-      fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-${cls}\` — không phải một trong sáu giá trị`)
+      fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-${cls}\` — không phải một trong năm giá trị`)
       iBad += 1
     }
   }
@@ -2372,6 +2375,11 @@ const HANDLER_TABLE = {
   'src/panels/GridPanel.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridPanel.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridPanel.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'editor.merge_segments'] },
+  // 🔴 Mũi tên trên dải tab Hán Việt gọi hàm này TRỰC TIẾP (không `dispatch('<id>')` trần),
+  // vì nó phải dời tiêu điểm DOM NGAY SAU lượt dispatch — xem doc-comment tại chỗ định nghĩa.
+  'src/panels/GridPanel.vue::selectTabViaArrow': {
+    ids: ['source.select_tab_original', 'source.select_tab_han_viet'],
+  },
   'src/panels/LookupPanel.vue::aimDictSourceFrom': { nonCommand: R_CURSOR_IMPORTED },
   'src/panels/LookupPanel.vue::moveTabFocus': { nonCommand: R_DISPATCH_VIA_PARAM },
   'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },

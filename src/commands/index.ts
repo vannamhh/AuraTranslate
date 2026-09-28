@@ -981,6 +981,15 @@ export type CommandDeps = {
    * rộng handler THẬT ở `main.ts` để đọc thêm kết quả của một LÔ (`aiTranslateBatchState.ts`)
    * cho câu đang có tiêu điểm — chữ ký dep ở đây không đổi (vẫn `() => void`). */
   promoteAiTranslate?: () => void
+  /**
+   * 🔴 Đồng ý ghi đè bản nháp chưa ký của lượt PROMOTE đang chờ (`editorPendingPromote`).
+   * Handler của `ai.translate.confirm_promote`, cùng khuôn `confirmPendingRestore` (AD-49
+   * iii).
+   */
+  confirmPendingPromote?: () => void
+  /** Giữ bản đang soạn, bỏ câu hỏi. Handler của `ai.translate.cancel_promote`, cùng khuôn
+   * `cancelPendingRestore`. */
+  cancelPendingPromote?: () => void
 
   // ── Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22) ────
   /** Dịch vùng chọn NHIỀU segment hiện tại (`segmentSelectionState.ts`) bằng bộ prompt hiệu
@@ -3622,6 +3631,26 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.promoteAiTranslate()
     },
   })
+
+  /**
+   * Same shape as `history.confirm_restore`/`history.cancel_restore`: two commands, no default
+   * keys — the dialog only appears after a held `⌘⇧↵`, reachable by Tab on its own buttons.
+   */
+  for (const [id, port] of [
+    ['ai.translate.confirm_promote', 'confirmPendingPromote'],
+    ['ai.translate.cancel_promote', 'cancelPendingPromote'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════

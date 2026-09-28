@@ -29,7 +29,11 @@ import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
+  // 🔴 Handler thật của `ai.translate.confirm_promote`/`ai.translate.cancel_promote`, cùng
+  // khuôn `confirmPendingRestore`/`cancelPendingRestore` (AD-49 iii).
+  cancelPendingPromote,
   confirmCurrentSegment,
+  confirmPendingPromote,
   editorCaretSegmentId,
   editorChapterId,
   editorSegments,
@@ -1002,6 +1006,10 @@ async function boot(): Promise<void> {
             `segmentId=${String(segmentId)}, caretId=${String(caretId)})`,
         )
       },
+      // 🔴 Câu hỏi chống mất bản nháp của PROMOTE, cùng khuôn
+      // `confirmPendingRestore`/`cancelPendingRestore`.
+      confirmPendingPromote,
+      cancelPendingPromote,
       // Story 4.9, Phase 3 · FR73/AD-22 (Decision 1) — "Dịch theo LÔ". Đọc vùng chọn HIỆN
       // HÀNH (`segmentSelectionIds`) TẠI THỜI ĐIỂM CHẠY, cùng khuôn `runAiTranslate` ngay
       // trên — module state của lô tự lấy một BẢN SAO (`.slice()`) ngay khi khởi, nên vùng

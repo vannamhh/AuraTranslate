@@ -409,6 +409,17 @@ pub enum StoreError {
         supported: u32,
     },
 
+    /// `segment.translation_origin` mang một giá trị ngoài danh mục đóng
+    /// `TRANSLATION_ORIGINS` — cùng vai với [`StoreError::SchemaTooNew`]:
+    /// một lượt ghi tương lai (hoặc một tệp hỏng) đặt vào cột này một giá trị bản ứng dụng
+    /// đang chạy không hiểu được. Không ghi một byte nào.
+    UnknownTranslationOrigin {
+        /// Kho nào.
+        store: StoreKind,
+        /// Giá trị lạ đọc được từ cột.
+        value: String,
+    },
+
     /// Job ghi chạy nhưng trả lỗi ⇒ giao dịch đã rollback, không có nửa ghi nào.
     WriteFailed {
         /// Kho nào.
@@ -459,6 +470,7 @@ impl StoreError {
             StoreError::OpenFailed { store, .. }
             | StoreError::WalUnavailable { store, .. }
             | StoreError::SchemaTooNew { store, .. }
+            | StoreError::UnknownTranslationOrigin { store, .. }
             | StoreError::WriteFailed { store, .. }
             | StoreError::Conflict { store, .. }
             | StoreError::WriterGone { store }
@@ -473,6 +485,9 @@ impl StoreError {
             StoreError::OpenFailed { .. } => MessageKey::StoreOpenFailed,
             StoreError::WalUnavailable { .. } => MessageKey::StoreWalUnavailable,
             StoreError::SchemaTooNew { .. } => MessageKey::StoreSchemaTooNew,
+            StoreError::UnknownTranslationOrigin { .. } => {
+                MessageKey::StoreUnknownTranslationOrigin
+            }
             StoreError::WriteFailed { .. } | StoreError::WriterGone { .. } => {
                 MessageKey::StoreWriteFailed
             }
@@ -494,6 +509,7 @@ impl StoreError {
             StoreError::OpenFailed { .. } => "store.open_failed",
             StoreError::WalUnavailable { .. } => "store.wal_unavailable",
             StoreError::SchemaTooNew { .. } => "store.schema_too_new",
+            StoreError::UnknownTranslationOrigin { .. } => "store.unknown_translation_origin",
             StoreError::WriteFailed { .. } => "store.write_failed",
             StoreError::Conflict { .. } => "store.conflict",
             StoreError::WriterGone { .. } => "store.writer_gone",
@@ -535,6 +551,11 @@ impl std::fmt::Display for StoreError {
             } => write!(
                 f,
                 "store[{}] schema version {found} is newer than supported {supported}",
+                store.as_str()
+            ),
+            StoreError::UnknownTranslationOrigin { store, value } => write!(
+                f,
+                "store[{}] segment.translation_origin has unknown value {value:?}",
                 store.as_str()
             ),
             StoreError::WriteFailed { store, detail } => {
@@ -581,6 +602,9 @@ impl From<StoreError> for IpcError {
                 // là `chuỗi -> chuỗi`.
                 params.insert("found".to_owned(), found.to_string());
                 params.insert("supported".to_owned(), supported.to_string());
+            }
+            StoreError::UnknownTranslationOrigin { value, .. } => {
+                params.insert("value".to_owned(), value.clone());
             }
             _ => {}
         }

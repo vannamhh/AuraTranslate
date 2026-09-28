@@ -37,6 +37,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
+use unicode_normalization::UnicodeNormalization;
+
 use crate::commands::project::OpenWork;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::lifecycle::LifecycleStatus;
@@ -290,6 +292,11 @@ pub struct ChapterSegment {
     pub is_omitted: bool,
     pub is_target_paragraph_end: bool,
     pub role: Option<String>,
+    /// Xuất xứ của [`Self::target_text`] — một trong [`TRANSLATION_ORIGINS`], `""` khi chưa
+    /// một lượt ghi không-phải-người-dùng nào đặt nó. Đây là mốc mà [`confirm_segment`] cần
+    /// làm `origin_at_load`: webview giữ nguyên giá trị này song song với `target_text` từ
+    /// lúc Chương được nạp cho tới lượt ký kế tiếp, không đọc lại cột này giữa chừng.
+    pub translation_origin: String,
 }
 
 /// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
@@ -904,7 +911,7 @@ pub fn restore_segment_version(
 fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = conn.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end, role \
+         is_omitted, is_target_paragraph_end, role, translation_origin \
          FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
     )?;
     let rows = stmt.query_map([chapter_id], |row| {
@@ -926,6 +933,7 @@ fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<V
             is_omitted: omitted != 0,
             is_target_paragraph_end: target_para_end != 0,
             role: row.get(9)?,
+            translation_origin: row.get(10)?,
         })
     })?;
     rows.collect::<SqlResult<Vec<ChapterSegment>>>()
@@ -2073,17 +2081,25 @@ pub const TRANSLATION_ORIGINS: [&str; 4] = [
 // Story 4.8, Phase 2 — lượt PROMOTE một kết quả AI vào Editor (AD-47①, AD-47③, `⌘⇧↵`)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Kết quả một lượt PROMOTE — thứ đi ra qua dây. Story 4.8 (FR72, AD-47①/③).
+/// Kết quả một lượt PROMOTE — thứ đi ra qua dây. Story 4.8 (FR72, AD-47①/③); `force`/
+/// `needs_confirmation` theo khuôn AD-49 iii.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PromoteAiTranslationOutcome {
     /// Segment vừa được ghi.
     pub segment_id: i64,
     /// Văn bản vừa ghi — webview mirror lại bằng `replaceEditorSegment` (§Code Map spec 4.8:
     /// "that mirror is not cosmetic — the confirm baseline is read from the loaded snapshot").
+    /// Khi `needs_confirmation`, đây là văn bản HIỆN CÓ trên đĩa (không đổi), không phải đề
+    /// xuất AI sắp ghi đè.
     pub target_text: String,
-    /// Luôn `TRANSLATION_ORIGIN_OTHER` khi `Ok` — trả lại để webview không phải tự nhớ hằng số
-    /// này, cùng khuôn mọi outcome khác của tệp này trả nguyên trạng thái SAU lượt ghi.
+    /// Xuất xứ SAU lượt gọi. Khi `needs_confirmation`, đây là xuất xứ hiện có (không đổi).
     pub translation_origin: String,
+    /// 🔴 **Lượt ghi bị GIỮ LẠI vì nó sắp xoá vĩnh viễn một bản nháp chưa từng được ký** — cùng
+    /// khuôn [`RestoreOutcome::needs_confirmation`] (FR101). Khi `true`,
+    /// **không một byte nào được ghi**; webview hỏi lại người dùng rồi gọi lại với `force = true`.
+    pub needs_confirmation: bool,
+    /// Bản nháp sắp bị ghi đè. `Some` khi và chỉ khi `needs_confirmation`.
+    pub unsigned_draft: Option<String>,
 }
 
 /// Ghi một kết quả AI vào `target_text` **và** đặt `translation_origin = TRANSLATION_ORIGIN_OTHER`
@@ -2100,34 +2116,71 @@ pub struct PromoteAiTranslationOutcome {
 /// đã CHỐT sẵn giá trị xuất xứ cho đúng cơ chế này (*"Đưa đề xuất AI sang Editor"* → **người
 /// khác dịch**), không có nhánh thứ hai để mà phân xử.
 ///
+/// Mirrors `restore_segment_version`'s unsigned-draft guard (AD-49 iii): an unconditional write
+/// here would destroy a draft with no copy in `segment_version`; the caller must flush first.
+///
 /// # Lỗi
 /// - chưa có Tác phẩm nào đang mở ⇒ `work.none_open`;
-/// - `segment_id` không có trong `project.db` của Tác phẩm đang mở ⇒ `segment.not_found`
-///   (`0` hàng bị `UPDATE` chạm tới).
+/// - `segment_id` không có trong `project.db` của Tác phẩm đang mở ⇒ `segment.not_found`.
 pub fn promote_ai_translation(
     open: Option<&OpenWork>,
     segment_id: i64,
     target_text: &str,
+    force: bool,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
     let payload = target_text.to_owned();
-    let changed = open.store.write(move |tx: &Transaction<'_>| {
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        let found = tx.query_row(
+            "SELECT target_text, translation_origin FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        );
+        let (current_text, current_origin) = match found {
+            Ok(value) => value,
+            Err(SqlError::QueryReturnedNoRows) => return Ok(None),
+            Err(err) => return Err(err),
+        };
+
+        // Cùng phép so VĂN BẢN của `restore_segment_version` — "chưa từng được ký" nghĩa là
+        // KHÔNG có bản sao trong `segment_version`, không một cờ `dirty`. Cùng miễn trừ
+        // `!current_text.is_empty()`: một `target_text` RỖNG không có gì để mất.
+        if !force && !current_text.is_empty() {
+            let has_copy: i64 = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM segment_version \
+                 WHERE segment_id = ?1 AND target_text = ?2)",
+                (segment_id, &current_text),
+                |row| row.get(0),
+            )?;
+            if has_copy == 0 {
+                // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
+                return Ok(Some((current_text, current_origin, true)));
+            }
+        }
+
         tx.execute(
             "UPDATE segment SET target_text = ?1, translation_origin = ?2, \
              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?3",
             (&payload, TRANSLATION_ORIGIN_OTHER, segment_id),
-        )
+        )?;
+
+        Ok(Some((payload, TRANSLATION_ORIGIN_OTHER.to_owned(), false)))
     })?;
 
-    if changed == 0 {
+    let Some((target_text, translation_origin, needs_confirmation)) = outcome else {
         return Err(segment_not_found(segment_id));
-    }
+    };
+    // `target_text` already holds the draft when `needs_confirmation`: that branch of the
+    // write closure above returns `current_text` unchanged (see the struct field doc).
+    let unsigned_draft = needs_confirmation.then(|| target_text.clone());
 
     Ok(PromoteAiTranslationOutcome {
         segment_id,
-        target_text: target_text.to_owned(),
-        translation_origin: TRANSLATION_ORIGIN_OTHER.to_owned(),
+        target_text,
+        translation_origin,
+        needs_confirmation,
+        unsigned_draft,
     })
 }
 
@@ -2282,9 +2335,10 @@ enum ConfirmReject {
 ///
 /// 🔵 **Phép so đó cắt khoảng trắng bao ngoài cả hai vế** — chữ ký thứ **mười** của Ice
 /// (2026-08-16, từ một lượt code review). AC4 viết *"so văn bản đích hiện tại với bản lúc
-/// nạp"* và chữ đó là so **nguyên văn**; `trim()` đọc rộng mệnh đề ấy ra. Lý do đầy đủ, kèm
-/// cái giá và vế **chưa** phủ *(chuẩn hoá Unicode)*, ở ngay chỗ dùng — tìm `🔵 Code review
-/// 2026-08-16` trong thân hàm.
+/// nạp"* và chữ đó là so **nguyên văn**; `trim()` đọc rộng mệnh đề ấy ra. Phép so cũng áp
+/// dụng `.nfc()` lên cả hai vế, composed với `trim()`, nên hai chuỗi giống hệt trên màn hình
+/// mà khác dạng tổ hợp Unicode (NFC/NFD) không bị coi là một lượt sửa — lý do đầy đủ ở ngay
+/// chỗ dùng, trong thân hàm.
 ///
 /// 🔴 **Vì sao tham số này đến từ webview chứ không đọc ở đây** — Quyết định #2 đường (b),
 /// Ice ký 2026-08-16. Mốc **không tồn tại trên đĩa**: đĩa bị ghi đè dần theo từng lượt flush
@@ -2325,6 +2379,7 @@ pub fn confirm_segment(
     open: Option<&OpenWork>,
     segment_id: i64,
     text_at_load: &str,
+    origin_at_load: &str,
 ) -> Result<ConfirmOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
@@ -2335,6 +2390,8 @@ pub fn confirm_segment(
     // di sang luong writer cua AD-11), nen mot `&str` muon tu chi goi KHONG song qua duoc bien
     // do. Day la mot phep chep DUY NHAT mot lan cho ca luot goi, khong mot phep chep moi hang.
     let text_at_load = text_at_load.to_owned();
+    // Same reason and same single copy as `text_at_load`; the webview holds both for the panel session.
+    let origin_at_load = origin_at_load.to_owned();
 
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let set_reject = |r: ConfirmReject| {
@@ -2423,23 +2480,23 @@ pub fn confirm_segment(
         // va chu do la so NGUYEN VAN. `trim()` doc rong menh de ay ra — mot khoang trang cuoi
         // nguoi dung CO Y go THOI duoc coi la mot luot sua. Ice chot doi do 2026-08-16.
         //
-        // ⚠️ Chua phu, va phai noi ra thay vi de nguoi sau tuong da xet: chuan hoa Unicode
-        // (NFC/NFD). Hai chuoi trong GIONG HET nhau tren man hinh van khac nhau tung byte neu
-        // mot ben dung ky tu dung san va ben kia dung dau ket hop. Doi do can mot phu thuoc
-        // MOI (`unicode-normalization`) nen no phai di qua cua ra giay phep NFR15 truoc — ghi
-        // no vao so no, khong tien tay cai.
+        // Chuan hoa Unicode (NFC), composed voi `trim()` chu khong thay no: hai chuoi trong
+        // GIONG HET nhau tren man hinh van khac nhau tung byte neu mot ben dung ky tu dung
+        // san va ben kia dung dau ket hop. `.nfc()` la mot iterator; `collect::<String>()` roi
+        // so bang `==` cung khuon voi phep so `str` thuong.
         //
-        // ⚠️ GIOI HAN THAT cua ca phep va nay, do 2026-08-16: hom nay no khong doi mot ket qua
-        // nao. Tap gia tri that tren dia la `{'', 'self'}` (buoc 11 backfill `confirmed`→
-        // `self`, `insert_segments` ghi `''`, chinh cau `UPDATE` duoi day ghi `self`), ma `''`
-        // roi vao ve `is_empty()` ⇒ `self`, con `'self'` thi HAI nhanh cho cung ket qua. ⇒ Ban
-        // va nay la mot lop chan dat TRUOC cho Epic 4/6/7/8 — Epic dau tien sinh ra `other`
-        // hay `bilingual_import` la Epic dau tien phep so nay co he qua.
-        let origin = if target_text.trim() != text_at_load.trim() || translation_origin.is_empty()
-        {
+        // ⚠️ Nhanh GIU NGUYEN tra `origin_at_load`, khong tra `translation_origin` doc song
+        // tren dia: mot lan ky thu hai trong cung phien panel (ky → sua → ky lai → sua ve
+        // dung van ban luc nap → ky lan nua) phai tra ve xuat xu LUC NAP, khong phai xuat xu
+        // `self` ma luot ky DAU trong cung phien vua ghi. `translation_origin` doc o buoc ①
+        // van giu vai tro cu: phan biet "chua tung co luot ghi khong-phai-nguoi-dung nao"
+        // (rong ⇒ nhanh `self`) voi "co, va webview khai dung no o luc nap".
+        let target_nfc: String = target_text.trim().nfc().collect();
+        let text_at_load_nfc: String = text_at_load.trim().nfc().collect();
+        let origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
             TRANSLATION_ORIGIN_SELF
         } else {
-            translation_origin.as_str()
+            origin_at_load.as_str()
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
@@ -3059,12 +3116,10 @@ fn write_regroup(
     //   giữ nguyên `ord`).
     // - `ord_dau_nhom <= k < ord_dau_nhom + K` — ảnh neo TẠI HOẶC BÊN TRONG nhóm cũ (kể cả
     //   ranh giới "ngay sau segment CUỐI của nhóm cũ", trường hợp THƯỜNG GẶP nhất — ảnh
-    //   đứng giữa hai khối mà một lượt gộp/tách vừa chạm đúng ranh giới đó). CHỌN CÓ CHỦ:
-    //   snap ảnh về NGAY SAU nhóm MỚI (`ord_dau_nhom + M - 1`) — nhóm cũ không còn tồn tại
-    //   dưới hình dạng cũ để mà trỏ vào GIỮA nó nữa, và "sau nhóm" giữ ảnh gần nhất với
-    //   phần văn bản nó từng đứng cạnh. Đây là một QUYẾT ĐỊNH CHƯA CÓ ICE KÝ RIÊNG cho đúng
-    //   ca biên này (Ice chốt CƠ CHẾ dời số nói chung, không chốt hướng snap của ca mơ hồ
-    //   này) — ghi rõ để không ai đọc nhầm là đã có phép đo đứng sau.
+    //   đứng giữa hai khối mà một lượt gộp/tách vừa chạm đúng ranh giới đó). Snap ảnh về
+    //   NGAY SAU nhóm MỚI (`ord_dau_nhom + M - 1`) — nhóm cũ không còn tồn tại dưới hình
+    //   dạng cũ để mà trỏ vào GIỮA nó nữa, và "sau nhóm" giữ ảnh gần nhất với phần văn bản
+    //   nó từng đứng cạnh. Hướng snap này là quyết định đã chốt cho đúng ca biên này.
     // - `k >= ord_dau_nhom + K` — ảnh neo SAU TRỌN nhóm cũ: dời đúng `M - K` (cùng công thức
     //   segment dùng ở bước ③: một segment tại `ord` p >= ord_dau_nhom+K có `ord` mới =
     //   p - K + M).
@@ -3171,7 +3226,7 @@ fn write_regroup(
 fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = tx.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end, role FROM segment WHERE id = ?1",
+         is_omitted, is_target_paragraph_end, role, translation_origin FROM segment WHERE id = ?1",
     )?;
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
@@ -3194,6 +3249,7 @@ fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSe
                 // đọc lại `NULL` ở đây: vai KHÔNG nhân bản, AD-5 về hưu + tạo mới đúng nghĩa
                 // "một câu mới không thừa kế vai của câu cũ".
                 role: row.get(9)?,
+                translation_origin: row.get(10)?,
             })
         })?);
     }
@@ -3619,6 +3675,10 @@ pub mod wire {
     /// ghi đè dần theo từng lượt flush AD-35)*. Lý do đầy đủ ở doc-comment của
     /// [`super::confirm_segment`]; Quyết định #2 đường (b), Ice ký 2026-08-16.
     ///
+    /// 🔴 **Tham số thứ ba `origin_at_load`, trên dây là `originAtLoad`.** Cùng
+    /// vai và cùng cách tin như `text_at_load`: xuất xứ segment **lúc nạp**, do webview giữ
+    /// song song với mốc văn bản. Lý do đầy đủ ở doc-comment của [`super::confirm_segment`].
+    ///
     /// 🔴 Vỏ này **không** phân xử một chữ nào — nó chuyển nguyên văn tham số xuống hàm thuần.
     /// Cùng luật đã ghi cho `flush_segment_targets`: đo 2026-08-14 cho thấy một quyết định đặt
     /// ở vỏ đi qua **54/54 xanh** vì `tests/**` gọi vỏ không được *(nó cần `AppHandle`)*.
@@ -3627,16 +3687,17 @@ pub mod wire {
         app: tauri::AppHandle,
         segment_id: i64,
         text_at_load: String,
+        origin_at_load: String,
     ) -> Result<ConfirmOutcome, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::confirm_segment(None, segment_id, &text_at_load);
+            return super::confirm_segment(None, segment_id, &text_at_load, &origin_at_load);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::confirm_segment(guard.as_ref(), segment_id, &text_at_load)
+        super::confirm_segment(guard.as_ref(), segment_id, &text_at_load, &origin_at_load)
     }
 
     /// Vỏ IPC của [`super::set_segment_omitted`] — Story 2.5c, FR133.
@@ -3756,17 +3817,22 @@ pub mod wire {
         super::restore_segment_version(guard.as_ref(), segment_id, version_id, force)
     }
 
-    /// Vỏ IPC của [`super::promote_ai_translation`]. Story 4.8 · FR72 · AD-47①/③.
+    /// Vỏ IPC của [`super::promote_ai_translation`]. Story 4.8 · FR72 · AD-47①/③; `force`
+    /// theo khuôn AD-49 iii.
     ///
-    /// ⚠️ Hai tham số đi trên dây dưới tên **`segmentId`** · **`targetText`** — `invoke()` gửi
-    /// tham số ở dạng camelCase. Trường của [`PromoteAiTranslationOutcome`] **trả về** giữ
-    /// `snake_case`.
+    /// ⚠️ Ba tham số đi trên dây dưới tên **`segmentId`** · **`targetText`** · **`force`** —
+    /// `invoke()` gửi tham số ở dạng camelCase. Trường của [`PromoteAiTranslationOutcome`]
+    /// **trả về** giữ `snake_case`.
+    ///
+    /// 🔴 `force = false` là lượt gọi **thứ nhất**; nếu nó về với `needs_confirmation = true`
+    /// thì **không một byte nào đã được ghi** và webview phải hỏi lại người dùng trước khi
+    /// gọi lại với `force = true` — cùng khuôn [`restore_segment_version`] ngay trên.
     ///
     /// ⚠️ **Nghĩa vụ của tầng gọi:** đây là lượt ghi non-user (AD-47①) — nó KHÔNG đọc bộ đệm
     /// gõ dở của Editor, nên không có "flush trước" nào cần đợi ở đây (khác
     /// `restore_segment_version`/`merge_segments`). Phía webview mirror kết quả bằng
-    /// `replaceEditorSegment` NGAY sau lượt gọi này thành công — đó là nửa còn lại của AD-47①(a)
-    /// (§Code Map spec 4.8), không phải việc của vỏ Rust.
+    /// `replaceEditorSegment` NGAY sau lượt gọi này thành công (`needs_confirmation = false`)
+    /// — đó là nửa còn lại của AD-47①(a) (§Code Map spec 4.8), không phải việc của vỏ Rust.
     ///
     /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho.
     #[tauri::command]
@@ -3774,16 +3840,17 @@ pub mod wire {
         app: tauri::AppHandle,
         segment_id: i64,
         target_text: String,
+        force: bool,
     ) -> Result<PromoteAiTranslationOutcome, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::promote_ai_translation(None, segment_id, &target_text);
+            return super::promote_ai_translation(None, segment_id, &target_text, force);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::promote_ai_translation(guard.as_ref(), segment_id, &target_text)
+        super::promote_ai_translation(guard.as_ref(), segment_id, &target_text, force)
     }
 
     /// Vỏ IPC của [`super::merge_segments`]. Story 2.8 · FR78 · AD-5 · AC1.

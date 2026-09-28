@@ -134,6 +134,14 @@ message_keys! {
     StoreConflict => "err.store.conflict" ["store"],
     /// Một job đọc trượt.
     StoreReadFailed => "err.store.read_failed" ["store"],
+    /// `segment.translation_origin` mang một giá trị NGOÀI [`TRANSLATION_ORIGINS`]
+    /// — một `.atproj` do một bản tương lai/hỏng ghi ra. Ứng dụng từ
+    /// chối mở, cùng mức nghiêm trọng và cùng lý do với [`MessageKey::StoreSchemaTooNew`]:
+    /// mở một kho mang một giá trị lược đồ không hiểu được là mở một cánh cửa mà lượt ghi
+    /// tiếp theo không lường được hậu quả.
+    ///
+    /// [`TRANSLATION_ORIGINS`]: crate::commands::segment::TRANSLATION_ORIGINS
+    StoreUnknownTranslationOrigin => "err.store.unknown_translation_origin" ["store", "value"],
 
     // ─────────────────────────────────────────────────────────────────────────
     // TẦNG TÁC PHẨM + ĐƯỜNG NHẬP — Story 1.15 (AD-9 · AD-33 · AD-39)

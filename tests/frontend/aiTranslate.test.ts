@@ -146,6 +146,11 @@ async function freshPanel() {
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
     promoteAiTranslationToEditor: (...args: unknown[]) => promoteMock(...args),
+    // 🔴 `AiTranslationPanel.vue` đọc thêm hai export này (lỗi PROMOTE qua `tError()`, câu
+    // hỏi chống mất bản nháp). Factory này thay THẲNG cả module — thiếu một export ở đây là
+    // `undefined.value` lúc component mount, không phải một cảnh báo im lặng.
+    editorPendingPromote: ref(null),
+    editorPromoteAiTranslationError: ref(null),
   }))
 
   const commands = await import('../../src/commands')

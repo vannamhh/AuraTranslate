@@ -46,7 +46,7 @@ import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
 import { t, tError } from '../i18n'
 import { loadPromptSets, promptSets, selectedPromptSetName, setSelectedPromptSetName } from '../promptSetState'
-import { editorCaretSegmentId } from './editorPanelState'
+import { editorCaretSegmentId, editorPendingPromote, editorPromoteAiTranslationError } from './editorPanelState'
 import {
   aiPromptAssembleBusy,
   aiPromptAssembleError,
@@ -497,6 +497,39 @@ const canRetryAiTranslateBatch = computed<boolean>(
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
         {{ tError(aiTranslateError) }}
       </p>
+      <!--
+        🔴 `editorPromoteAiTranslationError` được export mà không component nào đọc: một
+        lượt PROMOTE bị Rust từ chối (`segment.not_found`, `work.none_open`, …) không đổi một
+        pixel nào. Cùng khuôn `.ai-translate-alert` ngay trên, cùng surface với lỗi dịch.
+      -->
+      <p
+        v-if="editorPromoteAiTranslationError !== null"
+        class="ai-translate-alert"
+        role="alert"
+        data-ai-translate-promote-alert
+      >
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(editorPromoteAiTranslationError) }}
+      </p>
+      <!--
+        🔴 CÂU HỎI CHỐNG MẤT BẢN NHÁP CỦA PROMOTE, cùng khuôn câu hỏi của
+        `SegmentHistoryOverlay.vue` (không `window.confirm()`, không một lớp phủ thứ hai —
+        xem lý do đầy đủ ở đó).
+      -->
+      <div v-if="editorPendingPromote !== null" class="ai-promote-confirm">
+        <p class="ai-promote-confirm-title">{{ t('panel.ai_translation.promote_confirm_title') }}</p>
+        <p class="ai-promote-confirm-body">{{ t('panel.ai_translation.promote_confirm_body') }}</p>
+        <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — chính bản dịch họ vừa gõ, không một chuỗi giao diện. -->
+        <p class="ai-promote-draft">{{ editorPendingPromote.draft }}</p>
+        <div class="ai-promote-confirm-acts">
+          <button type="button" class="ai-promote-act" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+            {{ t('panel.ai_translation.promote_confirm_accept') }}
+          </button>
+          <button type="button" class="ai-promote-act" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+            {{ t('panel.ai_translation.promote_confirm_cancel') }}
+          </button>
+        </div>
+      </div>
       <p v-if="isAiTranslateStale && aiTranslateAccumulatedText !== ''" class="ai-translate-stale" role="status" data-ai-translate-stale-notice>
         <!-- aura-allow-text: KẾT QUẢ của t() (nội suy hai số câu). -->
         {{
@@ -826,5 +859,59 @@ const canRetryAiTranslateBatch = computed<boolean>(
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   color: var(--color-on-surface);
+}
+
+/*
+ * 🔴 Câu hỏi chống mất bản nháp của PROMOTE. Token và khuôn CHÉP NGUYÊN từ
+ * `.hist-confirm*`/`.hist-draft`/`.hist-act` của `SegmentHistoryOverlay.vue` — cùng câu hỏi,
+ * hai bề mặt khác nhau.
+ */
+.ai-promote-confirm {
+  margin-bottom: var(--space-panel-block);
+  padding: var(--space-panel-block);
+  border: 1px solid var(--color-outline);
+}
+
+.ai-promote-confirm-title {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
+.ai-promote-confirm-body {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-promote-draft {
+  margin: 0 0 var(--space-panel-block) 0;
+  padding: var(--space-panel-block);
+  border-left: 2px solid var(--color-draft);
+  font-family: var(--face-read-sm);
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
+  color: var(--color-on-surface);
+}
+
+.ai-promote-confirm-acts {
+  display: flex;
+  gap: var(--space-panel-inline);
+}
+
+.ai-promote-act {
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
 }
 </style>

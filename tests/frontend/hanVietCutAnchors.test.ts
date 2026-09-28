@@ -24,6 +24,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SourceHanViet from '../../src/panels/SourceHanViet.vue'
 import type { SegmentTermSpan } from '../../src/panels/glossaryMarksMap'
+import { sourceCutOffsetOf } from '../../src/panels/editorSegments'
 
 /** Nguyên văn có **đủ ba** loại mẩu: chữ Hán · mảnh không-Hán dài 2 · một chữ Hán nữa. */
 const NGUYEN_VAN = '京都」，春風'
@@ -108,6 +109,43 @@ describe('SourceHanViet — neo chỗ cắt phát ra DOM', () => {
     const word = w.find('.hv-word')
     expect(word.exists()).toBe(true)
     expect(word.attributes('data-src-atomic')).toBe('1')
+    w.unmount()
+  })
+
+  /**
+   * 🔴 KHOẢNG TRỐNG TÍCH HỢP giữa hai tệp đã xanh riêng rẽ.
+   *
+   * `editorSourceCut.test.ts` canh `sourceCutOffsetOf()` **tôn trọng** neo trên DOM DỰNG
+   * BẰNG TAY (kể cả ca `<rt>` ⇒ `null`, dòng `③c`); tệp này canh `SourceHanViet.vue` PHÁT
+   * đúng neo. Không ca nào của HAI tệp gọi `sourceCutOffsetOf` trên DOM do CHÍNH component
+   * dựng — một lượt sửa template làm sai HÌNH DẠNG mà cả hai vế riêng vẫn xanh sẽ lọt qua
+   * đúng như đột biến `data-src-atomic` đã lọt ở khối lý do đầu tệp.
+   *
+   * `parallel` dùng `<ruby>`/`<rt>` THẬT (không mô phỏng bằng `READING_PLACEHOLDER` như
+   * `switch`), nên nó là kiểu duy nhất khớp được với ca `<rt>` mà `editorSourceCut.test.ts`
+   * đã canh trên DOM tay — ở đây canh lại đúng mệnh đề đó trên DOM THẬT.
+   */
+  it('🔴 tích hợp: `sourceCutOffsetOf` trên DOM THẬT của `SourceHanViet` (kiểu `parallel`) — nội dung `<rt>` bị BỎ QUA khỏi phép đếm, base `<ruby>` trả đúng neo', () => {
+    const w = dung('parallel')
+    const cell = w.element
+
+    // Nhóm Hán ĐẦU TIÊN ('京都', neo tại chỉ số 0) — atomic, đọc offset TRỰC TIẾP từ neo,
+    // bất kể `offsetInNode`/node nào bên trong nó, KỂ CẢ chính ký tự Hán.
+    const unit = w.find('.hv-unit')
+    expect(unit.exists()).toBe(true)
+    const rubyTextNode = unit.element.querySelector('ruby')?.firstChild
+    expect(rubyTextNode?.nodeType).toBe(3)
+    expect(sourceCutOffsetOf(cell, rubyTextNode as Node, 1)).toBe(0)
+
+    // Bấm THẲNG vào `<rt>` (âm Hán Việt) ⇒ `null` — cùng mệnh đề `③c` của
+    // `editorSourceCut.test.ts`, nay đo trên markup component THẬT sinh ra, không hàng rào
+    // tay dựng.
+    const rt = unit.element.querySelector('rt')
+    expect(rt).not.toBeNull()
+    const rtTextNode = rt?.firstChild
+    expect(rtTextNode?.nodeType).toBe(3)
+    expect(sourceCutOffsetOf(cell, rtTextNode as Node, 0)).toBeNull()
+
     w.unmount()
   })
 })

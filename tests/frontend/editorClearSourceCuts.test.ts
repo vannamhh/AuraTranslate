@@ -62,6 +62,10 @@ async function mountEditor() {
   // nếu không cổng dưới đây đọc một thể hiện module khác thể hiện mà ca test bật lên.
   const quickAdd = await import('../../src/glossaryQuickAddState')
   const confirmStrip = await import('../../src/glossaryConfirmStripState')
+  // 🔴 Cùng lý do dòng trên: hai dải state nạp trong CÙNG lượt `resetModules()` với
+  // `commands`/`editorClearSourceCuts`.
+  const history = await import('../../src/panels/segmentHistoryState')
+  const shortcuts = await import('../../src/config/shortcutsState')
   const { clearSourceCuts } = await import('../../src/editorClearSourceCuts')
   // 🔴 **PHẢI gọi `installCommands` — `dispatch` NÉM với một id chưa đăng ký.** Ca ③ đi qua
   // `onEditKeydown` → `dispatch('editor.clear_source_cuts')`, tức **đúng đường sản phẩm**;
@@ -85,7 +89,7 @@ async function mountEditor() {
   daMount.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, quickAdd, confirmStrip, wrapper }
+  return { state, commands, quickAdd, confirmStrip, history, shortcuts, wrapper }
 }
 
 /** Chỉ NẠP (không `resetModules`, không mount) — trả giá dịch một lần của `GridPanel.vue` (nó
@@ -98,6 +102,8 @@ async function warmModules() {
     import('../../src/panels/GridPanel.vue'),
     import('../../src/glossaryQuickAddState'),
     import('../../src/glossaryConfirmStripState'),
+    import('../../src/panels/segmentHistoryState'),
+    import('../../src/config/shortcutsState'),
     import('../../src/editorClearSourceCuts'),
   ])
 }
@@ -248,6 +254,40 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
 
     confirmStrip.syncGlossaryConfirmStripTarget(11, SEG_CHO_CHOT, true, [MARK_CHO_CHOT])
     expect(confirmStrip.confirmStripIsOpen.value).toBe(true)
+
+    commands.dispatch('editor.clear_source_cuts')
+
+    expect(state.editorSourceCut.value?.offsets).toEqual([2])
+  })
+
+  /**
+   * 🔴 Hai bề mặt nữa dùng bare-`Escape` của riêng chúng: `SegmentHistoryOverlay` (lịch sử
+   * phiên bản, Story 2.6) và `ShortcutsOverlay` (bảng phím, Story 1.21). Cùng lớp lỗi ⑥/⑦
+   * ngay trên, hai bề mặt mới.
+   *
+   * Đối chứng GỠ đã chạy tay: xoá `historyIsOpen.value ||` khỏi cổng ⇒ ca ⑥b đỏ đúng lý do
+   * (tập điểm cắt bị xoá dù lớp phủ lịch sử đang mở); khôi phục lại ⇒ xanh. Cùng thao tác cho
+   * `shortcutsOverlayIsOpen.value ||` và ca ⑦b.
+   */
+  it('🔴 ⑥b lớp phủ LỊCH SỬ PHIÊN BẢN đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
+    const { state, commands, history } = await mountEditor()
+    state.setEditorSourceCut(11, 2)
+    state.setEditorSourceCut(11, 4)
+
+    history.openSegmentHistory()
+    expect(history.historyIsOpen.value).toBe(true)
+
+    commands.dispatch('editor.clear_source_cuts')
+
+    expect(state.editorSourceCut.value?.offsets).toEqual([2, 4])
+  })
+
+  it('🔴 ⑦b lớp phủ BẢNG PHÍM đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
+    const { state, commands, shortcuts } = await mountEditor()
+    state.setEditorSourceCut(11, 2)
+
+    shortcuts.openShortcuts()
+    expect(shortcuts.shortcutsOverlayIsOpen.value).toBe(true)
 
     commands.dispatch('editor.clear_source_cuts')
 

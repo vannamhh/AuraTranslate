@@ -270,7 +270,7 @@ export function setEditorCaret(id: number | null): void {
  */
 export function replaceEditorSegment(
   id: number,
-  patch: Partial<Pick<ChapterSegment, 'target_text' | 'status'>>,
+  patch: Partial<Pick<ChapterSegment, 'target_text' | 'status' | 'translation_origin'>>,
 ): void {
   const index = segments.value.findIndex((s) => s.id === id)
   if (index < 0) return
@@ -285,7 +285,23 @@ export const editorPromoteAiTranslationError: DeepReadonly<Ref<IpcError | null>>
   promoteAiTranslationError,
 )
 
-export type PromoteAiTranslationToEditorResult = 'promoted' | 'refused'
+export type PromoteAiTranslationToEditorResult = 'promoted' | 'refused' | 'needs-confirmation'
+
+/**
+ * Bản nháp đang chờ người dùng đồng ý ghi đè, cùng khuôn
+ * `segmentHistoryState.ts::PendingRestore`/`historyPendingRestore`.
+ */
+export type PendingPromote = {
+  segmentId: number
+  /** Văn bản AI sắp ghi — chỗ gọi lại `promoteAiTranslationToEditor` với chính nó + `force`. */
+  text: string
+  /** Bản nháp SẮP MẤT, để HIỆN nó ra chứ không chỉ nói "có thứ sẽ mất". */
+  draft: string
+}
+
+const pendingPromote = shallowRef<PendingPromote | null>(null)
+/** Đang chờ đồng ý ghi đè một bản nháp AI PROMOTE chưa ký. `null` ⇒ không câu nào đang chờ. */
+export const editorPendingPromote: DeepReadonly<Ref<PendingPromote | null>> = readonly(pendingPromote)
 
 /**
  * **Đưa một kết quả AI vào Editor** — Story 4.8 · FR72 · AD-47①/③, `⌘⇧↵`.
@@ -305,20 +321,69 @@ export type PromoteAiTranslationToEditorResult = 'promoted' | 'refused'
  *
  * KHÔNG BAO GIỜ NÉM — chỗ gọi là một hợp âm bàn phím, và *"một hợp âm không bao giờ ném"* là
  * luật chung của mọi hàm chạy từ đó trong kho này.
+ *
+ * `force` defaults to `false`; `needs_confirmation = true` means nothing was written yet and
+ * [`editorPendingPromote`] carries the draft — the caller re-asks, then calls again with `force = true`.
  */
 export async function promoteAiTranslationToEditor(
   segmentId: number,
   text: string,
+  force = false,
 ): Promise<PromoteAiTranslationToEditorResult> {
-  const { outcome, error } = await promoteAiTranslation(segmentId, text)
+  // Flush first, same shape as `restoreVersion`: Rust only reads what is on disk already.
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed === 'failed' || flushed === 'still-dirty') {
+    console.error(
+      `[editor] KHÔNG đưa kết quả AI sang segment ${segmentId}: flush trước lượt PROMOTE ` +
+        `${flushed === 'failed' ? 'trượt' : 'tập chờ vẫn dơ sau hai lượt flush'} — giữ bản đang soạn.`,
+    )
+    return 'refused'
+  }
+
+  const { outcome, error } = await promoteAiTranslation(segmentId, text, force)
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: ca "không có cầu IPC" (`npm run dev` ngoài Tauri).
     promoteAiTranslationError.value = error
+    pendingPromote.value = null
     return 'refused'
   }
   promoteAiTranslationError.value = null
-  replaceEditorSegment(segmentId, { target_text: outcome.target_text })
+
+  if (outcome.needs_confirmation) {
+    // 🔴 KHÔNG một byte nào đã được ghi. `unsigned_draft` khác `null` là một bất biến của
+    //    hợp đồng dây; `null` ở đây là một payload sai, và một chuỗi rỗng hiện ra vẫn tốt
+    //    hơn một câu hỏi về một thứ không ai thấy — cùng khuôn `restoreVersion`.
+    pendingPromote.value = { segmentId, text, draft: outcome.unsigned_draft ?? '' }
+    return 'needs-confirmation'
+  }
+  pendingPromote.value = null
+  replaceEditorSegment(segmentId, {
+    target_text: outcome.target_text,
+    translation_origin: outcome.translation_origin,
+  })
   return 'promoted'
+}
+
+/**
+ * Đồng ý ghi đè bản nháp chưa ký của lượt PROMOTE đang chờ. Handler của command
+ * `ai.translate.confirm_promote`.
+ *
+ * 🔴 Đọc `segmentId`/`text` từ **chính lượt đang chờ**, không từ tiêu điểm hiện tại — cùng lý
+ * do `confirmPendingRestore` đọc từ `pendingRestore`: người dùng có thể đã dời tiêu điểm sang
+ * câu khác trong lúc đọc câu hỏi.
+ */
+export function confirmPendingPromote(): void {
+  const waiting = pendingPromote.value
+  if (waiting === null) return
+  void promoteAiTranslationToEditor(waiting.segmentId, waiting.text, true)
+}
+
+/**
+ * Giữ bản đang soạn, huỷ lượt PROMOTE đang chờ. Handler của command
+ * `ai.translate.cancel_promote`.
+ */
+export function cancelPendingPromote(): void {
+  pendingPromote.value = null
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -581,8 +646,14 @@ export async function flushEditorNow(): Promise<FlushResult> {
           `[editor] flush TRƯỢT cho ${edits.length} segment của Chương ${chapter} — giữ tập chờ ` +
             `để thử lại: ${error === null ? 'không có cầu IPC (chạy ngoài Tauri?)' : error.code}`,
         )
+        // 🔴 `error === null` (không cầu IPC) KHÔNG vào đây: đó không phải một lỗi để hiện
+        // lên, cùng quy ước mọi adapter khác.
+        if (error !== null) {
+          flushError.value = { error, segmentIds: edits.map((e) => e.id) }
+        }
         return 'failed'
       }
+      flushError.value = null
       flush.onFlushed(Date.now(), snapshot)
       lastSavedAt.value = Date.now()
       return 'saved'
@@ -722,8 +793,8 @@ export function resetEditorPanel(): void {
   //   ② Người dùng tạo/mở Tác phẩm B ⇒ `finishSubmit` gọi hàm này rồi nạp lại.
   //   ③ `GridPanel.vue::errorSegmentId` đọc `params.segment_id` ⇒ vẫn là 2, và câu số 2 của
   //      Tác phẩm B khớp ngay khi lưới vừa nạp xong.
-  //   ⇒ Một hàng của Tác phẩm B hiện `panel.grid.state_refused` — *"chưa ký được"* — TRƯỚC khi
-  //      người dùng kịp bấm bất cứ thứ gì ở Tác phẩm đó.
+  //   ⇒ Một hàng của Tác phẩm B hiện đúng câu lỗi của Tác phẩm A (`GridPanel.vue::rowErrorLabelById`)
+  //      — TRƯỚC khi người dùng kịp bấm bất cứ thứ gì ở Tác phẩm đó.
   //
   // ⚠️ `caretPlacement` cùng một lớp: nó chở một `segment.id` để lưới đặt con trỏ vào. Sống
   // sót qua lượt thay Tác phẩm, nó dời con trỏ tới một câu người dùng chưa từng chọn.
@@ -796,6 +867,9 @@ export function resetEditorPanel(): void {
   // chữ) — cùng khuôn `regroupError`, và cùng lý do nó phải có mặt Ở ĐÂY bằng tay:
   // `check:panel-refs` đòi mọi ô nhớ cấp module có một đường `reset*()`.
   splitChapterError.value = null
+  // 🔴 Cùng lý do `splitChapterError` ngay trên: `segmentIds` của một lỗi flush cũ trỏ vào
+  // Chương/Tác phẩm VỪA BỊ THAY.
+  flushError.value = null
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 🔵 STORY 2.12 — NĂM CỜ/MUTEX TIẾN TRÌNH, và vì sao chúng vào đây chứ không được miễn
@@ -834,6 +908,9 @@ export function resetEditorPanel(): void {
   // của Tác phẩm VỪA BỊ THAY, cùng lớp lỗi mà `confirmError`/`regroupError` đã ghi ở trên
   // ("ô này thuộc Tác phẩm hay thuộc ứng dụng?" — thuộc Tác phẩm thì phải có mặt ở đây).
   promoteAiTranslationError.value = null
+  // 🔴 Cùng lý do ngay trên: một lượt PROMOTE đang chờ đồng ý thuộc về segment của Tác phẩm
+  // VỪA BỊ THAY, và id đó không còn nghĩa gì ở Tác phẩm mới.
+  pendingPromote.value = null
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -935,6 +1012,23 @@ export type ConfirmResult =
 const confirmError = shallowRef<IpcError | null>(null)
 /** Lỗi gần nhất Rust trả lời cho một lượt xác nhận. `null` ⇒ chưa lượt nào bị từ chối. */
 export const editorConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(confirmError)
+
+/**
+ * Lỗi gần nhất của một lượt **flush** AD-35 (`saveSegmentTargets`), cùng những `segment.id`
+ * lô đó mang.
+ *
+ * 🔴 Trước đó vế "báo lỗi ra màn hình" cố ý chưa làm (§Code Map spec 2.3: *"một dòng
+ * `console.error` và một con số ngừng tăng trên `StatusBar`"*). Lỗi flush phải hiện
+ * `message_key` THẬT, trên CÙNG bề mặt với lỗi xác nhận (`GridPanel.vue`, cột nhãn trạng thái)
+ * — không hai bề mặt khác nhau cho hai thứ đều là "lượt ghi vừa trượt".
+ *
+ * ⚠️ `segmentIds`: một lượt flush ghi **cả một lô** (`SegmentTargetEdit[]`), không một câu,
+ * nên "hàng nào mang lỗi" không suy được từ tiêu điểm — nó là chính tập `id` của lô vừa trượt.
+ */
+const flushError = shallowRef<{ error: IpcError; segmentIds: readonly number[] } | null>(null)
+export const editorFlushError: DeepReadonly<
+  Ref<{ error: IpcError; segmentIds: readonly number[] } | null>
+> = readonly(flushError)
 
 /**
  * 🔴 **BA kết quả xác nhận KHÔNG đi qua Rust — và trước 2026-08-15 chúng không đi tới đâu cả.**
@@ -1217,7 +1311,11 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
     return 'no-caret'
   }
 
-  const { outcome, error } = await confirmSegment(id, loaded.target_text)
+  // Mốc xuất xứ FR117 — cùng khuôn `loaded.target_text` ngay trên: đọc từ ảnh chụp lúc nạp
+  // Chương, không đọc lại cột `translation_origin` trên đĩa (nó có thể đã đổi vì lượt ký
+  // trước, đúng khoảng hở mà mốc bằng `target_text` tồn tại để chống).
+  const originAtLoad = loaded.translation_origin
+  const { outcome, error } = await confirmSegment(id, loaded.target_text, originAtLoad)
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
     //    trình duyệt thường). Không ca nào được coi là đã xác nhận.
@@ -1568,6 +1666,15 @@ function dieuHuongVaBao(doi: () => boolean, khiKhongDoi: NavNotice): boolean {
   //    ảnh chụp rỗng là dời con trỏ theo một danh sách chưa tồn tại.
   if (!editorHasLoaded()) {
     ghiNavNotice('loading')
+    return false
+  }
+  // 🔴 TỪ CHỐI và KÊU, cùng khuôn `regroup` chặn `regroupInFlight`. Lượt xác nhận đang bay tự
+  // đọc ảnh chụp `caretSegmentId`/`segments`
+  // TRƯỚC lượt IPC rồi mới `setEditorCaret(following.id)` khi nó về — một lệnh điều hướng
+  // chen ngang giữa hai mốc đó sẽ dời con trỏ đi, và khi lượt xác nhận về nó ghi ĐÈ con trỏ
+  // về đúng chỗ trước khi người dùng vừa điều hướng, xoá thao tác đó trong im lặng.
+  if (confirmInFlight !== null) {
+    ghiNavNotice('confirm-in-flight')
     return false
   }
   const daDoi = doi()
@@ -2296,6 +2403,12 @@ export type NavNotice =
   | 'chapter-flush-failed'
   /** Văn bản đổi **trong lúc** lô đang bay ⇒ tập chờ còn dơ sau hai lượt flush. */
   | 'chapter-still-dirty'
+  /**
+   * 🔴 Cùng khuôn `'busy'` của [`RegroupNotice`]. Một lượt xác nhận (`⌘Enter`) còn đang bay
+   * ⇒ lệnh điều hướng này bị TỪ CHỐI, con trỏ ở nguyên chỗ lượt xác nhận sẽ đặt nó, không mất
+   * thao tác trong im lặng.
+   */
+  | 'confirm-in-flight'
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
