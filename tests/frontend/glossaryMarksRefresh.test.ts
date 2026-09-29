@@ -96,6 +96,8 @@ async function docSegmentTheoChuong() {
     loaded: {
       chapter_id: chuongDangMo.value,
       segments: (chuongDangMo.value === CHUONG_B_ID ? CHUONG_B_SEGMENTS : FIXTURE_SEGMENTS).map((s) => ({ ...s })),
+      assets: [],
+      assets_dir: '',
     },
     error: null,
   }
