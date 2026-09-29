@@ -8,27 +8,14 @@
 //! giao thức `//host/x.jpg`) thành một URL tuyệt đối, theo URL của trang chứa nó.
 //! ② [`is_raster_image_mime`] — vị từ MIME ảnh raster, danh mục ĐÓNG bốn kiểu.
 //! ③ [`extension_for_mime`] — ánh xạ một MIME ĐÃ CHẤP NHẬN sang đuôi tệp ghi xuống đĩa.
+//! ④ [`decode_data_uri_image`] — decodes `data:...;base64,...` images (no network), gated
+//! by ②, same closed raster category.
 //!
-//! 🔵 **SỬA (vòng rà đối kháng, đo được 2026-09-09) — ② KHÔNG còn là một BƯỚC riêng trên
-//! đường sản phẩm.** `commands::project::fetch_and_write_one_asset` (chỗ gọi sản phẩm DUY
-//! NHẤT của cả hai hàm) TỪNG gọi `is_raster_image_mime` làm bước gác đứng TRƯỚC
-//! `extension_for_mime` — hai vị từ cùng canh đúng MỘT mệnh đề ("MIME này được chấp nhận
-//! không") trên đúng một danh mục bốn phần tử. Đo bằng phép GỠ THẬT: gỡ hẳn bước gác đó rồi
-//! chạy TRỌN `cargo test --locked` (46 binary) — **0 ca đỏ**, vì `extension_for_mime` đã TỰ
-//! đóng vai gác cổng qua nhánh `_ => None` của chính nó. ⇒ Bước gác rời đã bị GỠ khỏi
-//! `fetch_and_write_one_asset`; `extension_for_mime` MỘT MÌNH là điểm quyết định DUY NHẤT
-//! trên đường ghi ảnh. `is_raster_image_mime` **VẪN ở lại, xuất khẩu công khai** — một vị từ
-//! ĐỘC LẬP, tự kiểm bằng test riêng — nhưng KHÔNG còn là một bước của luồng tải ảnh hôm nay,
-//! và **0 chỗ gọi sản phẩm nào dùng nó**.
-//!
-//! ⚠️ **SỬA 2026-09-09 (vòng rà đối kháng 2, mục D9) — câu trước nhường cho `deferred-work.md`.**
-//! Bản trước ở đây khai lý do giữ lại là "cho chỗ gọi TƯƠNG LAI, ví dụ Story 6.14" — một khẳng
-//! định CHƯA KIỂM ĐƯỢC: Story 6.14 (hiển thị ảnh) đọc byte ảnh TỪ ĐĨA (`assets/<file_name>`),
-//! không đọc `content-type` của một phản hồi mạng — tức không có gì bảo đảm 6.14 sẽ THẬT SỰ
-//! gọi một hàm nhận đầu vào là chuỗi MIME kiểu HTTP. `deferred-work.md` (mục "Story 6.11")
-//! đã ghi đúng hai phương án còn treo (gỡ hẳn, hoặc giữ như một mệnh đề công khai chờ chỗ gọi
-//! thật) và để Ice chọn — câu ở đây không lặp lại một lý do chưa kiểm được nữa, chỉ trỏ sang
-//! đó.
+//! `extension_for_mime` is the decision point on the network path
+//! (`fetch_and_write_one_asset` reads the HTTP response's `content-type`);
+//! `is_raster_image_mime` is the decision point on the `data:` path (no HTTP response to
+//! read a `content-type` from) — two paths, two predicates, one [`RASTER_IMAGE_MIMES`]
+//! category.
 //!
 //! `reqwest::Url` hợp lệ ở đây: `webimport_boundary.rs::reqwest_is_named_only_inside_core_webimport_or_core_ai`
 //! cho phép `reqwest` trong toàn bộ `core/webimport/`, không riêng `fetcher.rs`/`allowlist.rs`
@@ -137,10 +124,9 @@ pub fn normalized_mime(content_type: Option<&str>) -> Option<String> {
 /// khai) bị coi là KHÔNG PHẢI — cùng luật `looks_like_html`: im lặng đoán "chắc là ảnh" khi
 /// máy chủ không nói gì là một phỏng đoán, không phải một sự thật đọc được.
 ///
-/// ⚠️ **KHÔNG còn nằm trên đường ghi ảnh sản phẩm** (xem SỬA ở doc-comment đầu tệp) —
-/// [`extension_for_mime`] một mình đã là điểm quyết định. Hàm này ở lại như một vị từ CÔNG
-/// KHAI, ĐỘC LẬP cho chỗ gọi tương lai; tự kiểm bằng bộ test của chính nó, không qua một ca
-/// đầu-cuối nào của `create_work`.
+/// The MIME gate for [`decode_data_uri_image`]: `data:` images never reach
+/// [`extension_for_mime`] (there's no HTTP response to read a `content-type` from), so this
+/// is the real decision point for that path.
 pub fn is_raster_image_mime(content_type: Option<&str>) -> bool {
     normalized_mime(content_type).is_some_and(|ct| RASTER_IMAGE_MIMES.contains(&ct.as_str()))
 }
@@ -166,6 +152,42 @@ pub fn extension_for_mime(content_type: Option<&str>) -> Option<&'static str> {
     }
 }
 
+/// A `data:` URI missing `;base64`, missing the comma separating header from payload, whose
+/// MIME falls outside [`RASTER_IMAGE_MIMES`] (SVG is still refused, AD-16), or whose payload
+/// isn't valid base64.
+#[derive(Debug)]
+pub struct DataUriError {
+    pub detail: String,
+}
+
+/// Decodes a `data:image/...;base64,...` URI into raw bytes plus a normalized MIME. `data:`
+/// images never touch the network or the `Allowlist`; they're gated by the same
+/// [`is_raster_image_mime`] predicate `fetch_and_write_one_asset` uses, so SVG is refused
+/// through the same gate (AD-16).
+pub fn decode_data_uri_image(src: &str) -> Result<(Vec<u8>, String), DataUriError> {
+    let rest = src
+        .strip_prefix("data:")
+        .ok_or_else(|| DataUriError { detail: "khong phai mot data: URI".to_owned() })?;
+    let (header, payload) = rest
+        .split_once(',')
+        .ok_or_else(|| DataUriError { detail: "data: URI thieu dau phay phan cach header/payload".to_owned() })?;
+    if !header.split(';').any(|part| part.trim().eq_ignore_ascii_case("base64")) {
+        return Err(DataUriError { detail: "data: URI khong mang tham so base64".to_owned() });
+    }
+    let mime = header.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    if !is_raster_image_mime(Some(&mime)) {
+        return Err(DataUriError { detail: format!("MIME '{mime}' khong thuoc danh muc anh raster (data: URI)") });
+    }
+    let cleaned: String = payload.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    let bytes = {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD
+            .decode(cleaned)
+            .map_err(|e| DataUriError { detail: format!("giai ma base64 that bai: {e}") })?
+    };
+    Ok((bytes, mime))
+}
+
 /// Bóc HOST của một URL TUYỆT ĐỐI đã phân giải (kết quả của [`resolve_absolute_url`]) — dùng
 /// để dựng tập host tầng 2 (`Allowlist::with_tier2_hosts`) TRƯỚC khi tải, mà không phải gõ
 /// `reqwest` ở tầng gọi (`commands::project`): `webimport_boundary.rs::reqwest_is_named_only_inside_core_webimport_or_core_ai`
@@ -175,6 +197,21 @@ pub fn extension_for_mime(content_type: Option<&str>) -> Option<&'static str> {
 /// `allowlist::host_of` (RIÊNG TƯ, module đó không cần lộ nó ra ngoài).
 pub fn host_of(url: &str) -> Option<String> {
     reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_owned))
+}
+
+/// Dedup key for a pasted URL-import link: strips `#fragment`, lowercases the host. `None`
+/// when `url` doesn't parse — an unparseable URL is treated as unique rather than merged
+/// with another one that also failed to parse.
+pub fn normalize_url_for_dedup(url: &str) -> Option<String> {
+    let mut parsed = reqwest::Url::parse(url).ok()?;
+    parsed.set_fragment(None);
+    if let Some(host) = parsed.host_str() {
+        let lower = host.to_ascii_lowercase();
+        if lower != host {
+            parsed.set_host(Some(&lower)).ok()?;
+        }
+    }
+    Some(parsed.to_string())
 }
 
 #[cfg(test)]
@@ -304,11 +341,41 @@ mod tests {
         assert_eq!(extension_for_mime(None), None);
     }
 
-    /// D1 (vòng rà đối kháng 3 lớp) — `RASTER_IMAGE_MIMES` (dùng bởi [`is_raster_image_mime`],
-    /// không còn trên đường sản phẩm nhưng vẫn là một nguồn sự thật ĐỘC LẬP) và nhánh `match`
-    /// của [`extension_for_mime`] (điểm quyết định THẬT trên đường sản phẩm) phải khớp CHÍNH
-    /// XÁC cùng một danh mục — nếu không, "vị từ độc lập" và "điểm quyết định thật" âm thầm
-    /// trôi khỏi nhau và không cổng nào bắt được.
+    #[test]
+    fn decode_data_uri_image_decodes_a_raster_mime_and_rejects_svg() {
+        // A 1x1 PNG, base64-encoded.
+        let png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+        let (bytes, mime) =
+            decode_data_uri_image(&format!("data:image/png;base64,{png_b64}")).expect("PNG data: URI phai giai ma duoc");
+        assert_eq!(mime, "image/png");
+        assert!(!bytes.is_empty());
+
+        let svg = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=";
+        assert!(
+            decode_data_uri_image(svg).is_err(),
+            "SVG data: URI phai bi TU CHOI -- danh dau, khong phai anh raster (AD-16)"
+        );
+
+        let (bytes_with_space, mime_with_space) =
+            decode_data_uri_image(&format!("data:image/png; base64,{png_b64}"))
+                .expect("khoang trang sau dau ';' van phai duoc chap nhan");
+        assert_eq!(mime_with_space, "image/png");
+        assert!(!bytes_with_space.is_empty());
+    }
+
+    #[test]
+    fn decode_data_uri_image_rejects_non_data_scheme_missing_base64_and_bad_payload() {
+        assert!(decode_data_uri_image("https://cdn.example/x.png").is_err());
+        assert!(decode_data_uri_image("data:image/png,not-base64-encoded").is_err(), "thieu tham so base64 phai bi tu choi");
+        assert!(
+            decode_data_uri_image("data:image/png;base64,!!!not-valid-base64!!!").is_err(),
+            "payload khong phai base64 hop le phai bi tu choi"
+        );
+    }
+
+    /// `RASTER_IMAGE_MIMES` (the `data:` path's decision point) and `extension_for_mime`'s
+    /// `match` arms (the network path's decision point) must match exactly the same
+    /// category, or the two paths silently drift apart with nothing to catch it.
     #[test]
     fn raster_image_mimes_matches_extension_for_mimes_branches_exactly() {
         for mime in RASTER_IMAGE_MIMES {
@@ -330,5 +397,20 @@ mod tests {
                 "{mime} duoc extension_for_mime nhan dien nhung khong co trong RASTER_IMAGE_MIMES"
             );
         }
+    }
+
+    #[test]
+    fn normalize_url_for_dedup_strips_fragment_and_lowercases_host_only() {
+        assert_eq!(
+            normalize_url_for_dedup("https://Example.TEST/Bai-Viet#muc-luc"),
+            normalize_url_for_dedup("https://example.test/Bai-Viet"),
+            "fragment bi bo, host ha chu thuong -- hai URL nay phai cung mot khoa"
+        );
+        assert_ne!(
+            normalize_url_for_dedup("https://example.test/Bai-Viet"),
+            normalize_url_for_dedup("https://example.test/bai-viet"),
+            "duong dan (path) VAN phan biet hoa/thuong -- khong bi ha chu cung host"
+        );
+        assert!(normalize_url_for_dedup("khong-phai-url").is_none());
     }
 }

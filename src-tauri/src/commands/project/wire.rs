@@ -829,9 +829,26 @@
             &fallback_domain_log_state
         });
 
+        // A missing ImageDownloadGeneration state (a wiring bug) falls back to a local
+        // best-effort counter, same as fallback_domain_log_state above: cancellation won't
+        // work, but progress still emits.
+        use tauri::Emitter as _;
+        let image_generation_owned: super::ImageDownloadGeneration =
+            app.try_state::<super::ImageDownloadGeneration>().as_deref().cloned().unwrap_or_default();
+        let image_generation = image_generation_owned.next();
+        let should_cancel_images = move || !image_generation_owned.is_current(image_generation);
+        let app_for_image_progress = app.clone();
+        let mut on_image_progress = move |completed: usize, total: usize| {
+            if let Err(err) = app_for_image_progress
+                .emit(super::URL_IMPORT_IMAGE_PROGRESS_EVENT, super::ImportProgressEvent { completed, total })
+            {
+                eprintln!("project[image_progress] phat su kien that bai: {err}");
+            }
+        };
+
         let Some(work_id) = destination_work_id else {
             // Đường Tác phẩm MỚI — KHÔNG đổi so với trước Story 6.7b.
-            let opened = super::confirm_import_with_encoding(
+            let opened = super::confirm_import_with_encoding_with_progress(
                 &root,
                 &pending_state,
                 &name,
@@ -843,6 +860,8 @@
                 block_overrides,
                 origin_overrides,
                 domain_log_state_ref,
+                &mut on_image_progress,
+                &should_cancel_images,
             )?;
             reset_tier2_block_overrides(&app);
             reset_chapter_origin_overrides(&app);
@@ -889,7 +908,7 @@
                 }
                 .into());
             };
-            super::confirm_append_import_with_encoding(
+            super::confirm_append_import_with_encoding_with_progress(
                 open,
                 &pending_state,
                 &source_lang,
@@ -899,6 +918,8 @@
                 block_overrides,
                 origin_overrides,
                 domain_log_state_ref,
+                &mut on_image_progress,
+                &should_cancel_images,
             )?;
             (CreatedWork::from_open(open), open.new_chapter_ids.clone())
         } else {
@@ -914,6 +935,12 @@
             // Xem doc-comment của hàm đó.
             let indexed = indexer.find_work(&work_id)?;
             let mut opened = super::open_destination_for_append(&work_id, indexed.as_ref())?;
+            // This branch holds no OpenWorkState lock, so a concurrent replace_open_work
+            // could sweep the images this call is about to write before its rows commit.
+            let append_in_progress_state = app.try_state::<super::AppendInProgressState>();
+            let _append_in_progress_guard = append_in_progress_state
+                .as_deref()
+                .map(|state| super::AppendInProgressGuard::new(state, work_id.clone()));
             // 🔵 SUA 2026-09-16 (vong ra, B9) — goi thang `confirm_append_import_with_encoding_
             // indexed` thay vi tu soan `confirm_append_import_with_encoding` roi mot loi goi
             // `reindex_library` RIENG: nhanh nay khong giu bat ky khoa `OpenWorkState` nao
@@ -925,7 +952,7 @@
             // 6 cho goi tests, 0 cho goi src — ca canh no chi chung minh mot ham song song,
             // khong chung minh gi ve duong san pham that.
             let global = app.try_state::<Store>();
-            super::confirm_append_import_with_encoding_indexed(
+            super::confirm_append_import_with_encoding_indexed_with_progress(
                 &mut opened,
                 &pending_state,
                 &source_lang,
@@ -938,6 +965,8 @@
                 Some(indexer.inner()),
                 global.as_deref(),
                 &root,
+                &mut on_image_progress,
+                &should_cancel_images,
             )?;
             let created = CreatedWork::from_open(&opened);
             let new_chapter_ids = opened.new_chapter_ids.clone();
@@ -1227,7 +1256,18 @@
         };
         let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
 
-        let (items, log_entries) = super::fetch_url_import_items(urls);
+        use tauri::Emitter as _;
+        let app_for_page_progress = app.clone();
+        let mut on_page_progress = move |completed: usize, total: usize| {
+            if let Err(err) = app_for_page_progress
+                .emit(super::URL_IMPORT_PAGE_PROGRESS_EVENT, super::ImportProgressEvent { completed, total })
+            {
+                eprintln!("project[page_progress] phat su kien that bai: {err}");
+            }
+        };
+
+        let (deduped_urls, duplicate_urls_dropped) = super::prepare_url_import_list(urls)?;
+        let (items, log_entries) = super::fetch_url_import_items_with_progress(deduped_urls, &mut on_page_progress);
         append_domain_log(&app, log_entries);
         // Phiên MỚI — đích là giá trị người dùng vừa chọn, cất ngay từ đây (Story 6.7b).
         super::sync_pending_from_url_items(&pending_state, &items, destination);
@@ -1245,6 +1285,7 @@
             &block_overrides,
             domain_log_domain_count(&app),
             &origin_overrides,
+            duplicate_urls_dropped,
         );
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1315,6 +1356,7 @@
             &block_overrides,
             domain_log_domain_count(&app),
             &origin_overrides,
+            0,
         ))
     }
 
@@ -1370,6 +1412,7 @@
             &block_overrides,
             domain_log_domain_count(&app),
             &origin_overrides,
+            0,
         ))
     }
 
@@ -1389,14 +1432,25 @@
     /// `index` ngoài phạm vi trang HIỆN HÀNH (trang vừa tải lại, số khối đổi từ dưới lượt
     /// hiển thị cũ của frontend) ⇒ [`super::url_import_internal_error`] — từ chối ghi một
     /// override "ma", thay vì lặng lẽ nới vector tới một chỉ số không khối nào trỏ tới.
+    ///
+    /// `detail_chapter_index` is the webview's current Chapter cursor. Since
+    /// `Tier2BlockOverridesState` only carries block structure for the first Chapter, a
+    /// write from any other Chapter is refused outright
+    /// (`super::tier2_edit_locked_to_first_chapter`) rather than silently overwriting the
+    /// first Chapter's overrides.
     #[tauri::command]
     pub fn tier2_block_set_kept(
         app: tauri::AppHandle,
         index: usize,
         kept: bool,
         source_lang: String,
+        detail_chapter_index: usize,
     ) -> Result<super::UrlImportBatchWire, IpcError> {
         use tauri::Manager as _;
+
+        if !super::tier2_edit_allowed(detail_chapter_index) {
+            return Err(super::tier2_edit_locked_to_first_chapter());
+        }
 
         let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
             return Err(super::url_import_internal_error());
@@ -1439,6 +1493,7 @@
             &block_overrides,
             domain_log_domain_count(&app),
             &origin_overrides,
+            0,
         ))
     }
 
@@ -1451,6 +1506,8 @@
     /// frontend gửi lên); `total != machine_kept.len()` ⇒ trạng thái frontend đang hiện đã
     /// CŨ (trang vừa tải lại từ dưới tay) ⇒ [`super::url_import_internal_error`], từ chối
     /// dựng một patch trên một tổng số khối không còn đúng với trang hiện hành.
+    ///
+    /// `detail_chapter_index` — same guard as [`tier2_block_set_kept`]; see its doc comment.
     #[tauri::command]
     pub fn tier2_block_confirm_range(
         app: tauri::AppHandle,
@@ -1458,8 +1515,13 @@
         end: usize,
         total: usize,
         source_lang: String,
+        detail_chapter_index: usize,
     ) -> Result<super::UrlImportBatchWire, IpcError> {
         use tauri::Manager as _;
+
+        if !super::tier2_edit_allowed(detail_chapter_index) {
+            return Err(super::tier2_edit_locked_to_first_chapter());
+        }
 
         let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
             return Err(super::url_import_internal_error());
@@ -1501,7 +1563,26 @@
             &block_overrides,
             domain_log_domain_count(&app),
             &origin_overrides,
+            0,
         ))
+    }
+
+    /// Cancels an in-flight image-download pass by bumping
+    /// [`super::ImageDownloadGeneration`], so the running pass (if any) is no longer
+    /// current. No Chapter or image is deleted here: the download loop
+    /// (`prepare_chapter_images`) notices the generation change on its next poll and stops,
+    /// keeping whatever images already downloaded.
+    #[tauri::command]
+    pub fn cancel_image_download(app: tauri::AppHandle) {
+        use tauri::Manager as _;
+
+        let Some(generation_state) = app.try_state::<super::ImageDownloadGeneration>() else {
+            eprintln!(
+                "project[image_download_cancel] ImageDownloadGeneration chua duoc quan ly -- loi cau hinh setup()"
+            );
+            return;
+        };
+        generation_state.next();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

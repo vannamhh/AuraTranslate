@@ -1573,7 +1573,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
         0,
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
-    ("src/commands/project/wire.rs", 6, 11, 9, ""),
+    ("src/commands/project/wire.rs", 7, 11, 9, "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel."),
     (
         "src/commands/promptset.rs",
         7,
@@ -1739,11 +1739,10 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (69, 31),
+        (70, 31),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         69/31 (72/28 tu lan do truoc, BA vo cua \
-         `commands/project/wire.rs` chuyen tu plain sang `(async)` -- doi xung khoa voi \
-         confirm_import_with_encoding/confirm_bilingual_import: 72 - 3 = 69, 28 + 3 = 31).\n\n\
+         70/31 (69/31 tu lan do truoc, THEM `cancel_image_download` (plain, bom mot AtomicU64, \
+         cung lop voi ai_translate_cancel): 69 + 1 = 70).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

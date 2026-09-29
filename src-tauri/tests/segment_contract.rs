@@ -2480,6 +2480,29 @@ fn loading_segments_without_an_open_work_is_refused() {
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
+#[test]
+#[cfg(unix)]
+fn a_non_utf8_assets_dir_fails_distinguishably_instead_of_degrading_to_u_fffd() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let root = temp_dir("assets-dir-non-utf8");
+    let mut opened = create_work_from_text(&root, "Khong UTF-8", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    // Mot byte KHONG the la UTF-8 hop le o bat ky vi tri nao (0xFF).
+    let bad_name = OsString::from_vec(vec![b'x', 0xFF, b'y']);
+    opened.dir = std::env::temp_dir().join(bad_name);
+
+    let err = read_open_chapter_segments(Some(&opened)).expect_err("assets_dir khong UTF-8 phai bi tu choi");
+    assert_eq!(err.code(), "segment.assets_dir_not_utf8");
+    assert_eq!(err.message_key(), MessageKey::SegmentAssetsDirNotUtf8);
+
+    let err2 = read_reading_run(Some(&opened)).expect_err("assets_dir khong UTF-8 phai bi tu choi (ReadingRun)");
+    assert_eq!(err2.code(), "segment.assets_dir_not_utf8");
+    assert_eq!(err2.message_key(), MessageKey::SegmentAssetsDirNotUtf8);
+}
+
 /// Lượt nạp trả **đúng** các hàng đã ghi, **theo `ord`**, kèm cờ kết đoạn đã lưu.
 ///
 /// 🔴 Ca này canh AD-37 ở đúng chỗ nó dễ trôi nhất: `is_paragraph_end` đi qua dây **từ dữ

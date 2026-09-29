@@ -96,6 +96,7 @@ import {
   chapterWindow,
   currentLibraryChapter,
   libraryChapterCursor,
+  libraryChapterOriginApplyThroughOrd,
   libraryChapterOriginBusy,
   libraryChapterOriginError,
   libraryChapterReorgBusy,
@@ -110,8 +111,8 @@ import {
   libraryOpenWorkNotice,
   loadChapters,
   saveCurrentChapterOrigin,
+  setChapterOriginApplyThroughOrd,
 } from './libraryChapters'
-import type { ChapterOriginEdit } from '../config/chapter'
 import ChapterOrigin from '../ChapterOrigin.vue'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
 // 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
@@ -1153,8 +1154,22 @@ watch(libraryChapterCursor, (cursor) => {
             :published-at="currentLibraryChapter.origin_published_at"
             :disabled="libraryChapterOriginBusy"
             class="chapter-origin-block"
-            @commit="(edit: ChapterOriginEdit) => saveCurrentChapterOrigin(edit)"
+            @commit="(edit) => saveCurrentChapterOrigin(edit)"
           />
+          <!--
+            Áp xuất xứ CỦA Chương đang chọn cho cả một đoạn. `@change`, KHÔNG `@click`/
+            `dispatch`: cùng lý do `saveCurrentChapterOrigin` ngay trên.
+          -->
+          <label v-if="currentLibraryChapter !== null" class="field chapter-origin-apply-through">
+            <span>{{ t('mode.library.chapter_origin_apply_through_label') }}</span>
+            <input
+              type="number"
+              :value="libraryChapterOriginApplyThroughOrd ?? ''"
+              :disabled="libraryChapterOriginBusy"
+              data-library-chapter-origin-apply-through
+              @change="(e) => setChapterOriginApplyThroughOrd((e.target as HTMLInputElement).value)"
+            />
+          </label>
           <p v-if="libraryChapterOriginError !== null" class="error" role="alert">
             <!-- aura-allow-text: KẾT QUẢ của tError(). -->
             {{ tError(libraryChapterOriginError) }}
@@ -1460,6 +1475,18 @@ watch(libraryChapterCursor, (cursor) => {
       <p class="notice source-lang-warning" role="status">
         {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}
       </p>
+      <!--
+        `images_failed` — chỉ hiện khi CÓ ảnh không tải được (§Never: không hiện một dòng
+        "0 ảnh không tải được" vô nghĩa). Nút "xem" mở CÙNG màn Cài đặt > Quyền riêng tư mà
+        `ImportPreviewOverlay.vue` dùng cho nhật ký domain — không một màn riêng.
+      -->
+      <p v-if="(createdWork?.images_failed ?? 0) > 0" class="notice" role="status">
+        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+        {{ t('mode.library.images_failed_warning', { count: String(createdWork?.images_failed ?? 0) }) }}
+        <button type="button" class="images-failed-domain-log-view" @click="dispatch('settings.privacy.open')">
+          {{ t('mode.library.preview.domain_log_view') }}
+        </button>
+      </p>
       <!-- aura-allow-text: như trên. -->
       <p class="notice" role="status">{{ noticeKey ? t(noticeKey) : '' }}</p>
       <!-- aura-allow-text: như trên, qua tError(). -->
@@ -1506,6 +1533,18 @@ watch(libraryChapterCursor, (cursor) => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.images-failed-domain-log-view {
+  padding: 0;
+  margin-left: calc(var(--space-unit) * 1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
 }
 
 /* Story 6.7 — hai con số "N link · sẽ tạo N Chương", computed CỤC BỘ (0 IPC). */

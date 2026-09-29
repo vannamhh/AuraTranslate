@@ -6,7 +6,7 @@
 #[path = "fixtures_docx.rs"]
 mod fixtures_docx;
 
-use auratranslate_lib::commands::project::{create_work, create_work_from_file};
+use auratranslate_lib::commands::project::{append_chapters_to_work, create_work, create_work_from_file};
 use auratranslate_lib::core::docx::{DocxError, read_docx};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::import::{ImportError, import_file};
@@ -490,23 +490,10 @@ fn a_vml_only_image_with_no_drawing_anywhere_still_resolves_its_rel_id_and_reads
     assert_eq!(parsed.images[0].block_index, image_block_index, "block_index phai tro dung vi tri anh VML");
 }
 
-/// `parse_cell` nhảy trọn một `w:tbl` LỒNG trong ô rồi đi tiếp (nợ có chủ: nội dung bảng lồng
-/// không được đọc) — nhưng phần CÒN LẠI của ô, đứng SAU bảng lồng, phải vẫn được đọc đúng.
-/// Trước lượt sửa này, mệnh đề đó chỉ tự khai trong doc-comment, không phép đo nào canh.
 #[test]
-fn a_paragraph_after_a_nested_table_in_the_same_cell_is_still_read() {
-    let bytes = fixtures_docx::table_with_nested_table_and_trailing_paragraph();
-    let parsed = read_docx(&bytes).expect("doc fixture bang long that bai");
-
-    assert_eq!(parsed.tables.len(), 1, "bang LONG khong duoc dem la mot TableShape rieng -- no bi nhay tron, khong doc");
-    let outer = &parsed.tables[0];
-    assert_eq!(outer.rows, 1);
-    assert_eq!(outer.cells_per_row, vec![1]);
-    assert_eq!(
-        outer.paragraphs_per_cell,
-        vec![vec![2]],
-        "doan TRUOC va SAU bang long phai duoc dem la hai doan cua o NGOAI, bang long khong duoc lan vao"
-    );
+fn footnotes_and_endnotes_are_appended_at_the_end_header_footer_and_comments_stay_unread() {
+    let bytes = fixtures_docx::footnote_endnote_header_footer_comments();
+    let parsed = read_docx(&bytes).expect("doc fixture chu thich that bai");
 
     let paragraph_texts: Vec<&str> = parsed
         .blocks
@@ -518,12 +505,53 @@ fn a_paragraph_after_a_nested_table_in_the_same_cell_is_still_read() {
         .collect();
     assert_eq!(
         paragraph_texts,
-        vec!["Doan truoc bang long.", "Doan sau bang long."],
-        "doan SAU bang long phai co mat -- phep nhay subtree khong duoc nuot mat phan con lai cua o"
+        vec!["Doan chinh van cua tai lieu.", "Chu thich chan trang that.", "Chu thich cuoi tai lieu that."],
+        "chu chan/cuoi trang THAT phai noi vao CUOI, theo dung thu tu footnote roi endnote; \
+         type=\"separator\" phai bi loai, header/footer/comment khong duoc doc"
     );
     assert!(
-        !paragraph_texts.iter().any(|t| t.contains("Doan trong bang long")),
-        "noi dung CUA bang long phai KHONG xuat hien -- no bi nhay tron subtree, khong doc (nợ co chu)"
+        parsed.text.contains("Chu thich chan trang that.") && parsed.text.contains("Chu thich cuoi tai lieu that."),
+        "DocxParsed::text dung CHINH blocks nen cung phai mang chu chan/cuoi trang"
+    );
+}
+
+#[test]
+fn a_nested_table_becomes_its_own_sibling_table_shape_and_its_text_is_not_dropped() {
+    let bytes = fixtures_docx::table_with_nested_table_and_trailing_paragraph();
+    let parsed = read_docx(&bytes).expect("doc fixture bang long that bai");
+
+    assert_eq!(parsed.tables.len(), 2, "bang long phai duoc dem la mot TableShape SIBLING rieng, cong voi bang ngoai");
+    let outer = &parsed.tables[0];
+    assert_eq!(outer.rows, 1);
+    assert_eq!(outer.cells_per_row, vec![1]);
+    assert_eq!(
+        outer.paragraphs_per_cell,
+        vec![vec![2]],
+        "doan TRUOC va SAU bang long van la hai doan cua o NGOAI -- bang long khong lan vao dem cua o cha"
+    );
+    let nested = &parsed.tables[1];
+    assert_eq!(nested.rows, 1);
+    assert_eq!(nested.cells_per_row, vec![1]);
+    assert_eq!(nested.paragraphs_per_cell, vec![vec![1]], "bang long mang dung mot doan cua chinh no");
+
+    let paragraph_texts: Vec<&str> = parsed
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.body {
+            BlockBody::Paragraph(t) => Some(t.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        paragraph_texts,
+        vec![
+            "Doan truoc bang long.",
+            "Doan sau bang long.",
+            "Doan trong bang long.",
+            "Doan sau ca bang ngoai.",
+        ],
+        "bang long la SIBLING nhung phai noi NGAY SAU bang cha cua no -- truoc doan cap than \
+         tai lieu theo sau bang ngoai, khong bi don ve cuoi ca tai lieu"
     );
 }
 
@@ -560,15 +588,8 @@ fn importing_a_docx_with_an_image_leaves_the_domain_log_empty() {
     );
 }
 
-/// `DocxSidecar::blocks` gắn TRỌN VẸN vào Chương ĐẦU TIÊN (`chapters.first_mut()`), nhưng
-/// `.docx` vẫn đi qua `Step::SplitChapters` — một mẫu phân tách THẬT sự cho N > 1 Chương.
-/// ĐO ĐƯỢC (không suy luận, xem mục nợ mới trong `deferred-work.md`): ảnh đứng SAU ranh giới
-/// phân tách (thuộc Chương thứ hai) vẫn nằm trong `blocks` của Chương ĐẦU (danh sách không bị
-/// cắt), nên `compute_anchor` tính trên `source_text` CỦA CHƯƠNG ĐẦU (đã bị cắt cụt tại ranh
-/// giới) và TỰ KIỂM bắt được độ lệch — ảnh đó TRƯỢT (không lưu vào Chương nào), KHÔNG bị lưu
-/// SAI vào Chương đầu.
 #[test]
-fn an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_being_saved_to_the_wrong_chapter() {
+fn each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_own_chapter() {
     let source_dir = temp_dir("split-boundary-src");
     let root = temp_dir("split-boundary-root");
     let path = write_docx(
@@ -595,14 +616,103 @@ fn an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_bein
         docx_sidecar, &[])
     .expect("tao Tac pham tu .docx hai chuong that bai");
 
-    assert_eq!(opened.images_saved, 1, "chi anh DUNG TRUOC ranh gioi (Chuong dau) duoc luu");
-    assert_eq!(opened.images_failed, 1, "anh SAU ranh gioi phai troi VA duoc dem, khong bi bo qua im lang");
+    assert_eq!(opened.images_saved, 2, "ca hai Chuong deu phai co anh duoc luu THAT, khong con gop het vao Chuong dau");
+    assert_eq!(opened.images_failed, 0);
+
+    let chapter_ids: Vec<i64> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord")?;
+            let rows = stmt.query_map([], |row| row.get(0))?;
+            rows.collect::<auratranslate_lib::core::store::SqlResult<Vec<i64>>>()
+        })
+        .expect("doc danh sach Chuong that bai");
+    assert_eq!(chapter_ids.len(), 2, "phai co dung hai Chuong: {chapter_ids:?}");
+    let (chapter1, chapter2) = (chapter_ids[0], chapter_ids[1]);
 
     let rows = read_asset_rows(&opened.store);
-    assert_eq!(rows.len(), 1, "dung mot hang asset duoc ghi: {rows:?}");
+    assert_eq!(rows.len(), 2, "dung hai hang asset duoc ghi, mot cho moi Chuong: {rows:?}");
+    let chapters_with_assets: std::collections::BTreeSet<i64> = rows.iter().map(|r| r.0).collect();
     assert_eq!(
-        rows[0].0, opened.chapter_id,
-        "hang asset con lai phai thuoc Chuong DAU TIEN (opened.chapter_id) -- anh sau ranh gioi \
-         KHONG duoc xuat hien o day (no da truot, khong duoc luu nham vao Chuong nay)"
+        chapters_with_assets,
+        std::collections::BTreeSet::from([chapter1, chapter2]),
+        "moi Chuong phai neo dung ANH CUA CHINH NO, khong con gop het vao Chuong dau"
     );
+    // Anh cua Chuong 1 va Chuong 2 mang so byte KHAC nhau (69 va 70, xem fixture) -- kiem
+    // dung byte_len theo TUNG Chuong moi thuc su canh duoc mot luot ghep sai (Chuong nay
+    // vo tinh lay byte cua Chuong kia) ma so hang/tap Chuong-co-anh khong the phan biet duoc
+    // (ca hai deu van la 2 hang, du ghep dung hay sai).
+    let byte_len_of = |chapter_id: i64| -> i64 { rows.iter().find(|r| r.0 == chapter_id).expect("phai co hang").4 };
+    assert_eq!(byte_len_of(chapter1), 69, "Chuong 1 phai mang dung anh cua no (69 byte)");
+    assert_eq!(byte_len_of(chapter2), 70, "Chuong 2 phai mang dung anh cua no (70 byte), khong phai anh cua Chuong 1");
+}
+
+/// APPEND counterpart of the CREATE test right above — same fixture, split into the same two
+/// Chương by the same pattern, but landed on an already-open Work via `append_chapters_to_work`
+/// instead of `create_work`. `distribute_docx_blocks_across_chapters` must run on this path too.
+#[test]
+fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter() {
+    let source_dir = temp_dir("append-split-boundary-src");
+    let root = temp_dir("append-split-boundary-root");
+    let domain_log_state: DomainLogState = std::sync::Mutex::new(Vec::new());
+
+    let base_shape =
+        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong co san truoc khi append.".to_owned())]);
+    let mut opened = create_work(
+        &root,
+        "Docx Append Hai Chuong",
+        "en",
+        "",
+        base_shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(), 0, 1, false, &[],
+        &domain_log_state,
+        None, &[])
+    .expect("tao Tac pham nen that bai");
+
+    let path = write_docx(
+        &source_dir,
+        "hai_chuong.docx",
+        &fixtures_docx::images_on_both_sides_of_a_chapter_split_boundary(),
+    );
+    let (shape, docx_sidecar) = import_file(&path).expect("nhap .docx hai chuong phai thanh cong");
+    let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
+
+    let appended_count = append_chapters_to_work(
+        &mut opened,
+        "en",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        Some(pattern),
+        Vec::new(),
+        &[],
+        &domain_log_state,
+        docx_sidecar,
+    )
+    .expect("them Chuong tu .docx hai chuong that bai");
+    assert_eq!(appended_count, 2, "phai them dung hai Chuong moi tu .docx");
+    assert_eq!(
+        opened.images_saved, 2,
+        "ca hai Chuong MOI (them qua APPEND) deu phai co anh duoc luu THAT, khong con gop het vao mot Chuong"
+    );
+    assert_eq!(opened.images_failed, 0);
+    assert_eq!(opened.new_chapter_ids.len(), 2, "phai co dung hai id Chuong vua them: {:?}", opened.new_chapter_ids);
+    let (chapter1, chapter2) = (opened.new_chapter_ids[0], opened.new_chapter_ids[1]);
+
+    let rows = read_asset_rows(&opened.store);
+    assert_eq!(rows.len(), 2, "dung hai hang asset duoc ghi, mot cho moi Chuong MOI: {rows:?}");
+    let chapters_with_assets: std::collections::BTreeSet<i64> = rows.iter().map(|r| r.0).collect();
+    assert_eq!(
+        chapters_with_assets,
+        std::collections::BTreeSet::from([chapter1, chapter2]),
+        "moi Chuong MOI phai neo dung ANH CUA CHINH NO, khong con gop het vao mot Chuong duy nhat"
+    );
+    // Cung khuon voi ban CREATE o tren -- byte_len KHAC nhau (69/70, xem fixture) canh dung
+    // mot luot ghep sai giua hai Chuong MOI ma so hang/tap Chuong-co-anh khong phan biet duoc.
+    let byte_len_of = |chapter_id: i64| -> i64 { rows.iter().find(|r| r.0 == chapter_id).expect("phai co hang").4 };
+    assert_eq!(byte_len_of(chapter1), 69, "Chuong moi thu nhat phai mang dung anh cua no (69 byte)");
+    assert_eq!(byte_len_of(chapter2), 70, "Chuong moi thu hai phai mang dung anh cua no (70 byte)");
 }

@@ -368,6 +368,17 @@ impl From<crate::core::segment::image::ResolvedImage> for ChapterAsset {
     }
 }
 
+/// `assets_dir` is not valid UTF-8 — a distinguishable error instead of letting
+/// `to_string_lossy()` silently replace the offending bytes with U+FFFD.
+fn assets_dir_not_utf8() -> IpcError {
+    IpcError::new(
+        "segment.assets_dir_not_utf8",
+        MessageKey::SegmentAssetsDirNotUtf8,
+        BTreeMap::new(),
+        false,
+    )
+}
+
 /// Chương không có trong `project.db` của Tác phẩm đang mở.
 fn chapter_not_found(chapter_id: i64) -> IpcError {
     IpcError::new(
@@ -1067,7 +1078,10 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     // **THÊM Story 6.14** — cấu tạo NGOÀI closure ghi: `assets_dir` không phụ thuộc ảnh chụp
     // đọc, và `open.dir` không sống được bên trong closure `Store::read` (nó mượn `conn`,
     // không `open`). `move` mang `PathBuf` này vào closure như một giá trị đã cấu tạo sẵn.
+    //
+    // Checked for UTF-8 before entering the closure, so a non-UTF-8 assets_dir errors here.
     let assets_dir = open.dir.join("assets");
+    let assets_dir_str = assets_dir.to_str().ok_or_else(assets_dir_not_utf8)?.to_owned();
 
     let loaded = open.store.read(move |conn| {
         let segments = select_chapter_segments(conn, chapter_id)?;
@@ -1123,7 +1137,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             segments,
             caret_segment_id,
             assets,
-            assets_dir: assets_dir.to_string_lossy().into_owned(),
+            assets_dir: assets_dir_str,
         })
     })?;
 
@@ -1426,8 +1440,9 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let current_chapter_id = open.chapter_id;
     // **THÊM Story 6.14** — cùng lý do `read_open_chapter_segments`: cấu tạo NGOÀI closure,
-    // `move` mang giá trị đã sẵn sàng vào trong.
+    // `move` mang giá trị đã sẵn sàng vào trong. Same UTF-8 check as there, before the closure.
     let assets_dir = open.dir.join("assets");
+    let assets_dir_str = assets_dir.to_str().ok_or_else(assets_dir_not_utf8)?.to_owned();
 
     let found = open.store.read(move |conn| {
         let mut stmt = conn.prepare("SELECT id, ord, title, status FROM chapter ORDER BY ord, id")?;
@@ -1544,7 +1559,7 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
         Ok(Some(ReadingRun {
             chapters,
             frontier,
-            assets_dir: assets_dir.to_string_lossy().into_owned(),
+            assets_dir: assets_dir_str,
         }))
     })?;
 

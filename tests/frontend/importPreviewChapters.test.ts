@@ -651,7 +651,10 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
    * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — nhánh `v-else` "chưa đủ Chương để so"
    * (`any_signal_participated === false`) chưa từng được DỰNG trong một ca DOM nào trước đây.
    */
-  it('any_signal_participated === false — hiện dòng "chưa đủ Chương để so", KHÔNG hiện chip', async () => {
+  // `needs_review_count` an toàn hiện dù `any_signal_participated
+  // === false` (nó CỘNG cả link hỏng, không riêng hàng rào so-tương-đối); chỉ `clean_count`
+  // ("M sạch") cần gác bằng cờ đó. Bản trước ẩn CẢ HAI chip sau một `v-if` duy nhất.
+  it('any_signal_participated === false — chip "cần xem" vẫn hiện (disabled), chip "sạch" ẩn, dòng "chưa đủ Chương để so" hiện thêm', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({
       preview: preview({
@@ -676,8 +679,11 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-chapter-filter-note').text()).toBe('Chưa đủ Chương để so')
-    expect(wrapper.find('.ip-chapter-filter-chip-needs-review').exists()).toBe(false)
+    const notes = wrapper.findAll('.ip-chapter-filter-note').map((n) => n.text())
+    expect(notes).toContain('Chưa đủ Chương để so')
+    expect(notes).toContain('Không có Chương nào cần xem')
+    expect(wrapper.find('.ip-chapter-filter-chip-needs-review').exists()).toBe(true)
+    expect((wrapper.get('.ip-chapter-filter-chip-needs-review').element as HTMLButtonElement).disabled).toBe(true)
     expect(wrapper.find('.ip-chapter-filter-chip-clean').exists()).toBe(false)
 
     wrapper.unmount()
@@ -714,6 +720,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
         items: ['a', 'b', 'c'].map(urlItem),
         encoding_preview: preview({ candidates: [candidate({ chapters: nineChapters })] }),
         domain_log_domain_count: 1,
+        duplicate_urls_dropped: 0,
       },
       error: null,
     })
@@ -797,6 +804,7 @@ function urlBatch(): UrlImportBatchWire {
     items: urls.map(urlItem),
     encoding_preview: encodingPreview,
     domain_log_domain_count: 1,
+    duplicate_urls_dropped: 0,
   }
 }
 
@@ -825,6 +833,7 @@ function urlBatchTwoCandidates(): UrlImportBatchWire {
     items: urls.map(urlItem),
     encoding_preview: encodingPreview,
     domain_log_domain_count: 1,
+    duplicate_urls_dropped: 0,
   }
 }
 
@@ -869,16 +878,20 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'], null)
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 0 moi'), error: null })
     // Ô mẫu phân tách ĐANG GÕ khác rỗng — đường eager (`url_import_encoding_preview` phía
     // Rust) truyền `chapter_pattern: None` CỨNG cho MỌI ứng viên trên đường URL bất kể ô này;
-    // lệnh lazy phải khớp NGUYÊN VĂN, không được gửi mẫu đang gõ.
+    // lệnh lazy phải khớp NGUYÊN VĂN, không được gửi mẫu đang gõ. Một lượt sửa mẫu trong lúc
+    // màn URL mở giờ CŨNG dựng lại chi tiết Chương đang
+    // hiện (Chương 0 ở đây) qua CHÍNH lệnh lazy này, nên lượt gọi ĐẦU TIÊN đã đủ để canh.
     await state.setImportPreviewChapterPattern('Chuong', 'literal')
-    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+    expect(previewChapterDetailMock).toHaveBeenCalledWith(0, 'UTF-8', 'en', null)
 
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
     state.nextImportPreviewChapter()
     await flushPromises()
 
-    expect(previewChapterDetailMock).toHaveBeenCalledWith(1, 'UTF-8', 'en', null)
+    expect(previewChapterDetailMock).toHaveBeenLastCalledWith(1, 'UTF-8', 'en', null)
 
     state.resetImportPreview()
   })
@@ -1214,6 +1227,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
         ],
         encoding_preview: preview({ candidates: [candidate({ chapters: threeRealChaptersOneBrokenLink })] }),
         domain_log_domain_count: 4,
+        duplicate_urls_dropped: 0,
       },
       error: null,
     })
@@ -1235,6 +1249,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
         items: [{ url: 'a', ok: true, error: null }, { url: 'b', ok: true, error: null }, { url: 'c', ok: true, error: null }],
         encoding_preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }),
         domain_log_domain_count: 1,
+        duplicate_urls_dropped: 0,
       },
       error: null,
     })
@@ -1294,6 +1309,10 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
  * lượt đổi ứng viên **do cấu trúc**, không do một dòng mã nào nói ra — tức đúng loại bất biến
  * mà lượt tới sẽ phá mà không cổng nào đỏ. Ma trận đã ký gọi tên nó (*"Không âm thầm tắt lọc"*)
  * nên nó phải có chủ ở đây.
+ *
+ * ⚠️ **NGOẠI LỆ** — "giữ trạng thái bật" chỉ đúng khi ứng viên MỚI cũng
+ * `any_signal_participated === true`; nếu không, tầng 4 rơi về "chưa đủ Chương để so" và bộ
+ * lọc phải TỰ TẮT (ca riêng ngay dưới), không kẹt ở trạng thái lọc một tầng đã trống nghĩa.
  */
 describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ lọc (Story 6.10)', () => {
   it('bật lọc rồi đổi ứng viên — lọc VẪN bật, phán quyết đọc theo ứng viên mới', async () => {
@@ -1325,6 +1344,47 @@ describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ
     expect(state.importPreviewChapterFilterActive.value).toBe(true)
     expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(3)
     expect(state.importPreviewSelectedChapters.value?.clean_count).toBe(1)
+
+    state.resetImportPreview()
+  })
+
+  it('bật lọc rồi đổi sang ứng viên KHÔNG đủ Chương để so — bộ lọc TỰ TẮT', async () => {
+    const state = await freshState()
+    const participating = candidateWithChapters('UTF-8', [false, true, false, false])
+    const notParticipating: EncodingCandidateWire = {
+      ...candidateWithChapters('GBK', [false]),
+      chapters: {
+        chapter_count: 2,
+        chapters: [
+          { ord: 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+          { ord: 2, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null },
+        ],
+        broken_item_count: 0,
+        needs_review_count: 0,
+        clean_count: 2,
+        any_signal_participated: false,
+      },
+    }
+    previewTextMock.mockResolvedValue({
+      preview: {
+        selected_encoding: 'UTF-8',
+        confidence: 'low',
+        candidates: [participating, notParticipating],
+        self_declared_normalized: null,
+        self_declared_cleanup: null,
+        self_declared_chapters: null,
+      },
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+
+    state.selectImportPreviewCandidate('GBK')
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+    expect(state.importPreviewSelectedChapters.value?.any_signal_participated).toBe(false)
 
     state.resetImportPreview()
   })

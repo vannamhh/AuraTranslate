@@ -564,6 +564,7 @@ fn updating_chapter_origin_from_the_chapter_list_writes_exactly_the_four_columns
         "Website Nhap Tay",
         "https://example.test/nhap-tay",
         "2026-01-01",
+        None,
     )
     .expect("cap nhat xuat xu that bai");
     let row = rows.iter().find(|r| r.chapter_id == chapter_id).expect("phai co hang cho Chuong vua sua");
@@ -588,7 +589,7 @@ fn updating_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_touches
     let real_id = opened.chapter_id;
     let updated_at_before = read_chapter_updated_at(&opened.store, real_id);
 
-    let err = update_chapter_origin(Some(&mut opened), real_id + 999, "A", "B", "C", "D")
+    let err = update_chapter_origin(Some(&mut opened), real_id + 999, "A", "B", "C", "D", None)
         .expect_err("chapter_id la phai la mot loi");
     assert_eq!(err.code(), "segment.chapter_not_found");
     assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
@@ -628,10 +629,10 @@ fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_
             .expect("tao tac pham that bai");
         let chapter_id = opened.chapter_id;
 
-        update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "")
+        update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "", None)
             .expect("dat tac gia lan dau that bai");
 
-        update_chapter_origin(Some(&mut opened), chapter_id, input, "", "", "")
+        update_chapter_origin(Some(&mut opened), chapter_id, input, "", "", "", None)
             .expect("cap nhat tac gia that bai");
         let (author_after, ..) = read_chapter_origin(&opened.store, chapter_id);
         if author_after.as_deref() != *expected {
@@ -699,6 +700,7 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
         "",
         "",
         "",
+        None,
     )
     .expect("sua Chuong 2 that bai");
 
@@ -712,6 +714,102 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
     assert_eq!(updated_after[0], updated_before[0], "updated_at cua Chuong 1 khong duoc nhich");
     assert_eq!(updated_after[2], updated_before[2], "updated_at cua Chuong 3 khong duoc nhich");
     assert_ne!(updated_after[1], updated_before[1], "updated_at cua Chuong 2 phai nhich");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// Range-apply: the source Chapter's four origin fields applied across a contiguous ord range.
+
+#[test]
+fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_the_range_untouched() {
+    let root = temp_dir("range-apply-five-chapters");
+    let items = vec![
+        url_item("https://example.test/chuong-1", &html_full_origin("")),
+        url_item("https://example.test/chuong-2", &html_full_origin("")),
+        url_item("https://example.test/chuong-3", &html_full_origin("")),
+        url_item("https://example.test/chuong-4", &html_full_origin("")),
+        url_item("https://example.test/chuong-5", &html_full_origin("")),
+    ];
+    let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc tu nam muc OK");
+
+    let mut opened = create_work(
+        &root,
+        "Nam Chuong Range Apply",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(), 0, 1, false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None, &[])
+    .expect("tao tac pham that bai");
+
+    let chapter_ids: Vec<i64> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord")?;
+            let rows = stmt.query_map([], |r| r.get::<_, i64>(0))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc danh sach chapter_id that bai");
+    assert_eq!(chapter_ids.len(), 5, "nam muc URL OK phai dung nam Chuong");
+
+    let ord_of = |id: i64| -> i64 {
+        opened.store.read(|conn| conn.query_row("SELECT ord FROM chapter WHERE id = ?1", [id], |r| r.get(0))).expect("doc ord")
+    };
+    let through_ord = ord_of(chapter_ids[3]);
+    let before_first = read_chapter_origin(&opened.store, chapter_ids[0]);
+    let before_last = read_chapter_origin(&opened.store, chapter_ids[4]);
+
+    update_chapter_origin(
+        Some(&mut opened),
+        chapter_ids[1],
+        "Tac Gia Dai Han",
+        "Website Dai Han",
+        "https://example.test/goc-dai-han",
+        "2026-02-02",
+        Some(through_ord),
+    )
+    .expect("range-apply that bai");
+
+    for &id in &chapter_ids[1..=3] {
+        let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, id);
+        assert_eq!(author.as_deref(), Some("Tac Gia Dai Han"), "Chuong {id} phai nhan bon truong tu Chuong nguon");
+        assert_eq!(site_name.as_deref(), Some("Website Dai Han"));
+        assert_eq!(url.as_deref(), Some("https://example.test/goc-dai-han"));
+        assert_eq!(published_at.as_deref(), Some("2026-02-02"));
+    }
+
+    let after_last = read_chapter_origin(&opened.store, chapter_ids[4]);
+    assert_eq!(after_last, before_last, "Chuong 5 (NGOAI dai [2,4]) khong duoc doi mot byte nao");
+    let after_first = read_chapter_origin(&opened.store, chapter_ids[0]);
+    assert_eq!(after_first, before_first, "Chuong 1 (NGOAI dai [2,4]) khong duoc doi mot byte nao");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn range_applying_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_touches_nothing() {
+    let root = temp_dir("range-apply-unknown-id");
+    let mut opened = create_work_from_text(&root, "Range Id La", "en", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let real_id = opened.chapter_id;
+    let updated_at_before = read_chapter_updated_at(&opened.store, real_id);
+
+    let err = update_chapter_origin(Some(&mut opened), real_id + 999, "A", "B", "C", "D", Some(5))
+        .expect_err("chapter_id la phai la mot loi, ke ca voi apply_through_ord");
+    assert_eq!(err.code(), "segment.chapter_not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+
+    let updated_at_after = read_chapter_updated_at(&opened.store, real_id);
+    assert_eq!(updated_at_before, updated_at_after, "0 hang bi cham khi chapter_id sai, ke ca voi apply_through_ord");
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -836,7 +934,7 @@ fn updating_chapter_origin_refreshes_the_cached_work_meta_updated_at() {
     // MOI thuc su khac dau thoi gian CU, khong phai mot ca dong khung tinh co trung nhau.
     std::thread::sleep(std::time::Duration::from_millis(5));
 
-    update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia Lifecycle", "", "", "")
+    update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia Lifecycle", "", "", "", None)
         .expect("cap nhat xuat xu that bai");
 
     assert_ne!(

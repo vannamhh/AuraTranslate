@@ -37,8 +37,10 @@
 //!    [`DocxParsed::blocks`] (mọi khối `machine_kept: true`, không override) — một nguồn sự
 //!    thật DUY NHẤT cho cả "văn bản đi vào pipeline" LẪN "khối để tính neo ảnh" (Story 6.11
 //!    tái dùng), không hai bản có thể trôi khỏi nhau.
-//! 6. `w:tbl` LỒNG bên trong một ô bị bỏ qua có chủ ý (đọc byte để cân bằng cây XML, không
-//!    đếm vào cấu trúc bảng của ô cha) — nợ mới, ghi ở `deferred-work.md`, chủ Ice.
+//! 6. A `w:tbl` nested inside a cell becomes its own sibling [`TableShape`] in
+//!    `DocxParsed::tables`, listed and absorbed into `blocks` immediately after its own
+//!    parent table (not after the whole document body) — document order is kept, only the
+//!    nesting relationship itself is lost from the AD-38 count.
 //! 7. Ảnh nhúng (`a:blip r:embed="rIdN"`, DrawingML — hình dạng mà Word HIỆN ĐẠI và `docx-rs`
 //!    đều sinh ra; VML `v:imagedata` không được đọc, nợ mới) phân giải qua rels rồi đọc byte
 //!    thật từ `word/media/…` — MIME suy từ ĐUÔI TỆP media (không phải từ
@@ -46,6 +48,11 @@
 //!    đã đủ cho danh mục ĐÓNG bốn MIME mà `core::webimport::assets::extension_for_mime` chấp
 //!    nhận; SVG/EMF/WMF/BMP/TIFF suy ra một MIME KHÔNG thuộc danh mục đó và bị từ chối ở tầng
 //!    gọi (`images_failed`), không panic ở đây).
+//! 8. `word/footnotes.xml`/`word/endnotes.xml` (both optional; a missing one doesn't fail
+//!    the read) — text of every real `w:footnote`/`w:endnote` (skipping elements carrying
+//!    `w:type`, i.e. `separator`/`continuationSeparator`/`continuationNotice`, which are not
+//!    author content) is appended to the END of `blocks`, after the whole document body.
+//!    `word/header*.xml`/`word/footer*.xml`/`word/comments.xml` are intentionally not read.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read};
@@ -167,6 +174,8 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         None => BTreeMap::new(),
     };
 
+    // Each table's own nested tables travel WITH it in `items` (see module doc item 6) so
+    // they can be absorbed right after their parent, not deferred past a later top-level item.
     let items = parse_body(&document_xml)?;
 
     let mut blocks: Vec<Block> = Vec::new();
@@ -179,22 +188,39 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
             BodyItem::Para(p) => {
                 push_paragraph(p, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive);
             }
-            BodyItem::Table(t) => {
-                let mut cells_per_row = Vec::with_capacity(t.rows.len());
-                let mut paragraphs_per_cell = Vec::with_capacity(t.rows.len());
-                for row in &t.rows {
-                    cells_per_row.push(row.cells.len());
-                    let mut per_cell = Vec::with_capacity(row.cells.len());
-                    for cell in &row.cells {
-                        per_cell.push(cell.paragraphs.len());
-                        for p in &cell.paragraphs {
-                            push_paragraph(p, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive);
-                        }
-                    }
-                    paragraphs_per_cell.push(per_cell);
+            BodyItem::Table(t, nested) => {
+                tables.push(absorb_table(t, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
+                for n in nested {
+                    tables.push(absorb_table(n, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
                 }
-                tables.push(TableShape { rows: t.rows.len(), cells_per_row, paragraphs_per_cell });
             }
+        }
+    }
+
+    // Footnotes/endnotes (module doc item 8) are appended to the end of `blocks`.
+    for (note_file, note_local) in [("word/footnotes.xml", "footnote"), ("word/endnotes.xml", "endnote")] {
+        let Some(raw) = read_zip_entry(&mut archive, note_file) else { continue };
+        let text = match String::from_utf8(raw) {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("docx notes: {note_file} khong phai UTF-8, bo qua -- {e}");
+                continue;
+            }
+        };
+        let paragraphs = parse_notes_body(&text, note_local)?;
+        for para in &paragraphs {
+            let content = paragraph_text_only(para);
+            if content.trim().is_empty() {
+                continue;
+            }
+            let gap = if first_text_seen { "\n\n" } else { "" };
+            first_text_seen = true;
+            blocks.push(Block {
+                body: BlockBody::Paragraph(content),
+                machine_kept: true,
+                exact_gap_before: gap.to_owned(),
+                is_list_item: false,
+            });
         }
     }
 
@@ -337,7 +363,10 @@ struct TableContent {
 
 enum BodyItem {
     Para(ParaContent),
-    Table(TableContent),
+    /// The table itself, plus every table nested inside it (any depth, flattened in document
+    /// order) — kept together so `read_docx` can absorb the nested ones right after their
+    /// parent instead of after the whole body.
+    Table(TableContent, Vec<TableContent>),
 }
 
 /// Phần tử XML mà không mang chữ VÀ không mang ảnh — an toàn bỏ TRỌN subtree mà không đếm
@@ -373,7 +402,10 @@ fn parse_body(xml: &str) -> Result<Vec<BodyItem>, DocxError> {
                 let local = local_name_of(&e);
                 match local.as_str() {
                     "p" => items.push(BodyItem::Para(parse_paragraph(&mut reader)?)),
-                    "tbl" => items.push(BodyItem::Table(parse_table(&mut reader)?)),
+                    "tbl" => {
+                        let (table, nested) = parse_table(&mut reader)?;
+                        items.push(BodyItem::Table(table, nested));
+                    }
                     other if is_opaque(other) => {
                         reader.read_to_end(e.name()).map_err(xml_err)?;
                     }
@@ -387,7 +419,7 @@ fn parse_body(xml: &str) -> Result<Vec<BodyItem>, DocxError> {
                 if local == "p" {
                     items.push(BodyItem::Para(ParaContent { pieces: Vec::new() }));
                 } else if local == "tbl" {
-                    items.push(BodyItem::Table(TableContent { rows: Vec::new() }));
+                    items.push(BodyItem::Table(TableContent { rows: Vec::new() }, Vec::new()));
                 }
             }
             _ => {}
@@ -396,8 +428,12 @@ fn parse_body(xml: &str) -> Result<Vec<BodyItem>, DocxError> {
     Ok(items)
 }
 
-fn parse_table(reader: &mut Reader<&[u8]>) -> Result<TableContent, DocxError> {
+/// Parses one `w:tbl` and returns it alongside every table nested inside it (any depth,
+/// flattened in document order — a nested table's own nested tables are spliced in right
+/// after it), so the caller can absorb the whole group immediately after this table.
+fn parse_table(reader: &mut Reader<&[u8]>) -> Result<(TableContent, Vec<TableContent>), DocxError> {
     let mut rows = Vec::new();
+    let mut nested = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
             Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:tbl".to_owned() }),
@@ -405,7 +441,7 @@ fn parse_table(reader: &mut Reader<&[u8]>) -> Result<TableContent, DocxError> {
             Event::Start(e) => {
                 let local = local_name_of(&e);
                 if local == "tr" {
-                    rows.push(parse_row(reader)?);
+                    rows.push(parse_row(reader, &mut nested)?);
                 } else if is_opaque(&local) {
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
@@ -414,10 +450,10 @@ fn parse_table(reader: &mut Reader<&[u8]>) -> Result<TableContent, DocxError> {
             _ => {}
         }
     }
-    Ok(TableContent { rows })
+    Ok((TableContent { rows }, nested))
 }
 
-fn parse_row(reader: &mut Reader<&[u8]>) -> Result<RowContent, DocxError> {
+fn parse_row(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Result<RowContent, DocxError> {
     let mut cells = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
@@ -426,7 +462,7 @@ fn parse_row(reader: &mut Reader<&[u8]>) -> Result<RowContent, DocxError> {
             Event::Start(e) => {
                 let local = local_name_of(&e);
                 if local == "tc" {
-                    cells.push(parse_cell(reader)?);
+                    cells.push(parse_cell(reader, nested)?);
                 } else if is_opaque(&local) {
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
@@ -438,7 +474,7 @@ fn parse_row(reader: &mut Reader<&[u8]>) -> Result<RowContent, DocxError> {
     Ok(RowContent { cells })
 }
 
-fn parse_cell(reader: &mut Reader<&[u8]>) -> Result<CellContent, DocxError> {
+fn parse_cell(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Result<CellContent, DocxError> {
     let mut paragraphs = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
@@ -449,9 +485,12 @@ fn parse_cell(reader: &mut Reader<&[u8]>) -> Result<CellContent, DocxError> {
                 if local == "p" {
                     paragraphs.push(parse_paragraph(reader)?);
                 } else if local == "tbl" {
-                    // 🔴 Bảng LỒNG trong ô -- đọc byte để cân bằng cây XML, KHÔNG đếm vào cấu
-                    // trúc (nợ mới, ghi ở deferred-work.md — xem doc-comment đầu module mục 6).
-                    reader.read_to_end(e.name()).map_err(xml_err)?;
+                    // Recurses, so multi-level nesting is collected too, in document order
+                    // (this nested table's own nested tables are already spliced in right
+                    // after it by the recursive call).
+                    let (nested_table, nested_table_nested) = parse_table(reader)?;
+                    nested.push(nested_table);
+                    nested.extend(nested_table_nested);
                 } else if is_opaque(&local) {
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
@@ -461,6 +500,49 @@ fn parse_cell(reader: &mut Reader<&[u8]>) -> Result<CellContent, DocxError> {
         }
     }
     Ok(CellContent { paragraphs })
+}
+
+// Skips elements carrying a `w:type` attribute (separator/continuationSeparator/
+// continuationNotice), which Word generates automatically and are not author content.
+fn parse_notes_body(xml: &str, note_local: &str) -> Result<Vec<ParaContent>, DocxError> {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(false);
+    let mut paragraphs = Vec::new();
+    let mut skip_current = false;
+    loop {
+        match reader.read_event().map_err(xml_err)? {
+            Event::Eof => break,
+            Event::Start(e) if local_name_of(&e) == note_local => {
+                skip_current = attr_value(&e, "type").is_some();
+            }
+            Event::End(e) if local_name_of_end(&e) == note_local => {
+                skip_current = false;
+            }
+            Event::Start(e) if local_name_of(&e) == "p" => {
+                let para = parse_paragraph(&mut reader)?;
+                if !skip_current {
+                    paragraphs.push(para);
+                }
+            }
+            Event::Empty(e) if local_name_of(&e) == "p" && !skip_current => {
+                paragraphs.push(ParaContent { pieces: Vec::new() });
+            }
+            _ => {}
+        }
+    }
+    Ok(paragraphs)
+}
+
+// Skips ParaPiece::Image: footnotes/endnotes contribute text only, no images (module doc
+// item 8).
+fn paragraph_text_only(para: &ParaContent) -> String {
+    let mut out = String::new();
+    for piece in &para.pieces {
+        if let ParaPiece::Text(t) = piece {
+            out.push_str(t);
+        }
+    }
+    out
 }
 
 fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError> {
@@ -583,6 +665,32 @@ fn find_image_rel_id(reader: &mut Reader<&[u8]>) -> Result<Option<String>, DocxE
 
 fn local_name_of_end(e: &quick_xml::events::BytesEnd) -> String {
     std::str::from_utf8(e.local_name().as_ref()).unwrap_or("").to_owned()
+}
+
+// Pushes a table's paragraphs (top-level or a split-out nested sibling) into `blocks` in
+// row/cell order, and returns that table's own TableShape count.
+fn absorb_table<R: Read + std::io::Seek>(
+    t: &TableContent,
+    blocks: &mut Vec<Block>,
+    images: &mut Vec<DocxImage>,
+    first_text_seen: &mut bool,
+    rels_map: &BTreeMap<String, String>,
+    archive: &mut zip::ZipArchive<R>,
+) -> TableShape {
+    let mut cells_per_row = Vec::with_capacity(t.rows.len());
+    let mut paragraphs_per_cell = Vec::with_capacity(t.rows.len());
+    for row in &t.rows {
+        cells_per_row.push(row.cells.len());
+        let mut per_cell = Vec::with_capacity(row.cells.len());
+        for cell in &row.cells {
+            per_cell.push(cell.paragraphs.len());
+            for p in &cell.paragraphs {
+                push_paragraph(p, blocks, images, first_text_seen, rels_map, archive);
+            }
+        }
+        paragraphs_per_cell.push(per_cell);
+    }
+    TableShape { rows: t.rows.len(), cells_per_row, paragraphs_per_cell }
 }
 
 /// Đẩy một đoạn (đến từ thân tài liệu HOẶC một ô bảng — cùng khuôn) thành các [`Block`], gán

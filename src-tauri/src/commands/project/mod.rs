@@ -358,6 +358,24 @@ impl ImportScanGeneration {
     }
 }
 
+/// Cancels an in-flight image-download pass, mirroring
+/// [`crate::commands::aitranslate::AiTranslateGeneration`]: `next()` captures this pass's
+/// generation (retiring any earlier pass); `wire::cancel_image_download` calls `next()`
+/// again to bump the counter, so `is_current(generation)` goes `false` for the running
+/// pass. `prepare_chapter_images` polls it before each image.
+#[derive(Debug, Clone, Default)]
+pub struct ImageDownloadGeneration(Arc<AtomicU64>);
+
+impl ImageDownloadGeneration {
+    fn next(&self) -> u64 {
+        self.0.fetch_add(1, Ordering::AcqRel).wrapping_add(1)
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.0.load(Ordering::Acquire) == generation
+    }
+}
+
 /// Ánh xạ DUY NHẤT từ kết quả lookup nhiều lớp sang ba trạng thái mà lượt scan hiểu.
 /// Worker và unit test cùng gọi hàm này; không test một closure bool chép lại quyết định.
 fn dictionary_probe_from_grouped(
@@ -1163,19 +1181,27 @@ pub struct ChapterSplitPreviewWire {
     /// mang `needs_review == true` CỘNG `broken_item_count` — một link hỏng LUÔN LUÔN cần chú
     /// ý (nó hỏng), nên nó được cộng vào vế CẦN XEM (§Always spec 6.10: "kể cả vế link hỏng").
     /// Rust cộng con số này — không phải một phép cộng ở tầng hiển thị (AD-1).
+    ///
+    /// Always safe to display regardless of `any_signal_participated`: when no signal
+    /// participates, `classify()` pushes no cause into any Chapter, so this count is
+    /// always `0` and collapses to `broken_item_count`. Only
+    /// [`ChapterSplitPreviewWire::clean_count`] needs to be gated on `any_signal_participated`.
     pub needs_review_count: usize,
     /// **THÊM 2026-09-08 (Story 6.10)** — `M` của chip — số Chương mang `needs_review ==
     /// false`. KHÔNG BAO GIỜ cộng `broken_item_count` (link hỏng không phải Chương, và không
     /// bao giờ "sạch" — nó hỏng).
+    ///
+    /// ⚠️ The one field gated by `any_signal_participated`: when `false`, this value
+    /// ("every Chapter is clean") would be a false claim, since nothing was actually
+    /// measured. `needs_review_count` needs no such gate — see its doc comment.
     pub clean_count: usize,
     /// **THÊM 2026-09-08 (Story 6.10)** — `true` khi ÍT NHẤT một trong ba tín hiệu so-tương-đối
     /// (`length`/`cleanup_match_count`/`joined_line_count`) có hàng rào tồn tại cho lượt nhập
     /// này (`core::segment::review::SignalParticipation::any`). `false` ⇒ KHÔNG tín hiệu nào
-    /// tham gia (dưới bốn giá trị đo được cho CẢ ba, hoặc mọi hàng rào đều suy biến) —
-    /// `needs_review_count`/`clean_count` khi đó KHÔNG được đọc như "đã đo và sạch": tầng hiển
-    /// thị phải nói *"chưa đủ Chương để so"* thay vì khai `0 cần xem` (§Always spec 6.10, AC
-    /// 2026-09-08 — "không đo được không bao giờ rơi vào nhánh sạch", áp cho CẢ LƯỢT NHẬP khi
-    /// trường này là `false`).
+    /// tham gia (dưới bốn giá trị đo được cho CẢ ba, hoặc mọi hàng rào đều suy biến) — only
+    /// `clean_count` must then not be read as "measured and clean" (the display layer must
+    /// say "not enough Chapters to compare" instead of claiming `M clean`). `needs_review_count`
+    /// is unaffected — see its own doc comment.
     pub any_signal_participated: bool,
 }
 
@@ -1221,6 +1247,12 @@ fn build_chapter_split_preview_wire(
         .collect();
 
     let needs_review_chapters = entries.iter().filter(|e| e.needs_review).count();
+    // Guards the contract on `ChapterSplitPreviewWire::needs_review_count`: with no signal
+    // participating, `classify()` must push no cause into any Chapter.
+    debug_assert!(
+        outcome.participation.any() || needs_review_chapters == 0,
+        "khong tin hieu nao tham gia nhung van co Chuong needs_review=true -- vo hop dong needs_review_count"
+    );
     ChapterSplitPreviewWire {
         chapter_count: entries.len(),
         clean_count: entries.len() - needs_review_chapters,
@@ -2463,7 +2495,7 @@ pub fn cancel_import_preview(state: &PendingImportSourceState) {
 /// đã theo) rồi truyền vào đây; state đó chỉ được RESET ở lớp vỏ SAU KHI hàm này trả `Ok`.
 /// 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1) — tham số `domain_log_state`.** Đọc doc-comment
 /// `create_work` — thread thẳng xuống đó, không tự tích luỹ gì ở tầng này.
-pub fn confirm_import_with_encoding(
+pub fn confirm_import_with_encoding_with_progress(
     documents_root: &Path,
     state: &PendingImportSourceState,
     name: &str,
@@ -2478,6 +2510,8 @@ pub fn confirm_import_with_encoding(
     // `Ok`.
     origin_overrides: Vec<Option<ChapterOriginOverride>>,
     domain_log_state: &webimport::DomainLogState,
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -2506,7 +2540,7 @@ pub fn confirm_import_with_encoding(
     // `shape` sống sót/biến mất, hai trường của CÙNG MỘT `PendingImportSource`.
     let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
 
-    let opened = create_work(
+    let opened = create_work_with_progress(
         documents_root,
         name,
         source_lang,
@@ -2526,12 +2560,46 @@ pub fn confirm_import_with_encoding(
         docx_sidecar,
         // Đường văn xuôi/URL không bao giờ mang `PipelineShape::Bilingual` — 0 regrouping.
         &[],
+        on_image_progress,
+        should_cancel,
     )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
     *guard = None;
 
     Ok(opened)
+}
+
+/// Thin wrapper over [`confirm_import_with_encoding_with_progress`] with a no-op
+/// progress/cancel pair, for callers that don't need either.
+pub fn confirm_import_with_encoding(
+    documents_root: &Path,
+    state: &PendingImportSourceState,
+    name: &str,
+    source_lang: &str,
+    genre: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<OpenWork, IpcError> {
+    confirm_import_with_encoding_with_progress(
+        documents_root,
+        state,
+        name,
+        source_lang,
+        genre,
+        encoding_wire_id,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        origin_overrides,
+        domain_log_state,
+        &mut |_, _| {},
+        &|| false,
+    )
 }
 
 /// **Hàm thuần** — lõi của lượt xác nhận đường APPEND (Story 6.7b, FR122 nửa hai). Cùng
@@ -2551,7 +2619,7 @@ pub fn confirm_import_with_encoding(
 /// Y hệt [`confirm_import_with_encoding`] cộng lỗi của [`append_chapters_to_work`]/
 /// `write_lifecycle_after_change`; KHÔNG một nhánh nào xoá `open` (§Never spec 6.7b) — một
 /// lỗi để `open` NGUYÊN VẸN, ô đang chờ GIỮ NGUYÊN để thử lại với một ứng viên bảng mã khác.
-pub fn confirm_append_import_with_encoding(
+pub fn confirm_append_import_with_encoding_with_progress(
     open: &mut OpenWork,
     state: &PendingImportSourceState,
     source_lang: &str,
@@ -2561,6 +2629,8 @@ pub fn confirm_append_import_with_encoding(
     block_overrides: Vec<Option<bool>>,
     origin_overrides: Vec<Option<ChapterOriginOverride>>,
     domain_log_state: &webimport::DomainLogState,
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
 ) -> Result<(), IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -2572,7 +2642,7 @@ pub fn confirm_append_import_with_encoding(
     let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
     let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
 
-    append_chapters_to_work(
+    append_chapters_to_work_with_progress(
         open,
         source_lang,
         shape,
@@ -2583,6 +2653,8 @@ pub fn confirm_append_import_with_encoding(
         &origin_overrides,
         domain_log_state,
         docx_sidecar,
+        on_image_progress,
+        should_cancel,
     )?;
 
     // Thanh cong -- don o dang cho, VAN duoi CUNG mot khoa da giu tu dau ham.
@@ -2592,6 +2664,34 @@ pub fn confirm_append_import_with_encoding(
     // Buoc 2-3 cua khuon bon buoc AD-8 -- cap nhat open.meta tai cho.
     crate::commands::lifecycle::write_lifecycle_after_change(open)?;
     Ok(())
+}
+
+/// Thin wrapper over [`confirm_append_import_with_encoding_with_progress`] with a no-op
+/// progress/cancel pair.
+pub fn confirm_append_import_with_encoding(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<(), IpcError> {
+    confirm_append_import_with_encoding_with_progress(
+        open,
+        state,
+        source_lang,
+        encoding_wire_id,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        origin_overrides,
+        domain_log_state,
+        &mut |_, _| {},
+        &|| false,
+    )
 }
 
 /// **THÊM 2026-09-16 (Story 6.7b, Phase 4 — vòng rà của coordinator, đối chứng đỏ ① của
@@ -2641,8 +2741,46 @@ pub fn confirm_append_import_with_encoding_indexed(
     global: Option<&Store>,
     root: &std::path::Path,
 ) -> Result<(), IpcError> {
+    confirm_append_import_with_encoding_indexed_with_progress(
+        open,
+        state,
+        source_lang,
+        encoding_wire_id,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        origin_overrides,
+        domain_log_state,
+        indexer,
+        global,
+        root,
+        &mut |_, _| {},
+        &|| false,
+    )
+}
+
+/// Same shape as [`confirm_append_import_with_encoding_indexed`] plus real image
+/// progress/cancel wiring; production callers that need it use this one, tests keep
+/// calling the no-op wrapper.
+#[allow(clippy::too_many_arguments)]
+pub fn confirm_append_import_with_encoding_indexed_with_progress(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: Vec<Option<ChapterOriginOverride>>,
+    domain_log_state: &webimport::DomainLogState,
+    indexer: Option<&crate::core::library::indexer::Indexer>,
+    global: Option<&Store>,
+    root: &std::path::Path,
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
+) -> Result<(), IpcError> {
     crate::commands::lifecycle::finish_lifecycle_write(
-        confirm_append_import_with_encoding(
+        confirm_append_import_with_encoding_with_progress(
             open,
             state,
             source_lang,
@@ -2652,6 +2790,8 @@ pub fn confirm_append_import_with_encoding_indexed(
             block_overrides,
             origin_overrides,
             domain_log_state,
+            on_image_progress,
+            should_cancel,
         ),
         indexer,
         global,
@@ -3066,6 +3206,91 @@ pub fn open_destination_for_append(
 /// bên trong, nơi pool nhiều kết nối đã lo phần đó).
 pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 
+/// `work_id`s with an APPEND currently writing into a Work that is not the open editor
+/// Work, so `replace_open_work`'s orphan sweep can skip them instead of racing the write.
+pub type AppendInProgressState = std::sync::Mutex<std::collections::HashSet<String>>;
+
+/// Pure decision over an ALREADY-LOCKED set — the caller holds the `AppendInProgressState`
+/// lock across both this check and whatever it gates, so the answer cannot go stale before
+/// the caller acts on it.
+pub fn should_skip_orphan_sweep(in_progress: &std::collections::HashSet<String>, work_id: &str) -> bool {
+    in_progress.contains(work_id)
+}
+
+/// Removes `work_id` from [`AppendInProgressState`] on every exit path, including `?`.
+pub struct AppendInProgressGuard<'a> {
+    state: &'a AppendInProgressState,
+    work_id: String,
+}
+
+impl<'a> AppendInProgressGuard<'a> {
+    pub fn new(state: &'a AppendInProgressState, work_id: String) -> Self {
+        let mut set = state.lock().unwrap_or_else(|e| e.into_inner());
+        set.insert(work_id.clone());
+        drop(set);
+        Self { state, work_id }
+    }
+}
+
+impl Drop for AppendInProgressGuard<'_> {
+    fn drop(&mut self) {
+        let mut set = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        set.remove(&self.work_id);
+    }
+}
+
+/// Runs `sweep` while holding the `AppendInProgressState` lock for the whole check-then-sweep
+/// span — `AppendInProgressGuard::new` locks the same `Mutex`, so it cannot register (and let
+/// its APPEND start writing into `assets_dir`) until `sweep` has returned. Skips `sweep`
+/// (without running it) when `append_state` is `None` (fails CLOSED: an unmanaged state means
+/// an in-flight APPEND cannot be ruled out) or when `work_id` is already registered.
+fn sweep_orphans_holding_the_append_lock(
+    append_state: Option<&AppendInProgressState>,
+    work_id: &str,
+    assets_dir: &std::path::Path,
+    sweep: impl FnOnce(),
+) {
+    let Some(state) = append_state else {
+        eprintln!(
+            "project[orphan] AppendInProgressState chua duoc quan ly, bo qua luot quet mo coi cho {}",
+            assets_dir.display()
+        );
+        return;
+    };
+    let in_progress = state.lock().unwrap_or_else(|e| e.into_inner());
+    if should_skip_orphan_sweep(&in_progress, work_id) {
+        eprintln!(
+            "project[orphan] bo qua luot quet mo coi cho {} - mot luot APPEND dang do dang",
+            assets_dir.display()
+        );
+        return;
+    }
+    sweep();
+}
+
+// A missing assets_dir (no images ever downloaded) returns 0, not an error. Only regular
+// files are removed; a failed removal is logged and skipped, not fatal to the sweep.
+fn sweep_orphaned_asset_files(assets_dir: &std::path::Path, referenced: &std::collections::BTreeSet<String>) -> usize {
+    let Ok(entries) = std::fs::read_dir(assets_dir) else { return 0 };
+    let mut removed = 0usize;
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else { continue };
+        if !file_type.is_file() {
+            continue;
+        }
+        let name = entry.file_name();
+        let Some(name_str) = name.to_str() else { continue };
+        if referenced.contains(name_str) {
+            continue;
+        }
+        match std::fs::remove_file(entry.path()) {
+            Ok(()) => removed += 1,
+            Err(err) => eprintln!("project[orphan] khong xoa duoc {}: {err}", entry.path().display()),
+        }
+    }
+    removed
+}
+
 /// Thay Tác phẩm đang mở (nếu có) bằng `new_work` — **Store cũ tự đóng qua `Drop`**.
 ///
 /// ⚠️ Nếu `OpenWorkState` chưa từng được `app.manage(...)` (lỗi cấu hình `setup()`, không
@@ -3126,6 +3351,29 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
         );
     }
 
+    // Sweeps assets/ for files no `asset` row names, before the Work accepts any write.
+    //
+    // 🔴 A failed read of the `asset` table skips the sweep entirely — sweeping with an
+    // empty referenced set would delete every real asset file.
+    let append_state = app.try_state::<AppendInProgressState>();
+    sweep_orphans_holding_the_append_lock(append_state.as_deref(), &new_work.meta.work_id, &assets_dir, || {
+        match new_work.store.read(|conn| {
+            let mut stmt = conn.prepare("SELECT file_name FROM asset")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+            rows.collect::<crate::core::store::SqlResult<std::collections::BTreeSet<String>>>()
+        }) {
+            Ok(referenced) => {
+                sweep_orphaned_asset_files(&assets_dir, &referenced);
+            }
+            Err(err) => {
+                eprintln!(
+                    "project[orphan] khong doc duoc bang asset cho {}, bo qua luot quet mo coi: {err:?}",
+                    assets_dir.display()
+                );
+            }
+        }
+    });
+
     // Story 3.10b (AD-48) -- mo mot Tac pham KHAC lam `project.db` cua no doi hoan toan; mot
     // lo nhap Glossary dang TREO o tang Work (neu co) tro toi kho CU, va `RowPlanKind::
     // Conflict::existing_id` cua no khong con dung nghia o kho MOI. Don TRUOC khi swap, cung
@@ -3156,7 +3404,51 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     }
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
-        drop(swap_locked(&state, new_work));
+        let old = swap_locked(&state, new_work);
+        // Revoke the outgoing Work's `asset://` scope (AD-23: one Work at a time).
+        // `forbid_directory` runs after the new Work's `allow_directory` above.
+        let old_assets_dir_owned = old.as_ref().map(|w| w.dir.join("assets"));
+        if let Some(old_assets_dir) = assets_dir_to_forbid(old_assets_dir_owned.as_deref(), &assets_dir) {
+            if let Err(err) = app.asset_protocol_scope().forbid_directory(old_assets_dir, true) {
+                eprintln!(
+                    "project[scope] khong thu hoi duoc asset_protocol_scope cho {}: {err}",
+                    old_assets_dir.display()
+                );
+            }
+        }
+        drop(old);
+    }
+}
+
+// Returns None both when there is no old Work and when the old Work is the one just
+// re-allowed (reopening itself), so the just-granted allow is never immediately revoked.
+fn assets_dir_to_forbid<'a>(
+    old_assets_dir: Option<&'a std::path::Path>,
+    newly_allowed_assets_dir: &std::path::Path,
+) -> Option<&'a std::path::Path> {
+    old_assets_dir.filter(|old| *old != newly_allowed_assets_dir)
+}
+
+#[cfg(test)]
+mod scope_revocation_tests {
+    use super::assets_dir_to_forbid;
+    use std::path::Path;
+
+    #[test]
+    fn no_old_work_means_nothing_to_forbid() {
+        assert_eq!(assets_dir_to_forbid(None, Path::new("/lib/B.atproj/assets")), None);
+    }
+
+    #[test]
+    fn a_different_old_work_is_forbidden() {
+        let old = Path::new("/lib/A.atproj/assets");
+        assert_eq!(assets_dir_to_forbid(Some(old), Path::new("/lib/B.atproj/assets")), Some(old));
+    }
+
+    #[test]
+    fn reopening_the_same_work_forbids_nothing() {
+        let dir = Path::new("/lib/A.atproj/assets");
+        assert_eq!(assets_dir_to_forbid(Some(dir), dir), None, "khong duoc huy ngay luot allow vua cap cho CHINH no");
     }
 }
 

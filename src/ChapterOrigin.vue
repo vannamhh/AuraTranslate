@@ -35,21 +35,22 @@ const props = defineProps<{
 }>()
 
 /**
- * Phát ra TOÀN BỘ bốn trường (giá trị vừa gõ ĐÈ lên đúng MỘT ô, ba ô còn lại giữ nguyên giá
- * trị đang hiện) — khớp chữ ký cả hai lệnh Rust đích (`set_chapter_origin_override`/
- * `update_chapter_origin`), cả hai đều nhận bốn trường một lượt, không patch từng ô rời.
+ * Phát ra bốn trường, nhưng chỉ ô VỪA GÕ mang chuỗi — ba ô còn lại đi `null` ("chưa chạm",
+ * giữ nguyên giá trị máy/đĩa hiện có phía chỗ gọi). Chỗ gọi tự gộp lượt phát này vào draft/
+ * bản ghi tích luỹ của nó — component ở đây không giữ trạng thái "đã chạm những ô nào" qua
+ * hai lượt `@commit`.
  */
 const emit = defineEmits<{
-  commit: [origin: { author: string; siteName: string; url: string; publishedAt: string }]
+  commit: [origin: { author: string | null; siteName: string | null; url: string | null; publishedAt: string | null }]
 }>()
 
 function commitField(field: OriginField, event: Event): void {
   const value = (event.target as HTMLInputElement).value
   emit('commit', {
-    author: field === 'author' ? value : (props.author ?? ''),
-    siteName: field === 'siteName' ? value : (props.siteName ?? ''),
-    url: field === 'url' ? value : (props.url ?? ''),
-    publishedAt: field === 'publishedAt' ? value : (props.publishedAt ?? ''),
+    author: field === 'author' ? value : null,
+    siteName: field === 'siteName' ? value : null,
+    url: field === 'url' ? value : null,
+    publishedAt: field === 'publishedAt' ? value : null,
   })
 }
 </script>
@@ -152,14 +153,9 @@ function commitField(field: OriginField, event: Event): void {
 }
 
 .chapter-origin-input::placeholder {
-  font-size: var(--font-ui-sm);
+  font-size: var(--font-ui-sm-italic);
   color: var(--color-on-surface-variant);
-  /* ⚠️ KHÔNG có `font-style: italic` ở đây, dù EXPERIENCE.md:331-336 đòi ĐÍCH DANH chữ nghiêng
-     cho "không tìm thấy". Đo 2026-09-10: `check:tokens` Kiểm B xếp `font-style` vào nhóm
-     "cỡ/họ chữ viết thẳng" và ĐỎ ngay (`src/ChapterOrigin.vue:161 — cỡ/họ chữ viết thẳng:
-     font-style: italic`) — một lượt thêm nó đã bị gỡ lại vì thế. Đóng vế "chữ nghiêng" cần
-     một token nghiêng THẬT trong `src/tokens/`, hoặc một miễn trừ CÓ TÊN — cả hai đều là
-     quyết định hệ thống thiết kế, không phải một dòng CSS. Nợ có chủ: `deferred-work.md`. */
+  font-style: var(--style-ui-sm-italic);
 }
 
 .chapter-origin-input:disabled {

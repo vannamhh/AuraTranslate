@@ -78,6 +78,21 @@ impl From<&UrlImportItem> for UrlImportItemWire {
     }
 }
 
+/// Progress event name for the page-fetch phase (`wire::start_url_import`).
+pub const URL_IMPORT_PAGE_PROGRESS_EVENT: &str = "url_import_page_progress";
+/// Progress event name for the image-download phase (`create_work`/
+/// `append_chapters_to_work`'s image loop, after every link has been fetched).
+pub const URL_IMPORT_IMAGE_PROGRESS_EVENT: &str = "url_import_image_progress";
+
+/// Shared payload for both progress events above. `completed`/`total` count in that
+/// phase's own unit (links for the page phase, images for the image phase); `completed`
+/// is 1-based, i.e. how many are done after the just-finished one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct ImportProgressEvent {
+    pub completed: usize,
+    pub total: usize,
+}
+
 /// Kết quả trả về của cả ba lệnh (tải danh sách, tải lại một mục, bỏ một mục) — danh sách
 /// mục HIỆN TẠI cộng xem trước bảng mã khi TOÀN BỘ đã OK. `encoding_preview: None` là điều
 /// kiện đủ để frontend biết nút xác nhận phải khoá (đồng bộ với
@@ -92,6 +107,10 @@ pub struct UrlImportBatchWire {
     /// `wire::start_url_import`/`reload_url_import_item`/`remove_url_import_item` cùng tính
     /// qua `wire::domain_log_domain_count` — ba vỏ, một nguồn.
     pub domain_log_domain_count: usize,
+    /// Duplicate links (per [`webimport::assets::normalize_url_for_dedup`]) merged away
+    /// during the latest [`wire::start_url_import`]; `0` for the other four wires, which
+    /// edit an already-deduped list rather than admitting new links.
+    pub duplicate_urls_dropped: usize,
 }
 
 /// Hình dạng DÂY của một [`webimport::DomainLogEntry`] — Story 6.8, NFR19. `kind`/`decision`
@@ -220,21 +239,88 @@ fn trim_like_the_paste_box(line: &str) -> &str {
     webimport::chapter_origin_trim(line)
 }
 
+fn trim_and_filter_urls(urls: Vec<String>) -> Vec<String> {
+    urls.into_iter().map(|s| trim_like_the_paste_box(&s).to_owned()).filter(|s| !s.is_empty()).collect()
+}
+
+/// Maximum links accepted per paste; more are refused outright, never silently truncated.
+pub const MAX_URL_IMPORT_LINKS: usize = 200;
+
+fn too_many_urls_error(count: usize) -> IpcError {
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("count".to_owned(), count.to_string());
+    params.insert("limit".to_owned(), MAX_URL_IMPORT_LINKS.to_string());
+    IpcError::new(
+        "import.too_many_urls",
+        crate::core::i18n::MessageKey::ImportTooManyUrls,
+        params,
+        false,
+    )
+}
+
+/// Prepares the pasted link list before fetching: trims/drops blank lines (same as
+/// [`fetch_url_import_items`]), refuses the WHOLE list when it exceeds
+/// [`MAX_URL_IMPORT_LINKS`] (nothing is fetched, nothing silently truncated), then dedups
+/// by [`webimport::assets::normalize_url_for_dedup`], keeping each key's first occurrence
+/// in paste order.
+///
+/// Kept separate from [`fetch_url_import_items`] so performance probes can still call the
+/// raw fetch path directly, bypassing this cap.
+///
+/// # Errors
+/// More than [`MAX_URL_IMPORT_LINKS`] lines after trim/filter ⇒ `import.too_many_urls`,
+/// no URL is fetched.
+pub fn prepare_url_import_list(urls: Vec<String>) -> Result<(Vec<String>, usize), IpcError> {
+    let trimmed = trim_and_filter_urls(urls);
+    if trimmed.len() > MAX_URL_IMPORT_LINKS {
+        return Err(too_many_urls_error(trimmed.len()));
+    }
+
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut duplicates_dropped = 0usize;
+    let deduped: Vec<String> = trimmed
+        .into_iter()
+        .filter(|u| {
+            let key = webimport::assets::normalize_url_for_dedup(u).unwrap_or_else(|| u.clone());
+            if seen.insert(key) { true } else {
+                duplicates_dropped += 1;
+                false
+            }
+        })
+        .collect();
+
+    Ok((deduped, duplicates_dropped))
+}
+
 /// 🔵 **Story 6.8** — chữ ký đổi: trả kèm nhật ký domain của CẢ lượt (`log`), và tự dựng
 /// [`webimport::Allowlist`] từ CHÍNH `urls` đã TRIM/lọc rỗng — allowlist một-lần-nhập đúng
 /// theo CẤU TẠO (§Design Notes spec 6.8): không có `Allowlist` nào tồn tại NGOÀI thân hàm
 /// này, nên không có gì để mà rò rỉ sang lượt nhập kế tiếp.
+///
+/// Thin wrapper over [`fetch_url_import_items_with_progress`] with a no-op progress
+/// callback.
 pub fn fetch_url_import_items(urls: Vec<String>) -> (Vec<UrlImportItem>, Vec<webimport::DomainLogEntry>) {
-    let trimmed: Vec<String> =
-        urls.into_iter().map(|s| trim_like_the_paste_box(&s).to_owned()).filter(|s| !s.is_empty()).collect();
+    fetch_url_import_items_with_progress(urls, &mut |_, _| {})
+}
+
+/// Same as [`fetch_url_import_items`], plus `on_progress(completed, total)` called after
+/// each link fetch, success or not.
+pub fn fetch_url_import_items_with_progress(
+    urls: Vec<String>,
+    on_progress: &mut dyn FnMut(usize, usize),
+) -> (Vec<UrlImportItem>, Vec<webimport::DomainLogEntry>) {
+    let trimmed = trim_and_filter_urls(urls);
     let allowlist = webimport::Allowlist::from_urls(trimmed.iter().map(String::as_str));
+    let total = trimmed.len();
 
     let mut log = Vec::new();
     let items = trimmed
         .into_iter()
-        .map(|u| {
+        .enumerate()
+        .map(|(idx, u)| {
             let (item, entries) = fetch_url_import_item(&u, &allowlist);
             log.extend(entries);
+            on_progress(idx + 1, total);
             item
         })
         .collect();
@@ -376,6 +462,7 @@ pub(crate) fn url_import_batch_wire(
     // đường DUY NHẤT `extract_main_content == true`, nên đây CŨNG là chỗ DUY NHẤT xuất xứ có
     // gì để mà hiện.
     origin_overrides: &[Option<ChapterOriginOverride>],
+    duplicate_urls_dropped: usize,
 ) -> UrlImportBatchWire {
     UrlImportBatchWire {
         items: items.iter().map(UrlImportItemWire::from).collect(),
@@ -387,6 +474,7 @@ pub(crate) fn url_import_batch_wire(
             origin_overrides,
         ),
         domain_log_domain_count,
+        duplicate_urls_dropped,
     }
 }
 
@@ -402,4 +490,34 @@ pub(crate) fn url_import_internal_error() -> IpcError {
         std::collections::BTreeMap::new(),
         false,
     )
+}
+
+/// `Tier2BlockOverridesState` only carries block structure for the FIRST Chapter, so
+/// editing block overrides is allowed only there.
+pub(crate) fn tier2_edit_allowed(detail_chapter_index: usize) -> bool {
+    detail_chapter_index == 0
+}
+
+/// Distinct from [`url_import_internal_error`]: this is not a wiring bug but a real user
+/// state (cursor on a Chapter other than the first), which the webview shows via
+/// `message_key` in the StatusBar.
+pub(crate) fn tier2_edit_locked_to_first_chapter() -> IpcError {
+    IpcError::new(
+        "import.tier2_edit_locked_to_first_chapter",
+        crate::core::i18n::MessageKey::ImportTier2EditLockedToFirstChapter,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+#[cfg(test)]
+mod tier2_edit_allowed_tests {
+    use super::tier2_edit_allowed;
+
+    #[test]
+    fn only_chapter_zero_is_allowed() {
+        assert!(tier2_edit_allowed(0));
+        assert!(!tier2_edit_allowed(1));
+        assert!(!tier2_edit_allowed(5));
+    }
 }

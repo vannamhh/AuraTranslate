@@ -552,6 +552,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
     // Tien de: 10 Chuong, chua loc ⇒ khung nhin mac dinh CO GON that su dang bat.
     expect(wrapper.findAll('.ip-chapters-ellipsis').length).toBe(1)
     expect(wrapper.findAll('.ip-chapters-entry').length).toBe(6)
+    expect(wrapper.get('.ip-chapter-filter-chip-needs-review').attributes('aria-pressed')).toBe('false')
 
     state.toggleImportPreviewChapterFilter()
     await wrapper.vm.$nextTick()
@@ -559,6 +560,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
     expect(state.importPreviewChapterFilterActive.value).toBe(true)
     expect(wrapper.findAll('.ip-chapters-entry').length).toBe(2)
     expect(wrapper.findAll('.ip-chapters-ellipsis').length).toBe(0)
+    expect(wrapper.get('.ip-chapter-filter-chip-needs-review').attributes('aria-pressed')).toBe('true')
 
     wrapper.unmount()
     state.resetImportPreview()

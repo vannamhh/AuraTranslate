@@ -14,7 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use auratranslate_lib::commands::project::{UrlImportItem, chapters_shape_if_all_ok, create_work, create_work_from_text};
+use auratranslate_lib::commands::project::{
+    UrlImportItem, chapters_shape_if_all_ok, create_work, create_work_from_text, create_work_with_progress,
+};
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 // D4 (vòng rà đối kháng 3 lớp) — `MessageKey` chỉ được dùng bên trong ca `#[cfg(unix)]`
 // `a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder`
@@ -265,6 +267,62 @@ fn an_svg_response_is_rejected_writes_no_file_and_the_chapter_text_survives_inta
     assert!(source_text.contains("Doan mot"), "van con Doan mot");
     assert!(source_text.contains("Doan hai"), "van con Doan hai");
     assert!(source_text.contains("Doan ba"), "van con Doan ba -- mot anh bi loai khong lam mat chu");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// data: URI images decode locally: no network, no Allowlist.
+
+// A 1x1 PNG, base64-encoded, reused from core::webimport::assets's own test fixture.
+const ONE_PIXEL_PNG_B64: &str =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+#[test]
+fn a_data_uri_png_image_is_saved_with_zero_network_calls() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let root = temp_dir("data-uri-png");
+    let src = format!("data:image/png;base64,{ONE_PIXEL_PNG_B64}");
+
+    let items = vec![url_item("https://example.test/bai-data-uri", html_page_with_one_image(&src))];
+    let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
+
+    let opened = create_work(&root, "Anh Data URI", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
+        .expect("tao Tac pham voi anh data: URI that bai");
+
+    assert_eq!(opened.images_saved, 1, "anh data: URI PNG phai duoc luu");
+    assert_eq!(opened.images_failed, 0);
+
+    let rows = read_asset_rows(&opened.store);
+    assert_eq!(rows.len(), 1, "dung mot hang asset: {rows:?}");
+    let (_chapter_id, file_name, source_url, anchor, _byte_len, content_type) = &rows[0];
+    assert!(file_name.ends_with(".png"), "duoi tep phai theo MIME cua data: URI (.png): {file_name}");
+    assert_eq!(source_url, &None, "anh data: URI khong den tu mang -- source_url phai NULL");
+    assert_eq!(*anchor, 3);
+    assert_eq!(content_type, "image/png");
+
+    let on_disk = opened.dir.join("assets").join(file_name);
+    assert!(fs::metadata(&on_disk).is_ok(), "tep phai duoc ghi xuong dia: {}", on_disk.display());
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_data_uri_svg_image_is_rejected_same_as_a_network_one() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let root = temp_dir("data-uri-svg");
+    let src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=";
+
+    let items = vec![url_item("https://example.test/bai-data-uri-svg", html_page_with_one_image(src))];
+    let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
+
+    let opened = create_work(&root, "Anh Data URI SVG", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
+        .expect("mot anh SVG data: URI bi tu choi khong duoc lam trot ca luot nhap");
+
+    assert_eq!(opened.images_saved, 0, "SVG la danh dau, khong phai anh raster -- phai bi TU CHOI ca qua data: URI (AD-16)");
+    assert_eq!(opened.images_failed, 1);
+    assert!(read_asset_rows(&opened.store).is_empty());
 
     drop(opened);
     cleanup(&root);
@@ -1361,6 +1419,114 @@ fn two_images_in_one_chapter_each_get_their_own_file_and_their_own_correctly_ord
         anchor_for(&img1),
         anchor_for(&img2)
     );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// Image-phase progress and mid-loop cancellation.
+
+#[test]
+fn create_work_with_progress_calls_on_image_progress_once_per_image_in_order() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let root = temp_dir("image-progress-two-images");
+    let body1: &'static [u8] = b"anh-thu-nhat";
+    let body2: &'static [u8] = b"anh-thu-hai-khac-noi-dung";
+    let (port1, _counter1, _h1) = spawn_counting_image_server(4, body1, "image/jpeg");
+    let (port2, _counter2, _h2) = spawn_counting_image_server(4, body2, "image/png");
+    let img1 = format!("http://127.0.0.1:{port1}/anh-mot.jpg");
+    let img2 = format!("http://127.0.0.1:{port2}/anh-hai.png");
+    let html = format!(
+        "<html><head><title>Bai viet</title></head><body><article><h1>Tieu de</h1>\
+         <p>Doan mot co du chu de duoc Readability chon lam noi dung chinh cua trang, \
+         nhieu chu hon de vuot nguong do dai toi thieu.</p>\
+         <img src=\"{img1}\">\
+         <p>Doan hai tiep tuc noi dung that su cua bai viet, khong phai menu hay quang cao, \
+         du dai de dom_smoothie cham diem cao cho khoi nay.</p>\
+         <img src=\"{img2}\">\
+         <p>Doan ba dong y nghia, giu cho tong do dai van ban vuot qua nguong toi thieu can \
+         thiet de Readability tin day la mot bai viet that.</p>\
+         </article></body></html>"
+    );
+    let items = vec![url_item("https://example.test/bai-hai-anh-progress", html)];
+    let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
+
+    let mut calls: Vec<(usize, usize)> = Vec::new();
+    let opened = create_work_with_progress(
+        &root,
+        "Hai Anh Progress",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(), 0, 1, false, &[],
+        &DomainLogState::new(Vec::new()),
+        None, &[],
+        &mut |completed, total| calls.push((completed, total)),
+        &|| false,
+    )
+    .expect("tao Tac pham voi hai anh that bai");
+
+    assert_eq!(opened.images_saved, 2);
+    assert_eq!(calls, vec![(1, 2), (2, 2)], "dung mot su kien tien do cho MOI anh, dung thu tu");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn cancelling_mid_loop_keeps_the_chapter_and_already_downloaded_images_and_opens_zero_connections_to_the_rest() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let root = temp_dir("image-cancel-mid-loop");
+    let body1: &'static [u8] = b"anh-thu-nhat";
+    let body2: &'static [u8] = b"anh-thu-hai-khac-noi-dung";
+    let (port1, counter1, _h1) = spawn_counting_image_server(4, body1, "image/jpeg");
+    let (port2, counter2, _h2) = spawn_counting_image_server(4, body2, "image/png");
+    let img1 = format!("http://127.0.0.1:{port1}/anh-mot.jpg");
+    let img2 = format!("http://127.0.0.1:{port2}/anh-hai.png");
+    let html = format!(
+        "<html><head><title>Bai viet</title></head><body><article><h1>Tieu de</h1>\
+         <p>Doan mot co du chu de duoc Readability chon lam noi dung chinh cua trang, \
+         nhieu chu hon de vuot nguong do dai toi thieu.</p>\
+         <img src=\"{img1}\">\
+         <p>Doan hai tiep tuc noi dung that su cua bai viet, khong phai menu hay quang cao, \
+         du dai de dom_smoothie cham diem cao cho khoi nay.</p>\
+         <img src=\"{img2}\">\
+         <p>Doan ba dong y nghia, giu cho tong do dai van ban vuot qua nguong toi thieu can \
+         thiet de Readability tin day la mot bai viet that.</p>\
+         </article></body></html>"
+    );
+    let items = vec![url_item("https://example.test/bai-hai-anh-cancel", html)];
+    let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
+
+    let cancel_after_first = std::sync::atomic::AtomicUsize::new(0);
+    let opened = create_work_with_progress(
+        &root,
+        "Huy Giua Chung",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(), 0, 1, false, &[],
+        &DomainLogState::new(Vec::new()),
+        None, &[],
+        &mut |_, _| {},
+        &|| cancel_after_first.fetch_add(1, Ordering::SeqCst) >= 1,
+    )
+    .expect("huy giua chung khong duoc lam trot ca luot tao Tac pham");
+
+    assert_eq!(opened.images_saved, 1, "chi anh THU NHAT (da thu TRUOC luc huy) duoc luu");
+    assert_eq!(opened.images_failed, 0, "huy khong phai mot lan thu-roi-truot, khong duoc dem vao images_failed");
+    assert_eq!(counter1.load(Ordering::SeqCst), 1, "anh thu nhat van duoc tai binh thuong");
+    assert_eq!(counter2.load(Ordering::SeqCst), 0, "anh thu hai KHONG duoc mo bat ky ket noi nao sau luc huy");
+
+    let rows = read_asset_rows(&opened.store);
+    assert_eq!(rows.len(), 1, "dung mot hang asset -- anh thu nhat");
+    assert_eq!(rows[0].2.as_deref(), Some(img1.as_str()));
 
     drop(opened);
     cleanup(&root);

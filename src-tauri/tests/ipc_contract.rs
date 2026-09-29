@@ -917,6 +917,7 @@ fn update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names() {
         "site_name: String",
         "url: String",
         "published_at: String",
+        "apply_through_ord: Option<i64>",
     ] {
         assert!(
             chapter_src.contains(param),
@@ -1310,11 +1311,11 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
         ("list_domain_log", "app: tauri::AppHandle"),
         (
             "tier2_block_set_kept",
-            "app: tauri::AppHandle,\n        index: usize,\n        kept: bool,\n        source_lang: String,",
+            "app: tauri::AppHandle,\n        index: usize,\n        kept: bool,\n        source_lang: String,\n        detail_chapter_index: usize,",
         ),
         (
             "tier2_block_confirm_range",
-            "app: tauri::AppHandle,\n        start: usize,\n        end: usize,\n        total: usize,\n        source_lang: String,",
+            "app: tauri::AppHandle,\n        start: usize,\n        end: usize,\n        total: usize,\n        source_lang: String,\n        detail_chapter_index: usize,",
         ),
     ] {
         let params = fn_param_list(&wire_src, fn_name);

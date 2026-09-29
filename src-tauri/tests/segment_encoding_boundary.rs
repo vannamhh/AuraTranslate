@@ -167,24 +167,31 @@ fn the_chardetng_name_check_would_actually_flag_a_seeded_violation_and_ignore_cl
 // (đường xác nhận nhập song ngữ, cùng vai trò với `confirm_import_with_encoding` — "điểm GHI
 // duy nhất" cho đường `.csv`/`.tsv`, không phải một đường ghi thứ hai không ai ký).
 //
-// Bốn chỗ gọi nay trải trên BA tệp:
-// `create_work_from_text`/`create_work_from_file` sống ở `commands/project/work_creation.rs`;
-// `confirm_bilingual_import` sống ở `commands/project/bilingual.rs`; `confirm_import_with_encoding`
-// vẫn ở `commands/project/mod.rs`. Cổng bên dưới canh `commands/project/` (tiền tố thư mục),
-// không còn một tệp `mod.rs` đơn lẻ.
+// `create_work` is now a thin wrapper forwarding to `create_work_with_progress` (the real,
+// SQL-transacting function) with a no-op progress/cancel pair; that forwarding call is
+// itself the fifth named site, since it IS the definition of `create_work` from here on.
+// `confirm_import_with_encoding` forwards the same way to
+// `confirm_import_with_encoding_with_progress`, which is the real fourth call site.
+//
+// Five call sites span three files: `create_work_from_text`/`create_work_from_file`/
+// `create_work`'s own forwarding call live in `commands/project/work_creation.rs`;
+// `confirm_bilingual_import` in `commands/project/bilingual.rs`;
+// `confirm_import_with_encoding_with_progress` in `commands/project/mod.rs`. The guard below
+// checks the `commands/project/` prefix, not a single `mod.rs` file.
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// `code` gọi `create_work(...)` — vị từ THUẦN. Neo bằng `create_work(` (có dấu mở ngoặc)
-/// để KHÔNG khớp `create_work_from_text(`/`create_work_from_file(` (giữa `create_work` và
-/// `(` của hai tên đó là `_from_text`/`_from_file`, không phải `(` trực tiếp) và KHÔNG khớp
-/// chính khai báo `pub fn create_work(` — loại riêng ở vị từ đếm bằng cách bỏ dòng chứa
-/// `fn create_work(`.
+// Anchored on `create_work(`/`create_work_with_progress(` (with the opening paren) so it
+// doesn't match `create_work_from_text(`/`create_work_from_file(`, and excludes lines
+// containing `fn create_work(`/`fn create_work_with_progress(` so the declarations
+// themselves don't count as calls.
 fn line_calls_create_work(code: &str) -> bool {
-    code.contains("create_work(") && !code.contains("fn create_work(")
+    (code.contains("create_work(") || code.contains("create_work_with_progress("))
+        && !code.contains("fn create_work(")
+        && !code.contains("fn create_work_with_progress(")
 }
 
 #[test]
-fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_project() {
+fn create_work_has_exactly_five_named_product_call_sites_all_inside_commands_project() {
     let files = all_rust_sources();
 
     let mut sites: Vec<String> = Vec::new();
@@ -198,10 +205,10 @@ fn create_work_has_exactly_four_named_product_call_sites_all_inside_commands_pro
 
     assert_eq!(
         sites.len(),
-        4,
-        "ky vong DUNG BON cho goi san pham cua `create_work` (create_work_from_text, \
-         create_work_from_file, confirm_import_with_encoding, confirm_bilingual_import), \
-         tim thay {}:\n{}",
+        5,
+        "ky vong DUNG NAM cho goi san pham cua `create_work`/`create_work_with_progress` \
+         (create_work_from_text, create_work_from_file, create_work's own forwarding call, \
+         confirm_import_with_encoding_with_progress, confirm_bilingual_import), tim thay {}:\n{}",
         sites.len(),
         sites.join("\n")
     );
@@ -234,5 +241,15 @@ fn the_create_work_call_check_would_actually_flag_a_seeded_violation_and_ignore_
     assert!(
         !line_calls_create_work("pub fn create_work(documents_root: &Path, name: &str) -> Result<OpenWork, IpcError> {"),
         "ca ÂM #3: chính khai báo `fn create_work(` KHÔNG được tính là một chỗ GỌI"
+    );
+    assert!(
+        line_calls_create_work("    create_work_with_progress(documents_root, name, &mut |_, _| {}, &|| false)"),
+        "ca DƯƠNG #2: một lời gọi `create_work_with_progress(...)` phải bị vị từ bắt"
+    );
+    assert!(
+        !line_calls_create_work(
+            "pub fn create_work_with_progress(documents_root: &Path) -> Result<OpenWork, IpcError> {"
+        ),
+        "ca ÂM #4: chính khai báo `fn create_work_with_progress(` KHÔNG được tính là một chỗ GỌI"
     );
 }

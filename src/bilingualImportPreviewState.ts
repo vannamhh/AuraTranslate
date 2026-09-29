@@ -392,6 +392,11 @@ export function selectBilingualEncoding(wireId: string): void {
   if (preview.value === null) return
   if (!preview.value.candidates.some((c) => c.encoding === wireId)) return
   selectedEncoding.value = wireId
+  // Ứng viên MỚI có thể không đủ Chương để so (`any_signal_participated === false`) — bộ lọc
+  // "cần xem" đang bật không còn gì đúng đắn để lọc theo, tắt nó thay vì để trang trơ ra.
+  if (chapterFilterActive.value && bilingualImportPreviewSelectedCandidate.value?.chapters?.any_signal_participated !== true) {
+    chapterFilterActive.value = false
+  }
 }
 
 /**

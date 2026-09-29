@@ -604,6 +604,21 @@ describe('panels/editorPanelState.ts::splitChapterHere — thân hàm, không ch
 // Story 6.15 (FR128/AD-43) — xuất xứ tài liệu ở tầng Chương, sửa từ danh sách Chương.
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/** Chuỗi 5 Chương liền, `ord` 1..5 — dùng cho các ca [`setChapterOriginApplyThroughOrd`] cần
+ * một "Chương cuối đã tải" khác Chương đang chọn để phân biệt trong/ngoài dải. */
+const chapterRowOrd = (ord: number) => ({
+  chapter_id: ord,
+  ord,
+  title: `Chuong ${ord}`,
+  status: 'not_started',
+  segment_count: 1,
+  origin_author: null,
+  origin_site_name: null,
+  origin_url: null,
+  origin_published_at: null,
+})
+const CHAPTERS_ORD_1_TO_5 = [1, 2, 3, 4, 5].map(chapterRowOrd)
+
 const CHAPTER_ROW_WITH_ORIGIN = {
   chapter_id: 1,
   ord: 1,
@@ -658,6 +673,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
       siteName: 'B',
       url: 'C',
       publishedAt: 'D',
+      applyThroughOrd: null,
     })
   })
 
@@ -683,6 +699,75 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     await state.saveCurrentChapterOrigin({ author: 'x', siteName: '', url: '', publishedAt: '' })
 
     expect(mockInvoke.mock.calls.some((c) => c[0] === 'update_chapter_origin')).toBe(false)
+  })
+
+  // `ChapterOrigin.vue` giờ chỉ gửi Ô VỪA GÕ, ba ô còn lại
+  // `null` ("chưa chạm"). Khác `ImportPreviewOverlay.vue` (nơi `null` giữ giá trị MÁY phía
+  // Rust), ở đây không có "giá trị máy" — ô chưa chạm phải điền lại bằng giá trị ĐÃ TRÊN ĐĨA
+  // của CHÍNH Chương này trước khi gửi, không phải chuỗi rỗng.
+  it('ô CHƯA chạm (`null`) ⇒ gửi lại giá trị ĐÃ TRÊN ĐĨA của Chương, không phải chuỗi rỗng', async () => {
+    const rowWithOrigin = {
+      ...CHAPTER_ROW_A,
+      origin_author: 'Tac Gia Cu',
+      origin_site_name: 'Site Cu',
+      origin_url: 'https://cu.example',
+      origin_published_at: '2020-01-01',
+    }
+    mockInvoke.mockResolvedValue([rowWithOrigin])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue([rowWithOrigin])
+    // Chỉ `author` được gõ — ba ô còn lại `null`.
+    await state.saveCurrentChapterOrigin({ author: 'Tac Gia Moi', siteName: null, url: null, publishedAt: null })
+
+    const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
+    expect(call?.[1]).toEqual({
+      chapterId: CHAPTER_ROW_A.chapter_id,
+      author: 'Tac Gia Moi',
+      siteName: 'Site Cu',
+      url: 'https://cu.example',
+      publishedAt: '2020-01-01',
+      applyThroughOrd: null,
+    })
+  })
+
+  it('setChapterOriginApplyThroughOrd đặt một ord TRONG dải [Chương đang chọn, Chương cuối] ⇒ lượt lưu kế tiếp gửi kèm applyThroughOrd', async () => {
+    mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+
+    state.setChapterOriginApplyThroughOrd('5')
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBe(5)
+
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
+    await state.saveCurrentChapterOrigin({ author: 'A', siteName: '', url: '', publishedAt: '' })
+
+    const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
+    expect(call?.[1]).toMatchObject({ applyThroughOrd: 5 })
+
+    // Chuỗi rỗng/không phải số ⇒ tắt lại (đoạn về lại một Chương).
+    state.setChapterOriginApplyThroughOrd('')
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+    state.setChapterOriginApplyThroughOrd('khong-phai-so')
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+  })
+
+  it('setChapterOriginApplyThroughOrd đặt một ord NGOÀI dải ⇒ tắt (null), không lặng lẽ nới đoạn ghi đè', async () => {
+    mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    // Chương cuối đã tải mang `ord` 5 — 6 vượt quá, đúng lỗi gõ nhầm mà cổng này chặn.
+    state.setChapterOriginApplyThroughOrd('6')
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+
+    // Dưới `ord` của Chương đang chọn (1) cũng ngoài dải — hàm chỉ chấp nhận đoạn XUÔI.
+    state.setChapterOriginApplyThroughOrd('0')
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
   })
 })
 
@@ -714,7 +799,7 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
     ])
   })
 
-  it('ô rỗng hiện placeholder "không tìm thấy", KHÔNG chữ nghiêng (quy ước chữ nhỏ + màu phụ)', async () => {
+  it('ô rỗng hiện placeholder "không tìm thấy"', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_A])
 
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')

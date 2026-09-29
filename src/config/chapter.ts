@@ -441,11 +441,16 @@ export type UpdateChapterOriginResult = {
  * cùng lý do và cùng khuôn [`renameChapter`].
  *
  * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`/`author`/`siteName`/`url`/
- * `publishedAt`.
+ * `publishedAt`/`applyThroughOrd`.
+ *
+ * `applyThroughOrd`: `null` giữ hành vi cũ (chỉ Chương `chapterId`); một `ord` áp CẢ BỐN
+ * trường lên mọi Chương trong đoạn giữa Chương đang sửa và `ord` (Rust tự xác định đầu/cuối
+ * đoạn — xem `commands/chapter.rs::update_chapter_origin`).
  */
 export async function updateChapterOrigin(
   chapterId: number,
   edit: ChapterOriginEdit,
+  applyThroughOrd: number | null = null,
 ): Promise<UpdateChapterOriginResult> {
   try {
     const raw = await invoke<unknown>(CMD_UPDATE_CHAPTER_ORIGIN, {
@@ -454,6 +459,7 @@ export async function updateChapterOrigin(
       siteName: edit.siteName,
       url: edit.url,
       publishedAt: edit.publishedAt,
+      applyThroughOrd,
     })
     if (!isChapterRowArray(raw)) {
       console.error(

@@ -127,8 +127,16 @@ fn broken_item_count_is_added_by_rust_into_needs_review_never_into_clean() {
     assert_eq!(chapters_wire.broken_item_count, 3);
     // Sau Chuong deu dai bang nhau -- length suy bien, khong tin hieu nao gan co that -- nen
     // ca sau deu SACH, va needs_review_count CHI mang dung 3 (tu link hong).
+    assert!(
+        !chapters_wire.any_signal_participated,
+        "length suy bien tren sau gia tri bang nhau -- khong tin hieu nao duoc tham gia"
+    );
     assert_eq!(chapters_wire.clean_count, 6);
-    assert_eq!(chapters_wire.needs_review_count, 3, "3 link hong phai duoc CONG vao ve can xem");
+    assert_eq!(
+        chapters_wire.needs_review_count, 3,
+        "3 link hong phai duoc CONG vao ve can xem, DU any_signal_participated == false -- \
+         needs_review_count an toan hien VO DIEU KIEN (hop dong ChapterSplitPreviewWire::needs_review_count)"
+    );
 }
 
 /// I/O Matrix spec 6.10, hàng *"Tệp một khối + mẫu phân tách, 10 Chương"* — trên đường `Blob`

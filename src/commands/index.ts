@@ -237,6 +237,9 @@ export type CommandDeps = {
   confirmImportPreview?: () => void
   /** Huỷ lượt xem trước — 0 lượt ghi. Handler của `import.preview.cancel`. */
   cancelImportPreview?: () => void
+  /** Huỷ pha tải ẢNH của lượt xác nhận đang bay — Chương và ảnh đã tải giữ nguyên. Handler
+   * của `import.preview.cancel_image_download`. */
+  cancelImportPreviewImageDownload?: () => void
 
   // ── Story 6.16 — nhập tài liệu song ngữ hai cột (FR115) ─────────────────────────
   //
@@ -1367,6 +1370,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.cancel', 'cancelImportPreview')
       }
       deps.cancelImportPreview()
+    },
+  })
+  target.register({
+    id: 'import.preview.cancel_image_download',
+    labelKey: 'command.import.preview.cancel_image_download',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelImportPreviewImageDownload === undefined) {
+        return portMissing('import.preview.cancel_image_download', 'cancelImportPreviewImageDownload')
+      }
+      deps.cancelImportPreviewImageDownload()
     },
   })
 

@@ -1086,3 +1086,145 @@
         }
     }
 
+
+    mod sweep_orphaned_asset_files_tests {
+        use super::super::sweep_orphaned_asset_files;
+        use std::collections::BTreeSet;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
+
+        fn temp_dir(tag: &str) -> std::path::PathBuf {
+            let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
+            let dir = std::env::temp_dir().join(format!("auratranslate-orphan-sweep-{}-{tag}-{n}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
+            dir
+        }
+
+        #[test]
+        fn removes_only_files_not_named_by_any_asset_row() {
+            let dir = temp_dir("basic");
+            std::fs::write(dir.join("keep.jpg"), b"a").unwrap();
+            std::fs::write(dir.join("orphan.png"), b"b").unwrap();
+            let referenced: BTreeSet<String> = ["keep.jpg".to_owned()].into_iter().collect();
+
+            let removed = sweep_orphaned_asset_files(&dir, &referenced);
+
+            assert_eq!(removed, 1);
+            assert!(dir.join("keep.jpg").exists(), "tep DUOC tham chieu khong duoc xoa");
+            assert!(!dir.join("orphan.png").exists(), "tep mo coi phai bi xoa");
+
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+
+        #[test]
+        fn a_missing_assets_directory_is_not_an_error() {
+            let dir = temp_dir("missing").join("khong-ton-tai");
+            let removed = sweep_orphaned_asset_files(&dir, &BTreeSet::new());
+            assert_eq!(removed, 0);
+        }
+
+        #[test]
+        fn a_subdirectory_under_assets_is_never_removed() {
+            let dir = temp_dir("subdir");
+            std::fs::create_dir(dir.join("mot-thu-muc-con")).unwrap();
+            let removed = sweep_orphaned_asset_files(&dir, &BTreeSet::new());
+            assert_eq!(removed, 0, "chi xoa TEP THUONG, khong dung toi thu muc con");
+            assert!(dir.join("mot-thu-muc-con").exists());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
+    mod append_in_progress_tests {
+        use super::super::{
+            AppendInProgressGuard, AppendInProgressState, should_skip_orphan_sweep,
+            sweep_orphans_holding_the_append_lock,
+        };
+
+        #[test]
+        fn a_work_id_absent_from_the_set_does_not_skip_the_sweep() {
+            let state: AppendInProgressState = std::sync::Mutex::new(std::collections::HashSet::new());
+            let locked = state.lock().unwrap();
+            assert!(!should_skip_orphan_sweep(&locked, "work-a"));
+        }
+
+        #[test]
+        fn a_work_id_present_in_the_set_skips_the_sweep() {
+            let state: AppendInProgressState =
+                std::sync::Mutex::new(std::collections::HashSet::from(["work-a".to_owned()]));
+            let locked = state.lock().unwrap();
+            assert!(should_skip_orphan_sweep(&locked, "work-a"));
+            assert!(!should_skip_orphan_sweep(&locked, "work-b"));
+        }
+
+        #[test]
+        fn the_guard_removes_its_work_id_on_drop_even_on_an_early_return() {
+            let state: AppendInProgressState = std::sync::Mutex::new(std::collections::HashSet::new());
+
+            fn run(state: &AppendInProgressState) -> Result<(), ()> {
+                let _guard = AppendInProgressGuard::new(state, "work-a".to_owned());
+                assert!(should_skip_orphan_sweep(&state.lock().unwrap(), "work-a"));
+                Err(())?;
+                unreachable!("the ? above always returns Err");
+            }
+
+            let _ = run(&state);
+            assert!(
+                !should_skip_orphan_sweep(&state.lock().unwrap(), "work-a"),
+                "guard must remove work_id when it drops, including on an early ? return"
+            );
+        }
+
+        #[test]
+        fn the_sweep_closure_runs_when_no_append_is_in_progress() {
+            let state: AppendInProgressState = std::sync::Mutex::new(std::collections::HashSet::new());
+            let mut ran = false;
+            sweep_orphans_holding_the_append_lock(Some(&state), "work-a", std::path::Path::new("/tmp"), || {
+                ran = true;
+            });
+            assert!(ran, "khong co APPEND nao dang do dang -- sweep phai chay");
+        }
+
+        #[test]
+        fn the_sweep_closure_is_skipped_for_a_work_id_with_an_in_progress_append() {
+            let state: AppendInProgressState =
+                std::sync::Mutex::new(std::collections::HashSet::from(["work-a".to_owned()]));
+            let mut ran = false;
+            sweep_orphans_holding_the_append_lock(Some(&state), "work-a", std::path::Path::new("/tmp"), || {
+                ran = true;
+            });
+            assert!(!ran, "work-a dang co APPEND do dang -- sweep KHONG duoc chay");
+        }
+
+        #[test]
+        fn the_sweep_closure_is_skipped_when_append_in_progress_state_is_not_managed() {
+            let mut ran = false;
+            sweep_orphans_holding_the_append_lock(None, "work-a", std::path::Path::new("/tmp"), || {
+                ran = true;
+            });
+            assert!(!ran, "state chua duoc quan ly -- fail CLOSED, sweep KHONG duoc chay");
+        }
+
+        #[test]
+        fn a_guard_registering_for_the_same_work_id_blocks_until_the_sweep_closure_returns() {
+            let state: AppendInProgressState = std::sync::Mutex::new(std::collections::HashSet::new());
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::scope(|scope| {
+                sweep_orphans_holding_the_append_lock(Some(&state), "work-a", std::path::Path::new("/tmp"), || {
+                    scope.spawn(|| {
+                        let _guard = AppendInProgressGuard::new(&state, "work-a".to_owned());
+                        tx.send(()).unwrap();
+                    });
+                    assert!(
+                        rx.recv_timeout(std::time::Duration::from_millis(200)).is_err(),
+                        "AppendInProgressGuard::new must block while the sweep closure is still running"
+                    );
+                });
+            });
+            assert!(
+                rx.recv_timeout(std::time::Duration::from_secs(5)).is_ok(),
+                "the guard must have been able to register once the sweep closure returned"
+            );
+        }
+    }

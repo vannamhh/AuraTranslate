@@ -25,7 +25,6 @@ import {
   bilingualImportPreviewCanConfirm,
   bilingualImportPreviewCanSkipActiveRow,
   bilingualImportPreviewCaretPosition,
-  bilingualImportPreviewChapterCursor,
   bilingualImportPreviewChapterFilterActive,
   bilingualImportPreviewConfirmError,
   bilingualImportPreviewConfirming,
@@ -508,6 +507,7 @@ function trapTab(event: KeyboardEvent): void {
                   type="button"
                   class="bip-chapter-filter-chip bip-chapter-filter-chip-needs-review"
                   :class="{ 'bip-chapter-filter-chip-active': bilingualImportPreviewChapterFilterActive }"
+                  :aria-pressed="bilingualImportPreviewChapterFilterActive"
                   :disabled="bilingualChaptersWire.needs_review_count === 0 && !bilingualImportPreviewChapterFilterActive"
                   @click="dispatch('import.preview.bilingual_chapter_filter_toggle')"
                 >
@@ -548,10 +548,7 @@ function trapTab(event: KeyboardEvent): void {
                 v-for="entry in bilingualChapterEntriesRendered"
                 :key="entry.ord"
                 class="bip-chapters-entry"
-                :class="{
-                  'bip-chapters-entry-current': entry.ord - 1 === bilingualImportPreviewChapterCursor,
-                  'bip-chapters-entry-needs-review': entry.needs_review,
-                }"
+                :class="{ 'bip-chapters-entry-needs-review': entry.needs_review }"
               >
                 <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
                 <span class="bip-chapters-ord">{{ entry.ord }}</span>
@@ -966,10 +963,6 @@ button.bip-chapter-filter-chip:disabled {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
-}
-
-.bip-chapters-entry-current {
-  border-left-color: var(--color-primary);
 }
 
 .bip-chapters-entry-needs-review {

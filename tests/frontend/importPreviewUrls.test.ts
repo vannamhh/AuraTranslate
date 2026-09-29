@@ -44,6 +44,7 @@ const confirmMock = vi.fn()
 const startUrlImportMock = vi.fn()
 const reloadUrlImportItemMock = vi.fn()
 const removeUrlImportItemMock = vi.fn()
+const cancelImageDownloadMock = vi.fn()
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
@@ -56,8 +57,25 @@ vi.mock('../../src/config/project', async (importOriginal) => {
     startUrlImport: (urls: string[], sourceLang: string) => startUrlImportMock(urls, sourceLang),
     reloadUrlImportItem: (index: number, sourceLang: string) => reloadUrlImportItemMock(index, sourceLang),
     removeUrlImportItem: (index: number, sourceLang: string) => removeUrlImportItemMock(index, sourceLang),
+    cancelImageDownload: async () => cancelImageDownloadMock(),
   }
 })
+
+/** Bắt lại handler mà `withImportProgressListener` đăng ký, để các
+ * ca tiến độ phát sự kiện GIẢ được. `vi.hoisted` vì `vi.mock` bên dưới được hoist lên đầu tệp
+ * — một `const` khai bình thường ở đây sẽ chưa tồn tại lúc factory chạy. */
+const { capturedListeners } = vi.hoisted(() => ({
+  capturedListeners: new Map<string, (event: { payload: unknown }) => void>(),
+}))
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: async (eventName: string, handler: (event: { payload: unknown }) => void) => {
+    capturedListeners.set(eventName, handler)
+    return () => capturedListeners.delete(eventName)
+  },
+}))
+function emitProgress(eventName: string, payload: { completed: number; total: number }): void {
+  capturedListeners.get(eventName)?.({ payload })
+}
 
 /** Tổng số lời gọi qua CẢ SÁU mock — nguồn duy nhất cho mọi khẳng định "0 lời gọi IPC"/"đúng
  * MỘT lời gọi IPC" trong tệp này. */
@@ -80,6 +98,8 @@ async function freshState() {
   startUrlImportMock.mockReset()
   reloadUrlImportItemMock.mockReset()
   removeUrlImportItemMock.mockReset()
+  cancelImageDownloadMock.mockReset()
+  capturedListeners.clear()
   const state = await import('../../src/importPreviewState')
   const libraryImport = await import('../../src/modes/libraryImport')
   return { state, libraryImport }
@@ -136,6 +156,7 @@ function batchAllOk(urls: string[], domainLogDomainCount = urls.length): UrlImpo
     items: urls.map((u) => item(u, true)),
     encoding_preview: minimalPreview(urls.length),
     domain_log_domain_count: domainLogDomainCount,
+    duplicate_urls_dropped: 0,
   }
 }
 
@@ -155,6 +176,7 @@ function batchWithOneBroken(
     items: urls.map((u, i) => item(u, i !== brokenIndex)),
     encoding_preview: minimalPreview(urls.length - 1),
     domain_log_domain_count: domainLogDomainCount,
+    duplicate_urls_dropped: 0,
   }
 }
 
@@ -353,7 +375,12 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({
-      batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: urls.length },
+      batch: {
+        items: urls.map((u) => item(u, false)),
+        encoding_preview: null,
+        domain_log_domain_count: urls.length,
+        duplicate_urls_dropped: 0,
+      },
       error: null,
     })
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
@@ -432,7 +459,12 @@ describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký do
     // NHƯNG mạng đã bị gọi (cả hai lượt fetch đều chạy, dù cả hai đều trượt) — dòng tóm tắt
     // phải sống sót qua đúng ca này, không được sống BÊN TRONG khối bốn tầng.
     startUrlImportMock.mockResolvedValue({
-      batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: 2 },
+      batch: {
+        items: urls.map((u) => item(u, false)),
+        encoding_preview: null,
+        domain_log_domain_count: 2,
+        duplicate_urls_dropped: 0,
+      },
       error: null,
     })
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
@@ -449,6 +481,123 @@ describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký do
     expect(viewButton.exists()).toBe(true)
 
     wrapper.unmount()
+  })
+})
+
+// `duplicate_urls_dropped` là số THẬT từ `start_url_import`, `0` cho
+// bốn lệnh còn lại (`reload`/`remove`/hai tier2) — con số hiển thị phải SỐNG SÓT qua các lượt
+// đó, không rơi về 0 chỉ vì một hành động khác không liên quan tới việc dán link mới.
+describe('ImportPreviewOverlay.vue — dòng "N link trùng đã gộp lại"', () => {
+  it('0 link trùng ⇒ dòng KHÔNG hiện', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = ['https://a.example/1']
+    startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
+    expect(state.importPreviewUrlDuplicatesDropped.value).toBe(0)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const summaries = wrapper.findAll('.ip-domain-log-summary').map((n) => n.text())
+    expect(summaries.some((t) => t.includes('trùng'))).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('N link trùng ⇒ dòng hiện đúng số, và SỐNG SÓT qua một lượt tải lại một mục', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = ['https://a.example/1', 'https://a.example/2']
+    startUrlImportMock.mockResolvedValue({
+      batch: { ...batchAllOk(urls), duplicate_urls_dropped: 3 },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
+    expect(state.importPreviewUrlDuplicatesDropped.value).toBe(3)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const summaries = wrapper.findAll('.ip-domain-log-summary').map((n) => n.text())
+    expect(summaries.some((t) => t.includes('3'))).toBe(true)
+
+    // Lượt tải lại một mục trả `duplicate_urls_dropped: 0` (Rust) — con số hiển thị PHẢI giữ
+    // nguyên `3`, không rơi về 0.
+    reloadUrlImportItemMock.mockResolvedValue({ batch: batchAllOk(urls), error: null })
+    await state.reloadImportPreviewUrlItem(0)
+    expect(state.importPreviewUrlDuplicatesDropped.value).toBe(3)
+
+    wrapper.unmount()
+  })
+})
+
+// Một sự kiện tiến độ phát cho MỖI trang/ảnh; pha ảnh có huỷ giữa
+// chừng (Chương và ảnh đã tải giữ nguyên).
+describe('importPreviewState — tiến độ tải trang/ảnh + huỷ tải ảnh giữa chừng', () => {
+  it('pha tải trang: sự kiện cập nhật importPreviewPageProgress, rồi dọn về null khi xong', async () => {
+    const { state } = await freshState()
+    const urls = ['https://a.example/1', 'https://a.example/2']
+    let resolveStart: (value: unknown) => void = () => {}
+    startUrlImportMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve
+        }),
+    )
+
+    const opening = state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
+    // `listen()` đi qua một `import()` động — round trip đó cần một lượt macrotask thật, một
+    // chuỗi microtask không với tới. `vi.waitFor` chờ CÓ ĐIỀU KIỆN, không đoán số lượt.
+    await vi.waitFor(() => expect(capturedListeners.has('url_import_page_progress')).toBe(true))
+    expect(state.importPreviewPageProgress.value).toBeNull()
+
+    emitProgress('url_import_page_progress', { completed: 1, total: 2 })
+    expect(state.importPreviewPageProgress.value).toEqual({ completed: 1, total: 2 })
+    emitProgress('url_import_page_progress', { completed: 2, total: 2 })
+    expect(state.importPreviewPageProgress.value).toEqual({ completed: 2, total: 2 })
+
+    resolveStart({ batch: batchAllOk(urls), error: null })
+    await opening
+
+    expect(state.importPreviewPageProgress.value).toBeNull()
+  })
+
+  it('pha tải ảnh: sự kiện cập nhật importPreviewImageProgress; huỷ gọi cancelImageDownload và khoá nút lại', async () => {
+    const { state } = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: batchAllOk(['https://a.example/1']), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1'], null)
+
+    let resolveConfirm: (value: unknown) => void = () => {}
+    confirmMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveConfirm = resolve
+        }),
+    )
+
+    const confirming = state.confirmImportPreview()
+    await vi.waitFor(() => expect(capturedListeners.has('url_import_image_progress')).toBe(true))
+    expect(state.importPreviewImageProgress.value).toBeNull()
+    expect(state.importPreviewImageDownloadCancelling.value).toBe(false)
+
+    emitProgress('url_import_image_progress', { completed: 1, total: 3 })
+    expect(state.importPreviewImageProgress.value).toEqual({ completed: 1, total: 3 })
+
+    state.cancelImportPreviewImageDownload()
+    expect(cancelImageDownloadMock).toHaveBeenCalledTimes(1)
+    expect(state.importPreviewImageDownloadCancelling.value).toBe(true)
+
+    // Bấm huỷ lần hai trong lúc vẫn đang bay ⇒ không gọi thêm lần nào (đã khoá).
+    state.cancelImportPreviewImageDownload()
+    expect(cancelImageDownloadMock).toHaveBeenCalledTimes(1)
+
+    resolveConfirm({
+      meta: { meta_schema_version: 1, work_id: 'w-1', name: 'Ten', source_lang: 'en', genre: '', created_at: '', updated_at: '', chapter_count: 1 },
+      folder: '/tmp/Ten.atproj',
+      images_saved: 1,
+      images_failed: 0,
+      source_lang_mismatch: false,
+    })
+    await confirming
+
+    expect(state.importPreviewImageProgress.value).toBeNull()
+    expect(state.importPreviewImageDownloadCancelling.value).toBe(false)
   })
 })
 

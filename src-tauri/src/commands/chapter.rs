@@ -592,6 +592,10 @@ pub fn rename_chapter(
 /// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
 /// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có) — **0
 ///   hàng `segment` nào bị chạm**, và bản thân `chapter` cũng khớp 0 hàng.
+///
+/// `apply_through_ord: Some(ord)` writes all four origin fields to every Chapter whose
+/// `ord` lies between the edited Chapter and `ord` (inclusive, either order); `None` keeps
+/// the old behavior of touching only the edited Chapter.
 pub fn update_chapter_origin(
     open: Option<&mut OpenWork>,
     chapter_id: i64,
@@ -599,6 +603,7 @@ pub fn update_chapter_origin(
     site_name: &str,
     url: &str,
     published_at: &str,
+    apply_through_ord: Option<i64>,
 ) -> Result<Vec<ChapterRow>, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
 
@@ -608,11 +613,29 @@ pub fn update_chapter_origin(
     let published_at_value = webimport::chapter_origin_trim_or_none(published_at);
 
     let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
+        let Some(through_ord) = apply_through_ord else {
+            return tx.execute(
+                "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
+                 origin_published_at = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
+                 WHERE id = ?5",
+                (author_value, site_name_value, url_value, published_at_value, chapter_id),
+            );
+        };
+
+        let start_ord = match tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |r| r.get::<_, i64>(0)) {
+            Ok(ord) => ord,
+            // A missing chapter maps to the same touched == 0 sentinel as a real
+            // 0-row UPDATE, so the caller's not-found check covers both branches.
+            Err(crate::core::store::SqlError::QueryReturnedNoRows) => return Ok(0),
+            Err(err) => return Err(err),
+        };
+        let (lo, hi) = if start_ord <= through_ord { (start_ord, through_ord) } else { (through_ord, start_ord) };
+
         tx.execute(
             "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
              origin_published_at = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
-             WHERE id = ?5",
-            (author_value, site_name_value, url_value, published_at_value, chapter_id),
+             WHERE ord BETWEEN ?5 AND ?6",
+            (author_value, site_name_value, url_value, published_at_value, lo, hi),
         )
     })?;
 
@@ -1299,8 +1322,10 @@ pub mod wire {
 
     /// Vỏ IPC của [`super::update_chapter_origin`]. Story 6.15 (FR128/AD-43).
     ///
-    /// ⚠️ Tham số `invoke` đi camelCase (`chapterId`/`author`/`siteName`/`url`/`publishedAt`);
-    /// trường TRẢ VỀ (`ChapterRow`) giữ snake_case — hai quy ước KHÔNG trộn lẫn.
+    /// ⚠️ Invoke parameters are camelCase (`chapterId`/`author`/`siteName`/`url`/
+    /// `publishedAt`/`applyThroughOrd`); the returned `ChapterRow` fields stay
+    /// snake_case — the two conventions are never mixed. `applyThroughOrd` absent
+    /// or `null` keeps the old single-Chapter behavior.
     #[tauri::command(async)]
     pub fn update_chapter_origin(
         app: tauri::AppHandle,
@@ -1309,15 +1334,32 @@ pub mod wire {
         site_name: String,
         url: String,
         published_at: String,
+        apply_through_ord: Option<i64>,
     ) -> Result<Vec<ChapterRow>, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::update_chapter_origin(None, chapter_id, &author, &site_name, &url, &published_at);
+            return super::update_chapter_origin(
+                None,
+                chapter_id,
+                &author,
+                &site_name,
+                &url,
+                &published_at,
+                apply_through_ord,
+            );
         };
         let result = {
             let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            super::update_chapter_origin(guard.as_mut(), chapter_id, &author, &site_name, &url, &published_at)
+            super::update_chapter_origin(
+                guard.as_mut(),
+                chapter_id,
+                &author,
+                &site_name,
+                &url,
+                &published_at,
+                apply_through_ord,
+            )
         };
         finish_with_reindex(&app, result)
     }

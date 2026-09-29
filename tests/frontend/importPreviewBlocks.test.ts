@@ -62,10 +62,10 @@ vi.mock('../../src/config/project', async (importOriginal) => {
     startUrlImport: (urls: string[], sourceLang: string) => startUrlImportMock(urls, sourceLang),
     reloadUrlImportItem: (index: number, sourceLang: string) => reloadUrlImportItemMock(index, sourceLang),
     removeUrlImportItem: (index: number, sourceLang: string) => removeUrlImportItemMock(index, sourceLang),
-    tier2BlockSetKept: (index: number, kept: boolean, sourceLang: string) =>
-      tier2BlockSetKeptMock(index, kept, sourceLang),
-    tier2BlockConfirmRange: (start: number, end: number, total: number, sourceLang: string) =>
-      tier2BlockConfirmRangeMock(start, end, total, sourceLang),
+    tier2BlockSetKept: (index: number, kept: boolean, sourceLang: string, detailChapterIndex: number) =>
+      tier2BlockSetKeptMock(index, kept, sourceLang, detailChapterIndex),
+    tier2BlockConfirmRange: (start: number, end: number, total: number, sourceLang: string, detailChapterIndex: number) =>
+      tier2BlockConfirmRangeMock(start, end, total, sourceLang, detailChapterIndex),
   }
 })
 
@@ -138,7 +138,12 @@ function previewWithBlocks(blocks: BlockWire[]): ImportEncodingPreview {
 }
 
 function batchWithBlocks(urls: string[], blocks: BlockWire[]): UrlImportBatchWire {
-  return { items: urls.map(item), encoding_preview: previewWithBlocks(blocks), domain_log_domain_count: urls.length }
+  return {
+    items: urls.map(item),
+    encoding_preview: previewWithBlocks(blocks),
+    domain_log_domain_count: urls.length,
+    duplicate_urls_dropped: 0,
+  }
 }
 
 const THREE_BLOCKS: BlockWire[] = [
@@ -205,7 +210,7 @@ describe('importPreviewState — Space gọi tier2BlockSetKept với ĐÚNG tham
     await state.toggleImportPreviewBlockKept()
 
     expect(tier2BlockSetKeptMock).toHaveBeenCalledTimes(1)
-    expect(tier2BlockSetKeptMock).toHaveBeenCalledWith(0, true, 'en')
+    expect(tier2BlockSetKeptMock).toHaveBeenCalledWith(0, true, 'en', 0)
     expect(state.importPreviewSelectedBlocks.value?.blocks[0]?.kept).toBe(true)
     expect(state.importPreviewSelectedBlocks.value?.blocks[0]?.confirmed).toBe(true)
   })
@@ -258,7 +263,7 @@ describe('importPreviewState — [ ] đặt dải MỘT LƯỢT, "]" trước "[
     await state.confirmImportPreviewBlockRange()
 
     expect(tier2BlockConfirmRangeMock).toHaveBeenCalledTimes(1)
-    expect(tier2BlockConfirmRangeMock).toHaveBeenCalledWith(0, 2, 3, 'en')
+    expect(tier2BlockConfirmRangeMock).toHaveBeenCalledWith(0, 2, 3, 'en', 0)
     expect(state.importPreviewBlockRangeStart.value).toBeNull() // don sach sau khi thanh cong
     expect(state.importPreviewBlockRangeMissingStartNotice.value).toBe(false)
   })
@@ -310,7 +315,12 @@ describe('importPreviewState — mảng khối CO LẠI kéo blockFocusedIndex/b
     expect(state.importPreviewBlockRangeStart.value).toBe(1)
 
     tier2BlockSetKeptMock.mockResolvedValue({
-      batch: { items: urls.map(item), encoding_preview: null, domain_log_domain_count: urls.length },
+      batch: {
+        items: urls.map(item),
+        encoding_preview: null,
+        domain_log_domain_count: urls.length,
+        duplicate_urls_dropped: 0,
+      },
       error: null,
     })
     await state.toggleImportPreviewBlockKept()

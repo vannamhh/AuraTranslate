@@ -856,6 +856,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `unicode-normalization` *(commands::segment — NFC hoá cả hai vế phép so mốc FR117 trong `confirm_segment`; đã bắc cầu qua `Cargo.lock`, khai tường minh thêm 0 gói MỚI)* | =0.1.25 | MIT OR Apache-2.0 ✓ |
 | `zip` *(core::docx — đọc kho zip của `.docx`; thêm 0 gói MỚI, chỉ đổi từ bắc cầu sang trực tiếp)* | =8.6.0 | MIT ✓ |
 | `quick-xml` *(core::docx — phân tích `word/document.xml`/rels; khai đúng **0.41.0** để không thêm một phiên bản thứ ba)* | =0.41.0 | MIT ✓ |
+| `base64` *(core::webimport — giải mã ảnh `data:` URI; đã bắc cầu qua `docx-rs`/`reqwest`/`tauri` từ trước — `cargo tree -i base64@0.22.1` xác nhận, khai tường minh ở đây thêm 0 gói MỚI)* | =0.22.1 | MIT OR Apache-2.0 ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
 | `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
 | `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |

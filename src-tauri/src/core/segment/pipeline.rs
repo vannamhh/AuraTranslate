@@ -1672,6 +1672,11 @@ fn split_bilingual_chapters(
         return Ok(vec![BilingualChapterGroup { title: None, rows, segments: Vec::new(), cleanup_report, joined_line_count }]);
     };
 
+    // Vec::zip silently stops at the shortest vector; a length mismatch here would silently
+    // drop rows instead of panicking or erroring.
+    debug_assert_eq!(rows.len(), row_cleanup_reports.len(), "rows/row_cleanup_reports lech do dai");
+    debug_assert_eq!(rows.len(), row_joined_line_counts.len(), "rows/row_joined_line_counts lech do dai");
+
     let mut groups: Vec<BilingualChapterGroup> = Vec::new();
     let mut current: Option<BilingualChapterGroup> = None;
 
@@ -2024,4 +2029,35 @@ fn split_segments_step(
         *seg = Some(computed);
     }
     Ok((flow, 0))
+}
+
+#[cfg(test)]
+mod bilingual_chapter_split_length_guard_tests {
+    use super::*;
+    use crate::core::segment::bilingual::BilingualRow;
+    use crate::core::segment::chapterpattern::ChapterPattern;
+
+    #[test]
+    #[should_panic(expected = "lech do dai")]
+    fn a_row_cleanup_reports_length_mismatch_panics_in_a_debug_build() {
+        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let pattern = ChapterPattern::regex(r"^X");
+        let _ = split_bilingual_chapters(rows, Vec::new(), vec![None], Some(&pattern), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "lech do dai")]
+    fn a_row_joined_line_counts_length_mismatch_panics_in_a_debug_build() {
+        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let pattern = ChapterPattern::regex(r"^X");
+        let _ = split_bilingual_chapters(rows, vec![None], Vec::new(), Some(&pattern), 0);
+    }
+
+    #[test]
+    fn matching_vector_lengths_do_not_panic() {
+        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let pattern = ChapterPattern::regex(r"^X");
+        let result = split_bilingual_chapters(rows, vec![None], vec![None], Some(&pattern), 0);
+        assert!(result.is_ok());
+    }
 }

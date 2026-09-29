@@ -32,6 +32,7 @@
 import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
+  cancelImageDownload,
   cleanupAddRule,
   cleanupDeleteRule,
   cleanupEditRule,
@@ -46,6 +47,8 @@ import {
   startUrlImport,
   tier2BlockConfirmRange,
   tier2BlockSetKept,
+  URL_IMPORT_IMAGE_PROGRESS_EVENT,
+  URL_IMPORT_PAGE_PROGRESS_EVENT,
 } from './config/project'
 import type {
   ChapterOriginEditFields,
@@ -62,6 +65,7 @@ import type {
   FileImportItemWire,
   ImportEncodingPreview,
   ImportEncodingPreviewResult,
+  ImportProgressEvent,
   NormalizedPreviewWire,
   ChapterBlocksPreviewWire,
   UrlImportItemWire,
@@ -87,6 +91,47 @@ const confirming = ref(false)
 const confirmError = ref<IpcError | null>(null)
 /** Chặn bấm chồng — cùng lý do `importOpening` của `glossaryImportState.ts`. */
 const opening = ref(false)
+
+/** Tiến độ pha TẢI TRANG (một lần mỗi link, `wire::start_url_import`) của lượt mở đang bay —
+ * `null` khi không có lượt nào đang tải trang. */
+const urlImportPageProgress = ref<ImportProgressEvent | null>(null)
+/** Tiến độ pha TẢI ẢNH (một lần mỗi ảnh, chạy trong lượt xác nhận) — `null` khi không có lượt
+ * xác nhận nào đang tải ảnh. */
+const urlImportImageProgress = ref<ImportProgressEvent | null>(null)
+/** `true` từ lúc người dùng bấm huỷ tải ảnh tới lúc lượt xác nhận đang bay kết thúc — cho nút
+ * huỷ tự khoá lại (một lượt huỷ là đủ, bấm thêm không đổi gì). */
+const imageDownloadCancelling = ref(false)
+
+/**
+ * Lắng nghe một sự kiện tiến độ Tauri trong lúc `run` đang bay, tháo listener khi xong dù
+ * thành hay bại. Ngoài Tauri (`npm run dev` trong trình duyệt thường), `listen` ném ngay lúc
+ * `import()` — bỏ qua tiến độ, KHÔNG chặn `run` (cùng khuôn mọi adapter IPC khác trong kho:
+ * chạy ngoài Tauri không phải một lỗi để mà ném).
+ */
+async function withImportProgressListener<T>(
+  eventName: string,
+  onProgress: (event: ImportProgressEvent) => void,
+  run: () => Promise<T>,
+): Promise<T> {
+  // 🔴 `run()` gọi NGAY, KHÔNG chờ lắng nghe xong trước — cùng bất biến "lời gọi IPC đầu
+  // tiên đồng bộ" mà `reloadImportPreviewAfterRuleChange` đã theo (xem doc-comment tại đó).
+  // Đợi `listen()` (một round-trip IPC riêng) trước khi gọi `run()` từng làm lượt gọi IPC
+  // thật sự bị trễ một/nhiều tick vi-mô — vô hại trên đường thật, nhưng phá đối chứng
+  // `mockImplementationOnce` đồng bộ của `tests/frontend/**`. Hai lượt chạy SONG SONG.
+  const runPromise = run()
+  let unlisten: (() => void) | null = null
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    unlisten = await listen<ImportProgressEvent>(eventName, (e) => onProgress(e.payload))
+  } catch (err) {
+    console.info(`[import] không lắng nghe được \`${eventName}\` — chạy ngoài Tauri? ${String(err)}`)
+  }
+  try {
+    return await runPromise
+  } finally {
+    unlisten?.()
+  }
+}
 
 /** Ba tham số nộp gần nhất — lượt xác nhận cần lại chúng, và chúng KHÔNG có mặt trong
  * `ImportEncodingPreview` (Rust không lặp lại dữ liệu người dùng vừa gõ, AD-21). */
@@ -184,6 +229,10 @@ const fileImportError = ref<IpcError | null>(null)
  * khi và CHỈ KHI số này lớn hơn 0 — 0 nghĩa là chưa gọi mạng lần nào (I/O Matrix spec 6.8:
  * "Dán N link, chưa bấm ⇒ 0 lời gọi mạng ⇒ chân màn không có dòng domain nào"). */
 const domainLogDomainCount = ref(0)
+/** Số link TRÙNG đã bị gộp ở lượt `startUrlImport` MỞ lượt xem trước đang hiện — `0` trước
+ * lượt mở, và KHÔNG đổi bởi tải-lại/bỏ-một-mục/tier2 (chúng trả `0`, xem doc-comment
+ * `UrlImportBatchWire.duplicate_urls_dropped`) — cố ý GIỮ con số của lượt mở cho hết phiên. */
+const urlImportDuplicatesDropped = ref(0)
 
 /** Lỗi của lượt CRUD luật làm sạch gần nhất (thêm/sửa/xoá/bật-tắt) — TÁCH khỏi
  * `confirmError` (lỗi của lượt XÁC NHẬN toàn bộ Tác phẩm, ngữ nghĩa khác hẳn). */
@@ -252,6 +301,15 @@ const chapterCursor = ref(0)
 const chapterDetailCleanup = ref<CleanupPreviewWire | null>(null)
 /** Chi tiết tầng 2 (khối) của Chương con trỏ đang trỏ tới — cùng điều kiện `chapterDetailCleanup`. */
 const chapterDetailBlocks = ref<ChapterBlocksPreviewWire | null>(null)
+/**
+ * `true` ⇔ một lượt CRUD luật làm sạch hoặc sửa mẫu phân tách đã chạy trong khi lớp phủ này
+ * mở trên đường URL — từ đó, Chương 0 KHÔNG còn đọc thẳng `candidate.cleanup`/`.blocks`
+ * (EAGER, dựng lúc tải danh sách, nên có thể đã CŨ hơn luật hiện hành) mà đi qua CÙNG đường
+ * lazy `preview_chapter_detail` như Chương k > 0 — xem [`loadImportPreviewChapterDetail`]/
+ * [`reloadUrlImportChapterOnScreen`]. Ở NGUYÊN `true` cho hết phiên xem trước hiện tại; một
+ * lượt mở mới đặt lại `false`.
+ */
+const urlChapterDetailEagerStale = ref(false)
 /** Cờ "đang gửi" của lệnh IPC lazy `preview_chapter_detail` — chặn hai lượt dời con trỏ chồng
  * lệnh (khuôn `event.repeat` guard ở tầng `.vue` cộng lớp phòng thủ THỨ HAI ở đây). */
 const chapterDetailLoading = ref(false)
@@ -338,6 +396,10 @@ let sequence = 0
 
 export const importPreviewIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 export const importPreviewOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
+export const importPreviewPageProgress: DeepReadonly<Ref<ImportProgressEvent | null>> = readonly(urlImportPageProgress)
+export const importPreviewImageProgress: DeepReadonly<Ref<ImportProgressEvent | null>> =
+  readonly(urlImportImageProgress)
+export const importPreviewImageDownloadCancelling: DeepReadonly<Ref<boolean>> = readonly(imageDownloadCancelling)
 export const importPreviewStatus: DeepReadonly<Ref<ImportPreviewStatus>> = readonly(status)
 export const importPreviewLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const importPreview: DeepReadonly<Ref<ImportEncodingPreview | null>> = readonly(preview)
@@ -416,6 +478,7 @@ export const importPreviewFileImportError: DeepReadonly<Ref<IpcError | null>> = 
  * mạng, và số này chỉ được LÀM MỚI khi chính lớp phủ URL đang mở gọi một trong ba lệnh).
  * `ImportPreviewOverlay.vue` chỉ hiện dòng tóm tắt khi số này `> 0`. */
 export const importPreviewDomainLogDomainCount: DeepReadonly<Ref<number>> = readonly(domainLogDomainCount)
+export const importPreviewUrlDuplicatesDropped: DeepReadonly<Ref<number>> = readonly(urlImportDuplicatesDropped)
 export const importPreviewUrlImportBusy: DeepReadonly<Ref<boolean>> = readonly(urlImportBusy)
 export const importPreviewUrlImportError: DeepReadonly<Ref<IpcError | null>> = readonly(urlImportError)
 /** `true` ⇔ còn ít nhất một mục hỏng trong danh sách URL — điều kiện KHOÁ nút xác nhận
@@ -512,7 +575,7 @@ export const importPreviewSelectedNormalized = computed<NormalizedPreviewWire | 
  * dời, xem [`loadImportPreviewChapterDetail`]), `null` trong lúc đang bay/vừa trượt.
  */
 export const importPreviewSelectedCleanup = computed<CleanupPreviewWire | null>(() => {
-  if (chapterCursor.value !== 0) return chapterDetailCleanup.value
+  if (chapterCursor.value !== 0 || urlChapterDetailEagerStale.value) return chapterDetailCleanup.value
   const p = preview.value
   if (p === null) return null
   const candidate = importPreviewSelectedCandidate.value
@@ -536,60 +599,89 @@ export const importPreviewSelectedChapters = computed<ChapterSplitPreviewWire | 
   return p.self_declared_chapters
 })
 
+/** Bốn trường "chưa chạm" — dùng khi CHƯA có Chương nào (con trỏ ngoài phạm vi) và làm giá
+ * trị mặc định trong [`resolveOriginField`]. */
+const UNTOUCHED_ORIGIN: ChapterOriginWire = {
+  author: null,
+  site_name: null,
+  url: null,
+  published_at: null,
+  author_confirmed: false,
+  site_name_confirmed: false,
+  url_confirmed: false,
+  published_at_confirmed: false,
+}
+
 /**
- * **THÊM (Story 6.15, FR128/AD-43)** — bốn ô xuất xứ HIỆU LỰC của Chương con trỏ đang chọn.
- * Draft CLIENT (`chapterOriginDrafts`, nếu người dùng đã gõ cho ĐÚNG Chương này) LUÔN thắng
- * giá trị MÁY của `importPreviewSelectedChapters` — draft là sự thật MỚI HƠN bất kể ứng viên
- * bảng mã đang chọn là gì (xem doc-comment `chapterOriginDrafts`).
+ * MỘT trường xuất xứ hiệu lực: `touched` (từ draft, `undefined`/`null` ⇔ chưa chạm) LUÔN
+ * thắng khi có mặt; ngược lại rơi về giá trị MÁY của ứng viên bảng mã ĐANG chọn.
+ *
+ * ⚠️ `str::trim()`, KHÔNG `=== ''` trần — khớp ĐÚNG luật ghi xuống đĩa
+ * (`core/webimport/origin.rs::chapter_origin_trim_or_none`/`commands/chapter.rs::update_chapter_origin`):
+ * một ô chỉ toàn khoảng trắng cũng ghi `NULL`. Lệch quy tắc ở đây làm màn xem trước hiện một ô
+ * "có chữ" trong khi đĩa sẽ ghi `NULL` — hai nơi nói hai điều khác nhau về CÙNG một giá trị.
+ */
+function resolveOriginField(
+  touched: string | null | undefined,
+  machineValue: string | null,
+  machineConfirmed: boolean,
+): { value: string | null; confirmed: boolean } {
+  if (touched === undefined || touched === null) return { value: machineValue, confirmed: machineConfirmed }
+  return { value: touched.trim() === '' ? null : touched, confirmed: true }
+}
+
+/**
+ * Effective origin (FR128/AD-43) for the current chapter, field by field: a field the client
+ * draft has touched (`chapterOriginDrafts`, non-null) wins immediately, no IPC wait; an
+ * untouched field falls back to the currently selected encoding candidate's machine value —
+ * so switching candidates still updates an untouched field correctly (site_name can decode
+ * differently per candidate), even though another field of the same chapter was overridden.
  */
 export const importPreviewCurrentChapterOrigin = computed<ChapterOriginWire>(() => {
   const draft = chapterOriginDrafts.value[chapterCursor.value]
-  if (draft !== undefined) {
-    // ⚠️ `str::trim()`, KHÔNG `=== ''` trần — khớp ĐÚNG luật ghi xuống đĩa
-    // (`core/webimport/origin.rs::chapter_origin_trim_or_none`/`commands/chapter.rs::update_chapter_origin`):
-    // một ô chỉ toàn khoảng trắng cũng ghi `NULL`. Lệch quy tắc ở đây làm màn xem trước hiện
-    // một ô "có chữ" trong khi đĩa sẽ ghi `NULL` — hai nơi nói hai điều khác nhau về CÙNG một
-    // giá trị (lượt rà 2026-09-10).
-    return {
-      author: draft.author.trim() === '' ? null : draft.author,
-      site_name: draft.siteName.trim() === '' ? null : draft.siteName,
-      url: draft.url.trim() === '' ? null : draft.url,
-      published_at: draft.publishedAt.trim() === '' ? null : draft.publishedAt,
-      author_confirmed: true,
-      site_name_confirmed: true,
-      url_confirmed: true,
-      published_at_confirmed: true,
-    }
-  }
   const entry = importPreviewSelectedChapters.value?.chapters[chapterCursor.value]
-  if (entry === undefined) {
-    return {
-      author: null,
-      site_name: null,
-      url: null,
-      published_at: null,
-      author_confirmed: false,
-      site_name_confirmed: false,
-      url_confirmed: false,
-      published_at_confirmed: false,
-    }
+  const machine = entry?.origin ?? UNTOUCHED_ORIGIN
+
+  const author = resolveOriginField(draft?.author, machine.author, machine.author_confirmed)
+  const siteName = resolveOriginField(draft?.siteName, machine.site_name, machine.site_name_confirmed)
+  const url = resolveOriginField(draft?.url, machine.url, machine.url_confirmed)
+  const publishedAt = resolveOriginField(draft?.publishedAt, machine.published_at, machine.published_at_confirmed)
+
+  return {
+    author: author.value,
+    site_name: siteName.value,
+    url: url.value,
+    published_at: publishedAt.value,
+    author_confirmed: author.confirmed,
+    site_name_confirmed: siteName.confirmed,
+    url_confirmed: url.confirmed,
+    published_at_confirmed: publishedAt.confirmed,
   }
-  return entry.origin
 })
 
 /**
- * Ghi một lượt sửa tay xuất xứ cho Chương con trỏ ĐANG CHỌN — cập nhật draft CLIENT NGAY (để
- * `importPreviewCurrentChapterOrigin` phản ánh chữ vừa gõ tức thời, 0 chờ IPC), rồi đồng bộ
- * xuống `ChapterOriginOverridesState` (Rust) để `confirm_import_with_encoding` đọc được LÚC
- * XÁC NHẬN. Lỗi ghi Rust không xoá draft CLIENT — người dùng vẫn thấy đúng chữ họ gõ; họ chỉ
- * mất đường LƯU XUỐNG ĐĨA nếu lỗi đó còn treo lúc xác nhận (`confirmError` sẽ nói).
+ * Ghi một lượt sửa tay xuất xứ cho Chương con trỏ ĐANG CHỌN — gộp trường VỪA CHẠM
+ * ([`ChapterOrigin.vue`]'s `@commit` chỉ mang MỘT trường non-null mỗi lượt) vào draft CLIENT
+ * đã tích luỹ của Chương này, cập nhật draft NGAY (để `importPreviewCurrentChapterOrigin`
+ * phản ánh chữ vừa gõ tức thời, 0 chờ IPC), rồi đồng bộ BẢN GỘP xuống
+ * `ChapterOriginOverridesState` (Rust, REPLACE toàn bộ ở chỉ số này mỗi lượt gọi) để
+ * `confirm_import_with_encoding` đọc được LÚC XÁC NHẬN. Lỗi ghi Rust không xoá draft CLIENT —
+ * người dùng vẫn thấy đúng chữ họ gõ; họ chỉ mất đường LƯU XUỐNG ĐĨA nếu lỗi đó còn treo lúc
+ * xác nhận (`confirmError` sẽ nói).
  */
 export async function commitImportPreviewChapterOrigin(edit: ChapterOriginEditFields): Promise<void> {
   const index = chapterCursor.value
-  chapterOriginDrafts.value = { ...chapterOriginDrafts.value, [index]: edit }
+  const previous = chapterOriginDrafts.value[index]
+  const merged: ChapterOriginEditFields = {
+    author: edit.author ?? previous?.author ?? null,
+    siteName: edit.siteName ?? previous?.siteName ?? null,
+    url: edit.url ?? previous?.url ?? null,
+    publishedAt: edit.publishedAt ?? previous?.publishedAt ?? null,
+  }
+  chapterOriginDrafts.value = { ...chapterOriginDrafts.value, [index]: merged }
   chapterOriginError.value = null
 
-  const { error } = await setChapterOriginOverride(index, edit)
+  const { error } = await setChapterOriginOverride(index, merged)
   if (error !== null) {
     chapterOriginError.value = error
   }
@@ -606,7 +698,7 @@ export async function commitImportPreviewChapterOrigin(edit: ChapterOriginEditFi
  * 0 đọc từ [`chapterDetailBlocks`] (chi tiết LAZY), không còn LUÔN của Chương 0.
  */
 export const importPreviewSelectedBlocks = computed<ChapterBlocksPreviewWire | null>(() => {
-  if (chapterCursor.value !== 0) return chapterDetailBlocks.value
+  if (chapterCursor.value !== 0 || urlChapterDetailEagerStale.value) return chapterDetailBlocks.value
   const candidate = importPreviewSelectedCandidate.value
   return candidate !== null ? candidate.blocks : null
 })
@@ -705,6 +797,7 @@ async function openWith(
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  urlChapterDetailEagerStale.value = false
   // Story 6.15 — đường tệp/dán tay KHÔNG BAO GIỜ bóc xuất xứ (`extract_main_content ==
   // false`), nên dọn draft ở đây chỉ là VÒNG ĐỜI nhất quán (cùng lý do `chapterPatternText`
   // ngay trên) — không mất chữ có nghĩa nào.
@@ -813,6 +906,7 @@ export async function openImportPreviewFromFile(
   fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
+  urlImportDuplicatesDropped.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
   blockFocusedIndex.value = 0
@@ -828,6 +922,7 @@ export async function openImportPreviewFromFile(
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  urlChapterDetailEagerStale.value = false
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
 
@@ -924,6 +1019,7 @@ export async function openImportPreviewFromUrls(
   fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
+  urlImportDuplicatesDropped.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
   blockFocusedIndex.value = 0
@@ -939,12 +1035,21 @@ export async function openImportPreviewFromUrls(
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  urlChapterDetailEagerStale.value = false
   // Story 6.15 — danh sách URL HOÀN TOÀN MỚI, cùng lý do `Tier2BlockOverridesState` reset ở
   // `start_url_import` phía Rust (chỉ số Chương cũ không còn khớp gì với danh sách mới).
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
+  urlImportPageProgress.value = null
 
-  const result = await startUrlImport(urls, sourceLang, destinationWorkId)
+  const result = await withImportProgressListener(
+    URL_IMPORT_PAGE_PROGRESS_EVENT,
+    (e) => {
+      urlImportPageProgress.value = e
+    },
+    () => startUrlImport(urls, sourceLang, destinationWorkId),
+  )
+  urlImportPageProgress.value = null
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
@@ -967,6 +1072,7 @@ export async function openImportPreviewFromUrls(
 
   urlImportItems.value = result.batch.items
   domainLogDomainCount.value = result.batch.domain_log_domain_count
+  urlImportDuplicatesDropped.value = result.batch.duplicate_urls_dropped
   // 🔵 SỬA 2026-09-08 (Story 6.10a) — `encoding_preview === null` KHÔNG còn ⇔ "còn mục hỏng".
   // Vị từ XEM phía Rust (`chapters_shape_for_view`) nay bỏ qua mục hỏng để vẫn dựng được xem
   // trước từ các mục OK còn lại — `null` chỉ còn đúng khi KHÔNG mục OK nào (danh sách rỗng,
@@ -1115,7 +1221,12 @@ export async function toggleImportPreviewBlockKept(): Promise<void> {
 
   blockToggling.value = true
   try {
-    const result = await tier2BlockSetKept(blockFocusedIndex.value, !current.kept, pendingSourceLang.value)
+    const result = await tier2BlockSetKept(
+      blockFocusedIndex.value,
+      !current.kept,
+      pendingSourceLang.value,
+      chapterCursor.value,
+    )
     if (result.error !== null) {
       blockActionError.value = result.error
       return
@@ -1158,6 +1269,7 @@ export async function confirmImportPreviewBlockRange(): Promise<void> {
       blockFocusedIndex.value,
       length,
       pendingSourceLang.value,
+      chapterCursor.value,
     )
     if (result.error !== null) {
       blockActionError.value = result.error
@@ -1201,6 +1313,11 @@ export function selectImportPreviewCandidate(encoding: string): void {
   // gắn với dữ liệu người dùng đang nhìn thấy sau khi đổi ô.
   blockRangeMissingStartNotice.value = false
   blockActionError.value = null
+  // Ứng viên MỚI có thể không đủ Chương để so (`any_signal_participated === false`) — bộ lọc
+  // "cần xem" đang bật không còn gì đúng đắn để lọc theo, tắt nó thay vì để trang trơ ra.
+  if (chapterFilterActive.value && importPreviewSelectedChapters.value?.any_signal_participated !== true) {
+    chapterFilterActive.value = false
+  }
   // 🔴 THÊM (Story 6.10a) — con trỏ Chương GIỮ NGUYÊN qua một lượt đổi ứng viên (AC spec
   // 6.10a: "hiện Chương k, không nhảy về Chương 0"); chi tiết của Chương k > 0 phải dựng LẠI
   // với bảng mã MỚI — Chương 0 không cần (đọc thẳng `candidate.cleanup`/`.blocks` mới, đã đủ).
@@ -1250,7 +1367,7 @@ async function loadImportPreviewChapterDetail(index: number): Promise<void> {
   chapterDetailRequestToken += 1
   const myToken = chapterDetailRequestToken
   chapterDetailError.value = null
-  if (index === 0) {
+  if (index === 0 && !urlChapterDetailEagerStale.value) {
     chapterDetailCleanup.value = null
     chapterDetailBlocks.value = null
     return
@@ -1287,6 +1404,19 @@ async function loadImportPreviewChapterDetail(index: number): Promise<void> {
   } finally {
     if (myToken === chapterDetailRequestToken) chapterDetailLoading.value = false
   }
+}
+
+/**
+ * Trên đường URL, làm chi tiết Chương ĐANG HIỆN mới lại sau một lượt CRUD luật làm sạch hoặc
+ * sửa mẫu phân tách — kể cả Chương 0 (đặt [`urlChapterDetailEagerStale`], rồi tái dùng CHÍNH
+ * [`loadImportPreviewChapterDetail`] mà `⌥←`/`⌥→` đã dùng cho Chương k > 0). Mẫu phân tách
+ * không có tác dụng thật trên đường này (xem doc-comment [`loadImportPreviewChapterDetail`]
+ * về `chapter_pattern: null`), nhưng luật làm sạch thì có — gọi lại vẫn đúng cho cả hai chỗ
+ * gọi mà không cần phân biệt.
+ */
+async function reloadUrlImportChapterOnScreen(): Promise<void> {
+  urlChapterDetailEagerStale.value = true
+  await loadImportPreviewChapterDetail(chapterCursor.value)
 }
 
 /**
@@ -1584,6 +1714,11 @@ async function reloadImportPreviewAfterRuleChange(): Promise<void> {
   // luật có thể đã đổi hình dạng không nên tiếp tục hiện "bấm lại để xoá thật".
   cleanupDeletePendingKey.value = null
 
+  if (lastSubmittedFrom.value === 'urls') {
+    await reloadUrlImportChapterOnScreen()
+    return
+  }
+
   // **THÊM (Story 6.6b)** — thử đường TỆP trước, cùng thứ tự mà
   // [`reloadImportPreviewAfterChapterPatternChange`] theo.
   //
@@ -1666,6 +1801,11 @@ async function reloadImportPreviewAfterRuleChange(): Promise<void> {
  * đây KHÔNG đụng `status`/`loadError`/`preview` — chỉ báo lỗi RIÊNG qua `chapterPatternError`.
  */
 async function reloadImportPreviewAfterChapterPatternChange(): Promise<void> {
+  if (lastSubmittedFrom.value === 'urls') {
+    await reloadUrlImportChapterOnScreen()
+    return
+  }
+
   // **THÊM (Story 6.6b)** — cùng thứ tự thử đường TỆP trước, cùng gác ĐỒNG BỘ (không phải
   // `await runFileImportPreviewReload()` rồi đọc `null`) mà [`reloadImportPreviewAfterRuleChange`]
   // theo — xem doc-comment CHI TIẾT ở đó cho lý do một tick vi-mô thừa phá vỡ đối chứng
@@ -1904,15 +2044,21 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
 
   confirming.value = true
   confirmError.value = null
+  imageDownloadCancelling.value = false
+  urlImportImageProgress.value = null
   const mySequence = sequence
+  const encoding = selectedEncoding.value
 
-  const result = await confirmImportWithEncoding(
-    pendingName.value,
-    pendingSourceLang.value,
-    pendingGenre.value,
-    selectedEncoding.value,
-    chapterPatternWire(),
+  const result = await withImportProgressListener(
+    URL_IMPORT_IMAGE_PROGRESS_EVENT,
+    (e) => {
+      urlImportImageProgress.value = e
+    },
+    () =>
+      confirmImportWithEncoding(pendingName.value, pendingSourceLang.value, pendingGenre.value, encoding, chapterPatternWire()),
   )
+  urlImportImageProgress.value = null
+  imageDownloadCancelling.value = false
   if (mySequence !== sequence) return { created: null, error: null }
 
   confirming.value = false
@@ -1958,6 +2104,7 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
+  urlImportDuplicatesDropped.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
   // Story 6.15 — cùng kỷ luật "reset CHỈ SAU KHI Ok" mà `ChapterOriginOverridesState` phía
@@ -1966,6 +2113,17 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
   return { created: result.created, error: null }
+}
+
+/**
+ * Huỷ pha tải ảnh của lượt xác nhận ĐANG BAY — Chương và ảnh ĐÃ tải giữ nguyên, chỉ ảnh CÒN
+ * LẠI trong hàng đợi bị bỏ (`wire::cancel_image_download`, bơm `ImageDownloadGeneration`).
+ * No-op khi không có lượt xác nhận nào đang bay, hoặc đã bấm huỷ rồi.
+ */
+export function cancelImportPreviewImageDownload(): void {
+  if (!confirming.value || imageDownloadCancelling.value) return
+  imageDownloadCancelling.value = true
+  void cancelImageDownload()
 }
 
 /**
@@ -2013,6 +2171,9 @@ export function resetImportPreview(): void {
   confirming.value = false
   confirmError.value = null
   opening.value = false
+  urlImportPageProgress.value = null
+  urlImportImageProgress.value = null
+  imageDownloadCancelling.value = false
   pendingName.value = ''
   pendingSourceLang.value = ''
   pendingGenre.value = ''
@@ -2039,6 +2200,7 @@ export function resetImportPreview(): void {
   fileImportError.value = null
   urlImportItems.value = []
   domainLogDomainCount.value = 0
+  urlImportDuplicatesDropped.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
   blockFocusedIndex.value = 0
@@ -2054,6 +2216,7 @@ export function resetImportPreview(): void {
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
   chapterDetailError.value = null
+  urlChapterDetailEagerStale.value = false
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
 }

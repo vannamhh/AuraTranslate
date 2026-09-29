@@ -734,6 +734,9 @@ pub fn run() {
             crate::commands::project::wire::start_url_import,
             crate::commands::project::wire::reload_url_import_item,
             crate::commands::project::wire::remove_url_import_item,
+            // Cancels an in-flight image-download pass. Not async -- just an AtomicU64,
+            // no Store I/O.
+            crate::commands::project::wire::cancel_image_download,
             // Story 6.8 (NFR19, AD-41) -- doc nhat ky domain cua ca phien chay, cho Cai dat
             // > Quyen rieng tu. Khong async -- doc mot Mutex<Vec<_>> trong bo nho, 0 mang.
             crate::commands::project::wire::list_domain_log,
@@ -1203,6 +1206,7 @@ fn open_work_slot(app: &tauri::App) {
     use tauri::Manager as _;
     app.manage(crate::commands::project::OpenWorkState::new(None));
     app.manage(crate::commands::project::ImportScanGeneration::default());
+    app.manage(crate::commands::project::ImageDownloadGeneration::default());
     // Story 3.10b (AD-48) -- lo nhap Glossary dang TREO giua nhip mot va nhip hai. Quan ly
     // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
     // xem close_open_work.
@@ -1246,6 +1250,7 @@ fn open_work_slot(app: &tauri::App) {
     // Story 6.15 (FR128/AD-43) -- xuat xu NGUOI DUNG go de theo Chuong, song CANH
     // Tier2BlockOverridesState -- cung ly do Vec RONG la trang thai "chua ai sua gi".
     app.manage(crate::commands::project::ChapterOriginOverridesState::new(Vec::new()));
+    app.manage(crate::commands::project::AppendInProgressState::new(std::collections::HashSet::new()));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn
@@ -1377,6 +1382,13 @@ fn close_open_work(handle: &tauri::AppHandle) {
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
         let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(open) = guard.take() {
+            // Revokes the `asset://` scope the same way replace_open_work does when
+            // switching Works; there's no new Work here to re-grant it to.
+            use tauri::Manager as _;
+            let assets_dir = open.dir.join("assets");
+            if let Err(err) = handle.asset_protocol_scope().forbid_directory(&assets_dir, true) {
+                eprintln!("project[scope] khong thu hoi duoc asset_protocol_scope cho {}: {err}", assets_dir.display());
+            }
             open.store.close();
         }
     }

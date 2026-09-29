@@ -133,7 +133,12 @@ function urlBatchTwoChapters(): UrlImportBatchWire {
       }),
     ],
   })
-  return { items: urls.map(urlItem), encoding_preview: encodingPreview, domain_log_domain_count: 2 }
+  return {
+    items: urls.map(urlItem),
+    encoding_preview: encodingPreview,
+    domain_log_domain_count: 2,
+    duplicate_urls_dropped: 0,
+  }
 }
 
 function chapterDetail(label: string): ChapterDetailWire {
@@ -222,6 +227,47 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
     } else {
       expect(state.importPreviewCurrentChapterOrigin.value.author).not.toBeNull()
     }
+  })
+
+  // Bản trước đóng băng CẢ BỐN trường vào draft ngay khi
+  // một trong bốn ô được gõ (ba ô không gõ mang giá trị MÁY của ứng viên ĐANG chọn TẠI THỜI
+  // ĐIỂM GÕ), nên một trường CHƯA TỪNG chạm vẫn kẹt lại giá trị máy CŨ sau khi đổi ứng viên
+  // sang một ứng viên bóc `site_name` KHÁC đi thật (đo được, không phải giả định).
+  it('gõ MỘT ô rồi đổi ứng viên ⇒ ô đã gõ giữ nguyên, ô CHƯA gõ theo giá trị máy của ứng viên MỚI', async () => {
+    const state = await freshState()
+    const batch = urlBatchTwoChapters()
+    const withDifferentSiteName: UrlImportBatchWire = {
+      ...batch,
+      encoding_preview: preview({
+        candidates: [
+          ...(batch.encoding_preview?.candidates ?? []),
+          candidate({
+            encoding: 'GBK',
+            label: 'GBK',
+            chapters: chaptersWithOrigin([
+              origin({ author: 'Nguyen Van A', site_name: 'Ten Site Khac Han', url: 'https://a.example/1', published_at: '2026-09-10' }),
+              origin({ url: 'https://a.example/2' }),
+            ]),
+          }),
+        ],
+      }),
+    }
+    startUrlImportMock.mockResolvedValue({ batch: withDifferentSiteName, error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
+
+    // Chỉ gõ `author` — `siteName`/`url`/`publishedAt` CHƯA chạm, đi `null`.
+    await state.commitImportPreviewChapterOrigin({ author: 'Nguoi Dung Go Tay', siteName: null, url: null, publishedAt: null })
+    expect(state.importPreviewCurrentChapterOrigin.value.author).toBe('Nguoi Dung Go Tay')
+    expect(state.importPreviewCurrentChapterOrigin.value.site_name).toBe('Bao Thi Du')
+
+    state.selectImportPreviewCandidate('GBK')
+
+    // `author` (đã chạm) giữ nguyên chữ gõ; `site_name` (chưa chạm) theo ứng viên MỚI, không
+    // kẹt lại giá trị máy của ứng viên CŨ.
+    expect(state.importPreviewCurrentChapterOrigin.value.author).toBe('Nguoi Dung Go Tay')
+    expect(state.importPreviewCurrentChapterOrigin.value.site_name).toBe('Ten Site Khac Han')
+    expect(state.importPreviewCurrentChapterOrigin.value.author_confirmed).toBe(true)
+    expect(state.importPreviewCurrentChapterOrigin.value.site_name_confirmed).toBe(false)
   })
 
   it('draft SỐNG QUA lượt đổi bảng mã (đổi ứng viên KHÔNG thổi bay chữ đã gõ)', async () => {

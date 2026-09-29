@@ -10,10 +10,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type {
+  ChapterDetailWire,
   CleanupPreviewWire,
   CleanupRuleReportWire,
   EncodingCandidateWire,
   ImportEncodingPreview,
+  UrlImportBatchWire,
 } from '../../src/config/project'
 
 const previewTextMock = vi.fn()
@@ -23,6 +25,8 @@ const cleanupAddRuleMock = vi.fn()
 const cleanupEditRuleMock = vi.fn()
 const cleanupDeleteRuleMock = vi.fn()
 const cleanupSetEnabledMock = vi.fn()
+const startUrlImportMock = vi.fn()
+const previewChapterDetailMock = vi.fn()
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
@@ -37,6 +41,9 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       cleanupEditRuleMock(tier, id, pattern, kind),
     cleanupDeleteRule: (tier: string, id: number) => cleanupDeleteRuleMock(tier, id),
     cleanupSetEnabled: (tier: string, id: number, enabled: boolean) => cleanupSetEnabledMock(tier, id, enabled),
+    startUrlImport: (urls: string[], sourceLang: string) => startUrlImportMock(urls, sourceLang),
+    previewChapterDetail: (index: number, encoding: string, sourceLang: string, chapterPattern: unknown) =>
+      previewChapterDetailMock(index, encoding, sourceLang, chapterPattern),
   }
 })
 
@@ -49,6 +56,8 @@ async function freshState() {
   cleanupEditRuleMock.mockReset()
   cleanupDeleteRuleMock.mockReset()
   cleanupSetEnabledMock.mockReset()
+  startUrlImportMock.mockReset()
+  previewChapterDetailMock.mockReset()
   return import('../../src/importPreviewState')
 }
 
@@ -249,6 +258,37 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
 
     expect(state.importPreviewCleanupActionError.value).toEqual(err)
     expect(previewTextMock).not.toHaveBeenCalled()
+  })
+
+  // Trước bản sửa này, một lượt CRUD luật làm sạch trong lúc
+  // màn xem trước URL đang mở là một no-op HOÀN TOÀN (`runImportPreviewReload` trả `null` cho
+  // `lastSubmittedFrom === 'urls'`) — Chương ĐANG HIỆN (kể cả Chương 0, đọc EAGER không qua
+  // IPC bình thường) không hề làm mới, nên luật vừa bật/tắt không thấy hiệu lực trên màn hình.
+  it('đường URL: bật/tắt một luật làm sạch dựng lại chi tiết Chương ĐANG HIỆN qua previewChapterDetail', async () => {
+    const state = await freshState()
+    const urlBatch: UrlImportBatchWire = {
+      items: [{ url: 'https://a.example/1', ok: true, error: null }],
+      encoding_preview: preview(),
+      domain_log_domain_count: 1,
+      duplicate_urls_dropped: 0,
+    }
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch, error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1'], null)
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+
+    const refreshed: ChapterDetailWire = { cleanup: cleanup({ final_text: 'da loc quang cao' }), blocks: { blocks: [] } }
+    previewChapterDetailMock.mockResolvedValue({ detail: refreshed, error: null })
+    cleanupSetEnabledMock.mockResolvedValue({ ok: true, error: null })
+
+    await state.toggleImportPreviewCleanupRule('global', 1, false)
+
+    expect(previewChapterDetailMock).toHaveBeenCalledWith(0, 'UTF-8', 'en', null)
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('da loc quang cao')
+    // Đường TEXT (`previewImportEncodingFromText`) không được chạm — nhánh URL đi đường lazy
+    // RIÊNG, không lẫn với `runImportPreviewReload`.
+    expect(previewTextMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
   })
 
   it('sửa luật THÀNH CÔNG ⇒ gọi cleanupEditRule rồi tải lại', async () => {

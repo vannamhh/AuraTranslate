@@ -63,10 +63,13 @@ import {
   importPreviewFileImportBusy,
   importPreviewFileImportError,
   importPreviewFileItems,
+  importPreviewImageDownloadCancelling,
+  importPreviewImageProgress,
   importPreviewIsOpen,
   importPreviewJumpToCleanupRulesSignal,
   importPreviewLastSubmittedFrom,
   importPreviewLoadError,
+  importPreviewPageProgress,
   importPreviewPendingName,
   importPreviewPendingSourceLang,
   importPreviewSelectedBlocks,
@@ -77,6 +80,7 @@ import {
   importPreviewSelectedNormalized,
   importPreviewStatus,
   importPreviewStripIsOpen,
+  importPreviewUrlDuplicatesDropped,
   importPreviewUrlImportBusy,
   importPreviewUrlImportError,
   importPreviewUrlItems,
@@ -885,7 +889,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
       </p>
 
       <p v-if="importPreviewStatus === 'unknown'" class="ip-status" role="status">
-        {{ t('mode.library.preview.loading') }}
+        <!-- aura-allow-text: qua t() cả hai nhánh, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+        {{
+          importPreviewPageProgress !== null
+            ? t('mode.library.preview.url_page_progress', {
+                completed: String(importPreviewPageProgress.completed),
+                total: String(importPreviewPageProgress.total),
+              })
+            : t('mode.library.preview.loading')
+        }}
       </p>
       <p v-else-if="importPreviewStatus === 'ipc_unavailable'" class="ip-empty">
         {{ t('mode.library.preview.empty_ipc_unavailable') }}
@@ -1490,48 +1502,48 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             <!--
               ═══════ Chip "cần xem"/"sạch" + dòng tách hai vế (Story 6.10, FR132) ═══════
               🔴 Hai con số DO RUST CỘNG (AD-1) — `needs_review_count`/`clean_count` đọc THẲNG
-              từ dây, không tính lại ở đây. `any_signal_participated === false` ⇒ KHÔNG hàng
-              rào nào tồn tại cho lượt nhập này — nói "chưa đủ Chương để so" THAY VÌ khai
-              `0 cần xem` (§Always spec 6.10, AC 2026-09-08).
+              từ dây, không tính lại ở đây. `needs_review_count` LUÔN hiện được, kể cả khi
+              `any_signal_participated === false` (nó CỘNG cả link hỏng, không riêng hàng rào
+              so-tương-đối). Chỉ `clean_count` cần gác bằng cờ đó: "chưa đủ Chương để so" THAY
+              VÌ khai `M sạch` khi chưa đo được gì.
             -->
             <div class="ip-chapter-filter-bar">
-              <template v-if="importPreviewSelectedChapters.any_signal_participated">
-                <!-- 🔴 SỬA (vòng rà đối kháng bước 4, 2026-09-08) — `:disabled` KHÔNG được
-                     khoá chiều TẮT. Bản trước chỉ xét `needs_review_count === 0`, nên nếu bộ
-                     lọc ĐANG BẬT rồi một lượt tải lại/bỏ mục làm số đó về 0, nút hoá `disabled`
-                     — người dùng KẸT ở trạng thái lọc, chỉ còn bàn phím (`⌥W`) thoát được. Thêm
-                     `&& !importPreviewChapterFilterActive`: TẮT một bộ lọc đang bật luôn được
-                     phép, cùng khuôn `toggleImportPreviewChapterFilter` (`importPreviewState.ts`). -->
-                <button
-                  type="button"
-                  class="ip-chapter-filter-chip ip-chapter-filter-chip-needs-review"
-                  :class="{ 'ip-chapter-filter-chip-active': importPreviewChapterFilterActive }"
-                  :disabled="importPreviewSelectedChapters.needs_review_count === 0 && !importPreviewChapterFilterActive"
-                  @click="dispatch('import.preview.chapter_filter_toggle')"
-                >
-                  <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-                  {{
-                    t('mode.library.preview.chapter_filter_chip_needs_review', {
-                      count: String(importPreviewSelectedChapters.needs_review_count),
-                    })
-                  }}
-                </button>
-                <span class="ip-chapter-filter-chip ip-chapter-filter-chip-clean">
-                  {{
-                    t('mode.library.preview.chapter_filter_chip_clean', {
-                      count: String(importPreviewSelectedChapters.clean_count),
-                    })
-                  }}
-                </span>
-                <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
-                     phải câu văn cần dịch, cùng khuôn `ShortcutsOverlay.vue` (hợp âm đã định
-                     dạng). -->
-                <kbd class="ip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
-                <p v-if="importPreviewSelectedChapters.needs_review_count === 0" class="ip-chapter-filter-note">
-                  {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
-                </p>
-              </template>
-              <p v-else class="ip-chapter-filter-note" role="status">
+              <!-- `:disabled` must never lock the filter ON: `!importPreviewChapterFilterActive`
+                   keeps a currently active filter always toggle-able off, even if
+                   `needs_review_count` drops to 0 after a reload/removal. -->
+              <button
+                type="button"
+                class="ip-chapter-filter-chip ip-chapter-filter-chip-needs-review"
+                :class="{ 'ip-chapter-filter-chip-active': importPreviewChapterFilterActive }"
+                :aria-pressed="importPreviewChapterFilterActive"
+                :disabled="importPreviewSelectedChapters.needs_review_count === 0 && !importPreviewChapterFilterActive"
+                @click="dispatch('import.preview.chapter_filter_toggle')"
+              >
+                <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+                {{
+                  t('mode.library.preview.chapter_filter_chip_needs_review', {
+                    count: String(importPreviewSelectedChapters.needs_review_count),
+                  })
+                }}
+              </button>
+              <span
+                v-if="importPreviewSelectedChapters.any_signal_participated"
+                class="ip-chapter-filter-chip ip-chapter-filter-chip-clean"
+              >
+                {{
+                  t('mode.library.preview.chapter_filter_chip_clean', {
+                    count: String(importPreviewSelectedChapters.clean_count),
+                  })
+                }}
+              </span>
+              <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
+                   phải câu văn cần dịch, cùng khuôn `ShortcutsOverlay.vue` (hợp âm đã định
+                   dạng). -->
+              <kbd class="ip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
+              <p v-if="importPreviewSelectedChapters.needs_review_count === 0" class="ip-chapter-filter-note">
+                {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
+              </p>
+              <p v-if="!importPreviewSelectedChapters.any_signal_participated" class="ip-chapter-filter-note" role="status">
                 {{ t('mode.library.preview.chapter_filter_insufficient_data') }}
               </p>
 
@@ -1662,6 +1674,27 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
       <p v-else-if="importPreviewConfirming" class="ip-status" role="status">
         {{ t('mode.library.preview.confirming') }}
       </p>
+      <p v-if="importPreviewImageProgress !== null" class="ip-status ip-image-progress" role="status">
+        {{
+          t('mode.library.preview.url_image_progress', {
+            completed: String(importPreviewImageProgress.completed),
+            total: String(importPreviewImageProgress.total),
+          })
+        }}
+        <button
+          type="button"
+          class="ip-act"
+          :disabled="importPreviewImageDownloadCancelling"
+          @click="dispatch('import.preview.cancel_image_download')"
+        >
+          <!-- aura-allow-text: qua t() cả hai nhánh, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+          {{
+            importPreviewImageDownloadCancelling
+              ? t('mode.library.preview.url_image_progress_cancelling')
+              : t('mode.library.preview.url_image_progress_cancel')
+          }}
+        </button>
+      </p>
 
       <!--
         🔴 Story 6.8 (NFR19) — dòng tóm tắt nhật ký domain. ĐẶT Ở ĐÂY, NGOÀI khối bốn tầng
@@ -1676,6 +1709,9 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         <button type="button" class="ip-domain-log-view" @click="dispatch('settings.privacy.open')">
           {{ t('mode.library.preview.domain_log_view') }}
         </button>
+      </p>
+      <p v-if="importPreviewUrlDuplicatesDropped > 0" class="ip-domain-log-summary" role="status">
+        {{ t('mode.library.preview.url_duplicates_dropped', { count: String(importPreviewUrlDuplicatesDropped) }) }}
       </p>
 
       <p class="ip-hint">{{ t('mode.library.preview.hint_no_write_before_confirm') }}</p>

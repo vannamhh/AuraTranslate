@@ -267,9 +267,19 @@ pub fn image_vml_only() -> Vec<u8> {
 /// (thuộc Chương 1), một ảnh SAU ranh giới (thuộc Chương 2). Đối chứng cho giới hạn
 /// `DocxSidecar` — "chỉ Chương đầu tiên đọc `blocks`" — khi mẫu phân tách THẬT SỰ cho N > 1
 /// Chương trên đường sản phẩm.
+///
+/// Chương 2 mang THÊM một đoạn trước ảnh của nó (Chương 1 thì không) nên hai ảnh rơi vào
+/// `local_block_index` KHÁC NHAU trong Chương riêng của chúng (2 và 3) — đo được: riêng chỉ
+/// số khác nhau KHÔNG đủ canh một phép so `d.local_block_index == block_idx` bỏ sót
+/// `d.chapter_index == i` (hai chỉ số khác nhau vẫn tự nhiên khớp đúng cặp, không mơ hồ). Ảnh
+/// 2 còn dài hơn ảnh 1 đúng MỘT byte — chính khác biệt NỘI DUNG này mới canh được một lượt
+/// ghép sai chỉ số kiểu đó (`docx_contract.rs` so `byte_len` riêng theo từng Chương, không chỉ
+/// đếm hàng/tập Chương-có-ảnh).
 pub fn images_on_both_sides_of_a_chapter_split_boundary() -> Vec<u8> {
     let pic1 = Pic::new_with_dimensions(TINY_PNG.to_vec(), 1, 1);
-    let pic2 = Pic::new_with_dimensions(TINY_PNG.to_vec(), 1, 1);
+    let mut pic2_bytes = TINY_PNG.to_vec();
+    pic2_bytes.push(0);
+    let pic2 = Pic::new_with_dimensions(pic2_bytes, 1, 1);
     pack(
         Docx::new()
             .add_paragraph(text_paragraph("Chuong 1: Mo Dau"))
@@ -277,14 +287,19 @@ pub fn images_on_both_sides_of_a_chapter_split_boundary() -> Vec<u8> {
             .add_paragraph(Paragraph::new().add_run(Run::new().add_image(pic1)))
             .add_paragraph(text_paragraph("Chuong 2: Tiep Theo"))
             .add_paragraph(text_paragraph("Anh thu hai o day."))
+            .add_paragraph(text_paragraph("Mot doan them truoc anh thu hai."))
             .add_paragraph(Paragraph::new().add_run(Run::new().add_image(pic2))),
     )
 }
 
 /// **`table_with_nested_table_and_trailing_paragraph`** — bảng NGOÀI một hàng một ô; ô đó
 /// mang một đoạn TRƯỚC, một bảng LỒNG (một hàng một ô, một đoạn riêng của chính nó), rồi một
-/// đoạn SAU — cùng trong ô ngoài. Đối chứng cho mệnh đề *"nhảy trọn `w:tbl` lồng rồi đi tiếp,
-/// không bỏ luôn phần còn lại của ô/hàng SAU lượt nhảy"* (`core/docx/mod.rs::parse_cell`).
+/// đoạn SAU — cùng trong ô ngoài — rồi, ở CẤP THÂN TÀI LIỆU (ngoài bảng NGOÀI), một đoạn nữa.
+/// Exercises `core/docx/mod.rs::parse_cell` splitting the nested table into its own sibling
+/// `TableShape` (text and count both preserved), the rest of the cell/row after it still
+/// reading correctly, AND that the nested table's text is absorbed right after its parent
+/// table — not deferred to the end of the whole document body, past a later top-level
+/// paragraph (Decision 12: "sibling", same nesting depth, but still document order).
 pub fn table_with_nested_table_and_trailing_paragraph() -> Vec<u8> {
     let nested_table = Table::new(vec![TableRow::new(vec![
         TableCell::new().add_paragraph(text_paragraph("Doan trong bang long.")),
@@ -295,5 +310,55 @@ pub fn table_with_nested_table_and_trailing_paragraph() -> Vec<u8> {
         .add_paragraph(text_paragraph("Doan sau bang long."));
     let outer_table = Table::new(vec![TableRow::new(vec![outer_cell])]);
 
-    pack(Docx::new().add_table(outer_table))
+    pack(Docx::new().add_table(outer_table).add_paragraph(text_paragraph("Doan sau ca bang ngoai.")))
+}
+
+/// Hand-built (`docx-rs` can't generate `word/endnotes.xml`): a normal body paragraph plus
+/// `word/footnotes.xml` (one real `w:footnote` and one `w:type="separator"` one, which Word
+/// generates automatically and isn't author content), `word/endnotes.xml` in the same shape,
+/// and `word/header1.xml`/`word/footer1.xml`/`word/comments.xml` each with recognizable
+/// text that must NOT end up in `blocks`.
+pub fn footnote_endnote_header_footer_comments() -> Vec<u8> {
+    let document_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Doan chinh van cua tai lieu.</w:t></w:r></w:p>
+  </w:body>
+</w:document>"#;
+
+    let footnotes_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>
+  <w:footnote w:id="1"><w:p><w:r><w:t>Chu thich chan trang that.</w:t></w:r></w:p></w:footnote>
+</w:footnotes>"#;
+
+    let endnotes_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:endnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:endnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>
+  <w:endnote w:id="1"><w:p><w:r><w:t>Chu thich cuoi tai lieu that.</w:t></w:r></w:p></w:endnote>
+</w:endnotes>"#;
+
+    let header_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>Chu dau trang khong duoc doc.</w:t></w:r></w:p>
+</w:hdr>"#;
+
+    let footer_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>Chu cuoi trang khong duoc doc.</w:t></w:r></w:p>
+</w:ftr>"#;
+
+    let comments_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="1"><w:p><w:r><w:t>Ghi chu nguoi doc khong duoc doc.</w:t></w:r></w:p></w:comment>
+</w:comments>"#;
+
+    pack_zip_entries(&[
+        ("word/document.xml", document_xml.as_bytes()),
+        ("word/footnotes.xml", footnotes_xml.as_bytes()),
+        ("word/endnotes.xml", endnotes_xml.as_bytes()),
+        ("word/header1.xml", header_xml.as_bytes()),
+        ("word/footer1.xml", footer_xml.as_bytes()),
+        ("word/comments.xml", comments_xml.as_bytes()),
+    ])
 }

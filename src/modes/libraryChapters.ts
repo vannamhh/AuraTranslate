@@ -34,6 +34,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter, updateChapterOrigin } from '../config/chapter'
 import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
+import type { ChapterOriginEditFields } from '../config/project'
 import { openWork } from '../config/library'
 import {
   editorChapterId,
@@ -116,6 +117,9 @@ const chapterReorgError = ref<IpcError | null>(null)
  * không đụng `segment`/`ord` nên không cần lượt flush Editor mà `beginChapterReorg` gác. */
 const chapterOriginBusy = ref(false)
 const chapterOriginError = ref<IpcError | null>(null)
+/** Ord đích của lượt áp xuất xứ THEO ĐOẠN — `null` = tắt (chỉ Chương đang chọn, hành vi cũ).
+ * Đọc bởi [`saveCurrentChapterOrigin`]; `LibraryMode.vue` ghi qua [`setChapterOriginApplyThroughOrd`]. */
+const chapterOriginApplyThroughOrd = ref<number | null>(null)
 
 export const libraryChapters: DeepReadonly<Ref<ChapterRow[]>> = readonly(chapters)
 export const libraryChaptersHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(chaptersHaveLoaded)
@@ -130,6 +134,8 @@ export const libraryChapterReorgNotice: DeepReadonly<Ref<ChapterReorgNotice | nu
 export const libraryChapterReorgError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterReorgError)
 export const libraryChapterOriginBusy: DeepReadonly<Ref<boolean>> = readonly(chapterOriginBusy)
 export const libraryChapterOriginError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterOriginError)
+export const libraryChapterOriginApplyThroughOrd: DeepReadonly<Ref<number | null>> =
+  readonly(chapterOriginApplyThroughOrd)
 
 /**
  * Chương ĐANG CHỌN trong danh sách, hoặc `null` nếu con trỏ ngoài phạm vi (danh sách rỗng,
@@ -162,6 +168,9 @@ watch(
   () => currentLibraryChapter.value?.chapter_id ?? null,
   () => {
     chapterRenameDraft.value = currentLibraryChapter.value?.title ?? ''
+    // Chương NGUỒN của lượt áp theo đoạn vừa đổi dưới chân — một ord đích còn treo từ Chương
+    // trước không còn nghĩa đúng cho Chương này.
+    chapterOriginApplyThroughOrd.value = null
   },
 )
 
@@ -494,14 +503,26 @@ export async function mergeCurrentChapterUp(): Promise<void> {
  * Gọi thẳng từ `@commit` của `ChapterOrigin.vue`, KHÔNG qua `dispatch('<id>')`: đây là một sự
  * kiện MANG THAM SỐ (bốn trường vừa gõ), và `@change`/`@commit` (custom event của component
  * con) nằm NGOÀI phạm vi Kiểm A của `check:commands` (chỉ canh `@click`).
+ *
+ * `edit`: `null` ⇔ ô đó CHƯA CHẠM — ở đây (khác `ImportPreviewOverlay.vue`, nơi `null` giữ
+ * nguyên giá trị MÁY phía Rust) không có "giá trị máy" nào để mà giữ, nên ô chưa chạm được
+ * điền lại bằng giá trị ĐÃ TRÊN ĐĨA của CHÍNH Chương này (`row.origin_*`) trước khi gửi —
+ * `update_chapter_origin` nhận đủ bốn trường, không phân biệt "chưa chạm"/"giá trị cũ".
  */
-export async function saveCurrentChapterOrigin(edit: ChapterOriginEdit): Promise<void> {
+export async function saveCurrentChapterOrigin(edit: ChapterOriginEditFields): Promise<void> {
   const row = currentLibraryChapter.value
   if (row === null) return
   chapterOriginBusy.value = true
   chapterOriginError.value = null
 
-  const { error } = await updateChapterOrigin(row.chapter_id, edit)
+  const resolved: ChapterOriginEdit = {
+    author: edit.author ?? (row.origin_author ?? ''),
+    siteName: edit.siteName ?? (row.origin_site_name ?? ''),
+    url: edit.url ?? (row.origin_url ?? ''),
+    publishedAt: edit.publishedAt ?? (row.origin_published_at ?? ''),
+  }
+
+  const { error } = await updateChapterOrigin(row.chapter_id, resolved, chapterOriginApplyThroughOrd.value)
   if (error !== null) {
     chapterOriginError.value = error
     chapterOriginBusy.value = false
@@ -510,6 +531,26 @@ export async function saveCurrentChapterOrigin(edit: ChapterOriginEdit): Promise
 
   await loadChapters()
   chapterOriginBusy.value = false
+}
+
+/** Ghi ord đích của lượt áp xuất xứ THEO ĐOẠN — `@change` của ô số bên cạnh khối xuất xứ,
+ * cùng lý do `saveCurrentChapterOrigin` không qua `dispatch('<id>')`. Chuỗi rỗng/không phải
+ * số ⇒ tắt (đoạn về lại một Chương). Ord phải nằm trong `[Chương đang chọn, Chương cuối đã
+ * tải]` — ngoài dải đó cũng tắt, để một lượt gõ nhầm không lặng lẽ nới rộng đoạn ghi đè. */
+export function setChapterOriginApplyThroughOrd(raw: string): void {
+  const trimmed = raw.trim()
+  if (trimmed === '') {
+    chapterOriginApplyThroughOrd.value = null
+    return
+  }
+  const parsed = Number(trimmed)
+  const row = currentLibraryChapter.value
+  const lastOrd = chapters.value.at(-1)?.ord ?? null
+  if (!Number.isInteger(parsed) || row === null || lastOrd === null || parsed < row.ord || parsed > lastOrd) {
+    chapterOriginApplyThroughOrd.value = null
+    return
+  }
+  chapterOriginApplyThroughOrd.value = parsed
 }
 
 /**
@@ -533,6 +574,7 @@ export function resetLibraryChapters(): void {
   chapterReorgError.value = null
   chapterOriginBusy.value = false
   chapterOriginError.value = null
+  chapterOriginApplyThroughOrd.value = null
 }
 
 /** Hình dạng trả về của [`chapterWindow`] — chỉ số MẢNG (nửa mở `[start, end)`), cộng hai

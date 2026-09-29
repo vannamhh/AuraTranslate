@@ -319,6 +319,10 @@ message_keys! {
     /// không đường mã nào phía sau biết xử lý nó, và nó nằm trên đĩa vĩnh viễn. Chặn ở
     /// tầng thuần ([`crate::core::segment::regroup::split_at`]) và nói ra ở đây.
     SegmentCutLeavesEmptyPiece => "err.segment.cut_leaves_empty_piece" ["segment_id"],
+    /// `assets_dir` (`<Tác phẩm>.atproj/assets/`) không phải UTF-8 hợp lệ — trả lỗi phân
+    /// biệt được thay vì để `to_string_lossy()` âm thầm thay byte lạ bằng U+FFFD, hỏng đường
+    /// dẫn `asset://` mà không một dòng nào nói vì sao.
+    SegmentAssetsDirNotUtf8 => "err.segment.assets_dir_not_utf8" [],
 
     // **KHÔNG có `WorkMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
@@ -653,10 +657,21 @@ message_keys! {
     /// đồng, không một trạng thái người dùng tạo ra được qua đường sản phẩm (§Never: "No skip
     /// on a row whose two sides both have at least one sentence").
     ImportBilingualSkipNotAllowed => "err.import.bilingual_skip_not_allowed" ["row"],
+    /// Cột nguồn và cột đích cùng trỏ vào một cột — mỗi câu vừa là nguồn vừa là đích của
+    /// chính nó, và mọi tổng đếm hai tín hiệu đếm gấp đôi cùng một hàng.
+    ImportBilingualSameColumn => "err.import.bilingual_same_column" ["column"],
 
     /// `source_lang` ngoài `zh`/`en` ở đường tạo/thêm Chương. Không hàng nào được ghi khi
     /// khoá này ném ra.
     ImportUnsupportedSourceLang => "err.import.unsupported_source_lang" ["source_lang"],
+
+    /// Phím `Space`/`[`/`]` (sửa tầng 2 khối bóc) bị khoá khi con trỏ đứng ở một Chương khác
+    /// Chương đầu — `Tier2BlockOverridesState` chỉ mang cấu trúc khối của Chương đầu, và
+    /// không tách theo từng Chương (có chủ).
+    ImportTier2EditLockedToFirstChapter => "err.import.tier2_edit_locked_to_first_chapter" [],
+    /// Số link đã dán (sau khi cắt/lọc dòng rỗng) vượt trần mỗi lượt — NGUYÊN danh sách bị
+    /// từ chối, không một URL nào được tải, không bao giờ âm thầm cắt bớt.
+    ImportTooManyUrls => "err.import.too_many_urls" ["count", "limit"],
 
     // ── Story 4.2 (FR68, AD-18) — ba khoá, cấu hình nhà cung cấp AI ─────────────────
     //

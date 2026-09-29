@@ -92,6 +92,7 @@ import {
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import {
   cancelImportPreview,
+  cancelImportPreviewImageDownload,
   confirmImportPreview,
   confirmImportPreviewBlockRange,
   jumpImportPreviewToCleanupRules,
@@ -558,6 +559,7 @@ async function boot(): Promise<void> {
         })()
       },
       cancelImportPreview,
+      cancelImportPreviewImageDownload,
       // Story 6.16 — nhập tài liệu song ngữ hai cột (FR115). Cùng khuôn `confirmImportPreview`
       // ngay trên (đóng vòng nộp form qua CHÍNH `finishImportSubmission` dùng chung — reset
       // panel không khác gì theo nguồn nhập) — chỉ thêm một dòng riêng: `bilingualFilePath`

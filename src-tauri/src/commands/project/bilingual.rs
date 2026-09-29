@@ -157,14 +157,12 @@ pub struct BilingualImportEncodingPreview {
 /// `cleanup_rules` — luật làm sạch đã phân giải hai tầng, cùng nguồn mà lượt xác nhận đọc lại
 /// lúc xác nhận (§Always spec 6.16: "Cleanup and normalize run per cell, both columns").
 ///
-/// # Lỗi
-/// 🔵 **SỬA 2026-09-11 (Story 6.16, bước nghiệm thu)** — bản đầu nuốt MỌI `Err` của chuỗi
-/// bằng `.ok()`: một tệp một cột, hay một ô mở ngoặc kép không đóng, vẫn hiện một màn xem
-/// trước toàn số 0 với nút xác nhận BẬT, và lỗi chỉ lộ ra khi bấm xác nhận — trái hàng I/O
-/// Matrix "Fewer than 2 columns: Refused before preview". Nay hai lỗi HÌNH DẠNG BẢNG của ứng
-/// viên ĐANG CHỌN được trả lên (`import.bilingual_too_few_columns`,
-/// `import.bilingual_unterminated_quoted_field`); lỗi của các ứng viên KHÁC vẫn chỉ làm ứng
-/// viên đó rỗng, cùng khuôn dung thứ của [`preview_import_encoding`].
+/// # Errors
+/// - source column == target column ⇒ `import.bilingual_same_column`, checked before any
+///   encoding candidate runs;
+/// - any other `Err` from the SELECTED candidate (the detected encoding, `verdict.encoding`)
+///   is surfaced as-is; errors on the other candidates only leave that candidate empty,
+///   same tolerance as [`preview_import_encoding`].
 pub fn preview_bilingual_import(
     shape: &PipelineShape,
     source_lang: &str,
@@ -179,6 +177,12 @@ pub fn preview_bilingual_import(
     // sách hiện hành mỗi lượt người dùng sửa một chỗ cắt.
     regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
 ) -> Result<BilingualImportEncodingPreview, IpcError> {
+    // Source column == target column must be refused here, at the IPC boundary, not only
+    // by the webview's own column-swap guard: callers other than that UI can reach this
+    // function directly.
+    if bilingual_source_column == bilingual_target_column {
+        return Err(ImportError::BilingualSameColumn { column: bilingual_source_column }.into());
+    }
     let PipelineShape::Bilingual { input, .. } = shape else {
         // Chỉ `mod wire` dựng `shape` cho hàm này, luôn từ `import_bilingual_file` — nhánh
         // này là phòng thủ kiểu (một lỗi lập trình, không một đường sản phẩm), không phải
@@ -231,8 +235,10 @@ pub fn preview_bilingual_import(
                 });
                 let outcome = match result {
                     Some(Ok(o)) => Some(o),
+                    // Every Err on the selected candidate surfaces to the webview; only the
+                    // OTHER candidates are allowed to go silently empty.
                     Some(Err(err)) => {
-                        if is_selected && selected_refusal.is_none() && is_bilingual_table_refusal(&err) {
+                        if is_selected && selected_refusal.is_none() {
                             selected_refusal = Some(err);
                         }
                         None
@@ -307,20 +313,6 @@ pub fn preview_bilingual_import(
         row_count: selected_row_count,
         column_count: selected_column_count,
     })
-}
-
-/// Hai lỗi HÌNH DẠNG BẢNG mà màn xem trước song ngữ phải TỪ CHỐI thay vì hiện một dải số 0 —
-/// xem mục "# Lỗi" của [`preview_bilingual_import`].
-fn is_bilingual_table_refusal(err: &ImportError) -> bool {
-    matches!(
-        err,
-        ImportError::BilingualTooFewColumns { .. }
-            | ImportError::BilingualUnterminatedQuotedField { .. }
-            // 🔴 THÊM 2026-09-12 (Story 6.17, FR116) — một `Skip` gửi sai (cả hai phía đều có
-            // câu) phải TỚI được webview như một lỗi typed, không bị nuốt cùng khuôn "ứng viên
-            // này không ra chữ" — xem §I/O Matrix "Skip refused".
-            | ImportError::BilingualSkipNotAllowed { .. }
-    )
 }
 
 /// **Hàm thuần** — lõi lượt xác nhận song ngữ: CLONE nguồn đang chờ từ

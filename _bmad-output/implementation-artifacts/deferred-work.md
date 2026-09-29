@@ -9250,6 +9250,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đo lại tỉ lệ bóc đúng trên nguồn đó, so với con số 72–99% đã đo trên báo.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: _bmad-output/implementation-artifacts/6-1-ban-do/extraction-raw.tsv vẫn đúng 7 mẫu (a01-a07, toàn epochtimes.com), mtime git cuối 2026-09-03 — không mẫu trang đọc truyện nào được thêm sau đó. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 17 (Ice, 2026-09-28): Ice không cho dựng mẫu đo mới trên trang đọc truyện/blog/diễn đàn; bàn đo 6.1 (7 mẫu `epochtimes.com`) đứng nguyên, không có corpus thật trong kho để tự đo.
 
 - ⚠️ **`spawn_import_scan` (`commands/project.rs:776`) vẫn chỉ quét Chương ĐẦU khi một lượt
   nhập URL tạo ra N > 1 Chương.** Hàm này nhận đúng MỘT `chapter_id` (comment tại chỗ gọi
@@ -9301,6 +9302,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chọn bừa. **Chủ: Ice** — đây là một quyết định sản phẩm (bao nhiêu link là "quá nhiều" cho
   một lượt), không phải một chi tiết cài đặt.
   → 2026-09-24 (phiếu quyết #14) — Ice chọn có trần số link mỗi lượt dán, vượt trần thì từ chối cả danh sách kèm lý do; Task 0 đo số trên lượt nhập thật. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #14 (2026-09-24) + Quyết định 8 (Ice, 2026-09-28): trần 200 link/lượt dán. `MAX_URL_IMPORT_LINKS = 200` (`url_import.rs::prepare_url_import_list`), trên trần thì từ chối TRỌN danh sách kèm lý do, đúng/dưới trần thì tải đủ. Guard: `webimport_contract.rs::pasting_over_the_cap_refuses_the_whole_list_with_a_reason_and_fetches_nothing`, `exactly_the_cap_is_accepted_in_full`.
 
 - ⚠️ **Không có phản hồi tiến độ trong lúc tải N link.** `start_url_import` tải tuần tự trọn N
   link trong MỘT lời gọi lệnh, và frontend chỉ đổi trạng thái khi cả lô xong. Đo 2026-09-07:
@@ -9310,6 +9312,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **Chủ: Story 6.10** — story đầu tiên đưa màn xem trước lên quy mô hàng chục Chương thật.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: wire.rs:1188 start_url_import gọi mod.rs:4782 fetch_url_import_items — vẫn map tuần tự trọn N URL trong MỘT lời gọi, không có app.emit nào phát giữa chừng để báo tiến độ. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #45 (2026-09-24): mỗi lượt tải trang phát `URL_IMPORT_PAGE_PROGRESS_EVENT` qua `app.emit` + bộ đếm thế hệ (`url_import.rs::fetch_url_import_items_with_progress`); webview hiện dòng tiến độ trong `ImportPreviewOverlay.vue`. Guard: `webimport_contract.rs::fetch_url_import_items_with_progress_calls_on_progress_once_per_link_in_order`.
 
 - ⚠️ **URL TRÙNG trong danh sách không được xử lý, và cũng không được quyết.** Dán cùng một
   link hai lần hôm nay cho hai Chương giống hệt, tải hai lần qua mạng. Không hàng nào của I/O
@@ -9324,6 +9327,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   phẩm (khử trùng theo khoá gì: URL nguyên văn, URL chuẩn hoá, hay nội dung sau khi tải), và
   chưa story nào nhận nó.
   → 2026-09-24 (phiếu quyết #15) — Ice chọn khử trùng theo URL chuẩn hoá (bỏ #fragment, host chữ thường); màn xem trước nói số link trùng đã bỏ. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #15 (2026-09-24): khử trùng theo URL đã chuẩn hoá (bỏ `#fragment`, host viết thường) trong `url_import.rs::prepare_url_import_list`/`normalize_url_for_dedup`; xem trước hiện số link trùng đã bỏ (`duplicate_urls_dropped`, `urlImportDuplicatesDropped`). Guard: `webimport_contract.rs::duplicate_urls_differing_only_by_fragment_or_host_case_are_dropped_keeping_the_first`.
 
 - ⚠️ **Tầng 2 của màn xem trước chỉ hiện văn bản đã bóc của Chương ĐẦU.** Với một danh sách N
   link, tải lại hay soát một mục thứ k > 1 không làm tầng 2 đổi gì — người dùng thao tác trên
@@ -9357,6 +9361,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (ĐỎ khi gỡ phép vá, đã tự kiểm tay). Câu "hiện khối ĐÚNG" ở trên nay đúng KHÔNG ĐIỀU KIỆN,
   không còn cần vế "khi không override" — phần CÒN HỞ (override không đi theo con trỏ) không đổi.
   → 2026-09-24 (phiếu quyết #16) — Ice chọn khoá Space/[/] khi con trỏ ở Chương k > 0, StatusBar nói chỉ sửa khối được ở Chương đầu; không tách override theo Chương. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #16 (2026-09-24): `tier2_block_set_kept`/`tier2_block_confirm_range` nhận `detail_chapter_index`, từ chối kèm `message_key` khi khác 0 (`tier2_edit_allowed`); StatusBar báo chỉ Chương đầu sửa được. Override KHÔNG tách theo Chương, đúng quyết định. Guard: `ipc_contract.rs` (khoá tham số dây).
 
 - ⚠️ **Sửa luật làm sạch hoặc mẫu phân tách trong lúc màn URL đang mở thì bản xem trước KHÔNG
   tự dựng lại, và người dùng không được báo gì.** `importPreviewState.ts::runImportPreviewReload`
@@ -9379,6 +9384,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chưa được yêu cầu và chưa được thi công ở đây.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/importPreviewState.ts:1448 runImportPreviewReload vẫn `if (from === 'urls' || from === 'file') return null` — nhánh 'urls' y nguyên, không dựng lại, không báo gì cho người dùng. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 9 (Ice, 2026-09-28, phương án A): sửa luật/mẫu trong lúc màn URL mở nay dựng lại Chương đang xem qua `urlChapterDetailEagerStale`/`reloadUrlImportChapterOnScreen` (`importPreviewState.ts`). Guard: `tests/frontend/importPreviewCleanup.test.ts`.
 
 - ⚠️ **Bộ `webimport_contract.rs` có ca phụ thuộc WALL-CLOCK và đã quan sát được một lượt đỏ
   giả.** Đo 2026-09-07: một lượt chạy ngay sau khi biên dịch xong cho **4 ca đỏ**
@@ -9527,6 +9533,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   — không thuộc phạm vi Story 6.13 (đo lại một heuristic đã có, không phải dựng vai mới).
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Vế Caption đã đóng (segment_role_contract.rs, force_caption_segment_boundaries). infer_image_kept_state vẫn chỉ có ca test dùng fixture HTML tự viết tay; extraction-raw.tsv vẫn 7 mẫu như mục nợ 0b753108ef; còn thiếu: infer_image_kept_state chưa qua dữ liệu thật ngoài bảy mẫu bàn đo 6.1, đúng như ledger đã ghi là 'chưa ai nhận'. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 17 (Ice, 2026-09-28): cùng lý do L9215/L9800/L10281, không có corpus trang thật ngoài bảy mẫu bàn đo 6.1 để đo lại `infer_image_kept_state`.
 
 - ⚠️ **`Tier2BlockOverridesState` dùng CHUNG một vector override cho cả năm ứng viên bảng mã,
   áp theo INDEX khối — không tách theo ứng viên.** Quyết định #2 §Spec Change Log spec 6.9:
@@ -9546,6 +9553,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   như luôn giữ nguyên byte qua mọi bảng mã phổ biến), hay (b) dựng cơ chế phát hiện "cấu trúc
   khối đã đổi" (so số khối/thứ tự) và RESET override kèm cảnh báo khi phát hiện lệch.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 10 (Ice, 2026-09-28, phương án A): chấp nhận rủi ro lý thuyết (ký tự cú pháp thẻ ASCII sống sót qua hầu hết lượt giải mã sai); mở lại khi thấy một lượt giải mã sai THẬT làm đổi cấu trúc khối.
 
 - ⚠️ **Vế "khớp một luật làm sạch với ĐÚNG khối đang chọn" (kế thừa từ Story 6.5, đóng lại ở
   Story 6.9 bằng đường khác — xem mục `## Deferred from: 6-5-…` phía trên) đòi
@@ -9584,6 +9592,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mà đo.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: cleanup_contract.rs bốn ca perf_probe_* (dòng 1121/1784/1833/1902) đều dùng PipelineShape::Blob với AlreadyText/RawBytes — 0 ca nào dùng extract_main_content=true (đường Readability+dom_query). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Disposition 4: `perf_probe_extract_main_content_chapters_on_twenty`/`_on_one_hundred` (`webimport_contract.rs`, `#[ignore]`) đo đường `extract_main_content=true`. 🔵 Số đo ở profile debug (bench-release không biên dịch xong trong phiên đo, ~35 phút): N=20 → 342 ms tổng/~17,1 ms/Chương; N=100 → 1,75 s/~17,5 ms/Chương, tuyến tính. Cần đo lại ở `bench-release` khi có ngân sách.
 
 - ⚠️ **Hàng I/O Matrix "Trang 0 khối" của spec 6.9 mô tả một trạng thái mà mã hôm nay gần như
   không tới được.** Lưới an toàn cuối `build_blocks` đẩy một khối chứa trọn `text_content` khi
@@ -9619,6 +9628,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (c) §Verification spec 6.9 vẫn ghi đối chứng ② theo mệnh đề văn bản. **Chủ: Ice** — spec đã
   `done`, sửa bản ghi của nó là quyết định của Ice.
   → 2026-09-24 (phiếu quyết #71) — Ice chọn sửa đối chứng ② spec 6.9 để nó đỏ khi bộ chọn khối về bản vòng 1 (so theo khối/thẻ được chọn, không so văn bản ghép). **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #71 (2026-09-24): viết lại `extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items` so bằng bộ chọn/nhãn khối thật (dò `dom_query` độc lập trên khối phi-`<p>`), không so `joined == text_content`. Đối chứng: trả `TEXT_BLOCK_TAGS`/`BLOCK_SELECTOR` về vòng 1 → đỏ trên `a03.html` đúng lý do. Spec 6.9 §Verification sửa 🔵 tại chỗ.
 
 ## Deferred from: 6-10-bo-loc-can-xem (2026-09-08)
 
@@ -9764,6 +9774,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   danh sách link. Đường ① đúng hơn về thông tin nhưng đòi hai vế của chip tách rời — một hình
   dạng dây khác với thứ spec 6.10 đã ký, nên không phải một dòng dev tự thêm.
   → 2026-09-24 (phiếu quyết #18) — Ice chọn tách hai vế: "N cần xem" hiện từ link hỏng cả khi không có hàng rào, "M sạch" im lặng kèm lý do; đổi hình dây đã ký ở spec 6.10. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #18 (2026-09-24): "N cần xem" nay hiện KHÔNG ĐIỀU KIỆN trên `ImportPreviewOverlay.vue` (chỉ "M sạch" còn gác `any_signal_participated`); phía Rust thêm `debug_assert!` giữ bất biến `needs_review_count` độc lập hàng rào. Màn song ngữ không có link nên không cần sửa. Guard: `review_contract.rs::broken_item_count_is_added_by_rust_into_needs_review_never_into_clean`.
 
 - ⚠️ **`chapter_detail_for_index` chạy lại TRỌN `classify()` (sắp ba mảng + dựng ba hàng rào)
   ở MỖI lượt dời con trỏ, chỉ để đọc `chapter_count` rồi vứt phần còn lại.** Đường lazy-detail
@@ -9799,6 +9810,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ĐẶT TÊN ở đây (Decision 4: Ice đặt tên sau khi thấy verdict re-đo).
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: deferred-work.md:8990 Decision 4 vẫn ghi Ice đặt tên sau khi thấy verdict re-đo; không có owner mới nào được đặt tên sau lượt đo lại 2026-09-14. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 10 (Ice, 2026-09-28, phương án A): đo được 6,15 ms/lượt trung bình (bản release) trên 2.000 Chương thật, dưới ngưỡng cảm nhận được; mở lại khi thư viện thật vượt ~5.000 Chương hoặc có người báo giật.
 
 - ⚠️ **Bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá — chưa ai đo ở quy mô nghìn Chương.**
   `chaptersShowAll` trả `true` ngay khi bộ lọc bật, không xét số hàng CÒN LẠI sau lọc. Đây là
@@ -9838,6 +9850,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `srcset` (lấy ứng viên đầu tiên, hay ứng viên độ phân giải cao nhất) hay không — chưa story
   nào nhận việc này, cần Ice giao trước khi một dev tự chọn.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 17 (Ice, 2026-09-28): cùng lý do L9215/L9466/L10281, không có corpus trang thật để đo tỉ lệ `srcset`/`<picture>` thiếu `src`.
 
 - ⚠️ **`image/svg+xml` bị loại VĨNH VIỄN — một quyết định kiến trúc (§Never spec 6.11, AD-16),
   không một chỗ tạm bợ chờ vá.** Ghi lại rõ để người sau không đọc nhầm đây là một việc "còn
@@ -9859,6 +9872,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   một quyết định UX (toast? dòng trong xác nhận nhập? mục trong lưới Tác phẩm?) trước khi một
   story sau viết bề mặt này; chưa story nào nhận việc này hôm nay.
   → 2026-09-24 (phiếu quyết #43) — Ice chọn một thông báo sau khi nhập xong "N ảnh không tải được" kèm lối tới nhật ký domain. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #43 (2026-09-24): `LibraryMode.vue` hiện dòng "N ảnh không tải được" kèm nút mở nhật ký miền (Settings › Privacy), chỉ khi `images_failed > 0`.
 
 - ⚠️ **Hàng ma trận *"ghi tệp trượt giữa chừng ⇒ lượt nhập trượt sạch, thư mục `.atproj` bị
   dọn"* CHỈ được nghiệm thu trên Unix.** `asset_contract.rs::a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder`
@@ -9886,6 +9900,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ca kia (quyền thư mục kiểu Unix) — cùng hai lựa chọn ①/② ở trên áp dụng cho CẢ HAI ca, không
   chỉ ca đầu.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → 2026-09-29 (rà sổ nợ, Story 11.6) — kiểm Windows-only theo AGENTS.md ("Windows-only checks go to B7"); không có cơ chế Windows xác định để dựng lượt ghi-lỗi-giữa-chừng hôm nay. Chủ: B7.
 
 - ⚠️ **`core::webimport::assets::is_raster_image_mime` xuất khẩu công khai nhưng có **0 chỗ gọi
   sản phẩm** — đúng lớp nợ mà chính story này vừa đóng ba mục.** Đo 2026-09-08 bằng phép GỠ
@@ -9903,6 +9918,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mệnh đề công khai đặt tên cho danh mục ĐÓNG, chấp nhận nó là hàm không ai gọi cho tới khi có
   chỗ gọi thật. Đừng để mục này chết bằng cách quên.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — đóng theo Disposition 1: `is_raster_image_mime` nay có chỗ gọi SẢN PHẨM thật qua `decode_data_uri_image` (nhánh `data:` ở `prepare_chapter_images`), khép khoảng 0-chỗ-gọi đã ghi.
 
 ## Deferred from: spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc — vòng rà đối kháng bước 4 (2026-09-08)
 
@@ -9914,6 +9930,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ("url khong co host"). Ảnh rơi vào `images_failed`, không phân biệt được với một ảnh 404.
   Đây là một nguồn ảnh KHÔNG cần một lời gọi mạng nào — tức nó không đụng AD-41. **Chủ: Ice.**
   → 2026-09-24 (phiếu quyết #44) — Ice chọn giải mã và lưu ảnh data: URI, chỉ các kiểu raster đã cho phép (AD-16 vẫn loại SVG). **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #44 + Quyết định 18 (Ice, 2026-09-24/28): `core::webimport::assets::decode_data_uri_image` giải base64, chạy qua đúng cổng `is_raster_image_mime`/phần mở rộng như ảnh tải mạng, bỏ qua kiểm tầng 2 (không gọi mạng); SVG vẫn bị từ chối (AD-16). `base64 = "=0.22.1"` thêm làm phụ thuộc trực tiếp (0 gói mới, đã transitive qua `docx-rs`/`reqwest`/`tauri`), giấy phép + bảng Stack ghi TRƯỚC khi đổi `Cargo.toml`. Guard: `asset_contract.rs::a_data_uri_png_image_is_saved_with_zero_network_calls`/`a_data_uri_svg_image_is_rejected_same_as_a_network_one`.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Pha ảnh không có ngân sách thời gian, không tiến độ, không huỷ — một lượt nhập
@@ -9924,6 +9941,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   và khả năng HUỶ chưa từng được hỏi, nên đừng đọc câu trả lời kia thành đã chốt cả cái này.
   **Chủ: Ice.**
   → 2026-09-24 (phiếu quyết #45) — Ice chọn tiến độ theo mục và nút huỷ cho pha tải ảnh theo khuôn pha trang Story 6.7; huỷ giữ Chương, bỏ ảnh còn lại; không ngân sách thời gian. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #45 (2026-09-24): pha ảnh phát `URL_IMPORT_IMAGE_PROGRESS_EVENT` theo từng mục + lệnh `cancel_image_download` (bộ đếm thế hệ, khuôn `ai.translate.cancel`); huỷ giữ Chương và ảnh đã tải, dừng tải tiếp, không tính ảnh còn lại vào `images_failed`. Không thêm ngân sách thời gian, đúng quyết định. Guard: `asset_contract.rs::cancelling_mid_loop_keeps_the_chapter_and_already_downloaded_images_and_opens_zero_connections_to_the_rest`.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Tập tầng 2 chỉ chở HOST, nên một thẻ `<img>` cấp phép cho mọi cổng và mọi giao thức
@@ -9957,6 +9975,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tự bấm) trước khi một dev tự chọn.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Vế NGƯỢC (hàng asset có, tệp mất) đã có bề mặt quan sát từ Story 6.14. grep 'orphan' trong src-tauri/src cho 0 kết quả — không cơ chế quét/dọn assets/ mồ côi nào được dựng thêm; còn thiếu: Tệp ảnh mồ côi trên đĩa mà không hàng asset nào trỏ tới vẫn hoàn toàn vô hình; cần quyết định phạm vi (quét lúc mở hay lệnh dọn dẹp riêng) trước khi giao story. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
+  → 🟡 ĐÓNG MỘT PHẦN 2026-09-29 (Story 11.6) — Quyết định 11 (Ice, 2026-09-28, phương án A): một lượt quét lúc mở Tác phẩm, trong `replace_open_work`, xoá mọi tệp `assets/` không hàng `asset` nào nêu tên (`sweep_orphaned_asset_files`, đọc thất bại thì KHÔNG quét). Logic thuần đã kiểm đơn vị; dây thật qua `tauri::AppHandle` (không `tauri::test`/`MockRuntime` trong crate) CHƯA có phép kiểm tự động — gộp vào mục nghiệm thu tay cuối tệp này. Chủ: Epic 11.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: `segment_normalize_boundary.rs` nay bỏ qua vùng `#[cfg(test)]` của MỌI tệp được quét
@@ -10027,6 +10046,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   riêng hay cả bốn ô cùng lúc?) — Ice quyết định lúc nhận việc, đúng vai đã chốt ở
   §Quyết định spec 6.15.
   → 2026-09-24 (phiếu quyết #19) — Ice lật quyết định 2026-09-10: thêm lượt áp cả bốn trường xuất xứ của Chương đang chọn cho một dải Chương theo ord. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #19 (2026-09-24): `update_chapter_origin` nhận `apply_through_ord: Option<i64>`, áp cả bốn trường xuất xứ cho dải `ord` liên tục khi có; ô nhập dải ở `LibraryMode.vue`. Guard: `chapter_origin_contract.rs::range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_the_range_untouched`.
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Xem trước (`ChapterSplitPreviewEntryWire::origin`) chỉ hiện đúng override khi
@@ -10068,6 +10088,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Chương (không phải một cờ toàn cục cho cả `PipelineInput`), một thay đổi cấu trúc vượt
   phạm vi một lượt vá nhỏ.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Disposition 6: không đường sản phẩm thật nào dựng `PipelineShape::Chapters` không đồng nhất; bất biến vẫn canh bởi `webimport_contract.rs::the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw_bytes`. Mở lại khi một lời gọi sản phẩm thật trộn `AlreadyText`/`RawBytes` trong cùng danh sách.
 
 - source_spec: `spec-6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc.md`
   summary: Chưa ca nào phủ một ảnh chuyển hướng CHÉO Chương tới host của một ảnh Ở CHƯƠNG
@@ -10181,6 +10202,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   lần nếu Word lưu một bản riêng mỗi trang) trước khi cài, không phải một lượt đọc-thêm-file
   đơn giản.
   → 2026-09-24 (phiếu quyết #20) — Ice chọn đọc footnote/endnote nối vào cuối Chương; header/footer/comment bỏ có chủ ý và ghi ra. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #20 (2026-09-24): `core/docx/mod.rs::read_docx` nay đọc thêm `word/footnotes.xml`/`word/endnotes.xml` (tuỳ chọn), nối văn bản chú thích/cuối trang vào cuối `blocks`; header/footer/comments vẫn không đọc, có chủ ý. Guard: `docx_contract.rs::footnotes_and_endnotes_are_appended_at_the_end_header_footer_and_comments_stay_unread`.
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: một `w:tbl` LỒNG bên trong một ô của bảng cha bị bỏ qua HOÀN TOÀN (đọc byte để cân
@@ -10196,6 +10218,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `Vec<usize>` sang một cấu trúc cây)? Đây là quyết định hình dạng dữ liệu, không phải một
   lượt vá.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 12 (Ice, 2026-09-28, phương án a): một `w:tbl` lồng trở thành một `TableShape` anh em riêng (`absorb_table`, `core/docx/mod.rs`), văn bản không còn mất. Guard: `a_nested_table_becomes_its_own_sibling_table_shape_and_its_text_is_not_dropped`.
 
 - source_spec: `spec-6-12-doc-docx.md`
   summary: nợ `:2214` ("câu bị cắt giữa ô bảng") chỉ đóng cho `.docx` (bảng CÓ CẤU TRÚC,
@@ -10284,6 +10307,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (ảnh sau ranh giới phân tách luôn trượt có thể phân biệt được, không bao giờ sai Chương)
   như một hành vi ĐỦ AN TOÀN cho tới khi có nhu cầu thật.
   → 2026-09-24 (phiếu quyết #50) — Ice chọn để mỗi Chương .docx sau mẫu phân tách tự cắt lát blocks của mình, ảnh vào đúng Chương. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #50 (2026-09-24): mỗi Chương `.docx` sau ranh giới tách nay mang lát `blocks` riêng (`distribute_docx_blocks_across_chapters`), cả lúc tạo lẫn lúc APPEND; ảnh gắn đúng Chương. Guard: `docx_contract.rs::each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_own_chapter` (`images_saved == 2`). Đối chứng gỡ thật lần đầu vào bên TIÊU THỤ cho dương tính giả (fixture hai Chương cùng chỉ số khối cục bộ, xem mục nghiệm thu-tay-gộp cuối tệp này); lần gỡ đúng bên SẢN XUẤT (`ChapterDocxImage.chapter_index`) mới đỏ đúng lý do.
 
 ## Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)
 
@@ -10324,6 +10348,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   loại các mẫu số thuần) — một luật lọc dựng SỚM mà không có số đo đứng sau là đúng lớp lỗi
   AGENTS.md cấm ("đo trước khi chốt kiến trúc").
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → KHÔNG LÀM 2026-09-29 (Story 11.6) — Quyết định 17 (Ice, 2026-09-28): cùng lý do L9215/L9466/L9800, không có corpus trang thật để đo tỉ lệ `alt` rác; hành vi hiện tại (dệt mọi `alt` khác rỗng) đứng nguyên đúng spec.
 
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ④ vai bị MẤT khi người dùng gộp/tách câu chạm vào một segment vai — `write_regroup`
@@ -10389,6 +10414,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   và một lượt IPC thứ hai cho mỗi lượt gộp/tách. Webview KHÔNG được tự đoán neo mới — quy tắc
   dời neo là một luật có ca biên thật, AD-1 cấm nó sống ở webview.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 13 (Ice, 2026-09-28, phương án a): `refreshChapterAssetsAfterRegroup` (`editorPanelState.ts`) đọc lại `chapterAssets` qua đúng `readOpenChapterSegments` sau `applyRegroup`, giữ chốt trạng-thái-cũ (`sequence`) — không đổi `segments`/caret. Guard: `tests/frontend/editorRegroupAssetRefresh.test.ts`, đối chứng gỡ `void refreshChapterAssetsAfterRegroup()` → đỏ.
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Vế **hình học** của FR42/FR43 — "ảnh hiện đúng chỗ và năm cột của lưới CÒN thẳng
@@ -10473,6 +10499,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tích luỹ trong phiên? Trả lời xong mới biết nên dựng cơ chế thu hồi kiểu gì (bỏ allow thay vì
   thêm forbid, hoặc dựng lại scope từ đầu mỗi lượt mở).
   → 2026-09-24 (phiếu quyết #52) — Ice chọn thu hồi phạm vi asset:// của Tác phẩm cũ khi đổi Tác phẩm (forbid_directory), đúng ý AD-23 một Tác phẩm mỗi lúc. **Chủ: Story 11.6.**
+  → 🟡 ĐÓNG MỘT PHẦN 2026-09-29 (Story 11.6) — phiếu quyết #52 (2026-09-24): `replace_open_work`/`close_open_work` gọi `forbid_directory` trên `assets/` của Tác phẩm vừa rời, `allow` lại đúng thư mục khi Tác phẩm đó mở lại. Logic so sánh thuần đã kiểm đơn vị; dây thật qua `tauri::AppHandle` CHƯA có phép kiểm tự động (không `MockRuntime` trong crate) — gộp vào mục nghiệm thu tay cuối tệp này. Chủ: Epic 11.
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Một Chương chỉ gồm segment mang vai (ảnh + alt + caption, 0 câu văn xuôi) hiện chú
@@ -10500,6 +10527,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   nhánh lỗi mới — hơn hẳn một phép sửa thẳng, và chưa ai dựng được một `.atproj` như thế để đo."
   chủ: Ice — cùng lớp với mọi vế NFR14 chưa đo trên Windows của kho.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 14 (Ice, 2026-09-28, phương án a): `read_open_chapter_segments`/`read_reading_run` (`commands/segment.rs`) kiểm `assets_dir.to_str()` TRƯỚC khi vào `Store::read`, trả `MessageKey::SegmentAssetsDirNotUtf8` thay vì suy biến thầm lặng. Guard `#[cfg(unix)]`: `segment_contract.rs::a_non_utf8_assets_dir_fails_distinguishably_instead_of_degrading_to_u_fffd`. Xác nhận đường dẫn thật trên Windows là mục mới cuối tệp này, Chủ: B7.
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Lỗi *"gộp/tách làm ảnh biến mất khỏi lưới"* không có ca test nào ghim, nên nó có thể
@@ -10526,6 +10554,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   khác), hay cấp một miễn trừ CÓ TÊN cho `font-style` trong `check:tokens`. Cả hai đều mở một
   cửa cho MỌI component sau này, nên không phải phán quyết của một story.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 15 (Ice, 2026-09-28, phương án 1), sửa lại đúng ở Phase 2b: vai trò typography mới `typography.ui-sm-italic` (`src/tokens/tokens.json`, `fontStyle: italic`, ký ở `tokens.deviations`); `ChapterOrigin.vue` dùng `--font-ui-sm-italic`/`--style-ui-sm-italic` cho placeholder. `EXPECTED_COUNTS.typography` 17→18 ở `check-tokens.mjs`.
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Bốn cờ `*_confirmed` của `ChapterOriginWire` khai là 'người dùng đã chạm ĐÚNG ô
@@ -10543,6 +10572,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   component dùng chung bởi hai bề mặt; cả hai đều vượt một lượt vá nhỏ, và nếu phép đo trên cho
   thấy giá trị máy KHÔNG đổi giữa các ứng viên thì món này rớt xuống thuần tuý dọn hợp đồng.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — pha Rust đo xác nhận `origin.site_name` THẬT KHÁC nhau giữa hai ứng viên mã hoá cho một `og:site_name` đa byte thật (không phải làm tròn) ⇒ Quyết định 19 (Ice, 2026-09-29): draft xuất xứ theo dõi TỪNG trường đã chạm; `ChapterOrigin.vue::commit` chỉ gửi trường đã chạm, trường chưa chạm gửi `null` để giá trị máy luôn thắng. Cả hai màn dùng component đều đổi theo.
 
 - source_spec: `spec-6-15-xuat-xu-tai-lieu-o-tang-chuong.md`
   summary: "Không ca test nào chạy `chapter.origin_url` qua một lượt CHUYỂN HƯỚNG thật — quyết
@@ -10564,6 +10594,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hướng đầu-cuối nay nghiệm thu được ở máy này khi LuLu có đường quyết, và ở CI. **Chủ: Ice** — vẫn
   cần chọn đường nghiệm thu.
   → 2026-09-24 (phiếu quyết #73) — LuLu đã tắt nên bộ loopback xanh trên máy Ice (34/34 webimport_contract); 11.6 thêm ca chuyển hướng thật cho chapter.origin_url và nghiệm thu tại chỗ. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #73 (2026-09-24): `webimport_contract.rs::chapter_origin_url_after_a_real_redirect_is_the_requested_url_not_the_redirect_target` đi qua đường sản phẩm thật (`fetch_url_import_items` → `create_work`), xác nhận `chapter.origin_url` là URL YÊU CẦU, không phải chặng cuối chuyển hướng. Đối chứng: tráo tham số `label` ở `pipeline.rs:889` → đỏ đúng lý do.
 
 - source_spec: `spec-6-16-nhap-tai-lieu-song-ngu-hai-cot.md`
   summary: "Bilingual import (FR115) does not read Markdown pipe tables (`.md`) — Story 6.16
@@ -11175,6 +11206,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đó dựa trên gì (dò ngôn ngữ bằng heuristic, hay để người dùng tự nhận ra qua bản xem trước).
   Không tự quyết ở đây — spec 6.7b Quyết định 2 chỉ ghi lại hệ quả, không chọn hướng sửa.
   → 2026-09-24 (phiếu quyết #27) — cùng quyết với #2: cảnh báo heuristic tỉ lệ chữ khi append vào Tác phẩm khác ngôn ngữ. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG (tự đóng, trỏ chứng cứ) 2026-09-29 (Story 11.6) — Disposition 5: #27 = #2 (cùng phiếu quyết), đã dựng ở `121c17834ce757ddcf407dd914b2e14f915b3d6c` (lô A): cảnh báo lệch `source_lang` theo tỉ lệ ký tự áp cho MỌI Chương mới, hiện sau một lượt APPEND; không quyết định nào đòi hiện trước lúc xác nhận.
 
 - ⚠️ **Không có lượt quét Glossary nào chạy trên đường APPEND cho các Chương vừa thêm.**
   `confirm_import_with_encoding`'s nhánh Tác phẩm MỚI gọi `spawn_import_scan` trên Chương ĐẦU
@@ -11208,6 +11240,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đối chiếu `assets/` với bảng `asset` trên toàn `.atproj`, chạy khi nào) trước khi một dev tự
   chọn — xem mục 6.11 để không mở hai hướng giải quyết khác nhau cho cùng một lớp lỗi.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → 🟡 ĐÓNG MỘT PHẦN 2026-09-29 (Story 11.6) — Quyết định 11 (Ice, 2026-09-28, phương án A, cùng quyết với L9909): lượt quét lúc mở Tác phẩm (`replace_open_work`) xoá tệp mồ côi cho CẢ hai đường, kể cả APPEND. Đường hẹp riêng của APPEND (ghi ảnh xong nhưng SQL chưa commit trong khi một lượt mở/APPEND khác cùng Tác phẩm đó chạy `replace_open_work`) đo được ở vòng rà Tests và vá bằng Quyết định 20 (Ice, 2026-09-29): `AppendInProgressState` giữ `work_id` đang APPEND, `replace_open_work` bỏ quét cho Tác phẩm đó (`should_skip_orphan_sweep`). Guard đơn vị: `commands/project/tests.rs::append_in_progress_tests` (3 ca, đối chứng gỡ thật). Dây thật với HAI lệnh đồng thời qua `tauri::AppHandle` CHƯA đo — gộp vào mục nghiệm thu tay cuối tệp này. Chủ: Epic 11.
 
 ## Deferred from: 6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu (2026-09-16)
 
@@ -11245,6 +11278,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     Sửa ở một màn mà không sửa màn kia là làm hai màn lệch nhau; cần một quyết định chung.
     **Chủ: Ice**
   → 2026-09-24 (phiếu quyết #29) — Ice chọn tự tắt bộ lọc cần xem khi ứng viên mới không có tín hiệu, ở cả hai màn xem trước (cùng quyết với #31). **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #29 (2026-09-24): `selectImportPreviewCandidate`/`selectBilingualEncoding` nay tắt bộ lọc "cần xem" khi ứng viên MỚI có `any_signal_participated !== true`, trên CẢ hai màn; ca test cũ "lọc sống sót qua đổi ứng viên" đã đảo lại đúng quyết định mới.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: `split_bilingual_chapters` zip ba vector song song và index `bilingual_row_*[i]` trực
@@ -11257,6 +11291,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `debug_assert_eq!` ba độ dài, hoặc chở hai tín hiệu BÊN TRONG `BilingualRow` để lệch trở thành
     không biểu diễn được. **Chủ: Ice**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — Quyết định 16 (Ice, 2026-09-28, phương án a): `debug_assert_eq!` trên ba độ dài vector ở đầu `split_bilingual_chapters` (`pipeline.rs`). Ba ca đơn vị (hai `#[should_panic]`, một xanh đối chứng).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: Danh sách Chương song ngữ KHÔNG co gọn (đơn ngữ co >6 mục thành ba-đầu/`⋯`/ba-cuối), và
@@ -11279,6 +11314,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     ra: nối hợp đồng a11y, hoặc bỏ vạch con trỏ khỏi màn song ngữ cho tới khi có điều hướng
     Chương. Là quyết định UX, không phải một lượt vá. **Chủ: Ice**
   → 2026-09-24 (phiếu quyết #30) — Ice chọn thêm aria-pressed cho chip lọc ở cả hai màn và bỏ vạch Chương đang chọn khỏi màn song ngữ. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #30 (2026-09-24): `aria-pressed` thêm cho chip lọc "cần xem" ở CẢ hai màn; vạch `.bip-chapters-entry-current` cùng CSS gỡ khỏi `BilingualImportPreviewOverlay.vue` (màn song ngữ chưa có điều hướng Chương).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: Lỗi đường ống KHÔNG-phải-hỏng-bảng ở ứng viên ĐANG CHỌN bị nuốt im lặng — không nhãn
@@ -11290,6 +11326,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     quyết: nới vị từ, hoặc hiện dòng "chưa đủ dữ liệu" khi `chapters === null` mà `preview !== null`.
     **Chủ: Ice**
   → 2026-09-24 (phiếu quyết #31) — cùng quyết với #29: mọi Err của ứng viên song ngữ đang chọn hiện lý do thật, không chỉ lỗi bảng. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — phiếu quyết #31 (2026-09-24): `preview_bilingual_import` nay đưa MỌI `Err` trên ứng viên ĐANG CHỌN vào `selected_refusal`, không chỉ lỗi bảng; `is_bilingual_table_refusal` (0 chỗ gọi sau đổi) đã gỡ. Guard: `preview_surfaces_a_non_table_error_on_the_selected_candidate_instead_of_swallowing_it`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-16b-bo-loc-can-xem-cho-ban-xem-truoc-song-ngu.md`
   summary: `bilingual_source_column == bilingual_target_column` ở lời gọi Rust trần đếm ĐÔI cả hai
@@ -11300,6 +11337,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     story này chỉ thêm hậu quả thứ hai lên cùng một gốc. Thứ sẽ giải quyết: một nhánh từ chối ở
     `preview_bilingual_import`, đóng cả hai hậu quả một lượt. **Chủ: Ice**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.6.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — nhánh chặn ở đầu `preview_bilingual_import` khi `bilingual_source_column == bilingual_target_column` (`ImportError::BilingualSameColumn`, `MessageKey::ImportBilingualSameColumn`); khép cả đếm đôi tín hiệu lẫn `target_text == source_text`. Guard: `bilingual_import_contract.rs::preview_refuses_equal_source_and_target_columns_at_the_wire_boundary`.
 
 ## Deferred from: 4-2-cau-hinh-nha-cung-cap-ai (2026-09-16)
 
@@ -12515,3 +12553,10 @@ chính nó.
 - **`promote_ai_translation` ghi vào một hàng đã về hưu** (`commands/segment.rs`) — `UPDATE … WHERE id = ?` không kiểm `retired_at`, khác `restore_segment_version`. Tới được thật: `main.ts` promote theo `aiTranslateRunSegmentId`, là câu AI đã chạy, có thể đã bị gộp/tách sau đó; Rust ghi đè hàng mộ bia, còn `replaceEditorSegment` không tìm thấy id nên màn hình không đổi gì. Có từ trước Story 11.5. Chủ: Story 11.7.
 - **`open_work` quét toàn bảng `segment` mỗi lần mở để từ chối `translation_origin` lạ** (`commands/project/mod.rs::reject_unknown_translation_origin`) — chưa đo chi phí trên Tác phẩm thật lớn nhất. Chưa kiểm chứng (maybe-false, medium nếu đúng): đo thời gian `open_work` bản release trên Tác phẩm lớn nhất. Chủ: Epic 11.
 - **E2e L140 không phân biệt được ba dòng `enterFocus('panel.grid')`** (`e2e/specs/library-mode-switch-focus.e2e.mjs`) — gỡ cả ba mà ba ca vẫn xanh, vì watcher đặt caret (Story 5.7) đã đưa tiêu điểm vào lưới với mọi Chương có segment. Hành vi đã đo; bản vá thì chưa có guard. Cần một fixture Chương rỗng hoặc id trùng giữa hai Tác phẩm, thứ `openWorkspaceWithWork()` chưa dựng được. Chủ: Murat.
+
+## Deferred from: code review of spec-11-6-lo-b-url-import-images-and-append (2026-09-29)
+
+- **Nghiệm thu tay trước khi Epic 11 đóng — gộp ba mục AppHandle-chưa-đo của story 11.6 lô B.** `asset://` thu hồi phạm vi khi đổi Tác phẩm (mục "Phạm vi asset protocol cấp lúc chạy chỉ nở" phía trên), quét tệp ảnh mồ côi lúc mở (mục "Tệp ảnh mồ côi ở lại trong `assets/`" và mục APPEND tương ứng phía trên), khoá đua APPEND/`replace_open_work` (Quyết định 20, Ice 2026-09-29) — cả ba có logic thuần đã kiểm đơn vị nhưng KHÔNG phép kiểm Rust nào đi qua một `tauri::AppHandle` thật (không `tauri::test`/`MockRuntime` trong crate). Kiểm tay: mở A rồi B, `asset://` của A thất bại rồi thành công lại khi mở lại A; một tệp mồ côi trong `assets/` mất sau khi mở; một lượt APPEND-đồng-thời vào cùng Tác phẩm vẫn giữ đủ ảnh. Chủ: Epic 11.
+- **Xác nhận thật trên Windows: một đường dẫn `assets_dir` không-UTF-8 thật (không mô phỏng) trả đúng `MessageKey::SegmentAssetsDirNotUtf8`.** Rust fix + guard `#[cfg(unix)]` đã đóng ở Story 11.6 lô B (mục "`assets_dir` serialized via `to_string_lossy()`" phía trên); nửa Windows chưa ai dựng được một đường dẫn thật không-UTF-8 để đo. Chủ: B7.
+- **`docx_contract.rs::each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_own_chapter` mù với "đúng Chương, SAI byte ảnh" khi hai Chương chia sẻ cùng chỉ số khối cục bộ.** Đo được ở Story 11.6 lô B bằng một lượt gỡ đối chứng vào bên TIÊU THỤ (`prepare_chapter_images`'s lookup) — vẫn xanh, vì fixture hiện tại có ảnh ở cùng chỉ số khối cục bộ cho cả hai Chương; ca thật chỉ đỏ khi gỡ đúng bên SẢN XUẤT (`ChapterDocxImage.chapter_index`). Một fixture hai Chương với ảnh ở HAI chỉ số khối cục bộ khác nhau sẽ khoá chỗ mù này. Chủ: Murat.
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — lượt review lô B: fixture tách Chương nay cho hai ảnh chỉ số khối cục bộ khác nhau (2 và 3) VÀ byte khác nhau (69 và 70); bỏ vế `chapter_index` khỏi phép tìm ở `prepare_chapter_images` làm cả ca CREATE lẫn ca APPEND mới (`append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter`) đỏ vì `byte_len`.

@@ -94,12 +94,9 @@ watch(dictSourcesDisabled, () => {
  * mang cả ba trong MỘT lượt IPC — không một lệnh phụ). Cùng khuôn `segments`: `shallowRef`,
  * mảng/state MỚI ở mỗi lượt nạp, không sửa tại chỗ.
  *
- * ⚠️ **Giới hạn đã biết, ghi ra thay vì để người sau tưởng đã xét:** một lượt gộp/tách
- * (`applyRegroup`) chỉ vá [`segments`], KHÔNG nạp lại `assets` — anchor của DB tự dịch chuyển
- * đúng (schema.rs, ba đường tổ chức lại Chương đã giữ bất biến này), nhưng ẢNH CHỤP hiển thị
- * ở đây có thể LỆCH vị trí cho tới lượt nạp Chương kế tiếp. §Never spec 6.14 cấm sửa
- * `write_regroup`/luật gộp-tách; nạp lại `assets` sau MỖI lượt gộp/tách là việc NGOÀI phạm vi
- * story này — ghi nợ, không vá tạm.
+ * Một lượt gộp/tách (`applyRegroup`) chỉ vá [`segments`] tại chỗ — nạp lại `assets` riêng qua
+ * [`refreshChapterAssetsAfterRegroup`] ngay sau đó, cùng lượt IPC `readOpenChapterSegments`
+ * mà lượt mở Chương đã dùng.
  */
 const chapterAssets = shallowRef<readonly ChapterAsset[]>([])
 const assetsDir = shallowRef<string>('')
@@ -2636,6 +2633,27 @@ function applyRegroup(outcome: RegroupOutcome): void {
 }
 
 /**
+ * Nạp lại `chapterAssets`/`assetsDir` qua CHÍNH lượt IPC `readOpenChapterSegments()` mà
+ * [`ensureSegmentsLoaded`] dùng, ngay sau một lượt gộp/tách — anchor của DB tự dịch chuyển
+ * đúng qua gộp/tách, nhưng ẢNH CHỤP `chapterAssets` mà [`applyRegroup`] không đụng tới thì
+ * không. KHÔNG chạm `segments.value`/caret — `applyRegroup` đã vá đúng hai ô đó tại chỗ.
+ *
+ * 🔴 Dùng CHUNG `sequence` với [`ensureSegmentsLoaded`] — một lượt chuyển Chương xen vào giữa
+ * (bump `sequence`) làm kết quả trễ của lượt nạp lại này KHÔNG còn khớp Chương đang hiện.
+ */
+async function refreshChapterAssetsAfterRegroup(): Promise<void> {
+  const mine = ++sequence
+  const { loaded, error } = await readOpenChapterSegments()
+  if (mine !== sequence) return
+  if (loaded === null) {
+    console.error(`[editor] refreshChapterAssetsAfterRegroup — readOpenChapterSegments() thất bại, giữ ảnh cũ: ${JSON.stringify(error)}`)
+    return
+  }
+  chapterAssets.value = loaded.assets
+  assetsDir.value = loaded.assets_dir
+}
+
+/**
  * Ba nhịp chung của **mọi** lượt gộp/tách: flush tập chờ, gọi Rust, vá ảnh chụp.
  *
  * ⚠️ Rút ra vì **hai** lệnh dùng chung, không vì nó dài — cùng lý do
@@ -2727,6 +2745,7 @@ async function regroupUnguarded(
 
   // ② Vá ảnh chụp — và đó là lượt đặt mốc AD-47 ①. Xem [`applyRegroup`].
   applyRegroup(outcome)
+  void refreshChapterAssetsAfterRegroup()
 
   // ③ Con trỏ về **hàng mới đầu tiên**. Không để nó trỏ một `id` vừa về hưu: bốn lệnh ghi
   //    hiện có đều từ chối một segment về hưu, nên caret ở đó là một caret mà mọi phím tiếp

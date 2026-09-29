@@ -1071,6 +1071,10 @@ export type UrlImportBatchWire = {
    * thời điểm trả lời, không chỉ lượt gọi vừa rồi. Chân màn xem trước đọc trực tiếp trường
    * này cho dòng *"Đã gọi N domain · xem"* — không một lệnh IPC thứ hai chỉ để có một số. */
   domain_log_domain_count: number
+  /** Số link TRÙNG (cùng khoá sau khi bỏ `#fragment`, host hạ chữ thường) đã bị gộp ở CHÍNH
+   * lượt `startUrlImport` vừa rồi. `0` cho bốn lệnh còn lại (`reload`/`remove`/hai tier2) —
+   * chúng sửa một danh sách ĐÃ gỡ trùng, không nạp link mới. */
+  duplicate_urls_dropped: number
 }
 
 /** Ba trạng thái, cùng khuôn `ImportEncodingPreviewResult`. */
@@ -1102,7 +1106,8 @@ function isUrlImportBatchWire(value: unknown): value is UrlImportBatchWire {
     Array.isArray(v.items) &&
     v.items.every(isUrlImportItemWire) &&
     (v.encoding_preview === null || isImportEncodingPreview(v.encoding_preview)) &&
-    typeof v.domain_log_domain_count === 'number'
+    typeof v.domain_log_domain_count === 'number' &&
+    typeof v.duplicate_urls_dropped === 'number'
   )
 }
 
@@ -1164,25 +1169,70 @@ const CMD_TIER2_BLOCK_SET_KEPT = 'tier2_block_set_kept'
 const CMD_TIER2_BLOCK_CONFIRM_RANGE = 'tier2_block_confirm_range'
 
 /** Đổi trạng thái giữ/loại của khối `index` (`Space`) — 0 lời gọi mạng, chỉ đổi
- * `Tier2BlockOverridesState` trong bộ nhớ Rust rồi dựng lại xem trước. */
+ * `Tier2BlockOverridesState` trong bộ nhớ Rust rồi dựng lại xem trước.
+ *
+ * ⚠️ `detailChapterIndex`: con trỏ Chương ĐANG HIỆN (`importPreviewChapterCursor`).
+ * `Tier2BlockOverridesState` chỉ mang cấu trúc khối của Chương đầu — Rust từ chối
+ * (`err.import.tier2_edit_locked_to_first_chapter`) khi tham số này khác `0`, thay vì âm
+ * thầm ghi đè override của Chương đầu từ một Chương khác. */
 export async function tier2BlockSetKept(
   index: number,
   kept: boolean,
   sourceLang: string,
+  detailChapterIndex: number,
 ): Promise<UrlImportBatchResult> {
-  return callUrlImportBatch(CMD_TIER2_BLOCK_SET_KEPT, { index, kept, sourceLang })
+  return callUrlImportBatch(CMD_TIER2_BLOCK_SET_KEPT, { index, kept, sourceLang, detailChapterIndex })
 }
 
 /** Đặt dải `[start, end]` thành giữ, mọi khối NGOÀI dải thành loại — một lượt (`]`). `total`
  * đến từ CHÍNH mảng khối frontend đang hiện (xem doc-comment
- * `commands::project::block_overrides_for_range`). */
+ * `commands::project::block_overrides_for_range`).
+ *
+ * ⚠️ `detailChapterIndex` — cùng khoá phòng vệ [`tier2BlockSetKept`]. */
 export async function tier2BlockConfirmRange(
   start: number,
   end: number,
   total: number,
   sourceLang: string,
+  detailChapterIndex: number,
 ): Promise<UrlImportBatchResult> {
-  return callUrlImportBatch(CMD_TIER2_BLOCK_CONFIRM_RANGE, { start, end, total, sourceLang })
+  return callUrlImportBatch(CMD_TIER2_BLOCK_CONFIRM_RANGE, { start, end, total, sourceLang, detailChapterIndex })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tiến độ một lượt nhập URL (tải trang · tải ảnh) + huỷ tải ảnh. Khớp
+// `commands::project::url_import::{URL_IMPORT_PAGE_PROGRESS_EVENT,
+// URL_IMPORT_IMAGE_PROGRESS_EVENT, ImportProgressEvent}`, `wire::cancel_image_download`.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Tên sự kiện Tauri của pha tải TRANG (mỗi link một lần) — khớp
+ * `URL_IMPORT_PAGE_PROGRESS_EVENT` phía Rust. */
+export const URL_IMPORT_PAGE_PROGRESS_EVENT = 'url_import_page_progress'
+/** Tên sự kiện Tauri của pha tải ẢNH (sau khi mọi trang đã tải xong) — khớp
+ * `URL_IMPORT_IMAGE_PROGRESS_EVENT` phía Rust. */
+export const URL_IMPORT_IMAGE_PROGRESS_EVENT = 'url_import_image_progress'
+
+/** Payload CHUNG của hai sự kiện trên — khớp `webimport::ImportProgressEvent`. `completed`
+ * đếm TỪ 1 (đã xong bao nhiêu SAU mục vừa hoàn tất), `total` cố định cho cả pha. */
+export type ImportProgressEvent = {
+  completed: number
+  total: number
+}
+
+const CMD_CANCEL_IMAGE_DOWNLOAD = 'cancel_image_download'
+
+/**
+ * Huỷ pha tải ảnh đang chạy — bơm `ImageDownloadGeneration` phía Rust lên một, cùng khuôn
+ * `cancelAiTranslateCall` (`config/aitranslate.ts`). Chương và mọi ảnh ĐÃ tải được GIỮ
+ * NGUYÊN; chỉ ảnh CÒN LẠI trong hàng đợi bị bỏ. Lệnh KHÔNG mang `Result` phía Rust — không
+ * bao giờ ném, chỉ ghi chẩn đoán khi trượt.
+ */
+export async function cancelImageDownload(): Promise<void> {
+  try {
+    await invoke<void>(CMD_CANCEL_IMAGE_DOWNLOAD)
+  } catch (err) {
+    console.error(`[project] \`${CMD_CANCEL_IMAGE_DOWNLOAD}\` trượt: ${String(err)}`)
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1200,13 +1250,17 @@ export async function tier2BlockConfirmRange(
 
 const CMD_SET_CHAPTER_ORIGIN_OVERRIDE = 'set_chapter_origin_override'
 
-/** Bốn trường xuất xứ người dùng vừa gõ — chuỗi tự do, cùng khuôn `ChapterOriginEdit` của
- * `config/chapter.ts` (chuỗi rỗng = "để trống"). */
+/**
+ * Bốn trường xuất xứ — `null` ⇔ CHƯA CHẠM (giữ nguyên giá trị máy/đĩa hiện có); chuỗi ⇔ ĐÃ
+ * CHẠM, chuỗi rỗng sau khi cắt ⇒ ghi `NULL` (để trống có chủ ý). Cùng khuôn
+ * `ChapterOriginEdit` của `config/chapter.ts`. Chỗ gọi tích luỹ trường ĐÃ CHẠM qua nhiều lượt
+ * `@commit` của `ChapterOrigin.vue` trước khi gửi bản ghi đầy đủ này xuống Rust.
+ */
 export type ChapterOriginEditFields = {
-  author: string
-  siteName: string
-  url: string
-  publishedAt: string
+  author: string | null
+  siteName: string | null
+  url: string | null
+  publishedAt: string | null
 }
 
 /** Hai trạng thái — lệnh này không trả dữ liệu, chỉ `ok`/`error` (cùng khuôn

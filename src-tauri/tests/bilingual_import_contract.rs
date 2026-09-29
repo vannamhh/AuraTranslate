@@ -736,6 +736,20 @@ fn preview_refuses_a_one_column_file_before_showing_anything() {
 }
 
 #[test]
+fn preview_refuses_equal_source_and_target_columns_at_the_wire_boundary() {
+    let root = temp_dir("preview-same-column");
+    let path = write_file(&root, "cot-trung-xem-truoc.tsv", b"Nguon\tDich\nMot cau.\tCau dich.\n");
+
+    let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
+    let err = preview_bilingual_import(&shape, "en", &[], None, 1, 1, false, &[])
+        .expect_err("cot nguon == cot dich phai bi tu choi NGAY tai bien IPC");
+    assert_eq!(err.message_key(), MessageKey::ImportBilingualSameColumn);
+    assert_eq!(err.params().get("column").map(String::as_str), Some("1"));
+
+    cleanup(&root);
+}
+
+#[test]
 fn preview_refuses_an_unterminated_quoted_field_with_its_row_number() {
     let root = temp_dir("preview-unterminated");
     let csv = "Hang mot on,Hang mot dich\n\"Hang hai chua dong,Hang hai dich\n";
@@ -746,6 +760,26 @@ fn preview_refuses_an_unterminated_quoted_field_with_its_row_number() {
         .expect_err("o mo ngoac kep khong dong phai bi tu choi NGAY o man xem truoc");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualUnterminatedQuotedField);
     assert_eq!(err.params().get("row").map(String::as_str), Some("2"));
+
+    cleanup(&root);
+}
+
+#[test]
+fn preview_surfaces_a_non_table_error_on_the_selected_candidate_instead_of_swallowing_it() {
+    let root = temp_dir("preview-non-table-error");
+    let path = write_file(&root, "loi-khong-phai-bang.tsv", b"Nguon\tDich\nMot cau.\tCau dich.\n");
+    let bad_rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "(".to_owned(),
+        kind: CleanupRuleKind::Regex,
+        enabled: true,
+    };
+
+    let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
+    let err = preview_bilingual_import(&shape, "en", std::slice::from_ref(&bad_rule), None, 0, 1, false, &[])
+        .expect_err("mau lam sach hong tren ung vien DANG CHON phai tro thanh mot Err that");
+    assert_eq!(err.code(), "import.invalid_cleanup_pattern");
 
     cleanup(&root);
 }

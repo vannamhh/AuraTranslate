@@ -286,6 +286,12 @@ pub enum ImportError {
         /// Số hàng file (1-based) đã bị từ chối.
         row_number: usize,
     },
+    /// Source and target columns are the same column: every sentence would be both its own
+    /// source and target, doubling every paired/Skip signal count for that row.
+    BilingualSameColumn {
+        /// The 0-based column index both source and target point to.
+        column: usize,
+    },
     /// `source_lang` ngoài `zh`/`en`, ở CẢ đường tạo (`create_work`)
     /// lẫn đường thêm Chương (`append_chapters_to_work`). Trước bản vá này chỉ webview kiểm
     /// (`=== 'zh'`); một `.atproj` sửa tay hoặc một lời gọi `invoke` trần với giá trị lạ ghi
@@ -356,6 +362,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::BilingualSkipNotAllowed { row_number } => {
                 write!(f, "import[bilingual row {row_number}]: skip not allowed, both sides have sentences")
+            }
+            ImportError::BilingualSameColumn { column } => {
+                write!(f, "import[bilingual]: source and target columns are both {column}")
             }
             ImportError::UnsupportedSourceLang { source_lang } => {
                 write!(f, "import: unsupported source_lang {source_lang:?}, expected zh or en")
@@ -546,6 +555,16 @@ impl From<ImportError> for IpcError {
                 IpcError::new(
                     "import.bilingual_skip_not_allowed",
                     MessageKey::ImportBilingualSkipNotAllowed,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualSameColumn { column } => {
+                let mut params = BTreeMap::new();
+                params.insert("column".to_owned(), column.to_string());
+                IpcError::new(
+                    "import.bilingual_same_column",
+                    MessageKey::ImportBilingualSameColumn,
                     params,
                     false,
                 )

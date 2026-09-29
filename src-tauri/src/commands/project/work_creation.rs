@@ -68,7 +68,11 @@ use super::*;
 /// hay không), thay vì tích luỹ cục bộ rồi trả về SAU CÙNG — một khi đã push, entry đó SỐNG
 /// SÓT bất kể phần còn lại của `create_work` có trượt hay không. Test không cần domain log
 /// bền qua lượt trượt (đa số) truyền `&Mutex::new(Vec::new())` — một kho tạm, vứt đi sau ca.
-pub fn create_work(
+///
+/// `on_image_progress`/`should_cancel` are called from inside
+/// [`prepare_chapter_images`]'s fetch/write loop; see its doc comment. [`create_work`] is a
+/// thin wrapper over this with both no-op, for callers that don't need either.
+pub fn create_work_with_progress(
     documents_root: &Path,
     name: &str,
     source_lang: &str,
@@ -101,6 +105,8 @@ pub fn create_work(
     // (§Never: "regroupings travel as a per-call param, like chapter_pattern"), KHÔNG một
     // `Mutex` override thứ ba. `&[]` cho mọi chỗ gọi không phải đường song ngữ.
     regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
 ) -> Result<OpenWork, IpcError> {
     validate_source_lang(source_lang)?;
 
@@ -243,11 +249,10 @@ pub fn create_work(
     // HTML) nên `chapter.blocks` vẫn `None` tới đây cho MỌI đường `.docx` — đây là chỗ DUY
     // NHẤT nó được gán. Cùng giới hạn "chỉ Chương đầu" mà `block_overrides` đã theo cho
     // đường URL (Story 6.9) — xem doc-comment `DocxSidecar`.
-    if let Some(sidecar) = &docx_sidecar {
-        if let Some(first) = chapters.first_mut() {
-            first.blocks = Some(sidecar.blocks.clone());
-        }
-    }
+    let docx_chapter_images: Vec<ChapterDocxImage> = docx_sidecar
+        .as_ref()
+        .map(|sidecar| distribute_docx_blocks_across_chapters(sidecar, &mut chapters))
+        .unwrap_or_default();
 
     // 🔴 THÊM 2026-09-09 (D10 vòng rà đối kháng 3 lớp) — `chapter_urls` (dựng TRƯỚC
     // `run_pipeline`, một phần tử mỗi ĐƠN VỊ đầu vào, xem trên) và `chapters` (SAU khi bảy
@@ -317,8 +322,6 @@ pub fn create_work(
     // `Meta::write_atomic` — job ghi bên dưới CHỈ SQL); một ảnh trượt tải KHÔNG dừng hàm này (đếm
     // vào `images_failed`, log chẩn đoán), nhưng ghi BYTE trượt giữa chừng (đĩa đầy) THÌ
     // dừng — cùng khuôn mọi lỗi khác của hàm này (dọn `.atproj` nửa vời, AC8).
-    let docx_images: &[crate::core::docx::DocxImage] =
-        docx_sidecar.as_ref().map(|s| s.images.as_slice()).unwrap_or(&[]);
     let image_prep = match prepare_chapter_images(
         &dir,
         &chapters,
@@ -327,7 +330,9 @@ pub fn create_work(
         &cleanup_rules_for_images,
         &source_lang_owned,
         domain_log_state,
-        docx_images,
+        &docx_chapter_images,
+        on_image_progress,
+        should_cancel,
     ) {
         Ok(prep) => prep,
         Err(err) => {
@@ -599,6 +604,48 @@ pub fn create_work(
     })
 }
 
+/// Thin wrapper over [`create_work_with_progress`] with a no-op progress/cancel pair.
+#[allow(clippy::too_many_arguments)]
+pub fn create_work(
+    documents_root: &Path,
+    name: &str,
+    source_lang: &str,
+    genre: &str,
+    shape: PipelineShape,
+    encoding: &'static encoding_rs::Encoding,
+    cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+    domain_log_state: &webimport::DomainLogState,
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
+) -> Result<OpenWork, IpcError> {
+    create_work_with_progress(
+        documents_root,
+        name,
+        source_lang,
+        genre,
+        shape,
+        encoding,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        bilingual_source_column,
+        bilingual_target_column,
+        bilingual_has_header,
+        origin_overrides,
+        domain_log_state,
+        docx_sidecar,
+        regroupings,
+        &mut |_, _| {},
+        &|| false,
+    )
+}
+
 /// **Hàm thuần** — Story 6.7b (FR122, nửa hai: "hoặc thêm Chương vào một Tác phẩm sẵn có").
 /// Em sinh của [`create_work`]: ghi thêm N Chương vào một Tác phẩm ĐÃ CÓ, tại
 /// `ord = MAX(ord)+1`, tái dùng ĐÚNG khuôn chèn chapter/segment/asset của `create_work`
@@ -639,7 +686,7 @@ pub fn create_work(
 /// # Lỗi
 /// Y hệt [`create_work`] (bilingual mismatch/0 Chương/N vượt `i64`/pha ảnh/SQL) — chỉ khác ở
 /// việc dọn dẹp: **không** `remove_folder` ở bất kỳ nhánh nào.
-pub fn append_chapters_to_work(
+pub fn append_chapters_to_work_with_progress(
     open: &mut OpenWork,
     source_lang: &str,
     shape: PipelineShape,
@@ -650,6 +697,8 @@ pub fn append_chapters_to_work(
     origin_overrides: &[Option<ChapterOriginOverride>],
     domain_log_state: &webimport::DomainLogState,
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
 ) -> Result<usize, IpcError> {
     validate_source_lang(source_lang)?;
 
@@ -690,11 +739,10 @@ pub fn append_chapters_to_work(
     }
     let mut chapters = outcome.chapters;
 
-    if let Some(sidecar) = &docx_sidecar {
-        if let Some(first) = chapters.first_mut() {
-            first.blocks = Some(sidecar.blocks.clone());
-        }
-    }
+    let docx_chapter_images: Vec<ChapterDocxImage> = docx_sidecar
+        .as_ref()
+        .map(|sidecar| distribute_docx_blocks_across_chapters(sidecar, &mut chapters))
+        .unwrap_or_default();
 
     if extract_main_content && chapters.len() != chapter_urls.len() {
         return Err(crate::core::library::WorkError::CreateFailed {
@@ -720,8 +768,6 @@ pub fn append_chapters_to_work(
         .into());
     }
 
-    let docx_images: &[crate::core::docx::DocxImage] =
-        docx_sidecar.as_ref().map(|s| s.images.as_slice()).unwrap_or(&[]);
     let image_prep = prepare_chapter_images(
         &open.dir,
         &chapters,
@@ -730,7 +776,9 @@ pub fn append_chapters_to_work(
         &cleanup_rules_for_images,
         &source_lang_owned,
         domain_log_state,
-        docx_images,
+        &docx_chapter_images,
+        on_image_progress,
+        should_cancel,
     )?;
     let ImagePrepOutcome { saved: mut saved_assets, images_saved, images_failed } = image_prep;
 
@@ -864,6 +912,37 @@ pub fn append_chapters_to_work(
     Ok(appended_count)
 }
 
+/// Thin wrapper over [`append_chapters_to_work_with_progress`] with a no-op progress/cancel
+/// pair.
+#[allow(clippy::too_many_arguments)]
+pub fn append_chapters_to_work(
+    open: &mut OpenWork,
+    source_lang: &str,
+    shape: PipelineShape,
+    encoding: &'static encoding_rs::Encoding,
+    cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+    domain_log_state: &webimport::DomainLogState,
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+) -> Result<usize, IpcError> {
+    append_chapters_to_work_with_progress(
+        open,
+        source_lang,
+        shape,
+        encoding,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        origin_overrides,
+        domain_log_state,
+        docx_sidecar,
+        &mut |_, _| {},
+        &|| false,
+    )
+}
+
 /// **THÊM 2026-09-16 (Story 6.7b, Phase 4)** — lõi THUẦN của việc chọn tầng Tác phẩm cho
 /// MỘT đích cụ thể (AC3), tách khỏi `wire::resolve_cleanup_rules_for_destination` để
 /// `tests/cleanup_contract.rs` gọi được THẲNG, không cần `tauri::AppHandle` — kho này không
@@ -978,6 +1057,78 @@ struct CachedFetch {
     content_type: String,
 }
 
+// An embedded .docx image assigned to its Chapter by
+// distribute_docx_blocks_across_chapters; local_block_index indexes into that Chapter's
+// own `blocks`, not the whole-document `DocxImage::block_index`.
+struct ChapterDocxImage {
+    chapter_index: usize,
+    local_block_index: usize,
+    bytes: Vec<u8>,
+    content_type: String,
+}
+
+// Slices `sidecar.blocks` (flat across the whole .docx) into one run per Chapter, once
+// Step::SplitChapters has fixed the chapter boundaries. Walks blocks in document order,
+// advancing to the next chapter once the accumulated text length matches that chapter's
+// `source_text.len()` — this must track exactly how `join_kept_blocks` built the joined
+// text that `Step::SplitChapters` cut, or images anchor to the wrong chapter.
+fn distribute_docx_blocks_across_chapters(
+    sidecar: &crate::core::segment::import::DocxSidecar,
+    chapters: &mut [crate::core::segment::import::ImportedChapter],
+) -> Vec<ChapterDocxImage> {
+    if chapters.is_empty() {
+        return Vec::new();
+    }
+    let mut per_chapter_blocks: Vec<Vec<webimport::Block>> = vec![Vec::new(); chapters.len()];
+    let mut remap: std::collections::HashMap<usize, (usize, usize)> = std::collections::HashMap::new();
+    let mut current = 0usize;
+    let mut consumed = 0usize;
+    for (orig_idx, block) in sidecar.blocks.iter().enumerate() {
+        let text_len = match &block.body {
+            webimport::BlockBody::Paragraph(t) | webimport::BlockBody::Caption(t) => t.len(),
+            webimport::BlockBody::Image { .. } => 0,
+        };
+        let original_gap_len = block.exact_gap_before.len();
+        // Only real text advances the chapter pointer, so an image sitting exactly at a
+        // chapter boundary stays in the current chapter. The gap between chapters is
+        // credited to the chapter before it, matching where Step::SplitChapters actually cut.
+        if text_len > 0 {
+            while current + 1 < chapters.len() && consumed + original_gap_len >= chapters[current].source_text.len() {
+                current += 1;
+                consumed = 0;
+            }
+        }
+        let local_idx = per_chapter_blocks[current].len();
+        // The first block of each chapter carries no inherited exact_gap_before: its
+        // original gap was already credited to the previous chapter above.
+        let mut block_for_chapter = block.clone();
+        let contribution = if local_idx == 0 {
+            block_for_chapter.exact_gap_before.clear();
+            text_len
+        } else {
+            original_gap_len + text_len
+        };
+        remap.insert(orig_idx, (current, local_idx));
+        consumed += contribution;
+        per_chapter_blocks[current].push(block_for_chapter);
+    }
+    for (chapter, blocks) in chapters.iter_mut().zip(per_chapter_blocks) {
+        chapter.blocks = Some(blocks);
+    }
+    sidecar
+        .images
+        .iter()
+        .filter_map(|img| {
+            remap.get(&img.block_index).map(|&(chapter_index, local_block_index)| ChapterDocxImage {
+                chapter_index,
+                local_block_index,
+                bytes: img.bytes.clone(),
+                content_type: img.content_type.clone(),
+            })
+        })
+        .collect()
+}
+
 /// Pha ảnh của [`create_work`] (Story 6.11, FR127) — chạy TRƯỚC giao dịch ghi SQL, NGOÀI mọi
 /// closure `Store::write`.
 ///
@@ -1025,9 +1176,13 @@ fn prepare_chapter_images(
     cleanup_rules: &[crate::core::cleanup::CleanupRule],
     source_lang: &str,
     domain_log_state: &webimport::DomainLogState,
-    // 🔴 **THÊM 2026-09-09 (Story 6.12)** — ảnh nhúng `.docx` của Chương ĐẦU TIÊN (rỗng cho
-    // mọi đường khác). Xem doc-comment [`crate::core::segment::import::DocxSidecar`].
-    docx_images: &[crate::core::docx::DocxImage],
+    // .docx images for every Chapter, assigned by distribute_docx_blocks_across_chapters.
+    docx_images: &[ChapterDocxImage],
+    // Called after each image fetch/write attempt, success or not.
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    // Checked before each attempt; true stops the loop immediately, keeping images already
+    // saved without counting the rest toward images_failed.
+    should_cancel: &dyn Fn() -> bool,
 ) -> Result<ImagePrepOutcome, IpcError> {
     use crate::core::segment::pipeline::effective_kept_for_blocks;
     use crate::core::webimport::BlockBody;
@@ -1069,12 +1224,9 @@ fn prepare_chapter_images(
                 continue;
             }
 
-            // 🔴 **THÊM 2026-09-09 (Story 6.12)** — ảnh `.docx` không có URL (`src` luôn
-            // `None` cho hình dạng đó, xem doc-comment `BlockBody::Image`); byte thật của nó
-            // đã được đọc SẴN lúc `import_file` chạy và chỉ sống ở Chương ĐẦU TIÊN (cùng
-            // giới hạn `block_overrides`). Tìm theo `block_idx` TRƯỚC khi coi `src: None` là
-            // một lỗi.
-            let local_image = if i == 0 { docx_images.iter().find(|d| d.block_index == block_idx) } else { None };
+            // .docx images carry no URL (`src` is always `None` for that shape); their bytes
+            // were already read at import_file time. Matched by (chapter_index, block_idx).
+            let local_image = docx_images.iter().find(|d| d.chapter_index == i && d.local_block_index == block_idx);
 
             if src.is_none() && local_image.is_none() {
                 images_failed = images_failed.saturating_add(1);
@@ -1110,6 +1262,17 @@ fn prepare_chapter_images(
             let source = if let Some(img) = local_image {
                 // Ảnh `.docx` nhúng — 0 mạng, 0 `Allowlist` (§Always spec 6.12).
                 PendingImageSource::Local { bytes: img.bytes.clone(), content_type: img.content_type.clone() }
+            } else if let Some(src) = src.as_deref().filter(|s| s.starts_with("data:")) {
+                // `data:` images decode locally, no network, no Allowlist; MIME is gated to
+                // the raster allowlist — SVG is still refused (AD-16).
+                match webimport::assets::decode_data_uri_image(src) {
+                    Ok((bytes, content_type)) => PendingImageSource::Local { bytes, content_type },
+                    Err(_err) => {
+                        images_failed = images_failed.saturating_add(1);
+                        eprintln!("asset[data] data: URI khong giai ma duoc hoac MIME khong phai raster (chuong {i}, khoi {block_idx})");
+                        continue;
+                    }
+                }
             } else if let Some(src) = src {
                 match webimport::assets::resolve_absolute_url(src, page_url) {
                     Ok(resolved_url) => PendingImageSource::Remote { resolved_url },
@@ -1161,8 +1324,16 @@ fn prepare_chapter_images(
     let assets_dir = dir.join("assets");
     let mut cache: std::collections::HashMap<String, Option<CachedFetch>> = std::collections::HashMap::new();
     let mut saved: Vec<SavedAsset> = Vec::new();
+    let total_pending = pending.len();
 
-    for p in &pending {
+    for (pending_idx, p) in pending.iter().enumerate() {
+        if should_cancel() {
+            eprintln!(
+                "asset[cancel] huy giua chung sau {pending_idx}/{total_pending} anh -- giu Chuong \
+                 va anh da tai, bo phan con lai (khong dem vao images_failed)"
+            );
+            break;
+        }
         // 🔵 SỬA 2026-09-09 (Story 6.12) — nhánh theo `PendingImageSource`. Dedup theo URL
         // (khuôn Story 6.11) chỉ có nghĩa cho `Remote`; `Local` (ảnh `.docx`) không có URL
         // để mà khoá cache, và ghi thẳng qua [`write_local_asset_bytes`] — 0 mạng, 0
@@ -1204,6 +1375,7 @@ fn prepare_chapter_images(
             }),
             None => images_failed = images_failed.saturating_add(1),
         }
+        on_image_progress(pending_idx + 1, total_pending);
     }
 
     // 🔵 THÊM (vòng rà đối kháng 3, mục R2) — kiểm TRƯỚC giao dịch ghi, không để một `CHECK`
@@ -1608,3 +1780,86 @@ pub fn create_work_from_file(
     )
 }
 
+
+#[cfg(test)]
+mod distribute_docx_blocks_tests {
+    use super::*;
+    use crate::core::segment::import::ImportedChapter;
+
+    fn chapter(source_text: &str) -> ImportedChapter {
+        ImportedChapter {
+            source_text: source_text.to_owned(),
+            segments: Vec::new(),
+            cleanup_report: None,
+            title: None,
+            blocks: None,
+            joined_line_count: None,
+            origin: None,
+            bilingual_segments: None,
+            source_file: None,
+        }
+    }
+
+    fn paragraph(text: &str, gap: &str) -> webimport::Block {
+        webimport::Block {
+            body: webimport::BlockBody::Paragraph(text.to_owned()),
+            machine_kept: true,
+            exact_gap_before: gap.to_owned(),
+            is_list_item: false,
+        }
+    }
+
+    fn image() -> webimport::Block {
+        webimport::Block {
+            body: webimport::BlockBody::Image { src: None, alt: None },
+            machine_kept: true,
+            exact_gap_before: String::new(),
+            is_list_item: false,
+        }
+    }
+
+    #[test]
+    fn splits_blocks_and_remaps_image_indices_at_a_chapter_boundary() {
+        // Chuong 2 carries one MORE paragraph before its image than Chuong 1 does, so the two
+        // images land at DIFFERENT local_block_index values (2 vs 3) — asserting the exact
+        // (chapter_index, local_block_index) pair per image catches this function assigning a
+        // block to the wrong chapter even when the two chapters have a different shape, not
+        // only the symmetric case both prior fixtures happened to use.
+        let blocks = vec![
+            paragraph("Chuong 1: Mo Dau", ""),
+            paragraph("Anh dau tien o day.", "\n\n"),
+            image(),
+            paragraph("Chuong 2: Tiep Theo", "\n\n"),
+            paragraph("Anh thu hai o day.", "\n\n"),
+            paragraph("Mot doan them truoc anh thu hai.", "\n\n"),
+            image(),
+        ];
+        let sidecar = crate::core::segment::import::DocxSidecar {
+            blocks: blocks.clone(),
+            images: vec![
+                crate::core::docx::DocxImage { block_index: 2, bytes: vec![1], content_type: "image/png".to_owned() },
+                crate::core::docx::DocxImage { block_index: 6, bytes: vec![2], content_type: "image/png".to_owned() },
+            ],
+        };
+        let mut chapters = vec![
+            // Matches Step::SplitChapters's real shape: the gap between chapters stays in
+            // the earlier chapter's source_text.
+            chapter("Chuong 1: Mo Dau\n\nAnh dau tien o day.\n\n"),
+            chapter("Chuong 2: Tiep Theo\n\nAnh thu hai o day.\n\nMot doan them truoc anh thu hai."),
+        ];
+
+        let images = distribute_docx_blocks_across_chapters(&sidecar, &mut chapters);
+
+        let c0 = chapters[0].blocks.as_ref().expect("chuong 0 phai co blocks");
+        let c1 = chapters[1].blocks.as_ref().expect("chuong 1 phai co blocks");
+        assert_eq!(c0.len(), 3, "chuong 0: title + doan + anh");
+        assert_eq!(c1.len(), 4, "chuong 1: title + doan + doan them + anh");
+        assert!(matches!(c0[2].body, webimport::BlockBody::Image { .. }), "anh 1 phai o cuoi chuong 0");
+        assert!(matches!(c1[3].body, webimport::BlockBody::Image { .. }), "anh 2 phai o cuoi chuong 1");
+        assert_eq!(c1[0].exact_gap_before, "", "khoi dau cua chuong 1 khong duoc mang gap ke thua tu vi tri toan tai lieu");
+
+        assert_eq!(images.len(), 2);
+        assert_eq!((images[0].chapter_index, images[0].local_block_index), (0, 2));
+        assert_eq!((images[1].chapter_index, images[1].local_block_index), (1, 3));
+    }
+}

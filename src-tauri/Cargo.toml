@@ -54,6 +54,7 @@ docx-rs = "=0.4.22"           # core::export (AD-38) -- bo GHI .docx; tu 6.12 th
 # sua thanh dong nay.
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
 quick-xml = "=0.41.0"          # core::docx -- phan tich XML cua word/document.xml + rels
+base64 = "=0.22.1"          # core::webimport -- decodes `data:` URI images
 # core::cleanup — luật làm sạch dạng biểu thức chính quy (Story 6.5, FR124). Rà NFR15
 # lượt bảy (spine §Stack, 2026-09-05): MIT OR Apache-2.0, đã ghim sẵn trong Cargo.lock từ
 # trước (bắc cầu qua jieba-rs/tantivy-stemmers) — khai tường minh ở đây thêm 0 byte payload.

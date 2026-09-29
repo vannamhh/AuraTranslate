@@ -710,6 +710,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
 
     expect(wrapper.find('.bip-chapter-filter-chip-needs-review').text()).toContain('1')
     expect(wrapper.find('.bip-chapter-filter-chip-clean').text()).toContain('1')
+    expect(wrapper.get('.bip-chapter-filter-chip-needs-review').attributes('aria-pressed')).toBe('false')
     const entries = wrapper.findAll('.bip-chapters-entry')
     expect(entries).toHaveLength(2)
     expect(entries[1].find('.bip-chapters-needs-review-badge').exists()).toBe(true)
@@ -916,6 +917,39 @@ describe('bilingualImportPreviewState — toggleBilingualImportPreviewChapterFil
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/ba-chuong.csv')
 
     state.toggleBilingualImportPreviewChapterFilter()
+
+    expect(state.bilingualImportPreviewChapterFilterActive.value).toBe(false)
+
+    state.resetBilingualImportPreview()
+  })
+
+  // Cùng bất biến với `importPreviewChapters.test.ts`: đổi ứng
+  // viên bảng mã trong lúc bộ lọc đang bật phải TỰ TẮT nếu ứng viên MỚI không đủ Chương để so.
+  it('bật lọc rồi đổi sang ứng viên KHÔNG đủ Chương để so — bộ lọc TỰ TẮT', async () => {
+    const state = await freshState()
+    const participating = candidate({
+      label: 'UTF-8',
+      encoding: 'UTF-8',
+      chapters: chaptersWire({
+        chapter_count: 2,
+        needs_review_count: 1,
+        clean_count: 1,
+        any_signal_participated: true,
+        chapters: [chapterEntry({ ord: 1, needs_review: false }), chapterEntry({ ord: 2, needs_review: true })],
+      }),
+    })
+    const notParticipating = candidate({
+      label: 'GBK',
+      encoding: 'GBK',
+      chapters: chaptersWire({ chapter_count: 2, needs_review_count: 0, clean_count: 2, any_signal_participated: false }),
+    })
+    previewMock.mockResolvedValue({ preview: preview({ candidates: [participating, notParticipating] }), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-ung-vien.csv')
+
+    state.toggleBilingualImportPreviewChapterFilter()
+    expect(state.bilingualImportPreviewChapterFilterActive.value).toBe(true)
+
+    state.selectBilingualEncoding('GBK')
 
     expect(state.bilingualImportPreviewChapterFilterActive.value).toBe(false)
 
