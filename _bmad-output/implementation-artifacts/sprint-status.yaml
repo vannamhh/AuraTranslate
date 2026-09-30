@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-30-2026 15:11'
+last_updated: '09-30-2026 17:22'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -985,7 +985,7 @@ action_items:
       đoán ensureFullLayoutTier chỉ đọc tầng narrow trên runner macos-26 (attribution-focus.e2e.mjs:64);
       rồi 5 lượt workflow_dispatch trên cùng commit (Quyết định 3 của 11.2)"
     owner: "Amelia"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-71-v-2-story-11-8-thêm-qua-correct-course-s"
     epic: 11
@@ -996,7 +996,7 @@ action_items:
       editorPendingPromote; set_open_chapter khi gộp Chương; fixture assets; doc-comment
       'không có MockRuntime' — mỗi guard có đối chứng đỏ"
     owner: "Ice"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-72-v-3-push-sau-mỗi-story-hoặc-một-lượt-wor"
     epic: 11
@@ -1018,7 +1018,7 @@ action_items:
       ca vỏ #[tauri::command] promote_ai_translation qua MockRuntime; EXPLAIN QUERY
       PLAN đọc SQL từ query.rs; ca ③ hanviet-segmenter-webkit phân biệt hai nhánh"
     owner: "Murat"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-75-v-6-đối-soát-sổ-nợ-tại-chỗ-bằng-câu-đóng"
     epic: 11
@@ -1049,7 +1049,7 @@ action_items:
     action: "V-9 — ci-previous-verdict.mjs đọc cả lượt schedule gần nhất và in ra
       khi đỏ; vẫn là cảnh báo không chặn (giữ phiếu #37)"
     owner: "Amelia"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-79-v-10-ghi-các-phát-hiện-hoãn-của-retro-ep"
     epic: 11
@@ -1059,5 +1059,5 @@ action_items:
       ord ngoài dải libraryChapters, chú thích trỏ tệp đã xoá, matching_close_brace
       ×2"
     owner: "Amelia"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
