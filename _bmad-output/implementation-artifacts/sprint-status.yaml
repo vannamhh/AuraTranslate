@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-30-2026 13:49'
+last_updated: '09-30-2026 15:11'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -257,7 +257,7 @@ development_status:
   11-5-trả-nợ-editor-segment-và-tầng-ghi: done
   11-6-trả-nợ-nhập-và-library: done
   11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai: done
-  epic-11-retrospective: optional
+  epic-11-retrospective: done
 
 # Action items committed during retrospectives (section created by the retrospective workflow)
 action_items:
@@ -409,7 +409,7 @@ action_items:
       phim tat? Cho do do duoc la tieu diem dinh, nen no dong luon menh de chat cua
       AC11. Cham UX va `mockups/`"
     owner: "Ice"
-    status: open
+    status: done
   - epic: 1
     action: "✅ XONG 2026-08-11 — be mat du lieu that THU HAI da dong: `AURATRANSLATE_E2E_LIBRARY_ROOT`,
       cung hai lop gac AD-45 va cung chinh sach voi moc thu nhat. HAI hang rao: spec
@@ -538,13 +538,13 @@ action_items:
     owner: "Winston"
     status: open
   - epic: 2
-    action: "B6 — `AD-49` (mo hinh hoan tac) chua duoc viet. 🔵 2026-09-23: doi so tu
-      AD-48 (AD-48 da cap cho hop thoai chon tep, Story 3.10b) va bo ve 'dang chan AC5
-      Story 2.9' (2-9 da rut AC do). Ho so ban giao da soan: planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md
+    action: "B6 — `AD-49` (mo hinh hoan tac) chua duoc viet. 🔵 2026-09-23: doi so
+      tu AD-48 (AD-48 da cap cho hop thoai chon tep, Story 3.10b) va bo ve 'dang chan
+      AC5 Story 2.9' (2-9 da rut AC do). Ho so ban giao da soan: planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md
       (hai duong (A)/(B) kem he qua tren dia · ba muc pham vi · tam rang buoc cung
       · sau dieu kien nghiem thu). Ice phan dinh -> Winston soan AD. Dieu kien xong:
-      AD-49 co mat trong ARCHITECTURE-SPINE.md, lint_spine.py sach. 🔵 2026-09-23: AD-49 da
-      vao spine (pham vi toan san pham, Ice chot), lint_spine.py 0 finding"
+      AD-49 co mat trong ARCHITECTURE-SPINE.md, lint_spine.py sach. 🔵 2026-09-23:
+      AD-49 da vao spine (pham vi toan san pham, Ice chot), lint_spine.py 0 finding"
     owner: "Ice"
     status: done
   - epic: 2
@@ -582,8 +582,8 @@ action_items:
       duong tu dong nao thay: moi su kien driver giao deu `isTrusted: false`, va mot
       su kien khong tin cay KHONG co default action. Quyet mot hinh dang: mot hang
       nghiem thu tay BAT BUOC moi story cham be mat, hay mot luot dung that co lich
-      moi cuoi epic. Hom nay no la mot thoi quen may man, khong mot quy trinh.
-      Ice chot 2026-09-24: mot luot dung that co lich cuoi moi epic (xem AI-7)"
+      moi cuoi epic. Hom nay no la mot thoi quen may man, khong mot quy trinh. Ice
+      chot 2026-09-24: mot luot dung that co lich cuoi moi epic (xem AI-7)"
     owner: "Ice"
     status: done
   - id: "epic-3-retro-item-35-ai-1-sua-nguyen-van-muc-b6-va-cap-mot-so"
@@ -611,12 +611,12 @@ action_items:
       thi DO. Ca hai ve deu nam trong tep nen phep kiem chay duoc khong can con nguoi.
       28 muc hien treo la bo ca do dau tien cua no. Do 2026-08-26: khoi Epic 3 cua
       deferred-work.md (dong 5413-7847) co 89 muc, 38 muc giao chu la mot STORY, 29
-      muc chua co dong dong, 28 trong so do tro vao story Epic 3 DA `done`.
-      🔵 2026-09-23: doc `Chu:` CUOI CUNG cua muc (chu viet sau thay chu viet truoc),
-      va `-> 🟡` KHONG tinh la dong dong; doc theo cau chu cu thi 41 muc vua giao chu
-      moi do oan vi `Chu:` cu van nam trong van ban.
-      🔵 2026-09-24: xong o `5fdd919` — Kiem C xanh tren ca macos-26 lan windows-2025
-      (run 35943564794); job windows do o ca WAL cua store_contract, khong o cong nay."
+      muc chua co dong dong, 28 trong so do tro vao story Epic 3 DA `done`. 🔵 2026-09-23:
+      doc `Chu:` CUOI CUNG cua muc (chu viet sau thay chu viet truoc), va `-> 🟡` KHONG
+      tinh la dong dong; doc theo cau chu cu thi 41 muc vua giao chu moi do oan vi
+      `Chu:` cu van nam trong van ban. 🔵 2026-09-24: xong o `5fdd919` — Kiem C xanh
+      tren ca macos-26 lan windows-2025 (run 35943564794); job windows do o ca WAL
+      cua store_contract, khong o cong nay."
     owner: "Dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -630,9 +630,8 @@ action_items:
       gio duoc dung (`grep -rE 'HasScanned|hasScanned|ScanStatus' src/ src-tauri/src/`
       = 0). Hau qua la dung lop loi trung tam cua du an: man Duyet hang loat doc `status='loaded'`
       voi 0 hang, khong phan biet duoc \"rong vi mat\" voi \"rong vi khong co ung
-      vien\", va du lieu khong hoi phuc.
-      🔵 2026-09-24: Ice xac nhan dong — `check:debt-owner` Kiem C cho 0/604 muc mo/🟡
-      co chu cuoi cung la story da done hoac khong ton tai."
+      vien\", va du lieu khong hoi phuc. 🔵 2026-09-24: Ice xac nhan dong — `check:debt-owner`
+      Kiem C cho 0/604 muc mo/🟡 co chu cuoi cung la story da done hoac khong ton tai."
     owner: "Ice"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -652,7 +651,7 @@ action_items:
       le thoi canh\". `:107-109` ghi rang buoc Ice ky (quyet dinh #7 Story 2.12):
       \"cong nao doc `src/**` thi phai xet lai san quan the\"."
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
   - id: "epic-3-retro-item-39-ai-5-ice-phan-quyet-taketheirs-co-phai-d"
     epic: 3
@@ -697,10 +696,9 @@ action_items:
       nen no khong chay tren luong chinh. Bang chung dung, ket luan sai. 669 ca `cargo
       test` khong noi mot chu nao ve ve do vi `cargo test` KHONG dung cua so. Quyet
       mot hinh dang: mot hang nghiem thu tay BAT BUOC moi story cham be mat, hay mot
-      luot dung that co lich moi cuoi epic. Ice chot 2026-09-24: LUOT DUNG THAT
-      CUOI MOI EPIC, khong hang tay moi story. Muc kiem tay mang `Chu: Epic N` cua
-      epic sap dong; Kiem C cua check:debt-owner giu lich. Lo ton: 25 muc -> Epic 4
-      (planning-artifacts/sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md)."
+      luot dung that co lich moi cuoi epic. Ice chot 2026-09-24: LUOT DUNG THAT CUOI
+      MOI EPIC, khong hang tay moi story. Muc kiem tay mang `Chu: Epic N` cua epic
+      sap dong; Kiem C cua check:debt-owner giu lich. Lo ton: 25 muc -> Epic 4 (planning-artifacts/sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md)."
     owner: "Ice"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
@@ -961,7 +959,7 @@ action_items:
       moi quan tam) trong mot story co chu; quyet co dung cong do kich thuoc tep ma
       AGENTS.md:19 ghi la chua co"
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
   - id: "epic-6-retro-item-68-ai-8-hoa-giai-quy-uoc-tieu-de-commit-sua"
     epic: 6
@@ -979,3 +977,86 @@ action_items:
     owner: "Ice"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
+  - id: "epic-11-retro-item-70-v-1-đưa-nightly-e2e-về-xanh-sửa-attribut"
+    epic: 11
+    action: "V-1 — Đưa nightly e2e về xanh: sửa attribution-focus.e2e.mjs:78-83 theo
+      hình dạng SourceAttributions {sources, skipped} mà 11-3 (4db199c) đổi; chẩn
+      đoán ensureFullLayoutTier chỉ đọc tầng narrow trên runner macos-26 (attribution-focus.e2e.mjs:64);
+      rồi 5 lượt workflow_dispatch trên cùng commit (Quyết định 3 của 11.2)"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-71-v-2-story-11-8-thêm-qua-correct-course-s"
+    epic: 11
+    action: "V-2 — Story 11.8 (thêm qua correct-course) sửa lỗi ranh giới trước Epic
+      7: rescanBusy kẹt khi loadLibraryOrphans vượt sequence (libraryRescan.ts, cao);
+      refreshChapterAssetsAfterRegroup dùng chung sequence; confirm_segment ghi origin
+      ngoài TRANSLATION_ORIGINS; append vào Tác phẩm đang mở thiếu AppendInProgressGuard;
+      editorPendingPromote; set_open_chapter khi gộp Chương; fixture assets; doc-comment
+      'không có MockRuntime' — mỗi guard có đối chứng đỏ"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-72-v-3-push-sau-mỗi-story-hoặc-một-lượt-wor"
+    epic: 11
+    action: "V-3 — Push sau mỗi story (hoặc một lượt workflow_dispatch trước review):
+      e2e không chạy lúc push nên story chưa lên origin thì chưa được đo"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-73-v-4-đo-bài-đọc-bắt-buộc-của-ba-agent-cài"
+    epic: 11
+    action: "V-4 — Đo bài đọc bắt buộc của ba agent cài đặt lớn nhất Epic 11 (966k
+      11-6 lô B, 781k 11-1 lô B, 744k 11-4) trước khi đổi khuôn pha"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-74-v-5-guard-canh-dây-thay-guard-canh-hàm-é"
+    epic: 11
+    action: "V-5 — Guard canh dây thay guard canh hàm: ép 18 *_boundary.rs qua boundary_scan;
+      ca vỏ #[tauri::command] promote_ai_translation qua MockRuntime; EXPLAIN QUERY
+      PLAN đọc SQL từ query.rs; ca ③ hanviet-segmenter-webkit phân biệt hai nhánh"
+    owner: "Murat"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-75-v-6-đối-soát-sổ-nợ-tại-chỗ-bằng-câu-đóng"
+    epic: 11
+    action: "V-6 — Đối soát sổ nợ tại chỗ bằng 🔵: câu đóng onCopy (DW:1054), một giao
+      dịch (L5401), chủ cuối che vế KHÔNG LÀM (L6781/L6551), nhãn Story thiếu (L9576,
+      DW:12162), 13 mục KHÔNG LÀM còn kèm Chủ: Ice; mở lại xét L7443 vì đã có MockRuntime"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-76-v-7-các-mục-ghi-cần-ad-mới-chốt-không-là"
+    epic: 11
+    action: "V-7 — Các mục ghi 'cần AD mới' chốt KHÔNG LÀM không qua Winston (11.5
+      L2236/L3599/L3682/L3693, 11.6 L7602, 11.4 L5418/L7077, 11.1 DW:569): xác nhận
+      không cần AD hoặc mở ad-brief; ad-brief cho họ NFC/NFD (11.3)"
+    owner: "Winston"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-77-v-8-lượt-dùng-thật-của-ice-cho-các-mục-c"
+    epic: 11
+    action: "V-8 — Lượt dùng thật của Ice cho các mục Chủ: Epic 11 (grep 'Chủ: Epic
+      11' deferred-work.md; 20 kiểm tay bản đóng gói macOS + 3 phép đo CI) trước khi
+      epic-11 lên done"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-78-v-9-ci-previous-verdict-mjs-đọc-cả-lượt"
+    epic: 11
+    action: "V-9 — ci-previous-verdict.mjs đọc cả lượt schedule gần nhất và in ra
+      khi đỏ; vẫn là cảnh báo không chặn (giữ phiếu #37)"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-79-v-10-ghi-các-phát-hiện-hoãn-của-retro-ep"
+    epic: 11
+    action: "V-10 — Ghi các phát hiện hoãn của retro Epic 11 vào deferred-work.md
+      có chủ: khoá OpenWorkState qua việc dài, unwrap_or(0) chapter_span_count, save_segment_targets
+      không lọc retired_at, nhánh chết settingsOverlayIsOpen, nhãn lỗi t() vs tError(),
+      ord ngoài dải libraryChapters, chú thích trỏ tệp đã xoá, matching_close_brace
+      ×2"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
