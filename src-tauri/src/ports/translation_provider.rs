@@ -52,13 +52,6 @@
 //! crate"). Không cần dyn TranslationProvider — cài đặt hôm nay đúng MỘT, nên phân phối
 //! TĨNH (generic/impl Trait) đủ dùng và tránh luôn câu hỏi "object safety" của async fn
 //! trong trait.
-//!
-//! ⚠️ `cargo check` phát `warning: async_fn_in_trait` (thiếu bound Send tự động) — biết và
-//! chấp nhận ở Phase 1: kho này không chạy clippy như một cổng (`check:lint` là eslint cho
-//! frontend, không phải Rust), nên cảnh báo không chặn build. Nếu Phase 2's wire shell cần
-//! `Send` tường minh trên Future trả về (vd. để spawn RIÊNG thay vì await NGAY trong khối
-//! async đã có sẵn của `#[tauri::command(async)]`), desugar sang `-> impl Future<Output = ...>
-//! + Send` là việc của Phase 2, khi có chỗ gọi thật để đo có cần hay không.
 
 /// Một lượt gọi dịch đã sẵn sàng gửi — đúng những trường cổng cần, không hơn.
 ///
@@ -165,6 +158,10 @@ pub trait TranslationProvider {
     /// SSE client and no automatic retry of any kind, at any layer"*) — một kết nối rớt hay một
     /// mã trạng thái non-2xx là một `Err`, không bao giờ một lượt gọi lại tự động; token đã
     /// nhận được ở lại trên màn hình, đó là việc của chỗ gọi (Phase 2/3), không phải của cổng.
+    #[expect(
+        async_fn_in_trait,
+        reason = "the future borrows a non-Send `on_token` and is always driven by `block_on` inside `spawn_blocking`"
+    )]
     async fn translate(
         &self,
         request: TranslateRequest<'_>,
