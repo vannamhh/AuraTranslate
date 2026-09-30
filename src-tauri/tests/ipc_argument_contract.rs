@@ -147,15 +147,21 @@ fn split_name_type(part: &str) -> (String, String) {
     panic!("tham so khong co dau `:` phan tach ten/kieu: {part:?}");
 }
 
+/// Hai dạng chữ ký một lệnh có thể mang: thường, và generic trên `tauri::Runtime` (vỏ `wire`
+/// chạy được trên `MockRuntime`).
+fn signature_markers(fn_name: &str) -> [String; 2] {
+    [format!("fn {fn_name}("), format!("fn {fn_name}<R: tauri::Runtime>(")]
+}
+
 /// Toàn bộ nội dung tham số (không kể ngoặc bao) của `fn {fn_name}(` bắt đầu ở
 /// `lines[start_idx]`, gộp thêm các dòng sau nếu chữ ký tràn nhiều dòng (khuôn
 /// `confirm_segment`, mỗi tham số một dòng).
 fn extract_param_list_text(lines: &[(usize, String)], start_idx: usize, fn_name: &str) -> String {
-    let marker = format!("fn {fn_name}(");
     let (_, first_line) = &lines[start_idx];
-    let pos = first_line
-        .find(&marker)
-        .unwrap_or_else(|| panic!("marker `{marker}` phai co trong dong da tim thay"));
+    let (pos, marker) = signature_markers(fn_name)
+        .into_iter()
+        .find_map(|m| first_line.find(&m).map(|at| (at, m)))
+        .unwrap_or_else(|| panic!("chu ky cua `{fn_name}` phai co trong dong da tim thay"));
     let after_open_paren = pos + marker.len();
     let mut buf = String::new();
     buf.push_str(&first_line[after_open_paren..]);
@@ -200,11 +206,11 @@ fn extract_param_list_text(lines: &[(usize, String)], start_idx: usize, fn_name:
 /// mình: no ~98 lệnh × kích cỡ cả cây nguồn, thay vì đúng một lượt.
 fn rust_required_params(files_lines: &[(String, Vec<(usize, String)>)], fn_name: &str) -> BTreeSet<String> {
     let mut matches: Vec<(String, BTreeSet<String>)> = Vec::new();
-    let marker = format!("fn {fn_name}(");
+    let markers = signature_markers(fn_name);
 
     for (rel, lines) in files_lines {
         for i in 0..lines.len() {
-            if !lines[i].1.contains(&marker) {
+            if !markers.iter().any(|m| lines[i].1.contains(m)) {
                 continue;
             }
             let window_start = i.saturating_sub(3);

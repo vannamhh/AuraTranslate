@@ -55,7 +55,7 @@ use auratranslate_lib::commands::aiprompt::{
 };
 use auratranslate_lib::commands::aitranslate::{
     AiTranslateBatchEventWire, AiTranslateBatchOutcome, PrepareBatchOutcome, PrepareOutcome,
-    PreparedBatchItem, PreparedTranslateCall, batch_stopped_error, prepare_batch_call,
+    PreparedBatchItem, PreparedTranslateCall, batch_panicked_error, batch_stopped_error, prepare_batch_call,
     prepare_translate_call, run_batch_call, run_translate_call,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
@@ -1590,6 +1590,68 @@ fn promoting_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
 
     drop(open);
     cleanup(&work_dir);
+}
+
+/// Một segment đã về hưu (tombstone) KHÔNG nhận bản dịch AI: trả `segment.retired` TRƯỚC mọi
+/// ghi, hàng tombstone giữ nguyên văn bản lẫn xuất xứ. Counter-check: gỡ nhánh `retired` khỏi
+/// `promote_ai_translation` ⇒ ca này đỏ vì `Ok` thay cho `Err(SegmentRetired)`.
+#[test]
+fn promoting_into_a_retired_segment_is_refused_and_leaves_the_tombstone_untouched() {
+    let work_dir = temp_dir("promote-retired");
+    let open = open_work(&work_dir, "PromoteRetired", "en", "A dragon roared.");
+    let segment_id = first_segment_id(&open);
+
+    open.store
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE segment SET retired_at = '2026-09-30T00:00:00.000Z' WHERE id = ?1",
+                [segment_id],
+            )
+        })
+        .expect("ve huu segment that bai");
+
+    let (text_before, origin_before) = read_text_and_origin(&open, segment_id);
+
+    for force in [false, true] {
+        let err = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", force)
+            .err()
+            .expect("promote vao segment da ve huu phai la Err");
+        assert_eq!(err.message_key(), MessageKey::SegmentRetired);
+        assert_eq!(err.code(), "segment.retired");
+        assert!(!err.retryable());
+    }
+
+    assert_eq!(
+        read_text_and_origin(&open, segment_id),
+        (text_before, origin_before),
+        "mot luot promote bi tu choi khong duoc ghi mot byte nao vao hang tombstone"
+    );
+
+    drop(open);
+    cleanup(&work_dir);
+}
+
+fn read_text_and_origin(open: &OpenWork, id: i64) -> (String, String) {
+    open.store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT target_text, translation_origin FROM segment WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+        })
+        .expect("doc hang segment that bai")
+}
+
+/// Panic/bị huỷ của tác vụ blocking là một sự cố NỘI BỘ: khoá riêng, không retryable, khác họ
+/// "provider không tới được". Ca này canh hàm dựng lỗi, không canh chỗ gọi trong `wire`.
+#[test]
+fn a_panicked_blocking_task_is_an_internal_failure_not_a_network_error() {
+    let err = batch_panicked_error();
+    assert_eq!(err.code(), "ai_translate.internal_failure");
+    assert_eq!(err.message_key(), MessageKey::AiTranslateInternalFailure);
+    assert_ne!(err.message_key(), MessageKey::AiTranslateProviderUnreachable);
+    assert!(!err.retryable());
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

@@ -1101,6 +1101,40 @@ describe('finding E4 — một lượt Lắp TRƯỢT vẫn phải báo lỗi d�
   })
 })
 
+describe('một lượt Lắp CŨ (đã bị reset rồi một lượt Lắp mới thay chỗ) không được ghi lỗi hay hạ cờ bận', () => {
+  it('🔴 Lắp A treo, reset, Lắp B khởi ⇒ A trả lỗi: assembleError vẫn null và assembleBusy vẫn true (B giữ cờ)', async () => {
+    const { state } = await freshOverlay()
+
+    type AssembleResult = { value: null; error: IpcError | null }
+    const resolvers: Array<(result: AssembleResult) => void> = []
+    assembleMock.mockImplementation(
+      () =>
+        new Promise<AssembleResult>((resolve) => {
+          resolvers.push(resolve)
+        }),
+    )
+
+    const first = state.assembleCurrentAiPrompt('Set', 1)
+    await flushPromises()
+    state.resetAiPromptInspector()
+    const second = state.assembleCurrentAiPrompt('Set', 2)
+    await flushPromises()
+    expect(resolvers).toHaveLength(2)
+    expect(state.aiPromptAssembleBusy.value).toBe(true)
+
+    const err: IpcError = { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false }
+    resolvers[0]({ value: null, error: err })
+    await first
+
+    expect(state.aiPromptAssembleError.value).toBeNull()
+    expect(state.aiPromptAssembleBusy.value).toBe(true)
+
+    resolvers[1]({ value: null, error: null })
+    await second
+    expect(state.aiPromptAssembleBusy.value).toBe(false)
+  })
+})
+
 // ═══════════════════════════════════════════════════════════════════════════════════
 // Loop 1 (2026-09-18) — finding B6: dòng tóm tắt của panel phải tự đánh dấu khi bản ghi
 // nó đọc là CŨ (I/O Matrix "Stale record"), không chỉ lớp phủ mới biết điều đó.

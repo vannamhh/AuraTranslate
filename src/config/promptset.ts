@@ -217,6 +217,7 @@ export async function promptSetDelete(tier: PromptSetTier, id: number): Promise<
 // ═════════════════════════════════════════════════════════════════════════════════
 
 const CMD_EXPORT = 'prompt_set_export'
+const CMD_EXPORT_MANY = 'prompt_set_export_many'
 const CMD_OPEN_IMPORT_PREVIEW = 'prompt_set_open_import_preview'
 const CMD_CONFIRM_IMPORT = 'prompt_set_confirm_import'
 const CMD_CANCEL_IMPORT = 'prompt_set_cancel_import'
@@ -249,6 +250,54 @@ export async function promptSetExport(tier: PromptSetTier, id: number): Promise<
       return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[promptset] không gọi được \`${CMD_EXPORT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: 'ipc_unavailable' }
+  }
+}
+
+export type PromptSetExportFile = {
+  tier: PromptSetTier
+  id: number
+  file_name: string | null
+  path: string | null
+  error: IpcError | null
+}
+
+export type PromptSetExportManyResult =
+  | { outcome: 'done'; files: PromptSetExportFile[] }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+function isExportFile(value: unknown): value is PromptSetExportFile {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  const tierOk = v.tier === 'global' || v.tier === 'work'
+  const idOk = typeof v.id === 'number' && Number.isInteger(v.id)
+  const nameOk = v.file_name === null || typeof v.file_name === 'string'
+  const pathOk = v.path === null || typeof v.path === 'string'
+  const errOk = v.error === null || isIpcError(v.error)
+  const exclusive = v.error === null ? typeof v.path === 'string' : v.path === null
+  return tierOk && idOk && nameOk && pathOk && errOk && exclusive
+}
+
+export async function promptSetExportMany(
+  sets: ReadonlyArray<{ tier: PromptSetTier; id: number }>,
+): Promise<PromptSetExportManyResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_EXPORT_MANY, { sets })
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!Array.isArray(wire) || !wire.every(isExportFile)) {
+      console.error(`[promptset] \`${CMD_EXPORT_MANY}\` tra ve mot danh sach khong hop le: ${JSON.stringify(wire)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: 'done', files: wire }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: 'error', error: err }
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_EXPORT_MANY}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[promptset] không gọi được \`${CMD_EXPORT_MANY}\` — chạy ngoài Tauri? ${String(err)}`)
     return { outcome: 'ipc_unavailable' }
   }
 }

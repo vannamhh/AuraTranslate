@@ -13,7 +13,7 @@
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
 use std::io::Read as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
@@ -54,6 +54,36 @@ pub fn read_import_file(path: &Path) -> Result<String, PromptSetError> {
     let text = String::from_utf8(bytes).map_err(|_| PromptSetError::ImportNotUtf8 { path: path_str })?;
 
     Ok(strip_bom(&text).to_owned())
+}
+
+pub fn export_file_name(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| if c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { '_' } else { c })
+        .collect();
+    let trimmed = cleaned.trim_end_matches(['.', ' ']).trim_start();
+    let stem = if trimmed.is_empty() { "prompt-set" } else { trimmed };
+    format!("{stem}.prompt.md")
+}
+
+pub fn unique_export_path(
+    dir: &Path,
+    file_name: &str,
+    taken: &mut std::collections::HashSet<String>,
+) -> PathBuf {
+    let stem = file_name.strip_suffix(".prompt.md").unwrap_or(file_name);
+    let mut n = 1u32;
+    loop {
+        let candidate =
+            if n == 1 { format!("{stem}.prompt.md") } else { format!("{stem}-{n}.prompt.md") };
+        let path = dir.join(&candidate);
+        let key = candidate.to_lowercase();
+        if !taken.contains(&key) && std::fs::symlink_metadata(&path).is_err() {
+            taken.insert(key);
+            return path;
+        }
+        n += 1;
+    }
 }
 
 /// Ghi `contents` NGUYÊN TỬ xuống `path` — tạm cạnh đích (hậu tố `pid`+`uuid` DUY NHẤT, cùng

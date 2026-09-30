@@ -2,8 +2,9 @@
 title: 'Story 11.7, lot B — the AI module: tier selector, multi-set export, a real command-shell harness, and runs that report what happened'
 type: 'chore'
 created: '2026-09-29'
-status: 'draft'
+status: 'done'
 route: 'dispatch'
+baseline_commit: '7dbcf2301e638bff521b25ef6256715999196b0b'
 review_loop_iteration: 0
 context:
   - '{project-root}/src-tauri/AGENTS.md'
@@ -50,22 +51,23 @@ Ice, 2026-09-29 (L11769 answers given before any code, as #99 required):
 
 ## Code Map
 
-- AI config: `src-tauri/src/commands/aiconfig.rs` (`store_for_tier` :44, `work_tier_available` :126/:184, `ai_config_save_key` :197 Global-only, `ai_config_save_field` :231); `src-tauri/src/core/aiconfig/mod.rs` (`validate_max_tokens` :161, `validate_field` :216); `src/aiConfigState.ts` (`workIsOpen` :86, `isAiConfigValueValid` :165, `saveAiConfigField` :246-262 tier at :253, `resetAiConfigSection` ~:349); `src/SettingsOverlay.vue` AI section (moved by lot A); tests `tests/frontend/aiConfigState.test.ts`, `settingsOverlayAiConfigKeyRender.test.ts`, `src-tauri/tests/aiconfig_contract.rs` (lock :60, one-shot :88-113, flaky case :762; probe `commands/aiconfig.rs:182`).
-- Prompt export: `src-tauri/src/commands/promptset.rs` (`default_export_file_name` :271, `prompt_set_export` :285, wire :679); `src-tauri/src/core/promptset/exchange_io.rs:62` `write_export_file` (atomic); `src/promptSetState.ts:275`; `src/glossaryExchangeGate.ts`; `src/PromptLibraryOverlay.vue:401-406`; mockup `prompt-library.html:226-238`.
+- AI config: `src-tauri/src/commands/aiconfig.rs` (`store_for_tier` :44, `work_tier_available` :126/:184, `ai_config_save_key` :197 Global-only, `ai_config_save_field` :231); `src-tauri/src/core/aiconfig/mod.rs` (`validate_max_tokens` :161, `validate_field` :216); `src/aiConfigState.ts` (`workIsOpen` :86 set at :230 from `work_tier_available`, exported `aiConfigWorkIsOpen` :110, `isAiConfigValueValid` :165, `saveAiConfigField` :245-263 derives tier implicitly at :253, `resetAiConfigSection` :341); `src/SettingsOverlay.vue` AI section still inline at :259-404 (helpers :145-197, override marker :288, reset-to-inherit :323) — the selector goes there, no extraction; no tier selector exists anywhere to copy (glossary settings are Global-only by design); tests `tests/frontend/aiConfigState.test.ts`, `settingsOverlayAiConfigKeyRender.test.ts`, `src-tauri/tests/aiconfig_contract.rs` (lock :60, one-shot :88-113, flaky case :762; probe `commands/aiconfig.rs:182`).
+- Global view of a field: `tier === 'work' ? (shadowed ?? '') : value` — `AiConfigFieldWire.shadowed` (`commands/aiconfig.rs:74-104`) is `Some` only when the Work overrides AND Global has a value, so a bare `shadowed` blanks every non-overridden field and a bare `value` shows the Work override as Global.
+- Prompt export: `src-tauri/src/commands/promptset.rs` (`default_export_file_name` :271, `prompt_set_export` :285, wire :679); `src-tauri/src/core/promptset/exchange_io.rs:62` `write_export_file` (atomic); `src/promptSetState.ts:275`; `src/glossaryExchangeGate.ts` (`glossaryExchangeBusy` :33, `setGlossaryExchangeBusy` :41); `src/PromptLibraryOverlay.vue` (`onExportSelected` :403-406, export form :645-659); mockup `prompt-library.html:226-238`.
 - Injector: `src-tauri/src/core/glossary/store.rs:828`, `core/glossary/mod.rs:310`; `src-tauri/tests/glossary_boundary.rs:121,390,415`; `glossary_contract.rs`.
-- Inspector: `src/aiPromptInspectorState.ts` (:150-200, guard :183, reset :247); `tests/frontend/aiPromptInspector.test.ts:832`; `src-tauri/src/commands/aiprompt.rs` (`mark_prompt_as_sent` :474, comment :503, `ai_prompt_read_record` :561).
-- Runs: `src-tauri/src/commands/aitranslate.rs` (`batch_panicked_error` :178, JoinError arm :664-668, `wire` :778, `ai_translate_segment` :797 Done :867-878, `ai_translate_batch` :895 `last_sent` :960-965, Panicked :1003); `commands/segment.rs` (`promote_ai_translation` :2140, `segment_retired` :2240, retired check pattern :775-797); `src-tauri/src/lib.rs` (handlers :954/:963, states :1207-1229, `Store` :1079); `src-tauri/Cargo.toml` (`tauri` :32, `[dev-dependencies]` :191); tauri source `~/.cargo/registry/src/*/tauri-2.11.5/src/test/mod.rs`.
+- Inspector: `src/aiPromptInspectorState.ts` (`stillLatestAssemble` :172, guard :183, reset :247); `tests/frontend/aiPromptInspector.test.ts` (E4 case :1068); `src-tauri/src/commands/aiprompt.rs` (`mark_prompt_as_sent` :474, comment :503, `ai_prompt_read_record` :561).
+- Runs: `src-tauri/src/commands/aitranslate.rs` (`batch_panicked_error` :178, JoinError arm :664-668, `wire` :778, `ai_translate_segment` :797 Done :867-878, `ai_translate_batch` :895 `last_sent` :960-965, Panicked :1003); `commands/segment.rs` (`promote_ai_translation` :2140, `segment_retired` :2240, retired check pattern :775-797); `src-tauri/src/lib.rs` (handlers :954/:963, states :1207-1253, `Store` :1079); `src-tauri/Cargo.toml` (`tauri` :32, `[dev-dependencies]` :191); tauri source `~/.cargo/registry/src/*/tauri-2.11.5/src/test/mod.rs` (`test = []` at its `Cargo.toml:123`); spine Stack row `tauri` at `ARCHITECTURE-SPINE.md:831`. No test target uses `MockRuntime` today.
 - Tests that text-scan wire signatures: `src-tauri/tests/ipc_contract.rs:2077-2160`, `config_invariants.rs:1469-1607` (census), `:992` (`blocking_wire_cases`); helpers to reuse `ai_translate_contract.rs:83-204`, SSE server :535, promote cases :1511-1585.
-- Webview runs: `src/main.ts:973-1092` (six handlers); pattern `src/editorClearSourceCuts.ts`; copies `tests/frontend/aiTranslate.test.ts:133-207`, `aiTranslateBatch.test.ts:167-260`.
+- Webview runs: `src/main.ts:973-1092` (six handlers); pattern `src/editorClearSourceCuts.ts`; copies `tests/frontend/aiTranslate.test.ts:134-208`, `aiTranslateBatch.test.ts:168-259` (both say they copy `main.ts` verbatim).
 - Census source: `spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md` (D2/D4 criteria).
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src-tauri/**`, spine Stack row -- Dispositions 2-4 Rust halves, L10836 screening, Decisions 9-15 Rust halves -- Rust phase.
-- [ ] `src/**`, `vi.json`, `tests/frontend/*` -- Dispositions 1, 4, 5 and Decisions 9-13, 15 webview halves -- Webview phase.
-- [ ] Disposition 6, a real-removal counter-check for every new guard; the full suite once (`Cargo.toml`, `lib.rs`) -- Tests phase.
-- [ ] `deferred-work.md` -- one `→` disposition for each of the 15 items -- Ledger phase.
+- [x] `src-tauri/**`, spine Stack row -- Dispositions 2-4 Rust halves, L10836 screening, Decisions 9-15 Rust halves -- Rust phase.
+- [x] `src/**`, `vi.json`, `tests/frontend/*` -- Dispositions 1, 4, 5 and Decisions 9-13, 15 webview halves -- Webview phase.
+- [x] Disposition 6, a real-removal counter-check for every new guard; the full suite once (`Cargo.toml`, `lib.rs`) -- Tests phase.
+- [x] `deferred-work.md` -- one `→` disposition for each of the 15 items -- Ledger phase.
 
 **Acceptance Criteria:**
 - Given lot B is done, when the 15 item lines are read, then each ends in one `→` disposition and `npm run check:debt-owner` is green.
@@ -79,9 +81,48 @@ Ice, 2026-09-29 (L11769 answers given before any code, as #99 required):
 
 ## Implementation Notes
 
+Phase working notes: [11-7-lo-b-phases-2026-09-30.md](11-7-lo-b-phases-2026-09-30.md).
+- Global view of a field is `tier === 'work' ? (shadowed ?? '') : value`; the chosen view tier is reset each time the AI section is activated (`settingsState.ts::loadAiConfig`), because `resetAiConfigSection` has no production caller.
+- The harness needs the wires generic over `R: tauri::Runtime`; `ipc_contract.rs` and `ipc_argument_contract.rs` text scans had to learn the generic signature (the latter was found only by the full suite).
+- L10836: 70 plain wires screened structurally, nine flipped to `(async)`; the editor-flush wires in `segment.rs`/`chapter.rs` stay plain until measured (ledger 🟡, `Chủ: Amelia`). The webview already serialises the flipped `open_work` and `tier2_block_*` calls with busy flags.
+- Panic arms are guarded only at the error constructor: no seam injects a panic into `spawn_blocking` (ledger, `Chủ: Amelia`).
+- The ~25-32 s per `ai_translate_wire` case is the first `reqwest` client build in the debug test profile; `webimport_contract` shows the same cost, so it predates this lot. Freshly built unsigned test binaries also stalled at exec on this Mac until `codesign -s -`.
+- `src/settingsState.ts` holds literal NUL bytes, so `git grep` treats it as binary and misses its calls (ledger, `Chủ: Amelia`).
+- The multi-set export UI is a checkbox list, not the mockup's two cards; a real-app pass is owned by `Epic 11`.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+Iteration 0 — blind-hunter (BH), edge-case-hunter (EC), verification-gap (VG).
+- BH1/EC1/EC12 export check-then-rename race — low, rejected: needs another process to create the exact name in the same instant; atomic no-clobber adds a new write path.
+- BH2/EC2/VG-o1 Windows reserved device names, long names — low, rejected: needs a set named `CON`-like; the per-file result reports the failure, nothing is silent.
+- BH3 duplicate `(tier,id)` in `sets` — false: the checkbox list keys by `tier:id`, only a direct `invoke` can send one.
+- BH4/EC3 stale `exportPicked` keys after a delete — medium, patch: count, `disabled` and payload must derive from rows that still exist.
+- BH5 export-many error shown twice (`PromptLibraryOverlay.vue:564` and `:716`, both `role="alert"`) and no `fieldset`/`legend` — low, patch; select-all/two-card layout already owned by the new `Chủ: Epic 11` real-app item.
+- BH6 `err.ai_translate.internal_failure` text says "thử lại sau" while `retryable: false` — low, patch (text only).
+- BH7/VG2/EC11 panic arms guarded only at the constructor — medium, defer: already a new ledger item (`Chủ: Amelia`) written in the Ledger phase.
+- BH8 `ai_prompt_read_record` still returns `None` to the webview — false: Decision 4 chose a log with no wire-shape change.
+- VG1 wire `ai_prompt_read_record` unreached by a test — low, rejected: both branches return `None`, so only a stderr capture could tell them apart; Decision 4 chose the pure-fn guard.
+- BH9a view tier never returns to the Work default — medium, patch: `resetAiConfigSection` has no production caller, so a Global choice sticks for the session against Disposition 1.
+- BH9b/EC4/VG-o2 tier switch discards unsaved drafts — low, rejected: keeping them would save typed text into the other tier.
+- BH9c no hint that a Global save leaves the Work value — false: `status_global_shadowed` says it.
+- BH10 `MAX_TOKENS_LIMIT` hand-copied — false: Decision 13's shared table row guards it (counter-checked).
+- BH11 new comments are long Vietnamese lines carrying measurements and history — low, patch.
+- BH12 rustfmt drift — false: `cargo fmt --check` reports 2984 pre-existing diffs; no gate or convention.
+- BH13 process claims (status, feature unification) — false: dev-dependency features do not unify into a normal build under resolver 3; `Cargo.lock` unchanged.
+- VG3 case-only collision untested — false: files are written one by one, so the disk check catches it on a case-insensitive volume and a case-sensitive one keeps two distinct files.
+- VG4 export-many wire shell (dialog, cancel) unexercised — defer: covered by the new `Chủ: Epic 11` real-app item.
+- VG-o3 `status_global_shadowed` branch not asserted — low, rejected.
+- EC5 `tier2_block_*` reorder after the `(async)` flip — false: `blockToggling`/`blockRangeConfirming` (`importPreviewState.ts:1209,1257`) serialise the calls.
+- EC6 overlapping `open_work` — false: `openWorkBusy` (`libraryChapters.ts:242`) serialises it.
+- EC7 empty `sets` opens a dialog — low, rejected: only a direct `invoke` can send it.
+- EC8 repeated `eprintln!` — low, rejected: only on a setup() misconfiguration.
+- EC9 SSE test server can block on accept — low, rejected.
+- EC10 shared table lacks edge-whitespace rows — defer: already a new ledger item (`Chủ: Amelia`).
+- EC13 twenty-run evidence on a codesigned binary — false: same code; signing only removes exec latency.
+- EC14 prompt-set name through the extracted handlers not asserted — low, rejected.
+- EC15 `ai_rag_contract.rs` comments still name the deleted function — low, rejected: history outside changed lines (no mass cleanup).
 
 ## Verification
 

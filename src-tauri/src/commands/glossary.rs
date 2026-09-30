@@ -1497,7 +1497,8 @@ pub mod wire {
 
     /// Vỏ IPC của [`super::glossary_cancel_import`] — huỷ lô đang treo, dùng cả cho nút Huỷ
     /// của màn hình xem trước.
-    #[tauri::command]
+    /// Async: locks `PendingImportState`, which `glossary_confirm_import` holds for its whole write.
+    #[tauri::command(async)]
     pub fn glossary_cancel_import(app: tauri::AppHandle) -> Result<(), IpcError> {
         use tauri::Manager as _;
 

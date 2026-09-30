@@ -33,11 +33,12 @@ import {
   promptSetCreate,
   promptSetDelete,
   promptSetExport,
+  promptSetExportMany,
   promptSetList,
   promptSetRename,
   promptSetUpdateBody,
 } from './config/promptset'
-import type { PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
+import type { PromptSetExportFile, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
 import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
@@ -59,6 +60,8 @@ const variableNames = ref<string[]>([])
  * Sửa thân/Xoá): một lỗi xuất không phải một lỗi soạn, và không nên xoá banner của form đang
  * mở. `null` khi chưa xuất lần nào, hoặc lượt gần nhất thành công/bị huỷ. */
 const exportError = ref<IpcError | null>(null)
+const exportManyError = ref<IpcError | null>(null)
+const exportFiles = ref<PromptSetExportFile[] | null>(null)
 
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `aiConfigState.ts`). */
 let sequence = 0
@@ -72,6 +75,8 @@ export const promptSetActionError: DeepReadonly<Ref<IpcError | null>> = readonly
 export const promptSetActionWarnings: DeepReadonly<Ref<PromptSetWarningsWire | null>> = readonly(actionWarnings)
 export const selectedPromptSetName: DeepReadonly<Ref<string | null>> = readonly(selectedSetName)
 export const promptSetVariables: DeepReadonly<Ref<string[]>> = readonly(variableNames)
+export const promptSetExportManyError: DeepReadonly<Ref<IpcError | null>> = readonly(exportManyError)
+export const promptSetExportFiles: DeepReadonly<Ref<PromptSetExportFile[] | null>> = readonly(exportFiles)
 export const promptSetExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
 /** Cờ dùng CHUNG với lượt Nhập (`promptSetImportState.ts`) và với Xuất/Nhập Glossary — cả
  * ba đều mở một hộp thoại hệ điều hành của Rust; xem doc-comment đã cập nhật của
@@ -92,6 +97,8 @@ export function clearPromptSetActionFeedback(): void {
   // định lỗi xuất của hàng TRƯỚC vẫn còn đúng — cùng khuyết tật Story 4.4's review đã vá hai
   // lần (Pass 1 hàng 2 và 3).
   exportError.value = null
+  exportManyError.value = null
+  exportFiles.value = null
 }
 
 /** Bộ khớp `id`, hoặc `null` nếu không có (chưa nạp, hoặc `id` không còn tồn tại). */
@@ -277,12 +284,26 @@ export async function exportPromptSet(tier: PromptSetTier, id: number): Promise<
 
   setGlossaryExchangeBusy(true)
   exportError.value = null
+  exportFiles.value = null
   const result = await promptSetExport(tier, id)
   setGlossaryExchangeBusy(false)
 
   if (result.outcome === 'error') {
     exportError.value = result.error
   }
+}
+
+export async function exportPromptSets(sets: ReadonlyArray<{ tier: PromptSetTier; id: number }>): Promise<void> {
+  if (glossaryExchangeBusy.value || sets.length === 0) return
+
+  setGlossaryExchangeBusy(true)
+  exportManyError.value = null
+  exportFiles.value = null
+  const result = await promptSetExportMany(sets)
+  setGlossaryExchangeBusy(false)
+
+  if (result.outcome === 'error') exportManyError.value = result.error
+  if (result.outcome === 'done') exportFiles.value = result.files
 }
 
 /**
@@ -301,4 +322,6 @@ export function resetPromptSets(): void {
   selectedSetName.value = null
   variableNames.value = []
   exportError.value = null
+  exportManyError.value = null
+  exportFiles.value = null
 }

@@ -828,7 +828,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | Name | Version | Giấy phép |
 |---|---|---|
 | Rust | edition 2024 | — |
-| `tauri` *(feature `protocol-asset`)* | 2.11.5 | Apache-2.0 OR MIT ✓ |
+| `tauri` *(feature `protocol-asset`; dev-dependency thêm feature `test`, rỗng, 0 crate mới)* | 2.11.5 | Apache-2.0 OR MIT ✓ |
 | `tauri-build` | 2.6.3 | Apache-2.0 OR MIT ✓ |
 | `serde` *(feature `derive`)* | 1.0.229 | MIT OR Apache-2.0 ✓ |
 | `serde_json` | 1.0.151 | MIT OR Apache-2.0 ✓ |

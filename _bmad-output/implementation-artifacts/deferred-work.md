@@ -7312,6 +7312,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Windows; vế thị giác — lượt `npm run tauri dev` kế tiếp của Ice.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: CI mới nhất (2026-09-23, run 35856147391) xanh cả hai nền tảng, nhưng không có phép đo riêng nào cho walk() trên hệ tệp Windows thật hay vế thị giác .status ngoài suy luận từ CI xanh chung; còn thiếu: Vế thị giác .status (giãn dòng 1,5 → 1,66, ba câu trạng thái) vẫn chưa ai nhìn bằng npm run tauri dev. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → 2026-09-30 (Story 11-7 lô B) — tách đôi, chưa chạm mã: vế Windows `walk()` thành mục riêng ở cuối sổ, **Chủ: B7**; vế thị giác `.status` (đổi giãn dòng sang `ui-md-wrap` đã nằm ở `PanelFrame.vue`) cần một lượt nhìn tay trên bản dựng thật, **Chủ: Epic 11**.
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **`code_lines()` chỉ bỏ chú thích DÒNG (`//`), không hiểu khối `/* … */`** — nên một
@@ -10866,6 +10867,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     ghi tên tám vỏ vào chính mục này trước khi quyết lật hay không.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: deferred-work.md:9923-9932 vẫn chưa liệt kê tám vỏ; không tìm thấy bảng tên tám vỏ ở bất kỳ tài liệu spec-ai-* nào khác trong kho. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → 🟡 2026-09-30 (Story 11-7 lô B) — sàng lại toàn bộ vỏ phẳng theo tiêu chí D4 của AI-4 (cấu trúc, chưa bấm giờ; census cũ ghi 69 phẳng, lượt đếm lại 70, sau lật census là 61 phẳng / 41 async). Danh sách tám vỏ gốc không khôi phục được, nên không thể nói tám vỏ đó là những vỏ nào. Đã lật sang `(async)`, mỗi vỏ một dòng `blocking_wire_cases()`: `ai_config_get`, `ai_config_save_key`, `ai_config_delete_key` (keychain hệ điều hành); `ai_prompt_assemble` (đọc trọn Chương + khớp Glossary từng segment); `open_work` (`Store::open`, sao lưu di trú, reader pool); `tier2_block_set_kept`, `tier2_block_confirm_range`, `preview_chapter_detail` (khoá `PendingImportSourceState`, cùng mutex với Quyết định 13 của 11.6); `glossary_cancel_import` (khoá `PendingImportState` mà `glossary_confirm_import` giữ suốt lượt ghi). Không lật, đã ghi lý do: các vỏ khoá `OpenWorkState` (lật không chữa nợ phạm vi khoá); `library_list_works`/`library_list_orphans` (đọc chỉ mục dựng sẵn, NFR4 thuộc Story 10.9); `cleanup_*` (5), `config` (3), `dict` (3), `pinned` (3), `promptset` phẳng (7), `glossary` phẳng (7 vỏ một hàng), `read_work_lifecycle`, `list_domain_log`, `set_chapter_origin_override`, `ai_prompt_read_record`, các vỏ `*_cancel*` và hai vỏ ở `lib.rs` — mỗi vỏ một hàng, một `Mutex` hoặc một nguyên tử. Còn hở: 15 vỏ phẳng của `segment.rs` và 4 của `chapter.rs` nằm trên đường xả trình soạn thảo (AD-35), `(async)` bỏ thứ tự trên luồng chính nên cần một phép đo trước khi lật. **Chủ: Amelia.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien.md`
   summary: Câu SAI *"`(async)` … cho `sync_threadpool`"* vẫn sống trong mã nguồn sản phẩm.
@@ -11505,6 +11507,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `OpenWorkState` là `None`" để nó đỏ ngay ngày mệnh đề đó hết đúng. Ghi chú: hôm nay
     mệnh đề (b) ĐANG SAI, nên (b) đòi thêm một lệnh đóng Tác phẩm trước.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — hai vế: tầng ghi đọc `OpenWorkState` qua `work_tier_available` (commit `93fe113dc2fc0b71012388d7f043c2527b66a5c5`, tự đóng từ trước), và phần hệ quả còn lại (Global không sửa được khi đã mở Work) do bộ chọn tầng của mục "Không có lệnh ĐÓNG Tác phẩm" (#98) gánh; `saveAiConfigField` chốt tầng lúc gọi từ `effectiveTier()`, không đọc `currentMode`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **Luật hợp lệ của cấu hình AI tồn tại hai bản chép tay (Rust và TypeScript) mà
@@ -11525,6 +11528,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Ice — quyết có dựng bảng ca dùng chung cho `aiconfig` ngay, hay đợi tới story đầu
     tiên thêm trường thứ sáu vào cấu hình AI, lúc chi phí lệch nhau hiện rõ hơn.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — phương án (a) của Ice: một bảng luật JSON dùng chung `tests/frontend/support/ai-config-validity.json` (52 dòng, tên trường theo dây) được `aiconfig_contract.rs` và `aiConfigState.test.ts` cùng đọc; mốc `max_tokens` của TS sửa thành `<= 4294967295` cùng lượt. Đối chứng gỡ thật: đổi `parse::<u32>` thành `u64` ở `validate_max_tokens` làm dòng `4294967296` đỏ phía Rust; gỡ mệnh đề `n <= MAX_TOKENS_LIMIT` làm đỏ phía TS. Bảng chưa có dòng nào cho ký tự trắng biên (U+FEFF, U+0085) — xem mục cuối sổ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **Khuôn "đọc từ authority" mà mục nợ `settingsState.ts` để ngỏ thì kho ĐÃ CÓ và đã
@@ -11543,6 +11547,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     không phải đi tìm lại.
     **(Chủ: Ice — cùng quyết định với mục nợ `settingsState.ts` ở trên.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — khuôn "đọc từ authority" là chính commit `93fe113dc2fc0b71012388d7f043c2527b66a5c5` (`aiconfig.rs` và `promptset.rs` đều trả `work_tier_available`); thông tin thuần, không có mã cần đổi.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: 🔴 **Không có lệnh ĐÓNG Tác phẩm — và sau bản vá "đọc tầng từ authority", hệ quả
@@ -11572,6 +11577,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     chọn tầng tường minh trên màn Cài đặt (hẹp hơn, nhưng mockup `settings.html` không vẽ nó và
     nó thành bề mặt UI mới).)**
   → 2026-09-24 (phiếu quyết #98) — Ice chọn bộ chọn tầng Global/Tác phẩm tường minh ở Cài đặt AI thay vì thêm lệnh đóng Tác phẩm. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — bộ chọn Toàn cục / Tác phẩm (`.ai-tier` trong `SettingsOverlay.vue`, trạng thái ở `aiConfigState.ts::aiConfigViewTier`): mặc định Work khi có Work mở, ô Work `disabled` khi không có; khung Global hiện `shadowed`, khung Work hiện `value`; lưu chốt tầng lúc gọi từ `workIsOpen`; form khoá API vẫn chỉ Global. Đối chứng gỡ thật (trả `saveAiConfigField` về `workIsOpen ? 'work' : 'global'`, trả `wire.value` cho Global, bỏ `:disabled`) đỏ đúng lý do ở `aiConfigState.test.ts` và `settingsOverlayAiConfigTierRender.test.ts`. Phần chưa đo, ở mục cuối sổ: bộ chọn chưa được nhìn trong Cài đặt thật.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Cổng `aiconfig_keychain_boundary.rs` quét CHUỖI, nên một lượt `use` đổi tên
@@ -11807,6 +11813,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     trên trước khi một story sau viết mã. Không chặn Story 4.5: một bộ mỗi lượt đã đóng trọn
     AC của story này.)**
   → 2026-09-24 (phiếu quyết #99) — Ice chọn xây xuất nhiều bộ prompt một lượt như mockup; 11.7 trả lời bốn câu của mục (chọn thư mục, trùng tên, lỗi giữa chừng) trước khi viết mã. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — bốn câu Ice đã trả trước khi viết mã: một hộp thoại `pick_folder` (chốt `glossaryExchangeGate` dùng nguyên); trùng tên thì tự đổi `-2`/`-3`, không ghi đè, kể cả hai bộ cùng tên khác tầng; tên tệp là tên bộ với ký tự không an toàn thay bằng `_` (xuất một bộ dùng cùng phép suy); lỗi giữa chừng giữ tệp đã ghi và trả danh sách kết quả từng tệp. Lệnh `prompt_set_export_many` + `PromptLibraryOverlay.vue` (`.pl-export-many`, `.pl-export-files`). Đối chứng gỡ thật: bỏ xử lý trùng của `unique_export_path`, bỏ `setGlossaryExchangeBusy(true)`, gọi một lần mỗi bộ — đều đỏ đúng lý do. Chưa đo: giao diện là danh sách ô chọn, không phải hai thẻ như mockup, và chưa ai lái hộp thoại thư mục thật — xem mục cuối sổ.
 
 ## Deferred from: 4-6-smart-rag-injector-la-mot-ham-thuan (2026-09-17)
 
@@ -11832,6 +11839,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     Ice, không phải một lượt dọn dẹp tiện tay trong story này — spec 4.6 cấm mọi thay đổi
     ngoài Code Map của nó.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — phương án xoá (Ice): `entries_eligible_for_injection` gỡ khỏi `store.rs` và `mod.rs`; `glossary_contract.rs` trỏ lại `confirmed_terms_for_injection`; cổng của `glossary_boundary.rs` đổi tên `no_raw_glossary_surface_function_may_be_called_from_outside_glossary` (danh sách bề mặt đã có `load_tier`). Đối chứng gỡ thật: thêm một lời gọi `load_tier` từ `core/ai/mod.rs` làm cổng đỏ với danh sách vi phạm. `ai_rag_contract.rs` còn nhắc tên hàm cũ trong chú thích như lịch sử, chưa dọn (không dọn hàng loạt chú thích).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **Phép tái cấu trúc dùng chung làm đường LƯỚI clone mọi mục đã phân giải ở mỗi lần
@@ -12016,6 +12024,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     vá tiện tay; nếu chưa đổi, ít nhất ghi một `eprintln!` cùng khuôn `wire::ai_prompt_assemble`
     đã có để lỗi cấu hình không hoàn toàn câm lặng trên log.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` (khớp yếu). **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — hai nửa: ca mới trong `aiPromptInspector.test.ts` đi vào nhánh `stillLatestAssemble === false` (Lắp A, reset, Lắp B, A báo lỗi: không ghi lỗi, `assembleBusy` giữ nguyên), đối chứng gỡ thật (ghi lỗi vô điều kiện) làm ca đỏ; `ai_prompt_read_record` nay ghi nhật ký trước khi trả `None` cho trạng thái chưa quản lý, qua hàm thuần `read_record_or_report_unmanaged` có ca ở `ai_prompt_contract.rs`, không đổi hình dạng dây.
 
 ## Deferred from: bmad-build review — spec 4-7 (2026-09-18)
 
@@ -12197,6 +12206,7 @@ chính nó.
     4.7. Đây là giới hạn CÓ SẴN của khuôn test, Story 4.8 chỉ nối dài thêm.
     **(Chủ: Ice — quyết định có dựng khuôn test cho tầng vỏ hay không là một quyết định hạ tầng.)**
   → 2026-09-24 (phiếu quyết #75) — Ice chọn dựng khuôn test vỏ #[tauri::command] với AppHandle, state và Channel thật (MockRuntime); ca đầu tiên canh lời gọi mark_prompt_as_sent ở nhánh Done. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — khuôn MockRuntime: `tauri` dev-dependency thêm feature `test` (cùng ghim `=2.11.5`, `Cargo.lock` không đổi, hàng Stack của spine ghi chú), `wire::ai_translate_segment` chung theo `R: tauri::Runtime`, đích mới `ai_translate_wire.rs` (app giả + máy chủ SSE cục bộ + keychain giả). Ca đơn khẳng định `sent_at`/`sent_model` được đóng dấu ở nhánh `Done`; gỡ thật khối `mark_prompt_as_sent` làm `record.sent_at.is_some()` đỏ. Mỗi ca chạy riêng ~25-32 s vì lần dựng `reqwest` client đầu (bản dựng test không tối ưu, máy này); `webimport_contract` đo 28-29 s ở ca client cũ nên không phải riêng khuôn mới, bản release chưa đo.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **Một `HeaderValue::from_str` hỏng (khoá API chứa ký tự không hợp lệ trong header) bị
@@ -12251,6 +12261,7 @@ chính nó.
     khuôn test cho tầng vỏ hay không là một quyết định hạ tầng". Hai chủ khác nhau cho cùng một
     bàn đo thiếu là chỗ lệch, không phải hai việc. **Chủ mới: Ice.**
   → 2026-09-24 (phiếu quyết #75) — Ice chọn dựng khuôn test vỏ #[tauri::command] với AppHandle, state và Channel thật (MockRuntime); ca đầu tiên canh lời gọi mark_prompt_as_sent ở nhánh Done. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — cùng khuôn với mục nhánh `Done` ở trên: ca lô đóng dấu `sent_at` chỉ ở câu `ToTranslate` cuối (đuôi bị bỏ qua không thành `last_sent`); gỡ thật cả khối `if let Some(..) = last_sent` làm `sent_at.is_some()` đỏ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
   summary: Danh sách hàng của lô ở Panel AI Translation không cắt cửa sổ và chưa được đo ở đúng cỡ N mà Quyết định 1 cố ý không đặt trần. **(Chủ: Story 4.12 — bố cục màn hình hẹp, nơi đã có lịch đo trên máy thật.)**
@@ -12311,6 +12322,7 @@ chính nó.
     nhánh không-tới-được-trong-release có đáng một khoá riêng hay không là một quyết định về
     ngưỡng, không phải một dòng mã.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lựa chọn kỹ thuật, Task 0 của story trình phương án kèm số đo cho Ice. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — phương án A của Ice: khoá mới `err.ai_translate.internal_failure` (mã `ai_translate.internal_failure`, không thử lại) cho cả panic của lô (`batch_panicked_error`, nay `pub`) lẫn nhánh `JoinError` của lượt đơn; có trong `core/i18n/mod.rs` và `vi.json`. Ca `a_panicked_blocking_task_is_an_internal_failure_not_a_network_error` đỏ khi trả `RequestFailed`. Ca đó chỉ canh hàm, không canh chỗ gọi — phần hở ở mục cuối sổ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-11-so-token-va-uoc-tinh-chi-phi.md`
   summary: **Con số CỘNG DỒN cả phiên làm việc (mọi lượt dịch, mọi segment, từ lúc mở ứng dụng)
@@ -12395,6 +12407,7 @@ chính nó.
     this story, but it is the kind of red that returns on CI at the least convenient moment.
     **(Chủ: Ice — cần quyết định ai sửa hàng rào one-shot này; nó sẽ đỏ lại.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — mười ca của `aiconfig_contract.rs` chạm `ai_config_get` mà không giữ khoá nay đều giữ `KEYCHAIN_KEY_TEST_LOCK`; câu sai ở đầu khoá viết lại. Đo: 20 lượt liên tiếp cùng nhị phân ở song song mặc định, 0 lỗi (nhị phân đã `codesign`, xem ghi chú tay bàn giao pha 3).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong.md`
   summary: **`full → short` (the `applyMerge` branch of `WorkspaceDock.vue::applyTier`) emits ONE
@@ -12507,6 +12520,7 @@ chính nó.
 ## Deferred from: 11-1-lo-a-check-commands (2026-09-24)
 
 - 📝 **`main.ts::boot()` có thêm hai bản sao dep chưa canh, cùng lớp `clearSourceCuts` vừa đóng.** `tests/frontend/aiTranslate.test.ts:133-178` chép NGUYÊN VĂN cách `main.ts` nối `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate`; `tests/frontend/aiTranslateBatch.test.ts:167-229` chép cổng loại-trừ-lẫn-nhau của `runAiTranslateBatch`/`cancelAiTranslate`. `main.ts` không nạp được trong vitest nên cả hai tệp tự chép thân dep xuống bàn test, và không cổng nào canh cho bản chép khớp bản thật — đúng khoảng hở mà Story 11.1 lot A vừa đóng cho `clearSourceCuts` bằng cách tách nó ra một tệp import chung (`src/editorClearSourceCuts.ts`). **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — sáu handler AI rời `main.ts::boot()` sang `src/aiTranslateHandlers.ts`; `main.ts` chỉ trải `...aiTranslateHandlers`; `aiTranslate.test.ts` và `aiTranslateBatch.test.ts` cài chính mô-đun đó thay vì chép, thêm `aiTranslateHandlersWiring.test.ts` canh chỗ trải. Đối chứng gỡ thật: bỏ dòng trải làm ca nối đỏ, bỏ cổng loại-trừ lô-với-đơn trong `runAiTranslate` làm ca lô đỏ.
 
 ## Deferred from: 11-1-lo-c-webview-gates (2026-09-25)
 
@@ -12570,6 +12584,7 @@ chính nó.
 ## Deferred from: code review of spec-11-5-editor-segment-and-write-layer-debt (2026-09-28)
 
 - **`promote_ai_translation` ghi vào một hàng đã về hưu** (`commands/segment.rs`) — `UPDATE … WHERE id = ?` không kiểm `retired_at`, khác `restore_segment_version`. Tới được thật: `main.ts` promote theo `aiTranslateRunSegmentId`, là câu AI đã chạy, có thể đã bị gộp/tách sau đó; Rust ghi đè hàng mộ bia, còn `replaceEditorSegment` không tìm thấy id nên màn hình không đổi gì. Có từ trước Story 11.5. Chủ: Story 11.7.
+  → ✅ ĐÃ ĐÓNG 2026-09-30 (Story 11-7 lô B) — `promote_ai_translation` đọc `retired_at` cùng hàng và trả `segment_retired` trước mọi lệnh ghi (thứ tự của `restore_segment_version`); ca `promoting_into_a_retired_segment_is_refused_and_leaves_the_tombstone_untouched`, gỡ thật nhánh `retired` làm ca đỏ vì lượt ghi lọt qua.
 - **`open_work` quét toàn bảng `segment` mỗi lần mở để từ chối `translation_origin` lạ** (`commands/project/mod.rs::reject_unknown_translation_origin`) — chưa đo chi phí trên Tác phẩm thật lớn nhất. Chưa kiểm chứng (maybe-false, medium nếu đúng): đo thời gian `open_work` bản release trên Tác phẩm lớn nhất. Chủ: Epic 11.
 - **E2e L140 không phân biệt được ba dòng `enterFocus('panel.grid')`** (`e2e/specs/library-mode-switch-focus.e2e.mjs`) — gỡ cả ba mà ba ca vẫn xanh, vì watcher đặt caret (Story 5.7) đã đưa tiêu điểm vào lưới với mọi Chương có segment. Hành vi đã đo; bản vá thì chưa có guard. Cần một fixture Chương rỗng hoặc id trùng giữa hai Tác phẩm, thứ `openWorkspaceWithWork()` chưa dựng được. Chủ: Murat.
 
@@ -12592,3 +12607,22 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-a-shared-ui-foundation.md`
   summary: Kích cỡ nhóm dock nhớ bằng pixel tuyệt đối lúc ẩn; nếu cửa sổ đổi cỡ trong lúc panel ẩn/gộp, `reapplySize` áp một cỡ cũ (chưa kiểm — dockview có thể kẹp lại).
   evidence: `WorkspaceDock.vue::groupSizeOf`/`reapplySize`; D2/D3 dùng cỡ giả và cửa sổ cố định nên không đo được. Kiểm cùng lượt tay của mục "kích cỡ nhóm dock sau một vòng hẹp rồi rộng": thu hẹp, nới ra một cỡ rộng KHÁC cỡ ban đầu, xem nhóm có tràn/đói không. Chủ: Epic 11.
+
+## Deferred from: Story 11-7 lô B (2026-09-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-b-ai-module.md`
+  summary: Nhánh `Err(BatchCallError::Panicked) => Err(batch_panicked_error())` của `wire::ai_translate_batch` và nhánh `JoinError` của lượt đơn chưa có ca nào chạy qua: chỉ hàm dựng lỗi được canh.
+  evidence: khuôn `ai_translate_wire.rs` không tiêm được panic vào tác vụ chặn (nhà cung cấp cố định là `OpenAiChatClient`); gỡ hai lời gọi này thì bộ test vẫn xanh. Cần một điểm tiêm panic cho ca đơn lẫn ca lô. Chủ: Amelia.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-b-ai-module.md`
+  summary: Nghiệm thu tay trước khi Epic 11 đóng — bộ chọn tầng AI và xuất nhiều bộ prompt trên bản dựng thật (Story 11-7 lô B).
+  evidence: chọn Toàn cục khi Work đang mở rồi lưu một trường, Work giữ nguyên; hộp thoại thư mục thật cho `prompt_set_export_many` với thư mục đã có `Tiên hiệp.prompt.md`; khối xuất nhiều bộ là danh sách ô chọn dưới các nhóm, không phải hai thẻ như `prompt-library.html`, Ice xem có chấp nhận không. Chủ: Epic 11.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-b-ai-module.md`
+  summary: Bảng luật dùng chung `ai-config-validity.json` chưa có dòng nào cho ký tự trắng biên (U+FEFF là khoảng trắng của JS, U+0085 của Rust) nên hai bên có thể còn lệch ở `endpoint` và `trim`.
+  evidence: đọc `str::trim` của Rust và `trim()` của JS ở mục luật hợp lệ đã đóng; chưa chạy phép đo nào cho hai ký tự này. Chủ: Amelia.
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: Vế Windows của hai rủi ro mở Story 4.1 — `walk()` của `ai_boundary.rs` chưa từng chạy trên hệ tệp Windows thật, chỉ job `windows-2025` của CI chạm tới.
+  evidence: tách khỏi mục "Hai rủi ro mở của Story 4.1" ở Story 11-7 lô B; không có mã cần đổi, cần đọc lượt CI Windows và ghi vào bảng nghiệm thu Windows. Chủ: B7.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-b-ai-module.md`
+  summary: `src/settingsState.ts` dòng ~93 ghép khoá bằng ba byte NUL THẬT trong template literal (không phải `\u0000`), nên git coi tệp là nhị phân: `git grep`/`git diff` im lặng bỏ qua nó (diff lô A chỉ ghi "Bin 19084 -> 14097").
+  evidence: lượt review lô B tưởng `loadAiConfigSection` không có chỗ gọi vì `git grep` không thấy lời gọi ở `settingsState.ts:211`; `python3` đếm được 3 byte `\x00`. Sửa: thay bằng `\u0000`. Chủ: Amelia.

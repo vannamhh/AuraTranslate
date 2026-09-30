@@ -447,6 +447,17 @@ pub fn read_last_assembled_prompt(record: &LastAssembledPromptState) -> Option<A
     guard.clone().map(AssembledPromptWire::from)
 }
 
+pub fn read_record_or_report_unmanaged(
+    record: Option<&LastAssembledPromptState>,
+    report: impl FnOnce(&str),
+) -> Option<AssembledPromptWire> {
+    let Some(record) = record else {
+        report("ai_prompt[read_record] LastAssembledPromptState chua duoc quan ly -- loi cau hinh setup()");
+        return None;
+    };
+    read_last_assembled_prompt(record)
+}
+
 /// Rộng bản ghi DUY NHẤT với sự thật đã GỬI — Story 4.8, Phase 2 (`deferred-work.md:10666`).
 /// **Hàm thuần, đây là thứ test gọi.** Gọi bởi `commands::aitranslate` SAU khi một lượt gửi
 /// thật đã trả về `TranslateOutcome::Done` — KHÔNG BAO GIỜ gọi từ [`assemble_and_record_prompt`]
@@ -500,8 +511,7 @@ pub fn mark_prompt_as_sent(
 /// `lib.rs::close_open_work` GỌI XUỐNG chứ không viết tay tại chỗ, và cả hai đều có ca đơn vị
 /// trực tiếp (`glossary_import_dialog_contract.rs`) — hàm này giờ theo đúng khuôn đó, để
 /// [`the_record_is_cleared_when_the_open_work_closes`] (`ai_prompt_contract.rs`) canh được
-/// nó mà không cần một hạ tầng test Tauri (`tauri::test`/`MockRuntime`) mà kho này chưa có
-/// (xem `ipc_contract.rs:907`/`project_contract.rs:1075`).
+/// nó mà không cần dựng ứng dụng.
 pub fn clear_last_assembled_prompt_on_work_close(record: &LastAssembledPromptState) {
     let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
@@ -515,7 +525,8 @@ pub mod wire {
     use crate::core::store::Store;
 
     /// `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho.
-    #[tauri::command]
+    /// Async: reads the whole open chapter and matches the Glossary per segment.
+    #[tauri::command(async)]
     pub fn ai_prompt_assemble(
         app: tauri::AppHandle,
         prompt_set_name: Option<String>,
@@ -561,7 +572,7 @@ pub mod wire {
     pub fn ai_prompt_read_record(app: tauri::AppHandle) -> Option<AssembledPromptWire> {
         use tauri::Manager as _;
 
-        let record_state = app.try_state::<LastAssembledPromptState>()?;
-        super::read_last_assembled_prompt(record_state.inner())
+        let record_state = app.try_state::<LastAssembledPromptState>();
+        super::read_record_or_report_unmanaged(record_state.as_deref(), |msg| eprintln!("{msg}"))
     }
 }

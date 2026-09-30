@@ -13,6 +13,10 @@ import {
   AI_CONFIG_FIELDS,
   aiConfigDraft,
   aiConfigFieldWire,
+  aiConfigViewTier,
+  aiConfigWorkIsOpen,
+  aiConfigValueAtViewTier,
+  selectAiConfigViewTier,
   aiConfigIsSaving,
   aiConfigKeyBusy,
   aiConfigKeyConfigured,
@@ -160,6 +164,12 @@ function aiConfigFieldInvalidKey(field: AiConfigField): string {
  */
 function aiConfigStatusKey(field: AiConfigField): string {
   const wire = aiConfigFieldWire(field)
+  if (aiConfigViewTier.value === 'global') {
+    if (aiConfigValueAtViewTier(field) === '') return 'settings.ai_config.status_unset'
+    return wire?.tier === 'work'
+      ? 'settings.ai_config.status_global_shadowed'
+      : 'settings.ai_config.status_global'
+  }
   if (wire === null || wire.value === '') return 'settings.ai_config.status_unset'
   if (wire.tier === 'work') {
     return wire.shadowed === null
@@ -172,7 +182,11 @@ function aiConfigStatusKey(field: AiConfigField): string {
 /** `true` cho cả hai trạng thái GHI ĐÈ — dùng để tô `.mark-over` thay vì lặp lại điều kiện
  * `tier === 'work'` ở hai chỗ (nhãn CHỮ và màu là hai lớp, UX-DR42/DR27). */
 function aiConfigIsOverridden(field: AiConfigField): boolean {
-  return aiConfigFieldWire(field)?.tier === 'work'
+  return aiConfigViewTier.value === 'work' && aiConfigFieldWire(field)?.tier === 'work'
+}
+
+function onSelectAiConfigTier(tier: 'global' | 'work'): void {
+  selectAiConfigViewTier(tier)
 }
 
 function onAiConfigInput(field: AiConfigField, event: Event): void {
@@ -269,6 +283,30 @@ function onDeleteAiConfigKey(): void {
               {{ t('settings.ai_config.loading') }}
             </p>
             <template v-else>
+              <fieldset class="ai-tier" role="radiogroup" :aria-label="t('settings.ai_config.tier_label')">
+                <legend class="ai-field-label">{{ t('settings.ai_config.tier_label') }}</legend>
+                <label class="ai-tier-option">
+                  <input
+                    type="radio"
+                    name="ai-config-tier"
+                    :checked="aiConfigViewTier === 'global'"
+                    @change="onSelectAiConfigTier('global')"
+                  />
+                  {{ t('settings.ai_config.tier_global') }}
+                </label>
+                <label class="ai-tier-option">
+                  <input
+                    type="radio"
+                    name="ai-config-tier"
+                    :disabled="!aiConfigWorkIsOpen"
+                    :checked="aiConfigViewTier === 'work'"
+                    @change="onSelectAiConfigTier('work')"
+                  />
+                  {{ t('settings.ai_config.tier_work') }}
+                </label>
+              </fieldset>
+              <p v-if="!aiConfigWorkIsOpen" class="ai-field-status">{{ t('settings.ai_config.tier_work_unavailable') }}</p>
+
               <div v-for="field in AI_CONFIG_FIELDS" :key="field" class="ai-field">
                 <!-- Nút Lưu là `type="submit"` của FORM NÀY — form đi qua ĐÚNG MỘT handler,
                      cùng khuôn `SettingsGlossarySection.vue`. -->
@@ -320,7 +358,7 @@ function onDeleteAiConfigKey(): void {
                 <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — `<form>` không lồng nhau được trong HTML.
                      Chỉ hiện khi trường ĐANG ghi đè ở tầng Tác phẩm. -->
                 <form
-                  v-if="aiConfigFieldWire(field)?.tier === 'work'"
+                  v-if="aiConfigViewTier === 'work' && aiConfigFieldWire(field)?.tier === 'work'"
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride(field)"
                 >
@@ -660,6 +698,25 @@ function onDeleteAiConfigKey(): void {
 
 .ai-field:first-child {
   padding-top: 0;
+}
+
+.ai-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  padding: 0;
+  border: none;
+}
+
+.ai-tier-option {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
 }
 
 .ai-field-form {

@@ -165,8 +165,8 @@ function pendingSegmentRun(): { token: OnToken; settle: (result: RunResult) => v
  * Cùng khuôn `aiTranslate.test.ts::freshPanel()`: `vi.resetModules()` rồi `import` lại mọi
  * thứ, để mỗi ca có một `aiTranslateBatchState.ts`/`segmentSelectionState.ts` NGUYÊN VẸN.
  *
- * `commands.installCommands({...})` chép NGUYÊN VĂN cách `main.ts::boot()` nối các dep của Story
- * 4.9 — xem `main.ts` dòng đăng ký `runAiTranslateBatch`/`cancelAiTranslate` (cổng loại-trừ-lẫn-nhau).
+ * Sáu handler AI được nối vào `commands.installCommands` từ CHÍNH module `main.ts` dùng
+ * (`src/aiTranslateHandlers.ts`), không một bản chép.
  */
 async function freshPanel() {
   vi.resetModules()
@@ -187,73 +187,8 @@ async function freshPanel() {
   selectionState.resetSegmentSelection()
   await editorState.ensureSegmentsLoaded()
 
-  commands.installCommands({
-    runAiTranslate: () => {
-      if (batchState.aiTranslateBatchStateValue.value === 'generating') return
-      void state.runAiTranslate(null, editorState.editorCaretSegmentId.value)
-    },
-    // Cổng ở ĐÂY, không ở hai module state — cùng lý lẽ `main.ts`: mỗi hàm `cancel*` tự gác
-    // ĐÚNG module của nó, nên gọi CẢ HAI vô hại.
-    cancelAiTranslate: () => {
-      state.cancelAiTranslate()
-      batchState.cancelAiTranslateBatch()
-    },
-    // Chép NGUYÊN VĂN `main.ts`'s handler thật của `ai.translate.promote` (Decision 2/3 spec
-    // 4.9 — thử NHÁNH ĐƠN trước, trượt thì thử NHÁNH LÔ đọc kết quả của câu đang có TIÊU
-    // ĐIỂM). `aiTranslate.test.ts` chỉ canh nhánh ĐƠN (không một tham chiếu LÔ nào trong tệp
-    // đó) — nhánh LÔ chỉ có ca ở ĐÂY.
-    promoteAiTranslate: () => {
-      const s = state.aiTranslateStateValue.value
-      const segmentId = state.aiTranslateRunSegmentId.value
-      const text = state.aiTranslateAccumulatedText.value
-      if ((s === 'done' || s === 'cancelled') && segmentId !== null && text !== '') {
-        void editorState.promoteAiTranslationToEditor(segmentId, text)
-        return
-      }
-
-      const caretId = editorState.editorCaretSegmentId.value
-      const batchText =
-        caretId === null ? null : batchState.aiTranslateBatchTextForSegment(batchState.aiTranslateBatchRows.value, caretId)
-      if (batchText !== null && caretId !== null) {
-        void editorState.promoteAiTranslationToEditor(caretId, batchText)
-        return
-      }
-
-      console.warn(
-        `[test] khong dua sang Editor: chua co ket qua hop le (state=${s}, segmentId=${String(segmentId)}, caretId=${String(caretId)})`,
-      )
-    },
-    runAiTranslateBatch: () => {
-      if (state.aiTranslateStateValue.value === 'generating') return
-      void batchState.runAiTranslateBatch(null, selectionState.segmentSelectionIds.value)
-    },
-    // Story 4.10, Phase 3 — chép NGUYÊN VĂN hai lớp gác thật của `main.ts`'s handler thật
-    // `retryAiTranslate`/`retryAiTranslateBatch` (Phase 2): cổng loại-trừ-lẫn-nhau ĐƠN/LÔ
-    // trước (cùng khuôn `runAiTranslate`/`runAiTranslateBatch` ngay trên), rồi lớp gác riêng
-    // của retry -- phải THẬT SỰ có một lỗi `retryable` đang chờ (§Always spec 4.10: "retryable
-    // grants only the right to SHOW a button").
-    retryAiTranslate: () => {
-      if (batchState.aiTranslateBatchStateValue.value === 'generating') return
-      if (state.aiTranslateStateValue.value === 'generating') return
-      const err = state.aiTranslateError.value
-      if (state.aiTranslateStateValue.value !== 'error' || err === null || err.retryable !== true) return
-      const segmentId = state.aiTranslateRunSegmentId.value
-      if (segmentId === null) return
-      void state.runAiTranslate(null, segmentId)
-    },
-    // `aiTranslateBatchRetryIds` (Task 6 spec 4.10) đọc hàng `error` cộng mọi hàng `pending`
-    // của LÔ vừa lỗi, giữ ĐÚNG thứ tự tài liệu -- không một câu `done`/`skipped`/`cancelled`
-    // nào bị gọi lại.
-    retryAiTranslateBatch: () => {
-      if (state.aiTranslateStateValue.value === 'generating') return
-      if (batchState.aiTranslateBatchStateValue.value === 'generating') return
-      const err = batchState.aiTranslateBatchError.value
-      if (batchState.aiTranslateBatchStateValue.value !== 'error' || err === null || err.retryable !== true) return
-      const ids = batchState.aiTranslateBatchRetryIds(batchState.aiTranslateBatchRows.value)
-      if (ids.length === 0) return
-      void batchState.runAiTranslateBatch(null, ids)
-    },
-  } as CommandDeps)
+  const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
+  commands.installCommands({ ...aiTranslateHandlers } as CommandDeps)
 
   return { commands, editorState, selectionState, state, batchState, i18n, AiTranslationPanel }
 }

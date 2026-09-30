@@ -25,9 +25,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::aiprompt::GlossaryTierWire;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
-    CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, WorkContext,
+    CandidateOrigin, Category, GlossaryError, GlossaryInjectionTerm, GlossaryTier, TermOrigin, WorkContext,
     add_manual_term, approve_candidate, candidate_chapter_span_counts, confirm_translation,
-    delete_manual_term, entries_eligible_for_injection, insert_candidate,
+    confirmed_terms_for_injection, delete_manual_term, insert_candidate,
     insert_import_scan_candidates, insert_manual_entry, list_all_entries, load_tier,
     pending_candidates, promote_to_global, reject_candidate, resolve_term_for_quick_add,
     update_manual_term,
@@ -67,6 +67,23 @@ fn open_project(dir: &Path) -> Store {
     Store::open(StoreSpec::project(dir.join("project.db"))).expect("mo project.db")
 }
 
+/// Cửa chèn duy nhất của Glossary (`confirmed_terms_for_injection`) hỏi trên `text`: những cặp
+/// thuật ngữ đã chốt mà một câu như vậy sẽ được chèn, sau khi phân giải hai tầng.
+fn injected_terms(
+    global: &Store,
+    work: Option<(&ScopeResolver, &Store)>,
+    text: &str,
+) -> Vec<GlossaryInjectionTerm> {
+    let fallback = ScopeResolver::global_only();
+    let (resolver, work_store) = match work {
+        Some((resolver, store)) => (resolver, Some(store)),
+        None => (&fallback, None),
+    };
+    confirmed_terms_for_injection(resolver, global, work_store, text, MatchLang::Zh)
+        .expect("confirmed_terms_for_injection khong loi voi kind hop le")
+        .injected
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Hàng 1 — chỉ tầng Global, đã chốt
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -86,12 +103,11 @@ fn a_confirmed_global_only_entry_is_eligible_for_injection() {
     .expect("chen muc da chot");
 
 
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&store, None, "慕容");
 
     assert_eq!(eligible.len(), 1, "muc da chot phai du dieu kien chen");
     assert_eq!(eligible[0].source_term, "慕容");
-    assert_eq!(eligible[0].translation.as_deref(), Some("Mộ Dung"));
+    assert_eq!(eligible[0].translation, "Mộ Dung");
 
     drop(store);
     cleanup(&dir);
@@ -128,8 +144,7 @@ fn when_both_tiers_confirm_the_same_term_the_work_tier_wins() {
         work_id: "0192f3c4-5678-4abc-8def-0123456789ab".to_owned(),
     });
 
-    let eligible = entries_eligible_for_injection(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&global_store, Some((&resolver, &work_store)), "慕容");
 
     assert_eq!(
         eligible.len(),
@@ -137,8 +152,7 @@ fn when_both_tiers_confirm_the_same_term_the_work_tier_wins() {
         "cung mot thuat ngu o hai tang phai gop thanh dung MOT muc du dieu kien chen"
     );
     assert_eq!(
-        eligible[0].translation.as_deref(),
-        Some("Mộ Dong"),
+        eligible[0].translation, "Mộ Dong",
         "AD-18: tang Tac pham thang theo TUNG thuat ngu"
     );
 
@@ -183,13 +197,12 @@ fn a_pending_work_tier_entry_shadows_and_disqualifies_a_confirmed_global_entry()
         work_id: "0192f3c4-5678-4abc-8def-0123456789ab".to_owned(),
     });
 
-    // ⚠️ Gọi qua đúng chữ ký PHƠI RA — `entries_eligible_for_injection` tự `load_tier` cả
+    // ⚠️ Gọi qua đúng cửa chèn — `confirmed_terms_for_injection` tự nạp cả
     // hai `Store` bên trong rồi mới phân giải. Ca này vẫn là bằng chứng cho "lọc SAU khi
     // phân giải": nếu cài đặt bên trong lỡ lọc TRƯỚC (bỏ mục chưa chốt ở mỗi tầng rồi mới
     // hợp hai tầng), mục Global đã chốt sẽ lộ ra và `eligible` sẽ KHÔNG rỗng — đúng lỗi mà
     // ca này tồn tại để bắt, đo được từ NGOÀI mà không cần nhìn vào cài đặt bên trong.
-    let eligible = entries_eligible_for_injection(&WorkContext::new(Some((&resolver, &work_store))).unwrap(), &global_store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&global_store, Some((&resolver, &work_store)), "慕容");
 
     assert!(
         eligible.is_empty(),
@@ -221,7 +234,7 @@ fn a_pending_global_only_entry_is_listed_but_not_eligible_for_injection() {
     .expect("chen muc cho chot");
 
     // `load_tier` trực tiếp — CA NÀY canh mệnh đề "có mặt khi liệt kê", thứ
-    // `entries_eligible_for_injection` không trả lời được (nó chỉ trả mục ĐỦ điều kiện).
+    // `confirmed_terms_for_injection` không trả lời được (nó chỉ trả mục ĐỦ điều kiện).
     let global = load_tier(&store).expect("nap tang global");
     assert!(
         global.contains_key("青丘"),
@@ -229,8 +242,7 @@ fn a_pending_global_only_entry_is_listed_but_not_eligible_for_injection() {
     );
     assert!(!global["青丘"].is_confirmed());
 
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&store, None, "青丘");
 
     assert!(
         eligible.is_empty(),
@@ -265,8 +277,7 @@ fn with_no_work_open_resolution_is_the_whole_global_tier() {
         "global_only() khong duoc mang tang Tac pham"
     );
 
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&store, None, "青丘");
 
     assert_eq!(eligible.len(), 1);
     assert_eq!(eligible[0].source_term, "青丘");
@@ -1777,8 +1788,7 @@ fn approving_a_candidate_with_no_translation_leaves_the_glossary_entry_pending_c
     assert_eq!(entry.translation, None);
     assert!(!entry.is_confirmed(), "muc vua sinh phai o trang thai cho chot");
 
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&store, None, "慕容");
     assert!(
         eligible.is_empty(),
         "mot muc cho chot khong duoc du dieu kien chen, ke ca khi no vua sinh tu mot \
@@ -2500,7 +2510,7 @@ fn resolve_term_for_quick_add_prefers_the_work_tier_when_both_tiers_have_the_ter
 }
 
 /// 🔴 **Ca thứ hai dễ cài ngược** — lượt tra KHÔNG lọc `is_confirmed`: một mục *chờ chốt*
-/// (`translation IS NULL`) vẫn mở được ở chế độ SỬA, khác hẳn `entries_eligible_for_injection`
+/// (`translation IS NULL`) vẫn mở được ở chế độ SỬA, khác hẳn `confirmed_terms_for_injection`
 /// (vốn LỌC nó ra).
 #[test]
 fn resolve_term_for_quick_add_finds_a_pending_term_without_filtering_it_out() {
@@ -2514,9 +2524,9 @@ fn resolve_term_for_quick_add_finds_a_pending_term_without_filtering_it_out() {
     assert_eq!(tier, GlossaryTier::Global);
     assert!(!entry.is_confirmed(), "muc phai o nguyen trang thai cho chot");
 
-    // Doi chung: `entries_eligible_for_injection` LOC muc nay ra — hai ham tra loi hai cau
+    // Doi chung: `confirmed_terms_for_injection` LOC muc nay ra — hai ham tra loi hai cau
     // hoi khac nhau tren cung du lieu.
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store).expect("eligible");
+    let eligible = injected_terms(&store, None, "青丘");
     assert!(
         eligible.is_empty(),
         "muc cho chot khong duoc du dieu kien chen prompt"
@@ -3031,10 +3041,10 @@ fn list_all_entries_includes_a_shadowed_global_row_flagged_true() {
     cleanup(&dir);
 }
 
-/// `list_all_entries` **không lọc** `is_confirmed` — khác `entries_eligible_for_injection`.
+/// `list_all_entries` **không lọc** `is_confirmed` — khác `confirmed_terms_for_injection`.
 /// Một mục chờ chốt phải hiện ra để người dùng SỬA/XOÁ nó.
 #[test]
-fn list_all_entries_includes_pending_entries_unlike_entries_eligible_for_injection() {
+fn list_all_entries_includes_pending_entries_unlike_confirmed_terms_for_injection() {
     let dir = temp_dir("list-includes-pending");
     let store = open_global(&dir);
 
@@ -3047,10 +3057,9 @@ fn list_all_entries_includes_pending_entries_unlike_entries_eligible_for_injecti
     assert!(!rows[0].1.is_confirmed(), "muc van o trang thai cho chot");
     assert!(!rows[0].2, "mot tang duy nhat khong co gi de che no");
 
-    // Đối chứng: `entries_eligible_for_injection` KHÔNG trả mục này — hai hàm phục vụ hai
+    // Đối chứng: `confirmed_terms_for_injection` KHÔNG trả mục này — hai hàm phục vụ hai
     // câu hỏi khác nhau (§Design Notes của Story 3.3).
-    let eligible = entries_eligible_for_injection(&WorkContext::new(None).unwrap(), &store)
-        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    let eligible = injected_terms(&store, None, "青丘");
     assert!(eligible.is_empty(), "mot muc cho chot khong duoc du dieu kien chen");
 
     drop(store);

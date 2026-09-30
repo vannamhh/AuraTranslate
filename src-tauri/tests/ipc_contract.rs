@@ -1931,6 +1931,7 @@ fn the_prompt_set_wires_are_registered() {
         "crate::commands::promptset::wire::prompt_set_delete",
         // Story 4.5 -- xuat/nhap mot bo prompt qua tep `.prompt.md` (FR79, NFR9, AD-48).
         "crate::commands::promptset::wire::prompt_set_export",
+        "crate::commands::promptset::wire::prompt_set_export_many",
         "crate::commands::promptset::wire::prompt_set_open_import_preview",
         "crate::commands::promptset::wire::prompt_set_confirm_import",
         "crate::commands::promptset::wire::prompt_set_cancel_import",
@@ -2075,8 +2076,13 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
 /// is no literal `async fn` command in the tree today"), không một thân đồng bộ bọc bởi
 /// `#[tauri::command(async)]` như mọi vỏ khác — tiền tố `pub fn` không khớp được chữ ký của nó.
 fn fn_param_list_async(src: &str, fn_name: &str) -> String {
-    let needle = format!("pub async fn {fn_name}(");
-    let start = src.find(&needle).unwrap_or_else(|| panic!("khong tim thay `{needle}` trong nguon"));
+    let plain = format!("pub async fn {fn_name}(");
+    let generic = format!("pub async fn {fn_name}<R: tauri::Runtime>(");
+    let (start, needle) = match (src.find(&plain), src.find(&generic)) {
+        (Some(at), _) => (at, plain),
+        (None, Some(at)) => (at, generic),
+        (None, None) => panic!("khong tim thay `{plain}` hay `{generic}` trong nguon"),
+    };
     let after_open = start + needle.len();
     let close = src[after_open..]
         .find(')')
@@ -2126,7 +2132,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&segment_params),
         normalize_param_list(
-            "app: tauri::AppHandle, segment_id: i64, prompt_set_name: Option<String>, \
+            "app: tauri::AppHandle<R>, segment_id: i64, prompt_set_name: Option<String>, \
              channel: tauri::ipc::Channel<String>,"
         ),
         "vo `ai_translate_segment` trong `pub mod wire` cua commands/aitranslate.rs khong con \
@@ -2148,7 +2154,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&batch_params),
         normalize_param_list(
-            "app: tauri::AppHandle, segment_ids: Vec<i64>, prompt_set_name: Option<String>, \
+            "app: tauri::AppHandle<R>, segment_ids: Vec<i64>, prompt_set_name: Option<String>, \
              channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
         ),
         "vo `ai_translate_batch` trong `pub mod wire` cua commands/aitranslate.rs khong con \

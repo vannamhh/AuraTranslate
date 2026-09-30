@@ -10,7 +10,7 @@
 //!   [`entry::TermOrigin`]. [`entry::GlossaryEntry::is_confirmed`] là vị từ DUY NHẤT định
 //!   nghĩa "đã chốt" — không cột `status` song song (AD-36).
 //! - [`store`] — SQL: `insert_manual_entry` · `confirm_translation` · `load_tier`, và
-//!   **đúng MỘT** hàm phơi ra module khác, [`store::entries_eligible_for_injection`], lọc
+//!   **đúng MỘT** cửa cho module khác, [`store::confirmed_terms_for_injection`], lọc
 //!   SAU khi phân giải qua `ScopeResolver::apply_override("glossary", ..)` (AD-18). Điều
 //!   kiện chèn sống NGAY TRONG module này (AD-36) — cố ý lệch tiền lệ `core/segment/**`;
 //!   tiền lệ đúng là `core/scope/store.rs`.
@@ -52,7 +52,7 @@
 //! quả cho Glossary: mục tầng Tác phẩm của một Tác phẩm đã đóng rồi mở lại **vẫn nằm
 //! nguyên vẹn** trong `project.db` của nó — không mất dữ liệu — nhưng đường Rust để nạp
 //! lại `ScopeResolver::with_work` cho phiên mới **chưa tồn tại**, nên
-//! [`store::entries_eligible_for_injection`] không phân giải được tầng đó cho tới khi ai
+//! [`store::confirmed_terms_for_injection`] không phân giải được tầng đó cho tới khi ai
 //! đó mở Tác phẩm này lại. **Chủ: Epic 5** (đường mở lại `.atproj` — xem `deferred-work.md`
 //! cho mục đóng đầy đủ).
 //!
@@ -65,7 +65,7 @@
 //!   một `Store`, nên một `id` trần không đủ để sửa lại đúng hàng — mọi lượt tra/sửa mang
 //!   theo cặp `(GlossaryTier, id)`.
 //! - [`store::resolve_term_for_quick_add`] — tra hai tầng qua `ScopeResolver::apply_override`,
-//!   **không lọc** `is_confirmed` (khác hẳn `entries_eligible_for_injection`, vốn tồn tại
+//!   **không lọc** `is_confirmed` (khác hẳn `confirmed_terms_for_injection`, vốn tồn tại
 //!   đúng để lọc) — một mục *chờ chốt* bị lọc mất sẽ làm dải "Thêm thuật ngữ" mở nhầm chế
 //!   độ THÊM và `UNIQUE` chặn lượt lưu trong im lặng.
 //! - [`store::add_manual_term`] / [`store::update_manual_term`] — chọn `&Store` theo
@@ -177,8 +177,8 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! - [`store::list_all_entries`] — HÀM PHƠI RA THỨ CHÍN của module này (cùng bề mặt
 //!   `QUICK_ADD_SURFACE`/`GLOSSARY_ONLY_SURFACE` mà Story 3.3 dựng ra để thay
-//!   `GLOSSARY_ONLY_SURFACE` cho `commands::glossary`). Khuôn chép
-//!   `entries_eligible_for_injection` nhưng KHÔNG lọc `is_confirmed`, và phát cả
+//!   `GLOSSARY_ONLY_SURFACE` cho `commands::glossary`). Cùng phân giải hai tầng
+//!   như `confirmed_terms_for_injection` nhưng KHÔNG lọc `is_confirmed`, và phát cả
 //!   `Resolved::shadowed()` thành một hàng thứ hai — đây là chỗ DUY NHẤT trong kho biết một
 //!   mục Global có đang bị một mục Work cùng `source_term` che hay không.
 //! - [`store::delete_manual_term`] — xoá `(tier, id)`, khuôn định tuyến `&Store` của
@@ -306,9 +306,8 @@ pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, SuppressedByPendingOverlap,
     WorkContext, add_manual_term, classify_import_rows, confirm_pending_translation,
-    confirm_translation, confirmed_terms_for_injection, delete_manual_term,
-    entries_eligible_for_injection, export_tier, import_into_tier, insert_manual_entry,
-    list_all_entries, load_tier, marks_for_source_text, match_lang_for_source_lang,
+    confirm_translation, confirmed_terms_for_injection, delete_manual_term, export_tier,
+    import_into_tier, insert_manual_entry, list_all_entries, load_tier, marks_for_source_text, match_lang_for_source_lang,
     promote_to_global, resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

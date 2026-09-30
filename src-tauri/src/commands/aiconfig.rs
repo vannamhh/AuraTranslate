@@ -270,7 +270,8 @@ pub mod wire {
 
     /// `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho: `app.manage(store)`
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy.
-    #[tauri::command]
+    /// Async: the OS keychain probe can wait on an unlock prompt.
+    #[tauri::command(async)]
     pub fn ai_config_get(app: tauri::AppHandle) -> Result<AiConfigGetWire, IpcError> {
         use tauri::Manager as _;
 
@@ -310,12 +311,14 @@ pub mod wire {
         super::ai_config_clear_override(guard.as_ref(), field)
     }
 
-    #[tauri::command]
+    /// Async: the OS keychain write can wait on an unlock prompt.
+    #[tauri::command(async)]
     pub fn ai_config_save_key(tier: AiConfigTier, value: String) -> Result<(), IpcError> {
         super::ai_config_save_key(tier, &value)
     }
 
-    #[tauri::command]
+    /// Async: the OS keychain delete can wait on an unlock prompt.
+    #[tauri::command(async)]
     pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
         super::ai_config_delete_key(tier)
     }

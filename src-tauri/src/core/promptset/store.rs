@@ -58,7 +58,7 @@ pub fn validate_name(raw: &str) -> Result<String, InvalidName> {
 /// ⚠️ **Tên KHÔNG phải `load_tier` trần** — `tests/glossary_boundary.rs::GLOSSARY_ONLY_SURFACE`
 /// quét TOÀN `src-tauri/src/**` (trừ `core/glossary/**`) tìm CHUỖI `"load_tier"`, không phân
 /// biệt được domain nào sở hữu nó (AD-36, vế thứ hai): một hàm cùng tên ở module khác trông
-/// giống hệt việc lách qua `entries_eligible_for_injection`. Đặt tên dài hơn ở đây rẻ hơn nới
+/// giống hệt việc lách qua `confirmed_terms_for_injection`. Đặt tên dài hơn ở đây rẻ hơn nới
 /// cổng đó.
 pub fn load_prompt_set_tier(store: &Store) -> Result<BTreeMap<String, PromptSet>, StoreError> {
     store.read(|conn: ReadHandle<'_>| {

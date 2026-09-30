@@ -264,12 +264,70 @@ pub fn prompt_set_delete(
 // phơi ra JavaScript — webview chỉ dispatch bốn lệnh này (`capabilities/main.json` không đổi,
 // §Always spec 4.5).
 
-/// Tên tệp mặc định của lượt xuất — `<tên bộ>.prompt.md` (Quyết định #2: "the filename
-/// defaulted from the set name"). Không sanitize ký tự đặc biệt của `name` — nằm ngoài phạm
-/// vi I/O Matrix của story này; hộp thoại hệ điều hành là nơi người dùng sửa nếu tên mang một
-/// ký tự tên tệp không hợp lệ trên máy họ.
 fn default_export_file_name(name: &str) -> String {
-    format!("{name}.prompt.md")
+    exchange_io::export_file_name(name)
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct PromptSetExportRef {
+    pub tier: PromptSetTier,
+    pub id: i64,
+}
+
+/// Either `path`/`file_name` or `error` is set.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PromptSetExportFileWire {
+    pub tier: PromptSetTierWire,
+    pub id: i64,
+    pub file_name: Option<String>,
+    pub path: Option<String>,
+    pub error: Option<IpcError>,
+}
+
+pub fn prompt_set_export_many(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    sets: &[PromptSetExportRef],
+    dir: &Path,
+) -> Result<Vec<PromptSetExportFileWire>, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let mut taken = std::collections::HashSet::new();
+
+    Ok(sets
+        .iter()
+        .map(|set| {
+            let written = (|| -> Result<(String, std::path::PathBuf), IpcError> {
+                let store = crate::core::promptset::store::store_for_tier(
+                    global_store,
+                    open.map(|w| &w.store),
+                    set.tier,
+                )?;
+                let row = load_one(store, set.id)?;
+                let file_name = exchange_io::export_file_name(&row.name);
+                let path = exchange_io::unique_export_path(dir, &file_name, &mut taken);
+                exchange_io::write_export_file(&path, &exchange::render(&row.name, &row.body))?;
+                let written_name =
+                    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(file_name);
+                Ok((written_name, path))
+            })();
+            match written {
+                Ok((file_name, path)) => PromptSetExportFileWire {
+                    tier: set.tier.into(),
+                    id: set.id,
+                    file_name: Some(file_name),
+                    path: Some(path.display().to_string()),
+                    error: None,
+                },
+                Err(error) => PromptSetExportFileWire {
+                    tier: set.tier.into(),
+                    id: set.id,
+                    file_name: None,
+                    path: None,
+                    error: Some(error),
+                },
+            }
+        })
+        .collect())
 }
 
 /// Xuất bộ `(tier, id)` ra `path` — **hàm thuần, đây là thứ test gọi**. Một NHỊP. Thao tác
@@ -715,6 +773,32 @@ pub mod wire {
 
         super::prompt_set_export(global.as_deref(), open, tier, id, &path)?;
         Ok(Some(path.display().to_string()))
+    }
+
+    /// Async: `blocking_pick_folder()` blocks the event loop. `OpenWorkState` is locked after the dialog.
+    #[tauri::command(async)]
+    pub fn prompt_set_export_many(
+        app: tauri::AppHandle,
+        sets: Vec<super::PromptSetExportRef>,
+    ) -> Result<Option<Vec<super::PromptSetExportFileWire>>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(IpcError::from(super::store_is_missing()));
+        }
+
+        let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+            return Ok(None);
+        };
+        let dir = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard =
+            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        super::prompt_set_export_many(global.as_deref(), open, &sets, &dir).map(Some)
     }
 
     /// Vỏ IPC của [`super::prompt_set_open_import_preview`] — mở hộp thoại CHỌN rồi gọi hàm

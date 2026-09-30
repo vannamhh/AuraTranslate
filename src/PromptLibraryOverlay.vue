@@ -42,12 +42,15 @@ import {
   createPromptSet,
   deletePromptSet,
   exportPromptSet,
+  exportPromptSets,
   isPromptSetNameValid,
   promptSetActionError,
   promptSetActionWarnings,
   promptSetBusy,
   promptSetExchangeBusy,
   promptSetExportError,
+  promptSetExportManyError,
+  promptSetExportFiles,
   promptSetLoadError,
   promptSetLoading,
   promptSets,
@@ -405,6 +408,34 @@ async function onExportSelected(): Promise<void> {
   await exportPromptSet(selectedRow.value.tier, selectedRow.value.id)
 }
 
+const exportPicked = ref<string[]>([])
+
+function exportKey(row: { tier: PromptSetTier; id: number }): string {
+  return `${row.tier}:${row.id}`
+}
+
+function onTogglePickedForExport(row: DisplayRow, event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) return
+  const key = exportKey(row)
+  exportPicked.value = target.checked
+    ? [...exportPicked.value.filter((k) => k !== key), key]
+    : exportPicked.value.filter((k) => k !== key)
+}
+
+const pickedRows = computed(() =>
+  [...workRows.value, ...globalRows.value].filter((r) => exportPicked.value.includes(exportKey(r))),
+)
+
+async function onExportPicked(): Promise<void> {
+  await exportPromptSets(pickedRows.value.map((r) => ({ tier: r.tier, id: r.id })))
+}
+
+function exportFileLabel(file: { tier: PromptSetTier; id: number }): string {
+  const row = [...workRows.value, ...globalRows.value].find((r) => r.tier === file.tier && r.id === file.id)
+  return row?.name ?? ''
+}
+
 /** "Dùng bộ này" — Quyết định 🔵 đầu `promptSetState.ts`: 0 lượt `invoke`, chỉ đổi lựa chọn
  * HIỂN THỊ cục bộ. Đây là nửa "từ màn Thư viện prompt" của I/O Matrix "Switch effective set" —
  * nửa "từ AI panel, không cần mở Cài đặt" đóng ở `AiTranslationPanel.vue`. */
@@ -513,6 +544,40 @@ function onEscape(): void {
               <span v-if="row.name === selectedPromptSetName" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
               <span v-if="row.isShadowedDisplay" class="pl-badge pl-badge-shadowed">{{ t('prompt.library.shadowed_badge') }}</span>
             </button>
+          </form>
+
+          <form
+            v-if="promptSets.length > 0"
+            class="pl-export-many"
+            @submit.prevent="onExportPicked"
+          >
+            <fieldset class="pl-export-set">
+            <legend class="pl-group-h">{{ t('prompt.library.export_many_title') }}</legend>
+            <label v-for="row in [...workRows, ...globalRows]" :key="'x' + row.key" class="pl-radio-label">
+              <input
+                type="checkbox"
+                :checked="exportPicked.includes(exportKey(row))"
+                @change="onTogglePickedForExport(row, $event)"
+              />
+              <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
+              <span>{{ row.name }}</span>
+              <span class="pl-badge">{{ t(row.tier === 'work' ? 'prompt.library.tier_work' : 'prompt.library.tier_global') }}</span>
+            </label>
+            </fieldset>
+            <button type="submit" class="pl-act" :disabled="promptSetExchangeBusy || pickedRows.length === 0">
+              {{ t('prompt.library.export_many_button', { count: String(pickedRows.length) }) }}
+            </button>
+            <p v-if="promptSetExportManyError !== null" class="pl-status pl-alert" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+              {{ tError(promptSetExportManyError) }}
+            </p>
+            <ul v-if="promptSetExportFiles !== null" class="pl-export-files" role="status">
+              <li v-for="file in promptSetExportFiles" :key="exportKey(file)">
+                <!-- aura-allow-text: DỮ LIỆU (tên tệp/tên bộ) và KẾT QUẢ của `tError()`. -->
+                <span v-if="file.error === null">{{ t('prompt.library.export_many_file_done', { name: exportFileLabel(file), file: file.file_name ?? '' }) }}</span>
+                <span v-else class="pl-alert">{{ t('prompt.library.export_many_file_failed', { name: exportFileLabel(file), reason: tError(file.error) }) }}</span>
+              </li>
+            </ul>
           </form>
 
           <form class="pl-row-form" @submit.prevent="onOpenCreate">
@@ -924,6 +989,27 @@ function onEscape(): void {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   resize: vertical;
+}
+
+.pl-export-many {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin: calc(var(--space-unit) * 3) 0;
+}
+
+.pl-export-set {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.pl-export-files {
+  margin: 0;
+  padding-left: calc(var(--space-unit) * 4);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
 }
 
 .pl-tier {

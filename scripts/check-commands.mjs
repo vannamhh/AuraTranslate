@@ -2352,6 +2352,7 @@ const HANDLER_TABLE = {
   'src/PromptLibraryOverlay.vue::onSubmitBody': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onUseSelected': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onExportSelected': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onExportPicked': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onDeleteSubmit': { nonCommand: R_SUBMIT_DIRECT },
   'src/SegmentHistoryOverlay.vue::closeSegmentHistory': { nonCommand: R_CLOSE_IMPORTED },
   'src/SegmentHistoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },

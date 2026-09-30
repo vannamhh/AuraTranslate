@@ -1,0 +1,260 @@
+{
+  "about": "Shared validity table: core::aiconfig::validate_field (Rust) and isAiConfigValueValid (TS) must agree on every row.",
+  "rows": [
+    {
+      "field": "provider",
+      "input": "openai",
+      "valid": true
+    },
+    {
+      "field": "provider",
+      "input": "\t x ",
+      "valid": true
+    },
+    {
+      "field": "provider",
+      "input": "",
+      "valid": false
+    },
+    {
+      "field": "provider",
+      "input": "   ",
+      "valid": false
+    },
+    {
+      "field": "model",
+      "input": "gpt-4o",
+      "valid": true
+    },
+    {
+      "field": "model",
+      "input": "  llama3 ",
+      "valid": true
+    },
+    {
+      "field": "model",
+      "input": "",
+      "valid": false
+    },
+    {
+      "field": "model",
+      "input": "   ",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "https://api.openai.com/v1/chat/completions",
+      "valid": true
+    },
+    {
+      "field": "endpoint",
+      "input": "http://127.0.0.1:11434/v1",
+      "valid": true
+    },
+    {
+      "field": "endpoint",
+      "input": "  https://example.com  ",
+      "valid": true
+    },
+    {
+      "field": "endpoint",
+      "input": "localhost:11434",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "https://",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "http://",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "https:///path",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "https://a b",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "ftp://example.com",
+      "valid": false
+    },
+    {
+      "field": "endpoint",
+      "input": "https://?q=1",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "0",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "2",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "2.0",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "0.7",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "  1  ",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": ".5",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "1.",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "1e-1",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "+0.5",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "-1",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "3",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "2.0001",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "abc",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "NaN",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "inf",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "Infinity",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "0x1",
+      "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "1,5",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "1",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "4096",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "4294967295",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "+5",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "007",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "4294967296",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "99999999999999999999",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "0",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "-5",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "1.5",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "abc",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": " ",
+      "valid": false
+    }
+  ]
+}

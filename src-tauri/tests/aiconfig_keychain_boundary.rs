@@ -9,7 +9,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! VÌ SAO CỔNG NÀY ĐI THEO KHUÔN `ai_boundary.rs`, KHÔNG PHẢI `glossary_boundary.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `glossary_boundary.rs::only_entries_eligible_for_injection_may_be_called_from_outside_glossary`
+//! `glossary_boundary.rs::no_raw_glossary_surface_function_may_be_called_from_outside_glossary`
 //! có sẵn CHỖ GỌI THẬT trong tree để đối chứng dương "core thật sự khai hàm này" — Story
 //! 3.3 đã dựng chỗ gọi sản phẩm đầu tiên trước khi cổng đó ra đời. `expose_secret`/`read`
 //! ở đây thì KHÔNG: cả hai đều "dành cho Story 4.8", 0 chỗ gọi nào tồn tại hôm nay ngoài

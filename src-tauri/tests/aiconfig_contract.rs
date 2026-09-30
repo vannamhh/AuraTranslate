@@ -22,7 +22,7 @@ use auratranslate_lib::commands::aiconfig::{
     ai_config_save_field, ai_config_save_key,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work};
-use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier};
+use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, validate_field};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::{ScopeResolver, WorkScope};
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
@@ -48,15 +48,9 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 const KEYCHAIN_SERVICE: &str = "com.auratranslate.desktop";
 const KEYCHAIN_ACCOUNT: &str = "ai_provider_api_key";
 
-/// Kho mock của `keyring-core` là MỘT kho DÙNG CHUNG cho toàn bộ tiến trình test này
-/// (Design Notes spec 4.3: "the store is process-global, so the swap is shared by every
-/// test in the binary"), và khoá API chỉ có ĐÚNG MỘT account cố định — không tham số
-/// hoá theo ca test hay theo tầng. Mọi ca CHẠM hoặc KHẲNG ĐỊNH trên trạng thái khoá API
-/// (`configured`/`save`/`delete`, hay bơm một lỗi giả lập) phải giữ khoá này xuyên suốt
-/// đời ca, nếu không hai ca chạy trên hai luồng khác nhau (mặc định của `cargo test`) sẽ
-/// giẫm lên đúng MỘT credential. Mười ca Story 4.2 sẵn có ở tệp này không cần khoá này —
-/// chúng gọi `ai_config_get` (nên vẫn thăm dò keychain) nhưng không ca nào KHẲNG ĐỊNH gì
-/// trên giá trị `key_configured`.
+/// The mock keychain store is process-global with one fixed account. `ai_config_get` probes
+/// the keychain on every call and that probe consumes a pending one-shot error, so every case
+/// that calls it, or touches, asserts on or injects into the key, must hold this lock.
 static KEYCHAIN_KEY_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// Cài mock-store CHỈ MỘT LẦN cho cả nhị phân này — PHẢI chạy trước LƯỢT CHẠM keychain
@@ -235,6 +229,7 @@ fn field_wire<'a>(
 
 #[test]
 fn no_configuration_anywhere_renders_every_field_empty_from_global() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("no-config");
     let global = open_global(&root);
 
@@ -258,6 +253,7 @@ fn no_configuration_anywhere_renders_every_field_empty_from_global() {
 
 #[test]
 fn global_only_every_field_resolves_from_global() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("global-only");
     let global = open_global(&root);
 
@@ -294,6 +290,7 @@ fn global_only_every_field_resolves_from_global() {
 /// bắt đúng lỗi đó: bốn trường còn lại PHẢI vẫn đọc được nguyên vẹn từ Global.
 #[test]
 fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("one-field-override");
     let global = open_global(&root);
     let opened = open_work_real(&root);
@@ -352,6 +349,7 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
 
 #[test]
 fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("no-work-open");
     let global = open_global(&root);
 
@@ -373,6 +371,7 @@ fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
 
 #[test]
 fn temperature_out_of_range_is_rejected_before_any_write() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-temperature");
     let global = open_global(&root);
 
@@ -392,6 +391,7 @@ fn temperature_out_of_range_is_rejected_before_any_write() {
 
 #[test]
 fn max_tokens_not_a_positive_integer_is_rejected_before_any_write() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-max-tokens");
     let global = open_global(&root);
 
@@ -411,6 +411,7 @@ fn max_tokens_not_a_positive_integer_is_rejected_before_any_write() {
 
 #[test]
 fn endpoint_not_an_absolute_url_is_rejected_before_any_write() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-endpoint");
     let global = open_global(&root);
 
@@ -428,12 +429,41 @@ fn endpoint_not_an_absolute_url_is_rejected_before_any_write() {
     cleanup_dir(&root);
 }
 
+/// Bảng luật dùng chung với `tests/frontend/aiConfigState.test.ts`: cả hai phía đọc CÙNG tệp
+/// `tests/frontend/support/ai-config-validity.json`. Một hàng mà Rust và TS không đồng ý làm đúng
+/// một bên đỏ.
+#[test]
+fn every_row_of_the_shared_validity_table_gets_the_same_verdict_from_the_rust_rules() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/frontend/support/ai-config-validity.json");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
+    let table: serde_json::Value = serde_json::from_str(&text).expect("bang luat phai la JSON hop le");
+    let rows = table["rows"].as_array().expect("bang luat phai co mang `rows`");
+    assert!(rows.len() >= 30, "bang luat bi cat cut: chi con {} hang", rows.len());
+
+    let mut checked_max_tokens_overflow = false;
+    for row in rows {
+        let field_name = row["field"].as_str().expect("hang thieu `field`");
+        let input = row["input"].as_str().expect("hang thieu `input`");
+        let expected = row["valid"].as_bool().expect("hang thieu `valid`");
+        let field: AiConfigField = serde_json::from_value(serde_json::Value::String(field_name.to_owned()))
+            .unwrap_or_else(|e| panic!("truong {field_name:?} khong phai AiConfigField: {e}"));
+        assert_eq!(
+            validate_field(field, input).is_ok(),
+            expected,
+            "truong {field_name} voi dau vao {input:?}: bang luat noi valid={expected}"
+        );
+        checked_max_tokens_overflow |= field_name == "max_tokens" && input == "4294967296" && !expected;
+    }
+    assert!(checked_max_tokens_overflow, "hang tran u32 cua max_tokens phai nam trong bang luat");
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Hàng 8 — trả một ghi đè Work về kế thừa
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn clearing_a_work_override_returns_the_field_to_inherited() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("clear-override");
     let global = open_global(&root);
     let opened = open_work_real(&root);
@@ -465,6 +495,7 @@ fn clearing_a_work_override_returns_the_field_to_inherited() {
 
 #[test]
 fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("reopen");
     let global = open_global(&root);
     let opened = open_work_real(&root);
@@ -520,6 +551,7 @@ fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
 /// đóng.
 #[test]
 fn work_tier_available_tracks_open_work_state_not_a_ui_proxy() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("work-tier-available");
     let global = open_global(&root);
 

@@ -131,10 +131,8 @@ function pendingRun(): { token: OnToken; settle: (result: RunResult) => void } {
  * Cùng khuôn `aiPromptInspector.test.ts::freshPanel()`: `vi.resetModules()` rồi `import` lại
  * mọi thứ, để mỗi ca có một `aiTranslateState.ts` NGUYÊN VẸN (không rò trạng thái giữa các ca).
  *
- * `commands.installCommands({...})` chép NGUYÊN VĂN cách `main.ts::boot()` nối ba dep này —
- * xem `main.ts` dòng đăng ký `runAiTranslate`/`cancelAiTranslate`/`promoteAiTranslate`. Đây
- * KHÔNG phải một guard phát minh riêng cho test: nó là hình dạng thật, chép lại vì `main.ts`
- * tự chạy `void boot()` ở top-level và không có điểm vào tách rời để `import` thẳng.
+ * Sáu handler AI được nối vào `commands.installCommands` từ CHÍNH module `main.ts` dùng
+ * (`src/aiTranslateHandlers.ts`), không một bản chép.
  */
 async function freshPanel() {
   vi.resetModules()
@@ -155,54 +153,11 @@ async function freshPanel() {
 
   const commands = await import('../../src/commands')
   const state = await import('../../src/aiTranslateState')
-  const editorPanelState = await import('../../src/panels/editorPanelState')
   const i18n = await import('../../src/i18n')
   const AiTranslationPanel = (await import('../../src/panels/AiTranslationPanel.vue')).default
 
-  commands.installCommands({
-    runAiTranslate: () => {
-      void state.runAiTranslate(null, caretSegmentId.value)
-    },
-    cancelAiTranslate: () => {
-      state.cancelAiTranslate()
-    },
-    // I/O Matrix spec 4.8 "Promote while generating" → kêu, không ném, không ghi. Đây là lớp
-    // phòng thủ THỨ HAI (lớp thứ nhất là nút `disabled` ở panel) — chép nguyên logic
-    // `main.ts` thật để một chord (⌘⇧↵) bấm được dù nút đang khoá vẫn bị chặn ở đây.
-    promoteAiTranslate: () => {
-      const s = state.aiTranslateStateValue.value
-      const segmentId = state.aiTranslateRunSegmentId.value
-      const text = state.aiTranslateAccumulatedText.value
-      if ((s !== 'done' && s !== 'cancelled') || segmentId === null || text === '') {
-        console.warn(
-          `[test] khong dua sang Editor: chua co ket qua hop le (state=${s}, segmentId=${String(segmentId)})`,
-        )
-        return
-      }
-      void editorPanelState.promoteAiTranslationToEditor(segmentId, text)
-    },
-    // Story 4.10, Phase 3 — chép NGUYÊN VĂN hai lớp gác thật của `main.ts`'s handler
-    // `retryAiTranslate` (Phase 2): phải THẬT SỰ có một lỗi `retryable` đang chờ — `retryable`
-    // là thứ DUY NHẤT được cấp quyền cho phép gọi lại (§Always spec 4.10) — và gọi lại bằng
-    // `aiTranslateRunSegmentId` (câu lỗi thuộc về), KHÔNG bằng caret. Tệp này không import
-    // `aiTranslateBatchState.ts` (chỉ canh nhánh ĐƠN, xem doc-comment đầu tệp), nên cổng loại
-    // trừ lẫn nhau với một LÔ đang chạy không có gì để canh ở đây — `aiTranslateBatch.test.ts`
-    // là nơi canh nhánh đó.
-    retryAiTranslate: () => {
-      const s = state.aiTranslateStateValue.value
-      const err = state.aiTranslateError.value
-      if (s !== 'error' || err === null || err.retryable !== true) {
-        console.warn('[test] khong retry: khong co loi retryable nao dang cho')
-        return
-      }
-      const segmentId = state.aiTranslateRunSegmentId.value
-      if (segmentId === null) {
-        console.warn('[test] khong retry: khong biet cau nao da loi')
-        return
-      }
-      void state.runAiTranslate(null, segmentId)
-    },
-  } as CommandDeps)
+  const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
+  commands.installCommands({ ...aiTranslateHandlers } as CommandDeps)
 
   return { commands, state, i18n, AiTranslationPanel, caretSegmentId }
 }

@@ -12,7 +12,7 @@
 //! (`RagInjector`) phụ thuộc trực tiếp vào truy vấn 'mục đủ điều kiện chèn' mà Story 3.1
 //! dựng — không có đường nào khác để chạm dữ liệu Glossary."* Cổng này cưỡng chế đúng vế
 //! *"không có đường nào khác"*: một module Epic 4 viết thẳng
-//! `"SELECT … FROM glossary_entry …"` để lách qua `entries_eligible_for_injection` vẫn
+//! `"SELECT … FROM glossary_entry …"` để lách qua `confirmed_terms_for_injection` vẫn
 //! biên dịch sạch — cổng dưới đây là phép kiểm duy nhất bắt được nó, và nó phải đứng sẵn
 //! **trước** khi Epic 4 tồn tại, đúng lý do `scope_boundary.rs` đứng sẵn trước Epic 3.
 //!
@@ -74,20 +74,12 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// Vế THỨ HAI của AD-36 — *"`ai/` không có đường nào khác chạm dữ liệu Glossary"*.
 ///
 /// `core::glossary::mod` tái xuất công khai `insert_manual_entry` · `confirm_translation` ·
-/// `load_tier` · `entries_eligible_for_injection`. Ba cái đầu phơi dữ liệu THÔ —
+/// `load_tier` · `confirmed_terms_for_injection`. Ba cái đầu phơi dữ liệu THÔ —
 /// `load_tier` trả **cả** mục *chờ chốt*, không lọc gì cả — nên một module khác gọi thẳng
 /// chúng để tự lọc lấy sẽ tự cài lại (hoặc cài SAI) đúng luật mà
-/// `entries_eligible_for_injection` đã đóng gói. Ba tên này chỉ được PHÉP xuất hiện dưới
-/// `core/glossary/**`, nơi chúng được `pub fn` khai và tái xuất.
-///
-/// 🔵 **CẬP NHẬT 2026-08-19 (vá cuối) — `entries_eligible_for_injection` nay nhận `&Store`
-/// và tự gọi `load_tier` bên trong** (`store.rs`), nên chỗ gọi ngoài module KHÔNG còn cần
-/// tự `load_tier` gì cả — nó chỉ đưa `&Store` đã mở. Câu *"chỗ gọi ngoài tự nạp hai tầng
-/// bằng `load_tier` rồi truyền kết quả vào `entries_eligible_for_injection`"* mà bản trước
-/// của đoạn này viết đã **hết đúng**: đó chính là hình dạng mà cổng dưới đây phát hiện là
-/// bất khả thi (đường DUY NHẤT dựng tham số cho hàm phơi ra DUY NHẤT lại bị chính cổng đó
-/// cấm) — Ice ký sửa chữ ký thay vì nới cổng. Ba tên vẫn chỉ được PHÉP xuất hiện dưới
-/// `core/glossary/**`; không có ca hợp lệ nào gọi chúng từ bên ngoài.
+/// `confirmed_terms_for_injection` đã đóng gói. Ba tên này chỉ được PHÉP xuất hiện dưới
+/// `core/glossary/**`, nơi chúng được `pub fn` khai và tái xuất; `confirmed_terms_for_injection`
+/// nhận `&Store` và tự nạp hai tầng, nên không có ca hợp lệ nào gọi chúng từ bên ngoài.
 ///
 /// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — `insert_entry` đổi tên `insert_manual_entry`.**
 /// Câu tương ứng vẫn đúng: chữ ký mới không nhận `term_origin` nữa nhưng vẫn phơi dữ liệu
@@ -122,7 +114,7 @@ const GLOSSARY_ONLY_SURFACE: [&str; 4] =
     ["insert_manual_entry", "confirm_translation", "load_tier", "insert_candidate"];
 
 /// 🔵 **THÊM 2026-08-20 (Story 3.3)** — vị từ THUẦN dùng bởi cổng thật
-/// ([`only_entries_eligible_for_injection_may_be_called_from_outside_glossary`]) **VÀ**
+/// ([`no_raw_glossary_surface_function_may_be_called_from_outside_glossary`]) **VÀ**
 /// đối chứng mới bên dưới, cùng lý do [`line_spells_a_non_manual_term_origin_token`]: hai
 /// bên không thể lệch nhau bằng cách trùng lặp logic so chuỗi ở hai chỗ khác nhau.
 fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static str> {
@@ -144,7 +136,7 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// còn lại của `deferred-work.md §*Deferred from: lượt push + kiểm tra CI (2026-08-19)*`. `pending_candidates` KHÔNG lọc gì (trả TRỌN
 /// `resolution IS NULL`), nhưng đó đúng là việc một bề mặt "phơi để nghiệm thu bằng mắt"
 /// (§Intent của story) cần — không có điều kiện chèn nào để tách ra như
-/// `entries_eligible_for_injection` đã làm cho `glossary_entry`.
+/// `confirmed_terms_for_injection` đã làm cho `glossary_entry`.
 /// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.6) — hàm THỨ SÁU và THỨ BẢY, `confirm_pending_
 /// translation` + `approve_candidate`.** Dải mọc chốt lần đầu gặp (FR114) là chỗ gọi sản
 /// phẩm ĐẦU TIÊN của cả hai: `confirm_pending_translation` (`core/glossary/store.rs`,
@@ -167,7 +159,7 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// entries` · `delete_manual_term` · `promote_to_global`.** Quản lý Glossary (FR49):
 /// `commands::glossary::{glossary_list_entries, glossary_delete_term, glossary_promote_
 /// term_to_global}` là chỗ gọi ĐẦU TIÊN của cả ba. `list_all_entries` là khuôn chép
-/// `entries_eligible_for_injection` (không lọc `is_confirmed`, phát cả `shadowed()`);
+/// `confirmed_terms_for_injection` (không lọc `is_confirmed`, phát cả `shadowed()`);
 /// `delete_manual_term` là khuôn chép `add_manual_term`/`update_manual_term`; `promote_to_
 /// global` là hàm DUY NHẤT của module ghi vào HAI `Store` khác nhau trong cùng một lượt gọi.
 const QUICK_ADD_SURFACE: [&str; 12] = [
@@ -312,7 +304,7 @@ fn only_glossary_and_schema_may_name_glossary_tables() {
          điều kiện chèn mà Story 3.1 dựng — không có đường nào khác để chạm dữ liệu \
          Glossary.' Story 3.2 nói thêm: 'không cơ chế nào được tự ghi vào Glossary' (AD-20) \
          áp CẢ cho bảng chờ ứng viên. Một module khác gõ tên bảng thẳng là đúng đường tắt \
-         đó. Cần dữ liệu Glossary thì gọi `core::glossary::entries_eligible_for_injection` \
+         đó. Cần dữ liệu Glossary thì gọi `core::glossary::confirmed_terms_for_injection` \
          (hoặc `load_tier`/`insert_manual_entry`/`confirm_translation` cho phần còn lại của \
          vòng đời `glossary_entry`, hoặc `insert_candidate`/`pending_candidates`/ \
          `approve_candidate`/`reject_candidate` cho `glossary_candidate`).",
@@ -375,7 +367,7 @@ fn schema_rs_actually_declares_both_glossary_tables() {
     }
 }
 // ═════════════════════════════════════════════════════════════════════════════════
-// Vế thứ hai của AD-36 — chỉ `entries_eligible_for_injection` gọi được từ module khác
+// Vế thứ hai của AD-36 — chỉ cửa đã lọc `confirmed_terms_for_injection` gọi được từ module khác
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// 🔴 `insert_manual_entry`/`confirm_translation`/`load_tier` chỉ được GỌI (và được KHAI)
@@ -387,7 +379,7 @@ fn schema_rs_actually_declares_both_glossary_tables() {
 /// `only_glossary_and_schema_may_name_glossary_tables` — tức được NHẮC TỚI, không được
 /// CANH.
 #[test]
-fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
+fn no_raw_glossary_surface_function_may_be_called_from_outside_glossary() {
     let (root, files) = all_rust_sources();
 
     let mut violations: Vec<String> = Vec::new();
@@ -410,10 +402,8 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
         "{} chỗ ngoài `{GLOSSARY_DIR}` gọi thẳng một hàm phơi dữ liệu THÔ của Glossary:\n{}\n\n\
          `load_tier` trả CẢ mục chờ chốt; `insert_manual_entry`/`confirm_translation` ghi \
          thẳng không qua điều kiện chèn. Module khác gọi qua một hàm ĐÃ LỌC thay vì các hàm \
-         này — `core::ai::rag` (Story 4.6) gọi `core::glossary::confirmed_terms_for_injection` \
-         (cửa của nó, cưỡng chế thêm ở `tests/ai_boundary.rs`); các module khác gọi \
-         `core::glossary::entries_eligible_for_injection` (AD-36, hôm nay 0 chỗ gọi sản phẩm —\
-         xem `deferred-work.md`, §Deferred from: 4-6-…).",
+         này — gọi `core::glossary::confirmed_terms_for_injection` (cửa chèn duy nhất, `core::ai::rag` \
+         dùng nó, cưỡng chế thêm ở `tests/ai_boundary.rs`).",
         violations.len(),
         violations.join("\n")
     );
@@ -588,7 +578,7 @@ fn core_glossary_actually_spells_every_non_manual_origin_token() {
 
 /// Positive: `commands/glossary.rs` thực sự gọi cả BA hàm mới, và KHÔNG gọi bất kỳ tên nào
 /// trong `GLOSSARY_ONLY_SURFACE`. Đối chứng dương của chính story này — không có ca này thì
-/// cổng `only_entries_eligible_for_injection_may_be_called_from_outside_glossary` xanh y hệt
+/// cổng `no_raw_glossary_surface_function_may_be_called_from_outside_glossary` xanh y hệt
 /// trên một `commands/glossary.rs` không gọi gì cả (một bề mặt IPC rỗng, vô dụng).
 #[test]
 fn commands_glossary_calls_the_new_quick_add_surface_not_the_forbidden_one() {

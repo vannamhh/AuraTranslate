@@ -1,49 +1,6 @@
-/**
- * State của mục **AI và mô hình** trong lớp phủ Cài đặt — Story 4.2, FR68, `core/scope/
- * kinds.rs:175` (`ScopeKind::AiConfig`, ghi đè THEO TỪNG TRƯỜNG, Ice ký 2026-08-04).
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 TẦNG ĐÍCH CỦA LƯỢT LƯU THEO `OpenWorkState` PHÍA RUST, KHÔNG MỘT PROXY CHẾ ĐỘ UI
- * ─────────────────────────────────────────────────────────────────────────────
- * Không có Tác phẩm nào đang mở ⇒ mọi lượt Lưu ghi tầng **Global** (không nơi nào khác để
- * ghi). Một Tác phẩm đang mở ⇒ mọi lượt Lưu ghi tầng **Tác phẩm** — đúng hành động "ghi đè
- * cấu hình cho Tác phẩm này đang mở". `workIsOpen` đọc `AiConfigGetWire.work_tier_available`
- * của LƯỢT `ai_config_get` GẦN NHẤT (`config/aiconfig.ts::aiConfigGet`) — trường đó tính
- * TRỰC TIẾP từ `OpenWorkState` phía Rust trong CHÍNH lượt gọi đó, cùng khuôn
- * `commands::glossary::QuickAddLookup`.
- *
- * Trước bản vá này, `workIsOpen` được TRUYỀN VÀO từ `currentMode.value !== 'library'`
- * (`settingsState.ts` gọi `loadAiConfigSection(currentMode.value !== 'library')`) — một PROXY
- * chế độ giao diện, KHÔNG tương đương `OpenWorkState`: `lib.rs::close_open_work` (duy nhất
- * xoá `OpenWorkState`) chỉ chạy ở nhánh `RunEvent::Exit`, không IPC nào đóng một Tác phẩm, nên
- * `OpenWorkState` có thể còn `Some` (tầng Work vẫn dùng được) trong khi `currentMode` đã quay
- * lại `'library'` — lượt Lưu khi đó ghi NHẦM tầng Global dù Rust vẫn coi một Tác phẩm đang mở.
- * `loadAiConfigSection` vì thế KHÔNG còn nhận tham số — không còn đường nào để một tín hiệu UI
- * lọt vào quyết định tầng ghi.
- *
- * 🔴 **HỆ QUẢ CỦA BẢN VÁ, nói ra thay vì để ai đó gặp rồi đoán.** Vì `OpenWorkState` sống tới
- * lúc THOÁT ứng dụng, sau khi đã mở một Tác phẩm bất kỳ thì `work_tier_available` còn `true`
- * suốt phiên — kể cả khi giao diện đã về Library. Nghĩa là từ lúc đó, MỌI lượt Lưu ở màn này
- * ghi tầng Tác phẩm, và **không còn đường nào sửa giá trị Global cho tới khi khởi động lại**.
- * Trước bản vá vẫn có một đường, nhưng là đường SAI: về Library thì proxy đọc `false` và lượt
- * ghi rơi vào Global trong khi Rust vẫn giữ Tác phẩm đó mở. Bản vá làm tầng ghi khớp
- * authority, và đúng vì thế nó làm lộ ra rằng cái thiếu thật sự là một lệnh ĐÓNG Tác phẩm —
- * không phải một tín hiệu UI khác. Đừng "sửa" chỗ này bằng cách đọc lại `currentMode`.
- * Câu cũ ở đây từng viết *"đóng Tác phẩm rồi sửa"*; đó là một thao tác người dùng KHÔNG làm
- * được, và nó mâu thuẫn với chính đoạn ngay trên. Ghi nợ có chủ (`deferred-work.md`).
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 KHÔNG THANH CHUYỂN PHẠM VI DẠNG NÚT — khác `CleanupRuleTier`/`GlossaryTier`
- * ─────────────────────────────────────────────────────────────────────────────
- * Mỗi trường hiện ĐÚNG MỘT giá trị đã phân giải (`AiConfigFieldWire.value`), kèm nhãn tầng
- * đọc được (`tier`) và giá trị Global bị che khi có (`shadowed`) — khuôn
- * `mockups/settings.html:172`. Không nút "Tác phẩm/Toàn cục" nào cho người dùng tự chọn
- * tầng ghi: tầng ghi LUÔN là tầng mà màn hình đang thao tác (xem trên).
- *
- * ⚠️ Cùng luật mọi state Vue khác: tệp này KHÔNG được `import` vào `src/commands/index.ts`.
- */
-import { readonly, ref } from 'vue'
-import type { DeepReadonly, Ref } from 'vue'
+/** The write tier follows `workIsOpen` (from `OpenWorkState` via `ai_config_get`), never `currentMode`. */
+import { computed, readonly, ref } from 'vue'
+import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import type { IpcError } from './i18n'
 import {
   aiConfigClearOverride,
@@ -53,6 +10,8 @@ import {
   aiConfigSaveKey,
 } from './config/aiconfig'
 import type { AiConfigField, AiConfigFieldWire } from './config/aiconfig'
+
+const MAX_TOKENS_LIMIT = 4294967295
 
 /** Năm trường, ĐÚNG thứ tự hiển thị của form (`mockups/settings.html`). */
 export const AI_CONFIG_FIELDS: readonly AiConfigField[] = [
@@ -104,6 +63,44 @@ const keyError = ref<IpcError | null>(null)
 
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `settingsState.ts`). */
 let sequence = 0
+
+export type AiConfigViewTier = 'global' | 'work'
+
+const tierChoice = ref<AiConfigViewTier | null>(null)
+
+function effectiveTier(): AiConfigViewTier {
+  if (!workIsOpen.value) return 'global'
+  return tierChoice.value ?? 'work'
+}
+
+export const aiConfigViewTier: ComputedRef<AiConfigViewTier> = computed(effectiveTier)
+
+function valueAtTier(wire: AiConfigFieldWire, tier: AiConfigViewTier): string {
+  return tier === 'work' || wire.tier !== 'work' ? wire.value : (wire.shadowed ?? '')
+}
+
+function draftsForTier(tier: AiConfigViewTier): FieldRecord<string> {
+  const next = emptyDrafts()
+  for (const wire of resolvedFields.value) next[wire.field] = valueAtTier(wire, tier)
+  return next
+}
+
+export function aiConfigValueAtViewTier(field: AiConfigField): string {
+  const wire = aiConfigFieldWire(field)
+  return wire === null ? '' : valueAtTier(wire, effectiveTier())
+}
+
+export function resetAiConfigViewTier(): void {
+  tierChoice.value = null
+  drafts.value = draftsForTier(effectiveTier())
+}
+
+export function selectAiConfigViewTier(tier: AiConfigViewTier): void {
+  if (tier === 'work' && !workIsOpen.value) return
+  tierChoice.value = tier
+  drafts.value = draftsForTier(effectiveTier())
+  saveErrors.value = emptyErrors()
+}
 
 export const aiConfigLoading: DeepReadonly<Ref<boolean>> = readonly(loading)
 export const aiConfigLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
@@ -182,7 +179,7 @@ export function isAiConfigValueValid(field: AiConfigField, raw: string): boolean
     case 'max_tokens': {
       if (!/^\+?[0-9]+$/.test(trimmed)) return false
       const n = Number(trimmed)
-      return Number.isInteger(n) && n > 0
+      return Number.isInteger(n) && n > 0 && n <= MAX_TOKENS_LIMIT
     }
     case 'endpoint':
       return isAbsoluteHttpUrl(trimmed)
@@ -207,11 +204,8 @@ function isAbsoluteHttpUrl(trimmed: string): boolean {
 
 /**
  * Đọc lại năm trường — gọi mỗi lần mục `ai_and_model` trở thành mục ĐANG CHỌN (khuôn
- * `loadDomainLog` của `settingsState.ts`). **Không tham số** — cùng lý do doc-comment §Tầng
- * đích ở đầu tệp: `workIsOpen` lấy từ `result.workTierAvailable` (chính lượt `aiConfigGet` NÀY
- * đọc), không nhận từ chỗ gọi. Tệp này không tự `import` `modes/modeState.ts`, cùng lý lẽ
- * `glossarySettingsState.ts` không tự đọc `OpenWorkState` — khác biệt duy nhất: nó cũng KHÔNG
- * nhận một xấp xỉ của trạng thái đó qua tham số nữa.
+ * `loadDomainLog` của `settingsState.ts`). **Không tham số**: `workIsOpen` lấy từ
+ * `result.workTierAvailable` của chính lượt `aiConfigGet` này.
  */
 export async function loadAiConfigSection(): Promise<void> {
   const mine = ++sequence
@@ -230,9 +224,7 @@ export async function loadAiConfigSection(): Promise<void> {
   workIsOpen.value = result.workTierAvailable
   keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
-  const next = emptyDrafts()
-  for (const wire of result.fields) next[wire.field] = wire.value
-  drafts.value = next
+  drafts.value = draftsForTier(effectiveTier())
 }
 
 /**
@@ -240,7 +232,6 @@ export async function loadAiConfigSection(): Promise<void> {
  * `@submit` mà nút Lưu có thể đã khoá bằng chính [`isAiConfigValueValid`], nhưng handler
  * PHẢI tự kiểm lại (khuôn `saveGlossarySettings`).
  *
- * Tầng ghi là [`aiConfigWorkIsOpen`] tại THỜI ĐIỂM GỌI — xem §Tầng đích ở đầu tệp.
  */
 export async function saveAiConfigField(field: AiConfigField): Promise<void> {
   if (saving.value[field]) return
@@ -250,8 +241,7 @@ export async function saveAiConfigField(field: AiConfigField): Promise<void> {
   saving.value = { ...saving.value, [field]: true }
   saveErrors.value = { ...saveErrors.value, [field]: null }
 
-  const tier = workIsOpen.value ? 'work' : 'global'
-  const err = await aiConfigSaveField(tier, field, raw.trim())
+  const err = await aiConfigSaveField(effectiveTier(), field, raw.trim())
 
   saving.value = { ...saving.value, [field]: false }
   if (err !== null) {
@@ -347,6 +337,7 @@ export function resetAiConfigSection(): void {
   loading.value = false
   loadError.value = null
   workIsOpen.value = false
+  tierChoice.value = null
   keyConfigured.value = null
   keyDraft.value = ''
   keyBusy.value = false

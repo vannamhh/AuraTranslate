@@ -935,6 +935,7 @@ pub fn run() {
             // tang nguoi dung chon o man xem truoc cong quyet dinh va cham) · huy lo dang
             // treo. Khong mot lenh fs:*/dialog:* nao phoi ra JavaScript.
             crate::commands::promptset::wire::prompt_set_export,
+            crate::commands::promptset::wire::prompt_set_export_many,
             crate::commands::promptset::wire::prompt_set_open_import_preview,
             crate::commands::promptset::wire::prompt_set_confirm_import,
             crate::commands::promptset::wire::prompt_set_cancel_import,

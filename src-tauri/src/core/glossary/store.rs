@@ -18,22 +18,9 @@
 //! **không** đủ điều kiện chèn — lọc trước khi phân giải (vd. loại bỏ mục chưa chốt ở mỗi
 //! tầng RỒI MỚI hợp hai tầng) sẽ để lộ mục Global bên dưới ra ngoài, tức chèn bản dịch
 //! toàn cục cho đúng thuật ngữ người dùng vừa cố ý để ngỏ ở Tác phẩm này.
-//! [`entries_eligible_for_injection`] gọi hai lượt [`load_tier`] rồi
-//! `ScopeResolver::apply_override` TRƯỚC, rồi mới `filter(GlossaryEntry::is_confirmed)`
-//! trên kết quả ĐÃ phân giải — không có đường nào khác trong hàm này lọc trước.
-//!
-//! ─────────────────────────────────────────────────────────────────────────────
-//! 🔵 CẬP NHẬT 2026-08-19 (lượt rà soát ba lớp, vá cuối) — `entries_eligible_for_injection`
-//! TỰ NẠP HAI TẦNG, KHÔNG CÒN NHẬN `BTreeMap` ĐÃ NẠP SẴN
-//! ─────────────────────────────────────────────────────────────────────────────
-//! Bản trước nhận `global`/`work: &BTreeMap<..>` — tức chỗ gọi phải tự có sẵn kết quả của
-//! [`load_tier`]. Cổng `glossary_boundary.rs::only_entries_eligible_for_injection_may_be_called_from_outside_glossary`
-//! (thêm cùng lượt rà soát) cấm chính `load_tier` bị gọi ngoài `core/glossary/**` — hai
-//! mệnh đề đó cùng đứng thì đường DUY NHẤT dựng được tham số cho hàm phơi ra DUY NHẤT lại
-//! bị chính cổng bảo vệ hàm đó cấm. Ice ký nhận đây là lỗi trong chỉ thị vá, không phải một
-//! đánh đổi có chủ. Sửa: `entries_eligible_for_injection` nhận `&Store` thẳng và tự gọi
-//! `load_tier` bên trong — đúng khuôn `core::scope::store::load_global_config(store:
-//! &Store)`, nơi một hàm vừa đọc kho vừa phân giải mà chỗ gọi không phải tự nạp gì trước.
+//! [`confirmed_terms_for_injection`] phân giải hai tầng và phân xử chồng nhau TRƯỚC
+//! ([`resolve_and_match`]), rồi mới lọc `GlossaryEntry::is_confirmed` trên kết quả ĐÃ phân
+//! giải — không có đường nào khác trong hàm này lọc trước.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! MODULE NÀY KHÔNG GÕ TÊN `ScopeKind` — cùng luật mọi module miền khác
@@ -416,7 +403,7 @@ fn row_missing_error(col: usize, table: &str, id: i64) -> SqlError {
     )
 }
 
-/// Hai họ lỗi gặp nhau ở [`entries_eligible_for_injection`] — chỗ DUY NHẤT trong module
+/// Hai họ lỗi gặp nhau ở [`confirmed_terms_for_injection`] — chỗ DUY NHẤT trong module
 /// này vừa đọc kho (hai lượt [`load_tier`]) vừa phân giải hai tầng
 /// (`ScopeResolver::apply_override`).
 ///
@@ -434,7 +421,7 @@ pub enum GlossaryError {
     /// `CHECK` mà một bản ứng dụng khác đã lỡ ghi — xem [`decode_category`]).
     Store(StoreError),
     /// `ScopeResolver::apply_override` từ chối. Không nên xảy ra trên đường gọi đúng — xem
-    /// doc-comment của [`entries_eligible_for_injection`].
+    /// doc-comment của [`confirmed_terms_for_injection`].
     Scope(ScopeError),
     /// 🔵 **THÊM 2026-08-20 (Story 3.3).** [`update_manual_term`] nhắm vào một `id` đã biến
     /// mất (bị xoá giữa chừng — đua với Story 3.9, hay một `id` cũ còn kẹt ở webview) —
@@ -807,50 +794,6 @@ impl<'a> WorkContext<'a> {
     }
 }
 
-/// **Đúng MỘT hàm phơi cho module khác** (Epic 4, `RagInjector`) — điều kiện chèn nằm
-/// TRỌN ở đây, không ở nơi gọi (AD-36). Xem cả hai mục 🔴 ở doc-comment đầu tệp.
-///
-/// 🔵 **CẬP NHẬT 2026-08-19 (lượt rà soát ba lớp, vá cuối) — nhận `&Store` thẳng, không còn
-/// nhận `BTreeMap` đã nạp sẵn.** Bản trước đòi chỗ gọi tự có kết quả của `load_tier`, nhưng
-/// `load_tier` bị chính cổng bảo vệ hàm này (`glossary_boundary.rs`) cấm gọi từ ngoài
-/// `core/glossary/**` — tức đường DUY NHẤT dựng tham số cho hàm phơi ra DUY NHẤT lại bị cấm.
-/// Hàm này giờ tự gọi `load_tier` cho `global` và (nếu có) `work` rồi mới phân giải — chỗ
-/// gọi chỉ cần đưa `&Store` đã mở, đúng khuôn `core::scope::store::load_global_config(store:
-/// &Store)`. `load_tier` ở lại `pub` (cho `glossary_contract.rs` — xem doc-comment của nó)
-/// nhưng không còn ai NGOÀI hàm này cần gọi nó.
-///
-/// # Lỗi
-/// [`GlossaryError::Store`] nếu một trong hai lượt `load_tier` thất bại;
-/// [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối — lỗi lập trình,
-/// không xảy ra trên đường gọi đúng, vì `GLOSSARY_SCOPE_KIND` là một hằng đã khớp
-/// `ScopeKind::Glossary::Override`
-/// (`scope_contract.rs::the_semantics_table_matches_ad_18_row_by_row` canh mệnh đề đó).
-pub fn entries_eligible_for_injection(
-    scope: &WorkContext<'_>,
-    global: &Store,
-) -> Result<Vec<GlossaryEntry>, GlossaryError> {
-    let resolver = scope.resolver();
-    let work = scope.work();
-
-    let global_tier = load_tier(global)?;
-    let work_tier = work.map(load_tier).transpose()?;
-
-    let resolved =
-        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
-
-    Ok(resolved
-        .into_values()
-        .filter_map(|resolved_entry| {
-            let entry = resolved_entry.value().clone();
-            // 🔴 LỌC SAU KHI PHÂN GIẢI — `resolved` đã áp AD-18 (tầng Tác phẩm thắng theo
-            // từng thuật ngữ) TRƯỚC dòng này. Lọc ở đây không thể lộ một mục Global bị một
-            // mục Work *chờ chốt* che, vì mục Global đó đã không còn trong `resolved` nữa —
-            // nó nằm trong `shadowed()`, không trong `value()`.
-            entry.is_confirmed().then_some(entry)
-        })
-        .collect())
-}
-
 // ═════════════════════════════════════════════════════════════════════════════════
 // Story 3.3 — BA HÀM PHƠI RA MỚI, bề mặt IPC đầu tiên của `core/glossary/**`
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -864,10 +807,10 @@ pub fn entries_eligible_for_injection(
 /// Tra một `source_term` qua **hai tầng** để dải "Thêm thuật ngữ" quyết định chế độ THÊM
 /// hay SỬA (§Design Notes: `mode(source_term, lookup)`).
 ///
-/// 🔴 **KHÔNG lọc `is_confirmed`** — khác hẳn [`entries_eligible_for_injection`]. Một mục
+/// 🔴 **KHÔNG lọc `is_confirmed`** — khác hẳn [`confirmed_terms_for_injection`]. Một mục
 /// *chờ chốt* bị lọc mất ở đây sẽ làm dải mở nhầm ở chế độ THÊM, và `UNIQUE INDEX
 /// idx_glossary_entry_source_term` chặn lượt lưu — người dùng thấy "không thêm được" mà
-/// không ai nói vì sao (§Design Notes). `entries_eligible_for_injection` tồn tại đúng để
+/// không ai nói vì sao (§Design Notes). `confirmed_terms_for_injection` tồn tại đúng để
 /// LỌC; hàm này tồn tại đúng để KHÔNG lọc — hai hàm phục vụ hai câu hỏi khác nhau
 /// ("thuật ngữ nào được phép ép vào prompt" và "cụm này đã có trong Glossary chưa"),
 /// không phải hai cách viết cùng một câu hỏi.
@@ -881,7 +824,7 @@ pub fn entries_eligible_for_injection(
 /// đọc `Resolved::tier()` của kết quả, không tự so sánh gì thêm.
 ///
 /// # Lỗi
-/// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
+/// Cùng hai họ lỗi với [`confirmed_terms_for_injection`] — xem [`GlossaryError`].
 pub fn resolve_term_for_quick_add(
     scope: &WorkContext<'_>,
     global: &Store,
@@ -1050,10 +993,9 @@ pub fn update_manual_term(
 // Story 3.9 — BA HÀM PHƠI RA MỚI: liệt kê cả hai tầng · xoá · đẩy tầng (Work → Global)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Mọi mục Glossary của **cả hai tầng** — khuôn chép [`entries_eligible_for_injection`]
-/// (cùng lượt `load_tier` × 2 rồi `ScopeResolver::apply_override`), nhưng khác nó ở hai
-/// điểm mà chính màn hình "Quản lý Glossary" cần và `entries_eligible_for_injection`
-/// (dựng cho Epic 4) không được phép có:
+/// Mọi mục Glossary của **cả hai tầng** (hai lượt `load_tier` rồi
+/// `ScopeResolver::apply_override`), khác cửa chèn [`confirmed_terms_for_injection`] ở hai
+/// điểm mà chính màn hình "Quản lý Glossary" cần và cửa chèn không được phép có:
 ///
 /// 1. **Không lọc `is_confirmed`** — một mục chờ chốt phải hiện ra để người dùng SỬA/XOÁ
 ///    nó, không chỉ mục đã chốt.
@@ -1074,7 +1016,7 @@ pub fn update_manual_term(
 /// thứ người sau sẽ tưởng đã được xét. Thứ tự trả về là thứ tự hiển thị, và chỉ thế.
 ///
 /// # Lỗi
-/// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
+/// Cùng hai họ lỗi với [`confirmed_terms_for_injection`] — xem [`GlossaryError`].
 pub fn list_all_entries(
     scope: &WorkContext<'_>,
     global: &Store,
@@ -1476,7 +1418,7 @@ fn resolve_and_match(
 /// byte → điểm mã **một lần, ở đúng một chỗ** (§Design Notes) — qua [`resolve_and_match`],
 /// nửa dùng chung với [`confirmed_terms_for_injection`] (Story 4.6, Decision 5).
 ///
-/// 🔴 **Không lọc `is_confirmed`** — khác hẳn [`entries_eligible_for_injection`]. Mục chờ
+/// 🔴 **Không lọc `is_confirmed`** — khác hẳn [`confirmed_terms_for_injection`]. Mục chờ
 /// chốt vẫn được đánh dấu (I/O Matrix: *"Mục chờ chốt ⇒ Có dấu, `is_confirmed=false`,
 /// `translation=null`"*) — chỉ khoá nào **đã chốt** mới được ép vào prompt (AD-36), nhưng cả
 /// hai trạng thái đều đáng được người dịch NHÌN THẤY trên lưới.
@@ -1605,7 +1547,7 @@ pub struct GlossaryInjectionTerm {
     /// Bản dịch đã chốt — luôn `Some` ở tầng dữ liệu (`is_confirmed()` xác nhận), nên kiểu ở
     /// đây là `String` trần: không một `.unwrap_or_default()` nào cần đứng giữa "không thể
     /// xảy ra" và "rỗng thật" (khác pha review Pass 1 #11 bắt được ở
-    /// `entries_eligible_for_injection`).
+    /// `confirmed_terms_for_injection`).
     pub translation: String,
 }
 

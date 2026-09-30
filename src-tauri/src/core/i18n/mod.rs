@@ -847,6 +847,7 @@ message_keys! {
     /// (`OpenAiClientError::ApiKeyHeaderInvalid`, tách khỏi `RequestFailed` ở Task 1 spec 4.10)
     /// — câu chỉ vào khoá đã lưu, không đọc được. KHÔNG retryable — thất bại giống hệt mỗi lần.
     AiTranslateApiKeyHeaderInvalid => "err.ai_translate.api_key_header_invalid" [],
+    AiTranslateInternalFailure => "err.ai_translate.internal_failure" [],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

@@ -1165,6 +1165,56 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "pub fn prompt_set_open_import_preview(\n        app: tauri::AppHandle",
             "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien, Story 4.5",
         ),
+        (
+            "src/commands/promptset.rs",
+            "pub fn prompt_set_export_many(\n        app: tauri::AppHandle",
+            "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien, roi ghi N tep",
+        ),
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn ai_config_get(app: tauri::AppHandle",
+            "do keychain he dieu hanh (`keychain::configured()`), co the cho hop thoai mo khoa/cap quyen -- Story 11.7 lo B",
+        ),
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn ai_config_save_key(tier: AiConfigTier, value: String)",
+            "ghi keychain he dieu hanh, co the cho hop thoai mo khoa/cap quyen -- Story 11.7 lo B",
+        ),
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {\n        super::ai_config_delete_key(tier)",
+            "xoa khoi keychain he dieu hanh, cung ly do `ai_config_save_key` -- Story 11.7 lo B",
+        ),
+        (
+            "src/commands/aiprompt.rs",
+            "pub fn ai_prompt_assemble(\n        app: tauri::AppHandle",
+            "doc TOAN BO Chuong dang mo roi khop Glossary cho tung segment -- luot quet N hang, Story 11.7 lo B",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn open_work(app: tauri::AppHandle",
+            "mo `.atproj` that: `Store::open` (di tru kem sao luu ca tep, luong checkpoint, pool doc) -- Story 11.7 lo B",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn tier2_block_set_kept(\n        app: tauri::AppHandle",
+            "`pending_destination` khoa `PendingImportSourceState`, cung mutex ma mot luot xac nhan `(async)` giu toi N x 20 giay -- Story 11.7 lo B",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn tier2_block_confirm_range(\n        app: tauri::AppHandle",
+            "cung ly do `tier2_block_set_kept` ngay tren -- `pending_destination`",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn preview_chapter_detail(\n        app: tauri::AppHandle",
+            "cung ly do `tier2_block_set_kept` ngay tren -- `pending_destination`",
+        ),
+        (
+            "src/commands/glossary.rs",
+            "pub fn glossary_cancel_import(app: tauri::AppHandle",
+            "khoa `PendingImportState`, mutex ma `glossary_confirm_import` giu suot luot ghi hang loat -- Story 11.7 lo B",
+        ),
     ]
 }
 
@@ -1492,6 +1542,21 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// vỏ xác nhận, không phải một quy tắc nghiệp vụ mới. Không tệp mới, không hàng `mod` mới. Đếm
 /// lại: **69 plain / 31 async** trên **mười lăm** tệp — 72 − 3 = 69, 28 + 3 = 31.
 ///
+/// 🔵 **CẬP NHẬT 2026-09-30 (Story 11.7, lô B)** — rà lại toàn bộ 70 vỏ plain theo tiêu chí AI-4
+/// D4 (mạng · đọc nguyên tệp/nguyên Library · quét N hàng · keychain · khoá mà một bên giữ lâu
+/// hơn có thể ghim), rà theo CẤU TRÚC, chưa bấm giờ. Chín vỏ đổi sang `(async)`: ba vỏ keychain
+/// của `aiconfig.rs`, `ai_prompt_assemble` (đọc cả Chương), `open_work` (mở `.atproj`),
+/// `tier2_block_set_kept`/`tier2_block_confirm_range`/`preview_chapter_detail` (khoá
+/// `PendingImportSourceState` qua `pending_destination`, cùng mutex Quyết định 13 của 11.6) và
+/// `glossary_cancel_import` (khoá `PendingImportState` mà `glossary_confirm_import` giữ suốt lượt
+/// ghi). `prompt_set_export_many` là vỏ `(async)` mới. Đếm lại: **61 plain / 41 async**.
+/// Các vỏ plain còn lại được rà là nhẹ theo cấu trúc (một hàng, một `Mutex`, một `AtomicU64`,
+/// hoặc đọc chỉ mục Library đã dựng sẵn) trừ hai nhóm để lại có chủ: các vỏ đọc/ghi
+/// `OpenWorkState` (một bên `(async)` giữ guard lâu hơn vẫn ghim được luồng chính — món nợ
+/// thu hẹp phạm vi guard riêng, lật `(async)` không chữa được) và `segment.rs`/`chapter.rs`
+/// (đường flush của editor, AD-35, cần đo trước khi lật vì `(async)` bỏ thứ tự tuần tự của luồng
+/// chính).
+///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
 /// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
@@ -1506,22 +1571,17 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     (
         "src/commands/aiconfig.rs",
-        5,
-        0,
-        0,
-        "CHUA DO -- chu: Dev. Nam vo doc/ghi cau hinh nha cung cap AI hai tang cong ghi/xoa \
-         khoa API trong keychain (Story 4.3, tang Global-only, tu choi tang Tac pham TAI \
-         VO); chua ai do chi phi cua chung tren mot cau hinh lon.",
+        2,
+        3,
+        3,
+        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo con lai (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
     ),
     (
         "src/commands/aiprompt.rs",
-        2,
-        0,
-        0,
-        "CHUA DO -- chu: Dev. Hai vo (Story 4.7): lap rap prompt tu Chuong dang mo (doc TOAN \
-         BO Chuong qua read_open_chapter_segments, khong phai duong nong-tren-tung-cau, xem \
-         doc-comment cua ham) roi ghi ban ghi cua phien, va doc lai ban ghi do; chua ai do \
-         chi phi cua ca hai tren mot Chuong lon.",
+        1,
+        1,
+        1,
+        "MOT PHAN DA DO (Story 11.7 lo B). `ai_prompt_assemble` doc TOAN BO Chuong nen da `(async)`; `ai_prompt_read_record` chi doc mot `Mutex` trong phien (0 dia, 0 mang), nhe theo cau truc -- chua ai do chi phi -- chu: Dev.",
     ),
     (
         "src/commands/aitranslate.rs",
@@ -1563,7 +1623,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
         "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
-    ("src/commands/glossary.rs", 8, 7, 7, ""),
+    ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
     (
@@ -1573,19 +1633,13 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
         0,
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
-    ("src/commands/project/wire.rs", 7, 11, 9, "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel."),
+    ("src/commands/project/wire.rs", 3, 15, 13, "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel."),
     (
         "src/commands/promptset.rs",
         7,
-        2,
-        2,
-        "MOT PHAN DA DO (Story 4.5). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN \
-         CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo \
-         MOI cua Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong \
-         `(async)` co chu -- mot giao dich MOT hang la tuc thoi, khac han luot ghi hang loat \
-         cua `glossary_confirm_import`. Hai `(async)` con lai (`prompt_set_export`/ \
-         `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi bon vo \
-         Glossary o tren.",
+        3,
+        3,
+        "MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren.",
     ),
     // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
@@ -1739,10 +1793,10 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (70, 31),
+        (61, 41),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         70/31 (69/31 tu lan do truoc, THEM `cancel_image_download` (plain, bom mot AtomicU64, \
-         cung lop voi ai_translate_cancel): 69 + 1 = 70).\n\n\
+         61/41 (70/31 truoc lo B cua Story 11.7: chin vo plain doi sang `(async)` va \
+         `prompt_set_export_many` la vo `(async)` moi).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

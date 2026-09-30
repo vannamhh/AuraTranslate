@@ -15,6 +15,8 @@
  * `workTierAvailable` của giá trị `aiConfigGetMock` trả về, đúng như `config/aiconfig.ts`
  * đọc nó từ `AiConfigGetWire.work_tier_available` (Rust).
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const aiConfigGetMock = vi.fn()
@@ -621,5 +623,129 @@ describe('resetAiConfigSection — vứt cả state khoá API', () => {
     expect(aiConfigKeyConfigured.value).toBeNull()
     expect(aiConfigKeyDraft()).toBe('')
     expect(aiConfigKeyError.value).toBeNull()
+  })
+})
+
+describe('bảng luật dùng chung với Rust — mỗi hàng cùng một phán quyết', () => {
+  const table = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'tests/frontend/support/ai-config-validity.json'), 'utf8'),
+  ) as { rows: { field: 'provider' | 'endpoint' | 'model' | 'temperature' | 'max_tokens'; input: string; valid: boolean }[] }
+
+  it('bảng không rỗng và phủ đủ năm trường', () => {
+    expect(table.rows.length).toBeGreaterThan(0)
+    expect(new Set(table.rows.map((r) => r.field)).size).toBe(5)
+  })
+
+  it('isAiConfigValueValid khớp từng hàng, kể cả max_tokens = 4294967296', async () => {
+    const { isAiConfigValueValid } = await freshState()
+    const mismatches = table.rows.filter((r) => isAiConfigValueValid(r.field, r.input) !== r.valid)
+    expect(mismatches).toEqual([])
+    expect(isAiConfigValueValid('max_tokens', '4294967295')).toBe(true)
+    expect(isAiConfigValueValid('max_tokens', '4294967296')).toBe(false)
+  })
+})
+
+describe('bộ chọn tầng Toàn cục/Tác phẩm — tầng xem và tầng ghi', () => {
+  const workOverridesModel = {
+    fields: [
+      { field: 'provider', value: 'openai', tier: 'global', shadowed: null },
+      { field: 'endpoint', value: '', tier: 'global', shadowed: null },
+      { field: 'model', value: 'work-model', tier: 'work', shadowed: 'global-model' },
+      { field: 'temperature', value: '0.5', tier: 'work', shadowed: null },
+      { field: 'max_tokens', value: '100', tier: 'global', shadowed: null },
+    ],
+    workTierAvailable: true,
+    keyConfigured: false,
+    error: null,
+  }
+
+  it('có Tác phẩm mở ⇒ mặc định Tác phẩm; không có ⇒ Toàn cục và Tác phẩm không chọn được', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const open = await freshState()
+    await open.loadAiConfigSection()
+    expect(open.aiConfigViewTier.value).toBe('work')
+
+    aiConfigGetMock.mockResolvedValue({ ...workOverridesModel, workTierAvailable: false })
+    const closed = await freshState()
+    await closed.loadAiConfigSection()
+    closed.selectAiConfigViewTier('work')
+    expect(closed.aiConfigViewTier.value).toBe('global')
+  })
+
+  it('xem Toàn cục: trường bị Work ghi đè hiện `shadowed`, không hiện giá trị Work; trường khác hiện `value`', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    expect(s.aiConfigDraft('model')).toBe('work-model')
+
+    s.selectAiConfigViewTier('global')
+    expect(s.aiConfigDraft('model')).toBe('global-model')
+    expect(s.aiConfigDraft('temperature')).toBe('')
+    expect(s.aiConfigDraft('provider')).toBe('openai')
+    expect(s.aiConfigDraft('max_tokens')).toBe('100')
+
+    s.selectAiConfigViewTier('work')
+    expect(s.aiConfigDraft('model')).toBe('work-model')
+    expect(s.aiConfigDraft('temperature')).toBe('0.5')
+  })
+
+  it('Toàn cục được chọn khi Work mở ⇒ lưu tầng global; đổi lại Tác phẩm ⇒ lưu tầng work', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    s.selectAiConfigViewTier('global')
+    s.setAiConfigDraft('model', 'new-global')
+    await s.saveAiConfigField('model')
+    expect(aiConfigSaveFieldMock).toHaveBeenLastCalledWith('global', 'model', 'new-global')
+    expect(s.aiConfigViewTier.value).toBe('global')
+
+    s.selectAiConfigViewTier('work')
+    s.setAiConfigDraft('model', 'new-work')
+    await s.saveAiConfigField('model')
+    expect(aiConfigSaveFieldMock).toHaveBeenLastCalledWith('work', 'model', 'new-work')
+  })
+
+  it('lượt lưu re-check workIsOpen tại thời điểm gọi: Work biến mất giữa chừng ⇒ ghi global, không ghi work', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    s.setAiConfigDraft('provider', 'x')
+
+    aiConfigGetMock.mockResolvedValue({ ...workOverridesModel, workTierAvailable: false })
+    await s.loadAiConfigSection()
+    s.setAiConfigDraft('provider', 'x')
+    await s.saveAiConfigField('provider')
+
+    expect(aiConfigSaveFieldMock).toHaveBeenLastCalledWith('global', 'provider', 'x')
+  })
+
+  it('lưu Toàn cục không gọi aiConfigClearOverride và không đụng bản ghi đè của Work', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    s.selectAiConfigViewTier('global')
+    s.setAiConfigDraft('model', 'g2')
+    await s.saveAiConfigField('model')
+    expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('resetAiConfigViewTier trả lựa chọn về mặc định Tác phẩm khi Work còn mở', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    s.selectAiConfigViewTier('global')
+    s.resetAiConfigViewTier()
+    expect(s.aiConfigViewTier.value).toBe('work')
+    expect(s.aiConfigDraft('model')).toBe('work-model')
+  })
+
+  it('lượt nạp lại sau khi lưu KHÔNG đặt lại tầng đã chọn', async () => {
+    aiConfigGetMock.mockResolvedValue(workOverridesModel)
+    const s = await freshState()
+    await s.loadAiConfigSection()
+    s.selectAiConfigViewTier('global')
+    await s.loadAiConfigSection()
+    expect(s.aiConfigViewTier.value).toBe('global')
   })
 })

@@ -13,12 +13,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::commands::promptset::{
     PendingPromptImportState, PromptImportOutcomeWire, PromptSetTierWire, prompt_set_cancel_import,
-    prompt_set_confirm_import, prompt_set_create, prompt_set_export, prompt_set_list,
+    PromptSetExportRef, prompt_set_confirm_import, prompt_set_create, prompt_set_export,
+    prompt_set_export_many, prompt_set_list,
     prompt_set_open_import_preview, prompt_set_rename,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::promptset::exchange::ConflictDecision;
-use auratranslate_lib::core::promptset::exchange_io::MAX_PROMPT_SET_IMPORT_BYTES;
+use auratranslate_lib::core::promptset::exchange_io::{MAX_PROMPT_SET_IMPORT_BYTES, export_file_name};
 use auratranslate_lib::core::promptset::{PromptSetTier, update_body};
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -601,4 +602,122 @@ fn a_file_valid_up_to_its_last_structural_line_and_broken_there_writes_nothing()
 
     drop(global);
     cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Export several sets into one folder
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn file_names_in(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(dir)
+        .expect("doc thu muc")
+        .map(|e| e.expect("muc").file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn exporting_three_sets_never_overwrites_renames_collisions_and_makes_unsafe_names_safe() {
+    let root = temp_dir("export-many");
+    let global = open_global(&root);
+    let open = open_work_real(&root);
+    let dest = root.join("dest");
+    fs::create_dir_all(&dest).expect("tao thu muc dich");
+    fs::write(dest.join("Tiên hiệp.prompt.md"), "TEP CO SAN").expect("tao tep co san");
+
+    let a = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Tiên hiệp", "than G")
+        .expect("tao bo Global");
+    let b = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Work, "Tiên hiệp", "than W")
+        .expect("tao bo Work");
+    let c = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "a/b", "than C")
+        .expect("tao bo a/b");
+
+    let refs = [
+        PromptSetExportRef { tier: PromptSetTier::Global, id: a.id },
+        PromptSetExportRef { tier: PromptSetTier::Work, id: b.id },
+        PromptSetExportRef { tier: PromptSetTier::Global, id: c.id },
+    ];
+    let results = prompt_set_export_many(Some(&global), Some(&open), &refs, &dest).expect("xuat nhieu");
+
+    assert!(results.iter().all(|r| r.error.is_none()), "khong ca nao duoc loi: {results:?}");
+    let names: Vec<_> = results.iter().map(|r| r.file_name.clone().expect("ten tep")).collect();
+    assert_eq!(names, ["Tiên hiệp-2.prompt.md", "Tiên hiệp-3.prompt.md", "a_b.prompt.md"]);
+    assert_eq!(
+        fs::read_to_string(dest.join("Tiên hiệp.prompt.md")).expect("doc tep co san"),
+        "TEP CO SAN",
+        "tep co san khong duoc bi ghi de"
+    );
+    assert!(
+        fs::read_to_string(dest.join("Tiên hiệp-2.prompt.md")).expect("doc -2").contains("than G")
+    );
+    assert!(
+        fs::read_to_string(dest.join("Tiên hiệp-3.prompt.md")).expect("doc -3").contains("than W")
+    );
+    assert_eq!(file_names_in(&dest).len(), 4, "khong tep tam nao con lai: {:?}", file_names_in(&dest));
+
+    drop(open);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn a_failure_on_the_third_file_keeps_the_first_two_and_reports_each_file() {
+    let root = temp_dir("export-many-fail");
+    let global = open_global(&root);
+    let dest = root.join("dest");
+    fs::create_dir_all(&dest).expect("tao thu muc dich");
+
+    let one = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao 1");
+    let two = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Hai", "2").expect("tao 2");
+    let long_name = "x".repeat(300);
+    let three =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, &long_name, "3").expect("tao 3");
+
+    let refs = [
+        PromptSetExportRef { tier: PromptSetTier::Global, id: one.id },
+        PromptSetExportRef { tier: PromptSetTier::Global, id: two.id },
+        PromptSetExportRef { tier: PromptSetTier::Global, id: three.id },
+    ];
+    let results = prompt_set_export_many(Some(&global), None, &refs, &dest).expect("xuat nhieu");
+
+    assert_eq!(results.len(), 3);
+    assert!(results[0].error.is_none() && results[1].error.is_none());
+    let failure = results[2].error.as_ref().expect("tep thu ba phai loi");
+    assert_eq!(failure.message_key(), MessageKey::PromptSetExportWriteFailed);
+    assert!(results[2].path.is_none());
+    assert_eq!(file_names_in(&dest), ["Hai.prompt.md", "Mot.prompt.md"]);
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn a_work_tier_set_with_no_work_open_fails_alone_and_the_other_files_are_written() {
+    let root = temp_dir("export-many-no-work");
+    let global = open_global(&root);
+    let dest = root.join("dest");
+    fs::create_dir_all(&dest).expect("tao thu muc dich");
+    let one = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao");
+
+    let refs = [
+        PromptSetExportRef { tier: PromptSetTier::Work, id: 1 },
+        PromptSetExportRef { tier: PromptSetTier::Global, id: one.id },
+    ];
+    let results = prompt_set_export_many(Some(&global), None, &refs, &dest).expect("xuat nhieu");
+    assert!(results[0].error.is_some());
+    assert!(results[1].error.is_none());
+    assert_eq!(file_names_in(&dest), ["Mot.prompt.md"]);
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn export_file_names_replace_path_unsafe_characters_and_never_come_out_empty() {
+    assert_eq!(export_file_name("a/b"), "a_b.prompt.md");
+    assert_eq!(export_file_name("a:b*c?"), "a_b_c_.prompt.md");
+    assert_eq!(export_file_name("Tiên hiệp"), "Tiên hiệp.prompt.md");
+    assert_eq!(export_file_name("dot.. "), "dot.prompt.md");
+    assert_eq!(export_file_name("..."), "prompt-set.prompt.md");
 }

@@ -170,16 +170,17 @@ pub fn batch_stopped_error(segment_id: i64, err: OpenAiClientError) -> IpcError 
     IpcError::new(code, message_key, params, retryable)
 }
 
-/// Tác vụ blocking của lô panic/bị huỷ — KHÔNG một câu cụ thể nào để nêu tên (khác
-/// [`batch_stopped_error`]), nên rơi về họ "provider không tới được"
-/// (`AiTranslateProviderUnreachable`) đã dùng cho cùng ca này ở lượt dịch MỘT segment
-/// (`send_prepared_translate_call`) — một sự cố hạ tầng của chính lượt gọi, không phải
-/// "provider trả lỗi trên câu N".
-fn batch_panicked_error() -> IpcError {
-    OpenAiClientError::RequestFailed {
-        detail: "ai_translate batch blocking task panicked or was aborted".to_owned(),
-    }
-    .into()
+pub fn batch_panicked_error() -> IpcError {
+    internal_failure_error()
+}
+
+fn internal_failure_error() -> IpcError {
+    IpcError::new(
+        "ai_translate.internal_failure",
+        MessageKey::AiTranslateInternalFailure,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// Trạng thái dựng ĐỦ để gửi — mọi trường đã SỞ HỮU (không vay `Store`/`OpenWork`), đúng điều
@@ -653,7 +654,7 @@ async fn send_prepared_translate_call(
     channel: tauri::ipc::Channel<String>,
     generation_state: AiTranslateGeneration,
     generation: u64,
-) -> Result<TranslateOutcome, OpenAiClientError> {
+) -> Result<TranslateOutcome, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
         let provider = OpenAiChatClient::new();
         let should_cancel = || !generation_state.is_current(generation);
@@ -667,10 +668,8 @@ async fn send_prepared_translate_call(
     });
 
     match join.await {
-        Ok(outcome) => outcome,
-        Err(_join_err) => Err(OpenAiClientError::RequestFailed {
-            detail: "ai_translate blocking task panicked or was aborted".to_owned(),
-        }),
+        Ok(outcome) => outcome.map_err(IpcError::from),
+        Err(_join_err) => Err(internal_failure_error()),
     }
 }
 
@@ -794,8 +793,8 @@ pub mod wire {
     /// 🔴 Khoá `OpenWorkState` được mở và THẢ trong khối `{ ... }` dưới đây, TRƯỚC bất kỳ
     /// `.await` nào — xem doc-comment đầu tệp.
     #[tauri::command]
-    pub async fn ai_translate_segment(
-        app: tauri::AppHandle,
+    pub async fn ai_translate_segment<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
         segment_id: i64,
         prompt_set_name: Option<String>,
         channel: tauri::ipc::Channel<String>,
@@ -892,8 +891,8 @@ pub mod wire {
     /// 🔴 Khoá `OpenWorkState` được mở và THẢ trong khối `{ ... }` dưới đây, TRƯỚC bất kỳ
     /// `.await` nào — xem doc-comment đầu tệp.
     #[tauri::command]
-    pub async fn ai_translate_batch(
-        app: tauri::AppHandle,
+    pub async fn ai_translate_batch<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
         segment_ids: Vec<i64>,
         prompt_set_name: Option<String>,
         channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,

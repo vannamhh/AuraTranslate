@@ -1203,7 +1203,8 @@
     /// 🔴 Tham số là `work_id`, KHÔNG một đường dẫn hệ tệp (§Never của story):
     /// `atproj_path` phân giải Ở RUST, từ `library-index.db`, qua [`Indexer::find_work`] —
     /// webview không bao giờ tự dựng hay truyền một đường dẫn.
-    #[tauri::command]
+    /// Async: `Store::open` may run a migration with a file backup.
+    #[tauri::command(async)]
     pub fn open_work(app: tauri::AppHandle, work_id: String) -> Result<OpenedWork, IpcError> {
         use tauri::Manager as _;
 
@@ -1438,7 +1439,8 @@
     /// write from any other Chapter is refused outright
     /// (`super::tier2_edit_locked_to_first_chapter`) rather than silently overwriting the
     /// first Chapter's overrides.
-    #[tauri::command]
+    /// Async: `pending_destination` locks `PendingImportSourceState`, which an async confirm holds during image downloads.
+    #[tauri::command(async)]
     pub fn tier2_block_set_kept(
         app: tauri::AppHandle,
         index: usize,
@@ -1508,7 +1510,8 @@
     /// dựng một patch trên một tổng số khối không còn đúng với trang hiện hành.
     ///
     /// `detail_chapter_index` — same guard as [`tier2_block_set_kept`]; see its doc comment.
-    #[tauri::command]
+    /// Async: `pending_destination` locks `PendingImportSourceState`.
+    #[tauri::command(async)]
     pub fn tier2_block_confirm_range(
         app: tauri::AppHandle,
         start: usize,
@@ -1587,9 +1590,7 @@
 
     // ─────────────────────────────────────────────────────────────────────────
     // Story 6.10a — con trỏ *Chương đang chọn*: chi tiết LAZY (tầng 2/3) cho Chương thứ k khi
-    // con trỏ dời (`⌥←`/`⌥→`). KHÔNG `(async)`: byte đã tải sống trong `UrlImportItemsState`
-    // (AD-41 — 0 lời gọi mạng khi người dùng không bấm), chỉ chạy lại chuỗi pipeline trong bộ
-    // nhớ.
+    // con trỏ dời (`⌥←`/`⌥→`).
     // ─────────────────────────────────────────────────────────────────────────
 
     /// Vỏ IPC — dựng lại tầng 2/3 cho Chương thứ `chapter_index`, với bảng mã ĐÃ CHỌN (không
@@ -1606,7 +1607,8 @@
     /// - `chapter_index` ngoài phạm vi Chương thật của lượt chạy MỚI, hoặc bảng mã đã chọn
     ///   "không ra chữ" cho Chương này ⇒ cùng lỗi trên — frontend coi đây là trạng thái CŨ
     ///   (mẫu phân tách vừa đổi làm N đổi dưới chân), không phải một lỗi mạng.
-    #[tauri::command]
+    /// Async: `pending_destination` locks `PendingImportSourceState`.
+    #[tauri::command(async)]
     pub fn preview_chapter_detail(
         app: tauri::AppHandle,
         chapter_index: usize,

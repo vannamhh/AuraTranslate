@@ -44,7 +44,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::aiprompt::{
     GlossaryTierWire, LastAssembledPromptState, PromptPieceKindWire, PromptPieceWire,
     assemble_and_record_prompt, clear_last_assembled_prompt_on_work_close,
-    read_last_assembled_prompt,
+    read_last_assembled_prompt, read_record_or_report_unmanaged,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::{PromptSetTierWire, prompt_set_create};
@@ -218,6 +218,23 @@ fn nothing_recorded_yet_this_session_is_a_state_not_an_error() {
     let record = fresh_record();
     let read_back = read_last_assembled_prompt(&record);
     assert!(read_back.is_none(), "chua lap lan nao trong phien nay phai doc thanh None");
+}
+
+/// Một `LastAssembledPromptState` chưa được quản lý đọc thành `None` NHƯNG phải báo qua `report`,
+/// còn một trạng thái đã quản lý mà chưa có bản ghi thì đọc `None` trong im lặng.
+#[test]
+fn an_unmanaged_record_state_is_reported_while_a_managed_empty_one_is_silent() {
+    let mut reported = Vec::new();
+    let unmanaged = read_record_or_report_unmanaged(None, |m| reported.push(m.to_owned()));
+    assert!(unmanaged.is_none());
+    assert_eq!(reported.len(), 1, "trang thai chua duoc quan ly phai bao dung mot lan");
+    assert!(reported[0].contains("read_record"));
+
+    let record = fresh_record();
+    let mut silent = Vec::new();
+    let managed = read_record_or_report_unmanaged(Some(&record), |m| silent.push(m.to_owned()));
+    assert!(managed.is_none());
+    assert!(silent.is_empty(), "trang thai da quan ly, chua co ban ghi, khong duoc bao gi");
 }
 
 /// Hàng "Empty body" — bộ prompt hiệu lực có `body == ""` ⇒ lượt lắp ráp vẫn THÀNH CÔNG

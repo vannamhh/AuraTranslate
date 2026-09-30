@@ -2145,18 +2145,27 @@ pub fn promote_ai_translation(
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
+    enum Promoted {
+        Missing,
+        Retired,
+        Row(String, String, bool),
+    }
+
     let payload = target_text.to_owned();
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let found = tx.query_row(
-            "SELECT target_text, translation_origin FROM segment WHERE id = ?1",
+            "SELECT target_text, translation_origin, retired_at IS NOT NULL FROM segment WHERE id = ?1",
             [segment_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?)),
         );
-        let (current_text, current_origin) = match found {
+        let (current_text, current_origin, retired) = match found {
             Ok(value) => value,
-            Err(SqlError::QueryReturnedNoRows) => return Ok(None),
+            Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
             Err(err) => return Err(err),
         };
+        if retired {
+            return Ok(Promoted::Retired);
+        }
 
         // Cùng phép so VĂN BẢN của `restore_segment_version` — "chưa từng được ký" nghĩa là
         // KHÔNG có bản sao trong `segment_version`, không một cờ `dirty`. Cùng miễn trừ
@@ -2170,7 +2179,7 @@ pub fn promote_ai_translation(
             )?;
             if has_copy == 0 {
                 // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-                return Ok(Some((current_text, current_origin, true)));
+                return Ok(Promoted::Row(current_text, current_origin, true));
             }
         }
 
@@ -2180,11 +2189,13 @@ pub fn promote_ai_translation(
             (&payload, TRANSLATION_ORIGIN_OTHER, segment_id),
         )?;
 
-        Ok(Some((payload, TRANSLATION_ORIGIN_OTHER.to_owned(), false)))
+        Ok(Promoted::Row(payload, TRANSLATION_ORIGIN_OTHER.to_owned(), false))
     })?;
 
-    let Some((target_text, translation_origin, needs_confirmation)) = outcome else {
-        return Err(segment_not_found(segment_id));
+    let (target_text, translation_origin, needs_confirmation) = match outcome {
+        Promoted::Missing => return Err(segment_not_found(segment_id)),
+        Promoted::Retired => return Err(segment_retired(segment_id)),
+        Promoted::Row(text, origin, needs_confirmation) => (text, origin, needs_confirmation),
     };
     // `target_text` already holds the draft when `needs_confirmation`: that branch of the
     // write closure above returns `current_text` unchanged (see the struct field doc).
