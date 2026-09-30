@@ -305,18 +305,28 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
   }
 }
 
+/** Last write per `(kind, key)` lands last: a later put waits for the earlier one, so
+ * out-of-order `invoke` completion cannot leave an intermediate value on disk. */
+const putTails = new Map<string, Promise<IpcError | null>>()
+
 /**
  * Ghi một giá trị cấu hình xuống tầng Global. Không ném.
  *
  * ⚠️ Trả `IpcError | null` chứ không `void`: một lượt lưu trượt là thứ người dùng có quyền
  * biết *(AD-21, và `store.write_failed` nghĩa đen là "thay đổi vừa rồi chưa được lưu")*.
- * Chỗ gọi hôm nay chỉ ghi log — màn hình Cài đặt là chuyện của story sau.
  */
-export async function putConfig(
-  kind: string,
-  key: string,
-  value: string,
-): Promise<IpcError | null> {
+export function putConfig(kind: string, key: string, value: string): Promise<IpcError | null> {
+  const lane = `${kind}\u0000${key}`
+  const previous = putTails.get(lane)
+  const run = previous === undefined ? sendPut(kind, key, value) : previous.then(() => sendPut(kind, key, value))
+  putTails.set(lane, run)
+  void run.then(() => {
+    if (putTails.get(lane) === run) putTails.delete(lane)
+  })
+  return run
+}
+
+async function sendPut(kind: string, key: string, value: string): Promise<IpcError | null> {
   try {
     await invoke(CMD_PUT, { kind, key, value })
     return null

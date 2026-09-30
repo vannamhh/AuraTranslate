@@ -757,10 +757,8 @@ export type CommandDeps = {
   /** Giữ bản đang soạn, bỏ câu hỏi. Handler của `history.cancel_restore` (AC2). */
   cancelPendingRestore?: () => void
 
-  /** Mở lớp phủ phím tắt. Handler của `shortcuts.open` (AC1). */
+  /** Mở Cài đặt ở mục Phím tắt. Handler của `shortcuts.open` (AC1). */
   openShortcuts?: () => void
-  /** Đóng lớp phủ phím tắt. Handler của `shortcuts.close` (AC1). */
-  closeShortcuts?: () => void
 
   // ── Story 4.12, Phase 3a — ngăn kéo Tra cứu (Decision 2) ─────────────────────────
   //
@@ -834,10 +832,8 @@ export type CommandDeps = {
   closeGlossaryQuickAdd?: () => void
 
   // ── Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47) ──────────────────
-  /** Mở lớp phủ ngưỡng quét. Handler của `glossary.settings.open`. */
+  /** Mở Cài đặt ở mục Glossary. Handler của `glossary.settings.open`. */
   openGlossarySettings?: () => void
-  /** Đóng lớp phủ ngưỡng quét mà KHÔNG lưu. Handler của `glossary.settings.close`. */
-  closeGlossarySettings?: () => void
   /**
    * Lưu ngưỡng đang gõ trong ô nhập. Handler của `glossary.settings.save`.
    *
@@ -1027,7 +1023,7 @@ export type CommandDeps = {
   /** Mức Đặc (76ch/16px/1.66). Handler của `reading.level_dense` (`3`). */
   setReadingLevelDense?: () => void
   /** Mở/đóng khối tinh chỉnh cỡ chữ · giãn dòng. Handler của `reading.toggle_tuner` —
-   * **không hợp âm mặc định** (§Design Notes: `⌘,` đã có chủ, chờ Ice chốt). */
+   * **không hợp âm mặc định** (§Design Notes: `⌘,` thuộc `settings.open`). */
   toggleReadingTuner?: () => void
   /** Đảo sáng ↔ tối. Handler của `reading.toggle_theme` (`D`) — TOÀN ứng dụng, không chỉ
    * Chế độ đọc (`src/tokens/themeState.ts::toggleTheme`). */
@@ -2002,7 +1998,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * đã có luật vùng gõ (`isTypingZone`) chặn chúng trong mọi `INPUT`/`TEXTAREA`/`SELECT`/
    * `contenteditable`, và phím TRẦN là TOÀN ỨNG DỤNG (không phạm vi theo chế độ — xem
    * §Design Notes "Phím trần là TOÀN ỨNG DỤNG" của story). `reading.toggle_tuner` **không**
-   * hợp âm mặc định: `⌘,` đã có chủ (`shortcuts.open`), và đó là một quyết định của Ice —
+   * hợp âm mặc định: `⌘,` thuộc `settings.open`, và đó là một quyết định của Ice —
    * xem §Design Notes.
    */
   target.register({
@@ -2046,7 +2042,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'reading.toggle_tuner',
     labelKey: 'command.reading.toggle_tuner',
-    // 🔴 KHÔNG hợp âm mặc định — §Design Notes "⌘, đã có chủ". Nút trên thanh công cụ là
+    // 🔴 KHÔNG hợp âm mặc định — §Design Notes "⌘, thuộc settings.open". Nút trên thanh công cụ là
     // đường vào chính; Tab + Enter/Space phủ NFR17.
     keys: undefined,
     run: () => {
@@ -3059,12 +3055,12 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `glossary.settings.open` là điểm vào có phím mặc định — `Mod+Alt+T` (họ `Mod+Alt+…`
    * đã dùng cho `glossary.add_term`/preset bố cục/đi lại panel/tab Nguyên văn). Đo
    * 2026-08-22: `grep` trên hằng số hợp âm của tệp này cho `Mod+Alt+T` = 0, còn trống.
+   * Nó mở Cài đặt ở mục Glossary — không còn lớp phủ riêng.
    *
-   * `glossary.settings.close`/`glossary.settings.save` giữ **0 hợp âm mặc định** — cùng
-   * chủ ý với `glossary.close_quick_add`/`glossary.save_term`: `Esc`/`↵` xử lý bằng một
-   * handler CỤC BỘ trong `GlossarySettingsOverlay.vue`. Hai command này tồn tại để nút
-   * Lưu/Huỷ có một `dispatch('<id>')` hợp lệ (Kiểm A) VÀ để màn hình phím tắt liệt kê được
-   * cả ba thao tác.
+   * `glossary.settings.save` giữ **0 hợp âm mặc định** — cùng chủ ý với
+   * `glossary.save_term`: `↵` xử lý bằng `@submit` của form trong mục Glossary. Command này
+   * tồn tại để nút Lưu có một `dispatch('<id>')` hợp lệ (Kiểm A) VÀ để màn hình phím tắt
+   * liệt kê được thao tác.
    */
   target.register({
     id: 'glossary.settings.open',
@@ -3075,17 +3071,6 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.settings.open', 'openGlossarySettings')
       }
       deps.openGlossarySettings()
-    },
-  })
-  target.register({
-    id: 'glossary.settings.close',
-    labelKey: 'command.glossary.settings.close',
-    keys: undefined,
-    run: () => {
-      if (deps.closeGlossarySettings === undefined) {
-        return portMissing('glossary.settings.close', 'closeGlossarySettings')
-      }
-      deps.closeGlossarySettings()
     },
   })
   target.register({
@@ -3416,16 +3401,15 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `settings.open` mở lớp phủ vào mục ĐANG CHỌN gần nhất; `settings.privacy.open` mở
    * THẲNG vào Quyền riêng tư — chỗ gọi DUY NHẤT là dòng tóm tắt nhật ký domain ở chân
    * `ImportPreviewOverlay.vue` (§Always spec 6.8: dòng đó phải đi qua `dispatch`, cùng luật
-   * Kiểm A của `check:commands`). AC spec 6.8 đòi mở được "bằng nút titlebar VÀ bằng phím
-   * tắt" — `Mod+Comma` (quy ước Preferences macOS) đã thuộc `shortcuts.open`, nên
-   * `settings.open` dùng `Mod+Alt+Comma` (họ `Mod+Alt+…` đã dùng cho phần lớn lớp phủ khác,
-   * `Comma` là mã phím có sẵn trong `NAMED_CODES`, xem `shortcuts.open` ngay trên). Hai
-   * command còn lại giữ 0 hợp âm mặc định — tới được bằng nút titlebar/Tab bên trong lớp phủ.
+   * Kiểm A của `check:commands`). `Mod+Comma` (quy ước Preferences macOS) thuộc
+   * `settings.open`; `shortcuts.open` và `glossary.settings.open` mở Cài đặt ở mục của chúng.
+   * Hai command còn lại giữ 0 hợp âm mặc định — tới được bằng nút titlebar/Tab bên trong
+   * lớp phủ.
    */
   target.register({
     id: 'settings.open',
     labelKey: 'command.settings.open',
-    keys: ['Mod+Alt+Comma'],
+    keys: ['Mod+Comma'],
     run: () => {
       if (deps.openSettings === undefined) {
         return portMissing('settings.open', 'openSettings')
@@ -3737,23 +3721,20 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   // màn hình thì chính màn hình này không gán lại được cho nó.
   // ⇒ handler đọc **hàng đang nhắm** từ trạng thái quanh nó, tại thời điểm chạy.
   //
-  // ⚠️ Bốn command dưới `shortcuts.open` giữ **0 hợp âm mặc định**, và đó là chủ ý kép:
-  // họ `Mod+Alt+…` đã kín chỗ có nghĩa, cả bốn tới được bằng Tab + Enter/Space bên trong
-  // lớp phủ, VÀ chúng là nhiên liệu cho `unbound()` — xem đoạn `check-commands.mjs` bắt đầu
-  // "AC6 — `unbound()` phải có phần tử THẬT".
-  for (const [id, port, chord] of [
-    // `Mod+Comma` — `⌘,` là quy ước Preferences của macOS, `Comma` có sẵn trong
-    // `NAMED_CODES` (`keys.ts:112`), và hợp âm đó chưa ai chiếm.
-    ['shortcuts.open', 'openShortcuts', 'Mod+Comma'],
-    ['shortcuts.close', 'closeShortcuts', undefined],
-    ['shortcuts.capture', 'captureShortcut', undefined],
-    ['shortcuts.unassign', 'unassignShortcut', undefined],
-    ['shortcuts.reset', 'resetShortcut', undefined],
+  // ⚠️ Cả bốn command giữ **0 hợp âm mặc định**, và đó là chủ ý kép: họ `Mod+Alt+…` đã kín
+  // chỗ có nghĩa, `shortcuts.open` tới được qua Cài đặt (`Mod+Comma`), ba còn lại bằng Tab +
+  // Enter/Space trong mục Phím tắt, VÀ chúng là nhiên liệu cho `unbound()` — xem đoạn
+  // `check-commands.mjs` bắt đầu "AC6 — `unbound()` phải có phần tử THẬT".
+  for (const [id, port] of [
+    ['shortcuts.open', 'openShortcuts'],
+    ['shortcuts.capture', 'captureShortcut'],
+    ['shortcuts.unassign', 'unassignShortcut'],
+    ['shortcuts.reset', 'resetShortcut'],
   ] as const) {
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chord === undefined ? undefined : [chord],
+      keys: undefined,
       run: () => {
         const handler = deps[port]
         if (handler === undefined) return portMissing(id, port)
@@ -3826,8 +3807,8 @@ export function installCommands(deps: CommandDeps): Keymap {
  * 🔴 STORY 1.21 — BỀ MẶT LÚC CHẠY CỦA MÀN HÌNH PHÍM TẮT
  * ═══════════════════════════════════════════════════════════════════════════════
  *
- * Sáu hàm dưới đây là **cửa duy nhất** mà `src/config/shortcutsState.ts` và
- * `src/ShortcutsOverlay.vue` được đi qua. Vì sao chúng ở đây chứ không ở lớp giao diện:
+ * Sáu hàm dưới đây là **cửa duy nhất** mà `src/config/shortcutsState.ts` được
+ * đi qua. Vì sao chúng ở đây chứ không ở lớp giao diện:
  * `registry` và `keymap` là biến module của tệp này, và một bản sao của chúng ở tầng trên
  * là đúng thứ §Dev Notes ⑤ cảnh báo — hai nguồn cho một sự thật.
  *

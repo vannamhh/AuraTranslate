@@ -118,7 +118,7 @@ for (const root of ROOTS) {
 files = files.sort()
 
 /** An empty tree must not read as clean; judged by `judgeFloor`. */
-const FILE_FLOOR = 369
+const FILE_FLOOR = 395
 {
   const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp trong tầm quét doc-refs')
   if (!v.ok) abort('quần thể tệp', new Error(v.message))

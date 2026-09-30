@@ -103,158 +103,147 @@ describe('parsedGlossaryScanThreshold — hàm THUẦN, đọc lại đúng ràn
   })
 })
 
-describe('openGlossarySettings/closeGlossarySettings', () => {
-  it('mở lớp phủ nạp giá trị TỪ bootstrap vào ô nhập, và xoá lỗi cũ', async () => {
+describe('loadGlossarySettingsForm', () => {
+  it('nạp giá trị TỪ bootstrap vào ô nhập, và xoá lỗi cũ', async () => {
     bootstrapThreshold = { value: 8 }
-    const { openGlossarySettings, glossarySettingsOverlayIsOpen, glossarySettingsThresholdInput } =
-      await freshState()
+    const { loadGlossarySettingsForm, glossarySettingsThresholdInput } = await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
 
-    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
     expect(glossarySettingsThresholdInput.value).toBe('8')
   })
 
-  it('đóng lớp phủ KHÔNG gọi putConfig', async () => {
-    const { openGlossarySettings, closeGlossarySettings, glossarySettingsOverlayIsOpen } =
-      await freshState()
+  it('nạp lại KHÔNG gọi putConfig và xoá cờ đã-lưu', async () => {
+    putConfigMock.mockResolvedValue(null)
+    const { loadGlossarySettingsForm, saveGlossarySettings, glossarySettingsSaved } = await freshState()
 
-    openGlossarySettings()
-    closeGlossarySettings()
+    loadGlossarySettingsForm()
+    await saveGlossarySettings()
+    expect(glossarySettingsSaved.value).toBe(true)
+    putConfigMock.mockClear()
 
-    expect(glossarySettingsOverlayIsOpen.value).toBe(false)
+    loadGlossarySettingsForm()
+
+    expect(glossarySettingsSaved.value).toBe(false)
     expect(putConfigMock).not.toHaveBeenCalled()
   })
 
-  it('close bị chặn trong lúc save pending; save thành công mới tự đóng', async () => {
-    let finishSave: ((value: null) => void) | undefined
-    putConfigMock.mockImplementationOnce(
-      () => new Promise<null>((resolve) => {
-        finishSave = resolve
-      }),
-    )
-    const {
-      openGlossarySettings,
-      closeGlossarySettings,
-      saveGlossarySettings,
-      glossarySettingsThresholdInput,
-      glossarySettingsOverlayIsOpen,
-      glossarySettingsSaving,
-    } = await freshState()
+  it('sửa ô nhập sau một lượt lưu thành công ⇒ cờ đã-lưu tắt', async () => {
+    putConfigMock.mockResolvedValue(null)
+    const { loadGlossarySettingsForm, markGlossarySettingsEdited, saveGlossarySettings, glossarySettingsSaved } =
+      await freshState()
 
-    openGlossarySettings()
-    glossarySettingsThresholdInput.value = '6'
-    const pending = saveGlossarySettings()
-    expect(glossarySettingsSaving.value).toBe(true)
+    loadGlossarySettingsForm()
+    await saveGlossarySettings()
+    markGlossarySettingsEdited()
 
-    closeGlossarySettings()
-    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
-
-    if (finishSave === undefined) throw new Error('fixture save chưa được gọi')
-    finishSave(null)
-    await pending
-    expect(glossarySettingsSaving.value).toBe(false)
-    expect(glossarySettingsOverlayIsOpen.value).toBe(false)
+    expect(glossarySettingsSaved.value).toBe(false)
   })
 })
 
 describe('saveGlossarySettings — ô nhập từ chối giá trị hỏng, giá trị hợp lệ đi tới put_config đúng một lần', () => {
-  it('giá trị không phải số ⇒ 0 lượt putConfig, lớp phủ vẫn mở', async () => {
-    const { openGlossarySettings, saveGlossarySettings, glossarySettingsThresholdInput, glossarySettingsOverlayIsOpen } =
+  it('giá trị không phải số ⇒ 0 lượt putConfig', async () => {
+    const { loadGlossarySettingsForm, saveGlossarySettings, glossarySettingsThresholdInput } =
       await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = 'abc'
     await saveGlossarySettings()
 
     expect(putConfigMock).not.toHaveBeenCalled()
-    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
   })
 
   it('giá trị ≤ 0 ⇒ 0 lượt putConfig', async () => {
-    const { openGlossarySettings, saveGlossarySettings, glossarySettingsThresholdInput } = await freshState()
+    const { loadGlossarySettingsForm, saveGlossarySettings, glossarySettingsThresholdInput } = await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = '0'
     await saveGlossarySettings()
 
     expect(putConfigMock).not.toHaveBeenCalled()
   })
 
-  it('giá trị hợp lệ ⇒ ĐÚNG MỘT lượt putConfig, đúng kind/key/value, rồi đóng lớp phủ', async () => {
+  it('giá trị hợp lệ ⇒ ĐÚNG MỘT lượt putConfig, đúng kind/key/value, rồi bật cờ đã-lưu', async () => {
     putConfigMock.mockResolvedValue(null)
-    const { openGlossarySettings, saveGlossarySettings, glossarySettingsThresholdInput, glossarySettingsOverlayIsOpen } =
+    const { loadGlossarySettingsForm, saveGlossarySettings, glossarySettingsThresholdInput, glossarySettingsSaved } =
       await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = '12'
     await saveGlossarySettings()
 
     expect(putConfigMock).toHaveBeenCalledTimes(1)
     expect(putConfigMock).toHaveBeenCalledWith('app_config', 'glossary_scan_threshold', '12')
-    expect(glossarySettingsOverlayIsOpen.value).toBe(false)
+    expect(glossarySettingsSaved.value).toBe(true)
   })
 
-  it('lượt lưu TRƯỢT ⇒ IpcError hiện qua glossarySettingsSaveError, lớp phủ KHÔNG tự đóng', async () => {
+  it('lượt lưu TRƯỢT ⇒ IpcError hiện qua glossarySettingsSaveError, cờ đã-lưu KHÔNG bật', async () => {
     const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
     putConfigMock.mockResolvedValue(err)
-    const { openGlossarySettings, saveGlossarySettings, glossarySettingsThresholdInput, glossarySettingsOverlayIsOpen, glossarySettingsSaveError } =
+    const {
+      loadGlossarySettingsForm,
+      saveGlossarySettings,
+      glossarySettingsThresholdInput,
+      glossarySettingsSaveError,
+      glossarySettingsSaved,
+    } =
       await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = '12'
     await saveGlossarySettings()
 
     expect(putConfigMock).toHaveBeenCalledTimes(1)
     expect(glossarySettingsSaveError.value).toEqual(err)
-    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
+    expect(glossarySettingsSaved.value).toBe(false)
   })
 
-  it('lỗi IPC lạ đã chuẩn hoá thành err.unknown ⇒ lớp phủ ở lại để hiện lỗi', async () => {
+  it('lỗi IPC lạ đã chuẩn hoá thành err.unknown ⇒ lỗi hiện, cờ đã-lưu KHÔNG bật', async () => {
     const unknown = { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false }
     putConfigMock.mockResolvedValue(unknown)
     const {
-      openGlossarySettings,
+      loadGlossarySettingsForm,
       saveGlossarySettings,
       glossarySettingsThresholdInput,
-      glossarySettingsOverlayIsOpen,
       glossarySettingsSaveError,
+      glossarySettingsSaved,
     } = await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = '12'
     await saveGlossarySettings()
 
     expect(glossarySettingsSaveError.value).toEqual(unknown)
-    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
+    expect(glossarySettingsSaved.value).toBe(false)
   })
 
   it('mở lại SAU một lượt lưu thành công nạp giá trị VỪA LƯU, không giá trị bootstrap cũ', async () => {
     putConfigMock.mockResolvedValue(null)
     bootstrapThreshold = { value: 5 }
-    const { openGlossarySettings, saveGlossarySettings, glossarySettingsThresholdInput } = await freshState()
+    const { loadGlossarySettingsForm, saveGlossarySettings, glossarySettingsThresholdInput } = await freshState()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     glossarySettingsThresholdInput.value = '9'
     await saveGlossarySettings()
 
-    openGlossarySettings()
+    loadGlossarySettingsForm()
     expect(glossarySettingsThresholdInput.value).toBe('9')
   })
 })
 
-describe('GlossarySettingsOverlay — bề mặt selection thật của modal', () => {
-  it('vùng chọn chữ thật trong modal vai display không trở thành nguồn Auto-Lookup', async () => {
-    const state = await freshState()
-    state.openGlossarySettings()
-    const [{ default: GlossarySettingsOverlay }, selectionContract] = await Promise.all([
-      import('../../src/GlossarySettingsOverlay.vue'),
+describe('Settings › Glossary — bề mặt selection thật của modal', () => {
+  it('vùng chọn chữ thật trong khung Cài đặt vai display không trở thành nguồn Auto-Lookup', async () => {
+    vi.resetModules()
+    const settings = await import('../../src/settingsState')
+    settings.openSettingsToSection('glossary')
+    const [{ default: SettingsOverlay }, selectionContract] = await Promise.all([
+      import('../../src/SettingsOverlay.vue'),
       import('../../src/panels/selectionContract'),
     ])
-    const wrapper = mount(GlossarySettingsOverlay, { attachTo: document.body })
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
     await nextTick()
 
-    const text = wrapper.get('.gs-intro').element.firstChild
+    const text = wrapper.get('.set-h2s').element.firstChild
     if (!(text instanceof Text) || text.data.length === 0) {
       wrapper.unmount()
       throw new Error('modal thật phải render một text node để dựng vùng chọn')

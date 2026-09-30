@@ -448,9 +448,16 @@ function onEscape(): void {
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="pl-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section
+      ref="panel"
+      class="pl-panel"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pl-title"
+    >
       <header class="pl-head">
-        <h2 class="pl-title">{{ t('prompt.library.title') }}</h2>
+        <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
         <button type="button" class="pl-close" @click="dispatch('prompt.library.close')">
           {{ t('command.prompt.library.close') }}
         </button>

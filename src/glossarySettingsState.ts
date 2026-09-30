@@ -31,7 +31,7 @@ import {
   putConfig,
 } from './config/bootstrap'
 
-const overlayOpen = ref(false)
+const saved = ref(false)
 /** Giá trị THÔ đang hiển thị trong ô nhập — chuỗi, vì người dùng có thể đang gõ dở
  * (`"-"`, `""`, `"3."`) và những dạng đó không phải một `number` hợp lệ. */
 const thresholdInput = ref('')
@@ -46,7 +46,8 @@ const knownThreshold = ref<number | null>(null)
 const saving = ref(false)
 const saveError = ref<IpcError | null>(null)
 
-export const glossarySettingsOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
+/** `true` from a successful save until the form is reloaded or the input is edited. */
+export const glossarySettingsSaved: DeepReadonly<Ref<boolean>> = readonly(saved)
 /** Ô nhập — `v-model` trực tiếp, cùng khuôn `quickAddTranslation`/`quickAddNote`. */
 export const glossarySettingsThresholdInput: Ref<string> = thresholdInput
 export const glossarySettingsSaving: DeepReadonly<Ref<boolean>> = readonly(saving)
@@ -87,21 +88,18 @@ export function parsedGlossaryScanThreshold(raw: string): number | null {
   return Number.isInteger(n) && n > 0 && n <= RUST_U32_MAX ? n : null
 }
 
-/** Handler thật của `glossary.settings.open`. */
-export function openGlossarySettings(): void {
+/** Loads the effective threshold into the form; called when the Settings section mounts. */
+export function loadGlossarySettingsForm(): void {
+  if (saving.value) return
   const effective = knownThreshold.value ?? bootstrapGlossaryScanThreshold.value
   thresholdInput.value = String(effective)
   saveError.value = null
-  overlayOpen.value = true
+  saved.value = false
 }
 
-/** Handler thật của `glossary.settings.close` — KHÔNG lưu gì. */
-export function closeGlossarySettings(): void {
-  // Save đang bay sở hữu vòng đời modal: đóng lúc này làm người dùng mất bề mặt báo lỗi,
-  // và lượt save thành công phía dưới vẫn tự đóng đúng một lần sau khi đĩa trả lời.
-  if (saving.value) return
-  overlayOpen.value = false
-  saveError.value = null
+/** Clears the saved notice once the user edits the input again. */
+export function markGlossarySettingsEdited(): void {
+  saved.value = false
 }
 
 /**
@@ -120,6 +118,7 @@ export async function saveGlossarySettings(): Promise<void> {
 
   saving.value = true
   saveError.value = null
+  saved.value = false
 
   const err = await putConfig(SCOPE_APP_CONFIG, KEY_GLOSSARY_SCAN_THRESHOLD, String(parsed))
 
@@ -130,7 +129,7 @@ export async function saveGlossarySettings(): Promise<void> {
   }
 
   knownThreshold.value = parsed
-  overlayOpen.value = false
+  saved.value = true
 }
 
 

@@ -19,8 +19,8 @@
 import { realClick } from '../support/pointer.mjs'
 
 /** Selector là các mối nối `data-`, không tên lớp CSS — xem chú thích ở `App.vue`. */
-const OPENER = '[data-shortcuts-open]'
-const PANEL = '.sc-panel'
+const OPENER = '[data-settings-open]'
+const PANEL = '.set-panel'
 
 /** Node đang giữ tiêu điểm, đọc TRONG webview thật. */
 async function activeElementSignature() {
@@ -29,7 +29,7 @@ async function activeElementSignature() {
     if (el === null) return 'null'
     return [
       el.tagName.toLowerCase(),
-      el.hasAttribute('data-shortcuts-open') ? 'data-shortcuts-open' : '',
+      el.hasAttribute('data-settings-open') ? 'data-settings-open' : '',
       el.className || '',
     ]
       .filter((s) => s !== '')
@@ -74,7 +74,7 @@ describe('Story 1.21 · hàng 17 — UX-DR17: tiêu điểm quay về nút đã 
     // và một khẳng định chỉ nói "không phải body" sẽ xanh với một nút BẤT KỲ khác. Nên
     // hỏi cả hai chiều.
     const signature = await activeElementSignature()
-    expect(signature).toContain('data-shortcuts-open')
+    expect(signature).toContain('data-settings-open')
     expect(signature).not.toContain('body')
   })
 })

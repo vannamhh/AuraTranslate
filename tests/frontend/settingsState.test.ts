@@ -161,7 +161,7 @@ describe('domainLogKindLabelKey / domainLogReasonKey / domainLogOutcomeLabelKey 
 // SettingsOverlay.vue — mười một mục nav, đúng MỘT có thân
 // ═════════════════════════════════════════════════════════════════════════════════
 
-describe('SettingsOverlay.vue — mười một mục nav, mười mục chưa có thân LUÔN hiện kèm tên chủ', () => {
+describe('SettingsOverlay.vue — nav lists only sections that have a body', () => {
   it('đóng ⇒ không dựng gì trong DOM', async () => {
     const { SettingsOverlay } = await freshOverlay()
     const wrapper = mount(SettingsOverlay, { attachTo: document.body })
@@ -170,37 +170,10 @@ describe('SettingsOverlay.vue — mười một mục nav, mười mục chưa c
     wrapper.unmount()
   })
 
-  it('mở ⇒ ĐÚNG 11 mục nav hiện, không mục nào bị `v-if` giấu', async () => {
-    const { state, SettingsOverlay } = await freshOverlay()
-    listDomainLogMock.mockResolvedValue({ entries: [], error: null })
-    state.openSettings()
-
-    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.findAll('.set-nav-item').length).toBe(11)
-    wrapper.unmount()
-  })
-
-  it('mục chưa có thân hiện câu nói vì sao rỗng KÈM TÊN CHỦ, không một bảng trắng', async () => {
-    const { state, SettingsOverlay } = await freshOverlay()
-    listDomainLogMock.mockResolvedValue({ entries: [], error: null })
-    state.openSettings()
-    state.selectSettingsSection('translation_memory')
-
-    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
-    await wrapper.vm.$nextTick()
-
-    const reason = wrapper.find('.set-tier-empty-reason')
-    expect(reason.exists()).toBe(true)
-    expect(reason.text().length).toBeGreaterThan(0)
-    wrapper.unmount()
-  })
-
   it('openSettingsToPrivacy() mở THẲNG vào Quyền riêng tư bất kể mục trước đó', async () => {
     const { state } = await freshState()
     listDomainLogMock.mockResolvedValue({ entries: [], error: null })
-    state.selectSettingsSection('update')
+    state.selectSettingsSection('shortcuts')
     state.openSettingsToPrivacy()
     expect(state.settingsActiveSection.value).toBe('privacy')
     await flushPromises()

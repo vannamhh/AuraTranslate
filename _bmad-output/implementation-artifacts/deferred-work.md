@@ -308,6 +308,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - `watch(currentMode)` gọi `put_config` không có khoá thứ tự (`src/main.ts:178-184`) — đổi chế độ liên tiếp rất nhanh có thể khiến một giá trị trung gian được ghi cuối cùng xuống đĩa do các lời gọi `invoke` hoàn tất không đúng thứ tự gọi. Tự phục hồi ở lượt chuyển chế độ kế tiếp. **(Chủ: story kế tiếp chạm `src/main.ts` (đổi chế độ).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/main.ts:1290-1296 watch(currentMode) vẫn gọi void putConfig(...) trực tiếp không khoá thứ tự. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `putConfig` (`src/config/bootstrap.ts`) xếp hàng lời ghi theo từng `(kind, key)`, nên thứ tự đến `invoke` không còn phụ thuộc lịch chạy lệnh đồng bộ của Tauri. Guard: hai ca thứ tự trong `bootstrap.test.ts`; gỡ hàng đợi (gọi `sendPut` thẳng) làm cả hai đỏ.
 - Nhánh lỗi `store.read_failed` của `bootstrap_config` chưa có test ép đường đọc thật trượt (`src-tauri/tests/scope_contract.rs:700`) — `every_command_error_comes_from_the_store_vocabulary` chỉ ép các nhánh `OpenFailed`/`WriteFailed`. Đường lan `?` và phép chuyển `From<StoreError>` đã được kiểm ở tầng `store` (Story 1.7); thiếu một ca tích hợp trực tiếp qua `bootstrap_config`/`load_global_config`. **(Chủ: một story kế tiếp chạm `core/scope`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: scope_contract.rs:1082-1121 chỉ ép 4 nhánh qua OpenFailed/WriteFailed; không thấy ca nào ép bootstrap_config đi qua một lỗi đọc thật (ReadFailed) từ store. **Chủ: Story 1.21.**
 - `save_value` không giới hạn độ dài `key`/`value` trước khi ghi vào `config_value` (`src-tauri/src/core/scope/store.rs:203`) — mọi lời gọi hôm nay đến từ frontend tin cậy của chính ứng dụng, không phải một biên tin cậy với dữ liệu ngoài. **(Chủ: một story kế tiếp chạm `core/scope`.)**
@@ -654,6 +655,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ mới: chưa gán — nêu ở retrospective Epic 1.** **(Chủ: một story quản lý preset đặt tên tiếp theo.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: _bmad-output/implementation-artifacts/1-21-phim-tat-cau-hinh-lai-duoc.md dòng 188, 679: Story 1.21 (in-progress) xác nhận TRẢ LẠI món nợ preset đặt tên, ghi "Chưa gán — nêu ở retrospective Epic 1"; epic-1-retro-2026-08-11.md không có dòng nào nhắc preset/LayoutPreset. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → 2026-09-29 (Story 11-7 lô A) — chuyển chủ: cần một FR/AC cho preset đặt tên trước khi dựng; khung Cài đặt nay chỉ hiện mục có thân, nên mục `layout` sẽ vào đó khi có story. **Chủ: John.**
 
 - ⚠️ **Kiểm B của `check-layout.mjs` đo NHỊP GHI, không đo rằng `WorkspaceDock.vue` thật sự dùng lịch đó.** Nó `import()` `src/layout/writeSchedule.ts` và đẩy 1.251 sự kiện qua `simulateWrites()` — kéo sash 3 s ⇒ **1** lượt ghi; kéo liên tục 20 s ⇒ **4** lượt ghi với không thay đổi nào chờ quá **5.000 ms**. Nhưng một lượt sửa `WorkspaceDock.vue` gọi `emit('persist')` thẳng ở mỗi `onDidLayoutChange` sẽ **đi qua cổng** — cổng không thấy chỗ nối. Lưới còn lại là một lượt đếm tay trong DevTools. Cùng hạng với *"cổng không được type-check"*. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/layout/WorkspaceDock.vue thực tế dùng đúng createWriteSchedule (dòng 54, flush() dòng 782-798) nên hôm nay hành vi đúng, nhưng scripts/check-layout.mjs Kiểm B vẫn chỉ import trực tiếp writeSchedule.ts và giả lập simulateWrites(), không mount/chạm WorkspaceDock.vue. **Chủ: Ice.**
@@ -673,6 +675,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Chín biến `--dv-tab-group-color-*` cố ý ĐỂ TRỐNG.** Chúng phục vụ tính năng "tab group có màu" mà sản phẩm không dùng ở đâu. Khai chúng đòi **chín màu MỚI** phải qua Kiểm C của `check-tokens.mjs` — tức mở một bảng màu thứ hai để phục vụ một tính năng không dùng. Ngày nào sản phẩm dùng tới, đó là một quyết định thiết kế **có chữ ký**. **(Chủ: story kế tiếp nếu tab-group màu được dùng thật.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: dockview-theme.css dòng 22-24: chín biến --dv-tab-group-color-* vẫn cố ý để trống, tính năng tab group màu chưa dùng ở đâu trong src/. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → KHÔNG LÀM 2026-09-29 (Story 11-7 lô A) — sản phẩm không dùng tab group có màu. Mở lại khi sản phẩm tạo tab group có màu (một quyết định thiết kế có chữ ký, rồi chín token qua Kiểm C của `check-tokens.mjs`).
 
 - ⚠️ **Ba biến `--dv-*` mang tên KHÔNG khớp thuộc tính CSS mà cổng đọc.** `--dv-floating-box-shadow` không khớp `box-shadow` của Kiểm F; `--dv-overlay-z-index` không khớp `z-index`; `--dv-floating-group-dragging-opacity` không khớp `opacity` của Kiểm D. Cả ba **đã được đặt đúng luật bằng tay** *(`none` · một ngữ cảnh xếp lớp cơ học có ghi lý do · `1`)* và lý do viết ngay cạnh — nhưng đó là **kỷ luật, không phải cưỡng chế**. Ngày dockview thêm một biến kiểu này, không gì báo. `epics.md:381` nói ranh giới kiến trúc phải cưỡng chế **bằng test**; đây là một chỗ nó chưa được. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: dockview-theme.css dòng 87,101,137: --dv-floating-box-shadow, --dv-floating-group-dragging-opacity, --dv-overlay-z-index vẫn đặt tay, không cổng nào cưỡng chế tên biến khớp thuộc tính CSS. **Chủ: Ice.**
@@ -680,8 +683,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ✅ ĐÃ ĐÓNG 2026-09-25 (Story 11.1 lô D, Quyết định 4) — `check-tokens.mjs::classifyCustomProp` phân loại một biến `--dv-*` theo HẬU TỐ tên (`-box-shadow`/`-text-shadow`/`-opacity`/`-z-index`) về đúng thuộc tính CSS trước khi Kiểm D/F đọc, thay vì để tên biến không khớp thuộc tính làm hai Kiểm mù. Cả ba biến của mục này, cộng biến thứ tư `--dv-tab-group-line-opacity` (`dockview-theme.css:129`, trước đó không ai ghi), nay được cưỡng chế thật: `--dv-floating-box-shadow`/`--dv-overlay-z-index` mang `aura-allow-shadow`/`aura-allow-z-index` có lý do (`dockview-theme.css:87,137`), hai biến `-opacity` qua Kiểm D sạch (giá trị 1). Tự kiểm Kiểm F (`F_CLASSIFY_CASES`, `F_SHADOW_EXEMPT_CASES`) canh phép phân loại và miễn trừ. Đối chứng: xoá comment `aura-allow-shadow` phía trên `--dv-floating-box-shadow` ⇒ cổng đỏ đúng dòng đó; phục hồi, xanh lại.
 
 - ⚠️ **`ui-md` chạy giãn dòng 1.5 nhưng câu trạng thái panel AI XUỐNG DÒNG THẬT** — xem mục *"Kiểm E không phát hiện được một cờ `wraps` khai sai"* ở trên. **Chưa chốt, quyết định của Ice**, và nó chạm `DESIGN.md`. **(Chủ: story kế tiếp dựng panel chạm `ui-md`.)**
-  → 2026-09-23 (rà sổ nợ) — vẫn đúng: PanelFrame.vue dòng 234 vẫn ghi ui-md khai wraps:false, giãn dòng 1,5 dưới sàn 1,66 của DESIGN.md; SourceHanViet.vue:1004 xác nhận cùng ghi chú. **Chủ: Ice.**
+  → 2026-09-23 (rà sổ nợ) — vẫn đúng: PanelFrame.vue dòng 234 vẫn ghi ui-md khai wraps:false, giãn dòng 1,5 dưới sàn 1,66 của DESIGN.md; SourceHanViet.vue:1004 xác nhận cùng ghi chú. **Chủ: Ice.** 🔵 2026-09-29 (Story 11-7 lô A): dòng rà này SAI — `PanelFrame.vue` `.status` đã dùng `--leading-ui-md-wrap` từ Story 4-1; cái nó thấy là doc-comment ghi lại việc đổi đó.
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — đã đóng từ trước ở Story 4-1: `PanelFrame.vue` `.status` dùng `--leading-ui-md-wrap` (token `ui-md-wrap` ở `src/tokens/tokens.json`); dòng rà 2026-09-23 đọc nhầm doc-comment.
 
 - ⚠️ **Chuỗi chẩn đoán trong `.vue` phải viết KHÔNG DẤU.** `WorkspaceDock.vue` và `WorkspaceMode.vue` mang ~7 lời gọi `console.error`/`console.warn` viết tiếng Việt **không dấu**, theo tiền lệ `src-tauri/src/commands/config.rs:36`. Lý do: Kiểm A của `check-i18n.mjs` đo **DẤU** và không phân biệt được *chuỗi hiển thị* với *chẩn đoán ra console*. Đường thoát dễ — dời khối logic sang một `.ts` — là **đúng đường mà `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` cấm bằng chữ**, nên không dùng. Lời giải đúng là cho cổng một khái niệm *"chẩn đoán"* *(ví dụ: chuỗi nằm trong đối số của `console.*` được miễn trừ có tên)*. Thuộc **Story 10.9**. **(Chủ: một story hạ tầng cổng kế tiếp.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: WorkspaceDock.vue còn nhiều console.error không dấu (dòng 242,270,368,442,452,741,797,881,897); check-i18n.mjs Kiểm A2 (dòng 927) chỉ quét TEXT NODE template, không phân biệt chẩn đoán console. **Chủ: Story 10.9.**
@@ -689,6 +693,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **`as unknown as Record<string, VueComponent>` ở `WorkspaceDock.vue`.** `dockview-vue` khai `VueComponent<T = any> = DefineComponent<T>`, và prop là vị trí **nghịch biến** nên `DefineComponent<DockviewPanelProps>` không gán được. Đường thay thế *(khai `params?:` ở cả năm component)* qua được kiểm tra kiểu **bằng cách nói dối**: dockview LUÔN truyền `params`, và `PanelTab.vue` không chạy được nếu thiếu. Ép kiểu **một lần ở đúng ranh giới thư viện** rẻ hơn năm lời nói dối rải trong mã. **Mở lại** nếu `dockview-vue` siết kiểu ở một bản sau. **(Chủ: story kế tiếp chạm `WorkspaceDock.vue`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: WorkspaceDock.vue dòng 119 vẫn ép kiểu as unknown as Record<string, VueComponent>; node_modules/dockview-vue 7.0.4 utils.d.ts dòng 4 vẫn khai VueComponent<T=any>=DefineComponent<T>, chưa siết kiểu. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → KHÔNG LÀM 2026-09-29 (Story 11-7 lô A) — ép kiểu một lần ở ranh giới thư viện là ranh giới có tên và có lý do, không phải một miễn trừ. Mở lại khi `dockview-vue` lên bản có `VueComponent` không còn tham số `any` (soát lại mỗi lần đổi bản `dockview-vue` trong `package.json`).
 
 ## Deferred from: code review of 1-14-khung-bon-panel (2026-08-06)
 
@@ -1225,6 +1230,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: lượt cập nhật kiến trúc kế tiếp.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: ARCHITECTURE-SPINE.md:1105 hàng Capability Map của C3 vẫn chỉ liệt `core/dict/`, `ports/DictionarySource`, `resources/dict/` — không có `core/store/`, dù AD-13's mermaid diagram đã có cạnh `dict --> store`. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → 2026-09-29 (Story 11-7 lô A) — chuyển chủ: sửa một ô hàng C3 của Capability Map trong `ARCHITECTURE-SPINE.md` (thêm `core/store/`, ghi mục pinned nằm ở `global.db`); cạnh `dict --> store` đã có trong sơ đồ AD-13. Nếu Winston coi là đổi bất biến thì lấy số AD kế tiếp. **Chủ: Winston.**
 
 - ⚠️ **`headword`/`gloss` của một mục ghim là ẢNH CHỤP, và ảnh chụp thì cũ đi.**
   `pinned_entry` lưu chữ, không một khoá ngoại vào từ điển — có chủ ý: một hàng ghim phải
@@ -1464,6 +1470,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: story đầu tiên thêm một đường ghi keymap thứ hai.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commitBindings (src/config/shortcutsState.ts:413,420) vẫn là chỗ DUY NHẤT tăng bindingsEpoch; grep 'bindingsEpoch.value +=' chỉ ra đúng một dòng. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `tests/frontend/bindingsEpochWiring.test.ts` quét mã nguồn (đã bỏ chú thích và chuỗi): `applyBindings(` chỉ được gọi trong `commitBindings`, và `bindingsEpoch.value +=` chỉ xuất hiện ở đó. Đối chứng: chuyển lời gọi `applyBindings(` ra một hàm bọc làm 2 ca đỏ; thêm lần tăng thứ hai làm 1 ca đỏ.
 
 - ⚠️ **`Escape` KHÔNG gán được làm phím tắt, và đó là một đánh đổi có chủ, không một thiếu
   sót.** Ở trạng thái *đang bắt*, `Escape` là **huỷ lượt bắt** (Bẫy 4 của story) — nên không
@@ -1474,8 +1481,10 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   cùng của một hộp thoại modal, và mất nó là nhốt người dùng bàn phím trong đúng thứ vừa mở.
   **Đường ra nếu ai đó cần `Escape`:** một cử chỉ thứ hai để chốt lượt bắt *(ví dụ `Enter`
   xác nhận)*, lúc đó `Escape` mới có chỗ. ~~**Chủ: chưa gán.**~~ **(Chủ: story kế tiếp cân nhắc lại phím tắt Escape.)**
+  🔵 2026-09-29 (Story 11-7 lô A): câu "không đường nào gán `Escape` cho một thao tác" chỉ đúng với UI bắt phím. Ranh giới thật: UI bắt phím không nhập được `Escape`, còn `editor.clear_source_cuts` mặc định `Escape` (Story 2.9) và gán lại hay bỏ gán được ở Cài đặt → Phím tắt.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: UI bắt phím vẫn chặn gõ Escape để gán (ShortcutsOverlay.vue:198-207). Nhưng Story 2.9 đăng ký command editor.clear_source_cuts với hợp âm mặc định 'Escape' (index.ts:2962), tự nhận là phím gán lại được (FR22); còn thiếu: Câu 'không đường nào gán Escape cho một thao tác' trong sổ nợ đã không còn đúng tuyệt đối; cần viết lại ranh giới giữa 'không gõ được qua UI bắt phím' và 'Escape đã là hợp âm mặc định của một command từ Story 2.9'. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `settingsFrame.test.ts` ghim ranh giới (bắt phím ở UI không nhập được Escape và không hiện thông báo lạ; `editor.clear_source_cuts` vẫn mặc định Escape), câu trong sổ nợ đã sửa tại chỗ bằng 🔵 ở trên. Đối chứng: gỡ nhánh `event.code === 'Escape'` ở `SettingsShortcutsSection.vue::onKeyCellKeydown` làm ca đỏ.
 
 - 📝 **Câu `shortcuts.gesture` diễn giải `⌫` bằng CHỮ (*"phím xoá lùi"*), không bằng ký hiệu
   như mockup.** `settings.html:294` viết *"`⌫` để bỏ gán"*. Màn hình thật viết cả câu ra vì
@@ -1484,6 +1493,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   nó thành một lượt bỏ sót. **(Chủ: story kế tiếp chạm nhãn phím tắt hiển thị.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/i18n/vi.json:763 (khoá shortcuts.gesture) vẫn viết 'phím xoá lùi' bằng chữ, chưa dùng ký hiệu ⌫. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → KHÔNG LÀM 2026-09-29 (Story 11-7 lô A) — lời văn cố ý: hai trạng thái của `⌫` không nói được bằng một ký hiệu trần. Mở lại khi Sally muốn ký hiệu trong câu chữ.
 
 ## Deferred from: rà soát toàn Epic 1 — retrospective (2026-08-11)
 
@@ -2100,6 +2110,7 @@ Ice ký đường ① *(cho `section.mode`/`section.panel` thôi giành tiêu đ
 - chốt chống-rơi-về-`body` của nó **chỉ `console.error`**, doc-comment của chính nó ghi *"để KÊU, không để VÁ"*; **(Chủ: story kế tiếp chạm `focus.ts`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Chốt chống-rơi-về-body ở src/commands/focus.ts:160-172 vẫn chỉ console.error, không một cơ chế khôi phục thật. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → KHÔNG LÀM 2026-09-29 (Story 11-7 lô A) — Ice chọn giữ chốt chỉ kêu (`console.error`) (`spec-11-7-lo-a-shared-ui-foundation.md` Decision 10). Mở lại khi có báo cáo thật về mất tiêu điểm rơi về `body`.
 - `PanelFrame.vue` chỉ **nghe** `focusin`/`focusout`, không gọi `focus()` một lần nào.
 
 Thứ đặt tiêu điểm lên `section.panel` là **hành vi mặc định của trình duyệt**: khi chỗ bấm không soạn thảo được, engine đi ngược cây tìm tổ tiên **focus được gần nhất** — đúng gốc `tabindex="-1"` mà `PanelFrame` dựng cho AD-34 §2. Nó chọn như vậy chỉ vì **`<span>` chưa `contenteditable` tại thời điểm engine ra quyết định**: `onDocMouseDown` chỉ gọi `setEditorCaret()`, và Vue vá DOM ở một **microtask sau**.
@@ -4351,6 +4362,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   được qua `dispatch()`.
   **Chủ: Ice** *(một lượt xem lại bảng Phím khi Epic 2 xong và có đủ ngữ cảnh về bảng phím tổng)*.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
+  → KHÔNG LÀM 2026-09-29 (Story 11-7 lô A) — Ice chọn giữ 0 phím mặc định cho hai lệnh (`spec-11-7-lo-a-shared-ui-foundation.md` Decision 11); gán được ở Cài đặt → Phím tắt. Mở lại khi Ice muốn khả năng khám phá.
 
 - ⚠️ **Vế *"`⌥↓` thật có bị macOS nuốt không, và `preventDefault()` có chặn nổi không"* vẫn chưa
   đóng** — mọi sự kiện driver mang `isTrusted: false`, và một sự kiện không tin cậy **không có
@@ -5443,6 +5455,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     bằng bàn phím, tức chỗ rẻ nhất để đặt luật tên khả truy cập một lần cho cả bốn bề mặt.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: GlossaryQuickAdd.vue:112-122, thẻ <form> không có aria-label/aria-labelledby nối tới .gqa-title; package.json không có check:a11y hay công nào canh tên khả truy cập. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `GlossaryQuickAdd.vue` `<form>` mang `aria-labelledby="gqa-title"` trỏ vào tiêu đề đang hiện; `dialogAccessibleName.test.ts` phân giải tên ở cả chế độ thêm lẫn sửa. Đối chứng: gỡ thuộc tính làm đúng ca đó đỏ.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: `editor-confirm-segment.e2e.mjs` ĐỎ trong lượt chạy cả bộ 2026-08-20 nhưng XANH
@@ -7217,6 +7230,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Nếu chọn hình dạng ② thì dừng ở cửa `check:layout` Kiểm C và trình Ice cái tên mới, đừng tự thêm.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src/commands/registry.ts:51 vẫn khai run: () => void; grep 'run: async' trên src/commands/index.ts = 0 khớp; không có window.addEventListener('unhandledrejection', ...) nào trong src/. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — hình 2 — một listener `unhandledrejection` duy nhất (`src/unhandledRejectionLog.ts`, gọi đầu `boot()` ở `main.ts`) ghi lại rejection lọt; `window.addEventListener` đã nằm sẵn trong allow-list Kiểm C của `check:layout` nên không cần tên mới. Guard: `unhandledRejectionLog.test.ts`; gỡ listener hoặc lời gọi trong `boot()` đều đỏ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
   summary: 🔴 **Ca ⑤d chứng minh `.focus()` ĐƯỢC GỌI trên `<ul class="gm-list">`, KHÔNG chứng minh
@@ -7994,6 +8008,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — chọn giữa (a) giữ nguyên như hôm nay, (b) chuyển `⌘,` sang Chế độ đọc và cấp
     một hợp âm mới cho `shortcuts.open`.)**
   → 2026-09-24 (phiếu quyết #102) — Ice chọn ⌘, mở khung Cài đặt theo quy ước macOS (khớp #91); shortcuts.open và Tinh chỉnh của Chế độ đọc vào qua khung đó hoặc hợp âm khác, 11.7 kiểm trùng bằng check:commands. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `Mod+Comma` thuộc `settings.open` (`Mod+Alt+Comma` bỏ), `shortcuts.open` không còn phím mặc định, `reading.toggle_tuner` giữ nguyên. Guard: `settingsFrame.test.ts` (đối chứng: đưa `Mod+Comma` về `shortcuts.open` làm 2 ca đỏ; `check:commands` vẫn xanh vì nó không xét lệnh nào giữ hợp âm). Phần kiểm tay còn lại ở mục Epic 11 cuối sổ.
 
 - 🟡 **Tuỳ chọn đọc (mức chữ · song ngữ · cỡ chữ/giãn dòng tinh chỉnh) KHÔNG lưu xuống đĩa — mỗi
   lần khởi động lại rơi về mức Cân.**
@@ -9485,6 +9500,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   đó **rộng hơn** bất kỳ Epic đơn lẻ nào ở trên (nó chạm TẤT CẢ chúng cùng lúc). **Chủ: Ice**
   — quyết định sản phẩm "có gom hay không, gom lúc nào", không phải một chi tiết cài đặt.
   → 2026-09-24 (phiếu quyết #91) — Ice chọn nav Cài đặt chỉ hiện mục đã có thân, gộp lớp phủ Ngưỡng quét Glossary và Phím tắt vào khung Cài đặt; mỗi epic sau tự thêm mục của mình (cùng quyết với #92). **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — nav Cài đặt chỉ còn năm mục có thân (`ai_and_model`, `prompt`, `glossary`, `shortcuts`, `privacy`); thân của lớp phủ Ngưỡng quét Glossary và Phím tắt chuyển thành `SettingsGlossarySection.vue`/`SettingsShortcutsSection.vue`, hai lớp phủ và hai nút thanh tiêu đề bị xoá, `glossary.settings.open`/`shortcuts.open` mở Cài đặt ở đúng mục. Guard: `settingsFrame.test.ts`, `glossarySettings.test.ts`; ba spec e2e liên quan chạy xanh (`cargo build --features wdio`, `wdio --spec` từng tệp, macOS, 2026-09-29).
 
 - ⚠️ **Thứ tự và tên 11 mục nav Cài đặt là một quyết định TẠM, không phải một lời chốt.**
   §Ask First của spec 6.8 nêu đích danh câu hỏi này CHƯA CÓ CÂU TRẢ LỜI. Lượt thi công giữ
@@ -9495,6 +9511,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   một câu trả lời tường minh trước khi một story sau này viết lại thứ tự/coi thứ tự này là
   đã chốt.
   → 2026-09-24 (phiếu quyết #92) — cùng quyết với #91: thứ tự mockup settings.html được chốt; Ngưỡng quét Glossary dọn vào mục glossary. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — thứ tự mockup `settings.html` được giữ, `privacy` đứng cuối (mockup không có ô cho nó); doc-comment "tạm" ở `settingsState.ts` đã viết lại. Guard: ca thứ tự nav trong `settingsFrame.test.ts`; đổi chỗ hai mục làm 2 ca đỏ.
 
 ## Deferred from: 6-9-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim (2026-09-07)
 
@@ -12070,6 +12087,7 @@ chính nó.
     lớp phủ còn lại với cùng khoảng hở, đúng lớp lỗi "vá một chỗ, để hở những chỗ giống hệt" mà
     `deferred-work.md` đã cảnh báo ở nhiều mục khác.)**
   → 2026-09-24 (phiếu quyết #93) — Ice chọn thêm aria-labelledby cho PromptLibraryOverlay, PromptImportOverlay và GlossaryImportOverlay theo khuôn AiPromptInspectorOverlay. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `aria-labelledby` đã có trên `PromptLibraryOverlay`, `PromptImportOverlay`, `GlossaryImportOverlay` và hộp thoại Cài đặt dựng lại, theo khuôn `AiPromptInspectorOverlay`. Guard: `dialogAccessibleName.test.ts`; gỡ thuộc tính ở từng nơi làm đúng một ca đỏ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-7-xem-prompt-cuoi-cung-da-gui.md`
   summary: **Nửa `lib.rs` của miễn trừ Decision 1 là mã CHẾT — nó không thể khớp gì trên cây
@@ -12470,6 +12488,7 @@ chính nó.
     is real geometry that happy-dom cannot measure, so it needs a hand check on a real build.
     **(Chủ: Ice.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 11.7.**
+  → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11-7 lô A) — `RememberedSpot` nhớ thêm kích cỡ nhóm, `showPanel`/`undoMerge` áp lại ngay sau `addPanel` trong vùng chặn ghi bền sẵn có. Guard: ca D2 của `workspaceDockTier.test.ts` (gỡ `reapplySize` làm ca đỏ). Phần đo hình học thật còn lại ở mục Epic 11 cuối sổ.
 
 ## Deferred from: AD-49 — mô hình hoàn tác (2026-09-23)
 
@@ -12560,3 +12579,16 @@ chính nó.
 - **Xác nhận thật trên Windows: một đường dẫn `assets_dir` không-UTF-8 thật (không mô phỏng) trả đúng `MessageKey::SegmentAssetsDirNotUtf8`.** Rust fix + guard `#[cfg(unix)]` đã đóng ở Story 11.6 lô B (mục "`assets_dir` serialized via `to_string_lossy()`" phía trên); nửa Windows chưa ai dựng được một đường dẫn thật không-UTF-8 để đo. Chủ: B7.
 - **`docx_contract.rs::each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_own_chapter` mù với "đúng Chương, SAI byte ảnh" khi hai Chương chia sẻ cùng chỉ số khối cục bộ.** Đo được ở Story 11.6 lô B bằng một lượt gỡ đối chứng vào bên TIÊU THỤ (`prepare_chapter_images`'s lookup) — vẫn xanh, vì fixture hiện tại có ảnh ở cùng chỉ số khối cục bộ cho cả hai Chương; ca thật chỉ đỏ khi gỡ đúng bên SẢN XUẤT (`ChapterDocxImage.chapter_index`). Một fixture hai Chương với ảnh ở HAI chỉ số khối cục bộ khác nhau sẽ khoá chỗ mù này. Chủ: Murat.
   → ✅ ĐÃ ĐÓNG 2026-09-29 (Story 11.6) — lượt review lô B: fixture tách Chương nay cho hai ảnh chỉ số khối cục bộ khác nhau (2 và 3) VÀ byte khác nhau (69 và 70); bỏ vế `chapter_index` khỏi phép tìm ở `prepare_chapter_images` làm cả ca CREATE lẫn ca APPEND mới (`append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter`) đỏ vì `byte_len`.
+
+- **Nghiệm thu tay trước khi Epic 11 đóng — kích cỡ nhóm dock sau một vòng hẹp rồi rộng (Story 11-7 lô A).** Ca D2 chỉ kiểm sổ sách với một `group.api` giả; happy-dom không đo được hình học và dockview có thể kẹp hay chia lại tỉ lệ khi `setSize` gặp nhóm anh em thay đổi. Kiểm tay trên bản dựng thật (macOS WKWebView): kéo một thanh chia ra tỉ lệ khác mặc định, thu hẹp rồi nới rộng cửa sổ, đọc `workspace_layout` trước và sau — phải giữ nguyên, kể cả sau thao tác người dùng kế tiếp; thử thêm ẩn/hiện panel không theo thứ tự LIFO. Chủ: Epic 11.
+- **Nghiệm thu tay trước khi Epic 11 đóng — khung Cài đặt gom (Story 11-7 lô A).** Trên bản dựng thật: `⌘,` mở Cài đặt từ mọi bề mặt và đóng xong trả tiêu điểm về nút Cài đặt ở thanh tiêu đề; `glossary.settings.open` và `shortcuts.open` mở Cài đặt đúng mục; bảng phím tắt vẫn đọc được ở bề rộng 920px của khung (lớp phủ cũ rộng 1100px). Chủ: Epic 11.
+- **Hạn mức 5000 ms mặc định của vitest làm ca đầu của các tệp nhập nặng hết giờ khi máy đang tải** (Story 11-7 lô A, lượt đầy đủ đầu tiên: `dialogAccessibleName`, `settingsFrame`, `glossaryMarksRefresh` 3.4b hết giờ lúc nạp nguội cùng lúc cargo chạy; ba tệp chạy riêng xanh hai lần, lượt đầy đủ thứ hai xanh). Không phải lỗi mã, chưa chỉnh. Nếu gặp lại ở CI, đo thời gian nhập nguội từng tệp rồi quyết định giữa nâng `testTimeout` và tách nạp. Chủ: Murat.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-a-shared-ui-foundation.md`
+  summary: Bảy bề mặt `role="dialog"` còn lại chưa có tên khả truy cập (`SegmentHistoryOverlay`, `GlossaryManageOverlay`, `GlossaryQueueOverlay`, `AttributionOverlay`, `LookupDrawer`, `BilingualImportPreviewOverlay`, `ImportPreviewOverlay`; hai chỗ ở `ReadingMode.vue` chưa kiểm). Có từ trước Story 11.7; quyết #93 chỉ nêu ba lớp phủ.
+  evidence: lượt review lô A 2026-09-29 (lớp Verification Gap) grep `role="dialog"` trong `src/` không kèm `aria-labelledby`; `dialogAccessibleName.test.ts` chỉ phủ năm bề mặt của lô A. Chủ: Sally.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-a-shared-ui-foundation.md`
+  summary: Đổi một hợp âm MẶC ĐỊNH có thể làm cả bộ phím người dùng đã lưu không được áp: override trên đĩa giữ hợp âm vừa thành mặc định của lệnh khác (lô A: `Mod+Comma` sang `settings.open`) làm `createKeymap` ném và `installCommands` rơi về bộ mặc định (không xoá, có câu báo ở Cài đặt → Phím tắt). Chính sách rơi-cả-bộ có từ Story 1.20/1.21.
+  evidence: đọc `commands/index.ts::installCommands` và `keys.ts::createKeymap`; `global.db` thật của Ice 2026-09-29 có 0 dòng phím tắt nên hôm nay không ai gặp. Cần chọn chính sách (giữ override, hay bỏ riêng dòng va chạm) trước lần đổi mặc định kế tiếp. Chủ: Ice.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-a-shared-ui-foundation.md`
+  summary: Kích cỡ nhóm dock nhớ bằng pixel tuyệt đối lúc ẩn; nếu cửa sổ đổi cỡ trong lúc panel ẩn/gộp, `reapplySize` áp một cỡ cũ (chưa kiểm — dockview có thể kẹp lại).
+  evidence: `WorkspaceDock.vue::groupSizeOf`/`reapplySize`; D2/D3 dùng cỡ giả và cửa sổ cố định nên không đo được. Kiểm cùng lượt tay của mục "kích cỡ nhóm dock sau một vòng hẹp rồi rộng": thu hẹp, nới ra một cỡ rộng KHÁC cỡ ban đầu, xem nhóm có tràn/đói không. Chủ: Epic 11.

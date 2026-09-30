@@ -49,11 +49,7 @@ import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
 // />` — thứ tự DOM là thứ tự thị giác (§Tasks của spec), dù `topmostStrip` đã đảm bảo
 // không bao giờ cả hai cùng hiện.
 import GlossaryConfirmStrip from './GlossaryConfirmStrip.vue'
-import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
-// Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47), lớp phủ THỨ TƯ. Cùng tầng,
-// cùng lý do ba lớp phủ kia.
-import GlossarySettingsOverlay from './GlossarySettingsOverlay.vue'
 // Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55), lớp phủ THỨ NĂM. Cùng tầng,
 // cùng lý do bốn lớp phủ kia.
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
@@ -165,12 +161,12 @@ onMounted(async () => {
  * 🔴 MỘT PHÉP ĐO, KHÔNG MỘT LƯỢT PHÒNG XA — bắt được 2026-08-11, Story 1.22 C2
  * ─────────────────────────────────────────────────────────────────────────────
  * WKWebView **không** đặt tiêu điểm cho `<button>` khi bấm chuột. Đường lui của UX-DR17
- * ở `ShortcutsOverlay.vue` lưu `document.activeElement` **lúc mở** rồi trả về đúng node
+ * ở `SettingsOverlay.vue` lưu `document.activeElement` **lúc mở** rồi trả về đúng node
  * đó; không có dòng này, node ấy là thứ đang giữ tiêu điểm từ trước — điểm vào focus của
  * chế độ — chứ không phải nút mở. Đo được trên webview thật: sau `Escape`, tiêu điểm rơi
  * vào `section.mode`, không về nút.
  *
- * ⚠️ Nhánh dự phòng `querySelector('[data-shortcuts-open]')` của lớp phủ **không cứu
+ * ⚠️ Nhánh dự phòng `querySelector('[data-settings-open]')` của lớp phủ **không cứu
  * được** ca này, và đó là chỗ dễ đọc sai nhất: nó chỉ chạy khi node đã lưu **rời DOM**,
  * mà `section.mode` thì vẫn ở nguyên đó. Một đường lui không bao giờ chạy tới không phải
  * một đường lui.
@@ -256,41 +252,6 @@ function focusOnPointerDown(event: MouseEvent) {
       </nav>
 
       <!--
-        🔴 Story 1.21 — ĐƯỜNG VÀO màn hình phím tắt, đặt ở `titlebar` vì đó là chỗ **duy
-        nhất luôn hiện ở cả ba chế độ**.
-
-        `data-shortcuts-open` là **đường lui của tiêu điểm** khi lớp phủ đóng (UX-DR17) —
-        một hợp đồng đi bằng thuộc tính `data-`, không một tên lớp CSS: tên lớp là chuyện
-        trình bày và đổi được tự do, còn đây là một mối nối. Cùng khuôn
-        `data-attribution-open` của Story 1.19.
-      -->
-      <button
-        type="button"
-        class="titlebar-act"
-        data-shortcuts-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('shortcuts.open')"
-      >
-        {{ t('command.shortcuts.open') }}
-      </button>
-
-      <!--
-        Story 3.5 — ĐƯỜNG VÀO lớp phủ ngưỡng quét Glossary. Cùng khuôn nút phím tắt ngay
-        trên: `data-glossary-settings-open` là đường lui của tiêu điểm (UX-DR17), và
-        `@mousedown` đặt tiêu điểm trước khi `@click` phát command (cùng khuyết tật engine
-        đã ghi ở `focusOnPointerDown`).
-      -->
-      <button
-        type="button"
-        class="titlebar-act"
-        data-glossary-settings-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('glossary.settings.open')"
-      >
-        {{ t('command.glossary.settings.open') }}
-      </button>
-
-      <!--
         Story 3.8 — ĐƯỜNG VÀO lớp phủ duyệt hàng loạt. Cùng khuôn hai nút ngay trên:
         `data-glossary-queue-open` là đường lui của tiêu điểm (UX-DR17).
       -->
@@ -319,7 +280,7 @@ function focusOnPointerDown(event: MouseEvent) {
       </button>
 
       <!--
-        Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn bốn nút ngay trên:
+        Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn các nút ngay trên:
         `data-settings-open` là đường lui của tiêu điểm (UX-DR17).
       -->
       <button
@@ -392,14 +353,8 @@ function focusOnPointerDown(event: MouseEvent) {
     <!-- Story 1.19 · AC7–AC11 — lớp phủ tự quản `v-if` của nó qua `attributionIsOpen`. -->
     <AttributionOverlay />
 
-    <!-- Story 1.21 · AC1–AC13 — cùng khuôn: lớp phủ tự quản `v-if` qua `shortcutsOverlayIsOpen`. -->
-    <ShortcutsOverlay />
-
     <!-- Story 2.6 · FR101 · AC1–AC3 — cùng khuôn: lớp phủ tự quản `v-if` qua `historyIsOpen`. -->
     <SegmentHistoryOverlay />
-
-    <!-- Story 3.5 · FR47 — cùng khuôn: lớp phủ tự quản `v-if` qua `glossarySettingsOverlayIsOpen`. -->
-    <GlossarySettingsOverlay />
 
     <!-- Story 3.8 · FR53/FR55 — cùng khuôn: lớp phủ tự quản `v-if` qua `queueOverlayIsOpen`. -->
     <GlossaryQueueOverlay />

@@ -165,7 +165,7 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
     expect(row.context_example).toContain(TERM)
   })
 
-  it('modal mở chặn global shortcut; giá trị sai không lưu, giá trị đúng lưu rồi tự đóng', async () => {
+  it('khung Cài đặt mở chặn global shortcut; giá trị sai không lưu, giá trị đúng lưu và hiện câu đã lưu', async () => {
     // Ép tiền đề khác Workspace trước khi mở modal. Nếu để nguyên trạng thái thừa kế từ
     // ca import, `Mod+2` có chạy xuyên modal vẫn giữ cùng nhãn và test xanh giả.
     await browser.keys(['Meta', '1'])
@@ -174,19 +174,21 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
       interval: 50,
       timeoutMsg: 'không ép được mode ban đầu sang Library trước ca modal',
     })
-    const opener = await $('[data-glossary-settings-open]')
+    const opener = await $('[data-settings-open]')
     await opener.waitForDisplayed({ timeout: 30_000 })
     const modeBefore = await activeModeLabel()
     expect(modeBefore).toBe('Library')
     expect(modeBefore).not.toBe('Workspace')
 
     await realClick(opener)
-    const openedByDriver = await browser.execute(() => document.querySelector('.gs-panel') !== null)
-    if (!openedByDriver) await dispatchPointerSequence('[data-glossary-settings-open]')
+    const openedByDriver = await browser.execute(() => document.querySelector('.set-panel') !== null)
+    if (!openedByDriver) await dispatchPointerSequence('[data-settings-open]')
     await browser.waitUntil(
-      async () => browser.execute(() => document.querySelector('.gs-panel') !== null),
-      { timeout: 10_000, interval: 50, timeoutMsg: 'modal Glossary không hiện sau pointer sequence' },
+      async () => browser.execute(() => document.querySelector('.set-panel') !== null),
+      { timeout: 10_000, interval: 50, timeoutMsg: 'khung Cài đặt không hiện sau pointer sequence' },
     )
+    await realClick(await $('[data-settings-section="glossary"]'))
+    await $('.gs-input').waitForDisplayed({ timeout: 10_000 })
 
     await setInputValue('0')
     const invalid = await browser.execute(() => ({
@@ -205,20 +207,18 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
         metaKey: true,
       }))
     })
-    expect(await browser.execute(() => document.querySelector('.gs-panel') !== null)).toBe(true)
+    expect(await browser.execute(() => document.querySelector('.set-panel') !== null)).toBe(true)
     expect(await activeModeLabel()).toBe(modeBefore)
 
     await setInputValue('7')
     expect(await browser.execute(() => !document.querySelector('.gs-save')?.disabled)).toBe(true)
     const save = await $('.gs-save')
     await realClick(save)
-    const closedByDriver = await browser.execute(() => document.querySelector('.gs-panel') === null)
-    // Save thật có thể hoàn tất giữa phép kiểm trên và fallback. Helper kiểm lại selector
-    // BÊN TRONG cùng lượt `execute`; modal đã đóng là thành công, không phải lỗi fixture.
-    if (!closedByDriver) await dispatchPointerSequence('.gs-save', true)
+    const savedByDriver = await browser.execute(() => document.querySelector('.gs-saved') !== null)
+    if (!savedByDriver) await dispatchPointerSequence('.gs-save', true)
     await browser.waitUntil(
-      async () => browser.execute(() => document.querySelector('.gs-panel') === null),
-      { timeout: 10_000, interval: 50, timeoutMsg: 'save thành công nhưng modal không tự đóng' },
+      async () => browser.execute(() => document.querySelector('.gs-saved') !== null),
+      { timeout: 10_000, interval: 50, timeoutMsg: 'save thành công nhưng mục Glossary không hiện câu đã lưu' },
     )
 
     const persisted = await browser.execute(async () => {

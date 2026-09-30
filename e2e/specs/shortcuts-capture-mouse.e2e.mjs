@@ -25,8 +25,9 @@
 
 import { realClick } from '../support/pointer.mjs'
 
-const OPENER = '[data-shortcuts-open]'
-const PANEL = '.sc-panel'
+const OPENER = '[data-settings-open]'
+const PANEL = '.set-panel'
+const SHORTCUTS_SECTION = '[data-settings-section="shortcuts"]'
 
 /**
  * Thao tác chưa gán phím mặc định — AC7 liệt kê nó trong nhóm `unbound()`.
@@ -49,7 +50,7 @@ const KEY_CELL = `${ROW} [data-key-cell]`
 /** Đưa hàng đích về hợp âm mặc định của sản phẩm qua nút *"Về mặc định"* (AC8). */
 async function resetRowToDefault() {
   const actions = await $$(`${ROW} .sc-act`)
-  // Hai nút một hàng, theo thứ tự khai ở `ShortcutsOverlay.vue`: `unassign` rồi `reset`.
+  // Hai nút một hàng, theo thứ tự khai ở `SettingsShortcutsSection.vue`: `unassign` rồi `reset`.
   const reset = actions[actions.length - 1]
   await realClick(reset)
   await browser.pause(300)
@@ -61,6 +62,7 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     await opener.waitForExist({ timeout: 30_000 })
     await realClick(opener)
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $(SHORTCUTS_SECTION))
 
     await $(KEY_CELL).waitForDisplayed({ timeout: 10_000 })
 

@@ -109,9 +109,16 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
     @keydown.esc="dispatch('glossary.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="gi-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section
+      ref="panel"
+      class="gi-panel"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gi-title"
+    >
       <header class="gi-head">
-        <h2 class="gi-title">{{ t('glossary.import.title') }}</h2>
+        <h2 id="gi-title" class="gi-title">{{ t('glossary.import.title') }}</h2>
         <button type="button" class="gi-close" @click="dispatch('glossary.import.cancel')">
           {{ t('command.glossary.import.cancel') }}
         </button>

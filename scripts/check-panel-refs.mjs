@@ -184,21 +184,22 @@ const EXEMPT = new Map([
       'xoá bằng chứng về một lượt đọc hỏng mà không có lượt đọc thứ hai nào để dựng lại nó.',
   ],
   [
-    'src/config/shortcutsState.ts::overlayOpen',
-    'Màn hình gán phím đang mở hay không — state của MÀN HÌNH, không của Tác phẩm. ' +
+    'src/config/shortcutsState.ts::aimedRow',
+    'Hàng đang ngắm trong màn hình gán phím — state của MÀN HÌNH, không của Tác phẩm. ' +
       '`resetShortcut()` cùng tệp là "trả MỘT phím tắt về mặc định", một khái niệm khác hẳn.',
   ],
   [
-    'src/config/shortcutsState.ts::aimedRow',
-    'Hàng đang ngắm trong màn hình gán phím. Cùng vòng đời với `overlayOpen`.',
-  ],
-  [
     'src/config/shortcutsState.ts::capturing',
-    'Đang bắt một hợp âm hay không. Cùng vòng đời với `overlayOpen` — và dọn nó giữa một ' +
+    'Đang bắt một hợp âm hay không. Cùng vòng đời với `aimedRow` — và dọn nó giữa một ' +
       'lượt bắt sẽ bỏ rơi lượt bắt đó mà không ai báo.',
   ],
 
   // ── Ảnh chụp lúc KHỞI ĐỘNG — không có lượt đọc thứ hai để dựng lại ───────────────
+  [
+    'src/config/bootstrap.ts::putTails',
+    'Hàng đợi ghi cấu hình theo `(kind, key)` — chỉ chứa lượt ghi đang bay và tự xoá khi xong. ' +
+      'Nó không mang dữ liệu của Tác phẩm; dọn nó giữa một lượt ghi sẽ cho hai lượt cùng khoá chạy chồng nhau.',
+  ],
   [
     'src/config/bootstrap.ts::lastError',
     'Lỗi của lượt nạp cấu hình KHỞI ĐỘNG. Nó có đúng một lượt ghi, ở một thời điểm trước khi ' +
@@ -302,23 +303,23 @@ const EXEMPT = new Map([
       'lần khởi động trên cùng một máy.',
   ],
 
-  // ── Rà ba lớp 2026-08-22 (Story 3.5) — CÙNG lớp `shortcutsState.ts::overlayOpen` ─────────
+  // ── Rà ba lớp 2026-08-22 (Story 3.5) — CÙNG lớp `shortcutsState.ts::aimedRow` ─────────
   //
   // `resetGlossarySettings()` từng tồn tại CHỈ để qua cổng này — `grep` cho thấy chỉ chính
   // test của nó gọi, không một đường sản phẩm nào. Đã GỠ hàm đó (mã chết là một cổng xanh
   // trên một bất biến KHÔNG được giữ) thay vì nối nó vào một đường teardown không có thật:
   // ngưỡng quét là `AppConfig` ⇒ `GlobalOnly` (`core/scope/kinds.rs:218`) — nó KHÔNG thuộc
   // về Tác phẩm nào, nên "đổi Tác phẩm" không phải một sự kiện của năm ô nhớ dưới đây, đúng
-  // luật đã áp cho `shortcutsState.ts::overlayOpen` (cũng `AppConfig`/`GlobalOnly`).
+  // luật đã áp cho `shortcutsState.ts::aimedRow` (cũng `AppConfig`/`GlobalOnly`).
   [
-    'src/glossarySettingsState.ts::overlayOpen',
-    'Lớp phủ Cài đặt ngưỡng quét đang mở hay không — state của MÀN HÌNH, không của Tác ' +
-      'phẩm. Cùng lý lẽ `shortcutsState.ts::overlayOpen`.',
+    'src/glossarySettingsState.ts::saved',
+    'Lượt lưu ngưỡng gần nhất đã thành công hay chưa — state của MÀN HÌNH, không của Tác ' +
+      'phẩm.',
   ],
   [
     'src/glossarySettingsState.ts::thresholdInput',
-    'Giá trị THÔ đang gõ trong ô nhập — chỉ có nghĩa khi lớp phủ đang mở. Cùng vòng đời ' +
-      '`overlayOpen`.',
+    'Giá trị THÔ đang gõ trong ô nhập — chỉ có nghĩa khi mục Glossary của Cài đặt đang mở. Cùng vòng đời ' +
+      '`saved`.',
   ],
   [
     'src/glossarySettingsState.ts::knownThreshold',
@@ -332,7 +333,7 @@ const EXEMPT = new Map([
   ],
   [
     'src/glossarySettingsState.ts::saveError',
-    'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `overlayOpen`.',
+    'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `saved`.',
   ],
 ])
 

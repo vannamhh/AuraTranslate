@@ -112,12 +112,13 @@ watch(quickAddIsOpen, (open) => {
   <form
     v-if="quickAddIsOpen"
     class="glossary-quick-add"
+    aria-labelledby="gqa-title"
     @submit.prevent="dispatch('glossary.save_term')"
     @keydown.esc.prevent="dispatch('glossary.close_quick_add')"
   >
     <div class="gqa-row gqa-title-row">
       <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-      <span class="gqa-title">{{
+      <span id="gqa-title" class="gqa-title">{{
         quickAddMode === 'edit' ? t('glossary.quick_add.title_edit') : t('glossary.quick_add.title_add')
       }}</span>
     </div>

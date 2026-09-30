@@ -65,7 +65,7 @@ async function mountEditor() {
   // 🔴 Cùng lý do dòng trên: hai dải state nạp trong CÙNG lượt `resetModules()` với
   // `commands`/`editorClearSourceCuts`.
   const history = await import('../../src/panels/segmentHistoryState')
-  const shortcuts = await import('../../src/config/shortcutsState')
+  const settings = await import('../../src/settingsState')
   const { clearSourceCuts } = await import('../../src/editorClearSourceCuts')
   // 🔴 **PHẢI gọi `installCommands` — `dispatch` NÉM với một id chưa đăng ký.** Ca ③ đi qua
   // `onEditKeydown` → `dispatch('editor.clear_source_cuts')`, tức **đúng đường sản phẩm**;
@@ -89,7 +89,7 @@ async function mountEditor() {
   daMount.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, quickAdd, confirmStrip, history, shortcuts, wrapper }
+  return { state, commands, quickAdd, confirmStrip, history, settings, wrapper }
 }
 
 /** Chỉ NẠP (không `resetModules`, không mount) — trả giá dịch một lần của `GridPanel.vue` (nó
@@ -103,7 +103,7 @@ async function warmModules() {
     import('../../src/glossaryQuickAddState'),
     import('../../src/glossaryConfirmStripState'),
     import('../../src/panels/segmentHistoryState'),
-    import('../../src/config/shortcutsState'),
+    import('../../src/settingsState'),
     import('../../src/editorClearSourceCuts'),
   ])
 }
@@ -262,12 +262,12 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
 
   /**
    * 🔴 Hai bề mặt nữa dùng bare-`Escape` của riêng chúng: `SegmentHistoryOverlay` (lịch sử
-   * phiên bản, Story 2.6) và `ShortcutsOverlay` (bảng phím, Story 1.21). Cùng lớp lỗi ⑥/⑦
+   * phiên bản, Story 2.6) và Cài đặt › Phím tắt (bảng phím, Story 1.21). Cùng lớp lỗi ⑥/⑦
    * ngay trên, hai bề mặt mới.
    *
    * Đối chứng GỠ đã chạy tay: xoá `historyIsOpen.value ||` khỏi cổng ⇒ ca ⑥b đỏ đúng lý do
    * (tập điểm cắt bị xoá dù lớp phủ lịch sử đang mở); khôi phục lại ⇒ xanh. Cùng thao tác cho
-   * `shortcutsOverlayIsOpen.value ||` và ca ⑦b.
+   * `settingsOverlayIsOpen.value ||` và ca ⑦b.
    */
   it('🔴 ⑥b lớp phủ LỊCH SỬ PHIÊN BẢN đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
     const { state, commands, history } = await mountEditor()
@@ -282,12 +282,12 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
     expect(state.editorSourceCut.value?.offsets).toEqual([2, 4])
   })
 
-  it('🔴 ⑦b lớp phủ BẢNG PHÍM đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
-    const { state, commands, shortcuts } = await mountEditor()
+  it('🔴 ⑦b khung CÀI ĐẶT (mục Phím tắt) đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
+    const { state, commands, settings } = await mountEditor()
     state.setEditorSourceCut(11, 2)
 
-    shortcuts.openShortcuts()
-    expect(shortcuts.shortcutsOverlayIsOpen.value).toBe(true)
+    settings.openSettingsToSection('shortcuts')
+    expect(settings.settingsOverlayIsOpen.value).toBe(true)
 
     commands.dispatch('editor.clear_source_cuts')
 

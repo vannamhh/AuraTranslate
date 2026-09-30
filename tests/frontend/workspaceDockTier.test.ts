@@ -30,6 +30,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
+import { createDockview } from 'dockview-core'
 import WorkspaceDock from '../../src/layout/WorkspaceDock.vue'
 import WorkspaceMode from '../../src/modes/WorkspaceMode.vue'
 import { applyPreset, panelRing, togglePanel } from '../../src/layout/dockController'
@@ -104,6 +105,32 @@ const SIZE_FULL = { width: 1200, height: 1000 } // work area 1200×926 ⇒ full
 const SIZE_SHORT = { width: 1200, height: 800 } // work area 1200×726 ⇒ short (700≤h<820)
 const SIZE_NARROW = { width: 1000, height: 1000 } // work area 1000×926 ⇒ narrow (w<1100)
 const SIZE_UNSUPPORTED = { width: 700, height: 1000 } // work area 700×926 ⇒ unsupported (w<860)
+
+/** Fakes a 321×213 group on the dockview prototype (happy-dom measures nothing) and spies `setSize`. */
+function fakeGroupSize() {
+    const probeHost = document.createElement('div')
+    document.body.appendChild(probeHost)
+    const probe = createDockview(probeHost, {
+      createComponent: () => ({ element: document.createElement('div'), init: () => {} }) as never,
+    })
+    probe.addPanel({ id: 'probe', component: 'probe' })
+    const probeGroupApi = probe.getPanel('probe')?.api.group.api as object
+    const prototypeOwning = (name: string): object => {
+      for (let proto = Object.getPrototypeOf(probeGroupApi); proto !== null; proto = Object.getPrototypeOf(proto)) {
+        if (Object.getOwnPropertyDescriptor(proto, name) !== undefined) return proto
+      }
+      throw new Error(`no prototype owns ${name}`)
+    }
+    const sizeProto = prototypeOwning('setSize') as { setSize: (event: { width?: number; height?: number }) => void }
+    const dimensionProto = prototypeOwning('width')
+    probe.dispose()
+    probeHost.remove()
+
+    vi.spyOn(dimensionProto as { width: number }, 'width', 'get').mockReturnValue(321)
+    vi.spyOn(dimensionProto as { height: number }, 'height', 'get').mockReturnValue(213)
+    const setSize = vi.spyOn(sizeProto, 'setSize')
+  return setSize
+}
 
 afterEach(() => {
   vi.useRealTimers()
@@ -926,4 +953,70 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     },
     30000,
   )
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // D2 — bookkeeping only: happy-dom cannot measure geometry, so the group size is faked on
+  // the dockview prototype. The sash check on a real build is a separate hand check.
+  // ───────────────────────────────────────────────────────────────────────────
+  it('D2 — full → narrow → full re-applies each re-added group\'s remembered size, and persists nothing', async () => {
+    const setSize = fakeGroupSize()
+
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      window.dispatchEvent(new Event('beforeunload'))
+      await settle()
+      const baseline = wrapper.emitted('persist')?.length ?? 0
+      expect(baseline).toBeGreaterThan(0)
+      setSize.mockClear()
+
+      await resize(SIZE_NARROW.width, SIZE_NARROW.height)
+      expect(panelRing()).toEqual(['panel.grid'])
+      expect(setSize).not.toHaveBeenCalled()
+
+      await resize(SIZE_FULL.width, SIZE_FULL.height)
+      expect(new Set(panelRing())).toEqual(new Set(['panel.grid', 'panel.lookup', 'panel.ai_translation']))
+
+      const reapplied = setSize.mock.calls.filter(([event]) => event.width === 321 && event.height === 213)
+      expect(reapplied.length).toBe(2)
+      expect(wrapper.emitted('persist')?.length ?? 0).toBe(baseline)
+      window.dispatchEvent(new Event('beforeunload'))
+      await settle()
+      expect(wrapper.emitted('persist')?.length ?? 0).toBe(baseline)
+    } finally {
+      wrapper.unmount()
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('D3 — full → short → full re-applies the remembered size when the merge is undone', async () => {
+    const setSize = fakeGroupSize()
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      setSize.mockClear()
+
+      await resize(SIZE_SHORT.width, SIZE_SHORT.height)
+      expect(wrapper.find('.dock-host').attributes('data-layout-merged')).toBe('true')
+      const duringMerge = setSize.mock.calls.filter(([event]) => event.width === 321 && event.height === 213)
+      expect(duringMerge).toHaveLength(0)
+
+      await resize(SIZE_FULL.width, SIZE_FULL.height)
+      expect(wrapper.find('.dock-host').attributes('data-layout-merged')).toBeUndefined()
+
+      const reapplied = setSize.mock.calls.filter(([event]) => event.width === 321 && event.height === 213)
+      expect(reapplied.length).toBe(1)
+    } finally {
+      wrapper.unmount()
+      vi.restoreAllMocks()
+    }
+  })
 })

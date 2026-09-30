@@ -57,7 +57,6 @@ import { SCOPE_SHORTCUT, deleteConfig, putConfig } from './bootstrap'
  */
 const platform = { isMac: detectIsMac() }
 
-const overlayOpen = ref(false)
 /** Hàng đang nhắm — id thao tác, hoặc `null`. Xem [`aimRowFrom`] về thứ tự chuột/tiêu điểm. */
 const aimedRow = ref<CommandId | null>(null)
 /** Có đang **chờ một hợp âm** không. ⚠️ Khác *"lớp phủ đang mở"* — xem [`captureIsArmed`]. */
@@ -93,9 +92,6 @@ export type ShortcutRow = {
   /** Sản phẩm có gán mặc định cho nó không. Cả hai cùng `false` ⇒ trả về mặc định là vô nghĩa. */
   hasDefault: boolean
 }
-
-/** Lớp phủ có đang mở không. */
-export const shortcutsOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 
 /**
  * Có đang chờ một hợp âm không — **vị từ của cửa nuốt hợp âm** ở `src/main.ts`. AC10.
@@ -281,15 +277,13 @@ function requireRow(): CommandId | null {
 // NĂM HANDLER — nối vào `CommandDeps` ở `src/main.ts`
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Handler thật của `shortcuts.open`. AC1. */
-export function openShortcuts(): void {
-  overlayOpen.value = true
+/** Called when the Shortcuts section mounts in Settings. */
+export function enterShortcutsScreen(): void {
   notice.value = null
 }
 
-/** Handler thật của `shortcuts.close`. */
-export function closeShortcuts(): void {
-  overlayOpen.value = false
+/** Called when the Shortcuts section unmounts: drops any pending capture and aim. */
+export function leaveShortcutsScreen(): void {
   capturing.value = false
   aimedRow.value = null
   notice.value = null

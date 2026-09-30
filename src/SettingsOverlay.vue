@@ -1,32 +1,13 @@
 <script setup lang="ts">
-// Lớp phủ **Cài đặt** — Story 6.8 (NFR19, AD-41), lớp phủ THỨ CHÍN.
+// Settings overlay (NFR19, AD-41): one frame, five sections, each with a body. It is an overlay
+// mounted by `App.vue`, not a fourth mode (AD-24).
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 MỘT LỚP PHỦ, KHÔNG MỘT CHẾ ĐỘ THỨ TƯ — khuôn `AttributionOverlay.vue` (§Quyết định #4a)
-// ─────────────────────────────────────────────────────────────────────────────
-// AD-24 khai BA chế độ ngang hàng, `MODE_IDS` là hằng ba phần tử; đây là một lớp phủ dựng ở
-// `App.vue`, cùng tầng với tám lớp phủ đã có (`AttributionOverlay`…`ImportPreviewOverlay`).
+// The nav is a list of `<form>`s with one submit button each: Check A wants every `@click` to be
+// exactly one `dispatch('<id>')`, and a static section list needs no command per entry. Enter and
+// Space still activate it (NFR17).
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 MƯỜI MỘT MỤC NAV — ĐÚNG MỘT CÓ THÂN, MƯỜI CÒN LẠI LUÔN HIỆN KÈM TÊN CHỦ
-// ─────────────────────────────────────────────────────────────────────────────
-// Chỉ `privacy` (Quyền riêng tư — nhật ký domain, AD-41) có thân ở story này. Mười mục còn
-// lại KHÔNG bị `v-if` giấu — chúng hiện, và thân của chúng là một câu nói RÕ vì sao rỗng kèm
-// tên chủ, khuôn `tier_empty_story_6_9` (`ImportPreviewOverlay.vue`, Story 6.3/6.9).
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 NAV DÙNG `<form>+submit`, KHÔNG `@click` TRẦN
-// ─────────────────────────────────────────────────────────────────────────────
-// `check:commands` Kiểm A đòi MỌI `@click` là ĐÚNG MỘT `dispatch('<id>')` — 11 mục tĩnh
-// không cần một command riêng cho mỗi mục (cùng lý lẽ `lookup.toggle_source` của Story 1.19:
-// "danh sách BIẾT TRƯỚC lúc dựng màn phím tắt không cần một command sinh động"). Mỗi mục vì
-// thế là một `<form>` một nút `type="submit"` + `@submit.prevent` — khuôn
-// `ImportPreviewOverlay.vue::onStartEditCleanupRule`/`onDeleteCleanupRule`, VẪN bấm được
-// bằng bàn phím (Enter/Space kích hoạt `submit` của nút đang focus, NFR17), KHÔNG như
-// `@mousedown` một mình (chỉ bắt chuột).
-//
-// Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-// Không `v-html` (AD-16) — domain là DỮ LIỆU văn bản thô, không markup.
+// No Vietnamese string in a `.vue` (NFR16, AD-21) and no `v-html` (AD-16): the domain log is
+// plain text data.
 import { nextTick, useTemplateRef, watch } from 'vue'
 import {
   AI_CONFIG_FIELDS,
@@ -53,6 +34,9 @@ import type { AiConfigField } from './config/aiconfig'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import { cancelCapture, captureIsArmed } from './config/shortcutsState'
+import SettingsGlossarySection from './SettingsGlossarySection.vue'
+import SettingsShortcutsSection from './SettingsShortcutsSection.vue'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   SETTINGS_SECTIONS,
@@ -66,9 +50,7 @@ import {
   settingsDomainLogLoading,
   settingsDomainLogRows,
   settingsOverlayIsOpen,
-  settingsSectionHasBody,
   settingsSectionLabelKey,
-  settingsSectionOwnerLabel,
 } from './settingsState'
 import type { SettingsSection } from './settingsState'
 
@@ -131,6 +113,14 @@ function trapTab(event: KeyboardEvent): void {
   const step = event.shiftKey ? -1 : 1
   const next = index === -1 ? (event.shiftKey ? stops.length - 1 : 0) : index + step
   stops[(next + stops.length) % stops.length].focus()
+}
+
+function onEscape(): void {
+  if (captureIsArmed.value) {
+    cancelCapture()
+    return
+  }
+  dispatch('settings.close')
 }
 
 function onSelectSection(section: SettingsSection): void {
@@ -227,12 +217,19 @@ function onDeleteAiConfigKey(): void {
   <div
     v-if="settingsOverlayIsOpen"
     class="set-scrim"
-    @keydown.esc="dispatch('settings.close')"
+    @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="set-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section
+      ref="panel"
+      class="set-panel"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+    >
       <header class="set-head">
-        <h2 class="set-title">{{ t('settings.title') }}</h2>
+        <h2 id="settings-title" class="set-title">{{ t('settings.title') }}</h2>
         <button type="button" class="set-close" @click="dispatch('settings.close')">
           {{ t('command.settings.close') }}
         </button>
@@ -249,6 +246,7 @@ function onDeleteAiConfigKey(): void {
             <button
               type="submit"
               class="set-nav-item"
+              :data-settings-section="section"
               :class="{ 'set-nav-item-on': settingsActiveSection === section }"
               :aria-current="settingsActiveSection === section ? 'true' : undefined"
             >
@@ -273,7 +271,7 @@ function onDeleteAiConfigKey(): void {
             <template v-else>
               <div v-for="field in AI_CONFIG_FIELDS" :key="field" class="ai-field">
                 <!-- Nút Lưu là `type="submit"` của FORM NÀY — form đi qua ĐÚNG MỘT handler,
-                     cùng khuôn `GlossarySettingsOverlay.vue`. -->
+                     cùng khuôn `SettingsGlossarySection.vue`. -->
                 <form class="ai-field-form" @submit.prevent="onSaveAiConfigField(field)">
                   <label class="ai-field-label">
                     <span>{{ t(aiConfigFieldLabelKey(field)) }}</span>
@@ -418,7 +416,17 @@ function onDeleteAiConfigKey(): void {
               {{ t('command.prompt.library.open') }}
             </button>
           </template>
-          <template v-else-if="settingsSectionHasBody(settingsActiveSection)">
+          <template v-else-if="settingsActiveSection === 'glossary'">
+            <h3 class="set-h2">{{ t('glossary.settings.title') }}</h3>
+            <p class="set-h2s">{{ t('glossary.settings.intro') }}</p>
+            <SettingsGlossarySection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'shortcuts'">
+            <h3 class="set-h2">{{ t('shortcuts.title') }}</h3>
+            <p class="set-h2s">{{ t('shortcuts.intro') }}</p>
+            <SettingsShortcutsSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'privacy'">
             <!-- ═══════════════════ Quyền riêng tư — nhật ký domain (AD-41, NFR19) ═══════════════════ -->
             <h3 class="set-h2">{{ t('settings.privacy.title') }}</h3>
             <p class="set-h2s">{{ t('settings.privacy.intro') }}</p>
@@ -480,17 +488,6 @@ function onDeleteAiConfigKey(): void {
               </table>
               <p class="set-note">{{ t('settings.privacy.session_only_note') }}</p>
             </template>
-          </template>
-          <!--
-            🔴 MƯỜI MỤC CHƯA CÓ THÂN — LUÔN HIỆN, LUÔN NÓI VÌ SAO KÈM TÊN CHỦ (khuôn
-            `tier_empty_story_6_9`). Không `v-if` giấu mục nào khỏi nav (đã hiện ở trên); đây
-            chỉ là nội dung PHẦN THÂN của mục đang chọn.
-          -->
-          <template v-else>
-            <h3 class="set-h2">{{ t(settingsSectionLabelKey(settingsActiveSection)) }}</h3>
-            <p class="set-tier-empty-reason">
-              {{ t('settings.nav.no_body_yet', { owner: settingsSectionOwnerLabel(settingsActiveSection) }) }}
-            </p>
           </template>
         </div>
       </div>
@@ -648,12 +645,6 @@ function onDeleteAiConfigKey(): void {
 
 .set-note {
   margin: calc(var(--space-unit) * 2) 0 0 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.set-tier-empty-reason {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);

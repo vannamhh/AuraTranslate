@@ -225,8 +225,6 @@ import {
 import {
   captureIsArmed,
   captureShortcut,
-  closeShortcuts,
-  openShortcuts,
   resetShortcut,
   unassignShortcut,
 } from './config/shortcutsState'
@@ -272,12 +270,7 @@ import type { InlineStripKind } from './panels/inlineStripPriority'
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossarySettingsState.ts` dùng
 // `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
-import {
-  closeGlossarySettings,
-  glossarySettingsOverlayIsOpen,
-  openGlossarySettings,
-  saveGlossarySettings,
-} from './glossarySettingsState'
+import { saveGlossarySettings } from './glossarySettingsState'
 // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ───────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossarySettingsState.ts`: `glossaryQueueState.ts` dùng
@@ -323,7 +316,14 @@ import {
 //
 // Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
-import { closeSettings, openSettings, openSettingsToPrivacy, settingsOverlayIsOpen } from './settingsState'
+import { installUnhandledRejectionLog } from './unhandledRejectionLog'
+import {
+  closeSettings,
+  openSettings,
+  openSettingsToPrivacy,
+  openSettingsToSection,
+  settingsOverlayIsOpen,
+} from './settingsState'
 // ── Story 4.4 — lớp phủ "Thư viện prompt" (FR69) ─────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `settingsState.ts`: `promptLibraryState.ts` dùng `ref` của
@@ -449,6 +449,8 @@ function toBindings(
  * không có lý do để xếp hàng.
  */
 async function boot(): Promise<void> {
+  installUnhandledRejectionLog()
+
   // Nạp font KHÔNG chặn `mount()` và KHÔNG chờ cấu hình: bốn tệp là ~26 MiB, và chờ chúng
   // xong (hay chờ một vòng IPC không liên quan) mới dựng cửa sổ là tự tay thêm một khoảng
   // trắng vào lúc khởi động. Chữ hiện bằng font hệ thống trong vài trăm mili-giây đầu rồi
@@ -842,9 +844,8 @@ async function boot(): Promise<void> {
       selectLookupTab,
       toggleLookupPin,
       clearLookupHistory,
-      // Story 1.21 · AC1 · AC2 · AC8 — năm handler tĩnh; hàng đang nhắm đọc lúc chạy.
-      openShortcuts,
-      closeShortcuts,
+      // Story 1.21 · AC1 · AC2 · AC8 — bốn handler tĩnh; hàng đang nhắm đọc lúc chạy.
+      openShortcuts: () => openSettingsToSection('shortcuts'),
       captureShortcut,
       unassignShortcut,
       resetShortcut,
@@ -865,11 +866,10 @@ async function boot(): Promise<void> {
       },
       closeGlossaryQuickAdd,
       // Story 3.5 · FR47 — lớp phủ ngưỡng quét Glossary.
-      openGlossarySettings,
+      openGlossarySettings: () => openSettingsToSection('glossary'),
       saveGlossarySettings: () => {
         void saveGlossarySettings()
       },
-      closeGlossarySettings,
       // Story 3.6 · FR114 — dải "Chờ chốt lần đầu gặp". `focusGlossaryConfirmStrip` tính
       // `topmostStrip(...)` NGAY TẠI ĐÂY (chỗ tính `topmostStrip` cho `isVisible`) rồi
       // truyền xuống state — xem doc-comment tại chỗ import. `deferGlossaryConfirmStrip`
@@ -1122,7 +1122,6 @@ async function boot(): Promise<void> {
       isBlocked: () =>
         attributionIsOpen.value ||
         captureIsArmed.value ||
-        glossarySettingsOverlayIsOpen.value ||
         queueOverlayIsOpen.value ||
         manageOverlayIsOpen.value ||
         importOverlayIsOpen.value ||

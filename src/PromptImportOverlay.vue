@@ -109,9 +109,16 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
     @keydown.esc="dispatch('prompt.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="pi-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section
+      ref="panel"
+      class="pi-panel"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pi-title"
+    >
       <header class="pi-head">
-        <h2 class="pi-title">{{ t('prompt.import.title') }}</h2>
+        <h2 id="pi-title" class="pi-title">{{ t('prompt.import.title') }}</h2>
         <button type="button" class="pi-close" @click="dispatch('prompt.import.cancel')">
           {{ t('command.prompt.import.cancel') }}
         </button>

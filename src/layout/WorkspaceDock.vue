@@ -177,7 +177,12 @@ const dock = shallowRef<DockviewApi | null>(null)
  *
  * Giá của đường đúng: phải tự nhớ chỗ để trả về. Đó là map này.
  */
-type RememberedSpot = { reference: PanelId; direction: PlacementDirection | 'within' }
+type RememberedSize = { width: number; height: number }
+type RememberedSpot = {
+  reference: PanelId
+  direction: PlacementDirection | 'within'
+  size?: RememberedSize
+}
 const hidden = new Map<PanelId, RememberedSpot>()
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -323,6 +328,17 @@ function siblingSpotInTree(api: DockviewApi, id: PanelId): { reference: string; 
   return findTreeSpot(grid, id)
 }
 
+function groupSizeOf(panel: IDockviewPanel): RememberedSize | undefined {
+  const { width, height } = panel.api.group.api
+  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? { width, height } : undefined
+}
+
+/** Re-applies a remembered group size after `addPanel`; the caller holds persist suppression
+ * on the tier path, so the resize is not written as the user's layout. */
+function reapplySize(panel: IDockviewPanel, size: RememberedSize | undefined): void {
+  if (size !== undefined) panel.api.group.api.setSize(size)
+}
+
 /**
  * Ghi lại chỗ của một panel TRƯỚC khi gỡ nó.
  *
@@ -355,7 +371,7 @@ function rememberSpot(api: DockviewApi, panel: IDockviewPanel): RememberedSpot |
   }
   const spot = siblingSpotInTree(api, panel.id as PanelId)
   if (spot === null || !isPanelId(spot.reference)) return null
-  return { reference: spot.reference, direction: spot.direction }
+  return { reference: spot.reference, direction: spot.direction, size: groupSizeOf(panel) }
 }
 
 function hidePanel(id: PanelId): boolean {
@@ -400,7 +416,8 @@ function showPanel(id: PanelId): boolean {
   const direction = spot !== undefined && api.getPanel(spot.reference) !== undefined
     ? spot.direction
     : 'right'
-  addPanel(api, id, { referencePanel: anchorId, direction })
+  const shown = addPanel(api, id, { referencePanel: anchorId, direction })
+  if (spot !== undefined && anchorId === spot.reference) reapplySize(shown, spot.size)
   return true
 }
 
@@ -669,7 +686,11 @@ function undoMerge(): void {
   suppressPersist = true
   api.removePanel(aiPanel)
   if (spot !== null && anchorStillThere) {
-    addPanel(api, 'panel.ai_translation', { referencePanel: spot.reference, direction: spot.direction })
+    const restored = addPanel(api, 'panel.ai_translation', {
+      referencePanel: spot.reference,
+      direction: spot.direction,
+    })
+    reapplySize(restored, spot.size)
   } else {
     // Neo cũ không còn (đã bị ẩn/xoá trong lúc gộp) — cùng đường dự phòng của `showPanel`:
     // đặt bên phải panel đầu tiên đang hiện, hoặc chiếm cả lưới nếu không còn panel nào.

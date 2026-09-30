@@ -161,3 +161,61 @@ describe('lỗi không có hình dạng IpcError — phân biệt Tauri thật v
     await expect(deleteConfig('app_config', 'mode.library')).resolves.toBeNull()
   })
 })
+
+describe('putConfig — the last value for a (kind, key) lands last', () => {
+  it('a later put waits for the earlier one even when the earlier invoke completes late', async () => {
+    const finishers: Array<() => void> = []
+    const landed: string[] = []
+    mockInvoke.mockImplementation((_cmd: string, args: { value: string }) => {
+      return new Promise<void>((resolve) => {
+        finishers.push(() => {
+          landed.push(args.value)
+          resolve()
+        })
+      })
+    })
+    const { putConfig } = await import('../../src/config/bootstrap')
+
+    const first = putConfig('app_config', 'mode', 'library')
+    const second = putConfig('app_config', 'mode', 'reading')
+    await Promise.resolve()
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    finishers[0]()
+    await first
+    await Promise.resolve()
+    expect(mockInvoke).toHaveBeenCalledTimes(2)
+    finishers[1]()
+    await second
+
+    expect(landed).toEqual(['library', 'reading'])
+  })
+
+  it('a failed earlier put does not block the later one, and other keys do not wait', async () => {
+    let failA: (() => void) | undefined
+    mockInvoke.mockImplementation((_cmd: string, args: { value: string }) =>
+      args.value === 'a'
+        ? new Promise<void>((_resolve, reject) => {
+            failA = () => reject(new Error('no bridge'))
+          })
+        : Promise.resolve(),
+    )
+    const sent = () => mockInvoke.mock.calls.map((c) => (c[1] as { value: string }).value)
+    const { putConfig } = await import('../../src/config/bootstrap')
+
+    const a = putConfig('app_config', 'mode', 'a')
+    const b = putConfig('app_config', 'mode', 'b')
+    const c = putConfig('app_config', 'theme', 'c')
+    await Promise.resolve()
+
+    expect(sent()).toContain('c')
+    expect(sent()).not.toContain('b')
+
+    if (failA === undefined) throw new Error('put a was never sent')
+    failA()
+    const results = await Promise.all([a, b, c])
+
+    expect(results).toEqual([null, null, null])
+    expect(sent()).toContain('b')
+  })
+})

@@ -1,32 +1,10 @@
 <script setup lang="ts">
-// Màn hình **Cài đặt › Phím tắt** — Story 1.21 · FR22 · NFR17 · AD-34.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 MỘT LỚP PHỦ, KHÔNG MỘT CHẾ ĐỘ THỨ TƯ (cùng §Quyết định #4a của Story 1.19)
-// ─────────────────────────────────────────────────────────────────────────────
-// AD-24 khai **BA** chế độ ngang hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+4` là phím
-// của Story 8.11. Khuôn chép nguyên từ `AttributionOverlay.vue`, và cả hai dựng ở `App.vue`
-// cùng một tầng: chúng nói về **cả ứng dụng**, không về một panel.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 ĐÂY LÀ MÀN *PHÍM TẮT*, KHÔNG PHẢI MÀN *CÀI ĐẶT*
-// ─────────────────────────────────────────────────────────────────────────────
-// Chín mục còn lại của `mockups/settings.html:251-262` thuộc Epic 4/5/6/10. Dựng một khung
-// điều hướng trái cho chín mục **chưa tồn tại** là trỏ tới năng lực chưa có — thứ §KHÔNG-LÀM
-// của Story 1.17 đã cấm và Story 1.20 vừa áp lại.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 BẪY 1 — MOCKUP VẼ MỘT THANH CHUYỂN PHẠM VI, VÀ NÓ LÀ MỘT CÁI BẪY CÓ TÊN
-// ─────────────────────────────────────────────────────────────────────────────
-// `settings.html:243-248` vẽ hai nút `Toàn cục`/`Tác phẩm`. `src-tauri/src/core/scope/kinds.rs`
-// cấm bằng chữ và gọi đích danh story này: `Shortcut` là `Semantics::GlobalOnly`, và
-// `save_value` **từ chối** mọi loại không phải `GlobalOnly`. Một nút *"Tác phẩm"* bấm được
-// sẽ ghi trượt, hoặc tệ hơn, không ghi gì và trông như đã ghi.
-// ⇒ Thay nó bằng đúng một câu: `shortcuts.scope_note`.
-import { nextTick, useTemplateRef, watch } from 'vue'
+// Shortcuts section of the Settings frame (FR22, NFR17, AD-34). Shortcut is `GlobalOnly`
+// (`core/scope/kinds.rs`), so there is deliberately no scope switch: `shortcuts.scope_note`
+// says so instead. State lives in `config/shortcutsState.ts`.
+import { onBeforeUnmount, onMounted } from 'vue'
 import { t } from './i18n'
 import { dispatch } from './commands'
-import { focusReturnTargetOnOpen } from './commands/focus'
 import {
   aimRowFrom,
   aimedShortcutRow,
@@ -34,108 +12,16 @@ import {
   captureIsArmed,
   defaultDisplayFor,
   diskBindingsRejected,
+  enterShortcutsScreen,
   handleCaptureKey,
+  leaveShortcutsScreen,
   shortcutNotice,
   shortcutRows,
-  shortcutsOverlayIsOpen,
   unboundShortcutIds,
 } from './config/shortcutsState'
-import { useSelectionSurface } from './panels/selectionContract'
 
-// 🔴 Bề mặt văn bản thứ bảy — bảng này chứa **chữ thật** (nhãn thao tác tiếng Việt), nên nó
-// rơi vào đúng lớp câu hỏi mà `useSelectionSurface` tồn tại để trả lời (AC2 của Story 1.18).
-//
-// 🔴 Vai `'display'`, **không** `'source'` — Bẫy 1 của Story 1.18: bôi đen một nhãn thao tác
-// để đọc kỹ mà phát ra một lượt tra cứu là thay chính đoạn đang đọc dưới tay người đọc.
-const panel = useTemplateRef<HTMLElement>('panel')
-useSelectionSurface(panel, 'display')
-
-/**
- * 🔴 UX-DR17 — trả tiêu điểm về chỗ cũ. Khuôn và lý lẽ chép từ `AttributionOverlay.vue`,
- * **cả hai vế**: `isConnected` trước `focus()`, rồi đường lui qua thuộc tính `data-`.
- */
-let returnFocusTo: HTMLElement | null = null
-
-watch(shortcutsOverlayIsOpen, (open) => {
-  if (open) {
-    // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`.
-    //
-    // ⚠️ Nút mở của lớp phủ NÀY nằm ở titlebar, không tổ tiên nào focusable, nên ở đây
-    // `activeElement` **đang** là nút và luật mới trả về đúng cùng một node. Vẫn đi qua
-    // hàm chung, vì hai lớp phủ chép khuôn của nhau và một luật chỉ đúng ở MỘT trong hai
-    // là đúng cách chúng trôi khỏi nhau lần trước.
-    returnFocusTo = focusReturnTargetOnOpen('[data-shortcuts-open]')
-    void nextTick(() => panel.value?.focus())
-    return
-  }
-
-  const back = returnFocusTo
-  returnFocusTo = null
-
-  // Một node đã rời DOM vẫn nhận được `focus()` mà KHÔNG ném và KHÔNG có tác dụng — tiêu
-  // điểm rơi về `body`, đúng thứ UX-DR17 cấm, và không dấu hiệu nào báo.
-  if (back !== null && back.isConnected) {
-    back.focus()
-    return
-  }
-
-  const opener = document.querySelector<HTMLElement>('[data-shortcuts-open]')
-  if (opener !== null) {
-    opener.focus()
-    return
-  }
-  // Chẩn đoán viết bằng tiếng Anh — Kiểm A của `check:i18n` cấm chuỗi tiếng Việt ở vị trí mã.
-  console.warn('[shortcuts] focus-return target is gone; focus falls back to body.')
-})
-
-function focusableWithin(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  )
-}
-
-/** Bẫy tiêu điểm — điều kiện để `aria-modal="true"` không phải một lời khai sai. */
-function trapTab(event: KeyboardEvent): void {
-  const root = panel.value
-  if (root === null) return
-
-  event.preventDefault()
-  const stops = focusableWithin(root)
-  if (stops.length === 0) {
-    root.focus()
-    return
-  }
-
-  const active = document.activeElement
-  const index = active instanceof HTMLElement ? stops.indexOf(active) : -1
-  const step = event.shiftKey ? -1 : 1
-  const next = index === -1 ? (event.shiftKey ? stops.length - 1 : 0) : index + step
-  stops[(next + stops.length) % stops.length].focus()
-}
-
-/**
- * 🔴 BẪY 4 — `Escape` phải huỷ lượt BẮT trước khi đóng lớp phủ.
- *
- * Hai nghĩa của một phím trong hai trạng thái là bình thường; **quên tách chúng** thì người
- * dùng huỷ một lượt gán và mất luôn màn hình. Handler của ô phím đã `stopPropagation()` ở
- * trạng thái đang bắt, nên tới được đây nghĩa là **không** đang bắt — nhưng phép kiểm vẫn ở
- * lại, vì `Escape` cũng tới đây từ mọi điểm dừng Tab khác trong lớp phủ.
- */
-// ⚠️ `captureIsArmed.value`, **không** `captureIsArmed`. Nó là một `Ref`, và Vue chỉ tự bóc
-// `Ref` trong `template` — trong khối `script` này thì không. `if (captureIsArmed)` là một
-// phép thử trên chính **đối tượng** `Ref`, tức luôn luôn đúng, và nó là TypeScript hợp lệ nên
-// `vue-tsc --noEmit` xanh, cả chín cổng xanh, và `Escape` không bao giờ đóng được lớp phủ.
-// Kho không có ESLint nên không phép kiểm nào canh chỗ này (bắt ở code review 2026-08-11).
-function onEscape(): void {
-  if (captureIsArmed.value) {
-    cancelCapture()
-    return
-  }
-  dispatch('shortcuts.close')
-}
+onMounted(enterShortcutsScreen)
+onBeforeUnmount(leaveShortcutsScreen)
 
 /**
  * 🔴 Tiêu điểm rời ô phím trong lúc **đang bắt** ⇒ huỷ lượt bắt.
@@ -161,11 +47,10 @@ function onKeyCellFocusOut(): void {
  * vi ngay giữa lúc ta đang cố bắt một phím trần (Bẫy 6).
  */
 function onKeyCellKeydown(event: KeyboardEvent): void {
-  // ⚠️ `.value` — xem chú thích ở `onEscape`. Thiếu nó, nhánh này nhận **mọi** sự kiện và
-  // `return` ở cuối, nên nhánh `⌫` bỏ gán bên dưới là mã CHẾT ở mọi trạng thái.
+  // `.value`: a bare `Ref` is always truthy in `<script>`, which would kill the `Backspace` branch below.
   if (captureIsArmed.value) {
     if (event.code === 'Escape') {
-      // Dừng ở đây: `@keydown.esc` của lớp phủ KHÔNG được nhận sự kiện này (Bẫy 4).
+      // Stops here so the Settings overlay's `@keydown.esc` does not close it while cancelling a capture.
       event.preventDefault()
       event.stopPropagation()
       cancelCapture()
@@ -194,34 +79,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <!--
-    ⚠️ `@keydown.esc` là DOM thường, KHÔNG một command: `Escape` ở đây là một lượt **huỷ
-    trong ngữ cảnh**, không một thao tác toàn cục — gán nó thành một command là chiếm phím
-    `Escape` cho **cả** ứng dụng, và chính màn hình này sẽ hiện nó ra như một phím gán lại
-    được trong khi nó chỉ có nghĩa khi lớp phủ đang mở.
-    Ba nút thì ĐI QUA command — Kiểm A đòi mọi `@click` là đúng một `dispatch('<id>')`.
-  -->
-  <div
-    v-if="shortcutsOverlayIsOpen"
-    class="sc-scrim"
-    @keydown.esc="onEscape()"
-    @keydown.tab="trapTab($event)"
-  >
-    <section ref="panel" class="sc-panel" tabindex="-1" role="dialog" aria-modal="true">
-      <header class="sc-head">
-        <h2 class="sc-title">{{ t('shortcuts.title') }}</h2>
-        <button type="button" class="sc-close" @click="dispatch('shortcuts.close')">
-          {{ t('command.shortcuts.close') }}
-        </button>
-      </header>
-
-      <p class="sc-intro">{{ t('shortcuts.intro') }}</p>
-
-      <!--
-        🔴 BẪY 1 — đúng MỘT câu thay cho thanh chuyển phạm vi của mockup. Nguyên văn
-        `settings.html:246`, và `kinds.rs` trích đúng câu đó làm lý do khai `Shortcut` là
-        `GlobalOnly`. Đây là chỗ người dùng đọc được quyết định kiến trúc đó.
-      -->
+  <div class="sc-body">
       <p class="sc-note">{{ t('shortcuts.scope_note') }}</p>
 
       <!--
@@ -360,63 +218,10 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
       <p class="sc-unbound-line">
         {{ t('shortcuts.unbound_count', { so: String(unboundShortcutIds.length) }) }}
       </p>
-    </section>
   </div>
 </template>
 
 <style scoped>
-.sc-scrim {
-  position: fixed;
-  inset: 0;
-  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-.sc-panel {
-  width: 100%;
-  max-width: 1100px;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-panel-inline);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.sc-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
-}
-
-.sc-title {
-  margin: 0;
-  font-family: var(--face-read-title);
-  font-size: var(--font-read-title);
-  font-weight: var(--weight-read-title);
-  line-height: var(--leading-read-title);
-  color: var(--color-on-surface);
-}
-
-.sc-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.sc-intro,
 .sc-gesture,
 .sc-unbound-line {
   margin: 0 0 var(--space-panel-block) 0;
