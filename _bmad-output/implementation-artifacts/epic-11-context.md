@@ -17,6 +17,7 @@ Several debt-resolution sessions have run since the 2026-09-23 sweep and already
 - Story 11.5: Trả nợ editor, segment và tầng ghi (Epic 2, `core/store`)
 - Story 11.6: Trả nợ đường nhập và Library (Epic 5, Epic 6)
 - Story 11.7: Trả nợ nền giao diện dùng chung (command registry, focus, keybindings, a11y) và module AI (Epic 4)
+- Story 11.8: Sửa lỗi ranh giới giữa các story của Epic 11 — added 2026-09-30 by correct-course (`sprint-change-proposal-2026-09-30-story-11-8.md`) from retro V-1, V-2, V-5, V-9, V-10. Beyond the shared Epic 11 AC it has three of its own: Quét lại / Chọn thư mục / Gỡ mồ côi stay usable after leaving and returning to Library mid-run; `confirm_segment` rejects a load-time origin outside the FR117 catalogue and writes nothing; a `workflow_dispatch` e2e run on the story's last commit is green with `attribution-focus` really measuring AC11 of Story 1.19 (if red, a reason line naming the run id goes in the spec). Runs before Ice's real-use pass for `Chủ: Epic 11` items and before Epic 7.
 
 ## Requirements & Constraints
 

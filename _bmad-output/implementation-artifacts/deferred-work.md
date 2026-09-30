@@ -12692,3 +12692,6 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
   summary: F-W-9 + F-A-3 — Chú thích còn trỏ `GlossarySettingsOverlay.vue`/`ShortcutsOverlay.vue` đã xoá và `shortcuts.close`/`glossary.settings.close` (`check:doc-refs` không bắt); `matching_close_brace` có hai bản.
   evidence: `src/commands/index.ts:2386,3009`; `src-tauri/tests/ipc_argument_contract.rs:330` vs `tests/support/boundary_scan.rs:325`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-8-lo-a-rust-boundary-and-guards.md`
+  summary: Nửa Windows của CI đỏ trên `8c801ef`: hai ca `bindingsEpochWiring.test.ts` (thêm ở `7dbcf23`, 11-7 lô A) hỏng với `expected [ Array(1) ] to deeply equal [ Array(1) ]`, nghi do dấu phân cách đường dẫn khi quét nguồn; macOS xanh.
+  evidence: run 36702088358 job `check (windows-2025)`; lượt push xanh trước đó 36561059042 (`32d933c`) chưa có tệp này. Ice chọn lô B sửa (2026-09-30). Chủ: Story 11.8.
