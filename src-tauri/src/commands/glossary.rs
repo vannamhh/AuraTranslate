@@ -44,9 +44,9 @@ use std::path::{Path, PathBuf};
 use crate::commands::project::OpenWork;
 use crate::core::dict::DictLayers;
 use crate::core::glossary::{
-    Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryMark,
+    Category, ConflictDecision, Delimiter, GlossaryCandidate, GlossaryEntry, GlossaryError, GlossaryMark,
     GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind, WorkContext,
-    add_manual_term, approve_candidate, candidate_chapter_span_counts, classify_import_rows,
+    add_manual_term, approve_candidate, chapter_source_texts, chapter_span_counts_in, classify_import_rows,
     confirm_pending_translation, delete_manual_term, export_tier, import_into_tier,
     list_all_entries, match_lang_for_source_lang, marks_for_source_text,
     parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
@@ -54,6 +54,7 @@ use crate::core::glossary::{
     write_export_file,
 };
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::matching::MatchLang;
 use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn và cùng lý do
@@ -366,12 +367,38 @@ pub fn glossary_pending_candidates(
     layers: &DictLayers,
     disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
-    let Some(open) = open else {
+    let Some(snapshot) = read_pending_snapshot(open)? else {
         return Ok(Vec::new());
     };
+    Ok(build_pending_candidates(snapshot, layers, disabled))
+}
 
+/// What the pending list reads from the open Work. Owned, so the caller can release
+/// `OpenWorkState` before the Han-Viet lookup and the span count run over it.
+pub struct PendingSnapshot {
+    rows: Vec<GlossaryCandidate>,
+    chapters: Vec<(i64, String)>,
+    lang: MatchLang,
+}
+
+/// The DB-reading half of [`glossary_pending_candidates`]; `None` when no Work is open.
+pub fn read_pending_snapshot(open: Option<&OpenWork>) -> Result<Option<PendingSnapshot>, IpcError> {
+    let Some(open) = open else {
+        return Ok(None);
+    };
     let rows = pending_candidates(&open.store)?;
+    let chapters = if rows.is_empty() { Vec::new() } else { chapter_source_texts(&open.store)? };
+    let lang = match_lang_for_source_lang(&open.meta.source_lang);
+    Ok(Some(PendingSnapshot { rows, chapters, lang }))
+}
 
+/// The half of [`glossary_pending_candidates`] that needs no Work and no lock.
+pub fn build_pending_candidates(
+    snapshot: PendingSnapshot,
+    layers: &DictLayers,
+    disabled: &BTreeSet<String>,
+) -> Vec<GlossaryCandidateWire> {
+    let PendingSnapshot { rows, chapters, lang } = snapshot;
     let terms: Vec<&str> = rows.iter().map(|c| c.source_term.as_str()).collect();
     let suggestions = suggest_han_viet_batch(layers, disabled, &terms);
     debug_assert_eq!(
@@ -381,8 +408,7 @@ pub fn glossary_pending_candidates(
     );
 
     // One call for the whole set, same reason as suggest_han_viet_batch above.
-    let lang = match_lang_for_source_lang(&open.meta.source_lang);
-    let chapter_span_counts = candidate_chapter_span_counts(&open.store, &terms, lang)?;
+    let chapter_span_counts = chapter_span_counts_in(&chapters, &terms, lang);
     debug_assert_eq!(
         rows.len(),
         chapter_span_counts.len(),
@@ -408,8 +434,7 @@ pub fn glossary_pending_candidates(
     let chapter_span_by_term: BTreeMap<&str, i64> =
         terms.iter().copied().zip(chapter_span_counts).collect();
 
-    Ok(rows
-        .iter()
+    rows.iter()
         .map(|c| {
             let suggestion = suggestion_by_term
                 .get(c.source_term.as_str())
@@ -432,7 +457,7 @@ pub fn glossary_pending_candidates(
             han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
             han_viet_status: suggestion.as_status_str().to_owned(),
         })
-        .collect())
+        .collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1144,8 +1169,8 @@ pub mod wire {
     /// [`glossary_marks_for_chapter`] ngay trên. Cổng canh:
     /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
     #[tauri::command(async)]
-    pub fn glossary_pending_candidates(
-        app: tauri::AppHandle,
+    pub fn glossary_pending_candidates<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
     ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
         use tauri::Manager as _;
 
@@ -1162,10 +1187,13 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::glossary_pending_candidates(None, layers, &disabled);
         };
-        let guard = work_state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::glossary_pending_candidates(guard.as_ref(), layers, &disabled)
+        let snapshot = {
+            let guard = work_state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            super::read_pending_snapshot(guard.as_ref())?
+        };
+        Ok(snapshot.map_or_else(Vec::new, |s| super::build_pending_candidates(s, layers, &disabled)))
     }
 
     /// Vỏ IPC của [`super::glossary_confirm_pending_translation`]. Story 3.6.

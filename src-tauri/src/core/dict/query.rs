@@ -198,14 +198,42 @@ fn verify_substring(hits: Vec<EntryHit>, query: &str) -> Vec<EntryHit> {
 /// kế hoạch vẫn `MULTI-INDEX OR` + `USE TEMP B-TREE FOR ORDER BY` cho ca này, nhưng nhánh
 /// 1 luôn rất nhanh (< 1 ms mọi ca đo) nên `LIMIT` ở đây chủ yếu cắt băng thông IPC.
 pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
-    let sql = format!(
+    let fetch = fetch_rows(limit);
+    let hits = run(db, &exact_sql(), &[&query, &fetch])?;
+    Ok(cap(hits, limit))
+}
+
+/// Branch 1 statement: `?1` query, `?2` fetch limit.
+pub fn exact_sql() -> String {
+    format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE (e.headword = ?1 OR e.headword_simp = ?1) AND e.lang = 'zh' \
          ORDER BY e.id LIMIT ?2"
-    );
-    let fetch = fetch_rows(limit);
-    let hits = run(db, &sql, &[&query, &fetch])?;
-    Ok(cap(hits, limit))
+    )
+}
+
+/// Branch 2 statement for a one-character query: `?1` character, `?2` fetch limit.
+pub fn char_idx_one_sql() -> String {
+    format!(
+        "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
+         WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = ?1) \
+           AND e.lang = 'zh' \
+         ORDER BY e.id LIMIT ?2"
+    )
+}
+
+/// Branch 2 statement for a two-character query: `?1` and `?2` characters, `?3` candidate ceiling.
+pub fn char_idx_two_sql() -> String {
+    format!(
+        "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
+         WHERE e.id IN ( \
+             SELECT entry_id FROM char_idx WHERE ch = ?1 \
+             INTERSECT \
+             SELECT entry_id FROM char_idx WHERE ch = ?2 \
+           ) \
+           AND e.lang = 'zh' \
+         ORDER BY e.id LIMIT ?3"
+    )
 }
 
 /// A query already measured at two characters or fewer — the only shape [`char_idx`] accepts.
@@ -264,14 +292,8 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) 
         // `entry_id` tăng dần) rồi `SEARCH e USING INTEGER PRIMARY KEY (rowid=?)` — streaming,
         // KHÔNG `USE TEMP B-TREE FOR ORDER BY`. Đo tay: 9–12 ms (KHÔNG `LIMIT`) → ~1 ms
         // (`LIMIT 20`), ~10×. Đây là nhánh ĐẮT NHẤT của cả sáu — vượt trần NFR1 (`:419`).
-        let sql = format!(
-            "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
-             WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = ?1) \
-               AND e.lang = 'zh' \
-             ORDER BY e.id LIMIT ?2"
-        );
         let fetch = fetch_rows(limit);
-        let hits = run(db, &sql, &[&first.to_string(), &fetch])?;
+        let hits = run(db, &char_idx_one_sql(), &[&first.to_string(), &fetch])?;
         return Ok(cap(hits, limit));
     };
 
@@ -288,18 +310,8 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) 
     // nên nó không bao giờ cắt vào phần Bẫy 11 nói tới — nó chỉ chặn ca *"một ký tự Hán phổ
     // biến kéo hàng chục nghìn hàng vào RAM"*. [`cap_verified`] giữ cờ `truncated` khỏi
     // nói dối khi trần chạm.
-    let sql = format!(
-        "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
-         WHERE e.id IN ( \
-             SELECT entry_id FROM char_idx WHERE ch = ?1 \
-             INTERSECT \
-             SELECT entry_id FROM char_idx WHERE ch = ?2 \
-           ) \
-           AND e.lang = 'zh' \
-         ORDER BY e.id LIMIT ?3"
-    );
     let ceiling = candidate_ceiling(limit);
-    let candidates = run(db, &sql, &[&first.to_string(), &second.to_string(), &ceiling])?;
+    let candidates = run(db, &char_idx_two_sql(), &[&first.to_string(), &second.to_string(), &ceiling])?;
     Ok(cap_verified(candidates, query, limit))
 }
 

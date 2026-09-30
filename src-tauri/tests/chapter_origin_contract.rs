@@ -455,9 +455,8 @@ fn cancelling_preview_after_typing_an_override_leaves_zero_atproj_and_clears_the
 /// thấy'".
 ///
 /// ⚠️ **Vì sao ca này KHÔNG gọi thẳng `wire::preview_import_encoding_from_text`/
-/// `confirm_import_with_encoding`** — kho không có `tauri::test`/`MockRuntime` (xem ghi chú
-/// tương tự ở `tests/project_contract.rs:925`), nên hai `#[tauri::command]` đó không gọi được
-/// từ `tests/**` mà không dựng một `tauri::AppHandle` thật. Ca này vì thế TÁI DIỄN ĐÚNG chuỗi
+/// `confirm_import_with_encoding`** — `preview_import_encoding_from_text` takes a concrete
+/// `tauri::AppHandle` (Wry), so the two-shell sequence cannot run on `MockRuntime`. Ca này vì thế TÁI DIỄN ĐÚNG chuỗi
 /// hàm THUẦN mà mỗi vỏ gọi, THEO ĐÚNG THỨ TỰ, trên CÙNG một `ChapterOriginOverridesState`:
 /// bước "mở lượt xem trước MỚI" gọi [`reset_chapter_origin_overrides`] TRƯỚC
 /// [`auratranslate_lib::commands::project::preview_import_encoding`] — đúng vị trí dòng vá vừa

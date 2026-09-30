@@ -683,7 +683,7 @@ const SPRINT_KEY_FLOOR = 139
  * bản lịch sử đúng là có ít mục hơn, và chấm nó là lỗi hạ tầng thì cổng tự chặn vế TRƯỚC
  * của AC5.
  */
-const ITEM_FLOOR = 604
+const ITEM_FLOOR = 643
 if (DEBT_PATH === REAL_DEBT_PATH) {
   const v = judgeFloor(ITEM_FLOOR, summary.total, 'ITEM_FLOOR', 'muc trong so no THAT')
   if (!v.ok) abort(

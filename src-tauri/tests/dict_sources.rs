@@ -5295,28 +5295,34 @@ fn build_query_plan_fixture(dir: &Path) -> PathBuf {
     path
 }
 
-/// This SQL is a hand copy of `query.rs`'s branch 1/2 shape (`store_boundary.rs` forbids
-/// calling `pub(super)` query functions or opening a connection here); nothing keeps the
-/// copy in sync if `query.rs` changes its `WHERE`/`JOIN` shape.
+/// Runs the statements `core::dict::query` really executes (its `pub` builders), so a change
+/// to their `WHERE`/`JOIN` shape is measured here. The plan is read with values bound to the
+/// `?N` placeholders, as `query.rs` runs them.
 #[test]
 fn branch_one_and_two_never_scan_the_table() {
+    use auratranslate_lib::core::dict::{char_idx_one_sql, char_idx_two_sql, exact_sql};
+
     let dir = temp_dir("query-plan");
     let path = build_query_plan_fixture(&dir);
 
     let conn = rusqlite::Connection::open(&path)
         .unwrap_or_else(|e| panic!("mo lai fixture ke hoach truy van: {e}"));
 
-    let assert_indexed_never_scanned = |sql: &str, label: &str| {
+    let plan_of = |sql: &str, params: &[rusqlite::types::Value], label: &str| -> String {
         let plan_sql = format!("EXPLAIN QUERY PLAN {sql}");
         let mut stmt = conn
             .prepare(&plan_sql)
             .unwrap_or_else(|e| panic!("{label}: chuẩn bị EXPLAIN QUERY PLAN: {e}"));
         let rows: Vec<String> = stmt
-            .query_map([], |row| row.get::<_, String>(3))
+            .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, String>(3))
             .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"))
             .collect::<Result<Vec<_>, _>>()
             .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"));
-        let plan = rows.join(" | ");
+        rows.join(" | ")
+    };
+    let text = |v: &str| rusqlite::types::Value::Text(v.to_owned());
+    let assert_indexed_never_scanned = |sql: &str, params: &[rusqlite::types::Value], label: &str| {
+        let plan = plan_of(sql, params, label);
         assert!(
             !plan.contains("SCAN dict_entry") && !plan.contains("SCAN e"),
             "{label}: kế hoạch quét TOÀN BẢNG `dict_entry` — nhánh này phải luôn đi qua \
@@ -5328,36 +5334,19 @@ fn branch_one_and_two_never_scan_the_table() {
         );
     };
 
-    // Nhánh 1 — `ExactBtree` (`query::exact`).
     assert_indexed_never_scanned(
-        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
-         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
-         WHERE (e.headword = 'TARGET' OR e.headword_simp = 'TARGET') AND e.lang = 'zh' \
-         ORDER BY e.id LIMIT 21",
+        &exact_sql(),
+        &[text("TARGET"), rusqlite::types::Value::Integer(21)],
         "nhánh 1 (ExactBtree)",
     );
-
-    // Nhánh 2 — `CharIdx`, 1 ký tự.
     assert_indexed_never_scanned(
-        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
-         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
-         WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = 'X') \
-           AND e.lang = 'zh' \
-         ORDER BY e.id LIMIT 21",
+        &char_idx_one_sql(),
+        &[text("X"), rusqlite::types::Value::Integer(21)],
         "nhánh 2 (CharIdx, 1 ký tự)",
     );
-
-    // Nhánh 2 — `CharIdx`, 2 ký tự (`INTERSECT`).
     assert_indexed_never_scanned(
-        "SELECT e.id, s.code, e.lang, e.headword, e.headword_simp \
-         FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
-         WHERE e.id IN ( \
-             SELECT entry_id FROM char_idx WHERE ch = 'X' \
-             INTERSECT \
-             SELECT entry_id FROM char_idx WHERE ch = 'Y' \
-           ) \
-           AND e.lang = 'zh' \
-         ORDER BY e.id LIMIT 1000",
+        &char_idx_two_sql(),
+        &[text("X"), text("Y"), rusqlite::types::Value::Integer(1000)],
         "nhánh 2 (CharIdx, 2 ký tự)",
     );
 

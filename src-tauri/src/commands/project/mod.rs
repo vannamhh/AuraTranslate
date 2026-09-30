@@ -159,7 +159,7 @@ pub struct OpenWork {
 /// module để tạo/tìm `.atproj`; mọi chỗ gọi SẢN PHẨM (`lib.rs::open_library_index`,
 /// `wire::create_work_from_text`/`_from_file`) phải đi qua [`resolve_library_root`], không
 /// gọi thẳng hàm này. Hàm này ở lại làm **hồi phòng cuối cùng** của bộ phân giải đó.
-pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError> {
+pub fn default_library_root<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, IpcError> {
     use tauri::Manager as _;
 
     // Móc e2e đứng TRƯỚC `document_dir()` và chỉ tồn tại trong bản debug + feature `wdio`
@@ -198,8 +198,8 @@ pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError>
 /// `store = None` (kho toàn cục chưa được quản lý) rơi thẳng về [`default_library_root`] —
 /// không phải một lỗi, cùng khuôn mọi đường đọc cấu hình khác của kho khi `global.db` không
 /// mở được (`AGENTS.md`: "mở kho trượt ⇒ ghi chẩn đoán rồi đi tiếp").
-pub fn resolve_library_root(
-    app: &tauri::AppHandle,
+pub fn resolve_library_root<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
     store: Option<&Store>,
 ) -> Result<PathBuf, IpcError> {
     resolve_library_root_from(
@@ -215,8 +215,7 @@ pub fn resolve_library_root(
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 VÌ SAO TÁCH — `resolve_library_root` KHÔNG CÓ MỘT PHÉP KIỂM HÀNH VI NÀO
 /// ─────────────────────────────────────────────────────────────────────────────
-/// Trước bản vá, cả ba nhánh ưu tiên nằm trong MỘT hàm đòi `&tauri::AppHandle` — crate này
-/// không có `tauri::test`/`MockRuntime` (`src-tauri/Cargo.toml` không khai `test-utils`), nên
+/// Trước bản vá, cả ba nhánh ưu tiên nằm trong MỘT hàm đòi `&tauri::AppHandle`, nên
 /// không ca nào trong `tests/**` gọi được hàm đó. Cổng quét NGUỒN ở `config_invariants.rs`
 /// (vòng rà TRƯỚC) chỉ so THỨ TỰ CHUỖI trong mã — nó không chạy hàm, nên đảo nhánh nào cũng
 /// không làm ca nào đỏ. Tách phần LÕI (không đụng `AppHandle`) ra hàm này: `override_root`
@@ -421,7 +420,7 @@ fn scan_failed_event(chapter_id: i64) -> GlossaryImportScanEvent {
 /// The one place all six infrastructure-failure branches of [`spawn_import_scan`] emit
 /// `scan_failed`, so they can't drift from each other. Swallows its own emit failure —
 /// already on an error path, so a second error here only goes to `stderr`.
-fn emit_import_scan_failed(app: &tauri::AppHandle, chapter_id: i64) {
+fn emit_import_scan_failed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, chapter_id: i64) {
     use tauri::Emitter as _;
     if let Err(err) = app.emit(GLOSSARY_IMPORT_SCAN_EVENT, scan_failed_event(chapter_id)) {
         eprintln!("glossary[import_scan] phat su kien that bai: {err}");
@@ -638,8 +637,8 @@ pub(crate) fn guarded_dict_layers<'a>(
 /// 🔴 **Không `unwrap()`/`expect()` nào trên đường này** — `panic = "abort"` giết cả tiến
 /// trình (AGENTS.md), và một luồng nền là chỗ tệ nhất để việc đó xảy ra: không ai đang chờ
 /// kết quả của nó để thấy màn hình treo, người dùng chỉ thấy ứng dụng biến mất.
-fn spawn_import_scan(
-    app: tauri::AppHandle,
+fn spawn_import_scan<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     work_id: String,
     chapter_ids: Vec<i64>,
     source_lang: String,
@@ -715,8 +714,8 @@ fn spawn_import_scan(
 /// Thân của MỘT Chương trong vòng lặp [`spawn_import_scan`] — tách ra để hàm cha chỉ còn việc
 /// nạp một lần những gì KHÔNG đổi giữa các Chương (`config`/`disabled`/`layers`/`lang`) rồi lặp.
 /// Nhận `&tauri::AppHandle` (không `move` sở hữu) vì được gọi LẶP LẠI trong cùng một luồng.
-fn run_one_chapter_import_scan(
-    app: &tauri::AppHandle,
+fn run_one_chapter_import_scan<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
     work_id: &str,
     chapter_id: i64,
     global: &Store,
@@ -2722,8 +2721,8 @@ pub fn confirm_append_import_with_encoding(
 /// sản phẩm — case canh nó chỉ chứng minh một hàm song song, không chứng minh gì về đường sản
 /// phẩm thật) gọi ĐÚNG hàm này, xem `wire::confirm_import_with_encoding`. Một mutation xoá dòng
 /// gọi `reindex_library(&app, &root)` ở nhánh Tác phẩm ĐANG MỞ vẫn KHÔNG bị hàm này/case dùng
-/// nó bắt được — không đường nào trong `tests/**` gọi được thẳng một vỏ `#[tauri::command]`
-/// (không `tauri::test`/`MockRuntime` trong kho, đo lại ở Phase 1). Cái hàm này ĐÓNG là seam
+/// nó bắt được. That mutation is caught through the wire by `tests/project_wire.rs`.
+/// Cái hàm này ĐÓNG là seam
 /// "bước 4 của đường append CÓ TỒN TẠI và THẬT SỰ cập nhật chỉ mục" — seam mà trước Phase 4
 /// KHÔNG tồn tại ở BẤT KỲ hình dạng nào cho đường append (khác hẳn
 /// `set_chapter_status`/`merge_chapter_into_previous`, cả hai đã có `*_indexed` từ trước).
@@ -2994,7 +2993,7 @@ fn reject_unknown_translation_origin(
 /// `library.work_not_indexed`"* là một QUY TẮC, và `mod wire` bên dưới **không một quy tắc
 /// nào sống ở đó** — nó chỉ gọi `Indexer::find_work` rồi chuyển tiếp `Option` xuống đây
 /// nguyên vẹn, để `tests/project_contract.rs` gọi được ca "work_id lạ" mà không cần một
-/// `tauri::AppHandle` thật (crate này không khai `tauri = { features = ["test-utils"] }`).
+/// `tauri::AppHandle` nào.
 ///
 /// 🔴 **KHÔNG `remove_folder` ở BẤT KỲ nhánh lỗi nào** — khác hẳn [`create_work`]: `dir` ở
 /// đây là **dữ liệu có sẵn của người dùng** (một `.atproj` đã tồn tại từ trước, được liệt
@@ -3012,8 +3011,9 @@ fn reject_unknown_translation_origin(
 /// - `project.db` mở trượt (kể cả `SchemaTooNew`) ⇒ lỗi kho (`store.*`), qua
 ///   `From<StoreError>`;
 /// - `project.db` mở được nhưng cột `segment.translation_origin` mang một giá trị NGOÀI
-///   danh mục đóng `TRANSLATION_ORIGINS` ⇒ `store.unknown_translation_origin`, không một
-///   byte nào bị ghi — xem doc-comment của [`reject_unknown_translation_origin`].
+///   danh mục đóng `TRANSLATION_ORIGINS` ⇒ `store.unknown_translation_origin`. `Store::open`
+///   has already run by then and may have set WAL, taken a backup and migrated; the origin
+///   check itself writes nothing — xem doc-comment của [`reject_unknown_translation_origin`].
 pub fn open_work(
     work_id: &str,
     indexed: Option<&crate::core::library::indexer::IndexedWork>,
@@ -3311,7 +3311,7 @@ fn sweep_orphaned_asset_files(assets_dir: &std::path::Path, referenced: &std::co
 /// Khuôn đúng: `Mutex::replace` trả **giá trị cũ**, gán trong một khối con để `guard` nhả
 /// khoá ngay khi khối đó kết thúc, RỒI mới `drop(old)` — Store cũ đóng khi không ai còn
 /// giữ khoá.
-fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
+fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: OpenWork) {
     use tauri::Manager as _;
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -3404,51 +3404,10 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     }
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
+        // The outgoing Work's `asset://` scope stays granted: `forbid_directory` has no inverse
+        // and outranks every allow, so revoking it would block the Work for the whole session.
         let old = swap_locked(&state, new_work);
-        // Revoke the outgoing Work's `asset://` scope (AD-23: one Work at a time).
-        // `forbid_directory` runs after the new Work's `allow_directory` above.
-        let old_assets_dir_owned = old.as_ref().map(|w| w.dir.join("assets"));
-        if let Some(old_assets_dir) = assets_dir_to_forbid(old_assets_dir_owned.as_deref(), &assets_dir) {
-            if let Err(err) = app.asset_protocol_scope().forbid_directory(old_assets_dir, true) {
-                eprintln!(
-                    "project[scope] khong thu hoi duoc asset_protocol_scope cho {}: {err}",
-                    old_assets_dir.display()
-                );
-            }
-        }
         drop(old);
-    }
-}
-
-// Returns None both when there is no old Work and when the old Work is the one just
-// re-allowed (reopening itself), so the just-granted allow is never immediately revoked.
-fn assets_dir_to_forbid<'a>(
-    old_assets_dir: Option<&'a std::path::Path>,
-    newly_allowed_assets_dir: &std::path::Path,
-) -> Option<&'a std::path::Path> {
-    old_assets_dir.filter(|old| *old != newly_allowed_assets_dir)
-}
-
-#[cfg(test)]
-mod scope_revocation_tests {
-    use super::assets_dir_to_forbid;
-    use std::path::Path;
-
-    #[test]
-    fn no_old_work_means_nothing_to_forbid() {
-        assert_eq!(assets_dir_to_forbid(None, Path::new("/lib/B.atproj/assets")), None);
-    }
-
-    #[test]
-    fn a_different_old_work_is_forbidden() {
-        let old = Path::new("/lib/A.atproj/assets");
-        assert_eq!(assets_dir_to_forbid(Some(old), Path::new("/lib/B.atproj/assets")), Some(old));
-    }
-
-    #[test]
-    fn reopening_the_same_work_forbids_nothing() {
-        let dir = Path::new("/lib/A.atproj/assets");
-        assert_eq!(assets_dir_to_forbid(Some(dir), dir), None, "khong duoc huy ngay luot allow vua cap cho CHINH no");
     }
 }
 

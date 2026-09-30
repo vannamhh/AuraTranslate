@@ -64,6 +64,16 @@ phẩm A rồi chuyển sang B thì `assets/` của A **vẫn** đọc được 
 chủ (`deferred-work.md`); `forbid_directory` là danh sách CẤM có thứ tự ưu tiên cao hơn, nên thu
 hồi ngây thơ sẽ chặn luôn lượt mở LẠI A — đó là một quyết định phạm vi, không một dòng vá.
 
+🔵 **2026-09-30 (Story 11.8 lô A, Ice chốt).** Một lượt thu hồi bằng `forbid_directory` khi đổi
+Tác phẩm đã được thêm rồi đo ra đúng cái bẫy trên: mở A → B → A thì ảnh của A bị chặn tới khi khởi
+động lại. Ice chọn phạm vi NỞ theo phiên: `replace_open_work` không `forbid_directory`, mọi
+`<.atproj>/assets/` đã mở trong phiên đọc được qua `asset://` tới khi thoát. `forbid_directory` chỉ
+còn ở `close_open_work` (`lib.rs`, chạy lúc `RunEvent::Exit`). Canh bởi
+`tests/project_wire.rs::every_work_opened_in_the_session_keeps_its_assets_in_the_asset_scope`.
+⚠️ Đây là bản TẠM: phiếu #52 (Ice ký 2026-09-24, một Tác phẩm mỗi lúc) chưa được thi hành. Đường về
+#52 là phục vụ ảnh Tác phẩm qua một URI scheme gắn `OpenWorkState` thay cho `asset://` động — nợ có
+chủ `Chủ: Winston` trong `deferred-work.md`.
+
 **Vì sao hàng ĐỘNG không cần một AD mới.** AD-23 đã chốt sẵn vế này — *"Scope động cấp lúc
 chạy chỉ khi người dùng chọn qua hộp thoại — thư mục gốc Library"* — nên đây là một NĂNG LỰC
 CHƯA DỰNG của một bất biến đã có, không phải một bất biến bị đổi. Cấp cho đúng thư mục

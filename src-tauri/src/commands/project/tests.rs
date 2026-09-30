@@ -700,8 +700,8 @@
     // ═════════════════════════════════════════════════════════════════════════════
     // P2 (vòng rà THỨ HAI, 2026-08-27) — `resolve_library_root_from`/
     // `resolve_configured_library_root` KHÔNG có một phép kiểm HÀNH VI nào trước bản vá:
-    // cả ba nhánh sống trong `resolve_library_root(app, store)`, đòi `&tauri::AppHandle` mà
-    // crate này không có cách dựng giả (không `test-utils`). Tách hai hàm THUẦN để phủ được
+    // cả ba nhánh sống trong `resolve_library_root(app, store)`, đòi một `&tauri::AppHandle`.
+    // Tách hai hàm THUẦN để phủ được
     // BA nhánh: giá trị đã cấu hình thắng · `load_global_config` lỗi ⇒ rơi về mặc định ·
     // `store = None` ⇒ rơi về mặc định — cộng ca "override thắng giá trị cấu hình" (nay
     // kiểm được vì không cần `AppHandle`).

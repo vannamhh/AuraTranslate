@@ -971,9 +971,8 @@ fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names(
 /// Story 6.15, vong ra 1 muc 1/2 (2026-09-10).
 ///
 /// ⚠️ **Vi sao mot phep quet MA NGUON chu khong mot ca goi that.** Vo `#[tauri::command]` doi
-/// mot `tauri::AppHandle`, ma crate test nay khong co `MockRuntime` (da ghi o
-/// `project_contract.rs:925`) -- nen KHONG ca nao goi duoc vo that. Ca dau tien viet cho lo
-/// hong nay (`chapter_origin_contract.rs::a_leftover_override_from_a_cancelled_url_preview_...`)
+/// mot `tauri::AppHandle` cu the (Wry), khong phai `AppHandle<R>` -- nen KHONG ca nao goi duoc
+/// vo that. Ca dau tien viet cho lo hong nay (`chapter_origin_contract.rs::a_leftover_override_from_a_cancelled_url_preview_...`)
 /// TU GOI `reset_chapter_origin_overrides` roi khang dinh khong ro ri: DO 2026-09-10 bang phep
 /// go THAT -- binh luan ca sau `reset_chapter_origin_overrides(&app);` khoi CA SAU cho goi
 /// trong `mod wire` roi chay lai -- ca do van **15/15 XANH**. No canh chinh no, khong canh ban
@@ -1035,7 +1034,7 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
 /// 🔴 **Story 6.16 — ba vo song ngu: dang ky theo TEN, doc luat lam sach, va vo DUNG LAI khong
 /// doc lai tep.** Them o buoc nghiem thu 2026-09-11.
 ///
-/// ⚠️ Cung ly do quet MA NGUON nhu ca ngay tren: crate test khong co `MockRuntime`, nen khong
+/// ⚠️ Cung ly do quet MA NGUON nhu ca ngay tren: vo doi mot `tauri::AppHandle` cu the (Wry), nen khong
 /// ca nao goi duoc vo that. Ba dieu duoi day deu la mot DONG trong than vo ma go di van bien
 /// dich va van xanh o `bilingual_import_contract.rs` (ca do goi HAM THUAN):
 /// ① thieu dong dang ky o `lib.rs` ⇒ `invoke()` tra "command not found" chi khi nguoi dung bam;
@@ -1191,7 +1190,7 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         ),
         (
             "confirm_import_with_encoding",
-            "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
+            "app: tauri::AppHandle<R>,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
     ] {
         let params = fn_param_list(&wire_src, fn_name);
@@ -1368,10 +1367,13 @@ fn the_preview_chapter_detail_wire_is_registered_and_keeps_its_parameter_names()
 /// có nhiều khối `pub fn <fn_name>` cùng tên — hàm này khớp CÁI ĐẦU TIÊN trong `src` truyền
 /// vào, không phân biệt module. Xem đối chứng dương ngay dưới cho ca bẫy đó.
 fn fn_param_list(src: &str, fn_name: &str) -> String {
-    let needle = format!("pub fn {fn_name}(");
-    let start = src
-        .find(&needle)
-        .unwrap_or_else(|| panic!("khong tim thay `{needle}` trong nguon"));
+    let plain = format!("pub fn {fn_name}(");
+    let generic = format!("pub fn {fn_name}<R: tauri::Runtime>(");
+    let (start, needle) = match (src.find(&plain), src.find(&generic)) {
+        (Some(at), _) => (at, plain),
+        (None, Some(at)) => (at, generic),
+        (None, None) => panic!("khong tim thay `{plain}` hay `{generic}` trong nguon"),
+    };
     let after_open = start + needle.len();
     let close = src[after_open..]
         .find(')')
@@ -1712,7 +1714,7 @@ fn reading_mark_wire_fields_stay_snake_case() {
 // Story 6.7b, Phase 4 (coordinator review 2026-09-16) — nêm cho vỏ của khuôn bốn bước
 // (`reindex_library(&app, &root)`) ở `wire.rs`: đối chứng đỏ ① (§Verification) đo được 0 ca
 // đỏ khi gỡ dòng đó ở nhánh APPEND — không test nào gọi được `wire::confirm_import_with_
-// encoding` (không `tauri::test`/`MockRuntime` harness trong kho), nên một lần xoá dòng gọi
+// encoding` (vỏ này lúc đó nhận `tauri::AppHandle` cụ thể, không `AppHandle<R>`), nên một lần xoá dòng gọi
 // TẠI CHÍNH VỎ không bị bắt bởi bất kỳ ca nào. Cổng này canh SỰ CÓ MẶT của nguồn (không canh
 // HÀNH VI lúc chạy), cùng khuôn `ipc_contract.rs::the_three_bilingual_import_wires_are_
 // registered_read_cleanup_rules_and_rebuild_never_reads_the_file` (containment trên nguồn) +
@@ -1747,10 +1749,13 @@ fn count_reindex_library_calls(text: &str) -> usize {
 /// [`the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names`]
 /// ngay trên), tổng quát hoá thành một hàm dùng lại được cho nhiều ca.
 fn wire_fn_body<'a>(wire_src: &'a str, fn_name: &str) -> &'a str {
-    let signature = format!("pub fn {fn_name}(");
-    let start = wire_src
-        .find(&signature)
-        .unwrap_or_else(|| panic!("khong tim thay vo `{fn_name}` trong `mod wire`"));
+    let plain = format!("pub fn {fn_name}(");
+    let generic = format!("pub fn {fn_name}<R: tauri::Runtime>(");
+    let (start, signature) = match (wire_src.find(&plain), wire_src.find(&generic)) {
+        (Some(at), _) => (at, plain),
+        (None, Some(at)) => (at, generic),
+        (None, None) => panic!("khong tim thay vo `{fn_name}` trong `mod wire`"),
+    };
     let rest = &wire_src[start..];
     let end = rest[signature.len()..]
         .find("\n    pub fn ")
@@ -2180,7 +2185,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&promote_params),
         normalize_param_list(
-            "app: tauri::AppHandle, segment_id: i64, target_text: String, force: bool,"
+            "app: tauri::AppHandle<R>, segment_id: i64, target_text: String, force: bool,"
         ),
         "vo `promote_ai_translation` trong `pub mod wire` cua commands/segment.rs khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \

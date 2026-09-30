@@ -289,7 +289,8 @@ pub mod surnames;
 
 pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 pub use candidate_store::{
-    approve_candidate, candidate_chapter_span_counts, insert_candidate,
+    approve_candidate, candidate_chapter_span_counts, chapter_source_texts, chapter_span_counts_in,
+    insert_candidate,
     insert_import_scan_candidates, pending_candidates, reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};

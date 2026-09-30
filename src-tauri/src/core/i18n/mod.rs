@@ -281,6 +281,9 @@ message_keys! {
     /// bản dịch rỗng** (FR58). Dữ liệu hỏng **vĩnh viễn** trong một kho dùng chung, sinh ra
     /// bởi một thao tác trông vô hại.
     SegmentNothingToConfirm => "err.segment.nothing_to_confirm" ["segment_id"],
+    /// `confirm_segment` received a load-time origin outside `TRANSLATION_ORIGINS` on the
+    /// keep branch. Refused with no write: storing it would make `open_work` refuse the Work.
+    SegmentUnknownTranslationOrigin => "err.segment.unknown_translation_origin" ["segment_id", "value"],
 
     // ── Story 2.5d (AD-46 · AD-37 · FR134) — MỘT khoá, và đúng một ──────────────────
     //

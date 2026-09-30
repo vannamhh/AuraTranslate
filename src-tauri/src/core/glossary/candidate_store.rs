@@ -141,8 +141,14 @@ pub fn candidate_chapter_span_counts(
     if terms.is_empty() {
         return Ok(Vec::new());
     }
+    let chapters = chapter_source_texts(store)?;
+    Ok(chapter_span_counts_in(&chapters, terms, lang))
+}
 
-    let chapters: Vec<(i64, String)> = store.read(|conn| {
+/// Every Chapter's live `source_text`, `char(10)`-joined: the only part of the span count
+/// that needs the [`Store`], so a caller can drop its lock before matching.
+pub fn chapter_source_texts(store: &Store) -> Result<Vec<(i64, String)>, StoreError> {
+    store.read(|conn| {
         let mut stmt = conn.prepare(
             "SELECT chapter_id, group_concat(source_text, char(10)) \
              FROM segment WHERE retired_at IS NULL GROUP BY chapter_id",
@@ -155,15 +161,21 @@ pub fn candidate_chapter_span_counts(
             out.push((chapter_id, text.unwrap_or_default()));
         }
         Ok(out)
-    })?;
+    })
+}
 
+/// The matching half of [`candidate_chapter_span_counts`], over texts already read.
+pub fn chapter_span_counts_in(chapters: &[(i64, String)], terms: &[&str], lang: MatchLang) -> Vec<i64> {
+    if terms.is_empty() {
+        return Vec::new();
+    }
     let mut seen: Vec<BTreeSet<i64>> = terms.iter().map(|_| BTreeSet::new()).collect();
-    for (chapter_id, text) in &chapters {
+    for (chapter_id, text) in chapters {
         for term_match in find_terms(text, terms, lang) {
             seen[term_match.term_index].insert(*chapter_id);
         }
     }
-    Ok(seen.iter().map(|s| s.len() as i64).collect())
+    seen.iter().map(|s| s.len() as i64).collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -341,8 +353,8 @@ pub fn approve_candidate(
             category,
             term_origin.as_str(),
             None,
-            // Copied once from the candidate row being approved; never recomputed later.
-            Some(occurrence_count),
+            // Copied once from the candidate row being approved; a legacy 0 means unknown, not zero.
+            (occurrence_count > 0).then_some(occurrence_count),
         )
     })
 }

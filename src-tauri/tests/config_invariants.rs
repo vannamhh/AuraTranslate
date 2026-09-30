@@ -1010,7 +1010,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/glossary.rs",
-            "pub fn glossary_pending_candidates(\n        app: tauri::AppHandle",
+            "pub fn glossary_pending_candidates<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "goi `suggest_han_viet_batch` cho MOI ung vien cho, o moi luot doc hang cho",
         ),
         (
@@ -1112,7 +1112,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn confirm_import_with_encoding(\n        app: tauri::AppHandle",
+            "pub fn confirm_import_with_encoding<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "MANG, TUAN TU: `create_work` -> `prepare_chapter_images:975` -> \
              `fetch_and_write_one_asset:1402` -> `webimport::fetch:1282`, moi anh cho toi \
              `REQUEST_TIMEOUT` 20 giay (`core/webimport/fetcher.rs:85`) ⇒ N anh tren mot host \
@@ -1192,7 +1192,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn open_work(app: tauri::AppHandle",
+            "pub fn open_work<R: tauri::Runtime>(app: tauri::AppHandle<R>",
             "mo `.atproj` that: `Store::open` (di tru kem sao luu ca tep, luong checkpoint, pool doc) -- Story 11.7 lo B",
         ),
         (
@@ -1816,8 +1816,8 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
 fn resolve_library_root_body() -> String {
     let path = manifest_dir().join("src/commands/project/mod.rs");
     let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    let start = text.find("pub fn resolve_library_root(").unwrap_or_else(|| {
-        panic!("khong tim thay `pub fn resolve_library_root(` trong {}", path.display())
+    let start = text.find("pub fn resolve_library_root<R: tauri::Runtime>(").unwrap_or_else(|| {
+        panic!("khong tim thay `pub fn resolve_library_root<R: tauri::Runtime>(` trong {}", path.display())
     });
     let after_start = &text[start..];
     // Hàm này ở mức thụt lề 0 (module-level) -- dấu đóng hàm là một dòng chỉ chứa `}`,
@@ -2137,8 +2137,8 @@ fn the_guarded_dict_layers_surface_literal_names_the_wire_it_actually_sits_in() 
         ),
         (
             "glossary_pending_candidates",
-            "pub fn glossary_pending_candidates(
-        app: tauri::AppHandle",
+            "pub fn glossary_pending_candidates<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>",
             "\"pending_candidates\"",
         ),
     ];

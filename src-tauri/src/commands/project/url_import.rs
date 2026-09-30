@@ -53,10 +53,8 @@ pub type UrlImportItemsState = std::sync::Mutex<Option<Vec<UrlImportItem>>>;
 /// trên) — `UrlImportItemsState` không hề bị chạm ở bất kỳ đâu ngoài ba lệnh dây
 /// `start_url_import`/`reload_url_import_item`/`remove_url_import_item`. Hệ quả: byte HTML
 /// thô của N link nằm lại trong bộ nhớ sau khi Tác phẩm đã tạo xong, và một danh sách CŨ vẫn
-/// còn đó nếu người dùng mở lại màn nhập URL. **Hàm thuần, `pub`** — không có `tauri::test`/
-/// `MockRuntime` trong crate này (`Cargo.toml` không khai `test-utils`), nên đây là cách DUY
-/// NHẤT để `tests/project_contract.rs` phủ được đường dọn này mà không cần dựng một
-/// `tauri::AppHandle` thật.
+/// còn đó nếu người dùng mở lại màn nhập URL. **Hàm thuần, `pub`**.
+/// `tests/project_contract.rs` calls it directly; no case drives it through the wire.
 pub fn clear_url_import_items_after_successful_confirm(items_state: &UrlImportItemsState) {
     let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;

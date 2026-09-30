@@ -558,6 +558,73 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
     cleanup(&global_dir);
 }
 
+fn approve_a_candidate_stored_with_occurrence_count(
+    tag: &str,
+    stored_count: i64,
+) -> Option<i64> {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir(tag);
+    let opened = open_work(&root, "Dem Ung Vien");
+
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "夜幕城".to_owned(),
+            occurrence_count: 12,
+            context_example: String::new(),
+        }],
+    )
+    .expect("chen ung vien quet");
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho")
+        .into_iter()
+        .next()
+        .expect("phai co ung vien vua chen")
+        .id;
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE glossary_candidate SET occurrence_count = ?1 WHERE id = ?2",
+                (stored_count, candidate_id),
+            )?;
+            Ok(())
+        })
+        .expect("dung hang ung vien kieu cu that bai");
+
+    let entry_id = glossary_approve_candidate(Some(&opened), candidate_id, None, Category::Place)
+        .expect("nhan ung vien that bai");
+    let count: Option<i64> = opened
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT occurrence_count FROM glossary_entry WHERE id = ?1",
+                [entry_id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc muc vua sinh that bai");
+
+    drop(opened);
+    cleanup(&root);
+    count
+}
+
+/// Một ứng viên kiểu cũ mang `occurrence_count = 0` nghĩa là "không biết", nên mục sinh ra phải
+/// mang NULL chứ không khai "0 lần xuất hiện".
+#[test]
+fn approving_a_legacy_candidate_stored_with_zero_occurrences_leaves_the_entry_count_unknown() {
+    assert_eq!(approve_a_candidate_stored_with_occurrence_count("approve-legacy-zero", 0), None);
+}
+
+/// Đối xứng của ca trên: một số đếm thật vẫn được chép nguyên, để ca trên không xanh chỉ vì
+/// mọi ứng viên đều bị đổi thành NULL.
+#[test]
+fn approving_a_candidate_with_a_real_occurrence_count_keeps_that_count_on_the_entry() {
+    assert_eq!(approve_a_candidate_stored_with_occurrence_count("approve-real-count", 37), Some(37));
+}
+
 /// Story 3.7 — Nhận một ứng viên CÓ đề xuất (`translation = Some("Bac Luong")`, đúng chữ ký
 /// §I/O Matrix *"`glossary_approve_candidate(id, "Bắc Lương", category)`"*) ⇒ mục Glossary
 /// MỚI mang `translation IS NOT NULL` (**đã chốt**), và hàng ứng viên cũ `resolution =

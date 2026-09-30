@@ -26,7 +26,7 @@
     /// `reload_url_import_item`/`remove_url_import_item`/`tier2_block_*`/
     /// `preview_chapter_detail`). Ba đường đơn ngữ CÓ đích (Story 6.7b, Quyết định 1) gọi
     /// [`resolve_cleanup_rules_for`] ngay dưới thay vì hàm này.
-    fn resolve_cleanup_rules(app: &tauri::AppHandle) -> Vec<CleanupRule> {
+    fn resolve_cleanup_rules<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<CleanupRule> {
         use tauri::Manager as _;
 
         let global_state = app.try_state::<Store>();
@@ -55,7 +55,7 @@
     /// phẩm mới" (`deferred-work.md §*Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)*`), không phải điều story này sửa — story chỉ
     /// mở nửa ĐỌC cho đích LÀ một Tác phẩm có sẵn (§Never: "This story needs only the read
     /// half").
-    fn resolve_cleanup_rules_for(app: &tauri::AppHandle, destination: Option<&str>) -> Vec<CleanupRule> {
+    fn resolve_cleanup_rules_for<R: tauri::Runtime>(app: &tauri::AppHandle<R>, destination: Option<&str>) -> Vec<CleanupRule> {
         use tauri::Manager as _;
 
         let Some(work_id) = destination else {
@@ -87,8 +87,8 @@
     /// THUẦN mà `tests/cleanup_contract.rs` gọi thẳng không cần `AppHandle`. Hành vi cho MỌI
     /// chỗ gọi sản phẩm không đổi (đọc CẢ HAI nhánh trước/sau sửa: khớp `open` ⇒ tái dùng store
     /// đang mở; không khớp/không mở gì ⇒ mở tạm qua `Indexer`+`open_work` rồi đóng ngay).
-    fn resolve_cleanup_rules_for_destination(
-        app: &tauri::AppHandle,
+    fn resolve_cleanup_rules_for_destination<R: tauri::Runtime>(
+        app: &tauri::AppHandle<R>,
         global: &Store,
         work_id: &str,
     ) -> Vec<CleanupRule> {
@@ -172,7 +172,7 @@
     /// Đọc bản sao HIỆN HÀNH của `Tier2BlockOverridesState` — best-effort RỖNG khi state chưa
     /// được `.manage(...)` (lỗi lắp dây ở `lib.rs`), cùng triết lý `resolve_cleanup_rules`:
     /// một tiện ích bổ trợ trượt không được làm sập cả lượt IPC chính.
-    fn resolve_tier2_block_overrides(app: &tauri::AppHandle) -> Vec<Option<bool>> {
+    fn resolve_tier2_block_overrides<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<Option<bool>> {
         use tauri::Manager as _;
 
         match app.try_state::<Tier2BlockOverridesState>() {
@@ -189,7 +189,7 @@
 
     /// Dọn `Tier2BlockOverridesState` — best-effort (state vắng mặt không phải một lỗi để mà
     /// ném, cùng lý do [`resolve_tier2_block_overrides`]).
-    fn reset_tier2_block_overrides(app: &tauri::AppHandle) {
+    fn reset_tier2_block_overrides<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         use tauri::Manager as _;
 
         if let Some(state) = app.try_state::<Tier2BlockOverridesState>() {
@@ -204,7 +204,7 @@
 
     /// Đọc bản sao HIỆN HÀNH của `ChapterOriginOverridesState` — best-effort RỖNG khi state
     /// chưa được `.manage(...)`.
-    fn resolve_chapter_origin_overrides(app: &tauri::AppHandle) -> Vec<Option<super::ChapterOriginOverride>> {
+    fn resolve_chapter_origin_overrides<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<Option<super::ChapterOriginOverride>> {
         use tauri::Manager as _;
 
         match app.try_state::<super::ChapterOriginOverridesState>() {
@@ -222,7 +222,7 @@
     }
 
     /// Dọn `ChapterOriginOverridesState` — best-effort.
-    fn reset_chapter_origin_overrides(app: &tauri::AppHandle) {
+    fn reset_chapter_origin_overrides<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         use tauri::Manager as _;
 
         if let Some(state) = app.try_state::<super::ChapterOriginOverridesState>() {
@@ -421,7 +421,7 @@
     /// MỖI lượt ghi trạng thái Chương/ghi đè Tác phẩm (§Always: *"vỏ IPC gọi lại đúng hàm
     /// reindex đã có, không tự UPDATE library_work"*) — tên mới nói đúng vai trò CHUNG của
     /// nó (đưa mọi thay đổi vào chỉ mục), không còn khoá vào MỘT sự kiện cụ thể.
-    pub(crate) fn reindex_library(app: &tauri::AppHandle, root: &std::path::Path) {
+    pub(crate) fn reindex_library<R: tauri::Runtime>(app: &tauri::AppHandle<R>, root: &std::path::Path) {
         use tauri::Manager as _;
 
         let Some(indexer) = app.try_state::<crate::core::library::indexer::Indexer>() else {
@@ -782,8 +782,8 @@
     /// không phải tham số của một LƯỢT GỌI, và đọc nó ở đây theo đúng nguồn đó thay vì một
     /// tham số riêng vừa tránh trùng lặp vừa tránh một chỗ hai nguồn có thể lệch nhau.
     #[tauri::command(async)]
-    pub fn confirm_import_with_encoding(
-        app: tauri::AppHandle,
+    pub fn confirm_import_with_encoding<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
         name: String,
         source_lang: String,
         genre: String,
@@ -885,6 +885,12 @@
         // vắng mặt (lỗi lắp dây `lib.rs`) đọc như "không Work nào đang mở" — rơi thẳng xuống
         // nhánh mở-mới, KHÔNG một lỗi riêng (best-effort, cùng triết lý mọi state vắng mặt
         // khác trong tệp này).
+        // Held across both branches: replace_open_work sweeps before it takes the
+        // OpenWorkState lock, so it could delete images written but not yet referenced.
+        let append_in_progress_state = app.try_state::<super::AppendInProgressState>();
+        let append_in_progress_guard = append_in_progress_state
+            .as_deref()
+            .map(|state| super::AppendInProgressGuard::new(state, work_id.clone()));
         let open_state = app.try_state::<OpenWorkState>();
         let already_open = open_state.as_ref().is_some_and(|state| {
             let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -935,12 +941,6 @@
             // Xem doc-comment của hàm đó.
             let indexed = indexer.find_work(&work_id)?;
             let mut opened = super::open_destination_for_append(&work_id, indexed.as_ref())?;
-            // This branch holds no OpenWorkState lock, so a concurrent replace_open_work
-            // could sweep the images this call is about to write before its rows commit.
-            let append_in_progress_state = app.try_state::<super::AppendInProgressState>();
-            let _append_in_progress_guard = append_in_progress_state
-                .as_deref()
-                .map(|state| super::AppendInProgressGuard::new(state, work_id.clone()));
             // 🔵 SUA 2026-09-16 (vong ra, B9) — goi thang `confirm_append_import_with_encoding_
             // indexed` thay vi tu soan `confirm_append_import_with_encoding` roi mot loi goi
             // `reindex_library` RIENG: nhanh nay khong giu bat ky khoa `OpenWorkState` nao
@@ -973,6 +973,8 @@
             replace_open_work(&app, opened);
             (created, new_chapter_ids)
         };
+        drop(append_in_progress_guard);
+        drop(append_in_progress_state);
 
         reset_tier2_block_overrides(&app);
         reset_chapter_origin_overrides(&app);
@@ -1205,7 +1207,7 @@
     /// webview không bao giờ tự dựng hay truyền một đường dẫn.
     /// Async: `Store::open` may run a migration with a file backup.
     #[tauri::command(async)]
-    pub fn open_work(app: tauri::AppHandle, work_id: String) -> Result<OpenedWork, IpcError> {
+    pub fn open_work<R: tauri::Runtime>(app: tauri::AppHandle<R>, work_id: String) -> Result<OpenedWork, IpcError> {
         use tauri::Manager as _;
 
         let Some(indexer) = app.try_state::<Indexer>() else {

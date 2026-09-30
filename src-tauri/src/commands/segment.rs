@@ -1972,7 +1972,7 @@ pub fn save_segment_targets(
             "UPDATE segment \
              SET target_text = ?1, \
                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
-             WHERE id = ?2 AND chapter_id = ?3",
+             WHERE id = ?2 AND chapter_id = ?3 AND retired_at IS NULL",
         )?;
         let mut touched = 0usize;
         for (id, text) in &payload {
@@ -2282,6 +2282,18 @@ fn segment_nothing_to_confirm(segment_id: i64) -> IpcError {
     )
 }
 
+fn segment_unknown_translation_origin(segment_id: i64, value: &str) -> IpcError {
+    IpcError::new(
+        "segment.unknown_translation_origin",
+        MessageKey::SegmentUnknownTranslationOrigin,
+        BTreeMap::from([
+            ("segment_id".to_owned(), segment_id.to_string()),
+            ("value".to_owned(), value.to_owned()),
+        ]),
+        false,
+    )
+}
+
 /// Lý do một lượt xác nhận bị **từ chối**, mang ra khỏi closure ghi.
 ///
 /// ⚠️ Cùng khuôn và cùng lý do định lượng với [`BatchReject`]: `Store::write` gói mọi `Err`
@@ -2294,6 +2306,8 @@ enum ConfirmReject {
     Retired,
     /// `target_text` rỗng — chưa có gì để ký.
     NothingToConfirm,
+    /// Nhánh giữ nguyên nhận một `origin_at_load` ngoài [`TRANSLATION_ORIGINS`].
+    UnknownOrigin,
 }
 
 /// **Xác nhận một segment** — hàm thuần, đây là thứ test gọi. Story 2.5 · FR24 · AD-31.
@@ -2418,6 +2432,7 @@ pub fn confirm_segment(
     let text_at_load = text_at_load.to_owned();
     // Same reason and same single copy as `text_at_load`; the webview holds both for the panel session.
     let origin_at_load = origin_at_load.to_owned();
+    let origin_for_error = origin_at_load.clone();
 
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let set_reject = |r: ConfirmReject| {
@@ -2521,8 +2536,11 @@ pub fn confirm_segment(
         let text_at_load_nfc: String = text_at_load.trim().nfc().collect();
         let origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
             TRANSLATION_ORIGIN_SELF
-        } else {
+        } else if TRANSLATION_ORIGINS.contains(&origin_at_load.as_str()) {
             origin_at_load.as_str()
+        } else {
+            set_reject(ConfirmReject::UnknownOrigin);
+            return Err(SqlError::QueryReturnedNoRows);
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
@@ -2552,6 +2570,9 @@ pub fn confirm_segment(
                 Some(ConfirmReject::NotFound) => Err(segment_not_found(segment_id)),
                 Some(ConfirmReject::Retired) => Err(segment_retired(segment_id)),
                 Some(ConfirmReject::NothingToConfirm) => Err(segment_nothing_to_confirm(segment_id)),
+                Some(ConfirmReject::UnknownOrigin) => {
+                    Err(segment_unknown_translation_origin(segment_id, &origin_for_error))
+                }
                 // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
                 None => Err(err.into()),
             }
@@ -2885,7 +2906,7 @@ pub fn unconfirm_edited_segments(
         //    `AND status = ?` va `AND target_text <> ?`, nen `changes = 0` la ca THUONG NHAT
         //    (cau chua ky, hoac van ban khong doi) chu khong phai dau hieu id la.
         let mut exists = tx.prepare_cached(
-            "SELECT COUNT(*) FROM segment WHERE id = ?1 AND chapter_id = ?2",
+            "SELECT COUNT(*) FROM segment WHERE id = ?1 AND chapter_id = ?2 AND retired_at IS NULL",
         )?;
         let mut present = 0usize;
         for (id, _) in &payload {
@@ -3862,8 +3883,8 @@ pub mod wire {
     ///
     /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho.
     #[tauri::command]
-    pub fn promote_ai_translation(
-        app: tauri::AppHandle,
+    pub fn promote_ai_translation<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
         segment_id: i64,
         target_text: String,
         force: bool,

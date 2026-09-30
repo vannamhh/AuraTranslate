@@ -39,6 +39,7 @@ use auratranslate_lib::commands::segment::{
     split_chapter_into_segments, split_segment, unconfirm_edited_segments,
     ReadingFrontierKind, SegmentTargetEdit, SplitOutcome, SEGMENT_STATUS_CONFIRMED,
 };
+use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
 use auratranslate_lib::core::segment::import::{ImportError, import_file, import_files};
@@ -10621,4 +10622,180 @@ fn a_files_batch_whose_units_all_agree_on_encoding_keeps_its_real_confidence() {
         "ba tep dong thuan bang ma khong duoc ep xuong Low boi mot phep so sanh voi CHINH tep dai dien"
     );
     assert_eq!(preview.candidates.len(), 5, "dai nam o van dung tu tep dai dien");
+}
+
+fn read_target_and_status(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    id: i64,
+) -> (String, String) {
+    open.store
+        .read(move |conn| {
+            conn.query_row("SELECT target_text, status FROM segment WHERE id = ?1", [id], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+        })
+        .expect("doc van ban va trang thai that bai")
+}
+
+fn set_target_and_origin(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    id: i64,
+    text: &'static str,
+    origin: &'static str,
+) {
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                (text, origin, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+}
+
+fn retire_segment(open: &auratranslate_lib::commands::project::OpenWork, id: i64) {
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE id = ?1",
+                [id],
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+}
+
+/// Nhánh GIỮ của `confirm_segment` (văn bản không đổi, xuất xứ trên đĩa khác rỗng) là nhánh duy
+/// nhất ghi `origin_at_load` xuống đĩa; ca "đã ký" ở trên không tới được nó. Một mốc ngoài
+/// danh mục phải bị từ chối, không ghi gì, và Tác phẩm vẫn mở lại được.
+#[test]
+fn confirming_with_an_origin_outside_the_catalogue_on_the_keep_branch_is_refused_and_the_work_still_opens() {
+    let root = temp_dir("confirm-unknown-origin");
+    let opened = create_work_from_text(&root, "Moc La", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let id = read_all_segment_rows(&opened)[0].0;
+    set_target_and_origin(&opened, id, "X", TRANSLATION_ORIGIN_OTHER);
+    assert_eq!(
+        read_target_and_status(&opened, id),
+        ("X".to_owned(), "draft".to_owned()),
+        "tien de: cau la ban nhap, xuat xu tren dia khac rong ⇒ nhanh GIU"
+    );
+
+    let err = confirm_segment(Some(&opened), id, "X", "khong-co-trong-danh-muc")
+        .expect_err("mot moc ngoai danh muc tren nhanh giu PHAI bi tu choi");
+    assert_eq!(err.code(), "segment.unknown_translation_origin");
+    assert_eq!(err.message_key(), MessageKey::SegmentUnknownTranslationOrigin);
+
+    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER, "khong ghi gi xuong dia");
+    assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
+
+    let indexed = auratranslate_lib::core::library::indexer::IndexedWork {
+        work_id: opened.meta.work_id.clone(),
+        atproj_path: opened.dir.clone(),
+        name: opened.meta.name.clone(),
+        source_lang: opened.meta.source_lang.clone(),
+        genre: opened.meta.genre.clone(),
+        created_at: opened.meta.created_at.clone(),
+        updated_at: opened.meta.updated_at.clone(),
+        chapter_count: opened.meta.chapter_count,
+        status: opened.meta.status.clone(),
+        status_is_override: opened.meta.status_is_override,
+        chapter_done_count: opened.meta.chapter_done_count,
+    };
+    let dir = opened.dir.clone();
+    drop(opened);
+    auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("Tac pham PHAI mo lai duoc sau mot luot ky bi tu choi");
+
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// Đối chứng dương của ca trên: cùng nhánh giữ, mốc TRONG danh mục thì ký được và giữ nguyên
+/// xuất xứ, nên ca trên chỉ đỏ được vì chính phép kiểm danh mục.
+#[test]
+fn confirming_with_a_catalogue_origin_on_the_keep_branch_keeps_the_disk_origin() {
+    let root = temp_dir("confirm-known-origin");
+    let opened = create_work_from_text(&root, "Moc Dung", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let id = read_all_segment_rows(&opened)[0].0;
+    set_target_and_origin(&opened, id, "X", TRANSLATION_ORIGIN_OTHER);
+
+    confirm_segment(Some(&opened), id, "X", TRANSLATION_ORIGIN_OTHER).expect("ky that bai");
+    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER);
+    assert_eq!(read_state(&opened, id).0, "confirmed");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+fn work_with_one_live_and_one_retired_segment(
+    tag: &str,
+) -> (PathBuf, auratranslate_lib::commands::project::OpenWork, i64, i64, i64) {
+    let root = temp_dir(tag);
+    let opened = create_work_from_text(&root, "Lo Co Bia", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let rows = read_all_segment_rows(&opened);
+    assert!(rows.len() >= 2, "fixture can hai segment song, co {}", rows.len());
+    let (live, retired, chapter_id) = (rows[0].0, rows[1].0, rows[0].1);
+    retire_segment(&opened, retired);
+    (root, opened, chapter_id, live, retired)
+}
+
+/// Một id đã nghỉ hưu trong lô bị đếm là "không thuộc Chương", nên cả lô bị từ chối
+/// (`segment.unknown_ids`) và segment sống giữ nguyên văn bản.
+#[test]
+fn saving_a_batch_holding_a_retired_segment_is_rejected_whole_and_the_live_one_keeps_its_text() {
+    let (root, opened, chapter_id, live, retired) =
+        work_with_one_live_and_one_retired_segment("save-retired");
+    set_target_and_origin(&opened, live, "Goc.", TRANSLATION_ORIGIN_OTHER);
+
+    let err = save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(live, "Sua."), edit(retired, "Sua bia mo.")],
+    )
+    .expect_err("lo mang mot segment da nghi huu PHAI bi tu choi tron lo");
+    assert_eq!(err.code(), "segment.unknown_ids");
+    assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
+    assert_eq!(read_target_and_status(&opened, live).0, "Goc.");
+    assert_eq!(read_target_and_status(&opened, retired).0, "", "bia mo khong duoc ghi");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// Nửa hạ-trạng-thái của cùng lỗ hổng: đường sản phẩm là `flush_segment_targets`
+/// (`unconfirm_edited_segments` rồi `save_segment_targets`); nếu phép đếm thành viên không
+/// loại id đã nghỉ hưu thì câu sống bị hạ về nháp rồi lô mới bị từ chối.
+#[test]
+fn flushing_a_batch_holding_a_retired_segment_leaves_the_live_confirmed_segment_confirmed() {
+    let (root, opened, chapter_id, live, retired) =
+        work_with_one_live_and_one_retired_segment("flush-retired");
+    set_target_and_origin(&opened, live, "Goc.", TRANSLATION_ORIGIN_OTHER);
+    confirm_segment(Some(&opened), live, "Goc.", TRANSLATION_ORIGIN_OTHER).expect("ky that bai");
+    assert_eq!(read_target_and_status(&opened, live), ("Goc.".to_owned(), "confirmed".to_owned()));
+
+    let err = flush_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(live, "Da sua."), edit(retired, "Sua bia mo.")],
+    )
+    .expect_err("lo mang mot segment da nghi huu PHAI bi tu choi tron lo");
+    assert_eq!(err.code(), "segment.unknown_ids");
+    assert_eq!(
+        read_target_and_status(&opened, live),
+        ("Goc.".to_owned(), "confirmed".to_owned()),
+        "cau song van giu van ban va trang thai da ky"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
 }

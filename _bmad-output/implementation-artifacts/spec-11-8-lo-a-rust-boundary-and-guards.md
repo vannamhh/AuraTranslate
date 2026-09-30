@@ -2,8 +2,9 @@
 title: 'Story 11.8, lot A — Rust boundary faults between Epic 11 stories, and guards that reach the wiring'
 type: 'bugfix'
 created: '2026-09-30'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
+baseline_commit: '0736243c8e8946760e1d8c0f36e2f63b9311542d'
 review_loop_iteration: 0
 context:
   - '{project-root}/src-tauri/AGENTS.md'
@@ -43,6 +44,9 @@ Agent, 2026-09-30 (Ice may override any line at approval):
 Ice, 2026-09-30:
 13. Push run `36702088358` on HEAD `8c801ef` is red on `check (windows-2025)` only (`bindingsEpochWiring.test.ts`, two cases, from `7dbcf23`). It becomes a new ledger item `Chủ: Story 11.8`, fixed in lot B. Until then, lot A's CI reads cite that run id as the reason for the red Windows half.
 14. The spec stays whole at ~2.5k tokens; per-item detail lives in Task 0.
+15. Found by the Tests phase: Tauri's `forbid_directory` has no inverse and outranks every allow, so A → B → A leaves A's `assets/` forbidden until restart. Ice chose: `replace_open_work` stops forbidding the outgoing Work's `assets/`. Every Work opened in a session stays readable over `asset://` until exit. The ignored guard `reopening_a_work_after_leaving_it_grants_its_assets_again` loses its `#[ignore]` and goes green. The revoke case is rewritten to what is now true. L10502 is closed with this.
+15b. Decision 15 was first asked without mentioning that decision sheet #52 (2026-09-24) already signed (a): revoke the outgoing Work on a switch, one Work at a time per AD-23. Told of #52, Ice chose to keep decision 15 as an interim that does not yet carry #52 out. A new ledger item, `Chủ: Winston`, restores #52 by serving Work images through a URI scheme bound to `OpenWorkState`.
+16. F-R-3 measured p95 lock-hold ≈ 1.3 s at K=500, C=300 (phases notes, part 2). Ice chose to fix it in lot A: `glossary_pending_candidates` holds `OpenWorkState` only while it reads the DB, and releases it before the Han-Viet lookup and the chapter-span count. `split_chapter_into_segments` is left alone. The proof is the same measurement re-run plus a MockRuntime case where `save_segment_targets` is not kept waiting while the scan runs.
 
 </frozen-after-approval>
 
@@ -58,9 +62,9 @@ Ice, 2026-09-30:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src-tauri/src/**`, `src/i18n/vi.json` -- Dispositions 1-6, 8, 10, 11: the generic shells first (5, 6), then the fixes -- Rust phase.
-- [ ] `src-tauri/tests/**` -- the guards of Dispositions 1-8, 10, 11; one real removal per guard; the F-R-3 measurement (throwaway probe, not committed); the full suite once, because shell signatures and the pins change -- Tests phase.
-- [ ] `deferred-work.md` -- one `→` line for each of the 11 items and for L7443, L9974, L10502, L12593 -- Ledger phase.
+- [x] `src-tauri/src/**`, `src/i18n/vi.json` -- Dispositions 1-6, 8, 10, 11: the generic shells first (5, 6), then the fixes -- Rust phase.
+- [x] `src-tauri/tests/**` -- the guards of Dispositions 1-8, 10, 11; one real removal per guard; the F-R-3 measurement (throwaway probe, not committed); the full suite once, because shell signatures and the pins change -- Tests phase.
+- [x] `deferred-work.md` -- one `→` line for each of the 11 items and for L7443, L9974, L10502, L12593 -- Ledger phase.
 
 **Acceptance Criteria:**
 - Given a draft segment whose on-disk origin is set and whose text is unchanged, when `confirm_segment` receives an origin outside the FR117 catalogue, then it errors, the row is unchanged, and `open_work` still opens the Work.
@@ -71,9 +75,40 @@ Ice, 2026-09-30:
 
 ## Implementation Notes
 
+Phase working notes: [11-8-lo-a-phases-2026-09-30.md](11-8-lo-a-phases-2026-09-30.md).
+- Only the `aitranslate` wires were generic; `open_work`, `confirm_import_with_encoding`, `promote_ai_translation`, `glossary_pending_candidates` and their private helpers now take `AppHandle<R>`, and the text pins in `config_invariants.rs`, `ipc_contract.rs`, `project_contract.rs` follow.
+- Tauri 2.11.5 `forbid_directory` has no inverse (`scope/fs.rs` has no remove), so the old revoke broke A → B → A; decisions 15/15b: the scope grows per session until the URI-scheme item (`Chủ: Winston`) restores #52. `close_open_work` still forbids, on `RunEvent::Exit` only.
+- F-R-3 before/after in one probe (release, K=500, C=300×4,000 chars, no dict layers): old lock-hold p95 966 ms, new waiter p95 6 ms. The APPEND hold over image download is structural and stays `Chủ: Ice`.
+- An offline `.docx` with an embedded image does emit the image-progress event on the APPEND path, so the F-R-2 guard observes the guard from inside the call.
+- `rusqlite` refuses `EXPLAIN` with unbound `?N`; the plan case binds values, and the bound plan text was measured equal to the literal plan for all three branches.
+- `boundary_scan_contract` names one exemption, `naming_boundary.rs` (`POPULATION_HELPER_EXEMPT`, its own comment-blanking walkers).
+- Known gaps, in the ledger: the second `char_idx` arm of the 2-char plan and the second WHERE copy at `query.rs:488` are not guarded.
+- `ITEM_FLOOR` in `check-debt-owner.mjs` raised 604 → 643 as the gate demanded when the ledger reached 756 items.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+Loop 0 (Blind B1-B13, Edge E1-E12, Verification-gap: no gaps + V1-V2):
+- B1/E3 asset scope grows per session, AD-23 reversed in code — false: AD-23 allows the whole Library root as dynamic scope; per-session growth is Ice decisions 15/15b with `Chủ: Winston` for #52.
+- B2 keep branch trusts the webview's origin over the disk value — false for this change: the keep branch returns the load-time origin by design (a second confirm must not return `self`); only the unknown-value check is new.
+- E5 empty `origin_at_load` refused — false: `TRANSLATION_ORIGIN_NONE` is `""`, inside `TRANSLATION_ORIGINS`.
+- B3 `approve_candidate` keeps 0 as a sentinel in the candidate type — false: the candidate column is `NOT NULL DEFAULT 0` and its DDL is out of scope (Never); scans only write counts ≥ threshold.
+- B4/E1/E2 merge returns `Err` if `set_open_chapter` fails after commit — low, rejected: needs a write failure right after a committed write; the fix adds a branch.
+- B5 APPEND guard untested on the not-open branch — false: that branch held the guard across its `replace_open_work` before this change too; behaviour unchanged.
+- E4 guard alive until unwind on panic/`?` — false: RAII guard, dropped on every exit path.
+- B6 `project_wire.rs` `Harness::drop` removes dirs while stores are open — low, rejected: errors are ignored, so it leaks temp dirs on Windows at most; the fix is more than a direct correction.
+- B7/E6/V2 `glossary_wire.rs` timing-based — low, rejected: the real removal went red with a 2.36 s wait vs a 0.6 s bar; a barrier needs a production seam.
+- B8 plan test binds hand-picked limits; builders widened to `pub` — low, rejected: the plan does not depend on the limit value; `pub` builders are Disposition 8.
+- B9/E7 boundary predicate evadable by nested parens or split lines — low, rejected: heuristic scan; a parser adds complexity. `BOUNDARY_FILE_FLOOR = 17` is ceil(0.85 × 19), not a guess.
+- B10 stale test comments after the generic change — low, patched: `chapter_origin_contract.rs` now names `preview_import_encoding_from_text` as the concrete shell; `ipc_contract.rs` mid-sentence break joined. The `ipc_contract.rs` sites describe the preview wires, still concrete: true.
+- B11/E10 new key only in `vi.json`; no webview mapping — false: `vi.json` is the only locale; confirm refusals reach the screen through `tError()`.
+- B12/E8 signature lookup may match a same-name fn in another module — false: the helper's contract makes callers narrow `src` first; the targets pass on the generic shells.
+- B13 `close_open_work` forbid at exit is a no-op — low, rejected: harmless, its comment now says so.
+- E9 retired id reported as `segment.unknown_ids` — false: Disposition 11 by design.
+- E11 deleted `assets_dir_to_forbid` tests; close+reopen in-process — false: `close_open_work` runs only on `RunEvent::Exit`.
+- E12 unconfirm ordering could demote the live segment — false: the membership check runs before the lowering `UPDATE` in the same transaction; the flush case asserts the live segment stays `confirmed`.
+- V1 `save_chapter_position` pair check lacks `retired_at IS NULL` — low, pre-existing: deferred (ledger, `Chủ: Amelia`).
 
 ## Verification
 

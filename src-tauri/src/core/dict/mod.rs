@@ -89,6 +89,8 @@ mod layer;
 mod query;
 mod senses;
 
+pub use query::{char_idx_one_sql, char_idx_two_sql, exact_sql};
+
 use std::collections::BTreeSet;
 
 use crate::core::store::{ReadHandle, SqlResult};

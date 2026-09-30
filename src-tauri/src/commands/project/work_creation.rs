@@ -945,9 +945,7 @@ pub fn append_chapters_to_work(
 
 /// **THÊM 2026-09-16 (Story 6.7b, Phase 4)** — lõi THUẦN của việc chọn tầng Tác phẩm cho
 /// MỘT đích cụ thể (AC3), tách khỏi `wire::resolve_cleanup_rules_for_destination` để
-/// `tests/cleanup_contract.rs` gọi được THẲNG, không cần `tauri::AppHandle` — kho này không
-/// mang `tauri::test`/`MockRuntime` (đo lại 2026-09-16, xem Implementation Notes "Phase 1 —
-/// Measurement 2's method corrected"). Vỏ `wire::resolve_cleanup_rules_for_destination` chịu
+/// `tests/cleanup_contract.rs` gọi được THẲNG, không cần `tauri::AppHandle`. Vỏ `wire::resolve_cleanup_rules_for_destination` chịu
 /// trách nhiệm lấy `destination`/`open` ra khỏi `OpenWorkState`/`Indexer` rồi gọi hàm này;
 /// hàm này không đọc bất kỳ state Tauri nào.
 ///

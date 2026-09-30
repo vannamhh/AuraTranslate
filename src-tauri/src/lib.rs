@@ -1383,8 +1383,8 @@ fn close_open_work(handle: &tauri::AppHandle) {
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
         let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(open) = guard.take() {
-            // Revokes the `asset://` scope the same way replace_open_work does when
-            // switching Works; there's no new Work here to re-grant it to.
+            // Runs only on RunEvent::Exit, so this forbid (which has no inverse) never meets
+            // a reopen of the same Work; replace_open_work does not forbid on a switch.
             use tauri::Manager as _;
             let assets_dir = open.dir.join("assets");
             if let Err(err) = handle.asset_protocol_scope().forbid_directory(&assets_dir, true) {

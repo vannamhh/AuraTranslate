@@ -316,3 +316,151 @@ fn a_drifted_floor_names_the_constant_and_ceil_0_85_times_live() {
         "thông báo lỗi phải nêu tên hằng số VÀ ceil(0.85 × 98) = 84: {message:?}"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Every `*_boundary.rs` file reaches the shared scanner
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const BOUNDARY_FILE_FLOOR: usize = 17;
+const BOUNDARY_SCAN_DECLARATION: &str = "#[path = \"support/boundary_scan.rs\"]";
+const POPULATION_HELPER_CALLS: [&str; 3] =
+    ["boundary_scan::rust_sources(", "boundary_scan::any_sources(", "boundary_scan::paths_with_extensions("];
+// A file listed here feeds its population floor from its own walker. The entry dies as soon
+// as the file calls a shared helper (`the_population_helper_exemptions_are_still_needed`).
+const POPULATION_HELPER_EXEMPT: [(&str, &str); 1] = [(
+    "naming_boundary.rs",
+    "scans comment-blanked text of two trees through its own `rust_sources()`/`frontend_sources()`, which the shared helpers do not return",
+)];
+
+/// Code lines of `text` that test a path against a bare directory constant, i.e.
+/// `starts_with(AI_DIR)` or `starts_with(&AI_DIR)`, which lets a sibling directory sharing the
+/// name prefix through.
+fn bare_constant_prefix_tests(text: &str) -> Vec<(usize, String)> {
+    boundary_scan::code_lines(text)
+        .filter(|(_, code)| {
+            let mut rest = code.as_str();
+            while let Some(at) = rest.find("starts_with(") {
+                rest = &rest[at + "starts_with(".len()..];
+                let Some(close) = rest.find(')') else { break };
+                let arg = rest[..close].trim().trim_start_matches('&');
+                let is_constant = arg.starts_with(|c: char| c.is_ascii_uppercase())
+                    && arg.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+                if is_constant {
+                    return true;
+                }
+            }
+            false
+        })
+        .collect()
+}
+
+fn boundary_files() -> Vec<(String, String)> {
+    let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let mut files: Vec<(String, String)> = fs::read_dir(&tests_dir)
+        .unwrap_or_else(|e| panic!("doc {}: {e}", tests_dir.display()))
+        .filter_map(|entry| {
+            let path = entry.expect("doc muc that bai").path();
+            let name = path.file_name()?.to_str()?.to_owned();
+            name.ends_with("_boundary.rs").then(|| {
+                let text = fs::read_to_string(&path)
+                    .unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
+                (name, text)
+            })
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+fn scan_wiring_problems(name: &str, text: &str) -> Vec<String> {
+    let code: Vec<(usize, String)> = boundary_scan::code_lines(text).collect();
+    let mut problems = Vec::new();
+    if !code.iter().any(|(_, line)| line.contains(BOUNDARY_SCAN_DECLARATION)) {
+        problems.push(format!("{name}: khong khai bao module dung chung `support/boundary_scan.rs`"));
+    }
+    let exempt = POPULATION_HELPER_EXEMPT.iter().any(|(file, _)| *file == name);
+    if !exempt && !code.iter().any(|(_, line)| POPULATION_HELPER_CALLS.iter().any(|call| line.contains(call))) {
+        problems.push(format!(
+            "{name}: khong goi `boundary_scan::rust_sources|any_sources|paths_with_extensions`"
+        ));
+    }
+    if !code.iter().any(|(_, line)| line.contains("boundary_scan::assert_population_floor(")) {
+        problems.push(format!("{name}: khong goi `boundary_scan::assert_population_floor`"));
+    }
+    for (line_no, line) in bare_constant_prefix_tests(text) {
+        problems.push(format!(
+            "{name}:{line_no}: `starts_with(<HANG>)` tran cho mot thu muc -- dung `boundary_scan::is_inside`: {line}"
+        ));
+    }
+    problems
+}
+
+#[test]
+fn every_boundary_file_scans_through_the_shared_module() {
+    let files = boundary_files();
+    boundary_scan::assert_population_floor(
+        BOUNDARY_FILE_FLOOR,
+        files.len(),
+        "BOUNDARY_FILE_FLOOR",
+        "tep `*_boundary.rs`",
+    );
+    let problems: Vec<String> =
+        files.iter().flat_map(|(name, text)| scan_wiring_problems(name, text)).collect();
+    assert!(problems.is_empty(), "cac cong ranh gioi khong di qua module dung chung:\n{}", problems.join("\n"));
+}
+
+#[test]
+fn the_population_helper_exemptions_are_still_needed() {
+    let files = boundary_files();
+    for (exempt, reason) in POPULATION_HELPER_EXEMPT {
+        assert!(!reason.is_empty(), "{exempt}: mien tru phai mang ly do");
+        let (_, text) = files
+            .iter()
+            .find(|(name, _)| name == exempt)
+            .unwrap_or_else(|| panic!("{exempt}: mien tru tro toi mot tep khong con"));
+        let calls_shared_helper = boundary_scan::code_lines(text)
+            .any(|(_, line)| POPULATION_HELPER_CALLS.iter().any(|call| line.contains(call)));
+        assert!(!calls_shared_helper, "{exempt}: da goi ham dung chung, go mien tru");
+    }
+}
+
+#[test]
+fn the_population_helper_clause_flags_an_unprefixed_local_helper() {
+    let local_only = format!(
+        "{BOUNDARY_SCAN_DECLARATION}\nmod boundary_scan;\nfn rust_sources() {{}}\nfn t() {{ let s = rust_sources(); boundary_scan::assert_population_floor(1, s.len(), \"F\", \"p\"); }}\n"
+    );
+    let problems = scan_wiring_problems("seeded_boundary.rs", &local_only);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(problems[0].contains("khong goi `boundary_scan::rust_sources"));
+}
+
+#[test]
+fn the_bare_prefix_predicate_flags_a_seeded_regression() {
+    let seeded = "fn scan() {\n    if rel.starts_with(AI_DIR) {\n        hit();\n    }\n}\n";
+    let hits = bare_constant_prefix_tests(seeded);
+    assert_eq!(hits.len(), 1, "phai bat dung mot dong: {hits:?}");
+    assert_eq!(hits[0].0, 2);
+
+    let by_reference = "if rel.starts_with(&AI_DIR) { hit(); }\n";
+    assert_eq!(bare_constant_prefix_tests(by_reference).len(), 1);
+
+    let correct = "if boundary_scan::is_inside(&rel, AI_DIR) { hit(); }\n\
+                   if rel.starts_with(\"core/webimport/\") { hit(); }\n\
+                   // rel.starts_with(AI_DIR) chi nam trong chu thich\n";
+    assert!(
+        bare_constant_prefix_tests(correct).is_empty(),
+        "is_inside, chuoi co dau gach cuoi va chu thich khong duoc bi bat"
+    );
+}
+
+#[test]
+fn the_wiring_scan_flags_a_file_without_the_shared_module() {
+    let bare = "fn only_a_local_scanner() {\n    let files = walk();\n}\n";
+    let problems = scan_wiring_problems("seeded_boundary.rs", bare);
+    assert_eq!(problems.len(), 3, "thieu khai bao, ham quan the va san quan the: {problems:?}");
+
+    let wired = format!(
+        "{BOUNDARY_SCAN_DECLARATION}\nmod boundary_scan;\nfn t() {{\n    let s = boundary_scan::rust_sources(root);\n    boundary_scan::assert_population_floor(1, s.len(), \"F\", \"p\");\n}}\n"
+    );
+    assert!(scan_wiring_problems("seeded_boundary.rs", &wired).is_empty());
+}

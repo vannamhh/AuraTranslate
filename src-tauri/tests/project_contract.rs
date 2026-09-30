@@ -1080,7 +1080,7 @@ fn an_item_with_neither_raw_nor_error_set_yields_no_shape_instead_of_a_silent_em
 /// P6 (vòng rà đối kháng bước 4) — `UrlImportItemsState` phải được dọn CÙNG kỷ luật với
 /// `PendingImportSourceState`: chỉ dọn khi `create_work` THÀNH CÔNG. Trước bản vá, không chỗ
 /// gọi SẢN PHẨM nào dọn ô này — byte HTML thô của N link nằm lại trong bộ nhớ mãi mãi sau khi
-/// Tác phẩm đã tạo xong. Không có `tauri::test`/`MockRuntime` trong crate này, nên đây là ca
+/// Tác phẩm đã tạo xong. Vỏ `wire::confirm_import_with_encoding` không phải mục tiêu của ca này, nên đây là ca
 /// trực tiếp trên hàm THUẦN `clear_url_import_items_after_successful_confirm`.
 #[test]
 fn url_import_items_state_is_wiped_after_a_successful_confirm() {
@@ -2497,12 +2497,18 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
     let second_chapter_id = opened.chapter_id;
     assert_ne!(first_chapter_id, second_chapter_id);
 
-    // Gop Chuong dang mo (Chuong 2) vao Chuong truoc -- hang Chuong 2 khong con song, con tro
-    // trong bo nho doi theo (`merge_chapter_into_previous`), nhung `work.last_chapter_id` tren
-    // dia van con tro vao id da mat (chi `set_open_chapter` moi ghi lai no).
     merge_chapter_into_previous(Some(&mut opened), second_chapter_id)
         .expect("gop Chuong that bai");
     assert_eq!(opened.chapter_id, first_chapter_id, "con tro trong bo nho phai doi theo lan gop");
+    // Gan tay `last_chapter_id` ve id da gop mat: lan gop tu ghi lai no, nen phai dung fixture
+    // de nua RƠI VE van duoc canh.
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE work SET last_chapter_id = ?1", [second_chapter_id])?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
     drop(opened);
 
     let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
@@ -2513,6 +2519,69 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
     );
 
     drop(reopened);
+    cleanup(&dir);
+}
+
+/// Gộp Chương đang mở vào Chương trước phải ghi lại `work.last_chapter_id` (qua
+/// `set_open_chapter`). Với 2 Chương, đường rơi về "Chương đầu" trùng đúng Chương nhận nên lỗi
+/// vô hình; với 3 Chương và Chương 3 đang mở thì Chương nhận là Chương 2, KHÁC Chương đầu.
+#[test]
+fn merging_the_open_chapter_into_the_previous_one_persists_the_receiving_chapter_as_last_open() {
+    let root = temp_dir("merge-open-chapter-last-chapter");
+    let mut opened = create_destination_work(&root, "Gop Nho Chuong Nhan", 3);
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    let first_chapter_id = opened.chapter_id;
+
+    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 2");
+    let second_chapter_id = opened.chapter_id;
+    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 3");
+    let third_chapter_id = opened.chapter_id;
+    assert_ne!(first_chapter_id, second_chapter_id);
+    assert_ne!(second_chapter_id, third_chapter_id);
+
+    merge_chapter_into_previous(Some(&mut opened), third_chapter_id).expect("gop Chuong 3");
+    assert_eq!(opened.chapter_id, second_chapter_id);
+    let on_disk: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT last_chapter_id FROM work", [], |r| r.get(0)))
+        .expect("doc last_chapter_id that bai");
+    assert_eq!(
+        on_disk, second_chapter_id,
+        "last_chapter_id tren dia phai tro Chuong nhan, khong con tro Chuong 3 da gop mat"
+    );
+    drop(opened);
+
+    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai Tac pham that bai");
+    assert_eq!(reopened.chapter_id, second_chapter_id, "mo lai phai vao Chuong 2, khong phai Chuong dau");
+    drop(reopened);
+    cleanup(&dir);
+}
+
+/// Đối xứng: gộp một Chương KHÔNG mở thì `last_chapter_id` không đổi.
+#[test]
+fn merging_a_chapter_that_is_not_open_leaves_last_chapter_id_alone() {
+    let root = temp_dir("merge-closed-chapter-last-chapter");
+    let mut opened = create_destination_work(&root, "Gop Chuong Khong Mo", 3);
+    let dir = opened.dir.clone();
+    let first_chapter_id = opened.chapter_id;
+
+    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 2");
+    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 3");
+    let third_chapter_id = opened.chapter_id;
+    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev).expect("ve Chuong 2");
+    let second_chapter_id = opened.chapter_id;
+
+    merge_chapter_into_previous(Some(&mut opened), third_chapter_id).expect("gop Chuong 3");
+    assert_eq!(opened.chapter_id, second_chapter_id);
+    let on_disk: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT last_chapter_id FROM work", [], |r| r.get(0)))
+        .expect("doc last_chapter_id that bai");
+    assert_eq!(on_disk, second_chapter_id);
+    assert_ne!(on_disk, first_chapter_id);
+    drop(opened);
     cleanup(&dir);
 }
 
@@ -5614,9 +5683,8 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
 /// `segment_id`/`chapter_id` trùng NGẪU NHIÊN của Tác phẩm MỚI (hai `.atproj` đều đánh số lại
 /// từ 1) đọc nhầm bản ghi CŨ là "đúng câu/Chương đang mở".
 ///
-/// Không có `tauri::test`/`MockRuntime` trong crate này (xem `url_import_items_state_is_wiped_
-/// after_a_successful_confirm` ngay phía trên cho tiền lệ) — `replace_open_work` nhận
-/// `&tauri::AppHandle` thật nên không gọi được trực tiếp từ `tests/*.rs`. Cùng khuôn
+/// Ca này quét NGUỒN của `replace_open_work` chứ không gọi nó (ca chạy thật nằm ở
+/// `tests/project_wire.rs`). Cùng khuôn
 /// `ipc_contract.rs`'s "neo vào ĐÚNG khối `fn`, không chỉ một chuỗi con rời rạc trong cả tệp":
 /// đọc `src/commands/project/mod.rs`, cắt đúng THÂN của `fn replace_open_work`, rồi khẳng định
 /// LỜI GỌI dọn ba trạng thái đều nằm TRONG thân đó (không phải đâu đó khác trong tệp — ca âm
@@ -5631,7 +5699,7 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
     let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
 
     let start = src
-        .find("fn replace_open_work(app: &tauri::AppHandle")
+        .find("fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>")
         .unwrap_or_else(|| panic!("khong tim thay `fn replace_open_work` trong {}", path.display()));
     // Neo diem ket THAT: doc-comment mo dau ham lang gieng ngay sau no trong tep that
     // (`swap_locked`) — on dinh hon dem ngoac tay, va da la mot chuoi DUY NHAT trong tep.
