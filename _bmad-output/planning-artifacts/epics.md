@@ -1041,6 +1041,7 @@ Lượt rà sổ nợ 2026-09-23 để lại 199 mục còn đúng trên mã, n�
 - Danh sách mục của mỗi story là `grep 'Chủ: Story 11.N' deferred-work.md`, không chép vào đây.
 - `check:debt-owner` Kiểm C đỏ khi một story `done` còn mục mở mang tên nó — epic này không cần cổng mới.
 - Chạy **ngay sau Epic 4**, dù khối `epic-11` nằm cuối `sprint-status.yaml`.
+- 🔵 2026-09-30: thêm Story 11.8 — lỗi ranh giới do chính các story Epic 11 sinh ra, tìm thấy ở retro (`epic-11-retro-2026-09-30.md`); chạy trước lượt dùng thật của Ice và trước Epic 7. Nguồn: `sprint-change-proposal-2026-09-30-story-11-8.md`.
 
 ---
 
@@ -7368,3 +7369,31 @@ So that các bề mặt mới của Epic 7–9 dựng trên nền lệnh và ti�
 **Given** mọi mục mang `Chủ: Story 11.7` trong `deferred-work.md`
 **When** story hoàn tất
 **Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+---
+
+### Story 11.8: Sửa lỗi ranh giới giữa các story của Epic 11
+
+> ➕ **Story THÊM 2026-09-30 qua `correct-course`** — xem `sprint-change-proposal-2026-09-30-story-11-8.md`; nguồn là `epic-11-retro-2026-09-30.md` §Việc cần làm V-1, V-2, V-5, V-9, V-10.
+
+As a chủ dự án,
+I want các lỗi mà hai story Epic 11 cùng tạo ra ở chỗ giao nhau — nơi không phiên nào thấy cả hai phía — được sửa hoặc quyết dứt điểm,
+So that Epic 7 dựng trên một nền có nightly e2e xanh và guard đỏ được khi gỡ seam.
+
+**Acceptance Criteria:**
+
+**Given** mọi mục mang `Chủ: Story 11.8` trong `deferred-work.md`
+**When** story hoàn tất
+**Then** thoả AC chung của Epic 11; AC riêng rút từ các mục lúc `create-story`
+
+**Given** một lượt Quét lại, Chọn thư mục hay Gỡ mồ côi đang chạy
+**When** người dùng rời rồi quay lại Library trước khi lượt đó xong
+**Then** nút tương ứng dùng lại được ngay, không phải khởi động lại app
+
+**Given** `confirm_segment` nhận một xuất xứ lúc nạp nằm ngoài danh mục FR117
+**When** lệnh chạy
+**Then** lệnh từ chối và không ghi gì vào `segment`, nên Tác phẩm vẫn mở được ở lần sau
+
+**Given** commit cuối của story
+**When** story lên `review`
+**Then** một lượt e2e `workflow_dispatch` trên commit đó xanh, trong đó `attribution-focus` thật sự đo AC11 của Story 1.19; nếu đỏ, một dòng lý do nêu run id nằm trong spec

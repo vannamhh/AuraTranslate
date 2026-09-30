@@ -12626,3 +12626,69 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-7-lo-b-ai-module.md`
   summary: `src/settingsState.ts` dòng ~93 ghép khoá bằng ba byte NUL THẬT trong template literal (không phải `\u0000`), nên git coi tệp là nhị phân: `git grep`/`git diff` im lặng bỏ qua nó (diff lô A chỉ ghi "Bin 19084 -> 14097").
   evidence: lượt review lô B tưởng `loadAiConfigSection` không có chỗ gọi vì `git grep` không thấy lời gọi ở `settingsState.ts:211`; `python3` đếm được 3 byte `\x00`. Sửa: thay bằng `\u0000`. Chủ: Amelia.
+
+## Deferred from: retro Epic 11 → correct-course Story 11.8 (2026-09-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-1 — `rescanBusy` kẹt `true` tới khi khởi động lại: `loadLibraryOrphans` (chạy ở `LibraryMode.vue::onActivated`) tăng chung `sequence`, còn `rescanLibraryFolder`/`chooseLibraryRootFolder`/`forgetCurrentLibraryOrphan` `return` ở `mySequence !== sequence` TRƯỚC khi nhả `rescanBusy`.
+  evidence: `src/modes/libraryRescan.ts:143-146`, `:170-173`, `:193-197`, `:224-227`; bấm Quét lại, sang Workspace, quay lại Library trước khi quét xong. `libraryRescan.test.ts:113` chỉ phủ chiều ngược lại; doc-comment `:218-221` khẳng định sai "và ngược lại". Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-2 — `refreshChapterAssetsAfterRegroup` dùng chung `++sequence` với `ensureSegmentsLoaded` và không đối chiếu `loaded.chapter_id`; chuyển Chương chen giữa lúc gộp/tách đang await thì lượt nạp Chương mới bị vứt, lưới trống không lỗi (suy luận).
+  evidence: `src/panels/editorPanelState.ts:2644-2646` vs `:175-183`; `switchChapter` không chờ `regroupInFlight`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-1 — `confirm_segment` ghi `origin_at_load` của webview vào `translation_origin` không đối chiếu `TRANSLATION_ORIGINS`, trong khi `open_work` từ chối mở `project.db` mang origin lạ ⇒ một lượt gửi sai khoá cả Tác phẩm, không đường sửa trong app.
+  evidence: `src-tauri/src/commands/segment.rs:2522-2530`; `commands/project/mod.rs:3072-3081`; spine §Consistency hàng "Xuất xứ bản dịch" (FR117). `tests/segment_contract.rs:5902` dùng origin sai nhưng rơi vào nhánh đã confirmed, không tới lượt ghi. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-2 — Nhánh APPEND vào Tác phẩm ĐANG MỞ không tạo `AppendInProgressGuard`, nên phép quét ảnh mồ côi của `replace_open_work` (chạy trước khoá `OpenWorkState`) có thể xoá tệp ảnh chưa có hàng `asset` khi người dùng mở lại chính Tác phẩm đó giữa lượt append.
+  evidence: `commands/project/wire.rs:892-925` (không guard) vs `:943` (có guard); `commands/project/mod.rs:3345-3368`; test `commands/project/tests.rs:1141-1235` gọi thẳng hàm quét và guard, không dựng đường này. Thứ tự mã đã xác minh, cuộc đua là suy luận. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-3 — `editorClearSourceCuts.ts` không canh `editorPendingPromote`: `Escape` trên nút câu hỏi PROMOTE (thêm ở 11-5) xoá điểm cắt im lặng mà không huỷ câu hỏi; cùng commit mở guard cho history và shortcuts nhưng bỏ sót promote.
+  evidence: `src/editorClearSourceCuts.ts:17-27`; `21a2521`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-4 — `merge_chapter_into_previous` gán thẳng `open.chapter_id = a_id`, bỏ qua `set_open_chapter` (11-6 lô A) nên `work.last_chapter_id` không theo; gộp rồi mở lại thì Tác phẩm rơi về Chương đầu.
+  evidence: `src-tauri/src/commands/chapter.rs:954`; `121c178`. Không mất dữ liệu. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-8 — `readFixture` thiếu `assets`/`assets_dir` và khoảng 25 tệp test mock `readOpenChapterSegments` không mang hình dạng IPC thật; `refreshChapterAssetsAfterRegroup` gán thẳng `loaded.assets` còn `ensureSegmentsLoaded` có `?? []`.
+  evidence: `tests/frontend/support/segmentFixture.ts:144`; `32d933c` chỉ vá fixture của `glossaryMarksRefresh`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-D-9 + F-R-8 — Doc-comment còn nói "không có `tauri::test`/`MockRuntime`" sau khi 11-7 lô B bật feature `test`; doc `open_work` hứa "không một byte nào bị ghi" khi từ chối origin lạ nhưng `Store::open` đã chạy migration và backup trước bước kiểm.
+  evidence: `commands/project/url_import.rs:57`, `mod.rs:219`, `mod.rs:2726`, `work_creation.rs:949`; `src-tauri/Cargo.toml:193`; `mod.rs:3072`→`:3078`. Xét lại L7443 và các mục kiểm tay `Chủ: Epic 11` dây `AppHandle` (L9974, L10502, L11247, L12593): nay tự động hoá được. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-B-1 + F-CI-2 — Nightly e2e đỏ hai tầng ở `attribution-focus.e2e.mjs`: trên runner `ensureFullLayoutTier()` chỉ đọc tầng `narrow` (`:64`); trên máy Ice spec hỏi `Array.isArray` trong khi 11-3 đổi `list_dict_sources` sang struct `SourceAttributions { sources, skipped }` (`:78-83`). AC11 Story 1.19 chưa được đo từ `4db199c`.
+  evidence: run 36635570813 (09-29); lượt `npm run test:e2e` cục bộ 2026-09-30 28/29; `src-tauri/src/core/dict/mod.rs:996-1003`; `e2e/support/layoutTier.mjs:32`. Năm lượt `workflow_dispatch` giữ ở L4587/L4669/L5538. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-D-1 (a) — Không test nào ép 18 tệp `*_boundary.rs` đi qua `boundary_scan`; các ca `boundary_scan_contract.rs` gọi thẳng helper, nên một bộ quét `starts_with(DIR)` trần quay lại vẫn xanh.
+  evidence: dòng đóng DW:316/320 (Story 11.1); `src-tauri/tests/support/boundary_scan.rs`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-D-8 — Guard của `promote_ai_translation` gọi thẳng `commands::segment::promote_ai_translation`, vỏ `#[tauri::command]` chỉ được quét chữ tham số; nay có khuôn MockRuntime (`tests/ai_translate_wire.rs`) để chạm dây thật.
+  evidence: dòng đóng L12508 (11.5), L12586 (11.7); `commands/segment.rs:3865`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-D-1 (b) — Ca EXPLAIN QUERY PLAN `branch_one_and_two_never_scan_the_table` chạy SQL chép tay, nên đổi WHERE/JOIN trong `core/dict/query.rs` không làm nó đỏ; đối chứng đã gỡ trên DDL fixture, không trên mã sản phẩm.
+  evidence: `src-tauri/tests/dict_sources.rs` (dòng đóng Story 11.3 của mục "Kế hoạch truy vấn nhánh 1/2 chỉ xác nhận bằng chạy tay"). Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-D-1 (c) — Ca ③ `hanviet-segmenter-webkit.e2e.mjs` vẫn xanh khi ép `.hv-unit{display:inline-block}`, tức không phân biệt hai nhánh mà nó canh; câu hỏi doc-comment liên quan giữ ở mục riêng `Chủ: Ice` (spec-11-2, "Doc-comment `.hv-unit`").
+  evidence: `11-2-phases-2026-09-26.md` §Pha 4. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-CI-4 — `scripts/ci-previous-verdict.mjs` lọc `--event push` nên cảnh báo của pre-push không bao giờ thấy lượt `schedule` đỏ; năm lần lên review/done khi nightly đỏ không ghi lý do. Ice chọn: đọc thêm lượt `schedule` gần nhất, vẫn cảnh báo không chặn (phiếu #37).
+  evidence: `.githooks/pre-push:65`; retro Epic 11 Q-1. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-3 — Khoá `OpenWorkState` bị giữ qua việc dài (append vào Tác phẩm đang mở tải ảnh; `glossary_pending_candidates` quét toàn Tác phẩm) trong khi wire segment đồng bộ; auto-save `save_segment_targets` có thể đứng ở `state.lock()`. Độ dài treo chưa đo — đo trước khi sửa.
+  evidence: `commands/project/wire.rs:895-925`; `commands/glossary.rs:1147-1170`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-5 + F-A-4 — `unwrap_or(0)` mới cho giá trị có thể không biết: `chapter_span_count` (và `approve_candidate` ghi `Some(0)` từ cột `NOT NULL DEFAULT 0` trong khi `occurrence_count` vừa thành nullable); `.max().unwrap_or(0)` ở `bilingual.rs`. Chưa có đường sản phẩm chạm tới.
+  evidence: `commands/glossary.rs:414-420`; `core/glossary/candidate_store.rs:345`; `commands/project/bilingual.rs:261`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-R-6 — `save_segment_targets` không lọc `retired_at`; 11-7 lô B chỉ vá cùng lớp lỗi ở `promote_ai_translation` (đường kích hoạt là suy luận).
+  evidence: `commands/segment.rs:1972`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-4 — Nhánh `settingsOverlayIsOpen` của `clearSourceCuts` là nhánh chết vì `isBlocked` đã chặn chord khi Cài đặt mở; gộp Phím tắt vào Cài đặt làm mất "đang xem bảng phím vẫn thử được chord" và comment `main.ts:951-966` giờ sai. Hành vi cần Sally/Ice chốt.
+  evidence: `src/main.ts:969-985`; `7dbcf23`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-6 — Nhãn lỗi hàng ở `GridPanel.vue` dùng `t()` thay `tError()`; hai nhánh mới (restore, flush) chỉ gác `!== null`, nên `message_key` rỗng cho nhãn trống trên hàng mang class `refused` (suy luận).
+  evidence: `src/panels/GridPanel.vue:1602-1628`; `21a2521`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-7 — Ord ngoài dải bị đặt `null` nhưng ô số vẫn hiện giá trị đã gõ, nên lưu chỉ ghi một Chương mà người dùng tưởng đã áp cả đoạn; ord cũng không xoá sau khi lưu thành công (suy luận).
+  evidence: `src/modes/libraryChapters.ts:525`, `:540-554`; `7c89d8e`. Chủ: Story 11.8.
+- source_spec: `_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md`
+  summary: F-W-9 + F-A-3 — Chú thích còn trỏ `GlossarySettingsOverlay.vue`/`ShortcutsOverlay.vue` đã xoá và `shortcuts.close`/`glossary.settings.close` (`check:doc-refs` không bắt); `matching_close_brace` có hai bản.
+  evidence: `src/commands/index.ts:2386,3009`; `src-tauri/tests/ipc_argument_contract.rs:330` vs `tests/support/boundary_scan.rs:325`. Chủ: Story 11.8.
