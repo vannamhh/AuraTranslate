@@ -253,10 +253,10 @@ development_status:
   11-1-trả-nợ-cổng-và-công-cụ-kiểm: done
   11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test: done
   11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển: done
-  11-4-trả-nợ-glossary: review
-  11-5-trả-nợ-editor-segment-và-tầng-ghi: review
-  11-6-trả-nợ-nhập-và-library: review
-  11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai: review
+  11-4-trả-nợ-glossary: done
+  11-5-trả-nợ-editor-segment-và-tầng-ghi: done
+  11-6-trả-nợ-nhập-và-library: done
+  11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai: done
   epic-11-retrospective: optional
 
 # Action items committed during retrospectives (section created by the retrospective workflow)
