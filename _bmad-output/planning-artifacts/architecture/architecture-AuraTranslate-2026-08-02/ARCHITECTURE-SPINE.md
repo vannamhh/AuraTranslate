@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-09-23'
+updated: '2026-10-01'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -387,6 +387,8 @@ graph TD
   | Khác bản lúc nạp segment | **tôi dịch** |
   | Y hệt bản lúc nạp segment | **người khác dịch** hoặc **nhập từ tài liệu song ngữ**, giữ nguyên xuất xứ nạp vào |
 
+  🔵 2026-10-01: *"bản lúc nạp segment"* là cột `baseline_target_text` và *"xuất xứ nạp vào"* là cột `baseline_translation_origin`, cả hai lưu trên `segment` (AD-47 ①, AD-50); bảng trên giữ nguyên chữ.
+
   **Hợp đồng phụ bắt buộc:** hệ thống so **văn bản đích hiện tại với bản lúc nạp segment**, không dùng cờ *dirty*. Hai cách này cho kết quả khác nhau ở ca người dùng gõ rồi hoàn tác về nguyên trạng — cờ dirty nói *đã sửa*, so sánh văn bản nói *không đổi*, và so sánh văn bản mới đúng ý nghĩa "câu này là chữ của ai".
 
   Cặp TM (FR56) ghi **đúng tại chuyển tiếp sang đã xác nhận**, không ở chỗ nào khác.
@@ -699,13 +701,13 @@ graph TD
   - **(a)** đặt lại **mốc so sánh** của segment đó về đúng văn bản vừa ghi;
   - **(b)** ghi **cột xuất xứ trên `SEGMENT`** bằng xuất xứ của **nguồn** lượt ghi đó (bảng ③).
 
-  **② Phép phân xử lúc xác nhận KHÔNG đổi — vẫn là phép so văn bản, vẫn hai kết quả.** Bảng xuất xứ của AD-31 đọc y nguyên, với *"bản lúc nạp segment"* hiểu theo ①. Hôm nay lượt nạp là lượt ghi không-phải-người-dùng duy nhất đã cài, nên hai cách đọc **cho cùng một kết quả trên toàn bộ mã đang chạy**.
+  **② Phép phân xử lúc xác nhận KHÔNG đổi — vẫn là phép so văn bản, vẫn hai kết quả.** Bảng xuất xứ của AD-31 đọc y nguyên, với *"bản lúc nạp segment"* hiểu theo ①. 🔵 2026-10-01: câu *"lượt nạp là lượt ghi không-phải-người-dùng duy nhất đã cài"* hết đúng — nhập song ngữ, đưa đề xuất AI sang Editor và gộp/tách đã cài, và AD-50 rút lượt nạp khỏi danh mục; mốc nay là hai cột lưu trên `segment`.
 
   **③ Mỗi cơ chế khai xuất xứ nó mang. Danh mục ĐÓNG — thêm một cơ chế là sửa bảng này.**
 
   | Lượt ghi không-phải-người-dùng | Xuất xứ nó đặt |
   |---|---|
-  | Nạp Chương từ đĩa | giá trị đang có, **không ghi lại** |
+  | ~~Nạp Chương từ đĩa~~ | 🔵 2026-10-01: không còn là lượt ghi — không chạm mốc, không chạm xuất xứ (AD-50) |
   | Nhập song ngữ (FR115) | **nhập từ tài liệu song ngữ** |
   | Chấp nhận thay đổi từ Review Mode (FR94) | **người khác dịch** |
   | Điền sẵn từ TM khớp 100% (FR58) | xuất xứ của **cặp TM nguồn** |
@@ -713,13 +715,13 @@ graph TD
   | Gộp/tách segment (AD-5) | xem ④ |
   | Khôi phục phiên bản (FR101) | 🔴 **KHÔNG đặt** — ngoại lệ có tên, xem ⑤ |
 
-  **④ Gộp/tách segment.** Mọi mảnh mang **cùng một** giá trị ⇒ segment mới giữ giá trị đó. **Bất kỳ bất đồng nào** ⇒ **người khác dịch**. Tách là ca tầm thường của luật này (một nguồn ⇒ mọi mảnh cùng giá trị).
+  **④ Gộp/tách segment.** Mọi mảnh mang **cùng một** giá trị ⇒ segment mới giữ giá trị đó. **Bất kỳ bất đồng nào** ⇒ **người khác dịch**. Tách là ca tầm thường của luật này (một nguồn ⇒ mọi mảnh cùng giá trị). 🔵 2026-10-01: câu trên sai với mã — tách giữ văn bản ở mảnh đầu, các mảnh sau rỗng và mang `''`; giá trị của mỗi segment nguồn là kết quả hàm phân xử của AD-50, không phải `translation_origin` đang lưu.
 
   Luật chọn chiều nói dối, không chọn chiều đúng — vì ở ca bất đồng **không có** giá trị đúng. Hai chiều không cân giá: khai *tôi dịch* cho chữ pha của người khác **đầu độc kho TM vĩnh viễn** (đúng thứ FR117 tồn tại để chống); khai *người khác dịch* cho chữ pha của chính mình chỉ làm **một** cặp TM bị `RagInjector` xếp sau. ⇒ chọn chiều rẻ. ⚠️ **Cái mất, ghi ra:** gộp một câu `''` *(chưa dịch)* với một câu *tôi dịch* cũng rơi vào nhánh bất đồng. Segment mới là **chưa xác nhận** (AD-5) nên nhãn sai chỉ sống sót nếu người dùng xác nhận nó mà **không sửa một ký tự** — chạm vào một chữ là ② ghi đè thành *tôi dịch*.
 
-  **⑤ Khôi phục (FR101) làm (a) mà KHÔNG làm (b).** Đây là **hệ quả bắt buộc** của chữ ký #1(a): `segment_version` không mang xuất xứ, nên **không có gì để trả về**. `replaceEditorSegment` vốn đã định nghĩa lại mốc giữa phiên — ⑤ chỉ khai điều đó bằng chữ.
+  **⑤ Khôi phục (FR101) làm (a) mà KHÔNG làm (b).** Đây là **hệ quả bắt buộc** của chữ ký #1(a): `segment_version` không mang xuất xứ, nên **không có gì để trả về**. 🔵 2026-10-01: mốc nay là `baseline_target_text` phía Rust (AD-50) — lượt khôi phục ghi cột đó và không ghi `baseline_translation_origin`, thay cho việc `replaceEditorSegment` định nghĩa lại mốc trong webview.
 
-  ⚠️ **Chỗ yếu, ghi ra thay vì để người sau tự phát hiện:** khôi phục văn bản của một phiên bản cũ rồi xác nhận mà không sửa ⇒ giữ nguyên xuất xứ **hiện tại**, thứ có thể thuộc về một phiên bản khác.
+  ⚠️ **Chỗ yếu, ghi ra thay vì để người sau tự phát hiện:** khôi phục văn bản của một phiên bản cũ rồi xác nhận mà không sửa ⇒ giữ nguyên xuất xứ **hiện tại**, thứ có thể thuộc về một phiên bản khác. 🔵 2026-10-01: AD-50 đóng chiều đắt của chỗ yếu này — lượt khôi phục đặt mốc xuất xứ *người khác dịch*, nên ký không sửa ra *người khác dịch*; cái còn lại là chiều rẻ, khi văn bản khôi phục là của chính người dùng.
 
   **⑥ Tập giá trị FR117 giữ ĐÚNG BA, cộng `''`. `AD` này KHÔNG nới nó.** Lý do đo được: tập giá trị nằm **trên đĩa người dùng**, nên mỗi lượt nới là **một bước di trú nữa** cho mọi `.atproj` đã tồn tại. Thứ giữ cho tập ba giá trị đủ dùng là **phép chiếu xuống trục nhị phân của FR118** — trục duy nhất mà hành vi thật đọc tới:
 
@@ -793,6 +795,31 @@ graph TD
 
   → bằng chứng: `ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11 · `sprint-change-proposal-2026-08-18b-mo-hinh-hoan-tac.md` · `.memlog.md`.
 
+### AD-50 — Mốc so xuất xứ lưu trên `segment`; chỉ lượt ghi không-phải-người-dùng đặt nó, và nó không đi qua IPC
+
+- **Binds:** C2, C5, C7, C8, C9 — mọi lượt ghi không-phải-người-dùng của AD-47 ③ (kể cả FR94 và Story 7.4 khi chúng được dựng), `confirm_segment`, gộp/tách (AD-5), khôi phục (FR101), bước 28 của `project.db`.
+- **Prevents:** (1) mốc AD-47 ① sống trong ảnh chụp của webview, nên mỗi lượt nạp Chương đặt lại nó: người dùng viết lại một câu song ngữ hay một câu AI, flush, đổi Chương hoặc mở lại app, rồi ký ⇒ văn bản trùng mốc ⇒ cặp TM mang nhãn *người khác dịch* cho chữ của chính họ — im lặng, trên một thao tác thường nhật; (2) Rust tin một mốc do webview khai, nên một chỗ gọi `confirm_segment` gửi sai mốc là ghi sai xuất xứ vĩnh viễn vào TM mà không cổng nào ở tầng Rust thấy; (3) gộp/tách lấy `translation_origin` đang lưu của segment nguồn, nên một câu viết lại chưa ký truyền xuất xứ của chính văn bản nó đã thay — lỗ (1) qua một cửa khác; (4) một người ghi bị quên để mốc ở `''`/`''`, và phép phân xử đọc mốc rỗng là *tôi dịch* — chiều nói dối đắt, không cổng nào đỏ.
+- **Rule:**
+
+  1. **Hình dạng.** Mốc là hai cột trên `segment`: `baseline_target_text` và `baseline_translation_origin`, cả hai `TEXT NOT NULL DEFAULT ''`. `baseline_translation_origin` mang cùng tập giá trị đóng với `translation_origin` (AD-47 ⑥), và phép kiểm tập đó lúc mở kho phủ **cả hai** cột. Mốc xuất xứ là cột riêng vì lượt xác nhận ghi đè `translation_origin`, còn chuỗi ký → sửa → ký → sửa ngược → ký lại phải trả về xuất xứ **lúc đặt mốc**. Văn bản mốc lưu nguyên văn, không băm: phép chuẩn hoá (`trim` + NFC) áp lúc so, không đóng băng trên đĩa.
+  2. **Ai ghi hai cột mốc.** Danh mục người ghi vẫn là bảng AD-47 ③; trên hai cột mốc nó đọc là:
+
+     | Lượt | `baseline_target_text` | `baseline_translation_origin` |
+     |---|---|---|
+     | Nạp Chương | không phải lượt ghi — không chạm | không chạm |
+     | Flush (AD-35) · xác nhận (AD-31) | không chạm | không chạm |
+     | Khôi phục phiên bản (FR101) | văn bản phiên bản | **người khác dịch** — `segment_version` không mang xuất xứ, nên chọn chiều rẻ (AD-47 ④) |
+     | Mọi hàng còn lại của AD-47 ③ | văn bản vừa ghi | đúng giá trị vừa ghi vào `translation_origin` |
+
+     Lượt khôi phục **không** ghi `translation_origin` (AD-47 ⑤); nhánh hỏi lại (`needs_confirmation`) không ghi cột nào.
+  3. **Một đường ghi, có cổng canh.** Mọi `UPDATE` ghi `target_text` không-phải-người-dùng đi qua **một** hàm Rust ghi `target_text`, hai cột mốc, `translation_origin` và `status` trong **một** câu lệnh; mọi `INSERT INTO segment` mang `target_text` ghi đủ hai cột mốc. Một cổng đọc dòng mã đỏ khi một câu SQL ghi `target_text` mà không ghi `baseline_target_text` — miễn trừ có tên duy nhất: flush.
+  4. **Một hàm phân xử duy nhất** — hàm thuần trong `core/segment/`, `commands/` chỉ gọi nó; không chỗ nào khác so văn bản với mốc. Đầu vào: `target_text`, hai cột mốc đọc trong cùng giao dịch với lượt ghi nó phục vụ. Kết quả: `target_text` rỗng sau `trim` ⇒ `''`; khác `baseline_target_text` sau `trim` + NFC, **hoặc** `baseline_translation_origin` rỗng ⇒ *tôi dịch*; còn lại ⇒ `baseline_translation_origin`, và một giá trị ngoài tập ⇒ từ chối, không ghi gì. Bảng xuất xứ của AD-31 lúc xác nhận **và** giá trị mỗi segment nguồn đưa vào ④ của AD-47 — cả gộp lẫn tách — đều là kết quả hàm này; một mảnh mới có văn bản rỗng mang `''`.
+  5. **Hai cột mốc không đi qua IPC, theo cả hai chiều.** `confirm_segment` nhận đúng `segment_id`; webview không giữ, không gửi, không nhận mốc; không DTO nào mang khoá `baseline_*` — `ipc_contract` ghim cả hai vế. `translation_origin` trên dây chỉ để hiển thị, không bao giờ được gửi ngược về. Ngoại lệ *"văn bản đang gõ"* của AD-1 không đổi; Quyết định #2(b) hết hiệu lực.
+  6. **Bước 28 của `project.db`** thêm hai cột rồi gán `baseline_target_text = target_text`, `baseline_translation_origin = translation_origin` cho **mọi** hàng, kể cả hàng về hưu — chụp mốc đúng như lượt nạp Chương trước `AD` này đã chụp; không `NULL`. ⚠️ **Cái mất, ghi ra:** câu viết lại mà chưa ký trước bước 28 vẫn ra *người khác dịch*; câu đã ký *tôi dịch* rồi sửa ngược đúng về văn bản không-phải-người-dùng gốc mà chưa ký lại trước bước 28 ra *tôi dịch*. Văn bản gốc đó chưa từng được lưu, nên không bước di trú nào lấy lại được.
+  7. **Đổi gì / không đổi gì.** AD-47: hàng *"Nạp Chương"* của ③ thay theo mục 2; ⑤ đặt mốc xuất xứ *người khác dịch*; ④ giữ luật đồng thuận/bất đồng, chỉ được khoá đầu vào (mục 4). AD-31: hai bảng và hợp đồng phụ giữ nguyên chữ — *"bản lúc nạp segment"* nay là `baseline_target_text`, và nhánh *"mốc xuất xứ rỗng ⇒ tôi dịch"* là hệ quả của AD-47 ①(b), không phải hàng thứ ba. AD-35, AD-5, AD-1 không sửa một chữ.
+
+  → bằng chứng: `ad-brief-2026-10-01-moc-so-xuat-xu-luu-phia-rust.md` · `reviews/review-ad-50-*-2026-10-01.md` · `.memlog.md`.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -802,7 +829,7 @@ graph TD
 | **File & thư mục** | Rust `snake_case`; Vue component `PascalCase.vue`; tài nguyên chuỗi `vi.json` phẳng theo khoá chấm (`lookup.empty_result`) |
 | **Định danh** | `Work` = UUID v4 · `Chapter`, `Segment`, mục Glossary, mục TM = số nguyên cục bộ trong database chứa nó. Id đã về hưu không bao giờ tái dùng |
 | **Ghi nhớ proofreader** | Khoá theo `(work, chữ ký phát hiện)`, **không** theo `segment.id` — FR84 nói phạm vi là *"trong cùng Tác phẩm"*, và nhờ vậy ghi nhớ sống sót qua gộp/tách segment |
-| **Xuất xứ bản dịch** | Ghi **chỉ** ở hai chỗ: lượt ghi không-phải-người-dùng đặt mốc (AD-47 ③④), và chuyển tiếp sang **đã xác nhận** (AD-31). Không đường mã nào khác chạm cột đó. Ba giá trị FR117 cộng `''`; mọi giá trị mới phải khai vế của nó trên trục nhị phân FR118 |
+| **Xuất xứ bản dịch** | Ghi **chỉ** ở hai chỗ: lượt ghi không-phải-người-dùng đặt mốc (AD-47 ③④), và chuyển tiếp sang **đã xác nhận** (AD-31). Không đường mã nào khác chạm cột đó. Hai cột mốc `baseline_target_text` · `baseline_translation_origin` chỉ lượt ghi không-phải-người-dùng ghi, theo bảng AD-50 mục 2, qua một đường ghi có cổng canh, và không đi qua IPC (AD-50). Ba giá trị FR117 cộng `''`; mọi giá trị mới phải khai vế của nó trên trục nhị phân FR118 |
 | **Chữ "xuất xứ" chỉ BỐN thực thể rời nhau** | Bản dịch (FR117, AD-47) · mục Glossary (FR47, AD-36) · tài liệu nguồn (FR128/FR131, AD-43) · trích dẫn từ điển (FR30). Định danh trong mã phải **tự phân biệt được**; `origin` trần thì không — chữ đó đã đông nghĩa ở frontend (`WorkspaceDock.vue:416` dùng `origin === 'user'` cho lượt kích hoạt panel) |
 | **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
 | **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
@@ -1024,7 +1051,7 @@ erDiagram
   WORK ||--o{ PROMPT : "tầng Tác phẩm"
   WORK ||--o{ ASSET : "ảnh — file thật trong assets/, mang source_url tuỳ chọn"
   CHAPTER ||--o{ ASSET : "neo vị trí ảnh — độc lập với segment đi kèm"
-  CHAPTER ||--o{ SEGMENT : "chứa — segment mang xuất xứ và cờ kết đoạn"
+  CHAPTER ||--o{ SEGMENT : "chứa — segment mang xuất xứ, mốc so và cờ kết đoạn"
   CHAPTER ||--o| SOURCE_ORIGIN : "xuất xứ tài liệu — tác giả · site · URL · ngày đăng"
   WORK ||--o{ READING_MARK : "chỗ đánh dấu khi đọc, phạm vi Tác phẩm"
   READING_MARK }o--|| SEGMENT : "trỏ tới — sống sót khi segment về hưu"
