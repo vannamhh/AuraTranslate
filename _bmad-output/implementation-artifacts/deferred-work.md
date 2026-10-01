@@ -3882,6 +3882,7 @@ mục nào mồ côi.
   Bảng TM chưa tồn tại trong lược đồ, nên không đường sản phẩm nào đối chứng được. Thứ nói được
   hôm nay: **không câu SQL nào** của `merge_segments`/`split_segment` chạm một bảng ngoài
   `segment`. **Chủ: Epic 7** — nghiệm thu lại cùng lượt bảng TM ra đời.
+  → ✅ ĐÃ ĐÓNG 2026-10-01 (Story 7.1) — bảng `tm_unit` (bước 27) đã có và AC5 đo bằng dữ liệu thật: gộp rồi tách sau khi xác nhận để nguyên từng byte mọi hàng `tm_unit`. Guard: `tm_contract.rs::merging_or_splitting_prose_after_confirm_leaves_every_pair_byte_identical` (đủ cột, gồm `created_at`).
 
 - 🟡 **Luật `is_omitted` khi gộp (chữ ký #5(a)) chưa có chỗ đứng trong spine.** Ice phán định
   2026-08-17 rằng *"bất kỳ mảnh nào đã cắt ⇒ segment mới đã cắt"* nằm **trong biên độ AD-5** và
@@ -10398,6 +10399,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   gộp/tách trở nên có thật (mất vai ⇒ mất luôn đường vào TM mà 7.1 đang dựng). **Chủ: Story
   7.1.**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: write_regroup (src-tauri/src/commands/segment.rs:3042) vẫn không đọc/mang cột role sang hàng mới; mục đã CHUYỂN CHỦ sang Story 7.1 (backlog trong sprint-status.yaml). **Chủ: Story 7.1.**
+  → ✅ ĐÃ ĐÓNG 2026-10-01 (Story 7.1, D5) — gộp/tách bị từ chối với `err.segment.has_role` khi bất kỳ segment nào liên quan mang `role`, kiểm trước mọi lệnh ghi; không hàng nào về hưu, vai không bao giờ mất im lặng. Guard: `segment_role_contract.rs::{merging,splitting}_a_role_bearing_segment_is_refused_and_writes_nothing` và `tm_contract.rs::merging_or_splitting_with_a_role_segment_is_refused_and_writes_nothing` (gỡ kiểm D5 ⇒ đỏ cả hai).
 
 - source_spec: `spec-6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai.md`
   summary: ⑤ nghiệm thu vế Translation Memory/Glossary cho segment vai CHƯA làm ở story này
@@ -10411,6 +10413,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ai viết logic \"segment `role='alt'` vào bảng TM nào, dưới khoá gì\"."
   chủ: Story 7.1 — `epics.md:5404` giao đúng vế nghiệm thu TM cho story đó; Story 6.13 chỉ
   dựng nền (cột `role`, luồng xác nhận dùng chung) mà Story 7.1 sẽ đọc.
+  → ✅ ĐÃ ĐÓNG 2026-10-01 (Story 7.1) — segment `alt`/`caption` ghi cặp `tm_unit` qua cùng đường `confirm_segment` như văn xuôi (AD-42, FR44, FR129). Guard: `tm_contract.rs::alt_and_caption_segments_write_pairs_like_prose` (gỡ lệnh `insert_pair` ⇒ đỏ).
 
 - source_spec: `spec-6-14-hien-thi-anh-dung-vi-tri.md`
   summary: Gộp/tách một câu ĐANG MANG NEO ẢNH làm ảnh **biến mất khỏi lưới** cho tới lượt nạp

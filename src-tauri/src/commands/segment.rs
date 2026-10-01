@@ -2109,6 +2109,8 @@ pub struct PromoteAiTranslationOutcome {
     pub target_text: String,
     /// Xuất xứ SAU lượt gọi. Khi `needs_confirmation`, đây là xuất xứ hiện có (không đổi).
     pub translation_origin: String,
+    /// Status after the call: `draft` when new text was written, unchanged when `needs_confirmation`.
+    pub status: String,
     /// 🔴 **Lượt ghi bị GIỮ LẠI vì nó sắp xoá vĩnh viễn một bản nháp chưa từng được ký** — cùng
     /// khuôn [`RestoreOutcome::needs_confirmation`] (FR101). Khi `true`,
     /// **không một byte nào được ghi**; webview hỏi lại người dùng rồi gọi lại với `force = true`.
@@ -2148,17 +2150,25 @@ pub fn promote_ai_translation(
     enum Promoted {
         Missing,
         Retired,
-        Row(String, String, bool),
+        Row(String, String, String, bool),
     }
 
     let payload = target_text.to_owned();
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let found = tx.query_row(
-            "SELECT target_text, translation_origin, retired_at IS NOT NULL FROM segment WHERE id = ?1",
+            "SELECT target_text, translation_origin, retired_at IS NOT NULL, status FROM segment \
+             WHERE id = ?1",
             [segment_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, bool>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            },
         );
-        let (current_text, current_origin, retired) = match found {
+        let (current_text, current_origin, retired, current_status) = match found {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
             Err(err) => return Err(err),
@@ -2179,23 +2189,30 @@ pub fn promote_ai_translation(
             )?;
             if has_copy == 0 {
                 // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-                return Ok(Promoted::Row(current_text, current_origin, true));
+                return Ok(Promoted::Row(current_text, current_origin, current_status, true));
             }
         }
 
         tx.execute(
-            "UPDATE segment SET target_text = ?1, translation_origin = ?2, \
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?3",
-            (&payload, TRANSLATION_ORIGIN_OTHER, segment_id),
+            "UPDATE segment SET target_text = ?1, translation_origin = ?2, status = ?3, \
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?4",
+            (&payload, TRANSLATION_ORIGIN_OTHER, SEGMENT_STATUS_DRAFT, segment_id),
         )?;
 
-        Ok(Promoted::Row(payload, TRANSLATION_ORIGIN_OTHER.to_owned(), false))
+        Ok(Promoted::Row(
+            payload,
+            TRANSLATION_ORIGIN_OTHER.to_owned(),
+            SEGMENT_STATUS_DRAFT.to_owned(),
+            false,
+        ))
     })?;
 
-    let (target_text, translation_origin, needs_confirmation) = match outcome {
+    let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Promoted::Missing => return Err(segment_not_found(segment_id)),
         Promoted::Retired => return Err(segment_retired(segment_id)),
-        Promoted::Row(text, origin, needs_confirmation) => (text, origin, needs_confirmation),
+        Promoted::Row(text, origin, status, needs_confirmation) => {
+            (text, origin, status, needs_confirmation)
+        }
     };
     // `target_text` already holds the draft when `needs_confirmation`: that branch of the
     // write closure above returns `current_text` unchanged (see the struct field doc).
@@ -2205,6 +2222,7 @@ pub fn promote_ai_translation(
         segment_id,
         target_text,
         translation_origin,
+        status,
         needs_confirmation,
         unsigned_draft,
     })
@@ -2362,9 +2380,10 @@ enum ConfirmReject {
 /// **chỗ duy nhất** hai thứ sau được ghi:
 /// - **xuất xứ (FR117)** — ✅ **đã cài ở chính story này**, xem khối phân xử ngay dưới. Câu
 ///   *"chủ: Story 2.7"* của bản trước đã hết đúng; sửa tại chỗ thay vì để nó lặng lẽ sai.
-/// - **cặp TM (FR56)** — chủ: **Epic 7**, vẫn để ngỏ. `EXPERIENCE.md:294`: *"Cặp TM mới được
-///   ghi ngay tại chuyển tiếp đó (AD-31)"*. 🔴 Và AD-47 ⑥ đã khai sẵn phép chiếu mà nó phải
-///   đọc: xuất xứ ba giá trị → **trục nhị phân FR118** *(của tôi / của người khác)*.
+/// - **cặp TM (FR56)** — ✅ ghi bởi [`crate::core::tm::insert_pair`] trong cùng giao dịch,
+///   mang đúng giá trị `translation_origin` vừa ghi cho segment. Nhánh `Ok(false)` không ghi
+///   cặp nào. AD-47 ⑥ khai phép chiếu xuất xứ ba giá trị → **trục nhị phân FR118**; đó là
+///   việc của đường đọc.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 PHÉP PHÂN XỬ XUẤT XỨ — `text_at_load` LÀ MỐC, VÀ NÓ ĐẾN TỪ WEBVIEW
@@ -2448,18 +2467,20 @@ pub fn confirm_segment(
         // nhanh ④ mot xuat xu doc tu mot anh chup cu la mot xuat xu ghi de len mot luot ghi
         // khac vua chay xong.
         let found = tx.query_row(
-            "SELECT target_text, status, retired_at, translation_origin FROM segment WHERE id = ?1",
+            "SELECT target_text, status, retired_at, translation_origin, source_text FROM segment \
+             WHERE id = ?1",
             [segment_id],
             |row| {
                 let target_text: String = row.get(0)?;
                 let status: String = row.get(1)?;
                 let retired_at: Option<String> = row.get(2)?;
                 let translation_origin: String = row.get(3)?;
-                Ok((target_text, status, retired_at, translation_origin))
+                let source_text: String = row.get(4)?;
+                Ok((target_text, status, retired_at, translation_origin, source_text))
             },
         );
 
-        let (target_text, status, retired_at, translation_origin) = match found {
+        let (target_text, status, retired_at, translation_origin, source_text) = match found {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => {
                 set_reject(ConfirmReject::NotFound);
@@ -2534,7 +2555,7 @@ pub fn confirm_segment(
         // (rong ⇒ nhanh `self`) voi "co, va webview khai dung no o luc nap".
         let target_nfc: String = target_text.trim().nfc().collect();
         let text_at_load_nfc: String = text_at_load.trim().nfc().collect();
-        let origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
+        let confirmed_origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
             TRANSLATION_ORIGIN_SELF
         } else if TRANSLATION_ORIGINS.contains(&origin_at_load.as_str()) {
             origin_at_load.as_str()
@@ -2544,13 +2565,14 @@ pub fn confirm_segment(
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
-            (SEGMENT_STATUS_CONFIRMED, origin, segment_id),
+            (SEGMENT_STATUS_CONFIRMED, confirmed_origin, segment_id),
         )?;
         tx.execute(
             "INSERT INTO segment_version (segment_id, target_text, created_at) \
              VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             (segment_id, &target_text),
         )?;
+        crate::core::tm::insert_pair(tx, &source_text, &target_text, confirmed_origin)?;
 
         Ok(true)
     });
@@ -2996,6 +3018,8 @@ enum RegroupReject {
     NoPreviousSegment(i64),
     /// Chỗ cắt để lại một mảnh **rỗng**, hoặc nằm ngoài `source_text`.
     CutLeavesEmptyPiece(i64),
+    /// A segment involved carries a `role`; regrouping would drop it.
+    RoleSegment(i64),
 }
 
 impl RegroupReject {
@@ -3005,8 +3029,18 @@ impl RegroupReject {
             Self::Retired(id) => segment_retired(id),
             Self::NoPreviousSegment(id) => segment_has_no_previous(id),
             Self::CutLeavesEmptyPiece(id) => segment_cut_leaves_empty_piece(id),
+            Self::RoleSegment(id) => segment_has_role(id),
         }
     }
+}
+
+fn segment_has_role(segment_id: i64) -> IpcError {
+    IpcError::new(
+        "segment.has_role",
+        MessageKey::SegmentHasRole,
+        BTreeMap::from([("segment_id".to_owned(), segment_id.to_string())]),
+        false,
+    )
 }
 
 /// Không có segment nào đứng **liền trên** segment này trong Chương — Story 2.8, AC1.
@@ -3049,6 +3083,7 @@ struct LoadedSegment {
     flags: ParagraphFlags,
     is_omitted: bool,
     translation_origin: String,
+    role: Option<String>,
 }
 
 impl LoadedSegment {
@@ -3074,7 +3109,7 @@ fn load_segment_for_write(
 ) -> Result<LoadedSegment, RegroupReject> {
     let found = tx.query_row(
         "SELECT ord, source_text, target_text, is_paragraph_end, is_target_paragraph_end, \
-         is_omitted, translation_origin, retired_at FROM segment WHERE id = ?1",
+         is_omitted, translation_origin, retired_at, role FROM segment WHERE id = ?1",
         [segment_id],
         |row| {
             let ord: i64 = row.get(0)?;
@@ -3085,6 +3120,7 @@ fn load_segment_for_write(
             let is_omitted: i64 = row.get(5)?;
             let translation_origin: String = row.get(6)?;
             let retired_at: Option<String> = row.get(7)?;
+            let role: Option<String> = row.get(8)?;
             Ok((
                 LoadedSegment {
                     id: segment_id,
@@ -3099,6 +3135,7 @@ fn load_segment_for_write(
                     },
                     is_omitted: is_omitted != 0,
                     translation_origin,
+                    role,
                 },
                 retired_at,
             ))
@@ -3415,6 +3452,11 @@ pub fn merge_segments(
             }
         };
 
+        if let Some(id) = [&tren, &duoi].iter().find(|row| row.role.is_some()).map(|row| row.id) {
+            set_reject(RegroupReject::RoleSegment(id));
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
         // ③ PHEP TINH THUAN. Bon luat (AD-37 · AD-47 ④ · chu ky #5(a) · #3(b)) song o
         //    `core::segment::regroup`, khong o day.
         let nhom = [tren.as_part(), duoi.as_part()];
@@ -3488,6 +3530,11 @@ pub fn split_segment(
             tx.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [segment_id], |row| {
                 row.get(0)
             })?;
+
+        if goc.role.is_some() {
+            set_reject(RegroupReject::RoleSegment(goc.id));
+            return Err(SqlError::QueryReturnedNoRows);
+        }
 
         let Some(mut manh) = split_at(&goc.as_part(), &cuts) else {
             set_reject(RegroupReject::CutLeavesEmptyPiece(segment_id));
@@ -3730,8 +3777,8 @@ pub mod wire {
     /// Cùng luật đã ghi cho `flush_segment_targets`: đo 2026-08-14 cho thấy một quyết định đặt
     /// ở vỏ đi qua **54/54 xanh** vì `tests/**` gọi vỏ không được *(nó cần `AppHandle`)*.
     #[tauri::command]
-    pub fn confirm_segment(
-        app: tauri::AppHandle,
+    pub fn confirm_segment<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
         segment_id: i64,
         text_at_load: String,
         origin_at_load: String,

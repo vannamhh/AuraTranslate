@@ -559,6 +559,8 @@ export type PromoteAiTranslationOutcome = {
   target_text: string
   /** Xuất xứ SAU lượt gọi. Khi `needs_confirmation`, đây là xuất xứ hiện có (không đổi). */
   translation_origin: string
+  /** Status after the call: `'draft'` when new text was written, unchanged when held back. */
+  status: 'draft' | 'confirmed'
   /**
    * 🔴 Lượt ghi bị GIỮ LẠI vì nó sắp xoá vĩnh viễn một bản nháp chưa từng được ký — cùng
    * khuôn [`RestoreOutcome.needs_confirmation`]. Khi `true`, không một byte nào được ghi;
@@ -587,6 +589,7 @@ function isPromoteAiTranslationOutcome(value: unknown): value is PromoteAiTransl
     typeof v.segment_id === 'number' &&
     typeof v.target_text === 'string' &&
     typeof v.translation_origin === 'string' &&
+    (v.status === 'draft' || v.status === 'confirmed') &&
     typeof v.needs_confirmation === 'boolean' &&
     (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
   )

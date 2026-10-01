@@ -357,6 +357,7 @@ export async function promoteAiTranslationToEditor(
   replaceEditorSegment(segmentId, {
     target_text: outcome.target_text,
     translation_origin: outcome.translation_origin,
+    status: outcome.status,
   })
   return 'promoted'
 }

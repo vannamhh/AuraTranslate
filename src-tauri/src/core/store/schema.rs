@@ -879,6 +879,18 @@ pub const WORK_STATUS_OVERRIDE_DDL: &str = "ALTER TABLE work ADD COLUMN status_o
 /// đúng ca `open_work` cần phát hiện và rơi về Chương đầu, không phải một lỗi kho.
 pub const WORK_LAST_CHAPTER_ID_DDL: &str = "ALTER TABLE work ADD COLUMN last_chapter_id INTEGER;";
 
+/// Work tier of the Translation Memory (AD-6): no column may point at `segment.id`,
+/// `chapter_id` or `ord`, so retiring a segment never touches a row here.
+pub const TM_UNIT_DDL: &str = "\
+CREATE TABLE tm_unit (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_text        TEXT NOT NULL,
+  target_text        TEXT NOT NULL,
+  translation_origin TEXT NOT NULL,
+  created_at         TEXT NOT NULL,
+  CHECK (target_text <> '')
+);";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1854,7 +1866,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi lăm bước, và đích là phiên bản 26.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi sáu bước, và đích là phiên bản 27.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2186,6 +2198,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 26,
         sql: WORK_LAST_CHAPTER_ID_DDL,
+    },
+    Migration {
+        to_version: 27,
+        sql: TM_UNIT_DDL,
     },
 ];
 

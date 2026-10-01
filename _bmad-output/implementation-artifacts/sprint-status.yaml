@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '10-01-2026 13:12'
+last_updated: '10-01-2026 17:08'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -187,8 +187,8 @@ development_status:
   6-16c-nhập-song-ngữ-từ-bảng-docx: backlog
   epic-6-retrospective: done
 
-  epic-7: backlog
-  7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản: backlog
+  epic-7: in-progress
+  7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản: review
   7-2-xuất-xứ-trên-từng-cặp-tm: backlog
   7-3-tm-phạm-vi-kép-và-thứ-tự-sắp-xếp-hai-khoá: backlog
   7-4-khớp-tuyệt-đối-100: backlog

@@ -52,6 +52,7 @@
   "err.segment.unknown_translation_origin": "Câu số {segment_id} mang một giá trị xuất xứ bản dịch chưa được nhận ({value}) — chưa xác nhận được, và không có gì bị thay đổi.",
   "err.segment.ends_chapter": "Câu số {segment_id} là câu cuối Chương — không đặt được chỗ ngắt đoạn sau nó.",
   "err.segment.no_previous": "Câu số {segment_id} là câu đầu Chương — không có câu nào phía trên để gộp vào.",
+  "err.segment.has_role": "Câu số {segment_id} là chú thích ảnh (alt hoặc caption) — không gộp hay tách được, vì sẽ mất vai của nó.",
   "err.segment.cut_leaves_empty_piece": "Chỗ cắt nằm ở đầu hoặc cuối câu số {segment_id} — tách ở đó sẽ để lại một câu rỗng.",
   "err.segment.assets_dir_not_utf8": "Đường dẫn thư mục ảnh của Tác phẩm này không phải UTF-8 hợp lệ — chưa đọc được ảnh.",
   "err.cleanup.empty_pattern": "Mẫu này rỗng hoặc chỉ toàn khoảng trắng — chưa có gì được lưu.",

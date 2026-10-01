@@ -2213,7 +2213,7 @@ fn the_confirm_segment_wire_keeps_its_origin_at_load_parameter() {
     assert_eq!(
         normalize_param_list(&confirm_params),
         normalize_param_list(
-            "app: tauri::AppHandle, segment_id: i64, text_at_load: String, origin_at_load: String,"
+            "app: tauri::AppHandle<R>, segment_id: i64, text_at_load: String, origin_at_load: String,"
         ),
         "vo `confirm_segment` trong `pub mod wire` cua commands/segment.rs khong con dung danh \
          sach tham so mong doi -- doi ten/thu tu tham so la doi DAY."

@@ -43,6 +43,7 @@ function outcomeOf(patch: Partial<PromoteAiTranslationOutcome>): { outcome: Prom
       segment_id: 5,
       target_text: '',
       translation_origin: 'other',
+      status: 'draft',
       needs_confirmation: false,
       unsigned_draft: null,
       ...patch,
@@ -150,6 +151,23 @@ describe('Decision 14 — promote giữ lượt ghi khi cần hỏi, rồi gọi
     expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
 
     wrapper.unmount()
+  })
+})
+
+describe('promote lên câu đã ký — webview phản chiếu status của Rust', () => {
+  it('câu đã ký + outcome status draft ⇒ lưới hiện draft cùng văn bản mới', async () => {
+    const { editorPanelState } = await freshPanel()
+    await editorPanelState.ensureSegmentsLoaded()
+    expect(editorPanelState.editorSegments.value.find((s) => s.id === 11)?.status).toBe('confirmed')
+
+    promoteAiTranslationMock.mockResolvedValueOnce(
+      outcomeOf({ segment_id: 11, target_text: 'Kết quả AI', status: 'draft' }),
+    )
+    await editorPanelState.promoteAiTranslationToEditor(11, 'Kết quả AI')
+
+    const segment = editorPanelState.editorSegments.value.find((s) => s.id === 11)
+    expect(segment?.status).toBe('draft')
+    expect(segment?.target_text).toBe('Kết quả AI')
   })
 })
 

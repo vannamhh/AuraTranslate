@@ -1741,7 +1741,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 12] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 13] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
@@ -1765,6 +1765,8 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 12] = [
     "segment",
     "segment_version",
     "sqlite_sequence",
+    // References neither segment.id nor chapter_id (AD-6), so it is no Work -> Chapter container.
+    "tm_unit",
 ];
 
 /// **Hàm thuần** — lọc `tables` qua [`NON_ENTITY_DETAIL_TABLES`]. Tách khỏi thân test để

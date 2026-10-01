@@ -295,6 +295,7 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
         segment_id: 5,
         target_text: '',
         translation_origin: 'other',
+        status: 'draft',
         needs_confirmation: true,
         unsigned_draft: 'Bản đang soạn',
       },

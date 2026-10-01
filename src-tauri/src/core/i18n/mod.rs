@@ -316,6 +316,7 @@ message_keys! {
     /// **liền trên** nó"*, nên *"không có câu liền trên"* là một ca **thường nhật**, không
     /// một ca biên: nó xảy ra mỗi lần người dùng bấm `⌘M` ở câu đầu Chương.
     SegmentNoPrevious => "err.segment.no_previous" ["segment_id"],
+    SegmentHasRole => "err.segment.has_role" ["segment_id"],
     /// Chỗ cắt để lại một mảnh **rỗng**, hoặc nằm ngoài `source_text`.
     ///
     /// 🔴 Một hàng `segment` không có văn bản nguồn là *"rỗng im lặng"* ở dạng tệ nhất —

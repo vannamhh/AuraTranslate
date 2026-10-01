@@ -595,7 +595,7 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     // chay THEM sau buoc 23, khong anh huong menh de nay.
     // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
     // and doesn't affect this assertion.
-    assert_eq!(migrated.schema_version(), 26, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
+    assert_eq!(migrated.schema_version(), 27, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
 
     let role: Option<String> = migrated
         .read(move |conn| conn.query_row("SELECT role FROM segment WHERE chapter_id = ?1", [chapter_id], |r| r.get(0)))
@@ -607,24 +607,11 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// I/O Matrix hàng "Gộp/tách một segment vai" — vai KHÔNG nhân bản sang hàng MỚI.
-//
-// 🔴 **VÌ SAO CA NÀY PHẢI SỐNG Ở ĐÂY, DÙ `segment_contract.rs` ĐÃ CÓ MỘT DÒNG `None` CHO
-// `role`.** Ca `a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default` dựng
-// Tác phẩm bằng `create_work_from_text` — một Chương **0 ảnh**, nên CẢ HAI câu bị gộp vốn đã
-// mang `role = NULL`. Khẳng định "hàng mới mang `role = NULL`" ở đó vì thế đúng ở **CẢ HAI**
-// nhánh: nó xanh y hệt nếu `write_regroup` CÓ chép vai sang hàng mới, vì không có vai nào để
-// mà chép. Đo 2026-09-09 (vòng nghiệm thu bước 3): đó là một assert không canh nhánh nào —
-// đúng lớp lỗi mà `AGENTS.md` §Known pitfalls gọi tên ("một bộ test xanh KHÔNG chứng minh chỗ
-// nối mới được canh").
-//
-// Ca này gộp một segment **THẬT SỰ mang `role='caption'`** với câu liền trên nó. Nếu câu
-// `INSERT` của `write_regroup` chép `role` từ hàng nguồn, hàng mới sẽ mang `'caption'` và ca
-// này ĐỎ — đó là điều làm nó khác ca kia.
+// Merging or splitting a role segment is refused and writes nothing.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
+fn merging_a_role_bearing_segment_is_refused_and_writes_nothing() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("merge-vai-khong-nhan-ban");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
@@ -645,7 +632,7 @@ fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
     // `segment_contract.rs` da dinh).
     let chapter_id = opened.chapter_id;
     let truoc = read_role_rows(&opened.store, chapter_id);
-    let (cap_ord, _, cap_text) = truoc
+    let (cap_ord, _, _) = truoc
         .iter()
         .find(|(_, r, _)| r.as_deref() == Some("caption"))
         .cloned()
@@ -664,61 +651,15 @@ fn merging_a_caption_segment_gives_a_new_row_with_no_role_at_all() {
         })
         .expect("doc id cua hang caption that bai");
 
-    let out = merge_segments(Some(&opened), cap_id).expect("gop hang caption voi cau lien tren no");
-    assert_eq!(out.new_segments.len(), 1, "mot luot gop sinh dung MOT hang moi");
-    let moi_id = out.new_segments[0].id;
-    // 🔴 Doc TRUC TIEP qua DTO `ChapterSegment` (day IPC that su, `read_fresh_rows` cot thu
-    // 10, `row.get(9)`) -- khong chi doc lai bang SQL tho nhu ben duoi. Neu chi so cot lech
-    // (mot cot moi chen VAO GIUA thay vi noi cuoi cau SELECT), phep doc THO co the vo tinh
-    // van dung nham cot khac ma van ra None -- doc qua DTO la cho DUY NHAT do dung hinh dang
-    // day that.
-    assert_eq!(
-        out.new_segments[0].role, None,
-        "DTO `ChapterSegment.role` cua hang MOI (tu `RegroupOutcome::new_segments`) phai la \
-         None -- day la phep do TRUC TIEP qua day IPC, khong qua SQL tho"
-    );
+    let err = merge_segments(Some(&opened), cap_id).expect_err("gop mot hang mang vai phai bi tu choi");
+    assert_eq!(err.code(), "segment.has_role");
+    assert_eq!(err.message_key(), auratranslate_lib::core::i18n::MessageKey::SegmentHasRole);
+    assert!(!err.retryable());
+    assert!(err.params().contains_key("segment_id"), "loi phai bao id hang mang vai: {err:?}");
 
-    // ── Menh de duoc do ────────────────────────────────────────────────────────────
     let sau = read_role_rows(&opened.store, chapter_id);
-    let moi = sau
-        .iter()
-        .find(|(ord, _, _)| *ord == cap_ord - 1)
-        .expect("hang moi chiem `ord` cua cau DAU nhom (AD-5: ve huu + tao moi)");
-    assert!(
-        moi.2.contains(&cap_text),
-        "hang moi phai chua van ban cua caption da gop vao: {moi:?}"
-    );
-    assert_eq!(
-        moi.1, None,
-        "🔴 vai KHONG nhan ban: mot hang MOI sinh tu gop/tach (AD-5 ve huu + tao moi) khong \
-         thua ke `role` cua hang nguon. Ca nay DO neu `write_regroup` chep cot do -- va do la \
-         phep do ma ca o `segment_contract.rs` (Chuong 0 anh) khong lam duoc."
-    );
-    assert_eq!(
-        sau.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).count(),
-        0,
-        "sau luot gop, khong hang SONG nao con mang vai caption: {sau:?}"
-    );
+    assert_eq!(sau, truoc, "bi tu choi thi khong ghi gi va khong ve huu hang nao");
 
-    // 🔵 **SUA 2026-09-09, sau khi DO thay vi doan** — ban dau ca nay khang dinh "hang alt giu
-    // nguyen vai", tren gia dinh rang cau dung TREN caption la mot cau van xuoi. Luot chay dau
-    // tien bac gia dinh do: `alt` va `caption` cua CUNG mot anh nam LIEN NHAU (alt tai neo,
-    // caption ngay sau -- dung AD-42), nen `merge_segments` tren hang caption gop no voi hang
-    // ALT. Ket qua do duoc con MANH hon menh de ban dau: CA HAI hang nguon deu mang vai, va
-    // hang moi van `role = NULL` -- neu `write_regroup` chep vai, no da phai chep MOT trong
-    // HAI vai do, va ca nay DO.
-    assert_eq!(
-        sau.iter().filter(|(_, r, _)| r.as_deref() == Some("alt")).count(),
-        0,
-        "luot gop nay nuot CA hang alt lan hang caption (chung lien nhau theo AD-42), nen \
-         khong hang SONG nao con mang vai: {sau:?}"
-    );
-    assert!(
-        moi.2.contains("mo ta anh minh hoa"),
-        "hang moi phai chua ca van ban cua hang alt da bi gop vao: {moi:?}"
-    );
-
-    let _ = moi_id;
     drop(opened);
     cleanup(&root);
 }
@@ -823,7 +764,7 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn splitting_a_role_bearing_segment_gives_new_rows_with_no_role_at_all() {
+fn splitting_a_role_bearing_segment_is_refused_and_writes_nothing() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("split-vai-khong-nhan-ban");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
@@ -848,22 +789,14 @@ fn splitting_a_role_bearing_segment_gives_new_rows_with_no_role_at_all() {
         .expect("doc id cua hang caption that bai");
 
     let cut = caption_text.chars().count() / 2;
-    let out = split_segment(Some(&opened), cap_id, vec![cut]).expect("tach hang caption lam doi");
-    assert_eq!(out.new_segments.len(), 2, "tach mot diem cat sinh dung HAI manh");
-    for piece in &out.new_segments {
-        assert_eq!(
-            piece.role, None,
-            "🔴 vai KHONG nhan ban: hang MOI sinh tu tach (AD-5 ve huu + tao moi) khong duoc \
-             thua ke `role` cua hang nguon: {piece:?}"
-        );
-    }
+    let truoc = read_role_rows(&opened.store, chapter_id);
+    let err = split_segment(Some(&opened), cap_id, vec![cut]).expect_err("tach hang mang vai phai bi tu choi");
+    assert_eq!(err.code(), "segment.has_role");
+    assert_eq!(err.params().get("segment_id"), Some(&cap_id.to_string()));
+    assert!(!err.retryable());
 
     let rows = read_role_rows(&opened.store, chapter_id);
-    assert_eq!(
-        rows.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).count(),
-        0,
-        "sau luot tach, khong hang SONG nao con mang vai caption: {rows:?}"
-    );
+    assert_eq!(rows, truoc, "bi tu choi thi khong ghi gi va khong ve huu hang nao");
 
     drop(opened);
     cleanup(&root);

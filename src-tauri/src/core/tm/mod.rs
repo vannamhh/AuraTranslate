@@ -24,3 +24,18 @@ pub struct SimilarSegment {
     /// Bản dịch đã lưu song song với `source_text`.
     pub target_text: String,
 }
+
+/// Appends a pair in the caller's transaction; existing rows are never updated (AD-6).
+pub fn insert_pair(
+    tx: &crate::core::store::Transaction<'_>,
+    source_text: &str,
+    target_text: &str,
+    translation_origin: &str,
+) -> crate::core::store::SqlResult<()> {
+    tx.execute(
+        "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
+         VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+        (source_text, target_text, translation_origin),
+    )?;
+    Ok(())
+}
