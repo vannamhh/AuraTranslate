@@ -80,7 +80,7 @@ Phase working notes: [11-8-lo-b-phases-2026-10-01.md](11-8-lo-b-phases-2026-10-0
 - Windows red: `relative()` gives `\` file labels; normalised to `/` in the test. Production is unaffected.
 - F-W-8: `readFixture` now returns `caret_segment_id: null`, not the first id; the first id moved the caret in `editorConfirmSegment` ②.
 - F-CI-4: the nightly read is its own function, so a `silent` push verdict cannot skip it. `failure`, `timed_out` and `startup_failure` warn.
-- F-B-1 layer 2 was measured locally on a `--features wdio` build: passing, and the old `Array.isArray` line throws `[BÀN ĐO HỎNG]`. Layer 1 (`displayplacer` 1.4.0, MIT, full sha256 in the Stack row) is measured only by the closing dispatch.
+- F-B-1 layer 2 was measured locally on a `--features wdio` build: passing, and the old `Array.isArray` line throws `[BÀN ĐO HỎNG]`. Layer 1 (`displayplacer` 1.4.0, MIT, full sha256 in the Stack row): dispatch `36813979650` measured the `macos-26` runner display at 1024x768 with no 1440x900 mode (1600x900, 1920x1080 and 1600x1200 are listed), so the step sets 1920x1080; `full` needs a work area ≥ 820 tall.
 
 ## Spec Change Log
 

@@ -814,17 +814,18 @@ jobs:
             --out-dir src-tauri/target/debug/dict \
             --layer all
 
-      # `attribution-focus` needs the docked Lookup (layout tier `full`, width >= 1100 and
-      # height >= 700 CSS px). The log of the runner's display before and after is the
-      # evidence; if `displayplacer` cannot set 1440x900, this step goes red on purpose.
-      - name: raise display resolution to 1440x900
+      # `attribution-focus` needs the docked Lookup (layout tier `full`: work area >= 1100
+      # wide and >= 820 tall in CSS px, after window and app chrome). The runner's virtual
+      # display starts at 1024x768 and offers no 1440x900 mode; 1920x1080 is listed. If
+      # `displayplacer` cannot set it, this step goes red on purpose.
+      - name: raise display resolution to 1920x1080
         run: |
           system_profiler SPDisplaysDataType
           brew install displayplacer
           displayplacer list
           screen_id=$(displayplacer list | awk '/^Persistent screen id:/ { print $4; exit }')
           test -n "$screen_id"
-          displayplacer "id:$screen_id res:1440x900"
+          displayplacer "id:$screen_id res:1920x1080"
           system_profiler SPDisplaysDataType
 
       # Bộ e2e trọn vẹn. `test:e2e` tự dựng nhị phân debug có feature `wdio` rồi gọi
