@@ -25,17 +25,58 @@ pub struct SimilarSegment {
     pub target_text: String,
 }
 
+/// FR118 binary axis over the FR117 origins that may enter TM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PairSide {
+    Mine,
+    Others,
+}
+
+/// The origins a TM pair may carry (AD-47 ⑥); `''` ("no answer") is not representable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PairOrigin {
+    SelfTranslated,
+    Other,
+    BilingualImport,
+}
+
+impl PairOrigin {
+    pub fn from_stored(value: &str) -> Option<Self> {
+        match value {
+            "self" => Some(Self::SelfTranslated),
+            "other" => Some(Self::Other),
+            "bilingual_import" => Some(Self::BilingualImport),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::SelfTranslated => "self",
+            Self::Other => "other",
+            Self::BilingualImport => "bilingual_import",
+        }
+    }
+
+    pub fn side(self) -> PairSide {
+        match self {
+            Self::SelfTranslated => PairSide::Mine,
+            Self::Other | Self::BilingualImport => PairSide::Others,
+        }
+    }
+}
+
 /// Appends a pair in the caller's transaction; existing rows are never updated (AD-6).
 pub fn insert_pair(
     tx: &crate::core::store::Transaction<'_>,
     source_text: &str,
     target_text: &str,
-    translation_origin: &str,
+    translation_origin: PairOrigin,
 ) -> crate::core::store::SqlResult<()> {
     tx.execute(
         "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
          VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-        (source_text, target_text, translation_origin),
+        (source_text, target_text, translation_origin.as_str()),
     )?;
     Ok(())
 }

@@ -5,13 +5,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
+use auratranslate_lib::commands::project::{
+    OpenWork, OpenWorkState, confirm_bilingual_import, create_work_from_text, stash_pending_import_source,
+};
 use auratranslate_lib::commands::segment::{
-    SegmentTargetEdit, TRANSLATION_ORIGIN_OTHER, confirm_segment, merge_segments, promote_ai_translation,
+    SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER, TRANSLATION_ORIGIN_SELF, confirm_segment, merge_segments, promote_ai_translation,
     flush_segment_targets, read_open_chapter_segments, split_segment, wire,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::Transaction;
+use auratranslate_lib::core::tm::{PairOrigin, PairSide};
+use auratranslate_lib::core::segment::import::import_bilingual_file;
 use tauri::Manager as _;
 use tauri::test::{MockRuntime, mock_builder, mock_context, noop_assets};
 
@@ -395,4 +399,190 @@ fn the_wire_confirm_writes_the_pair_through_the_command_shell() {
     let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let rows = pairs(guard.as_ref().expect("dang mo"));
     assert_eq!(rows, [("A dragon roared.".to_owned(), "Rong gam.".to_owned())]);
+}
+
+fn bilingual_work(tag: &str, rows: usize) -> (PathBuf, OpenWork) {
+    let root = temp_dir(tag);
+    let csv: String = (0..rows)
+        .map(|i| format!("Nguon {i}.,Dich {i}.\n"))
+        .collect();
+    let path = root.join("song-ngu.csv");
+    fs::write(&path, csv).expect("ghi csv");
+    let shape = import_bilingual_file(&path).expect("doc csv");
+    let state = std::sync::Mutex::new(None);
+    stash_pending_import_source(&state, shape, None);
+    let open = confirm_bilingual_import(
+        &root,
+        &state,
+        tag,
+        "en",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        0,
+        1,
+        false,
+        Vec::new(),
+    )
+    .expect("tao tac pham song ngu");
+    (root, open)
+}
+
+#[test]
+fn a_typed_then_confirmed_pair_is_mine() {
+    let (root, open) = work("typed-self", "一。");
+    let (chapter_id, ids) = segment_ids(&open);
+    type_text(&open, chapter_id, ids[0], "B");
+    confirm_segment(Some(&open), ids[0], "", "").expect("xac nhan");
+    assert_eq!(tm_rows(&open)[0].3, TRANSLATION_ORIGIN_SELF);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_verbatim_bilingual_confirm_keeps_the_bilingual_import_origin() {
+    let (root, open) = bilingual_work("bi-verbatim", 1);
+    let (_, ids) = segment_ids(&open);
+    confirm_segment(
+        Some(&open),
+        ids[0],
+        "Dich 0.",
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+    )
+    .expect("xac nhan");
+    let rows = tm_rows(&open);
+    assert_eq!(
+        (rows[0].2.as_str(), rows[0].3.as_str()),
+        ("Dich 0.", TRANSLATION_ORIGIN_BILINGUAL_IMPORT)
+    );
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_rewritten_bilingual_confirm_is_mine() {
+    let (root, open) = bilingual_work("bi-rewrite", 1);
+    let (chapter_id, ids) = segment_ids(&open);
+    type_text(&open, chapter_id, ids[0], "C");
+    confirm_segment(
+        Some(&open),
+        ids[0],
+        "Dich 0.",
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+    )
+    .expect("xac nhan");
+    let rows = tm_rows(&open);
+    assert_eq!(
+        (rows[0].2.as_str(), rows[0].3.as_str()),
+        ("C", TRANSLATION_ORIGIN_SELF)
+    );
+    assert_eq!(state_of(&open, ids[0]).1, TRANSLATION_ORIGIN_SELF);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn an_ai_promoted_sentence_is_other_verbatim_and_mine_when_rewritten() {
+    let (root, open) = work("other-two", "一。二。");
+    let (chapter_id, ids) = segment_ids(&open);
+    for id in [ids[0], ids[1]] {
+        promote_ai_translation(Some(&open), id, "B", false).expect("nang");
+    }
+    confirm_segment(Some(&open), ids[0], "B", TRANSLATION_ORIGIN_OTHER).expect("nguyen van");
+    type_text(&open, chapter_id, ids[1], "C");
+    confirm_segment(Some(&open), ids[1], "B", TRANSLATION_ORIGIN_OTHER).expect("viet lai");
+    let rows = tm_rows(&open);
+    assert_eq!(
+        (rows[0].2.as_str(), rows[0].3.as_str()),
+        ("B", TRANSLATION_ORIGIN_OTHER)
+    );
+    assert_eq!(
+        (rows[1].2.as_str(), rows[1].3.as_str()),
+        ("C", TRANSLATION_ORIGIN_SELF)
+    );
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn an_edited_bilingual_work_writes_one_pair_per_confirm_each_with_its_own_origin() {
+    let (root, open) = bilingual_work("bi-many", 60);
+    let (chapter_id, ids) = segment_ids(&open);
+    assert_eq!(ids.len(), 60);
+    for (i, id) in ids.iter().enumerate() {
+        let original = format!("Dich {i}.");
+        if i % 3 == 0 {
+            type_text(&open, chapter_id, *id, &format!("Viet lai {i}."));
+        }
+        confirm_segment(
+            Some(&open),
+            *id,
+            &original,
+            TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+        )
+        .expect("xac nhan");
+    }
+    let rows = tm_rows(&open);
+    assert_eq!(rows.len(), 60, "khong cap nao bi bo");
+    for (i, row) in rows.iter().enumerate() {
+        if i % 3 == 0 {
+            assert_eq!(
+                (row.2.clone(), row.3.as_str()),
+                (format!("Viet lai {i}."), TRANSLATION_ORIGIN_SELF),
+                "cau {i}"
+            );
+        } else {
+            assert_eq!(
+                (row.2.clone(), row.3.as_str()),
+                (format!("Dich {i}."), TRANSLATION_ORIGIN_BILINGUAL_IMPORT),
+                "cau {i}"
+            );
+        }
+    }
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_stale_empty_origin_echo_on_unchanged_text_is_refused_and_writes_nothing() {
+    let (root, open) = bilingual_work("stale-empty", 1);
+    let (_, ids) = segment_ids(&open);
+    let before = state_of(&open, ids[0]);
+    let err = confirm_segment(Some(&open), ids[0], "Dich 0.", "").expect_err("phai tu choi");
+    assert_eq!(err.code(), "segment.unknown_translation_origin");
+    assert!(
+        tm_rows(&open).is_empty(),
+        "khong cap nao, nhat la khong cap origin rong"
+    );
+    assert_eq!(state_of(&open, ids[0]), before);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn the_pair_origin_projection_pins_all_three_values() {
+    for (stored, pair_origin, side) in [
+        (
+            TRANSLATION_ORIGIN_SELF,
+            PairOrigin::SelfTranslated,
+            PairSide::Mine,
+        ),
+        (
+            TRANSLATION_ORIGIN_OTHER,
+            PairOrigin::Other,
+            PairSide::Others,
+        ),
+        (
+            TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+            PairOrigin::BilingualImport,
+            PairSide::Others,
+        ),
+    ] {
+        assert_eq!(PairOrigin::from_stored(stored), Some(pair_origin));
+        assert_eq!(pair_origin.as_str(), stored);
+        assert_eq!(pair_origin.side(), side);
+    }
+    assert_eq!(PairOrigin::from_stored(""), None);
+    assert_eq!(PairOrigin::from_stored("unknown"), None);
 }

@@ -2556,16 +2556,16 @@ pub fn confirm_segment(
         let target_nfc: String = target_text.trim().nfc().collect();
         let text_at_load_nfc: String = text_at_load.trim().nfc().collect();
         let confirmed_origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
-            TRANSLATION_ORIGIN_SELF
-        } else if TRANSLATION_ORIGINS.contains(&origin_at_load.as_str()) {
-            origin_at_load.as_str()
+            crate::core::tm::PairOrigin::SelfTranslated
+        } else if let Some(loaded_origin) = crate::core::tm::PairOrigin::from_stored(&origin_at_load) {
+            loaded_origin
         } else {
             set_reject(ConfirmReject::UnknownOrigin);
             return Err(SqlError::QueryReturnedNoRows);
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
-            (SEGMENT_STATUS_CONFIRMED, confirmed_origin, segment_id),
+            (SEGMENT_STATUS_CONFIRMED, confirmed_origin.as_str(), segment_id),
         )?;
         tx.execute(
             "INSERT INTO segment_version (segment_id, target_text, created_at) \
