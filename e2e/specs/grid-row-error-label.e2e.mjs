@@ -119,7 +119,7 @@ describe('Story 11.5 · L2610 + L3510 — nhãn hàng hiện đúng message_key 
           chapterId: cid,
           edits: [{ id: sid, target_text: 'Ban dich that.' }],
         })
-        return internals.invoke('confirm_segment', { segmentId: sid, textAtLoad: '', originAtLoad: '' })
+        return internals.invoke('confirm_segment', { segmentId: sid })
       },
       chapterId,
       segmentId,

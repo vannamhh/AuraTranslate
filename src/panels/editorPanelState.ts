@@ -304,10 +304,8 @@ export const editorPendingPromote: DeepReadonly<Ref<PendingPromote | null>> = re
  * **Đưa một kết quả AI vào Editor** — Story 4.8 · FR72 · AD-47①/③, `⌘⇧↵`.
  *
  * Cùng khuôn `segmentHistoryState.ts::restoreVersion`: gọi lệnh Rust rồi mirror kết quả bằng
- * [`replaceEditorSegment`] — đó là nửa còn lại của AD-47①(a), không cosmetic (§Code Map spec
- * 4.8: *"the confirm baseline is read from the loaded snapshot"* — `confirmCurrentSegment` đọc
- * mốc so FR117 từ CHÍNH [`segments`], nên một lượt PROMOTE không mirror vào đó để lại mốc so
- * TRỎ VÀO văn bản cũ).
+ * [`replaceEditorSegment`] — nếu không, ảnh chụp hiển thị giữ văn bản cũ cho tới lượt nạp lại.
+ * Mốc so FR117 nằm ở Rust (AD-50), không ở [`segments`].
  *
  * `segmentId`/`text` do CHỖ GỌI xác định (`main.ts`'s deps, đọc `aiTranslateRunSegmentId`/
  * `aiTranslateAccumulatedText`) — cùng lý lẽ `assembleCurrentAiPrompt` không tự `import`
@@ -454,11 +452,8 @@ export async function flushChapterPositionNow(): Promise<void> {
  * Văn bản đang gõ, theo `segment.id` — **state cục bộ frontend**, ngoại lệ *duy nhất, tường
  * minh* của AD-1 (`ARCHITECTURE-SPINE.md`).
  *
- * 🔴 **Tách rời `segments`, và đó là một mệnh đề của AD-31 chứ không một lượt chia cho gọn.**
- * `segments` giữ bản **lúc nạp segment**, và FR117 (*xuất xứ bản dịch*, Story 2.7) so *"văn
- * bản đích **hiện tại** với bản **lúc nạp**"* — **không** dùng cờ dirty. Ghi văn bản đang gõ
- * đè lên `segments` là huỷ đúng cái mốc mà story đó cần, và nó sẽ hỏng ở Epic sau mà không
- * gì nối được về đây.
+ * 🔴 **Tách rời `segments`:** `segments` giữ bản **lúc nạp segment**; ghi văn bản đang gõ đè
+ * lên đó làm ảnh chụp lệch đĩa cho tới lượt nạp lại.
  *
  * ⚠️ Đây là nguồn hiển thị: template đọc `editedText.get(id) ?? s.target_text`. Giá trị ở đây
  * luôn được đặt **từ chính DOM** *(`textContent` của câu đang gõ)*, nên lượt render kế tiếp
@@ -1136,15 +1131,13 @@ export function requestCurrentEditorCaretPlacement(): boolean {
  * mệnh đề chỉ sống trong chú thích là một mệnh đề không ai theo dõi.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ③ ẢNH CHỤP HIỂN THỊ — và vì sao nó KHÔNG huỷ mốc so sánh của FR117
+ * ③ ẢNH CHỤP HIỂN THỊ
  * ─────────────────────────────────────────────────────────────────────────────
  * Vạch lề đọc `segment.status` từ [`segments`], nên trạng thái mới phải vào ảnh chụp đó, nếu
  * không màn hình nói dối cho tới lượt nạp lại. Lượt cập nhật dưới đây thay **đúng một** trường
  * `status` và dựng một mảng mới *(`shallowRef` không theo dõi sửa tại chỗ)*.
  *
- * 🔴 `target_text` **KHÔNG bị đụng**, và đó là điều kiện của AC11(a): [`segments`] giữ bản
- * **lúc nạp**, tức mốc mà FR117 (Story 2.7) so *"văn bản đích hiện tại với bản lúc nạp"* —
- * **không dùng cờ dirty** (hợp đồng phụ AD-31).
+ * 🔴 `target_text` **KHÔNG bị đụng** (AC11(a)): [`segments`] giữ bản **lúc nạp**.
  */
 export async function confirmCurrentSegment(): Promise<ConfirmResult> {
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1271,49 +1264,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
     return 'still-dirty'
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 🔴 ② MỐC SO CỦA FR117 — đọc TỪ [`segments`], và đọc TRƯỚC bước ③
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 🔵 Story 2.7, Quyết định #2 đường (b) (Ice ký 2026-08-16). [`segments`] giữ bản **lúc
-  // nạp**; doc-comment của [`editedText`] khai mệnh đề đó bằng chữ **từ Story 2.3**, tức
-  // trước story này — đây là lượt đầu tiên có ai đọc nó.
-  //
-  // 🔴 **`segments`, KHÔNG `editedText`.** `editedText` là văn bản **đang gõ**: lấy nó làm mốc
-  // thì mốc luôn bằng văn bản Rust vừa đọc trên đĩa ⇒ *"y hệt"* ở **mọi** lượt ⇒ mọi câu người
-  // dùng gõ mang nhãn *của người khác*, và kho TM của Epic 7 bị trộn phong cách đúng theo cách
-  // mà chính story này tồn tại để chống. Không cổng nào bắt được lượt nhầm đó — nó là hai cái
-  // tên cách nhau một chữ, cùng kiểu, cùng khoá.
-  //
-  // ⚠️ Đọc **trước** bước ③: bước ③ vá `status` vào ảnh chụp và **cố ý không đụng**
-  // `target_text` *(khối ③ ở doc-comment của `confirmCurrentSegment` ghi lý do)*. Thứ tự này
-  // vì thế không phải một điều kiện đúng **hôm nay**; nó là thứ giữ cho một lượt sửa tương lai
-  // ở bước ③ không lặng lẽ đổi nghĩa của mốc.
-  const loaded = segments.value.find((s) => s.id === id)
-  if (loaded === undefined) {
-    // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."*
-    //
-    // ⚠️ **Vì sao KHÔNG có nhánh dự phòng gửi `''`, ghi ra vì đó là đường sai rẻ ở đây:** một
-    // mốc rỗng đọc là *"câu này lúc nạp chưa có bản dịch"*, nên nó cho ra **`self` bất kể sự
-    // thật** — tức một lời khai về chữ của ai, dựng từ một chỗ mã đã biết là mình không biết.
-    // Từ chối thì người dùng bấm lại; đoán thì nhãn sai đi vĩnh viễn vào kho TM.
-    //
-    // ⚠️ Trạng thái này **không tới được** hôm nay *(`caretSegmentId` sinh từ `data-segment-id`
-    // mà lưới render ra từ chính `segments`)*, và nó vẫn có mặt vì cái giá hai bên lệch nhau
-    // rất xa. Dùng lại `'no-caret'` chứ không dựng một mã thứ sáu: câu nói với người dùng y hệt
-    // — *"chưa xác định được câu nào để ký"* — và một mã mới đòi một khoá `vi.json` cho một
-    // nhánh chưa ai đi qua, đúng thứ luật danh mục đóng của `MessageKey` cấm.
-    console.error(
-      `[editor] KHÔNG ký segment ${id}: không tìm thấy nó trong ảnh chụp lúc nạp, nên ` +
-        `KHÔNG có mốc so cho FR117 — từ chối thay vì đoán một xuất xứ (Story 2.7).`,
-    )
-    return 'no-caret'
-  }
-
-  // Mốc xuất xứ FR117 — cùng khuôn `loaded.target_text` ngay trên: đọc từ ảnh chụp lúc nạp
-  // Chương, không đọc lại cột `translation_origin` trên đĩa (nó có thể đã đổi vì lượt ký
-  // trước, đúng khoảng hở mà mốc bằng `target_text` tồn tại để chống).
-  const originAtLoad = loaded.translation_origin
-  const { outcome, error } = await confirmSegment(id, loaded.target_text, originAtLoad)
+  const { outcome, error } = await confirmSegment(id)
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
     //    trình duyệt thường). Không ca nào được coi là đã xác nhận.
@@ -2535,10 +2486,7 @@ function ghiRegroupNotice(notice: RegroupNotice): void {
 /**
  * 🔴 **Vá ảnh chụp sau một lượt gộp/tách** — và đây là chỗ AD-47 ① được thi hành ở webview.
  *
- * AD-47 ① đòi mỗi lượt ghi không-phải-người-dùng đặt lại **mốc so sánh** của segment về đúng
- * văn bản vừa ghi. Mốc **không sống trên đĩa**: Quyết định #2(b) của Story 2.7 đặt nó ở
- * [`segments`]. Chèn nguyên hàng Rust vừa trả về **là** lượt đặt mốc đó — không một bước thứ
- * hai, và vì thế không một nửa nào rơi được.
+ * Mốc so sánh FR117 do Rust đặt (AD-50); chèn nguyên hàng Rust vừa trả về chỉ làm ảnh chụp hiển thị khớp đĩa.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔵 2026-08-17 — HÀNG VỀ HƯU **BỊ GỠ** KHỎI ẢNH CHỤP. Chữ ký #6(b) đã bị LẬT
@@ -2745,7 +2693,7 @@ async function regroupUnguarded(
   // ra**, thứ khó phát hiện nhất vì nó luôn hiện *một* câu đúng ngữ pháp.
   ghiRegroupNotice(ten === 'gop' ? 'merged' : 'split')
 
-  // ② Vá ảnh chụp — và đó là lượt đặt mốc AD-47 ①. Xem [`applyRegroup`].
+  // ② Vá ảnh chụp hiển thị. Xem [`applyRegroup`].
   applyRegroup(outcome)
   void refreshChapterAssetsAfterRegroup()
 

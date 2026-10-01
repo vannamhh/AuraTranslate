@@ -2944,7 +2944,7 @@ fn work_not_indexed(work_id: &str) -> IpcError {
     )
 }
 
-/// Từ chối mở một `project.db` mà cột `segment.translation_origin` mang một giá trị NGOÀI
+/// Từ chối mở một `project.db` mà cột `segment.translation_origin` hoặc `baseline_translation_origin` mang một giá trị NGOÀI
 /// danh mục đóng [`TRANSLATION_ORIGINS`].
 ///
 /// [`SEGMENT_DDL`] không có `CHECK` trên cột này (cùng lý do cột `status`, xem doc-comment
@@ -2967,8 +2967,10 @@ fn reject_unknown_translation_origin(
         .join(", ");
     let found: Option<String> = store.read(|conn| {
         let mut stmt = conn.prepare(&format!(
-            "SELECT DISTINCT translation_origin FROM segment \
-             WHERE translation_origin NOT IN ({placeholders}) LIMIT 1",
+            "SELECT value FROM (\
+               SELECT translation_origin AS value FROM segment \
+               UNION SELECT baseline_translation_origin FROM segment) \
+             WHERE value NOT IN ({placeholders}) LIMIT 1",
         ))?;
         let mut rows = stmt.query(params_from_iter(TRANSLATION_ORIGINS.iter()))?;
         match rows.next()? {

@@ -112,7 +112,7 @@ fn the_first_confirm_writes_one_pair_with_the_origin_written_to_the_segment() {
     type_text(&open, chapter_id, id, "Ban dich B.");
     assert!(tm_rows(&open).is_empty(), "go chu khong ghi cap nao");
 
-    confirm_segment(Some(&open), id, "", "").expect("xac nhan");
+    confirm_segment(Some(&open), id).expect("xac nhan");
 
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 1);
@@ -130,10 +130,10 @@ fn confirming_again_without_an_edit_writes_no_pair_and_no_version() {
     let (root, open) = work("again", "一。二。");
     let (chapter_id, ids) = segment_ids(&open);
     type_text(&open, chapter_id, ids[0], "B");
-    confirm_segment(Some(&open), ids[0], "", "").expect("xac nhan");
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let before = tm_rows(&open);
 
-    let outcome = confirm_segment(Some(&open), ids[0], "", "").expect("xac nhan lai");
+    let outcome = confirm_segment(Some(&open), ids[0]).expect("xac nhan lai");
 
     assert!(!outcome.version_created);
     assert_eq!(tm_rows(&open), before);
@@ -149,12 +149,12 @@ fn editing_then_reconfirming_adds_a_pair_and_leaves_the_first_one_untouched() {
     let id = ids[0];
     let source = source_of(&open, id);
     type_text(&open, chapter_id, id, "B");
-    confirm_segment(Some(&open), id, "", "").expect("xac nhan B");
+    confirm_segment(Some(&open), id).expect("xac nhan B");
     let first = tm_rows(&open);
 
     type_text(&open, chapter_id, id, "C");
     assert_eq!(state_of(&open, id).0, "draft", "sua mot segment da ky dua no ve nhap");
-    confirm_segment(Some(&open), id, "B", "self").expect("xac nhan C");
+    confirm_segment(Some(&open), id).expect("xac nhan C");
 
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 2);
@@ -172,7 +172,7 @@ fn the_same_pair_confirmed_twice_over_a_detour_is_stored_three_times() {
     let source = source_of(&open, id);
     for text in ["B", "C", "B"] {
         type_text(&open, chapter_id, id, text);
-        confirm_segment(Some(&open), id, "", "").expect("xac nhan");
+        confirm_segment(Some(&open), id).expect("xac nhan");
     }
 
     let got = pairs(&open);
@@ -189,7 +189,7 @@ fn an_empty_or_whitespace_target_is_refused_and_writes_no_pair() {
     let id = ids[0];
     for text in ["", "  "] {
         type_text(&open, chapter_id, id, text);
-        let err = confirm_segment(Some(&open), id, "", "").expect_err("phai bi tu choi");
+        let err = confirm_segment(Some(&open), id).expect_err("phai bi tu choi");
         assert_eq!(err.message_key(), MessageKey::SegmentNothingToConfirm);
     }
     assert!(tm_rows(&open).is_empty());
@@ -204,9 +204,9 @@ fn a_missing_or_retired_segment_writes_no_pair() {
     type_text(&open, chapter_id, ids[1], "B");
     merge_segments(Some(&open), ids[1]).expect("gop");
 
-    let retired = confirm_segment(Some(&open), ids[1], "", "").expect_err("segment da ve huu");
+    let retired = confirm_segment(Some(&open), ids[1]).expect_err("segment da ve huu");
     assert_eq!(retired.message_key(), MessageKey::SegmentRetired);
-    let missing = confirm_segment(Some(&open), 9_999_999, "", "").expect_err("segment khong co");
+    let missing = confirm_segment(Some(&open), 9_999_999).expect_err("segment khong co");
     assert_eq!(missing.message_key(), MessageKey::SegmentNotFound);
     assert!(tm_rows(&open).is_empty());
     drop(open);
@@ -219,7 +219,7 @@ fn merging_or_splitting_prose_after_confirm_leaves_every_pair_byte_identical() {
     let (chapter_id, ids) = segment_ids(&open);
     for (i, id) in ids.iter().take(3).enumerate() {
         type_text(&open, chapter_id, *id, &format!("Ban dich {i}"));
-        confirm_segment(Some(&open), *id, "", "").expect("xac nhan");
+        confirm_segment(Some(&open), *id).expect("xac nhan");
     }
     let before = tm_rows(&open);
     assert_eq!(before.len(), 3);
@@ -242,7 +242,7 @@ fn alt_and_caption_segments_write_pairs_like_prose() {
     set_role(&open, ids[1], "caption");
     for (i, id) in ids.iter().take(2).enumerate() {
         type_text(&open, chapter_id, *id, &format!("Vai {i}"));
-        confirm_segment(Some(&open), *id, "", "").expect("xac nhan");
+        confirm_segment(Some(&open), *id).expect("xac nhan");
     }
 
     let got = pairs(&open);
@@ -292,7 +292,7 @@ fn promoting_onto_a_confirmed_segment_returns_it_to_draft_and_the_next_confirm_w
     let (chapter_id, ids) = segment_ids(&open);
     let id = ids[0];
     type_text(&open, chapter_id, id, "B");
-    confirm_segment(Some(&open), id, "", "").expect("xac nhan");
+    confirm_segment(Some(&open), id).expect("xac nhan");
     assert_eq!(tm_rows(&open).len(), 1);
 
     let out = promote_ai_translation(Some(&open), id, "AI van ban", false).expect("nang");
@@ -304,7 +304,7 @@ fn promoting_onto_a_confirmed_segment_returns_it_to_draft_and_the_next_confirm_w
     assert_eq!((status.as_str(), origin.as_str()), ("draft", TRANSLATION_ORIGIN_OTHER));
     assert_eq!(tm_rows(&open).len(), 1, "nang cap khong ghi cap");
 
-    confirm_segment(Some(&open), id, "AI van ban", TRANSLATION_ORIGIN_OTHER).expect("xac nhan lai");
+    confirm_segment(Some(&open), id).expect("xac nhan lai");
     let got = pairs(&open);
     assert_eq!(got.len(), 2);
     assert_eq!(got[1].1, "AI van ban");
@@ -346,7 +346,7 @@ fn a_failing_pair_insert_rolls_the_whole_confirm_back() {
         })
         .expect("dat trigger");
 
-    confirm_segment(Some(&open), id, "", "").expect_err("insert tm hong thi confirm hong");
+    confirm_segment(Some(&open), id).expect_err("insert tm hong thi confirm hong");
 
     assert_eq!(state_of(&open, id), ("draft".to_owned(), String::new(), 0));
     assert!(tm_rows(&open).is_empty());
@@ -392,7 +392,7 @@ fn the_wire_confirm_writes_the_pair_through_the_command_shell() {
         ids[0]
     };
 
-    let outcome = wire::confirm_segment(app.handle().clone(), id, String::new(), String::new()).expect("xac nhan");
+    let outcome = wire::confirm_segment(app.handle().clone(), id).expect("xac nhan");
     assert!(outcome.version_created);
 
     let state = app.state::<OpenWorkState>();
@@ -434,7 +434,7 @@ fn a_typed_then_confirmed_pair_is_mine() {
     let (root, open) = work("typed-self", "一。");
     let (chapter_id, ids) = segment_ids(&open);
     type_text(&open, chapter_id, ids[0], "B");
-    confirm_segment(Some(&open), ids[0], "", "").expect("xac nhan");
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     assert_eq!(tm_rows(&open)[0].3, TRANSLATION_ORIGIN_SELF);
     drop(open);
     let _ = fs::remove_dir_all(root);
@@ -446,10 +446,7 @@ fn a_verbatim_bilingual_confirm_keeps_the_bilingual_import_origin() {
     let (_, ids) = segment_ids(&open);
     confirm_segment(
         Some(&open),
-        ids[0],
-        "Dich 0.",
-        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
-    )
+        ids[0])
     .expect("xac nhan");
     let rows = tm_rows(&open);
     assert_eq!(
@@ -467,10 +464,7 @@ fn a_rewritten_bilingual_confirm_is_mine() {
     type_text(&open, chapter_id, ids[0], "C");
     confirm_segment(
         Some(&open),
-        ids[0],
-        "Dich 0.",
-        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
-    )
+        ids[0])
     .expect("xac nhan");
     let rows = tm_rows(&open);
     assert_eq!(
@@ -489,9 +483,9 @@ fn an_ai_promoted_sentence_is_other_verbatim_and_mine_when_rewritten() {
     for id in [ids[0], ids[1]] {
         promote_ai_translation(Some(&open), id, "B", false).expect("nang");
     }
-    confirm_segment(Some(&open), ids[0], "B", TRANSLATION_ORIGIN_OTHER).expect("nguyen van");
+    confirm_segment(Some(&open), ids[0]).expect("nguyen van");
     type_text(&open, chapter_id, ids[1], "C");
-    confirm_segment(Some(&open), ids[1], "B", TRANSLATION_ORIGIN_OTHER).expect("viet lai");
+    confirm_segment(Some(&open), ids[1]).expect("viet lai");
     let rows = tm_rows(&open);
     assert_eq!(
         (rows[0].2.as_str(), rows[0].3.as_str()),
@@ -511,16 +505,12 @@ fn an_edited_bilingual_work_writes_one_pair_per_confirm_each_with_its_own_origin
     let (chapter_id, ids) = segment_ids(&open);
     assert_eq!(ids.len(), 60);
     for (i, id) in ids.iter().enumerate() {
-        let original = format!("Dich {i}.");
         if i % 3 == 0 {
             type_text(&open, chapter_id, *id, &format!("Viet lai {i}."));
         }
         confirm_segment(
             Some(&open),
-            *id,
-            &original,
-            TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
-        )
+            *id)
         .expect("xac nhan");
     }
     let rows = tm_rows(&open);
@@ -544,18 +534,213 @@ fn an_edited_bilingual_work_writes_one_pair_per_confirm_each_with_its_own_origin
     let _ = fs::remove_dir_all(root);
 }
 
+fn set_baseline(open: &OpenWork, id: i64, text: &'static str, origin: &'static str) {
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET baseline_target_text = ?1, baseline_translation_origin = ?2 WHERE id = ?3",
+                (text, origin, id),
+            )
+        })
+        .expect("dat moc that bai");
+}
+
+fn indexed_of(open: &OpenWork) -> auratranslate_lib::core::library::indexer::IndexedWork {
+    auratranslate_lib::core::library::indexer::IndexedWork {
+        work_id: open.meta.work_id.clone(),
+        atproj_path: open.dir.clone(),
+        name: open.meta.name.clone(),
+        source_lang: open.meta.source_lang.clone(),
+        genre: open.meta.genre.clone(),
+        created_at: open.meta.created_at.clone(),
+        updated_at: open.meta.updated_at.clone(),
+        chapter_count: open.meta.chapter_count,
+        status: open.meta.status.clone(),
+        status_is_override: open.meta.status_is_override,
+        chapter_done_count: open.meta.chapter_done_count,
+    }
+}
+
+fn reopen(open: OpenWork) -> OpenWork {
+    let indexed = indexed_of(&open);
+    drop(open);
+    auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed)).expect("mo lai tac pham")
+}
+
 #[test]
-fn a_stale_empty_origin_echo_on_unchanged_text_is_refused_and_writes_nothing() {
-    let (root, open) = bilingual_work("stale-empty", 1);
+fn an_out_of_set_baseline_origin_on_unchanged_text_is_refused_and_writes_nothing() {
+    let (root, open) = bilingual_work("bad-baseline", 1);
     let (_, ids) = segment_ids(&open);
+    let first = ids[0];
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET baseline_translation_origin = 'unknown' WHERE id = ?1",
+                [first],
+            )
+        })
+        .expect("dung fixture");
     let before = state_of(&open, ids[0]);
-    let err = confirm_segment(Some(&open), ids[0], "Dich 0.", "").expect_err("phai tu choi");
+    let err = confirm_segment(Some(&open), ids[0]).expect_err("phai tu choi");
     assert_eq!(err.code(), "segment.unknown_translation_origin");
-    assert!(
-        tm_rows(&open).is_empty(),
-        "khong cap nao, nhat la khong cap origin rong"
-    );
+    assert!(tm_rows(&open).is_empty(), "khong cap nao voi origin ngoai tap");
     assert_eq!(state_of(&open, ids[0]), before);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_rewrite_flushed_before_a_chapter_reload_and_an_app_restart_is_still_mine() {
+    let (root, open) = bilingual_work("reload", 1);
+    let (chapter_id, ids) = segment_ids(&open);
+    type_text(&open, chapter_id, ids[0], "C");
+
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap lai chuong");
+    assert_eq!(chapter.segments[0].target_text, "C");
+    let open = reopen(open);
+
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
+    let rows = tm_rows(&open);
+    assert_eq!(rows.len(), 1);
+    assert_eq!((rows[0].2.as_str(), rows[0].3.as_str()), ("C", TRANSLATION_ORIGIN_SELF));
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn merging_two_rewritten_unconfirmed_bilingual_drafts_then_confirming_is_mine() {
+    let (root, open) = bilingual_work("merge-rewritten", 2);
+    let (chapter_id, ids) = segment_ids(&open);
+    type_text(&open, chapter_id, ids[0], "Viet lai mot.");
+    type_text(&open, chapter_id, ids[1], "Viet lai hai.");
+
+    let merged = merge_segments(Some(&open), ids[1]).expect("gop");
+    let merged_id = merged.new_segments[0].id;
+    confirm_segment(Some(&open), merged_id).expect("xac nhan");
+
+    let rows = tm_rows(&open);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].3, TRANSLATION_ORIGIN_SELF);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn merging_two_verbatim_bilingual_drafts_keeps_the_bilingual_import_origin() {
+    let (root, open) = bilingual_work("merge-verbatim", 2);
+    let (_, ids) = segment_ids(&open);
+
+    let merged = merge_segments(Some(&open), ids[1]).expect("gop");
+    confirm_segment(Some(&open), merged.new_segments[0].id).expect("xac nhan");
+
+    assert_eq!(tm_rows(&open)[0].3, TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn restoring_an_older_version_then_confirming_unchanged_is_others_even_when_the_baseline_was_mine() {
+    let (root, open) = work("restore-baseline", "一。二。");
+    let (chapter_id, ids) = segment_ids(&open);
+    let id = ids[0];
+    type_text(&open, chapter_id, id, "A");
+    confirm_segment(Some(&open), id).expect("xac nhan A");
+    type_text(&open, chapter_id, id, "C");
+    confirm_segment(Some(&open), id).expect("xac nhan C");
+    set_baseline(&open, id, "C", TRANSLATION_ORIGIN_SELF);
+    let version_a: i64 = open
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT id FROM segment_version WHERE segment_id = ?1 AND target_text = 'A'",
+                [id],
+                |r| r.get(0),
+            )
+        })
+        .expect("tim phien ban A");
+
+    auratranslate_lib::commands::segment::restore_segment_version(Some(&open), id, version_a, false)
+        .expect("khoi phuc");
+    confirm_segment(Some(&open), id).expect("xac nhan sau khoi phuc");
+
+    let rows = tm_rows(&open);
+    assert_eq!(rows.len(), 3);
+    assert_eq!((rows[2].2.as_str(), rows[2].3.as_str()), ("A", TRANSLATION_ORIGIN_OTHER));
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged() {
+    let (root, open) = work("migrated", "一。");
+    let (chapter_id, ids) = segment_ids(&open);
+    type_text(&open, chapter_id, ids[0], "Viet truoc buoc 28.");
+    open.store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute_batch(
+                "ALTER TABLE segment DROP COLUMN baseline_target_text; \
+                 ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
+                 DELETE FROM schema_migration_log WHERE version = 28; \
+                 PRAGMA user_version = 27;",
+            )
+        })
+        .expect("ha ve buoc 27");
+    let open = reopen(open);
+    assert_eq!(open.store.schema_version(), 28, "mo lai phai chay buoc 28 that");
+
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
+    let rows = tm_rows(&open);
+    assert_eq!((rows[0].2.as_str(), rows[0].3.as_str()), ("Viet truoc buoc 28.", TRANSLATION_ORIGIN_SELF));
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_retired_included() {
+    let (root, open) = bilingual_work("migrated-backfill", 2);
+    let (_, ids) = segment_ids(&open);
+    let (draft, retired) = (ids[0], ids[1]);
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'Cu cua nguoi khac.', translation_origin = ?1, \
+                 retired_at = '2026-08-12T00:00:00.000Z' WHERE id = ?2",
+                (TRANSLATION_ORIGIN_OTHER, retired),
+            )?;
+            tx.execute_batch(
+                "ALTER TABLE segment DROP COLUMN baseline_target_text; \
+                 ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
+                 DELETE FROM schema_migration_log WHERE version = 28; \
+                 PRAGMA user_version = 27;",
+            )
+        })
+        .expect("ha ve buoc 27");
+    let open = reopen(open);
+    assert_eq!(open.store.schema_version(), 28);
+
+    let rows: Vec<(i64, String, String, String, String)> = open
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, target_text, translation_origin, baseline_target_text, \
+                 baseline_translation_origin FROM segment ORDER BY id",
+            )?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+        .expect("doc hang");
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().any(|r| r.0 == retired), "hang da nghi huu phai nam trong phep doc");
+    for row in &rows {
+        assert_eq!((&row.3, &row.4), (&row.1, &row.2), "moc phai bang (target_text, translation_origin) o hang {}", row.0);
+    }
+
+    confirm_segment(Some(&open), draft).expect("xac nhan");
+    let pairs = tm_rows(&open);
+    assert_eq!(pairs.len(), 1);
+    assert_eq!(pairs[0].3, TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
     drop(open);
     let _ = fs::remove_dir_all(root);
 }

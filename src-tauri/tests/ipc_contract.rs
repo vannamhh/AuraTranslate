@@ -2193,12 +2193,10 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     );
 }
 
-/// `confirm_segment` mang tham số thứ ba `origin_at_load`, trên
-/// dây `originAtLoad`: mốc xuất xứ lúc nạp segment, cùng vai và cùng cách tin như
-/// `text_at_load`. Đổi tên/thứ tự tham số này là đổi DÂY, và `src/config/segment.ts` +
-/// `e2e/specs/segment-history-restore.e2e.mjs` là hai chỗ duy nhất gõ lại theo đúng tên đó.
+/// `confirm_segment` chỉ mang `segment_id` trên dây (AD-50 rule 5): mốc so xuất xứ nằm ở Rust,
+/// webview không khai mốc nào, và DTO của segment không mang khoá `baseline_*` nào ra ngoài.
 #[test]
-fn the_confirm_segment_wire_keeps_its_origin_at_load_parameter() {
+fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carries_no_baseline() {
     let segment_rs =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
     let segment_src = fs::read_to_string(&segment_rs)
@@ -2213,9 +2211,31 @@ fn the_confirm_segment_wire_keeps_its_origin_at_load_parameter() {
     assert_eq!(
         normalize_param_list(&confirm_params),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, segment_id: i64, text_at_load: String, origin_at_load: String,"
+            "app: tauri::AppHandle<R>, segment_id: i64,"
         ),
         "vo `confirm_segment` trong `pub mod wire` cua commands/segment.rs khong con dung danh \
          sach tham so mong doi -- doi ten/thu tu tham so la doi DAY."
     );
+
+    let dto = serde_json::to_value(auratranslate_lib::commands::segment::ChapterSegment {
+        id: 1,
+        ord: 1,
+        source_text: String::new(),
+        target_text: String::new(),
+        is_paragraph_end: false,
+        retired_at: None,
+        status: "draft".to_owned(),
+        is_omitted: false,
+        is_target_paragraph_end: false,
+        role: None,
+        translation_origin: String::new(),
+    })
+    .expect("ChapterSegment phai serialize duoc");
+    let leaked: Vec<&String> = dto
+        .as_object()
+        .expect("phai serialize thanh object")
+        .keys()
+        .filter(|key| key.starts_with("baseline"))
+        .collect();
+    assert!(leaked.is_empty(), "DTO segment khong duoc mang moc so ra day: {leaked:?}");
 }

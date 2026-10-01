@@ -1523,7 +1523,7 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
     // xác nhận KHÔNG sửa một chữ phải GIỮ NGUYÊN 'other', không rơi về 'self'. Đếm bằng cách
     // GỠ dòng ghi `translation_origin` khỏi `promote_ai_translation` sẽ làm chính ca này đỏ,
     // đúng counter-check AC4 đòi ("removing the origin write makes a named case go red").
-    confirm_segment(Some(&open), segment_id, "Con rồng gầm.", TRANSLATION_ORIGIN_OTHER)
+    confirm_segment(Some(&open), segment_id)
         .expect("confirm khong duoc loi");
     assert_eq!(
         read_origin(&open, segment_id),

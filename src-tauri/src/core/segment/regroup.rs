@@ -47,7 +47,8 @@ pub struct SegmentPart<'a> {
     pub flags: ParagraphFlags,
     /// `segment.is_omitted` (FR133, bước di trú 8).
     pub is_omitted: bool,
-    /// `segment.translation_origin` (FR117, bước di trú 11). `""` = chưa có bản dịch.
+    /// The source's arbitrated origin (AD-50 rule 4, [`super::origin::arbitrate`]), not the
+    /// stored `translation_origin`. `""` = no translation.
     pub translation_origin: &'a str,
 }
 
@@ -67,7 +68,8 @@ pub struct NewSegment {
     pub flags: ParagraphFlags,
     /// Cờ cắt bỏ, theo chữ ký #5(a) của Ice.
     pub is_omitted: bool,
-    /// Xuất xứ, theo AD-47 ④.
+    /// Origin per AD-47 ④. The new row's baseline columns equal its `target_text` and this
+    /// value (AD-50 rule 2).
     pub translation_origin: String,
 }
 

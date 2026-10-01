@@ -25,7 +25,7 @@ function keyOrEmpty(key: string): string {
   return emptyMessageKey.value ? '' : key
 }
 
-async function recordConfirm(segmentId: number, _textAtLoad: string, _originAtLoad: string) {
+async function recordConfirm(segmentId: number) {
   if (failNextConfirm.value) {
     failNextConfirm.value = false
     return {

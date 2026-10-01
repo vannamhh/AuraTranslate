@@ -3711,6 +3711,7 @@ mục nào mồ côi.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: commands/segment.rs:2295-2303 doc-comment vẫn ghi nguyên văn 'Rust tin một giá trị do webview khai... không cổng nào ở tầng Rust bắt được'; chỉ một chỗ gọi confirm_segment còn tồn tại (dispatch trong GridPanel.vue). **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.5.**
   → KHÔNG LÀM 2026-09-28 (Story 11.5) — cái giá của Quyết định #2(b) (2026-08-16, "mốc sống ở webview, Rust tin nó") vẫn đứng nguyên, không đổi ở story này; `segment.rs:2299-2301` vẫn ghi đúng lý do đó. Mở lại chỉ khi một AD mới làm mốc suy được ở phía Rust (vd. lưu phía server).
+  → ✅ ĐÃ ĐÓNG 2026-10-02 (Story 7.2) — AD-50: mốc lưu trên `segment` (`baseline_*`, bước 28), `confirm_segment` chỉ nhận `segment_id`, phép phân xử là một hàm thuần ở Rust. Guard: `tm_contract.rs` (hàng D1: tải lại, gộp, khôi phục, di trú; gỡ phép so ⇒ 5/26 đỏ, ca nguyên văn xanh) và `segment_baseline_guard.rs`.
 
 - ⚠️ **AC7 là một mệnh đề PHỦ ĐỊNH và nó được giữ bằng KỶ LUẬT, không bằng một cổng.** *"Không
   thao tác nào thêm — hệ thống không hỏi"*: Story 2.7 không thêm command, không khoá `vi.json`,

@@ -2,7 +2,7 @@
 title: 'Story 7.2 — Origin on each TM pair'
 type: 'feature'
 created: '2026-10-01'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 baseline_commit: '266c155f5ab91c00337cd065b50e81a668efee13'
 review_loop_iteration: 0
@@ -60,6 +60,7 @@ context:
 - `src-tauri/src/commands/segment.rs` -- origin constants `:2045-2088`; `confirm_segment` `:2437`, verdict `:2558`, `insert_pair` call `:2577`; `ConfirmReject::UnknownOrigin` reused for the stale-`''` case.
 - `src-tauri/src/commands/segment.rs:185-211` -- `insert_bilingual_segments` (draft, `bilingual_import`); caller `commands/project/work_creation.rs:496`. Reuse it in tests via the bilingual Work creation path used by `tests/bilingual_import_contract.rs`.
 - `src-tauri/tests/tm_contract.rs` -- helpers `work`, `type_text`, `tm_rows`; `promoting_onto_a_confirmed_segment…` (`:286`) is the `other` model.
+- D1 tests that move: `segment_contract.rs`, `ipc_contract.rs`, `ipc_argument_contract.rs`, `segment_baseline_guard.rs`, `ai_translate_contract.rs`, `chapter_origin_contract.rs`, `pinned_contract.rs`, `segment_role_contract.rs`; `tests/frontend/editorConfirmSegment.test.ts`, `gridPanelRowErrorPriority.test.ts`; e2e `segment-history-restore`, `grid-row-error-label`, `segment-merge-split`.
 
 ## Tasks & Acceptance
 
@@ -67,13 +68,13 @@ context:
 - [x] `src-tauri/src/core/tm/mod.rs` -- add a closed pair-origin type (three variants, `from_stored`, `as_str`, exhaustive mine/others projection); `insert_pair` takes it -- `''` becomes unrepresentable.
 - [x] `src-tauri/src/commands/segment.rs` -- parse the verdict into that type before any write; a `''` verdict rejects with `UnknownOrigin`.
 - [x] `src-tauri/tests/tm_contract.rs` -- one case per matrix row, plus a projection case pinning all three values.
-- [ ] `src-tauri/src/core/store/schema.rs` -- step 28 per AD-50 rule 6 (two columns + backfill, one batch); bump the step-count fixture in `segment_contract.rs`.
-- [ ] `src-tauri/src/commands/project/mod.rs` -- `reject_unknown_translation_origin` also covers `baseline_translation_origin` (AD-50 rule 1).
-- [ ] `src-tauri/src/core/segment/` -- the pure arbitration function (AD-50 rule 4); `regroup.rs` `merge`/`split_at` take each source's arbitrated origin and set both baseline columns on new rows.
-- [ ] `src-tauri/src/commands/segment.rs` -- the single non-user `UPDATE` path (AD-50 rule 3) used by `promote_ai_translation` and `restore_segment_version`; `insert_segments`, `insert_bilingual_segments`, `write_regroup` write both baseline columns; `confirm_segment` and its wire drop `text_at_load`/`origin_at_load` and call the arbitration.
-- [ ] `src/config/segment.ts`, `src/panels/editorPanelState.ts` -- `confirmSegment(id)` only; drop the load-snapshot baseline and its comments.
-- [ ] Tests -- `ipc_contract.rs` pins `confirm_segment` args to `[segment_id]` and no `baseline_*` key on the segment DTO; a code-line guard (`src-tauri/tests/segment_baseline_guard.rs`) reds on any SQL writing `target_text` without `baseline_target_text`, flush the one named exemption; `tm_contract.rs` one case per new matrix row; update the existing `confirm_segment` callers in Rust tests, vitest and e2e.
-- [ ] Ledger -- close "Rust TIN mốc do webview khai" (`deferred-work.md:3693`) when the D1 cases are green.
+- [x] `src-tauri/src/core/store/schema.rs` -- step 28 per AD-50 rule 6 (two columns + backfill, one batch); bump the step-count fixture in `segment_contract.rs`.
+- [x] `src-tauri/src/commands/project/mod.rs` -- `reject_unknown_translation_origin` also covers `baseline_translation_origin` (AD-50 rule 1).
+- [x] `src-tauri/src/core/segment/` -- the pure arbitration function (AD-50 rule 4); `regroup.rs` `merge`/`split_at` take each source's arbitrated origin and set both baseline columns on new rows.
+- [x] `src-tauri/src/commands/segment.rs` -- the single non-user `UPDATE` path (AD-50 rule 3) used by `promote_ai_translation` and `restore_segment_version`; `insert_segments`, `insert_bilingual_segments`, `write_regroup` write both baseline columns; `confirm_segment` and its wire drop `text_at_load`/`origin_at_load` and call the arbitration.
+- [x] `src/config/segment.ts`, `src/panels/editorPanelState.ts` -- `confirmSegment(id)` only; drop the load-snapshot baseline and its comments.
+- [x] Tests -- `ipc_contract.rs` pins `confirm_segment` args to `[segment_id]` and no `baseline_*` key on the segment DTO; a code-line guard (`src-tauri/tests/segment_baseline_guard.rs`) reds on any SQL writing `target_text` without `baseline_target_text`, flush the one named exemption; `tm_contract.rs` one case per new matrix row; update the existing `confirm_segment` callers in Rust tests, vitest and e2e.
+- [x] Ledger -- close "Rust TIN mốc do webview khai" (`deferred-work.md:3693`) when the D1 cases are green.
 
 **Acceptance Criteria:**
 - Given `tm_contract.rs`, when the rewrite-to-`self` comparison is removed from the verdict, then the "rewritten" cases go red and the "verbatim" cases stay green.
@@ -88,6 +89,10 @@ context:
 - AC2 has no runtime counter-check: once `insert_pair` takes `PairOrigin`, bypassing the type does not compile. The stale-`''` case pins the reject path and the absence of any row.
 - The edited-Work case uses 60 sentences in one bilingual Work; AC5 is about not skipping, not chapter count.
 - D1 and its matrix row stay open until the new AD lands; the story cannot reach `done` before then. 🔵 2026-10-01: AD-50 landed; D1 now waits only on its tasks.
+- D1 counter-check (real removal of the baseline comparison in `core/segment/origin.rs::arbitrate`): 5/26 `tm_contract` red (rewritten bilingual, AI rewrite, edited Work, reload, merge-of-rewritten) and 2 `segment_contract` red; every verbatim, restore and migration case green. Restore written without the baseline: 1 red. `insert_bilingual_segments` without `baseline_target_text`: guard red naming that line. Step-28 backfill `UPDATE` removed: 1/27 `tm_contract` red (the backfill case).
+- AC2 is checked at the arbitration, not at `insert_pair`: mapping an unknown baseline origin to `other` makes the out-of-set case red because a pair appears where none may; an unknown pair origin stays unrepresentable.
+- A bad `baseline_translation_origin` also refuses the Work at open (AD-50 rule 1), so the `segment_contract` out-of-set case now asserts the open refusal.
+- The migrated-row case drops the two columns and rewinds to step 27 on a real Work, then reopens so step 28 actually runs.
 
 ## Spec Change Log
 
@@ -110,6 +115,25 @@ Pass 1 (blind-hunter, edge-case-hunter, verification-gap; verification-gap filed
 - E3 stored `''` with unchanged text gives `self` — false: documented sentinel rule (`segment.rs` doc above `confirm_segment`): text with no origin came from the typing buffer.
 - E6 60 rows in one chapter, not 200 chapters — low, rejected: AC5 is about not skipping; noted in Implementation Notes.
 - E7 Intent reads as if the reload gap were closed — false: D1 states it waits for the AD and its task is open.
+
+Pass 2, D1 (blind-hunter, edge-case-hunter, verification-gap):
+- V1/B4b step-28 backfill `UPDATE` unpinned: the migration case types a row with origin `''`, so with or without the `UPDATE` it yields `self` — medium, patch: migrated non-`self` draft and retired row, assert both baseline columns.
+- V2/B6 merge/split `RegroupReject::UnknownOrigin` path has no case — low, patch: one merge case with an out-of-set baseline, assert the code and no rows retired or created.
+- E2/B5a guard accepts a write of `baseline_target_text` without `baseline_translation_origin` — medium, patch: require both columns; the writer floor rises to the three known writers.
+- E3/B5b guard misses `format!`-built or >12-line SQL — low, rejected: no such writer exists, and detecting built SQL adds parsing complexity.
+- E7 spec says the guard reds on "any" SQL — low, rejected: the fix edits this spec.
+- E1/B4a step 28 cannot tell a pre-28 rewrite from imported text — false as a defect: AD-50 rule 6 records that loss; the original text was never stored.
+- E4/B2 restore leaves `translation_origin` while the baseline origin becomes `other` — false: AD-47 ⑤ and AD-50 rule 2 keep the stored origin on restore.
+- B3 restore labels the user's own older text `other` with no ledger item — false: AD-50 rule 2 records the cheap direction Ice chose; nothing left unaccepted.
+- E5 confirm does not advance the baseline — false: AD-50 rule 2 (confirm and flush never touch the baseline) and Decision #96 require this.
+- E6 empty target with an unknown baseline origin is copied into the new row — false: `arbitrate` returns `Unsigned` for empty text, so the new row takes the ④ result, never the bad value; open also refuses the Work.
+- B1 Pass 1 rows cite deleted code — low, rejected: the fix edits this spec; Pass 2 supersedes them.
+- B7 `write_non_user_target` arguments swap silently — false: `&str` and `Option<&str>` swapped do not compile.
+- B8 changed doc comments mix Vietnamese and English (`NewSegment.translation_origin`, `ChapterSegment.translation_origin`) — low, patch: English only on those lines.
+- B9 tests not rustfmt-formatted, positional tuple fields — low, rejected: the repo is not rustfmt-clean (`segment_contract.rs` 266 diffs) and has no fmt gate.
+- B10 `pinned_contract` message says twenty-six steps — false: the diff updated message and value together.
+- B11 open-time `UNION` scans `segment` twice — low, rejected: no measured cost; one extra scan on open.
+- B12 `ChapterSegment.translation_origin` may be dead on the wire — false: `editorPanelState.ts:357` consumes it; AD-50 rule 5 keeps it for display.
 
 ## Verification
 

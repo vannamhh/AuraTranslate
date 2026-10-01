@@ -891,6 +891,13 @@ CREATE TABLE tm_unit (
   CHECK (target_text <> '')
 );";
 
+/// Step 28 (AD-50 rule 6): the comparison baseline lives on `segment`. Every row, retired ones
+/// included, takes `baseline_* = (target_text, translation_origin)`; never `NULL`.
+pub const SEGMENT_BASELINE_DDL: &str = "\
+ALTER TABLE segment ADD COLUMN baseline_target_text TEXT NOT NULL DEFAULT '';
+ALTER TABLE segment ADD COLUMN baseline_translation_origin TEXT NOT NULL DEFAULT '';
+UPDATE segment SET baseline_target_text = target_text, baseline_translation_origin = translation_origin;";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1866,7 +1873,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi sáu bước, và đích là phiên bản 27.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi bảy bước, và đích là phiên bản 28.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2202,6 +2209,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 27,
         sql: TM_UNIT_DDL,
+    },
+    Migration {
+        to_version: 28,
+        sql: SEGMENT_BASELINE_DDL,
     },
 ];
 

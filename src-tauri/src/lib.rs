@@ -963,9 +963,9 @@ pub fn run() {
             // mot luot don dang chay va nguoc lai.
             crate::commands::aitranslate::wire::ai_translate_batch,
             // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
-            // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no dat CA
-            // `target_text` LAN `translation_origin = TRANSLATION_ORIGIN_OTHER` trong MOT cau
-            // `UPDATE` -- ba writer `target_text` da co deu co y de nguyen cot xuat xu.
+            // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no di qua
+            // `write_non_user_target`, dat `target_text`, hai cot moc va
+            // `translation_origin = TRANSLATION_ORIGIN_OTHER` trong MOT cau `UPDATE` (AD-50).
             crate::commands::segment::wire::promote_ai_translation,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.

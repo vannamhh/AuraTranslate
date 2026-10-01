@@ -142,13 +142,8 @@ export type ChapterSegment = {
    */
   role: string | null
   /**
-   * Xuất xứ của [`target_text`] — mốc `origin_at_load` mà `confirmSegment` cần (FR117,
-   * AD-47). `''` khi chưa một lượt ghi không-phải-người-dùng nào đặt nó.
-   *
-   * 🔴 Đọc **một lần lúc nạp Chương** và giữ nguyên trong ảnh chụp cho tới lượt ký kế tiếp —
-   * cùng khuôn [`target_text`] ngay trên. Đọc lại cột này giữa chừng (thay vì đọc từ chính
-   * hàng trong ảnh chụp) làm một lượt ký thứ hai trong cùng phiên đọc xuất xứ đĩa VỪA đổi bởi
-   * lượt ký thứ nhất, thay vì xuất xứ lúc nạp.
+   * Xuất xứ của [`target_text`] (AD-47), chỉ để hiển thị. `''` khi chưa một lượt ghi
+   * không-phải-người-dùng nào đặt nó. Mốc so của FR117 sống ở Rust (AD-50), không đi qua dây.
    */
   translation_origin: string
 }
@@ -816,39 +811,13 @@ export async function saveChapterPosition(
  * ⚠️ Bốn lối từ chối đều **phân biệt được** bằng `message_key` (AC14) — `err.segment.*`:
  * `not_found` · `retired` · `nothing_to_confirm`, cộng `err.work.none_open`. Chỗ gọi
  * **không** được đoán lại lý do từ chuỗi.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔵 STORY 2.7 — THAM SỐ THỨ HAI `textAtLoad` LÀ **MỐC SO** CỦA FR117
- * ─────────────────────────────────────────────────────────────────────────────
- * Bản dịch **lúc nạp segment**, thứ Rust dùng để trả lời *"người dùng có gõ câu này không"*
- * (AC4 + hợp đồng phụ AD-31: so văn bản, **không** cờ dirty). Quyết định #2 đường (b), Ice ký
- * 2026-08-16.
- *
- * 🔴 **Đây KHÔNG phải một quy tắc nghiệp vụ đi vào TypeScript, và lằn ranh đó đáng gõ ra:**
- * hàm này chở một **giá trị** mà webview sở hữu hợp pháp *(`segments` giữ bản lúc nạp — một
- * ngoại lệ đã có tên của AD-1)*; **phép so** chạy ở Rust. Đường bị loại là *"webview tự tính
- * `edited: bool`"* — nó đặt phép phân xử vào TS và va thẳng AD-1.
- *
- * 🔴 **Mốc phải lấy từ `segments`, KHÔNG từ `editedText`.** `editedText` là văn bản **đang
- * gõ**; truyền nó vào đây làm mốc luôn bằng văn bản hiện tại ⇒ *"chưa bao giờ sửa"* ⇒ mọi câu
- * người dùng gõ sẽ mang xuất xứ của người khác. Không cổng nào bắt được lượt nhầm đó.
- *
- * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `text_at_load` phía Rust đi trên dây dưới
- * tên `textAtLoad`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
- *
- * `originAtLoad`, trusted verbatim like `textAtLoad`: Rust's unchanged-branch echoes it back
- * without re-reading disk, so a second confirm in one session keeps the load-time origin.
  */
 export async function confirmSegment(
   segmentId: number,
-  textAtLoad: string,
-  originAtLoad: string,
 ): Promise<ConfirmSegmentResult> {
   try {
     const outcome = await invoke<unknown>(CMD_CONFIRM_SEGMENT, {
       segmentId,
-      textAtLoad,
-      originAtLoad,
     })
     if (!isConfirmOutcome(outcome)) {
       console.error(
@@ -1255,9 +1224,8 @@ export async function mergeSegments(segmentId: number): Promise<RegroupResult> {
  *
  * 🔵 **2026-08-17 — `cut: number` thành `cuts: number[]`**, chữ ký của Ice cho AC7 vế *"nhiều
  * mảnh"* sau code review.
- * 🔴 Đây là một lượt **đổi hình dạng dây**, và kho này đã để lọt đúng lớp lỗi ấy **hai lần**
- * *(cột `status` ở 2.5, tham số `textAtLoad` ở 2.7)*: cả hai lần toàn bộ test Rust và vitest
- * đều xanh, vì fixture chép tay luôn có sẵn trường. ⇒ **e2e là lưới duy nhất** cho vế này.
+ * 🔴 Đây là một lượt **đổi hình dạng dây**: test Rust và vitest dựng fixture chép tay luôn có
+ * sẵn trường, nên **e2e là lưới duy nhất** cho vế này.
  *
  * ⚠️ Tên tham số trên dây là **`cuts`** (camelCase — `invoke` gửi camelCase dù hàm Rust nhận
  * `snake_case`); trường của `RegroupOutcome` **trả về** thì giữ `snake_case`.

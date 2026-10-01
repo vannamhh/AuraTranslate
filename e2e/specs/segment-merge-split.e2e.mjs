@@ -9,7 +9,7 @@
  * | Story | Thứ lọt | Ai bắt |
  * |---|---|---|
  * | 2.5 | `read_open_chapter_segments` không gửi cột `status` ⇒ `isConfirmed` LUÔN `false` trong app thật | **e2e** — 74/74 vitest vẫn xanh |
- * | 2.7 | `confirm_segment` đổi hình dạng tham số (`textAtLoad`) | **e2e** — 382 ca Rust + 133 ca vitest đều xanh |
+ * | 2.7 | `confirm_segment` đổi hình dạng tham số | **e2e** — 382 ca Rust + 133 ca vitest đều xanh |
  *
  * Cả hai lần, nguyên nhân giống hệt nhau: **fixture chép tay luôn có sẵn trường**. Một ca
  * vitest dựng `{ id, ord, source_text, … }` bằng tay không bao giờ phát hiện được rằng Rust
@@ -266,10 +266,9 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
    * ngày 2026-08-17 sau code review.
    *
    * 🔴 **Vì sao ca này BẮT BUỘC ở e2e và không ở đâu khác:** lượt đa-mảnh **đổi hình dạng
-   * dây** — `cut: number` thành `cuts: number[]`. Kho này đã để lọt đúng lớp lỗi ấy **hai
-   * lần** *(cột `status` ở Story 2.5, tham số `textAtLoad` ở Story 2.7)*, và cả hai lần
-   * **toàn bộ** test Rust cộng vitest đều xanh, vì fixture chép tay luôn có sẵn trường. Chỉ
-   * một lượt `invoke` thật qua `tauri-macros` mới phát hiện một tên tham số sai.
+   * dây** — `cut: number` thành `cuts: number[]`. Test Rust cộng vitest đều xanh với một tên
+   * tham số sai, vì fixture chép tay luôn có sẵn trường; chỉ một lượt `invoke` thật qua
+   * `tauri-macros` mới phát hiện nó.
    *
    * ⚠️ Cùng **hai** giới hạn của bộ đo như ca một-điểm ở trên *(cú bấm tổng hợp vào cột
    * nguyên văn · `code: "Slash"`)*, cùng lý do, và cùng hai món nợ có chủ. Ca này **không**
@@ -370,8 +369,7 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
       timeoutMsg:
         'Sau MỘT lượt `⌘/` với hai điểm cắt, lưới không lên BỐN hàng sau 15 giây.\n' +
         'Ứng viên ĐẦU TIÊN phải loại: tham số trên dây. `cuts` là một MẢNG kể từ 2026-08-17;\n' +
-        'một tên sai hay một kiểu sai ở đó là đúng lớp lỗi đã lọt hai lần (`status` 2.5,\n' +
-        '`textAtLoad` 2.7) mà toàn bộ test Rust + vitest đều mù.\n' +
+        'một tên sai hay một kiểu sai ở đó là đúng lớp lỗi mà toàn bộ test Rust + vitest đều mù.\n' +
         'Ứng viên thứ hai: cú bấm thứ hai THAY vì THÊM ⇒ lưới lên 3, không 4.',
     })
 

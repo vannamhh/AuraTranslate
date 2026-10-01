@@ -37,8 +37,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use unicode_normalization::UnicodeNormalization;
-
 use crate::commands::project::OpenWork;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::lifecycle::LifecycleStatus;
@@ -143,8 +141,9 @@ pub(crate) fn insert_segments(
     // bao giờ mang được vai của nó xuống đĩa.
     let mut stmt = tx.prepare_cached(
         "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-         is_target_paragraph_end, translation_origin, role, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         is_target_paragraph_end, translation_origin, role, baseline_target_text, \
+         baseline_translation_origin, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, '', ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
          strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
     )?;
     for (index, segment) in segments.iter().enumerate() {
@@ -192,8 +191,9 @@ pub(crate) fn insert_bilingual_segments(
 ) -> SqlResult<()> {
     let mut stmt = tx.prepare_cached(
         "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-         is_target_paragraph_end, translation_origin, target_text, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         is_target_paragraph_end, translation_origin, target_text, baseline_target_text, \
+         baseline_translation_origin, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
          strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
     )?;
     for (index, segment) in segments.iter().enumerate() {
@@ -292,10 +292,8 @@ pub struct ChapterSegment {
     pub is_omitted: bool,
     pub is_target_paragraph_end: bool,
     pub role: Option<String>,
-    /// Xuất xứ của [`Self::target_text`] — một trong [`TRANSLATION_ORIGINS`], `""` khi chưa
-    /// một lượt ghi không-phải-người-dùng nào đặt nó. Đây là mốc mà [`confirm_segment`] cần
-    /// làm `origin_at_load`: webview giữ nguyên giá trị này song song với `target_text` từ
-    /// lúc Chương được nạp cho tới lượt ký kế tiếp, không đọc lại cột này giữa chừng.
+    /// Origin of [`Self::target_text`]: one of [`TRANSLATION_ORIGINS`], `""` when none. Display
+    /// only; never sent back to Rust (AD-50 rule 5).
     pub translation_origin: String,
 }
 
@@ -858,11 +856,7 @@ pub fn restore_segment_version(
         // ⑥ Ghi. HAI cot, MOT giao dich: van ban va trang thai (AC2).
         //    ⚠️ `updated_at` CO doi o day, khac `confirm_segment`: mot luot khoi phuc SUA van
         //    ban that su, nen no dung nghia "moc sua van ban" ma `SEGMENT_DDL` khai cho cot do.
-        tx.execute(
-            "UPDATE segment SET target_text = ?1, status = ?2, \
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?3",
-            (&version_text, SEGMENT_STATUS_DRAFT, segment_id),
-        )?;
+        write_non_user_target(tx, segment_id, &version_text, TRANSLATION_ORIGIN_OTHER, None)?;
 
         Ok((true, false, SEGMENT_STATUS_DRAFT.to_owned()))
     });
@@ -2119,6 +2113,31 @@ pub struct PromoteAiTranslationOutcome {
     pub unsigned_draft: Option<String>,
 }
 
+/// The single non-user write of `target_text` (AD-50 rule 3): text, both baseline columns,
+/// `translation_origin` and `status` in one statement. `translation_origin = None` leaves the
+/// stored origin untouched (restore, AD-47 ⑤); the baseline origin is always set.
+fn write_non_user_target(
+    tx: &Transaction<'_>,
+    segment_id: i64,
+    target_text: &str,
+    baseline_translation_origin: &str,
+    translation_origin: Option<&str>,
+) -> SqlResult<()> {
+    tx.execute(
+        "UPDATE segment SET target_text = ?1, baseline_target_text = ?1, \
+         baseline_translation_origin = ?2, translation_origin = COALESCE(?3, translation_origin), \
+         status = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?5",
+        (
+            target_text,
+            baseline_translation_origin,
+            translation_origin,
+            SEGMENT_STATUS_DRAFT,
+            segment_id,
+        ),
+    )?;
+    Ok(())
+}
+
 /// Ghi một kết quả AI vào `target_text` **và** đặt `translation_origin = TRANSLATION_ORIGIN_OTHER`
 /// trong **MỘT** câu `UPDATE` — Story 4.8, AD-47①. Đây là chỗ ghi RIÊNG của đường promote
 /// (§Code Map spec 4.8: "the promote path therefore needs its own write, not a reuse of
@@ -2127,7 +2146,7 @@ pub struct PromoteAiTranslationOutcome {
 /// vì cả ba đều ghi văn bản NGƯỜI DÙNG gõ hoặc một bản chép CŨ của chính người dùng; dùng lại
 /// một trong ba cho một văn bản MÔ HÌNH sinh ra sẽ đóng dấu tên người dịch lên câu của AI.
 ///
-/// 🔴 **Đây là một lượt ghi non-user, dưới AD-47①** — nó KHÔNG đọc `text_at_load` để phân xử
+/// 🔴 **Đây là một lượt ghi non-user, dưới AD-47①** — nó KHÔNG đọc mốc để phân xử
 /// `self`/giữ nguyên như [`confirm_segment`] làm: mốc so của FR117 không áp dụng ở đây, vì lượt
 /// này không phải một lượt XÁC NHẬN, nó là lượt THAY THẾ nội dung bằng đề xuất của AI — AD-47③
 /// đã CHỐT sẵn giá trị xuất xứ cho đúng cơ chế này (*"Đưa đề xuất AI sang Editor"* → **người
@@ -2193,10 +2212,12 @@ pub fn promote_ai_translation(
             }
         }
 
-        tx.execute(
-            "UPDATE segment SET target_text = ?1, translation_origin = ?2, status = ?3, \
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?4",
-            (&payload, TRANSLATION_ORIGIN_OTHER, SEGMENT_STATUS_DRAFT, segment_id),
+        write_non_user_target(
+            tx,
+            segment_id,
+            &payload,
+            TRANSLATION_ORIGIN_OTHER,
+            Some(TRANSLATION_ORIGIN_OTHER),
         )?;
 
         Ok(Promoted::Row(
@@ -2324,8 +2345,8 @@ enum ConfirmReject {
     Retired,
     /// `target_text` rỗng — chưa có gì để ký.
     NothingToConfirm,
-    /// Nhánh giữ nguyên nhận một `origin_at_load` ngoài [`TRANSLATION_ORIGINS`].
-    UnknownOrigin,
+    /// `baseline_translation_origin` lies outside [`TRANSLATION_ORIGINS`].
+    UnknownOrigin(String),
 }
 
 /// **Xác nhận một segment** — hàm thuần, đây là thứ test gọi. Story 2.5 · FR24 · AD-31.
@@ -2385,73 +2406,18 @@ enum ConfirmReject {
 ///   cặp nào. AD-47 ⑥ khai phép chiếu xuất xứ ba giá trị → **trục nhị phân FR118**; đó là
 ///   việc của đường đọc.
 ///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 PHÉP PHÂN XỬ XUẤT XỨ — `text_at_load` LÀ MỐC, VÀ NÓ ĐẾN TỪ WEBVIEW
-/// ─────────────────────────────────────────────────────────────────────────────
-/// AC4 + hợp đồng phụ AD-31: so **văn bản đích hiện tại với mốc**, *không dùng cờ dirty*.
-/// AD-47 ① định nghĩa mốc là *"bản do lượt ghi **không-phải-người-dùng** gần nhất đặt"* — hôm
-/// nay lượt nạp Chương là lượt ghi loại đó **duy nhất đã cài**, nên mốc là bản lúc nạp.
-///
-/// 🔵 **Phép so đó cắt khoảng trắng bao ngoài cả hai vế** — chữ ký thứ **mười** của Ice
-/// (2026-08-16, từ một lượt code review). AC4 viết *"so văn bản đích hiện tại với bản lúc
-/// nạp"* và chữ đó là so **nguyên văn**; `trim()` đọc rộng mệnh đề ấy ra. Phép so cũng áp
-/// dụng `.nfc()` lên cả hai vế, composed với `trim()`, nên hai chuỗi giống hệt trên màn hình
-/// mà khác dạng tổ hợp Unicode (NFC/NFD) không bị coi là một lượt sửa — lý do đầy đủ ở ngay
-/// chỗ dùng, trong thân hàm.
-///
-/// 🔴 **Vì sao tham số này đến từ webview chứ không đọc ở đây** — Quyết định #2 đường (b),
-/// Ice ký 2026-08-16. Mốc **không tồn tại trên đĩa**: đĩa bị ghi đè dần theo từng lượt flush
-/// AD-35, nên một phép so với đĩa **phá AC5** *(gõ `AB` rồi hoàn tác về `A`: mỗi lượt flush
-/// thấy "khác", mà văn bản cuối y hệt bản lúc nạp)*. Mốc **có** sống ở webview và **sống sót**
-/// qua gõ + flush: `editorPanelState.ts::segments` giữ bản lúc nạp và `editedText` tách rời nó
-/// — một mệnh đề khai bằng chữ ở đó **từ trước story này**.
-/// ⇒ TypeScript **chở dữ liệu nó sở hữu hợp pháp**; phép phân xử ở lại Rust (AD-1). Đường (a)
-/// *(webview tự tính `edited: bool`)* bị loại vì nó đặt một **quy tắc nghiệp vụ** vào TS, và
-/// ngoại lệ tường minh duy nhất của AD-1 là *"văn bản đang gõ"*, không phải *"phép phân xử"*.
-///
-/// ⚠️ **Cái giá, ghi ra thay vì giấu:** Rust **tin** một giá trị do webview khai. Một chỗ gọi
-/// tương lai gửi sai mốc sẽ ghi sai xuất xứ, và **không cổng nào ở tầng Rust bắt được** — cùng
-/// hình dạng với giới hạn *"flush trước, xác nhận sau"* mà vỏ [`wire::confirm_segment`] đã ghi.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 NHÁNH THỨ HAI CỦA PHÉP PHÂN XỬ: `''` TRÊN MỘT CÂU **CÓ** BẢN DỊCH LÀ MỘT TRẠNG THÁI
-///    TỰ MÂU THUẪN, VÀ NÓ CÓ THẬT — không một AC nào của story nêu nó
-/// ─────────────────────────────────────────────────────────────────────────────
-/// Đường hỏng đo được, và nó là ca **thường nhật** chứ không một ca biên: người dùng gõ bản
-/// dịch, flush ghi xuống đĩa, **đóng Tác phẩm mà chưa xác nhận**. Mở lại: mốc lúc nạp nay
-/// **bằng** văn bản trên đĩa, và `translation_origin` vẫn `''` *(bước 11 chỉ backfill các hàng
-/// `confirmed`; flush **không** đụng cột này — nó chở đúng bộ đệm gõ, AD-47 ① nói flush không
-/// phải một lượt ghi không-phải-người-dùng)*. Xác nhận mà không sửa ⇒ *"y hệt mốc"* ⇒ **giữ
-/// nguyên** ⇒ một câu **đã ký** mang nhãn *"chưa có bản dịch"*.
-///
-/// ⇒ Nhánh `translation_origin.is_empty()` **sửa một sentinel, không thêm một đầu vào thứ hai
-/// cho phép phân xử.** Lập luận đứng được vì nó đọc từ chính AD-47 ①(b): mỗi lượt ghi
-/// không-phải-người-dùng đặt mốc **và** đặt xuất xứ trong cùng thao tác. ⇒ *"có văn bản mà
-/// xuất xứ rỗng"* nói **không lượt ghi loại đó nào** đã đặt văn bản này ⇒ nó đến từ bộ đệm gõ
-/// ⇒ *tôi dịch*. Nhánh ② đã loại mọi câu rỗng *(phép `trim().is_empty()`)* trước khi tới đây,
-/// nên *"có văn bản"* là **bất biến** ở điểm này, không một giả định.
-///
-/// ⚠️ Và nó **không** phá AC3: một câu *"sẵn có"* theo nghĩa AC3 là câu do một cơ chế khác đặt
-/// vào, mà mọi cơ chế như thế đều đặt xuất xứ cùng lượt (AD-47 ③) ⇒ xuất xứ của nó **không**
-/// rỗng ⇒ nó đi nhánh *giữ nguyên*. Hai nhánh không giao nhau.
+/// Origin arbitration (AD-50 rule 4): the origin comes from [`crate::core::segment::origin::arbitrate`]
+/// over `target_text` and the stored baseline columns, read in the same transaction. The webview
+/// sends only `segment_id`. A baseline origin outside [`TRANSLATION_ORIGINS`] rejects with
+/// `segment.unknown_translation_origin` and writes nothing.
 pub fn confirm_segment(
     open: Option<&OpenWork>,
     segment_id: i64,
-    text_at_load: &str,
-    origin_at_load: &str,
 ) -> Result<ConfirmOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
     let reject: Arc<Mutex<Option<ConfirmReject>>> = Arc::new(Mutex::new(None));
     let reject_in = Arc::clone(&reject);
-
-    // ⚠️ Mot ban SO HUU cua moc, khong mot muon: closure cua `Store::write` la `'static` (no
-    // di sang luong writer cua AD-11), nen mot `&str` muon tu chi goi KHONG song qua duoc bien
-    // do. Day la mot phep chep DUY NHAT mot lan cho ca luot goi, khong mot phep chep moi hang.
-    let text_at_load = text_at_load.to_owned();
-    // Same reason and same single copy as `text_at_load`; the webview holds both for the panel session.
-    let origin_at_load = origin_at_load.to_owned();
-    let origin_for_error = origin_at_load.clone();
 
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let set_reject = |r: ConfirmReject| {
@@ -2462,25 +2428,30 @@ pub fn confirm_segment(
 
         // ① Doc trang thai hien tai — TRONG cung giao dich voi luot ghi.
         //
-        // ⚠️ `translation_origin` doc o DAY chu khong o mot luot `Store::read` rieng, cung ly
-        // do va cung phep do voi ba cot kia: giua hai luot, tang kho KHONG giu gi ca, va o
-        // nhanh ④ mot xuat xu doc tu mot anh chup cu la mot xuat xu ghi de len mot luot ghi
-        // khac vua chay xong.
+        // The baseline columns are read here, in the writing transaction, never from the caller.
         let found = tx.query_row(
-            "SELECT target_text, status, retired_at, translation_origin, source_text FROM segment \
-             WHERE id = ?1",
+            "SELECT target_text, status, retired_at, baseline_target_text, \
+             baseline_translation_origin, source_text FROM segment WHERE id = ?1",
             [segment_id],
             |row| {
                 let target_text: String = row.get(0)?;
                 let status: String = row.get(1)?;
                 let retired_at: Option<String> = row.get(2)?;
-                let translation_origin: String = row.get(3)?;
-                let source_text: String = row.get(4)?;
-                Ok((target_text, status, retired_at, translation_origin, source_text))
+                let baseline_target_text: String = row.get(3)?;
+                let baseline_translation_origin: String = row.get(4)?;
+                let source_text: String = row.get(5)?;
+                Ok((
+                    target_text,
+                    status,
+                    retired_at,
+                    baseline_target_text,
+                    baseline_translation_origin,
+                    source_text,
+                ))
             },
         );
 
-        let (target_text, status, retired_at, translation_origin, source_text) = match found {
+        let (target_text, status, retired_at, baseline_text, baseline_origin, source_text) = match found {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => {
                 set_reject(ConfirmReject::NotFound);
@@ -2514,54 +2485,21 @@ pub fn confirm_segment(
             return Ok(false);
         }
 
-        // ④ CHUYEN TIEP. Day la cho Story 2.7 (xuat xu) DA moc vao, va Epic 7 (cap TM) se.
-        //
-        // 🔴 Phep phan xu FR117 — hai nhanh, ly do day du o doc-comment cua ham. Doc goi:
-        //    - van ban KHAC moc  ⇒ chu cua nguoi dung          ⇒ `self`
-        //    - xuat xu dang rong ⇒ khong luot ghi khong-phai-nguoi-dung nao dat van ban nay,
-        //      ma nhanh ② da bao dam co van ban                ⇒ `self`
-        //    - con lai            ⇒ duyet NGUYEN VAN mot cau san co ⇒ GIU NGUYEN (AC3)
-        //
-        // ⚠️ Ghi ca hai cot trong MOT cau `UPDATE`, khong hai cau: AD-47 ①(b) doi moc va xuat
-        // xu di cung mot thao tac logic, va o day chuyen tiep trang thai la thao tac do. Hai
-        // cau la hai cho de mot luot sua sau nay chi cham mot nua — dung khuon "chu ky thi
-        // hanh dung MOT NUA" da lap bon lan o 2.5b va 2.6.
-        //
-        // 🔵 Code review 2026-08-16 (chu ky thu MUOI cua Ice) — `trim()` HAI VE, va no doi
-        //    cach doc AC4.
-        //
-        // Ban dau day la `target_text != text_at_load`, mot phep so `String` THO. Nhanh ② cach
-        // day 22 dong da phai doi tu `is_empty()` sang `trim().is_empty()` o mot luot code
-        // review TRUOC (2026-08-14) vi mot ly do da DO duoc: `contenteditable` de lai ky tu vo
-        // hinh (`U+00A0`, khoang trang cuoi dong) ma `str::is_empty()` khong thay. Cung mot
-        // nguon hiem hoa do di thang vao nhanh nay va o day no KHONG duoc va — nen mot cau
-        // nguoi dung chi DUYET, khong sua mot chu, lech moc dung mot ky tu vo hinh va nhan
-        // nhan `self`.
-        //
-        // ⚠️ Cai gia, ghi ra thay vi giau: AC4 viet "so van ban dich hien tai voi ban luc nap",
-        // va chu do la so NGUYEN VAN. `trim()` doc rong menh de ay ra — mot khoang trang cuoi
-        // nguoi dung CO Y go THOI duoc coi la mot luot sua. Ice chot doi do 2026-08-16.
-        //
-        // Chuan hoa Unicode (NFC), composed voi `trim()` chu khong thay no: hai chuoi trong
-        // GIONG HET nhau tren man hinh van khac nhau tung byte neu mot ben dung ky tu dung
-        // san va ben kia dung dau ket hop. `.nfc()` la mot iterator; `collect::<String>()` roi
-        // so bang `==` cung khuon voi phep so `str` thuong.
-        //
-        // ⚠️ Nhanh GIU NGUYEN tra `origin_at_load`, khong tra `translation_origin` doc song
-        // tren dia: mot lan ky thu hai trong cung phien panel (ky → sua → ky lai → sua ve
-        // dung van ban luc nap → ky lan nua) phai tra ve xuat xu LUC NAP, khong phai xuat xu
-        // `self` ma luot ky DAU trong cung phien vua ghi. `translation_origin` doc o buoc ①
-        // van giu vai tro cu: phan biet "chua tung co luot ghi khong-phai-nguoi-dung nao"
-        // (rong ⇒ nhanh `self`) voi "co, va webview khai dung no o luc nap".
-        let target_nfc: String = target_text.trim().nfc().collect();
-        let text_at_load_nfc: String = text_at_load.trim().nfc().collect();
-        let confirmed_origin = if target_nfc != text_at_load_nfc || translation_origin.is_empty() {
-            crate::core::tm::PairOrigin::SelfTranslated
-        } else if let Some(loaded_origin) = crate::core::tm::PairOrigin::from_stored(&origin_at_load) {
-            loaded_origin
-        } else {
-            set_reject(ConfirmReject::UnknownOrigin);
-            return Err(SqlError::QueryReturnedNoRows);
+        // ④ Transition: the origin is the single AD-50 arbitration, status and origin in one UPDATE.
+        let confirmed_origin = match crate::core::segment::origin::arbitrate(
+            &target_text,
+            &baseline_text,
+            &baseline_origin,
+        ) {
+            Ok(crate::core::segment::origin::Arbitrated::Origin(origin)) => origin,
+            Ok(crate::core::segment::origin::Arbitrated::Unsigned) => {
+                set_reject(ConfirmReject::NothingToConfirm);
+                return Err(SqlError::QueryReturnedNoRows);
+            }
+            Err(crate::core::segment::origin::UnknownBaselineOrigin(value)) => {
+                set_reject(ConfirmReject::UnknownOrigin(value));
+                return Err(SqlError::QueryReturnedNoRows);
+            }
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
@@ -2592,8 +2530,8 @@ pub fn confirm_segment(
                 Some(ConfirmReject::NotFound) => Err(segment_not_found(segment_id)),
                 Some(ConfirmReject::Retired) => Err(segment_retired(segment_id)),
                 Some(ConfirmReject::NothingToConfirm) => Err(segment_nothing_to_confirm(segment_id)),
-                Some(ConfirmReject::UnknownOrigin) => {
-                    Err(segment_unknown_translation_origin(segment_id, &origin_for_error))
+                Some(ConfirmReject::UnknownOrigin(value)) => {
+                    Err(segment_unknown_translation_origin(segment_id, &value))
                 }
                 // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
                 None => Err(err.into()),
@@ -3020,6 +2958,8 @@ enum RegroupReject {
     CutLeavesEmptyPiece(i64),
     /// A segment involved carries a `role`; regrouping would drop it.
     RoleSegment(i64),
+    /// A source segment's `baseline_translation_origin` is outside the closed set.
+    UnknownOrigin(i64, String),
 }
 
 impl RegroupReject {
@@ -3030,6 +2970,7 @@ impl RegroupReject {
             Self::NoPreviousSegment(id) => segment_has_no_previous(id),
             Self::CutLeavesEmptyPiece(id) => segment_cut_leaves_empty_piece(id),
             Self::RoleSegment(id) => segment_has_role(id),
+            Self::UnknownOrigin(id, value) => segment_unknown_translation_origin(id, &value),
         }
     }
 }
@@ -3082,6 +3023,7 @@ struct LoadedSegment {
     target_text: String,
     flags: ParagraphFlags,
     is_omitted: bool,
+    /// The AD-50 arbitration of this row, not the stored `translation_origin`.
     translation_origin: String,
     role: Option<String>,
 }
@@ -3109,7 +3051,8 @@ fn load_segment_for_write(
 ) -> Result<LoadedSegment, RegroupReject> {
     let found = tx.query_row(
         "SELECT ord, source_text, target_text, is_paragraph_end, is_target_paragraph_end, \
-         is_omitted, translation_origin, retired_at, role FROM segment WHERE id = ?1",
+         is_omitted, baseline_target_text, baseline_translation_origin, retired_at, role \
+         FROM segment WHERE id = ?1",
         [segment_id],
         |row| {
             let ord: i64 = row.get(0)?;
@@ -3118,9 +3061,10 @@ fn load_segment_for_write(
             let source_flag: i64 = row.get(3)?;
             let target_flag: i64 = row.get(4)?;
             let is_omitted: i64 = row.get(5)?;
-            let translation_origin: String = row.get(6)?;
-            let retired_at: Option<String> = row.get(7)?;
-            let role: Option<String> = row.get(8)?;
+            let baseline_text: String = row.get(6)?;
+            let baseline_origin: String = row.get(7)?;
+            let retired_at: Option<String> = row.get(8)?;
+            let role: Option<String> = row.get(9)?;
             Ok((
                 LoadedSegment {
                     id: segment_id,
@@ -3134,17 +3078,33 @@ fn load_segment_for_write(
                         target: target_flag != 0,
                     },
                     is_omitted: is_omitted != 0,
-                    translation_origin,
+                    translation_origin: String::new(),
                     role,
                 },
+                baseline_text,
+                baseline_origin,
                 retired_at,
             ))
         },
     );
 
     match found {
-        Ok((row, None)) => Ok(row),
-        Ok((_, Some(_))) => Err(RegroupReject::Retired(segment_id)),
+        Ok((mut row, baseline_text, baseline_origin, None)) => {
+            match crate::core::segment::origin::arbitrate(
+                &row.target_text,
+                &baseline_text,
+                &baseline_origin,
+            ) {
+                Ok(arbitrated) => {
+                    row.translation_origin = arbitrated.as_str().to_owned();
+                    Ok(row)
+                }
+                Err(crate::core::segment::origin::UnknownBaselineOrigin(value)) => {
+                    Err(RegroupReject::UnknownOrigin(segment_id, value))
+                }
+            }
+        }
+        Ok((_, _, _, Some(_))) => Err(RegroupReject::Retired(segment_id)),
         Err(SqlError::QueryReturnedNoRows) => Err(RegroupReject::NotFound(segment_id)),
         // ⚠️ Mot loi KHO that di nguoc len nguyen dang — no khong phai mot phep tu choi
         // nghiep vu, va gan cho no mot `MessageKey` la noi doi ve nguyen nhan.
@@ -3239,8 +3199,9 @@ fn write_regroup(
     {
         let mut stmt = tx.prepare_cached(
             "INSERT INTO segment (chapter_id, ord, source_text, target_text, is_paragraph_end, \
-             is_target_paragraph_end, is_omitted, translation_origin, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+             is_target_paragraph_end, is_omitted, translation_origin, baseline_target_text, \
+             baseline_translation_origin, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?4, ?8, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
              strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
         )?;
         for row in fresh {
@@ -3764,15 +3725,6 @@ pub mod wire {
     /// chỗ gọi tương lai quên `await` sẽ ký một văn bản **cũ hơn** thứ người dùng đang nhìn,
     /// và **không cổng nào ở tầng Rust bắt được**. Lưới ở đây là một test frontend, không một
     /// hợp đồng Rust.
-    /// 🔵 **Story 2.7 — tham số thứ hai `text_at_load`, trên dây là `textAtLoad`.** Nó là
-    /// **mốc so** của FR117: bản dịch **lúc nạp segment**, thứ chỉ webview giữ được *(đĩa bị
-    /// ghi đè dần theo từng lượt flush AD-35)*. Lý do đầy đủ ở doc-comment của
-    /// [`super::confirm_segment`]; Quyết định #2 đường (b), Ice ký 2026-08-16.
-    ///
-    /// 🔴 **Tham số thứ ba `origin_at_load`, trên dây là `originAtLoad`.** Cùng
-    /// vai và cùng cách tin như `text_at_load`: xuất xứ segment **lúc nạp**, do webview giữ
-    /// song song với mốc văn bản. Lý do đầy đủ ở doc-comment của [`super::confirm_segment`].
-    ///
     /// 🔴 Vỏ này **không** phân xử một chữ nào — nó chuyển nguyên văn tham số xuống hàm thuần.
     /// Cùng luật đã ghi cho `flush_segment_targets`: đo 2026-08-14 cho thấy một quyết định đặt
     /// ở vỏ đi qua **54/54 xanh** vì `tests/**` gọi vỏ không được *(nó cần `AppHandle`)*.
@@ -3780,18 +3732,16 @@ pub mod wire {
     pub fn confirm_segment<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         segment_id: i64,
-        text_at_load: String,
-        origin_at_load: String,
     ) -> Result<ConfirmOutcome, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::confirm_segment(None, segment_id, &text_at_load, &origin_at_load);
+            return super::confirm_segment(None, segment_id);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::confirm_segment(guard.as_ref(), segment_id, &text_at_load, &origin_at_load)
+        super::confirm_segment(guard.as_ref(), segment_id)
     }
 
     /// Vỏ IPC của [`super::set_segment_omitted`] — Story 2.5c, FR133.
@@ -3983,10 +3933,8 @@ pub mod wire {
     ///
     /// 🔵 **2026-08-17 — `cut: usize` thành `cuts: Vec<usize>`**, chữ ký của Ice cho AC7 vế
     /// *"nhiều mảnh"* sau code review. `n` chỗ cắt cho `n + 1` mảnh trong **một** lượt ghi.
-    /// 🔴 Đây là một lượt **đổi hình dạng dây**, và kho này đã để lọt đúng lớp lỗi ấy **hai
-    /// lần** *(cột `status` ở 2.5, tham số `textAtLoad` ở 2.7)* — cả hai lần toàn bộ test
-    /// Rust và vitest đều xanh vì fixture chép tay luôn có sẵn trường. ⇒ Lưới duy nhất là
-    /// **e2e**, và ca của nó phải gửi một mảng thật.
+    /// 🔴 Đây là một lượt **đổi hình dạng dây**: test Rust và vitest dựng fixture chép tay
+    /// luôn có sẵn trường. ⇒ Lưới duy nhất là **e2e**, và ca của nó phải gửi một mảng thật.
     ///
     /// ⚠️ Cùng nghĩa vụ flush của tầng gọi như [`merge_segments`], và cùng lý do `try_state`.
     #[tauri::command]
