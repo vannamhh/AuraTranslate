@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '09-30-2026 19:47'
+last_updated: '10-01-2026 13:12'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -257,7 +257,7 @@ development_status:
   11-5-trả-nợ-editor-segment-và-tầng-ghi: done
   11-6-trả-nợ-nhập-và-library: done
   11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai: done
-  11-8-sửa-lỗi-ranh-giới-giữa-các-story: in-progress
+  11-8-sửa-lỗi-ranh-giới-giữa-các-story: review
   epic-11-retrospective: done
 
 # Action items committed during retrospectives (section created by the retrospective workflow)

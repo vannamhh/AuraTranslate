@@ -2,7 +2,7 @@
 title: 'Story 11.8, lot B — webview, e2e and CI faults between Epic 11 stories, and the run that closes the story'
 type: 'bugfix'
 created: '2026-10-01'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 baseline_commit: '03d9692012366d92e1801a14dba6f443bfab2380'
 review_loop_iteration: 0
@@ -61,7 +61,7 @@ Ice, 2026-10-01:
 **Execution:**
 - [x] `src/**` plus each item's test file: Dispositions 1-5, 7a, 12. For each fix, write the guard first, record its pre-fix result (red, or green for F-W-2), then fix and really remove the seam once. Webview phase.
 - [x] `tests/frontend/**`, `scripts/ci-previous-verdict.mjs`, `e2e/**`, `.github/workflows/ci.yml`: Dispositions 6, 9, 10, 11, 13. Run one vitest file per change, plus `vue-tsc` for 6. Run the full suite once, because `ci.yml` changes. Tests phase.
-- [ ] `deferred-work.md`, push, dispatch: one `→` line per item. Push and dispatch per Disposition 14, then read the CI run and the nightly. Closing phase.
+- [x] `deferred-work.md`, push, dispatch: one `→` line per item. Push and dispatch per Disposition 14, then read the CI run and the nightly. Closing phase.
 
 **Acceptance Criteria:**
 - Given Quét lại, Chọn thư mục or Gỡ mồ côi is running, when the user leaves and returns to Library before it ends, then its report is applied and the button is usable again immediately.
@@ -81,6 +81,7 @@ Phase working notes: [11-8-lo-b-phases-2026-10-01.md](11-8-lo-b-phases-2026-10-0
 - F-W-8: `readFixture` now returns `caret_segment_id: null`, not the first id; the first id moved the caret in `editorConfirmSegment` ②.
 - F-CI-4: the nightly read is its own function, so a `silent` push verdict cannot skip it. `failure`, `timed_out` and `startup_failure` warn.
 - F-B-1 layer 2 was measured locally on a `--features wdio` build: passing, and the old `Array.isArray` line throws `[BÀN ĐO HỎNG]`. Layer 1 (`displayplacer` 1.4.0, MIT, full sha256 in the Stack row): dispatch `36813979650` measured the `macos-26` runner display at 1024x768 with no 1440x900 mode (1600x900, 1920x1080 and 1600x1200 are listed), so the step sets 1920x1080; `full` needs a work area ≥ 820 tall.
+- Closing run: dispatch `36820520664` on `bd73e98` is green (`check` on both OSes, e2e 29/29, `attribution-focus` passing, not skipped). The first dispatch, `36813979650` on `a50c1cb`, was red only at the 1440x900 step; its `check (windows-2025)` was already green. The latest nightly, `36781779309`, is red on `8c801ef`, which predates both lots.
 
 ## Spec Change Log
 
