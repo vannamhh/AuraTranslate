@@ -29,9 +29,16 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { mount } from '@vue/test-utils'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
+const promoteAiTranslationMock = vi.fn()
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
-  return { ...actual, readOpenChapterSegments: readFixture, saveSegmentTargets: recordSave }
+  return {
+    ...actual,
+    readOpenChapterSegments: readFixture,
+    saveSegmentTargets: recordSave,
+    promoteAiTranslation: (...args: unknown[]) => promoteAiTranslationMock(...args),
+  }
 })
 
 const STUBS = { PanelFrame: { template: '<div class="panel-frame"><slot /></div>' } }
@@ -65,7 +72,6 @@ async function mountEditor() {
   // 🔴 Cùng lý do dòng trên: hai dải state nạp trong CÙNG lượt `resetModules()` với
   // `commands`/`editorClearSourceCuts`.
   const history = await import('../../src/panels/segmentHistoryState')
-  const settings = await import('../../src/settingsState')
   const { clearSourceCuts } = await import('../../src/editorClearSourceCuts')
   // 🔴 **PHẢI gọi `installCommands` — `dispatch` NÉM với một id chưa đăng ký.** Ca ③ đi qua
   // `onEditKeydown` → `dispatch('editor.clear_source_cuts')`, tức **đúng đường sản phẩm**;
@@ -89,7 +95,7 @@ async function mountEditor() {
   daMount.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, quickAdd, confirmStrip, history, settings, wrapper }
+  return { state, commands, quickAdd, confirmStrip, history, wrapper }
 }
 
 /** Chỉ NẠP (không `resetModules`, không mount) — trả giá dịch một lần của `GridPanel.vue` (nó
@@ -103,7 +109,6 @@ async function warmModules() {
     import('../../src/glossaryQuickAddState'),
     import('../../src/glossaryConfirmStripState'),
     import('../../src/panels/segmentHistoryState'),
-    import('../../src/settingsState'),
     import('../../src/editorClearSourceCuts'),
   ])
 }
@@ -261,13 +266,11 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
   })
 
   /**
-   * 🔴 Hai bề mặt nữa dùng bare-`Escape` của riêng chúng: `SegmentHistoryOverlay` (lịch sử
-   * phiên bản, Story 2.6) và Cài đặt › Phím tắt (bảng phím, Story 1.21). Cùng lớp lỗi ⑥/⑦
-   * ngay trên, hai bề mặt mới.
+   * 🔴 Một bề mặt nữa dùng bare-`Escape` của riêng nó: `SegmentHistoryOverlay` (lịch sử
+   * phiên bản, Story 2.6). Cùng lớp lỗi ⑥/⑦ ngay trên.
    *
    * Đối chứng GỠ đã chạy tay: xoá `historyIsOpen.value ||` khỏi cổng ⇒ ca ⑥b đỏ đúng lý do
-   * (tập điểm cắt bị xoá dù lớp phủ lịch sử đang mở); khôi phục lại ⇒ xanh. Cùng thao tác cho
-   * `settingsOverlayIsOpen.value ||` và ca ⑦b.
+   * (tập điểm cắt bị xoá dù lớp phủ lịch sử đang mở); khôi phục lại ⇒ xanh.
    */
   it('🔴 ⑥b lớp phủ LỊCH SỬ PHIÊN BẢN đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
     const { state, commands, history } = await mountEditor()
@@ -282,16 +285,31 @@ describe('🔵 2026-08-25 — `Esc` thuộc về DẢI đang mở, không thuộ
     expect(state.editorSourceCut.value?.offsets).toEqual([2, 4])
   })
 
-  it('🔴 ⑦b khung CÀI ĐẶT (mục Phím tắt) đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt', async () => {
-    const { state, commands, settings } = await mountEditor()
+  it('🔴 ⑩ câu hỏi PROMOTE đang mở ⇒ `Esc` KHÔNG xoá tập điểm cắt; huỷ câu hỏi thì xoá được', async () => {
+    const { state, commands } = await mountEditor()
     state.setEditorSourceCut(11, 2)
+    state.setEditorSourceCut(11, 4)
 
-    settings.openSettingsToSection('shortcuts')
-    expect(settings.settingsOverlayIsOpen.value).toBe(true)
+    promoteAiTranslationMock.mockResolvedValueOnce({
+      outcome: {
+        segment_id: 5,
+        target_text: '',
+        translation_origin: 'other',
+        needs_confirmation: true,
+        unsigned_draft: 'Bản đang soạn',
+      },
+      error: null,
+    })
+    await state.promoteAiTranslationToEditor(5, 'Kết quả AI')
+    expect(state.editorPendingPromote.value).not.toBeNull()
 
     commands.dispatch('editor.clear_source_cuts')
+    expect(state.editorSourceCut.value?.offsets).toEqual([2, 4])
 
-    expect(state.editorSourceCut.value?.offsets).toEqual([2])
+    state.cancelPendingPromote()
+    expect(state.editorPendingPromote.value).toBeNull()
+    commands.dispatch('editor.clear_source_cuts')
+    expect(state.editorSourceCut.value).toBe(null)
   })
 
   it('⑧ KHÔNG dải nào mở ⇒ `Esc` vẫn xoá như Story 2.9 AC8 — vệ không được lấy mất tính năng', async () => {

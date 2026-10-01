@@ -29,7 +29,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS } from './support/segmentFixture'
-import type { ChapterSegment } from '../../src/config/segment'
+import type { ChapterSegment, ReadChapterSegmentsResult } from '../../src/config/segment'
 import type { AiTranslateBatchEventWire, AiTranslateOutcomeWire } from '../../src/config/aitranslate'
 import type { ChapterDirection, ChapterSwitchOutcome } from '../../src/config/chapter'
 import type { IpcError } from '../../src/i18n'
@@ -61,12 +61,18 @@ const CHUONG_KE_SEGMENTS: readonly ChapterSegment[] = [
  * "thành công" theo `openAdjacentChapter`, và ca sẽ xanh vì lý do sai. */
 const chuongDangMo: { value: number } = { value: FIXTURE_CHAPTER_ID }
 
-async function docChuongDangMoSegments(): Promise<{
-  loaded: { chapter_id: number; segments: ChapterSegment[] }
-  error: null
-}> {
+async function docChuongDangMoSegments(): Promise<ReadChapterSegmentsResult> {
   const segments = chuongDangMo.value === FIXTURE_CHAPTER_ID ? FIXTURE_SEGMENTS : CHUONG_KE_SEGMENTS
-  return { loaded: { chapter_id: chuongDangMo.value, segments: segments.map((s) => ({ ...s })) }, error: null }
+  return {
+    loaded: {
+      chapter_id: chuongDangMo.value,
+      segments: segments.map((s) => ({ ...s })),
+      caret_segment_id: null,
+      assets: [],
+      assets_dir: '',
+    },
+    error: null,
+  }
 }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {

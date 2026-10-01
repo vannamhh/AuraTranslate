@@ -19,6 +19,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 const failNextConfirm = { value: false }
+const emptyMessageKey = { value: false }
+
+function keyOrEmpty(key: string): string {
+  return emptyMessageKey.value ? '' : key
+}
 
 async function recordConfirm(segmentId: number, _textAtLoad: string, _originAtLoad: string) {
   if (failNextConfirm.value) {
@@ -27,7 +32,7 @@ async function recordConfirm(segmentId: number, _textAtLoad: string, _originAtLo
       outcome: null,
       error: {
         code: 'segment.nothing_to_confirm',
-        message_key: 'err.segment.nothing_to_confirm',
+        message_key: keyOrEmpty('err.segment.nothing_to_confirm'),
         params: { segment_id: String(segmentId) },
         retryable: false,
       },
@@ -47,7 +52,7 @@ async function recordRestore(segmentId: number, _versionId: number, _force: bool
       outcome: null,
       error: {
         code: key === 'err.segment.not_found' ? 'segment.not_found' : 'segment.retired',
-        message_key: key,
+        message_key: keyOrEmpty(key),
         params: { segment_id: String(segmentId) },
         retryable: false,
       },
@@ -59,6 +64,17 @@ async function recordRestore(segmentId: number, _versionId: number, _force: bool
   }
 }
 
+async function saveRecordingEmptyKey(chapterId: number, edits: readonly { id: number; target_text: string }[]) {
+  if (emptyMessageKey.value && failNextSave.value) {
+    failNextSave.value = false
+    return {
+      outcome: null,
+      error: { code: 'store.write_failed', message_key: '', params: {}, retryable: true },
+    }
+  }
+  return recordSave(chapterId, edits)
+}
+
 async function recordHistory(_segmentId: number) {
   return { versions: [], error: null }
 }
@@ -68,7 +84,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   return {
     ...actual,
     readOpenChapterSegments: readFixture,
-    saveSegmentTargets: recordSave,
+    saveSegmentTargets: saveRecordingEmptyKey,
     confirmSegment: recordConfirm,
     restoreSegmentVersion: recordRestore,
     readSegmentHistory: recordHistory,
@@ -99,6 +115,7 @@ beforeEach(() => {
   resetRecorder()
   failNextConfirm.value = false
   failNextRestoreKey.value = null
+  emptyMessageKey.value = false
 })
 
 describe('GridPanel.vue — nhãn hàng ưu tiên lỗi xác nhận trên lỗi flush', () => {
@@ -167,5 +184,34 @@ describe('GridPanel.vue — nhãn hàng ưu tiên lỗi xác nhận trên lỗi 
 
     expect(stateCellTextFor(wrapper, 0)).toBe(t('err.segment.retired', { segment_id: '11' }))
     expect(stateCellTextFor(wrapper, 0)).not.toBe(t('err.store.write_failed', {}))
+  })
+})
+
+describe('GridPanel.vue — a refused row never renders an empty label', () => {
+  it.each(['confirm', 'restore', 'flush'] as const)('%s fails with an empty message_key ⇒ the row shows the tError fallback', async (source) => {
+    const { wrapper, state, history } = await mountGrid()
+    const { t } = await import('../../src/i18n')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    emptyMessageKey.value = true
+
+    if (source === 'confirm') {
+      state.setEditorCaret(12)
+      failNextConfirm.value = true
+      expect(await state.confirmCurrentSegment()).toBe('refused')
+    } else if (source === 'restore') {
+      state.setEditorCaret(12)
+      history.openSegmentHistory()
+      failNextRestoreKey.value = 'err.segment.not_found'
+      expect(await history.restoreVersion(999, false)).toBe('refused')
+    } else {
+      state.noteEditorEdit(12, 'Bản mới, sắp mất khi flush trượt.')
+      failNextSave.value = true
+      expect(await state.flushEditorNow()).toBe('failed')
+    }
+    await wrapper.vm.$nextTick()
+
+    const label = stateCellTextFor(wrapper, 1)
+    expect(label).not.toBe('')
+    expect(label).toBe(t('err.unknown'))
   })
 })

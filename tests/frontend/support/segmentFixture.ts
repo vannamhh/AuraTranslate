@@ -24,7 +24,7 @@
  * trong lời gọi được phân giải tương đối với tệp gọi. Mỗi tệp test tự khai `vi.mock`, và dùng
  * bộ ghi dưới đây làm chỗ chung.
  */
-import type { ChapterSegment } from '../../../src/config/segment'
+import type { ChapterSegment, ReadChapterSegmentsResult } from '../../../src/config/segment'
 
 /**
  * Cùng bộ câu với bàn đo `2-3-ban-do-vung-go.html` — một fixture, hai chỗ dùng.
@@ -141,14 +141,14 @@ export async function recordSave(
 }
 
 /** Thân của `readOpenChapterSegments` giả. */
-export async function readFixture(): Promise<{
-  loaded: { chapter_id: number; segments: ChapterSegment[] }
-  error: null
-}> {
+export async function readFixture(): Promise<ReadChapterSegmentsResult> {
   return {
     loaded: {
       chapter_id: FIXTURE_CHAPTER_ID,
       segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
+      caret_segment_id: null,
+      assets: [],
+      assets_dir: '',
     },
     error: null,
   }

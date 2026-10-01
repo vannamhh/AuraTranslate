@@ -35,6 +35,7 @@ import {
   resetRecorder,
 } from './support/segmentFixture'
 import { createPositionFlush, POSITION_HARD_CAP_MS, POSITION_IDLE_MS } from '../../src/panels/positionFlush'
+import type { ReadChapterSegmentsResult } from '../../src/config/segment'
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // § Hàng "Ghi vị trí" — nhịp idle + trần cứng, đo trên hàm THUẦN
@@ -119,12 +120,14 @@ const luotMoChuong: number[] = []
  * ĐẦU — đúng giá trị Rust trả cho một Chương chưa từng mở (AC5). */
 const caretFromRust = { value: FIXTURE_SEGMENTS[0].id }
 
-async function docSegmentGia() {
+async function docSegmentGia(): Promise<ReadChapterSegmentsResult> {
   return {
     loaded: {
       chapter_id: FIXTURE_CHAPTER_ID,
       segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
       caret_segment_id: caretFromRust.value,
+      assets: [],
+      assets_dir: '',
     },
     error: null,
   }

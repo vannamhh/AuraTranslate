@@ -869,6 +869,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `vitest` *(bộ chạy test frontend)* | 4.1.10 | MIT ✓ |
 | `@vue/test-utils` | 2.4.11 | MIT ✓ |
 | `happy-dom` | 20.11.2 | MIT ✓ |
+| `displayplacer` *(công cụ dòng lệnh macOS, chỉ cài trong job `e2e` của `ci.yml` để đặt độ phân giải màn hình runner; không liên kết vào mã, không vào sản phẩm; rà NFR15 2026-10-01 trên nguồn đã tải `v1.4.0.tar.gz`, sha256 `54b239359dbf9dc9b3a25e41a372eafb1de6c3131fe7fed37da53da77189b600`, đọc tệp `LICENSE` ở gốc: văn bản MIT khớp nhãn)* | 1.4.0 | MIT ✓ |
 | `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
 | `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |

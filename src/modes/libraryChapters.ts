@@ -529,6 +529,7 @@ export async function saveCurrentChapterOrigin(edit: ChapterOriginEditFields): P
     return
   }
 
+  chapterOriginApplyThroughOrd.value = null
   await loadChapters()
   chapterOriginBusy.value = false
 }

@@ -769,6 +769,37 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     state.setChapterOriginApplyThroughOrd('0')
     expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
   })
+
+  it('một lượt lưu THÀNH CÔNG xoá ord đích; lượt lưu kế tiếp gửi applyThroughOrd null', async () => {
+    mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    state.setChapterOriginApplyThroughOrd('5')
+
+    await state.saveCurrentChapterOrigin({ author: 'A', siteName: '', url: '', publishedAt: '' })
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+
+    mockInvoke.mockClear()
+    await state.saveCurrentChapterOrigin({ author: 'B', siteName: '', url: '', publishedAt: '' })
+    const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
+    expect(call?.[1]).toMatchObject({ applyThroughOrd: null })
+  })
+
+  it('một lượt lưu TRƯỢT giữ ord đích để người dùng thử lại', async () => {
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'update_chapter_origin'
+        ? Promise.reject({ code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: true })
+        : Promise.resolve(CHAPTERS_ORD_1_TO_5),
+    )
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    state.setChapterOriginApplyThroughOrd('5')
+
+    await state.saveCurrentChapterOrigin({ author: 'A', siteName: '', url: '', publishedAt: '' })
+
+    expect(state.libraryChapterOriginError.value).not.toBeNull()
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBe(5)
+  })
 })
 
 describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15)', () => {
@@ -832,5 +863,23 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
 
     const call = mockInvoke.mock.calls.find((c) => c[0] === 'update_chapter_origin')
     expect(call?.[1]).toMatchObject({ chapterId: CHAPTER_ROW_A.chapter_id, author: 'Tac Gia Go Tay' })
+  })
+
+  it('một ord đích NGOÀI dải gõ vào ô số ⇒ ô được đặt về rỗng, không giữ số vừa gõ', async () => {
+    mockInvokeForChaptersMount(CHAPTERS_ORD_1_TO_5)
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    const input = wrapper.get('[data-library-chapter-origin-apply-through]')
+    ;(input.element as HTMLInputElement).value = '99'
+    await input.trigger('change')
+    await wrapper.vm.$nextTick()
+
+    expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
+    expect((input.element as HTMLInputElement).value).toBe('')
   })
 })

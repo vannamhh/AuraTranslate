@@ -39,7 +39,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
 import type { Component } from 'vue'
-import { FIXTURE_SEGMENTS, FIXTURE_CHAPTER_ID } from './support/segmentFixture'
+import { readFixture } from './support/segmentFixture'
 import type { AiTranslateBatchEventWire, AiTranslateOutcomeWire } from '../../src/config/aitranslate'
 import type { CommandDeps } from '../../src/commands'
 import type { IpcError } from '../../src/i18n'
@@ -59,10 +59,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
     ...actual,
-    readOpenChapterSegments: async () => ({
-      loaded: { chapter_id: FIXTURE_CHAPTER_ID, segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })) },
-      error: null,
-    }),
+    readOpenChapterSegments: readFixture,
   }
 })
 

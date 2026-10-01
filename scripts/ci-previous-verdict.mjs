@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Warns when the previous push's CI run failed. Not a gate: no `check:*` name, never
+ * Warns when the previous push's CI run failed, and when the latest completed nightly
+ * (`schedule`) run failed. Not a gate: no `check:*` name, never
  * blocks a push, stays out of the three gate lists (`package.json` / `ci.yml` /
  * `.githooks/pre-push`'s `for gate in … ; do` loop) and out of `check:gates`.
  *
@@ -17,6 +18,7 @@ import { pathToFileURL } from 'node:url'
 const TIMEOUT_MS = 8000
 const WORKFLOW = 'ci.yml'
 const BRANCH = 'master'
+const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'startup_failure'])
 
 /**
  * @typedef {object} RunResult
@@ -89,6 +91,56 @@ export function ciPreviousVerdict({ run }) {
   return { kind: 'silent' }
 }
 
+/**
+ * @typedef {{ kind: 'failure', runId: number } | { kind: 'success' } | { kind: 'silent' }} NightlyVerdict
+ */
+
+/**
+ * Independent of the push verdict: a fresh push has no matching run yet, and that must not
+ * hide a red nightly.
+ * @param {{ run: (cmd: string, args: string[]) => RunResult }} deps
+ * @returns {NightlyVerdict}
+ */
+export function ciNightlyVerdict({ run }) {
+  const auth = run('gh', ['auth', 'status'])
+  if (auth.error || auth.status !== 0) return { kind: 'silent' }
+
+  const list = run('gh', [
+    'run',
+    'list',
+    '--workflow',
+    WORKFLOW,
+    '--branch',
+    BRANCH,
+    '--event',
+    'schedule',
+    '--status',
+    'completed',
+    '--json',
+    'databaseId,conclusion',
+    '-L',
+    '1',
+  ])
+  if (list.error || list.status !== 0) return { kind: 'silent' }
+
+  /** @type {unknown} */
+  let runs
+  try {
+    runs = JSON.parse(list.stdout)
+  } catch {
+    return { kind: 'silent' }
+  }
+  if (!Array.isArray(runs)) return { kind: 'silent' }
+
+  const latest = runs[0]
+  if (!latest || typeof latest !== 'object') return { kind: 'silent' }
+  if (latest.conclusion === 'success') return { kind: 'success' }
+  if (FAILED_CONCLUSIONS.has(latest.conclusion) && typeof latest.databaseId === 'number') {
+    return { kind: 'failure', runId: latest.databaseId }
+  }
+  return { kind: 'silent' }
+}
+
 /** @param {string} s */
 const yellow = (s) => `\x1b[33m${s}\x1b[0m`
 /** @param {string} s */
@@ -117,12 +169,36 @@ export function printVerdict(v) {
   }
 }
 
+/** @param {NightlyVerdict} v */
+export function printNightlyVerdict(v) {
+  process.stdout.write(`  ${'ci (đêm)'.padEnd(14)}`)
+  switch (v.kind) {
+    case 'failure':
+      process.stdout.write('\n')
+      console.log(
+        yellow(`CẢNH BÁO — CI chạy đêm (schedule) gần nhất ĐỎ, run ${v.runId}. Xem: gh run view ${v.runId}`),
+      )
+      break
+    case 'success':
+      console.log(green('OK'))
+      break
+    default:
+      console.log(grey('—'))
+  }
+}
+
 /** Never throws, never sets a non-zero exit code — this step must never fail the hook. */
 function main() {
   try {
     printVerdict(ciPreviousVerdict({ run: spawnRun }))
   } catch {
     process.stdout.write(`  ${'ci (trước)'.padEnd(14)}`)
+    console.log(grey('—'))
+  }
+  try {
+    printNightlyVerdict(ciNightlyVerdict({ run: spawnRun }))
+  } catch {
+    process.stdout.write(`  ${'ci (đêm)'.padEnd(14)}`)
     console.log(grey('—'))
   }
 }

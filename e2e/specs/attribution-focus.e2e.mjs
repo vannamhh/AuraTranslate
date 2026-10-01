@@ -78,8 +78,8 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
     //   · có nguồn ⇒ nút PHẢI có mặt, và vắng mặt là một lượt ĐỎ thật.
     const dictSourceCount = await browser.execute(async () => {
       try {
-        const sources = await window.__TAURI_INTERNALS__.invoke('list_dict_sources')
-        return Array.isArray(sources) ? sources.length : -1
+        const res = await window.__TAURI_INTERNALS__.invoke('list_dict_sources')
+        return Array.isArray(res?.sources) ? res.sources.length : -1
       } catch {
         return -1
       }
@@ -87,7 +87,7 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
 
     if (dictSourceCount < 0) {
       throw new Error(
-        '[BÀN ĐO HỎNG] `list_dict_sources` ném hoặc trả về một hình dạng không phải mảng.\n' +
+        '[BÀN ĐO HỎNG] `list_dict_sources` ném hoặc trả về một hình dạng không có mảng `sources` (`SourceAttributions`).\n' +
           'Tiền đề chưa dựng được, nên mệnh đề AC11 CHƯA ĐƯỢC ĐO — lượt đỏ này không đọc ' +
           'thành "sản phẩm đạt" hay "sản phẩm hỏng", cả hai đều là kết quả không có thật.',
       )

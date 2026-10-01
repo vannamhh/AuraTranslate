@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 const SRC = resolve(process.cwd(), 'src')
 
@@ -32,7 +32,7 @@ function sites(needle: RegExp): Array<{ file: string; text: string; index: numbe
   for (const path of sourceFiles(SRC)) {
     const text = codeOnly(readFileSync(path, 'utf8'))
     for (const m of text.matchAll(needle)) {
-      found.push({ file: relative(SRC, path), text, index: m.index })
+      found.push({ file: relative(SRC, path).split(sep).join('/'), text, index: m.index })
     }
   }
   return found

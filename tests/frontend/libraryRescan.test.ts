@@ -526,3 +526,90 @@ describe('modes/LibraryMode.vue — khối "Mồ côi" hiện đúng ngay khi v�
     wrapper.unmount()
   })
 })
+
+describe('modes/libraryRescan.ts — leaving and returning to Library mid-write', () => {
+  const ONE_ORPHAN = { work_id: 'id-orphan', name: 'Ghost Work', atproj_path: '/tmp/library/Ghost.atproj' }
+
+  type Writer = 'library_rescan' | 'library_choose_root' | 'library_forget_orphan'
+  const WRITERS: Array<[string, Writer]> = [
+    ['rescanLibraryFolder', 'library_rescan'],
+    ['chooseLibraryRootFolder', 'library_choose_root'],
+    ['forgetCurrentLibraryOrphan', 'library_forget_orphan'],
+  ]
+
+  it.each(WRITERS)('%s: a loadLibraryOrphans() that starts and ends during the write keeps its report and frees the button', async (name, command) => {
+    const state = await import('../../src/modes/libraryRescan')
+    if (command === 'library_forget_orphan') {
+      mockInvoke.mockResolvedValueOnce(RESCAN_REPORT_ONE_ORPHAN)
+      await state.rescanLibraryFolder()
+      mockInvoke.mockClear()
+    }
+    let resolveWrite: (value: unknown) => void = () => {}
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === command) return new Promise((resolve) => { resolveWrite = resolve })
+      if (cmd === 'library_list_orphans') return Promise.resolve([ONE_ORPHAN])
+      return Promise.reject(new Error(`unexpected ${cmd}`))
+    })
+
+    const writing = (state as unknown as Record<string, () => Promise<void>>)[name]()
+    expect(state.libraryRescanBusy.value).toBe(true)
+    await state.loadLibraryOrphans()
+    resolveWrite(command === 'library_forget_orphan' ? [] : RESCAN_REPORT_ONE_ORPHAN)
+    await writing
+
+    expect(state.libraryRescanBusy.value).toBe(false)
+    if (command === 'library_forget_orphan') {
+      expect(state.libraryOrphans.value).toEqual([])
+    } else {
+      expect(state.libraryOrphans.value).toHaveLength(1)
+      expect(state.currentLibraryRoot.value).toBe('/tmp/library')
+    }
+
+    mockInvoke.mockClear()
+    mockInvoke.mockImplementation(() => Promise.resolve(RESCAN_REPORT_ONE_ORPHAN))
+    await state.rescanLibraryFolder()
+    expect(mockInvoke.mock.calls.map((call) => call[0])).toEqual(['library_rescan'])
+  })
+
+  it('a loadLibraryOrphans() that started before a write ended is dropped, not applied over the write result', async () => {
+    const state = await import('../../src/modes/libraryRescan')
+    let resolveList: (value: unknown) => void = () => {}
+    mockInvoke.mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+    const loading = state.loadLibraryOrphans()
+    mockInvoke.mockResolvedValueOnce(RESCAN_REPORT_ONE_ORPHAN)
+    await state.rescanLibraryFolder()
+    resolveList([])
+    await loading
+    expect(state.libraryOrphans.value).toHaveLength(1)
+  })
+
+  it('resetLibraryRescan() drops a loadLibraryOrphans() still in flight', async () => {
+    const state = await import('../../src/modes/libraryRescan')
+    let resolveList: (value: unknown) => void = () => {}
+    mockInvoke.mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve }))
+    const loading = state.loadLibraryOrphans()
+    state.resetLibraryRescan()
+    resolveList([ONE_ORPHAN])
+    await loading
+    expect(state.libraryOrphans.value).toEqual([])
+    expect(state.libraryScanHasLoadedState.value).toBe(false)
+  })
+})
+
+describe('modes/libraryRescan.ts — a failed write does not discard an overlapping orphan read', () => {
+  it('read in flight, a write starts and fails, read resolves ⇒ the read result is applied', async () => {
+    const state = await import('../../src/modes/libraryRescan')
+    let resolveList: (value: unknown) => void = () => {}
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'library_list_orphans') return new Promise((resolve) => { resolveList = resolve })
+      return Promise.reject({ code: 'library.scan_failed', message_key: 'err.library.scan_failed', params: {}, retryable: true })
+    })
+    const loading = state.loadLibraryOrphans()
+    await state.rescanLibraryFolder()
+    expect(state.libraryScanHasLoadedState.value).toBe(false)
+    resolveList([{ work_id: 'id-orphan', name: 'Ghost Work', atproj_path: '/tmp/library/Ghost.atproj' }])
+    await loading
+    expect(state.libraryScanHasLoadedState.value).toBe(true)
+    expect(state.libraryOrphans.value).toHaveLength(1)
+  })
+})

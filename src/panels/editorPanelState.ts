@@ -2638,17 +2638,18 @@ function applyRegroup(outcome: RegroupOutcome): void {
  * đúng qua gộp/tách, nhưng ẢNH CHỤP `chapterAssets` mà [`applyRegroup`] không đụng tới thì
  * không. KHÔNG chạm `segments.value`/caret — `applyRegroup` đã vá đúng hai ô đó tại chỗ.
  *
- * 🔴 Dùng CHUNG `sequence` với [`ensureSegmentsLoaded`] — một lượt chuyển Chương xen vào giữa
- * (bump `sequence`) làm kết quả trễ của lượt nạp lại này KHÔNG còn khớp Chương đang hiện.
+ * Reads `sequence` without bumping it, so a chapter load in flight is not invalidated. The
+ * result is dropped when `sequence` moved or it belongs to a chapter that is not open.
  */
 async function refreshChapterAssetsAfterRegroup(): Promise<void> {
-  const mine = ++sequence
+  const mine = sequence
   const { loaded, error } = await readOpenChapterSegments()
   if (mine !== sequence) return
   if (loaded === null) {
     console.error(`[editor] refreshChapterAssetsAfterRegroup — readOpenChapterSegments() thất bại, giữ ảnh cũ: ${JSON.stringify(error)}`)
     return
   }
+  if (loaded.chapter_id !== chapterId.value) return
   chapterAssets.value = loaded.assets
   assetsDir.value = loaded.assets_dir
 }

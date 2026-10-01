@@ -62,9 +62,13 @@ const libraryScanHasLoaded = ref(false)
 const rescanResultHasLoaded = ref(false)
 const lastError = ref<IpcError | null>(null)
 
-/** Số thứ tự lượt gọi — chặn một lượt CŨ ghi đè lên state của một lượt MỚI hơn (round-trip
- * IPC đua nhau), cùng khuôn `sequence` của các state Glossary khác. */
+/** Bumped when a write starts and by `resetLibraryRescan()`. `rescanBusy` keeps the writes
+ * mutually exclusive, so only a reset can invalidate an in-flight write. */
 let sequence = 0
+
+/** Bumped where a write applies its result and in `resetLibraryRescan()`: an orphan read that
+ * sees it change between start and return drops its result. */
+let writeEpoch = 0
 
 export const currentLibraryRoot: DeepReadonly<Ref<string | null>> = readonly(libraryRoot)
 export const libraryRootMissing: DeepReadonly<Ref<boolean>> = readonly(rootMissing)
@@ -152,6 +156,7 @@ export async function rescanLibraryFolder(): Promise<void> {
   }
   if (result.report === null) return // Không có cầu IPC -- im lặng, cùng nhánh mọi adapter khác.
 
+  writeEpoch += 1
   applyReport(result.report)
 }
 
@@ -179,6 +184,7 @@ export async function chooseLibraryRootFolder(): Promise<void> {
   }
   if (result.report === null) return // Huỷ hộp thoại HOẶC không cầu IPC -- không đổi gì.
 
+  writeEpoch += 1
   applyReport(result.report)
 }
 
@@ -204,6 +210,7 @@ export async function forgetCurrentLibraryOrphan(): Promise<void> {
   }
   if (result.orphans === null) return // Không có cầu IPC.
 
+  writeEpoch += 1
   orphans.value = result.orphans
   clampCursor()
 }
@@ -215,16 +222,15 @@ export async function forgetCurrentLibraryOrphan(): Promise<void> {
  * `LibraryMode.vue::onActivated` gọi hàm này (không phải `rescanLibraryFolder`) để khối
  * "Mồ côi" hiện đúng trạng thái NGAY khi vào Library, không cần người dùng tự bấm Quét lại.
  *
- * Dùng CHUNG bộ đếm `sequence` với `rescanLibraryFolder`/`chooseLibraryRootFolder`/
- * `forgetCurrentLibraryOrphan` (một lượt Quét lại đang bay không bị một lượt đọc mồ côi cũ
- * hơn ghi đè, và ngược lại) — nhưng KHÔNG canh `rescanBusy`: đây là một lượt ĐỌC nhẹ (một
- * `SELECT`), không cần khoá nút Quét lại trong lúc nó chạy.
+ * Does not touch the writers' `sequence`, so an in-flight write still applies its report and
+ * frees the button. Its own result is dropped when a write applied meanwhile (`writeEpoch`) or
+ * `resetLibraryRescan()` ran. It does not check `rescanBusy`: it is a light read.
  */
 export async function loadLibraryOrphans(): Promise<void> {
-  const mySequence = ++sequence
+  const myEpoch = writeEpoch
 
   const result = await listOrphans()
-  if (mySequence !== sequence) return // Một lượt MỚI hơn đã bắt đầu -- bỏ, không ghi đè.
+  if (myEpoch !== writeEpoch) return
 
   if (result.error !== null) {
     lastError.value = result.error
@@ -254,6 +260,7 @@ export function prevLibraryOrphan(): void {
  */
 export function resetLibraryRescan(): void {
   sequence += 1
+  writeEpoch += 1
   libraryRoot.value = null
   rootMissing.value = false
   orphans.value = []

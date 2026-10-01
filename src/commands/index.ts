@@ -2383,10 +2383,10 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * kết quả ⇒ trống. Mockup vẽ `⌘H`, và `conflictFor` chạy trên **toàn registry** *(không
    * theo chế độ)* nên một lượt trùng sẽ lộ ra ngay ở `register()` chứ không âm thầm.
    *
-   * ⚠️ `history.close` giữ **0 hợp âm mặc định** — cùng chủ ý với `shortcuts.close` và
-   * `attribution.close`: `Esc` đóng lớp phủ bằng một handler **cục bộ**, cố ý **không** đăng
-   * ký. Đăng ký `Escape` toàn cục biến nó thành một phím **gán lại được trên toàn ứng dụng**,
-   * và một người dùng gán nó đi chỗ khác sẽ không đóng được lớp phủ nào nữa.
+   * ⚠️ `history.close` has no default chord, like `settings.close` and `attribution.close`:
+   * `Esc` closes each overlay through a local `@keydown.esc` handler, deliberately not
+   * registered. A global `Escape` chord would be rebindable app-wide, and rebinding it would
+   * leave no overlay closable by `Esc`.
    */
   for (const [id, port, chord] of [
     ['history.open', 'openSegmentHistory', 'Mod+H'],
@@ -3006,7 +3006,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * trống.
    *
    * `glossary.save_term`/`glossary.close_quick_add` giữ **0 hợp âm mặc định** — cùng chủ ý
-   * với `attribution.close`/`shortcuts.close`/`history.close`: `↵`/`Esc` xử lý bằng một
+   * với `attribution.close`/`settings.close`/`history.close`: `↵`/`Esc` xử lý bằng một
    * handler CỤC BỘ trong `GlossaryQuickAdd.vue` (Kiểm A của `check:commands` nói nguyên văn
    * "chỉ `@click`" — `@keydown`/`@submit` không thuộc luật đó, nên chúng được xử lý tự do).
    * Hai command này tồn tại để nút Lưu/Huỷ có một `dispatch('<id>')` hợp lệ (AC1) VÀ để

@@ -952,19 +952,9 @@ async function boot(): Promise<void> {
     // ⚠️ Vị từ đi bằng **tiêm**, cùng cửa `toggleDictSource`/`runLookup` — xem [`KeymapGate`]
     // để biết vì sao `keys.ts` không được phép tự `import` state này.
     //
-    // 🔴 **STORY 1.21 — VỊ TỪ THỨ HAI, VÀ NÓ HỎI MỘT CÂU KHÁC HẲN CÂU THỨ NHẤT.**
-    //
-    // `attributionIsOpen` nuốt **suốt thời gian lớp phủ mở**: Attribution khai `aria-modal`
-    // và một lượt đổi preset bố cục phía sau nó gọi `api.clear()` — có hậu quả thật.
-    //
-    // `captureIsArmed` nuốt **chỉ khi đang chờ một hợp âm**, không suốt thời gian màn phím
-    // tắt mở. Người dùng ở đó đang **đọc bảng phím** và có mọi lý do để thử `Mod+Alt+←` —
-    // nó không phá gì cả (hàng 18 của bàn đo canh đúng ca này). Chỉ trạng thái chờ-một-hợp-âm
-    // mới cần độc quyền bàn phím, và nó cần thật: không có cửa thì gõ `Mod+1` để **gán** phím
-    // sẽ **đổi chế độ** giữa lúc gán (Bẫy 3).
-    //
-    // ⚠️ Lớp phủ phím tắt vẫn khai `aria-modal="true"` và vẫn `trapTab` — hai thứ đó nói về
-    // **tiêu điểm**, không về hợp âm. Đừng gộp.
+    // No chord runs while Settings is open, including its Shortcuts section: Settings declares
+    // `aria-modal` and `trapTab`, and a layout-preset chord behind it would rebuild the panels
+    // and orphan `returnFocusTo`.
     void attachKeyboard(window, {
       isBlocked: () =>
         attributionIsOpen.value ||

@@ -22,7 +22,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS } from './support/segmentFixture'
-import type { ChapterSegment } from '../../src/config/segment'
+import type { ChapterSegment, ReadChapterSegmentsResult } from '../../src/config/segment'
 
 /** Chương THỨ HAI — id KHÔNG chồng với `FIXTURE_SEGMENTS`, đúng thứ `AUTOINCREMENT` của cùng
  * một `project.db` đảm bảo (segment.id đếm CHUNG cho mọi Chương của một Tác phẩm). Dùng để
@@ -63,14 +63,14 @@ const activeFixture: { value: { chapterId: number; segments: readonly ChapterSeg
   value: { chapterId: FIXTURE_CHAPTER_ID, segments: FIXTURE_SEGMENTS },
 }
 
-async function readActiveFixture(): Promise<{
-  loaded: { chapter_id: number; segments: ChapterSegment[] }
-  error: null
-}> {
+async function readActiveFixture(): Promise<ReadChapterSegmentsResult> {
   return {
     loaded: {
       chapter_id: activeFixture.value.chapterId,
       segments: activeFixture.value.segments.map((s) => ({ ...s })),
+      caret_segment_id: null,
+      assets: [],
+      assets_dir: '',
     },
     error: null,
   }

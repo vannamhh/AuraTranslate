@@ -1167,7 +1167,13 @@ watch(libraryChapterCursor, (cursor) => {
               :value="libraryChapterOriginApplyThroughOrd ?? ''"
               :disabled="libraryChapterOriginBusy"
               data-library-chapter-origin-apply-through
-              @change="(e) => setChapterOriginApplyThroughOrd((e.target as HTMLInputElement).value)"
+              @change="
+                (e) => {
+                  const input = e.target as HTMLInputElement
+                  setChapterOriginApplyThroughOrd(input.value)
+                  input.value = String(libraryChapterOriginApplyThroughOrd ?? '')
+                }
+              "
             />
           </label>
           <p v-if="libraryChapterOriginError !== null" class="error" role="alert">

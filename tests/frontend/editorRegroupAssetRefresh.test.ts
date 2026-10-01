@@ -52,8 +52,9 @@ const ketQuaGop: {
   value: { outcome: { retired: ChapterSegment[]; new_segments: ChapterSegment[] } | null; error: unknown }
 } = { value: { outcome: null, error: null } }
 
+let gopTreo: Promise<typeof ketQuaGop.value> | null = null
 async function mergeGia() {
-  return ketQuaGop.value
+  return gopTreo ?? ketQuaGop.value
 }
 
 /** Lượt gọi ĐẦU (nạp Chương) khai ảnh của [`anhLanDau`]; lượt gọi SAU (do regroup) khai MỘT ảnh
@@ -62,8 +63,16 @@ async function mergeGia() {
 let soLuotGoiDocSegment = 0
 let anhLanDau: ChapterAsset[] = []
 let ketQuaLanHai: 'anh' | 'loi' = 'anh'
-async function docSegmentGia() {
+type KetQuaDoc = { loaded: unknown; error: unknown }
+let treoTuLuotThu: number | null = null
+let luotDangTreo: Array<(v: KetQuaDoc) => void> = []
+async function docSegmentGia(): Promise<KetQuaDoc> {
   soLuotGoiDocSegment += 1
+  if (treoTuLuotThu !== null && soLuotGoiDocSegment >= treoTuLuotThu) {
+    return new Promise<KetQuaDoc>((resolve) => {
+      luotDangTreo.push(resolve)
+    })
+  }
   if (soLuotGoiDocSegment === 1) {
     return {
       loaded: {
@@ -134,6 +143,9 @@ beforeEach(() => {
   soLuotGoiDocSegment = 0
   anhLanDau = []
   ketQuaLanHai = 'anh'
+  treoTuLuotThu = null
+  luotDangTreo = []
+  gopTreo = null
 })
 
 describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt gộp/tách', () => {
@@ -181,5 +193,60 @@ describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt g
     expect(editorState.editorAssetsDir.value).toBe('/tac-pham/assets-cu')
     expect(spyLoi).toHaveBeenCalled()
     spyLoi.mockRestore()
+  })
+})
+
+describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp Chương khác đang bay', () => {
+  const CHUONG_KHAC = 901
+
+  it('Chương B nạp trong lúc lượt gộp của Chương A còn bay: lượt nạp B vẫn được áp, ảnh của A bị bỏ', async () => {
+    const { editorState } = await tuoi()
+    treoTuLuotThu = 2
+
+    let traLuotGop: (v: typeof ketQuaGop.value) => void = () => {}
+    gopTreo = new Promise<typeof ketQuaGop.value>((resolve) => {
+      traLuotGop = resolve
+    })
+    editorState.setEditorCaret(12)
+    const gop = editorState.mergeCurrentSegment()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    editorState.resetEditorPanel()
+    const napB = editorState.ensureSegmentsLoaded()
+    expect(luotDangTreo).toHaveLength(1)
+
+    traLuotGop({
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_MOI] },
+      error: null,
+    })
+    await gop
+    expect(luotDangTreo).toHaveLength(2)
+
+    luotDangTreo[0]({
+      loaded: {
+        chapter_id: CHUONG_KHAC,
+        segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
+        assets: [],
+        assets_dir: '',
+      },
+      error: null,
+    })
+    await napB
+    luotDangTreo[1]({
+      loaded: {
+        chapter_id: CHUONG_CUA_SEGMENT,
+        segments: [],
+        assets: [ANH_SAU_GOP],
+        assets_dir: '/tac-pham/assets',
+      },
+      error: null,
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(editorState.editorChapterId.value).toBe(CHUONG_KHAC)
+    expect(editorState.editorPending.value).toBe(false)
+    expect(editorState.editorSegments.value.length).toBeGreaterThan(0)
+    expect(editorState.editorChapterAssets.value).toEqual([])
+    expect(editorState.editorAssetsDir.value).toBe('')
   })
 })

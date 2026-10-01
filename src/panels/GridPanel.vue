@@ -74,7 +74,8 @@ import { useSelectionSurface } from './selectionContract'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import type { ChapterAsset } from '../config/segment'
-import { t } from '../i18n'
+import { t, tError } from '../i18n'
+import type { IpcError } from '../i18n'
 import { detectIsMac, dispatch } from '../commands'
 import {
   caretAtCellStart,
@@ -1563,7 +1564,6 @@ function onEditInput(event: Event): void {
  * **vứt** `ConfirmResult` — nên một lượt từ chối **không đổi một pixel nào**. Dòng dưới đây là
  * người đọc đầu tiên.
  */
-const confirmErrorKey = computed(() => editorConfirmError.value?.message_key ?? null)
 const confirmErrorParams = computed(() => editorConfirmError.value?.params ?? null)
 
 /**
@@ -1591,29 +1591,26 @@ const restoreErrorSegmentId = computed<number | null>(() => segmentIdFromErrorPa
 const flushErrorSegmentIds = computed<ReadonlySet<number>>(() => new Set(editorFlushError.value?.segmentIds ?? []))
 
 /**
- * `message_key`/`params` THẬT cho MỖI hàng đang mang lỗi — thay cho chuỗi cố định cũ
- * `panel.grid.state_refused`. `null` ⇒ hàng không có lỗi nào, nhãn trạng thái bình thường vẽ.
+ * The `IpcError` of each errored row, rendered with `tError` so an empty `message_key` falls
+ * back instead of painting a blank label. No entry ⇒ the normal state label renders.
  *
  * Thứ tự ưu tiên khi nhiều nguồn cùng trỏ vào một hàng (hiếm — ví dụ một lô flush trượt
  * ĐÚNG hàng vừa bị từ chối xác nhận): xác nhận trước — thao tác **gần nhất, người dùng vừa
  * chủ động bấm trên chính hàng này** — rồi khôi phục, rồi flush — một LÔ, gắn với một hàng
  * lỏng lẻo nhất trong ba nguồn.
  */
-const rowErrorLabelById = computed<ReadonlyMap<number, { key: string; params: Readonly<Record<string, string>> | null }>>(() => {
-  const map = new Map<number, { key: string; params: Readonly<Record<string, string>> | null }>()
+const rowErrorLabelById = computed<ReadonlyMap<number, IpcError>>(() => {
+  const map = new Map<number, IpcError>()
   const confirmId = errorSegmentId.value
-  if (confirmId !== null && confirmErrorKey.value !== null) {
-    map.set(confirmId, { key: confirmErrorKey.value, params: confirmErrorParams.value })
-  }
+  const confirm = editorConfirmError.value
+  if (confirmId !== null && confirm !== null) map.set(confirmId, confirm)
   const restoreId = restoreErrorSegmentId.value
-  const restoreKey = historyRestoreError.value?.message_key ?? null
-  if (restoreId !== null && restoreKey !== null && !map.has(restoreId)) {
-    map.set(restoreId, { key: restoreKey, params: restoreErrorParams.value })
-  }
+  const restore = historyRestoreError.value
+  if (restoreId !== null && restore !== null && !map.has(restoreId)) map.set(restoreId, restore)
   const flush = editorFlushError.value
   if (flush !== null) {
     for (const id of flushErrorSegmentIds.value) {
-      if (!map.has(id)) map.set(id, { key: flush.error.message_key, params: flush.error.params })
+      if (!map.has(id)) map.set(id, flush.error)
     }
   }
   return map
@@ -1924,9 +1921,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
               selectedRowClassById.get(s.id),
             ]"
           >
-            <template v-if="rowErrorLabelById.get(s.id)">{{
-              t(rowErrorLabelById.get(s.id)!.key, rowErrorLabelById.get(s.id)!.params ?? undefined)
-            }}</template>
+            <template v-if="rowErrorLabelById.get(s.id)">{{ tError(rowErrorLabelById.get(s.id)!) }}</template>
             <template v-else>{{ t(STATE_LABEL_KEYS[ruleById.get(s.id) ?? 'none']) }}</template>
           </div>
         </div>

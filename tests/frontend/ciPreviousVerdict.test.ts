@@ -4,7 +4,7 @@
  * `run(cmd, args)` so the suite runs the same on every OS and never touches the network.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { ciPreviousVerdict, printVerdict } from '../../scripts/ci-previous-verdict.mjs'
+import { ciNightlyVerdict, ciPreviousVerdict, printNightlyVerdict, printVerdict } from '../../scripts/ci-previous-verdict.mjs'
 
 interface RunResult {
   status: number | null
@@ -14,16 +14,21 @@ interface RunResult {
 
 const SHA = 'abc123def456'
 
-function makeRun(overrides: { auth?: RunResult; upstream?: RunResult; list?: RunResult } = {}) {
+function makeRun(
+  overrides: { auth?: RunResult; upstream?: RunResult; list?: RunResult; nightly?: RunResult } = {},
+) {
   const auth = overrides.auth ?? { status: 0, stdout: '' }
   const upstream = overrides.upstream ?? { status: 0, stdout: `${SHA}\n` }
   const list = overrides.list ?? { status: 0, stdout: '[]' }
+  const nightly = overrides.nightly ?? { status: 0, stdout: '[]' }
   const calls: { cmd: string; args: string[] }[] = []
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args })
     if (cmd === 'gh' && args[0] === 'auth') return auth
     if (cmd === 'git' && args[0] === 'rev-parse') return upstream
-    if (cmd === 'gh' && args[0] === 'run') return list
+    if (cmd === 'gh' && args[0] === 'run') {
+      return args[args.indexOf('--event') + 1] === 'schedule' ? nightly : list
+    }
     throw new Error(`unexpected run(${cmd}, ${JSON.stringify(args)})`)
   }
   return Object.assign(run, { calls })
@@ -146,5 +151,66 @@ describe('printVerdict — nhãn và màu giữ nguyên như bản shell cũ', (
     }
     expect(logged).toContain('OK')
     expect(logged).not.toContain('CẢNH BÁO')
+  })
+})
+
+const nightlyJson = (databaseId: number, conclusion: string) => JSON.stringify([{ databaseId, conclusion }])
+
+describe('ciNightlyVerdict — lượt schedule hoàn tất gần nhất, độc lập với phán quyết push', () => {
+  it('đêm đỏ ⇒ failure mang run id, kể cả khi push không có lượt khớp (silent)', () => {
+    const run = makeRun({ nightly: { status: 0, stdout: nightlyJson(36635570813, 'failure') } })
+    expect(ciPreviousVerdict({ run })).toEqual({ kind: 'silent' })
+    expect(ciNightlyVerdict({ run })).toEqual({ kind: 'failure', runId: 36635570813 })
+  })
+
+  it.each(['timed_out', 'startup_failure'])('đêm kết luận %s ⇒ failure mang run id', (conclusion) => {
+    const run = makeRun({ nightly: { status: 0, stdout: nightlyJson(42, conclusion) } })
+    expect(ciNightlyVerdict({ run })).toEqual({ kind: 'failure', runId: 42 })
+  })
+
+  it('đêm xanh ⇒ success', () => {
+    const run = makeRun({ nightly: { status: 0, stdout: nightlyJson(1, 'success') } })
+    expect(ciNightlyVerdict({ run })).toEqual({ kind: 'success' })
+  })
+
+  it('không có lượt đêm nào ⇒ silent', () => {
+    expect(ciNightlyVerdict({ run: makeRun() })).toEqual({ kind: 'silent' })
+  })
+
+  it('gh run list của đêm hết giờ ⇒ silent, phán quyết push không đổi', () => {
+    const timeout = Object.assign(new Error('spawnSync gh ETIMEDOUT'), { code: 'ETIMEDOUT' })
+    const run = makeRun({
+      list: { status: 0, stdout: runsJson(SHA, 'completed', 'success') },
+      nightly: { status: null, stdout: '', error: timeout },
+    })
+    expect(ciNightlyVerdict({ run })).toEqual({ kind: 'silent' })
+    expect(ciPreviousVerdict({ run })).toEqual({ kind: 'success' })
+  })
+
+  it('gh chưa đăng nhập ⇒ silent', () => {
+    expect(ciNightlyVerdict({ run: makeRun({ auth: { status: 1, stdout: '' } }) })).toEqual({ kind: 'silent' })
+  })
+
+  it('lệnh gọi mang `--event schedule` và `--status completed`', () => {
+    const run = makeRun()
+    ciNightlyVerdict({ run })
+    const call = run.calls.find((c) => c.cmd === 'gh' && c.args[0] === 'run')
+    expect(call?.args[call.args.indexOf('--event') + 1]).toBe('schedule')
+    expect(call?.args[call.args.indexOf('--status') + 1]).toBe('completed')
+  })
+
+  it('printNightlyVerdict: failure in cảnh báo mang run id', () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    let logged = ''
+    try {
+      printNightlyVerdict({ kind: 'failure', runId: 36635570813 })
+      logged = logSpy.mock.calls.map((c) => c.join(' ')).join('\n')
+    } finally {
+      writeSpy.mockRestore()
+      logSpy.mockRestore()
+    }
+    expect(logged).toContain('CẢNH BÁO')
+    expect(logged).toContain('36635570813')
   })
 })

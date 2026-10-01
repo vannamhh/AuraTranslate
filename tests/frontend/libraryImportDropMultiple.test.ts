@@ -33,7 +33,11 @@ vi.mock('../../src/config/project', async (importOriginal) => {
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
-  return { ...actual, readOpenChapterSegments: async () => ({ segments: [], caret_segment_id: null }) }
+  return { ...actual, readOpenChapterSegments: async (): ReturnType<typeof actual.readOpenChapterSegments> => ({
+      loaded: { chapter_id: 1, segments: [], caret_segment_id: null, assets: [], assets_dir: '' },
+      error: null,
+    }),
+  }
 })
 
 /**
