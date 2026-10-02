@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-01'
+updated: '2026-10-02'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -712,6 +712,7 @@ graph TD
   | Chấp nhận thay đổi từ Review Mode (FR94) | **người khác dịch** |
   | Điền sẵn từ TM khớp 100% (FR58) | xuất xứ của **cặp TM nguồn** |
   | Đưa đề xuất AI sang Editor | **người khác dịch** |
+  | Nhận gợi ý TM khớp mờ (FR59) | **người khác dịch** — 🔵 2026-10-02: hàng thêm bởi AD-51 mục 8 |
   | Gộp/tách segment (AD-5) | xem ④ |
   | Khôi phục phiên bản (FR101) | 🔴 **KHÔNG đặt** — ngoại lệ có tên, xem ⑤ |
 
@@ -820,6 +821,28 @@ graph TD
 
   → bằng chứng: `ad-brief-2026-10-01-moc-so-xuat-xu-luu-phia-rust.md` · `reviews/review-ad-50-*-2026-10-01.md` · `.memlog.md`.
 
+### AD-51 — Diff nguồn của gợi ý khớp mờ tính phía Rust trong `core/matching`, một hàm thuần cho cả Epic 7 và Epic 8; nhận một gợi ý là lượt ghi *người khác dịch*
+
+- **Binds:** C3, C5, C6 (như AD-17) · C7, C9 (như AD-47) — Story 7.5, `core/matching`, `commands/segment.rs::write_non_user_target`, Diff Viewer của Epic 8, bảng Stack, hàng Deferred.
+- **Prevents:** (1) hai cài đặt diff — một cho dải TM ở Epic 7, một cho Review Mode ở Epic 8 — tô hai kiểu cho cùng một cặp văn bản; đúng lớp hỏng mà AD-17 chặn cho Matcher; (2) Rust trả offset byte còn webview chỉ số theo UTF-16, nên diff tiếng Trung tô lệch ký tự mà không lỗi nào ném; (3) một cơ chế ghi `target_text` thứ tư (nhận gợi ý khớp mờ) không khai xuất xứ, và `write_non_user_target` ghi nó thành xuất xứ của lượt gần nhất — đúng im lặng mà AD-47 sinh ra để chặn; (4) hàng Deferred *"`similar` vs `dissimilar`"* bị đóng bằng mô tả trên trang crate thay vì bằng dữ liệu (NFR15).
+- **Rule:**
+
+  1. **Diff tính phía Rust, trong `core/matching`, một hàm thuần** cạnh hàm chấm điểm, không I/O (AD-13/15). Chữ ký ý định: `diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan>`. Không crate diff nào được `use` ngoài module này; webview không tính diff.
+  2. **Hình dạng trên dây.** `DiffSpan { kind: equal | delete | insert, text }` — **văn bản, không offset** (mỗi ký tự Hán là 3 byte UTF-8 nhưng 1 đơn vị UTF-16, nên hai hệ chỉ số lệch ngay ở câu tiếng Trung bình thường). `text` là dữ liệu người dùng (AD-21 không bị chạm); webview render nó như văn bản thuần (AD-16).
+  3. **Chiều và bất biến dựng lại.** `old` = nguồn của cặp TM, `new` = nguồn của segment đang mở. Ghép `equal` + `delete` ra đúng `old`; ghép `equal` + `insert` ra đúng `new`; một ca kiểm khoá bất biến này trên mọi cặp của bộ đo.
+  4. **Chuẩn hoá đầu vào: `trim` + NFC cả hai vế**, cùng phép AD-50 mục 4 dùng khi so mốc, nên diff và phép phân xử không bất đồng về "hai chuỗi này có giống nhau không". Sau NFC dấu thanh hợp vào chữ gốc, nên không cần diff cấp grapheme và không bật feature `unicode`.
+  5. **Crate và độ mịn (phương án A, Ice chọn 2026-10-02).** `similar` =3.1.1 (Apache-2.0), feature mặc định, Myers. `MatchLang` Trung ⇒ `diff_chars`; Anh/Latin ⇒ `diff_words`. **Bước gộp do dự án viết, cùng module:** mỗi thay đổi `equal` mà `similar` trả ra (một ký tự ở đường Trung, một token từ hoặc khoảng trắng ở đường Anh/Latin) dài **≤ 2 ký tự** và kẹp giữa hai thay đổi bị gộp vào vùng đổi — đúng phép đã đo; bước gộp bảo toàn bất biến mục 3. Độ mịn và bước gộp là chi tiết bên trong hàm: đổi chúng không đổi `DiffSpan`.
+  6. **Chỉ diff hàng được hiển thị:** lệnh đọc gợi ý chấm điểm mọi cặp, chỉ tính diff cho tối đa 3 hàng đã chọn (spec 7.5); không diff cho cặp dưới ngưỡng.
+  7. **Một thư viện cho Story 7.5 *và* Diff Viewer của Epic 8** (Review Mode truyền ngôn ngữ đích, độ mịn theo từ cho chữ Latin). Crate nằm sau một hàm và một kiểu trên dây ⇒ lật crate chỉ thay thân một hàm, webview không đổi.
+  8. **AD-47 ③ thêm đúng một hàng, danh mục vẫn ĐÓNG:** *Nhận gợi ý TM khớp mờ (FR59)* ⇒ **người khác dịch**. Hệ quả theo AD-50 mục 2 (không phải luật mới): hai cột mốc và `translation_origin` = văn bản cặp vừa nhận / `other`, `status` = `draft`, không `SegmentVersion`. Sửa một ký tự rồi ký ⇒ hàm phân xử cho *tôi dịch*; ký không sửa ⇒ *người khác dịch* **kể cả khi cặp gốc là của tôi** (Ice nhận hệ quả này 2026-10-02: chiều rẻ theo AD-47 ④ — khai *người khác dịch* cho chữ của chính mình chỉ làm một cặp TM bị `RagInjector` xếp sau, chiều ngược đầu độc kho). Khác Story 7.4 (khớp 100% giữ xuất xứ cặp): dưới 100% văn bản đã bị người dịch coi là *chưa đúng*.
+  9. **Hàng Deferred và Story 8.1.** Hàng *"`similar` vs `dissimilar`"* chuyển từ "chưa chốt" sang **"đã chốt cho nguồn TM bằng số đo; còn một phép xác nhận trên chữ đích tiếng Việt"**. Story 8.1 **không bị xoá**: AC *"chạy cả hai trên bản review thật"* và *"văn bản tiếng Việt nhiều dấu"* vẫn đúng và chưa thoả — bộ đo không có câu đích tiếng Việt nào. 8.1 co lại thành xác nhận hoặc lật crate trên bản review thật. AC giấy phép của 8.1 được AD này thoả (mục 10).
+  10. **Giấy phép (NFR15), đã đọc trong mã nguồn ĐÃ TẢI.** `similar-3.1.1`: `Cargo.toml` `license = "Apache-2.0"`, `LICENSE` là Apache 2.0 nguyên văn, không `NOTICE`, không header riêng từng tệp, không Exhibit B; feature mặc định không kéo gói nào; `edition = "2024"`, `rust-version = "1.85"` khớp dự án. Apache-2.0 → GPL-3.0-or-later hợp lệ. Bảng Stack ghi đúng một hàng cho `similar` trước khi `Cargo.toml` thêm nó.
+  11. **Đổi gì / không đổi gì** *(khuôn AD-46/50)*: AD-47 ③ — đúng một hàng (mục 8), các hàng khác và ④⑤⑥ không đổi chữ; ⑥ — hàng mới rơi về vế *của người khác*, tập giá trị FR117 không nới. AD-50, AD-17, AD-18 — không sửa chữ.
+
+- **Phương án bị loại (B):** `dissimilar` =1.0.11 (Apache-2.0; MIT chỉ cho phần riêng của bản Rust), 0 mã dự án nhưng không chọn được độ mịn. Đo trên `en_real` (22 cặp): 35 điểm cắt giữa từ, 15 đoạn đổi 1 ký tự, 8 đảo `equal` ≤ 2, so với 0 / 0 / 0 của `similar` theo từ + gộp; trên tiếng Trung hai bên gần như hoà. Loại vì tiếng Anh là chỗ hai crate thực sự khác nhau, và Epic 8 cần đường diff theo từ cho chữ Việt. Còn chấp nhận được nếu phạm vi chỉ là tiếng Trung. ⚠️ Giới hạn số đo: `zh_real` chỉ 18 cặp tiêu đề/chân trang, `zh_edit` có vết sửa nhân tạo, chưa đo tiếng Việt; thời gian đo trên máy tải nặng, không dùng làm ngưỡng NFR.
+
+  → bằng chứng: `ad-51-draft-2026-10-02.md` (Phần 3 số đo, Phần 4 giấy phép) · `ad-brief-2026-10-02-diff-khop-mo-tm.md`.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -884,7 +907,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `zip` *(core::docx — đọc kho zip của `.docx`; thêm 0 gói MỚI, chỉ đổi từ bắc cầu sang trực tiếp)* | =8.6.0 | MIT ✓ |
 | `quick-xml` *(core::docx — phân tích `word/document.xml`/rels; khai đúng **0.41.0** để không thêm một phiên bản thứ ba)* | =0.41.0 | MIT ✓ |
 | `base64` *(core::webimport — giải mã ảnh `data:` URI; đã bắc cầu qua `docx-rs`/`reqwest`/`tauri` từ trước — `cargo tree -i base64@0.22.1` xác nhận, khai tường minh ở đây thêm 0 gói MỚI)* | =0.22.1 | MIT OR Apache-2.0 ✓ |
-| `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
+| `similar` *(core::matching — `diff_spans`, diff nguồn gợi ý khớp mờ và Diff Viewer; feature mặc định, 0 gói MỚI được biên dịch — `Cargo.lock` có thêm dòng `bstr` 1.13.1, phụ thuộc tuỳ chọn sau feature `bytes` đang tắt, `cargo tree -i bstr` rỗng; AD-51. 🔵 2026-10-02: thay hàng "`similar` hoặc `dissimilar`"; `dissimilar` bị loại, và hàng cũ ghi sai giấy phép của nó là "Apache-2.0 OR MIT" — `Cargo.toml` của `dissimilar` 1.0.11 ghi `Apache-2.0`)* | =3.1.1 | Apache-2.0 ✓ |
 | `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
 | `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |
 | `eslint` | 10.8.1 | MIT ✓ |
@@ -1122,10 +1145,10 @@ AuraTranslate/
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48 |
-| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31 |
+| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22 |
-| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48 |
+| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43 |
 | **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 
@@ -1139,7 +1162,7 @@ AuraTranslate/
 | ~~**HTTP client cho `Fetcher`**~~ | ✅ **ĐÃ ĐÓNG 2026-09-03 (Story 6.1)** — xem `deferred-work.md` | — |
 | ~~**Ranh giới Chương ở đường nhập song ngữ** (FR115)~~ | ✅ **ĐÃ ĐÓNG 2026-08-03** — xem `deferred-work.md` | — |
 | ~~**Hành vi khi một link trong danh sách hỏng** (404, timeout, tường chặn)~~ | ✅ **ĐÃ ĐÓNG 2026-09-06 (Story 6.7)** — xem `deferred-work.md` | — |
-| **`similar` vs `dissimilar`** cho Diff Viewer | Cả hai tương thích GPLv3; đánh đổi (diff cấp grapheme vs semantic cleanup) chỉ phân xử được bằng dữ liệu thật | Giai đoạn 5 — thử cả hai trên bản review thật |
+| **`similar` vs `dissimilar`** cho Diff Viewer | 🔵 2026-10-02: **đã chốt `similar` =3.1.1 cho nguồn TM bằng số đo (AD-51)**; còn một phép xác nhận trên chữ đích tiếng Việt, chưa có số đo nào | Story 8.1 — giữ AC "chạy trên bản review thật" và "chuỗi tiếng Việt dày dấu"; xác nhận hoặc lật crate (lật chỉ thay thân `diff_spans`) |
 | **Thuật toán segment alignment** (FR91) | Mẫu ngành đã chốt (*máy khớp, người sửa*); chi tiết thuật toán không tạo ra divergence giữa các đơn vị khác | Giai đoạn 5 |
 | **Ngưỡng kích thước WAL buộc checkpoint** (AD-12) **+ nhịp flush cụ thể** (AD-35) | Chỉ dò được bằng đo trên Editor thật, giống cách Giai đoạn 0 xử lý trigram. Hai thứ này đo trên **cùng một** Editor và đánh đổi lẫn nhau — phải dò cùng lúc sao cho đạt NFR18 (mất ≤ 5 s) mà không phạm NFR2 (không frame nào vượt 50 ms) | Giai đoạn 2 |
 | **Ngưỡng NFR3, NFR4, NFR5** (`[A6] [A7] [A8]`) | Ngưỡng tạm đã đủ để nghiệm thu; PRD đã ghi đường đóng | Q4 — đo trên thư viện thật ở Giai đoạn 3 |
