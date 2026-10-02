@@ -70,6 +70,7 @@ async function docChuongDangMoSegments(): Promise<ReadChapterSegmentsResult> {
       caret_segment_id: null,
       assets: [],
       assets_dir: '',
+      tm_filled_segment_ids: [],
     },
     error: null,
   }

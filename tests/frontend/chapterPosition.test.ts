@@ -128,6 +128,7 @@ async function docSegmentGia(): Promise<ReadChapterSegmentsResult> {
       caret_segment_id: caretFromRust.value,
       assets: [],
       assets_dir: '',
+      tm_filled_segment_ids: [],
     },
     error: null,
   }

@@ -104,6 +104,7 @@ import {
   editorChapterId,
   editorConfirmError,
   editorEditedText,
+  editorTmFilledSegmentIds,
   editorFlushError,
   editorHasLoaded,
   editorLoadError,
@@ -270,9 +271,10 @@ const showFrameStatus = computed(
 const ruleById = computed(() => {
   const caret = editorCaretSegmentId.value
   const edited = editorEditedText.value
+  const tmFilled = editorTmFilledSegmentIds.value
   const map = new Map<number, SegmentRuleValue>()
   for (const s of editorSegments.value) {
-    const input = segmentRuleInputOf(s, caret)
+    const input = segmentRuleInputOf(s, caret, tmFilled)
     map.set(s.id, resolveSegmentRule({ ...input, targetText: edited.get(s.id) ?? input.targetText }))
   }
   return map

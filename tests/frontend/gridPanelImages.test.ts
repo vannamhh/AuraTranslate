@@ -105,7 +105,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
     ...actual,
     readOpenChapterSegments: () =>
       Promise.resolve({
-        loaded: { chapter_id: 7, segments: SEGMENTS, caret_segment_id: null, assets: ASSETS, assets_dir: ASSETS_DIR },
+        loaded: { chapter_id: 7, segments: SEGMENTS, caret_segment_id: null, assets: ASSETS, assets_dir: ASSETS_DIR, tm_filled_segment_ids: [] },
         error: null,
       }),
   }

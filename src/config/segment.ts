@@ -205,6 +205,8 @@ export type ChapterSegments = {
    * `convertFileSrc` (tiền lệ DUY NHẤT `src/tokens/fonts.ts:136`).
    */
   assets_dir: string
+  /** Segments this load pre-filled from an exact TM match (FR58); session-only marker source. */
+  tm_filled_segment_ids: number[]
 }
 
 /**
@@ -243,7 +245,9 @@ function isChapterSegments(value: unknown): value is ChapterSegments {
     v.segments.every(isChapterSegmentRow) &&
     (typeof v.caret_segment_id === 'number' || v.caret_segment_id === null) &&
     Array.isArray(v.assets) &&
-    typeof v.assets_dir === 'string'
+    typeof v.assets_dir === 'string' &&
+    Array.isArray(v.tm_filled_segment_ids) &&
+    v.tm_filled_segment_ids.every((id) => typeof id === 'number')
   )
 }
 

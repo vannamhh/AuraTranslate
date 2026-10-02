@@ -63,6 +63,7 @@ async function mergeGia() {
 let soLuotGoiDocSegment = 0
 let anhLanDau: ChapterAsset[] = []
 let ketQuaLanHai: 'anh' | 'loi' = 'anh'
+let dienSanLanHai: number[] = []
 type KetQuaDoc = { loaded: unknown; error: unknown }
 let treoTuLuotThu: number | null = null
 let luotDangTreo: Array<(v: KetQuaDoc) => void> = []
@@ -80,6 +81,7 @@ async function docSegmentGia(): Promise<KetQuaDoc> {
         segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
         assets: anhLanDau,
         assets_dir: anhLanDau.length > 0 ? '/tac-pham/assets-cu' : '',
+        tm_filled_segment_ids: [],
       },
       error: null,
     }
@@ -88,9 +90,14 @@ async function docSegmentGia(): Promise<KetQuaDoc> {
   return {
     loaded: {
       chapter_id: CHUONG_CUA_SEGMENT,
-      segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
+      segments: FIXTURE_SEGMENTS.map((s) =>
+        dienSanLanHai.includes(s.id)
+          ? { ...s, target_text: 'TM dien san.', status: 'draft', translation_origin: 'self' }
+          : { ...s },
+      ),
       assets: [ANH_SAU_GOP],
       assets_dir: '/tac-pham/assets',
+      tm_filled_segment_ids: dienSanLanHai,
     },
     error: null,
   }
@@ -143,6 +150,7 @@ beforeEach(() => {
   soLuotGoiDocSegment = 0
   anhLanDau = []
   ketQuaLanHai = 'anh'
+  dienSanLanHai = []
   treoTuLuotThu = null
   luotDangTreo = []
   gopTreo = null
@@ -170,6 +178,23 @@ describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt g
     // `applyRegroup` chính nó không đụng `chapterAssets` -- mệnh đề trên phải đến từ lượt IPC
     // thứ hai, không phải từ `applyRegroup` tự vá.
     expect(editorState.editorSegments.value.map((s) => s.id)).toContain(HANG_MOI.id)
+  })
+
+  it('lượt đọc sau gộp báo segment TM điền sẵn ⇒ ảnh chụp nhận văn bản mới và dấu TM có id đó', async () => {
+    const { editorState } = await tuoi()
+    editorState.setEditorCaret(12)
+    dienSanLanHai = [13]
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_MOI] },
+      error: null,
+    }
+    expect(await editorState.mergeCurrentSegment()).toBe('done')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const filled = editorState.editorSegments.value.find((s) => s.id === 13)
+    expect(filled?.target_text).toBe('TM dien san.')
+    expect(filled?.translation_origin).toBe('self')
+    expect(editorState.editorTmFilledSegmentIds.value.has(13)).toBe(true)
   })
 
   it('lượt IPC thứ hai (sau gộp) trả `loaded: null` ⇒ giữ ảnh CŨ và báo lỗi, không xoá về []', async () => {
@@ -228,6 +253,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
         assets: [],
         assets_dir: '',
+        tm_filled_segment_ids: [],
       },
       error: null,
     })
@@ -238,6 +264,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         segments: [],
         assets: [ANH_SAU_GOP],
         assets_dir: '/tac-pham/assets',
+        tm_filled_segment_ids: [],
       },
       error: null,
     })

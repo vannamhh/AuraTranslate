@@ -124,6 +124,18 @@ let sequence = 0
  */
 const caretSegmentId = ref<number | null>(null)
 
+const tmFilledSegmentIds = shallowRef<ReadonlySet<number>>(new Set())
+/** Segments the last load pre-filled from an exact TM match; dropped on edit, confirm and reload. */
+export const editorTmFilledSegmentIds: DeepReadonly<Ref<ReadonlySet<number>>> =
+  readonly(tmFilledSegmentIds)
+
+function dropTmFilled(segmentId: number): void {
+  if (!tmFilledSegmentIds.value.has(segmentId)) return
+  const next = new Set(tmFilledSegmentIds.value)
+  next.delete(segmentId)
+  tmFilledSegmentIds.value = next
+}
+
 /** Segment của Chương đang mở, **theo `ord`** — thứ tự do Rust quyết, không sắp lại ở đây. */
 export const editorSegments: DeepReadonly<Ref<readonly ChapterSegment[]>> = readonly(segments)
 /** `chapter.id` của Chương đang hiện. `null` trước lượt nạp đầu tiên hoặc khi nạp trượt. */
@@ -184,6 +196,7 @@ export async function ensureSegmentsLoaded(): Promise<void> {
 
   pending.value = false
   segments.value = loaded?.segments ?? []
+  tmFilledSegmentIds.value = new Set(loaded?.tm_filled_segment_ids ?? [])
   chapterId.value = loaded?.chapter_id ?? null
   loadError.value = error
   // 🔵 THÊM Story 6.14 — cùng lượt IPC, cùng lý do `segments`: `''`/`[]` khi nạp trượt hoặc
@@ -564,6 +577,7 @@ export function noteEditorEdit(segmentId: number, targetText: string): void {
   const next = new Map(editedText.value)
   next.set(segmentId, targetText)
   editedText.value = next
+  dropTmFilled(segmentId)
 
   flush.markChanged(segmentId, targetText, Date.now())
   armFlushTimer()
@@ -747,6 +761,7 @@ export function resetEditorPanel(): void {
   sequence += 1
 
   segments.value = []
+  tmFilledSegmentIds.value = new Set()
   chapterId.value = null
   loadError.value = null
   pending.value = false
@@ -1272,6 +1287,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
     return 'refused'
   }
   confirmError.value = null
+  dropTmFilled(id)
 
   // ③ Ảnh chụp hiển thị.
   const index = segments.value.findIndex((s) => s.id === id)
@@ -2601,6 +2617,16 @@ async function refreshChapterAssetsAfterRegroup(): Promise<void> {
   if (loaded.chapter_id !== chapterId.value) return
   chapterAssets.value = loaded.assets
   assetsDir.value = loaded.assets_dir
+  for (const id of loaded.tm_filled_segment_ids) {
+    const filled = loaded.segments.find((s) => s.id === id)
+    if (filled === undefined) continue
+    replaceEditorSegment(id, {
+      target_text: filled.target_text,
+      status: filled.status,
+      translation_origin: filled.translation_origin,
+    })
+    tmFilledSegmentIds.value = new Set([...tmFilledSegmentIds.value, id])
+  }
 }
 
 /**

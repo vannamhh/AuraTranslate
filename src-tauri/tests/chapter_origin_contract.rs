@@ -888,7 +888,7 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
     // chay THEM sau buoc 23 (khong cham chapter), nen no khong anh huong menh de nay.
     // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
     // and never touches `chapter`, so this assertion still holds.
-    assert_eq!(migrated.schema_version(), 28, "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)");
+    assert_eq!(migrated.schema_version(), 29, "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)");
 
     let (author, site_name, url, published_at) = read_chapter_origin(&migrated, chapter_id);
     assert_eq!(author, None, "KHONG backfill -- hang CU phai giu ca bon cot NULL");

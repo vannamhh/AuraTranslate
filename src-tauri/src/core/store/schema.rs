@@ -721,7 +721,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười một bước, và đích là phiên bản 11.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười hai bước, và đích là phiên bản 12.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -812,6 +812,10 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 11,
         sql: TM_UNIT_DDL,
     },
+    Migration {
+        to_version: 12,
+        sql: TM_UNIT_SOURCE_INDEX_DDL,
+    },
 ];
 
 /// Lược đồ bảng `work` — **bước 1 của `project.db`**, Story 1.15, AC4.
@@ -893,6 +897,10 @@ CREATE TABLE tm_unit (
   created_at         TEXT NOT NULL,
   CHECK (target_text <> '')
 );";
+
+/// Exact-match lookup key for `tm_unit` (FR58): without it every lookup scans the table.
+pub const TM_UNIT_SOURCE_INDEX_DDL: &str =
+    "CREATE INDEX tm_unit_source_text ON tm_unit(source_text);";
 
 /// Step 28 (AD-50 rule 6): the comparison baseline lives on `segment`. Every row, retired ones
 /// included, takes `baseline_* = (target_text, translation_origin)`; never `NULL`.
@@ -1876,7 +1884,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi bảy bước, và đích là phiên bản 28.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi tám bước, và đích là phiên bản 29.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2216,6 +2224,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 28,
         sql: SEGMENT_BASELINE_DDL,
+    },
+    Migration {
+        to_version: 29,
+        sql: TM_UNIT_SOURCE_INDEX_DDL,
     },
 ];
 

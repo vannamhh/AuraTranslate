@@ -1962,6 +1962,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   `MessageKey::SegmentRetired` — và test của nó dựng trạng thái về hưu bằng SQL trực tiếp)*.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: isConfirmed và retiredAt đã đọc dữ liệu thật (editorSegments.ts:190,205); test câu đã về hưu thắng tất cả (tests/frontend/editorSegmentRule.test.ts) canh nhánh retiredAt; còn thiếu: isTmFilled vẫn hằng cứng false (editorSegments.ts:207), chủ Epic 7 còn backlog trong sprint-status.yaml. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 7.4.**
+  → ✅ ĐÃ ĐÓNG 2026-10-02 (Story 7.4) — `isTmFilled` đọc tập id Rust báo trong phiên (`editorTmFilledSegmentIds`), không còn hằng `false`; lưới `tests/frontend/editorSegmentRule.test.ts` (nhóm "dấu TM điền sẵn") và `tests/frontend/editorTmFilled.test.ts`.
 
 - ⚠️ **Bảng năm giá trị vạch có một HÀNG CÒN THIẾU: "đã dịch bằng tay, chưa xác nhận, con trỏ ở
   chỗ khác".** `confirmed` sai *(chưa ai ký)*, `tm-rule` sai *(không phải máy điền)*, *không vạch*
@@ -3678,6 +3679,7 @@ mục nào mồ côi.
   🔴 Mỗi chủ phải làm **cả hai** vế của AD-47 ①: đặt **mốc** *và* đặt **xuất xứ**, trong cùng
   một thao tác. Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi *tôi dịch* cho chữ người dùng chưa
   gõ, và **không cổng nào đỏ**.
+  → ✅ **HÀNG "Điền sẵn từ TM khớp 100% (FR58)" ĐÃ ĐÓNG 2026-10-02 (Story 7.4).** `fill_exact_tm_matches` ghi qua `write_non_user_target` với xuất xứ của cặp nguồn; lưới `tests/tm_contract.rs::an_exact_work_pair_prefills_an_empty_draft_with_its_origin_baseline_and_no_version` và `confirming_a_filled_segment_unedited_keeps_the_pair_origin_in_the_tm_and_on_the_segment`. Hai hàng còn lại của bảng (Review Mode FR94, đề xuất AI) **vẫn hở**, giữ nguyên chủ.
 
 - 🟡 **Khôi phục (FR101) trả văn bản về mà KHÔNG trả xuất xứ về — AD-47 ⑤, ngoại lệ CÓ TÊN.**
   Hệ quả bắt buộc của chữ ký #1(a): `segment_version` không mang xuất xứ nên **không có gì để
@@ -12743,3 +12745,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-3-tm-pham-vi-kep-va-thu-tu-sap-xep-hai-khoa.md`
   summary: `core::tm::pairs_for_source` filters `tm_unit` by `source_text =` with no index in either store (`TM_UNIT_DDL` has none) and no row cap, so each lookup scans both tables.
   evidence: 7.3 has no caller; Story 7.4 pre-fill turns it into a per-segment hot path and also decides normalization, which shapes the index (step 29 project + step 12 global). Chủ: Story 7.4.
+  → ✅ ĐÃ ĐÓNG 2026-10-02 (Story 7.4) — chỉ mục `tm_unit_source_text` ở project bước 29 và global bước 12, chuẩn hoá không làm (so bằng chuỗi nguyên văn); lưới `tests/tm_contract.rs::a_fresh_and_an_upgraded_global_db_both_end_at_version_12_with_tm_unit_and_its_source_index` và `a_project_db_at_step_28_gains_the_source_index_at_step_29`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-4-khop-tuyet-doi-100.md`
+  summary: The TM pre-fill on Chapter load writes `segment.target_text` without `Indexer::rebuild`, so Library search on target text misses pre-filled text until the next rebuild; flush, confirm and `promote_ai_translation` have the same gap.
+  evidence: `src-tauri/AGENTS.md` says a new write path into `segment` must run `Indexer::rebuild`; `commands/segment.rs` has no `Indexer` use at all, while `core/library/indexer.rs` indexes `target_text`. Rule and existing writers disagree, so it is a design call. Chủ: Winston.

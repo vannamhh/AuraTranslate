@@ -185,6 +185,7 @@ export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
 export function segmentRuleInputOf(
   segment: ChapterSegment,
   caretSegmentId: number | null,
+  tmFilledSegmentIds: ReadonlySet<number>,
 ): SegmentRuleInput {
   return {
     hasCaret: caretSegmentId === segment.id,
@@ -202,8 +203,7 @@ export function segmentRuleInputOf(
     // với nhau"* — sai chính tả ở một trong hai chỗ làm ca đó ĐỎ.
     // 🔵 *(Code review 2026-08-14: sửa đường dẫn — bản cũ trỏ vào một tệp không tồn tại.)*
     isConfirmed: segment.status === 'confirmed',
-    // 🔴 Epic 7 — chưa tầng TM nào (FR58). Hằng này **ở lại**.
-    isTmFilled: false,
+    isTmFilled: tmFilledSegmentIds.has(segment.id),
     targetText: segment.target_text,
   }
 }

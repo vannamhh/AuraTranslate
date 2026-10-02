@@ -329,6 +329,9 @@ pub struct ChapterSegments {
     /// `assets_dir + '/' + file_name` rồi đưa qua `convertFileSrc` — tiền lệ DUY NHẤT
     /// `src/tokens/fonts.ts:136`.
     pub assets_dir: String,
+    /// Segments this load pre-filled from an exact TM match (FR58). Only
+    /// [`load_open_chapter_segments`] fills it; [`read_open_chapter_segments`] leaves it empty.
+    pub tm_filled_segment_ids: Vec<i64>,
 }
 
 /// Một ảnh đã phân giải vị trí, ra dây cho LƯỚI — Story 6.14, FR42/FR43.
@@ -1132,10 +1135,107 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             caret_segment_id,
             assets,
             assets_dir: assets_dir_str,
+            tm_filled_segment_ids: Vec::new(),
         })
     })?;
 
     Ok(loaded)
+}
+
+fn global_store_missing() -> IpcError {
+    crate::core::store::StoreError::OpenFailed {
+        store: crate::core::store::StoreKind::Global,
+        detail: "the global store was never managed; see lib.rs::open_global_store".to_owned(),
+    }
+    .into()
+}
+
+fn tm_lookup_failed(err: &crate::core::tm::TmStoreError) -> IpcError {
+    match err {
+        crate::core::tm::TmStoreError::Store(e) => IpcError::from(e.clone()),
+        other => {
+            eprintln!("tm lookup that bai: {other}");
+            IpcError::new("tm.lookup_failed", MessageKey::Unknown, BTreeMap::new(), true)
+        }
+    }
+}
+
+/// Loads the open Chapter after pre-filling every eligible segment from the first exact TM
+/// pair (FR58, AD-18 order). The fill writes through [`write_non_user_target`] only.
+pub fn load_open_chapter_segments(
+    global: Option<&crate::core::store::Store>,
+    open: Option<&OpenWork>,
+) -> Result<ChapterSegments, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let global = global.ok_or_else(global_store_missing)?;
+    let filled = fill_exact_tm_matches(global, open)?;
+    let mut chapter = read_open_chapter_segments(Some(open))?;
+    chapter.tm_filled_segment_ids = filled
+        .into_iter()
+        .filter(|id| chapter.segments.iter().any(|s| s.id == *id))
+        .collect();
+    Ok(chapter)
+}
+
+fn fill_exact_tm_matches(
+    global: &crate::core::store::Store,
+    open: &OpenWork,
+) -> Result<Vec<i64>, IpcError> {
+    let chapter_id = open.chapter_id;
+    let candidates: Vec<(i64, String)> = open.store.read(move |conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, source_text FROM segment \
+             WHERE chapter_id = ?1 AND retired_at IS NULL AND is_omitted = 0 AND status = ?2 \
+             ORDER BY ord, id",
+        )?;
+        let rows = stmt
+            .query_map((chapter_id, SEGMENT_STATUS_DRAFT), |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(rows)
+    })?;
+
+    let mut by_source: BTreeMap<String, Option<(String, &'static str)>> = BTreeMap::new();
+    let mut picks: Vec<(i64, String, &'static str)> = Vec::new();
+    for (id, source) in candidates {
+        if source.trim().is_empty() {
+            continue;
+        }
+        if !by_source.contains_key(&source) {
+            let pairs = crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
+                .map_err(|e| tm_lookup_failed(&e))?;
+            let first = pairs
+                .into_iter()
+                .next()
+                .map(|p| (p.target_text, p.translation_origin.as_str()));
+            by_source.insert(source.clone(), first);
+        }
+        if let Some(Some((target, origin))) = by_source.get(&source) {
+            picks.push((id, target.clone(), origin));
+        }
+    }
+    if picks.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let filled = open.store.write(move |tx: &Transaction<'_>| {
+        let mut filled = Vec::new();
+        for (id, target, origin) in &picks {
+            let still_eligible: bool = tx.query_row(
+                "SELECT status = ?2 AND trim(target_text) = '' AND is_omitted = 0 \
+                 AND retired_at IS NULL FROM segment WHERE id = ?1",
+                (id, SEGMENT_STATUS_DRAFT),
+                |row| row.get(0),
+            )?;
+            if still_eligible {
+                write_non_user_target(tx, *id, target, origin, Some(origin))?;
+                filled.push(*id);
+            }
+        }
+        Ok(filled)
+    })?;
+    Ok(filled)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -3587,16 +3687,19 @@ pub mod wire {
     /// ⚠️ **Không tham số nào đi trên dây** — xem doc-comment của hàm thuần. `invoke()` phía
     /// webview gọi nó với một payload rỗng.
     #[tauri::command]
-    pub fn read_open_chapter_segments(app: tauri::AppHandle) -> Result<ChapterSegments, IpcError> {
+    pub fn read_open_chapter_segments<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<ChapterSegments, IpcError> {
         use tauri::Manager as _;
 
+        let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::read_open_chapter_segments(None);
+            return super::load_open_chapter_segments(global.as_deref(), None);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::read_open_chapter_segments(guard.as_ref())
+        super::load_open_chapter_segments(global.as_deref(), guard.as_ref())
     }
 
     /// Vỏ IPC của [`super::read_reading_run`] — Story 5.12 (FR120).

@@ -681,13 +681,14 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
             tx.execute_batch(
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
-                 DELETE FROM schema_migration_log WHERE version = 28; \
+                 DROP INDEX tm_unit_source_text; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 28, "mo lai phai chay buoc 28 that");
+    assert_eq!(open.store.schema_version(), 29, "mo lai phai chay buoc 28 va 29 that");
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
@@ -711,13 +712,14 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
             tx.execute_batch(
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
-                 DELETE FROM schema_migration_log WHERE version = 28; \
+                 DROP INDEX tm_unit_source_text; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 28);
+    assert_eq!(open.store.schema_version(), 29);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -921,23 +923,298 @@ fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
 }
 
 #[test]
-fn a_fresh_and_an_upgraded_global_db_both_end_at_version_11_with_tm_unit() {
+fn a_fresh_and_an_upgraded_global_db_both_end_at_version_12_with_tm_unit_and_its_source_index() {
     let has_tm = |s: &Store| -> i64 {
         s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit'", [], |r| r.get(0)))
             .expect("doc master")
     };
+    let has_index = |s: &Store| -> i64 {
+        s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
+            .expect("doc master")
+    };
     let fresh_dir = temp_dir("dual-fresh");
     let fresh = open_global_db(&fresh_dir);
-    assert_eq!((fresh.schema_version(), has_tm(&fresh)), (11, 1));
+    assert_eq!((fresh.schema_version(), has_tm(&fresh), has_index(&fresh)), (12, 1, 1));
 
     let old_dir = temp_dir("dual-upgrade");
-    let old = Store::open(StoreSpec { migrations: &GLOBAL_MIGRATIONS[..10], ..StoreSpec::global(old_dir.join("global.db")) })
-        .expect("mo o buoc 10");
-    assert_eq!((old.schema_version(), has_tm(&old)), (10, 0));
+    let old = Store::open(StoreSpec { migrations: &GLOBAL_MIGRATIONS[..11], ..StoreSpec::global(old_dir.join("global.db")) })
+        .expect("mo o buoc 11");
+    assert_eq!((old.schema_version(), has_tm(&old), has_index(&old)), (11, 1, 0));
     drop(old);
     let upgraded = open_global_db(&old_dir);
-    assert_eq!((upgraded.schema_version(), has_tm(&upgraded)), (11, 1));
+    assert_eq!((upgraded.schema_version(), has_tm(&upgraded), has_index(&upgraded)), (12, 1, 1));
     drop((fresh, upgraded));
     let _ = fs::remove_dir_all(fresh_dir);
     let _ = fs::remove_dir_all(old_dir);
+}
+
+#[test]
+fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
+    let (root, open) = work("index-upgrade", "一。");
+    open.store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute_batch("DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version = 29; PRAGMA user_version = 28;")
+        })
+        .expect("ha ve buoc 28");
+    let open = reopen(open);
+    let has_index: i64 = open
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
+        .expect("doc master");
+    assert_eq!((open.store.schema_version(), has_index), (29, 1));
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+struct Wired {
+    app: tauri::App<MockRuntime>,
+    _guard: DirGuard,
+}
+
+fn wired(tag: &str, text: &str, manage_global: bool) -> Wired {
+    let dir = temp_dir(tag);
+    let open = create_work_from_text(&dir, tag, "en", "", text.to_owned()).expect("tao tac pham");
+    let global = open_global_db(&dir);
+    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    app.manage(OpenWorkState::new(Some(open)));
+    if manage_global {
+        app.manage(global);
+    }
+    Wired { app, _guard: DirGuard(dir) }
+}
+
+impl Wired {
+    fn with_open<R>(&self, f: impl FnOnce(&OpenWork) -> R) -> R {
+        let state = self.app.state::<OpenWorkState>();
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        f(guard.as_ref().expect("dang mo"))
+    }
+
+    fn load(&self) -> auratranslate_lib::commands::segment::ChapterSegments {
+        wire::read_open_chapter_segments(self.app.handle().clone()).expect("nap chuong")
+    }
+
+    fn first_id(&self) -> i64 {
+        self.with_open(|open| segment_ids(open).1[0])
+    }
+
+    fn source(&self, id: i64) -> String {
+        self.with_open(|open| source_of(open, id))
+    }
+
+    fn seed_work(&self, source: &str, target: &'static str, origin: &'static str) {
+        let source: &'static str = Box::leak(source.to_owned().into_boxed_str());
+        self.with_open(|open| seed(&open.store, &[(source, target, origin)]));
+    }
+
+    fn seed_global(&self, source: &str, target: &'static str, origin: &'static str) {
+        let source: &'static str = Box::leak(source.to_owned().into_boxed_str());
+        seed(&self.app.state::<Store>(), &[(source, target, origin)]);
+    }
+
+    fn target_and_baseline(&self, id: i64) -> (String, String, String) {
+        self.with_open(|open| {
+            open.store
+                .read(move |conn| {
+                    conn.query_row(
+                        "SELECT target_text, baseline_target_text, baseline_translation_origin FROM segment WHERE id = ?1",
+                        [id],
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    )
+                })
+                .expect("doc muc")
+        })
+    }
+}
+
+#[test]
+fn an_exact_work_pair_prefills_an_empty_draft_with_its_origin_baseline_and_no_version() {
+    let w = wired("fill-hit", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "self");
+
+    let chapter = w.load();
+
+    assert_eq!(chapter.tm_filled_segment_ids, [id]);
+    assert_eq!(chapter.segments[0].target_text, "Rong gam.");
+    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "self".to_owned(), 0));
+    assert_eq!(
+        w.target_and_baseline(id),
+        ("Rong gam.".to_owned(), "Rong gam.".to_owned(), "self".to_owned())
+    );
+}
+
+#[test]
+fn a_global_pair_of_mine_is_filled_ahead_of_a_work_pair_of_others() {
+    let w = wired("fill-origin", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Cua Work.", "other");
+    w.seed_global(&w.source(id), "Cua Global.", "self");
+
+    let chapter = w.load();
+
+    assert_eq!(chapter.segments[0].target_text, "Cua Global.");
+    assert_eq!(w.with_open(|o| state_of(o, id)).1, "self");
+}
+
+#[test]
+fn a_segment_with_no_pair_is_left_untouched() {
+    let w = wired("fill-none", "A dragon roared.", true);
+    w.seed_work("Mot cau khac.", "Khac.", "self");
+
+    let chapter = w.load();
+
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(chapter.segments[0].target_text, "");
+    assert_eq!(w.with_open(|o| state_of(o, chapter.segments[0].id)).0, "draft");
+}
+
+#[test]
+fn typed_text_is_never_overwritten_by_a_pair() {
+    let w = wired("fill-has-text", "A dragon roared.", true);
+    let id = w.first_id();
+    w.with_open(|open| {
+        let (chapter_id, _) = segment_ids(open);
+        type_text(open, chapter_id, id, "Toi tu go.");
+    });
+    w.seed_work(&w.source(id), "Cua TM.", "self");
+
+    let chapter = w.load();
+
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(chapter.segments[0].target_text, "Toi tu go.");
+}
+
+#[test]
+fn confirmed_omitted_and_retired_segments_are_left_untouched() {
+    let w = wired("fill-ineligible", "Mot. Hai. Ba.", true);
+    let ids = w.with_open(|open| segment_ids(open).1);
+    assert!(ids.len() >= 3, "can ba segment");
+    for id in &ids {
+        w.seed_work(&w.source(*id), "Cua TM.", "self");
+    }
+    w.with_open(|open| {
+        let (chapter_id, _) = segment_ids(open);
+        type_text(open, chapter_id, ids[0], "Da ky.");
+        confirm_segment(Some(open), ids[0]).expect("xac nhan");
+        auratranslate_lib::commands::segment::set_segment_omitted(Some(open), ids[1], true).expect("cat bo");
+        let retire = ids[2];
+        open.store
+            .write(move |tx: &Transaction<'_>| {
+                tx.execute("UPDATE segment SET retired_at = '2026-01-01T00:00:00.000Z' WHERE id = ?1", [retire])
+            })
+            .expect("ve huu");
+    });
+
+    let chapter = w.load();
+
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    let by_id = |id: i64| w.with_open(|o| w_target(o, id));
+    assert_eq!(by_id(ids[0]), "Da ky.");
+    assert_eq!(by_id(ids[1]), "");
+    assert_eq!(by_id(ids[2]), "");
+}
+
+fn w_target(open: &OpenWork, id: i64) -> String {
+    open.store
+        .read(move |conn| conn.query_row("SELECT target_text FROM segment WHERE id = ?1", [id], |r| r.get(0)))
+        .expect("doc target")
+}
+
+#[test]
+fn confirming_a_filled_segment_unedited_keeps_the_pair_origin_in_the_tm_and_on_the_segment() {
+    let w = wired("fill-confirm", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "bilingual_import");
+    w.load();
+
+    wire::confirm_segment(w.app.handle().clone(), id).expect("xac nhan");
+
+    w.with_open(|open| {
+        assert_eq!(state_of(open, id).1, TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
+        let rows = tm_rows(open);
+        let last = rows.last().expect("co cap moi");
+        assert_eq!((last.2.as_str(), last.3.as_str()), ("Rong gam.", TRANSLATION_ORIGIN_BILINGUAL_IMPORT));
+    });
+}
+
+#[test]
+fn confirming_a_filled_segment_after_one_character_changed_is_mine() {
+    let w = wired("fill-confirm-edited", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "other");
+    w.load();
+    w.with_open(|open| {
+        let (chapter_id, _) = segment_ids(open);
+        type_text(open, chapter_id, id, "Rong gam!");
+    });
+
+    wire::confirm_segment(w.app.handle().clone(), id).expect("xac nhan");
+
+    w.with_open(|open| assert_eq!(state_of(open, id).1, TRANSLATION_ORIGIN_SELF));
+}
+
+#[test]
+fn a_second_load_reports_no_filled_ids_and_keeps_the_filled_draft() {
+    let w = wired("fill-reload", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "self");
+    assert_eq!(w.load().tm_filled_segment_ids, [id]);
+
+    let again = w.load();
+
+    assert!(again.tm_filled_segment_ids.is_empty());
+    assert_eq!(again.segments[0].target_text, "Rong gam.");
+    assert_eq!(w.with_open(|o| state_of(o, id)).0, "draft");
+}
+
+#[test]
+fn a_load_without_a_managed_global_store_fails_and_writes_nothing() {
+    let w = wired("fill-no-global", "A dragon roared.", false);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "self");
+
+    let err = wire::read_open_chapter_segments(w.app.handle().clone()).expect_err("thieu global");
+
+    assert_eq!(err.code(), "store.open_failed");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn two_empty_drafts_with_the_same_source_are_both_filled_from_one_pair() {
+    let w = wired("fill-dup", "Lap lai. Lap lai.", true);
+    let ids = w.with_open(|open| segment_ids(open).1);
+    assert_eq!(ids.len(), 2, "can hai segment");
+    assert_eq!(w.source(ids[0]), w.source(ids[1]), "hai segment cung nguon");
+    w.seed_work(&w.source(ids[0]), "Dich chung.", "self");
+
+    let chapter = w.load();
+
+    assert_eq!(chapter.tm_filled_segment_ids, ids);
+    assert!(chapter.segments.iter().all(|s| s.target_text == "Dich chung."));
+}
+
+#[test]
+fn the_exact_lookup_uses_the_source_index_in_both_stores() {
+    let plan = |store: &Store| -> String {
+        store
+            .read(|conn| {
+                let mut stmt = conn.prepare(
+                    "EXPLAIN QUERY PLAN SELECT source_text, target_text, translation_origin FROM tm_unit WHERE source_text = ?1",
+                )?;
+                let rows = stmt
+                    .query_map(["S"], |r| r.get::<_, String>(3))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(rows.join(" | "))
+            })
+            .expect("doc ke hoach")
+    };
+    let (root, open) = work("plan", "一。");
+    let global = open_global_db(&root);
+    for (name, store) in [("project", &open.store), ("global", &global)] {
+        let p = plan(store);
+        assert!(p.contains("tm_unit_source_text"), "{name}: {p}");
+    }
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
 }

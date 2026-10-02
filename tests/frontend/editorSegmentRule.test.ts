@@ -19,6 +19,8 @@ import {
   SEGMENT_RULE_VALUES,
 } from '../../src/panels/editorSegments'
 
+const NO_TM_FILLED: ReadonlySet<number> = new Set()
+
 /** Một hàng `segment` như nó đi trên dây, với những trường ca hiện tại quan tâm. */
 function segment(over: Partial<ChapterSegment> = {}): ChapterSegment {
   return {
@@ -41,7 +43,7 @@ function segment(over: Partial<ChapterSegment> = {}): ChapterSegment {
 
 describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu thật', () => {
   it('câu đã xác nhận, con trỏ ở chỗ khác ⇒ `confirmed`', () => {
-    const rule = resolveSegmentRule(segmentRuleInputOf(segment({ status: 'confirmed' }), 999))
+    const rule = resolveSegmentRule(segmentRuleInputOf(segment({ status: 'confirmed' }), 999, NO_TM_FILLED))
     expect(rule).toBe('confirmed')
   })
 
@@ -61,7 +63,7 @@ describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu 
    */
   it('câu đã xác nhận MÀ con trỏ đang ở đó ⇒ `primary`, KHÔNG `confirmed`', () => {
     const s = segment({ id: 7, status: 'confirmed' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 7))).toBe('primary')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 7, NO_TM_FILLED))).toBe('primary')
   })
 
   /**
@@ -76,7 +78,7 @@ describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu 
    */
   it('`retired_at` không còn là dữ kiện của phép phân giải — hàng vẫn đọc theo năm nhánh còn lại', () => {
     const s = segment({ id: 7, status: 'confirmed', retired_at: '2026-08-14T00:00:00.000Z' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('confirmed')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, NO_TM_FILLED))).toBe('confirmed')
   })
 })
 
@@ -99,7 +101,7 @@ describe('hàng còn thiếu của bảng năm giá trị — nay ĐÃ CÓ giá 
    */
   it('đã dịch bằng tay · chưa xác nhận · con trỏ chỗ khác ⇒ vạch `draft`', () => {
     const s = segment({ id: 3, status: 'draft', target_text: 'Có chữ hẳn hoi.' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('draft')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, NO_TM_FILLED))).toBe('draft')
   })
 
   /**
@@ -111,7 +113,7 @@ describe('hàng còn thiếu của bảng năm giá trị — nay ĐÃ CÓ giá 
    */
   it('chưa dịch *(`draft` VÀ `target_text` rỗng)* ⇒ KHÔNG vạch', () => {
     const s = segment({ id: 3, status: 'draft', target_text: '' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('none')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, NO_TM_FILLED))).toBe('none')
   })
 
   /**
@@ -120,14 +122,14 @@ describe('hàng còn thiếu của bảng năm giá trị — nay ĐÃ CÓ giá 
    */
   it('câu TM điền sẵn có chữ ⇒ `tm-rule`, KHÔNG `draft`', () => {
     const s = segment({ id: 4, status: 'draft', target_text: 'Máy điền.' })
-    const input = { ...segmentRuleInputOf(s, 999), isTmFilled: true }
+    const input = { ...segmentRuleInputOf(s, 999, NO_TM_FILLED), isTmFilled: true }
     expect(resolveSegmentRule(input)).toBe('tm-rule')
   })
 
   /** ⚠️ `primary` là mệnh đề về **hiện tại**, nó thắng `draft` như đã thắng `confirmed`. */
   it('con trỏ đang ở chính câu đó ⇒ `primary`, KHÔNG `draft`', () => {
     const s = segment({ id: 5, status: 'draft', target_text: 'Có chữ.' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 5))).toBe('primary')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 5, NO_TM_FILLED))).toBe('primary')
   })
 })
 
@@ -147,7 +149,7 @@ describe('hai chỗ đọc trạng thái phải ĐỒNG Ý với nhau', () => {
     'status = %j ⇒ `isSegmentConfirmed` và `segmentRuleInputOf().isConfirmed` cho cùng một giá trị',
     (status) => {
       const s = segment({ status })
-      expect(segmentRuleInputOf(s, null).isConfirmed).toBe(isSegmentConfirmed(s))
+      expect(segmentRuleInputOf(s, null, NO_TM_FILLED).isConfirmed).toBe(isSegmentConfirmed(s))
     },
   )
 })
@@ -168,7 +170,7 @@ describe('bảng giá trị vạch KHÔNG mọc thêm ngoài lượt ký của S
     ]
     for (const s of cases) {
       for (const caret of [null, s.id]) {
-        expect(SEGMENT_RULE_VALUES).toContain(resolveSegmentRule(segmentRuleInputOf(s, caret)))
+        expect(SEGMENT_RULE_VALUES).toContain(resolveSegmentRule(segmentRuleInputOf(s, caret, NO_TM_FILLED)))
       }
     }
   })
@@ -181,15 +183,32 @@ describe('bảng giá trị vạch KHÔNG mọc thêm ngoài lượt ký của S
    */
   it('một `status` lạ đọc thành CHƯA xác nhận, không ném và không sinh giá trị mới', () => {
     const s = segment({ id: 9, status: 'mot-gia-tri-tu-tuong-lai' })
-    expect(segmentRuleInputOf(s, null).isConfirmed).toBe(false)
+    expect(segmentRuleInputOf(s, null, NO_TM_FILLED).isConfirmed).toBe(false)
     // 🔵 **ĐẢO 2026-08-14 (Story 2.5b).** Mệnh đề cũ đòi `'none'`; nó đúng khi *"chưa xác
     // nhận"* và *"chưa dịch"* còn chung một giá trị. Nay chúng tách: fixture mặc định **CÓ**
     // chữ (`target_text: 'Đã dịch rồi.'`), nên một `status` lạ rơi về **`draft`** — vẫn là
     // *"chưa ai ký"*, và vẫn **không** sinh một giá trị thứ bảy. Đó là điều ca này canh.
-    expect(resolveSegmentRule(segmentRuleInputOf(s, null))).toBe('draft')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, null, NO_TM_FILLED))).toBe('draft')
     // Vế thứ hai: cùng một `status` lạ mà **rỗng** thì rơi về `none`. Hai vế cùng nhau nói
     // rằng nhánh cuối phân xử bằng `target_text`, **không** bằng `status`.
     const empty = segment({ id: 9, status: 'mot-gia-tri-tu-tuong-lai', target_text: '' })
-    expect(resolveSegmentRule(segmentRuleInputOf(empty, null))).toBe('none')
+    expect(resolveSegmentRule(segmentRuleInputOf(empty, null, NO_TM_FILLED))).toBe('none')
+  })
+})
+
+describe('segmentRuleInputOf — dấu TM điền sẵn của phiên này', () => {
+  it('segment có trong tập đã điền ⇒ `tm-rule`', () => {
+    const s = segment({ id: 4, status: 'draft', target_text: 'Máy điền.' })
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, new Set([4])))).toBe('tm-rule')
+  })
+
+  it('segment không có trong tập đã điền ⇒ `draft`', () => {
+    const s = segment({ id: 4, status: 'draft', target_text: 'Máy điền.' })
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, new Set([5])))).toBe('draft')
+  })
+
+  it('đã xác nhận thì `confirmed` thắng dấu TM', () => {
+    const s = segment({ id: 4, status: 'confirmed' })
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999, new Set([4])))).toBe('confirmed')
   })
 })

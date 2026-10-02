@@ -803,6 +803,7 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         caret_segment_id: None,
         assets: Vec::new(),
         assets_dir: "/tmp/x.atproj/assets".to_owned(),
+        tm_filled_segment_ids: Vec::new(),
     };
     let value = serde_json::to_value(&loaded).expect("ChapterSegments phải serialize được");
     let object = value.as_object().expect("phải serialize thành object");
@@ -824,6 +825,7 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         caret_segment_id: Some(42),
         assets: Vec::new(),
         assets_dir: "/tmp/x.atproj/assets".to_owned(),
+        tm_filled_segment_ids: Vec::new(),
     };
     let value = serde_json::to_value(&with_value).expect("ChapterSegments phải serialize được");
     assert_eq!(

@@ -86,16 +86,16 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        11,
-        "`GLOBAL_MIGRATIONS` co muoi mot buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        12,
+        "`GLOBAL_MIGRATIONS` co muoi hai buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
-         bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an, 7.3 bang tm_unit), nen mot \
-         `global.db` moi phai ket thuc o phien ban 11"
+         bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an, 7.3 bang tm_unit, 7.4 chi muc \
+         tm_unit), nen mot `global.db` moi phai ket thuc o phien ban 12"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        11,
+        12,
         "so buoc va so phien ban dich phai di cung nhau"
     );
     assert_eq!(
@@ -157,7 +157,7 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
     // migration doesn't touch old config.
-    assert_eq!(migrated.schema_version(), 11, "buoc 3 den 11 phai da chay");
+    assert_eq!(migrated.schema_version(), 12, "buoc 3 den 12 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -256,19 +256,19 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // Steps 24 -> 25, target 25 -> 26 (work.last_chapter_id), then step 27, target 27 (tm_unit).
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        27,
+        28,
         "`PROJECT_MIGRATIONS` phai co hai muoi sau buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
          5.13, 19 cua Story 6.5, 20 cua Story 6.11, 21 cua Story 6.13, 22 cua Story 6.15, 23 \
-         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu"
+         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu, 29 them chi muc tm_unit"
     );
     assert_eq!(
         opened.store.schema_version(),
-        28,
-        "mot `project.db` moi phai dung o phien ban 28 (so 4 da chay, buoc 28 them \
-         hai cot moc)"
+        29,
+        "mot `project.db` moi phai dung o phien ban 29 (so 4 da chay, buoc 29 them \
+         chi muc tm_unit)"
     );
 
     let has_table: i64 = opened

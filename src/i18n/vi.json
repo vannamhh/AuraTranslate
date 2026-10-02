@@ -693,7 +693,7 @@
   "panel.grid.state_confirmed": "đã xác nhận",
   "panel.grid.state_editing": "đang sửa",
   "panel.grid.state_draft": "chưa xác nhận",
-  "panel.grid.state_tm": "TM điền sẵn",
+  "panel.grid.state_tm": "TM điền sẵn, cần xác nhận",
   "panel.grid.state_untranslated": "chưa dịch",
   "panel.grid.role_alt": "mô tả ảnh",
   "panel.grid.role_caption": "chú thích ảnh",

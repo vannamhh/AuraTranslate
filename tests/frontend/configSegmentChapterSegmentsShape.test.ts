@@ -21,6 +21,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       caret_segment_id: null,
       assets: [],
       assets_dir: '',
+      tm_filled_segment_ids: [],
       segments: [
         {
           id: 1,
@@ -52,6 +53,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       caret_segment_id: null,
       assets: [],
       assets_dir: '',
+      tm_filled_segment_ids: [],
       segments: [
         {
           id: 1,

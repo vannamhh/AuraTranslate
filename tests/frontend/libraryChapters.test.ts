@@ -580,7 +580,7 @@ describe('panels/editorPanelState.ts::splitChapterHere — thân hàm, không ch
       if (cmd === 'read_open_chapter_segments') {
         // 🔵 THÊM Story 6.14 — `assets`/`assets_dir`: `isChapterSegments` đòi các trường này
         // CÓ MẶT, nếu không cả `loaded` bị từ chối.
-        return Promise.resolve({ chapter_id: 1, segments: [], caret_segment_id: null, assets: [], assets_dir: '' })
+        return Promise.resolve({ chapter_id: 1, segments: [], caret_segment_id: null, assets: [], assets_dir: '', tm_filled_segment_ids: [] })
       }
       return Promise.resolve({ chapter_id: 1, source_text: '', source_lang: 'zh' })
     })
