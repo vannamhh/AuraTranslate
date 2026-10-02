@@ -12739,3 +12739,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-8-lo-b-webview-e2e-ci.md`
   summary: Không test nào chạy vị từ `isBlocked` thật của `main.ts` (`boot()`), nên gỡ `settingsOverlayIsOpen.value ||` (hay bất kỳ lớp phủ `aria-modal` nào) khỏi nó thì `Esc` trong Settings xoá tập điểm cắt mà suite vẫn xanh; từ quyết định 12 của 11.8 lô B, `isBlocked` là chỗ duy nhất chặn.
   evidence: `src/main.ts` ~:955-985 (lambda nội tuyến); `git grep -n isBlocked tests/frontend` chỉ ra comment; review lô B (G1). Hướng: tách vị từ ra hàm xuất được rồi bắn `keydown` thật (bẫy thứ tự khởi động, `src/AGENTS.md`). Có trước lô B. Chủ: Amelia.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-3-tm-pham-vi-kep-va-thu-tu-sap-xep-hai-khoa.md`
+  summary: `core::tm::pairs_for_source` filters `tm_unit` by `source_text =` with no index in either store (`TM_UNIT_DDL` has none) and no row cap, so each lookup scans both tables.
+  evidence: 7.3 has no caller; Story 7.4 pre-fill turns it into a per-segment hot path and also decides normalization, which shapes the index (step 29 project + step 12 global). Chủ: Story 7.4.

@@ -13,8 +13,9 @@ use auratranslate_lib::commands::segment::{
     flush_segment_targets, read_open_chapter_segments, split_segment, wire,
 };
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::store::Transaction;
-use auratranslate_lib::core::tm::{PairOrigin, PairSide};
+use auratranslate_lib::core::scope::ScopeResolver;
+use auratranslate_lib::core::store::{GLOBAL_MIGRATIONS, Store, StoreSpec, Transaction};
+use auratranslate_lib::core::tm::{PairOrigin, PairSide, TmPair, TmStoreError, TmTier, pairs_for_source};
 use auratranslate_lib::core::segment::import::import_bilingual_file;
 use tauri::Manager as _;
 use tauri::test::{MockRuntime, mock_builder, mock_context, noop_assets};
@@ -770,4 +771,173 @@ fn the_pair_origin_projection_pins_all_three_values() {
     }
     assert_eq!(PairOrigin::from_stored(""), None);
     assert_eq!(PairOrigin::from_stored("unknown"), None);
+}
+
+fn open_global_db(dir: &Path) -> Store {
+    Store::open(StoreSpec::global(dir.join("global.db"))).expect("mo global.db")
+}
+
+fn seed(store: &Store, rows: &[(&'static str, &'static str, &'static str)]) {
+    let rows: Vec<_> = rows.to_vec();
+    store
+        .write(move |tx: &Transaction<'_>| {
+            for (source, target, origin) in &rows {
+                tx.execute(
+                    "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
+                     VALUES (?1, ?2, ?3, '2026-01-01T00:00:00.000Z')",
+                    (source, target, origin),
+                )?;
+            }
+            Ok(())
+        })
+        .expect("gieo tm_unit");
+}
+
+fn lookup(global: &Store, open: Option<&OpenWork>, source: &str) -> Result<Vec<TmPair>, TmStoreError> {
+    let resolver = open.map_or_else(ScopeResolver::global_only, |o| o.scope.clone());
+    pairs_for_source(&resolver, global, open.map(|o| &o.store), source)
+}
+
+fn shape(pairs: &[TmPair]) -> Vec<(&str, TmTier)> {
+    pairs.iter().map(|p| (p.target_text.as_str(), p.tier)).collect()
+}
+
+#[test]
+fn both_tiers_hit_lists_work_then_global() {
+    let (root, open) = work("dual-both", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("S", "w", "self")]);
+    seed(&global, &[("S", "g", "self")]);
+    let got = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(shape(&got), [("w", TmTier::Work), ("g", TmTier::Global)]);
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn origin_beats_tier_so_a_global_mine_pair_precedes_a_work_others_pair() {
+    let (root, open) = work("dual-origin", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("S", "w", "other")]);
+    seed(&global, &[("S", "g", "self")]);
+    let got = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(shape(&got), [("g", TmTier::Global), ("w", TmTier::Work)]);
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn within_the_others_side_the_work_tier_comes_first() {
+    let (root, open) = work("dual-side", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("S", "w", "bilingual_import")]);
+    seed(&global, &[("S", "g", "other")]);
+    let got = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(shape(&got), [("w", TmTier::Work), ("g", TmTier::Global)]);
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn same_side_and_tier_keeps_id_order() {
+    let (root, open) = work("dual-id", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("S", "first", "self"), ("T", "x", "self"), ("S", "second", "self")]);
+    let got = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(shape(&got), [("first", TmTier::Work), ("second", TmTier::Work)]);
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn with_no_work_open_only_global_pairs_come_back() {
+    let root = temp_dir("dual-nowork");
+    let global = open_global_db(&root);
+    seed(&global, &[("S", "g", "self")]);
+    let got = lookup(&global, None, "S").expect("tra");
+    assert_eq!(shape(&got), [("g", TmTier::Global)]);
+    drop(global);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_source_with_no_row_in_either_tier_returns_empty() {
+    let (root, open) = work("dual-empty", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("T", "w", "self")]);
+    assert!(lookup(&global, Some(&open), "S").expect("tra").is_empty());
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn an_unknown_stored_origin_in_either_tier_is_an_error_naming_the_value() {
+    let (root, open) = work("dual-unknown", "一。");
+    let global = open_global_db(&root);
+    seed(&global, &[("S", "g", "x")]);
+    let err = lookup(&global, Some(&open), "S").expect_err("nguon goc la");
+    assert_eq!(err, TmStoreError::UnknownOrigin { value: "x".to_owned() });
+    assert!(err.to_string().contains("\"x\""));
+
+    let (root2, open2) = work("dual-unknown-work", "一。");
+    let global2 = open_global_db(&root2);
+    seed(&open2.store, &[("S", "w", "")]);
+    let err = lookup(&global2, Some(&open2), "S").expect_err("nguon goc rong");
+    assert_eq!(err, TmStoreError::UnknownOrigin { value: String::new() });
+    drop((open, global, open2, global2));
+    let _ = fs::remove_dir_all(root);
+    let _ = fs::remove_dir_all(root2);
+}
+
+#[test]
+fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
+    let dir = temp_dir("dual-wire");
+    let open = create_work_from_text(&dir, "dual-wire", "en", "", "A dragon roared.".to_owned()).expect("tao tac pham");
+    let global = open_global_db(&dir);
+    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    app.manage(OpenWorkState::new(Some(open)));
+    app.manage(global);
+    let _guard = DirGuard(dir);
+
+    let id = {
+        let state = app.state::<OpenWorkState>();
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let open = guard.as_ref().expect("dang mo");
+        let (chapter_id, ids) = segment_ids(open);
+        type_text(open, chapter_id, ids[0], "Rong gam.");
+        ids[0]
+    };
+    wire::confirm_segment(app.handle().clone(), id).expect("xac nhan");
+
+    let count = |store: &Store| -> i64 {
+        store
+            .read(|conn| conn.query_row("SELECT COUNT(*) FROM tm_unit", [], |r| r.get(0)))
+            .expect("dem tm_unit")
+    };
+    let state = app.state::<OpenWorkState>();
+    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert_eq!(count(&guard.as_ref().expect("dang mo").store), 1);
+    assert_eq!(count(&app.state::<Store>()), 0);
+}
+
+#[test]
+fn a_fresh_and_an_upgraded_global_db_both_end_at_version_11_with_tm_unit() {
+    let has_tm = |s: &Store| -> i64 {
+        s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit'", [], |r| r.get(0)))
+            .expect("doc master")
+    };
+    let fresh_dir = temp_dir("dual-fresh");
+    let fresh = open_global_db(&fresh_dir);
+    assert_eq!((fresh.schema_version(), has_tm(&fresh)), (11, 1));
+
+    let old_dir = temp_dir("dual-upgrade");
+    let old = Store::open(StoreSpec { migrations: &GLOBAL_MIGRATIONS[..10], ..StoreSpec::global(old_dir.join("global.db")) })
+        .expect("mo o buoc 10");
+    assert_eq!((old.schema_version(), has_tm(&old)), (10, 0));
+    drop(old);
+    let upgraded = open_global_db(&old_dir);
+    assert_eq!((upgraded.schema_version(), has_tm(&upgraded)), (11, 1));
+    drop((fresh, upgraded));
+    let _ = fs::remove_dir_all(fresh_dir);
+    let _ = fs::remove_dir_all(old_dir);
 }

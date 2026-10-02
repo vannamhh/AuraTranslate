@@ -711,8 +711,7 @@ CREATE TABLE library_orphan (
   name        TEXT NOT NULL
 );";
 
-/// Bộ di trú của `global.db`. Hôm nay **bảy** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10 ·
-/// phán quyết Ice #1 (Story 5.3, 2026-08-27) · 6.5 (2026-09-05).
+/// Bộ di trú của `global.db`.
 ///
 /// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2):** đích chuyển từ **7** lên **8** — bước
 /// [`AI_CONFIG_DDL`] (tầng Global của cấu hình nhà cung cấp AI, FR68, CÙNG một hằng với bước
@@ -722,7 +721,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười bước, và đích là phiên bản 10.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười một bước, và đích là phiên bản 11.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -808,6 +807,10 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 10,
         sql: GLOSSARY_ENTRY_OCCURRENCE_COUNT_AND_ZERO_WIDTH_GUARD_DDL,
+    },
+    Migration {
+        to_version: 11,
+        sql: TM_UNIT_DDL,
     },
 ];
 

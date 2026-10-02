@@ -80,3 +80,120 @@ pub fn insert_pair(
     )?;
     Ok(())
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TmTier {
+    Work,
+    Global,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TmPair {
+    pub source_text: String,
+    pub target_text: String,
+    pub translation_origin: PairOrigin,
+    pub tier: TmTier,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TmStoreError {
+    Store(crate::core::store::StoreError),
+    Scope(crate::core::scope::ScopeError),
+    UnknownOrigin { value: String },
+}
+
+impl std::fmt::Display for TmStoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Store(e) => write!(f, "tm[store] {e}"),
+            Self::Scope(e) => write!(f, "tm[scope] {e}"),
+            Self::UnknownOrigin { value } => write!(f, "tm[unknown_origin] {value:?}"),
+        }
+    }
+}
+
+impl std::error::Error for TmStoreError {}
+
+impl From<crate::core::store::StoreError> for TmStoreError {
+    fn from(e: crate::core::store::StoreError) -> Self {
+        Self::Store(e)
+    }
+}
+
+impl From<crate::core::scope::ScopeError> for TmStoreError {
+    fn from(e: crate::core::scope::ScopeError) -> Self {
+        Self::Scope(e)
+    }
+}
+
+const TM_SCOPE_KIND: &str = "translation_memory";
+
+#[derive(Clone)]
+struct RawPair {
+    source_text: String,
+    target_text: String,
+    translation_origin: PairOrigin,
+}
+
+fn load_pair_rows(
+    store: &crate::core::store::Store,
+    source_text: &str,
+) -> Result<Vec<RawPair>, TmStoreError> {
+    let source = source_text.to_owned();
+    let raw: Vec<(String, String, String)> = store.read(move |conn| {
+        let mut stmt = conn.prepare(
+            "SELECT source_text, target_text, translation_origin FROM tm_unit \
+             WHERE source_text = ?1 ORDER BY id",
+        )?;
+        let rows = stmt
+            .query_map([&source], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+        Ok(rows)
+    })?;
+    raw.into_iter()
+        .map(|(source_text, target_text, origin)| {
+            let translation_origin = PairOrigin::from_stored(&origin)
+                .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
+            Ok(RawPair { source_text, target_text, translation_origin })
+        })
+        .collect()
+}
+
+fn side_rank(side: PairSide) -> u8 {
+    match side {
+        PairSide::Mine => 0,
+        PairSide::Others => 1,
+    }
+}
+
+/// Pairs whose source equals `source_text`, both tiers merged: mine before others, then Work
+/// before Global, then load order. Exact equality; normalization belongs to matching.
+pub fn pairs_for_source(
+    resolver: &crate::core::scope::ScopeResolver,
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    source_text: &str,
+) -> Result<Vec<TmPair>, TmStoreError> {
+    let global_rows = load_pair_rows(global, source_text)?;
+    let work_rows = work.map(|w| load_pair_rows(w, source_text)).transpose()?;
+    let by_side = |a: &RawPair, b: &RawPair| {
+        side_rank(a.translation_origin.side()).cmp(&side_rank(b.translation_origin.side()))
+    };
+    let tiered = resolver.apply_merge(TM_SCOPE_KIND, &global_rows, work_rows.as_deref(), Some(&by_side))?;
+    Ok(tiered
+        .into_iter()
+        .map(|t| {
+            let tier = match t.tier() {
+                crate::core::scope::Tier::Work => TmTier::Work,
+                crate::core::scope::Tier::Global => TmTier::Global,
+            };
+            let raw = t.value();
+            TmPair {
+                source_text: raw.source_text.clone(),
+                target_text: raw.target_text.clone(),
+                translation_origin: raw.translation_origin,
+                tier,
+            }
+        })
+        .collect())
+}

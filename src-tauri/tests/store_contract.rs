@@ -1149,13 +1149,13 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        10,
-        "`GLOBAL_MIGRATIONS` có mười bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
+        11,
+        "`GLOBAL_MIGRATIONS` có mười một bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
          Story 1.20 `pinned_entry` · Story 3.1 `glossary_entry` · Story 3.10 gia tri \
          term_origin thu tu · phan quyet Ice #1 bang library_orphan · Story 6.5 bang \
          import_cleanup_rule · Story 4.2 bang ai_config · Story 4.4 bang prompt_set · Story \
-         11.4 cot occurrence_count + trigger ky-tu-an), nên một database mới phải kết thúc ở \
-         phiên bản 10"
+         11.4 cot occurrence_count + trigger ky-tu-an · Story 7.3 bang tm_unit), nên một database \
+         mới phải kết thúc ở phiên bản 11"
     );
 
     let (rows, versions, app_version, applied_at) = store
@@ -1176,11 +1176,11 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 10, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(rows, 11, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
     assert_eq!(
         versions,
-        vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "cả mười bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
+        vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "cả mười một bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
          *sổ nói chưa chạy mà lược đồ thì đã*"
     );
     assert_eq!(app_version, env!("CARGO_PKG_VERSION"));
@@ -1263,7 +1263,7 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     // 🔵 7 → 8 (2026-09-16, Story 4.2) — bước 8 thêm `ai_config`.
     // 🔵 8 → 9 (2026-09-17, Story 4.4) — bước 9 thêm `prompt_set`.
     // 9 -> 10: step 10 adds `occurrence_count` + zero-width trigger.
-    assert_eq!(on_disk, 10);
+    assert_eq!(on_disk, 11);
 
     drop(store);
     cleanup(&dir);

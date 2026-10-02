@@ -86,16 +86,16 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        10,
-        "`GLOBAL_MIGRATIONS` co muoi buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        11,
+        "`GLOBAL_MIGRATIONS` co muoi mot buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
-         bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an), nen mot `global.db` \
-         moi phai ket thuc o phien ban 10"
+         bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an, 7.3 bang tm_unit), nen mot \
+         `global.db` moi phai ket thuc o phien ban 11"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        10,
+        11,
         "so buoc va so phien ban dich phai di cung nhau"
     );
     assert_eq!(
@@ -157,7 +157,7 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
     // migration doesn't touch old config.
-    assert_eq!(migrated.schema_version(), 10, "buoc 3, 4, 5, 6, 7, 8, 9 va 10 phai da chay");
+    assert_eq!(migrated.schema_version(), 11, "buoc 3 den 11 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
