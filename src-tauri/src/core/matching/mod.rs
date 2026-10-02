@@ -402,6 +402,169 @@ pub fn ngrams(text: &str, lang: MatchLang, n: usize) -> Vec<String> {
     }
 }
 
+/// Fuzzy scorer of one query text against many candidates (AD-17). A text's profile is the
+/// sorted multiset of its 1-grams and 2-grams over the same units [`ngrams`] uses (characters
+/// for `Zh`, stemmed tokens for `En`), interned to integers so a candidate costs no string
+/// allocation per gram; stems are cached across candidates.
+pub struct SimilarityScorer {
+    lang: MatchLang,
+    interner: std::collections::HashMap<String, u32>,
+    raw_to_unit: std::collections::HashMap<String, u32>,
+    query: Vec<u64>,
+}
+
+impl SimilarityScorer {
+    pub fn new(query: &str, lang: MatchLang) -> Self {
+        let mut scorer = Self {
+            lang,
+            interner: std::collections::HashMap::new(),
+            raw_to_unit: std::collections::HashMap::new(),
+            query: Vec::new(),
+        };
+        scorer.query = scorer.profile(query);
+        scorer
+    }
+
+    fn unit_for_stem(&mut self, stem: &str) -> u32 {
+        let next = self.interner.len() as u32;
+        *self.interner.entry(stem.to_owned()).or_insert(next)
+    }
+
+    fn units(&mut self, text: &str) -> Vec<u32> {
+        match self.lang {
+            MatchLang::Zh => text.chars().map(u32::from).collect(),
+            MatchLang::En => tokenize(text, self.lang)
+                .into_iter()
+                .map(|token| {
+                    if let Some(unit) = self.raw_to_unit.get(token.text) {
+                        return *unit;
+                    }
+                    let unit = self.unit_for_stem(&normalize(token.text, MatchLang::En));
+                    self.raw_to_unit.insert(token.text.to_owned(), unit);
+                    unit
+                })
+                .collect(),
+        }
+    }
+
+    fn profile(&mut self, text: &str) -> Vec<u64> {
+        let units = self.units(text);
+        let mut grams: Vec<u64> = Vec::with_capacity(units.len() * 2);
+        grams.extend(units.iter().map(|u| u64::from(*u)));
+        grams.extend(units.windows(2).map(|w| ((u64::from(w[0]) + 1) << 32) | u64::from(w[1])));
+        grams.sort_unstable();
+        grams
+    }
+
+    /// Sorensen-Dice similarity against the query as a whole percent, rounded down so `100`
+    /// means identical gram multisets. Zero grams on either side scores `0`.
+    pub fn percent(&mut self, candidate: &str) -> u8 {
+        let other = self.profile(candidate);
+        if self.query.is_empty() || other.is_empty() {
+            return 0;
+        }
+        let (mut i, mut j, mut common) = (0usize, 0usize, 0u64);
+        while i < self.query.len() && j < other.len() {
+            match self.query[i].cmp(&other[j]) {
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+                std::cmp::Ordering::Equal => {
+                    common += 1;
+                    i += 1;
+                    j += 1;
+                }
+            }
+        }
+        ((2 * common * 100) / (self.query.len() + other.len()) as u64) as u8
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiffKind {
+    Equal,
+    Delete,
+    Insert,
+}
+
+/// A run of text and how it differs; text, never offsets, so the webview indexes nothing (AD-51).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DiffSpan {
+    pub kind: DiffKind,
+    pub text: String,
+}
+
+/// Source diff from `old` to `new` (AD-51): both sides trimmed and NFC, characters for `Zh`,
+/// words for `En`, and an `equal` run of two characters or fewer between two changes folds
+/// into the change. `equal` + `delete` rebuild the normalized `old`; `equal` + `insert` the
+/// normalized `new`.
+pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
+    use similar::{ChangeTag, TextDiff};
+    use unicode_normalization::UnicodeNormalization;
+
+    const ABSORB_MAX_CHARS: usize = 2;
+
+    let old: String = old.trim().nfc().collect();
+    let new: String = new.trim().nfc().collect();
+    let diff = match lang {
+        MatchLang::Zh => TextDiff::from_chars(old.as_str(), new.as_str()),
+        MatchLang::En => TextDiff::from_words(old.as_str(), new.as_str()),
+    };
+
+    let mut runs: Vec<(DiffKind, String)> = Vec::new();
+    for change in diff.iter_all_changes() {
+        let kind = match change.tag() {
+            ChangeTag::Equal => DiffKind::Equal,
+            ChangeTag::Delete => DiffKind::Delete,
+            ChangeTag::Insert => DiffKind::Insert,
+        };
+        match runs.last_mut() {
+            Some((last, text)) if *last == kind => text.push_str(change.value()),
+            _ => runs.push((kind, change.value().to_owned())),
+        }
+    }
+
+    let changed = |run: Option<&(DiffKind, String)>| run.is_some_and(|(k, _)| *k != DiffKind::Equal);
+    let absorb: Vec<bool> = (0..runs.len())
+        .map(|i| {
+            let (kind, text) = &runs[i];
+            *kind == DiffKind::Equal
+                && text.chars().count() <= ABSORB_MAX_CHARS
+                && i > 0
+                && changed(runs.get(i - 1))
+                && changed(runs.get(i + 1))
+        })
+        .collect();
+
+    let mut spans: Vec<DiffSpan> = Vec::new();
+    let mut deleted = String::new();
+    let mut inserted = String::new();
+    let flush = |spans: &mut Vec<DiffSpan>, deleted: &mut String, inserted: &mut String| {
+        if !deleted.is_empty() {
+            spans.push(DiffSpan { kind: DiffKind::Delete, text: std::mem::take(deleted) });
+        }
+        if !inserted.is_empty() {
+            spans.push(DiffSpan { kind: DiffKind::Insert, text: std::mem::take(inserted) });
+        }
+    };
+    for (i, (kind, text)) in runs.into_iter().enumerate() {
+        match kind {
+            DiffKind::Delete => deleted.push_str(&text),
+            DiffKind::Insert => inserted.push_str(&text),
+            DiffKind::Equal if absorb[i] => {
+                deleted.push_str(&text);
+                inserted.push_str(&text);
+            }
+            DiffKind::Equal => {
+                flush(&mut spans, &mut deleted, &mut inserted);
+                spans.push(DiffSpan { kind, text });
+            }
+        }
+    }
+    flush(&mut spans, &mut deleted, &mut inserted);
+    spans
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // find_terms — điểm vào của Glossary (FR51, Story 3.4)
 // ═════════════════════════════════════════════════════════════════════════════════

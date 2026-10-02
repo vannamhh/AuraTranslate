@@ -49,6 +49,7 @@ import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
 // />` — thứ tự DOM là thứ tự thị giác (§Tasks của spec), dù `topmostStrip` đã đảm bảo
 // không bao giờ cả hai cùng hiện.
 import GlossaryConfirmStrip from './GlossaryConfirmStrip.vue'
+import TmFuzzyStrip from './TmFuzzyStrip.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 // Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55), lớp phủ THỨ NĂM. Cùng tầng,
 // cùng lý do bốn lớp phủ kia.
@@ -339,6 +340,9 @@ function focusOnPointerDown(event: MouseEvent) {
       một dải hiện tại một thời điểm.
     -->
     <GlossaryConfirmStrip />
+
+    <!-- Story 7.5 · FR59 — dải khớp mờ TM, cùng slot; `topmostStrip` để dải Glossary thắng. -->
+    <TmFuzzyStrip />
 
     <StatusBar />
 

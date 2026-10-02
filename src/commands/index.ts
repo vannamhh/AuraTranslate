@@ -865,6 +865,22 @@ export type CommandDeps = {
    * Handler của `glossary.confirm.defer`. */
   deferGlossaryConfirmStrip?: () => void
 
+  // ── Fuzzy TM strip (FR59) ──
+  /** Moves focus from the cell into the strip. Handler of `tm.fuzzy.focus`. */
+  focusTmFuzzyStrip?: () => void
+  /** Aims the next row. Handler of `tm.fuzzy.next`. */
+  nextTmFuzzyRow?: () => void
+  /** Aims the previous row. Handler of `tm.fuzzy.prev`. */
+  prevTmFuzzyRow?: () => void
+  /** Accepts the aimed row into the segment. Handler of `tm.fuzzy.accept`. */
+  acceptTmFuzzyRow?: () => void
+  /** Overwrites the draft the pending accept would replace. Handler of `tm.fuzzy.confirm_overwrite`. */
+  confirmTmFuzzyOverwrite?: () => void
+  /** Esc: answers an overwrite question with no, else hides the strip for the segment. Handler of `tm.fuzzy.hide`. */
+  hideTmFuzzyStrip?: () => void
+  /** Saves the threshold typed in Settings. Handler of `tm.settings.save`. */
+  saveTmSettings?: () => void
+
   // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ─────────────────
   /**
    * Mở lớp phủ, tải bảng chờ của Tác phẩm đang mở. Handler của `glossary.queue.open`.
@@ -3134,6 +3150,85 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.confirm.defer', 'deferGlossaryConfirmStrip')
       }
       deps.deferGlossaryConfirmStrip()
+    },
+  })
+
+  // Fuzzy TM strip: Esc and the arrows are local to the strip, so only the entry chord is bound.
+  target.register({
+    id: 'tm.fuzzy.focus',
+    labelKey: 'command.tm.fuzzy.focus',
+    keys: ['Mod+Alt+E'],
+    run: () => {
+      if (deps.focusTmFuzzyStrip === undefined) {
+        return portMissing('tm.fuzzy.focus', 'focusTmFuzzyStrip')
+      }
+      deps.focusTmFuzzyStrip()
+    },
+  })
+  target.register({
+    id: 'tm.fuzzy.next',
+    labelKey: 'command.tm.fuzzy.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextTmFuzzyRow === undefined) {
+        return portMissing('tm.fuzzy.next', 'nextTmFuzzyRow')
+      }
+      deps.nextTmFuzzyRow()
+    },
+  })
+  target.register({
+    id: 'tm.fuzzy.prev',
+    labelKey: 'command.tm.fuzzy.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevTmFuzzyRow === undefined) {
+        return portMissing('tm.fuzzy.prev', 'prevTmFuzzyRow')
+      }
+      deps.prevTmFuzzyRow()
+    },
+  })
+  target.register({
+    id: 'tm.fuzzy.accept',
+    labelKey: 'command.tm.fuzzy.accept',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptTmFuzzyRow === undefined) {
+        return portMissing('tm.fuzzy.accept', 'acceptTmFuzzyRow')
+      }
+      deps.acceptTmFuzzyRow()
+    },
+  })
+  target.register({
+    id: 'tm.fuzzy.confirm_overwrite',
+    labelKey: 'command.tm.fuzzy.confirm_overwrite',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmTmFuzzyOverwrite === undefined) {
+        return portMissing('tm.fuzzy.confirm_overwrite', 'confirmTmFuzzyOverwrite')
+      }
+      deps.confirmTmFuzzyOverwrite()
+    },
+  })
+  target.register({
+    id: 'tm.fuzzy.hide',
+    labelKey: 'command.tm.fuzzy.hide',
+    keys: undefined,
+    run: () => {
+      if (deps.hideTmFuzzyStrip === undefined) {
+        return portMissing('tm.fuzzy.hide', 'hideTmFuzzyStrip')
+      }
+      deps.hideTmFuzzyStrip()
+    },
+  })
+  target.register({
+    id: 'tm.settings.save',
+    labelKey: 'command.tm.settings.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveTmSettings === undefined) {
+        return portMissing('tm.settings.save', 'saveTmSettings')
+      }
+      deps.saveTmSettings()
     },
   })
 

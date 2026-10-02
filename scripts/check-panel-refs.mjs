@@ -215,6 +215,11 @@ const EXEMPT = new Map([
       'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
   ],
   [
+    'src/config/bootstrap.ts::tmFuzzyThreshold',
+    'Ngưỡng khớp mờ TM đã nạp — cùng loại "chỉ toàn cục" với `glossaryScanThreshold`: ' +
+      'AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
     'src/config/bootstrap.ts::readingPreferences',
     'Chuỗi JSON bốn tuỳ chọn đọc đã nạp — cùng loại "chỉ toàn cục" với `layout`/`glossaryScanThreshold`: ' +
       'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
@@ -335,6 +340,14 @@ const EXEMPT = new Map([
     'src/glossarySettingsState.ts::saveError',
     'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `saved`.',
   ],
+  ['src/tmSettingsState.ts::saved', 'Lượt lưu ngưỡng khớp mờ gần nhất đã thành công hay chưa — state của MÀN HÌNH, không của Tác phẩm.'],
+  ['src/tmSettingsState.ts::thresholdInput', 'Giá trị THÔ đang gõ trong ô nhập — chỉ có nghĩa khi mục TM của Cài đặt đang mở.'],
+  [
+    'src/tmSettingsState.ts::knownThreshold',
+    'Ngưỡng đã lưu THÀNH CÔNG trong phiên này — dữ liệu `app_config` (GlobalOnly) sống QUA ranh giới Tác phẩm.',
+  ],
+  ['src/tmSettingsState.ts::saving', 'Đang ghi ngưỡng hay không — cờ của MỘT lượt ghi `putConfig`, không của Tác phẩm.'],
+  ['src/tmSettingsState.ts::saveError', 'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `saved`.'],
 ])
 
 /**

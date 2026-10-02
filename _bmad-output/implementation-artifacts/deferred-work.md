@@ -12749,3 +12749,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-4-khop-tuyet-doi-100.md`
   summary: The TM pre-fill on Chapter load writes `segment.target_text` without `Indexer::rebuild`, so Library search on target text misses pre-filled text until the next rebuild; flush, confirm and `promote_ai_translation` have the same gap.
   evidence: `src-tauri/AGENTS.md` says a new write path into `segment` must run `Indexer::rebuild`; `commands/segment.rs` has no `Indexer` use at all, while `core/library/indexer.rs` indexes `target_text`. Rule and existing writers disagree, so it is a design call. Chủ: Winston.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-5-khop-mo.md`
+  summary: The four diff tokens' dark values (`#2b3a2a`/`#a9c99a`, `#3e2824`/`#e5867a`) were picked by the implementing agent, not signed; `DESIGN.md`'s colour table still lists 17 tokens per theme.
+  evidence: Spec Decision Q4 says Sally signs the dark values; `src/tokens/tokens.json` and `scripts/check-tokens.mjs` now pin 21. Chủ: Sally.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-5-khop-mo.md`
+  summary: In the real app, unverified: focus returning to the target cell after Esc in the fuzzy strip, the Zh row layout and diff colours, and `Mod+Alt+E` on Windows.
+  evidence: happy-dom cannot show focus or layout; no e2e covers the strip. Chủ: Epic 7.

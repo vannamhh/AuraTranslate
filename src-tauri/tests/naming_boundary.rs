@@ -123,7 +123,7 @@ const STORE_EXEMPT: [&str; 8] = [
 const RUST_FLOOR: usize = 84;
 
 /// Số tệp `.ts`/`.vue` tối thiểu dưới `src/**` để phép quét là thật.
-const FRONTEND_FLOOR: usize = 94;
+const FRONTEND_FLOOR: usize = 101;
 
 fn is_word_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'

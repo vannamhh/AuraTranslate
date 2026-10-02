@@ -46,8 +46,15 @@ import {
   setSegmentOmitted,
   setSegmentParagraphEnd,
   splitSegment,
+  acceptTmFuzzy,
 } from '../config/segment'
-import type { ChapterAsset, ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
+import type {
+  ChapterAsset,
+  ChapterSegment,
+  RegroupOutcome,
+  SegmentTargetEdit,
+  TmFuzzyTier,
+} from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
 // 🔵 THÊM Story 5.7 (AC4/AC6) — nhịp ghi RIÊNG cho vị trí làm việc của Chương, KHÔNG mang
@@ -65,6 +72,14 @@ import { dictSourcesDisabled } from './dictSourcesState'
 // doc-comment đầu `../glossaryConfirmStripState.ts` cho lý do tệp đó KHÔNG import ngược lại
 // tệp này (cùng lý do `glossaryMarksState.ts`).
 import { resetGlossaryConfirmStrip } from '../glossaryConfirmStripState'
+import {
+  closeTmFuzzyStripAfterAccept,
+  resetTmFuzzyStrip,
+  setTmFuzzyAcceptError,
+  setTmFuzzyAccepting,
+  setTmFuzzyPendingAccept,
+  tmFuzzyAccepting,
+} from '../tmFuzzyStripState'
 import {
   navigationSegmentOf,
   nextSegmentId,
@@ -393,6 +408,55 @@ export function confirmPendingPromote(): void {
  */
 export function cancelPendingPromote(): void {
   pendingPromote.value = null
+}
+
+export type AcceptTmFuzzyResult = 'accepted' | 'refused' | 'needs-confirmation'
+
+/**
+ * Accepts one fuzzy TM pair into a segment as an unconfirmed draft. Same flush-first and
+ * `needs_confirmation` round-trip as [`promoteAiTranslationToEditor`]; Rust re-reads the pair
+ * from its tier and id. Never throws.
+ */
+export async function acceptTmFuzzyToEditor(
+  segmentId: number,
+  tier: TmFuzzyTier,
+  unitId: number,
+  force = false,
+): Promise<AcceptTmFuzzyResult> {
+  if (tmFuzzyAccepting.value) return 'refused'
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed === 'failed' || flushed === 'still-dirty') {
+    console.error(
+      `[editor] TM fuzzy accept for segment ${segmentId} refused: pre-write flush ` +
+        `${flushed === 'failed' ? 'failed' : 'left the buffer dirty'}.`,
+    )
+    return 'refused'
+  }
+
+  setTmFuzzyAccepting(true)
+  try {
+    const { outcome, error } = await acceptTmFuzzy(segmentId, tier, unitId, force)
+    if (outcome === null) {
+      setTmFuzzyAcceptError(error)
+      setTmFuzzyPendingAccept(null)
+      return 'refused'
+    }
+    setTmFuzzyAcceptError(null)
+    if (outcome.needs_confirmation) {
+      setTmFuzzyPendingAccept({ segmentId, tier, unitId, draft: outcome.unsigned_draft ?? '' })
+      return 'needs-confirmation'
+    }
+    setTmFuzzyPendingAccept(null)
+    replaceEditorSegment(segmentId, {
+      target_text: outcome.target_text,
+      translation_origin: outcome.translation_origin,
+      status: outcome.status,
+    })
+    closeTmFuzzyStripAfterAccept(segmentId)
+    return 'accepted'
+  } finally {
+    setTmFuzzyAccepting(false)
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -911,6 +975,7 @@ export function resetEditorPanel(): void {
   // 🔵 Story 3.6 — sổ "Để sau" của dải chốt có phạm vi ĐÚNG MỘT Chương; đổi Chương/Tác phẩm
   // thì dải thu và sổ đó xoá, đúng §I/O Matrix "Đổi Chương giữa chừng".
   resetGlossaryConfirmStrip()
+  resetTmFuzzyStrip()
 
   // 🔴 THÊM Story 4.8 — `promoteAiTranslationError` chở một `IpcError` có `params.segment_id`
   // của Tác phẩm VỪA BỊ THAY, cùng lớp lỗi mà `confirmError`/`regroupError` đã ghi ở trên
@@ -2567,6 +2632,7 @@ function applyRegroup(outcome: RegroupOutcome): void {
   // 🔵 Story 3.6 — cùng lý do: một dải đang hỏi về một segment vừa về hưu (gộp/tách) không
   // được sống sót qua lượt đổi bố cục này.
   resetGlossaryConfirmStrip()
+  resetTmFuzzyStrip()
   segments.value = next
 
   // 🔵 Story 3.4b — gộp/tách đổi RANH GIỚI segment, tức đổi phép cộng dồn `\n`-join mà

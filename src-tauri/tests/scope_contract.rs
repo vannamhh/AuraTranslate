@@ -1173,3 +1173,16 @@ fn the_second_constructor_carries_a_work_tier_and_the_first_one_does_not() {
     let copied = with_work.clone();
     assert!(copied.has_work_tier());
 }
+
+#[test]
+fn the_tm_fuzzy_threshold_accepts_50_to_99_and_falls_back_to_65_otherwise() {
+    use auratranslate_lib::core::scope::store::{DEFAULT_TM_FUZZY_THRESHOLD, parse_tm_fuzzy_threshold};
+    assert_eq!(DEFAULT_TM_FUZZY_THRESHOLD, 65);
+    assert_eq!(parse_tm_fuzzy_threshold(None), 65);
+    for ok in ["50", "80", "99"] {
+        assert_eq!(parse_tm_fuzzy_threshold(Some(ok)), ok.parse::<u32>().unwrap());
+    }
+    for bad in ["49", "100", "0", "-3", "abc", "", "65.5"] {
+        assert_eq!(parse_tm_fuzzy_threshold(Some(bad)), 65, "{bad:?}");
+    }
+}

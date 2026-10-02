@@ -89,7 +89,7 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * qua `judgeFloor`.
  */
 const FILE_FLOOR = 97
-const COMPONENT_FILE_FLOOR = 93
+const COMPONENT_FILE_FLOOR = 100
 
 let failures = 0
 /** @param {string} m */
@@ -160,6 +160,10 @@ const EXPECTED_COLORS_LIGHT = {
   'tm-rule': '#b99a5e',
   'tm-text': '#7a5d25',
   error: '#8f2f22',
+  'diff-add-bg': '#e7f0e4',
+  'diff-add-ink': '#3f5b34',
+  'diff-del-bg': '#f7e6e3',
+  'diff-del-ink': '#8f2f22',
 }
 
 const EXPECTED_COLORS_DARK = {
@@ -181,6 +185,10 @@ const EXPECTED_COLORS_DARK = {
   'tm-rule': '#b99a5e',
   'tm-text': '#d3b276',
   error: '#e5867a',
+  'diff-add-bg': '#2b3a2a',
+  'diff-add-ink': '#a9c99a',
+  'diff-del-bg': '#3e2824',
+  'diff-del-ink': '#e5867a',
 }
 
 /** Cỡ / giãn dòng / nét / kiểu / giãn chữ — nguyên văn §Bảng token typography. */
@@ -273,7 +281,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 17, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 21, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -1768,7 +1776,7 @@ function emittedVarNames(tok) {
 const emittedVars = emittedVarNames(tokens)
 
 /** `ceil(0.85 × live)`, qua `judgeFloor` — bắt một lượt tính RỖNG hoặc gãy nửa chừng. */
-const EMITTED_VAR_FLOOR = 137
+const EMITTED_VAR_FLOOR = 147
 {
   const v = judgeFloor(EMITTED_VAR_FLOOR, emittedVars.size, 'EMITTED_VAR_FLOOR', 'biến do `tokens/index.ts` phát')
   if (!v.ok) {

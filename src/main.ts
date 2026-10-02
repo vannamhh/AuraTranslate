@@ -268,6 +268,7 @@ import type { InlineStripKind } from './panels/inlineStripPriority'
 // ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossarySettingsState.ts` dùng
 // `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
 import { saveGlossarySettings } from './glossarySettingsState'
+import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
 // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ───────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossarySettingsState.ts`: `glossaryQueueState.ts` dùng
@@ -861,6 +862,7 @@ async function boot(): Promise<void> {
         void confirmGlossaryConfirmStrip(chapterId, editorSegments.value, chapter.source_lang)
       },
       deferGlossaryConfirmStrip,
+      ...tmFuzzyCommandDeps(),
       // Story 3.8 · FR53/FR55 — lớp phủ "Duyệt hàng loạt một phím".
       openGlossaryQueue: () => {
         void openGlossaryQueue()

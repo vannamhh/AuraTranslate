@@ -111,6 +111,7 @@ pub struct BootstrapConfig {
     /// `put_config('app_config', 'reading_preferences', <json>)` đã có sẵn — không có vỏ
     /// `#[tauri::command]` riêng cho trường này.
     pub reading_preferences: String,
+    pub tm_fuzzy_threshold: u32,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -155,6 +156,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         dict_sources_disabled: config.dict_sources_disabled().to_owned(),
         glossary_scan_threshold: config.glossary_scan_threshold(),
         reading_preferences: config.reading_preferences().to_owned(),
+        tm_fuzzy_threshold: config.tm_fuzzy_threshold(),
     })
 }
 

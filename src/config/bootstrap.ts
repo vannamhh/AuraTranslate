@@ -92,6 +92,8 @@ export type BootstrapConfig = {
    * thẳng, không cần một vỏ `#[tauri::command]` riêng).
    */
   reading_preferences: string
+  /** Fuzzy TM threshold, integer percent 50-99 (Story 7.5); Rust falls back to 65 on a bad value. */
+  tm_fuzzy_threshold: number
 }
 
 /**
@@ -208,14 +210,20 @@ export const KEY_GLOSSARY_SCAN_THRESHOLD = 'glossary_scan_threshold'
  * `core::scope::store::KEY_READING_PREFERENCES` phía Rust.
  */
 export const KEY_READING_PREFERENCES = 'reading_preferences'
+/** Matches `core::scope::store::KEY_TM_FUZZY_THRESHOLD`. */
+export const KEY_TM_FUZZY_THRESHOLD = 'tm_fuzzy_threshold'
 
 /** Mặc định khi chưa đọc được cấu hình — khớp `DEFAULT_GLOSSARY_SCAN_THRESHOLD` phía Rust. */
 export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
+
+/** Matches `DEFAULT_TM_FUZZY_THRESHOLD` on the Rust side. */
+export const DEFAULT_TM_FUZZY_THRESHOLD = 65
 
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')
 const glossaryScanThreshold = ref(DEFAULT_GLOSSARY_SCAN_THRESHOLD)
 const readingPreferences = ref('')
+const tmFuzzyThreshold = ref(DEFAULT_TM_FUZZY_THRESHOLD)
 
 /**
  * Bố cục đã lưu, đọc **một lần** lúc khởi động (AC4).
@@ -255,6 +263,9 @@ export const bootstrapGlossaryScanThreshold: DeepReadonly<Ref<number>> = readonl
  */
 export const bootstrapReadingPreferences: DeepReadonly<Ref<string>> = readonly(readingPreferences)
 
+/** Fuzzy TM threshold read once at startup; the Settings form remembers later saves itself. */
+export const bootstrapTmFuzzyThreshold: DeepReadonly<Ref<number>> = readonly(tmFuzzyThreshold)
+
 /**
  * Nạp cấu hình khởi động. Không ném — xem doc-comment đầu tệp.
  */
@@ -283,6 +294,12 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
     // gì về nó.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     readingPreferences.value = typeof config?.reading_preferences === 'string' ? config.reading_preferences : ''
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
+    const rawFuzzy: unknown = config?.tm_fuzzy_threshold
+    tmFuzzyThreshold.value =
+      typeof rawFuzzy === 'number' && Number.isInteger(rawFuzzy) && rawFuzzy >= 50 && rawFuzzy <= 99
+        ? rawFuzzy
+        : DEFAULT_TM_FUZZY_THRESHOLD
     return { config, error: null }
   } catch (err) {
     if (isIpcError(err)) {

@@ -89,6 +89,7 @@ pub enum TmTier {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TmPair {
+    pub id: i64,
     pub source_text: String,
     pub target_text: String,
     pub translation_origin: PairOrigin,
@@ -130,6 +131,7 @@ const TM_SCOPE_KIND: &str = "translation_memory";
 
 #[derive(Clone)]
 struct RawPair {
+    id: i64,
     source_text: String,
     target_text: String,
     translation_origin: PairOrigin,
@@ -140,21 +142,41 @@ fn load_pair_rows(
     source_text: &str,
 ) -> Result<Vec<RawPair>, TmStoreError> {
     let source = source_text.to_owned();
-    let raw: Vec<(String, String, String)> = store.read(move |conn| {
-        let mut stmt = conn.prepare(
-            "SELECT source_text, target_text, translation_origin FROM tm_unit \
-             WHERE source_text = ?1 ORDER BY id",
-        )?;
-        let rows = stmt
-            .query_map([&source], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
-            .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+    query_pair_rows(
+        store,
+        "SELECT id, source_text, target_text, translation_origin FROM tm_unit \
+         WHERE source_text = ?1 ORDER BY id",
+        Some(source),
+    )
+}
+
+fn load_all_pair_rows(store: &crate::core::store::Store) -> Result<Vec<RawPair>, TmStoreError> {
+    query_pair_rows(
+        store,
+        "SELECT id, source_text, target_text, translation_origin FROM tm_unit ORDER BY id",
+        None,
+    )
+}
+
+fn query_pair_rows(
+    store: &crate::core::store::Store,
+    sql: &'static str,
+    source: Option<String>,
+) -> Result<Vec<RawPair>, TmStoreError> {
+    let raw: Vec<(i64, String, String, String)> = store.read(move |conn| {
+        let mut stmt = conn.prepare(sql)?;
+        let map = |r: &crate::core::store::Row<'_>| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?));
+        let rows = match &source {
+            Some(s) => stmt.query_map([s], map)?.collect::<crate::core::store::SqlResult<Vec<_>>>()?,
+            None => stmt.query_map([], map)?.collect::<crate::core::store::SqlResult<Vec<_>>>()?,
+        };
         Ok(rows)
     })?;
     raw.into_iter()
-        .map(|(source_text, target_text, origin)| {
+        .map(|(id, source_text, target_text, origin)| {
             let translation_origin = PairOrigin::from_stored(&origin)
                 .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
-            Ok(RawPair { source_text, target_text, translation_origin })
+            Ok(RawPair { id, source_text, target_text, translation_origin })
         })
         .collect()
 }
@@ -176,6 +198,14 @@ pub fn pairs_for_source(
 ) -> Result<Vec<TmPair>, TmStoreError> {
     let global_rows = load_pair_rows(global, source_text)?;
     let work_rows = work.map(|w| load_pair_rows(w, source_text)).transpose()?;
+    merge_tiers(resolver, global_rows, work_rows)
+}
+
+fn merge_tiers(
+    resolver: &crate::core::scope::ScopeResolver,
+    global_rows: Vec<RawPair>,
+    work_rows: Option<Vec<RawPair>>,
+) -> Result<Vec<TmPair>, TmStoreError> {
     let by_side = |a: &RawPair, b: &RawPair| {
         side_rank(a.translation_origin.side()).cmp(&side_rank(b.translation_origin.side()))
     };
@@ -189,6 +219,7 @@ pub fn pairs_for_source(
             };
             let raw = t.value();
             TmPair {
+                id: raw.id,
                 source_text: raw.source_text.clone(),
                 target_text: raw.target_text.clone(),
                 translation_origin: raw.translation_origin,
@@ -196,4 +227,107 @@ pub fn pairs_for_source(
             }
         })
         .collect())
+}
+
+/// Number of fuzzy rows the strip shows.
+pub const FUZZY_MATCH_LIMIT: usize = 3;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FuzzyPair {
+    pub pair: TmPair,
+    pub percent: u8,
+}
+
+/// Every pair of both tiers, read once so scoring can run after the caller released its locks.
+pub struct FuzzyCandidates {
+    global_rows: Vec<RawPair>,
+    work_rows: Option<Vec<RawPair>>,
+}
+
+pub fn load_fuzzy_candidates(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+) -> Result<FuzzyCandidates, TmStoreError> {
+    Ok(FuzzyCandidates {
+        global_rows: load_all_pair_rows(global)?,
+        work_rows: work.map(load_all_pair_rows).transpose()?,
+    })
+}
+
+/// Pairs of both tiers whose source scores at least `threshold` percent against `source_text`,
+/// best first, ties in `pairs_for_source` order, at most [`FUZZY_MATCH_LIMIT`]. A pair whose
+/// source equals `source_text` is excluded (exact matches belong to the pre-fill).
+pub fn fuzzy_pairs_for_source(
+    resolver: &crate::core::scope::ScopeResolver,
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    source_text: &str,
+    lang: crate::core::matching::MatchLang,
+    threshold: u8,
+) -> Result<Vec<FuzzyPair>, TmStoreError> {
+    let candidates = load_fuzzy_candidates(global, work)?;
+    rank_fuzzy_candidates(resolver, candidates, source_text, lang, threshold)
+}
+
+pub fn rank_fuzzy_candidates(
+    resolver: &crate::core::scope::ScopeResolver,
+    candidates: FuzzyCandidates,
+    source_text: &str,
+    lang: crate::core::matching::MatchLang,
+    threshold: u8,
+) -> Result<Vec<FuzzyPair>, TmStoreError> {
+    let mut scorer = crate::core::matching::SimilarityScorer::new(source_text, lang);
+    let mut scores: std::collections::HashMap<(bool, i64), u8> = std::collections::HashMap::new();
+    let mut keep = |tier_is_work: bool, rows: Vec<RawPair>| -> Vec<RawPair> {
+        rows.into_iter()
+            .filter(|row| {
+                if row.source_text == source_text {
+                    return false;
+                }
+                let percent = scorer.percent(&row.source_text).min(99);
+                if percent < threshold {
+                    return false;
+                }
+                scores.insert((tier_is_work, row.id), percent);
+                true
+            })
+            .collect()
+    };
+    let global_rows = keep(false, candidates.global_rows);
+    let work_rows = candidates.work_rows.map(|rows| keep(true, rows));
+    let mut merged: Vec<FuzzyPair> = merge_tiers(resolver, global_rows, work_rows)?
+        .into_iter()
+        .map(|pair| {
+            let percent = scores.get(&(pair.tier == TmTier::Work, pair.id)).copied().unwrap_or(0);
+            FuzzyPair { pair, percent }
+        })
+        .collect();
+    merged.sort_by(|a, b| b.percent.cmp(&a.percent));
+    merged.truncate(FUZZY_MATCH_LIMIT);
+    Ok(merged)
+}
+
+/// One pair of one tier by id; `None` when it no longer exists.
+pub fn pair_by_id(
+    store: &crate::core::store::Store,
+    tier: TmTier,
+    id: i64,
+) -> Result<Option<TmPair>, TmStoreError> {
+    let raw: Option<(i64, String, String, String)> = store.read(move |conn| {
+        match conn.query_row(
+            "SELECT id, source_text, target_text, translation_origin FROM tm_unit WHERE id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        ) {
+            Ok(row) => Ok(Some(row)),
+            Err(crate::core::store::SqlError::QueryReturnedNoRows) => Ok(None),
+            Err(err) => Err(err),
+        }
+    })?;
+    raw.map(|(id, source_text, target_text, origin)| {
+        let translation_origin = PairOrigin::from_stored(&origin)
+            .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
+        Ok(TmPair { id, source_text, target_text, translation_origin, tier })
+    })
+    .transpose()
 }

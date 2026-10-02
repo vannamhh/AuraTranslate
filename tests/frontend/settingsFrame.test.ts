@@ -27,7 +27,7 @@ vi.mock('../../src/config/aiconfig', () => ({
   aiConfigDeleteKey: vi.fn(),
 }))
 
-const EXPECTED_SECTIONS = ['ai_and_model', 'prompt', 'glossary', 'shortcuts', 'privacy']
+const EXPECTED_SECTIONS = ['ai_and_model', 'prompt', 'glossary', 'tm', 'shortcuts', 'privacy']
 
 const cleanups: Array<() => void> = []
 

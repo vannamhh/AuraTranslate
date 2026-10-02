@@ -120,6 +120,31 @@ const KEY_GLOSSARY_SCAN_THRESHOLD: &str = "glossary_scan_threshold";
 /// viên hợp lý ở ngưỡng này; xem §Verification của story cho số đo).
 pub const DEFAULT_GLOSSARY_SCAN_THRESHOLD: u32 = 5;
 
+/// `AppConfig` key (Global tier) for the minimum fuzzy TM match percentage.
+const KEY_TM_FUZZY_THRESHOLD: &str = "tm_fuzzy_threshold";
+
+pub const DEFAULT_TM_FUZZY_THRESHOLD: u32 = 65;
+pub const MIN_TM_FUZZY_THRESHOLD: u32 = 50;
+pub const MAX_TM_FUZZY_THRESHOLD: u32 = 99;
+
+/// Resolves the fuzzy TM threshold from the raw stored value: an integer percent in
+/// `MIN_TM_FUZZY_THRESHOLD..=MAX_TM_FUZZY_THRESHOLD`, anything else falls back to the default.
+pub fn parse_tm_fuzzy_threshold(raw: Option<&str>) -> u32 {
+    let Some(raw) = raw else {
+        return DEFAULT_TM_FUZZY_THRESHOLD;
+    };
+    match raw.parse::<u32>() {
+        Ok(v) if (MIN_TM_FUZZY_THRESHOLD..=MAX_TM_FUZZY_THRESHOLD).contains(&v) => v,
+        _ => {
+            eprintln!(
+                "scope[app_config] tm_fuzzy_threshold tren dia khong hop le: {raw:?} -- \
+                 roi ve mac dinh {DEFAULT_TM_FUZZY_THRESHOLD}"
+            );
+            DEFAULT_TM_FUZZY_THRESHOLD
+        }
+    }
+}
+
 /// Khoá của [`ScopeKind::AppConfig`] mang **thư mục gốc Library**, người dùng chọn qua hộp
 /// thoại — Story 5.3, AD-48.
 ///
@@ -263,6 +288,10 @@ impl GlobalConfig {
         parse_glossary_scan_threshold(
             self.app.get(KEY_GLOSSARY_SCAN_THRESHOLD).map(|r| r.value().as_str()),
         )
+    }
+
+    pub fn tm_fuzzy_threshold(&self) -> u32 {
+        parse_tm_fuzzy_threshold(self.app.get(KEY_TM_FUZZY_THRESHOLD).map(|r| r.value().as_str()))
     }
 
     /// Thư mục gốc Library người dùng đã cấu hình, ĐÃ QUA [`resolve_library_root_value`] —

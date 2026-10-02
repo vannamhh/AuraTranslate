@@ -50,8 +50,8 @@ const MATCHING_FLOOR: usize = 1;
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
 const SRC_RS_FLOOR: usize = 84;
 
-/// Hai crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
-const MATCHING_ONLY_CRATES: [&str; 2] = ["jieba_rs", "tantivy_stemmers"];
+/// Ba crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
+const MATCHING_ONLY_CRATES: [&str; 3] = ["jieba_rs", "tantivy_stemmers", "similar"];
 
 /// Bốn token bị cấm ở **vị trí mã** dưới `core/dict/**` (AD-17 thân Rule + AD-44 ③).
 ///

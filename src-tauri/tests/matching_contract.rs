@@ -15,7 +15,7 @@
 //! [`stemming_is_not_lemmatization_irregular_and_comparative_forms_never_reach_their_lemma`]).
 
 use auratranslate_lib::core::matching::{
-    MatchLang, MatchToken, TermMatch, find_terms, ngrams, normalize, tokenize,
+    DiffKind, DiffSpan, MatchLang, MatchToken, SimilarityScorer, diff_spans, TermMatch, find_terms, ngrams, normalize, tokenize,
 };
 
 /// Span của mọi token luôn là một cặp ranh giới UTF-8 hợp lệ, và cắt ra đúng `text`.
@@ -552,5 +552,106 @@ fn overlapping_occurrences_of_the_same_chinese_term_are_all_reported() {
         found.iter().map(|m| m.span.clone()).collect::<Vec<_>>(),
         [0..8, 4..12],
         "`𠧜𠧜` xuất hiện HAI lần chồng nhau trong `𠧜𠧜𠧜`"
+    );
+}
+
+fn score(a: &str, b: &str, lang: MatchLang) -> u8 {
+    SimilarityScorer::new(a, lang).percent(b)
+}
+
+#[test]
+fn identical_texts_score_100_and_disjoint_texts_score_0_in_both_languages() {
+    assert_eq!(score("The cat sat on the mat.", "The cat sat on the mat.", MatchLang::En), 100);
+    assert_eq!(score("alpha beta", "gamma delta", MatchLang::En), 0);
+    assert_eq!(score("他去了远方。", "他去了远方。", MatchLang::Zh), 100);
+    assert_eq!(score("山水", "火木", MatchLang::Zh), 0);
+}
+
+#[test]
+fn an_empty_side_scores_0_and_the_score_is_symmetric() {
+    assert_eq!(score("", "The cat.", MatchLang::En), 0);
+    assert_eq!(score("", "", MatchLang::Zh), 0);
+    let (a, b) = ("The quick brown fox jumps.", "The quick red fox leaps high.");
+    assert_eq!(score(a, b, MatchLang::En), score(b, a, MatchLang::En));
+}
+
+#[test]
+fn english_scoring_runs_on_stems_so_an_inflection_barely_costs() {
+    let near = score("The dogs are running fast.", "The dog is running fast.", MatchLang::En);
+    let far = score("The dogs are running fast.", "A cat sleeps slowly here.", MatchLang::En);
+    assert!(near >= 65 && far < 20, "near {near} far {far}");
+}
+
+#[test]
+fn chinese_scoring_counts_characters_not_bytes_and_one_changed_character_stays_high() {
+    let s = score("他今天去了很远的地方看望老朋友。", "他昨天去了很远的地方看望老朋友。", MatchLang::Zh);
+    assert!((65..100).contains(&s), "{s}");
+}
+
+fn rebuilt(spans: &[DiffSpan], drop_kind: DiffKind) -> String {
+    spans.iter().filter(|s| s.kind != drop_kind).map(|s| s.text.as_str()).collect()
+}
+
+#[test]
+fn a_diff_rebuilds_both_normalized_sides_for_every_pair_of_the_set() {
+    let cases = [
+        ("The quick brown fox jumps over the lazy cat.", "The quick brown fox jumps over the lazy dog.", MatchLang::En),
+        ("  a b c  ", "a x c", MatchLang::En),
+        ("他昨天去了很远的地方看望老朋友。", "他今天去了很远的地方看望老朋友。", MatchLang::Zh),
+        ("", "abc", MatchLang::En),
+        ("abc", "", MatchLang::Zh),
+        ("Trường hợp cũ", "Truo\u{0300}ng hợp mới", MatchLang::En),
+    ];
+    for (old, new, lang) in cases {
+        let spans = diff_spans(old, new, lang);
+        let nfc = |s: &str| unicode_normalization::UnicodeNormalization::nfc(s.trim()).collect::<String>();
+        assert_eq!(rebuilt(&spans, DiffKind::Insert), nfc(old), "old {old:?}");
+        assert_eq!(rebuilt(&spans, DiffKind::Delete), nfc(new), "new {new:?}");
+    }
+}
+
+#[test]
+fn an_unchanged_text_is_one_equal_span() {
+    assert_eq!(
+        diff_spans("same text", "same text", MatchLang::En),
+        vec![DiffSpan { kind: DiffKind::Equal, text: "same text".to_owned() }]
+    );
+}
+
+#[test]
+fn an_equal_run_of_two_characters_between_two_changes_folds_into_the_change() {
+    let spans = diff_spans("甲乙丙丁戊", "子乙丑丁戊", MatchLang::Zh);
+    assert_eq!(
+        spans.iter().map(|s| (s.kind, s.text.as_str())).collect::<Vec<_>>(),
+        vec![
+            (DiffKind::Delete, "甲乙丙"),
+            (DiffKind::Insert, "子乙丑"),
+            (DiffKind::Equal, "丁戊"),
+        ]
+    );
+}
+
+#[test]
+fn english_changes_land_on_whole_words() {
+    let spans = diff_spans("the lazy cat sleeps", "the lazy dog sleeps", MatchLang::En);
+    assert!(spans.iter().any(|s| s.kind == DiffKind::Delete && s.text == "cat"));
+    assert!(spans.iter().any(|s| s.kind == DiffKind::Insert && s.text == "dog"));
+}
+
+#[test]
+fn english_inflections_that_match_only_through_stems_score_a_full_hundred() {
+    assert_eq!(score("dogs jumping fences", "dog jumps fence", MatchLang::En), 100);
+}
+
+#[test]
+fn an_english_equal_run_of_one_space_between_two_changed_words_is_absorbed() {
+    let spans = diff_spans("red cat on mat", "blue dog on mat", MatchLang::En);
+    assert_eq!(
+        spans.iter().map(|s| (s.kind, s.text.as_str())).collect::<Vec<_>>(),
+        vec![
+            (DiffKind::Delete, "red cat"),
+            (DiffKind::Insert, "blue dog"),
+            (DiffKind::Equal, " on mat"),
+        ]
     );
 }

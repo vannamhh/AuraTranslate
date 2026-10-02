@@ -1218,3 +1218,291 @@ fn the_exact_lookup_uses_the_source_index_in_both_stores() {
     drop((open, global));
     let _ = fs::remove_dir_all(root);
 }
+
+const FUZZY_CURRENT: &str = "The quick brown fox jumps over the lazy dog.";
+const FUZZY_NEAR: &str = "The quick brown fox jumps over the lazy cat.";
+
+fn fuzzy(w: &Wired, id: i64) -> auratranslate_lib::commands::segment::TmFuzzyMatches {
+    wire::tm_fuzzy_matches(w.app.handle().clone(), id).expect("quet khop mo")
+}
+
+fn fuzzy_shape(m: &auratranslate_lib::commands::segment::TmFuzzyMatches) -> Vec<(&str, &str, &str)> {
+    m.matches.iter().map(|x| (x.target_text.as_str(), x.tier, x.side)).collect()
+}
+
+fn set_threshold(w: &Wired, value: &str) {
+    auratranslate_lib::commands::config::put_config(Some(&w.app.state::<Store>()), "app_config", "tm_fuzzy_threshold", value)
+        .expect("ghi nguong");
+}
+
+#[test]
+fn a_near_pair_comes_back_with_percent_tier_side_and_pair_identity() {
+    let w = wired("fz-hit", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let got = fuzzy(&w, id);
+    assert_eq!((got.segment_id, fuzzy_shape(&got)), (id, vec![("near", "work", "mine")]));
+    assert!((65..100).contains(&got.matches[0].percent), "percent {}", got.matches[0].percent);
+    assert_eq!(got.matches[0].source_text, FUZZY_NEAR);
+    assert!(got.matches[0].unit_id > 0);
+}
+
+#[test]
+fn a_pair_below_the_threshold_gives_no_match() {
+    let w = wired("fz-low", FUZZY_CURRENT, true);
+    w.seed_work("Completely unrelated words appear in this other sentence.", "far", "self");
+    assert!(fuzzy(&w, w.first_id()).matches.is_empty());
+}
+
+#[test]
+fn an_exact_pair_suppresses_the_fuzzy_list() {
+    let w = wired("fz-exact", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    w.seed_global(FUZZY_CURRENT, "exact", "other");
+    assert!(fuzzy(&w, w.first_id()).matches.is_empty());
+}
+
+#[test]
+fn the_threshold_setting_decides_and_an_out_of_range_value_keeps_65() {
+    let w = wired("fz-threshold", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let percent = fuzzy(&w, id).matches[0].percent;
+    set_threshold(&w, &(u32::from(percent) + 1).to_string());
+    assert!(fuzzy(&w, id).matches.is_empty(), "nguong cao hon diem phai loai cap");
+    set_threshold(&w, "30");
+    assert_eq!(fuzzy(&w, id).matches.len(), 1, "gia tri ngoai khoang phai ve 65");
+    set_threshold(&w, &percent.to_string());
+    assert_eq!(fuzzy(&w, id).matches.len(), 1, "diem bang nguong van vao");
+}
+
+const KEPT_TOP3: [&str; 3] = ["w-b", "g-a", "w-a"];
+
+#[test]
+fn only_the_best_three_come_back_ordered_by_score_then_ad_18() {
+    let w = wired("fz-top3", FUZZY_CURRENT, true);
+    w.seed_work("The quick brown fox jumps over the lazy dog today.", "w-a", "other");
+    w.seed_work("The quick brown fox jumps over the lazy dogs.", "w-b", "other");
+    w.seed_work("The quick brown fox jumps over a lazy cat.", "w-c", "other");
+    w.seed_global("The quick brown fox jumps over the lazy dog today.", "g-a", "self");
+    w.seed_global("The quick brown fox leaps over the lazy cat.", "g-d", "other");
+    let got = fuzzy(&w, w.first_id());
+    assert_eq!(got.matches.len(), 3);
+    let kept: Vec<&str> = got.matches.iter().map(|m| m.target_text.as_str()).collect();
+    assert_eq!(kept, KEPT_TOP3, "{kept:?}");
+    assert!(!kept.contains(&"w-c") && !kept.contains(&"g-d"));
+    let percents: Vec<u8> = got.matches.iter().map(|m| m.percent).collect();
+    assert!(percents.windows(2).all(|p| p[0] >= p[1]), "{percents:?}");
+    let equal_pair: Vec<&str> = got
+        .matches
+        .iter()
+        .filter(|m| m.source_text.ends_with("lazy dog today."))
+        .map(|m| m.target_text.as_str())
+        .collect();
+    assert_eq!(equal_pair, ["g-a", "w-a"], "cung diem: cua toi truoc, roi Work truoc Global");
+}
+
+#[test]
+fn a_global_pair_is_scanned_alongside_the_work_tier() {
+    let w = wired("fz-global", FUZZY_CURRENT, true);
+    w.seed_global(FUZZY_NEAR, "g", "other");
+    let got = fuzzy(&w, w.first_id());
+    assert_eq!(fuzzy_shape(&got), vec![("g", "global", "others")]);
+}
+
+#[test]
+fn an_unmanaged_global_store_or_an_unknown_segment_is_an_error_not_an_empty_list() {
+    let w = wired("fz-errors", FUZZY_CURRENT, false);
+    assert!(wire::tm_fuzzy_matches(w.app.handle().clone(), w.first_id()).is_err());
+    let w = wired("fz-unknown", FUZZY_CURRENT, true);
+    assert!(wire::tm_fuzzy_matches(w.app.handle().clone(), 9_999_999).is_err());
+}
+
+#[test]
+fn a_hit_carries_the_source_diff_from_the_pair_source_to_the_caret_source() {
+    use auratranslate_lib::core::matching::DiffKind;
+    let w = wired("fz-diff", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let got = fuzzy(&w, w.first_id());
+    let diff = &got.matches[0].diff;
+    let side = |keep: DiffKind| -> String {
+        diff.iter().filter(|s| s.kind == DiffKind::Equal || s.kind == keep).map(|s| s.text.as_str()).collect()
+    };
+    assert_eq!(side(DiffKind::Delete), FUZZY_NEAR);
+    assert_eq!(side(DiffKind::Insert), FUZZY_CURRENT);
+    assert!(diff.iter().any(|s| s.kind == DiffKind::Delete && s.text == "cat."));
+    assert!(diff.iter().any(|s| s.kind == DiffKind::Insert && s.text == "dog."));
+}
+
+fn accept(w: &Wired, id: i64, m: &auratranslate_lib::commands::segment::TmFuzzyMatch, force: bool)
+    -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
+    wire::accept_tm_fuzzy(w.app.handle().clone(), id, m.tier.to_owned(), m.unit_id, force)
+}
+
+#[test]
+fn accepting_a_row_into_an_empty_draft_writes_its_target_as_an_unconfirmed_other_draft_with_no_version() {
+    let w = wired("fz-accept", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+
+    let out = accept(&w, id, &m, false).expect("nhan");
+
+    assert!(!out.needs_confirmation);
+    assert_eq!((out.target_text.as_str(), out.status.as_str(), out.translation_origin.as_str()), ("near", "draft", "other"));
+    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "other".to_owned(), 0));
+    assert_eq!(w.target_and_baseline(id), ("near".to_owned(), "near".to_owned(), "other".to_owned()));
+}
+
+#[test]
+fn accepting_over_an_unsigned_draft_writes_nothing_until_forced() {
+    let w = wired("fz-over", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+    w.with_open(|open| {
+        let chapter_id = segment_ids(open).0;
+        type_text(open, chapter_id, id, "Ban nhap dang go.");
+    });
+
+    let held = accept(&w, id, &m, false).expect("giu");
+
+    assert!(held.needs_confirmation);
+    assert_eq!(held.unsigned_draft.as_deref(), Some("Ban nhap dang go."));
+    assert_eq!(w.with_open(|o| w_target(o, id)), "Ban nhap dang go.");
+    let forced = accept(&w, id, &m, true).expect("ghi de");
+    assert!(!forced.needs_confirmation);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "near");
+}
+
+#[test]
+fn accepting_a_pair_that_no_longer_exists_writes_nothing_and_errors() {
+    let w = wired("fz-gone", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let mut m = fuzzy(&w, id).matches.remove(0);
+    m.unit_id = 9_999_999;
+
+    let err = accept(&w, id, &m, false).expect_err("cap da mat");
+
+    assert_eq!(err.code(), "tm.pair_not_found");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn accepting_a_global_row_reads_the_global_tier_and_declares_other_even_for_my_pair() {
+    let w = wired("fz-global-accept", FUZZY_CURRENT, true);
+    w.seed_global(FUZZY_NEAR, "g-mine", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+    assert_eq!((m.tier, m.side), ("global", "mine"));
+
+    accept(&w, id, &m, false).expect("nhan");
+
+    assert_eq!(w.with_open(|o| state_of(o, id)).1, "other");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "g-mine");
+}
+
+#[test]
+fn scoring_runs_on_rows_read_earlier_so_the_open_work_lock_is_not_needed() {
+    let w = wired("fz-split", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let prepared = {
+        let global = w.app.state::<Store>();
+        w.with_open(|open| auratranslate_lib::commands::segment::prepare_tm_fuzzy(Some(&*global), Some(open), id))
+            .expect("chuan bi")
+    };
+    let state = w.app.state::<OpenWorkState>();
+    let held = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let got = auratranslate_lib::commands::segment::score_tm_fuzzy(prepared).expect("cham diem");
+    drop(held);
+    assert_eq!(got.matches.len(), 1);
+}
+
+#[test]
+fn a_pair_differing_only_by_letter_case_is_capped_below_a_hundred() {
+    let w = wired("fz-case", FUZZY_CURRENT, true);
+    w.seed_work(&FUZZY_CURRENT.to_uppercase(), "upper", "self");
+    let got = fuzzy(&w, w.first_id());
+    assert_eq!(got.matches.len(), 1);
+    assert_eq!(got.matches[0].percent, 99);
+}
+
+#[test]
+fn a_retired_segment_is_an_error_and_a_whitespace_only_source_gives_an_empty_list() {
+    let w = wired("fz-edge", "Lap lai. Khac nua.", true);
+    let ids = w.with_open(|open| segment_ids(open).1);
+    w.with_open(|open| {
+        let (retired, blank) = (ids[0], ids[1]);
+        open.store
+            .write(move |tx: &Transaction<'_>| {
+                tx.execute("UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE id = ?1", [retired])?;
+                tx.execute("UPDATE segment SET source_text = '   ' WHERE id = ?1", [blank])
+            })
+            .expect("dat trang thai");
+    });
+    let err = wire::tm_fuzzy_matches(w.app.handle().clone(), ids[0]).expect_err("da ve huu");
+    assert_eq!(err.message_key(), MessageKey::SegmentRetired);
+    assert!(fuzzy(&w, ids[1]).matches.is_empty());
+}
+
+#[test]
+fn the_same_unit_id_in_both_tiers_keeps_each_tiers_own_score() {
+    let w = wired("fz-same-id", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "w-near", "other");
+    w.seed_global("The quick brown fox leaps over the lazy cat.", "g-far", "other");
+    let got = fuzzy(&w, w.first_id());
+    assert_eq!(got.matches.len(), 2);
+    assert_eq!(got.matches[0].unit_id, got.matches[1].unit_id);
+    let by_tier: Vec<(&str, &str)> = got.matches.iter().map(|m| (m.tier, m.target_text.as_str())).collect();
+    assert_eq!(by_tier, [("work", "w-near"), ("global", "g-far")]);
+    assert!(got.matches[0].percent > got.matches[1].percent, "{:?}", got.matches.iter().map(|m| m.percent).collect::<Vec<_>>());
+}
+
+#[test]
+fn a_chinese_work_scores_by_character_ngrams() {
+    let dir = temp_dir("fz-zh");
+    let open = create_work_from_text(&dir, "fz-zh", "zh", "", "他今天去了很远的地方看望老朋友。".to_owned()).expect("tao");
+    let global = open_global_db(&dir);
+    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    seed(&open.store, &[("他昨天去了很远的地方看望老朋友。", "zh-near", "self")]);
+    let id = segment_ids(&open).1[0];
+    app.manage(OpenWorkState::new(Some(open)));
+    app.manage(global);
+    let got = wire::tm_fuzzy_matches(app.handle().clone(), id).expect("quet");
+    assert_eq!(got.matches.len(), 1);
+    assert!(got.matches[0].percent >= 65);
+    let _guard = DirGuard(dir);
+}
+
+#[test]
+#[ignore = "latency measurement: cargo test --release --test tm_contract fuzzy_scan_latency -- --ignored --nocapture"]
+fn fuzzy_scan_latency_over_100k_pairs_per_tier() {
+    let w = wired("fz-perf", FUZZY_CURRENT, true);
+    let words = ["alpha", "river", "stone", "quick", "garden", "silver", "window", "paper", "winter", "candle", "market", "bridge"];
+    let sentence = |i: usize| -> String {
+        (0..9).map(|k| words[(i / (k + 1) + k * 5) % words.len()]).collect::<Vec<_>>().join(" ") + &format!(" {i}.")
+    };
+    let rows: Vec<(String, String)> = (0..100_000).map(|i| (sentence(i), format!("t{i}"))).collect();
+    let fill = |store: &Store| {
+        let rows = rows.clone();
+        store
+            .write(move |tx: &Transaction<'_>| {
+                for (s, t) in &rows {
+                    tx.execute(
+                        "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) VALUES (?1, ?2, 'other', '2026-01-01T00:00:00.000Z')",
+                        (s, t),
+                    )?;
+                }
+                Ok(())
+            })
+            .expect("gieo");
+    };
+    w.with_open(|open| fill(&open.store));
+    fill(&w.app.state::<Store>());
+    let id = w.first_id();
+    let started = std::time::Instant::now();
+    let got = fuzzy(&w, id);
+    eprintln!("fuzzy scan 2 x 100000 pairs: {:?}, matches {}", started.elapsed(), got.matches.len());
+}

@@ -2364,6 +2364,16 @@ const HANDLER_TABLE = {
   'src/SettingsOverlay.vue::onClearAiConfigOverride': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSaveAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onDeleteAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
+  'src/TmFuzzyStrip.vue::onKeydown': {
+    ids: [
+      'tm.fuzzy.hide',
+      'tm.fuzzy.next',
+      'tm.fuzzy.prev',
+      'tm.fuzzy.accept',
+      'tm.fuzzy.confirm_overwrite',
+    ],
+  },
+  'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
   'src/SettingsShortcutsSection.vue::aimRowFrom': { nonCommand: R_CURSOR_IMPORTED },
   'src/SettingsShortcutsSection.vue::onKeyCellKeydown': { ids: ['shortcuts.unassign'] },
   'src/layout/LookupDrawer.vue::closeLookupDrawer': { nonCommand: R_CLOSE_IMPORTED },

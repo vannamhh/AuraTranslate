@@ -1128,6 +1128,113 @@ export async function promoteAiTranslation(
   }
 }
 
+export type TmFuzzyTier = 'work' | 'global'
+export type TmFuzzySide = 'mine' | 'others'
+export type TmDiffKind = 'equal' | 'delete' | 'insert'
+export type TmDiffSpan = { kind: TmDiffKind; text: string }
+
+/** Matches `commands::segment::TmFuzzyMatch`, snake_case as on the wire (AD-51 diff included). */
+export type TmFuzzyMatch = {
+  tier: TmFuzzyTier
+  unit_id: number
+  percent: number
+  source_text: string
+  target_text: string
+  diff: TmDiffSpan[]
+  side: TmFuzzySide
+}
+
+/** Matches `commands::segment::TmFuzzyMatches`. */
+export type TmFuzzyMatches = {
+  segment_id: number
+  matches: TmFuzzyMatch[]
+}
+
+export type TmFuzzyMatchesResult = { outcome: TmFuzzyMatches | null; error: IpcError | null }
+
+function isTmDiffSpan(value: unknown): value is TmDiffSpan {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmDiffSpan>
+  return (v.kind === 'equal' || v.kind === 'delete' || v.kind === 'insert') && typeof v.text === 'string'
+}
+
+function isTmFuzzyMatch(value: unknown): value is TmFuzzyMatch {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmFuzzyMatch>
+  return (
+    (v.tier === 'work' || v.tier === 'global') &&
+    typeof v.unit_id === 'number' &&
+    typeof v.percent === 'number' &&
+    typeof v.source_text === 'string' &&
+    typeof v.target_text === 'string' &&
+    (v.side === 'mine' || v.side === 'others') &&
+    Array.isArray(v.diff) &&
+    v.diff.every(isTmDiffSpan)
+  )
+}
+
+function isTmFuzzyMatches(value: unknown): value is TmFuzzyMatches {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmFuzzyMatches>
+  return typeof v.segment_id === 'number' && Array.isArray(v.matches) && v.matches.every(isTmFuzzyMatch)
+}
+
+const CMD_TM_FUZZY_MATCHES = 'tm_fuzzy_matches'
+const CMD_ACCEPT_TM_FUZZY = 'accept_tm_fuzzy'
+
+function failureOf(err: unknown, command: string): IpcError | null {
+  if (isIpcError(err)) return err
+  if (hasIpcBridge()) {
+    console.error(`[segment] \`${command}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+    return UNKNOWN_IPC_ERROR
+  }
+  console.info(`[segment] không gọi được \`${command}\` — chạy ngoài Tauri? ${String(err)}`)
+  return null
+}
+
+/**
+ * Fuzzy TM matches for one segment (Story 7.5). Never throws. `error === null` with
+ * `outcome === null` means no IPC bridge.
+ */
+export async function tmFuzzyMatches(segmentId: number): Promise<TmFuzzyMatchesResult> {
+  try {
+    const outcome = await invoke<unknown>(CMD_TM_FUZZY_MATCHES, { segmentId })
+    if (!isTmFuzzyMatches(outcome)) {
+      console.error(
+        `[segment] \`${CMD_TM_FUZZY_MATCHES}\` trả một TmFuzzyMatches SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome, error: null }
+  } catch (err) {
+    return { outcome: null, error: failureOf(err, CMD_TM_FUZZY_MATCHES) }
+  }
+}
+
+/**
+ * Accept one fuzzy pair, identified by tier and `tm_unit.id` (Rust re-reads the text).
+ * Same outcome and `force` / `needs_confirmation` contract as [`promoteAiTranslation`].
+ */
+export async function acceptTmFuzzy(
+  segmentId: number,
+  tier: TmFuzzyTier,
+  unitId: number,
+  force: boolean,
+): Promise<PromoteAiTranslationResult> {
+  try {
+    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_FUZZY, { segmentId, tier, unitId, force })
+    if (!isPromoteAiTranslationOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_ACCEPT_TM_FUZZY}\` trả một PromoteAiTranslationOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome, error: null }
+  } catch (err) {
+    return { outcome: null, error: failureOf(err, CMD_ACCEPT_TM_FUZZY) }
+  }
+}
+
 /**
  * Hình dạng `RegroupOutcome` phía Rust — **`snake_case`, đúng như trên dây**. Story 2.8.
  *

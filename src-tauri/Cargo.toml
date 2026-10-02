@@ -161,10 +161,9 @@ dom_query = "=0.28.0"
 # Chạy e2e:  npm run test:e2e   (nó tự truyền `--features wdio`)
 tauri-plugin-wdio-webdriver = { version = "=1.3.0", optional = true }
 
-# `similar` vs `dissimilar`: hàng Deferred của ARCHITECTURE-SPINE, chốt ở Giai đoạn 5
-# (Story 8.1) sau khi thử cả hai trên bản review thật. Cài một trong hai hôm nay là
-# âm thầm đóng một quyết định kiến trúc đang mở. Số đã kiểm 2026-08-03 nếu 8.1 cần:
-# `similar` 3.1.1 · `dissimilar` 1.0.11.
+# core::matching::diff_spans (AD-51). Apache-2.0 đọc trong nguồn đã tải
+# (`~/.cargo/registry/src/…/similar-3.1.1/Cargo.toml`), feature mặc định, 0 gói MỚI.
+similar = "=3.1.1"
 
 # ── Dev-dependency (Story 4.3) — `[dev-dependencies]` ĐẦU TIÊN của dự án ────────────────
 #

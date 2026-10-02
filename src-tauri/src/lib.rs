@@ -967,6 +967,8 @@ pub fn run() {
             // `write_non_user_target`, dat `target_text`, hai cot moc va
             // `translation_origin = TRANSLATION_ORIGIN_OTHER` trong MOT cau `UPDATE` (AD-50).
             crate::commands::segment::wire::promote_ai_translation,
+            crate::commands::segment::wire::tm_fuzzy_matches,
+            crate::commands::segment::wire::accept_tm_fuzzy,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

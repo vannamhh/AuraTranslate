@@ -178,6 +178,7 @@ fn ipc_error_wire_shape() {
         glossary_scan_threshold: 5,
         // ⚠️ Trường thứ **tám**. Cùng lời dừng như các trường trên.
         reading_preferences: String::new(),
+        tm_fuzzy_threshold: 65,
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -201,6 +202,7 @@ fn ipc_error_wire_shape() {
             "reading_preferences",
             "shortcuts",
             "theme",
+            "tm_fuzzy_threshold",
             "workspace_layout",
         ],
         "khoá trên dây là `snake_case`. Nhận được: {ok_keys:?}. Nghi phạm số một: \
