@@ -103,7 +103,7 @@
 //!   nhất thắng, hoà thì trái nhất) TRƯỚC khi quy đổi byte → điểm mã.
 //! - [`store::warm_jieba_for_source_lang`] — hâm `Jieba` NGOÀI đường gõ, gọi từ đường MỞ
 //!   CHƯƠNG (`commands::chapter`), không từ thân `marks_for_source_text` — đóng
-//!   `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*` (179–329 ms khởi tạo lạnh, vượt trần NFR2 3,6–6,6×).
+//!   `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*` (khởi tạo lạnh vượt trần NFR2).
 //! - `commands::glossary::glossary_marks_for_chapter` — hàm thuần thứ hai của
 //!   `commands::glossary`: nhận `text`/`source_lang` làm THAM SỐ (không tự đọc `chapter`
 //!   từ đĩa — frontend đã có `source_text` từ `read_open_chapter`), cùng khuôn

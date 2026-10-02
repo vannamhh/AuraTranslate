@@ -19,9 +19,9 @@
 //! lượt đọc ẩu.**
 //!
 //! Cái giá của việc mất mệnh đề này không phải một lỗi trả sai: AD-44 ③ đo trên corpus
-//! thật rằng mọi biến thể hình thái **đã có sẵn làm đầu mục riêng** (16/16 mẫu thử, gồm
-//! cả bất quy tắc), nên một lượt stemming chèn vào đường nóng đổi p95 **0,052–0,961 ms**
-//! của Story 1.11b lấy **~0 recall**. Đó là NFR1 bị tiêu ngân sách mà không test hành
+//! thật rằng mọi biến thể hình thái **đã có sẵn làm đầu mục riêng** (gồm cả bất
+//! quy tắc), nên một lượt stemming chèn vào đường nóng đổi ngân sách p95 của
+//! tra cứu lấy **~0 recall**. Đó là NFR1 bị tiêu ngân sách mà không test hành
 //! vi nào đỏ.
 
 
@@ -77,6 +77,24 @@ const MATCHING_FORBIDDEN_USES: [&str; 4] = [
     "crate::commands",
     "super::",
 ];
+
+/// Tokens that mean I/O (AD-15): filesystem, database, network, process, Tauri.
+const MATCHING_IO_TOKENS: [&str; 10] = [
+    "std::fs",
+    "std::io",
+    "std::net",
+    "std::process",
+    "std::env",
+    "rusqlite",
+    "libsqlite3_sys",
+    "reqwest",
+    "keyring",
+    "tauri",
+];
+
+const MATCHING_IO_PREFIX: &str = "tauri_plugin_";
+
+const STD_IO_MODULES: [&str; 5] = ["fs", "io", "net", "process", "env"];
 
 fn is_word_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
@@ -178,7 +196,8 @@ fn only_the_matching_module_ever_names_the_two_language_crates() {
          mọc — và lớp lỗi mà AD-17 tồn tại để chặn là *\"Glossary bắt được một biến thể \
          mà TM không bắt được, và không ai hiểu vì sao\"*.\n\n\
          Đường đúng: gọi `auratranslate_lib::core::matching::{{tokenize, normalize, \
-         ngrams, find_terms}}`.",
+         ngrams, find_terms, gap_crosses_sentence_boundary, SimilarityScorer, \
+         diff_spans, warm}}`.",
         violations.len(),
         violations.join("\n")
     );
@@ -306,6 +325,98 @@ fn the_matching_module_is_a_leaf_in_the_dependency_graph() {
         violations.len(),
         violations.join("\n")
     );
+}
+
+fn io_violations(rel: &str, text: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let lines: Vec<(usize, String)> = code_lines(text).collect();
+    for (line_no, code) in &lines {
+        for needle in MATCHING_IO_TOKENS {
+            if contains_forbidden_token(code, needle) {
+                violations.push(format!("{rel}:{line_no}  {needle}  |  {code}"));
+            }
+        }
+        if code.contains(MATCHING_IO_PREFIX) {
+            violations.push(format!("{rel}:{line_no}  {MATCHING_IO_PREFIX}  |  {code}"));
+        }
+    }
+
+    let mut joined = String::new();
+    let mut starts: Vec<(usize, usize)> = Vec::new();
+    for (line_no, code) in &lines {
+        starts.push((joined.len(), *line_no));
+        joined.push_str(code);
+        joined.push(' ');
+    }
+    let mut from = 0;
+    while let Some(rel_pos) = joined[from..].find("std::{") {
+        let open = from + rel_pos + "std::{".len();
+        let mut depth = 1usize;
+        let mut close = joined.len();
+        for (i, b) in joined.bytes().enumerate().skip(open) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let group = &joined[open..close];
+        let hit = group
+            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .find(|word| STD_IO_MODULES.contains(word));
+        if let Some(word) = hit {
+            let at = from + rel_pos;
+            let line_no = starts.iter().rev().find(|(pos, _)| *pos <= at).map_or(0, |s| s.1);
+            violations.push(format!("{rel}:{line_no}  std::{{{word}}}  |  {group}"));
+        }
+        from = open;
+    }
+    violations
+}
+
+#[test]
+fn the_matching_module_performs_no_io() {
+    let files = src_sources();
+    let mut violations: Vec<String> = Vec::new();
+    for (rel, text) in &files {
+        if is_inside(rel, MATCHING_DIR) {
+            violations.extend(io_violations(rel, text));
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `core/matching/**` chạm I/O:\n{}\n\nAD-15: module này là hàm thuần trên \
+         `&str`, không filesystem, database, mạng, process hay Tauri.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+#[test]
+fn the_io_guard_flags_a_code_call_and_ignores_a_comment_mention() {
+    let code = "fn f() { let _ = std::fs::read(\"x\"); }\n";
+    let comment = "// std::fs is never used here\n/* rusqlite */\nfn g() {}\n";
+    assert_eq!(io_violations("m.rs", code).len(), 1);
+    assert!(io_violations("m.rs", comment).is_empty());
+    let grouped = [
+        "use std::{collections::HashSet, fs};\n",
+        "use std::{fs::File, io::Read};\n",
+        "use std::{\n    net,\n};\nfn f() { let _ = net::connect(); }\n",
+        "use tauri_plugin_fs::init;\n",
+        "use keyring::Entry;\n",
+        "use libsqlite3_sys as ffi;\n",
+        "fn f() { let _ = std::env::var(\"X\"); }\n",
+    ];
+    for source in grouped {
+        assert!(!io_violations("m.rs", source).is_empty(), "{source}");
+    }
+    assert!(io_violations("m.rs", "// use std::{fs};\nuse std::{collections::HashSet};\n").is_empty());
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

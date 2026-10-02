@@ -470,6 +470,26 @@ fn a_capitalized_phrase_repeated_mid_sentence_produces_one_row() {
 }
 
 #[test]
+fn a_capitalized_run_split_by_a_full_stop_never_joins_into_one_candidate() {
+    let segments: Vec<String> = (0..6)
+        .map(|i| format!("The beast fled toward Fire. Dragon followed at hour {i}."))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::En, 5, COMMON_SURNAMES, &mut is_known);
+
+    assert!(
+        out.iter().any(|c| c.source_term == "Fire"),
+        "`Fire` phai la mot ung vien rieng: {out:?}"
+    );
+    assert!(
+        !out.iter().any(|c| c.source_term.contains("Fire") && c.source_term.contains("Dragon")),
+        "cum hoa khong duoc noi xuyen dau cham: {out:?}"
+    );
+}
+
+#[test]
 fn whitespace_and_comma_variants_share_one_normalized_capitalized_phrase_key() {
     let segments = [
         "A beast called Fire Dragon appeared.",

@@ -588,6 +588,70 @@ fn chinese_scoring_counts_characters_not_bytes_and_one_changed_character_stays_h
     assert!((65..100).contains(&s), "{s}");
 }
 
+fn reference_percent(a: &str, b: &str, lang: MatchLang) -> u8 {
+    use std::collections::HashMap;
+    let grams = |text: &str| -> HashMap<(usize, String), u64> {
+        let mut counts = HashMap::new();
+        for n in [1usize, 2] {
+            for gram in ngrams(text, lang, n) {
+                *counts.entry((n, gram)).or_insert(0u64) += 1;
+            }
+        }
+        counts
+    };
+    let (left, right) = (grams(a), grams(b));
+    let total_left: u64 = left.values().sum();
+    let total_right: u64 = right.values().sum();
+    if total_left == 0 || total_right == 0 {
+        return 0;
+    }
+    let common: u64 = left
+        .iter()
+        .map(|(gram, count)| (*count).min(right.get(gram).copied().unwrap_or(0)))
+        .sum();
+    ((2 * common * 100) / (total_left + total_right)) as u8
+}
+
+#[test]
+fn the_scorer_equals_dice_over_ngrams_one_and_two_on_a_chinese_and_english_corpus() {
+    let en = [
+        ("", ""),
+        ("", "The cat."),
+        ("The cat.", ""),
+        ("The cat sat on the mat.", "The cat sat on the mat."),
+        ("The dogs are running fast.", "The dog is running fast."),
+        ("the the the", "the the"),
+        ("alpha beta gamma", "gamma beta alpha"),
+        ("A cat sleeps slowly here.", "The dogs are running fast."),
+        ("Translations, translated!", "TRANSLATION translate"),
+        ("   ", "The cat."),
+        ("...!?", "The cat."),
+        ("naïve café crème", "naive cafe creme"),
+        ("line one\nline two", "line one line two"),
+    ];
+    let zh = [
+        ("", ""),
+        ("", "他去了远方。"),
+        ("他去了远方。", ""),
+        ("他今天去了很远的地方看望老朋友。", "他昨天去了很远的地方看望老朋友。"),
+        ("山水", "火木"),
+        ("啊啊啊", "啊啊"),
+        ("翻译", "翻譯"),
+        ("他用iPhone打电话。", "他用iPhone打电话。"),
+        ("他用iPhone打电话。", "他用手机打电话。"),
+        ("   ", "他去了远方。"),
+        ("...!?", "他去了远方。"),
+    ];
+    for (a, b) in en {
+        let want = reference_percent(a, b, MatchLang::En);
+        assert_eq!(score(a, b, MatchLang::En), want, "en {a:?} / {b:?}");
+    }
+    for (a, b) in zh {
+        let want = reference_percent(a, b, MatchLang::Zh);
+        assert_eq!(score(a, b, MatchLang::Zh), want, "zh {a:?} / {b:?}");
+    }
+}
+
 fn rebuilt(spans: &[DiffSpan], drop_kind: DiffKind) -> String {
     spans.iter().filter(|s| s.kind != drop_kind).map(|s| s.text.as_str()).collect()
 }

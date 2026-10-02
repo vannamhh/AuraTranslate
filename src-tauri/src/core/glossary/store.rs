@@ -1275,14 +1275,13 @@ pub fn match_lang_for_source_lang(source_lang: &str) -> MatchLang {
 ///
 /// 🔴 **Gọi từ đường MỞ CHƯƠNG (`commands::chapter::read_open_chapter` /
 /// `open_adjacent_chapter`), KHÔNG từ thân [`marks_for_source_text`].** Xem doc-comment của
-/// [`crate::core::matching::warm`] cho số đo đầy đủ (179–329 ms bản release, lần gọi ĐẦU
-/// TIÊN). Nếu lượt hâm nằm trong đường khớp, chi phí đó rơi đúng vào khung hình đang gõ —
-/// đúng thứ NFR2 cấm. Nằm trên đường mở Chương, nó rơi vào một thao tác đã chấp nhận độ trễ
+/// [`crate::core::matching::warm`] cho chi phí lần gọi ĐẦU TIÊN. Nếu lượt hâm nằm trong đường khớp, chi phí đó rơi đúng
+/// vào khung hình đang gõ — đúng thứ NFR2 cấm. Nằm trên đường mở Chương, nó rơi vào một thao tác đã chấp nhận độ trễ
 /// vài trăm ms.
 ///
 /// ⚠️ **Chỉ hâm khi [`match_lang_for_source_lang`] trả [`MatchLang::Zh`].** `Jieba` chỉ được
 /// [`crate::core::matching::tokenize`]/[`find_terms`] chạm tới ở nhánh đó (xem doc-comment
-/// của `core::matching`); hâm nó cho một Chương tiếng Anh là trả 179–329 ms mà không ai
+/// của `core::matching`); hâm nó cho một Chương tiếng Anh là trả chi phí khởi tạo mà không ai
 /// hưởng lợi.
 pub fn warm_jieba_for_source_lang(source_lang: &str) {
     if match_lang_for_source_lang(source_lang) == MatchLang::Zh {

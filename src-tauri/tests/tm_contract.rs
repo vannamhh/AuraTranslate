@@ -779,8 +779,9 @@ fn open_global_db(dir: &Path) -> Store {
     Store::open(StoreSpec::global(dir.join("global.db"))).expect("mo global.db")
 }
 
-fn seed(store: &Store, rows: &[(&'static str, &'static str, &'static str)]) {
-    let rows: Vec<_> = rows.to_vec();
+fn seed(store: &Store, rows: &[(&str, &str, &str)]) {
+    let rows: Vec<(String, String, String)> =
+        rows.iter().map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned())).collect();
     store
         .write(move |tx: &Transaction<'_>| {
             for (source, target, origin) in &rows {
@@ -1505,4 +1506,89 @@ fn fuzzy_scan_latency_over_100k_pairs_per_tier() {
     let started = std::time::Instant::now();
     let got = fuzzy(&w, id);
     eprintln!("fuzzy scan 2 x 100000 pairs: {:?}, matches {}", started.elapsed(), got.matches.len());
+}
+
+fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str) -> bool {
+    use auratranslate_lib::core::dict::DictLayers;
+    use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term, marks_for_source_text, match_lang_for_source_lang};
+    let dir = temp_dir("parity-glossary");
+    let _guard = DirGuard(dir.clone());
+    let global = open_global_db(&dir);
+    add_manual_term(&global, None, GlossaryTier::Global, term, None, "", Category::Place).expect("them muc");
+    let marks = marks_for_source_text(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+        text,
+        match_lang_for_source_lang(source_lang),
+        &DictLayers::empty(),
+        &Default::default(),
+    )
+    .expect("danh dau");
+    let [mark] = marks.as_slice() else { return false };
+    let byte_start = text.find(other).expect("form in sentence");
+    let start = text[..byte_start].chars().count();
+    let end = start + other.chars().count();
+    // An ASCII-only token can stop before a trailing combining mark, so the mark may end inside the form.
+    mark.start == start && mark.start < mark.end && mark.end <= end
+}
+
+fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
+    use auratranslate_lib::core::glossary::match_lang_for_source_lang;
+    use auratranslate_lib::core::tm::{load_fuzzy_candidates, rank_fuzzy_candidates};
+    let dir = temp_dir("parity-tm");
+    let _guard = DirGuard(dir.clone());
+    let global = open_global_db(&dir);
+    seed(&global, &[(stored, "t", "self")]);
+    if stored == query {
+        let exact = pairs_for_source(&ScopeResolver::global_only(), &global, None, query);
+        return exact.expect("tra chinh xac").len() == 1;
+    }
+    let candidates = load_fuzzy_candidates(&global, None).expect("nap ung vien");
+    let ranked = rank_fuzzy_candidates(
+        &ScopeResolver::global_only(),
+        candidates,
+        query,
+        match_lang_for_source_lang(source_lang),
+        99,
+    )
+    .expect("xep hang");
+    ranked.len() == 1
+}
+
+#[test]
+fn glossary_and_tm_catch_exactly_the_same_variants_in_both_directions() {
+    let nfc = "caf\u{e9}";
+    let nfd = "cafe\u{301}";
+    let rows: [(&str, &str, &str, bool); 12] = [
+        ("en", "translation", "translations", true),
+        ("en", "translation", "TRANSLATION", true),
+        ("en", "translation", "Translations", true),
+        ("en", "went", "go", false),
+        ("en", nfc, "cafe", false),
+        ("en", nfd, nfc, false),
+        ("en", nfd, "cafe", true),
+        ("en", "translation", "translation", true),
+        ("zh", "翻译", "翻译", true),
+        ("en", "\u{ff21}\u{ff22}\u{ff23}", "ABC", false),
+        ("zh", "翻译", "翻譯", false),
+        ("zh", "\u{ff21}\u{ff22}", "AB", false),
+    ];
+    let sentence = |lang: &str, form: &str| match lang {
+        "zh" => format!("他昨天在{form}里等了很久。"),
+        _ => format!("We waited for the {form} all day."),
+    };
+    let mut mismatches = Vec::new();
+    for (lang, a, b, caught) in rows {
+        for (term, other) in [(a, b), (b, a)] {
+            let glossary = glossary_marks_term_in(term, &sentence(lang, other), other, lang);
+            let tm = tm_ranks_sentence_top(&sentence(lang, term), &sentence(lang, other), lang);
+            if glossary != caught || tm != caught {
+                mismatches.push(format!(
+                    "{lang} {term:?} -> {other:?}: expected {caught}, glossary {glossary}, tm {tm}"
+                ));
+            }
+        }
+    }
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }

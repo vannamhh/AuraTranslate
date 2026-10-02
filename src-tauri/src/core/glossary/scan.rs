@@ -318,8 +318,7 @@ fn zh_nested_padding(freq: &HashMap<String, i64>) -> std::collections::HashSet<S
 ///
 /// Một "cụm hoa" là dãy TOKEN liên tiếp (theo [`tokenize`]) mà mỗi token bắt đầu bằng một
 /// chữ cái ASCII hoa, và không dấu kết câu/xuống dòng nào chen giữa hai token liên tiếp
-/// trong dãy (cùng luật `crosses_sentence_boundary` mà `core::matching::find_terms` đã áp
-/// cho lý do khác — Story 3.4b tiêu thụ lại đúng luật này cho một mục đích thứ ba). Dãy
+/// trong dãy (cùng luật `core::matching::gap_crosses_sentence_boundary` mà `find_terms` áp). Dãy
 /// LẤY TRỌN VẸN (không sinh mọi dãy con) làm MỘT ứng viên — module này không cố đoán thêm
 /// một tên ngắn hơn nằm bên trong một cụm dài hơn.
 fn count_en_candidates(
@@ -348,7 +347,11 @@ fn count_en_candidates(
             let mut run_end = i;
             while run_end + 1 < tokens.len()
                 && is_capitalized(tokens[run_end + 1].text)
-                && !gap_crosses_sentence_boundary(segment, &tokens, run_end, run_end + 1)
+                && !crate::core::matching::gap_crosses_sentence_boundary(
+                    segment,
+                    &tokens[run_end],
+                    &tokens[run_end + 1],
+                )
             {
                 run_end += 1;
             }
@@ -389,16 +392,4 @@ fn count_en_candidates(
 /// chữ số — không hoa, không rơi vào nhánh này, đúng hành vi mong đợi.
 fn is_capitalized(token: &str) -> bool {
     token.chars().next().is_some_and(|c| c.is_ascii_uppercase())
-}
-
-/// Có dấu kết câu (`.`/`!`/`?`) hay xuống dòng nằm giữa token `a`/`b` (liền kề trong mảng
-/// `tokens`) không — CÙNG luật `core::matching::find_terms` áp cho nhánh `En`, đọc lại ở
-/// đây cho một mục đích khác (không nối một cụm hoa XUYÊN hai câu).
-fn gap_crosses_sentence_boundary(
-    segment: &str,
-    tokens: &[crate::core::matching::MatchToken<'_>],
-    a: usize,
-    b: usize,
-) -> bool {
-    segment[tokens[a].span.end..tokens[b].span.start].contains(['.', '!', '?', '\n'])
 }

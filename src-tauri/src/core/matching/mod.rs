@@ -6,8 +6,7 @@
 //! không bắt được, và không ai hiểu vì sao"*.
 //!
 //! Crate dành cho module này: `jieba-rs` (nhánh tiếng Trung) · `tantivy-stemmers`
-//! (nhánh tiếng Anh). Cả hai đã ghim `=` ở `Cargo.toml` từ Story 1.2; story 1.12 là
-//! lượt đầu tiên trong dự án có mã thật gọi tới chúng.
+//! (nhánh tiếng Anh), cả hai ghim `=` ở `Cargo.toml`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 RANH GIỚI: `core::dict` KHÔNG GỌI MODULE NÀY
@@ -17,20 +16,18 @@
 //! cứu **từ điển** tiếng Anh không gọi, và đó là một **số đo** chứ không phải một
 //! sở thích:
 //!
-//! - AD-44 ③ đo trên corpus thật: mọi dạng biến thể hình thái **đã có sẵn làm đầu mục
-//!   riêng** trong `viwiktionary-en` — **16/16** mẫu thử, gồm cả bất quy tắc. Một lượt
-//!   stemming chèn vào đường nóng đổi lấy **~0 recall**.
-//! - Story 1.11b đo p95 đường tra cứu tiếng Anh ở **0,052–0,961 ms**. NFR1 cho backend
-//!   ≤ 10 ms. Thêm một lượt stemming là tiêu ngân sách cho một khoản thu bằng không.
+//! - AD-44 ③ đo trên corpus thật: mọi dạng biến thể hình thái đã có sẵn làm đầu mục
+//!   riêng trong `viwiktionary-en`, nên một lượt stemming trên đường nóng đổi lấy
+//!   ~0 recall.
+//! - Thêm một lượt stemming là tiêu ngân sách NFR1 cho một khoản thu bằng không.
 //!
 //! ⇒ `core/dict/**` có **0** lời gọi tới module này, và mệnh đề đó được cưỡng chế bằng
-//! cổng tĩnh ở `tests/matching_boundary.rs`. Người tiêu thụ là `core::glossary` và
-//! `core::tm`, cả hai chưa tồn tại — xem §*"Không có người tiêu thụ hôm nay"* dưới.
+//! cổng tĩnh ở `tests/matching_boundary.rs`. Người tiêu thụ là `core::glossary`
+//! ([`find_terms`], [`ngrams`]) và `core::tm` ([`SimilarityScorer`], [`diff_spans`]).
 //!
 //! ⚠️ Sơ đồ mermaid của AD-13 (`ARCHITECTURE-SPINE.md`) còn một cạnh
-//! `dict --> matching`. Nó vẽ **trước** lượt sửa Rule của AD-17 và nay mâu thuẫn với
-//! chính thân Rule ở `:236`. Chủ sở hữu là Winston (architect); đã ghi vào
-//! `deferred-work.md`. Mã theo **thân Rule**, không theo mũi tên.
+//! `dict --> matching` mâu thuẫn với thân Rule của AD-17. Mã theo thân Rule, không
+//! theo mũi tên; chủ sở hữu là Winston.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! HAI ĐƯỜNG, HAI CƠ CHẾ — VÀ KHÔNG CÓ ĐƯỜNG THỨ BA
@@ -56,25 +53,17 @@
 //! Xem doc-comment của [`MatchLang`] về ba lý do.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! KHÔNG CÓ NGƯỜI TIÊU THỤ HÔM NAY — VÀ ĐÓ LÀ CHỦ Ý
+//! PARITY GLOSSARY ↔ TM
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `core::glossary` và `core::tm` mỗi module còn 4 dòng doc-comment và 0 dòng mã.
-//! AD-17 đòi dựng **một** cài đặt **trước** khi ba nơi mọc ba bản. Hệ quả phải chấp
-//! nhận có ý thức: hình dạng API dưới đây là một **phỏng đoán có căn cứ**, không
-//! phải một hợp đồng đã nghiệm thu bằng người dùng thật. Mọi hàm công khai đều suy ra
-//! từ một AC có thật của Story 3.4 hoặc 7.6, và không hàm nào sống mà không có
-//! ít nhất một ca test khẳng định hành vi của nó.
-//!
-//! **Ngoài phạm vi có chủ ý:** xếp hạng ứng viên, ngưỡng % tương đồng, chỉ mục
-//! ngược, cache. Cả bốn thuộc Story 7.5/7.6 và phụ thuộc dữ liệu thật.
+//! A variant is two surface forms mapped to one unit (En: case and Porter2 stem; Zh: identity).
+//! Glossary and TM must catch the same set; `tests/tm_contract.rs` and `tests/matching_contract.rs` lock it.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! MODULE NÀY LÀ **LÁ** TRONG ĐỒ THỊ PHỤ THUỘC (AD-13)
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Không `use crate::core::*`, không `use crate::ports`, không
 //! `use crate::commands`. Không chạm filesystem, không chạm database, không ra
-//! mạng (AD-15: đúng ba điểm ra mạng, không có điểm thứ tư). Toàn bộ bề mặt là hàm
-//! thuần trên `&str`.
+//! mạng (AD-15), cưỡng chế bằng `tests/matching_boundary.rs`.
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -100,7 +89,7 @@ use tantivy_stemmers::algorithms::english_porter_2;
 /// **tập con** của `hmm = false`. Vì [`find_terms`] chỉ nhận một lượt khớp khi **cả hai
 /// đầu** rơi đúng ranh giới token, gộp thêm nghĩa là **từ chối thêm**.
 ///
-/// Số đo trên `jieba-rs` 0.10.3, dict mặc định *(2026-08-05, `Jieba::cut`)*:
+/// Đầu ra của `Jieba::cut` trên dict mặc định:
 ///
 /// | Đầu vào | `hmm = false` | `hmm = true` |
 /// |---|---|---|
@@ -133,16 +122,13 @@ const HMM: bool = false;
 /// Instance `jieba-rs` DÙNG CHUNG — **đúng một** điểm khởi tạo trong toàn cây mã.
 ///
 /// 🔴 **Vì sao [`LazyLock`] chứ không phải một lời gọi trong thân hàm:** feature
-/// `default-dict` (mặc định) nhúng `src/data/dict.txt` — **5.071.843 byte thô** — qua
-/// `include_flate::flate!`. Dựng instance là **giải nén cộng nạp từng dòng vào một cây
-/// `cedar`**; đó không phải một hằng số biên dịch mà là công việc chạy lúc chạy. Một
+/// `default-dict` (mặc định) nhúng `src/data/dict.txt` qua `include_flate::flate!`. Dựng
+/// instance là **giải nén cộng nạp từng dòng vào một cây `cedar`**; đó không phải một hằng số biên dịch mà là công việc chạy lúc chạy. Một
 /// lời gọi nằm trong thân hàm bị gọi lặp là một hồi quy NFR2 mà **không test nào
 /// thấy**: test chạy một lần, người dùng gõ một nghìn lần.
 ///
 /// ⚠️ Chi phí đó rơi vào **lần gọi đầu tiên** — tức có thể rơi đúng vào phím đầu tiên
-/// người dùng gõ. Số đo thật ghi ở §Completion Notes của Story 1.12; nếu nó vượt NFR2
-/// (50 ms) thì việc **hâm nóng ngoài đường gõ** là bàn giao có tên cho Story 3.4 —
-/// story đầu tiên có một đường gõ thật để hâm nóng vào.
+/// người dùng gõ. Vì vậy [`warm`] hâm nóng ngoài đường gõ.
 ///
 /// ⚠️ [`LazyLock`] hơn `OnceLock` ở chỗ hàm khởi tạo nằm **cạnh** khai báo thay vì rải
 /// ra mọi chỗ gọi. Nó nằm trong `std::sync` (ổn định từ Rust 1.80; dự án ở
@@ -150,12 +136,11 @@ const HMM: bool = false;
 static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 
 /// Ép [`JIEBA`] khởi tạo **ngay bây giờ**, thay vì đợi lượt gọi đầu tiên của [`tokenize`]/
-/// [`find_terms`] — Story 3.4, đóng `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`.
+/// [`find_terms`].
 ///
 /// 🔴 **Gọi TỪ đường mở Chương (`commands::chapter`), KHÔNG từ thân một hàm khớp.** Khởi
-/// tạo lạnh tốn **179–329 ms** bản release (trung vị ~243 ms) — vượt trần NFR2 (50 ms)
-/// 3,6–6,6×, và chi phí đó rơi vào **lần gọi đầu tiên**. Gọi hàm này trên đường mở Chương
-/// (một thao tác đã chấp nhận độ trễ vài trăm ms, không phải một khung hình 50 ms) di dời
+/// tạo lạnh vượt trần NFR2 (50 ms) và chi phí đó rơi vào **lần gọi đầu tiên**. Gọi hàm này
+/// trên đường mở Chương (một thao tác đã chấp nhận độ trễ vài trăm ms, không phải một khung hình 50 ms) di dời
 /// chi phí ra khỏi đường gõ, nơi nó **có thể rơi đúng phím đầu tiên người dùng gõ**.
 ///
 /// Gọi lặp lại **không tốn gì**: [`LazyLock`] chỉ chạy hàm khởi tạo đúng MỘT lần; lượt gọi
@@ -225,7 +210,7 @@ pub struct TermMatch {
 
 /// Tách `text` thành token, mỗi token mang **span byte vào chuỗi gốc**.
 ///
-/// **`Zh`** đi qua `Jieba::cut` với [`HMM`]. `jieba-rs` 0.10.3 trả `Token` **đã mang
+/// **`Zh`** đi qua `Jieba::cut` với [`HMM`]. `jieba-rs` trả `Token` **đã mang
 /// sẵn** `byte_start`/`byte_end` — đừng tự tính lại offset.
 ///
 /// ⚠️ **Không** dùng `cut_for_search`: nó thêm các gram con có trong từ điển và vì
@@ -311,7 +296,7 @@ pub fn tokenize(text: &str, lang: MatchLang) -> Vec<MatchToken<'_>> {
 /// phụ thuộc của ta.
 ///
 /// ⚠️ **Đây là *stemming*, KHÔNG phải *lemmatization*** (FR40, giới hạn đã tuyên bố).
-/// Đo thật trên `english_porter_2`, 2026-08-05:
+/// Đầu ra của `english_porter_2`:
 ///
 /// | Vào | Ra | Dạng gốc | Ra của dạng gốc | Gặp nhau? |
 /// |---|---|---|---|---|
@@ -569,6 +554,17 @@ pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
 // find_terms — điểm vào của Glossary (FR51, Story 3.4)
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/// True when the gap between `a` and `b` holds `.`, `!`, `?` or a newline.
+/// Precondition: `a` and `b` are adjacent tokens of `tokenize(text, En)`, `a` before `b`.
+/// Only the ASCII characters `.`, `!`, `?` and `\n` count.
+pub fn gap_crosses_sentence_boundary(
+    text: &str,
+    a: &MatchToken<'_>,
+    b: &MatchToken<'_>,
+) -> bool {
+    text[a.span.end..b.span.start].contains(['.', '!', '?', '\n'])
+}
+
 /// Tìm mọi lượt xuất hiện của `terms` trong `text`, trả **span byte vào chuỗi gốc**.
 ///
 /// 🔴 **Vì sao module này giao cả điểm vào chứ không chỉ ba nguyên hàm:** AD-17 nói
@@ -618,15 +614,11 @@ pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
 /// chạy từ đầu token đầu tới cuối token cuối, nên nó **gồm cả** khoảng trắng và dấu câu
 /// nằm giữa chúng trong văn bản gốc.
 ///
-/// 🔴 **Vá lúc code review (2026-08-05):** một dãy token liền nhau **không** được coi
-/// là khớp nếu dấu tách nằm giữa hai token bất kỳ trong dãy chứa dấu kết câu
-/// (`.`/`!`/`?`) hoặc xuống dòng — chặn một thuật ngữ nhiều từ nối XUYÊN hai câu không
-/// liên quan. Trước lượt vá này, `find_terms("…fast. Dog…", &["fast dog"], En)` khớp
-/// `"fast. Dog"` dù hai từ thuộc hai câu khác nhau, vì nhánh này vốn coi dấu chấm câu và
-/// khoảng trắng là dấu tách giống hệt nhau. Story 3.4 dùng thẳng span này để tô màu.
+/// 🔴 Một dãy token liền nhau **không** được coi là khớp nếu dấu tách giữa hai token
+/// bất kỳ trong dãy bị [`gap_crosses_sentence_boundary`] từ chối — một thuật ngữ nhiều
+/// từ không nối XUYÊN hai câu. Glossary dùng thẳng span này để tô màu.
 ///
-/// **Ngoài phạm vi:** xếp hạng, ngưỡng % tương đồng, chỉ mục ngược, cache — Story
-/// 7.5/7.6. Thuật ngữ **rỗng** (hoặc chỉ gồm dấu tách) không bao giờ khớp.
+/// Thuật ngữ **rỗng** (hoặc chỉ gồm dấu tách) không bao giờ khớp.
 ///
 /// Kết quả sắp theo `(span.start, span.end, term_index)` — thứ tự **tất định**, để hai
 /// lượt chạy trên cùng đầu vào không cho hai thứ tự tô màu khác nhau.
@@ -643,12 +635,7 @@ pub fn find_terms(text: &str, terms: &[&str], lang: MatchLang) -> Vec<TermMatch>
                 .collect();
 
             for (term_index, term) in terms.iter().enumerate() {
-                // 🔴 Vá lúc code review (2026-08-05): bản trước chỉ chặn `is_empty()`,
-                // không chặn thuật ngữ CHỈ GỒM dấu tách (vd. một chuỗi khoảng trắng) —
-                // lệch với nhánh `En` (vốn đã chặn qua `needle.is_empty()`) và với chính
-                // lời hứa "thuật ngữ rỗng hoặc chỉ gồm dấu tách không bao giờ khớp" ở
-                // doc-comment của hàm này. Nếu jieba tách một chuỗi khoảng trắng thành
-                // một token riêng, `text.find(term)` có thể khớp đúng token đó.
+                // Jieba can emit a whitespace-only token, so a separator-only term must be skipped.
                 if term.chars().all(|c| !c.is_alphanumeric()) {
                     continue;
                 }
@@ -693,16 +680,11 @@ pub fn find_terms(text: &str, terms: &[&str], lang: MatchLang) -> Vec<TermMatch>
                         .iter()
                         .zip(&stems[start..start + needle.len()])
                         .all(|(want, got)| want.as_str() == got.as_ref());
-                    // 🔴 Vá lúc code review (2026-08-05): từ chối một dãy token liền nhau
-                    // nếu dấu tách giữa hai token bất kỳ trong dãy chứa dấu kết câu hoặc
-                    // xuống dòng — không nối một thuật ngữ nhiều từ XUYÊN hai câu.
                     let end = start + needle.len();
                     let crosses_sentence_boundary = tokens[start..end - 1]
                         .iter()
                         .zip(&tokens[start + 1..end])
-                        .any(|(a, b)| {
-                            text[a.span.end..b.span.start].contains(['.', '!', '?', '\n'])
-                        });
+                        .any(|(a, b)| gap_crosses_sentence_boundary(text, a, b));
                     if hit && !crosses_sentence_boundary {
                         out.push(TermMatch {
                             term_index,

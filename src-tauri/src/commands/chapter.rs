@@ -26,7 +26,7 @@
 //! `read_open_chapter`/`open_adjacent_chapter`/`open_chapter` là ba điểm sản phẩm duy nhất đưa
 //! một `source_lang` mới lên webview. Cả ba gọi
 //! `core::glossary::warm_jieba_for_source_lang` NGAY sau khi biết `open` tồn tại — đóng
-//! `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`: khởi tạo lạnh `Jieba` tốn 179–329 ms, và nó phải rơi vào một
+//! `deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)*`: khởi tạo lạnh `Jieba` vượt trần NFR2, và nó phải rơi vào một
 //! thao tác đã chấp nhận độ trễ đó (mở Chương), không rơi vào đường gõ.
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
@@ -141,7 +141,7 @@ pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcErro
     let chapter_id = open.chapter_id;
 
     // 🔵 THEM 2026-08-21 (Story 3.4) — day la duong MO CHUONG ma deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)* cho
-    // ham Jieba vao: khoi tao lanh ton 179-329ms, va lan goi dau tien khong duoc phep roi
+    // ham Jieba vao: khoi tao lanh vuot tran NFR2, va lan goi dau tien khong duoc phep roi
     // dung phim dau nguoi dung go. Ham nong o DAY (mot thao tac da chap nhan do tre vai
     // tram ms), khong trong than mot ham khop. Chi ham that su khi `source_lang` la tieng
     // Trung -- xem doc-comment cua `warm_jieba_for_source_lang`.
