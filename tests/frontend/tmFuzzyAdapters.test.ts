@@ -22,7 +22,7 @@ const WIRE_MATCH = {
 
 describe('tmFuzzyMatches', () => {
   it('sends segmentId in camelCase and returns the typed outcome', async () => {
-    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [WIRE_MATCH] })
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [WIRE_MATCH], exact: [] })
     const { tmFuzzyMatches } = await import('../../src/config/segment')
     const result = await tmFuzzyMatches(9)
     expect(mockInvoke).toHaveBeenCalledWith('tm_fuzzy_matches', { segmentId: 9 })
@@ -32,7 +32,7 @@ describe('tmFuzzyMatches', () => {
 
   it('a malformed payload is an error, never an empty list', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [{ ...WIRE_MATCH, side: 'both' }] })
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [{ ...WIRE_MATCH, side: 'both' }], exact: [] })
     const { tmFuzzyMatches } = await import('../../src/config/segment')
     const result = await tmFuzzyMatches(9)
     expect(result.outcome).toBeNull()
@@ -83,5 +83,45 @@ describe('bootstrap tm_fuzzy_threshold', () => {
     const { loadBootstrapConfig, bootstrapTmFuzzyThreshold } = await import('../../src/config/bootstrap')
     await loadBootstrapConfig()
     expect(bootstrapTmFuzzyThreshold.value).toBe(expected)
+  })
+})
+
+describe('Story 7.8 wire', () => {
+  const WIRE_EXACT = { tier: 'work', unit_id: 3, target_text: 'x', side: 'mine', created_at: '2026-08-03T00:00:00.000Z' }
+
+  it('an old shape without exact is a wire mismatch, not an empty list', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [] })
+    const { tmFuzzyMatches } = await import('../../src/config/segment')
+    const result = await tmFuzzyMatches(9)
+    expect(result.outcome).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('exact targets are typed and an exact row without created_at is rejected', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { tmFuzzyMatches } = await import('../../src/config/segment')
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [WIRE_EXACT] })
+    expect((await tmFuzzyMatches(9)).outcome?.exact[0]?.unit_id).toBe(3)
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [{ ...WIRE_EXACT, created_at: undefined }] })
+    expect((await tmFuzzyMatches(9)).outcome).toBeNull()
+  })
+
+  it('acceptTmExact sends the pair identity and force to accept_tm_exact', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      segment_id: 9, target_text: 'x', translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null,
+    })
+    const { acceptTmExact } = await import('../../src/config/segment')
+    const result = await acceptTmExact(9, 'work', 3, false)
+    expect(mockInvoke).toHaveBeenCalledWith('accept_tm_exact', { segmentId: 9, tier: 'work', unitId: 3, force: false })
+    expect(result.outcome?.translation_origin).toBe('self')
+  })
+
+  it('a concordance hit without created_at is rejected', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const hit = { tier: 'work', unit_id: 1, source_text: 'a', target_text: 'b', side: 'mine' }
+    mockInvoke.mockResolvedValueOnce({ query: 'a', tm_empty: false, total: 1, hits: [hit] })
+    const { tmConcordance } = await import('../../src/config/segment')
+    expect((await tmConcordance('a')).outcome).toBeNull()
   })
 })

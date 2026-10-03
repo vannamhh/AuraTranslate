@@ -841,13 +841,82 @@ fn within_the_others_side_the_work_tier_comes_first() {
     let _ = fs::remove_dir_all(root);
 }
 
+fn seed_dated(store: &Store, rows: &[(&str, &str, &str, &str)]) {
+    let rows: Vec<(String, String, String, String)> = rows
+        .iter()
+        .map(|(a, b, c, d)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned(), (*d).to_owned()))
+        .collect();
+    store
+        .write(move |tx: &Transaction<'_>| {
+            for (source, target, origin, created_at) in &rows {
+                tx.execute(
+                    "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
+                     VALUES (?1, ?2, ?3, ?4)",
+                    (source, target, origin, created_at),
+                )?;
+            }
+            Ok(())
+        })
+        .expect("gieo tm_unit co ngay");
+}
+
 #[test]
-fn same_side_and_tier_keeps_id_order() {
-    let (root, open) = work("dual-id", "一。");
+fn same_side_and_tier_orders_newest_first_then_highest_id() {
+    let (root, open) = work("dual-date", "一。");
     let global = open_global_db(&root);
-    seed(&open.store, &[("S", "first", "self"), ("T", "x", "self"), ("S", "second", "self")]);
+    seed_dated(
+        &open.store,
+        &[
+            ("S", "newest-low-id", "self", "2026-08-03T00:00:00.000Z"),
+            ("T", "x", "self", "2026-08-03T00:00:00.000Z"),
+            ("S", "oldest-high-id", "self", "2026-06-28T00:00:00.000Z"),
+            ("S", "tie-high-id", "self", "2026-08-03T00:00:00.000Z"),
+        ],
+    );
     let got = lookup(&global, Some(&open), "S").expect("tra");
-    assert_eq!(shape(&got), [("first", TmTier::Work), ("second", TmTier::Work)]);
+    assert_eq!(
+        shape(&got),
+        [("tie-high-id", TmTier::Work), ("newest-low-id", TmTier::Work), ("oldest-high-id", TmTier::Work)]
+    );
+    assert_eq!(got[2].created_at, "2026-06-28T00:00:00.000Z");
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn side_and_tier_beat_the_date() {
+    let (root, open) = work("dual-date-side", "一。");
+    let global = open_global_db(&root);
+    seed_dated(&global, &[("S", "global-mine-old", "self", "2026-01-01T00:00:00.000Z")]);
+    seed_dated(&open.store, &[("S", "work-other-new", "other", "2026-09-01T00:00:00.000Z")]);
+    seed_dated(&open.store, &[("S", "work-mine-old", "self", "2026-02-01T00:00:00.000Z")]);
+    let got = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(
+        shape(&got),
+        [("work-mine-old", TmTier::Work), ("global-mine-old", TmTier::Global), ("work-other-new", TmTier::Work)]
+    );
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn collapsing_keeps_the_first_row_per_distinct_target() {
+    let (root, open) = work("dual-collapse", "一。");
+    let global = open_global_db(&root);
+    seed_dated(
+        &open.store,
+        &[
+            ("S", "A", "self", "2026-01-01T00:00:00.000Z"),
+            ("S", "A", "self", "2026-02-01T00:00:00.000Z"),
+            ("S", "B", "self", "2026-03-01T00:00:00.000Z"),
+            ("S", "A", "self", "2026-04-01T00:00:00.000Z"),
+        ],
+    );
+    let all = lookup(&global, Some(&open), "S").expect("tra");
+    assert_eq!(all.len(), 4);
+    let distinct = auratranslate_lib::core::tm::distinct_exact_targets(all);
+    assert_eq!(shape(&distinct), [("A", TmTier::Work), ("B", TmTier::Work)]);
+    assert_eq!(distinct[0].created_at, "2026-04-01T00:00:00.000Z");
     drop((open, global));
     let _ = fs::remove_dir_all(root);
 }
@@ -1693,4 +1762,234 @@ fn with_no_work_open_the_global_tier_alone_answers() {
 fn an_unmanaged_global_store_is_an_error_not_a_tm_empty_answer() {
     let w = wired("cc-noglobal", "一。", false);
     assert!(wire::tm_concordance(w.app.handle().clone(), "师父".to_owned()).is_err());
+}
+
+impl Wired {
+    fn seed_work_dated(&self, source: &str, target: &str, origin: &str, created_at: &str) {
+        self.with_open(|open| seed_dated(&open.store, &[(source, target, origin, created_at)]));
+    }
+
+    fn seed_global_dated(&self, source: &str, target: &str, origin: &str, created_at: &str) {
+        seed_dated(&self.app.state::<Store>(), &[(source, target, origin, created_at)]);
+    }
+
+    fn set_target_state(&self, id: i64, target: &str, baseline: &str) {
+        let (target, baseline) = (target.to_owned(), baseline.to_owned());
+        self.with_open(|open| {
+            open.store
+                .write(move |tx: &Transaction<'_>| {
+                    tx.execute(
+                        "UPDATE segment SET target_text = ?1, baseline_target_text = ?2 WHERE id = ?3",
+                        (&target, &baseline, id),
+                    )?;
+                    Ok(())
+                })
+                .expect("dat ban dich");
+        });
+    }
+}
+
+fn exact_shape(m: &auratranslate_lib::commands::segment::TmFuzzyMatches) -> Vec<(&str, &str, &str, &str)> {
+    m.exact.iter().map(|x| (x.target_text.as_str(), x.tier, x.side, x.created_at.as_str())).collect()
+}
+
+fn pick(w: &Wired, id: i64, tier: &str, unit_id: i64, force: bool)
+    -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
+    wire::accept_tm_exact(w.app.handle().clone(), id, tier.to_owned(), unit_id, force)
+}
+
+#[test]
+fn two_targets_in_one_tier_list_newest_first_with_dates_and_the_load_prefills_the_newest() {
+    let w = wired("ex-two", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_work_dated(&source, "B", "self", "2026-08-03T00:00:00.000Z");
+
+    let got = fuzzy(&w, id);
+
+    assert_eq!(
+        exact_shape(&got),
+        vec![
+            ("B", "work", "mine", "2026-08-03T00:00:00.000Z"),
+            ("A", "work", "mine", "2026-06-28T00:00:00.000Z"),
+        ]
+    );
+    assert!(got.matches.is_empty());
+    w.load();
+    assert_eq!(w.with_open(|o| w_target(o, id)), "B");
+}
+
+#[test]
+fn side_beats_date_across_tiers_in_the_exact_list() {
+    let w = wired("ex-side", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_global_dated(&source, "A", "self", "2026-01-01T00:00:00.000Z");
+    w.seed_work_dated(&source, "B", "other", "2026-09-01T00:00:00.000Z");
+
+    let got = fuzzy(&w, id);
+
+    assert_eq!(
+        exact_shape(&got),
+        vec![
+            ("A", "global", "mine", "2026-01-01T00:00:00.000Z"),
+            ("B", "work", "others", "2026-09-01T00:00:00.000Z"),
+        ]
+    );
+}
+
+#[test]
+fn a_duplicate_target_collapses_to_one_row() {
+    let w = wired("ex-dup", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    for day in ["01", "02", "03"] {
+        w.seed_work_dated(&source, "A", "self", &format!("2026-05-{day}T00:00:00.000Z"));
+    }
+    w.seed_work_dated(&source, "B", "self", "2026-04-01T00:00:00.000Z");
+
+    let got = fuzzy(&w, id);
+
+    assert_eq!(exact_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["A", "B"]);
+    assert_eq!(got.exact[0].created_at, "2026-05-03T00:00:00.000Z");
+}
+
+#[test]
+fn one_distinct_target_gives_neither_list_nor_fuzzy_rows() {
+    let w = wired("ex-one", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    w.seed_work(FUZZY_CURRENT, "A", "self");
+    w.seed_global(FUZZY_CURRENT, "A", "other");
+    let got = fuzzy(&w, w.first_id());
+    assert!(got.exact.is_empty() && got.matches.is_empty());
+}
+
+#[test]
+fn no_exact_pair_leaves_the_exact_list_empty() {
+    let w = wired("ex-none", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let got = fuzzy(&w, w.first_id());
+    assert!(got.exact.is_empty());
+    assert_eq!(got.matches.len(), 1);
+}
+
+fn two_targets(tag: &str) -> (Wired, i64, auratranslate_lib::commands::segment::TmFuzzyMatches) {
+    let w = wired(tag, "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_global_dated(&source, "B", "other", "2026-08-03T00:00:00.000Z");
+    let got = fuzzy(&w, id);
+    (w, id, got)
+}
+
+#[test]
+fn a_pick_writes_the_pairs_own_origin_with_baseline_and_no_version() {
+    let (w, id, got) = two_targets("ex-pick");
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    assert_eq!((b.tier, b.side), ("global", "others"));
+
+    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+
+    assert!(!out.needs_confirmation);
+    assert_eq!((out.target_text.as_str(), out.translation_origin.as_str(), out.status.as_str()), ("B", "other", "draft"));
+    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "other".to_owned(), 0));
+    assert_eq!(w.target_and_baseline(id), ("B".to_owned(), "B".to_owned(), "other".to_owned()));
+
+    let a = got.exact.iter().find(|x| x.target_text == "A").expect("hang A");
+    pick(&w, id, a.tier, a.unit_id, false).expect("chon lai");
+    assert_eq!(w.with_open(|o| state_of(o, id)).1, "self");
+    assert_eq!(w.target_and_baseline(id), ("A".to_owned(), "A".to_owned(), "self".to_owned()));
+}
+
+#[test]
+fn a_pick_over_a_prefilled_text_never_asks() {
+    let (w, id, got) = two_targets("ex-over-prefill");
+    w.load();
+    let prefilled = w.with_open(|o| w_target(o, id));
+    assert_eq!(prefilled, "A");
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+
+    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+
+    assert!(!out.needs_confirmation);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "B");
+}
+
+#[test]
+fn a_pick_over_typed_text_writes_nothing_until_forced() {
+    let (w, id, got) = two_targets("ex-over-typed");
+    w.load();
+    w.with_open(|open| {
+        let chapter_id = segment_ids(open).0;
+        type_text(open, chapter_id, id, "Ban nhap dang go.");
+    });
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+
+    let held = pick(&w, id, b.tier, b.unit_id, false).expect("giu");
+
+    assert!(held.needs_confirmation);
+    assert_eq!(held.unsigned_draft.as_deref(), Some("Ban nhap dang go."));
+    assert_eq!(w.with_open(|o| w_target(o, id)), "Ban nhap dang go.");
+    let forced = pick(&w, id, b.tier, b.unit_id, true).expect("ghi de");
+    assert!(!forced.needs_confirmation);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "B");
+}
+
+#[test]
+fn a_pick_over_text_equal_to_the_baseline_never_asks_even_without_a_version() {
+    let (w, id, got) = two_targets("ex-baseline");
+    w.set_target_state(id, "Cu", "Cu");
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+    assert!(!out.needs_confirmation);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "B");
+}
+
+#[test]
+fn a_pick_whose_pair_is_gone_or_whose_source_differs_writes_nothing() {
+    let (w, id, got) = two_targets("ex-stale");
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let gone = pick(&w, id, b.tier, 9_999_999, false).expect_err("cap da mat");
+    assert_eq!(gone.code(), "tm.pair_not_found");
+
+    w.seed_global_dated("Another source.", "Z", "self", "2026-09-09T00:00:00.000Z");
+    let other_id = w
+        .app
+        .state::<Store>()
+        .read(|conn| conn.query_row("SELECT id FROM tm_unit WHERE target_text = 'Z'", [], |r| r.get::<_, i64>(0)))
+        .expect("doc id");
+    let differs = pick(&w, id, "global", other_id, false).expect_err("nguon khac");
+    assert_eq!(differs.code(), "tm.pair_not_found");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn a_concordance_hit_carries_the_pair_date() {
+    let w = wired("cc-date", "一。", true);
+    w.seed_work_dated("他叫师父来。", "w", "other", "2026-03-04T05:06:07.000Z");
+    let got = concordance(&w, "师父");
+    assert_eq!(got.hits[0].created_at, "2026-03-04T05:06:07.000Z");
+}
+
+#[test]
+fn concordance_lists_the_newest_pair_first_even_when_it_has_the_higher_id() {
+    let w = wired("cc-date-order", "一。", true);
+    w.seed_work_dated("师父在这里。", "older-low-id", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_work_dated("他叫师父来。", "newer-high-id", "self", "2026-08-03T00:00:00.000Z");
+    let got = concordance(&w, "师父");
+    assert_eq!(
+        got.hits.iter().map(|h| h.target_text.as_str()).collect::<Vec<_>>(),
+        ["newer-high-id", "older-low-id"]
+    );
+}
+
+#[test]
+fn equal_percent_fuzzy_ties_list_the_newest_pair_first_even_when_it_has_the_higher_id() {
+    let w = wired("fz-date-order", FUZZY_CURRENT, true);
+    w.seed_work_dated(FUZZY_NEAR, "older-low-id", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_work_dated(FUZZY_NEAR, "newer-high-id", "self", "2026-08-03T00:00:00.000Z");
+    let got = fuzzy(&w, w.first_id());
+    assert_eq!(fuzzy_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["newer-high-id", "older-low-id"]);
 }

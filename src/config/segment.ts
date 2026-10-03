@@ -1144,10 +1144,20 @@ export type TmFuzzyMatch = {
   side: TmFuzzySide
 }
 
-/** Matches `commands::segment::TmFuzzyMatches`. */
+/** Matches `commands::segment::TmExactTarget`: one distinct target of an exact-source match. */
+export type TmExactTarget = {
+  tier: TmFuzzyTier
+  unit_id: number
+  target_text: string
+  side: TmFuzzySide
+  created_at: string
+}
+
+/** Matches `commands::segment::TmFuzzyMatches`; `exact` is non-empty only with 2+ distinct targets, then `matches` is empty. */
 export type TmFuzzyMatches = {
   segment_id: number
   matches: TmFuzzyMatch[]
+  exact: TmExactTarget[]
 }
 
 export type TmFuzzyMatchesResult = { outcome: TmFuzzyMatches | null; error: IpcError | null }
@@ -1173,14 +1183,33 @@ function isTmFuzzyMatch(value: unknown): value is TmFuzzyMatch {
   )
 }
 
+function isTmExactTarget(value: unknown): value is TmExactTarget {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmExactTarget>
+  return (
+    (v.tier === 'work' || v.tier === 'global') &&
+    typeof v.unit_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    (v.side === 'mine' || v.side === 'others') &&
+    typeof v.created_at === 'string'
+  )
+}
+
 function isTmFuzzyMatches(value: unknown): value is TmFuzzyMatches {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmFuzzyMatches>
-  return typeof v.segment_id === 'number' && Array.isArray(v.matches) && v.matches.every(isTmFuzzyMatch)
+  return (
+    typeof v.segment_id === 'number' &&
+    Array.isArray(v.matches) &&
+    v.matches.every(isTmFuzzyMatch) &&
+    Array.isArray(v.exact) &&
+    v.exact.every(isTmExactTarget)
+  )
 }
 
 const CMD_TM_FUZZY_MATCHES = 'tm_fuzzy_matches'
 const CMD_ACCEPT_TM_FUZZY = 'accept_tm_fuzzy'
+const CMD_ACCEPT_TM_EXACT = 'accept_tm_exact'
 
 function failureOf(err: unknown, command: string): IpcError | null {
   if (isIpcError(err)) return err
@@ -1235,6 +1264,30 @@ export async function acceptTmFuzzy(
   }
 }
 
+/**
+ * Accept one exact-source target from the list, identified by tier and `tm_unit.id`. Writes the
+ * pair's own origin. Same outcome and `force` / `needs_confirmation` contract as [`acceptTmFuzzy`].
+ */
+export async function acceptTmExact(
+  segmentId: number,
+  tier: TmFuzzyTier,
+  unitId: number,
+  force: boolean,
+): Promise<PromoteAiTranslationResult> {
+  try {
+    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_EXACT, { segmentId, tier, unitId, force })
+    if (!isPromoteAiTranslationOutcome(outcome)) {
+      console.error(
+        `[segment] \`${CMD_ACCEPT_TM_EXACT}\` trả một PromoteAiTranslationOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome, error: null }
+  } catch (err) {
+    return { outcome: null, error: failureOf(err, CMD_ACCEPT_TM_EXACT) }
+  }
+}
+
 /** Matches `commands::segment::TmConcordanceHit`, snake_case as on the wire. */
 export type TmConcordanceHit = {
   tier: TmFuzzyTier
@@ -1242,6 +1295,7 @@ export type TmConcordanceHit = {
   source_text: string
   target_text: string
   side: TmFuzzySide
+  created_at: string
 }
 
 /** Matches `commands::segment::TmConcordance`; `hits.length < total` when capped. */
@@ -1262,7 +1316,8 @@ function isTmConcordanceHit(value: unknown): value is TmConcordanceHit {
     typeof v.unit_id === 'number' &&
     typeof v.source_text === 'string' &&
     typeof v.target_text === 'string' &&
-    (v.side === 'mine' || v.side === 'others')
+    (v.side === 'mine' || v.side === 'others') &&
+    typeof v.created_at === 'string'
   )
 }
 

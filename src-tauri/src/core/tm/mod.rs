@@ -94,6 +94,8 @@ pub struct TmPair {
     pub target_text: String,
     pub translation_origin: PairOrigin,
     pub tier: TmTier,
+    /// ISO-8601 UTC with milliseconds, so string order is chronological.
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,6 +137,7 @@ struct RawPair {
     source_text: String,
     target_text: String,
     translation_origin: PairOrigin,
+    created_at: String,
 }
 
 fn load_pair_rows(
@@ -144,7 +147,7 @@ fn load_pair_rows(
     let source = source_text.to_owned();
     query_pair_rows(
         store,
-        "SELECT id, source_text, target_text, translation_origin FROM tm_unit \
+        "SELECT id, source_text, target_text, translation_origin, created_at FROM tm_unit \
          WHERE source_text = ?1 ORDER BY id",
         Some(source),
     )
@@ -153,7 +156,8 @@ fn load_pair_rows(
 fn load_all_pair_rows(store: &crate::core::store::Store) -> Result<Vec<RawPair>, TmStoreError> {
     query_pair_rows(
         store,
-        "SELECT id, source_text, target_text, translation_origin FROM tm_unit ORDER BY id",
+        "SELECT id, source_text, target_text, translation_origin, created_at FROM tm_unit \
+         ORDER BY id",
         None,
     )
 }
@@ -163,9 +167,11 @@ fn query_pair_rows(
     sql: &'static str,
     source: Option<String>,
 ) -> Result<Vec<RawPair>, TmStoreError> {
-    let raw: Vec<(i64, String, String, String)> = store.read(move |conn| {
+    let raw: Vec<(i64, String, String, String, String)> = store.read(move |conn| {
         let mut stmt = conn.prepare(sql)?;
-        let map = |r: &crate::core::store::Row<'_>| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?));
+        let map = |r: &crate::core::store::Row<'_>| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        };
         let rows = match &source {
             Some(s) => stmt.query_map([s], map)?.collect::<crate::core::store::SqlResult<Vec<_>>>()?,
             None => stmt.query_map([], map)?.collect::<crate::core::store::SqlResult<Vec<_>>>()?,
@@ -173,10 +179,10 @@ fn query_pair_rows(
         Ok(rows)
     })?;
     raw.into_iter()
-        .map(|(id, source_text, target_text, origin)| {
+        .map(|(id, source_text, target_text, origin, created_at)| {
             let translation_origin = PairOrigin::from_stored(&origin)
                 .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
-            Ok(RawPair { id, source_text, target_text, translation_origin })
+            Ok(RawPair { id, source_text, target_text, translation_origin, created_at })
         })
         .collect()
 }
@@ -188,8 +194,9 @@ fn side_rank(side: PairSide) -> u8 {
     }
 }
 
-/// Pairs whose source equals `source_text`, both tiers merged: mine before others, then Work
-/// before Global, then load order. Exact equality; normalization belongs to matching.
+/// Pairs whose source equals `source_text`, both tiers merged (AD-18): mine before others, then
+/// Work before Global, then newest `created_at`, then highest id. Exact equality; normalization
+/// belongs to matching.
 pub fn pairs_for_source(
     resolver: &crate::core::scope::ScopeResolver,
     global: &crate::core::store::Store,
@@ -203,9 +210,14 @@ pub fn pairs_for_source(
 
 fn merge_tiers(
     resolver: &crate::core::scope::ScopeResolver,
-    global_rows: Vec<RawPair>,
-    work_rows: Option<Vec<RawPair>>,
+    mut global_rows: Vec<RawPair>,
+    mut work_rows: Option<Vec<RawPair>>,
 ) -> Result<Vec<TmPair>, TmStoreError> {
+    let newest_first = |a: &RawPair, b: &RawPair| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id));
+    global_rows.sort_by(newest_first);
+    if let Some(rows) = work_rows.as_mut() {
+        rows.sort_by(newest_first);
+    }
     let by_side = |a: &RawPair, b: &RawPair| {
         side_rank(a.translation_origin.side()).cmp(&side_rank(b.translation_origin.side()))
     };
@@ -224,9 +236,16 @@ fn merge_tiers(
                 target_text: raw.target_text.clone(),
                 translation_origin: raw.translation_origin,
                 tier,
+                created_at: raw.created_at.clone(),
             }
         })
         .collect())
+}
+
+/// One row per distinct `target_text`, the first in AD-18 order; stored rows are never merged.
+pub fn distinct_exact_targets(pairs: Vec<TmPair>) -> Vec<TmPair> {
+    let mut seen = std::collections::HashSet::new();
+    pairs.into_iter().filter(|p| seen.insert(p.target_text.clone())).collect()
 }
 
 /// Number of fuzzy rows the strip shows.
@@ -371,21 +390,22 @@ pub fn pair_by_id(
     tier: TmTier,
     id: i64,
 ) -> Result<Option<TmPair>, TmStoreError> {
-    let raw: Option<(i64, String, String, String)> = store.read(move |conn| {
+    let raw: Option<(i64, String, String, String, String)> = store.read(move |conn| {
         match conn.query_row(
-            "SELECT id, source_text, target_text, translation_origin FROM tm_unit WHERE id = ?1",
+            "SELECT id, source_text, target_text, translation_origin, created_at FROM tm_unit \
+             WHERE id = ?1",
             [id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
         ) {
             Ok(row) => Ok(Some(row)),
             Err(crate::core::store::SqlError::QueryReturnedNoRows) => Ok(None),
             Err(err) => Err(err),
         }
     })?;
-    raw.map(|(id, source_text, target_text, origin)| {
+    raw.map(|(id, source_text, target_text, origin, created_at)| {
         let translation_origin = PairOrigin::from_stored(&origin)
             .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
-        Ok(TmPair { id, source_text, target_text, translation_origin, tier })
+        Ok(TmPair { id, source_text, target_text, translation_origin, tier, created_at })
     })
     .transpose()
 }

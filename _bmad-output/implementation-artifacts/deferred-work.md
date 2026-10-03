@@ -12784,3 +12784,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
   summary: Unverified (review finding, maybe-false, medium if true): the `tm_concordance` wire holds `OpenWorkState` while reading every pair of both tiers, like `tm_fuzzy_matches`, and the dictionary not-found probe now runs it on every miss, so a flush or confirm may wait for that read.
   evidence: `commands/segment.rs::wire::tm_concordance` calls `prepare_tm_concordance` under the guard; settle by timing a confirm issued during a probe at 100k rows per tier in a release build. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
+  summary: In the real app, unverified: the exact-source list layout in the strip slot (8em date column, long lists with no cap), the "Đang dùng" mark, digits 4–9, and Mod+Alt+E focus and Esc with the exact list showing.
+  evidence: happy-dom cannot show layout or focus; `tests/frontend/tmFuzzyStrip.test.ts` covers state and dispatch only. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
+  summary: The AD-18 date key compares `tm_unit.created_at` as strings, correct only while every row is ISO-8601 UTC with milliseconds; TMX import must write that exact format (TMX `creationdate` is `YYYYMMDDThhmmssZ`).
+  evidence: `core/tm/mod.rs::merge_tiers` `newest_first`; today the only writer is `insert_pair` (`strftime('%Y-%m-%dT%H:%M:%fZ','now')`). Chủ: Story 7.10.

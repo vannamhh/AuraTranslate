@@ -7,6 +7,7 @@ import {
   hideTmFuzzyStrip,
   moveTmFuzzyAim,
   tmFuzzyAcceptingNow,
+  tmFuzzyAimedExact,
   tmFuzzyAimedMatch,
   tmFuzzyPendingAccept,
   tmFuzzySegmentId,
@@ -36,6 +37,11 @@ export function tmFuzzyCommandDeps(): Pick<
     },
     acceptTmFuzzyRow: () => {
       const segmentId = tmFuzzySegmentId.value
+      const exact = tmFuzzyAimedExact()
+      if (segmentId !== null && exact !== null && !tmFuzzyAcceptingNow()) {
+        void acceptTmFuzzyToEditor(segmentId, exact.tier, exact.unit_id, false, 'exact')
+        return
+      }
       const match = tmFuzzyAimedMatch()
       if (segmentId === null || match === null || tmFuzzyAcceptingNow()) return
       void acceptTmFuzzyToEditor(segmentId, match.tier, match.unit_id)
@@ -43,7 +49,7 @@ export function tmFuzzyCommandDeps(): Pick<
     confirmTmFuzzyOverwrite: () => {
       const waiting = tmFuzzyPendingAccept.value
       if (waiting === null || tmFuzzyAcceptingNow()) return
-      void acceptTmFuzzyToEditor(waiting.segmentId, waiting.tier, waiting.unitId, true)
+      void acceptTmFuzzyToEditor(waiting.segmentId, waiting.tier, waiting.unitId, true, waiting.kind)
     },
     hideTmFuzzyStrip,
     saveTmSettings: () => {

@@ -10,7 +10,7 @@ import { mount } from '@vue/test-utils'
 import { flushPromises as flushMicrotasks } from './support/flushMicrotasks'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 import type { CommandDeps } from '../../src/commands'
-import type { PromoteAiTranslationOutcome, TmFuzzyMatch, TmFuzzyMatches } from '../../src/config/segment'
+import type { PromoteAiTranslationOutcome, TmExactTarget, TmFuzzyMatch, TmFuzzyMatches } from '../../src/config/segment'
 
 /** Microtasks plus the scan debounce, so a caret move has settled and its scan has answered. */
 async function flushPromises(): Promise<void> {
@@ -20,6 +20,7 @@ async function flushPromises(): Promise<void> {
 
 const tmFuzzyMatchesMock = vi.fn()
 const acceptTmFuzzyMock = vi.fn()
+const acceptTmExactMock = vi.fn()
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
@@ -27,6 +28,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
     ...actual,
     tmFuzzyMatches: (...args: unknown[]) => tmFuzzyMatchesMock(...args),
     acceptTmFuzzy: (...args: unknown[]) => acceptTmFuzzyMock(...args),
+    acceptTmExact: (...args: unknown[]) => acceptTmExactMock(...args),
     saveSegmentTargets: recordSave,
     readOpenChapterSegments: readFixture,
   }
@@ -50,8 +52,12 @@ function matchOf(patch: Partial<TmFuzzyMatch> = {}): TmFuzzyMatch {
   }
 }
 
-function scanOf(segmentId: number, matches: TmFuzzyMatch[]): { outcome: TmFuzzyMatches; error: null } {
-  return { outcome: { segment_id: segmentId, matches }, error: null }
+function scanOf(
+  segmentId: number,
+  matches: TmFuzzyMatch[],
+  exact: TmExactTarget[] = [],
+): { outcome: TmFuzzyMatches; error: null } {
+  return { outcome: { segment_id: segmentId, matches, exact }, error: null }
 }
 
 function acceptedOf(patch: Partial<PromoteAiTranslationOutcome> = {}) {
@@ -73,6 +79,7 @@ async function fresh() {
   vi.resetModules()
   tmFuzzyMatchesMock.mockReset()
   acceptTmFuzzyMock.mockReset()
+  acceptTmExactMock.mockReset()
 
   const commands = await import('../../src/commands')
   const editor = await import('../../src/panels/editorPanelState')
@@ -273,6 +280,15 @@ describe('keys inside the strip', () => {
     await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: '3' })
     await flushPromises()
     expect(acceptTmFuzzyMock).toHaveBeenCalledWith(12, 'work', 3, false)
+    wrapper.unmount()
+  })
+
+  it('digit 4 with three fuzzy rows calls neither accept', async () => {
+    const { wrapper } = await withThree()
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: '4' })
+    await flushPromises()
+    expect(acceptTmFuzzyMock).not.toHaveBeenCalled()
+    expect(acceptTmExactMock).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -510,6 +526,105 @@ describe('review fixes', () => {
     newCell.focus()
     strip.hideTmFuzzyStrip()
     expect(document.activeElement).toBe(newCell)
+    wrapper.unmount()
+  })
+})
+
+describe('exact-source list (Story 7.8)', () => {
+  function exactOf(patch: Partial<TmExactTarget> = {}): TmExactTarget {
+    return {
+      tier: 'work',
+      unit_id: 1,
+      target_text: 'Bản mới',
+      side: 'mine',
+      created_at: '2026-08-03T00:00:00.000Z',
+      ...patch,
+    }
+  }
+
+  async function withExact(segmentId = 12, exact: TmExactTarget[] = [exactOf(), exactOf({ unit_id: 2, target_text: 'Bản cũ', created_at: '2026-06-28T00:00:00.000Z' })]) {
+    const ctx = await mountOn(segmentId, [])
+    tmFuzzyMatchesMock.mockResolvedValue(scanOf(segmentId, [], exact))
+    ctx.editor.setEditorCaret(segmentId === 12 ? 13 : 12)
+    await flushPromises()
+    ctx.editor.setEditorCaret(segmentId)
+    await flushPromises()
+    return ctx
+  }
+
+  it('lists every target with its date, side and tier, no cap of three', async () => {
+    const many = Array.from({ length: 5 }, (_, i) =>
+      exactOf({ unit_id: i + 1, target_text: `Bản ${i}`, created_at: `2026-0${i + 1}-03T00:00:00.000Z` }),
+    )
+    const { wrapper } = await withExact(12, many)
+    const rows = wrapper.findAll('.tmf-exact-row')
+    expect(rows).toHaveLength(5)
+    expect(rows[0]?.get('.tmf-target').text()).toBe('Bản 0')
+    expect(rows[0]?.get('.tmf-date').text()).not.toBe('')
+    expect(rows[0]?.get('.tmf-side').text()).toBe('Của tôi')
+    expect(rows[0]?.get('.tmf-tier').text()).toBe('Tác phẩm này')
+    wrapper.unmount()
+  })
+
+  it('marks the row equal to the current text as in use', async () => {
+    const { wrapper, editor } = await withExact(12, [
+      exactOf({ target_text: 'Bản mới' }),
+      exactOf({ unit_id: 2, target_text: 'Gió thổi tới từ cuối hành lang.' }),
+    ])
+    const current = editor.editorSegments.value.find((s) => s.id === 12)?.target_text
+    expect(current).toBe('Gió thổi tới từ cuối hành lang.')
+    const rows = wrapper.findAll('.tmf-exact-row')
+    expect(rows[0]?.find('.tmf-in-use').exists()).toBe(false)
+    expect(rows[1]?.find('.tmf-in-use').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('digit 2 picks the second row through accept_tm_exact, with the pair identity', async () => {
+    const { wrapper } = await withExact()
+    acceptTmExactMock.mockResolvedValue(acceptedOf({ translation_origin: 'self' }))
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: '2' })
+    await flushPromises()
+    expect(acceptTmExactMock).toHaveBeenCalledWith(12, 'work', 2, false)
+    expect(acceptTmFuzzyMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('a digit beyond three works for a long list', async () => {
+    const many = Array.from({ length: 5 }, (_, i) => exactOf({ unit_id: i + 1, target_text: `Bản ${i}` }))
+    const { wrapper } = await withExact(12, many)
+    acceptTmExactMock.mockResolvedValue(acceptedOf())
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: '5' })
+    await flushPromises()
+    expect(acceptTmExactMock).toHaveBeenCalledWith(12, 'work', 5, false)
+    wrapper.unmount()
+  })
+
+  it('asks only when Rust says needs_confirmation, then force re-calls accept_tm_exact', async () => {
+    const { wrapper } = await withExact()
+    acceptTmExactMock.mockResolvedValueOnce(
+      acceptedOf({ needs_confirmation: true, unsigned_draft: 'Tôi tự gõ', target_text: 'Tôi tự gõ' }),
+    )
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.get('.tmf-draft').text()).toBe('Tôi tự gõ')
+    acceptTmExactMock.mockResolvedValueOnce(acceptedOf())
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(acceptTmExactMock).toHaveBeenNthCalledWith(2, 12, 'work', 1, true)
+    expect(acceptTmFuzzyMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('a pick over a pre-filled text writes without asking and closes the strip', async () => {
+    const { wrapper, editor } = await withExact()
+    acceptTmExactMock.mockResolvedValue(acceptedOf({ target_text: 'Bản mới', translation_origin: 'self' }))
+    await wrapper.get('.tm-fuzzy-strip').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.find('.tmf-overwrite').exists()).toBe(false)
+    const seg = editor.editorSegments.value.find((s) => s.id === 12)
+    expect(seg?.target_text).toBe('Bản mới')
+    expect(seg?.translation_origin).toBe('self')
+    expect(wrapper.find('.tm-fuzzy-strip').exists()).toBe(false)
     wrapper.unmount()
   })
 })

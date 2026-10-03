@@ -2368,6 +2368,35 @@ pub struct TmFuzzyMatches {
     /// The segment the scan was run for; the webview drops a response for another segment.
     pub segment_id: i64,
     pub matches: Vec<TmFuzzyMatch>,
+    /// Every distinct target of an exact source match, AD-18 order; non-empty only with 2+
+    /// distinct targets, and then `matches` is empty.
+    pub exact: Vec<TmExactTarget>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TmExactTarget {
+    /// `"work"` or `"global"`; with `unit_id` it identifies the pair.
+    pub tier: &'static str,
+    pub unit_id: i64,
+    pub target_text: String,
+    /// `"mine"` or `"others"` (AD-47 ⑥).
+    pub side: &'static str,
+    /// ISO-8601 UTC with milliseconds.
+    pub created_at: String,
+}
+
+fn tier_wire(tier: crate::core::tm::TmTier) -> &'static str {
+    match tier {
+        crate::core::tm::TmTier::Work => "work",
+        crate::core::tm::TmTier::Global => "global",
+    }
+}
+
+fn side_wire(origin: crate::core::tm::PairOrigin) -> &'static str {
+    match origin.side() {
+        crate::core::tm::PairSide::Mine => "mine",
+        crate::core::tm::PairSide::Others => "others",
+    }
 }
 
 /// What a fuzzy scan needs once the caller's locks are released: rows already read, so the
@@ -2411,7 +2440,9 @@ pub fn prepare_tm_fuzzy(
     if retired {
         return Err(segment_retired(segment_id));
     }
-    let empty = || TmFuzzyPrepared::Empty(TmFuzzyMatches { segment_id, matches: Vec::new() });
+    let empty = || {
+        TmFuzzyPrepared::Empty(TmFuzzyMatches { segment_id, matches: Vec::new(), exact: Vec::new() })
+    };
     if source.trim().is_empty() {
         return Ok(empty());
     }
@@ -2419,7 +2450,25 @@ pub fn prepare_tm_fuzzy(
     let exact = crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
         .map_err(|e| tm_lookup_failed(&e))?;
     if !exact.is_empty() {
-        return Ok(empty());
+        let distinct = crate::core::tm::distinct_exact_targets(exact);
+        if distinct.len() < 2 {
+            return Ok(empty());
+        }
+        let exact = distinct
+            .into_iter()
+            .map(|p| TmExactTarget {
+                tier: tier_wire(p.tier),
+                unit_id: p.id,
+                side: side_wire(p.translation_origin),
+                target_text: p.target_text,
+                created_at: p.created_at,
+            })
+            .collect();
+        return Ok(TmFuzzyPrepared::Empty(TmFuzzyMatches {
+            segment_id,
+            matches: Vec::new(),
+            exact,
+        }));
     }
 
     let threshold = crate::core::scope::load_global_config(global)?.tm_fuzzy_threshold();
@@ -2468,7 +2517,7 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
             },
         })
         .collect();
-    Ok(TmFuzzyMatches { segment_id: scan.segment_id, matches })
+    Ok(TmFuzzyMatches { segment_id: scan.segment_id, matches, exact: Vec::new() })
 }
 
 /// Fuzzy TM matches for a segment's source (FR59): both tiers scored by `core::matching`,
@@ -2491,6 +2540,8 @@ pub struct TmConcordanceHit {
     pub target_text: String,
     /// `"mine"` or `"others"` (AD-47 ⑥).
     pub side: &'static str,
+    /// ISO-8601 UTC with milliseconds.
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -2534,17 +2585,12 @@ pub fn score_tm_concordance(scan: TmConcordanceScan) -> Result<TmConcordance, Ip
         .hits
         .into_iter()
         .map(|pair| TmConcordanceHit {
-            tier: match pair.tier {
-                crate::core::tm::TmTier::Work => "work",
-                crate::core::tm::TmTier::Global => "global",
-            },
+            tier: tier_wire(pair.tier),
             unit_id: pair.id,
             source_text: pair.source_text,
             target_text: pair.target_text,
-            side: match pair.translation_origin.side() {
-                crate::core::tm::PairSide::Mine => "mine",
-                crate::core::tm::PairSide::Others => "others",
-            },
+            side: side_wire(pair.translation_origin),
+            created_at: pair.created_at,
         })
         .collect();
     Ok(TmConcordance { query: scan.query, tm_empty: found.tm_empty, total: found.total, hits })
@@ -2590,6 +2636,99 @@ pub fn accept_tm_fuzzy(
         .map_err(|e| tm_lookup_failed(&e))?
         .ok_or_else(|| tm_pair_not_found(tier, unit_id))?;
     promote_ai_translation(open, segment_id, &pair.target_text, force)
+}
+
+/// Picks one target of an exact-source list (FR63): re-reads the pair by tier and id, refuses
+/// it when its source is no longer the segment's source, then writes the pair's own origin as an
+/// unconfirmed `draft` (AD-47 ③ "Điền sẵn từ TM khớp 100%"). Asks (`needs_confirmation`, nothing
+/// written) only when the current text was typed by the user: non-empty, different from
+/// `baseline_target_text`, and with no copy in `segment_version`.
+pub fn accept_tm_exact(
+    global: Option<&crate::core::store::Store>,
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    tier: &str,
+    unit_id: i64,
+    force: bool,
+) -> Result<PromoteAiTranslationOutcome, IpcError> {
+    let work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let global = global.ok_or_else(global_store_missing)?;
+    let (store, pair_tier) = match tier {
+        "work" => (&work.store, crate::core::tm::TmTier::Work),
+        "global" => (global, crate::core::tm::TmTier::Global),
+        _ => return Err(tm_pair_not_found(tier, unit_id)),
+    };
+    let pair = crate::core::tm::pair_by_id(store, pair_tier, unit_id)
+        .map_err(|e| tm_lookup_failed(&e))?
+        .ok_or_else(|| tm_pair_not_found(tier, unit_id))?;
+    let origin = pair.translation_origin.as_str();
+    let target = pair.target_text;
+    let pair_source = pair.source_text;
+
+    enum Picked {
+        Missing,
+        Retired,
+        SourceChanged,
+        Row(String, String, String, bool),
+    }
+
+    let outcome = work.store.write(move |tx: &Transaction<'_>| {
+        let found = tx.query_row(
+            "SELECT source_text, target_text, baseline_target_text, translation_origin, \
+             retired_at IS NOT NULL, status FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, bool>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            },
+        );
+        let (source, current_text, baseline, current_origin, retired, current_status) = match found {
+            Ok(value) => value,
+            Err(SqlError::QueryReturnedNoRows) => return Ok(Picked::Missing),
+            Err(err) => return Err(err),
+        };
+        if retired {
+            return Ok(Picked::Retired);
+        }
+        if source != pair_source {
+            return Ok(Picked::SourceChanged);
+        }
+        if !force && !current_text.is_empty() && current_text != baseline {
+            let has_copy: i64 = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM segment_version \
+                 WHERE segment_id = ?1 AND target_text = ?2)",
+                (segment_id, &current_text),
+                |row| row.get(0),
+            )?;
+            if has_copy == 0 {
+                return Ok(Picked::Row(current_text, current_origin, current_status, true));
+            }
+        }
+        write_non_user_target(tx, segment_id, &target, origin, Some(origin))?;
+        Ok(Picked::Row(target, origin.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false))
+    })?;
+
+    let (target_text, translation_origin, status, needs_confirmation) = match outcome {
+        Picked::Missing => return Err(segment_not_found(segment_id)),
+        Picked::Retired => return Err(segment_retired(segment_id)),
+        Picked::SourceChanged => return Err(tm_pair_not_found(tier, unit_id)),
+        Picked::Row(text, origin, status, ask) => (text, origin, status, ask),
+    };
+    let unsigned_draft = needs_confirmation.then(|| target_text.clone());
+    Ok(PromoteAiTranslationOutcome {
+        segment_id,
+        target_text,
+        translation_origin,
+        status,
+        needs_confirmation,
+        unsigned_draft,
+    })
 }
 
 /// Kết quả một lượt xác nhận — thứ đi ra qua dây. Story 2.5, AC2 · AC13.
@@ -4300,6 +4439,25 @@ pub mod wire {
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::accept_tm_fuzzy(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, force)
+    }
+
+    /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `force` on the wire.
+    #[tauri::command]
+    pub fn accept_tm_exact<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        segment_id: i64,
+        tier: String,
+        unit_id: i64,
+        force: bool,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<crate::core::store::Store>();
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::accept_tm_exact(global.as_deref(), None, segment_id, &tier, unit_id, force);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::accept_tm_exact(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, force)
     }
 
     /// Vỏ IPC của [`super::merge_segments`]. Story 2.8 · FR78 · AD-5 · AC1.

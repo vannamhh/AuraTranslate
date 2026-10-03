@@ -42,6 +42,8 @@ import {
   someLayerTruncated,
 } from './lookupPanelState'
 import { computeSpine, sourcesDisagree } from './lookupPanelState'
+import { historyTimeLabel } from './segmentHistoryTime'
+import type { TmConcordanceHit } from '../config/segment'
 // ── Story 1.20 — dải tab, lịch sử trong phiên, bộ ghim ──────────────────────────────
 //
 // 🔴 State sống ở `lookupHistoryState.ts`, KHÔNG trong một `ref` cục bộ ở đây (AC5): đổi
@@ -113,6 +115,11 @@ watch(
   },
   { immediate: true },
 )
+
+function concordanceMeta(hit: TmConcordanceHit): string {
+  const { key, params } = historyTimeLabel(hit.created_at, Date.now())
+  return `${t(sideLabelKey(hit.side))} · ${t(tierLabelKey(hit.tier))} · ${t(key, params)}`
+}
 
 function tierLabelKey(tier: 'work' | 'global'): string {
   return tier === 'work' ? 'tm.fuzzy.tier_work' : 'tm.fuzzy.tier_global'
@@ -679,7 +686,8 @@ onBeforeUnmount(() => {
               <span class="concordance-source">{{ hit.source_text }}</span>
               <!-- aura-allow-text: câu đích của cặp TM — DỮ LIỆU người dùng. -->
               <span class="concordance-target">{{ hit.target_text }}</span>
-              <span class="concordance-meta">{{ t(sideLabelKey(hit.side)) }} · {{ t(tierLabelKey(hit.tier)) }}</span>
+              <!-- aura-allow-text: result of t() computed in the script. -->
+              <span class="concordance-meta">{{ concordanceMeta(hit) }}</span>
             </div>
           </template>
         </template>

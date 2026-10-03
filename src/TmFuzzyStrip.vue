@@ -5,7 +5,8 @@ import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import { eligibleInlineStrips } from './inlineStripEligibility'
-import { editorCaretSegmentId } from './panels/editorPanelState'
+import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
+import { historyTimeLabel } from './panels/segmentHistoryTime'
 import { topmostStrip } from './panels/inlineStripPriority'
 import {
   aimTmFuzzyRow,
@@ -13,10 +14,13 @@ import {
   tmFuzzyAcceptError,
   tmFuzzyAccepting,
   tmFuzzyAimedIndex,
+  tmFuzzyExactShown,
   tmFuzzyFocusRequest,
   tmFuzzyMatchesShown,
   tmFuzzyPendingAccept,
+  tmFuzzyRowCount,
   tmFuzzyScanError,
+  tmFuzzySegmentId,
 } from './tmFuzzyStripState'
 
 watch(editorCaretSegmentId, (segmentId) => { syncTmFuzzyStrip(segmentId) }, { immediate: true })
@@ -30,7 +34,30 @@ watch(tmFuzzyFocusRequest, () => {
   })
 })
 
-const DIGIT_ROWS: Readonly<Record<string, number>> = { '1': 0, '2': 1, '3': 2 }
+const DIGIT_ROWS: Readonly<Record<string, number>> = {
+  '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6, '8': 7, '9': 8,
+}
+
+const isExactList = computed(() => tmFuzzyExactShown.value.length > 0)
+
+const currentTarget = computed(() => {
+  const id = tmFuzzySegmentId.value
+  return editorSegments.value.find((s) => s.id === id)?.target_text ?? null
+})
+
+const stripTitle = computed(() => (isExactList.value ? t('tm.exact.title') : t('tm.fuzzy.title')))
+const stripHint = computed(() => (isExactList.value ? t('tm.exact.hint') : t('tm.fuzzy.hint')))
+const overwriteQuestion = computed(() =>
+  tmFuzzyPendingAccept.value?.kind === 'exact' ? t('tm.exact.overwrite_question') : t('tm.fuzzy.overwrite_question'),
+)
+
+const exactRows = computed(() => {
+  const nowMs = Date.now()
+  return tmFuzzyExactShown.value.map((row) => {
+    const { key, params } = historyTimeLabel(row.created_at, nowMs)
+    return { row, date: t(key, params), inUse: row.target_text === currentTarget.value }
+  })
+})
 
 /** Keys act only when the strip itself holds focus, so its buttons keep their own Enter. */
 function onKeydown(event: KeyboardEvent): void {
@@ -54,7 +81,7 @@ function onKeydown(event: KeyboardEvent): void {
   } else if (event.key in DIGIT_ROWS && tmFuzzyPendingAccept.value === null) {
     const row = DIGIT_ROWS[event.key] ?? 0
     event.preventDefault()
-    if (row >= tmFuzzyMatchesShown.value.length) return
+    if (row >= tmFuzzyRowCount()) return
     aimTmFuzzyRow(row)
     dispatch('tm.fuzzy.accept')
   }
@@ -77,8 +104,10 @@ const acceptErrorText = computed(() => {
     @keydown="onKeydown"
   >
     <header class="tmf-head">
-      <span class="tmf-title">{{ t('tm.fuzzy.title') }}</span>
-      <span class="tmf-hint">{{ t('tm.fuzzy.hint') }}</span>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span class="tmf-title">{{ stripTitle }}</span>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span class="tmf-hint">{{ stripHint }}</span>
     </header>
 
     <p v-if="tmFuzzyScanError !== null" class="tmf-status tmf-error" role="alert">
@@ -90,7 +119,8 @@ const acceptErrorText = computed(() => {
     </p>
 
     <div v-if="tmFuzzyPendingAccept !== null" class="tmf-overwrite" role="alert">
-      <p class="tmf-status">{{ t('tm.fuzzy.overwrite_question') }}</p>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <p class="tmf-status">{{ overwriteQuestion }}</p>
       <!-- aura-allow-text: the user's own draft text, shown so the overwrite is an informed choice. -->
       <p class="tmf-draft">{{ tmFuzzyPendingAccept.draft }}</p>
       <div class="tmf-actions">
@@ -103,7 +133,48 @@ const acceptErrorText = computed(() => {
       </div>
     </div>
 
-    <ol class="tmf-list">
+    <ol v-if="isExactList" class="tmf-list tmf-exact-list">
+      <li
+        v-for="(item, i) in exactRows"
+        :key="`${item.row.tier}:${item.row.unit_id}`"
+        class="tmf-row tmf-exact-row"
+        :class="{ 'tmf-row-aimed': i === tmFuzzyAimedIndex, 'tmf-row-in-use': item.inUse }"
+        :aria-current="i === tmFuzzyAimedIndex ? 'true' : undefined"
+        @mouseenter="aimTmFuzzyRow(i)"
+      >
+        <span class="tmf-pct tmf-date">
+          <!-- aura-allow-text: result of t(). -->
+          {{ item.date }}
+        </span>
+        <div class="tmf-body">
+          <!-- aura-allow-text: TM target text, user data. -->
+          <p class="tmf-target">{{ item.row.target_text }}</p>
+          <p v-if="item.inUse" class="tmf-in-use">{{ t('tm.exact.in_use') }}</p>
+        </div>
+        <div class="tmf-meta">
+          <span class="tmf-side">
+            <!-- aura-allow-text: result of t(). -->
+            {{ item.row.side === 'mine' ? t('tm.fuzzy.side_mine') : t('tm.fuzzy.side_others') }}
+          </span>
+          <span class="tmf-tier">
+            <!-- aura-allow-text: result of t(). -->
+            {{ item.row.tier === 'work' ? t('tm.fuzzy.tier_work') : t('tm.fuzzy.tier_global') }}
+          </span>
+          <button
+            type="button"
+            class="tmf-btn"
+            :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
+            @focus="aimTmFuzzyRow(i)"
+            @mousedown="aimTmFuzzyRow(i)"
+            @click="dispatch('tm.fuzzy.accept')"
+          >
+            {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
+          </button>
+        </div>
+      </li>
+    </ol>
+
+    <ol v-else class="tmf-list">
       <li
         v-for="(match, i) in tmFuzzyMatchesShown"
         :key="`${match.tier}:${match.unit_id}`"
@@ -231,6 +302,26 @@ const acceptErrorText = computed(() => {
 
 .tmf-target {
   color: var(--color-on-surface-variant);
+}
+
+.tmf-date {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  text-align: left;
+}
+
+.tmf-exact-row {
+  grid-template-columns: 8em 1fr auto;
+}
+
+.tmf-in-use {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-tm-text);
 }
 
 .tmf-ins {

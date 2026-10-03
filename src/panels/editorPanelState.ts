@@ -46,6 +46,7 @@ import {
   setSegmentOmitted,
   setSegmentParagraphEnd,
   splitSegment,
+  acceptTmExact,
   acceptTmFuzzy,
 } from '../config/segment'
 import type {
@@ -422,6 +423,7 @@ export async function acceptTmFuzzyToEditor(
   tier: TmFuzzyTier,
   unitId: number,
   force = false,
+  kind: 'fuzzy' | 'exact' = 'fuzzy',
 ): Promise<AcceptTmFuzzyResult> {
   if (tmFuzzyAccepting.value) return 'refused'
   const flushed = await flushEditorBeforeDiscreteWrite()
@@ -435,7 +437,7 @@ export async function acceptTmFuzzyToEditor(
 
   setTmFuzzyAccepting(true)
   try {
-    const { outcome, error } = await acceptTmFuzzy(segmentId, tier, unitId, force)
+    const { outcome, error } = await (kind === 'exact' ? acceptTmExact : acceptTmFuzzy)(segmentId, tier, unitId, force)
     if (outcome === null) {
       setTmFuzzyAcceptError(error)
       setTmFuzzyPendingAccept(null)
@@ -443,7 +445,7 @@ export async function acceptTmFuzzyToEditor(
     }
     setTmFuzzyAcceptError(null)
     if (outcome.needs_confirmation) {
-      setTmFuzzyPendingAccept({ segmentId, tier, unitId, draft: outcome.unsigned_draft ?? '' })
+      setTmFuzzyPendingAccept({ segmentId, tier, unitId, draft: outcome.unsigned_draft ?? '', kind })
       return 'needs-confirmation'
     }
     setTmFuzzyPendingAccept(null)

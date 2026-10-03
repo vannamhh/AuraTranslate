@@ -23,7 +23,7 @@ vi.mock('../../src/config/dict', async (importOriginal) => {
 })
 
 function hitOf(patch: Partial<TmConcordanceHit> = {}): TmConcordanceHit {
-  return { tier: 'work', unit_id: 1, source_text: '他叫师父。', target_text: 'Hắn gọi sư phụ.', side: 'mine', ...patch }
+  return { tier: 'work', unit_id: 1, source_text: '他叫师父。', target_text: 'Hắn gọi sư phụ.', side: 'mine', created_at: '2026-08-03T00:00:00.000Z', ...patch }
 }
 
 function answerOf(query: string, patch: Partial<TmConcordance> = {}) {
@@ -153,6 +153,17 @@ describe('concordance states', () => {
     expect(rows[0]?.text()).toContain('Của tôi · Toàn cục')
     expect(rows[1]?.text()).toContain('Của người khác · Tác phẩm này')
     expect(w.find('.lookup-banner').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('each hit carries its date, rendered through historyTimeLabel', async () => {
+    const { w } = await tab(
+      answerOf('师父', { total: 1, hits: [hitOf({ created_at: '2020-01-02T03:04:05.000Z' })] }),
+    )
+    const { historyTimeLabel } = await import('../../src/panels/segmentHistoryTime')
+    const { t } = await import('../../src/i18n')
+    const { key, params } = historyTimeLabel('2020-01-02T03:04:05.000Z', Date.now())
+    expect(w.get('.concordance-meta').text()).toContain(t(key, params))
     w.unmount()
   })
 

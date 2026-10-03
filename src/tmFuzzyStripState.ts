@@ -1,7 +1,7 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { tmFuzzyMatches } from './config/segment'
-import type { TmFuzzyMatch, TmFuzzyTier } from './config/segment'
+import type { TmExactTarget, TmFuzzyMatch, TmFuzzyTier } from './config/segment'
 import type { IpcError } from './i18n'
 
 export type TmFuzzyPendingAccept = {
@@ -9,9 +9,14 @@ export type TmFuzzyPendingAccept = {
   tier: TmFuzzyTier
   unitId: number
   draft: string
+  kind: 'fuzzy' | 'exact'
 }
 
-const shown = shallowRef<{ segmentId: number; matches: readonly TmFuzzyMatch[] } | null>(null)
+const shown = shallowRef<{
+  segmentId: number
+  matches: readonly TmFuzzyMatch[]
+  exact: readonly TmExactTarget[]
+} | null>(null)
 const aimed = ref(0)
 const scanError = shallowRef<IpcError | null>(null)
 const acceptError = shallowRef<IpcError | null>(null)
@@ -25,6 +30,7 @@ let savedFocusEl: HTMLElement | null = null
 let enteredViaChord = false
 
 export const tmFuzzyMatchesShown = computed<readonly TmFuzzyMatch[]>(() => shown.value?.matches ?? [])
+export const tmFuzzyExactShown = computed<readonly TmExactTarget[]>(() => shown.value?.exact ?? [])
 export const tmFuzzySegmentId = computed<number | null>(() => shown.value?.segmentId ?? null)
 export const tmFuzzyAimedIndex: DeepReadonly<Ref<number>> = readonly(aimed)
 export const tmFuzzyScanError: DeepReadonly<Ref<IpcError | null>> = readonly(scanError)
@@ -35,8 +41,21 @@ export const tmFuzzyFocusRequest: DeepReadonly<Ref<number>> = readonly(focusRequ
 
 /** Eligible to render: matches to show, or a scan error the user must see. */
 export const tmFuzzyIsEligible = computed<boolean>(
-  () => (shown.value !== null && shown.value.matches.length > 0) || scanError.value !== null,
+  () =>
+    (shown.value !== null && (shown.value.matches.length > 0 || shown.value.exact.length > 0)) ||
+    scanError.value !== null,
 )
+
+export function tmFuzzyRowCount(): number {
+  const current = shown.value
+  if (current === null) return 0
+  return current.exact.length > 0 ? current.exact.length : current.matches.length
+}
+
+export function tmFuzzyAimedExact(): TmExactTarget | null {
+  const list = shown.value?.exact ?? []
+  return list[aimed.value] ?? null
+}
 
 export function tmFuzzyAimedMatch(): TmFuzzyMatch | null {
   const list = shown.value?.matches ?? []
@@ -71,11 +90,11 @@ async function runScan(segmentId: number, mine: number): Promise<void> {
   }
   if (outcome.segment_id !== segmentId) return
   scanError.value = null
-  if (outcome.matches.length === 0) {
+  if (outcome.matches.length === 0 && outcome.exact.length === 0) {
     clearShown()
     return
   }
-  shown.value = { segmentId, matches: outcome.matches }
+  shown.value = { segmentId, matches: outcome.matches, exact: outcome.exact }
   aimed.value = 0
 }
 
@@ -104,13 +123,13 @@ export function syncTmFuzzyStrip(segmentId: number | null): void {
 }
 
 export function moveTmFuzzyAim(delta: number): void {
-  const count = shown.value?.matches.length ?? 0
+  const count = tmFuzzyRowCount()
   if (count === 0 || pendingAccept.value !== null) return
   aimed.value = Math.min(count - 1, Math.max(0, aimed.value + delta))
 }
 
 export function aimTmFuzzyRow(index: number): void {
-  const count = shown.value?.matches.length ?? 0
+  const count = tmFuzzyRowCount()
   if (index < 0 || index >= count || pendingAccept.value !== null) return
   aimed.value = index
 }
