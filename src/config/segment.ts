@@ -618,7 +618,7 @@ function hasIpcBridge(): boolean {
 }
 
 /** Lỗi hồi phòng khi Rust trượt bằng một thứ không phải `IpcError`. */
-const UNKNOWN_IPC_ERROR: IpcError = {
+export const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
   message_key: 'err.unknown',
   params: {},
@@ -1232,6 +1232,67 @@ export async function acceptTmFuzzy(
     return { outcome, error: null }
   } catch (err) {
     return { outcome: null, error: failureOf(err, CMD_ACCEPT_TM_FUZZY) }
+  }
+}
+
+/** Matches `commands::segment::TmConcordanceHit`, snake_case as on the wire. */
+export type TmConcordanceHit = {
+  tier: TmFuzzyTier
+  unit_id: number
+  source_text: string
+  target_text: string
+  side: TmFuzzySide
+}
+
+/** Matches `commands::segment::TmConcordance`; `hits.length < total` when capped. */
+export type TmConcordance = {
+  query: string
+  tm_empty: boolean
+  total: number
+  hits: TmConcordanceHit[]
+}
+
+export type TmConcordanceResult = { outcome: TmConcordance | null; error: IpcError | null }
+
+function isTmConcordanceHit(value: unknown): value is TmConcordanceHit {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmConcordanceHit>
+  return (
+    (v.tier === 'work' || v.tier === 'global') &&
+    typeof v.unit_id === 'number' &&
+    typeof v.source_text === 'string' &&
+    typeof v.target_text === 'string' &&
+    (v.side === 'mine' || v.side === 'others')
+  )
+}
+
+function isTmConcordance(value: unknown): value is TmConcordance {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmConcordance>
+  return (
+    typeof v.query === 'string' &&
+    typeof v.tm_empty === 'boolean' &&
+    typeof v.total === 'number' &&
+    Array.isArray(v.hits) &&
+    v.hits.every(isTmConcordanceHit)
+  )
+}
+
+const CMD_TM_CONCORDANCE = 'tm_concordance'
+
+/** Never throws; `error === null` with `outcome === null` means no IPC bridge. */
+export async function tmConcordance(query: string): Promise<TmConcordanceResult> {
+  try {
+    const outcome = await invoke<unknown>(CMD_TM_CONCORDANCE, { query })
+    if (!isTmConcordance(outcome)) {
+      console.error(
+        `[segment] \`${CMD_TM_CONCORDANCE}\` trả một TmConcordance SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome, error: null }
+  } catch (err) {
+    return { outcome: null, error: failureOf(err, CMD_TM_CONCORDANCE) }
   }
 }
 

@@ -307,6 +307,64 @@ pub fn rank_fuzzy_candidates(
     Ok(merged)
 }
 
+/// Most hits one Concordance search ships; the total is reported beside them.
+pub const CONCORDANCE_HIT_LIMIT: usize = 50;
+
+/// Every pair of both tiers, read once so the substring filter can run after the caller released its locks.
+pub struct ConcordanceCandidates {
+    global_rows: Vec<RawPair>,
+    work_rows: Option<Vec<RawPair>>,
+}
+
+pub fn load_concordance_candidates(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+) -> Result<ConcordanceCandidates, TmStoreError> {
+    Ok(ConcordanceCandidates {
+        global_rows: load_all_pair_rows(global)?,
+        work_rows: work.map(load_all_pair_rows).transpose()?,
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConcordanceHits {
+    /// Both tiers hold zero rows, as opposed to rows that simply do not contain the phrase.
+    pub tm_empty: bool,
+    /// Matching pairs before the cap.
+    pub total: usize,
+    /// At most [`CONCORDANCE_HIT_LIMIT`], AD-18 order.
+    pub hits: Vec<TmPair>,
+}
+
+fn concordance_key(text: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    text.trim().nfc().collect::<String>().to_lowercase()
+}
+
+/// Pairs of both tiers whose source contains `query` as a raw substring: NFC and lower-cased on
+/// both sides, no stemming, matches inside words. A blank query hits nothing.
+pub fn rank_concordance(
+    resolver: &crate::core::scope::ScopeResolver,
+    candidates: ConcordanceCandidates,
+    query: &str,
+) -> Result<ConcordanceHits, TmStoreError> {
+    let tm_empty = candidates.global_rows.is_empty()
+        && candidates.work_rows.as_ref().is_none_or(Vec::is_empty);
+    let needle = concordance_key(query);
+    if needle.is_empty() {
+        return Ok(ConcordanceHits { tm_empty, total: 0, hits: Vec::new() });
+    }
+    let keep = |rows: Vec<RawPair>| -> Vec<RawPair> {
+        rows.into_iter().filter(|row| concordance_key(&row.source_text).contains(&needle)).collect()
+    };
+    let global_rows = keep(candidates.global_rows);
+    let work_rows = candidates.work_rows.map(keep);
+    let mut hits = merge_tiers(resolver, global_rows, work_rows)?;
+    let total = hits.len();
+    hits.truncate(CONCORDANCE_HIT_LIMIT);
+    Ok(ConcordanceHits { tm_empty, total, hits })
+}
+
 /// One pair of one tier by id; `None` when it no longer exists.
 pub fn pair_by_id(
     store: &crate::core::store::Store,

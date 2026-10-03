@@ -2482,6 +2482,83 @@ pub fn tm_fuzzy_matches(
     score_tm_fuzzy(prepare_tm_fuzzy(global, open, segment_id)?)
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TmConcordanceHit {
+    /// `"work"` or `"global"`.
+    pub tier: &'static str,
+    pub unit_id: i64,
+    pub source_text: String,
+    pub target_text: String,
+    /// `"mine"` or `"others"` (AD-47 ⑥).
+    pub side: &'static str,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TmConcordance {
+    /// The query as searched; the webview drops a response for another query.
+    pub query: String,
+    /// Both tiers hold no pair at all.
+    pub tm_empty: bool,
+    /// Matching pairs before the cap; `hits.len()` is smaller when capped.
+    pub total: usize,
+    pub hits: Vec<TmConcordanceHit>,
+}
+
+/// Rows already read, so the substring filter touches neither `OpenWorkState` nor a store.
+pub struct TmConcordanceScan {
+    query: String,
+    resolver: crate::core::scope::ScopeResolver,
+    candidates: crate::core::tm::ConcordanceCandidates,
+}
+
+/// Loads every pair of both tiers; no Work open means the Global tier only.
+pub fn prepare_tm_concordance(
+    global: Option<&crate::core::store::Store>,
+    open: Option<&OpenWork>,
+    query: &str,
+) -> Result<TmConcordanceScan, IpcError> {
+    let global = global.ok_or_else(global_store_missing)?;
+    let resolver = match open {
+        Some(open) => open.scope.clone(),
+        None => crate::core::scope::ScopeResolver::global_only(),
+    };
+    let candidates = crate::core::tm::load_concordance_candidates(global, open.map(|o| &o.store))
+        .map_err(|e| tm_lookup_failed(&e))?;
+    Ok(TmConcordanceScan { query: query.to_owned(), resolver, candidates })
+}
+
+pub fn score_tm_concordance(scan: TmConcordanceScan) -> Result<TmConcordance, IpcError> {
+    let found = crate::core::tm::rank_concordance(&scan.resolver, scan.candidates, &scan.query)
+        .map_err(|e| tm_lookup_failed(&e))?;
+    let hits = found
+        .hits
+        .into_iter()
+        .map(|pair| TmConcordanceHit {
+            tier: match pair.tier {
+                crate::core::tm::TmTier::Work => "work",
+                crate::core::tm::TmTier::Global => "global",
+            },
+            unit_id: pair.id,
+            source_text: pair.source_text,
+            target_text: pair.target_text,
+            side: match pair.translation_origin.side() {
+                crate::core::tm::PairSide::Mine => "mine",
+                crate::core::tm::PairSide::Others => "others",
+            },
+        })
+        .collect();
+    Ok(TmConcordance { query: scan.query, tm_empty: found.tm_empty, total: found.total, hits })
+}
+
+/// Concordance (FR60): every pair of both tiers whose source contains `query`.
+pub fn tm_concordance(
+    global: Option<&crate::core::store::Store>,
+    open: Option<&OpenWork>,
+    query: &str,
+) -> Result<TmConcordance, IpcError> {
+    score_tm_concordance(prepare_tm_concordance(global, open, query)?)
+}
+
 pub fn tm_pair_not_found(tier: &str, unit_id: i64) -> IpcError {
     IpcError::new(
         "tm.pair_not_found",
@@ -4184,6 +4261,26 @@ pub mod wire {
             }
         };
         super::score_tm_fuzzy(prepared)
+    }
+
+    /// Wire shell of [`super::tm_concordance`]; `query` on the wire. Async, and the
+    /// `OpenWorkState` lock is released before the substring scan.
+    #[tauri::command(async)]
+    pub fn tm_concordance<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        query: String,
+    ) -> Result<super::TmConcordance, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<crate::core::store::Store>();
+        let scan = match app.try_state::<OpenWorkState>() {
+            None => super::prepare_tm_concordance(global.as_deref(), None, &query)?,
+            Some(state) => {
+                let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                super::prepare_tm_concordance(global.as_deref(), guard.as_ref(), &query)?
+            }
+        };
+        super::score_tm_concordance(scan)
     }
 
     /// Wire shell of [`super::accept_tm_fuzzy`]; `segmentId`, `tier`, `unitId`, `force` on the wire.

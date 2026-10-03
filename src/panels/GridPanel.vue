@@ -126,6 +126,7 @@ import ChapterImage from '../ChapterImage.vue'
 // thuật ngữ với `pendingCuts`.
 import { ensureGlossaryMarksLoaded, glossaryMarks } from './glossaryMarksState'
 import { EMPTY_SEGMENT_GLOSSARY_MARKS, glossaryMarksBySegment } from './glossaryMarksMap'
+import { concordanceSourceHighlight } from './concordanceState'
 import type { SegmentTermSpan } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
 // 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
@@ -545,6 +546,7 @@ type SourcePieceInfo = {
   start: number
   isPendingCut: boolean
   glossary: SegmentTermSpan | null
+  concordance: boolean
 }
 
 /** Gộp [`sourcePiecesOf`]/[`sourcePieceStartsOf`] cộng nhãn Glossary thành MỘT mảng cho `v-for`
@@ -560,8 +562,14 @@ function sourcePieceInfoOf(segmentId: number, text: string): readonly SourcePiec
       start,
       isPendingCut: isPendingCutAt(segmentId, start),
       glossary: glossarySpanAt(segmentId, start, end),
+      concordance: isConcordanceHighlighted(segmentId, start, end),
     }
   })
+}
+
+function isConcordanceHighlighted(segmentId: number, pieceStart: number, pieceEnd: number): boolean {
+  const hl = concordanceSourceHighlight.value
+  return hl !== null && hl.segmentId === segmentId && pieceStart >= hl.start && pieceEnd <= hl.end
 }
 
 /** Handler `@mouseenter` của một mảnh mang dấu — no-op nếu mảnh không mang dấu nào. */
@@ -627,7 +635,7 @@ function resolveSourceSelection(selection: Selection): string | null {
 const PLATFORM = { isMac: detectIsMac() }
 
 useSelectionSurface(colSrc, 'source', resolveSourceSelection)
-useSelectionSurface(colTgt, 'display')
+useSelectionSurface(colTgt, 'display', undefined, true)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // AC3 — ĐƯỜNG CHUỘT. Chép nguyên ba mảnh đã thắng của Story 2.3, không diễn giải lại
@@ -1826,6 +1834,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
                   :class="{
                     'glossary-confirmed': piece.glossary?.isConfirmed === true,
                     'glossary-pending': piece.glossary?.isConfirmed === false,
+                    'concordance-source': piece.concordance,
                   }"
                   :data-src-start="piece.start"
                   @mouseenter="onGlossaryPieceEnter(piece.glossary)"
@@ -2238,6 +2247,10 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  */
 .src-piece.glossary-confirmed {
   color: var(--color-primary);
+}
+
+.src-piece.concordance-source {
+  background-color: var(--color-surface-accent);
 }
 
 .src-piece.glossary-pending {

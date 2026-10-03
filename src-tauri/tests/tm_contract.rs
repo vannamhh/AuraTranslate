@@ -1592,3 +1592,105 @@ fn glossary_and_tm_catch_exactly_the_same_variants_in_both_directions() {
     }
     assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }
+
+fn concordance(w: &Wired, query: &str) -> auratranslate_lib::commands::segment::TmConcordance {
+    wire::tm_concordance(w.app.handle().clone(), query.to_owned()).expect("tra Concordance")
+}
+
+fn concordance_shape(c: &auratranslate_lib::commands::segment::TmConcordance) -> Vec<(&str, &str, &str)> {
+    c.hits.iter().map(|h| (h.target_text.as_str(), h.tier, h.side)).collect()
+}
+
+#[test]
+fn a_phrase_in_both_tiers_lists_global_mine_before_work_other_with_side_and_tier() {
+    let w = wired("cc-both", "一。", true);
+    w.seed_work("他叫师父来。", "work-other", "other");
+    w.seed_global("师父在这里。", "global-mine", "self");
+    let got = concordance(&w, "师父");
+    assert_eq!(got.query, "师父");
+    assert_eq!((got.tm_empty, got.total), (false, 2));
+    assert_eq!(
+        concordance_shape(&got),
+        vec![("global-mine", "global", "mine"), ("work-other", "work", "others")]
+    );
+    assert!(got.hits.iter().all(|h| h.unit_id > 0));
+}
+
+#[test]
+fn a_phrase_only_in_the_work_tier_leaves_the_global_hit_out() {
+    let w = wired("cc-work-only", "一。", true);
+    w.seed_work("他叫师父来。", "w", "other");
+    w.seed_global("没有这个词。", "g", "self");
+    assert_eq!(concordance_shape(&concordance(&w, "师父")), vec![("w", "work", "others")]);
+}
+
+#[test]
+fn two_empty_tiers_report_tm_empty() {
+    let w = wired("cc-empty", "一。", true);
+    let got = concordance(&w, "师父");
+    assert_eq!((got.tm_empty, got.total, got.hits.len()), (true, 0, 0));
+}
+
+#[test]
+fn rows_without_the_phrase_report_no_hit_not_tm_empty() {
+    let w = wired("cc-nohit", "一。", true);
+    w.seed_global("Another sentence.", "x", "self");
+    let got = concordance(&w, "师父");
+    assert_eq!((got.tm_empty, got.total, got.hits.len()), (false, 0, 0));
+}
+
+#[test]
+fn english_matches_case_insensitively_inside_words_and_chinese_matches_raw() {
+    let w = wired("cc-lang", "一。", true);
+    w.seed_work("The Dragon roared.", "en", "self");
+    w.seed_work("龙吼了。", "zh", "self");
+    assert_eq!(concordance(&w, "dragon").total, 1);
+    assert_eq!(concordance(&w, "ragon ro").total, 1);
+    assert_eq!(concordance(&w, "dragons").total, 0);
+    assert_eq!(concordance(&w, "龙").total, 1);
+    assert_eq!(concordance(&w, "龍").total, 0);
+}
+
+#[test]
+fn nfd_text_and_nfc_query_hit_the_same_pair() {
+    let w = wired("cc-nfc", "一。", true);
+    w.seed_work("A cafe\u{301} nearby.", "n", "self");
+    assert_eq!(concordance(&w, "caf\u{e9}").total, 1);
+}
+
+#[test]
+fn more_than_fifty_matches_ship_fifty_rows_and_the_true_total() {
+    let w = wired("cc-cap", "一。", true);
+    for n in 0..120 {
+        w.seed_work(&format!("师父 {n}。"), "t", "other");
+    }
+    let got = concordance(&w, "师父");
+    assert_eq!((got.hits.len(), got.total), (50, 120));
+}
+
+#[test]
+fn a_blank_query_hits_nothing() {
+    let w = wired("cc-blank", "一。", true);
+    w.seed_work("师父。", "t", "other");
+    let got = concordance(&w, "  ");
+    assert_eq!((got.total, got.hits.len(), got.tm_empty), (0, 0, false));
+}
+
+#[test]
+fn with_no_work_open_the_global_tier_alone_answers() {
+    let dir = temp_dir("cc-nowork");
+    let global = open_global_db(&dir);
+    seed(&global, &[("师父在这里。", "g", "self")]);
+    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    app.manage(OpenWorkState::new(None));
+    app.manage(global);
+    let got = wire::tm_concordance(app.handle().clone(), "师父".to_owned()).expect("tra");
+    assert_eq!(got.hits.iter().map(|h| (h.target_text.as_str(), h.tier)).collect::<Vec<_>>(), vec![("g", "global")]);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn an_unmanaged_global_store_is_an_error_not_a_tm_empty_answer() {
+    let w = wired("cc-noglobal", "一。", false);
+    assert!(wire::tm_concordance(w.app.handle().clone(), "师父".to_owned()).is_err());
+}

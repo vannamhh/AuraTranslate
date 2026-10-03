@@ -969,6 +969,7 @@ pub fn run() {
             crate::commands::segment::wire::promote_ai_translation,
             crate::commands::segment::wire::tm_fuzzy_matches,
             crate::commands::segment::wire::accept_tm_fuzzy,
+            crate::commands::segment::wire::tm_concordance,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

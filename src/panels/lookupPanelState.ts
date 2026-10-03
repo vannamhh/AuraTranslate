@@ -23,6 +23,7 @@ import type { LookupResponse, QueryRoute, SenseRecord, SourceGroup } from '../co
 // `lookupHistoryState`, tệp kia KHÔNG biết tệp này. Đảo lại là một vòng import.
 import { recordLookup, resetLookupHistory } from './lookupHistoryState'
 import type { IpcError } from '../i18n'
+import { resetConcordance } from './concordanceState'
 
 /**
  * 🔴 **AC5 — vị từ "bất đồng", hàm THUẦN xuất được** (không một biểu thức chôn trong
@@ -352,4 +353,5 @@ export function resetLookupPanel(): void {
   // mới"* của AC12 tự rụng cùng phạm vi cũ — đọc doc-comment của `resetLookupHistory()`
   // để thấy hàm đó vứt đúng cái gì và cố ý giữ lại cái gì.
   resetLookupHistory()
+  resetConcordance()
 }

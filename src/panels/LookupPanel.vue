@@ -63,6 +63,14 @@ import {
   sessionLookupCount,
 } from './lookupHistoryState'
 import { tError } from '../i18n'
+import {
+  concordanceError,
+  concordanceProbeTotalFor,
+  concordanceResponse,
+  concordanceNoGlossarySelection,
+  concordanceView,
+  probeConcordanceCount,
+} from './concordanceState'
 import type { SenseRecord, SourceGroup } from '../config/dict'
 
 defineProps<DockviewPanelProps>()
@@ -94,9 +102,25 @@ defineProps<DockviewPanelProps>()
 const showFrameStatus = computed(() => neverLookedUp.value && lookupTab.value === 'record')
 
 /** `id` của tab đang chọn — `aria-labelledby` của vùng nội dung trỏ về đúng nút đó. */
-const tabpanelLabelledBy = computed(() =>
-  lookupTab.value === 'record' ? 'lookup-tab-record' : 'lookup-tab-history',
+const tabpanelLabelledBy = computed(() => `lookup-tab-${lookupTab.value}`)
+
+const probeTotal = computed(() => concordanceProbeTotalFor(currentQuery.value))
+
+watch(
+  () => (lookupResolved.value && notFound.value ? currentQuery.value : null),
+  (query) => {
+    void probeConcordanceCount(query ?? '')
+  },
+  { immediate: true },
 )
+
+function tierLabelKey(tier: 'work' | 'global'): string {
+  return tier === 'work' ? 'tm.fuzzy.tier_work' : 'tm.fuzzy.tier_global'
+}
+
+function sideLabelKey(side: 'mine' | 'others'): string {
+  return side === 'mine' ? 'tm.fuzzy.side_mine' : 'tm.fuzzy.side_others'
+}
 
 /**
  * Đổi tab bằng MŨI TÊN — dispatch **và** dời tiêu điểm DOM sang nút vừa được chọn.
@@ -412,13 +436,7 @@ onBeforeUnmount(() => {
         vỡ ở đây với thanh nhịp, 1.18 vỡ lần hai với vạch tiến trình, 1.19 phải tách dải
         chip ra ngoài. `--lookup-head-height` giữ NGUYÊN giá trị **và** NGUYÊN vai trò.
 
-        🔴 **HAI tab, không ba** — Quyết định #4. `lookup-history-pins.html:103` vẽ ba tab
-        gồm `Concordance`, nhưng đo trên mã thật 2026-08-10: `grep -rn "Concordance" src/`
-        trả **0** lần, và hai doc-comment duy nhất ở `commands/dict.rs` đều nói Concordance
-        là **FR64, Story 7.7** — một năng lực khác chưa dựng. Chữ *"tab thứ ba"* trong AC5
-        là ngôn ngữ của mockup; mệnh đề thật của AC5 là *"trong Panel Lookup, không phải
-        một cửa sổ riêng"*, và điều đó được thoả. Mockup **không** sửa (Quyết định #3 của
-        Story 1.3); lệch ghi vào §Change Log.
+        Ba tab theo thứ tự của `lookup-history-pins.html:103`: Từ điển · Concordance · Lịch sử.
 
         🔴 Năm thuộc tính là bắt buộc, không trang trí: `role="tab"` · `aria-selected` ·
         `aria-controls` · `tabindex` roving (đúng MỘT tab trong vòng Tab) · mũi tên
@@ -436,9 +454,22 @@ onBeforeUnmount(() => {
           :tabindex="lookupTab === 'record' ? 0 : -1"
           :class="{ active: lookupTab === 'record' }"
           @click="dispatch('lookup.select_tab_record')"
-          @keydown.right.prevent="moveTabFocus('lookup.select_tab_history', 'lookup-tab-history')"
+          @keydown.right.prevent="moveTabFocus('lookup.select_tab_concordance', 'lookup-tab-concordance')"
           @keydown.left.prevent="moveTabFocus('lookup.select_tab_history', 'lookup-tab-history')"
         >{{ t('panel.lookup.tab_record') }}</button>
+        <button
+          id="lookup-tab-concordance"
+          type="button"
+          class="lookup-tab"
+          role="tab"
+          aria-controls="lookup-tabpanel"
+          :aria-selected="lookupTab === 'concordance'"
+          :tabindex="lookupTab === 'concordance' ? 0 : -1"
+          :class="{ active: lookupTab === 'concordance' }"
+          @click="dispatch('lookup.select_tab_concordance')"
+          @keydown.right.prevent="moveTabFocus('lookup.select_tab_history', 'lookup-tab-history')"
+          @keydown.left.prevent="moveTabFocus('lookup.select_tab_record', 'lookup-tab-record')"
+        >{{ t('panel.lookup.tab_concordance') }}</button>
         <button
           id="lookup-tab-history"
           type="button"
@@ -450,7 +481,7 @@ onBeforeUnmount(() => {
           :class="{ active: lookupTab === 'history' }"
           @click="dispatch('lookup.select_tab_history')"
           @keydown.right.prevent="moveTabFocus('lookup.select_tab_record', 'lookup-tab-record')"
-          @keydown.left.prevent="moveTabFocus('lookup.select_tab_record', 'lookup-tab-record')"
+          @keydown.left.prevent="moveTabFocus('lookup.select_tab_concordance', 'lookup-tab-concordance')"
         >{{ t('panel.lookup.tab_history') }}</button>
       </div>
 
@@ -584,7 +615,15 @@ onBeforeUnmount(() => {
           <p v-else-if="lookupResolved && lookupRoute !== null && everySourceOffForRoute(lookupRoute)" class="lookup-empty">
             {{ t('panel.lookup.all_sources_off') }}
           </p>
-          <p v-else-if="lookupResolved && notFound" class="lookup-empty">{{ t('panel.lookup.not_found') }}</p>
+          <template v-else-if="lookupResolved && notFound">
+            <p class="lookup-empty">{{ t('panel.lookup.not_found') }}</p>
+            <button
+              v-if="probeTotal !== null && probeTotal > 0"
+              type="button"
+              class="lookup-concordance-pointer"
+              @click="dispatch('tm.concordance')"
+            >{{ t('tm.concordance.pointer', { n: String(probeTotal) }) }}</button>
+          </template>
           <template v-else-if="lookupDisplayable">
             <!-- AC5 — dòng dẫn bất đồng ĐỨNG TRƯỚC khi liệt kê các khối nguồn. -->
             <p v-if="disagree" class="lookup-disagree">{{ t('panel.lookup.sources_disagree') }}</p>
@@ -597,6 +636,52 @@ onBeforeUnmount(() => {
             />
           </template>
         </template>
+        </template>
+
+        <template v-else-if="lookupTab === 'concordance'">
+          <p v-if="concordanceView === 'error' && concordanceError !== null" class="lookup-empty">
+            {{ t('tm.concordance.error') }}
+          </p>
+          <p v-else-if="concordanceView === 'not_searched'" class="lookup-empty">
+            {{ t('tm.concordance.not_searched') }}
+          </p>
+          <p v-else-if="concordanceView === 'pending'" class="lookup-empty">{{ t('tm.concordance.searching') }}</p>
+          <p v-else-if="concordanceView === 'no_glossary_term'" class="lookup-empty">
+            {{ t('tm.concordance.no_glossary_term', { query: concordanceNoGlossarySelection ?? '' }) }}
+          </p>
+          <template v-else-if="concordanceView === 'tm_empty'">
+            <p class="lookup-empty-title">{{ t('tm.concordance.tm_empty_title') }}</p>
+            <p class="lookup-empty">{{ t('tm.concordance.tm_empty_body') }}</p>
+          </template>
+          <p v-else-if="concordanceView === 'no_hit' && concordanceResponse !== null" class="lookup-empty">
+            {{ t('tm.concordance.no_hit', { query: concordanceResponse.query }) }}
+          </p>
+          <template v-else-if="concordanceView === 'hits' && concordanceResponse !== null">
+            <div class="lookup-section">
+              <span class="lookup-section-label">{{ t('tm.concordance.query', { query: concordanceResponse.query }) }}</span>
+              <span class="lookup-section-count">{{ t('tm.concordance.count', { total: String(concordanceResponse.total) }) }}</span>
+            </div>
+            <p v-if="concordanceResponse.hits.length < concordanceResponse.total" class="lookup-banner">
+              {{
+                t('tm.concordance.truncated', {
+                  shown: String(concordanceResponse.hits.length),
+                  total: String(concordanceResponse.total),
+                })
+              }}
+            </p>
+            <div
+              v-for="hit in concordanceResponse.hits"
+              :key="`${hit.tier}:${hit.unit_id}`"
+              class="concordance-hit"
+              :class="{ 'is-mine': hit.side === 'mine' }"
+            >
+              <!-- aura-allow-text: câu nguồn của cặp TM — DỮ LIỆU người dùng. -->
+              <span class="concordance-source">{{ hit.source_text }}</span>
+              <!-- aura-allow-text: câu đích của cặp TM — DỮ LIỆU người dùng. -->
+              <span class="concordance-target">{{ hit.target_text }}</span>
+              <span class="concordance-meta">{{ t(sideLabelKey(hit.side)) }} · {{ t(tierLabelKey(hit.tier)) }}</span>
+            </div>
+          </template>
         </template>
 
         <!--
@@ -1266,5 +1351,52 @@ onBeforeUnmount(() => {
   margin-top: var(--space-panel-block);
   padding-top: var(--space-panel-block);
   border-top: 1px solid var(--color-outline-faint);
+}
+
+.concordance-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 4px 12px;
+  border-left: 2px solid transparent;
+}
+
+.concordance-hit.is-mine {
+  border-left-color: var(--color-tm-rule);
+}
+
+.concordance-source {
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+  color: var(--color-on-surface);
+}
+
+.concordance-target {
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+.concordance-meta {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-concordance-pointer {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0 0 var(--space-panel-block) 0;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 </style>

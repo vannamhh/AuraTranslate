@@ -66,6 +66,7 @@ type Surface = {
   el: HTMLElement
   role: SelectionRole
   resolve: SelectionResolver | undefined
+  vietnamese: boolean
 }
 
 /**
@@ -89,9 +90,10 @@ export function registerSelectionSurface(
   el: HTMLElement,
   role: SelectionRole,
   resolve?: SelectionResolver,
+  vietnamese = false,
 ): () => void {
   const existing = surfaces.findIndex((s) => s.el === el)
-  const entry: Surface = { el, role, resolve }
+  const entry: Surface = { el, role, resolve, vietnamese }
   if (existing === -1) surfaces.push(entry)
   else surfaces[existing] = entry
 
@@ -121,13 +123,14 @@ export function useSelectionSurface(
   elRef: Readonly<Ref<HTMLElement | null>>,
   role: SelectionRole,
   resolve?: SelectionResolver,
+  vietnamese = false,
 ): void {
   let release: (() => void) | null = null
 
   const sync = (el: HTMLElement | null): void => {
     release?.()
     release = null
-    if (el !== null) release = registerSelectionSurface(el, role, resolve)
+    if (el !== null) release = registerSelectionSurface(el, role, resolve, vietnamese)
   }
 
   watch(elRef, sync, { immediate: true, flush: 'sync' })
@@ -259,6 +262,46 @@ export function currentSelectionTextForGlossaryQuickAdd(): string {
     )
     return ''
   }
+}
+
+/**
+ * Selection text for `tm.concordance`: any registered surface, `'source'` or `'display'`.
+ * `currentSelectionText` is the dictionary path and returns `''` on `display` surfaces.
+ */
+export function currentSelectionTextForConcordance(): string {
+  const selection = window.getSelection()
+  if (selection === null) return ''
+
+  const surface = surfaceFor(selection)
+  if (surface === null) return ''
+
+  if (surface.resolve === undefined) return selection.toString()
+
+  try {
+    return surface.resolve(selection) ?? ''
+  } catch (err) {
+    console.error(`[selection] \`resolve()\` ném khi lấy văn bản vùng chọn (Concordance): ${String(err)}`)
+    return ''
+  }
+}
+
+/** `data-segment-id` of the grid row holding the selection; `null` outside a grid row (e.g. AI Translation). */
+export function currentSelectionSegmentIdForConcordance(): number | null {
+  const selection = window.getSelection()
+  const anchor = selection?.anchorNode ?? null
+  if (anchor === null) return null
+  const el = anchor instanceof Element ? anchor : anchor.parentElement
+  const raw = el?.closest('[data-segment-id]')?.getAttribute('data-segment-id') ?? null
+  if (raw === null) return null
+  const id = Number(raw)
+  return Number.isInteger(id) ? id : null
+}
+
+/** `true` when the selection sits on a surface that declared itself Vietnamese text (AI Translation, Editor). */
+export function currentSelectionIsVietnameseForConcordance(): boolean {
+  const selection = window.getSelection()
+  if (selection === null) return false
+  return surfaceFor(selection)?.vietnamese === true
 }
 
 /**

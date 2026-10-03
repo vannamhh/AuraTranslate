@@ -88,7 +88,7 @@ const surface = useTemplateRef<HTMLElement>('surface')
 // đọc vùng chọn ở đây bằng lệnh của RIÊNG chúng; `'display'` tắt đúng MỘT đường —
 // `currentSelectionText()`, tức đường tra TỪ ĐIỂN — chứ không tắt việc bề mặt được đăng ký.
 // Ghim bằng máy: `check-commands.mjs` Kiểm F ③.
-useSelectionSurface(surface, 'display')
+useSelectionSurface(surface, 'display', undefined, true)
 
 // Nạp danh sách bộ prompt hai tầng khi panel dựng — cùng lý do `openGlossaryManage()` nạp
 // lại mỗi lần lớp phủ Quản lý mở: bộ có thể vừa được tạo/xoá/đổi tên ở một phiên trước, hoặc

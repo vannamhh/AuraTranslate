@@ -52,8 +52,9 @@ import type { PinnedEntry } from '../config/pinned'
 import type { LookupResponse } from '../config/dict'
 import type { IpcError } from '../i18n'
 
-/** Hai tab của thân Panel Lookup — Quyết định #4 (KHÔNG có `Concordance`, FR64/Story 7.7). */
-export type LookupTab = 'record' | 'history'
+/** Tabs of the Panel Lookup body, in strip order. */
+export const LOOKUP_TABS = ['record', 'concordance', 'history'] as const
+export type LookupTab = (typeof LOOKUP_TABS)[number]
 
 /**
  * Một mục từ có thể ghim — **cùng bốn trường** mà `pinned_entry` lưu.

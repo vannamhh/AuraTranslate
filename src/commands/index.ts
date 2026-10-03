@@ -705,7 +705,7 @@ export type CommandDeps = {
   // — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
 
   /** Chọn tab của Panel Lookup. Handler của `lookup.select_tab_*` (AC5, AC6). */
-  selectLookupTab?: (tab: 'record' | 'history') => void
+  selectLookupTab?: (tab: 'record' | 'concordance' | 'history') => void
   /**
    * Ghim hoặc bỏ ghim mục từ **đang xem**. Handler của `lookup.toggle_pin` (AC2).
    *
@@ -866,6 +866,8 @@ export type CommandDeps = {
   deferGlossaryConfirmStrip?: () => void
 
   // ── Fuzzy TM strip (FR59) ──
+  /** Searches the TM for the selection and opens the Concordance tab. Handler of `tm.concordance`. */
+  openTmConcordance?: () => void
   /** Moves focus from the cell into the strip. Handler of `tm.fuzzy.focus`. */
   focusTmFuzzyStrip?: () => void
   /** Aims the next row. Handler of `tm.fuzzy.next`. */
@@ -2489,6 +2491,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    */
   for (const [id, tab] of [
     ['lookup.select_tab_record', 'record'],
+    ['lookup.select_tab_concordance', 'concordance'],
     ['lookup.select_tab_history', 'history'],
   ] as const) {
     target.register({
@@ -3150,6 +3153,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.confirm.defer', 'deferGlossaryConfirmStrip')
       }
       deps.deferGlossaryConfirmStrip()
+    },
+  })
+
+  target.register({
+    id: 'tm.concordance',
+    labelKey: 'command.tm.concordance',
+    keys: ['F3', 'Mod+Alt+N'],
+    run: () => {
+      if (deps.openTmConcordance === undefined) return portMissing('tm.concordance', 'openTmConcordance')
+      deps.openTmConcordance()
     },
   })
 

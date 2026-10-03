@@ -1034,6 +1034,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "quet TOAN BO cap TM ca hai tang (Dice tren n-gram), chi phi scale theo kich thuoc TM",
         ),
         (
+            "src/commands/segment.rs",
+            "pub fn tm_concordance<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "doc TOAN BO cap TM ca hai tang roi loc chuoi con, chi phi scale theo kich thuoc TM",
+        ),
+        (
             "src/commands/library.rs",
             "pub fn library_rescan(app: tauri::AppHandle",
             "quet MOI .atproj trong goc (I/O dong bo) roi ghi qua `store::Writer` -- AC1 doi giao \
@@ -1652,8 +1657,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     // 🔵 SUA 2026-09-21 (Story 4.8, Phase 2) -- 14 → 15: `promote_ai_translation` (vo PLAIN,
     // mot cau `UPDATE` tuc thoi) them vao.
     // `tm_fuzzy_matches` is the one `(async)` shell here: it scans every pair of both TM tiers.
+    // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` is plain: one pair read by id, then the promote `UPDATE`.
-    ("src/commands/segment.rs", 16, 1, 1, ""),
+    ("src/commands/segment.rs", 16, 2, 2, ""),
     (
         "src/lib.rs",
         2,
@@ -1800,9 +1806,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (62, 42),
+        (62, 43),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         62/42 (70/31 truoc lo B cua Story 11.7: chin vo plain doi sang `(async)` va \
+         62/43 (70/31 truoc lo B cua Story 11.7: chin vo plain doi sang `(async)` va \
          `prompt_set_export_many` la vo `(async)` moi).\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \

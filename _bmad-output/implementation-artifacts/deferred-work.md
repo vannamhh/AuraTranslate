@@ -899,6 +899,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 📝 **Trần đường lui `SUBSTRING_FALLBACK_CEILING = 4` chưa có số đo hành vi người dùng đỡ lưng** (`src-tauri/src/commands/dict.rs`). Con số dựng trên một lý lẽ ngôn ngữ (*một thành ngữ tiếng Trung là bốn ký tự — đơn vị dài nhất còn đáng tra như chuỗi con*), không trên nhật ký bôi đen thật. Bench đo được **78/166** truy vấn đi qua đường lui, tức nó không phải một nhánh hiếm. Nhặt lại khi có dữ liệu dùng thật, hoặc ở **Story 7.7** (Concordance — chủ thật sự của `Substring`). **(Chủ: story kế tiếp đo hành vi người dùng thật trên `SUBSTRING_FALLBACK_CEILING`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/commands/dict.rs:139 `const SUBSTRING_FALLBACK_CEILING: usize = 4` không đổi; sprint-status.yaml liệt `7-7-concordance: backlog`. **Chủ: Story 7.7.**
+  → 2026-10-03 (Story 7.7): Concordance KHÔNG dùng `SUBSTRING_FALLBACK_CEILING` (nó tìm chuỗi con thô trên cả hai tầng TM, không có trần ký tự); trần này vẫn chỉ của từ điển và cần nhật ký bôi đen thật. **Chủ: Ice.**
 
 ## Deferred from: code review of 1-18-auto-lookup (2026-08-07)
 
@@ -1430,6 +1431,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   khi cả chín cổng vẫn xanh — không cổng nào đọc thứ tự tab. Thứ tự đúng:
   **`Từ điển` · `Concordance` · `Lịch sử`**, khớp `lookup-history-pins.html:103`.
   **Chủ: Story 7.7.**
+  → ✅ ĐÃ ĐÓNG 2026-10-03 (Story 7.7): tab Concordance đứng GIỮA, `Từ điển · Concordance · Lịch sử`; `LOOKUP_TABS` trong `lookupHistoryState.ts` giữ thứ tự và `tests/frontend/tmConcordance.test.ts` đọc thứ tự (đặt nút Concordance sau Lịch sử trong template làm ca đó đỏ).
 
 ## Deferred from: 1-21-phim-tat-cau-hinh-lai-duoc (2026-08-11)
 
@@ -2460,6 +2462,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   qua `currentSelectionText()`. **Chủ phần còn lại: Story 7.7** — dựng đường đọc riêng tương tự
   cho lệnh Concordance khi story đó tới lượt.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Về Story 3.3 đóng: selectionContract.ts::currentSelectionTextForGlossaryQuickAdd là đường đọc riêng, glossary.add_term gọi thẳng nó; còn thiếu: Không tìm thấy chữ Concordance nào trong src/; Story 7.7 (FR60) vẫn backlog trong sprint-status.yaml, đường đọc vùng chọn riêng cho Concordance chưa dựng. **Chủ: 7-7-concordance.**
+  → ✅ ĐÃ ĐÓNG 2026-10-03 (Story 7.7): vế Story 7.7 xong — `selectionContract.ts::currentSelectionTextForConcordance` là đường đọc riêng (dùng lại `surfaceFor`, không lọc theo `role`), lệnh `tm.concordance` gọi thẳng nó, không qua `currentSelectionText()`; `tests/frontend/tmConcordanceSelection.test.ts` đọc được chữ trên bề mặt `display`.
 
 - 📝 **Vế bằng MẮT của lượt sửa này chưa chạy — CHỦ: Ice.** Ba mệnh đề phải xác nhận trên
   `tauri dev` THẬT *(mọi bằng chứng ở trên là vitest trên happy-dom + cổng tĩnh, không phải
@@ -12762,3 +12765,22 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-6-thuat-toan-khop-theo-ngon-ngu.md`
   summary: The ASCII-only En tokenizer of `core/matching` turns NFC `café` into `caf`, so a Glossary term `café` also hits a bare `caf` or `cafè`. NFD `café` becomes `cafe`, and its Glossary mark stops before U+0301, cutting a grapheme cluster.
   evidence: Glossary and TM agree, so parity holds (`tests/tm_contract.rs::glossary_and_tm_catch_exactly_the_same_variants_in_both_directions`, rows `café`/`cafe` and NFD/`cafe`). The behaviour predates Story 7.6 and belongs with the NFC/NFD family AD (§Deferred from: code review of 1-11b-duong-tra-cuu-tieng-anh). Chủ: Winston.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: `tm.concordance` defaults to `F3` and `Mod+Alt+N` (Ice, 2026-10-03). On macOS bare `F3` is Mission Control unless Fn is held or "standard function keys" is on, so it may never reach the webview; unverified on a real Mac.
+  evidence: `src/commands/keys.ts` skips bare chords in typing zones (Editor cell ⇒ only `Mod+Alt+N`); macOS keyboard default for F3. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: The Concordance source-span highlight is drawn only in the plain source cell, not in the Hán Việt view (`SourceHanViet.vue` has its own pieces), and Esc does not clear it (chapter switch and segment replacement do).
+  evidence: `GridPanel.vue` `concordance-source` class and `tmConcordanceCommandDeps.ts` watches; `tests/frontend/tmConcordanceHighlight.test.ts` covers the plain cell only. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: In the real app, unverified: F3 on a source-grid selection, the Concordance tab in the narrow-layout drawer, hit-row layout, the source highlight colour (`--color-surface-accent`) and and the not-found pointer.
+  evidence: happy-dom cannot show focus or layout; no e2e covers the tab (spec Manual checks). Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: `tm_concordance` reads every pair of both tiers per search and filters in Rust (no SQL prefilter, no index); only the Rust shape was measured against the spec's 100k-row figures, not the shipped command end to end in a release build.
+  evidence: NFC and case-insensitive match is not expressible in SQLite; `core/tm/mod.rs::load_concordance_candidates`. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: `Mod+Alt+N` (`tm.concordance`) unverified on Windows, where Ctrl+Alt is AltGr on many layouts.
+  evidence: no Windows real-app pass; CI runs no keyboard e2e. Chủ: B7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-7-concordance.md`
+  summary: Unverified (review finding, maybe-false, medium if true): the `tm_concordance` wire holds `OpenWorkState` while reading every pair of both tiers, like `tm_fuzzy_matches`, and the dictionary not-found probe now runs it on every miss, so a flush or confirm may wait for that read.
+  evidence: `commands/segment.rs::wire::tm_concordance` calls `prepare_tm_concordance` under the guard; settle by timing a confirm issued during a probe at 100k rows per tier in a release build. Chủ: Epic 7.
