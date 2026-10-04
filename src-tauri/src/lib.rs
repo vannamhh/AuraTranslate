@@ -976,6 +976,10 @@ pub fn run() {
             crate::commands::tm::wire::tm_delete_pair,
             crate::commands::tm::wire::tm_delete_others,
             crate::commands::tm::wire::tm_push_pair_to_global,
+            crate::commands::tm::wire::tm_export_tier,
+            crate::commands::tm::wire::tm_open_import_preview,
+            crate::commands::tm::wire::tm_confirm_import,
+            crate::commands::tm::wire::tm_cancel_import,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
@@ -1221,6 +1225,7 @@ fn open_work_slot(app: &tauri::App) {
     // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
     // xem close_open_work.
     app.manage(crate::commands::glossary::PendingImportState::new(None));
+    app.manage(crate::commands::tm::PendingTmxImportState::new(None));
     // Story 4.5 (AD-48) -- lo nhap bo prompt dang TREO giua nhip mot va nhip hai. Quan ly
     // canh OpenWorkState cung ly do PendingImportState cua Glossary ngay tren -- nua Tac
     // pham cua lo (neu co) phai chet cung Tac pham dang mo no, xem close_open_work.
@@ -1366,6 +1371,9 @@ fn close_open_work(handle: &tauri::AppHandle) {
             &pending,
             crate::core::glossary::GlossaryTier::Work,
         );
+    }
+    if let Some(pending) = handle.try_state::<crate::commands::tm::PendingTmxImportState>() {
+        crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
     }
     // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt: chi ha `work_kind` ve `None`
     // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).

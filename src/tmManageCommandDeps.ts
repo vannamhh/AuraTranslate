@@ -1,15 +1,18 @@
 import type { CommandDeps } from './commands'
+import { cancelTmImportPreview, confirmTmImportPreview, openTmImportPreviewOverlay } from './tmImportState'
 import {
   beginTmManageEdit,
   cancelTmManageEdit,
   closeTmManage,
   deleteTmManageOthers,
   deleteTmManagePair,
+  exportTmManageTier,
   nextTmManageRow,
   openTmManage,
   prevTmManageRow,
   pushTmManagePair,
   saveTmManageEdit,
+  tmManageExchangeTier,
 } from './tmManageState'
 
 /** The `CommandDeps` handlers of the TM management overlay; `main.ts` spreads these. */
@@ -25,6 +28,10 @@ export function tmManageCommandDeps(): Pick<
   | 'pushTmManagePair'
   | 'nextTmManageRow'
   | 'prevTmManageRow'
+  | 'exportTmManageTier'
+  | 'openTmImportPreview'
+  | 'confirmTmImportPreview'
+  | 'cancelTmImportPreview'
 > {
   return {
     openTmManage: () => {
@@ -47,5 +54,17 @@ export function tmManageCommandDeps(): Pick<
     },
     nextTmManageRow,
     prevTmManageRow,
+    exportTmManageTier: () => {
+      void exportTmManageTier()
+    },
+    openTmImportPreview: () => {
+      void openTmImportPreviewOverlay(tmManageExchangeTier.value)
+    },
+    confirmTmImportPreview: () => {
+      void confirmTmImportPreview()
+    },
+    cancelTmImportPreview: () => {
+      void cancelTmImportPreview()
+    },
   }
 }

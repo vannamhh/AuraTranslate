@@ -1049,6 +1049,26 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "mot DELETE moi nguon goc phia nguoi khac tren moi kho, co the xoa hang chuc nghin cap",
         ),
         (
+            "src/commands/tm.rs",
+            "pub fn tm_export_tier<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "hop thoai LUU chan (blocking_save_file), tren luong chinh la bi dung vong lap su kien ma hop thoai dang cho",
+        ),
+        (
+            "src/commands/tm.rs",
+            "pub fn tm_open_import_preview<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "hop thoai CHON chan (blocking_pick_file), cung ly do voi xuat",
+        ),
+        (
+            "src/commands/tm.rs",
+            "pub fn tm_confirm_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "ghi mot giao dich cho moi cap cua lo nhap (toi 64 MiB TMX), giu PendingTmxImportState suot luot ghi",
+        ),
+        (
+            "src/commands/tm.rs",
+            "pub fn tm_cancel_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "khoa `PendingTmxImportState`, mutex ma `tm_confirm_import` giu suot luot ghi",
+        ),
+        (
             "src/commands/library.rs",
             "pub fn library_rescan(app: tauri::AppHandle",
             "quet MOI .atproj trong goc (I/O dong bo) roi ghi qua `store::Writer` -- AC1 doi giao \
@@ -1673,7 +1693,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
-    ("src/commands/tm.rs", 3, 2, 2, ""),
+    ("src/commands/tm.rs", 3, 6, 6, ""),
     (
         "src/lib.rs",
         2,
@@ -1820,9 +1840,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (66, 45),
+        (66, 49),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         66/45.\n\n\
+         66/49.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -45,6 +45,31 @@ export type TmDeleteOthersOutcome = {
   deleted_global: number
 }
 
+export type TmxImportPreview = {
+  file_name: string
+  tier: TmManageTier
+  unit_count: number
+  new_count: number
+  already_count: number
+  skipped_count: number
+}
+
+export type TmxImportSummary = { inserted: number; already_count: number }
+
+export type TmExportResult =
+  | { outcome: 'done'; path: string }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+export type TmImportPreviewResult =
+  | { outcome: 'loaded'; preview: TmxImportPreview }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+export type TmConfirmImportResult = { summary: TmxImportSummary | null; error: IpcError | null }
+
 export type TmListResult = {
   listing: TmManageListing | null
   error: IpcError | null
@@ -64,6 +89,10 @@ const CMD_TM_UPDATE_PAIR_TARGET = 'tm_update_pair_target'
 const CMD_TM_DELETE_PAIR = 'tm_delete_pair'
 const CMD_TM_DELETE_OTHERS = 'tm_delete_others'
 const CMD_TM_PUSH_PAIR_TO_GLOBAL = 'tm_push_pair_to_global'
+const CMD_TM_EXPORT_TIER = 'tm_export_tier'
+const CMD_TM_OPEN_IMPORT_PREVIEW = 'tm_open_import_preview'
+const CMD_TM_CONFIRM_IMPORT = 'tm_confirm_import'
+const CMD_TM_CANCEL_IMPORT = 'tm_cancel_import'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -260,5 +289,77 @@ export async function tmPushPairToGlobal(
     return { pair, error: null }
   } catch (err) {
     return { pair: null, error: failureOf(err, CMD_TM_PUSH_PAIR_TO_GLOBAL) }
+  }
+}
+
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function isImportPreview(value: unknown): value is TmxImportPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmxImportPreview>
+  return (
+    typeof v.file_name === 'string' &&
+    isTier(v.tier) &&
+    isCount(v.unit_count) &&
+    isCount(v.new_count) &&
+    isCount(v.already_count) &&
+    isCount(v.skipped_count)
+  )
+}
+
+function isImportSummary(value: unknown): value is TmxImportSummary {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmxImportSummary>
+  return isCount(v.inserted) && isCount(v.already_count)
+}
+
+/** Opens the save dialog in Rust and writes one tier as TMX. `null` from Rust is a cancelled dialog. Never throws. */
+export async function tmExportTier(tier: TmManageTier): Promise<TmExportResult> {
+  try {
+    const path = await invoke<unknown>(CMD_TM_EXPORT_TIER, { tier })
+    if (path === null) return { outcome: 'cancelled' }
+    if (typeof path !== 'string' || path === '') {
+      return { outcome: 'error', error: malformed(path, CMD_TM_EXPORT_TIER) }
+    }
+    return { outcome: 'done', path }
+  } catch (err) {
+    const error = failureOf(err, CMD_TM_EXPORT_TIER)
+    return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
+  }
+}
+
+/** Opens the pick dialog in Rust, parses the file and keeps the plan there. Never throws. */
+export async function tmOpenImportPreview(tier: TmManageTier): Promise<TmImportPreviewResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_TM_OPEN_IMPORT_PREVIEW, { tier })
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!isImportPreview(wire)) {
+      return { outcome: 'error', error: malformed(wire, CMD_TM_OPEN_IMPORT_PREVIEW) }
+    }
+    return { outcome: 'loaded', preview: wire }
+  } catch (err) {
+    const error = failureOf(err, CMD_TM_OPEN_IMPORT_PREVIEW)
+    return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
+  }
+}
+
+export async function tmConfirmImport(): Promise<TmConfirmImportResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_TM_CONFIRM_IMPORT)
+    if (!isImportSummary(wire)) return { summary: null, error: malformed(wire, CMD_TM_CONFIRM_IMPORT) }
+    return { summary: wire, error: null }
+  } catch (err) {
+    return { summary: null, error: failureOf(err, CMD_TM_CONFIRM_IMPORT) }
+  }
+}
+
+export async function tmCancelImport(): Promise<TmAckResult> {
+  try {
+    await invoke<unknown>(CMD_TM_CANCEL_IMPORT)
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: failureOf(err, CMD_TM_CANCEL_IMPORT) }
   }
 }

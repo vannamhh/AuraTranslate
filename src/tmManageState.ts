@@ -7,8 +7,24 @@
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { tmDeleteOthers, tmDeletePair, tmListPairs, tmPushPairToGlobal, tmUpdatePairTarget } from './config/tm'
-import type { TmHealthEntry, TmManageListing, TmManageOriginFilter, TmManageRow, TmManageTierFilter } from './config/tm'
+import {
+  tmDeleteOthers,
+  tmDeletePair,
+  tmExportTier,
+  tmListPairs,
+  tmPushPairToGlobal,
+  tmUpdatePairTarget,
+} from './config/tm'
+import type {
+  TmHealthEntry,
+  TmManageListing,
+  TmManageOriginFilter,
+  TmManageRow,
+  TmManageTier,
+  TmManageTierFilter,
+  TmxImportSummary,
+} from './config/tm'
+import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
 
 export type TmManageStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -47,6 +63,12 @@ const bulkDeleted = ref<{ work: number; global: number } | null>(null)
 export const TM_MANAGE_SEARCH_DEBOUNCE_MS = 150
 
 let session = 0
+const exchangeTierState = ref<TmManageTier>('global')
+const exportBusy = ref(false)
+const exportError = ref<IpcError | null>(null)
+const exportIpcUnavailable = ref(false)
+const exportedPath = ref<string | null>(null)
+const importDone = ref<TmxImportSummary | null>(null)
 let listToken = 0
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -67,6 +89,18 @@ export const tmManageActionNotice: DeepReadonly<
   Ref<'push_not_applicable' | 'work_not_open' | 'pushed' | 'pushed_unlisted' | null>
 > = readonly(actionNotice)
 export const tmManageBulkDeleted: DeepReadonly<Ref<{ work: number; global: number } | null>> = readonly(bulkDeleted)
+
+export const tmManageExchangeTier: DeepReadonly<Ref<TmManageTier>> = readonly(exchangeTierState)
+export const tmManageExportBusy: DeepReadonly<Ref<boolean>> = readonly(exportBusy)
+export const tmManageExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
+export const tmManageExportIpcUnavailable: DeepReadonly<Ref<boolean>> = readonly(exportIpcUnavailable)
+export const tmManageExportedPath: DeepReadonly<Ref<string | null>> = readonly(exportedPath)
+
+export const tmManageImportDone: DeepReadonly<Ref<TmxImportSummary | null>> = readonly(importDone)
+
+export function noteTmImportDone(summary: TmxImportSummary | null): void {
+  importDone.value = summary
+}
 
 export const tmManageWorkOpen = computed<boolean>(() => listing.value?.work_open ?? false)
 export const tmManageTmEmpty = computed<boolean>(() => listing.value?.tm_empty ?? false)
@@ -175,7 +209,56 @@ export async function openTmManage(): Promise<void> {
   if (overlayOpen.value) return
   resetTmManage()
   overlayOpen.value = true
+  const mySession = session
   await loadRows(null)
+  if (mySession === session && listing.value !== null) {
+    exchangeTierState.value = listing.value.work_open ? 'work' : 'global'
+  }
+}
+
+export async function refreshTmManage(): Promise<void> {
+  if (!overlayOpen.value) return
+  const current = tmManageCurrentRow.value
+  await loadRows(current === null ? null : tmManageRowKey(current))
+  if (listing.value !== null && !listing.value.work_open) exchangeTierState.value = 'global'
+}
+
+export function setTmManageExchangeTier(value: TmManageTier): void {
+  if (exportBusy.value) return
+  if (value === 'work' && !tmManageWorkOpen.value) return
+  exchangeTierState.value = value
+  exportedPath.value = null
+  importDone.value = null
+  exportError.value = null
+  exportIpcUnavailable.value = false
+}
+
+export async function exportTmManageTier(): Promise<void> {
+  if (!overlayOpen.value || exportBusy.value || glossaryExchangeBusy.value) return
+
+  exportBusy.value = true
+  setGlossaryExchangeBusy(true)
+  exportError.value = null
+  exportIpcUnavailable.value = false
+  exportedPath.value = null
+  importDone.value = null
+  const mySession = session
+
+  const result = await tmExportTier(exchangeTierState.value)
+  if (mySession !== session) return
+
+  exportBusy.value = false
+  setGlossaryExchangeBusy(false)
+  if (result.outcome === 'cancelled') return
+  if (result.outcome === 'ipc_unavailable') {
+    exportIpcUnavailable.value = true
+    return
+  }
+  if (result.outcome === 'error') {
+    exportError.value = result.error
+    return
+  }
+  exportedPath.value = result.path
 }
 
 export function closeTmManage(): void {
@@ -210,6 +293,13 @@ export function resetTmManage(): void {
   actionError.value = null
   actionNotice.value = null
   bulkDeleted.value = null
+  exchangeTierState.value = 'global'
+  exportBusy.value = false
+  exportError.value = null
+  exportIpcUnavailable.value = false
+  exportedPath.value = null
+  importDone.value = null
+  resetGlossaryExchangeGate()
 }
 
 function filtersLocked(): boolean {

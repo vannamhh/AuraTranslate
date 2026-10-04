@@ -1,5 +1,5 @@
 /**
- * The Prompt Library, Prompt Import, Glossary Import, TM Manage and Settings dialogs and the quick-add form expose an accessible name: `aria-labelledby`
+ * The Prompt Library, Prompt Import, Glossary Import, TM Manage, TM Import and Settings dialogs and the quick-add form expose an accessible name: `aria-labelledby`
  * resolves to an element that carries the visible title. One case per surface, so removing
  * the attribute from one surface turns only that case red.
  */
@@ -13,6 +13,7 @@ const promptSetOpenImportPreviewMock = vi.fn()
 const openGlossaryImportPreviewMock = vi.fn()
 const lookupGlossaryTermMock = vi.fn()
 const tmListPairsMock = vi.fn()
+const tmOpenImportPreviewMock = vi.fn()
 
 vi.mock('../../src/commands', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/commands')>()),
@@ -41,6 +42,10 @@ vi.mock('../../src/config/tm', () => ({
   tmDeletePair: vi.fn(),
   tmDeleteOthers: vi.fn(),
   tmPushPairToGlobal: vi.fn(),
+  tmExportTier: vi.fn(),
+  tmOpenImportPreview: (...args: unknown[]) => tmOpenImportPreviewMock(...args),
+  tmConfirmImport: vi.fn(),
+  tmCancelImport: vi.fn(),
 }))
 
 vi.mock('../../src/config/project', () => ({
@@ -69,6 +74,11 @@ beforeEach(() => {
   tmListPairsMock.mockResolvedValue({
     listing: { work_open: false, tm_empty: true, health: [], total_pairs: 0, total_groups: 0, groups: [] },
     error: null,
+  })
+  tmOpenImportPreviewMock.mockReset()
+  tmOpenImportPreviewMock.mockResolvedValue({
+    outcome: 'loaded',
+    preview: { file_name: 't.tmx', tier: 'global', unit_count: 2, new_count: 1, already_count: 1, skipped_count: 0 },
   })
   openGlossaryImportPreviewMock.mockReset()
   openGlossaryImportPreviewMock.mockResolvedValue({
@@ -146,6 +156,17 @@ describe('aria-labelledby names the surface with its visible title', () => {
     await wrapper.vm.$nextTick()
 
     expectNamedBy(wrapper, '.tm-panel[role="dialog"]', '.tm-title')
+    wrapper.unmount()
+  })
+
+  it('TmImportOverlay', async () => {
+    const state = await import('../../src/tmImportState')
+    const Overlay = (await import('../../src/TmImportOverlay.vue')).default
+    await state.openTmImportPreviewOverlay('global')
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expectNamedBy(wrapper, '.ti-panel[role="dialog"]', '.ti-title')
     wrapper.unmount()
   })
 

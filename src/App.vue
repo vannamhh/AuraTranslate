@@ -56,6 +56,7 @@ import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
 import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
 import TmManageOverlay from './TmManageOverlay.vue'
+import TmImportOverlay from './TmImportOverlay.vue'
 // Story 3.10b — lớp phủ "Xem trước lượt nhập Glossary" (AD-48), lớp phủ THỨ BẢY. Mở TỪ
 // BÊN TRONG `GlossaryManageOverlay`, nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác —
 // `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
@@ -378,6 +379,8 @@ function focusOnPointerDown(event: MouseEvent) {
     <GlossaryManageOverlay />
 
     <TmManageOverlay />
+
+    <TmImportOverlay />
 
     <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
     <GlossaryImportOverlay />

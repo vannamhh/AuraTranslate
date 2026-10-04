@@ -2066,6 +2066,34 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
             && body.contains("clear_pending_prompt_import_work_tier"),
         "phep cat than co the sai vi tri -- nguoi lang gieng Story 4.5 phai nam TRONG than nay:\n{body}"
     );
+    assert!(
+        body.contains("crate::commands::tm::PendingTmxImportState")
+            && body.contains("clear_pending_tmx_import_for_work"),
+        "than `close_open_work` phai don lo nhap TMX tang Work:\n{body}"
+    );
+}
+
+/// `replace_open_work` (every path that swaps the open Work) must drop a pending Work-tier TMX
+/// plan beside its Glossary sibling; `tmx_contract` only calls the helper directly.
+#[test]
+fn replace_open_work_clears_a_pending_tmx_plan_beside_the_glossary_sibling() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/project/mod.rs");
+    let src = fs::read_to_string(&path).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()));
+    let start_marker = "fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: OpenWork) {";
+    let start = src.find(start_marker).unwrap_or_else(|| panic!("khong tim thay `{start_marker}`"));
+    let end = src[start..].find("\n}\n").map(|rel| start + rel).expect("het than ham");
+    let body = &src[start..end];
+
+    assert!(
+        body.contains("crate::commands::glossary::PendingImportState")
+            && body.contains("clear_pending_import_for_tier"),
+        "phep cat than co the sai vi tri -- nguoi lang gieng Glossary phai nam TRONG than nay:\n{body}"
+    );
+    assert!(
+        body.contains("crate::commands::tm::PendingTmxImportState")
+            && body.contains("clear_pending_tmx_import_for_work"),
+        "than `replace_open_work` phai don lo nhap TMX tang Work:\n{body}"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -2303,4 +2331,27 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
     assert_eq!(keys(&outcome), ["deleted_global", "deleted_work"]);
     let arg: TmCopyArg = serde_json::from_value(serde_json::json!({ "tier": "work", "unit_id": 5 })).expect("parse");
     assert_eq!((arg.tier.as_str(), arg.unit_id), ("work", 5));
+}
+
+/// The TMX exchange wire structs keep snake_case keys.
+#[test]
+fn tmx_exchange_wire_structs_keep_their_snake_case_keys() {
+    use auratranslate_lib::commands::tm::{TmxImportPreviewWire, TmxImportSummaryWire};
+    let keys = |v: &serde_json::Value| -> Vec<String> {
+        let mut k: Vec<String> = v.as_object().expect("object").keys().cloned().collect();
+        k.sort();
+        k
+    };
+    let preview = serde_json::to_value(TmxImportPreviewWire {
+        file_name: "a.tmx".to_owned(),
+        tier: "work",
+        unit_count: 4,
+        new_count: 1,
+        already_count: 2,
+        skipped_count: 1,
+    })
+    .expect("serialize");
+    assert_eq!(keys(&preview), ["already_count", "file_name", "new_count", "skipped_count", "tier", "unit_count"]);
+    let summary = serde_json::to_value(TmxImportSummaryWire { inserted: 1, already_count: 0 }).expect("serialize");
+    assert_eq!(keys(&summary), ["already_count", "inserted"]);
 }

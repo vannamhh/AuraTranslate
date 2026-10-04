@@ -25,6 +25,9 @@ pub struct SimilarSegment {
     pub target_text: String,
 }
 
+pub mod tmx;
+pub mod tmx_io;
+
 /// FR118 binary axis over the FR117 origins that may enter TM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PairSide {

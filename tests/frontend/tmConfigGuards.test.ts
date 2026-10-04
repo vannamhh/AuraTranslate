@@ -203,3 +203,58 @@ describe('write wrappers', () => {
     expect(ok.outcome).toEqual({ deleted_work: 2, deleted_global: 0 })
   })
 })
+
+describe('TMX exchange wrappers', () => {
+  it('export sends the tier; null is a cancelled dialog; an empty path is refused', async () => {
+    const a = await freshAdapter()
+    mockInvoke.mockResolvedValue('/tmp/tm_work.tmx')
+    expect(await a.tmExportTier('work')).toEqual({ outcome: 'done', path: '/tmp/tm_work.tmx' })
+    expect(mockInvoke).toHaveBeenCalledWith('tm_export_tier', { tier: 'work' })
+
+    mockInvoke.mockResolvedValue(null)
+    expect(await a.tmExportTier('global')).toEqual({ outcome: 'cancelled' })
+
+    mockInvoke.mockResolvedValue('')
+    expect((await a.tmExportTier('global')).outcome).toBe('error')
+  })
+
+  it('open-preview sends the tier and accepts only a well-formed preview', async () => {
+    const a = await freshAdapter()
+    const wire = { file_name: 'a.tmx', tier: 'global', unit_count: 3, new_count: 1, already_count: 1, skipped_count: 1 }
+    mockInvoke.mockResolvedValue(wire)
+    expect(await a.tmOpenImportPreview('global')).toEqual({ outcome: 'loaded', preview: wire })
+    expect(mockInvoke).toHaveBeenCalledWith('tm_open_import_preview', { tier: 'global' })
+
+    mockInvoke.mockResolvedValue(null)
+    expect(await a.tmOpenImportPreview('global')).toEqual({ outcome: 'cancelled' })
+
+    mockInvoke.mockResolvedValue({ ...wire, new_count: 'x' })
+    expect((await a.tmOpenImportPreview('global')).outcome).toBe('error')
+    mockInvoke.mockResolvedValue({ ...wire, tier: 'both' })
+    expect((await a.tmOpenImportPreview('global')).outcome).toBe('error')
+  })
+
+  it('confirm and cancel take no arguments; confirm refuses a summary without counts', async () => {
+    const a = await freshAdapter()
+    mockInvoke.mockResolvedValue({ inserted: 2, already_count: 1 })
+    expect(await a.tmConfirmImport()).toEqual({ summary: { inserted: 2, already_count: 1 }, error: null })
+    expect(mockInvoke).toHaveBeenCalledWith('tm_confirm_import')
+
+    mockInvoke.mockResolvedValue({ inserted: 2 })
+    expect((await a.tmConfirmImport()).error).not.toBeNull()
+
+    mockInvoke.mockResolvedValue(null)
+    expect(await a.tmCancelImport()).toEqual({ ok: true, error: null })
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_cancel_import')
+  })
+
+  it('an IpcError from Rust comes back as that error on every wrapper', async () => {
+    const a = await freshAdapter()
+    const err = { code: 'tm.tmx_malformed', message_key: 'err.unknown', params: { line: '4' }, retryable: false }
+    mockInvoke.mockRejectedValue(err)
+    expect(await a.tmExportTier('work')).toEqual({ outcome: 'error', error: err })
+    expect(await a.tmOpenImportPreview('work')).toEqual({ outcome: 'error', error: err })
+    expect((await a.tmConfirmImport()).error).toEqual(err)
+    expect((await a.tmCancelImport()).error).toEqual(err)
+  })
+})

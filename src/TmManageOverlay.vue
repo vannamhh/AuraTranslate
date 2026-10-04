@@ -6,10 +6,13 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
-import type { TmManageOriginFilter, TmManageTierFilter, TmPairOrigin } from './config/tm'
+import type { TmManageOriginFilter, TmManageTier, TmManageTierFilter, TmPairOrigin } from './config/tm'
+import { glossaryExchangeBusy } from './glossaryExchangeGate'
+import { tmExchangeErrorText } from './tmExchangeError'
 import {
   cancelTmManageDeleteConfirm,
   setTmManageOriginFilter,
+  setTmManageExchangeTier,
   setTmManageSearch,
   setTmManageTierFilter,
   tmManageActionError,
@@ -23,9 +26,15 @@ import {
   tmManageEditTarget,
   tmManageEditing,
   tmManageEmptyReasonFor,
+  tmManageExchangeTier,
+  tmManageExportBusy,
+  tmManageExportError,
+  tmManageExportIpcUnavailable,
+  tmManageExportedPath,
   tmManageFlatRows,
   tmManageHealth,
   tmManageHealthTotal,
+  tmManageImportDone,
   tmManageLoadError,
   tmManageOriginFilter,
   tmManageOthersCount,
@@ -248,6 +257,11 @@ function actionErrorText(err: IpcError): string {
     default:
       return tError(err)
   }
+}
+
+function onExchangeTierChange(value: TmManageTier, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.checked) setTmManageExchangeTier(value)
 }
 
 function onSearchInput(event: Event): void {
@@ -605,6 +619,79 @@ function onKeydown(event: KeyboardEvent): void {
           {{ t('tm.manage.next') }}
         </button>
       </div>
+      <div v-if="!tmManageEditing" class="tm-exchange">
+        <fieldset class="tm-exchange-tier" role="radiogroup" :aria-label="t('tm.exchange.tier_label')">
+          <legend class="tm-field-label">{{ t('tm.exchange.tier_label') }}</legend>
+          <label class="tm-radio-label">
+            <input
+              type="radio"
+              name="tm-exchange-tier"
+              :disabled="!tmManageWorkOpen"
+              :checked="tmManageExchangeTier === 'work'"
+              @change="onExchangeTierChange('work', $event)"
+            />
+            {{ t('tm.fuzzy.tier_work') }}
+          </label>
+          <label class="tm-radio-label">
+            <input
+              type="radio"
+              name="tm-exchange-tier"
+              :checked="tmManageExchangeTier === 'global'"
+              @change="onExchangeTierChange('global', $event)"
+            />
+            {{ t('tm.fuzzy.tier_global') }}
+          </label>
+        </fieldset>
+        <p v-if="!tmManageWorkOpen" class="tm-status" role="status">{{ t('tm.exchange.work_unavailable') }}</p>
+        <p v-else-if="tmManageExchangeTier === 'global'" class="tm-status" role="status">
+          {{ t('tm.exchange.global_note') }}
+        </p>
+
+        <div class="tm-exchange-actions">
+          <button
+            type="button"
+            class="tm-act"
+            :disabled="glossaryExchangeBusy"
+            @click="dispatch('tm.manage.export_tmx')"
+          >
+            {{ t('tm.exchange.export_tmx') }}
+          </button>
+          <button
+            type="button"
+            class="tm-act"
+            data-tm-import-open
+            :disabled="glossaryExchangeBusy"
+            @click="dispatch('tm.manage.import_tmx')"
+          >
+            {{ t('tm.exchange.import_tmx') }}
+          </button>
+        </div>
+
+        <p v-if="glossaryExchangeBusy && !tmManageExportBusy" class="tm-status" role="status">
+          {{ t('tm.exchange.busy_other') }}
+        </p>
+        <p v-else-if="tmManageExportError !== null" class="tm-status tm-error" role="alert">
+          <!-- aura-allow-text: result of tmExchangeErrorText() computed in the script. -->
+          {{ tmExchangeErrorText(tmManageExportError) }}
+        </p>
+        <p v-else-if="tmManageExportIpcUnavailable" class="tm-status" role="status">
+          {{ t('tm.exchange.export_ipc_unavailable') }}
+        </p>
+        <p v-else-if="tmManageExportBusy" class="tm-status" role="status">{{ t('tm.exchange.exporting') }}</p>
+        <p v-else-if="tmManageExportedPath !== null" class="tm-status" role="status">
+          <!-- aura-allow-text: result of t() with the path interpolated. -->
+          {{ t('tm.exchange.export_done', { path: tmManageExportedPath }) }}
+        </p>
+        <p v-else-if="tmManageImportDone !== null" class="tm-status" role="status">
+          <!-- aura-allow-text: result of t() with the counts interpolated. -->
+          {{
+            t('tm.exchange.import_done', {
+              inserted: String(tmManageImportDone.inserted),
+              already: String(tmManageImportDone.already_count),
+            })
+          }}
+        </p>
+      </div>
     </section>
   </div>
 </template>
@@ -846,5 +933,39 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-act-danger {
   color: var(--color-error);
   border-color: var(--color-error);
+}
+
+.tm-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+.tm-exchange-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.tm-radio-label {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  cursor: pointer;
+}
+
+.tm-exchange-actions {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
 }
 </style>

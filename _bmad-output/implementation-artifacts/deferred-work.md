@@ -12790,6 +12790,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
   summary: The AD-18 date key compares `tm_unit.created_at` as strings, correct only while every row is ISO-8601 UTC with milliseconds; TMX import must write that exact format (TMX `creationdate` is `YYYYMMDDThhmmssZ`).
   evidence: `core/tm/mod.rs::merge_tiers` `newest_first`; today the only writer is `insert_pair` (`strftime('%Y-%m-%dT%H:%M:%fZ','now')`). Chủ: Story 7.10.
+  → ✅ ĐÃ ĐÓNG 2026-10-04 (Story 7.10): TMX import writes `created_at` only as `YYYY-MM-DDTHH:MM:SS.mmmZ` (`x-aura-created-at` when valid, else `creationdate` + `.000`, else now); `tmx_contract.rs` covers each branch.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
   summary: In the real app, unverified: the TM management overlay opened from the command palette (no default chord), its layout with long sources and the health strip, Tab order to the filter fields and the push and bulk-delete buttons, focus return after Esc, and list latency at 100k pairs per tier.
   evidence: happy-dom cannot show layout or focus; `tests/frontend/tmManage.test.ts` covers state and dispatch only; `tm_list_pairs` latency was measured only by a probe before the code existed (spec Design Notes). Chủ: Epic 7.
@@ -12802,3 +12803,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
   summary: `tm_list_pairs` releasing `OpenWorkState` before filtering, grouping and sorting has no guard; moving `score_tm_list` inside the lock keeps every case green.
   evidence: no test observes lock hold time; `tm_concordance` has the same gap. Settle with a probe that takes the lock from another thread during a listing at 100k pairs per tier. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-10-xuat-va-nhap-tmx.md`
+  summary: In the real app, unverified: the Rust save and pick dialogs for TMX, the exchange block and import preview layout, focus return to "Nhập TMX", and an exported file opened in OmegaT or another CAT tool (epic AC "đọc được các cặp").
+  evidence: happy-dom cannot show dialogs, layout or focus; `tmx_contract.rs` checks the file with an independent quick-xml walk only. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-10-xuat-va-nhap-tmx.md`
+  summary: The `tmImportOverlayIsOpen` line added to `main.ts::isBlocked` is unguarded: removing it leaves the suite green and global chords fire behind the modal import preview.
+  evidence: same class as the 7.9 item on `main.ts::boot()` wiring; no test reads the predicate. Chủ: Epic 7.

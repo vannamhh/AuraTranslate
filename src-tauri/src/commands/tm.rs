@@ -4,11 +4,17 @@
 //! Strings here are unaccented; `scripts/check-i18n.mjs` scans `src-tauri/**/*.rs`.
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use crate::commands::project::OpenWork;
 use crate::commands::segment::{global_store_missing, side_wire, tier_wire, tm_lookup_failed, tm_pair_not_found};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::Store;
+use crate::core::tm::tmx::{
+    ImportPlan, PlannedPair, TmxError, TmxTier, distinct_tier_pairs, existing_pair_keys, pairs_not_in, parse_tmx,
+    plan_import, render_tmx, write_planned_pairs,
+};
+use crate::core::tm::tmx_io::{read_tmx_file, write_tmx_file};
 use crate::core::tm::{CopyRef, OriginFilter, PushOutcome, TierFilter, TmPair, TmTier};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -322,8 +328,224 @@ pub fn tm_push_pair_to_global(
     }
 }
 
+/// A TMX import held between preview and confirm: the plan stays in Rust, the webview only
+/// sees counts (AD-48).
+#[derive(Debug)]
+pub struct PendingTmxImport {
+    pub tier: TmTier,
+    pub pairs: Vec<PlannedPair>,
+    /// What the preview reported as already there (in the tier or repeated in the file).
+    pub already_count: usize,
+}
+
+/// `None` means no import is waiting.
+pub type PendingTmxImportState = std::sync::Mutex<Option<PendingTmxImport>>;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TmxImportPreviewWire {
+    pub file_name: String,
+    /// `"work"` or `"global"`: the tier chosen when the file was opened.
+    pub tier: &'static str,
+    /// `<tu>` elements read.
+    pub unit_count: usize,
+    /// Pairs the confirm would add.
+    pub new_count: usize,
+    /// Pairs already in the tier or repeated earlier in the file.
+    pub already_count: usize,
+    /// `<tu>` missing a side or holding a blank one.
+    pub skipped_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct TmxImportSummaryWire {
+    pub inserted: usize,
+    /// The preview's already-there count plus pairs that appeared in the tier before the
+    /// transaction ran.
+    pub already_count: usize,
+}
+
+fn tmx_error(err: TmxError) -> IpcError {
+    let (code, params, retryable) = match &err {
+        TmxError::Malformed { line, .. } => {
+            ("tm.tmx_malformed", BTreeMap::from([("line".to_owned(), line.to_string())]), false)
+        }
+        TmxError::NoBody => ("tm.tmx_no_body", BTreeMap::new(), false),
+        TmxError::NotUtf8 => ("tm.tmx_not_utf8", BTreeMap::new(), false),
+        TmxError::TooLarge { .. } => ("tm.tmx_too_large", BTreeMap::new(), false),
+        TmxError::NoUsablePair { source_lang } => (
+            "tm.tmx_no_usable_pair",
+            source_lang.iter().map(|l| ("source_lang".to_owned(), l.clone())).collect(),
+            false,
+        ),
+        TmxError::ReadFailed { .. } => ("tm.tmx_read_failed", BTreeMap::new(), true),
+        TmxError::WriteFailed { .. } => ("tm.tmx_write_failed", BTreeMap::new(), true),
+    };
+    eprintln!("tm tmx that bai: {err}");
+    IpcError::new(code, MessageKey::Unknown, params, retryable)
+}
+
+fn no_pending_tmx_import() -> IpcError {
+    IpcError::new("tm.no_pending_import", MessageKey::Unknown, BTreeMap::new(), false)
+}
+
+fn tmx_tier_from_wire(tier: &str) -> Result<TmTier, IpcError> {
+    match tier {
+        "work" => Ok(TmTier::Work),
+        "global" => Ok(TmTier::Global),
+        other => Err(invalid_filter("tier", other)),
+    }
+}
+
+/// The store of `tier`; the Work tier needs an open Work.
+fn tmx_tier_store<'a>(global: &'a Store, open: Option<&'a OpenWork>, tier: TmTier) -> Result<&'a Store, IpcError> {
+    match tier {
+        TmTier::Global => Ok(global),
+        TmTier::Work => open.map(|o| &o.store).ok_or_else(crate::commands::chapter::no_work_open),
+    }
+}
+
+fn tmx_tier_label<'a>(open: Option<&'a OpenWork>, tier: TmTier) -> TmxTier<'a> {
+    match (tier, open) {
+        (TmTier::Work, Some(open)) => TmxTier::Work { source_lang: &open.meta.source_lang },
+        _ => TmxTier::Global,
+    }
+}
+
+/// Renders one tier as TMX 1.4b: one `<tu>` per distinct (source, target). `tier = work` with no
+/// Work open is `work.none_open`. Reads the store only; the file is written by [`tm_write_export`].
+pub fn tm_render_tier(global: Option<&Store>, open: Option<&OpenWork>, tier: &str) -> Result<String, IpcError> {
+    let tier = tmx_tier_from_wire(tier)?;
+    let global = global.ok_or_else(global_store_missing)?;
+    let store = tmx_tier_store(global, open, tier)?;
+    let pairs = distinct_tier_pairs(store, tier).map_err(|e| tm_lookup_failed(&e))?;
+    Ok(render_tmx(&pairs, tmx_tier_label(open, tier)))
+}
+
+/// Writes rendered TMX to `path` atomically.
+pub fn tm_write_export(path: &Path, text: &str) -> Result<(), IpcError> {
+    write_tmx_file(path, text).map_err(tmx_error)
+}
+
+pub fn tm_export_tier(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: &str,
+    path: &Path,
+) -> Result<(), IpcError> {
+    tm_write_export(path, &tm_render_tier(global, open, tier)?)
+}
+
+/// The export once the dialog answered: `None` (cancelled) touches no file.
+pub fn tm_export_tier_after_dialog(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: &str,
+    picked_path: Option<PathBuf>,
+) -> Result<Option<String>, IpcError> {
+    let Some(path) = picked_path else { return Ok(None) };
+    tm_export_tier(global, open, tier, &path)?;
+    Ok(Some(path.display().to_string()))
+}
+
+fn counts(plan: &ImportPlan, new_count: usize, file_name: String, tier: TmTier) -> TmxImportPreviewWire {
+    TmxImportPreviewWire {
+        file_name,
+        tier: tier_wire(tier),
+        unit_count: plan.unit_count,
+        new_count,
+        already_count: plan.pairs.len() - new_count + plan.duplicate_in_file_count,
+        skipped_count: plan.skipped_count,
+    }
+}
+
+/// Reads and parses a TMX file; touches no state, so a caller can run it without any lock.
+pub fn tm_read_import_file(path: &Path) -> Result<crate::core::tm::tmx::ParsedTmx, IpcError> {
+    let text = read_tmx_file(path).map_err(tmx_error)?;
+    parse_tmx(&text).map_err(tmx_error)
+}
+
+/// Drops any waiting plan: a new preview starts from none, so cancel and failure leave none.
+pub fn tm_discard_pending_import(pending: &PendingTmxImportState) {
+    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+}
+
+/// Plans a parsed file for `tier` and keeps the pairs the tier lacks in `pending`.
+pub fn tm_preview_parsed(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingTmxImportState,
+    tier: &str,
+    parsed: &crate::core::tm::tmx::ParsedTmx,
+    file_name: String,
+) -> Result<TmxImportPreviewWire, IpcError> {
+    let tier = tmx_tier_from_wire(tier)?;
+    let global = global.ok_or_else(global_store_missing)?;
+    let store = tmx_tier_store(global, open, tier)?;
+    let plan = plan_import(parsed, tmx_tier_label(open, tier)).map_err(tmx_error)?;
+    let existing = existing_pair_keys(store).map_err(|e| tm_lookup_failed(&e))?;
+    let new_pairs = pairs_not_in(&plan, &existing);
+
+    let preview = counts(&plan, new_pairs.len(), file_name, tier);
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingTmxImport { tier, pairs: new_pairs, already_count: preview.already_count });
+    Ok(preview)
+}
+
+fn file_name_of(path: &Path) -> String {
+    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// Drops any earlier plan, then reads and plans a TMX file for `tier`. Every failure leaves no plan.
+pub fn tm_open_import_preview(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingTmxImportState,
+    tier: &str,
+    path: &Path,
+) -> Result<TmxImportPreviewWire, IpcError> {
+    tm_discard_pending_import(pending);
+    let parsed_tier = tmx_tier_from_wire(tier)?;
+    let global_store = global.ok_or_else(global_store_missing)?;
+    tmx_tier_store(global_store, open, parsed_tier)?;
+    let parsed = tm_read_import_file(path)?;
+    tm_preview_parsed(global, open, pending, tier, &parsed, file_name_of(path))
+}
+
+/// Writes the pending plan to its tier in one transaction. Cleared only on success; an error keeps
+/// the plan for a retry.
+pub fn tm_confirm_import(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingTmxImportState,
+) -> Result<TmxImportSummaryWire, IpcError> {
+    let global = global.ok_or_else(global_store_missing)?;
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(batch) = guard.as_ref() else { return Err(no_pending_tmx_import()) };
+    let batch_already = batch.already_count;
+    let store = tmx_tier_store(global, open, batch.tier)?;
+    let outcome = write_planned_pairs(store, batch.pairs.clone()).map_err(|e| tm_lookup_failed(&e))?;
+    *guard = None;
+    Ok(TmxImportSummaryWire { inserted: outcome.inserted, already_count: batch_already + outcome.already_there })
+}
+
+/// Drops the pending plan; cancelling with none waiting is harmless.
+pub fn tm_cancel_import(pending: &PendingTmxImportState) {
+    tm_discard_pending_import(pending);
+}
+
+/// A Work plan points at a store that is closing; a Global plan survives.
+pub fn clear_pending_tmx_import_for_work(pending: &PendingTmxImportState) {
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if guard.as_ref().is_some_and(|batch| batch.tier == TmTier::Work) {
+        *guard = None;
+    }
+}
+
 pub mod wire {
-    use super::{TmCopyArg, TmDeleteOthersOutcome, TmPairList, TmPairWire};
+    use super::{
+        PendingTmxImportState, TmCopyArg, TmDeleteOthersOutcome, TmPairList, TmPairWire, TmxImportPreviewWire,
+        TmxImportSummaryWire,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
 
@@ -421,5 +643,118 @@ pub mod wire {
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::tm_push_pair_to_global(global.as_deref(), guard.as_ref(), &copies, &source_text, &expected_target)
+    }
+    fn tier_is_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, tier: &str) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if app.try_state::<crate::core::store::Store>().is_none() {
+            return Err(crate::commands::segment::global_store_missing());
+        }
+        if super::tmx_tier_from_wire(tier)? == crate::core::tm::TmTier::Work {
+            let open = app
+                .try_state::<OpenWorkState>()
+                .is_some_and(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some());
+            if !open {
+                return Err(crate::commands::chapter::no_work_open());
+            }
+        }
+        Ok(())
+    }
+
+    fn picked_to_path(picked: tauri_plugin_dialog::FilePath) -> Result<std::path::PathBuf, IpcError> {
+        picked.into_path().map_err(|_| {
+            IpcError::new("tm.dialog_path_invalid", crate::core::i18n::MessageKey::Unknown, Default::default(), false)
+        })
+    }
+
+    /// Wire shell of [`super::tm_export_tier_after_dialog`]; `tier` on the wire. Async: the save
+    /// dialog blocks, and on the main thread that deadlocks the event loop it waits on. `None`
+    /// is a cancelled dialog.
+    #[tauri::command(async)]
+    pub fn tm_export_tier<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: String,
+    ) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+        use tauri_plugin_dialog::DialogExt as _;
+
+        tier_is_ready(&app, &tier)?;
+        let default_name = if tier == "global" { "tm_global.tmx" } else { "tm_work.tmx" };
+        let picked_path = match app.dialog().file().add_filter("TMX", &["tmx"]).set_file_name(default_name).blocking_save_file() {
+            None => return Ok(None),
+            Some(picked) => picked_to_path(picked)?,
+        };
+
+        let text = {
+            let global = app.try_state::<crate::core::store::Store>();
+            let work_state = app.try_state::<OpenWorkState>();
+            let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+            let open = guard.as_ref().and_then(|g| g.as_ref());
+            super::tm_render_tier(global.as_deref(), open, &tier)?
+        };
+        super::tm_write_export(&picked_path, &text)?;
+        Ok(Some(picked_path.display().to_string()))
+    }
+
+    /// Wire shell of [`super::tm_open_import_preview`]; `tier` on the wire. Async for the same
+    /// reason as `tm_export_tier`. `None` is a cancelled dialog; every outcome but success leaves no
+    /// plan. The file is read and parsed before `OpenWorkState` is locked.
+    #[tauri::command(async)]
+    pub fn tm_open_import_preview<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: String,
+    ) -> Result<Option<TmxImportPreviewWire>, IpcError> {
+        use tauri::Manager as _;
+        use tauri_plugin_dialog::DialogExt as _;
+
+        tier_is_ready(&app, &tier)?;
+        let Some(pending) = app.try_state::<PendingTmxImportState>() else {
+            return Err(super::no_pending_tmx_import());
+        };
+        super::tm_discard_pending_import(pending.inner());
+        let Some(picked) = app.dialog().file().add_filter("TMX", &["tmx", "xml"]).blocking_pick_file() else {
+            return Ok(None);
+        };
+        let path = picked_to_path(picked)?;
+        let parsed = super::tm_read_import_file(&path)?;
+
+        let global = app.try_state::<crate::core::store::Store>();
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+        super::tm_preview_parsed(global.as_deref(), open, pending.inner(), &tier, &parsed, super::file_name_of(&path))
+            .map(Some)
+    }
+
+    /// Wire shell of [`super::tm_confirm_import`]. Async: it holds `PendingTmxImportState` for the
+    /// whole write.
+    #[tauri::command(async)]
+    pub fn tm_confirm_import<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<TmxImportSummaryWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<crate::core::store::Store>();
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+        let Some(pending) = app.try_state::<PendingTmxImportState>() else {
+            return Err(super::no_pending_tmx_import());
+        };
+        super::tm_confirm_import(global.as_deref(), open, pending.inner())
+    }
+
+    /// Wire shell of [`super::tm_cancel_import`]. Async: it locks `PendingTmxImportState`, which
+    /// `tm_confirm_import` holds for its whole write.
+    #[tauri::command(async)]
+    pub fn tm_cancel_import<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if let Some(pending) = app.try_state::<PendingTmxImportState>() {
+            super::tm_cancel_import(pending.inner());
+        }
+        Ok(())
     }
 }

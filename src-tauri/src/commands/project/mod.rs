@@ -3387,6 +3387,9 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
             crate::core::glossary::GlossaryTier::Work,
         );
     }
+    if let Some(pending) = app.try_state::<crate::commands::tm::PendingTmxImportState>() {
+        crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
+    }
     // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt dang treo (neu co): chi ha
     // `work_kind` ve `None`, khong xoa TRON lo (`lib.rs::close_open_work` giai thich vi sao).
     if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {

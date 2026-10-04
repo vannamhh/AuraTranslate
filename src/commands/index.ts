@@ -904,6 +904,14 @@ export type CommandDeps = {
   nextTmManageRow?: () => void
   /** Moves the cursor up. Handler of `tm.manage.prev`. */
   prevTmManageRow?: () => void
+  /** Opens the save dialog in Rust and writes the chosen tier as TMX. Handler of `tm.manage.export_tmx`. */
+  exportTmManageTier?: () => void
+  /** Opens the pick dialog in Rust and shows the import preview. Handler of `tm.manage.import_tmx`. */
+  openTmImportPreview?: () => void
+  /** Writes the previewed TMX import. Handler of `tm.import.confirm`. */
+  confirmTmImportPreview?: () => void
+  /** Drops the previewed TMX import. Handler of `tm.import.cancel`. */
+  cancelTmImportPreview?: () => void
 
   // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ─────────────────
   /**
@@ -3356,6 +3364,42 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.prevTmManageRow === undefined) return portMissing('tm.manage.prev', 'prevTmManageRow')
       deps.prevTmManageRow()
+    },
+  })
+  target.register({
+    id: 'tm.manage.export_tmx',
+    labelKey: 'command.tm.manage.export_tmx',
+    keys: undefined,
+    run: () => {
+      if (deps.exportTmManageTier === undefined) return portMissing('tm.manage.export_tmx', 'exportTmManageTier')
+      deps.exportTmManageTier()
+    },
+  })
+  target.register({
+    id: 'tm.manage.import_tmx',
+    labelKey: 'command.tm.manage.import_tmx',
+    keys: undefined,
+    run: () => {
+      if (deps.openTmImportPreview === undefined) return portMissing('tm.manage.import_tmx', 'openTmImportPreview')
+      deps.openTmImportPreview()
+    },
+  })
+  target.register({
+    id: 'tm.import.confirm',
+    labelKey: 'command.tm.import.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmTmImportPreview === undefined) return portMissing('tm.import.confirm', 'confirmTmImportPreview')
+      deps.confirmTmImportPreview()
+    },
+  })
+  target.register({
+    id: 'tm.import.cancel',
+    labelKey: 'command.tm.import.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelTmImportPreview === undefined) return portMissing('tm.import.cancel', 'cancelTmImportPreview')
+      deps.cancelTmImportPreview()
     },
   })
 
