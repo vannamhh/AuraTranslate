@@ -86,6 +86,9 @@ pub struct MarkerWarnings {
     /// prompt with no `{{glossary_terms}}` ... a warning says Glossary Enforcement is off
     /// for this set".
     pub glossary_terms_missing: bool,
+    /// `true` when the body never carries `{{tm_similar_segments}}`; not a warning on the wire,
+    /// it only tells the injector whether TM is asked at all.
+    pub tm_similar_segments_missing: bool,
 }
 
 impl MarkerWarnings {
@@ -109,6 +112,7 @@ impl MarkerWarnings {
 pub fn scan_markers(body: &str) -> MarkerWarnings {
     let mut unknown_markers: Vec<String> = Vec::new();
     let mut has_glossary_terms = false;
+    let mut has_tm_similar_segments = false;
     let mut rest = body;
 
     while let Some(open_at) = rest.find("{{") {
@@ -131,6 +135,7 @@ pub fn scan_markers(body: &str) -> MarkerWarnings {
 
         match PromptVariable::from_token(token) {
             Some(PromptVariable::GlossaryTerms) => has_glossary_terms = true,
+            Some(PromptVariable::TmSimilarSegments) => has_tm_similar_segments = true,
             Some(_) => {}
             None => {
                 let marker_text = format!("{{{{{token}}}}}");
@@ -146,6 +151,7 @@ pub fn scan_markers(body: &str) -> MarkerWarnings {
     MarkerWarnings {
         unknown_markers,
         glossary_terms_missing: !has_glossary_terms,
+        tm_similar_segments_missing: !has_tm_similar_segments,
     }
 }
 

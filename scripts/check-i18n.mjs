@@ -882,6 +882,22 @@ const excerpt = (text, index) => {
     .trim()
 }
 
+// `.rs` exemption: the line directly above the hit is a `//` comment with a real reason.
+const RS_ALLOW_RE = /^\s*\/\/.*aura-allow-text\s*:\s*\S/
+const rsLineExempt = (lines, line) => line > 1 && RS_ALLOW_RE.test(lines[line - 2] ?? '')
+{
+  const ok = rsLineExempt(['// aura-allow-text: prompt text', 'x'], 2)
+  const noReason = rsLineExempt(['// aura-allow-text:', 'x'], 2)
+  const twoAbove = rsLineExempt(['// aura-allow-text: prompt text', 'y', 'x'], 3)
+  if (!ok || noReason || twoAbove) {
+    fail('tự kiểm `aura-allow-text` của `.rs` — miễn trừ phải có lý do và nằm ngay dòng trên')
+    detail(`có lý do: ${ok} (phải true) · không lý do: ${noReason} (phải false) · cách hai dòng: ${twoAbove} (phải false)`)
+  } else {
+    pass('tự kiểm `aura-allow-text` của `.rs` — cần lý do thật, chỉ ăn dòng ngay dưới')
+  }
+}
+let rsExempted = 0
+
 let aBad = 0
 for (const [files, scan, label] of [
   [rsFiles, scanRust, '.rs'],
@@ -903,7 +919,12 @@ for (const [files, scan, label] of [
       const { line, col } = positionOf(text, idx)
       if (!byLine.has(line)) byLine.set(line, { col, idx })
     }
+    const lines = label === '.rs' ? text.split('\n') : []
     for (const [line, { col, idx }] of byLine) {
+      if (label === '.rs' && rsLineExempt(lines, line)) {
+        rsExempted += 1
+        continue
+      }
       fail(`${posix(file)}:${line}:${col} — chuỗi tiếng Việt ở vị trí mã (${label})`)
       detail(`… ${excerpt(text, idx)} …`)
       aBad += 1
@@ -916,6 +937,7 @@ if (aBad === 0) {
     `${rsFiles.length} tệp \`.rs\` + ${vueFiles.length} tệp \`.vue\` — không chuỗi hiển thị nào ở vị trí mã`,
   )
 }
+detail(`đã miễn trừ ${rsExempted} dòng \`.rs\` bằng \`aura-allow-text\``)
 detail(`đã miễn trừ ${exemptedFiles.length} tệp:`)
 for (const [pattern, why] of EXEMPT) {
   const n = exemptedFiles.filter(([, p]) => p === pattern).length

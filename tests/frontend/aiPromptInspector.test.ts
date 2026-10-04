@@ -35,6 +35,7 @@ import type {
   GlossaryInjectionStatusWire,
   InjectedGlossaryTermWire,
   PromptPieceWire,
+  SimilarSegmentWire,
   SuppressedGlossaryTermWire,
   TmInjectionStatusWire,
 } from '../../src/config/aiprompt'
@@ -91,6 +92,12 @@ vi.mock('../../src/config/promptset', () => ({
   promptSetUpdateBody: vi.fn(),
 }))
 
+vi.mock('../../src/config/aitranslate', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/config/aitranslate')>()),
+  runAiTranslateSegment: async () => ({ value: null, error: null }),
+  runAiTranslateBatchCall: async () => ({ value: null, error: null }),
+}))
+
 function injectedTerm(overrides: Partial<InjectedGlossaryTermWire> = {}): InjectedGlossaryTermWire {
   return { source_term: 'dragon', translation: 'rong', start: 2, end: 8, tier: 'global', ...overrides }
 }
@@ -108,7 +115,19 @@ function asked(
   return { kind: 'asked', injected, suppressed_by_pending_overlap: suppressed }
 }
 
-const TM_NOT_BUILT: TmInjectionStatusWire = { kind: 'not_built_yet', similar_segments: null }
+const TM_NOT_ASKED: TmInjectionStatusWire = { kind: 'not_asked', similar_segments: null }
+
+function tmPair(over: Partial<SimilarSegmentWire> = {}): SimilarSegmentWire {
+  return {
+    source_text: 'A dog barked.',
+    target_text: 'Mot con cho sua.',
+    side: 'mine',
+    tier: 'work',
+    percent: 80,
+    reference: false,
+    ...over,
+  }
+}
 
 /** Mảnh mặc định khớp NGUYÊN VĂN `record()`'s `prompt` mặc định bên dưới — phép nối `.text`
  * của mảng này PHẢI cho lại đúng `prompt` (đối chứng B1, loop 1). Đè cả hai cùng lúc qua
@@ -130,7 +149,7 @@ function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWi
     prompt_set_tier: 'global',
     ledger: {
       glossary: NOT_ASKED,
-      tm: TM_NOT_BUILT,
+      tm: TM_NOT_ASKED,
       unknown_markers: [],
       source_segment_missing: false,
       pieces: DEFAULT_PIECES,
@@ -257,13 +276,13 @@ describe('glossaryInjectionSummary — no_record / not_asked / asked-N, không c
   it('ledger.glossary.kind === "not_asked" ⇒ "not_asked", KHÔNG một count', async () => {
     const { state } = await freshOverlay()
     const summary = state.glossaryInjectionSummary(record({ ledger: { ...record().ledger, glossary: NOT_ASKED } }))
-    expect(summary).toEqual({ kind: 'not_asked' })
+    expect(summary).toEqual({ kind: 'not_asked', tmCount: null })
   })
 
   it('asked với injected rỗng ⇒ "asked" count 0 — KHÁC "not_asked"', async () => {
     const { state } = await freshOverlay()
     const summary = state.glossaryInjectionSummary(record({ ledger: { ...record().ledger, glossary: asked([]) } }))
-    expect(summary).toEqual({ kind: 'asked', count: 0 })
+    expect(summary).toEqual({ kind: 'asked', count: 0, tmCount: null })
   })
 
   it('asked với hai thuật ngữ ⇒ "asked" count 2, đọc trực tiếp từ injected.length', async () => {
@@ -271,7 +290,19 @@ describe('glossaryInjectionSummary — no_record / not_asked / asked-N, không c
     const summary = state.glossaryInjectionSummary(
       record({ ledger: { ...record().ledger, glossary: asked([injectedTerm(), injectedTerm({ source_term: 'castle' })]) } }),
     )
-    expect(summary).toEqual({ kind: 'asked', count: 2 })
+    expect(summary).toEqual({ kind: 'asked', count: 2, tmCount: null })
+  })
+
+  it('TM searched ⇒ tmCount là số cặp đã chèn; searched rỗng ⇒ 0 (không phải null)', async () => {
+    const { state } = await freshOverlay()
+    const withPairs = state.glossaryInjectionSummary(
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair(), tmPair()] } } }),
+    )
+    const empty = state.glossaryInjectionSummary(
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [] } } }),
+    )
+    expect(withPairs).toEqual({ kind: 'asked', count: 0, tmCount: 2 })
+    expect(empty).toEqual({ kind: 'asked', count: 0, tmCount: 0 })
   })
 })
 
@@ -547,25 +578,24 @@ describe('AiPromptInspectorOverlay.vue — danh sách "đã cân nhắc nhưng k
   })
 })
 
-describe('AiPromptInspectorOverlay.vue — TM: not_built_yet KHÔNG BAO GIỜ đọc thành "0 câu tương tự"', () => {
-  it('kind "not_built_yet" ⇒ data-aip-tm-kind="not_built_yet", đúng câu "chưa được dựng"', async () => {
+describe('AiPromptInspectorOverlay.vue — TM: not_asked khác searched-rỗng khác searched-có-cặp', () => {
+  it('kind "not_asked" ⇒ data-aip-tm-kind="not_asked", không đọc thành "0 câu"', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
-    readRecordMock.mockResolvedValue(record({ ledger: { ...record().ledger, tm: TM_NOT_BUILT } }))
+    readRecordMock.mockResolvedValue(record({ ledger: { ...record().ledger, tm: TM_NOT_ASKED } }))
     state.openAiPromptInspector()
     await flushPromises()
 
     const wrapper = mount(AiPromptInspectorOverlay)
     await wrapper.vm.$nextTick()
 
-    const node = wrapper.get('[data-aip-tm-kind="not_built_yet"]')
-    expect(node.text()).toBe(i18n.t('ai.prompt_inspector.tm_not_built_yet'))
-    expect(node.text()).not.toBe(i18n.t('ai.prompt_inspector.tm_searched', { count: '0' }))
+    const node = wrapper.get('[data-aip-tm-kind="not_asked"]')
+    expect(node.text()).toBe(i18n.t('ai.prompt_inspector.tm_not_asked'))
     expect(wrapper.find('[data-aip-tm-kind="searched"]').exists()).toBe(false)
 
     wrapper.unmount()
   })
 
-  it('kind "searched" (chưa đường gọi nào của story này tạo được, Epic 7) vẫn render đúng nhánh, không thiếu ca', async () => {
+  it('kind "searched" rỗng ⇒ "0 câu", không có danh sách', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
     readRecordMock.mockResolvedValue(
       record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: [] } } }),
@@ -578,6 +608,37 @@ describe('AiPromptInspectorOverlay.vue — TM: not_built_yet KHÔNG BAO GIỜ đ
 
     const node = wrapper.get('[data-aip-tm-kind="searched"]')
     expect(node.text()).toBe(i18n.t('ai.prompt_inspector.tm_searched', { count: '0' }))
+    expect(wrapper.find('.aip-term-list-tm').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('kind "searched" có cặp ⇒ liệt kê từng cặp, chỉ cặp reference mang nhãn tham khảo', async () => {
+    const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
+    const pairs = [
+      tmPair({ source_text: 'Mine src', target_text: 'Mine tgt', percent: 70 }),
+      tmPair({ source_text: 'Other src', target_text: 'Other tgt', side: 'others', tier: 'global', percent: 90, reference: true }),
+    ]
+    readRecordMock.mockResolvedValue(
+      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: pairs } } }),
+    )
+    state.openAiPromptInspector()
+    await flushPromises()
+
+    const wrapper = mount(AiPromptInspectorOverlay)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-aip-tm-kind="searched"]').text()).toBe(
+      i18n.t('ai.prompt_inspector.tm_searched', { count: '2' }),
+    )
+    const rows = wrapper.findAll('.aip-term-list-tm .aip-term-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.text()).toContain('Mine src')
+    expect(rows[0]?.text()).toContain(i18n.t('ai.prompt_inspector.tier_work'))
+    expect(rows[0]?.find('[data-aip-tm-reference]').exists()).toBe(false)
+    expect(rows[1]?.text()).toContain('Other tgt')
+    expect(rows[1]?.text()).toContain(i18n.t('ai.prompt_inspector.tier_global'))
+    expect(rows[1]?.get('[data-aip-tm-reference]').text()).toBe(i18n.t('ai.prompt_inspector.tm_reference_tag'))
 
     wrapper.unmount()
   })
@@ -1324,6 +1385,81 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     const summary = wrapper.get('.ai-inspector-summary')
     expect(summary.attributes('data-ai-prompt-summary-kind')).toBe('asked')
     expect(summary.text()).toBe(i18n.t('ai.prompt.summary_asked', { count: '2' }))
+    wrapper.unmount()
+  })
+
+  it('🔴 asked + TM searched ⇒ dòng nói cả hai số đếm', async () => {
+    const { AiTranslationPanel, i18n } = await freshPanel()
+    readRecordMock.mockResolvedValue(
+      record({
+        ledger: {
+          ...record().ledger,
+          glossary: asked([injectedTerm()]),
+          tm: { kind: 'searched', similar_segments: [tmPair(), tmPair({ side: 'others', reference: true })] },
+        },
+      }),
+    )
+
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+      i18n.t('ai.prompt.summary_asked_tm', { count: '1', tm_count: '2' }),
+    )
+    wrapper.unmount()
+  })
+
+  it('🔴 lô dịch kết thúc ⇒ panel đọc lại bản ghi, dòng tóm tắt đổi', async () => {
+    const { AiTranslationPanel, i18n } = await freshPanel()
+    readRecordMock.mockResolvedValue(record({ ledger: { ...record().ledger, glossary: asked([]) } }))
+
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    const readsBefore = readRecordMock.mock.calls.length
+
+    readRecordMock.mockResolvedValue(
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair()] } } }),
+    )
+    const batchState = await import('../../src/aiTranslateBatchState')
+    await batchState.runAiTranslateBatch('Happy', [5, 6])
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(readRecordMock.mock.calls.length).toBeGreaterThan(readsBefore)
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+      i18n.t('ai.prompt.summary_asked_tm', { count: '0', tm_count: '1' }),
+    )
+    wrapper.unmount()
+  })
+
+  it('🔴 lượt dịch kết thúc ⇒ panel đọc lại bản ghi, dòng tóm tắt đổi mà không mở lớp phủ', async () => {
+    const { AiTranslationPanel, i18n } = await freshPanel()
+    readRecordMock.mockResolvedValue(record({ ledger: { ...record().ledger, glossary: asked([]) } }))
+
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe(i18n.t('ai.prompt.summary_asked', { count: '0' }))
+    const readsBefore = readRecordMock.mock.calls.length
+
+    readRecordMock.mockResolvedValue(
+      record({
+        ledger: {
+          ...record().ledger,
+          glossary: asked([]),
+          tm: { kind: 'searched', similar_segments: [tmPair()] },
+        },
+      }),
+    )
+    const translateState = await import('../../src/aiTranslateState')
+    await translateState.runAiTranslate('Happy', 5)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(readRecordMock.mock.calls.length).toBeGreaterThan(readsBefore)
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+      i18n.t('ai.prompt.summary_asked_tm', { count: '0', tm_count: '1' }),
+    )
     wrapper.unmount()
   })
 })

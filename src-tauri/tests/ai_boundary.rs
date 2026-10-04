@@ -218,16 +218,21 @@ fn line_with_marker_occurrences_removed(code: &str, marker: &str) -> String {
     code.replace(marker, "")
 }
 
-/// Đúng CHÍN tên được phép xuất hiện sau `ai::rag::` bên trong seam ① — Decision 1's control
-/// ②: hai hàm AD-14 đã đóng băng ở `core/ai/rag.rs` (`assemble_prompt`, `gather_glossary_context`)
-/// CỘNG bảy kiểu mirror-type mà tệp này phải ĐẶT TÊN để viết `impl From<…> for …Wire` (không
+/// Đúng MƯỜI BA tên được phép xuất hiện sau `ai::rag::` bên trong seam ① — Decision 1's control
+/// ②: hai hàm AD-14 đã đóng băng ở `core/ai/rag.rs` (`assemble_prompt`, `gather_glossary_context`),
+/// hai hàm gom TM của Story 7.11 (`load_tm_rows`, `gather_tm_context`) và kiểu `TmRows` mang
+/// hàng đã đọc, CỘNG tám kiểu mirror-type mà tệp này phải ĐẶT TÊN để viết `impl From<…> for …Wire` (không
 /// gọi được các kiểu đó thì không viết được các mirror type Story 4.7 đòi) — không một tên nào
 /// khác của `core::ai::rag` (không `expand_prompt_body`, không `render_glossary_pairs`, không
 /// bất kỳ hàm/hằng nội bộ nào khác). Bất kỳ tên nào khác lọt qua là một lối vào `core::ai` THỨ
 /// HAI mà Decision 1 không hề mở.
-const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 9] = [
+const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 13] = [
     "assemble_prompt",
     "gather_glossary_context",
+    "gather_tm_context",
+    "load_tm_rows",
+    "TmRows",
+    "InjectedTmPair",
     "GlossaryInjectionStatus",
     "TmInjectionStatus",
     "InjectionLedger",

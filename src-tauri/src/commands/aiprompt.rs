@@ -30,15 +30,16 @@
 use crate::commands::project::OpenWork;
 use crate::commands::promptset::PromptSetTierWire;
 use crate::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectionLedger, PromptPiece, PromptPieceKind,
-    SuppressedGlossaryTerm, TmInjectionStatus, assemble_prompt, gather_glossary_context,
+    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger, PromptPiece,
+    PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus, TmRows, assemble_prompt,
+    gather_glossary_context, gather_tm_context, load_tm_rows,
 };
 use crate::core::glossary::GlossaryTier;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::promptset::{PromptSetTier, resolve_two_tiers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
-use crate::core::tm::SimilarSegment;
+use crate::core::tm::{PairSide, TmTier};
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn `commands::promptset::store_is_missing`.
 fn store_is_missing() -> IpcError {
@@ -182,24 +183,40 @@ impl From<GlossaryInjectionStatus> for GlossaryInjectionStatusWire {
     }
 }
 
-/// Hình dạng OUTPUT của [`SimilarSegment`] — Epic 7 sẽ là caller thật đầu tiên; story này
-/// không bao giờ tạo được biến thể `Searched` (tham số `tm` của [`assemble_prompt`] luôn
-/// `None` ở đây), nhưng kiểu wire phải tồn tại để `From<TmInjectionStatus>` không sót nhánh.
+/// Output shape of [`InjectedTmPair`]. `reference` is true for another person's pair.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SimilarSegmentWire {
     pub source_text: String,
     pub target_text: String,
+    /// `"mine"` or `"others"` (AD-47 ⑥).
+    pub side: &'static str,
+    /// `"work"` or `"global"`.
+    pub tier: &'static str,
+    pub percent: u8,
+    pub reference: bool,
 }
 
-impl From<SimilarSegment> for SimilarSegmentWire {
-    fn from(s: SimilarSegment) -> Self {
-        Self { source_text: s.source_text, target_text: s.target_text }
+impl From<InjectedTmPair> for SimilarSegmentWire {
+    fn from(p: InjectedTmPair) -> Self {
+        Self {
+            source_text: p.source_text,
+            target_text: p.target_text,
+            side: match p.side {
+                PairSide::Mine => "mine",
+                PairSide::Others => "others",
+            },
+            tier: match p.tier {
+                TmTier::Work => "work",
+                TmTier::Global => "global",
+            },
+            percent: p.percent,
+            reference: p.reference,
+        }
     }
 }
 
-/// Hình dạng OUTPUT của [`TmInjectionStatus`] — cùng khuôn tag `kind` với
-/// [`GlossaryInjectionStatusWire`]: `"not_built_yet"` (TM chưa tồn tại tới Epic 7) tách hẳn
-/// khỏi `"searched"` (kể cả lát cắt rỗng).
+/// Output shape of [`TmInjectionStatus`], same `kind` tag as [`GlossaryInjectionStatusWire`]:
+/// `"not_asked"` (no marker in the body) is distinct from `"searched"` (even with an empty list).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TmInjectionStatusWire {
     pub kind: &'static str,
@@ -209,10 +226,10 @@ pub struct TmInjectionStatusWire {
 impl From<TmInjectionStatus> for TmInjectionStatusWire {
     fn from(status: TmInjectionStatus) -> Self {
         match status {
-            TmInjectionStatus::NotBuiltYet => Self { kind: "not_built_yet", similar_segments: None },
-            TmInjectionStatus::Searched(segments) => Self {
+            TmInjectionStatus::NotAsked => Self { kind: "not_asked", similar_segments: None },
+            TmInjectionStatus::Searched(pairs) => Self {
                 kind: "searched",
-                similar_segments: Some(segments.into_iter().map(Into::into).collect()),
+                similar_segments: Some(pairs.into_iter().map(Into::into).collect()),
             },
         }
     }
@@ -385,6 +402,30 @@ pub fn assemble_and_record_prompt(
     prompt_set_name: Option<&str>,
     segment_id: i64,
 ) -> Result<AssembledPromptWire, IpcError> {
+    assemble_and_record_prompt_with_tm(
+        global,
+        open,
+        record,
+        prompt_set_name,
+        segment_id,
+        &mut TmRowsCache::default(),
+    )
+}
+
+/// TM rows read once and reused by every sentence of one prepare (batch). Stays empty while the
+/// prompt body has no `{{tm_similar_segments}}` marker.
+#[derive(Default)]
+pub struct TmRowsCache(Option<TmRows>);
+
+/// [`assemble_and_record_prompt`] with a caller-owned [`TmRowsCache`], so a batch reads TM once.
+pub fn assemble_and_record_prompt_with_tm(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    record: &LastAssembledPromptState,
+    prompt_set_name: Option<&str>,
+    segment_id: i64,
+    tm_cache: &mut TmRowsCache,
+) -> Result<AssembledPromptWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
@@ -413,7 +454,13 @@ pub fn assemble_and_record_prompt(
         source_lang,
         sentence,
     )?;
-    let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, None);
+    if tm_cache.0.is_none() {
+        tm_cache.0 = load_tm_rows(&set.body, global_store, work_store)
+            .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
+    }
+    let tm = gather_tm_context(tm_cache.0.as_ref(), &resolver, source_lang, sentence)
+        .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
+    let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, tm.as_deref());
 
     let record_value = AssembledPromptRecord {
         prompt,

@@ -42,10 +42,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::aiprompt::{
-    GlossaryTierWire, LastAssembledPromptState, PromptPieceKindWire, PromptPieceWire,
-    assemble_and_record_prompt, clear_last_assembled_prompt_on_work_close,
+    GlossaryTierWire, LastAssembledPromptState, PromptPieceKindWire, PromptPieceWire, TmRowsCache,
+    assemble_and_record_prompt, assemble_and_record_prompt_with_tm,
+    clear_last_assembled_prompt_on_work_close,
     read_last_assembled_prompt, read_record_or_report_unmanaged,
 };
+use auratranslate_lib::commands::config::put_config;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::{PromptSetTierWire, prompt_set_create};
 use auratranslate_lib::commands::segment::read_open_chapter_segments;
@@ -53,6 +55,7 @@ use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term}
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::promptset::PromptSetTier;
 use auratranslate_lib::core::store::{Store, StoreSpec};
+use auratranslate_lib::core::tm::{PairOrigin, insert_pair};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -171,34 +174,211 @@ fn asked_but_nothing_matched_says_zero_injected_not_not_asked() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Ba-trạng-thái #2 — TM: never built (đến Epic 7, nhánh `Searched` không đường gọi nào của
-// story này tạo được — xem doc-comment `commands/aiprompt.rs::wire::TmInjectionStatusWire`)
+// Ba-trạng-thái #2 — TM: marker absent (not_asked) / searched (kể cả rỗng) / searched có cặp
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Bất kỳ lượt lắp ráp nào trong epic này ⇒ `kind == "not_built_yet"`, KHÔNG BAO GIỜ
-/// `"searched"` với một lát cắt rỗng đọc như "0 similar sentences" — hai câu khác nhau hoàn
-/// toàn ("TM chưa dựng" và "TM đã tra, không khớp gì").
-#[test]
-fn tm_is_never_built_yet_and_never_read_as_zero_similar_sentences() {
-    let global_dir = temp_dir("tm-not-built-global");
-    let work_dir = temp_dir("tm-not-built-work");
+const TM_SENTENCE: &str = "The old dragon breathed fire at the quiet village.";
+const TM_BODY: &str = "TM:\n{{tm_similar_segments}}\nSrc: {{source_segment}}";
+const REFERENCE_LABEL: &str =
+    "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
+
+fn seed_tm(store: &Store, rows: &[(&str, &str, PairOrigin)]) {
+    let rows: Vec<(String, String, PairOrigin)> =
+        rows.iter().map(|(a, b, o)| ((*a).to_owned(), (*b).to_owned(), *o)).collect();
+    store
+        .write(move |tx| {
+            for (source, target, origin) in &rows {
+                insert_pair(tx, source, target, *origin)?;
+            }
+            Ok(())
+        })
+        .expect("gieo tm_unit");
+}
+
+fn tm_setup(tag: &str) -> (PathBuf, PathBuf, Store, OpenWork, i64) {
+    let global_dir = temp_dir(&format!("{tag}-global"));
+    let work_dir = temp_dir(&format!("{tag}-work"));
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "TM Not Built", "en", "A quiet sentence.");
+    let open = open_work(&work_dir, tag, "en", TM_SENTENCE);
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", TM_BODY)
+        .expect("tao bo prompt");
+    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    (global_dir, work_dir, global, open, segment_id)
+}
+
+#[test]
+fn a_body_without_the_tm_marker_reads_no_tm_and_reports_not_asked() {
+    let global_dir = temp_dir("tm-no-marker-global");
+    let work_dir = temp_dir("tm-no-marker-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "TM No Marker", "en", TM_SENTENCE);
+    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "Con rong", PairOrigin::SelfTranslated)]);
 
     prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", "{{source_segment}}")
         .expect("tao bo prompt");
-
     let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
-    let record = fresh_record();
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("TmProbe"), segment_id)
-        .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
+        .expect("lap rap");
 
-    assert_eq!(wire.ledger.tm.kind, "not_built_yet");
-    assert!(
-        wire.ledger.tm.similar_segments.is_none(),
-        "NotBuiltYet khong duoc mang mot Some rong -- do doc y het 'da tra, khong khop gi'"
+    assert_eq!(wire.ledger.tm.kind, "not_asked");
+    assert!(wire.ledger.tm.similar_segments.is_none(), "not_asked khong duoc mang Some rong");
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn a_body_with_the_marker_and_no_similar_pair_is_searched_empty_and_the_line_is_removed() {
+    let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-none-similar");
+    seed_tm(&open.store, &[("Completely unrelated words here.", "Khong lien quan", PairOrigin::SelfTranslated)]);
+
+    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
+        .expect("lap rap");
+
+    assert_eq!(wire.ledger.tm.kind, "searched");
+    assert_eq!(wire.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(0));
+    assert_eq!(wire.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn mixed_own_and_others_pairs_from_both_tiers_put_own_first_and_the_label_before_others_only() {
+    let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-mixed");
+    seed_tm(
+        &open.store,
+        &[
+            ("The old dragon breathed fire at the quiet town.", "Own work", PairOrigin::SelfTranslated),
+            ("The old dragon breathed fire at the village.", "Other work", PairOrigin::Other),
+            (TM_SENTENCE, "Exact never inserted", PairOrigin::SelfTranslated),
+        ],
     );
+    seed_tm(
+        &global,
+        &[
+            ("The old dragon breathed fire on the quiet village.", "Other global", PairOrigin::BilingualImport),
+            ("Completely unrelated words here.", "Noise", PairOrigin::Other),
+        ],
+    );
+
+    let record = fresh_record();
+    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("TmProbe"), segment_id)
+        .expect("lap rap");
+
+    let pairs = wire.ledger.tm.similar_segments.as_ref().expect("searched");
+    assert_eq!(pairs.len(), 3, "{pairs:?}");
+    assert_eq!(pairs[0].target_text, "Own work");
+    assert_eq!((pairs[0].side, pairs[0].tier, pairs[0].reference), ("mine", "work", false));
+    assert!(pairs[1..].iter().all(|p| p.side == "others" && p.reference));
+    assert!(pairs[1..].iter().any(|p| p.tier == "global"));
+    assert!(pairs.iter().all(|p| p.percent >= 65 && p.percent <= 99));
+    assert!(pairs.iter().all(|p| p.target_text != "Exact never inserted"));
+
+    let own_at = wire.prompt.find("Own work").expect("own line");
+    let label_at = wire.prompt.find(REFERENCE_LABEL).expect("label");
+    assert!(own_at < label_at, "{}", wire.prompt);
+    assert_eq!(wire.prompt.matches(REFERENCE_LABEL).count(), 1);
+    assert!(wire.prompt[label_at..].contains("Other work") && wire.prompt[label_at..].contains("Other global"));
+    assert!(!wire.prompt[..label_at].contains("Other"));
+
+    let recorded = read_last_assembled_prompt(&record).expect("ban ghi");
+    assert_eq!(recorded.prompt, wire.prompt);
+    assert!(recorded.ledger.pieces.iter().any(|p| p.kind == PromptPieceKindWire::Tm));
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn a_raised_tm_fuzzy_threshold_drops_a_pair_that_the_default_threshold_inserts() {
+    let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-threshold");
+    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "Mid score", PairOrigin::SelfTranslated)]);
+
+    let default_wire =
+        assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
+            .expect("lap rap mac dinh");
+    let pairs = default_wire.ledger.tm.similar_segments.as_ref().expect("searched");
+    assert_eq!(pairs.len(), 1, "{pairs:?}");
+    assert!((65..90).contains(&pairs[0].percent), "ca nay can diem trong [65, 90): {}", pairs[0].percent);
+
+    put_config(Some(&global), "app_config", "tm_fuzzy_threshold", "90").expect("ghi nguong 90");
+    let raised =
+        assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
+            .expect("lap rap nguong 90");
+    assert_eq!(raised.ledger.tm.kind, "searched");
+    assert_eq!(raised.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(0));
+    assert_eq!(raised.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn a_chinese_source_work_inserts_its_similar_chinese_pair() {
+    let global_dir = temp_dir("tm-zh-global");
+    let work_dir = temp_dir("tm-zh-work");
+    let global = open_global(&global_dir);
+    let sentence = "老龙在安静的村庄里向村民喷火。";
+    let open = open_work(&work_dir, "TM Zh", "zh", sentence);
+    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", TM_BODY)
+        .expect("tao bo prompt");
+    seed_tm(
+        &open.store,
+        &[
+            ("老龙在安静的小镇里向村民喷火。", "Rong gia phun lua", PairOrigin::SelfTranslated),
+            ("今天天气很好我们去公园散步吧。", "Khong lien quan", PairOrigin::SelfTranslated),
+        ],
+    );
+    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+
+    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
+        .expect("lap rap");
+
+    let pairs = wire.ledger.tm.similar_segments.as_ref().expect("searched");
+    assert_eq!(pairs.len(), 1, "{pairs:?}");
+    assert_eq!(pairs[0].target_text, "Rong gia phun lua");
+    assert!(wire.prompt.contains("老龙在安静的小镇里向村民喷火。 → Rong gia phun lua"), "{}", wire.prompt);
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn a_shared_tm_cache_reads_the_rows_once_so_a_pair_added_afterwards_is_not_seen() {
+    let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-cache");
+    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "First", PairOrigin::SelfTranslated)]);
+
+    let record = fresh_record();
+    let mut cache = TmRowsCache::default();
+    let first = assemble_and_record_prompt_with_tm(
+        Some(&global), Some(&open), &record, Some("TmProbe"), segment_id, &mut cache,
+    )
+    .expect("lap rap 1");
+    assert_eq!(first.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(1));
+
+    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet hamlet.", "Second", PairOrigin::SelfTranslated)]);
+
+    let reused = assemble_and_record_prompt_with_tm(
+        Some(&global), Some(&open), &record, Some("TmProbe"), segment_id, &mut cache,
+    )
+    .expect("lap rap 2");
+    assert_eq!(reused.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(1), "cache dung lai lan doc dau");
+
+    let fresh = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("TmProbe"), segment_id)
+        .expect("lap rap 3");
+    assert_eq!(fresh.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(2));
 
     drop(open);
     drop(global);
@@ -873,9 +1053,8 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     assert_eq!(injected[0]["source_term"], serde_json::json!("dragon"));
     assert_eq!(injected[0]["tier"], serde_json::json!("global"), "GlossaryTierWire::Global phai la chuoi \"global\", khong \"Global\"");
 
-    // `tm` luôn `not_built_yet` ở lệnh gọi này (tham số `tm` của `assemble_prompt` luôn `None`)
-    // -- pin TAG này cũng ở tầng JSON, không ở tầng `TmInjectionStatus::NotBuiltYet` đã so.
-    assert_eq!(ledger["tm"], serde_json::json!({ "kind": "not_built_yet", "similar_segments": null }));
+    // Than khong mang `{{tm_similar_segments}}` -- pin TAG `not_asked` o tang JSON.
+    assert_eq!(ledger["tm"], serde_json::json!({ "kind": "not_asked", "similar_segments": null }));
 
     // `pieces` -- ĐÚNG BA nhãn đường gọi này sản xuất được, dưới dạng CHUỖI JSON snake_case.
     let pieces = ledger["pieces"].as_array().expect("pieces la mot mang");

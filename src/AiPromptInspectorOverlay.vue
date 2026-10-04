@@ -128,8 +128,7 @@ const glossaryAsked = computed(() => {
   return status.kind === 'asked' ? status : null
 })
 
-/** Cùng lý lẽ [`glossaryAsked`], cho nhánh `'searched'` của TM — Epic 7 mới có dữ liệu thật ở
- * nhánh này; giữ để không thiếu ca khi ngày đó tới. */
+/** Cùng lý lẽ [`glossaryAsked`], cho nhánh `'searched'` của TM — mang các cặp đã chèn. */
 const tmSearched = computed(() => {
   const rec = aiPromptRecord.value
   if (rec === null) return null
@@ -287,12 +286,29 @@ const tmSearched = computed(() => {
 
         <section class="aip-section">
           <h3 class="aip-sh">{{ t('ai.prompt_inspector.tm_heading') }}</h3>
-          <p v-if="tmSearched === null" class="aip-note" data-aip-tm-kind="not_built_yet">
-            {{ t('ai.prompt_inspector.tm_not_built_yet') }}
+          <p v-if="tmSearched === null" class="aip-note" data-aip-tm-kind="not_asked">
+            {{ t('ai.prompt_inspector.tm_not_asked') }}
           </p>
-          <p v-else class="aip-note" data-aip-tm-kind="searched">
-            {{ t('ai.prompt_inspector.tm_searched', { count: String(tmSearched.similar_segments.length) }) }}
-          </p>
+          <template v-else>
+            <p class="aip-note" data-aip-tm-kind="searched">
+              {{ t('ai.prompt_inspector.tm_searched', { count: String(tmSearched.similar_segments.length) }) }}
+            </p>
+            <ul v-if="tmSearched.similar_segments.length > 0" class="aip-term-list aip-term-list-tm">
+              <li v-for="(pair, i) in tmSearched.similar_segments" :key="`tm-${i}`" class="aip-term-row">
+                <!-- aura-allow-text: DỮ LIỆU (câu nguồn trong TM của người dùng). -->
+                <span class="aip-term-source">{{ pair.source_text }}</span>
+                <span class="aip-term-arrow" aria-hidden="true">→</span>
+                <!-- aura-allow-text: DỮ LIỆU (bản dịch trong TM). -->
+                <span class="aip-term-translation">{{ pair.target_text }}</span>
+                <!-- aura-allow-text: KẾT QUẢ của t() qua hàm cục bộ `tierLabel()`, không một chuỗi viết thẳng. -->
+                <span class="aip-term-tier">{{ tierLabel(pair.tier) }}</span>
+                <span class="aip-term-tier">{{ t('ai.prompt_inspector.tm_percent', { percent: String(pair.percent) }) }}</span>
+                <span v-if="pair.reference" class="aip-term-reason" data-aip-tm-reference>
+                  {{ t('ai.prompt_inspector.tm_reference_tag') }}
+                </span>
+              </li>
+            </ul>
+          </template>
         </section>
       </div>
     </section>

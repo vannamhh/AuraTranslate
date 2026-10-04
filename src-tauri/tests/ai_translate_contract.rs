@@ -1876,6 +1876,76 @@ fn prepare_batch_call_returns_items_in_document_order_regardless_of_the_input_or
     cleanup(&global_dir);
 }
 
+#[test]
+fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-tm-test-key");
+
+    let global_dir = temp_dir("batch-tm-global");
+    let work_dir = temp_dir("batch-tm-work");
+    let global = open_global(&global_dir);
+    let open = open_work(
+        &work_dir,
+        "BatchTm",
+        "en",
+        "The old dragon breathed fire at the quiet village. The brave knight crossed the frozen river at dawn.",
+    );
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "TmBatch",
+        "TM:\n{{tm_similar_segments}}\nSrc: {{source_segment}}",
+    )
+    .expect("tao bo prompt");
+    open.store
+        .write(|tx| {
+            auratranslate_lib::core::tm::insert_pair(
+                tx,
+                "The old dragon breathed fire at the quiet town.",
+                "PAIR-DRAGON",
+                auratranslate_lib::core::tm::PairOrigin::SelfTranslated,
+            )?;
+            auratranslate_lib::core::tm::insert_pair(
+                tx,
+                "The brave knight crossed the frozen river at dusk.",
+                "PAIR-KNIGHT",
+                auratranslate_lib::core::tm::PairOrigin::SelfTranslated,
+            )
+        })
+        .expect("gieo tm_unit");
+
+    let ids: Vec<i64> =
+        read_open_chapter_segments(Some(&open)).expect("nap chuong").segments.iter().map(|s| s.id).collect();
+    assert_eq!(ids.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+
+    let items = match prepare_batch_call(Some(&global), Some(&open), &fresh_record(), Some("TmBatch"), &ids)
+        .expect("prepare batch khong duoc loi")
+    {
+        PrepareBatchOutcome::Ready(items) => items,
+        PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
+    };
+    let prompts: Vec<String> = items
+        .into_iter()
+        .map(|item| match item {
+            PreparedBatchItem::ToTranslate { prepared, .. } => prepared.prompt,
+            PreparedBatchItem::Omitted { .. } => panic!("khong cau nao bi cat"),
+        })
+        .collect();
+
+    assert!(prompts[0].contains("PAIR-DRAGON") && !prompts[0].contains("PAIR-KNIGHT"), "{}", prompts[0]);
+    assert!(prompts[1].contains("PAIR-KNIGHT") && !prompts[1].contains("PAIR-DRAGON"), "{}", prompts[1]);
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
 /// I/O Matrix "Selection of exactly one" -- một lô của ĐÚNG một segment chạy qua path THUẦN
 /// của batch (`Ready(vec![... 1 phần tử ...])`), không một nhánh rẽ lặng lẽ nào rơi về hình
 /// dạng khác.

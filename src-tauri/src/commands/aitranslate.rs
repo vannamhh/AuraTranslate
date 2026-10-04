@@ -54,7 +54,8 @@
 //! `.await` nó ngay trong `ai_translate_segment` là hợp lệ.
 
 use crate::commands::aiprompt::{
-    AssembledPromptWire, LastAssembledPromptState, assemble_and_record_prompt, segment_not_in_chapter,
+    AssembledPromptWire, LastAssembledPromptState, TmRowsCache, assemble_and_record_prompt,
+    assemble_and_record_prompt_with_tm, segment_not_in_chapter,
 };
 use crate::commands::project::OpenWork;
 use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
@@ -415,6 +416,7 @@ pub fn prepare_batch_call(
         None
     };
 
+    let mut tm_cache = TmRowsCache::default();
     let mut items = Vec::with_capacity(ordered_rows.len());
     for row in ordered_rows {
         if row.is_omitted {
@@ -422,12 +424,13 @@ pub fn prepare_batch_call(
             continue;
         }
 
-        let assembled: AssembledPromptWire = assemble_and_record_prompt(
+        let assembled: AssembledPromptWire = assemble_and_record_prompt_with_tm(
             Some(global_store),
             Some(open_work),
             record,
             prompt_set_name,
             row.id,
+            &mut tm_cache,
         )?;
 
         items.push(PreparedBatchItem::ToTranslate {

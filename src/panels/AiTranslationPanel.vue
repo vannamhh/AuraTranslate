@@ -111,6 +111,12 @@ watch(editorCaretSegmentId, () => {
   clearAiPromptAssembleError()
 })
 
+watch([aiTranslateStateValue, aiTranslateBatchStateValue], ([single, batch], [prevSingle, prevBatch]) => {
+  const finished =
+    (prevSingle === 'generating' && single !== 'generating') || (prevBatch === 'generating' && batch !== 'generating')
+  if (finished) void refreshAiPromptRecord()
+})
+
 function onPromptSetSelectChange(event: Event): void {
   const target = event.target
   if (!(target instanceof HTMLSelectElement)) return
@@ -132,8 +138,14 @@ const glossarySummary = computed(() => glossaryInjectionSummary(aiPromptRecord.v
 const glossarySummaryText = computed<string>(() => {
   const summary = glossarySummary.value
   if (summary.kind === 'no_record') return t('ai.prompt.summary_no_record')
-  if (summary.kind === 'not_asked') return t('ai.prompt.summary_not_asked')
-  return t('ai.prompt.summary_asked', { count: String(summary.count) })
+  if (summary.kind === 'not_asked') {
+    return summary.tmCount === null
+      ? t('ai.prompt.summary_not_asked')
+      : t('ai.prompt.summary_not_asked_tm', { tm_count: String(summary.tmCount) })
+  }
+  return summary.tmCount === null
+    ? t('ai.prompt.summary_asked', { count: String(summary.count) })
+    : t('ai.prompt.summary_asked_tm', { count: String(summary.count), tm_count: String(summary.tmCount) })
 })
 
 /**

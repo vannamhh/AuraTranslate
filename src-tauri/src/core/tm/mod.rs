@@ -23,6 +23,10 @@ pub struct SimilarSegment {
     pub source_text: String,
     /// Bản dịch đã lưu song song với `source_text`.
     pub target_text: String,
+    pub side: PairSide,
+    pub tier: TmTier,
+    /// Fuzzy score against the sentence, 0..=99.
+    pub percent: u8,
 }
 
 pub mod tmx;
@@ -298,10 +302,26 @@ pub fn rank_fuzzy_candidates(
     lang: crate::core::matching::MatchLang,
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
+    let mut merged = fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?;
+    merged.sort_by(|a, b| b.percent.cmp(&a.percent));
+    merged.truncate(FUZZY_MATCH_LIMIT);
+    Ok(merged)
+}
+
+/// Every pair of both tiers scoring at least `threshold` against `source_text`, in AD-18 order,
+/// uncut; a pair whose source equals `source_text` is excluded. Borrows the rows so one read
+/// can serve many sentences.
+pub fn fuzzy_pairs_in_candidates(
+    resolver: &crate::core::scope::ScopeResolver,
+    candidates: &FuzzyCandidates,
+    source_text: &str,
+    lang: crate::core::matching::MatchLang,
+    threshold: u8,
+) -> Result<Vec<FuzzyPair>, TmStoreError> {
     let mut scorer = crate::core::matching::SimilarityScorer::new(source_text, lang);
     let mut scores: std::collections::HashMap<(bool, i64), u8> = std::collections::HashMap::new();
-    let mut keep = |tier_is_work: bool, rows: Vec<RawPair>| -> Vec<RawPair> {
-        rows.into_iter()
+    let mut keep = |tier_is_work: bool, rows: &[RawPair]| -> Vec<RawPair> {
+        rows.iter()
             .filter(|row| {
                 if row.source_text == source_text {
                     return false;
@@ -313,20 +333,18 @@ pub fn rank_fuzzy_candidates(
                 scores.insert((tier_is_work, row.id), percent);
                 true
             })
+            .cloned()
             .collect()
     };
-    let global_rows = keep(false, candidates.global_rows);
-    let work_rows = candidates.work_rows.map(|rows| keep(true, rows));
-    let mut merged: Vec<FuzzyPair> = merge_tiers(resolver, global_rows, work_rows)?
+    let global_rows = keep(false, &candidates.global_rows);
+    let work_rows = candidates.work_rows.as_deref().map(|rows| keep(true, rows));
+    Ok(merge_tiers(resolver, global_rows, work_rows)?
         .into_iter()
         .map(|pair| {
             let percent = scores.get(&(pair.tier == TmTier::Work, pair.id)).copied().unwrap_or(0);
             FuzzyPair { pair, percent }
         })
-        .collect();
-    merged.sort_by(|a, b| b.percent.cmp(&a.percent));
-    merged.truncate(FUZZY_MATCH_LIMIT);
-    Ok(merged)
+        .collect())
 }
 
 /// Most hits one Concordance search ships; the total is reported beside them.

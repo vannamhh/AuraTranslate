@@ -36,13 +36,13 @@ function validInjectedTermWire(over: Record<string, unknown> = {}) {
 }
 
 function validSimilarSegmentWire(over: Record<string, unknown> = {}) {
-  return { source_text: 'A dog barked.', target_text: 'Mot con cho sua.', ...over }
+  return { source_text: 'A dog barked.', target_text: 'Mot con cho sua.', side: 'mine', tier: 'work', percent: 80, reference: false, ...over }
 }
 
 function validLedgerWire(over: Record<string, unknown> = {}) {
   return {
     glossary: { kind: 'asked', injected: [validInjectedTermWire()], suppressed_by_pending_overlap: [] },
-    tm: { kind: 'not_built_yet', similar_segments: null },
+    tm: { kind: 'not_asked', similar_segments: null },
     unknown_markers: [],
     source_segment_missing: false,
     pieces: [validPieceWire()],
@@ -191,6 +191,38 @@ describe('⑤ isTmInjectionStatusWire / isSimilarSegmentWire', () => {
 
     expect(result.error).toBeNull()
     expect(result.value?.ledger.tm.kind).toBe('searched')
+  })
+})
+
+describe('⑤b SimilarSegmentWire — các trường mới của 7.11 bị canh từng cái', () => {
+  it.each([
+    ['side lạ', { side: 'theirs' }],
+    ['tier lạ', { tier: 'project' }],
+    ['percent không phải số', { percent: '80' }],
+    ['reference không phải boolean', { reference: 'true' }],
+    ['thiếu side', { side: undefined }],
+  ])('%s ⇒ error khác null', async (_name, over) => {
+    const state = await freshAdapter()
+    mockInvoke.mockResolvedValue(
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [validSimilarSegmentWire(over)] } }) }),
+    )
+
+    const result = await state.aiPromptAssemble('Happy', 1)
+
+    expect(result.value).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('kind cũ "not_built_yet" không còn được nhận', async () => {
+    const state = await freshAdapter()
+    mockInvoke.mockResolvedValue(
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'not_built_yet', similar_segments: null } }) }),
+    )
+
+    const result = await state.aiPromptAssemble('Happy', 1)
+
+    expect(result.value).toBeNull()
+    expect(result.error).not.toBeNull()
   })
 })
 

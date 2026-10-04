@@ -24,9 +24,9 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Glossary: *chưa hỏi* ([`GlossaryInjectionStatus::NotAsked`] — thân không mang
 //! `{{glossary_terms}}`, KHÔNG lượt gọi Glossary nào chạy) tách hẳn khỏi *đã hỏi, không thấy
-//! gì* ([`GlossaryInjectionStatus::Asked`] với `injected` rỗng). TM: *chưa dựng*
-//! ([`TmInjectionStatus::NotBuiltYet`], tham số là `None` — TM chưa tồn tại tới Epic 7) tách
-//! hẳn khỏi *đã tra, không khớp gì* ([`TmInjectionStatus::Searched`] với lát cắt rỗng) — hai
+//! gì* ([`GlossaryInjectionStatus::Asked`] với `injected` rỗng). TM: *chưa hỏi*
+//! ([`TmInjectionStatus::NotAsked`], tham số là `None` — thân không mang
+//! `{{tm_similar_segments}}`, không đọc dòng TM nào) tách hẳn khỏi *đã tra, không khớp gì* ([`TmInjectionStatus::Searched`] với lát cắt rỗng) — hai
 //! trạng thái đó không bao giờ được viết cùng một cách.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +44,10 @@ use crate::core::glossary::{
 use crate::core::promptset::{PromptVariable, scan_markers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::Store;
-use crate::core::tm::SimilarSegment;
+use crate::core::tm::{
+    FuzzyCandidates, PairSide, SimilarSegment, TmStoreError, TmTier, fuzzy_pairs_in_candidates,
+    load_fuzzy_candidates,
+};
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Ledger — những gì Story 4.7 (prompt inspector) đọc lại
@@ -109,23 +112,32 @@ pub enum GlossaryInjectionStatus {
     },
 }
 
-/// Trạng thái TM của MỘT lượt gọi [`assemble_prompt`] — ba giá trị đúng nghĩa đen của tên nó:
-/// [`Self::NotBuiltYet`] khác [`Self::Searched`] dù `Searched` mang lát cắt RỖNG.
+/// One TM pair that entered the prompt; `reference` marks another person's pair (it sits under
+/// the reference-style label, never presented as the user's own style).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InjectedTmPair {
+    pub source_text: String,
+    pub target_text: String,
+    pub side: PairSide,
+    pub tier: TmTier,
+    pub percent: u8,
+    pub reference: bool,
+}
+
+/// TM state of one [`assemble_prompt`] call. `NotAsked` (no `{{tm_similar_segments}}` marker, TM
+/// never read) and `Searched` with an empty list ("looked, nothing similar") are different
+/// variants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TmInjectionStatus {
-    /// TM chưa tồn tại (trước Epic 7) — tham số `tm` của [`assemble_prompt`] là `None`.
-    NotBuiltYet,
-    /// TM đã tra — `Vec` rỗng nghĩa là *"đã tra, không khớp gì"*, KHÔNG lẫn với
-    /// [`Self::NotBuiltYet`].
-    Searched(Vec<SimilarSegment>),
+    NotAsked,
+    Searched(Vec<InjectedTmPair>),
 }
 
 /// Nhãn của MỘT mảnh `prompt` đã lắp — Story 4.7, finding B1 (loop 1), sửa lại ở loop 2
 /// (finding P7): BỐN nhãn, không còn ba. `Authored` (thân do người soạn bộ prompt gõ),
 /// `Glossary` (đúng khối `{{glossary_terms}}` mở rộng ra, kể cả hai dấu xuống dòng cách ly nếu
 /// có), `SourceSegment` (câu nguồn đã thay vào `{{source_segment}}` — TÁCH khỏi `Authored`, xem
-/// dưới), `Tm` (dành cho Epic 7 — RỖNG trong mọi `prompt` story này lắp, vì `assemble_prompt`'s
-/// tham số `tm` luôn `None` ở lệnh gọi duy nhất của Story 4.7).
+/// dưới), `Tm` (đúng khối `{{tm_similar_segments}}` mở rộng ra, Story 7.11).
 ///
 /// 🔴 **SỬA loop 2, finding P7** — bản loop 1 gộp câu nguồn vào `Authored` ("nó không mang
 /// `tier`, không phải một 'term' Glossary"), đúng NGUYÊN VĂN cách §Code Map của spec đặt tên lúc
@@ -144,8 +156,7 @@ pub enum PromptPieceKind {
     /// Glossary nên không thuộc `Glossary`, và không phải văn bản người soạn BỘ PROMPT gõ nên
     /// tách khỏi `Authored` (finding P7, loop 2).
     SourceSegment,
-    /// Dành cho Epic 7 — không một `prompt` nào story 4.7 lắp tạo ra mảnh khác rỗng ở nhãn
-    /// này, vì tham số `tm` của [`assemble_prompt`] luôn `None`.
+    /// The block `{{tm_similar_segments}}` expanded to.
     Tm,
 }
 
@@ -237,6 +248,67 @@ pub fn gather_glossary_context(
     })
 }
 
+/// Most TM pairs one prompt carries.
+pub const TM_PAIR_CAP: usize = 3;
+
+// aura-allow-text: prompt text sent to the model, not UI text
+const TM_REFERENCE_LABEL: &str = "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
+
+/// Every TM row of both tiers plus the fuzzy threshold, read once so many sentences can be
+/// scored against one read.
+pub struct TmRows {
+    candidates: FuzzyCandidates,
+    threshold: u8,
+}
+
+/// Reads the TM rows, or `None` without touching a store when `body` has no
+/// `{{tm_similar_segments}}` marker.
+pub fn load_tm_rows(
+    body: &str,
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<Option<TmRows>, TmStoreError> {
+    if scan_markers(body).tm_similar_segments_missing {
+        return Ok(None);
+    }
+    let threshold =
+        crate::core::scope::load_global_config(global).map_err(TmStoreError::Store)?.tm_fuzzy_threshold();
+    Ok(Some(TmRows {
+        candidates: load_fuzzy_candidates(global, work)?,
+        threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
+    }))
+}
+
+/// Every pair at or above the threshold for `sentence`, AD-18 order, uncut: choosing is the
+/// assembler's job. `None` when `rows` is `None` (marker absent).
+pub fn gather_tm_context(
+    rows: Option<&TmRows>,
+    resolver: &ScopeResolver,
+    source_lang: &str,
+    sentence: &str,
+) -> Result<Option<Vec<SimilarSegment>>, TmStoreError> {
+    let Some(rows) = rows else {
+        return Ok(None);
+    };
+    if sentence.trim().is_empty() {
+        return Ok(Some(Vec::new()));
+    }
+    let lang = match_lang_for_source_lang(source_lang);
+    let pairs = fuzzy_pairs_in_candidates(resolver, &rows.candidates, sentence, lang, rows.threshold)?;
+    Ok(Some(
+        pairs
+            .into_iter()
+            .map(|f| SimilarSegment {
+                source_text: f.pair.source_text,
+                target_text: f.pair.target_text,
+                side: f.pair.translation_origin.side(),
+                tier: f.pair.tier,
+                percent: f.percent,
+            })
+            .collect(),
+    ))
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Lớp THUẦN — Story 4.6's assembler
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -268,16 +340,57 @@ fn render_glossary_pairs(injected: &[InjectedGlossaryTerm]) -> String {
         .join("\n")
 }
 
+/// The user's own pairs first, then others', each side by percent (stable, so ties keep the
+/// order `tm` came in); a pair identical to `sentence` is never picked; at most [`TM_PAIR_CAP`].
+fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair> {
+    let side_sorted = |side: PairSide| {
+        let mut picked: Vec<&SimilarSegment> =
+            tm.iter().filter(|s| s.side == side && s.source_text != sentence).collect();
+        picked.sort_by(|a, b| b.percent.cmp(&a.percent));
+        picked
+    };
+    let mut seen: std::collections::HashSet<(&str, &str)> = std::collections::HashSet::new();
+    side_sorted(PairSide::Mine)
+        .into_iter()
+        .chain(side_sorted(PairSide::Others))
+        .filter(|s| seen.insert((s.source_text.as_str(), s.target_text.as_str())))
+        .take(TM_PAIR_CAP)
+        .map(|s| InjectedTmPair {
+            source_text: s.source_text.clone(),
+            target_text: s.target_text.clone(),
+            side: s.side,
+            tier: s.tier,
+            percent: s.percent,
+            reference: s.side == PairSide::Others,
+        })
+        .collect()
+}
+
+fn render_tm_pairs(pairs: &[InjectedTmPair]) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut label_written = false;
+    for pair in pairs {
+        if pair.reference && !label_written {
+            lines.push(TM_REFERENCE_LABEL.to_owned());
+            label_written = true;
+        }
+        lines.push(format!("{} → {}", pair.source_text, pair.target_text));
+    }
+    lines.join("\n")
+}
+
 /// Định danh biến số + phần thay thế của nó tại MỘT lượt gặp — dùng nội bộ bởi
 /// [`expand_prompt_body`].
-fn replacement_for<'a>(var: PromptVariable, sentence: &'a str, glossary_block: &'a str) -> &'a str {
+fn replacement_for<'a>(
+    var: PromptVariable,
+    sentence: &'a str,
+    glossary_block: &'a str,
+    tm_block: &'a str,
+) -> &'a str {
     match var {
         PromptVariable::GlossaryTerms => glossary_block,
         PromptVariable::SourceSegment => sentence,
-        // 🔵 Story 4.6 chỉ XOÁ marker này (câu chuyện "TM searched" của I/O Matrix nói thẳng:
-        // "the marker line is still removed this story") — tiêm nội dung TM thật là việc của
-        // Epic 7, không đổi chữ ký `assemble_prompt` khi tới lượt.
-        PromptVariable::TmSimilarSegments => "",
+        PromptVariable::TmSimilarSegments => tm_block,
     }
 }
 
@@ -384,8 +497,13 @@ fn pop_piece(out: &mut String, pieces: &mut Vec<PromptPiece>) {
 ///    dòng riêng, không bao giờ nối giữa dòng (matrix: *"Marker shares its line, two or more
 ///    pairs"*). Phần thay thế MỘT dòng (hoặc rỗng, không đứng một mình) không cần cách ly —
 ///    nó nối vào dòng như văn bản thường, đúng cách `{{source_segment}}` luôn hoạt động.
-fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (String, bool, Vec<PromptPiece>) {
-    let mut out = String::with_capacity(body.len() + glossary_block.len());
+fn expand_prompt_body(
+    body: &str,
+    sentence: &str,
+    glossary_block: &str,
+    tm_block: &str,
+) -> (String, bool, Vec<PromptPiece>) {
+    let mut out = String::with_capacity(body.len() + glossary_block.len() + tm_block.len());
     let mut pieces: Vec<PromptPiece> = Vec::new();
     let mut cursor = 0usize;
     let mut source_segment_seen = false;
@@ -427,7 +545,7 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
             source_segment_seen = true;
         }
 
-        let replacement = replacement_for(var, sentence, glossary_block);
+        let replacement = replacement_for(var, sentence, glossary_block, tm_block);
         let piece_kind = piece_kind_for(var);
 
         let line_start = body[..open_at].rfind('\n').map(|i| i + 1).unwrap_or(0);
@@ -491,9 +609,8 @@ fn expand_prompt_body(body: &str, sentence: &str, glossary_block: &str) -> (Stri
 /// I/O của spec 4.6. Không `Store`, không `ScopeResolver`, không khớp thuật ngữ, không đồng
 /// hồ, không I/O: đầu vào giống hệt nhau cho ra `prompt` giống hệt nhau, TỪNG BYTE.
 ///
-/// `glossary` đến từ [`gather_glossary_context`]; `tm` là `None` cho tới khi Epic 7 tồn tại
-/// (`TmInjectionStatus::NotBuiltYet`) hoặc `Some(&[...])` một khi nó tra xong
-/// (`TmInjectionStatus::Searched`, kể cả lát cắt rỗng).
+/// `glossary` comes from [`gather_glossary_context`]; `tm` from [`gather_tm_context`]: `None` is
+/// "not asked", `Some(&[])` is "asked, nothing similar".
 pub fn assemble_prompt(
     body: &str,
     sentence: &str,
@@ -505,11 +622,16 @@ pub fn assemble_prompt(
         GlossaryInjectionStatus::Asked { injected, .. } => render_glossary_pairs(injected),
     };
     let tm_status = match tm {
-        None => TmInjectionStatus::NotBuiltYet,
-        Some(segments) => TmInjectionStatus::Searched(segments.to_vec()),
+        None => TmInjectionStatus::NotAsked,
+        Some(segments) => TmInjectionStatus::Searched(select_tm_pairs(segments, sentence)),
+    };
+    let tm_block = match &tm_status {
+        TmInjectionStatus::NotAsked => String::new(),
+        TmInjectionStatus::Searched(pairs) => render_tm_pairs(pairs),
     };
 
-    let (prompt, source_segment_seen, pieces) = expand_prompt_body(body, sentence, &glossary_block);
+    let (prompt, source_segment_seen, pieces) =
+        expand_prompt_body(body, sentence, &glossary_block, &tm_block);
 
     // 🔴 Bảo đảm AC4/AC2 giữ đúng KHÔNG PHẢI bằng lời hứa — `pieces` được ghi SONG SONG với
     // `prompt` trong đúng MỘT vòng lặp của `expand_prompt_body` (không một bản quét thứ hai

@@ -20,7 +20,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use auratranslate_lib::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, PromptPieceKind, SuppressedGlossaryTerm,
+    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger, PromptPieceKind,
+    SuppressedGlossaryTerm,
     TmInjectionStatus, assemble_prompt, gather_glossary_context,
 };
 use auratranslate_lib::core::glossary::{
@@ -30,7 +31,7 @@ use auratranslate_lib::core::glossary::{
 use auratranslate_lib::core::matching::{self, MatchLang};
 use auratranslate_lib::core::scope::{ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{Store, StoreSpec};
-use auratranslate_lib::core::tm::SimilarSegment;
+use auratranslate_lib::core::tm::{PairSide, SimilarSegment, TmTier};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -455,63 +456,154 @@ fn an_unknown_marker_is_left_verbatim_and_reported() {
 // Hàng 10/11 — TM not built / TM searched
 // ═════════════════════════════════════════════════════════════════════════════════
 
+const REFERENCE_LABEL: &str =
+    "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
+const TM_BODY: &str = "TM:\n{{tm_similar_segments}}\n{{source_segment}}";
+
+fn seg(source: &str, target: &str, side: PairSide, percent: u8) -> SimilarSegment {
+    SimilarSegment {
+        source_text: source.to_owned(),
+        target_text: target.to_owned(),
+        side,
+        tier: TmTier::Work,
+        percent,
+    }
+}
+
+fn tm_prompt(segments: &[SimilarSegment]) -> (String, InjectionLedger) {
+    assemble_prompt(TM_BODY, "Hello.", GlossaryInjectionStatus::NotAsked, Some(segments))
+}
+
+fn injected(ledger: &InjectionLedger) -> &[InjectedTmPair] {
+    match &ledger.tm {
+        TmInjectionStatus::Searched(pairs) => pairs,
+        other => panic!("tm phai la Searched, nhan {other:?}"),
+    }
+}
+
 #[test]
-fn tm_not_built_removes_the_marker_line_and_ledger_records_not_built_yet() {
-    let body = "TM:\n{{tm_similar_segments}}\n{{source_segment}}";
-    let (prompt, ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+fn tm_not_asked_removes_the_marker_line_and_ledger_records_not_asked() {
+    let (prompt, ledger) =
+        assemble_prompt(TM_BODY, "Hello.", GlossaryInjectionStatus::NotAsked, None);
 
     assert_eq!(prompt, "TM:\nHello.");
-    assert_eq!(ledger.tm, TmInjectionStatus::NotBuiltYet);
+    assert_eq!(ledger.tm, TmInjectionStatus::NotAsked);
 }
 
 #[test]
-fn tm_searched_records_the_real_segments_from_a_real_some_slice() {
-    let segments = vec![SimilarSegment {
-        source_text: "A dog barked.".to_owned(),
-        target_text: "Mot con cho sua.".to_owned(),
-    }];
-    let body = "TM:\n{{tm_similar_segments}}\n{{source_segment}}";
-    let (prompt, ledger) =
-        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, Some(&segments));
-
-    assert_eq!(prompt, "TM:\nHello.", "marker van bi go -- tiem noi dung TM that la viec Epic 7");
-    assert_eq!(ledger.tm, TmInjectionStatus::Searched(segments));
-}
-
-#[test]
-fn tm_searched_with_an_empty_slice_is_still_searched_not_not_built_yet() {
-    let segments: Vec<SimilarSegment> = Vec::new();
-    let (_prompt, ledger) = assemble_prompt(
-        "{{tm_similar_segments}}",
-        "Hello.",
-        GlossaryInjectionStatus::NotAsked,
-        Some(&segments),
-    );
+fn tm_searched_with_an_empty_slice_removes_the_line_and_is_searched_not_not_asked() {
+    let (prompt, ledger) = tm_prompt(&[]);
+    assert_eq!(prompt, "TM:\nHello.");
     assert_eq!(ledger.tm, TmInjectionStatus::Searched(Vec::new()));
-    assert_ne!(ledger.tm, TmInjectionStatus::NotBuiltYet);
+    assert_ne!(ledger.tm, TmInjectionStatus::NotAsked);
 }
 
-/// Story 4.7 loop 2, finding P7 -- câu nguồn giờ mang nhãn RIÊNG `PromptPieceKind::SourceSegment`,
-/// tách khỏi `Authored`. Thân câu này CÒN cố ý mang `{{tm_similar_segments}}` (dù `tm` truyền
-/// `Some(&segments)` mang nội dung THẬT) để đối chứng luôn phần còn lại của finding P9 tại đúng
-/// tầng THUẦN của module: dù `ledger.tm == Searched(segments)`, KHÔNG một mảnh `Tm` nào xuất
-/// hiện trong `pieces` -- `replacement_for(TmSimilarSegments, …)` trả về `""` VÔ ĐIỀU KIỆN
-/// (Quyết định của Story 4.6, đóng băng), và `push_piece` bỏ qua chuỗi rỗng, nên KHÔNG một
-/// `prompt` nào tầng này lắp có thể mang một mảnh `Tm` mang văn bản -- việc đó là của Epic 7.
 #[test]
-fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored_and_tm_never_produces_a_piece()
- {
-    let segments = vec![SimilarSegment {
-        source_text: "A dog barked.".to_owned(),
-        target_text: "Mot con cho sua.".to_owned(),
-    }];
-    let body = "TM:\n{{tm_similar_segments}}\n{{source_segment}}";
-    let (prompt, ledger) =
-        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, Some(&segments));
+fn enough_own_pairs_fill_the_cap_and_no_reference_label_appears_even_when_others_score_higher() {
+    let segments = vec![
+        seg("O1", "t-o1", PairSide::Others, 98),
+        seg("M1", "t-m1", PairSide::Mine, 80),
+        seg("M2", "t-m2", PairSide::Mine, 70),
+        seg("M3", "t-m3", PairSide::Mine, 75),
+        seg("M4", "t-m4", PairSide::Mine, 90),
+    ];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    assert_eq!(prompt, "TM:\nM4 → t-m4\nM1 → t-m1\nM3 → t-m3\nHello.");
+    assert!(!prompt.contains(REFERENCE_LABEL));
+    assert!(injected(&ledger).iter().all(|p| !p.reference && p.side == PairSide::Mine));
+}
+
+#[test]
+fn mixed_pairs_put_own_first_then_others_under_the_label() {
+    let segments = vec![
+        seg("O1", "t-o1", PairSide::Others, 97),
+        seg("O2", "t-o2", PairSide::Others, 91),
+        seg("O3", "t-o3", PairSide::Others, 85),
+        seg("M1", "t-m1", PairSide::Mine, 60),
+        seg("O4", "t-o4", PairSide::Others, 99),
+    ];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    assert_eq!(
+        prompt,
+        format!("TM:\nM1 → t-m1\n{REFERENCE_LABEL}\nO4 → t-o4\nO1 → t-o1\nHello.")
+    );
+    let pairs = injected(&ledger);
+    assert_eq!(pairs.len(), 3);
+    assert_eq!(pairs.iter().map(|p| p.reference).collect::<Vec<_>>(), [false, true, true]);
+    assert_eq!(pairs[1].percent, 99);
+}
+
+#[test]
+fn only_others_pairs_sit_under_the_label() {
+    let segments =
+        vec![seg("O1", "t-o1", PairSide::Others, 90), seg("O2", "t-o2", PairSide::Others, 90)];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    assert_eq!(prompt, format!("TM:\n{REFERENCE_LABEL}\nO1 → t-o1\nO2 → t-o2\nHello."));
+    assert!(injected(&ledger).iter().all(|p| p.reference));
+}
+
+#[test]
+fn equal_percent_keeps_the_incoming_ad18_order() {
+    let segments = vec![
+        seg("A", "t-a", PairSide::Mine, 80),
+        seg("B", "t-b", PairSide::Mine, 80),
+        seg("C", "t-c", PairSide::Mine, 80),
+    ];
+    let (prompt, _) = tm_prompt(&segments);
+    assert_eq!(prompt, "TM:\nA → t-a\nB → t-b\nC → t-c\nHello.");
+}
+
+#[test]
+fn an_identical_source_and_target_pair_is_inserted_once_and_the_own_copy_wins() {
+    let mut other_copy = seg("M1", "t-m1", PairSide::Others, 95);
+    other_copy.tier = TmTier::Global;
+    let segments = vec![
+        other_copy,
+        seg("M1", "t-m1", PairSide::Mine, 95),
+        seg("M1", "t-m1", PairSide::Mine, 95),
+        seg("O2", "t-o2", PairSide::Others, 70),
+        seg("O3", "t-o3", PairSide::Others, 60),
+    ];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    assert_eq!(prompt, format!("TM:\nM1 → t-m1\n{REFERENCE_LABEL}\nO2 → t-o2\nO3 → t-o3\nHello."));
+    let pairs = injected(&ledger);
+    assert_eq!(pairs.len(), 3);
+    assert_eq!(pairs[0].side, PairSide::Mine);
+}
+
+#[test]
+fn a_pair_whose_source_equals_the_sentence_is_never_inserted() {
+    let segments =
+        vec![seg("Hello.", "t-exact", PairSide::Mine, 99), seg("M1", "t-m1", PairSide::Mine, 50)];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    assert_eq!(prompt, "TM:\nM1 → t-m1\nHello.");
+    assert_eq!(injected(&ledger).len(), 1);
+}
+
+#[test]
+fn the_tm_block_is_one_tm_piece_and_pieces_concatenate_to_the_prompt() {
+    let segments = vec![seg("M1", "t-m1", PairSide::Mine, 60), seg("O1", "t-o1", PairSide::Others, 90)];
+    let (prompt, ledger) = tm_prompt(&segments);
+
+    let concatenated: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
+    assert_eq!(concatenated, prompt);
+    let tm_pieces: Vec<_> = ledger.pieces.iter().filter(|p| p.kind == PromptPieceKind::Tm).collect();
+    assert_eq!(tm_pieces.len(), 1, "{:?}", ledger.pieces);
+    assert_eq!(tm_pieces[0].text, format!("M1 → t-m1\n{REFERENCE_LABEL}\nO1 → t-o1"));
+}
+
+/// Story 4.7 loop 2, finding P7 -- câu nguồn mang nhãn RIÊNG `PromptPieceKind::SourceSegment`,
+/// tách khỏi `Authored`; ca này dùng một TM rỗng nên không có mảnh `Tm`.
+#[test]
+fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored() {
+    let (prompt, ledger) = tm_prompt(&[]);
 
     assert_eq!(prompt, "TM:\nHello.");
-    assert_eq!(ledger.tm, TmInjectionStatus::Searched(segments), "tien de: tm THAT su da 'searched'");
-
     let concatenated: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
     assert_eq!(concatenated, prompt, "noi lai pieces phai cho dung prompt TUNG BYTE");
 
@@ -520,12 +612,7 @@ fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored_and_t
     assert_eq!(ledger.pieces[0].text, "TM:\n");
     assert_eq!(ledger.pieces[1].kind, PromptPieceKind::SourceSegment);
     assert_eq!(ledger.pieces[1].text, "Hello.");
-
-    assert!(
-        !ledger.pieces.iter().any(|p| p.kind == PromptPieceKind::Tm),
-        "khong mot manh Tm nao duoc phep ton tai o tang nay hom nay -- {:?}",
-        ledger.pieces
-    );
+    assert!(!ledger.pieces.iter().any(|p| p.kind == PromptPieceKind::Tm));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

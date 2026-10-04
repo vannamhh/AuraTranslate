@@ -12809,3 +12809,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-10-xuat-va-nhap-tmx.md`
   summary: The `tmImportOverlayIsOpen` line added to `main.ts::isBlocked` is unguarded: removing it leaves the suite green and global chords fire behind the modal import preview.
   evidence: same class as the 7.9 item on `main.ts::boot()` wiring; no test reads the predicate. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-11-smart-rag-uu-tien-cap-cua-chinh-nguoi-dung.md`
+  summary: In the real app, unverified: Xem prompt listing mixed own and others' TM pairs with tier, percent and the reference tag; the two-count summary after a single and a batch translate; whether the model actually treats the reference-labelled pairs as reference style.
+  evidence: happy-dom covers the rendering and the refresh watcher with mocked IPC only; no test sends a real prompt to a model. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-11-smart-rag-uu-tien-cap-cua-chinh-nguoi-dung.md`
+  summary: The `OpenWorkState` hold of a batch prepare with `{{tm_similar_segments}}` is unmeasured; Q4's ≈ 0.5 s per sentence at 100,000 pairs per tier is borrowed from the 7.5 strip scan, and that TM is read once per batch is not observable by any test.
+  evidence: `prepare_batch_call` scores every sentence under the lock (Q4 A); settle with a release run of a 100-sentence batch at 100k pairs per tier, timed, plus a read counter if one is wanted. Chủ: Epic 7.

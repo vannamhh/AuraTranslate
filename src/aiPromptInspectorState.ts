@@ -210,14 +210,16 @@ export async function assembleCurrentAiPrompt(promptSetName: string | null, segm
  */
 export type GlossarySummary =
   | { kind: 'no_record' }
-  | { kind: 'not_asked' }
-  | { kind: 'asked'; count: number }
+  | { kind: 'not_asked'; tmCount: number | null }
+  | { kind: 'asked'; count: number; tmCount: number | null }
 
 export function glossaryInjectionSummary(current: ReadonlyAssembledPromptWire | null): GlossarySummary {
   if (current === null) return { kind: 'no_record' }
   const status = current.ledger.glossary
-  if (status.kind === 'not_asked') return { kind: 'not_asked' }
-  return { kind: 'asked', count: status.injected.length }
+  const tm = current.ledger.tm
+  const tmCount = tm.kind === 'searched' ? tm.similar_segments.length : null
+  if (status.kind === 'not_asked') return { kind: 'not_asked', tmCount }
+  return { kind: 'asked', count: status.injected.length, tmCount }
 }
 
 /**

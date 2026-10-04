@@ -53,19 +53,21 @@ export type GlossaryInjectionStatusWire =
       suppressed_by_pending_overlap: SuppressedGlossaryTermWire[]
     }
 
-/** Một câu tương tự tìm được trong TM — khớp NGUYÊN VĂN `SimilarSegmentWire` phía Rust.
- * KHÔNG có chỗ gọi nào của Story 4.7 tạo ra hình dạng `kind: 'searched'` mang mảng này (tham
- * số TM của `assemble_prompt` luôn `None` ở tầng Rust này) — kiểu vẫn khai để `switch` trên
- * `kind` không thiếu nhánh trước Epic 7. */
+/** Một cặp TM đã chèn vào prompt — khớp NGUYÊN VĂN `InjectedTmPair` phía Rust. `reference` đúng
+ * cho các cặp nằm dưới dòng nhãn "văn phong tham khảo" (cặp của người khác). */
 export type SimilarSegmentWire = {
   source_text: string
   target_text: string
+  side: 'mine' | 'others'
+  tier: 'work' | 'global'
+  percent: number
+  reference: boolean
 }
 
-/** Trạng thái TM trên dây — cùng khuôn tag `kind` với [`GlossaryInjectionStatusWire`].
- * §Never spec 4.7: không nội dung TM nào được hiện ngoài chính trạng thái này (Epic 7). */
+/** Trạng thái TM trên dây — `not_asked` ⇔ thân bộ prompt không có `{{tm_similar_segments}}`;
+ * `searched` mang CHỈ các cặp đã chèn (mảng rỗng = đã tìm, không có cặp nào). */
 export type TmInjectionStatusWire =
-  | { kind: 'not_built_yet'; similar_segments: null }
+  | { kind: 'not_asked'; similar_segments: null }
   | { kind: 'searched'; similar_segments: SimilarSegmentWire[] }
 
 /** Nhãn của MỘT mảnh `prompt` — khớp NGUYÊN VĂN `PromptPieceKindWire` phía Rust. Story 4.7
@@ -181,13 +183,20 @@ function isGlossaryInjectionStatusWire(value: unknown): value is GlossaryInjecti
 function isSimilarSegmentWire(value: unknown): value is SimilarSegmentWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<SimilarSegmentWire>
-  return typeof v.source_text === 'string' && typeof v.target_text === 'string'
+  return (
+    typeof v.source_text === 'string' &&
+    typeof v.target_text === 'string' &&
+    (v.side === 'mine' || v.side === 'others') &&
+    (v.tier === 'work' || v.tier === 'global') &&
+    typeof v.percent === 'number' &&
+    typeof v.reference === 'boolean'
+  )
 }
 
 function isTmInjectionStatusWire(value: unknown): value is TmInjectionStatusWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as { kind?: unknown; similar_segments?: unknown }
-  if (v.kind === 'not_built_yet') return v.similar_segments === null
+  if (v.kind === 'not_asked') return v.similar_segments === null
   if (v.kind === 'searched') {
     return Array.isArray(v.similar_segments) && v.similar_segments.every(isSimilarSegmentWire)
   }

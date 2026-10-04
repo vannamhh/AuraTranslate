@@ -43,7 +43,7 @@ const BAN_GHI_CU = {
   prompt_set_tier: 'global' as const,
   ledger: {
     glossary: { kind: 'not_asked' as const, injected: null, suppressed_by_pending_overlap: null },
-    tm: { kind: 'not_built_yet' as const, similar_segments: null },
+    tm: { kind: 'not_asked' as const, similar_segments: null },
     unknown_markers: [],
     source_segment_missing: false,
     pieces: [{ kind: 'authored' as const, text: 'Terms: dragon → rong' }],
