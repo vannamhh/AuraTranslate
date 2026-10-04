@@ -1,5 +1,5 @@
 /**
- * The Prompt Library, Prompt Import, Glossary Import and Settings dialogs and the quick-add form expose an accessible name: `aria-labelledby`
+ * The Prompt Library, Prompt Import, Glossary Import, TM Manage and Settings dialogs and the quick-add form expose an accessible name: `aria-labelledby`
  * resolves to an element that carries the visible title. One case per surface, so removing
  * the attribute from one surface turns only that case red.
  */
@@ -12,6 +12,7 @@ const promptSetListMock = vi.fn()
 const promptSetOpenImportPreviewMock = vi.fn()
 const openGlossaryImportPreviewMock = vi.fn()
 const lookupGlossaryTermMock = vi.fn()
+const tmListPairsMock = vi.fn()
 
 vi.mock('../../src/commands', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/commands')>()),
@@ -32,6 +33,14 @@ vi.mock('../../src/config/glossary', () => ({
   lookupGlossaryTerm: (...args: unknown[]) => lookupGlossaryTermMock(...args),
   addGlossaryTerm: vi.fn(),
   updateGlossaryTerm: vi.fn(),
+}))
+
+vi.mock('../../src/config/tm', () => ({
+  tmListPairs: (...args: unknown[]) => tmListPairsMock(...args),
+  tmUpdatePairTarget: vi.fn(),
+  tmDeletePair: vi.fn(),
+  tmDeleteOthers: vi.fn(),
+  tmPushPairToGlobal: vi.fn(),
 }))
 
 vi.mock('../../src/config/project', () => ({
@@ -55,6 +64,11 @@ beforeEach(() => {
       global: { kind: 'new', existing_body: null },
       work: null,
     },
+  })
+  tmListPairsMock.mockReset()
+  tmListPairsMock.mockResolvedValue({
+    listing: { work_open: false, tm_empty: true, health: [], total_pairs: 0, total_groups: 0, groups: [] },
+    error: null,
   })
   openGlossaryImportPreviewMock.mockReset()
   openGlossaryImportPreviewMock.mockResolvedValue({
@@ -121,6 +135,17 @@ describe('aria-labelledby names the surface with its visible title', () => {
     await wrapper.vm.$nextTick()
 
     expectNamedBy(wrapper, '.gi-panel[role="dialog"]', '.gi-title')
+    wrapper.unmount()
+  })
+
+  it('TmManageOverlay', async () => {
+    const state = await import('../../src/tmManageState')
+    const Overlay = (await import('../../src/TmManageOverlay.vue')).default
+    await state.openTmManage()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expectNamedBy(wrapper, '.tm-panel[role="dialog"]', '.tm-title')
     wrapper.unmount()
   })
 

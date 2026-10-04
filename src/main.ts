@@ -270,6 +270,8 @@ import type { InlineStripKind } from './panels/inlineStripPriority'
 import { saveGlossarySettings } from './glossarySettingsState'
 import { tmConcordanceCommandDeps } from './tmConcordanceCommandDeps'
 import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
+import { tmManageCommandDeps } from './tmManageCommandDeps'
+import { tmManageOverlayIsOpen } from './tmManageState'
 // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ───────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossarySettingsState.ts`: `glossaryQueueState.ts` dùng
@@ -865,6 +867,7 @@ async function boot(): Promise<void> {
       deferGlossaryConfirmStrip,
       ...tmFuzzyCommandDeps(),
       ...tmConcordanceCommandDeps(),
+      ...tmManageCommandDeps(),
       // Story 3.8 · FR53/FR55 — lớp phủ "Duyệt hàng loạt một phím".
       openGlossaryQueue: () => {
         void openGlossaryQueue()
@@ -965,6 +968,7 @@ async function boot(): Promise<void> {
         captureIsArmed.value ||
         queueOverlayIsOpen.value ||
         manageOverlayIsOpen.value ||
+        tmManageOverlayIsOpen.value ||
         importOverlayIsOpen.value ||
         // Story 6.8 — cùng lý do `attributionIsOpen`: `SettingsOverlay.vue` khai
         // `aria-modal="true"` và `trapTab`; không chặn ở đây thì một hợp âm đổi preset bố

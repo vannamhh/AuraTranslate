@@ -971,6 +971,11 @@ pub fn run() {
             crate::commands::segment::wire::accept_tm_fuzzy,
             crate::commands::segment::wire::accept_tm_exact,
             crate::commands::segment::wire::tm_concordance,
+            crate::commands::tm::wire::tm_list_pairs,
+            crate::commands::tm::wire::tm_update_pair_target,
+            crate::commands::tm::wire::tm_delete_pair,
+            crate::commands::tm::wire::tm_delete_others,
+            crate::commands::tm::wire::tm_push_pair_to_global,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

@@ -1142,7 +1142,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     Ok(loaded)
 }
 
-fn global_store_missing() -> IpcError {
+pub(crate) fn global_store_missing() -> IpcError {
     crate::core::store::StoreError::OpenFailed {
         store: crate::core::store::StoreKind::Global,
         detail: "the global store was never managed; see lib.rs::open_global_store".to_owned(),
@@ -1150,7 +1150,7 @@ fn global_store_missing() -> IpcError {
     .into()
 }
 
-fn tm_lookup_failed(err: &crate::core::tm::TmStoreError) -> IpcError {
+pub(crate) fn tm_lookup_failed(err: &crate::core::tm::TmStoreError) -> IpcError {
     match err {
         crate::core::tm::TmStoreError::Store(e) => IpcError::from(e.clone()),
         other => {
@@ -2385,14 +2385,14 @@ pub struct TmExactTarget {
     pub created_at: String,
 }
 
-fn tier_wire(tier: crate::core::tm::TmTier) -> &'static str {
+pub(crate) fn tier_wire(tier: crate::core::tm::TmTier) -> &'static str {
     match tier {
         crate::core::tm::TmTier::Work => "work",
         crate::core::tm::TmTier::Global => "global",
     }
 }
 
-fn side_wire(origin: crate::core::tm::PairOrigin) -> &'static str {
+pub(crate) fn side_wire(origin: crate::core::tm::PairOrigin) -> &'static str {
     match origin.side() {
         crate::core::tm::PairSide::Mine => "mine",
         crate::core::tm::PairSide::Others => "others",

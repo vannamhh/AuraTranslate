@@ -409,3 +409,376 @@ pub fn pair_by_id(
     })
     .transpose()
 }
+
+/// Most source groups one management listing ships; the totals are reported beside them.
+pub const MANAGE_GROUP_LIMIT: usize = 200;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TierFilter {
+    Both,
+    Work,
+    Global,
+}
+
+impl TierFilter {
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "both" => Some(Self::Both),
+            "work" => Some(Self::Work),
+            "global" => Some(Self::Global),
+            _ => None,
+        }
+    }
+
+    fn shows_work(self) -> bool {
+        self != Self::Global
+    }
+
+    fn shows_global(self) -> bool {
+        self != Self::Work
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OriginFilter {
+    All,
+    Side(PairSide),
+    Exactly(PairOrigin),
+}
+
+impl OriginFilter {
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "all" => Some(Self::All),
+            "mine" => Some(Self::Side(PairSide::Mine)),
+            "others" => Some(Self::Side(PairSide::Others)),
+            other => PairOrigin::from_stored(other).map(Self::Exactly),
+        }
+    }
+
+    fn admits(self, origin: PairOrigin) -> bool {
+        match self {
+            Self::All => true,
+            Self::Side(side) => origin.side() == side,
+            Self::Exactly(exact) => origin == exact,
+        }
+    }
+}
+
+/// Every pair of both tiers, read once so filtering and sorting can run after the caller
+/// released its locks.
+pub struct ManageSnapshot {
+    global_rows: Vec<RawPair>,
+    work_rows: Option<Vec<RawPair>>,
+}
+
+pub fn load_manage_snapshot(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+) -> Result<ManageSnapshot, TmStoreError> {
+    Ok(ManageSnapshot {
+        global_rows: load_all_pair_rows(global)?,
+        work_rows: work.map(load_all_pair_rows).transpose()?,
+    })
+}
+
+/// One list row: identical (source, target) copies collapse into it (Q8). `pair` is the first
+/// copy in AD-18 order, `copies` holds every copy in that order, `pair` included.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManageRow {
+    pub pair: TmPair,
+    pub copies: Vec<CopyRef>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CopyRef {
+    pub tier: TmTier,
+    pub id: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceGroup {
+    pub source_text: String,
+    pub distinct_targets: usize,
+    /// AD-18 order of each row's first copy.
+    pub rows: Vec<ManageRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManageListing {
+    /// Both tiers hold zero rows, as opposed to rows the filters rule out.
+    pub tm_empty: bool,
+    /// Pairs per stored origin over the tier filter alone, in `self`, `other`,
+    /// `bilingual_import` order.
+    pub health: [(PairOrigin, usize); 3],
+    /// Pairs passing every filter, before the cap.
+    pub total_pairs: usize,
+    /// Source groups passing every filter, before the cap.
+    pub total_groups: usize,
+    /// At most [`MANAGE_GROUP_LIMIT`], newest row first.
+    pub groups: Vec<SourceGroup>,
+}
+
+/// Management listing (FR62, FR63): rows narrowed by tier, origin and a Concordance-style
+/// substring search over source and target, grouped by exact source text.
+pub fn rank_manage_listing(
+    resolver: &crate::core::scope::ScopeResolver,
+    snapshot: ManageSnapshot,
+    tier: TierFilter,
+    origin: OriginFilter,
+    search: &str,
+) -> Result<ManageListing, TmStoreError> {
+    let tm_empty = snapshot.global_rows.is_empty()
+        && snapshot.work_rows.as_ref().is_none_or(Vec::is_empty);
+    let mut counts = [0usize; 3];
+    let needle = concordance_key(search);
+    let mut keep = |rows: Vec<RawPair>| -> Vec<RawPair> {
+        rows.into_iter()
+            .filter(|row| {
+                let slot = match row.translation_origin {
+                    PairOrigin::SelfTranslated => 0,
+                    PairOrigin::Other => 1,
+                    PairOrigin::BilingualImport => 2,
+                };
+                counts[slot] += 1;
+                origin.admits(row.translation_origin)
+                    && (needle.is_empty()
+                        || concordance_key(&row.source_text).contains(&needle)
+                        || concordance_key(&row.target_text).contains(&needle))
+            })
+            .collect()
+    };
+    let global_rows = if tier.shows_global() { keep(snapshot.global_rows) } else { Vec::new() };
+    let work_rows = match snapshot.work_rows {
+        Some(rows) if tier.shows_work() => Some(keep(rows)),
+        Some(_) => Some(Vec::new()),
+        None => None,
+    };
+    let merged = merge_tiers(resolver, global_rows, work_rows)?;
+    let total_pairs = merged.len();
+
+    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut groups: Vec<SourceGroup> = Vec::new();
+    let mut newest: Vec<(String, i64)> = Vec::new();
+    for pair in merged {
+        let copy = CopyRef { tier: pair.tier, id: pair.id };
+        let slot = *index.entry(pair.source_text.clone()).or_insert_with(|| {
+            groups.push(SourceGroup {
+                source_text: pair.source_text.clone(),
+                distinct_targets: 0,
+                rows: Vec::new(),
+            });
+            newest.push((String::new(), i64::MIN));
+            groups.len() - 1
+        });
+        let key = (pair.created_at.clone(), pair.id);
+        if key > (newest[slot].0.clone(), newest[slot].1) {
+            newest[slot] = key;
+        }
+        match groups[slot].rows.iter_mut().find(|row| row.pair.target_text == pair.target_text) {
+            Some(row) => row.copies.push(copy),
+            None => groups[slot].rows.push(ManageRow { pair, copies: vec![copy] }),
+        }
+    }
+    let mut ordered: Vec<(SourceGroup, (String, i64))> = groups.into_iter().zip(newest).collect();
+    ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.source_text.cmp(&b.0.source_text)));
+    let total_groups = ordered.len();
+    ordered.truncate(MANAGE_GROUP_LIMIT);
+    let groups = ordered
+        .into_iter()
+        .map(|(mut group, _)| {
+            group.distinct_targets = group.rows.len();
+            group
+        })
+        .collect();
+
+    Ok(ManageListing {
+        tm_empty,
+        health: [
+            (PairOrigin::SelfTranslated, counts[0]),
+            (PairOrigin::Other, counts[1]),
+            (PairOrigin::BilingualImport, counts[2]),
+        ],
+        total_pairs,
+        total_groups,
+        groups,
+    })
+}
+
+fn store_for<'a>(
+    tier: TmTier,
+    global: &'a crate::core::store::Store,
+    work: Option<&'a crate::core::store::Store>,
+) -> Option<&'a crate::core::store::Store> {
+    match tier {
+        TmTier::Global => Some(global),
+        TmTier::Work => work,
+    }
+}
+
+/// The copies still stored whose source and target still equal the row's, in the given order.
+/// A copy of the Work tier is skipped when no Work store is given.
+pub fn live_copies(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    copies: &[CopyRef],
+    source_text: &str,
+    target_text: &str,
+) -> Result<Vec<TmPair>, TmStoreError> {
+    let mut live = Vec::new();
+    for copy in copies {
+        let Some(store) = store_for(copy.tier, global, work) else { continue };
+        if let Some(pair) = pair_by_id(store, copy.tier, copy.id)?
+            && pair.source_text == source_text
+            && pair.target_text == target_text
+        {
+            live.push(pair);
+        }
+    }
+    Ok(live)
+}
+
+/// Replaces `target_text` on every live copy and sets the origin to `self`; id, source and
+/// `created_at` stay. A new text equal to the row's target writes nothing. Returns the copies as
+/// stored afterwards, empty when none is left. A blank target must be refused by the caller.
+pub fn update_copies_target(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    copies: &[CopyRef],
+    source_text: &str,
+    expected_target: &str,
+    new_target: &str,
+) -> Result<Vec<TmPair>, TmStoreError> {
+    let live = live_copies(global, work, copies, source_text, expected_target)?;
+    if new_target == expected_target {
+        return Ok(live);
+    }
+    let mut stored = Vec::new();
+    for pair in live {
+        let store = store_for(pair.tier, global, work).expect("live copy has a store");
+        let (id, source, expected, new) =
+            (pair.id, source_text.to_owned(), expected_target.to_owned(), new_target.to_owned());
+        let changed = store.write(move |tx| {
+            tx.execute(
+                "UPDATE tm_unit SET target_text = ?1, translation_origin = ?2 \
+                 WHERE id = ?3 AND source_text = ?4 AND target_text = ?5",
+                (&new, PairOrigin::SelfTranslated.as_str(), id, &source, &expected),
+            )
+        })?;
+        if changed > 0
+            && let Some(after) = pair_by_id(store, pair.tier, id)?
+        {
+            stored.push(after);
+        }
+    }
+    Ok(stored)
+}
+
+fn delete_copy(
+    store: &crate::core::store::Store,
+    id: i64,
+    source_text: &str,
+    target_text: &str,
+) -> Result<bool, TmStoreError> {
+    let (source, target) = (source_text.to_owned(), target_text.to_owned());
+    let changed = store.write(move |tx| {
+        tx.execute(
+            "DELETE FROM tm_unit WHERE id = ?1 AND source_text = ?2 AND target_text = ?3",
+            (id, &source, &target),
+        )
+    })?;
+    Ok(changed > 0)
+}
+
+/// Deletes every live copy of the row; returns how many went.
+pub fn delete_copies(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    copies: &[CopyRef],
+    source_text: &str,
+    target_text: &str,
+) -> Result<usize, TmStoreError> {
+    let mut deleted = 0;
+    for copy in copies {
+        let Some(store) = store_for(copy.tier, global, work) else { continue };
+        if delete_copy(store, copy.id, source_text, target_text)? {
+            deleted += 1;
+        }
+    }
+    Ok(deleted)
+}
+
+/// Deletes every pair whose origin projects to the others side; returns how many.
+pub fn delete_others_side(store: &crate::core::store::Store) -> Result<usize, TmStoreError> {
+    let origins: Vec<&'static str> = [PairOrigin::SelfTranslated, PairOrigin::Other, PairOrigin::BilingualImport]
+        .into_iter()
+        .filter(|o| o.side() == PairSide::Others)
+        .map(PairOrigin::as_str)
+        .collect();
+    let count = store.write(move |tx| {
+        let mut total = 0;
+        for origin in &origins {
+            total += tx.execute("DELETE FROM tm_unit WHERE translation_origin = ?1", [origin])?;
+        }
+        Ok(total)
+    })?;
+    Ok(count)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PushOutcome {
+    Moved(TmPair),
+    PairNotFound,
+    GlobalHasPair,
+}
+
+/// Moves a row to Global: one copy is inserted keeping the first live copy's origin and date,
+/// then every live Work copy is deleted, so a crash between the two leaves a duplicate, never a
+/// loss. Refused with nothing written when a live copy is already Global or Global holds the
+/// identical (source, target) pair.
+pub fn push_copies_to_global(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    copies: &[CopyRef],
+    source_text: &str,
+    target_text: &str,
+) -> Result<PushOutcome, TmStoreError> {
+    let live = live_copies(global, work, copies, source_text, target_text)?;
+    let Some(pair) = live.first().cloned() else {
+        return Ok(PushOutcome::PairNotFound);
+    };
+    if live.iter().any(|p| p.tier == TmTier::Global) {
+        return Ok(PushOutcome::GlobalHasPair);
+    }
+    let (source, target, origin, created_at) = (
+        pair.source_text.clone(),
+        pair.target_text.clone(),
+        pair.translation_origin.as_str(),
+        pair.created_at.clone(),
+    );
+    let new_id = global.write(move |tx| {
+        let exists: i64 = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM tm_unit WHERE source_text = ?1 AND target_text = ?2)",
+            (&source, &target),
+            |r| r.get(0),
+        )?;
+        if exists != 0 {
+            return Ok(None);
+        }
+        tx.execute(
+            "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
+             VALUES (?1, ?2, ?3, ?4)",
+            (&source, &target, origin, &created_at),
+        )?;
+        Ok(Some(tx.last_insert_rowid()))
+    })?;
+    let Some(new_id) = new_id else {
+        return Ok(PushOutcome::GlobalHasPair);
+    };
+    if let Some(work) = work {
+        for copy in &live {
+            delete_copy(work, copy.id, source_text, target_text)?;
+        }
+    }
+    Ok(PushOutcome::Moved(TmPair { id: new_id, tier: TmTier::Global, ..pair }))
+}

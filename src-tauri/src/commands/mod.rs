@@ -51,3 +51,4 @@ pub mod pinned;
 pub mod project;
 pub mod promptset;
 pub mod segment;
+pub mod tm;

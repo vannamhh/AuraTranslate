@@ -12790,3 +12790,15 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
   summary: The AD-18 date key compares `tm_unit.created_at` as strings, correct only while every row is ISO-8601 UTC with milliseconds; TMX import must write that exact format (TMX `creationdate` is `YYYYMMDDThhmmssZ`).
   evidence: `core/tm/mod.rs::merge_tiers` `newest_first`; today the only writer is `insert_pair` (`strftime('%Y-%m-%dT%H:%M:%fZ','now')`). Chủ: Story 7.10.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
+  summary: In the real app, unverified: the TM management overlay opened from the command palette (no default chord), its layout with long sources and the health strip, Tab order to the filter fields and the push and bulk-delete buttons, focus return after Esc, and list latency at 100k pairs per tier.
+  evidence: happy-dom cannot show layout or focus; `tests/frontend/tmManage.test.ts` covers state and dispatch only; `tm_list_pairs` latency was measured only by a probe before the code existed (spec Design Notes). Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
+  summary: `main.ts::boot()` wiring is untested for every overlay: removing `...tmManageCommandDeps()` or the `tmManageOverlayIsOpen` line in `isBlocked` leaves the suite green (same for the Glossary, Settings and other overlay entries).
+  evidence: tests install deps factories directly and attach the keymap without `isBlocked`; no test reads the predicate. Settle with a boot harness or a source-scanning case. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
+  summary: Overlay sub-commands (`tm.manage.*`, and the Glossary manage/queue ones alike) are listed as bindable in Settings, but a binding never fires: `main.ts::isBlocked` swallows chords while the overlay is open and the handlers do nothing while it is closed.
+  evidence: `shortcutsState.ts:139` lists the whole registry; `tmManageState.ts` handlers return while closed. Decide: hide overlay-only commands from Settings, or let them through the block. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
+  summary: `tm_list_pairs` releasing `OpenWorkState` before filtering, grouping and sorting has no guard; moving `score_tm_list` inside the lock keeps every case green.
+  evidence: no test observes lock hold time; `tm_concordance` has the same gap. Settle with a probe that takes the lock from another thread during a listing at 100k pairs per tier. Chủ: Epic 7.

@@ -1039,6 +1039,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "doc TOAN BO cap TM ca hai tang roi loc chuoi con, chi phi scale theo kich thuoc TM",
         ),
         (
+            "src/commands/tm.rs",
+            "pub fn tm_list_pairs<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "doc TOAN BO cap TM ca hai tang roi loc, nhom va sap xep, chi phi scale theo kich thuoc TM",
+        ),
+        (
+            "src/commands/tm.rs",
+            "pub fn tm_delete_others<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "mot DELETE moi nguon goc phia nguoi khac tren moi kho, co the xoa hang chuc nghin cap",
+        ),
+        (
             "src/commands/library.rs",
             "pub fn library_rescan(app: tauri::AppHandle",
             "quet MOI .atproj trong goc (I/O dong bo) roi ghi qua `store::Writer` -- AC1 doi giao \
@@ -1578,7 +1588,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
     (
         "src/commands/aiconfig.rs",
         2,
@@ -1660,6 +1670,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 15] = [
     // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
     ("src/commands/segment.rs", 17, 2, 2, ""),
+    // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
+    // `(async)`: it runs one DELETE per others-side origin in each of two stores.
+    // The other three act on the copies of one row, a few statements each.
+    ("src/commands/tm.rs", 3, 2, 2, ""),
     (
         "src/lib.rs",
         2,
@@ -1806,10 +1820,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (63, 43),
+        (66, 45),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         63/43 (70/31 truoc lo B cua Story 11.7: chin vo plain doi sang `(async)` va \
-         `prompt_set_export_many` la vo `(async)` moi).\n\n\
+         66/45.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -2243,3 +2243,64 @@ fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carrie
         .collect();
     assert!(leaked.is_empty(), "DTO segment khong duoc mang moc so ra day: {leaked:?}");
 }
+
+/// The TM management wire structs keep snake_case keys and `copies` on every row.
+#[test]
+fn tm_manage_wire_structs_keep_their_snake_case_keys() {
+    use auratranslate_lib::commands::tm::{
+        TmCopyArg, TmCopyWire, TmDeleteOthersOutcome, TmGroupRowWire, TmOriginCountWire, TmPairList, TmPairWire,
+        TmSourceGroupWire,
+    };
+    let keys = |v: &serde_json::Value| -> Vec<String> {
+        let mut k: Vec<String> = v.as_object().expect("object").keys().cloned().collect();
+        k.sort();
+        k
+    };
+    let list = TmPairList {
+        work_open: true,
+        tm_empty: false,
+        health: vec![TmOriginCountWire { translation_origin: "self", count: 1 }],
+        total_pairs: 1,
+        total_groups: 1,
+        groups: vec![TmSourceGroupWire {
+            source_text: "s".to_owned(),
+            distinct_targets: 1,
+            rows: vec![TmGroupRowWire {
+                tier: "work",
+                unit_id: 1,
+                copies: vec![TmCopyWire { tier: "work", unit_id: 1 }],
+                target_text: "t".to_owned(),
+                translation_origin: "self",
+                side: "mine",
+                created_at: "2026-03-01T00:00:00.000Z".to_owned(),
+            }],
+        }],
+    };
+    let json = serde_json::to_value(&list).expect("serialize");
+    assert_eq!(keys(&json), ["groups", "health", "tm_empty", "total_groups", "total_pairs", "work_open"]);
+    assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
+    assert_eq!(
+        keys(&json["groups"][0]["rows"][0]),
+        ["copies", "created_at", "side", "target_text", "tier", "translation_origin", "unit_id"]
+    );
+    assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
+    assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);
+    let pair = serde_json::to_value(TmPairWire {
+        tier: "global",
+        unit_id: 2,
+        source_text: "s".to_owned(),
+        target_text: "t".to_owned(),
+        translation_origin: "other",
+        side: "others",
+        created_at: "2026-03-01T00:00:00.000Z".to_owned(),
+    })
+    .expect("serialize");
+    assert_eq!(
+        keys(&pair),
+        ["created_at", "side", "source_text", "target_text", "tier", "translation_origin", "unit_id"]
+    );
+    let outcome = serde_json::to_value(TmDeleteOthersOutcome { deleted_work: 1, deleted_global: 2 }).expect("serialize");
+    assert_eq!(keys(&outcome), ["deleted_global", "deleted_work"]);
+    let arg: TmCopyArg = serde_json::from_value(serde_json::json!({ "tier": "work", "unit_id": 5 })).expect("parse");
+    assert_eq!((arg.tier.as_str(), arg.unit_id), ("work", 5));
+}

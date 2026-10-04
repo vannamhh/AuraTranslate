@@ -55,6 +55,7 @@ import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 // cùng lý do bốn lớp phủ kia.
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
 import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
+import TmManageOverlay from './TmManageOverlay.vue'
 // Story 3.10b — lớp phủ "Xem trước lượt nhập Glossary" (AD-48), lớp phủ THỨ BẢY. Mở TỪ
 // BÊN TRONG `GlossaryManageOverlay`, nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác —
 // `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
@@ -280,6 +281,16 @@ function focusOnPointerDown(event: MouseEvent) {
         {{ t('command.glossary.manage.open') }}
       </button>
 
+      <button
+        type="button"
+        class="titlebar-act"
+        data-tm-manage-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('tm.manage.open')"
+      >
+        {{ t('command.tm.manage.open') }}
+      </button>
+
       <!--
         Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn các nút ngay trên:
         `data-settings-open` là đường lui của tiêu điểm (UX-DR17).
@@ -365,6 +376,8 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 3.9 · FR49 — cùng khuôn: lớp phủ tự quản `v-if` qua `manageOverlayIsOpen`. -->
     <GlossaryManageOverlay />
+
+    <TmManageOverlay />
 
     <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
     <GlossaryImportOverlay />

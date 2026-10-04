@@ -227,14 +227,14 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 27
+const VUE_FLOOR = 29
 const TS_FLOOR = 75
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 151
+const COMMAND_FLOOR = 168
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -243,8 +243,8 @@ const COMMAND_FLOOR = 151
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 111
-const DISPATCH_FLOOR = 157
+const CLICK_FLOOR = 122
+const DISPATCH_FLOOR = 176
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2374,6 +2374,11 @@ const HANDLER_TABLE = {
     ],
   },
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
+  'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
+  'src/TmManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/TmManageOverlay.vue::onKeydown': {
+    ids: ['tm.manage.next', 'tm.manage.prev', 'tm.manage.edit', 'tm.manage.delete'],
+  },
   'src/SettingsShortcutsSection.vue::aimRowFrom': { nonCommand: R_CURSOR_IMPORTED },
   'src/SettingsShortcutsSection.vue::onKeyCellKeydown': { ids: ['shortcuts.unassign'] },
   'src/layout/LookupDrawer.vue::closeLookupDrawer': { nonCommand: R_CLOSE_IMPORTED },
@@ -2619,7 +2624,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 78
+const HANDLER_ATTR_FLOOR = 84
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

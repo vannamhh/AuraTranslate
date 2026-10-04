@@ -883,6 +883,28 @@ export type CommandDeps = {
   /** Saves the threshold typed in Settings. Handler of `tm.settings.save`. */
   saveTmSettings?: () => void
 
+  // ── TM management overlay (FR62, FR63) ──
+  /** Opens the TM management overlay. Handler of `tm.manage.open`. */
+  openTmManage?: () => void
+  /** Closes the overlay. Handler of `tm.manage.close`. */
+  closeTmManage?: () => void
+  /** Opens the edit form for the selected pair. Handler of `tm.manage.edit`. */
+  beginTmManageEdit?: () => void
+  /** Saves the open edit form. Handler of `tm.manage.save`. */
+  saveTmManageEdit?: () => void
+  /** Closes the edit form without saving. Handler of `tm.manage.cancel`. */
+  cancelTmManageEdit?: () => void
+  /** Deletes the selected pair (two presses). Handler of `tm.manage.delete`. */
+  deleteTmManagePair?: () => void
+  /** Deletes every pair on the others side in the filtered tiers (two presses). Handler of `tm.manage.delete_others`. */
+  deleteTmManageOthers?: () => void
+  /** Moves the selected Work pair to Global. Handler of `tm.manage.push`. */
+  pushTmManagePair?: () => void
+  /** Moves the cursor down. Handler of `tm.manage.next`. */
+  nextTmManageRow?: () => void
+  /** Moves the cursor up. Handler of `tm.manage.prev`. */
+  prevTmManageRow?: () => void
+
   // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ─────────────────
   /**
    * Mở lớp phủ, tải bảng chờ của Tác phẩm đang mở. Handler của `glossary.queue.open`.
@@ -3242,6 +3264,98 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('tm.settings.save', 'saveTmSettings')
       }
       deps.saveTmSettings()
+    },
+  })
+
+  // TM management: the title-bar button dispatches `tm.manage.open`; no default chord. The rest back the overlay's buttons.
+  target.register({
+    id: 'tm.manage.open',
+    labelKey: 'command.tm.manage.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openTmManage === undefined) return portMissing('tm.manage.open', 'openTmManage')
+      deps.openTmManage()
+    },
+  })
+  target.register({
+    id: 'tm.manage.close',
+    labelKey: 'command.tm.manage.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeTmManage === undefined) return portMissing('tm.manage.close', 'closeTmManage')
+      deps.closeTmManage()
+    },
+  })
+  target.register({
+    id: 'tm.manage.edit',
+    labelKey: 'command.tm.manage.edit',
+    keys: undefined,
+    run: () => {
+      if (deps.beginTmManageEdit === undefined) return portMissing('tm.manage.edit', 'beginTmManageEdit')
+      deps.beginTmManageEdit()
+    },
+  })
+  target.register({
+    id: 'tm.manage.save',
+    labelKey: 'command.tm.manage.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveTmManageEdit === undefined) return portMissing('tm.manage.save', 'saveTmManageEdit')
+      deps.saveTmManageEdit()
+    },
+  })
+  target.register({
+    id: 'tm.manage.cancel',
+    labelKey: 'command.tm.manage.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelTmManageEdit === undefined) return portMissing('tm.manage.cancel', 'cancelTmManageEdit')
+      deps.cancelTmManageEdit()
+    },
+  })
+  target.register({
+    id: 'tm.manage.delete',
+    labelKey: 'command.tm.manage.delete',
+    keys: undefined,
+    run: () => {
+      if (deps.deleteTmManagePair === undefined) return portMissing('tm.manage.delete', 'deleteTmManagePair')
+      deps.deleteTmManagePair()
+    },
+  })
+  target.register({
+    id: 'tm.manage.delete_others',
+    labelKey: 'command.tm.manage.delete_others',
+    keys: undefined,
+    run: () => {
+      if (deps.deleteTmManageOthers === undefined) return portMissing('tm.manage.delete_others', 'deleteTmManageOthers')
+      deps.deleteTmManageOthers()
+    },
+  })
+  target.register({
+    id: 'tm.manage.push',
+    labelKey: 'command.tm.manage.push',
+    keys: undefined,
+    run: () => {
+      if (deps.pushTmManagePair === undefined) return portMissing('tm.manage.push', 'pushTmManagePair')
+      deps.pushTmManagePair()
+    },
+  })
+  target.register({
+    id: 'tm.manage.next',
+    labelKey: 'command.tm.manage.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextTmManageRow === undefined) return portMissing('tm.manage.next', 'nextTmManageRow')
+      deps.nextTmManageRow()
+    },
+  })
+  target.register({
+    id: 'tm.manage.prev',
+    labelKey: 'command.tm.manage.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevTmManageRow === undefined) return portMissing('tm.manage.prev', 'prevTmManageRow')
+      deps.prevTmManageRow()
     },
   })
 

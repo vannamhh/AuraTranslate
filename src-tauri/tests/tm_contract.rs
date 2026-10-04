@@ -1993,3 +1993,697 @@ fn equal_percent_fuzzy_ties_list_the_newest_pair_first_even_when_it_has_the_high
     let got = fuzzy(&w, w.first_id());
     assert_eq!(fuzzy_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["newer-high-id", "older-low-id"]);
 }
+
+mod manage {
+    use super::*;
+    use auratranslate_lib::commands::tm::{TmPairList, wire as tm_wire};
+
+    fn list(w: &Wired, origin: &str, tier: &str, search: &str) -> TmPairList {
+        tm_wire::tm_list_pairs(w.app.handle().clone(), origin.to_owned(), tier.to_owned(), search.to_owned())
+            .expect("liet ke TM")
+    }
+
+    fn rows_of(l: &TmPairList) -> Vec<(String, String, &'static str, &'static str)> {
+        l.groups
+            .iter()
+            .flat_map(|g| g.rows.iter().map(|r| (g.source_text.clone(), r.target_text.clone(), r.tier, r.translation_origin)))
+            .collect()
+    }
+
+    fn health(l: &TmPairList) -> Vec<(&'static str, usize)> {
+        l.health.iter().map(|h| (h.translation_origin, h.count)).collect()
+    }
+
+    fn dated_work(w: &Wired, rows: &[(&str, &str, &str, &str)]) {
+        w.with_open(|o| seed_dated(&o.store, rows));
+    }
+
+    fn dated_global(w: &Wired, rows: &[(&str, &str, &str, &str)]) {
+        seed_dated(&w.app.state::<Store>(), rows);
+    }
+
+    fn work_ids(w: &Wired) -> Vec<(i64, String, String, String, String)> {
+        w.with_open(|o| tm_rows(o))
+    }
+
+    fn global_rows(w: &Wired) -> Vec<TmRow> {
+        w.app
+            .state::<Store>()
+            .read(|conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT id, source_text, target_text, translation_origin, created_at FROM tm_unit ORDER BY id",
+                )?;
+                let rows = stmt
+                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(rows)
+            })
+            .expect("doc global tm_unit")
+    }
+
+    const D1: &str = "2026-03-01T00:00:00.000Z";
+    const D2: &str = "2026-03-02T00:00:00.000Z";
+
+    #[test]
+    fn the_others_filter_keeps_both_tiers_and_the_health_strip_ignores_it() {
+        let w = wired("mg-filter", "一。", true);
+        dated_work(&w, &[("s1", "a", "self", D1), ("s2", "b", "self", D1), ("s3", "c", "other", D1)]);
+        dated_global(&w, &[("s4", "d", "bilingual_import", D1)]);
+
+        let got = list(&w, "others", "both", "");
+
+        assert_eq!(rows_of(&got).len(), 2);
+        assert_eq!((got.total_pairs, got.total_groups), (2, 2));
+        assert_eq!(health(&got), vec![("self", 2), ("other", 1), ("bilingual_import", 1)]);
+        assert!(rows_of(&got).iter().all(|r| r.3 != "self"));
+    }
+
+    #[test]
+    fn a_stored_origin_filter_and_the_mine_side_filter_narrow_rows() {
+        let w = wired("mg-origin", "一。", true);
+        dated_work(&w, &[("s1", "a", "self", D1), ("s2", "b", "other", D1)]);
+        dated_global(&w, &[("s3", "c", "bilingual_import", D1)]);
+
+        assert_eq!(rows_of(&list(&w, "bilingual_import", "both", "")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "other", "both", "")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "mine", "both", "")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "all", "both", "")).len(), 3);
+    }
+
+    #[test]
+    fn the_tier_filter_narrows_rows_and_the_health_strip() {
+        let w = wired("mg-tier", "一。", true);
+        dated_work(&w, &[("s1", "a", "self", D1)]);
+        dated_global(&w, &[("s2", "b", "other", D1), ("s3", "c", "other", D1)]);
+
+        let work_only = list(&w, "all", "work", "");
+        assert_eq!(rows_of(&work_only).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["work"]);
+        assert_eq!(health(&work_only), vec![("self", 1), ("other", 0), ("bilingual_import", 0)]);
+        let global_only = list(&w, "all", "global", "");
+        assert_eq!(global_only.total_pairs, 2);
+        assert_eq!(health(&global_only), vec![("self", 0), ("other", 2), ("bilingual_import", 0)]);
+    }
+
+    #[test]
+    fn two_hundred_and_fifty_sources_ship_two_hundred_groups_and_the_true_total() {
+        let w = wired("mg-cap", "一。", true);
+        let rows: Vec<(String, String)> = (0..250).map(|i| (format!("source {i:03}"), format!("target {i}"))).collect();
+        let refs: Vec<(&str, &str, &str)> = rows.iter().map(|(s, t)| (s.as_str(), t.as_str(), "self")).collect();
+        w.with_open(|o| seed(&o.store, &refs));
+
+        let got = list(&w, "all", "both", "");
+
+        assert_eq!((got.groups.len(), got.total_groups, got.total_pairs), (200, 250, 250));
+    }
+
+    #[test]
+    fn identical_pairs_in_one_source_collapse_into_one_row_and_stored_rows_stay() {
+        let w = wired("mg-group", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "B", "self", D1), ("S", "A", "self", D1)]);
+
+        let got = list(&w, "all", "both", "");
+
+        assert_eq!(got.groups.len(), 1);
+        assert_eq!((got.groups[0].rows.len(), got.groups[0].distinct_targets, got.total_pairs), (2, 2, 3));
+        assert_eq!(got.groups[0].rows[0].copies.len(), 2);
+        assert_eq!(work_ids(&w).len(), 3);
+    }
+
+    #[test]
+    fn groups_come_newest_row_first_and_rows_inside_follow_ad_18() {
+        let w = wired("mg-order", "一。", true);
+        dated_work(&w, &[("old", "o", "self", D1), ("mix", "work-other", "other", D2)]);
+        dated_global(&w, &[("mix", "global-mine", "self", D1)]);
+
+        let got = list(&w, "all", "both", "");
+
+        assert_eq!(got.groups.iter().map(|g| g.source_text.as_str()).collect::<Vec<_>>(), vec!["mix", "old"]);
+        assert_eq!(
+            got.groups[0].rows.iter().map(|r| r.target_text.as_str()).collect::<Vec<_>>(),
+            vec!["global-mine", "work-other"]
+        );
+    }
+
+    #[test]
+    fn search_matches_source_or_target_by_the_concordance_rule() {
+        let w = wired("mg-search", "一。", true);
+        dated_work(&w, &[("He met Master Li.", "xx", "self", D1), ("other source", "Gặp SƯ PHỤ", "self", D1)]);
+        dated_global(&w, &[("师父来了", "zz", "other", D1)]);
+
+        assert_eq!(rows_of(&list(&w, "all", "both", "master li")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "all", "both", "sư phụ")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "all", "both", "师父")).len(), 1);
+        let none = list(&w, "all", "both", "absent");
+        assert_eq!((none.total_pairs, none.tm_empty), (0, false));
+    }
+
+    #[test]
+    fn an_empty_tm_reports_tm_empty_and_an_unknown_filter_is_an_error() {
+        let w = wired("mg-empty", "一。", true);
+        assert!(list(&w, "all", "both", "").tm_empty);
+        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "bogus".to_owned(), "both".to_owned(), String::new())
+            .expect_err("origin la");
+        assert_eq!(err.code(), "tm.invalid_filter");
+        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "all".to_owned(), "bogus".to_owned(), String::new())
+            .expect_err("tang la");
+        assert_eq!(err.code(), "tm.invalid_filter");
+    }
+
+    #[test]
+    fn with_no_work_open_the_list_shows_global_only_and_push_is_unavailable() {
+        let w = wired("mg-nowork", "一。", true);
+        dated_global(&w, &[("g", "t", "other", D1)]);
+        {
+            let state = w.app.state::<OpenWorkState>();
+            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+
+        let got = list(&w, "all", "both", "");
+
+        assert!(!got.work_open);
+        assert_eq!(rows_of(&got).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["global"]);
+        let err = push_row(&w, &[("work", 1)], "S", "A").expect_err("khong co tac pham");
+        assert_eq!(err.code(), "work.none_open");
+    }
+
+    type PairResult = Result<auratranslate_lib::commands::tm::TmPairWire, auratranslate_lib::core::i18n::IpcError>;
+
+    fn arg(tier: &str, id: i64) -> auratranslate_lib::commands::tm::TmCopyArg {
+        auratranslate_lib::commands::tm::TmCopyArg { tier: tier.to_owned(), unit_id: id }
+    }
+
+    fn args(copies: &[(&str, i64)]) -> Vec<auratranslate_lib::commands::tm::TmCopyArg> {
+        copies.iter().map(|(t, i)| arg(t, *i)).collect()
+    }
+
+    fn stored_pair(w: &Wired, tier: &str, id: i64) -> (String, String) {
+        let found = if tier == "work" {
+            w.with_open(|o| tm_rows(o)).into_iter().find(|r| r.0 == id)
+        } else {
+            global_rows(w).into_iter().find(|r| r.0 == id)
+        };
+        found.map_or_else(|| (String::new(), String::new()), |r| (r.1, r.2))
+    }
+
+    fn update_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str, text: &str) -> PairResult {
+        tm_wire::tm_update_pair_target(
+            w.app.handle().clone(),
+            args(copies),
+            source.to_owned(),
+            expected.to_owned(),
+            text.to_owned(),
+        )
+    }
+
+    fn delete_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
+        tm_wire::tm_delete_pair(w.app.handle().clone(), args(copies), source.to_owned(), expected.to_owned())
+    }
+
+    fn push_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str) -> PairResult {
+        tm_wire::tm_push_pair_to_global(w.app.handle().clone(), args(copies), source.to_owned(), expected.to_owned())
+    }
+
+    fn update(w: &Wired, tier: &str, id: i64, text: &str) -> PairResult {
+        let (source, target) = stored_pair(w, tier, id);
+        update_row(w, &[(tier, id)], &source, &target, text)
+    }
+
+    fn delete_one(w: &Wired, tier: &str, id: i64) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
+        let (source, target) = stored_pair(w, tier, id);
+        delete_row(w, &[(tier, id)], &source, &target)
+    }
+
+    fn edited_others_pair(tag: &str) -> (Wired, TmRow, auratranslate_lib::commands::tm::TmPairWire) {
+        let w = wired(tag, FUZZY_CURRENT, true);
+        dated_work(&w, &[(FUZZY_NEAR, "old text", "other", D1)]);
+        let before = work_ids(&w).remove(0);
+        let edited = update(&w, "work", before.0, "X").expect("sua");
+        (w, before, edited)
+    }
+
+    #[test]
+    fn editing_keeps_the_id_the_source_and_the_date_and_replaces_the_target() {
+        let (w, before, edited) = edited_others_pair("mg-edit-keep");
+
+        assert_eq!((edited.unit_id, edited.target_text.as_str(), edited.created_at.as_str()), (before.0, "X", D1));
+        let after = work_ids(&w);
+        assert_eq!(after.len(), 1);
+        assert_eq!((after[0].0, after[0].1.as_str(), after[0].2.as_str(), after[0].4.as_str()), (before.0, FUZZY_NEAR, "X", D1));
+    }
+
+    #[test]
+    fn editing_an_others_pair_makes_its_origin_self() {
+        let (w, _, edited) = edited_others_pair("mg-edit-origin");
+
+        assert_eq!(edited.translation_origin, "self");
+        assert_eq!(work_ids(&w)[0].3, "self");
+    }
+
+    #[test]
+    fn the_next_fuzzy_and_concordance_lookups_see_the_edited_target() {
+        let (w, _, _) = edited_others_pair("mg-edit-lookup");
+
+        let id = w.first_id();
+        assert_eq!(fuzzy(&w, id).matches.iter().map(|m| m.target_text.as_str()).collect::<Vec<_>>(), vec!["X"]);
+        let hits = concordance(&w, "quick brown");
+        assert_eq!(hits.hits.iter().map(|h| h.target_text.as_str()).collect::<Vec<_>>(), vec!["X"]);
+    }
+
+    #[test]
+    fn editing_a_global_pair_works_in_place_too() {
+        let w = wired("mg-edit-global", "一。", true);
+        dated_global(&w, &[("s", "t", "bilingual_import", D1)]);
+        let id = global_rows(&w)[0].0;
+
+        update(&w, "global", id, "t2").expect("sua global");
+
+        let rows = global_rows(&w);
+        assert_eq!((rows[0].0, rows[0].2.as_str(), rows[0].4.as_str()), (id, "t2", D1));
+    }
+
+    #[test]
+    fn a_blank_edit_is_refused_and_writes_nothing() {
+        let w = wired("mg-edit-empty", "一。", true);
+        dated_work(&w, &[("s", "keep", "other", D1)]);
+        let id = work_ids(&w)[0].0;
+        let before = work_ids(&w);
+
+        for blank in ["", "  ", " \u{3000}\n"] {
+            assert_eq!(update(&w, "work", id, blank).expect_err("trong").code(), "tm.target_empty");
+        }
+
+        assert_eq!(work_ids(&w), before);
+    }
+
+    #[test]
+    fn editing_or_deleting_or_pushing_a_gone_pair_answers_pair_not_found_and_writes_nothing() {
+        let w = wired("mg-stale", "一。", true);
+        dated_work(&w, &[("s", "keep", "other", D1)]);
+        dated_global(&w, &[("g", "keep", "other", D1)]);
+        let before = (work_ids(&w), global_rows(&w));
+
+        assert_eq!(update(&w, "work", 9_999, "x").expect_err("da mat").code(), "tm.pair_not_found");
+        assert_eq!(update(&w, "global", 9_999, "x").expect_err("da mat").code(), "tm.pair_not_found");
+        assert_eq!(update(&w, "nowhere", 1, "x").expect_err("tang la").code(), "tm.pair_not_found");
+        assert_eq!(delete_one(&w, "work", 9_999).expect_err("da mat").code(), "tm.pair_not_found");
+        assert_eq!(
+            push_row(&w, &[("work", 9_999)], "", "").expect_err("da mat").code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            update_row(&w, &[], "s", "keep", "x").expect_err("khong ban sao").code(),
+            "tm.pair_not_found"
+        );
+
+        assert_eq!((work_ids(&w), global_rows(&w)), before);
+    }
+
+    #[test]
+    fn deleting_one_pair_removes_only_it_and_the_next_concordance_misses_it() {
+        let w = wired("mg-delete", "一。", true);
+        dated_work(&w, &[("师父甲", "a", "self", D1), ("师父乙", "b", "self", D1)]);
+        let first = work_ids(&w)[0].0;
+        assert_eq!(concordance(&w, "师父").total, 2);
+
+        delete_one(&w, "work", first).expect("xoa");
+
+        assert_eq!(work_ids(&w).len(), 1);
+        assert_eq!(concordance_shape(&concordance(&w, "师父")), vec![("b", "work", "mine")]);
+    }
+
+    #[test]
+    fn deleting_a_global_pair_leaves_the_work_pair_with_the_same_id() {
+        let w = wired("mg-delete-global", "一。", true);
+        dated_work(&w, &[("s", "w", "self", D1)]);
+        dated_global(&w, &[("s", "g", "self", D1)]);
+        let id = global_rows(&w)[0].0;
+
+        delete_one(&w, "global", id).expect("xoa global");
+
+        assert!(global_rows(&w).is_empty());
+        assert_eq!(work_ids(&w).len(), 1);
+    }
+
+    fn delete_others(w: &Wired, tier: &str) -> auratranslate_lib::commands::tm::TmDeleteOthersOutcome {
+        tm_wire::tm_delete_others(w.app.handle().clone(), tier.to_owned()).expect("xoa nguoi khac")
+    }
+
+    #[test]
+    fn bulk_delete_in_the_work_tier_removes_every_others_side_pair_there_and_nothing_else() {
+        let w = wired("mg-bulk-work", "一。", true);
+        dated_work(
+            &w,
+            &[("a", "1", "other", D1), ("b", "2", "bilingual_import", D1), ("c", "3", "other", D2), ("d", "4", "self", D1)],
+        );
+        dated_global(&w, &[("e", "5", "other", D1), ("f", "6", "self", D1)]);
+        let global_before = global_rows(&w);
+
+        let out = delete_others(&w, "work");
+
+        assert_eq!((out.deleted_work, out.deleted_global), (3, 0));
+        assert_eq!(work_ids(&w).iter().map(|r| r.3.as_str()).collect::<Vec<_>>(), vec!["self"]);
+        assert_eq!(global_rows(&w), global_before);
+    }
+
+    #[test]
+    fn bulk_delete_over_both_tiers_removes_the_others_side_from_each() {
+        let w = wired("mg-bulk-both", "一。", true);
+        dated_work(&w, &[("a", "1", "other", D1), ("d", "4", "self", D1)]);
+        dated_global(&w, &[("e", "5", "bilingual_import", D1), ("f", "6", "self", D1)]);
+
+        let out = delete_others(&w, "both");
+
+        assert_eq!((out.deleted_work, out.deleted_global), (1, 1));
+        assert_eq!(work_ids(&w).len() + global_rows(&w).len(), 2);
+    }
+
+    #[test]
+    fn bulk_delete_in_the_global_tier_leaves_the_work_tier_alone() {
+        let w = wired("mg-bulk-global", "一。", true);
+        dated_work(&w, &[("a", "1", "other", D1)]);
+        dated_global(&w, &[("e", "5", "other", D1)]);
+
+        let out = delete_others(&w, "global");
+
+        assert_eq!((out.deleted_work, out.deleted_global), (0, 1));
+        assert_eq!(work_ids(&w).len(), 1);
+    }
+
+    #[test]
+    fn bulk_delete_of_the_work_tier_without_a_work_is_an_error() {
+        let w = wired("mg-bulk-nowork", "一。", true);
+        dated_global(&w, &[("e", "5", "other", D1)]);
+        {
+            let state = w.app.state::<OpenWorkState>();
+            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+        assert_eq!(
+            tm_wire::tm_delete_others(w.app.handle().clone(), "work".to_owned()).expect_err("khong co tac pham").code(),
+            "work.none_open"
+        );
+        assert_eq!(global_rows(&w).len(), 1);
+    }
+
+    fn push(w: &Wired, id: i64) -> PairResult {
+        let (source, target) = stored_pair(w, "work", id);
+        push_row(w, &[("work", id)], &source, &target)
+    }
+
+    #[test]
+    fn pushing_a_work_pair_moves_it_to_global_keeping_origin_and_date() {
+        let w = wired("mg-push", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D1)]);
+        let id = work_ids(&w)[0].0;
+
+        let moved = push(&w, id).expect("day len");
+
+        assert_eq!((moved.tier, moved.translation_origin, moved.created_at.as_str()), ("global", "other", D1));
+        let global = global_rows(&w);
+        assert_eq!(
+            global.iter().map(|r| (r.1.as_str(), r.2.as_str(), r.3.as_str(), r.4.as_str())).collect::<Vec<_>>(),
+            vec![("S", "A", "other", D1)]
+        );
+        assert_eq!(moved.unit_id, global[0].0);
+        assert!(work_ids(&w).is_empty());
+    }
+
+    #[test]
+    fn pushing_a_pair_global_already_holds_is_refused_and_both_tiers_stay_as_they_were() {
+        let w = wired("mg-push-dup", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D1)]);
+        dated_global(&w, &[("S", "A", "self", D2)]);
+        let id = work_ids(&w)[0].0;
+        let before = (work_ids(&w), global_rows(&w));
+
+        let err = push(&w, id).expect_err("trung");
+
+        assert_eq!(err.code(), "tm.global_pair_exists");
+        assert_eq!((work_ids(&w), global_rows(&w)), before);
+    }
+
+    #[test]
+    fn a_pair_that_differs_only_in_target_is_not_a_duplicate() {
+        let w = wired("mg-push-near", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1)]);
+        dated_global(&w, &[("S", "B", "self", D1)]);
+        let id = work_ids(&w)[0].0;
+
+        push(&w, id).expect("day len");
+
+        assert_eq!(global_rows(&w).len(), 2);
+    }
+
+    #[test]
+    fn the_list_wire_carries_exactly_the_documented_fields() {
+        let w = wired("mg-wire", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D1)]);
+
+        let json = serde_json::to_value(list(&w, "all", "both", "")).expect("tuan tu hoa");
+
+        let keys = |v: &serde_json::Value| -> Vec<String> {
+            let mut k: Vec<String> = v.as_object().expect("doi tuong").keys().cloned().collect();
+            k.sort();
+            k
+        };
+        assert_eq!(keys(&json), ["groups", "health", "tm_empty", "total_groups", "total_pairs", "work_open"]);
+        assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
+        assert_eq!(
+            keys(&json["groups"][0]["rows"][0]),
+            ["copies", "created_at", "side", "target_text", "tier", "translation_origin", "unit_id"]
+        );
+        assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
+        assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);
+        let pair = serde_json::to_value(update(&w, "work", work_ids(&w)[0].0, "B").expect("sua")).expect("tuan tu hoa");
+        assert_eq!(
+            keys(&pair),
+            ["created_at", "side", "source_text", "target_text", "tier", "translation_origin", "unit_id"]
+        );
+    }
+
+    fn copies_of_first_row(l: &TmPairList) -> Vec<(&'static str, i64)> {
+        l.groups[0].rows[0].copies.iter().map(|c| (c.tier, c.unit_id)).collect()
+    }
+
+    #[test]
+    fn identical_pairs_collapse_across_tiers_and_origins_into_the_first_copy_in_ad_18_order() {
+        let w = wired("mg-collapse", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D2)]);
+        dated_global(&w, &[("S", "A", "self", D1)]);
+
+        let got = list(&w, "all", "both", "");
+
+        assert_eq!((got.groups.len(), got.groups[0].rows.len(), got.total_pairs), (1, 1, 2));
+        let row = &got.groups[0].rows[0];
+        assert_eq!((row.tier, row.translation_origin, row.side), ("global", "self", "mine"));
+        let copies = copies_of_first_row(&got);
+        assert_eq!(copies.iter().map(|c| c.0).collect::<Vec<_>>(), vec!["global", "work"]);
+        assert_eq!(health(&got), vec![("self", 1), ("other", 1), ("bilingual_import", 0)]);
+    }
+
+    #[test]
+    fn editing_a_collapsed_row_rewrites_every_copy_and_labels_each_self() {
+        let w = wired("mg-edit-copies", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D2), ("S", "A", "bilingual_import", D1)]);
+        dated_global(&w, &[("S", "A", "other", D1)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+
+        update_row(&w, &copies, "S", "A", "B").expect("sua ca hang");
+
+        let work = work_ids(&w);
+        assert!(work.iter().all(|r| r.2 == "B" && r.3 == "self"));
+        let global = global_rows(&w);
+        assert!(global.iter().all(|r| r.2 == "B" && r.3 == "self"));
+        assert_eq!(work.len() + global.len(), 3);
+    }
+
+    #[test]
+    fn a_row_action_skips_copies_whose_target_changed_and_a_fully_stale_row_is_not_found() {
+        let w = wired("mg-live", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "self", D2)]);
+        let ids: Vec<i64> = work_ids(&w).iter().map(|r| r.0).collect();
+        update(&w, "work", ids[0], "changed").expect("doi mot ban sao");
+        let copies = [("work", ids[0]), ("work", ids[1])];
+
+        delete_row(&w, &copies, "S", "A").expect("xoa ban con nguyen");
+
+        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["changed"]);
+        assert_eq!(delete_row(&w, &copies, "S", "A").expect_err("het").code(), "tm.pair_not_found");
+        assert_eq!(update_row(&w, &copies, "S", "A", "x").expect_err("het").code(), "tm.pair_not_found");
+    }
+
+    #[test]
+    fn deleting_a_collapsed_row_removes_every_copy_in_both_tiers() {
+        let w = wired("mg-delete-copies", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "other", D2), ("S", "B", "self", D1)]);
+        dated_global(&w, &[("S", "A", "self", D1)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", "A"));
+        assert_eq!(copies.len(), 3);
+
+        delete_row(&w, &copies, "S", "A").expect("xoa ca hang");
+
+        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["B"]);
+        assert!(global_rows(&w).is_empty());
+    }
+
+    #[test]
+    fn pushing_a_collapsed_row_keeps_the_first_ad18_copys_origin_and_date() {
+        let w = wired("mg-push-copies", "一。", true);
+        const D3: &str = "2026-03-03T00:00:00.000Z";
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "self", D2), ("S", "A", "other", D3)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+        assert_eq!(copies.len(), 3);
+
+        let moved = push_row(&w, &copies, "S", "A").expect("day ca hang");
+
+        assert_eq!((moved.tier, moved.translation_origin, moved.created_at.as_str()), ("global", "self", D2));
+        let global = global_rows(&w);
+        assert_eq!(global.iter().map(|r| (r.3.as_str(), r.4.as_str())).collect::<Vec<_>>(), vec![("self", D2)]);
+        assert!(work_ids(&w).is_empty());
+    }
+
+    #[test]
+    fn pushing_listed_copies_that_were_deleted_meanwhile_is_not_found_and_writes_nothing() {
+        let w = wired("mg-push-gone", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "self", D2)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+        delete_row(&w, &copies, "S", "A").expect("xoa o noi khac");
+        let before = (work_ids(&w), global_rows(&w));
+
+        let err = push_row(&w, &copies, "S", "A").expect_err("ban sao da mat");
+
+        assert_eq!(err.code(), "tm.pair_not_found");
+        assert_eq!((work_ids(&w), global_rows(&w)), before);
+    }
+
+    #[test]
+    fn pushing_when_one_listed_copys_target_changed_moves_only_the_unchanged_copy() {
+        let w = wired("mg-push-changed", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "self", D2)]);
+        let ids: Vec<i64> = work_ids(&w).iter().map(|r| r.0).collect();
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+        update(&w, "work", ids[1], "changed").expect("doi mot ban sao");
+
+        push_row(&w, &copies, "S", "A").expect("day ban con nguyen");
+
+        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["changed"]);
+        assert_eq!(global_rows(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["A"]);
+    }
+
+    #[test]
+    fn pushing_a_row_that_already_has_a_global_copy_is_refused_and_writes_nothing() {
+        let w = wired("mg-push-has-global", "一。", true);
+        dated_work(&w, &[("S", "A", "self", D1)]);
+        dated_global(&w, &[("S", "A", "self", D1)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+        let before = (work_ids(&w), global_rows(&w));
+
+        let err = push_row(&w, &copies, "S", "A").expect_err("co ban sao global");
+
+        assert_eq!(err.code(), "tm.global_pair_exists");
+        assert_eq!((work_ids(&w), global_rows(&w)), before);
+    }
+
+    #[test]
+    fn saving_the_unchanged_target_writes_nothing_and_keeps_the_origin() {
+        let w = wired("mg-edit-same", "一。", true);
+        dated_work(&w, &[("S", "A", "other", D1)]);
+        dated_global(&w, &[("S", "A", "bilingual_import", D2)]);
+        let copies = copies_of_first_row(&list(&w, "all", "both", ""));
+        let before = (work_ids(&w), global_rows(&w));
+
+        update_row(&w, &copies, "S", "A", "A").expect("khong doi");
+
+        assert_eq!((work_ids(&w), global_rows(&w)), before);
+    }
+
+    #[test]
+    fn a_search_changes_the_rows_but_not_the_health_strip() {
+        let w = wired("mg-health-search", "一。", true);
+        dated_work(&w, &[("alpha", "x", "self", D1), ("beta", "y", "other", D1)]);
+        dated_global(&w, &[("gamma", "z", "bilingual_import", D1)]);
+
+        let all = list(&w, "all", "both", "");
+        let searched = list(&w, "all", "both", "alpha");
+
+        assert_eq!(searched.total_pairs, 1);
+        assert_eq!(health(&searched), health(&all));
+        assert_eq!(health(&searched), vec![("self", 1), ("other", 1), ("bilingual_import", 1)]);
+    }
+
+    #[test]
+    fn group_order_follows_the_newest_row_even_when_alphabetical_order_disagrees() {
+        let w = wired("mg-order-newest", "一。", true);
+        dated_work(&w, &[("aaa", "1", "self", D1), ("zzz", "2", "self", D2)]);
+
+        let got = list(&w, "all", "both", "");
+
+        assert_eq!(got.groups.iter().map(|g| g.source_text.as_str()).collect::<Vec<_>>(), vec!["zzz", "aaa"]);
+    }
+
+    #[test]
+    fn bulk_delete_over_both_tiers_with_no_work_open_deletes_global_only() {
+        let w = wired("mg-bulk-both-nowork", "一。", true);
+        dated_work(&w, &[("a", "1", "other", D1)]);
+        dated_global(&w, &[("e", "5", "other", D1), ("f", "6", "self", D1)]);
+        {
+            let state = w.app.state::<OpenWorkState>();
+            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+
+        let out = delete_others(&w, "both");
+
+        assert_eq!((out.deleted_work, out.deleted_global), (0, 1));
+        assert_eq!(global_rows(&w).iter().map(|r| r.3.as_str()).collect::<Vec<_>>(), vec!["self"]);
+    }
+
+    #[test]
+    fn editing_or_deleting_a_row_with_a_work_copy_and_no_work_open_is_an_error_and_leaves_global_alone() {
+        let w = wired("mg-copies-nowork", "一。", true);
+        dated_work(&w, &[("s", "t", "self", D1)]);
+        dated_global(&w, &[("s", "t", "self", D1)]);
+        let work_id = work_ids(&w)[0].0;
+        let gid = global_rows(&w)[0].0;
+        let before = global_rows(&w);
+        {
+            let state = w.app.state::<OpenWorkState>();
+            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+        let copies = [("work", work_id), ("global", gid)];
+
+        let edit = update_row(&w, &copies, "s", "t", "u").expect_err("khong co tac pham");
+        let delete = delete_row(&w, &copies, "s", "t").expect_err("khong co tac pham");
+
+        assert_eq!((edit.code(), delete.code()), ("work.none_open", "work.none_open"));
+        assert_eq!(global_rows(&w), before);
+    }
+
+    #[test]
+    fn listing_the_work_tier_with_no_work_open_is_an_error() {
+        let w = wired("mg-list-work-nowork", "一。", true);
+        {
+            let state = w.app.state::<OpenWorkState>();
+            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+
+        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "all".to_owned(), "work".to_owned(), String::new())
+            .expect_err("khong co tac pham");
+
+        assert_eq!(err.code(), "work.none_open");
+    }
+
+    #[test]
+    fn the_exact_lookup_sees_an_edit_and_then_a_delete() {
+        let w = wired("mg-exact-lookup", "A dragon roared.", true);
+        let id = w.first_id();
+        let source = w.source(id);
+        dated_work(&w, &[(source.as_str(), "old", "other", D1)]);
+        dated_global(&w, &[(source.as_str(), "fixed", "self", D1)]);
+        let pair_id = work_ids(&w)[0].0;
+
+        update(&w, "work", pair_id, "X").expect("sua");
+        assert_eq!(fuzzy(&w, id).exact.iter().map(|m| m.target_text.as_str()).collect::<Vec<_>>(), vec!["X", "fixed"]);
+
+        delete_one(&w, "work", pair_id).expect("xoa");
+        assert!(fuzzy(&w, id).exact.is_empty(), "one target left is no list");
+    }
+}
