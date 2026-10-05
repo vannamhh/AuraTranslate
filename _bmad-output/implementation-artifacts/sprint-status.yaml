@@ -48,7 +48,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: '10-05-2026 00:15'
+last_updated: '10-05-2026 09:44'
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -199,7 +199,7 @@ development_status:
   7-9-quản-lý-translation-memory: done
   7-10-xuất-và-nhập-tmx: done
   7-11-smart-rag-ưu-tiên-cặp-của-chính-người-dùng: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
   epic-8: backlog
   8-1-mũi-thăm-dò-thư-viện-diff: backlog
@@ -968,7 +968,7 @@ action_items:
       (story-6.x) va ghi rang retro goi git_evidence.py --stories bang dang cham (khop
       24/38, dang gach 0/38); hoac giu luat va dung hook commit-msg"
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md"
   - id: "epic-6-retro-item-69-ai-10-dong-mui-tham-do-bang-ma-cap-fixtu"
     epic: 6
@@ -985,7 +985,7 @@ action_items:
       đoán ensureFullLayoutTier chỉ đọc tầng narrow trên runner macos-26 (attribution-focus.e2e.mjs:64);
       rồi 5 lượt workflow_dispatch trên cùng commit (Quyết định 3 của 11.2)"
     owner: "Amelia"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-71-v-2-story-11-8-thêm-qua-correct-course-s"
     epic: 11
@@ -996,7 +996,7 @@ action_items:
       editorPendingPromote; set_open_chapter khi gộp Chương; fixture assets; doc-comment
       'không có MockRuntime' — mỗi guard có đối chứng đỏ"
     owner: "Ice"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-72-v-3-push-sau-mỗi-story-hoặc-một-lượt-wor"
     epic: 11
@@ -1018,7 +1018,7 @@ action_items:
       ca vỏ #[tauri::command] promote_ai_translation qua MockRuntime; EXPLAIN QUERY
       PLAN đọc SQL từ query.rs; ca ③ hanviet-segmenter-webkit phân biệt hai nhánh"
     owner: "Murat"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-75-v-6-đối-soát-sổ-nợ-tại-chỗ-bằng-câu-đóng"
     epic: 11
@@ -1049,7 +1049,7 @@ action_items:
     action: "V-9 — ci-previous-verdict.mjs đọc cả lượt schedule gần nhất và in ra
       khi đỏ; vẫn là cảnh báo không chặn (giữ phiếu #37)"
     owner: "Amelia"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-79-v-10-ghi-các-phát-hiện-hoãn-của-retro-ep"
     epic: 11
@@ -1059,5 +1059,115 @@ action_items:
       ord ngoài dải libraryChapters, chú thích trỏ tệp đã xoá, matching_close_brace
       ×2"
     owner: "Amelia"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-7-retro-item-80-r-1-push-master-17-commit-đọc-ci-cả-maco"
+    epic: 7
+    action: "R-1 — Push master (17 commit), đọc CI cả macOS và Windows cùng một lượt
+      e2e workflow_dispatch trên b61e87e trước khi epic-7 sang done; đỏ thì ghi lý
+      do (F6.1, lặp V-3)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-81-r-2-nạp-chương-không-hỏng-vì-tm-lỗi-tra"
+    epic: 7
+    action: "R-2 — Nạp Chương không hỏng vì TM: lỗi tra TM hay global.db vắng thì
+      bỏ điền sẵn và báo, vẫn dựng Chương; hàng tm_unit mang xuất xứ lạ không làm
+      sập lượt nạp; làm mới sau gộp/tách không đè ô có bộ đệm chưa flush; ca đỏ được
+      bằng phép gỡ thật (F3.1, F3.2)"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-82-r-3-thu-hẹp-khoá-openworkstate-của-tm_co"
+    epic: 7
+    action: "R-3 — Thu hẹp khoá OpenWorkState của tm_confirm_import, tm_open_import_preview,
+      tm_export_tier: tầng Global không giữ khoá Work; thêm ca quan sát thời gian
+      giữ khoá theo khuôn glossary_wire.rs:84 (F1.1, F1.2, F1.6)"
+    owner: "Amelia · Murat"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-83-r-4-đo-trên-bản-release-thời-gian-giữ-op"
+    epic: 7
+    action: "R-4 — Đo trên bản release thời gian giữ OpenWorkState của lô dịch 7-11,
+      nạp Chương có điền sẵn 7-4, Dịch AI một câu và Xem prompt; ghi số vào các mục
+      nợ đo đã có và thêm mục cho nạp Chương (F1.3–F1.5)"
+    owner: "Murat"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-84-r-5-ice-quyết-năm-câu-ngữ-nghĩa-tm-q-1-q"
+    epic: 7
+    action: "R-5 — Ice quyết năm câu ngữ nghĩa TM Q-1…Q-5 của retro Epic 7 (created_at
+      khi sửa, phạm vi sửa/xoá dưới bộ lọc, TMX ngày tương lai và self ngoại lai,
+      xuất xứ sau khôi phục FR101, đánh dấu là của tôi) rồi giao mã"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-85-r-6-gộp-cặp-trùng-nguồn-đích-ở-dải-khớp"
+    epic: 7
+    action: "R-6 — Gộp cặp trùng (nguồn, đích) ở dải khớp mờ 7-5 và Concordance 7-7
+      theo quy tắc 7-8; tmx.rs:520-525 dùng merge_tiers; bỏ .unwrap_or(0) ở core/tm/mod.rs:344
+      (F2.1, F2.8, F3.6)"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-86-r-7-hoà-giải-spine-ad-18-bốn-khoá-ad-6-n"
+    epic: 7
+    action: "R-7 — Hoà giải spine: AD-18 bốn khoá; AD-6 ngoại lệ cho sửa/xoá/đẩy lên
+      của 7-9; AD-49 mục 3 thêm tm_unit; AD-48 Binds và cây thư mục cho TMX; AD-17
+      ngoại lệ Concordance (F4.1, F4.2, F4.5)"
+    owner: "Winston"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-87-r-8-correct-course-bù-epics-md-cho-các-l"
+    epic: 7
+    action: "R-8 — Correct-course bù epics.md cho các lệch Ice đã chốt ở 7-4, 7-6,
+      7-7, 7-8, 7-9, 7-10 (F4.3, F4.4)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-88-r-9-đổi-định-danh-origin-trơn-trong-mã-t"
+    epic: 7
+    action: "R-9 — Đổi định danh origin trơn trong mã TM (tm_list_pairs, OriginFilter,
+      parse_filters, config/tm.ts, core/tm/mod.rs) sang tên có chủ ngữ và cho naming_boundary.rs
+      canh origin trơn ở dòng mã (F5)"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-89-r-10-sổ-nợ-sửa-câu-dòng-của-mục-deferred"
+    epic: 7
+    action: "R-10 — Sổ nợ: sửa câu dòng ✅ của mục deferred-work.md:12658 hết đỏ oan;
+      cho :9474 chủ sống; đóng :3920; 🔵 mục 7-9 command palette; thêm nợ lượt dùng
+      thật 7-4 và vế nhường Proofreader 7-5; ghi phát hiện hoãn F2.4, F2.6, F2.7,
+      F2.9, F3.4, F3.5 và tách commands/segment.rs thành mục có chủ"
+    owner: "Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-90-r-11-lượt-dùng-thật-của-ice-cho-7-mục-ch"
+    epic: 7
+    action: "R-11 — Lượt dùng thật của Ice cho 7 mục Chủ: Epic 7 (deferred-work.md:12762…12812)
+      trên bản đóng gói macOS trước khi epic-7 done"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-91-r-12-quy-trình-phiên-điều-phối-cũng-chịu"
+    epic: 7
+    action: "R-12 — Quy trình: phiên điều phối cũng chịu trần ~250k; vòng review/vá
+      thứ hai trở đi giao cho agent mới qua tệp bàn giao (F6.3, F6.4)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-92-r-13-quy-trình-duyệt-spec-hỏi-đường-vào"
+    epic: 7
+    action: "R-13 — Quy trình: duyệt spec hỏi đường vào màn hình và trạng thái với
+      tới được; lệnh Rust mới và wrapper invoke cùng một pha (F6.4, F6.6)"
+    owner: "Ice · Amelia"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
+  - id: "epic-7-retro-item-93-r-14-quy-trình-trình-ice-hai-phương-án-c"
+    epic: 7
+    action: "R-14 — Quy trình: trình Ice hai phương án commit (giữ tiêu đề dài, hoặc
+      tiêu đề một câu + thân) kèm số đo, sau khi kiểm git_evidence.py chỉ đọc id ở
+      tiêu đề (F6.7)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
