@@ -1108,7 +1108,7 @@ action_items:
       theo quy tắc 7-8; tmx.rs:520-525 dùng merge_tiers; bỏ .unwrap_or(0) ở core/tm/mod.rs:344
       (F2.1, F2.8, F3.6)"
     owner: "Amelia"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-86-r-7-hoà-giải-spine-ad-18-bốn-khoá-ad-6-n"
     epic: 7
