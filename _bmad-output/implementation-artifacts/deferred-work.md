@@ -12794,7 +12794,7 @@ chính nó.
   evidence: `core/tm/mod.rs::merge_tiers` `newest_first`; today the only writer is `insert_pair` (`strftime('%Y-%m-%dT%H:%M:%fZ','now')`). Chủ: Story 7.10.
   → ✅ ĐÃ ĐÓNG 2026-10-04 (Story 7.10): TMX import writes `created_at` only as `YYYY-MM-DDTHH:MM:SS.mmmZ` (`x-aura-created-at` when valid, else `creationdate` + `.000`, else now); `tmx_contract.rs` covers each branch.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
-  summary: In the real app, unverified: the TM management overlay opened from the command palette (no default chord). 🔵 2026-10-05: opened from the title-bar button (`src/App.vue` `data-tm-manage-open`, `src/commands/index.ts` `tm.manage.open`, no default chord); the repo has no command palette, its layout with long sources and the health strip, Tab order to the filter fields and the push and bulk-delete buttons, focus return after Esc, and list latency at 100k pairs per tier.
+  summary: In the real app, unverified: the TM management overlay opened from the command palette (no default chord), its layout with long sources and the health strip, Tab order to the filter fields and the push and bulk-delete buttons, focus return after Esc, and list latency at 100k pairs per tier. 🔵 2026-10-05: the overlay opens from the title-bar button (`src/App.vue` `data-tm-manage-open`, `tm.manage.open` with no default chord), not a command palette; the repo has none.
   evidence: happy-dom cannot show layout or focus; `tests/frontend/tmManage.test.ts` covers state and dispatch only; `tm_list_pairs` latency was measured only by a probe before the code existed (spec Design Notes). Chủ: Epic 7.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-9-quan-ly-translation-memory.md`
   summary: `main.ts::boot()` wiring is untested for every overlay: removing `...tmManageCommandDeps()` or the `tmManageOverlayIsOpen` line in `isBlocked` leaves the suite green (same for the Glossary, Settings and other overlay entries).
@@ -12828,7 +12828,7 @@ chính nó.
   evidence: neither can be forced without a test hook in `commands/tm.rs::wire`; the pure halves are covered in `tmx_contract.rs`. Chủ: Amelia.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: In the real app, unverified: the 7.4 Chapter-load pre-fill (a `tm-rule` bar on the pre-filled Segment, it stays unconfirmed, no `SegmentVersion` is created, and the translation origin is kept when the user confirms without editing).
-  evidence: no automated test can see the pre-filled Segment as a person does; Ice runs one real-use pass before Epic 7 closes. Pointer: `core/tm/mod.rs` Chapter-load pre-fill. Chủ: Epic 7.
+  evidence: no automated test can see the pre-filled Segment as a person does; Ice runs one real-use pass before Epic 7 closes. Pointer: `commands/segment.rs::fill_exact_tm_matches`. Chủ: Epic 7.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: The 7.5 fuzzy strip does not yet yield to the Proofreader (UX-DR21 order), so both can claim the same slot.
   evidence: Story 9.4 carries the AC "gợi ý TM nhường cả hai". Pointer: `src/tmFuzzyStripState.ts`. Chủ: Story 9.4.
@@ -12836,17 +12836,17 @@ chính nó.
   summary: F2.4: `commands/segment.rs::accept_tm_fuzzy` and `::accept_tm_exact` re-read the pair via `pair_by_id` and write `pair.target_text`, while the webview sends only `unitId`, so a pair edited between display and accept is accepted silently with different text.
   evidence: the user agreed to the text shown, not the text re-read. Pointer: `src/tmFuzzyStripState.ts`. Reconsidered when Epic 8 is planned; Kiểm C blocks Epic 8 closing. Chủ: Epic 8.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
-  summary: F2.7: `core/tm/tmx.rs::escape_into` silently drops characters below 0x20 and U+FFFE/FFFF, and `MAX_TMX_BYTES` is checked only in `decode_tmx_bytes`, so `render_tmx` and `commands/tm.rs::tm_export_tier` can write a file the importer then rejects.
-  evidence: export and import disagree on what is valid. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  summary: F2.7: `core/tm/tmx.rs::escape_into` silently drops characters below 0x20 and U+FFFE/FFFF, and `MAX_TMX_BYTES` is checked only in `decode_tmx_bytes`, so a pair holding such a character comes back as a "new" pair on re-import; and `render_tmx`/`commands/tm.rs::tm_export_tier` have no cap, so a large enough TM exports a file the importer rejects.
+  evidence: the 7.10 review rejected this without a debt item; a measured 262 MB export is within about 2.5% of the 256 MiB import cap. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.9: `core/tm/mod.rs::load_fuzzy_candidates`, `::load_concordance_candidates` and `::load_manage_snapshot` build the identical `{global_rows, work_rows}`, and `core/tm/tmx.rs::distinct_tier_pairs` and `core/ai/rag.rs::TmRows` also wrap `load_all_pair_rows`.
-  evidence: five callers re-read all rows per call; a shared snapshot would cut the 100k-pair cost. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  evidence: duplication, no behaviour defect found; five wrappers of the same loader must change together. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.4: `core/tm/mod.rs::fuzzy_pairs_in_candidates` scores all `global_rows` with one `SimilarityScorer::new(source_text, lang)` and no language filter, so pairs of another language pair are scored against this source.
-  evidence: wrong-language rows can surface as fuzzy matches. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  evidence: the Global tier stores no language, so zh and en pairs mix; the 7.5 strip and 7.11 RAG may insert another language's pair. Unmeasured: measure before calling it a bug. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.5: `core/matching/mod.rs::SimilarityScorer` compares raw text, `::diff_spans` trims and NFC-normalises, and `core/tm/mod.rs::concordance_key` trims, NFC-normalises and lowercases, so the three disagree on what counts as the same text.
-  evidence: a pair can score 100% yet differ in the diff or the Concordance key. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  evidence: a source differing only in whitespace shows "75%" while its diff is all Equal. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: Split `commands/segment.rs` (4557 lines, one file, TM commands divided between it and `commands/tm.rs`) along the Epic 6 AI-6 split of `commands/project.rs`.
   evidence: a file too large to hold as a map costs every agent that reads it. Pointer: `commands/segment.rs`, `commands/tm.rs`. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
