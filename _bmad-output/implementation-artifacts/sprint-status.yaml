@@ -1131,7 +1131,7 @@ action_items:
       parse_filters, config/tm.ts, core/tm/mod.rs) sang tên có chủ ngữ và cho naming_boundary.rs
       canh origin trơn ở dòng mã (F5)"
     owner: "Amelia"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-89-r-10-sổ-nợ-sửa-câu-dòng-của-mục-deferred"
     epic: 7
