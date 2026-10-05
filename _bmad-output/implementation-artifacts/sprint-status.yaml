@@ -1140,7 +1140,7 @@ action_items:
       thật 7-4 và vế nhường Proofreader 7-5; ghi phát hiện hoãn F2.4, F2.6, F2.7,
       F2.9, F3.4, F3.5 và tách commands/segment.rs thành mục có chủ"
     owner: "Amelia"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-90-r-11-lượt-dùng-thật-của-ice-cho-7-mục-ch"
     epic: 7
