@@ -67,7 +67,9 @@ let dienSanLanHai: number[] = []
 type KetQuaDoc = { loaded: unknown; error: unknown }
 let treoTuLuotThu: number | null = null
 let luotDangTreo: Array<(v: KetQuaDoc) => void> = []
-async function docSegmentGia(): Promise<KetQuaDoc> {
+let tuyChonCacLuotGoi: Array<{ prefill?: boolean }> = []
+async function docSegmentGia(options: { prefill?: boolean } = {}): Promise<KetQuaDoc> {
+  tuyChonCacLuotGoi.push(options)
   soLuotGoiDocSegment += 1
   if (treoTuLuotThu !== null && soLuotGoiDocSegment >= treoTuLuotThu) {
     return new Promise<KetQuaDoc>((resolve) => {
@@ -82,6 +84,7 @@ async function docSegmentGia(): Promise<KetQuaDoc> {
         assets: anhLanDau,
         assets_dir: anhLanDau.length > 0 ? '/tac-pham/assets-cu' : '',
         tm_filled_segment_ids: [],
+        tm_prefill: { kind: 'ran' },
       },
       error: null,
     }
@@ -98,6 +101,7 @@ async function docSegmentGia(): Promise<KetQuaDoc> {
       assets: [ANH_SAU_GOP],
       assets_dir: '/tac-pham/assets',
       tm_filled_segment_ids: dienSanLanHai,
+      tm_prefill: { kind: 'ran' },
     },
     error: null,
   }
@@ -154,6 +158,7 @@ beforeEach(() => {
   treoTuLuotThu = null
   luotDangTreo = []
   gopTreo = null
+  tuyChonCacLuotGoi = []
 })
 
 describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt gộp/tách', () => {
@@ -180,7 +185,7 @@ describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt g
     expect(editorState.editorSegments.value.map((s) => s.id)).toContain(HANG_MOI.id)
   })
 
-  it('lượt đọc sau gộp báo segment TM điền sẵn ⇒ ảnh chụp nhận văn bản mới và dấu TM có id đó', async () => {
+  it('lượt đọc sau gộp xin `prefill: false` và không nhận id TM nào dù lượt đọc có báo', async () => {
     const { editorState } = await tuoi()
     editorState.setEditorCaret(12)
     dienSanLanHai = [13]
@@ -191,10 +196,43 @@ describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt g
     expect(await editorState.mergeCurrentSegment()).toBe('done')
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    const filled = editorState.editorSegments.value.find((s) => s.id === 13)
-    expect(filled?.target_text).toBe('TM dien san.')
-    expect(filled?.translation_origin).toBe('self')
-    expect(editorState.editorTmFilledSegmentIds.value.has(13)).toBe(true)
+    expect(tuyChonCacLuotGoi[1]).toEqual({ prefill: false })
+    const segment = editorState.editorSegments.value.find((s) => s.id === 13)
+    expect(segment?.target_text).not.toBe('TM dien san.')
+    expect(editorState.editorTmFilledSegmentIds.value.has(13)).toBe(false)
+  })
+
+  it('gõ vào segment trong lúc lượt đọc sau gộp còn bay ⇒ segment không vào tập TM và ảnh chụp giữ chữ vừa gõ', async () => {
+    const { editorState } = await tuoi()
+    treoTuLuotThu = 2
+    editorState.setEditorCaret(12)
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_MOI] },
+      error: null,
+    }
+    expect(await editorState.mergeCurrentSegment()).toBe('done')
+    expect(luotDangTreo).toHaveLength(1)
+
+    editorState.noteEditorEdit(13, 'Toi vua go.')
+    luotDangTreo[0]({
+      loaded: {
+        chapter_id: CHUONG_CUA_SEGMENT,
+        segments: FIXTURE_SEGMENTS.map((s) =>
+          s.id === 13 ? { ...s, target_text: 'TM dien san.', status: 'draft', translation_origin: 'self' } : { ...s },
+        ),
+        caret_segment_id: null,
+        assets: [ANH_SAU_GOP],
+        assets_dir: '/tac-pham/assets',
+        tm_filled_segment_ids: [13],
+        tm_prefill: { kind: 'ran' },
+      },
+      error: null,
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(editorState.editorTmFilledSegmentIds.value.has(13)).toBe(false)
+    expect(editorState.editorSegments.value.find((s) => s.id === 13)?.target_text).not.toBe('TM dien san.')
+    expect(editorState.editorChapterAssets.value).toEqual([ANH_SAU_GOP])
   })
 
   it('lượt IPC thứ hai (sau gộp) trả `loaded: null` ⇒ giữ ảnh CŨ và báo lỗi, không xoá về []', async () => {
@@ -254,6 +292,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         assets: [],
         assets_dir: '',
         tm_filled_segment_ids: [],
+        tm_prefill: { kind: 'ran' },
       },
       error: null,
     })
@@ -265,6 +304,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         assets: [ANH_SAU_GOP],
         assets_dir: '/tac-pham/assets',
         tm_filled_segment_ids: [],
+        tm_prefill: { kind: 'ran' },
       },
       error: null,
     })

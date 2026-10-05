@@ -30,6 +30,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
           assets: [],
           assets_dir: '',
           tm_filled_segment_ids: [2],
+          tm_prefill: { kind: 'ran' },
         },
         error: null,
       }),

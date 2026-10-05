@@ -10,7 +10,7 @@ use auratranslate_lib::commands::project::{
 };
 use auratranslate_lib::commands::segment::{
     SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER, TRANSLATION_ORIGIN_SELF, confirm_segment, merge_segments, promote_ai_translation,
-    flush_segment_targets, read_open_chapter_segments, split_segment, wire,
+    flush_segment_targets, load_open_chapter_segments, read_open_chapter_segments, split_segment, wire, TmPrefillStatus,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::ScopeResolver;
@@ -1061,7 +1061,7 @@ impl Wired {
     }
 
     fn load(&self) -> auratranslate_lib::commands::segment::ChapterSegments {
-        wire::read_open_chapter_segments(self.app.handle().clone()).expect("nap chuong")
+        wire::read_open_chapter_segments(self.app.handle().clone(), None).expect("nap chuong")
     }
 
     fn first_id(&self) -> i64 {
@@ -1239,15 +1239,100 @@ fn a_second_load_reports_no_filled_ids_and_keeps_the_filled_draft() {
 }
 
 #[test]
-fn a_load_without_a_managed_global_store_fails_and_writes_nothing() {
+fn a_load_without_a_managed_global_store_returns_the_segments_and_skips_the_prefill() {
     let w = wired("fill-no-global", "A dragon roared.", false);
     let id = w.first_id();
     w.seed_work(&w.source(id), "Rong gam.", "self");
 
-    let err = wire::read_open_chapter_segments(w.app.handle().clone()).expect_err("thieu global");
+    let chapter = w.load();
 
-    assert_eq!(err.code(), "store.open_failed");
+    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "store.open_failed".to_owned() });
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(chapter.segments.len(), 1);
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn a_global_row_with_an_unknown_origin_skips_the_prefill_and_writes_nothing() {
+    let w = wired("fill-bad-global", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_global(&w.source(id), "Rong gam.", "x");
+
+    let chapter = w.load();
+
+    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "tm.lookup_failed".to_owned() });
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(chapter.segments.len(), 1);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn a_work_row_with_an_unknown_origin_skips_the_prefill_and_writes_nothing() {
+    let w = wired("fill-bad-work", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "x");
+
+    let chapter = w.load();
+
+    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "tm.lookup_failed".to_owned() });
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn a_failing_fill_write_rolls_back_and_still_returns_the_segments() {
+    let w = wired("fill-write-fails", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "self");
+    w.with_open(|open| {
+        open.store
+            .write(|tx: &Transaction<'_>| {
+                tx.execute_batch(
+                    "CREATE TRIGGER block_fill BEFORE UPDATE OF target_text ON segment \
+                     BEGIN SELECT RAISE(ABORT, 'blocked'); END;",
+                )
+            })
+            .expect("tao trigger");
+    });
+
+    let chapter = w.load();
+
+    assert!(matches!(chapter.tm_prefill, TmPrefillStatus::Skipped { .. }));
+    assert!(chapter.tm_filled_segment_ids.is_empty());
+    assert_eq!(chapter.segments.len(), 1);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn a_valid_load_reports_ran_and_an_unasked_load_reports_not_asked() {
+    let w = wired("fill-status", "A dragon roared.", true);
+    let id = w.first_id();
+    w.seed_work(&w.source(id), "Rong gam.", "self");
+
+    let unasked = wire::read_open_chapter_segments(w.app.handle().clone(), Some(false)).expect("nap chuong");
+    assert_eq!(unasked.tm_prefill, TmPrefillStatus::NotAsked);
+    assert!(unasked.tm_filled_segment_ids.is_empty());
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+
+    let ran = w.load();
+    assert_eq!(ran.tm_prefill, TmPrefillStatus::Ran);
+    assert_eq!(ran.tm_filled_segment_ids, [id]);
+}
+
+#[test]
+#[cfg(unix)]
+fn a_failing_segment_read_still_fails_the_load_whether_the_prefill_ran_or_was_skipped() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let (root, mut open) = work("fill-read-fails", "一。二。");
+    let global = open_global_db(&root);
+    open.dir = std::env::temp_dir().join(OsString::from_vec(vec![b'x', 0xFF, b'y']));
+
+    for g in [Some(&global), None] {
+        let err = load_open_chapter_segments(g, Some(&open), true).expect_err("doc segment hong");
+        assert_eq!(err.code(), "segment.assets_dir_not_utf8");
+    }
 }
 
 #[test]

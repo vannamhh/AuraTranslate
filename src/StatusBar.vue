@@ -318,6 +318,7 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   //    `'confirm-in-flight'` vào `NavNotice` mà chưa sửa đây thì `vue-tsc` đỏ.
   'confirm-in-flight': 'panel.grid.nav_confirm_in_flight',
   'chapter-still-dirty': 'panel.grid.nav_chapter_still_dirty',
+  'tm-prefill-skipped': 'panel.grid.nav_tm_prefill_skipped',
 }
 
 const navNoticeKey = computed<string | null>(() => {

@@ -806,9 +806,17 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         assets: Vec::new(),
         assets_dir: "/tmp/x.atproj/assets".to_owned(),
         tm_filled_segment_ids: Vec::new(),
+        tm_prefill: auratranslate_lib::commands::segment::TmPrefillStatus::NotAsked,
     };
     let value = serde_json::to_value(&loaded).expect("ChapterSegments phải serialize được");
     let object = value.as_object().expect("phải serialize thành object");
+    assert_eq!(object.get("tm_prefill"), Some(&serde_json::json!({ "kind": "not_asked" })));
+    use auratranslate_lib::commands::segment::TmPrefillStatus;
+    assert_eq!(serde_json::to_value(TmPrefillStatus::Ran).unwrap(), serde_json::json!({ "kind": "ran" }));
+    assert_eq!(
+        serde_json::to_value(TmPrefillStatus::Skipped { code: "store.open_failed".into() }).unwrap(),
+        serde_json::json!({ "kind": "skipped", "code": "store.open_failed" })
+    );
     assert!(
         object.contains_key("caret_segment_id"),
         "truong `caret_segment_id` phai co mat tren day, ke ca khi None -- webview phai phan \
@@ -828,6 +836,7 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         assets: Vec::new(),
         assets_dir: "/tmp/x.atproj/assets".to_owned(),
         tm_filled_segment_ids: Vec::new(),
+        tm_prefill: auratranslate_lib::commands::segment::TmPrefillStatus::NotAsked,
     };
     let value = serde_json::to_value(&with_value).expect("ChapterSegments phải serialize được");
     assert_eq!(

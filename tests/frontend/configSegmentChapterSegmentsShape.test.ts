@@ -22,6 +22,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       assets: [],
       assets_dir: '',
       tm_filled_segment_ids: [],
+      tm_prefill: { kind: 'ran' },
       segments: [
         {
           id: 1,
@@ -54,6 +55,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       assets: [],
       assets_dir: '',
       tm_filled_segment_ids: [],
+      tm_prefill: { kind: 'ran' },
       segments: [
         {
           id: 1,
@@ -119,3 +121,48 @@ describe('mergeSegments — một hàng của `retired`/`new_segments` thiếu t
     expect(outcome?.retired).toHaveLength(1)
   })
 })
+
+describe('readOpenChapterSegments — `tm_prefill` is a closed wire type', () => {
+  const base = { chapter_id: 7, caret_segment_id: null, assets: [], assets_dir: '', tm_filled_segment_ids: [], segments: [] }
+
+  it.each([
+    ['absent', undefined],
+    ['an unknown kind', { kind: 'maybe' }],
+    ['skipped without a code', { kind: 'skipped' }],
+    ['a bare string', 'ran'],
+  ])('%s => loaded null', async (_name, tmPrefill) => {
+    const { readOpenChapterSegments } = await import('../../src/config/segment')
+    invokeMock.mockResolvedValueOnce({ ...base, tm_prefill: tmPrefill })
+    vi.spyOn(console, 'error').mockImplementationOnce(() => {})
+
+    const { loaded, error } = await readOpenChapterSegments()
+
+    expect(loaded).toBeNull()
+    expect(error).not.toBeNull()
+  })
+
+  it.each([{ kind: 'ran' }, { kind: 'not_asked' }, { kind: 'skipped', code: 'store.open_failed' }])(
+    '%j passes',
+    async (tmPrefill) => {
+      const { readOpenChapterSegments } = await import('../../src/config/segment')
+      invokeMock.mockResolvedValueOnce({ ...base, tm_prefill: tmPrefill })
+
+      const { loaded } = await readOpenChapterSegments()
+
+      expect(loaded?.tm_prefill).toEqual(tmPrefill)
+    },
+  )
+
+  it('sends prefill true by default and false when asked', async () => {
+    const { readOpenChapterSegments } = await import('../../src/config/segment')
+    invokeMock.mockResolvedValue({ ...base, tm_prefill: { kind: 'ran' } })
+
+    await readOpenChapterSegments()
+    await readOpenChapterSegments({ prefill: false })
+
+    const calls = invokeMock.mock.calls.slice(-2)
+    expect(calls[0][1]).toEqual({ prefill: true })
+    expect(calls[1][1]).toEqual({ prefill: false })
+  })
+})
+

@@ -3,6 +3,7 @@ import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS, resetRecorder, recordSave } from 
 import vi_json from '../../src/i18n/vi.json'
 
 const filledIds = { value: [12] as number[] }
+const prefill = { value: { kind: 'ran' } as { kind: 'ran' } | { kind: 'skipped'; code: string } }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
@@ -16,6 +17,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
         assets: [],
         assets_dir: '',
         tm_filled_segment_ids: filledIds.value,
+        tm_prefill: prefill.value,
       },
       error: null,
     }),
@@ -37,6 +39,7 @@ async function freshState() {
 beforeEach(() => {
   resetRecorder()
   filledIds.value = [12]
+  prefill.value = { kind: 'ran' }
 })
 
 describe('dấu TM điền sẵn sống trong phiên', () => {
@@ -68,5 +71,35 @@ describe('dấu TM điền sẵn sống trong phiên', () => {
 
   it('nhãn trạng thái nói rõ cần xác nhận', () => {
     expect((vi_json as Record<string, string>)['panel.grid.state_tm']).toContain('cần xác nhận')
+  })
+})
+
+describe('a skipped TM pre-fill is a non-fatal notice', () => {
+  it('skipped => the Chapter still loads and the StatusBar notice is set', async () => {
+    prefill.value = { kind: 'skipped', code: 'store.open_failed' }
+    filledIds.value = []
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const state = await freshState()
+
+    expect(state.editorLoadError.value).toBeNull()
+    expect(state.editorSegments.value.length).toBeGreaterThan(0)
+    expect(state.editorNavNotice.value).toBe('tm-prefill-skipped')
+  })
+
+  it('ran => no notice', async () => {
+    const state = await freshState()
+    expect(state.editorNavNotice.value).toBeNull()
+  })
+
+  it('the StatusBar shows the mapped text', async () => {
+    prefill.value = { kind: 'skipped', code: 'tm.lookup_failed' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await freshState()
+    const { mount } = await import('@vue/test-utils')
+    const StatusBar = (await import('../../src/StatusBar.vue')).default
+    const wrapper = mount(StatusBar)
+
+    expect(wrapper.find('.notice').text()).toBe((vi_json as Record<string, string>)['panel.grid.nav_tm_prefill_skipped'])
+    wrapper.unmount()
   })
 })

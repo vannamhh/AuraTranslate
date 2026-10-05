@@ -215,6 +215,10 @@ export async function ensureSegmentsLoaded(): Promise<void> {
   tmFilledSegmentIds.value = new Set(loaded?.tm_filled_segment_ids ?? [])
   chapterId.value = loaded?.chapter_id ?? null
   loadError.value = error
+  if (loaded?.tm_prefill.kind === 'skipped') {
+    console.error(`[editor] TM pre-fill skipped: ${loaded.tm_prefill.code}`)
+    datThongBao({ nav: 'tm-prefill-skipped' })
+  }
   // 🔵 THÊM Story 6.14 — cùng lượt IPC, cùng lý do `segments`: `''`/`[]` khi nạp trượt hoặc
   // chạy ngoài Tauri, không phân biệt với "Chương 0 ảnh" (chỗ dùng phân biệt bằng `loadError`).
   chapterAssets.value = loaded?.assets ?? []
@@ -2441,6 +2445,8 @@ export type NavNotice =
    * thao tác trong im lặng.
    */
   | 'confirm-in-flight'
+  /** The Chapter loaded but the TM pre-fill was skipped; nothing was written from TM. */
+  | 'tm-prefill-skipped'
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
@@ -2676,7 +2682,7 @@ function applyRegroup(outcome: RegroupOutcome): void {
  */
 async function refreshChapterAssetsAfterRegroup(): Promise<void> {
   const mine = sequence
-  const { loaded, error } = await readOpenChapterSegments()
+  const { loaded, error } = await readOpenChapterSegments({ prefill: false })
   if (mine !== sequence) return
   if (loaded === null) {
     console.error(`[editor] refreshChapterAssetsAfterRegroup — readOpenChapterSegments() thất bại, giữ ảnh cũ: ${JSON.stringify(error)}`)
@@ -2685,16 +2691,6 @@ async function refreshChapterAssetsAfterRegroup(): Promise<void> {
   if (loaded.chapter_id !== chapterId.value) return
   chapterAssets.value = loaded.assets
   assetsDir.value = loaded.assets_dir
-  for (const id of loaded.tm_filled_segment_ids) {
-    const filled = loaded.segments.find((s) => s.id === id)
-    if (filled === undefined) continue
-    replaceEditorSegment(id, {
-      target_text: filled.target_text,
-      status: filled.status,
-      translation_origin: filled.translation_origin,
-    })
-    tmFilledSegmentIds.value = new Set([...tmFilledSegmentIds.value, id])
-  }
 }
 
 /**

@@ -99,6 +99,7 @@ async function docSegmentTheoChuong() {
       assets: [],
       assets_dir: '',
       tm_filled_segment_ids: [],
+      tm_prefill: { kind: 'ran' },
     },
     error: null,
   }

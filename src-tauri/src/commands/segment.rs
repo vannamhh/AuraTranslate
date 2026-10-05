@@ -332,6 +332,20 @@ pub struct ChapterSegments {
     /// Segments this load pre-filled from an exact TM match (FR58). Only
     /// [`load_open_chapter_segments`] fills it; [`read_open_chapter_segments`] leaves it empty.
     pub tm_filled_segment_ids: Vec<i64>,
+    pub tm_prefill: TmPrefillStatus,
+}
+
+/// Outcome of the TM pre-fill (FR58) on a Chapter load. `NotAsked` means no fill was attempted;
+/// it never reads as "ran, 0 hits".
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum TmPrefillStatus {
+    #[serde(rename = "ran")]
+    Ran,
+    #[serde(rename = "not_asked")]
+    NotAsked,
+    #[serde(rename = "skipped")]
+    Skipped { code: String },
 }
 
 /// Một ảnh đã phân giải vị trí, ra dây cho LƯỚI — Story 6.14, FR42/FR43.
@@ -1136,6 +1150,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             assets,
             assets_dir: assets_dir_str,
             tm_filled_segment_ids: Vec::new(),
+            tm_prefill: TmPrefillStatus::NotAsked,
         })
     })?;
 
@@ -1161,19 +1176,40 @@ pub(crate) fn tm_lookup_failed(err: &crate::core::tm::TmStoreError) -> IpcError 
 }
 
 /// Loads the open Chapter after pre-filling every eligible segment from the first exact TM
-/// pair (FR58, AD-18 order). The fill writes through [`write_non_user_target`] only.
+/// pair (FR58, AD-18 order). The fill writes through [`write_non_user_target`] only. A failed
+/// fill degrades to `TmPrefillStatus::Skipped`; only the segment read can fail the load.
 pub fn load_open_chapter_segments(
     global: Option<&crate::core::store::Store>,
     open: Option<&OpenWork>,
+    prefill: bool,
 ) -> Result<ChapterSegments, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let global = global.ok_or_else(global_store_missing)?;
-    let filled = fill_exact_tm_matches(global, open)?;
+    let outcome = if prefill {
+        match global
+            .ok_or_else(global_store_missing)
+            .and_then(|g| fill_exact_tm_matches(g, open))
+        {
+            Ok(filled) => Some(Ok(filled)),
+            Err(e) => {
+                eprintln!("tm prefill bi bo qua: {}", e.code());
+                Some(Err(e.code().to_owned()))
+            }
+        }
+    } else {
+        None
+    };
     let mut chapter = read_open_chapter_segments(Some(open))?;
-    chapter.tm_filled_segment_ids = filled
-        .into_iter()
-        .filter(|id| chapter.segments.iter().any(|s| s.id == *id))
-        .collect();
+    match outcome {
+        Some(Ok(filled)) => {
+            chapter.tm_filled_segment_ids = filled
+                .into_iter()
+                .filter(|id| chapter.segments.iter().any(|s| s.id == *id))
+                .collect();
+            chapter.tm_prefill = TmPrefillStatus::Ran;
+        }
+        Some(Err(code)) => chapter.tm_prefill = TmPrefillStatus::Skipped { code },
+        None => {}
+    }
     Ok(chapter)
 }
 
@@ -4071,17 +4107,19 @@ pub mod wire {
     #[tauri::command]
     pub fn read_open_chapter_segments<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
+        prefill: Option<bool>,
     ) -> Result<ChapterSegments, IpcError> {
         use tauri::Manager as _;
 
+        let prefill = prefill.unwrap_or(true);
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::load_open_chapter_segments(global.as_deref(), None);
+            return super::load_open_chapter_segments(global.as_deref(), None, prefill);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::load_open_chapter_segments(global.as_deref(), guard.as_ref())
+        super::load_open_chapter_segments(global.as_deref(), guard.as_ref(), prefill)
     }
 
     /// Vỏ IPC của [`super::read_reading_run`] — Story 5.12 (FR120).

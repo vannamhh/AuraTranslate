@@ -12816,3 +12816,6 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-11-smart-rag-uu-tien-cap-cua-chinh-nguoi-dung.md`
   summary: The `OpenWorkState` hold of a batch prepare with `{{tm_similar_segments}}` is unmeasured; Q4's ≈ 0.5 s per sentence at 100,000 pairs per tier is borrowed from the 7.5 strip scan, and that TM is read once per batch is not observable by any test.
   evidence: `prepare_batch_call` scores every sentence under the lock (Q4 A); settle with a release run of a 100-sentence batch at 100k pairs per tier, timed, plus a read counter if one is wanted. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e7-r2-nap-chuong-khong-hong-vi-tm.md`
+  summary: A `tm_unit` row with an unknown origin still fails Fuzzy, Concordance, RAG, TM management and TMX export; only the Chapter-load pre-fill now degrades.
+  evidence: shared row mapping `core/tm/mod.rs:188-194` and `:426-428` raises `UnknownOrigin`, surfaced by `tm_lookup_failed` (retryable, but retrying never succeeds). Chủ: Amelia.

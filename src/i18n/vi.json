@@ -715,6 +715,7 @@
   "panel.grid.nav_at_last_chapter": "Đã ở Chương cuối của Tác phẩm — không có Chương nào phía sau.",
   "panel.grid.nav_chapter_switch_failed": "Chưa chuyển được Chương. Chương hiện tại vẫn mở nguyên — thử lại.",
   "panel.grid.nav_chapter_flush_failed": "Chưa lưu được bản dịch nên chưa chuyển Chương. Bản dịch vẫn còn trên màn hình.",
+  "panel.grid.nav_tm_prefill_skipped": "Chương đã mở nhưng chưa điền sẵn được bản dịch từ bộ nhớ dịch (TM). Văn bản đang có không bị đổi.",
   "panel.grid.nav_chapter_still_dirty": "Bản dịch vừa đổi trong lúc đang lưu — chưa chuyển Chương. Thử lại.",
   "panel.grid.nav_confirm_in_flight": "Đang xác nhận câu vừa rồi — chưa điều hướng. Thử lại sau khi lượt xác nhận xong.",
   "panel.grid.state_confirmed": "đã xác nhận",

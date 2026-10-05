@@ -97,7 +97,7 @@ async function catBoGia(segmentId: number, omitted: boolean) {
  * `chapter_id` cố định sẽ xanh kể cả khi lượt nạp lại chưa bao giờ chạy.
  */
 async function docChuongDangMo(): Promise<{
-  loaded: { chapter_id: number; segments: ChapterSegment[] }
+  loaded: { chapter_id: number; segments: ChapterSegment[]; tm_prefill: { kind: 'ran' } }
   error: null
 }> {
   soThuTu.push(`read:${chuongDangMo.value}`)
@@ -105,6 +105,7 @@ async function docChuongDangMo(): Promise<{
     loaded: {
       chapter_id: chuongDangMo.value,
       segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
+      tm_prefill: { kind: 'ran' },
     },
     error: null,
   }

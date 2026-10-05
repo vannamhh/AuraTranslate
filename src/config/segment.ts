@@ -207,6 +207,20 @@ export type ChapterSegments = {
   assets_dir: string
   /** Segments this load pre-filled from an exact TM match (FR58); session-only marker source. */
   tm_filled_segment_ids: number[]
+  tm_prefill: TmPrefillStatus
+}
+
+/** `not_asked` ⇒ no fill was attempted; it is never "ran, 0 hits". */
+export type TmPrefillStatus =
+  | { kind: 'ran' }
+  | { kind: 'not_asked' }
+  | { kind: 'skipped'; code: string }
+
+function isTmPrefillStatus(value: unknown): value is TmPrefillStatus {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { kind?: unknown; code?: unknown }
+  if (v.kind === 'ran' || v.kind === 'not_asked') return true
+  return v.kind === 'skipped' && typeof v.code === 'string'
 }
 
 /**
@@ -247,7 +261,8 @@ function isChapterSegments(value: unknown): value is ChapterSegments {
     Array.isArray(v.assets) &&
     typeof v.assets_dir === 'string' &&
     Array.isArray(v.tm_filled_segment_ids) &&
-    v.tm_filled_segment_ids.every((id) => typeof id === 'number')
+    v.tm_filled_segment_ids.every((id) => typeof id === 'number') &&
+    isTmPrefillStatus(v.tm_prefill)
   )
 }
 
@@ -678,9 +693,11 @@ export async function splitChapterIntoSegments(chapterId: number): Promise<Split
  * ai bấm lệnh tách. Chỗ gọi phân biệt *"rỗng"* với *"lỗi"* bằng hai trường của kết quả này,
  * không bằng độ dài mảng.
  */
-export async function readOpenChapterSegments(): Promise<ReadChapterSegmentsResult> {
+export async function readOpenChapterSegments(
+  options: { prefill?: boolean } = {},
+): Promise<ReadChapterSegmentsResult> {
   try {
-    const loaded = await invoke<unknown>(CMD_READ_SEGMENTS)
+    const loaded = await invoke<unknown>(CMD_READ_SEGMENTS, { prefill: options.prefill ?? true })
     if (!isChapterSegments(loaded)) {
       console.error(
         `[segment] \`${CMD_READ_SEGMENTS}\` trả một ChapterSegments SAI HÌNH DẠNG: ${JSON.stringify(loaded)}`,
