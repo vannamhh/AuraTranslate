@@ -156,9 +156,9 @@ development_status:
   6-4-chuẩn-hoá-xuống-dòng-và-khoảng-trắng: done
   6-5-luật-làm-sạch-lộ-ra-và-hiện-thứ-sắp-xoá: done
   6-6-tách-chương-theo-mẫu-phân-tách: done
-  6-6b-nhập-nhiều-tệp-cùng-lúc: review
+  6-6b-nhập-nhiều-tệp-cùng-lúc: done
   6-7-nhập-từ-url-bằng-danh-sách-link: done
-  6-7b-thêm-chương-vào-tác-phẩm-có-sẵn: review
+  6-7b-thêm-chương-vào-tác-phẩm-có-sẵn: done
   6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain: done
   6-9-bóc-nội-dung-chính-và-sửa-ranh-giới-bằng-bàn-phím: done
   # 2026-09-08 THEM 6-10a qua correct-course (sprint-change-proposal-2026-09-08-story-6-10.md).
@@ -182,23 +182,23 @@ development_status:
   #   Thu tu thi hanh: AI-4 -> AI-7 -> tach commands/project.rs (AI-6, spec chinh le ngoai
   #   epics.md) -> 6-6b -> 6-7b -> 6-16b -> Epic 4. Ba story khong phu thuoc nhau; thu tu giua
   #   chung xep theo id va doi duoc.
-  6-16b-bộ-lọc-cần-xem-cho-bản-xem-trước-song-ngữ: review
+  6-16b-bộ-lọc-cần-xem-cho-bản-xem-trước-song-ngữ: done
   # 2026-09-24: THEM 6-16c (FR115 ve .docx, phieu quyet #23) — chay cung dot voi epic-11, sau epic-4.
   6-16c-nhập-song-ngữ-từ-bảng-docx: backlog
   epic-6-retrospective: done
 
   epic-7: in-progress
-  7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản: review
-  7-2-xuất-xứ-trên-từng-cặp-tm: review
-  7-3-tm-phạm-vi-kép-và-thứ-tự-sắp-xếp-hai-khoá: review
-  7-4-khớp-tuyệt-đối-100: review
-  7-5-khớp-mờ: review
-  7-6-thuật-toán-khớp-theo-ngôn-ngữ: review
-  7-7-concordance: review
-  7-8-nhiều-bản-dịch-cho-cùng-một-câu-nguồn: review
-  7-9-quản-lý-translation-memory: review
-  7-10-xuất-và-nhập-tmx: review
-  7-11-smart-rag-ưu-tiên-cặp-của-chính-người-dùng: review
+  7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản: done
+  7-2-xuất-xứ-trên-từng-cặp-tm: done
+  7-3-tm-phạm-vi-kép-và-thứ-tự-sắp-xếp-hai-khoá: done
+  7-4-khớp-tuyệt-đối-100: done
+  7-5-khớp-mờ: done
+  7-6-thuật-toán-khớp-theo-ngôn-ngữ: done
+  7-7-concordance: done
+  7-8-nhiều-bản-dịch-cho-cùng-một-câu-nguồn: done
+  7-9-quản-lý-translation-memory: done
+  7-10-xuất-và-nhập-tmx: done
+  7-11-smart-rag-ưu-tiên-cặp-của-chính-người-dùng: done
   epic-7-retrospective: optional
 
   epic-8: backlog
