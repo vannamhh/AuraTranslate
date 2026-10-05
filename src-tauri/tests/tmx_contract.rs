@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::tm::{
-    PendingTmxImport, PendingTmxImportState, clear_pending_tmx_import_for_work, tm_cancel_import, tm_confirm_import,
+    PendingTmxImport, PendingTmxImportState, clear_pending_tmx_import_for_work, tm_cancel_import, tm_confirm_global_import, tm_confirm_import,
     tm_export_tier, tm_export_tier_after_dialog, tm_open_import_preview,
 };
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
@@ -472,6 +472,14 @@ fn the_work_tier_needs_an_open_work_and_the_global_tier_does_not() {
 }
 
 #[test]
+fn a_global_preview_stores_no_work_id() {
+    let f = fixture("global-work-id");
+    import(&f, "global", &tmx_with(&tu("一", "A")), "g.tmx").expect("xem truoc");
+    let plan = f.pending.lock().unwrap();
+    assert_eq!(plan.as_ref().expect("ke hoach").work_id, None);
+}
+
+#[test]
 fn an_unknown_tier_is_refused_before_any_file_is_touched() {
     let f = fixture("bad-tier");
     let err = tm_export_tier(Some(&f.global), Some(&f.open), "both", &f.dir.join("x.tmx")).expect_err("tang la");
@@ -492,6 +500,7 @@ fn a_failing_row_rolls_the_whole_confirm_back_and_keeps_the_plan() {
     *f.pending.lock().unwrap() = Some(PendingTmxImport {
         tier: auratranslate_lib::core::tm::TmTier::Work,
         pairs: vec![pair("a", "A"), pair("b", ""), pair("c", "C")],
+        work_id: Some(f.open.meta.work_id.clone()),
         already_count: 0,
     });
 
@@ -707,4 +716,58 @@ fn a_cap_sized_file_previews_and_confirms() {
     let summary = confirm(&f).expect("ghi");
     eprintln!("bytes={size} units={units} preview={previewed:?} total={:?} inserted={}", started.elapsed(), summary.inserted);
     assert_eq!(preview.new_count, units);
+}
+
+#[test]
+fn a_work_plan_confirmed_with_no_work_open_writes_nothing_and_drops_the_plan() {
+    let f = fixture("plan-no-work-open");
+    import(&f, "work", &tmx_with(&tu("一", "A")), "a.tmx").expect("xem truoc");
+
+    let err = tm_confirm_import(Some(&f.global), None, &f.pending).expect_err("khong co Tac pham dang mo");
+
+    assert_eq!(err.code(), "tm.no_pending_import");
+    assert!(rows(&f.global).is_empty(), "khong ghi gi vao global.db");
+    assert!(rows(&f.open.store).is_empty(), "khong ghi gi vao Tac pham");
+    assert!(f.pending.lock().unwrap().is_none(), "ke hoach bi bo");
+}
+
+#[test]
+fn a_work_plan_confirmed_with_another_work_open_writes_nothing_and_drops_the_plan() {
+    let a = fixture("plan-for-a");
+    let b = fixture("open-is-b");
+    import(&a, "work", &tmx_with(&tu("一", "A")), "a.tmx").expect("xem truoc cho A");
+
+    let err = tm_confirm_import(Some(&a.global), Some(&b.open), &a.pending).expect_err("Tac pham khac dang mo");
+
+    assert_eq!(err.code(), "tm.no_pending_import");
+    assert!(rows(&b.open.store).is_empty(), "khong ghi gi vao Tac pham B");
+    assert!(rows(&a.open.store).is_empty());
+    assert!(a.pending.lock().unwrap().is_none(), "ke hoach bi bo");
+}
+
+#[test]
+fn the_global_confirm_leaves_a_plan_that_turned_into_a_work_plan_untouched() {
+    let f = fixture("global-confirm-sees-work");
+    import(&f, "work", &tmx_with(&tu("一", "A")), "w.tmx").expect("xem truoc Work");
+
+    let outcome = tm_confirm_global_import(Some(&f.global), &f.pending).expect("khong loi");
+
+    assert!(outcome.is_none(), "ke hoach Work khong phai viec cua nhanh Global");
+    assert!(rows(&f.global).is_empty(), "khong ghi gi vao global.db");
+    assert!(rows(&f.open.store).is_empty());
+    assert!(f.pending.lock().unwrap().is_some(), "ke hoach con de nhanh Work chay");
+}
+
+#[test]
+fn the_global_confirm_writes_a_global_plan_to_global_and_clears_it() {
+    let f = fixture("global-confirm");
+    let path = f.dir.join("g.tmx");
+    fs::write(&path, tmx_with(&tu("一", "A"))).unwrap();
+    tm_open_import_preview(Some(&f.global), None, &f.pending, "global", &path).expect("xem truoc Global");
+
+    let summary = tm_confirm_global_import(Some(&f.global), &f.pending).expect("ghi").expect("nhanh Global");
+
+    assert_eq!(summary.inserted, 1);
+    assert_eq!(rows(&f.global).len(), 1);
+    assert!(f.pending.lock().unwrap().is_none());
 }

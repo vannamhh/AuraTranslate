@@ -12819,3 +12819,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e7-r2-nap-chuong-khong-hong-vi-tm.md`
   summary: A `tm_unit` row with an unknown origin still fails Fuzzy, Concordance, RAG, TM management and TMX export; only the Chapter-load pre-fill now degrades.
   evidence: shared row mapping `core/tm/mod.rs:188-194` and `:426-428` raises `UnknownOrigin`, surfaced by `tm_lookup_failed` (retryable, but retrying never succeeds). Chủ: Amelia.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e7-r3-thu-hep-khoa-openworkstate-tm.md`
+  summary: The dialog commands `tm_export_tier`/`tm_open_import_preview` are not driven by any test; only their post-dialog helpers `wire::export_tier_to`/`wire::open_import_preview_from` are, so a lock put back into a command body would go unseen.
+  evidence: the dialog cannot run in MockRuntime; settle in the real app (export and import a large Global TMX while typing in an open Work) or by injecting the picked path. Chủ: Epic 7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e7-r3-thu-hep-khoa-openworkstate-tm.md`
+  summary: Two races are untested: the confirm shell's Global→Work fall-through between `tm_pending_import_tier` and the lock, and a Work plan that survives a close because `clear_pending_tmx_import_for_work` hit a busy lock; the `work_id` check is the only backstop.
+  evidence: neither can be forced without a test hook in `commands/tm.rs::wire`; the pure halves are covered in `tmx_contract.rs`. Chủ: Amelia.
