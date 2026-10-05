@@ -217,16 +217,30 @@ pub fn pairs_for_source(
 
 fn merge_tiers(
     resolver: &crate::core::scope::ScopeResolver,
-    mut global_rows: Vec<RawPair>,
-    mut work_rows: Option<Vec<RawPair>>,
+    global_rows: Vec<RawPair>,
+    work_rows: Option<Vec<RawPair>>,
 ) -> Result<Vec<TmPair>, TmStoreError> {
-    let newest_first = |a: &RawPair, b: &RawPair| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id));
+    let untagged = |rows: Vec<RawPair>| rows.into_iter().map(|r| (r, ())).collect::<Vec<_>>();
+    Ok(merge_tagged_tiers(resolver, untagged(global_rows), work_rows.map(untagged))?
+        .into_iter()
+        .map(|(pair, ())| pair)
+        .collect())
+}
+
+/// [`merge_tiers`] for rows that carry a value of their own through the AD-18 sort.
+fn merge_tagged_tiers<T: Clone>(
+    resolver: &crate::core::scope::ScopeResolver,
+    mut global_rows: Vec<(RawPair, T)>,
+    mut work_rows: Option<Vec<(RawPair, T)>>,
+) -> Result<Vec<(TmPair, T)>, TmStoreError> {
+    let newest_first =
+        |a: &(RawPair, T), b: &(RawPair, T)| b.0.created_at.cmp(&a.0.created_at).then(b.0.id.cmp(&a.0.id));
     global_rows.sort_by(newest_first);
     if let Some(rows) = work_rows.as_mut() {
         rows.sort_by(newest_first);
     }
-    let by_side = |a: &RawPair, b: &RawPair| {
-        side_rank(a.translation_origin.side()).cmp(&side_rank(b.translation_origin.side()))
+    let by_side = |a: &(RawPair, T), b: &(RawPair, T)| {
+        side_rank(a.0.translation_origin.side()).cmp(&side_rank(b.0.translation_origin.side()))
     };
     let tiered = resolver.apply_merge(TM_SCOPE_KIND, &global_rows, work_rows.as_deref(), Some(&by_side))?;
     Ok(tiered
@@ -236,17 +250,30 @@ fn merge_tiers(
                 crate::core::scope::Tier::Work => TmTier::Work,
                 crate::core::scope::Tier::Global => TmTier::Global,
             };
-            let raw = t.value();
-            TmPair {
+            let (raw, tag) = t.value();
+            let pair = TmPair {
                 id: raw.id,
                 source_text: raw.source_text.clone(),
                 target_text: raw.target_text.clone(),
                 translation_origin: raw.translation_origin,
                 tier,
                 created_at: raw.created_at.clone(),
-            }
+            };
+            (pair, tag.clone())
         })
         .collect())
+}
+
+/// One item per distinct (source, target), the first in the order given; stored rows are never merged.
+fn first_per_text_pair<T>(items: Vec<T>, pair_of: impl Fn(&T) -> &TmPair) -> Vec<T> {
+    let mut seen = std::collections::HashSet::new();
+    items
+        .into_iter()
+        .filter(|item| {
+            let pair = pair_of(item);
+            seen.insert((pair.source_text.clone(), pair.target_text.clone()))
+        })
+        .collect()
 }
 
 /// One row per distinct `target_text`, the first in AD-18 order; stored rows are never merged.
@@ -281,8 +308,9 @@ pub fn load_fuzzy_candidates(
 }
 
 /// Pairs of both tiers whose source scores at least `threshold` percent against `source_text`,
-/// best first, ties in `pairs_for_source` order, at most [`FUZZY_MATCH_LIMIT`]. A pair whose
-/// source equals `source_text` is excluded (exact matches belong to the pre-fill).
+/// best first, ties in `pairs_for_source` order, one row per distinct (source, target), at most
+/// [`FUZZY_MATCH_LIMIT`]. A pair whose source equals `source_text` is excluded (exact matches
+/// belong to the pre-fill).
 pub fn fuzzy_pairs_for_source(
     resolver: &crate::core::scope::ScopeResolver,
     global: &crate::core::store::Store,
@@ -302,7 +330,10 @@ pub fn rank_fuzzy_candidates(
     lang: crate::core::matching::MatchLang,
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
-    let mut merged = fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?;
+    let mut merged = first_per_text_pair(
+        fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?,
+        |f| &f.pair,
+    );
     merged.sort_by(|a, b| b.percent.cmp(&a.percent));
     merged.truncate(FUZZY_MATCH_LIMIT);
     Ok(merged)
@@ -319,31 +350,20 @@ pub fn fuzzy_pairs_in_candidates(
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
     let mut scorer = crate::core::matching::SimilarityScorer::new(source_text, lang);
-    let mut scores: std::collections::HashMap<(bool, i64), u8> = std::collections::HashMap::new();
-    let mut keep = |tier_is_work: bool, rows: &[RawPair]| -> Vec<RawPair> {
+    let mut keep = |rows: &[RawPair]| -> Vec<(RawPair, u8)> {
         rows.iter()
-            .filter(|row| {
-                if row.source_text == source_text {
-                    return false;
-                }
+            .filter(|row| row.source_text != source_text)
+            .filter_map(|row| {
                 let percent = scorer.percent(&row.source_text).min(99);
-                if percent < threshold {
-                    return false;
-                }
-                scores.insert((tier_is_work, row.id), percent);
-                true
+                (percent >= threshold).then(|| (row.clone(), percent))
             })
-            .cloned()
             .collect()
     };
-    let global_rows = keep(false, &candidates.global_rows);
-    let work_rows = candidates.work_rows.as_deref().map(|rows| keep(true, rows));
-    Ok(merge_tiers(resolver, global_rows, work_rows)?
+    let global_rows = keep(&candidates.global_rows);
+    let work_rows = candidates.work_rows.as_deref().map(&mut keep);
+    Ok(merge_tagged_tiers(resolver, global_rows, work_rows)?
         .into_iter()
-        .map(|pair| {
-            let percent = scores.get(&(pair.tier == TmTier::Work, pair.id)).copied().unwrap_or(0);
-            FuzzyPair { pair, percent }
-        })
+        .map(|(pair, percent)| FuzzyPair { pair, percent })
         .collect())
 }
 
@@ -370,7 +390,7 @@ pub fn load_concordance_candidates(
 pub struct ConcordanceHits {
     /// Both tiers hold zero rows, as opposed to rows that simply do not contain the phrase.
     pub tm_empty: bool,
-    /// Matching pairs before the cap.
+    /// Distinct (source, target) matches before the cap.
     pub total: usize,
     /// At most [`CONCORDANCE_HIT_LIMIT`], AD-18 order.
     pub hits: Vec<TmPair>,
@@ -382,7 +402,8 @@ fn concordance_key(text: &str) -> String {
 }
 
 /// Pairs of both tiers whose source contains `query` as a raw substring: NFC and lower-cased on
-/// both sides, no stemming, matches inside words. A blank query hits nothing.
+/// both sides, no stemming, matches inside words; one hit per distinct (source, target), the
+/// first in AD-18 order. A blank query hits nothing.
 pub fn rank_concordance(
     resolver: &crate::core::scope::ScopeResolver,
     candidates: ConcordanceCandidates,
@@ -399,7 +420,7 @@ pub fn rank_concordance(
     };
     let global_rows = keep(candidates.global_rows);
     let work_rows = candidates.work_rows.map(keep);
-    let mut hits = merge_tiers(resolver, global_rows, work_rows)?;
+    let mut hits = first_per_text_pair(merge_tiers(resolver, global_rows, work_rows)?, |p| p);
     let total = hits.len();
     hits.truncate(CONCORDANCE_HIT_LIMIT);
     Ok(ConcordanceHits { tm_empty, total, hits })

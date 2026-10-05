@@ -2079,6 +2079,31 @@ fn equal_percent_fuzzy_ties_list_the_newest_pair_first_even_when_it_has_the_high
     assert_eq!(fuzzy_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["newer-high-id", "older-low-id"]);
 }
 
+#[test]
+fn a_pair_stored_three_times_takes_one_fuzzy_slot_shown_as_its_first_copy_in_ad18_order() {
+    let w = wired("fz-dup", FUZZY_CURRENT, true);
+    w.seed_work_dated(FUZZY_NEAR, "dup", "other", "2026-08-09T00:00:00.000Z");
+    w.seed_global_dated(FUZZY_NEAR, "dup", "self", "2026-08-08T00:00:00.000Z");
+    w.seed_global_dated(FUZZY_NEAR, "dup", "self", "2026-08-07T00:00:00.000Z");
+    w.seed_global_dated(FUZZY_NEAR, "second", "self", "2026-08-02T00:00:00.000Z");
+    w.seed_global_dated(FUZZY_NEAR, "third", "self", "2026-08-01T00:00:00.000Z");
+    assert_eq!(
+        fuzzy_shape(&fuzzy(&w, w.first_id())),
+        [("dup", "global", "mine"), ("second", "global", "mine"), ("third", "global", "mine")]
+    );
+}
+
+#[test]
+fn a_pair_stored_twice_is_one_concordance_hit_and_counts_once_in_the_total() {
+    let w = wired("cc-dup", "一。", true);
+    w.seed_work_dated("他叫师父来。", "dup", "other", "2026-08-09T00:00:00.000Z");
+    w.seed_global_dated("他叫师父来。", "dup", "self", "2026-08-08T00:00:00.000Z");
+    w.seed_global_dated("师父在这里。", "single", "self", "2026-08-01T00:00:00.000Z");
+    let got = concordance(&w, "师父");
+    assert_eq!(got.total, 2);
+    assert_eq!(concordance_shape(&got), [("dup", "global", "mine"), ("single", "global", "mine")]);
+}
+
 mod manage {
     use super::*;
     use auratranslate_lib::commands::tm::{TmPairList, wire as tm_wire};

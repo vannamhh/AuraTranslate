@@ -516,26 +516,13 @@ pub fn write_planned_pairs(
 /// One `<tu>` per distinct (source, target) of a tier, carrying its first copy in AD-18 order
 /// (mine first, newest, highest id); output in the id order of those copies.
 pub fn distinct_tier_pairs(store: &crate::core::store::Store, tier: super::TmTier) -> Result<Vec<TmPair>, super::TmStoreError> {
-    let mut rows = super::load_all_pair_rows(store)?;
-    rows.sort_by(|a, b| {
-        super::side_rank(a.translation_origin.side())
-            .cmp(&super::side_rank(b.translation_origin.side()))
-            .then_with(|| b.created_at.cmp(&a.created_at))
-            .then_with(|| b.id.cmp(&a.id))
-    });
-    let mut seen: HashSet<(String, String)> = HashSet::new();
-    let mut pairs: Vec<TmPair> = rows
-        .into_iter()
-        .filter(|r| seen.insert((r.source_text.clone(), r.target_text.clone())))
-        .map(|r| TmPair {
-            id: r.id,
-            source_text: r.source_text,
-            target_text: r.target_text,
-            translation_origin: r.translation_origin,
-            tier,
-            created_at: r.created_at,
-        })
-        .collect();
+    let rows = super::load_all_pair_rows(store)?;
+    let resolver = crate::core::scope::ScopeResolver::global_only();
+    let ordered = match tier {
+        super::TmTier::Global => super::merge_tiers(&resolver, rows, None)?,
+        super::TmTier::Work => super::merge_tiers(&resolver, Vec::new(), Some(rows))?,
+    };
+    let mut pairs = super::first_per_text_pair(ordered, |p| p);
     pairs.sort_by_key(|p| p.id);
     Ok(pairs)
 }
