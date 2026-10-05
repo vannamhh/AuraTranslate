@@ -73,7 +73,7 @@ fn source_of(open: &OpenWork, id: i64) -> String {
 fn state_of(open: &OpenWork, id: i64) -> (String, String, i64) {
     open.store
         .read(move |conn| {
-            let (status, origin): (String, String) = conn.query_row(
+            let (status, pair_origin): (String, String) = conn.query_row(
                 "SELECT status, translation_origin FROM segment WHERE id = ?1",
                 [id],
                 |r| Ok((r.get(0)?, r.get(1)?)),
@@ -83,7 +83,7 @@ fn state_of(open: &OpenWork, id: i64) -> (String, String, i64) {
                 [id],
                 |r| r.get(0),
             )?;
-            Ok((status, origin, versions))
+            Ok((status, pair_origin, versions))
         })
         .expect("doc trang thai")
 }
@@ -301,8 +301,8 @@ fn promoting_onto_a_confirmed_segment_returns_it_to_draft_and_the_next_confirm_w
     assert!(!out.needs_confirmation);
     assert_eq!(out.status, "draft");
     assert_eq!(out.translation_origin, TRANSLATION_ORIGIN_OTHER);
-    let (status, origin, _) = state_of(&open, id);
-    assert_eq!((status.as_str(), origin.as_str()), ("draft", TRANSLATION_ORIGIN_OTHER));
+    let (status, pair_origin, _) = state_of(&open, id);
+    assert_eq!((status.as_str(), pair_origin.as_str()), ("draft", TRANSLATION_ORIGIN_OTHER));
     assert_eq!(tm_rows(&open).len(), 1, "nang cap khong ghi cap");
 
     confirm_segment(Some(&open), id).expect("xac nhan lai");
@@ -535,12 +535,12 @@ fn an_edited_bilingual_work_writes_one_pair_per_confirm_each_with_its_own_origin
     let _ = fs::remove_dir_all(root);
 }
 
-fn set_baseline(open: &OpenWork, id: i64, text: &'static str, origin: &'static str) {
+fn set_baseline(open: &OpenWork, id: i64, text: &'static str, pair_origin: &'static str) {
     open.store
         .write(move |tx: &Transaction<'_>| {
             tx.execute(
                 "UPDATE segment SET baseline_target_text = ?1, baseline_translation_origin = ?2 WHERE id = ?3",
-                (text, origin, id),
+                (text, pair_origin, id),
             )
         })
         .expect("dat moc that bai");
@@ -784,11 +784,11 @@ fn seed(store: &Store, rows: &[(&str, &str, &str)]) {
         rows.iter().map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned())).collect();
     store
         .write(move |tx: &Transaction<'_>| {
-            for (source, target, origin) in &rows {
+            for (source, target, pair_origin) in &rows {
                 tx.execute(
                     "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
                      VALUES (?1, ?2, ?3, '2026-01-01T00:00:00.000Z')",
-                    (source, target, origin),
+                    (source, target, pair_origin),
                 )?;
             }
             Ok(())
@@ -848,11 +848,11 @@ fn seed_dated(store: &Store, rows: &[(&str, &str, &str, &str)]) {
         .collect();
     store
         .write(move |tx: &Transaction<'_>| {
-            for (source, target, origin, created_at) in &rows {
+            for (source, target, pair_origin, created_at) in &rows {
                 tx.execute(
                     "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
                      VALUES (?1, ?2, ?3, ?4)",
-                    (source, target, origin, created_at),
+                    (source, target, pair_origin, created_at),
                 )?;
             }
             Ok(())
@@ -948,14 +948,14 @@ fn an_unknown_stored_origin_in_either_tier_is_an_error_naming_the_value() {
     let global = open_global_db(&root);
     seed(&global, &[("S", "g", "x")]);
     let err = lookup(&global, Some(&open), "S").expect_err("nguon goc la");
-    assert_eq!(err, TmStoreError::UnknownOrigin { value: "x".to_owned() });
+    assert_eq!(err, TmStoreError::UnknownPairOrigin { value: "x".to_owned() });
     assert!(err.to_string().contains("\"x\""));
 
     let (root2, open2) = work("dual-unknown-work", "一。");
     let global2 = open_global_db(&root2);
     seed(&open2.store, &[("S", "w", "")]);
     let err = lookup(&global2, Some(&open2), "S").expect_err("nguon goc rong");
-    assert_eq!(err, TmStoreError::UnknownOrigin { value: String::new() });
+    assert_eq!(err, TmStoreError::UnknownPairOrigin { value: String::new() });
     drop((open, global, open2, global2));
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(root2);
@@ -1072,14 +1072,14 @@ impl Wired {
         self.with_open(|open| source_of(open, id))
     }
 
-    fn seed_work(&self, source: &str, target: &'static str, origin: &'static str) {
+    fn seed_work(&self, source: &str, target: &'static str, pair_origin: &'static str) {
         let source: &'static str = Box::leak(source.to_owned().into_boxed_str());
-        self.with_open(|open| seed(&open.store, &[(source, target, origin)]));
+        self.with_open(|open| seed(&open.store, &[(source, target, pair_origin)]));
     }
 
-    fn seed_global(&self, source: &str, target: &'static str, origin: &'static str) {
+    fn seed_global(&self, source: &str, target: &'static str, pair_origin: &'static str) {
         let source: &'static str = Box::leak(source.to_owned().into_boxed_str());
-        seed(&self.app.state::<Store>(), &[(source, target, origin)]);
+        seed(&self.app.state::<Store>(), &[(source, target, pair_origin)]);
     }
 
     fn target_and_baseline(&self, id: i64) -> (String, String, String) {
@@ -1850,12 +1850,12 @@ fn an_unmanaged_global_store_is_an_error_not_a_tm_empty_answer() {
 }
 
 impl Wired {
-    fn seed_work_dated(&self, source: &str, target: &str, origin: &str, created_at: &str) {
-        self.with_open(|open| seed_dated(&open.store, &[(source, target, origin, created_at)]));
+    fn seed_work_dated(&self, source: &str, target: &str, pair_origin: &str, created_at: &str) {
+        self.with_open(|open| seed_dated(&open.store, &[(source, target, pair_origin, created_at)]));
     }
 
-    fn seed_global_dated(&self, source: &str, target: &str, origin: &str, created_at: &str) {
-        seed_dated(&self.app.state::<Store>(), &[(source, target, origin, created_at)]);
+    fn seed_global_dated(&self, source: &str, target: &str, pair_origin: &str, created_at: &str) {
+        seed_dated(&self.app.state::<Store>(), &[(source, target, pair_origin, created_at)]);
     }
 
     fn set_target_state(&self, id: i64, target: &str, baseline: &str) {
@@ -2108,8 +2108,8 @@ mod manage {
     use super::*;
     use auratranslate_lib::commands::tm::{TmPairList, wire as tm_wire};
 
-    fn list(w: &Wired, origin: &str, tier: &str, search: &str) -> TmPairList {
-        tm_wire::tm_list_pairs(w.app.handle().clone(), origin.to_owned(), tier.to_owned(), search.to_owned())
+    fn list(w: &Wired, pair_origin: &str, tier: &str, search: &str) -> TmPairList {
+        tm_wire::tm_list_pairs(w.app.handle().clone(), pair_origin.to_owned(), tier.to_owned(), search.to_owned())
             .expect("liet ke TM")
     }
 

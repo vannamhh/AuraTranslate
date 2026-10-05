@@ -53,7 +53,7 @@ function chaptersFor(title: string): Record<string, unknown> {
         joined_line_count_in_chapter: null,
         needs_review: false,
         review_causes: [],
-        origin: originStub(),
+        chapter_origin: originStub(),
         source_file: null,
       },
     ],

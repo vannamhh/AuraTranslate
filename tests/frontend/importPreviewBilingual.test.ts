@@ -130,7 +130,7 @@ function chapterEntry(over: Partial<ChapterSplitPreviewEntryWire> = {}): Chapter
     joined_line_count_in_chapter: 0,
     needs_review: false,
     review_causes: [],
-    origin: {
+    chapter_origin: {
       author: null,
       site_name: null,
       url: null,

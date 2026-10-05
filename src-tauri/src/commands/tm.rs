@@ -15,7 +15,7 @@ use crate::core::tm::tmx::{
     plan_import, render_tmx, write_planned_pairs,
 };
 use crate::core::tm::tmx_io::{read_tmx_file, write_tmx_file};
-use crate::core::tm::{CopyRef, OriginFilter, PushOutcome, TierFilter, TmPair, TmTier};
+use crate::core::tm::{CopyRef, PairOriginFilter, PushOutcome, TierFilter, TmPair, TmTier};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TmPairWire {
@@ -123,10 +123,10 @@ fn global_pair_exists() -> IpcError {
     IpcError::new("tm.global_pair_exists", MessageKey::Unknown, BTreeMap::new(), false)
 }
 
-fn parse_filters(tier: &str, origin: &str) -> Result<(TierFilter, OriginFilter), IpcError> {
+fn parse_filters(tier: &str, pair_origin: &str) -> Result<(TierFilter, PairOriginFilter), IpcError> {
     let tier = TierFilter::from_wire(tier).ok_or_else(|| invalid_filter("tier", tier))?;
-    let origin = OriginFilter::from_wire(origin).ok_or_else(|| invalid_filter("origin", origin))?;
-    Ok((tier, origin))
+    let pair_origin = PairOriginFilter::from_wire(pair_origin).ok_or_else(|| invalid_filter("pair_origin", pair_origin))?;
+    Ok((tier, pair_origin))
 }
 
 fn copy_refs(copies: &[TmCopyArg]) -> Result<Vec<CopyRef>, IpcError> {
@@ -159,7 +159,7 @@ fn work_store_for<'a>(open: Option<&'a OpenWork>, copies: &[CopyRef]) -> Result<
 pub struct TmListScan {
     work_open: bool,
     tier: TierFilter,
-    origin: OriginFilter,
+    pair_origin: PairOriginFilter,
     search: String,
     resolver: crate::core::scope::ScopeResolver,
     snapshot: crate::core::tm::ManageSnapshot,
@@ -169,11 +169,11 @@ pub struct TmListScan {
 pub fn prepare_tm_list(
     global: Option<&Store>,
     open: Option<&OpenWork>,
-    origin: &str,
+    pair_origin: &str,
     tier: &str,
     search: &str,
 ) -> Result<TmListScan, IpcError> {
-    let (tier, origin) = parse_filters(tier, origin)?;
+    let (tier, pair_origin) = parse_filters(tier, pair_origin)?;
     if tier == TierFilter::Work && open.is_none() {
         return Err(crate::commands::chapter::no_work_open());
     }
@@ -184,11 +184,11 @@ pub fn prepare_tm_list(
     };
     let snapshot = crate::core::tm::load_manage_snapshot(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
-    Ok(TmListScan { work_open: open.is_some(), tier, origin, search: search.to_owned(), resolver, snapshot })
+    Ok(TmListScan { work_open: open.is_some(), tier, pair_origin, search: search.to_owned(), resolver, snapshot })
 }
 
 pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
-    let listing = crate::core::tm::rank_manage_listing(&scan.resolver, scan.snapshot, scan.tier, scan.origin, &scan.search)
+    let listing = crate::core::tm::rank_manage_listing(&scan.resolver, scan.snapshot, scan.tier, scan.pair_origin, &scan.search)
         .map_err(|e| tm_lookup_failed(&e))?;
     let groups = listing
         .groups
@@ -221,7 +221,7 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
         health: listing
             .health
             .into_iter()
-            .map(|(origin, count)| TmOriginCountWire { translation_origin: origin.as_str(), count })
+            .map(|(pair_origin, count)| TmOriginCountWire { translation_origin: pair_origin.as_str(), count })
             .collect(),
         total_pairs: listing.total_pairs,
         total_groups: listing.total_groups,
@@ -229,16 +229,16 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
     })
 }
 
-/// Lists pairs of both tiers narrowed by `origin` (`all`, `mine`, `others` or a stored value),
+/// Lists pairs of both tiers narrowed by `pair_origin` (`all`, `mine`, `others` or a stored value),
 /// `tier` (`both`, `work`, `global`) and `search` (FR62), grouped by source (FR63).
 pub fn tm_list_pairs(
     global: Option<&Store>,
     open: Option<&OpenWork>,
-    origin: &str,
+    pair_origin: &str,
     tier: &str,
     search: &str,
 ) -> Result<TmPairList, IpcError> {
-    score_tm_list(prepare_tm_list(global, open, origin, tier, search)?)
+    score_tm_list(prepare_tm_list(global, open, pair_origin, tier, search)?)
 }
 
 /// Replaces the target on every copy of a row; each copy's origin becomes `self`, id and date
@@ -642,12 +642,12 @@ pub mod wire {
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
 
-    /// Wire shell of [`super::tm_list_pairs`]; `origin`, `tier`, `search` on the wire. Async, and
+    /// Wire shell of [`super::tm_list_pairs`]; `pair_origin`, `tier`, `search` on the wire. Async, and
     /// the `OpenWorkState` lock is released before filtering.
     #[tauri::command(async)]
     pub fn tm_list_pairs<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
-        origin: String,
+        pair_origin: String,
         tier: String,
         search: String,
     ) -> Result<TmPairList, IpcError> {
@@ -655,10 +655,10 @@ pub mod wire {
 
         let global = app.try_state::<crate::core::store::Store>();
         let scan = match app.try_state::<OpenWorkState>() {
-            None => super::prepare_tm_list(global.as_deref(), None, &origin, &tier, &search)?,
+            None => super::prepare_tm_list(global.as_deref(), None, &pair_origin, &tier, &search)?,
             Some(state) => {
                 let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-                super::prepare_tm_list(global.as_deref(), guard.as_ref(), &origin, &tier, &search)?
+                super::prepare_tm_list(global.as_deref(), guard.as_ref(), &pair_origin, &tier, &search)?
             }
         };
         super::score_tm_list(scan)

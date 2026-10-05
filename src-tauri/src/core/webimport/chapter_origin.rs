@@ -240,11 +240,11 @@ mod tests {
             <meta property="og:site_name" content="Bao Thi Du">
             <meta property="article:published_time" content="2026-09-10T08:00:00+07:00">
         </head><body></body></html>"#;
-        let origin = extract_origin(html, "https://example.test/bai-viet");
-        assert_eq!(origin.author, Some("Nguyen Van A".to_owned()));
-        assert_eq!(origin.site_name, Some("Bao Thi Du".to_owned()));
-        assert_eq!(origin.published_at, Some("2026-09-10".to_owned()));
-        assert_eq!(origin.url, Some("https://example.test/bai-viet".to_owned()));
+        let chapter_origin = extract_origin(html, "https://example.test/bai-viet");
+        assert_eq!(chapter_origin.author, Some("Nguyen Van A".to_owned()));
+        assert_eq!(chapter_origin.site_name, Some("Bao Thi Du".to_owned()));
+        assert_eq!(chapter_origin.published_at, Some("2026-09-10".to_owned()));
+        assert_eq!(chapter_origin.url, Some("https://example.test/bai-viet".to_owned()));
     }
 
     #[test]
@@ -252,9 +252,9 @@ mod tests {
         let html = r#"<html><head>
             <meta property="og:site_name" content="Bao Thi Du">
         </head><body></body></html>"#;
-        let origin = extract_origin(html, "https://example.test/bai-viet");
-        assert_eq!(origin.author, None);
-        assert_eq!(origin.site_name, Some("Bao Thi Du".to_owned()));
+        let chapter_origin = extract_origin(html, "https://example.test/bai-viet");
+        assert_eq!(chapter_origin.author, None);
+        assert_eq!(chapter_origin.site_name, Some("Bao Thi Du".to_owned()));
     }
 
     #[test]
@@ -263,8 +263,8 @@ mod tests {
             <script type="application/ld+json">{ not valid json </script>
             <meta name="author" content="Nguyen Van A">
         </head><body></body></html>"#;
-        let origin = extract_origin(html, "https://example.test/bai-viet");
-        assert_eq!(origin.author, Some("Nguyen Van A".to_owned()));
+        let chapter_origin = extract_origin(html, "https://example.test/bai-viet");
+        assert_eq!(chapter_origin.author, Some("Nguyen Van A".to_owned()));
     }
 
     #[test]
@@ -274,30 +274,30 @@ mod tests {
             {"@context":"https://schema.org","@type":"Article","author":{"@type":"Person","name":"Tran Thi B"},"publisher":{"@type":"Organization","name":"Bao JSON"},"datePublished":"2026-09-01"}
             </script>
         </head><body></body></html>"#;
-        let origin = extract_origin(html, "https://example.test/bai-viet");
-        assert_eq!(origin.author, Some("Tran Thi B".to_owned()));
-        assert_eq!(origin.site_name, Some("Bao JSON".to_owned()));
-        assert_eq!(origin.published_at, Some("2026-09-01".to_owned()));
+        let chapter_origin = extract_origin(html, "https://example.test/bai-viet");
+        assert_eq!(chapter_origin.author, Some("Tran Thi B".to_owned()));
+        assert_eq!(chapter_origin.site_name, Some("Bao JSON".to_owned()));
+        assert_eq!(chapter_origin.published_at, Some("2026-09-01".to_owned()));
     }
 
     #[test]
     fn empty_url_becomes_none_not_an_empty_string() {
-        let origin = extract_origin("<html></html>", "");
-        assert_eq!(origin.url, None);
+        let chapter_origin = extract_origin("<html></html>", "");
+        assert_eq!(chapter_origin.url, None);
     }
 
     #[test]
     fn a_non_iso_published_at_is_kept_verbatim_not_forced_into_a_date_shape() {
         let html = r#"<html><head><meta property="article:published_time" content="3 gio truoc"></head></html>"#;
-        let origin = extract_origin(html, "");
-        assert_eq!(origin.published_at, Some("3 gio truoc".to_owned()));
+        let chapter_origin = extract_origin(html, "");
+        assert_eq!(chapter_origin.published_at, Some("3 gio truoc".to_owned()));
     }
 
     #[test]
     fn whitespace_only_meta_content_counts_as_absent() {
         let html = r#"<html><head><meta name="author" content="   "></head></html>"#;
-        let origin = extract_origin(html, "");
-        assert_eq!(origin.author, None);
+        let chapter_origin = extract_origin(html, "");
+        assert_eq!(chapter_origin.author, None);
     }
 
     /// AI-7 — le seam đo được 2026-09-07/2026-09-15: một `<meta>` chỉ mang `U+FEFF` (BOM)
@@ -305,8 +305,8 @@ mod tests {
     #[test]
     fn a_meta_tag_holding_only_a_byte_order_mark_is_read_as_absent() {
         let html = "<html><head><meta name=\"author\" content=\"\u{FEFF}\"></head></html>";
-        let origin = extract_origin(html, "");
-        assert_eq!(origin.author, None, "meta_content phai coi BOM la vang, dung luat cat cua JS .trim()");
+        let chapter_origin = extract_origin(html, "");
+        assert_eq!(chapter_origin.author, None, "meta_content phai coi BOM la vang, dung luat cat cua JS .trim()");
     }
 
     /// AI-7, D1 (chiều ngược) — một `<meta>` chỉ mang `U+0085` (NEL) phải GIỮ VERBATIM, vì cả
@@ -314,9 +314,9 @@ mod tests {
     #[test]
     fn a_meta_tag_holding_only_a_next_line_character_is_kept_verbatim() {
         let html = "<html><head><meta name=\"author\" content=\"\u{0085}\"></head></html>";
-        let origin = extract_origin(html, "");
+        let chapter_origin = extract_origin(html, "");
         assert_eq!(
-            origin.author,
+            chapter_origin.author,
             Some("\u{0085}".to_owned()),
             "meta_content phai GIU NEL lam noi dung, khong cat thanh vang"
         );
@@ -331,9 +331,9 @@ mod tests {
         let html = "<html><head><script type=\"application/ld+json\">\
              {\"author\":\"\u{FEFF}\",\"publisher\":{\"name\":\"\u{FEFF}\"}}\
              </script></head></html>";
-        let origin = extract_origin(html, "");
-        assert_eq!(origin.author, None, "nhanh Value::String phai coi BOM la vang");
-        assert_eq!(origin.site_name, None, "nhanh Value::Object (qua .name) phai coi BOM la vang");
+        let chapter_origin = extract_origin(html, "");
+        assert_eq!(chapter_origin.author, None, "nhanh Value::String phai coi BOM la vang");
+        assert_eq!(chapter_origin.site_name, None, "nhanh Value::Object (qua .name) phai coi BOM la vang");
     }
 
     /// AI-7, D1 (chiều ngược) — cùng seam NEL, qua ĐÚNG hai nhánh của `json_ld_string_or_named`
@@ -343,14 +343,14 @@ mod tests {
         let html = "<html><head><script type=\"application/ld+json\">\
              {\"author\":\"\u{0085}\",\"publisher\":{\"name\":\"\u{0085}\"}}\
              </script></head></html>";
-        let origin = extract_origin(html, "");
+        let chapter_origin = extract_origin(html, "");
         assert_eq!(
-            origin.author,
+            chapter_origin.author,
             Some("\u{0085}".to_owned()),
             "nhanh Value::String phai GIU NEL lam noi dung"
         );
         assert_eq!(
-            origin.site_name,
+            chapter_origin.site_name,
             Some("\u{0085}".to_owned()),
             "nhanh Value::Object (qua .name) phai GIU NEL lam noi dung"
         );
@@ -358,14 +358,14 @@ mod tests {
 
     #[test]
     fn no_signal_anywhere_yields_an_empty_origin_not_a_panic() {
-        let origin = extract_origin("<html><body><p>khong the tag nao</p></body></html>", "");
-        assert!(origin.is_empty());
+        let chapter_origin = extract_origin("<html><body><p>khong the tag nao</p></body></html>", "");
+        assert!(chapter_origin.is_empty());
     }
 
     #[test]
     fn time_tag_datetime_attribute_is_the_last_resort_signal_for_published_at() {
         let html = r#"<html><body><time datetime="2026-08-01T00:00:00Z">1 thang 8</time></body></html>"#;
-        let origin = extract_origin(html, "");
-        assert_eq!(origin.published_at, Some("2026-08-01".to_owned()));
+        let chapter_origin = extract_origin(html, "");
+        assert_eq!(chapter_origin.published_at, Some("2026-08-01".to_owned()));
     }
 }

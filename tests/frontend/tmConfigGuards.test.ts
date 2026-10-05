@@ -63,7 +63,7 @@ describe('tmListPairs', () => {
     mockInvoke.mockResolvedValue(listingWire())
     const result = await tm.tmListPairs('all', 'both', 'x')
     expect(mockInvoke).toHaveBeenCalledWith('tm_list_pairs', {
-      origin: 'all',
+      pairOrigin: 'all',
       tier: 'both',
       search: 'x',
     })

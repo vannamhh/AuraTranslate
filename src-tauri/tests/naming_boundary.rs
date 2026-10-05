@@ -1083,3 +1083,225 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
         "ca AM: mot menh de TAM muc THAT (khong gieo) phai khop dung so luong STORE_EXEMPT"
     );
 }
+
+/// (file, snippet, reason). Each snippet must occur exactly once in its file.
+const BARE_ORIGIN_EXEMPT: [(&str, &str, &str); 1] =
+    [("src/layout/WorkspaceDock.vue", "e.origin", "dockview panel-activation event field (third-party API)")];
+
+fn blank_run(out: &mut String, chars: &[char]) {
+    out.extend(chars.iter().map(|&c| if c == '\n' { '\n' } else { ' ' }));
+}
+
+fn raw_string_end(chars: &[char], i: usize) -> Option<usize> {
+    if chars[i] != 'r' || (i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')) {
+        return None;
+    }
+    let mut j = i + 1;
+    while chars.get(j) == Some(&'#') {
+        j += 1;
+    }
+    if chars.get(j) != Some(&'"') {
+        return None;
+    }
+    let hashes = j - i - 1;
+    j += 1;
+    while j < chars.len() {
+        if chars[j] == '"' && (1..=hashes).all(|k| chars.get(j + k) == Some(&'#')) {
+            return Some(j + 1 + hashes);
+        }
+        j += 1;
+    }
+    Some(chars.len())
+}
+
+fn rust_char_literal_end(chars: &[char], i: usize) -> Option<usize> {
+    if chars.get(i + 1) == Some(&'\\') {
+        let mut j = i + 2;
+        while j < chars.len() && chars[j] != '\'' && chars[j] != '\n' {
+            j += 1;
+        }
+        return (chars.get(j) == Some(&'\'')).then_some(j + 1);
+    }
+    (chars.get(i + 2) == Some(&'\'')).then_some(i + 3)
+}
+
+fn quoted_end(chars: &[char], i: usize, stop_at_newline: bool) -> usize {
+    let quote = chars[i];
+    let mut j = i + 1;
+    while j < chars.len() && chars[j] != quote && !(stop_at_newline && chars[j] == '\n') {
+        j += if chars[j] == '\\' { 2 } else { 1 };
+    }
+    (j + 1).min(chars.len())
+}
+
+/// Replaces comments and string/char/template literals with spaces, keeping line structure.
+fn code_only(text: &str, typescript: bool) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < n {
+        let c = chars[i];
+        let next = chars.get(i + 1).copied();
+        let end = if c == '/' && next == Some('/') && !(typescript && i > 0 && chars[i - 1] == ':')
+        {
+            let mut j = i;
+            while j < n && chars[j] != '\n' {
+                j += 1;
+            }
+            Some(j)
+        } else if c == '/' && next == Some('*') {
+            let mut depth = 1;
+            let mut j = i + 2;
+            while j < n && depth > 0 {
+                if chars[j] == '/' && chars.get(j + 1) == Some(&'*') && !typescript {
+                    depth += 1;
+                    j += 2;
+                } else if chars[j] == '*' && chars.get(j + 1) == Some(&'/') {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
+            }
+            Some(j.min(n))
+        } else if typescript && chars[i..].starts_with(&['<', '!', '-', '-']) {
+            let mut j = i + 4;
+            while j < n && !chars[j..].starts_with(&['-', '-', '>']) {
+                j += 1;
+            }
+            Some((j + 3).min(n))
+        } else if typescript && c == '`' {
+            Some(quoted_end(&chars, i, false))
+        } else if c == '"' {
+            Some(quoted_end(&chars, i, typescript))
+        } else if c == '\'' && typescript {
+            Some(quoted_end(&chars, i, true))
+        } else if c == '\'' {
+            rust_char_literal_end(&chars, i)
+        } else if !typescript && c == 'r' {
+            raw_string_end(&chars, i)
+        } else {
+            None
+        };
+        match end {
+            Some(end) => {
+                blank_run(&mut out, &chars[i..end]);
+                i = end;
+            }
+            None => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+fn has_bare_origin(line: &str) -> bool {
+    let bytes = line.as_bytes();
+    let joined = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'-';
+    ["origins", "origin", "Origin"].iter().any(|word| {
+        line.match_indices(word).any(|(start, _)| {
+            let end = start + word.len();
+            (start == 0 || !joined(bytes[start - 1])) && (end >= bytes.len() || !joined(bytes[end]))
+        })
+    })
+}
+
+fn bare_origin_violations(display: &str, text: &str, typescript: bool) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (index, (code, raw)) in code_only(text, typescript).lines().zip(text.lines()).enumerate() {
+        let mut masked = code.to_owned();
+        for (file, snippet, _) in BARE_ORIGIN_EXEMPT {
+            if display == file {
+                masked = masked.replace(snippet, &" ".repeat(snippet.len()));
+            }
+        }
+        if has_bare_origin(&masked) {
+            violations.push(format!("{display}:{}  origin  |  {}", index + 1, raw.trim()));
+        }
+    }
+    violations
+}
+
+fn scan_bare_origin_violations() -> Vec<String> {
+    let mut violations = Vec::new();
+    for (root, prefix, exts, typescript) in [
+        (rust_root(), "src-tauri/src", &["rs"][..], false),
+        (frontend_root(), "src", &["ts", "vue"][..], true),
+    ] {
+        let mut files = Vec::new();
+        walk(&root, exts, &mut files);
+        files.sort();
+        for file in files {
+            let text = fs::read_to_string(&file)
+                .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+            let display = format!("{prefix}/{}", rel_posix(&root, &file));
+            violations.extend(bare_origin_violations(&display, &text, typescript));
+        }
+    }
+    violations
+}
+
+#[test]
+fn the_real_source_tree_has_no_bare_origin_identifier() {
+    let violations = scan_bare_origin_violations();
+    assert!(
+        violations.is_empty(),
+        "{} bare `origin`/`origins`/`Origin` identifiers; name the subject (`pair_origin`, \
+         `chapter_origin`) per AGENTS.md §Conventions:\n{}",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+#[test]
+fn the_bare_origin_scan_would_actually_flag_a_seeded_identifier() {
+    let rust = "fn f(origin: &str) {}\nlet origins = vec![1];\nenum E { Origin(u8) }\n";
+    let hits = bare_origin_violations("src-tauri/src/x.rs", rust, false);
+    assert_eq!(hits.len(), 3, "{hits:?}");
+    assert!(hits[0].starts_with("src-tauri/src/x.rs:1"), "{hits:?}");
+
+    let ts = "const origin = 1\nfunction f(origins: string[]) {}\n";
+    assert_eq!(bare_origin_violations("src/x.ts", ts, true).len(), 2);
+
+    let vue = "<script setup lang=\"ts\">\nconst x = a.origin\n</script>\n";
+    assert_eq!(bare_origin_violations("src/x.vue", vue, true).len(), 1);
+}
+
+#[test]
+fn the_bare_origin_scan_ignores_compounds_strings_comments_and_css() {
+    let rust = "// origin in a comment\n\
+                let translation_origin = 1; let origin_url = 2;\n\
+                let s = \"origin\"; let r = r#\"origin\"#;\n\
+                /* origin */ let t = PairOrigin::Other;\n";
+    assert!(bare_origin_violations("src-tauri/src/x.rs", rust, false).is_empty());
+
+    let vue = "<template><div class=\"chapter-origin\">{{ t('chapter.origin.heading') }}</div>\n\
+               <!-- origin --></template>\n\
+               <style>.chapter-origin-block { transform-origin: 0 0 }\n.ip-chapter-origin {}</style>\n\
+               <script>const k = `tm.manage.origin_${x}`; const j = 'tm.manage.origin_self'</script>\n";
+    assert!(bare_origin_violations("src/x.vue", vue, true).is_empty());
+}
+
+#[test]
+fn the_bare_origin_exemption_is_scoped_to_its_file_and_still_matches_something_real() {
+    let line = "if (e.origin !== 'user') return\n";
+    assert!(bare_origin_violations("src/layout/WorkspaceDock.vue", line, true).is_empty());
+    assert_eq!(bare_origin_violations("src/other.vue", line, true).len(), 1);
+    let mixed = "if (e.origin !== 'user' || origin) return\n";
+    assert_eq!(bare_origin_violations("src/layout/WorkspaceDock.vue", mixed, true).len(), 1);
+
+    for (file, snippet, reason) in BARE_ORIGIN_EXEMPT {
+        assert!(!reason.is_empty(), "exemption {snippet:?} in {file} carries no reason");
+        let rel = file.strip_prefix("src/").expect("exemption is a frontend path");
+        let text = fs::read_to_string(frontend_root().join(rel))
+            .unwrap_or_else(|e| panic!("exempt file {file}: {e}"));
+        assert_eq!(
+            code_only(&text, true).matches(snippet).count(),
+            1,
+            "exemption {snippet:?} must match exactly one code occurrence in {file}"
+        );
+    }
+}

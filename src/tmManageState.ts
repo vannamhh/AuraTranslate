@@ -18,7 +18,7 @@ import {
 import type {
   TmHealthEntry,
   TmManageListing,
-  TmManageOriginFilter,
+  TmManagePairOriginFilter,
   TmManageRow,
   TmManageTier,
   TmManageTierFilter,
@@ -46,7 +46,7 @@ const status = ref<TmManageStatus>('unknown')
 const loadError = ref<IpcError | null>(null)
 const listing = ref<TmManageListing | null>(null)
 const searchQuery = ref('')
-const originFilterState = ref<TmManageOriginFilter>('all')
+const pairOriginFilterState = ref<TmManagePairOriginFilter>('all')
 const tierFilterState = ref<TmManageTierFilter>('both')
 const cursor = ref(0)
 const editing = ref(false)
@@ -76,7 +76,7 @@ export const tmManageOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overla
 export const tmManageStatus: DeepReadonly<Ref<TmManageStatus>> = readonly(status)
 export const tmManageLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const tmManageSearchQuery: DeepReadonly<Ref<string>> = readonly(searchQuery)
-export const tmManageOriginFilter: DeepReadonly<Ref<TmManageOriginFilter>> = readonly(originFilterState)
+export const tmManagePairOriginFilter: DeepReadonly<Ref<TmManagePairOriginFilter>> = readonly(pairOriginFilterState)
 export const tmManageTierFilter: DeepReadonly<Ref<TmManageTierFilter>> = readonly(tierFilterState)
 export const tmManageCursor: DeepReadonly<Ref<number>> = readonly(cursor)
 export const tmManageEditing: DeepReadonly<Ref<boolean>> = readonly(editing)
@@ -171,7 +171,7 @@ async function loadRows(keepKey: string | null): Promise<boolean> {
   listToken += 1
   const mine = listToken
   const mySession = session
-  const result = await tmListPairs(originFilterState.value, tierFilterState.value, searchQuery.value)
+  const result = await tmListPairs(pairOriginFilterState.value, tierFilterState.value, searchQuery.value)
   if (mine !== listToken || mySession !== session) return false
 
   if (result.listing === null) {
@@ -281,7 +281,7 @@ export function resetTmManage(): void {
   loadError.value = null
   listing.value = null
   searchQuery.value = ''
-  originFilterState.value = 'all'
+  pairOriginFilterState.value = 'all'
   tierFilterState.value = 'both'
   cursor.value = 0
   editing.value = false
@@ -333,9 +333,9 @@ export function setTmManageSearch(query: string): void {
   }, TM_MANAGE_SEARCH_DEBOUNCE_MS)
 }
 
-export function setTmManageOriginFilter(value: TmManageOriginFilter): void {
+export function setTmManagePairOriginFilter(value: TmManagePairOriginFilter): void {
   if (filtersLocked()) return
-  originFilterState.value = value
+  pairOriginFilterState.value = value
   refilter()
 }
 

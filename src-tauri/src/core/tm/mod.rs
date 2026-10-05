@@ -109,7 +109,7 @@ pub struct TmPair {
 pub enum TmStoreError {
     Store(crate::core::store::StoreError),
     Scope(crate::core::scope::ScopeError),
-    UnknownOrigin { value: String },
+    UnknownPairOrigin { value: String },
 }
 
 impl std::fmt::Display for TmStoreError {
@@ -117,7 +117,7 @@ impl std::fmt::Display for TmStoreError {
         match self {
             Self::Store(e) => write!(f, "tm[store] {e}"),
             Self::Scope(e) => write!(f, "tm[scope] {e}"),
-            Self::UnknownOrigin { value } => write!(f, "tm[unknown_origin] {value:?}"),
+            Self::UnknownPairOrigin { value } => write!(f, "tm[unknown_origin] {value:?}"),
         }
     }
 }
@@ -186,9 +186,9 @@ fn query_pair_rows(
         Ok(rows)
     })?;
     raw.into_iter()
-        .map(|(id, source_text, target_text, origin, created_at)| {
-            let translation_origin = PairOrigin::from_stored(&origin)
-                .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
+        .map(|(id, source_text, target_text, pair_origin, created_at)| {
+            let translation_origin = PairOrigin::from_stored(&pair_origin)
+                .ok_or(TmStoreError::UnknownPairOrigin { value: pair_origin })?;
             Ok(RawPair { id, source_text, target_text, translation_origin, created_at })
         })
         .collect()
@@ -444,9 +444,9 @@ pub fn pair_by_id(
             Err(err) => Err(err),
         }
     })?;
-    raw.map(|(id, source_text, target_text, origin, created_at)| {
-        let translation_origin = PairOrigin::from_stored(&origin)
-            .ok_or(TmStoreError::UnknownOrigin { value: origin })?;
+    raw.map(|(id, source_text, target_text, pair_origin, created_at)| {
+        let translation_origin = PairOrigin::from_stored(&pair_origin)
+            .ok_or(TmStoreError::UnknownPairOrigin { value: pair_origin })?;
         Ok(TmPair { id, source_text, target_text, translation_origin, tier, created_at })
     })
     .transpose()
@@ -482,13 +482,13 @@ impl TierFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OriginFilter {
+pub enum PairOriginFilter {
     All,
     Side(PairSide),
     Exactly(PairOrigin),
 }
 
-impl OriginFilter {
+impl PairOriginFilter {
     pub fn from_wire(value: &str) -> Option<Self> {
         match value {
             "all" => Some(Self::All),
@@ -498,11 +498,11 @@ impl OriginFilter {
         }
     }
 
-    fn admits(self, origin: PairOrigin) -> bool {
+    fn admits(self, pair_origin: PairOrigin) -> bool {
         match self {
             Self::All => true,
-            Self::Side(side) => origin.side() == side,
-            Self::Exactly(exact) => origin == exact,
+            Self::Side(side) => pair_origin.side() == side,
+            Self::Exactly(exact) => pair_origin == exact,
         }
     }
 }
@@ -567,7 +567,7 @@ pub fn rank_manage_listing(
     resolver: &crate::core::scope::ScopeResolver,
     snapshot: ManageSnapshot,
     tier: TierFilter,
-    origin: OriginFilter,
+    pair_origin: PairOriginFilter,
     search: &str,
 ) -> Result<ManageListing, TmStoreError> {
     let tm_empty = snapshot.global_rows.is_empty()
@@ -583,7 +583,7 @@ pub fn rank_manage_listing(
                     PairOrigin::BilingualImport => 2,
                 };
                 counts[slot] += 1;
-                origin.admits(row.translation_origin)
+                pair_origin.admits(row.translation_origin)
                     && (needle.is_empty()
                         || concordance_key(&row.source_text).contains(&needle)
                         || concordance_key(&row.target_text).contains(&needle))
@@ -752,15 +752,15 @@ pub fn delete_copies(
 
 /// Deletes every pair whose origin projects to the others side; returns how many.
 pub fn delete_others_side(store: &crate::core::store::Store) -> Result<usize, TmStoreError> {
-    let origins: Vec<&'static str> = [PairOrigin::SelfTranslated, PairOrigin::Other, PairOrigin::BilingualImport]
+    let pair_origins: Vec<&'static str> = [PairOrigin::SelfTranslated, PairOrigin::Other, PairOrigin::BilingualImport]
         .into_iter()
         .filter(|o| o.side() == PairSide::Others)
         .map(PairOrigin::as_str)
         .collect();
     let count = store.write(move |tx| {
         let mut total = 0;
-        for origin in &origins {
-            total += tx.execute("DELETE FROM tm_unit WHERE translation_origin = ?1", [origin])?;
+        for pair_origin in &pair_origins {
+            total += tx.execute("DELETE FROM tm_unit WHERE translation_origin = ?1", [pair_origin])?;
         }
         Ok(total)
     })?;
@@ -792,7 +792,7 @@ pub fn push_copies_to_global(
     if live.iter().any(|p| p.tier == TmTier::Global) {
         return Ok(PushOutcome::GlobalHasPair);
     }
-    let (source, target, origin, created_at) = (
+    let (source, target, pair_origin, created_at) = (
         pair.source_text.clone(),
         pair.target_text.clone(),
         pair.translation_origin.as_str(),
@@ -810,7 +810,7 @@ pub fn push_copies_to_global(
         tx.execute(
             "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
              VALUES (?1, ?2, ?3, ?4)",
-            (&source, &target, origin, &created_at),
+            (&source, &target, pair_origin, &created_at),
         )?;
         Ok(Some(tx.last_insert_rowid()))
     })?;

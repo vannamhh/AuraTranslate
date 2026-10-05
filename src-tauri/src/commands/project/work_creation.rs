@@ -456,11 +456,11 @@ pub fn create_work_with_progress(
             //
             // 🔴 THÊM 2026-09-10 (Story 6.15, FR128/AD-43) — bốn cột xuất xứ, ÁP override
             // NGƯỜI DÙNG (nếu có, theo chỉ số Chương `i`) lên trên giá trị MÁY đã bóc
-            // (`chapter.origin`) — xem [`effective_origin_fields`]. Đường tệp/dán tay có
-            // `chapter.origin == None` VÀ `origin_overrides` rỗng ⇒ cả bốn cột `NULL`, KHÔNG
+            // (`chapter.chapter_origin`) — xem [`effective_origin_fields`]. Đường tệp/dán tay có
+            // `chapter.chapter_origin == None` VÀ `origin_overrides` rỗng ⇒ cả bốn cột `NULL`, KHÔNG
             // BACKFILL, đúng §Always.
             let (origin_author, origin_site_name, origin_url, origin_published_at) =
-                effective_origin_fields(chapter.origin.as_ref(), origin_overrides_owned.get(i).and_then(Option::as_ref));
+                effective_origin_fields(chapter.chapter_origin.as_ref(), origin_overrides_owned.get(i).and_then(Option::as_ref));
             // 🔴 **THÊM 2026-09-11 (Story 6.16, §Always)** — Chương của đường song ngữ khởi
             // tạo `InProgress`, không `NotStarted`: nó tới với bản dịch SẴN CÓ (dù chưa xác
             // nhận), khác một Chương văn xuôi vừa nhập chưa ai chạm tới.
@@ -852,7 +852,7 @@ pub fn append_chapters_to_work_with_progress(
             let ord = base_ord + i as i64 + 1;
             let (origin_author, origin_site_name, origin_url, origin_published_at) =
                 effective_origin_fields(
-                    chapter.origin.as_ref(),
+                    chapter.chapter_origin.as_ref(),
                     origin_overrides_owned.get(i).and_then(Option::as_ref),
                 );
             // §Always spec 6.7b — Chuong moi luon NotStarted: duong nay khong bao gio mang
@@ -1792,7 +1792,7 @@ mod distribute_docx_blocks_tests {
             title: None,
             blocks: None,
             joined_line_count: None,
-            origin: None,
+            chapter_origin: None,
             bilingual_segments: None,
             source_file: None,
         }

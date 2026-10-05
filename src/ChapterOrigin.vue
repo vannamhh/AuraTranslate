@@ -41,7 +41,7 @@ const props = defineProps<{
  * hai lượt `@commit`.
  */
 const emit = defineEmits<{
-  commit: [origin: { author: string | null; siteName: string | null; url: string | null; publishedAt: string | null }]
+  commit: [chapterOrigin: { author: string | null; siteName: string | null; url: string | null; publishedAt: string | null }]
 }>()
 
 function commitField(field: OriginField, event: Event): void {

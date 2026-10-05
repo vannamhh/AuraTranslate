@@ -192,7 +192,7 @@ pub fn decode_tmx_bytes(bytes: &[u8]) -> Result<String, TmxError> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TmxUnit {
     pub creationdate: Option<String>,
-    pub origin: Option<String>,
+    pub pair_origin: Option<String>,
     pub created_at: Option<String>,
     /// `(xml:lang as read, text as read)` in file order.
     pub variants: Vec<(String, String)>,
@@ -290,7 +290,7 @@ impl Walk {
                 if let (Some(unit), Some(kind)) = (self.unit.as_mut(), self.prop_type.take()) {
                     let value = self.prop.trim().to_owned();
                     match kind.as_str() {
-                        ORIGIN_PROP => unit.origin = Some(value),
+                        ORIGIN_PROP => unit.pair_origin = Some(value),
                         CREATED_AT_PROP => unit.created_at = Some(value),
                         _ => {}
                     }
@@ -441,7 +441,7 @@ pub fn plan_import(parsed: &ParsedTmx, tier: TmxTier<'_>) -> Result<ImportPlan, 
         plan.pairs.push(PlannedPair {
             source_text: source.to_owned(),
             target_text: target.to_owned(),
-            translation_origin: unit.origin.as_deref().and_then(PairOrigin::from_stored).unwrap_or(PairOrigin::Other),
+            translation_origin: unit.pair_origin.as_deref().and_then(PairOrigin::from_stored).unwrap_or(PairOrigin::Other),
             created_at: created_at_for(unit),
         });
     }

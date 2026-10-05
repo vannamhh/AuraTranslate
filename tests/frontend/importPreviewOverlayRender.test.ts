@@ -70,7 +70,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
     chapters: {
       chapter_count: 1,
-      chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }],
+      chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], chapter_origin: ORIGIN_STUB, source_file: null }],
       broken_item_count: 0,
       needs_review_count: 0,
       clean_count: 1,
@@ -251,7 +251,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
         // đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới.
         self_declared_chapters: {
           chapter_count: 1,
-          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null }],
+          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], chapter_origin: ORIGIN_STUB, source_file: null }],
           broken_item_count: 0,
           needs_review_count: 0,
           clean_count: 1,
@@ -518,7 +518,7 @@ function chaptersWithFlags(flags: boolean[]) {
       joined_line_count_in_chapter: null,
       needs_review: needsReview,
       review_causes: needsReview ? (['short_length'] as const).slice() : [],
-        origin: ORIGIN_STUB, source_file: null,
+        chapter_origin: ORIGIN_STUB, source_file: null,
     })),
     broken_item_count: 0,
     needs_review_count: needs,

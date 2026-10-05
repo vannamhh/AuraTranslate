@@ -12,7 +12,7 @@ use crate::core::tm::PairOrigin;
 pub enum Arbitrated {
     /// Empty text after `trim`: no translation, so no origin to declare (`''`).
     Unsigned,
-    Origin(PairOrigin),
+    PairOrigin(PairOrigin),
 }
 
 impl Arbitrated {
@@ -21,7 +21,7 @@ impl Arbitrated {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Unsigned => "",
-            Self::Origin(origin) => origin.as_str(),
+            Self::PairOrigin(pair_origin) => pair_origin.as_str(),
         }
     }
 }
@@ -43,9 +43,9 @@ pub fn arbitrate(
     }
     let baseline: String = baseline_target_text.trim().nfc().collect();
     if target != baseline || baseline_translation_origin.is_empty() {
-        return Ok(Arbitrated::Origin(PairOrigin::SelfTranslated));
+        return Ok(Arbitrated::PairOrigin(PairOrigin::SelfTranslated));
     }
     PairOrigin::from_stored(baseline_translation_origin)
-        .map(Arbitrated::Origin)
+        .map(Arbitrated::PairOrigin)
         .ok_or_else(|| UnknownBaselineOrigin(baseline_translation_origin.to_owned()))
 }

@@ -1101,7 +1101,7 @@ pub struct ChapterSplitPreviewEntryWire {
     pub review_causes: Vec<ReviewCauseWire>,
     /// **THÊM 2026-09-10 (Story 6.15, FR128/AD-43)** — bốn trường xuất xứ HIỆU LỰC (đã áp
     /// [`ChapterOriginOverride`] của CHÍNH Chương này, nếu có) — xem [`ChapterOriginWire`].
-    pub origin: ChapterOriginWire,
+    pub chapter_origin: ChapterOriginWire,
     /// **THÊM 2026-09-15 (Story 6.6b)** — tên/đường dẫn tệp NGUỒN của Chương này, echo thẳng
     /// từ [`crate::core::segment::import::ImportedChapter::source_file`]. `None` cho MỌI
     /// hình dạng KHÁC [`PipelineShape::Files`] hôm nay — xem doc-comment trường đó cho lý do
@@ -1237,8 +1237,8 @@ fn build_chapter_split_preview_wire(
             joined_line_count_in_chapter: m.joined_line_count,
             needs_review: verdict.needs_review,
             review_causes: verdict.causes.iter().map(|&cause| ReviewCauseWire::from(cause)).collect(),
-            origin: ChapterOriginWire::from_machine_and_override(
-                c.origin.as_ref(),
+            chapter_origin: ChapterOriginWire::from_machine_and_override(
+                c.chapter_origin.as_ref(),
                 origin_overrides.get(i).and_then(Option::as_ref),
             ),
             source_file: c.source_file.clone(),
@@ -2173,7 +2173,7 @@ pub fn preview_import_encoding(
                     // Nhánh TỰ KHAI không bao giờ có mục URL để mà hỏng (xem doc-comment
                     // tham số `broken_item_count` ở `preview_import_encoding`) — `0` cố định.
                     0,
-                    // Nhánh TỰ KHAI luôn `AlreadyText` — `chapter.origin` luôn `None`, không
+                    // Nhánh TỰ KHAI luôn `AlreadyText` — `chapter.chapter_origin` luôn `None`, không
                     // có gì để mà áp override lên (§Never spec 6.15: tầng 2 chưa mở ở đây).
                     &[],
                 );

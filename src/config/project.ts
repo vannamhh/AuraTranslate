@@ -247,7 +247,7 @@ export type ChapterSplitPreviewEntryWire = {
   /** Danh mục nguyên nhân *cần xem* — RỖNG khi và chỉ khi `needs_review === false`. */
   review_causes: ReviewCauseWire[]
   /** **THÊM Story 6.15** — bốn trường xuất xứ HIỆU LỰC của CHÍNH Chương này. */
-  origin: ChapterOriginWire
+  chapter_origin: ChapterOriginWire
   /** **THÊM Story 6.6b** — tên/đường dẫn tệp NGUỒN của Chương này, `null` cho MỌI đường nhập
    * KHÁC N tệp (`PipelineShape::Files`) hôm nay. Tầng hiển thị dùng trường này để hiện "tệp
    * nguồn" cạnh mỗi hàng Chương khi có mặt. */
@@ -456,7 +456,7 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
     typeof v.needs_review === 'boolean' &&
     Array.isArray(v.review_causes) &&
     v.review_causes.every(isReviewCauseWire) &&
-    isChapterOriginWire(v.origin) &&
+    isChapterOriginWire(v.chapter_origin) &&
     // Story 6.6b — thiếu vế `null` thì một Chương không mang `source_file` (mọi đường nhập
     // KHÁC N tệp) có `undefined` lọt qua Kiểm TYPE, đúng bẫy mọi trường tuỳ chọn khác trong
     // tệp này đã bị bắt.

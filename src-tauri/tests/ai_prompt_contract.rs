@@ -187,8 +187,8 @@ fn seed_tm(store: &Store, rows: &[(&str, &str, PairOrigin)]) {
         rows.iter().map(|(a, b, o)| ((*a).to_owned(), (*b).to_owned(), *o)).collect();
     store
         .write(move |tx| {
-            for (source, target, origin) in &rows {
-                insert_pair(tx, source, target, *origin)?;
+            for (source, target, pair_origin) in &rows {
+                insert_pair(tx, source, target, *pair_origin)?;
             }
             Ok(())
         })

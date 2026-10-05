@@ -47,7 +47,7 @@ pub struct SegmentPart<'a> {
     pub flags: ParagraphFlags,
     /// `segment.is_omitted` (FR133, bước di trú 8).
     pub is_omitted: bool,
-    /// The source's arbitrated origin (AD-50 rule 4, [`super::origin::arbitrate`]), not the
+    /// The source's arbitrated origin (AD-50 rule 4, [`super::translation_origin::arbitrate`]), not the
     /// stored `translation_origin`. `""` = no translation.
     pub translation_origin: &'a str,
 }

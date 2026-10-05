@@ -586,7 +586,7 @@ pub fn rename_chapter(
 /// tìm thấy") — nhưng KHÔNG còn "cùng luật `title`" nữa. `title` vẫn dùng `str::trim()` trần;
 /// bốn cột xuất xứ dùng luật cắt riêng khớp JS `.trim()` (`White_Space ∖ {U+0085} ∪ {U+FEFF}`)
 /// vì đây là trường người dùng đối chiếu với một màn xem trước chạy JS, không phải một tiêu
-/// đề gõ tại chỗ. Xem doc-comment `core::webimport::origin::is_chapter_origin_trim_char`.
+/// đề gõ tại chỗ. Xem doc-comment `core::webimport::chapter_origin::is_chapter_origin_trim_char`.
 ///
 /// # Lỗi
 /// - chưa Tác phẩm nào mở ⇒ `work.none_open`;

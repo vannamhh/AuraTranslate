@@ -617,7 +617,7 @@ const UNTOUCHED_ORIGIN: ChapterOriginWire = {
  * thắng khi có mặt; ngược lại rơi về giá trị MÁY của ứng viên bảng mã ĐANG chọn.
  *
  * ⚠️ `str::trim()`, KHÔNG `=== ''` trần — khớp ĐÚNG luật ghi xuống đĩa
- * (`core/webimport/origin.rs::chapter_origin_trim_or_none`/`commands/chapter.rs::update_chapter_origin`):
+ * (`core/webimport/chapter_origin.rs::chapter_origin_trim_or_none`/`commands/chapter.rs::update_chapter_origin`):
  * một ô chỉ toàn khoảng trắng cũng ghi `NULL`. Lệch quy tắc ở đây làm màn xem trước hiện một ô
  * "có chữ" trong khi đĩa sẽ ghi `NULL` — hai nơi nói hai điều khác nhau về CÙNG một giá trị.
  */
@@ -640,7 +640,7 @@ function resolveOriginField(
 export const importPreviewCurrentChapterOrigin = computed<ChapterOriginWire>(() => {
   const draft = chapterOriginDrafts.value[chapterCursor.value]
   const entry = importPreviewSelectedChapters.value?.chapters[chapterCursor.value]
-  const machine = entry?.origin ?? UNTOUCHED_ORIGIN
+  const machine = entry?.chapter_origin ?? UNTOUCHED_ORIGIN
 
   const author = resolveOriginField(draft?.author, machine.author, machine.author_confirmed)
   const siteName = resolveOriginField(draft?.siteName, machine.site_name, machine.site_name_confirmed)

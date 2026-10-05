@@ -56,7 +56,7 @@ async function freshOverlay() {
   return { state, ImportPreviewOverlay }
 }
 
-function origin(over: Partial<ChapterOriginWire> = {}): ChapterOriginWire {
+function chapterOrigin(over: Partial<ChapterOriginWire> = {}): ChapterOriginWire {
   return {
     author: null,
     site_name: null,
@@ -70,10 +70,10 @@ function origin(over: Partial<ChapterOriginWire> = {}): ChapterOriginWire {
   }
 }
 
-function chaptersWithOrigin(origins: ChapterOriginWire[]): ChapterSplitPreviewWire {
+function chaptersWithOrigin(chapterOrigins: ChapterOriginWire[]): ChapterSplitPreviewWire {
   return {
-    chapter_count: origins.length,
-    chapters: origins.map((o, i) => ({
+    chapter_count: chapterOrigins.length,
+    chapters: chapterOrigins.map((o, i) => ({
       ord: i + 1,
       title: null,
       length: 10,
@@ -81,12 +81,12 @@ function chaptersWithOrigin(origins: ChapterOriginWire[]): ChapterSplitPreviewWi
       joined_line_count_in_chapter: null,
       needs_review: false,
       review_causes: [],
-      origin: o,
+      chapter_origin: o,
       source_file: null,
     })),
     broken_item_count: 0,
     needs_review_count: 0,
-    clean_count: origins.length,
+    clean_count: chapterOrigins.length,
     any_signal_participated: false,
   }
 }
@@ -98,7 +98,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     preview: 'noi dung',
     normalized: { text: 'noi dung', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
     cleanup: { text: 'noi dung', spans: [], rules: [], window_truncated: false, final_text: 'noi dung' },
-    chapters: chaptersWithOrigin([origin(), origin()]),
+    chapters: chaptersWithOrigin([chapterOrigin(), chapterOrigin()]),
     blocks: { blocks: [] },
     ...over,
   }
@@ -127,8 +127,8 @@ function urlBatchTwoChapters(): UrlImportBatchWire {
     candidates: [
       candidate({
         chapters: chaptersWithOrigin([
-          origin({ author: 'Nguyen Van A', site_name: 'Bao Thi Du', url: urls[0], published_at: '2026-09-10' }),
-          origin({ url: urls[1] }),
+          chapterOrigin({ author: 'Nguyen Van A', site_name: 'Bao Thi Du', url: urls[0], published_at: '2026-09-10' }),
+          chapterOrigin({ url: urls[1] }),
         ]),
       }),
     ],
@@ -159,7 +159,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
     await state.openImportPreviewFromUrls('Ten', 'en', '', ['https://a.example/1', 'https://a.example/2'], null)
 
     expect(state.importPreviewCurrentChapterOrigin.value).toEqual(
-      origin({ author: 'Nguyen Van A', site_name: 'Bao Thi Du', url: 'https://a.example/1', published_at: '2026-09-10' }),
+      chapterOrigin({ author: 'Nguyen Van A', site_name: 'Bao Thi Du', url: 'https://a.example/1', published_at: '2026-09-10' }),
     )
   })
 
@@ -245,8 +245,8 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
             encoding: 'GBK',
             label: 'GBK',
             chapters: chaptersWithOrigin([
-              origin({ author: 'Nguyen Van A', site_name: 'Ten Site Khac Han', url: 'https://a.example/1', published_at: '2026-09-10' }),
-              origin({ url: 'https://a.example/2' }),
+              chapterOrigin({ author: 'Nguyen Van A', site_name: 'Ten Site Khac Han', url: 'https://a.example/1', published_at: '2026-09-10' }),
+              chapterOrigin({ url: 'https://a.example/2' }),
             ]),
           }),
         ],
@@ -329,7 +329,7 @@ describe('importPreviewState — importPreviewCurrentChapterOrigin (Story 6.15)'
 
     state.cancelImportPreview()
 
-    expect(state.importPreviewCurrentChapterOrigin.value).toEqual(origin())
+    expect(state.importPreviewCurrentChapterOrigin.value).toEqual(chapterOrigin())
   })
 
   it('mở lượt xem trước MỚI (URL khác) ⇒ draft của lượt CŨ không rò sang', async () => {

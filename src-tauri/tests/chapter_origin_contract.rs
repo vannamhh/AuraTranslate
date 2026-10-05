@@ -288,13 +288,13 @@ fn one_page_split_into_three_chapters_makes_every_chapter_carry_the_same_origin(
     let outcome = run_import(input).expect("pipeline phai chay duoc");
     assert!(outcome.chapters.len() >= 2, "mau phan tach phai khop it nhat mot lan de co N > 1 Chuong that");
 
-    let first_origin = outcome.chapters[0].origin.clone().expect("Chuong dau phai co xuat xu (Some)");
+    let first_origin = outcome.chapters[0].chapter_origin.clone().expect("Chuong dau phai co xuat xu (Some)");
     assert_eq!(first_origin.author.as_deref(), Some("Nguyen Van A"));
     assert_eq!(first_origin.site_name.as_deref(), Some("Bao Thi Du"));
 
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert_eq!(
-            chapter.origin, Some(first_origin.clone()),
+            chapter.chapter_origin, Some(first_origin.clone()),
             "Chuong chi so {i}: phai mang DUNG bo bon truong cua trang, giong het Chuong dau"
         );
     }

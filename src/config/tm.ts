@@ -3,7 +3,7 @@ import type { IpcError } from '../i18n'
 
 export type TmManageTier = 'work' | 'global'
 export type TmManageTierFilter = 'both' | 'work' | 'global'
-export type TmManageOriginFilter = 'all' | 'others' | 'self' | 'other' | 'bilingual_import'
+export type TmManagePairOriginFilter = 'all' | 'others' | 'self' | 'other' | 'bilingual_import'
 export type TmPairOrigin = 'self' | 'other' | 'bilingual_import'
 export type TmPairSide = 'mine' | 'others'
 
@@ -132,7 +132,7 @@ function isTier(value: unknown): value is TmManageTier {
   return value === 'work' || value === 'global'
 }
 
-function isOrigin(value: unknown): value is TmPairOrigin {
+function isPairOrigin(value: unknown): value is TmPairOrigin {
   return value === 'self' || value === 'other' || value === 'bilingual_import'
 }
 
@@ -153,7 +153,7 @@ function isPairFields(value: unknown): value is Omit<TmManageRow, 'copies'> {
     isTier(v.tier) &&
     typeof v.unit_id === 'number' &&
     typeof v.target_text === 'string' &&
-    isOrigin(v.translation_origin) &&
+    isPairOrigin(v.translation_origin) &&
     isSide(v.side) &&
     typeof v.created_at === 'string'
   )
@@ -183,7 +183,7 @@ function isManageGroup(value: unknown): value is TmManageGroup {
 function isHealthEntry(value: unknown): value is TmHealthEntry {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmHealthEntry>
-  return isOrigin(v.translation_origin) && typeof v.count === 'number'
+  return isPairOrigin(v.translation_origin) && typeof v.count === 'number'
 }
 
 function isListing(value: unknown): value is TmManageListing {
@@ -214,13 +214,13 @@ function malformed(value: unknown, command: string): IpcError {
 
 /** Both tiers, filtered; Rust caps the answer at 200 source groups. Never throws. */
 export async function tmListPairs(
-  origin: TmManageOriginFilter,
+  pairOrigin: TmManagePairOriginFilter,
   tier: TmManageTierFilter,
   search: string,
 ): Promise<TmListResult> {
   try {
     const listing = await invoke<unknown>(CMD_TM_LIST_PAIRS, {
-      origin,
+      pairOrigin,
       tier,
       search,
     })

@@ -606,7 +606,7 @@ struct Flow {
     /// đó mất Ý NGHĨA per-block sau khi tách; xuất xứ thì không, nó vẫn đúng cho mọi mảnh của
     /// CÙNG một trang). Đây là cơ chế cho hàng I/O Matrix "Một trang tách thành nhiều Chương":
     /// *"Cả 3 Chương nhận CÙNG bộ bốn trường của trang đó"*.
-    origins: Vec<Option<crate::core::webimport::ChapterOrigin>>,
+    chapter_origins: Vec<Option<crate::core::webimport::ChapterOrigin>>,
     /// **THÊM 2026-09-11 (Story 6.16)** — hàng của tệp song ngữ, table-parse NGAY SAU khi
     /// [`Step::DecodeEncoding`] giải mã xong `units[0]` (AD-39: "table parsing happens right
     /// after decode, inside the chain"). `None` cho MỌI hình dạng khác
@@ -758,7 +758,7 @@ pub fn run_import_with_order(
         labels: initial_labels,
         blocks: vec![None; n],
         joined_line_counts: vec![None; n],
-        origins: vec![None; n],
+        chapter_origins: vec![None; n],
         bilingual_rows: None,
         bilingual_chapters: None,
         bilingual_mismatches: Vec::new(),
@@ -776,7 +776,7 @@ pub fn run_import_with_order(
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports: _, bilingual_row_joined_line_counts: _ } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports: _, bilingual_row_joined_line_counts: _ } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
@@ -834,7 +834,7 @@ pub fn run_import_with_order(
                     None => (Vec::new(), Vec::new()),
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -856,12 +856,12 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts } =
+                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, chapter_origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
                         Vec::with_capacity(old_units.len());
-                    let mut origins: Vec<Option<crate::core::webimport::ChapterOrigin>> =
+                    let mut chapter_origins: Vec<Option<crate::core::webimport::ChapterOrigin>> =
                         Vec::with_capacity(old_units.len());
                     for (index, (u, label)) in old_units.into_iter().zip(labels.iter()).enumerate() {
                         match u {
@@ -885,8 +885,8 @@ pub fn run_import_with_order(
                                 // 🔴 THÊM 2026-09-10 (Story 6.15) — bóc xuất xứ NGAY tại đây,
                                 // dùng ĐÚNG `label` (URL yêu cầu) mà bước bóc nội dung vừa
                                 // dùng. `Extractor` không chạm mạng — xem doc-comment
-                                // `core::webimport::origin`.
-                                origins.push(Some(crate::core::webimport::extract_origin(&html, label)));
+                                // `core::webimport::chapter_origin`.
+                                chapter_origins.push(Some(crate::core::webimport::extract_origin(&html, label)));
                             }
                             // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 2)
                             // — giữ nguyên là phòng thủ cho một thứ tự SAI, cùng khuôn các
@@ -894,12 +894,12 @@ pub fn run_import_with_order(
                             other @ Unit::Undecoded { .. } => {
                                 units.push(other);
                                 blocks.push(None);
-                                origins.push(None);
+                                chapter_origins.push(None);
                             }
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -917,7 +917,7 @@ pub fn run_import_with_order(
                     labels,
                     blocks,
                     joined_line_counts,
-                    origins,
+                    chapter_origins,
                     bilingual_rows,
                     bilingual_chapters,
                     bilingual_mismatches,
@@ -991,7 +991,7 @@ pub fn run_import_with_order(
                     None => None,
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -1006,7 +1006,7 @@ pub fn run_import_with_order(
             // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
             // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, mut bilingual_row_joined_line_counts } =
+                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, mut bilingual_row_joined_line_counts } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut joined_line_counts = Vec::with_capacity(old_units.len());
@@ -1059,7 +1059,7 @@ pub fn run_import_with_order(
                     rows
                 });
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref(), bilingual_source_column)?;
@@ -1118,11 +1118,11 @@ pub fn run_import_with_order(
                     title: group.title,
                     blocks: None,
                     joined_line_count: group.joined_line_count,
-                    origin: None,
+                    chapter_origin: None,
                     bilingual_segments: Some(group.segments),
                     // Đường song ngữ mang ĐÚNG MỘT đơn vị đầu vào (`PipelineShape::Bilingual`)
                     // — không có khái niệm "tệp nào trong N tệp" để mà hiện, cùng lý do
-                    // `origin`/`blocks` cũng `None` ở nhánh này.
+                    // `chapter_origin`/`blocks` cũng `None` ở nhánh này.
                     source_file: None,
                 }
             })
@@ -1150,7 +1150,7 @@ pub fn run_import_with_order(
         .zip(flow.chapter_titles)
         .zip(flow.blocks)
         .zip(flow.joined_line_counts)
-        .zip(flow.origins)
+        .zip(flow.chapter_origins)
         // **THÊM 2026-09-15 (Story 6.6b)** — `labels` chảy vào kết quả CÔNG KHAI lần đầu tiên
         // ở đây: `ImportedChapter::source_file` là chỗ DUY NHẤT `Flow::labels` còn sống sau
         // khi bước 7 chạy xong.
@@ -1170,7 +1170,7 @@ pub fn run_import_with_order(
         // `Flow::already_chaptered` đã theo (rẽ theo hình dạng khai báo, không suy từ dữ liệu
         // quan sát được).
         .zip(flow.labels)
-        .map(|(((((((u, s), cleanup_report), title), blocks), joined_line_count), origin), label)| -> Result<ImportedChapter, ImportError> {
+        .map(|(((((((u, s), cleanup_report), title), blocks), joined_line_count), chapter_origin), label)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -1195,7 +1195,7 @@ pub fn run_import_with_order(
                 title,
                 blocks,
                 joined_line_count,
-                origin,
+                chapter_origin,
                 bilingual_segments: None,
                 source_file: if is_files && !label.is_empty() { Some(label) } else { None },
             })
@@ -1536,9 +1536,9 @@ fn split_chapters_step(
     // phần tử (dù `Some` hay `None`, tuỳ `extract_main_content` có chạy hay không TRƯỚC bước
     // này). Nhân bản giá trị DUY NHẤT đó ra cả N mảnh giữ đúng hàng I/O Matrix "Một trang tách
     // thành nhiều Chương ⇒ cả N Chương nhận CÙNG bộ bốn trường" — xem doc-comment
-    // `Flow::origins` cho lý do đây là ĐÚNG cách xử, khác hẳn `labels`/`blocks` (reset ở trên).
-    let origin_for_all = flow.origins.into_iter().next().flatten();
-    flow.origins = vec![origin_for_all; n];
+    // `Flow::chapter_origins` cho lý do đây là ĐÚNG cách xử, khác hẳn `labels`/`blocks` (reset ở trên).
+    let origin_for_all = flow.chapter_origins.into_iter().next().flatten();
+    flow.chapter_origins = vec![origin_for_all; n];
     Ok(flow)
 }
 
@@ -1565,7 +1565,7 @@ fn split_chapters_step(
 /// - xuất xứ (`origins`) broadcast BÊN TRONG chính đơn vị đó (mọi mảnh của ĐÚNG đơn vị *i*
 ///   nhận cùng giá trị), KHÔNG lan sang đơn vị khác — đường `Files` không bao giờ chạy
 ///   [`Step::ExtractMainContent`] thật (`extract_main_content` luôn `false` trên đường tệp),
-///   nên `origin` luôn `None` trên sản phẩm hôm nay; quy tắc broadcast-trong-đơn-vị vẫn được
+///   nên `chapter_origin` luôn `None` trên sản phẩm hôm nay; quy tắc broadcast-trong-đơn-vị vẫn được
 ///   viết ra tường minh vì hàm này là seam công khai cho `tests/**`.
 ///
 /// Một Chương chưa-bị-tách-thêm (`k == 1`, dù vì không có mẫu HAY mẫu không khớp CHÍNH đơn vị
@@ -1577,14 +1577,14 @@ fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -
     let old_labels = std::mem::take(&mut flow.labels);
     let old_cleanup_reports = std::mem::take(&mut flow.cleanup_reports);
     let old_joined_line_counts = std::mem::take(&mut flow.joined_line_counts);
-    let old_origins = std::mem::take(&mut flow.origins);
+    let old_origins = std::mem::take(&mut flow.chapter_origins);
 
     let mut units: Vec<Unit> = Vec::new();
     let mut labels: Vec<String> = Vec::new();
     let mut cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>> = Vec::new();
     let mut chapter_titles: Vec<Option<String>> = Vec::new();
     let mut joined_line_counts: Vec<Option<usize>> = Vec::new();
-    let mut origins: Vec<Option<crate::core::webimport::ChapterOrigin>> = Vec::new();
+    let mut chapter_origins: Vec<Option<crate::core::webimport::ChapterOrigin>> = Vec::new();
 
     for ((((unit, label), unit_report), unit_joined), unit_origin) in old_units
         .into_iter()
@@ -1609,7 +1609,7 @@ fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -
             chapter_titles.push(title);
             cleanup_reports.push(if piece_index == 0 { unit_report.clone() } else { None });
             joined_line_counts.push(if k == 1 { unit_joined } else { None });
-            origins.push(unit_origin.clone());
+            chapter_origins.push(unit_origin.clone());
         }
     }
 
@@ -1621,7 +1621,7 @@ fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -
     flow.chapter_titles = chapter_titles;
     flow.blocks = vec![None; n];
     flow.joined_line_counts = joined_line_counts;
-    flow.origins = origins;
+    flow.chapter_origins = chapter_origins;
     Ok(flow)
 }
 

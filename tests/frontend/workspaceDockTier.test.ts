@@ -506,9 +506,9 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
       await settle()
 
       expect(commandsMod.enterFocus('panel.grid')).toBe(true)
-      const origin = document.activeElement
-      expect(origin).not.toBe(document.body)
-      expect(origin?.matches('[data-lookup-drawer-open]')).toBe(false)
+      const focusBeforeDrawer = document.activeElement
+      expect(focusBeforeDrawer).not.toBe(document.body)
+      expect(focusBeforeDrawer?.matches('[data-lookup-drawer-open]')).toBe(false)
 
       commandsMod.dispatch('layout.lookup_drawer_open')
       await settle()
@@ -519,7 +519,7 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
       commandsMod.dispatch('layout.lookup_drawer_close')
       await settle()
       expect(document.querySelector('[role="dialog"]')).toBeNull()
-      expect(document.activeElement).toBe(origin)
+      expect(document.activeElement).toBe(focusBeforeDrawer)
     } finally {
       wrapper.unmount()
     }

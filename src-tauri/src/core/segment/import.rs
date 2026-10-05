@@ -673,11 +673,11 @@ pub struct ImportedChapter {
     /// **THÊM 2026-09-10 (Story 6.15)** — xuất xứ tài liệu (FR128/AD-43) mà
     /// [`super::pipeline::Step::ExtractMainContent`] vừa bóc cho Chương này (ba trường từ
     /// HTML cộng URL yêu cầu, echo từ `label` — xem doc-comment
-    /// [`crate::core::webimport::origin`]). `None` khi bước 2 không chạy cho Chương này
+    /// [`crate::core::webimport::chapter_origin`]). `None` khi bước 2 không chạy cho Chương này
     /// (`extract_main_content == false` — đường tệp/dán tay). Một trang tách thành nhiều
     /// Chương (mẫu phân tách khớp N lần) ⇒ MỌI Chương con mang CÙNG giá trị — xem doc-comment
-    /// `super::pipeline::Flow::origins`.
-    pub origin: Option<crate::core::webimport::ChapterOrigin>,
+    /// `super::pipeline::Flow::chapter_origins`.
+    pub chapter_origin: Option<crate::core::webimport::ChapterOrigin>,
     /// **THÊM 2026-09-11 (Story 6.16, FR115)** — segment ĐÃ CẶP nguồn/đích của Chương này,
     /// trên đường nhập song ngữ. `Some` chỉ khi hình dạng đầu vào là
     /// [`super::pipeline::PipelineShape::Bilingual`]; `None` cho MỌI đường khác (không đổi

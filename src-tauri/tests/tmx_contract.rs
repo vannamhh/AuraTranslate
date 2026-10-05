@@ -274,8 +274,8 @@ fn a_round_trip_into_an_empty_tier_keeps_pairs_origins_and_dates() {
     let got = rows(&f.global);
     let pairs: Vec<(&str, &str)> = got.iter().map(|r| (r.0.as_str(), r.1.as_str())).collect();
     assert_eq!(pairs, vec![("S", "A"), ("S", "B"), ("T", "C")]);
-    let origins: Vec<&str> = got.iter().map(|r| r.2.as_str()).collect();
-    assert_eq!(origins, vec!["self", "bilingual_import", "other"], "moi cap mang xuat xu da xuat");
+    let pair_origins: Vec<&str> = got.iter().map(|r| r.2.as_str()).collect();
+    assert_eq!(pair_origins, vec!["self", "bilingual_import", "other"], "moi cap mang xuat xu da xuat");
     let dates: Vec<&str> = got.iter().map(|r| r.3.as_str()).collect();
     assert_eq!(dates, vec![D1, D2, D1], "moi cap mang created_at da xuat");
 }

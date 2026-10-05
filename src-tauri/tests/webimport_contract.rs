@@ -1385,7 +1385,7 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
 // `chapter.origin_url` qua một chuyển hướng THẬT — echo URL YÊU CẦU, không chặng cuối
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// `core::webimport::origin::extract_origin` chỉ echo `label` (URL đã dán), không đọc gì từ
+/// `core::webimport::chapter_origin::extract_origin` chỉ echo `label` (URL đã dán), không đọc gì từ
 /// phản hồi HTTP -- nhưng đi qua đúng `fetch_url_import_items` (đường sản phẩm thật của
 /// `wire::start_url_import`, không phải một `UrlImportItem` gõ tay) là cách DUY NHẤT để một
 /// ca kiểm thật sự chứng minh điều đó qua một chuyển hướng THẬT, thay vì giả định.

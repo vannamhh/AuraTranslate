@@ -37,7 +37,7 @@ function row(over: Partial<TmManageRow> = {}): TmManageRow {
   }
 }
 
-function origin(o: TmPairOrigin): Pick<TmManageRow, 'translation_origin' | 'side'> {
+function pairOrigin(o: TmPairOrigin): Pick<TmManageRow, 'translation_origin' | 'side'> {
   return { translation_origin: o, side: o === 'self' ? 'mine' : 'others' }
 }
 
@@ -80,7 +80,7 @@ const THREE_ROWS = listing({
       distinct_targets: 2,
       rows: [
         row({ unit_id: 1, target_text: 'Xin chào' }),
-        row({ unit_id: 2, target_text: 'Chào', ...origin('other') }),
+        row({ unit_id: 2, target_text: 'Chào', ...pairOrigin('other') }),
       ],
     },
     {
@@ -91,7 +91,7 @@ const THREE_ROWS = listing({
           tier: 'global',
           unit_id: 9,
           target_text: 'Tạm biệt',
-          ...origin('bilingual_import'),
+          ...pairOrigin('bilingual_import'),
         }),
       ],
     },
@@ -229,7 +229,7 @@ describe('open and list', () => {
     s.nextTmManageRow()
     expect(s.tmManageCursor.value).toBe(1)
 
-    s.setTmManageOriginFilter('others')
+    s.setTmManagePairOriginFilter('others')
     expect(s.tmManageCursor.value).toBe(0)
     await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'both', ''))
     s.setTmManageTierFilter('global')
@@ -245,7 +245,7 @@ describe('open and list', () => {
 
     let releaseOld: (v: unknown) => void = () => undefined
     listMock.mockImplementationOnce(() => new Promise((resolve) => (releaseOld = resolve)))
-    s.setTmManageOriginFilter('others')
+    s.setTmManagePairOriginFilter('others')
     listMock.mockResolvedValueOnce(loaded(listing()))
     s.setTmManageTierFilter('global')
     await vi.waitFor(() => expect(s.tmManageFlatRows.value).toHaveLength(1))
@@ -319,7 +319,7 @@ describe('edit', () => {
     s.beginTmManageEdit()
     listMock.mockClear()
     s.setTmManageSearch('x')
-    s.setTmManageOriginFilter('others')
+    s.setTmManagePairOriginFilter('others')
     s.setTmManageTierFilter('work')
     expect(listMock).not.toHaveBeenCalled()
     expect(s.tmManageSearchQuery.value).toBe('')
@@ -800,7 +800,7 @@ describe('failed re-list and locks', () => {
       listing: null,
       error: ipcError('tm.lookup_failed'),
     })
-    s.setTmManageOriginFilter('others')
+    s.setTmManagePairOriginFilter('others')
     await vi.waitFor(() => expect(s.tmManageStatus.value).toBe('error'))
     expect(s.tmManageFlatRows.value).toHaveLength(0)
     expect(s.tmManageCurrentRow.value).toBeNull()
@@ -1158,7 +1158,7 @@ describe('an edit pins its row', () => {
 
     let release: (v: unknown) => void = () => undefined
     listMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
-    s.setTmManageOriginFilter('all')
+    s.setTmManagePairOriginFilter('all')
     s.beginTmManageEdit()
     expect(s.tmManageCurrentRow.value?.unit_id).toBe(1)
 
@@ -1192,7 +1192,7 @@ describe('an edit pins its row', () => {
     await s.openTmManage()
     let release: (v: unknown) => void = () => undefined
     listMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
-    s.setTmManageOriginFilter('others')
+    s.setTmManagePairOriginFilter('others')
     s.beginTmManageEdit()
     release(loaded(listing({ groups: [THREE_ROWS.groups[1]] })))
     await vi.waitFor(() => expect(s.tmManageEditing.value).toBe(false))

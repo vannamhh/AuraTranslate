@@ -81,7 +81,7 @@ function candidateChapters(chapterCount: number, needsReviewCount: number) {
       joined_line_count_in_chapter: null,
       needs_review: i < needsReviewCount,
       review_causes: i < needsReviewCount ? ['short_length' as const] : [],
-      origin: ORIGIN_STUB,
+      chapter_origin: ORIGIN_STUB,
       source_file: `tep-${i + 1}.txt`,
     })),
     broken_item_count: 0,

@@ -6,12 +6,12 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
-import type { TmManageOriginFilter, TmManageTier, TmManageTierFilter, TmPairOrigin } from './config/tm'
+import type { TmManagePairOriginFilter, TmManageTier, TmManageTierFilter, TmPairOrigin } from './config/tm'
 import { glossaryExchangeBusy } from './glossaryExchangeGate'
 import { tmExchangeErrorText } from './tmExchangeError'
 import {
   cancelTmManageDeleteConfirm,
-  setTmManageOriginFilter,
+  setTmManagePairOriginFilter,
   setTmManageExchangeTier,
   setTmManageSearch,
   setTmManageTierFilter,
@@ -36,7 +36,7 @@ import {
   tmManageHealthTotal,
   tmManageImportDone,
   tmManageLoadError,
-  tmManageOriginFilter,
+  tmManagePairOriginFilter,
   tmManageOthersCount,
   tmManageOverlayIsOpen,
   tmManageRowKey,
@@ -159,8 +159,8 @@ const TIER_OPTIONS: ReadonlyArray<{
   { value: 'global', labelKey: 'tm.fuzzy.tier_global' },
 ]
 
-const ORIGIN_OPTIONS: ReadonlyArray<{
-  value: TmManageOriginFilter
+const PAIR_ORIGIN_OPTIONS: ReadonlyArray<{
+  value: TmManagePairOriginFilter
   labelKey: string
 }> = [
   { value: 'all', labelKey: 'tm.manage.origin_filter_all' },
@@ -170,8 +170,8 @@ const ORIGIN_OPTIONS: ReadonlyArray<{
   { value: 'bilingual_import', labelKey: 'tm.manage.origin_bilingual_import' },
 ]
 
-function originLabel(origin: TmPairOrigin): string {
-  return t(`tm.manage.origin_${origin}`)
+function pairOriginLabel(pairOrigin: TmPairOrigin): string {
+  return t(`tm.manage.origin_${pairOrigin}`)
 }
 
 function tierLabel(tier: string): string {
@@ -274,9 +274,9 @@ function onTierChange(event: Event): void {
   if (target instanceof HTMLSelectElement) setTmManageTierFilter(target.value as TmManageTierFilter)
 }
 
-function onOriginChange(event: Event): void {
+function onPairOriginChange(event: Event): void {
   const target = event.target
-  if (target instanceof HTMLSelectElement) setTmManageOriginFilter(target.value as TmManageOriginFilter)
+  if (target instanceof HTMLSelectElement) setTmManagePairOriginFilter(target.value as TmManagePairOriginFilter)
 }
 
 function onEscape(): void {
@@ -360,7 +360,7 @@ function onKeydown(event: KeyboardEvent): void {
         <li v-for="h in tmManageHealth" :key="h.translation_origin" class="tm-badge">
           {{
             t('tm.manage.health_item', {
-              label: originLabel(h.translation_origin),
+              label: pairOriginLabel(h.translation_origin),
               count: String(h.count),
               percent: String(healthPercent(h.count)),
             })
@@ -404,11 +404,11 @@ function onKeydown(event: KeyboardEvent): void {
           <span class="tm-field-label">{{ t('tm.manage.origin_filter_label') }}</span>
           <select
             class="tm-input"
-            :value="tmManageOriginFilter"
+            :value="tmManagePairOriginFilter"
             :disabled="tmManageEditing || tmManageSaving"
-            @change="onOriginChange"
+            @change="onPairOriginChange"
           >
-            <option v-for="opt in ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">
+            <option v-for="opt in PAIR_ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
             </option>
           </select>
@@ -482,7 +482,7 @@ function onKeydown(event: KeyboardEvent): void {
                 <!-- aura-allow-text: stored target text of the pair, user content. -->
                 <span class="tm-target">{{ flat.row.target_text }}</span>
                 <!-- aura-allow-text: result of t() computed in the script. -->
-                <span class="tm-badge">{{ originLabel(flat.row.translation_origin) }}</span>
+                <span class="tm-badge">{{ pairOriginLabel(flat.row.translation_origin) }}</span>
                 <!-- aura-allow-text: result of t() computed in the script. -->
                 <span v-for="tier in copyTiers(flat.row.copies)" :key="tier" class="tm-badge">{{
                   tierLabel(tier)

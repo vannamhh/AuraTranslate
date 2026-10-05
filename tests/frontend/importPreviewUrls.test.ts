@@ -140,7 +140,7 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
     },
     self_declared_chapters: {
       chapter_count: chapterCount,
-      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], origin: ORIGIN_STUB, source_file: null })),
+      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], chapter_origin: ORIGIN_STUB, source_file: null })),
       broken_item_count: 0,
       needs_review_count: 0,
       clean_count: chapterCount,
@@ -651,7 +651,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" co danh sách mụ
         cleanup_match_count: 0,
         joined_line_count_in_chapter: null,
         needs_review: false,
-        review_causes: [], origin: ORIGIN_STUB, source_file: null,
+        review_causes: [], chapter_origin: ORIGIN_STUB, source_file: null,
       })),
       broken_item_count: 1,
       needs_review_count: 1,

@@ -201,7 +201,7 @@ pub(crate) fn insert_bilingual_segments(
         // AD-46 — cờ đích MIRROR cờ nguồn tại lúc nhập, cùng giá trị ghi vào CẢ hai cột
         // (đúng khuôn `insert_segments`, không một nguồn sự thật thứ hai).
         let paragraph_end = i64::from(segment.is_paragraph_end);
-        let origin =
+        let pair_origin =
             if segment.target_text.is_empty() { TRANSLATION_ORIGIN_NONE } else { TRANSLATION_ORIGIN_BILINGUAL_IMPORT };
         stmt.execute((
             chapter_id,
@@ -209,7 +209,7 @@ pub(crate) fn insert_bilingual_segments(
             &segment.source_text,
             paragraph_end,
             paragraph_end,
-            origin,
+            pair_origin,
             &segment.target_text,
         ))?;
     }
@@ -1247,8 +1247,8 @@ fn fill_exact_tm_matches(
                 .map(|p| (p.target_text, p.translation_origin.as_str()));
             by_source.insert(source.clone(), first);
         }
-        if let Some(Some((target, origin))) = by_source.get(&source) {
-            picks.push((id, target.clone(), origin));
+        if let Some(Some((target, pair_origin))) = by_source.get(&source) {
+            picks.push((id, target.clone(), pair_origin));
         }
     }
     if picks.is_empty() {
@@ -1257,7 +1257,7 @@ fn fill_exact_tm_matches(
 
     let filled = open.store.write(move |tx: &Transaction<'_>| {
         let mut filled = Vec::new();
-        for (id, target, origin) in &picks {
+        for (id, target, pair_origin) in &picks {
             let still_eligible: bool = tx.query_row(
                 "SELECT status = ?2 AND trim(target_text) = '' AND is_omitted = 0 \
                  AND retired_at IS NULL FROM segment WHERE id = ?1",
@@ -1265,7 +1265,7 @@ fn fill_exact_tm_matches(
                 |row| row.get(0),
             )?;
             if still_eligible {
-                write_non_user_target(tx, *id, target, origin, Some(origin))?;
+                write_non_user_target(tx, *id, target, pair_origin, Some(pair_origin))?;
                 filled.push(*id);
             }
         }
@@ -2367,8 +2367,8 @@ pub fn promote_ai_translation(
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Promoted::Missing => return Err(segment_not_found(segment_id)),
         Promoted::Retired => return Err(segment_retired(segment_id)),
-        Promoted::Row(text, origin, status, needs_confirmation) => {
-            (text, origin, status, needs_confirmation)
+        Promoted::Row(text, pair_origin, status, needs_confirmation) => {
+            (text, pair_origin, status, needs_confirmation)
         }
     };
     // `target_text` already holds the draft when `needs_confirmation`: that branch of the
@@ -2428,8 +2428,8 @@ pub(crate) fn tier_wire(tier: crate::core::tm::TmTier) -> &'static str {
     }
 }
 
-pub(crate) fn side_wire(origin: crate::core::tm::PairOrigin) -> &'static str {
-    match origin.side() {
+pub(crate) fn side_wire(pair_origin: crate::core::tm::PairOrigin) -> &'static str {
+    match pair_origin.side() {
         crate::core::tm::PairSide::Mine => "mine",
         crate::core::tm::PairSide::Others => "others",
     }
@@ -2697,7 +2697,7 @@ pub fn accept_tm_exact(
     let pair = crate::core::tm::pair_by_id(store, pair_tier, unit_id)
         .map_err(|e| tm_lookup_failed(&e))?
         .ok_or_else(|| tm_pair_not_found(tier, unit_id))?;
-    let origin = pair.translation_origin.as_str();
+    let pair_origin = pair.translation_origin.as_str();
     let target = pair.target_text;
     let pair_source = pair.source_text;
 
@@ -2746,15 +2746,15 @@ pub fn accept_tm_exact(
                 return Ok(Picked::Row(current_text, current_origin, current_status, true));
             }
         }
-        write_non_user_target(tx, segment_id, &target, origin, Some(origin))?;
-        Ok(Picked::Row(target, origin.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false))
+        write_non_user_target(tx, segment_id, &target, pair_origin, Some(pair_origin))?;
+        Ok(Picked::Row(target, pair_origin.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false))
     })?;
 
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Picked::Missing => return Err(segment_not_found(segment_id)),
         Picked::Retired => return Err(segment_retired(segment_id)),
         Picked::SourceChanged => return Err(tm_pair_not_found(tier, unit_id)),
-        Picked::Row(text, origin, status, ask) => (text, origin, status, ask),
+        Picked::Row(text, pair_origin, status, ask) => (text, pair_origin, status, ask),
     };
     let unsigned_draft = needs_confirmation.then(|| target_text.clone());
     Ok(PromoteAiTranslationOutcome {
@@ -2924,7 +2924,7 @@ enum ConfirmReject {
 ///   cặp nào. AD-47 ⑥ khai phép chiếu xuất xứ ba giá trị → **trục nhị phân FR118**; đó là
 ///   việc của đường đọc.
 ///
-/// Origin arbitration (AD-50 rule 4): the origin comes from [`crate::core::segment::origin::arbitrate`]
+/// Origin arbitration (AD-50 rule 4): the origin comes from [`crate::core::segment::translation_origin::arbitrate`]
 /// over `target_text` and the stored baseline columns, read in the same transaction. The webview
 /// sends only `segment_id`. A baseline origin outside [`TRANSLATION_ORIGINS`] rejects with
 /// `segment.unknown_translation_origin` and writes nothing.
@@ -3004,17 +3004,17 @@ pub fn confirm_segment(
         }
 
         // ④ Transition: the origin is the single AD-50 arbitration, status and origin in one UPDATE.
-        let confirmed_origin = match crate::core::segment::origin::arbitrate(
+        let confirmed_origin = match crate::core::segment::translation_origin::arbitrate(
             &target_text,
             &baseline_text,
             &baseline_origin,
         ) {
-            Ok(crate::core::segment::origin::Arbitrated::Origin(origin)) => origin,
-            Ok(crate::core::segment::origin::Arbitrated::Unsigned) => {
+            Ok(crate::core::segment::translation_origin::Arbitrated::PairOrigin(pair_origin)) => pair_origin,
+            Ok(crate::core::segment::translation_origin::Arbitrated::Unsigned) => {
                 set_reject(ConfirmReject::NothingToConfirm);
                 return Err(SqlError::QueryReturnedNoRows);
             }
-            Err(crate::core::segment::origin::UnknownBaselineOrigin(value)) => {
+            Err(crate::core::segment::translation_origin::UnknownBaselineOrigin(value)) => {
                 set_reject(ConfirmReject::UnknownOrigin(value));
                 return Err(SqlError::QueryReturnedNoRows);
             }
@@ -3608,7 +3608,7 @@ fn load_segment_for_write(
 
     match found {
         Ok((mut row, baseline_text, baseline_origin, None)) => {
-            match crate::core::segment::origin::arbitrate(
+            match crate::core::segment::translation_origin::arbitrate(
                 &row.target_text,
                 &baseline_text,
                 &baseline_origin,
@@ -3617,7 +3617,7 @@ fn load_segment_for_write(
                     row.translation_origin = arbitrated.as_str().to_owned();
                     Ok(row)
                 }
-                Err(crate::core::segment::origin::UnknownBaselineOrigin(value)) => {
+                Err(crate::core::segment::translation_origin::UnknownBaselineOrigin(value)) => {
                     Err(RegroupReject::UnknownOrigin(segment_id, value))
                 }
             }

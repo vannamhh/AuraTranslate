@@ -53,20 +53,20 @@
 
 pub mod allowlist;
 pub mod assets;
+pub mod chapter_origin;
 pub mod domain_log;
 pub mod extractor;
 pub mod fetcher;
-pub mod origin;
 
 pub use allowlist::{Allowlist, AllowlistDecision, ResourceKind, Tier};
 pub use assets::{
     ResolveUrlError, extension_for_mime, host_of, is_raster_image_mime, normalized_mime, resolve_absolute_url,
 };
+pub use chapter_origin::{ChapterOrigin, extract_origin};
+pub(crate) use chapter_origin::{chapter_origin_trim, chapter_origin_trim_or_none};
 pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogOutcome, DomainLogState, append_domain_log_entries, distinct_domain_count, read_domain_log};
 pub use extractor::{Block, BlockBody, ExtractError, extract};
 pub use fetcher::{FetchError, FetchedPage, MAX_RESPONSE_BYTES, REQUEST_TIMEOUT, fetch, looks_like_html};
-pub use origin::{ChapterOrigin, extract_origin};
-pub(crate) use origin::{chapter_origin_trim, chapter_origin_trim_or_none};
 
 /// Lý do một MỤC trong danh sách URL nhập thất bại — tám nhánh, đúng tám lý do phân biệt
 /// được của I/O Matrix spec 6.7 (`err.import.web_*`, `core::i18n`). Trái với [`FetchError`]/

@@ -6085,13 +6085,13 @@ fn a_freshly_imported_chapter_starts_with_no_translation_origin() {
     let opened = create_work_from_text(&root, "Nhap moi", "zh", "", "一。二。三。".to_owned())
         .expect("tao tac pham that bai");
 
-    let origins: Vec<String> = read_all_segment_rows(&opened)
+    let pair_origins: Vec<String> = read_all_segment_rows(&opened)
         .iter()
         .map(|r| r.12.clone())
         .collect();
 
     assert_eq!(
-        origins,
+        pair_origins,
         vec!["".to_owned(), "".to_owned(), "".to_owned()],
         "mot Chuong vua nhap chua co ban dich nao, nen chua cau nao co xuat xu"
     );
@@ -6372,12 +6372,12 @@ fn merging_keeps_a_unanimous_origin_and_falls_back_to_other_on_any_disagreement(
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
     use auratranslate_lib::core::segment::regroup::{merge, SegmentPart, ORIGIN_OTHER};
 
-    let part = |origin: &'static str| SegmentPart {
+    let part = |pair_origin: &'static str| SegmentPart {
         source_text: "x",
         target_text: "y",
         flags: ParagraphFlags::mirrored(false),
         is_omitted: false,
-        translation_origin: origin,
+        translation_origin: pair_origin,
     };
 
     assert_eq!(
@@ -9884,7 +9884,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 joined_line_count_in_chapter: Some(1),
                 needs_review: true,
                 review_causes: vec![ReviewCauseWire::HighCleanupMatches],
-                origin: Default::default(),
+                chapter_origin: Default::default(),
                 source_file: None,
             },
             ChapterSplitPreviewEntryWire {
@@ -9895,7 +9895,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 joined_line_count_in_chapter: None,
                 needs_review: true,
                 review_causes: vec![ReviewCauseWire::NotMeasured],
-                origin: Default::default(),
+                chapter_origin: Default::default(),
                 source_file: None,
             },
             ChapterSplitPreviewEntryWire {
@@ -9906,7 +9906,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
                 joined_line_count_in_chapter: Some(0),
                 needs_review: false,
                 review_causes: vec![],
-                origin: Default::default(),
+                chapter_origin: Default::default(),
                 source_file: None,
             },
         ],
@@ -9950,7 +9950,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
             &"review_causes".to_owned(),
             // 🔵 THEM (Story 6.15, 2026-09-10) — bon o xuat xu tai lieu cua CHINH Chuong nay
             // (FR128/AD-43), da ap override nguoi dung go de. Bay ten truong → TAM.
-            &"origin".to_owned(),
+            &"chapter_origin".to_owned(),
             // 🔵 SUA 2026-09-15 (Story 6.6b) — them `source_file`: reason "widened return
             // type", KHONG mot loi long long ky vong — tam truong → TAM.
             &"source_file".to_owned(),
@@ -10652,13 +10652,13 @@ fn set_target_and_origin(
     open: &auratranslate_lib::commands::project::OpenWork,
     id: i64,
     text: &'static str,
-    origin: &'static str,
+    pair_origin: &'static str,
 ) {
     open.store
         .write(move |tx: &Transaction<'_>| {
             tx.execute(
                 "UPDATE segment SET target_text = ?1, translation_origin = ?2, baseline_target_text = ?1, baseline_translation_origin = ?2 WHERE id = ?3",
-                (text, origin, id),
+                (text, pair_origin, id),
             )?;
             Ok(())
         })
