@@ -1076,7 +1076,7 @@ action_items:
       sập lượt nạp; làm mới sau gộp/tách không đè ô có bộ đệm chưa flush; ca đỏ được
       bằng phép gỡ thật (F3.1, F3.2)"
     owner: "Amelia"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-82-r-3-thu-hẹp-khoá-openworkstate-của-tm_co"
     epic: 7
