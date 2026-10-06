@@ -1,0 +1,67 @@
+# tickets.toml — AuraTranslate initiative. One [[epic]] per epic, in execution order; `id` is the v6 epic number.
+
+[[epic]]
+id = 1
+slug = "epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi"
+title = "Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì"
+covers = ["FR13", "FR16", "FR17", "FR18", "FR19", "FR21", "FR22", "FR27", "FR28", "FR29", "FR30", "FR31", "FR32", "FR33", "FR34", "FR35", "FR36", "FR37", "FR38", "FR39", "FR40", "FR41", "FR96", "FR97", "FR102", "FR103", "FR104", "FR135"]
+
+[[epic]]
+id = 2
+slug = "epic-bien-tap-theo-segment"
+title = "Biên tập theo segment — một vòng dịch tay hoàn chỉnh"
+covers = ["FR16", "FR19", "FR21", "FR23", "FR24", "FR25", "FR26", "FR78", "FR100", "FR101", "FR117", "FR133", "FR134"]
+
+[[epic]]
+id = 3
+slug = "epic-glossary"
+title = "Glossary — chốt thuật ngữ một lần, dùng mãi"
+covers = ["FR46", "FR47", "FR48", "FR49", "FR50", "FR51", "FR52", "FR53", "FR55", "FR113", "FR114"]
+
+[[epic]]
+id = 5
+slug = "epic-library"
+title = "Library — kho tác phẩm, tìm kiếm, và đọc lại thành quả"
+covers = ["FR1", "FR2", "FR3", "FR4", "FR5", "FR6", "FR7", "FR8", "FR9", "FR10", "FR11", "FR12", "FR15", "FR98", "FR99", "FR119", "FR120"]
+
+[[epic]]
+id = 6
+slug = "epic-duong-nhap"
+title = "Đường nhập — mọi nguồn văn bản vào được, và không hỏng im lặng"
+covers = ["FR13", "FR14", "FR42", "FR43", "FR44", "FR45", "FR115", "FR116", "FR122", "FR123", "FR124", "FR125", "FR126", "FR127", "FR128", "FR129", "FR132"]
+
+[[epic]]
+id = 4
+slug = "epic-ai-mo-va-smart-rag-injector"
+title = "AI mở & Smart RAG Injector"
+covers = ["FR65", "FR66", "FR67", "FR68", "FR69", "FR70", "FR71", "FR72", "FR73", "FR74", "FR75", "FR76", "FR77", "FR79"]
+
+[[epic]]
+id = 11
+slug = "epic-tra-no-nen"
+title = "Trả nợ nền — đóng nợ đã hoãn của Epic 1–6 trước khi xây tiếp"
+covers = []
+
+[[epic]]
+id = 7
+slug = "epic-translation-memory"
+title = "Translation Memory — không dịch lại, không tra lại thứ đã dịch"
+covers = ["FR56", "FR57", "FR58", "FR59", "FR60", "FR61", "FR62", "FR63", "FR64", "FR118"]
+
+[[epic]]
+id = 8
+slug = "epic-cau-noi-reviewer"
+title = "Cầu nối Reviewer — xuất, nhập lại, đối chiếu, và hấp thụ bài học"
+covers = ["FR54", "FR87", "FR88", "FR89", "FR90", "FR91", "FR92", "FR93", "FR94", "FR95", "FR121", "FR130", "FR131"]
+
+[[epic]]
+id = 9
+slug = "epic-ai-proofreader"
+title = "AI Proofreader — bắt lỗi trước khi bàn giao"
+covers = ["FR80", "FR81", "FR82", "FR83", "FR84", "FR85", "FR86"]
+
+[[epic]]
+id = 10
+slug = "epic-phat-hanh-va-tin-cay"
+title = "Phát hành & tin cậy — vượt rào cản không ký số"
+covers = ["FR105", "FR106", "FR107", "FR108", "FR109", "FR110", "FR111", "FR112"]
