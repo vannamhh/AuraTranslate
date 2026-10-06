@@ -46,7 +46,7 @@ covers = []
 id = 7
 slug = "epic-translation-memory"
 title = "Translation Memory — không dịch lại, không tra lại thứ đã dịch"
-covers = ["FR56", "FR57", "FR58", "FR59", "FR60", "FR61", "FR62", "FR63", "FR64", "FR118"]
+covers = ["FR44", "FR56", "FR57", "FR58", "FR59", "FR60", "FR61", "FR62", "FR63", "FR64", "FR70", "FR118", "FR129"]
 
 [[epic]]
 id = 8

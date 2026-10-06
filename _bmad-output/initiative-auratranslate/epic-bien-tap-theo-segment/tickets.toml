@@ -10,6 +10,7 @@ covers = ["FR23"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-1-tách-segment-cấp-câu-và-cờ-kết-đoạn"
 
 [[entry]]
 id = 2
@@ -21,6 +22,7 @@ covers = ["UX-DR19", "UX-DR20", "UX-DR2", "UX-DR12", "UX-DR7", "UX-DR13"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-2-panel-editor-liền-mạch"
 
 [[entry]]
 id = 3
@@ -32,6 +34,7 @@ covers = ["FR100"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-3-hợp-đồng-flush-và-trạng-thái-đã-lưu"
 
 [[entry]]
 id = 4
@@ -43,6 +46,7 @@ covers = ["NFR2", "NFR18"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-4-mũi-thăm-dò-đo-nfr18-và-nfr2-đồng-thời"
 
 [[entry]]
 id = 5
@@ -54,6 +58,7 @@ covers = ["FR24"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-5-xác-nhận-segment-và-máy-trạng-thái"
 
 [[entry]]
 id = "5b"
@@ -65,6 +70,7 @@ covers = ["UX-DR13", "UX-DR15", "UX-DR19", "FR16", "FR19", "FR21"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-5b-lưới-hai-cột-đối-chiếu"
 
 [[entry]]
 id = "5c"
@@ -76,6 +82,7 @@ covers = ["FR133"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-5c-cắt-bỏ-câu-khỏi-bản-dịch"
 
 [[entry]]
 id = "5d"
@@ -87,6 +94,7 @@ covers = ["FR134"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-5d-ngắt-đoạn-của-bản-dịch"
 
 [[entry]]
 id = 6
@@ -98,6 +106,7 @@ covers = ["FR101"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-6-lịch-sử-phiên-bản-segment-và-khôi-phục"
 
 [[entry]]
 id = 7
@@ -109,6 +118,7 @@ covers = ["FR117"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-7-xuất-xứ-bản-dịch-cấp-segment"
 
 [[entry]]
 id = 8
@@ -120,6 +130,7 @@ covers = ["FR78"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-8-gộp-và-tách-segment-tường-minh"
 
 [[entry]]
 id = 9
@@ -131,6 +142,7 @@ covers = ["FR78"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-9-gộp-bằng-backspace-ở-đầu-ô"
 
 [[entry]]
 id = 10
@@ -142,6 +154,7 @@ covers = ["FR25"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-10-điều-hướng-segment"
 
 [[entry]]
 id = 11
@@ -153,6 +166,7 @@ covers = ["FR26"]
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-11-chuyển-chương-trong-workspace"
 
 [[entry]]
 id = 12
@@ -164,6 +178,7 @@ covers = []
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-12-hạ-tầng-e2e-và-cổng-còn-thiếu"
 
 [[entry]]
 id = 13
@@ -175,3 +190,4 @@ covers = []
 after = []
 hitl = false
 risk = "low"
+v6_key = "2-13-phân-loại-sổ-nợ-199-mục-mồ-côi-và-một-luật-đang-bị-phá"

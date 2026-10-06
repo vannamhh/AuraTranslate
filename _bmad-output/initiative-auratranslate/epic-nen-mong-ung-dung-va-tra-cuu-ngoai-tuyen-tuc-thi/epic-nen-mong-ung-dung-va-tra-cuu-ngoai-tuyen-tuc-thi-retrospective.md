@@ -1,5 +1,5 @@
 ---
-epic: 1
+epic: epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi
 title: "Retrospective — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì"
 ---
 

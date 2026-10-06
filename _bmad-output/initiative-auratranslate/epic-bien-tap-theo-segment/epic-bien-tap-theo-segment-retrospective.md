@@ -1,5 +1,5 @@
 ---
-epic: 2
+epic: epic-bien-tap-theo-segment
 title: "Retrospective — Biên tập theo segment — một vòng dịch tay hoàn chỉnh"
 ---
 

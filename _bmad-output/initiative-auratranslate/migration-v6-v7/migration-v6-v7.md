@@ -1,7 +1,7 @@
 ---
 type: migration
 title: "Kế hoạch di trú BMad v6 → v7 cho AuraTranslate"
-status: draft
+status: done
 created: 2026-10-06
 ---
 
@@ -93,11 +93,13 @@ Tất cả mặc định trên nghĩa là "đồng ý hết" cũng là một câ
 |---|---|---|
 | Q9 | Thứ tự THỰC THI: 1, 2, 3, 5, 6, 4, 11, 7, 8, 9, 10 | Lệch chữ quy tắc ("theo thứ tự `epics.md`") có chủ ý; lý do ở bảng 3.2 |
 | Q14 | Phương án A: 20 spec lẻ thành entry mới cuối epic của retro; `spec-fix-hanviet-…` vào `backlog/` | |
+| Q13 | Phương án B (ghi lại ở bước kiểm; thi hành ở commit `016f2ce`) | `tickets.py` không nhận hai plan cùng `ticket:` ⇒ bản ghi thứ hai của 3.5 và các lô B/C/D của 11.1, lô B của 11.6/11.7/11.8 thành tệp `evidence-*` (`type: evidence`, `relates_to`) |
 | Q17 | Thi hành đúng quy tắc; ngay sau di trú, một story riêng viết lại `scripts/check-debt-owner.mjs` (đọc trạng thái từ plan v7 thay vì `sprint-status.yaml`) và `scripts/test-story.mjs`, rồi mới push một lượt | Di trú commit theo nhóm, KHÔNG push |
 
 ## 4. Sao lưu
 
-- Chưa tạo. Sau khi duyệt: `cp -Rp _bmad-output _bmad-output-bak` (nguyên 777 tệp, kể cả 346 tệp gitignore, `.DS_Store` và các tệp `.db*`), rồi xác nhận số tệp `find _bmad-output-bak -type f | wc -l` = 777 và nói với Ice: bản sao này THUỘC VỀ Ice, tự xoá khi muốn.
+- 🔵 2026-10-06: đã tạo; `find _bmad-output-bak -type f | wc -l` = 778 (777 đã kiểm kê + chính tệp kế hoạch); thuộc về Ice, tự xoá khi muốn; loại ở `.git/info/exclude`. Nội dung ban đầu của dòng này:
+- Sau khi duyệt: `cp -Rp _bmad-output _bmad-output-bak` (nguyên 777 tệp, kể cả 346 tệp gitignore, `.DS_Store` và các tệp `.db*`), rồi xác nhận số tệp `find _bmad-output-bak -type f | wc -l` = 777 và nói với Ice: bản sao này THUỘC VỀ Ice, tự xoá khi muốn.
 - `_bmad-output-bak/` không có trong `.gitignore` của kho ⇒ để khỏi bị `git add -A`, thêm `_bmad-output-bak/` vào `.git/info/exclude` (cục bộ, không đụng `.gitignore`) và mọi commit của di trú dùng `git add` theo đường dẫn. Không bao giờ commit `.db` (AD-25): các `.db*` trong bản sao lưu nằm ngoài mọi commit.
 - Cây git hiện sạch (`git status` trống tại đầu phiên) ⇒ không cần commit "trạng thái hiện tại" trước; kế hoạch này là tệp mới duy nhất chưa theo dõi (di chuyển vào initiative ở nhóm 2).
 
@@ -656,18 +658,84 @@ Tệp ngoài store có nhiều tham chiếu nhất: `scripts/check-debt-owner.mj
 - `_bmad/custom/bmad-project-context.toml:25`: `_bmad-output/implementation-artifacts/agent-rules-evidence.md` ⇒ `_bmad-output/initiative-auratranslate/evidence-agent-rules/evidence-agent-rules.md`.
 - Hai dòng đó được viết lại khi duyệt (quy tắc: override `_bmad/custom/` nêu đường dẫn đã chuyển).
 
-## 15. Kết quả kiểm `checklist` (điền sau khi thi hành)
+## 15. Kết quả kiểm `checklist` (thi hành 2026-10-06, sau nhóm 8)
 
-| # | Mục | Kết quả |
+Kiểm bằng lệnh thật trên cây HEAD `ff5ef4d` cộng các sửa nhỏ của bước kiểm (mục "Sửa trong bước kiểm" bên dưới). Baseline: `153e286`; bản sao lưu `_bmad-output-bak/`.
+
+| # | Mục | Kết quả | Bằng chứng (lệnh ⇒ số) | Ghi chú |
+|---|---|---|---|---|
+| 1 | Mọi tệp nguồn v6 ở initiative / `backlog/` / `inbox/` / `archive-v6/` hoặc "ở nguyên chỗ" | pass với ghi chú | Hợp `git ls-tree -r 153e286 _bmad-output` (432) và `find _bmad-output-bak -type f` (778) ⇒ 778 tệp, đối chiếu với bảng ánh xạ cũ→mới: 302 initiative + 1 `backlog/` + 3 `inbox/` + 8 `archive-v6/` + 464 ở nguyên chỗ = 778; 0 tệp mất; 0 tệp đích không tồn tại | 778 = 777 đã kiểm kê + chính tệp kế hoạch (nằm trong bản sao lưu vì được commit ở `153e286` trước khi sao lưu). `backlog/` có 1 tệp nguồn (`spec-fix-hanviet-…`, Q14); 346 tệp gitignore đều có mặt ở nơi cũ hoặc đích |
+| 2 | Thư mục có tệp chính cùng tên; retrospective đúng chỗ; tên không ngày/số v6 | pass với ghi chú | `find` thư mục dưới `initiative-auratranslate/`, `backlog/`, `inbox/` thiếu `<tên>/<tên>.md` ⇒ chỉ `ux-auratranslate/.working`, `ux-auratranslate/mockups`, `architecture-auratranslate/reviews` (thư mục con của tài liệu, tệp anh em giữ tên v6 theo quy tắc) và hai thư mục không-initiative `backlog/`, `inbox/` (tuân cây riêng); 8 retrospective trực tiếp trong epic; tên có ngày/số: 10 tệp `review-*` trong `architecture-auratranslate/reviews/` (tên anh em của spine, giữ nguyên) và `ad-51-draft` (số AD), `…5-000-chuong…` (số trong tên chuẩn) | Sửa: hai retro Epic 1 và 2 mang `epic: 1` / `epic: 2` (số epic v6) trong khi 6 retro kia mang slug ⇒ đổi thành `epic: epic-<slug>`. Verdict chỉ có ở 6 retro có bằng chứng (2 `accepted-with-open-items`: Glossary, Trả nợ nền; 4 `rejected`: AI mở, Đường nhập, Library, Translation Memory; khớp bảng mục 5); Epic 1, 2 không verdict |
+| 3 | Mục ở gốc store hợp lệ hoặc là remnant được liệt kê | pass với ghi chú | `ls _bmad-output` ⇒ `initiative-auratranslate/`, `backlog/`, `inbox/` (có `space.md`), `implementation-artifacts/`, `planning-artifacts/` | Hai thư mục cuối là remnant đã liệt kê ở mục 5.3: `implementation-artifacts/` chỉ còn 14 thư mục `*-ban-do/`, 5 HTML `*-ban-do-*` và `.DS_Store`; `planning-artifacts/` chỉ còn `ux-designs/.DS_Store`. `specs/`, `party-mode/` đã xoá (rỗng) |
+| 4 | `tickets.py status` thoát 0; số story khớp tracking | pass | `uv run _bmad/method/scripts/tickets.py --project-root . status _bmad-output/initiative-auratranslate` ⇒ exit 0, 174 entry, 11 epic, `order_conflict` 0, `undeclared_after` 0; `status _bmad-output/backlog` ⇒ exit 0, 1 entry (`done`); `status _bmad-output/inbox` ⇒ exit 0 | `archive-v6/sprint-status.yaml` loại khoá epic và retrospective: 153 story = 103 `done` + 12 `review` + 5 `in-progress` + 33 `backlog`. v7: 174 = 153 + 1 (Story 6.18, chỉ có ở `epics.md`) + 20 (entry Q14 từ spec lẻ). Khớp từng epic: E1 26=26, E2 16=16, E3 12+6, E4 12=12, E5 14+3, E6 22+1+4, E7 11+7, E8 15, E9 8, E10 9, E11 8 (số sau dấu `+` là 6.18 và Q14). Trạng thái: `done` 123 = 103 + 20; `in-review` 12; `in-progress` 6 = 5 + 6.18; `planned` 33 = 33 `backlog`. Backlog đếm riêng (33 `planned`, không plan) |
+| 5 | Mỗi story một entry, mỗi bản ghi một plan, không file story epic | pass | 174 entry; 141 `*-plan.md` trong `epic-*/` (= 123 + 12 + 6 entry không `planned`), 0 plan trùng `ticket:`; 0 tệp `story-*.md` không đuôi `-plan`; 7 thư mục `evidence-*` trong `epic-*/` (`type: evidence`, mỗi thư mục một tệp chính cùng tên) cho bản ghi thứ hai của 3.5 và các lô B/C/D của 11.1, 11.6, 11.7, 11.8 (Q13, phương án B); 1 plan trong `backlog/` | Entry `planned` (33) không có plan, đúng quy tắc. Sửa: Epics 1 và 2 (42 entry) thiếu `v6_key` ⇒ đã bổ sung từ `archive-v6/sprint-status.yaml` (khớp theo `N-id-`); sau đó cả 174 entry có `v6_key`: 153 theo khoá sprint, 6.18 theo tên bản ghi, 20 entry Q14 theo tên tệp spec nguồn (mục 7.3 ghi "bỏ trống"; giữ tên tệp để tra cứu) |
+| 6 | Plan có kiểu build và status đã ánh xạ; baseline thiếu được báo | pass với ghi chú | `yaml.safe_load` frontmatter 141 plan ⇒ type: 99 `feature`, 22 `chore`, 17 `bugfix`, 3 `refactor`, 0 `story`; status: 123 `done`, 12 `in-review`, 6 `in-progress`; 139 plan có `baseline_revision`, 139/139 qua `git cat-file -e <sha>^{commit}` | Baseline thiếu (2, đều `done`, không suy từ HEAD): `epic-translation-memory/bug-dedupe-fuzzy-and-concordance-plan.md`, `epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-bo-chay-e2e-trong-webview-that-plan.md`. Epic 4 giữ `in-review` (12), Story 5.14 `done` (Q11, Q12) |
+| 7 | `covers` tồn tại; mỗi yêu cầu trong coverage map có ≥ 1 entry | pass với ghi chú | Script đối chiếu: `covers` của 11 epic ⊆ nguồn yêu cầu (PRD + định nghĩa trong `epics.md`) ⇒ 0 id lạ; `covers` ở `tickets.toml` = frontmatter epic = mục Requirements ⇒ 0 lệch; mọi id trong `covers` của entry ∈ Requirements của epic (FR) hoặc nguồn (NFR, UX-DR) ⇒ 0 lệch sau sửa; 133 FR sống của coverage map đều có ≥ 1 entry; mọi `covers` epic có ≥ 1 entry | Kiểm tay: FR20 rút ⇒ không epic nào nhận (đúng); FR13 (Epic 1 ⇄ 6), FR44, FR129 (6 ⇄ 7), FR70 (4 ⇄ 7): cả hai nửa có chủ; FR135 không có hàng trong coverage map nhưng ở Epic 1 `covers` và có entry (Story 1.18b, entry `18b`); UX-DR20 là id đã rút (gạch bỏ ở `epics.md`) nhưng Story 2.2 còn trích AC4–AC5 ⇒ giữ. Sửa: (a) 3 id nửa TM (FR44, FR70, FR129) có entry ở Epic 7 nhưng chưa ở Epic 7 `covers` ⇒ thêm vào `tickets.toml`, frontmatter và Requirements của epic-translation-memory; (b) entry 1.3 mang FR107 trong khi `epics.md` viết "không phải FR107" ⇒ gỡ; (c) entry 1.10c mang FR113 (Epic 3 chủ, đóng ở Story 3.7) ⇒ gỡ, giữ FR33 |
+| 8 | Đường dẫn sống ở `companions:`, `inputDocuments:`, References, liên kết văn xuôi đều tới được; chỗ chết từ v6 liệt kê riêng | pass với ghi chú | Quét 282 tệp (ngoài `inbox/`, `archive-v6/`, `deferred-work.md`, kế hoạch này, `*-ban-do/`): 5 khoá frontmatter (`context` 476, `sources` 19, `relates_to` 16, `companions` 12, `inputDocuments` 3) ⇒ 0 chỗ không tới được; đường gốc `_bmad-output/…` chết: 7 dòng; liên kết tương đối chết: 45 dòng / 14 tệp | Sửa 1 lỗi di trú gây ra: `story-phan-loai-so-no-va-luat-khong-mo-coi-plan.md:695` liên kết `../../.githooks/pre-push` ⇒ `../../../.githooks/pre-push`. Chết từ trước v6 (không tính lỗi): 45 liên kết tới `project.rs` (42) và `GlossarySettingsOverlay.vue` (3), mã đã chuyển trước di trú; 6 đường gốc đã chết ở `153e286` (`editor-perf-spike-results-2026-08-XX.md` x2, `1-19-` cụt, 3 mẫu fixture `a0…`/`a01..a07`/`encoding/`); 1 nhắc thư mục `_bmad-output/planning-artifacts/research/` (dòng 279 của plan Story 1.1, thư mục nay là gốc rỗng ⇒ mô tả ý định lúc đó, không phải liên kết). Còn 73 nhắc thư mục/glob và đường trần ở nhóm 7 giữ nguyên có chủ ý |
+| 9 | `config.user.toml` có `active_initiative`; `output_folder` trỏ store | pass | `tomllib` đọc `_bmad/custom/config.user.toml` ⇒ `{'core': {'active_initiative': 'initiative-auratranslate'}}`; `_bmad/config.toml:16` `output_folder = "{project-root}/_bmad-output"` ⇒ thư mục tồn tại | Tệp bị gitignore (`.gitignore:86`, cả `_bmad/`) ⇒ không có commit; `bmad-project-context.toml:20,25` đã trỏ đường mới |
+| 10 | Store dưới git như đã trả lời; không tệp nào hai kho theo dõi | pass | Câu 3, 4 đều "không" ⇒ một kho duy nhất: `git ls-files _bmad-output` ⇒ 461 tệp, 0 trùng; `find _bmad-output -name .git` ⇒ 0; 0 tệp `.db` được theo dõi (AD-25); `git ls-files _bmad-output-bak` ⇒ 0 (loại ở `.git/info/exclude`) | Phần workspace: không áp dụng (không workspace, không kho mới ⇒ không `bmad status` ở gốc workspace) |
+| 11 | Kế hoạch ghi đủ câu hỏi, trả lời, sao lưu, tệp Ice chỉ định, kết quả | pass | Mục 3.1 (6 câu đã trả lời), 3.2 (Q7–Q25 mặc định), 3.3 (Q9, Q14, Q17 Ice chốt; Q13 phương án B ghi lại ở bước kiểm), mục 4 (sao lưu, cập nhật 778 tệp), mục 5 (bốn danh sách), mục 15 (kết quả) | Bổ sung ở bước kiểm: dòng Q13 vào 3.3 và trạng thái sao lưu vào mục 4 (chữ cũ "chưa tạo" đã lỗi thời) |
+
+### Sửa trong bước kiểm (đều là sửa nhỏ trong store, đã kiểm lại)
+
+- `epic: 1` / `epic: 2` ⇒ `epic: <slug>` ở hai tệp retrospective Epic 1 và 2 (mục 2).
+- 42 dòng `v6_key` bổ sung cho entry Epic 1 và 2 (mục 5).
+- `epic-translation-memory`: thêm FR44, FR70, FR129 vào `covers` (initiative `tickets.toml`, frontmatter) và Requirements (mục 7); gỡ FR107 khỏi entry 1.3 và FR113 khỏi entry 1.10c (mục 7).
+- Một liên kết tương đối `../../.githooks/pre-push` (mục 8).
+
+Sau các sửa: `tickets.py status` vẫn thoát 0 với 174 entry (123 `done`, 12 `in-review`, 6 `in-progress`, 33 `planned`).
+
+### Tổng kết cho báo cáo (guide bước 7)
+
+- Baseline thiếu (2): hai plan ở mục 6. 33 entry `planned` không có plan nên không cần baseline.
+- Nguồn đã lưu trữ ở `archive-v6/` (8, nguyên văn): `epics.md`, `sprint-status.yaml`, `epic-3-context.md`, `epic-4-context.md`, `epic-5-context.md`, `epic-6-context.md`, `epic-7-context.md`, `epic-11-context.md`.
+- Tệp ở nguyên chỗ (464): 14 thư mục `implementation-artifacts/*-ban-do/` (456 tệp, Q15), 5 tệp HTML `*-ban-do-*.html`, 3 `.DS_Store` (Q22).
+- Tệp không vào initiative: `inbox/` (3 tệp nguồn: `project-context.md`, `thu-xin-phep-hvtdtd.md`, `archive-v6/.memlog.md`, cùng `space.md` mới); `backlog/` (1 bug và plan của nó).
+- Bản sao lưu `_bmad-output-bak/` (778 tệp) thuộc về Ice, tự xoá khi muốn; không commit (`.git/info/exclude`).
+- Ngoài kho di trú: 176 tệp ngoài store nhắc đường cũ (523 dòng ở bảng tệp (b), 498 dòng ở mục 13); không sửa.
+
+### Tham chiếu ngoài store Ice tự cập nhật (bản chép từ scratchpad; di trú không sửa các tệp này)
+
+Đích mới của các mục tiêu hay bị nhắc nhất (cũ ⇒ mới):
+- `_bmad-output/implementation-artifacts/deferred-work.md` -> `_bmad-output/initiative-auratranslate/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` -> `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
+- `_bmad-output/planning-artifacts/epics.md` -> `_bmad-output/initiative-auratranslate/archive-v6/epics.md`
+- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` -> `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md`
+- `_bmad-output/implementation-artifacts/agent-rules-evidence.md` -> `_bmad-output/initiative-auratranslate/evidence-agent-rules/evidence-agent-rules.md`
+- `_bmad-output/implementation-artifacts/agent-token-economics.md` -> `_bmad-output/initiative-auratranslate/evidence-agent-token-economics/evidence-agent-token-economics.md`
+- `_bmad-output/implementation-artifacts/spec-<id>-*.md` (story specs) -> `_bmad-output/initiative-auratranslate/epic-*/story-*-plan.md` (full old->new list: scratchpad `path-map.tsv`)
+- `_bmad-output/project-context.md` -> `_bmad-output/inbox/project-context.md`
+- `*-ban-do/` folders and `*-ban-do*.html` stayed in place: references to them are unchanged and still valid.
+
+
+#### (a) Mã đọc máy sẽ hỏng
+
+| file:line | reads | new target |
 |---|---|---|
-| 1 | Mọi tệp nguồn v6 dưới initiative/`backlog/`/`inbox/`/`archive-v6/` hoặc liệt kê "ở nguyên chỗ" (777 = 302 + 3 + 464 + 8) | chưa kiểm |
-| 2 | Mỗi thư mục tạo có tệp chính cùng tên; retrospective đúng chỗ, chỉ verdict có bằng chứng; tên không ngày/số v6 | chưa kiểm |
-| 3 | Mỗi mục ở gốc store hợp lệ hoặc là remnant được liệt kê (`implementation-artifacts/`, `planning-artifacts/`) | chưa kiểm |
-| 4 | `tickets.py status` thoát 0; số story khớp tracking (153 + 6.18; entry thêm từ spec lẻ tách riêng) | chưa kiểm |
-| 5 | Mỗi story một entry, mỗi bản ghi một plan, không file story epic; `find` thấy đủ plan | chưa kiểm |
-| 6 | Mọi plan có `type` build và `status` đã ánh xạ; baseline thiếu được báo | chưa kiểm |
-| 7 | `covers` epic/entry tồn tại; mỗi yêu cầu trong coverage map có ≥ 1 entry (soát FR135 và các FR ⇄) | chưa kiểm |
-| 8 | Mọi đường dẫn sống đã viết lại; chỗ chết từ v6 liệt kê riêng | chưa kiểm |
-| 9 | `config.user.toml` có `active_initiative`; `output_folder` trỏ store | chưa kiểm |
-| 10 | Store dưới git như đã trả lời, không tệp nào hai kho theo dõi | chưa kiểm |
-| 11 | Kế hoạch ghi đủ câu hỏi, câu trả lời, sao lưu, mọi tệp Ice chỉ định, kết quả từng mục | chưa kiểm |
+| scripts/check-debt-owner.mjs:111 | `_bmad-output/implementation-artifacts/deferred-work.md` (path join) | `_bmad-output/initiative-auratranslate/deferred-work.md` |
+| scripts/check-debt-owner.mjs:115 | `REAL_DEBT_PATH` same file | same |
+| scripts/check-debt-owner.mjs:598 | `MAC_DINH` same file | same |
+| scripts/check-debt-owner.mjs:116 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` (frozen v6 copy; Kiem C reads sprint keys from it) |
+| scripts/test-story.mjs:73 | `SPEC_DIR = _bmad-output/implementation-artifacts`; `findSpec` looks for `spec-<id>-*.md` there (`npm run test:story`) | story specs now `initiative-auratranslate/epic-*/story-*-plan.md`; naming scheme changed, finder needs rewriting |
+| AGENTS.md:10-11,13 (root; `naming_boundary.rs` reads it) | prose pointers to spine, `implementation-artifacts/`, `agent-rules-evidence.md` | per table above; still parses, but the paths are dead |
+
+Still valid (checked): `.githooks/pre-push:34` (`^_bmad-output/` docs-only filter, any path under it), `.githooks/pre-push:30` (`-ban-do/`), `src-tauri/tests/docx_probe.rs:38`, `webimport_contract.rs:1461-1467`, `webimport_probe.rs:72` (all read `-ban-do/` fixtures that stayed), `.gitignore:80-83`.
+scripts/check-doc-refs.mjs scans for `epics.md:<line>` in code, not a path read: unaffected.
+
+
+#### (b) Nhắc văn xuôi (chú thích, tài liệu) ngoài store
+
+Tổng 523 dòng ở 176 tệp; phần lớn chỉ nhắc trần `deferred-work.md`, `epics.md`, `ARCHITECTURE-SPINE.md`, nên đích mới giống bảng trên. Nhiều nhất:
+
+| Tệp | Dòng |
+|---|---|
+| scripts/check-debt-owner.mjs | 24 |
+| src-tauri/src/commands/project/mod.rs | 19 |
+| src/commands/index.ts | 15 |
+| src/panels/editorPanelState.ts | 12 |
+| src-tauri/src/commands/segment.rs | 12 |
+| scripts/check-doc-refs.mjs | 12 |
+| .github/workflows/ci.yml | 12 |
+| src-tauri/tests/cleanup_contract.rs | 10 |
+
+Danh sách đầy đủ từng tệp được tái tạo bằng lệnh ở mục 13. Đây là danh sách giữ lại cho Ice; việc viết lại `scripts/check-debt-owner.mjs` và `scripts/test-story.mjs` là story riêng (Q17).

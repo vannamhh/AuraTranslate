@@ -692,7 +692,7 @@ chưa có story nào cho nó.
 **Ba danh sách cổng — `check:gates` Kiểm D/E/F canh cả ba**
 
 - Cổng thứ mười một của `pre-push`, và hai chú thích số cổng đã hết đúng.
-  [`pre-push`](../../.githooks/pre-push)
+  [`pre-push`](../../../.githooks/pre-push)
 
 - Bước CI, kèm chú thích nói ra BA cơ sở đếm cổng khác nhau.
   [`ci.yml`](../../../.github/workflows/ci.yml)

@@ -2,7 +2,7 @@
 type: epic
 title: "Translation Memory — không dịch lại, không tra lại thứ đã dịch"
 parent: initiative-auratranslate
-covers: [FR56, FR57, FR58, FR59, FR60, FR61, FR62, FR63, FR64, FR118]
+covers: [FR44, FR56, FR57, FR58, FR59, FR60, FR61, FR62, FR63, FR64, FR70, FR118, FR129]
 after: []
 assignee: ""
 status: in-progress
@@ -21,6 +21,7 @@ Người dịch không phải dịch lại hay tra lại điều đã dịch: c�
 
 ## Requirements
 
+- FR44: Alt-text là Segment vai `alt` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* (epics.md, FR Coverage Map)
 - FR56: **Ghi tự động:** mỗi khi người dùng xác nhận một segment, cặp *(nguồn → đích)* được ghi vào TM. **Không có thao tác thủ công nào.** Cặp TM mang **xuất xứ** kế thừa từ segment (FR117).
 - FR57: TM có **phạm vi kép**: TM riêng theo Tác phẩm và TM chung toàn cục.
 - FR58: **Khớp tuyệt đối (100%):** segment y hệt đã dịch trước đây được **điền sẵn** và **đánh dấu là gợi ý cần xác nhận**. Hệ thống **không** tự coi segment đó là đã hoàn thành.
@@ -30,7 +31,9 @@ Người dịch không phải dịch lại hay tra lại điều đã dịch: c�
 - FR62: Xem, sửa và xoá từng mục TM. Danh sách hiển thị **xuất xứ** của từng cặp và **lọc được theo xuất xứ**.
 - FR63: Khi cùng một segment nguồn có **nhiều bản dịch khác nhau**, hệ thống **giữ lại tất cả** và hiển thị tất cả kèm ngày, thay vì ghi đè.
 - FR64: **Xuất và nhập TMX.**
+- FR70: Smart RAG Injector — nửa TM đóng ở Epic 7 (epics.md, FR Coverage Map: FR70 Epic 4 ⇄ Epic 7; Story 7.11)
 - FR118: **Translation Memory không được trộn phong cách.** Mỗi cặp mang xuất xứ *của tôi* hoặc *của người khác*; **Smart RAG Injector ưu tiên cặp *của tôi***, cặp xuất xứ khác chỉ chèn khi không đủ và phải **đánh dấu rõ trong prompt là văn phong tham khảo**.
+- FR129: Caption là Segment vai `caption` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* (epics.md, FR Coverage Map)
 
 ## Done when
 
