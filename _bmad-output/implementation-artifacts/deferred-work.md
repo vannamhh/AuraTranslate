@@ -12867,3 +12867,6 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-4-measure-openworkstate-hold.md`
   summary: Two doc comments in `src-tauri/tests/config_invariants.rs` still say "53 plain / 26 async" while `COMMAND_FILE_CENSUS` asserts a different tree total; already wrong at `bc4b41d`.
   evidence: review finding VG-3 of the R-4 build; pointer `config_invariants.rs` doc comments above `COMMAND_FILE_CENSUS` and the AI-4 note. Chủ: Epic 8.
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
+  summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
+  evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.

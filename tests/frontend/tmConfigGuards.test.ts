@@ -22,6 +22,7 @@ function rowWire(over: Record<string, unknown> = {}) {
     tier: 'work',
     unit_id: 1,
     copies: [{ tier: 'work', unit_id: 1 }],
+    hidden_copies: 0,
     target_text: 'Xin chào',
     translation_origin: 'self',
     side: 'mine',
@@ -47,7 +48,7 @@ function listingWire(over: Record<string, unknown> = {}) {
 }
 
 function pairWire(over: Record<string, unknown> = {}) {
-  const { copies: _copies, ...rest } = rowWire()
+  const { copies: _copies, hidden_copies: _hidden, ...rest } = rowWire()
   return { ...rest, source_text: '你好', ...over }
 }
 
@@ -83,6 +84,14 @@ describe('tmListPairs', () => {
           },
         ],
       },
+    ],
+    [
+      'row without hidden_copies',
+      { groups: [{ source_text: '你好', distinct_targets: 1, rows: [rowWire({ hidden_copies: undefined })] }] },
+    ],
+    [
+      'row with negative hidden_copies',
+      { groups: [{ source_text: '你好', distinct_targets: 1, rows: [rowWire({ hidden_copies: -1 })] }] },
     ],
     [
       'row with empty copies',
@@ -234,14 +243,19 @@ describe('TMX exchange wrappers', () => {
     expect((await a.tmOpenImportPreview('global')).outcome).toBe('error')
   })
 
-  it('confirm and cancel take no arguments; confirm refuses a summary without counts', async () => {
+  it('confirm sends fileIsMine and refuses a summary without counts; cancel takes no arguments', async () => {
     const a = await freshAdapter()
-    mockInvoke.mockResolvedValue({ inserted: 2, already_count: 1 })
-    expect(await a.tmConfirmImport()).toEqual({ summary: { inserted: 2, already_count: 1 }, error: null })
-    expect(mockInvoke).toHaveBeenCalledWith('tm_confirm_import')
+    const summary = { inserted: 2, already_count: 1, future_dated_count: 1 }
+    mockInvoke.mockResolvedValue(summary)
+    expect(await a.tmConfirmImport(true)).toEqual({ summary, error: null })
+    expect(mockInvoke).toHaveBeenCalledWith('tm_confirm_import', { fileIsMine: true })
+    await a.tmConfirmImport(false)
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_confirm_import', { fileIsMine: false })
 
+    mockInvoke.mockResolvedValue({ inserted: 2, already_count: 1 })
+    expect((await a.tmConfirmImport(false)).error).not.toBeNull()
     mockInvoke.mockResolvedValue({ inserted: 2 })
-    expect((await a.tmConfirmImport()).error).not.toBeNull()
+    expect((await a.tmConfirmImport(false)).error).not.toBeNull()
 
     mockInvoke.mockResolvedValue(null)
     expect(await a.tmCancelImport()).toEqual({ ok: true, error: null })
@@ -254,7 +268,7 @@ describe('TMX exchange wrappers', () => {
     mockInvoke.mockRejectedValue(err)
     expect(await a.tmExportTier('work')).toEqual({ outcome: 'error', error: err })
     expect(await a.tmOpenImportPreview('work')).toEqual({ outcome: 'error', error: err })
-    expect((await a.tmConfirmImport()).error).toEqual(err)
+    expect((await a.tmConfirmImport(false)).error).toEqual(err)
     expect((await a.tmCancelImport()).error).toEqual(err)
   })
 })

@@ -34,6 +34,7 @@ function row(over: Partial<TmManageRow> = {}): TmManageRow {
   return {
     ...merged,
     copies: over.copies ?? [{ tier: merged.tier, unit_id: merged.unit_id }],
+    hidden_copies: over.hidden_copies ?? 0,
   }
 }
 
@@ -1340,9 +1341,57 @@ describe('accessible names, button keys, Work-closed view and Tab wrap', () => {
     await state.deleteTmManagePair()
     await settle(wrapper)
     expect(wrapper.text()).toContain(i18n.t('tm.manage.delete_global_note'))
-    expect(i18n.t('tm.manage.edit_hint')).toContain('Toàn cục')
+    expect(i18n.t('tm.manage.edit_hint')).not.toContain('Toàn cục')
     expect(i18n.t('tm.manage.edit_hint')).toContain('Tự dịch')
     wrapper.unmount()
+  })
+
+  const oneRowListing = (over: Partial<TmManageRow>) =>
+    listing({ groups: [{ source_text: '你好', distinct_targets: 1, rows: [row(over)] }] })
+
+  it('the edit form names the Global tier only when the row has a Global copy', async () => {
+    const withGlobal = await mountedWith(
+      oneRowListing({
+        copies: [
+          { tier: 'work', unit_id: 1 },
+          { tier: 'global', unit_id: 5 },
+        ],
+      }),
+    )
+    withGlobal.state.beginTmManageEdit()
+    await settle(withGlobal.wrapper)
+    expect(withGlobal.wrapper.text()).toContain(withGlobal.i18n.t('tm.manage.edit_global_note'))
+    withGlobal.wrapper.unmount()
+
+    const workOnly = await mountedWith(oneRowListing({}))
+    workOnly.state.beginTmManageEdit()
+    await settle(workOnly.wrapper)
+    expect(workOnly.wrapper.find('.tm-edit-form').exists()).toBe(true)
+    expect(workOnly.wrapper.find('.tm-edit-form').text()).not.toContain('Toàn cục')
+    workOnly.wrapper.unmount()
+  })
+
+  it('hidden copies are announced in the edit form and the delete confirm only when above zero', async () => {
+    const hidden = await mountedWith(oneRowListing({ hidden_copies: 2 }))
+    const note = hidden.i18n.t('tm.manage.hidden_copies_note', { count: '2' })
+    hidden.state.beginTmManageEdit()
+    await settle(hidden.wrapper)
+    expect(hidden.wrapper.find('.tm-edit-form').text()).toContain(note)
+    hidden.state.cancelTmManageEdit()
+    await hidden.state.deleteTmManagePair()
+    await settle(hidden.wrapper)
+    expect(hidden.wrapper.text()).toContain(note)
+    hidden.wrapper.unmount()
+
+    const none = await mountedWith(oneRowListing({ hidden_copies: 0 }))
+    none.state.beginTmManageEdit()
+    await settle(none.wrapper)
+    expect(none.wrapper.find('.tm-edit-form').text()).not.toContain('bị bộ lọc ẩn')
+    none.state.cancelTmManageEdit()
+    await none.state.deleteTmManagePair()
+    await settle(none.wrapper)
+    expect(none.wrapper.text()).not.toContain('bị bộ lọc ẩn')
+    none.wrapper.unmount()
   })
 
   it('Enter and Backspace on a focused action button neither edit nor arm a delete', async () => {

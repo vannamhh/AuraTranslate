@@ -176,7 +176,7 @@ fn a_global_confirm_preview_and_export_finish_while_open_work_state_is_held_else
     let preview = finishes_while_open_work_is_held(&app, move |h| wire::open_import_preview_from(&h, "global", &preview_path));
     assert_eq!(preview.expect("xem truoc Global").new_count, 3);
 
-    let summary = finishes_while_open_work_is_held(&app, wire::tm_confirm_import);
+    let summary = finishes_while_open_work_is_held(&app, |h| wire::tm_confirm_import(h, false));
     assert_eq!(summary.expect("ghi Global").inserted, 3);
 
     let out = dir.join("out.tmx");
@@ -196,7 +196,7 @@ fn a_work_plan_confirmed_through_the_shell_is_written_into_the_open_work() {
 
     let preview = wire::open_import_preview_from(app.handle(), "work", &file).expect("xem truoc Work");
     assert_eq!(preview.new_count, 3);
-    let summary = wire::tm_confirm_import(app.handle().clone()).expect("ghi Work");
+    let summary = wire::tm_confirm_import(app.handle().clone(), false).expect("ghi Work");
 
     assert_eq!(summary.inserted, 3);
     let state = app.state::<OpenWorkState>();
@@ -254,7 +254,7 @@ fn closing_or_switching_work_does_not_wait_for_a_global_confirm_that_is_writing(
     let handle = app.handle().clone();
     let started = Instant::now();
     let confirm = std::thread::spawn(move || {
-        let out = wire::tm_confirm_import(handle);
+        let out = wire::tm_confirm_import(handle, false);
         (out, started.elapsed())
     });
     let pending = app.state::<PendingTmxImportState>();
@@ -289,4 +289,54 @@ fn closing_or_switching_work_does_not_wait_for_a_global_confirm_that_is_writing(
     assert!(busy && run > Duration::from_millis(150), "tien de: luot ghi Global phai du lau de do ({run:?})");
     cleared.expect("dong hoac doi Tac pham khong duoc cho luot ghi Global");
     assert!(!finished_meanwhile, "viec xoa phai tra ve khi luot ghi con chay");
+}
+
+fn self_labelled_tmx(path: &Path) {
+    fs::write(
+        path,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tmx version=\"1.4\"><header srclang=\"zh\"/><body>\
+         <tu><prop type=\"x-aura-origin\">self</prop><tuv xml:lang=\"zh\"><seg>一</seg></tuv><tuv xml:lang=\"vi\"><seg>A</seg></tuv></tu>\
+         </body></tmx>",
+    )
+    .expect("ghi tep tmx");
+}
+
+fn origins_in(store: &Store) -> Vec<String> {
+    store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT translation_origin FROM tm_unit")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+        .expect("doc tm_unit")
+}
+
+#[test]
+fn the_shell_forwards_the_ownership_flag_on_a_global_plan() {
+    let dir = temp_dir("own-global");
+    let _guard = DirGuard(dir.clone());
+    let app = app_with_work(&dir, "own-global");
+    let file = dir.join("in.tmx");
+    self_labelled_tmx(&file);
+    wire::open_import_preview_from(app.handle(), "global", &file).expect("xem truoc Global");
+
+    wire::tm_confirm_import(app.handle().clone(), true).expect("ghi Global");
+
+    assert_eq!(origins_in(&app.state::<Store>()), vec!["self"]);
+}
+
+#[test]
+fn the_shell_forwards_the_ownership_flag_on_a_work_plan() {
+    let dir = temp_dir("own-work");
+    let _guard = DirGuard(dir.clone());
+    let app = app_with_work(&dir, "own-work");
+    let file = dir.join("in.tmx");
+    self_labelled_tmx(&file);
+    wire::open_import_preview_from(app.handle(), "work", &file).expect("xem truoc Work");
+
+    wire::tm_confirm_import(app.handle().clone(), true).expect("ghi Work");
+
+    let state = app.state::<OpenWorkState>();
+    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert_eq!(origins_in(&guard.as_ref().expect("Tac pham").store), vec!["self"]);
 }

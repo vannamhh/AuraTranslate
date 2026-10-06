@@ -2310,6 +2310,7 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
                 translation_origin: "self",
                 side: "mine",
                 created_at: "2026-03-01T00:00:00.000Z".to_owned(),
+                hidden_copies: 0,
             }],
         }],
     };
@@ -2318,7 +2319,7 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
     assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
     assert_eq!(
         keys(&json["groups"][0]["rows"][0]),
-        ["copies", "created_at", "side", "target_text", "tier", "translation_origin", "unit_id"]
+        ["copies", "created_at", "hidden_copies", "side", "target_text", "tier", "translation_origin", "unit_id"]
     );
     assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
     assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);
@@ -2361,6 +2362,6 @@ fn tmx_exchange_wire_structs_keep_their_snake_case_keys() {
     })
     .expect("serialize");
     assert_eq!(keys(&preview), ["already_count", "file_name", "new_count", "skipped_count", "tier", "unit_count"]);
-    let summary = serde_json::to_value(TmxImportSummaryWire { inserted: 1, already_count: 0 }).expect("serialize");
-    assert_eq!(keys(&summary), ["already_count", "inserted"]);
+    let summary = serde_json::to_value(TmxImportSummaryWire { inserted: 1, already_count: 0, future_dated_count: 0 }).expect("serialize");
+    assert_eq!(keys(&summary), ["already_count", "future_dated_count", "inserted"]);
 }

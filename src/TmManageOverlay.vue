@@ -230,8 +230,18 @@ const deleteHintText = computed(() => {
       ? t('tm.manage.delete_confirm_hint', { count: String(tmManageCurrentCopyCount.value) })
       : t('tm.manage.delete_confirm_hint_one')
   const hasGlobal = tmManageCurrentRow.value?.copies.some((c) => c.tier === 'global') ?? false
-  return hasGlobal ? `${hint} ${t('tm.manage.delete_global_note')}` : hint
+  const withGlobal = hasGlobal ? `${hint} ${t('tm.manage.delete_global_note')}` : hint
+  const hidden = hiddenCopiesNote.value
+  return hidden === '' ? withGlobal : `${withGlobal} ${hidden}`
 })
+
+const hiddenCopiesCount = computed(() => tmManageCurrentRow.value?.hidden_copies ?? 0)
+
+const hiddenCopiesNote = computed(() =>
+  hiddenCopiesCount.value > 0 ? t('tm.manage.hidden_copies_note', { count: String(hiddenCopiesCount.value) }) : '',
+)
+
+const editHasGlobal = computed(() => tmManageCurrentRow.value?.copies.some((c) => c.tier === 'global') ?? false)
 
 const bulkDoneText = computed(() => {
   const done = tmManageBulkDeleted.value
@@ -521,6 +531,11 @@ function onKeydown(event: KeyboardEvent): void {
           />
         </label>
         <p class="tm-status">{{ t('tm.manage.edit_hint') }}</p>
+        <p v-if="editHasGlobal" class="tm-status">{{ t('tm.manage.edit_global_note') }}</p>
+        <p v-if="hiddenCopiesCount > 0" class="tm-status">
+          <!-- aura-allow-text: result of t() with the count interpolated. -->
+          {{ t('tm.manage.hidden_copies_note', { count: String(hiddenCopiesCount) }) }}
+        </p>
         <div class="tm-edit-actions">
           <button type="submit" class="tm-act tm-act-primary" :disabled="tmManageSaving">
             {{ t('tm.manage.save') }}
@@ -690,6 +705,9 @@ function onKeydown(event: KeyboardEvent): void {
               already: String(tmManageImportDone.already_count),
             })
           }}
+          <template v-if="tmManageImportDone.future_dated_count > 0">
+            {{ t('tm.exchange.import_future_dated', { count: String(tmManageImportDone.future_dated_count) }) }}
+          </template>
         </p>
       </div>
     </section>

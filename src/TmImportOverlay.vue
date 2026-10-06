@@ -9,6 +9,7 @@ import {
   tmImportConfirmError,
   tmImportConfirmUnavailable,
   tmImportConfirming,
+  tmImportFileIsMine,
   tmImportLoadError,
   tmImportOverlayIsOpen,
   tmImportPreview,
@@ -109,6 +110,10 @@ function trapTab(event: KeyboardEvent): void {
           </div>
         </dl>
         <p v-if="tmImportPreview.tier === 'global'" class="ti-note">{{ t('tm.exchange.global_note') }}</p>
+        <label class="ti-own">
+          <input v-model="tmImportFileIsMine" type="checkbox" :disabled="tmImportConfirming" />
+          <span>{{ t('tm.import.file_is_mine_label') }}</span>
+        </label>
         <p class="ti-note">{{ t('tm.import.origin_note') }}</p>
         <ul class="ti-counts">
           <!-- aura-allow-text: result of t() with the counts interpolated. -->
@@ -246,6 +251,17 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ti-own {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
 }
 
 .ti-counts {

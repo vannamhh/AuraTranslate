@@ -2194,6 +2194,47 @@ mod manage {
         assert_eq!(health(&global_only), vec![("self", 0), ("other", 2), ("bilingual_import", 0)]);
     }
 
+    fn hidden_of(l: &TmPairList) -> Vec<(String, usize)> {
+        l.groups.iter().flat_map(|g| g.rows.iter().map(|r| (r.target_text.clone(), r.hidden_copies))).collect()
+    }
+
+    #[test]
+    fn a_tier_filter_reports_the_other_tiers_identical_copy_as_hidden_and_a_delete_leaves_it() {
+        let w = wired("mg-hidden-tier", "一。", true);
+        dated_work(&w, &[("S", "X", "other", D1)]);
+        dated_global(&w, &[("S", "X", "other", D1)]);
+
+        let narrowed = list(&w, "all", "work", "");
+        assert_eq!(hidden_of(&narrowed), vec![("X".to_owned(), 1)]);
+        let copies: Vec<(&str, i64)> = narrowed.groups[0].rows[0].copies.iter().map(|c| (c.tier, c.unit_id)).collect();
+        assert_eq!(copies.len(), 1);
+
+        delete_row(&w, &copies, "S", "X").expect("xoa ban Work");
+
+        let after = list(&w, "all", "both", "");
+        assert_eq!(rows_of(&after).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["global"]);
+        assert_eq!(hidden_of(&after), vec![("X".to_owned(), 0)]);
+    }
+
+    #[test]
+    fn an_origin_filter_reports_the_copy_of_another_origin_as_hidden() {
+        let w = wired("mg-hidden-origin", "一。", true);
+        dated_work(&w, &[("S", "X", "self", D1), ("S", "X", "other", D2)]);
+
+        assert_eq!(hidden_of(&list(&w, "mine", "both", "")), vec![("X".to_owned(), 1)]);
+        assert_eq!(hidden_of(&list(&w, "other", "both", "")), vec![("X".to_owned(), 1)]);
+    }
+
+    #[test]
+    fn a_search_filter_does_not_hide_copies_and_wide_filters_report_zero() {
+        let w = wired("mg-hidden-none", "一。", true);
+        dated_work(&w, &[("S", "X", "self", D1), ("S", "Y", "other", D2)]);
+        dated_global(&w, &[("S", "X", "self", D1)]);
+
+        assert_eq!(hidden_of(&list(&w, "all", "both", "")), vec![("X".to_owned(), 0), ("Y".to_owned(), 0)]);
+        assert_eq!(hidden_of(&list(&w, "all", "both", "X")), vec![("X".to_owned(), 0)]);
+    }
+
     #[test]
     fn two_hundred_and_fifty_sources_ship_two_hundred_groups_and_the_true_total() {
         let w = wired("mg-cap", "一。", true);
@@ -2559,7 +2600,7 @@ mod manage {
         assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
         assert_eq!(
             keys(&json["groups"][0]["rows"][0]),
-            ["copies", "created_at", "side", "target_text", "tier", "translation_origin", "unit_id"]
+            ["copies", "created_at", "hidden_copies", "side", "target_text", "tier", "translation_origin", "unit_id"]
         );
         assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
         assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);

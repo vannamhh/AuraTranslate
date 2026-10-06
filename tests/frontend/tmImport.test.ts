@@ -50,6 +50,7 @@ function listing(over: Partial<TmManageListing> = {}): TmManageListing {
             side: 'mine',
             created_at: '2026-10-01T08:00:00.000Z',
             copies: [{ tier: 'work', unit_id: 1 }],
+            hidden_copies: 0,
           },
         ],
       },
@@ -207,13 +208,13 @@ describe('import preview and confirm', () => {
     openPreviewMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
     await imp.openTmImportPreviewOverlay('global')
     listMock.mockClear()
-    confirmMock.mockResolvedValue({ summary: { inserted: 3, already_count: 1 }, error: null })
+    confirmMock.mockResolvedValue({ summary: { inserted: 3, already_count: 1, future_dated_count: 0 }, error: null })
 
     await imp.confirmTmImportPreview()
     expect(confirmMock).toHaveBeenCalledTimes(1)
     expect(imp.tmImportOverlayIsOpen.value).toBe(false)
     expect(listMock).toHaveBeenCalledTimes(1)
-    expect(manage.tmManageImportDone.value).toEqual({ inserted: 3, already_count: 1 })
+    expect(manage.tmManageImportDone.value).toEqual({ inserted: 3, already_count: 1, future_dated_count: 0 })
   })
 
   it('a failed confirm keeps the preview open with the error; a second press can retry', async () => {
@@ -228,7 +229,7 @@ describe('import preview and confirm', () => {
     expect(imp.tmImportConfirming.value).toBe(false)
     expect(manage.tmManageImportDone.value).toBeNull()
 
-    confirmMock.mockResolvedValue({ summary: { inserted: 0, already_count: 4 }, error: null })
+    confirmMock.mockResolvedValue({ summary: { inserted: 0, already_count: 4, future_dated_count: 0 }, error: null })
     await imp.confirmTmImportPreview()
     expect(imp.tmImportConfirmError.value).toBeNull()
     expect(imp.tmImportOverlayIsOpen.value).toBe(false)
@@ -341,13 +342,59 @@ describe('overlays', () => {
     expect(importWrapper.text()).toContain(i18n.t('tm.import.already_count', { count: '1' }))
     expect(importWrapper.text()).toContain(i18n.t('tm.import.skipped_count', { count: '1' }))
 
-    confirmMock.mockResolvedValue({ summary: { inserted: 3, already_count: 1 }, error: null })
+    confirmMock.mockResolvedValue({ summary: { inserted: 3, already_count: 1, future_dated_count: 0 }, error: null })
     await importWrapper.get('.ti-act-primary').trigger('click')
     await vi.waitFor(() => expect(importWrapper.find('.ti-panel').exists()).toBe(false))
     await settle(manageWrapper)
     expect(manageWrapper.text()).toContain(i18n.t('tm.exchange.import_done', { inserted: '3', already: '1' }))
     manageWrapper.unmount()
     importWrapper.unmount()
+  })
+
+  it('the ownership checkbox value reaches the confirm call and resets on every new preview', async () => {
+    const { manage, imp, ImportOverlay } = await fresh()
+    await manage.openTmManage()
+    openPreviewMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    const wrapper = mount(ImportOverlay, { attachTo: document.body })
+    await imp.openTmImportPreviewOverlay('work')
+    await vi.waitFor(() => expect(wrapper.find('.ti-panel').exists()).toBe(true))
+    const box = wrapper.get('.ti-own input[type="checkbox"]')
+    expect((box.element as HTMLInputElement).checked).toBe(false)
+
+    await box.setValue(true)
+    await imp.cancelTmImportPreview()
+    await imp.openTmImportPreviewOverlay('work')
+    await vi.waitFor(() => expect(wrapper.find('.ti-panel').exists()).toBe(true))
+    expect((wrapper.get('.ti-own input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+
+    confirmMock.mockResolvedValue({ summary: { inserted: 1, already_count: 0, future_dated_count: 0 }, error: null })
+    await wrapper.get('.ti-own input[type="checkbox"]').setValue(true)
+    await imp.confirmTmImportPreview()
+    expect(confirmMock).toHaveBeenLastCalledWith(true)
+
+    await imp.openTmImportPreviewOverlay('work')
+    await imp.confirmTmImportPreview()
+    expect(confirmMock).toHaveBeenLastCalledWith(false)
+    wrapper.unmount()
+  })
+
+  it('the future-date sentence shows after import only when the count is above zero', async () => {
+    const { manage, i18n, imp, ManageOverlay } = await fresh()
+    await manage.openTmManage()
+    const wrapper = mount(ManageOverlay, { attachTo: document.body })
+    openPreviewMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    await imp.openTmImportPreviewOverlay('work')
+    confirmMock.mockResolvedValue({ summary: { inserted: 1, already_count: 0, future_dated_count: 2 }, error: null })
+    await imp.confirmTmImportPreview()
+    await settle(wrapper)
+    expect(wrapper.text()).toContain(i18n.t('tm.exchange.import_future_dated', { count: '2' }))
+
+    await imp.openTmImportPreviewOverlay('work')
+    confirmMock.mockResolvedValue({ summary: { inserted: 1, already_count: 0, future_dated_count: 0 }, error: null })
+    await imp.confirmTmImportPreview()
+    await settle(wrapper)
+    expect(wrapper.text()).not.toContain('ở tương lai')
+    wrapper.unmount()
   })
 
   it('a re-import preview (nothing new) says so and still offers confirm and cancel', async () => {

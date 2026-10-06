@@ -68,6 +68,8 @@ pub struct TmGroupRowWire {
     pub translation_origin: &'static str,
     pub side: &'static str,
     pub created_at: String,
+    /// Stored copies of this (source, target) the current filters hide.
+    pub hidden_copies: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -211,6 +213,7 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
                     translation_origin: row.pair.translation_origin.as_str(),
                     side: side_wire(row.pair.translation_origin),
                     created_at: row.pair.created_at,
+                    hidden_copies: row.hidden_copies,
                 })
                 .collect(),
         })
@@ -364,6 +367,8 @@ pub struct TmxImportSummaryWire {
     /// The preview's already-there count plus pairs that appeared in the tier before the
     /// transaction ran.
     pub already_count: usize,
+    /// Inserted pairs whose file date was after the import moment and was replaced by it.
+    pub future_dated_count: usize,
 }
 
 fn tmx_error(err: TmxError) -> IpcError {
@@ -579,6 +584,7 @@ pub fn tm_confirm_import(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     pending: &PendingTmxImportState,
+    file_is_mine: bool,
 ) -> Result<TmxImportSummaryWire, IpcError> {
     let global = global.ok_or_else(global_store_missing)?;
     let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -589,9 +595,13 @@ pub fn tm_confirm_import(
     }
     let batch_already = batch.already_count;
     let store = tmx_tier_store(global, open, batch.tier)?;
-    let outcome = write_planned_pairs(store, batch.pairs.clone()).map_err(|e| tm_lookup_failed(&e))?;
+    let outcome = write_planned_pairs(store, batch.pairs.clone(), file_is_mine).map_err(|e| tm_lookup_failed(&e))?;
     *guard = None;
-    Ok(TmxImportSummaryWire { inserted: outcome.inserted, already_count: batch_already + outcome.already_there })
+    Ok(TmxImportSummaryWire {
+        inserted: outcome.inserted,
+        already_count: batch_already + outcome.already_there,
+        future_dated_count: outcome.future_dated,
+    })
 }
 
 /// The tier of the waiting plan, so a wire shell knows whether it needs `OpenWorkState`.
@@ -604,6 +614,7 @@ pub fn tm_pending_import_tier(pending: &PendingTmxImportState) -> Option<TmTier>
 pub fn tm_confirm_global_import(
     global: Option<&Store>,
     pending: &PendingTmxImportState,
+    file_is_mine: bool,
 ) -> Result<Option<TmxImportSummaryWire>, IpcError> {
     let global = global.ok_or_else(global_store_missing)?;
     let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -612,9 +623,13 @@ pub fn tm_confirm_global_import(
         return Ok(None);
     }
     let batch_already = batch.already_count;
-    let outcome = write_planned_pairs(global, batch.pairs.clone()).map_err(|e| tm_lookup_failed(&e))?;
+    let outcome = write_planned_pairs(global, batch.pairs.clone(), file_is_mine).map_err(|e| tm_lookup_failed(&e))?;
     *guard = None;
-    Ok(Some(TmxImportSummaryWire { inserted: outcome.inserted, already_count: batch_already + outcome.already_there }))
+    Ok(Some(TmxImportSummaryWire {
+        inserted: outcome.inserted,
+        already_count: batch_already + outcome.already_there,
+        future_dated_count: outcome.future_dated,
+    }))
 }
 
 /// Drops the pending plan; cancelling with none waiting is harmless.
@@ -855,6 +870,7 @@ pub mod wire {
     #[tauri::command(async)]
     pub fn tm_confirm_import<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
+        file_is_mine: bool,
     ) -> Result<TmxImportSummaryWire, IpcError> {
         use tauri::Manager as _;
 
@@ -865,13 +881,13 @@ pub mod wire {
         match super::tm_pending_import_tier(pending.inner()) {
             None => return Err(super::no_pending_tmx_import()),
             Some(crate::core::tm::TmTier::Global) => {
-                if let Some(summary) = super::tm_confirm_global_import(global.as_deref(), pending.inner())? {
+                if let Some(summary) = super::tm_confirm_global_import(global.as_deref(), pending.inner(), file_is_mine)? {
                     return Ok(summary);
                 }
             }
             Some(crate::core::tm::TmTier::Work) => {}
         }
-        with_tier_store(&app, "work", |global, open| super::tm_confirm_import(global, open, pending.inner()))
+        with_tier_store(&app, "work", |global, open| super::tm_confirm_import(global, open, pending.inner(), file_is_mine))
     }
 
     /// Wire shell of [`super::tm_cancel_import`]. Async: it locks `PendingTmxImportState`, which

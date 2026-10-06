@@ -23,6 +23,7 @@ const confirmUnavailable = ref(false)
 const opening = ref(false)
 let sequence = 0
 
+export const tmImportFileIsMine = ref(false)
 export const tmImportOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 export const tmImportOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
 export const tmImportStatus: DeepReadonly<Ref<TmImportStatus>> = readonly(status)
@@ -42,6 +43,7 @@ export async function openTmImportPreviewOverlay(tier: TmManageTier): Promise<vo
   confirming.value = false
   confirmError.value = null
   confirmUnavailable.value = false
+  tmImportFileIsMine.value = false
   noteTmImportDone(null)
 
   const result = await tmOpenImportPreview(tier)
@@ -77,7 +79,7 @@ export async function confirmTmImportPreview(): Promise<void> {
   confirmUnavailable.value = false
   const mySequence = sequence
 
-  const result = await tmConfirmImport()
+  const result = await tmConfirmImport(tmImportFileIsMine.value)
   if (mySequence !== sequence) return
 
   confirming.value = false
@@ -114,6 +116,7 @@ export function resetTmImport(): void {
   confirming.value = false
   confirmError.value = null
   confirmUnavailable.value = false
+  tmImportFileIsMine.value = false
   opening.value = false
   resetGlossaryExchangeGate()
 }

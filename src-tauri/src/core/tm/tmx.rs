@@ -370,7 +370,8 @@ pub fn parse_tmx(text: &str) -> Result<ParsedTmx, TmxError> {
 pub struct PlannedPair {
     pub source_text: String,
     pub target_text: String,
-    pub translation_origin: PairOrigin,
+    /// The label read from the file; `None` when missing or unknown.
+    pub translation_origin: Option<PairOrigin>,
     /// `YYYY-MM-DDTHH:MM:SS.mmmZ`; `None` means the writer stamps now.
     pub created_at: Option<String>,
 }
@@ -441,7 +442,7 @@ pub fn plan_import(parsed: &ParsedTmx, tier: TmxTier<'_>) -> Result<ImportPlan, 
         plan.pairs.push(PlannedPair {
             source_text: source.to_owned(),
             target_text: target.to_owned(),
-            translation_origin: unit.pair_origin.as_deref().and_then(PairOrigin::from_stored).unwrap_or(PairOrigin::Other),
+            translation_origin: unit.pair_origin.as_deref().and_then(PairOrigin::from_stored),
             created_at: created_at_for(unit),
         });
     }
@@ -476,10 +477,22 @@ pub fn pairs_not_in(plan: &ImportPlan, existing: &HashSet<(String, String)>) -> 
         .collect()
 }
 
+/// Only a file the user declares as their own translation may land pairs as `self`; a
+/// `bilingual_import` label stays, everything else is `other`.
+pub fn pair_origin_for(label: Option<PairOrigin>, file_is_mine: bool) -> PairOrigin {
+    match label {
+        Some(PairOrigin::BilingualImport) => PairOrigin::BilingualImport,
+        Some(PairOrigin::SelfTranslated) | None if file_is_mine => PairOrigin::SelfTranslated,
+        _ => PairOrigin::Other,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WriteOutcome {
     pub inserted: usize,
     pub already_there: usize,
+    /// Inserted pairs whose file date lay after the import moment and was replaced by it.
+    pub future_dated: usize,
 }
 
 /// Inserts every pair the tier lacks in ONE transaction, re-checking identity inside it; any
@@ -487,10 +500,13 @@ pub struct WriteOutcome {
 pub fn write_planned_pairs(
     store: &crate::core::store::Store,
     pairs: Vec<PlannedPair>,
+    file_is_mine: bool,
 ) -> Result<WriteOutcome, super::TmStoreError> {
     let outcome = store.write(move |tx| {
+        let now: String = tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| r.get(0))?;
         let mut inserted = 0;
         let mut already_there = 0;
+        let mut future_dated = 0;
         for pair in &pairs {
             let exists: i64 = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM tm_unit WHERE source_text = ?1 AND target_text = ?2)",
@@ -501,14 +517,23 @@ pub fn write_planned_pairs(
                 already_there += 1;
                 continue;
             }
+            let created_at = match &pair.created_at {
+                Some(at) if *at > now => {
+                    future_dated += 1;
+                    &now
+                }
+                Some(at) => at,
+                None => &now,
+            };
+            let origin = pair_origin_for(pair.translation_origin, file_is_mine);
             tx.execute(
                 "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
-                 VALUES (?1, ?2, ?3, COALESCE(?4, strftime('%Y-%m-%dT%H:%M:%fZ','now')))",
-                (&pair.source_text, &pair.target_text, pair.translation_origin.as_str(), &pair.created_at),
+                 VALUES (?1, ?2, ?3, ?4)",
+                (&pair.source_text, &pair.target_text, origin.as_str(), created_at),
             )?;
             inserted += 1;
         }
-        Ok(WriteOutcome { inserted, already_there })
+        Ok(WriteOutcome { inserted, already_there, future_dated })
     })?;
     Ok(outcome)
 }

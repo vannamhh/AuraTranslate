@@ -98,7 +98,11 @@ fn import(f: &Fixture, tier: &str, text: &str, name: &str) -> Result<auratransla
 }
 
 fn confirm(f: &Fixture) -> Result<auratranslate_lib::commands::tm::TmxImportSummaryWire, auratranslate_lib::core::i18n::IpcError> {
-    tm_confirm_import(Some(&f.global), Some(&f.open), &f.pending)
+    confirm_as(f, false)
+}
+
+fn confirm_as(f: &Fixture, file_is_mine: bool) -> Result<auratranslate_lib::commands::tm::TmxImportSummaryWire, auratranslate_lib::core::i18n::IpcError> {
+    tm_confirm_import(Some(&f.global), Some(&f.open), &f.pending, file_is_mine)
 }
 
 const D1: &str = "2026-03-01T10:20:30.123Z";
@@ -267,7 +271,7 @@ fn a_round_trip_into_an_empty_tier_keeps_pairs_origins_and_dates() {
     f.global.write(|_| Ok(())).expect("global san sang");
 
     let preview = import(&f, "global", &text, "rt-in.tmx").expect("xem truoc");
-    let summary = confirm(&f).expect("xac nhan");
+    let summary = confirm_as(&f, true).expect("xac nhan");
 
     assert_eq!(preview.new_count, 3);
     assert_eq!(summary.inserted, 3);
@@ -450,7 +454,7 @@ fn closing_the_work_clears_a_work_plan_and_keeps_a_global_one() {
     })
     .expect("xem truoc global khong can Tac pham");
     clear_pending_tmx_import_for_work(&f.pending);
-    assert_eq!(tm_confirm_import(Some(&f.global), None, &f.pending).expect("global con").inserted, 1);
+    assert_eq!(tm_confirm_import(Some(&f.global), None, &f.pending, false).expect("global con").inserted, 1);
     assert!(rows(&f.open.store).is_empty());
 }
 
@@ -467,7 +471,7 @@ fn the_work_tier_needs_an_open_work_and_the_global_tier_does_not() {
     assert!(!f.dir.join("x.tmx").exists());
 
     tm_open_import_preview(Some(&f.global), None, &f.pending, "global", &path).expect("global van nhap duoc");
-    assert_eq!(tm_confirm_import(Some(&f.global), None, &f.pending).expect("ghi").inserted, 1);
+    assert_eq!(tm_confirm_import(Some(&f.global), None, &f.pending, false).expect("ghi").inserted, 1);
     assert_eq!(rows(&f.global).len(), 1);
 }
 
@@ -494,7 +498,7 @@ fn a_failing_row_rolls_the_whole_confirm_back_and_keeps_the_plan() {
     let pair = |s: &str, t: &str| PlannedPair {
         source_text: s.to_owned(),
         target_text: t.to_owned(),
-        translation_origin: PairOrigin::Other,
+        translation_origin: Some(PairOrigin::Other),
         created_at: None,
     };
     *f.pending.lock().unwrap() = Some(PendingTmxImport {
@@ -723,7 +727,7 @@ fn a_work_plan_confirmed_with_no_work_open_writes_nothing_and_drops_the_plan() {
     let f = fixture("plan-no-work-open");
     import(&f, "work", &tmx_with(&tu("一", "A")), "a.tmx").expect("xem truoc");
 
-    let err = tm_confirm_import(Some(&f.global), None, &f.pending).expect_err("khong co Tac pham dang mo");
+    let err = tm_confirm_import(Some(&f.global), None, &f.pending, false).expect_err("khong co Tac pham dang mo");
 
     assert_eq!(err.code(), "tm.no_pending_import");
     assert!(rows(&f.global).is_empty(), "khong ghi gi vao global.db");
@@ -737,7 +741,7 @@ fn a_work_plan_confirmed_with_another_work_open_writes_nothing_and_drops_the_pla
     let b = fixture("open-is-b");
     import(&a, "work", &tmx_with(&tu("一", "A")), "a.tmx").expect("xem truoc cho A");
 
-    let err = tm_confirm_import(Some(&a.global), Some(&b.open), &a.pending).expect_err("Tac pham khac dang mo");
+    let err = tm_confirm_import(Some(&a.global), Some(&b.open), &a.pending, false).expect_err("Tac pham khac dang mo");
 
     assert_eq!(err.code(), "tm.no_pending_import");
     assert!(rows(&b.open.store).is_empty(), "khong ghi gi vao Tac pham B");
@@ -750,7 +754,7 @@ fn the_global_confirm_leaves_a_plan_that_turned_into_a_work_plan_untouched() {
     let f = fixture("global-confirm-sees-work");
     import(&f, "work", &tmx_with(&tu("一", "A")), "w.tmx").expect("xem truoc Work");
 
-    let outcome = tm_confirm_global_import(Some(&f.global), &f.pending).expect("khong loi");
+    let outcome = tm_confirm_global_import(Some(&f.global), &f.pending, false).expect("khong loi");
 
     assert!(outcome.is_none(), "ke hoach Work khong phai viec cua nhanh Global");
     assert!(rows(&f.global).is_empty(), "khong ghi gi vao global.db");
@@ -765,9 +769,99 @@ fn the_global_confirm_writes_a_global_plan_to_global_and_clears_it() {
     fs::write(&path, tmx_with(&tu("一", "A"))).unwrap();
     tm_open_import_preview(Some(&f.global), None, &f.pending, "global", &path).expect("xem truoc Global");
 
-    let summary = tm_confirm_global_import(Some(&f.global), &f.pending).expect("ghi").expect("nhanh Global");
+    let summary = tm_confirm_global_import(Some(&f.global), &f.pending, false).expect("ghi").expect("nhanh Global");
 
     assert_eq!(summary.inserted, 1);
     assert_eq!(rows(&f.global).len(), 1);
     assert!(f.pending.lock().unwrap().is_none());
+}
+
+fn labelled_tu(zh: &str, vi: &str, label: Option<&str>, created: Option<&str>) -> String {
+    let mut props = String::new();
+    if let Some(label) = label {
+        props.push_str(&format!("<prop type=\"x-aura-origin\">{label}</prop>"));
+    }
+    if let Some(created) = created {
+        props.push_str(&format!("<prop type=\"x-aura-created-at\">{created}</prop>"));
+    }
+    format!("<tu>{props}<tuv xml:lang=\"zh\"><seg>{zh}</seg></tuv><tuv xml:lang=\"vi\"><seg>{vi}</seg></tuv></tu>")
+}
+
+fn four_labelled_pairs() -> String {
+    tmx_with(
+        &(labelled_tu("一", "A", Some("self"), None)
+            + &labelled_tu("二", "B", Some("other"), None)
+            + &labelled_tu("三", "C", Some("bilingual_import"), None)
+            + &labelled_tu("四", "D", None, None)),
+    )
+}
+
+fn origins(store: &Store) -> Vec<String> {
+    rows(store).into_iter().map(|r| r.2).collect()
+}
+
+#[test]
+fn with_the_box_off_a_self_label_in_the_file_lands_as_other() {
+    let f = fixture("origin-box-off");
+    import(&f, "work", &four_labelled_pairs(), "o.tmx").expect("xem truoc");
+
+    confirm_as(&f, false).expect("ghi");
+
+    assert_eq!(origins(&f.open.store), vec!["other", "other", "bilingual_import", "other"]);
+}
+
+#[test]
+fn with_the_box_on_self_and_unlabelled_pairs_land_as_self_and_the_rest_keep_their_label() {
+    let f = fixture("origin-box-on");
+    import(&f, "work", &four_labelled_pairs(), "o.tmx").expect("xem truoc");
+
+    confirm_as(&f, true).expect("ghi");
+
+    assert_eq!(origins(&f.open.store), vec!["self", "other", "bilingual_import", "self"]);
+}
+
+#[test]
+fn the_global_confirm_applies_the_ownership_flag_too() {
+    let f = fixture("origin-global");
+    let path = f.dir.join("g.tmx");
+    fs::write(&path, four_labelled_pairs()).unwrap();
+    tm_open_import_preview(Some(&f.global), None, &f.pending, "global", &path).expect("xem truoc Global");
+
+    tm_confirm_global_import(Some(&f.global), &f.pending, true).expect("ghi").expect("nhanh Global");
+
+    assert_eq!(origins(&f.global), vec!["self", "other", "bilingual_import", "self"]);
+}
+
+#[test]
+fn a_future_file_date_is_replaced_by_the_import_moment_and_counted() {
+    let f = fixture("future-date");
+    let text = tmx_with(
+        &(labelled_tu("一", "A", None, Some("2999-01-01T00:00:00.000Z"))
+            + "<tu creationdate=\"29990101T000000Z\"><tuv xml:lang=\"zh\"><seg>二</seg></tuv><tuv xml:lang=\"vi\"><seg>B</seg></tuv></tu>"
+            + &labelled_tu("三", "C", None, Some("2015-01-02T03:04:05.000Z"))
+            + &tu("四", "D")),
+    );
+    import(&f, "work", &text, "future.tmx").expect("xem truoc");
+
+    let summary = confirm(&f).expect("ghi");
+
+    assert_eq!(summary.inserted, 4);
+    assert_eq!(summary.future_dated_count, 2, "chi hai ngay tuong lai bi dem");
+    let dates: Vec<String> = rows(&f.open.store).into_iter().map(|r| r.3).collect();
+    assert!(dates[0].as_str() > "2026-10" && dates[0].as_str() < "2999", "ngay tuong lai thanh luc nhap: {dates:?}");
+    assert_eq!(dates[1].len(), 24);
+    assert!(dates[1].as_str() < "2999");
+    assert_eq!(dates[2], "2015-01-02T03:04:05.000Z", "ngay qua khu duoc giu");
+    assert!(dates[3].len() == 24 && dates[3].as_str() < "2999", "thieu ngay thi dong dau luc nhap: {dates:?}");
+}
+
+#[test]
+fn pair_origin_for_never_lets_a_label_alone_make_a_pair_mine() {
+    use auratranslate_lib::core::tm::PairOrigin as O;
+    use auratranslate_lib::core::tm::tmx::pair_origin_for;
+    assert_eq!(pair_origin_for(Some(O::SelfTranslated), false), O::Other);
+    assert_eq!(pair_origin_for(None, false), O::Other);
+    assert_eq!(pair_origin_for(Some(O::BilingualImport), true), O::BilingualImport);
+    assert_eq!(pair_origin_for(Some(O::Other), true), O::Other);
+    assert_eq!(pair_origin_for(None, true), O::SelfTranslated);
 }

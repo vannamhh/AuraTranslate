@@ -13,6 +13,7 @@ export type TmManageRow = {
   tier: TmManageTier
   unit_id: number
   copies: TmCopy[]
+  hidden_copies: number
   target_text: string
   translation_origin: TmPairOrigin
   side: TmPairSide
@@ -36,7 +37,7 @@ export type TmManageListing = {
   groups: TmManageGroup[]
 }
 
-export type TmStoredPair = Omit<TmManageRow, 'copies'> & {
+export type TmStoredPair = Omit<TmManageRow, 'copies' | 'hidden_copies'> & {
   source_text: string
 }
 
@@ -54,7 +55,7 @@ export type TmxImportPreview = {
   skipped_count: number
 }
 
-export type TmxImportSummary = { inserted: number; already_count: number }
+export type TmxImportSummary = { inserted: number; already_count: number; future_dated_count: number }
 
 export type TmExportResult =
   | { outcome: 'done'; path: string }
@@ -146,7 +147,7 @@ function isCopy(value: unknown): value is TmCopy {
   return isTier(v.tier) && typeof v.unit_id === 'number'
 }
 
-function isPairFields(value: unknown): value is Omit<TmManageRow, 'copies'> {
+function isPairFields(value: unknown): value is Omit<TmManageRow, 'copies' | 'hidden_copies'> {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmManageRow>
   return (
@@ -162,7 +163,8 @@ function isPairFields(value: unknown): value is Omit<TmManageRow, 'copies'> {
 function isManageRow(value: unknown): value is TmManageRow {
   if (!isPairFields(value)) return false
   const copies = (value as Partial<TmManageRow>).copies
-  return Array.isArray(copies) && copies.length > 0 && copies.every(isCopy)
+  const hidden = (value as Partial<TmManageRow>).hidden_copies
+  return Array.isArray(copies) && copies.length > 0 && copies.every(isCopy) && isCount(hidden)
 }
 
 function isStoredPair(value: unknown): value is TmStoredPair {
@@ -312,7 +314,7 @@ function isImportPreview(value: unknown): value is TmxImportPreview {
 function isImportSummary(value: unknown): value is TmxImportSummary {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmxImportSummary>
-  return isCount(v.inserted) && isCount(v.already_count)
+  return isCount(v.inserted) && isCount(v.already_count) && isCount(v.future_dated_count)
 }
 
 /** Opens the save dialog in Rust and writes one tier as TMX. `null` from Rust is a cancelled dialog. Never throws. */
@@ -345,9 +347,9 @@ export async function tmOpenImportPreview(tier: TmManageTier): Promise<TmImportP
   }
 }
 
-export async function tmConfirmImport(): Promise<TmConfirmImportResult> {
+export async function tmConfirmImport(fileIsMine: boolean): Promise<TmConfirmImportResult> {
   try {
-    const wire = await invoke<unknown>(CMD_TM_CONFIRM_IMPORT)
+    const wire = await invoke<unknown>(CMD_TM_CONFIRM_IMPORT, { fileIsMine })
     if (!isImportSummary(wire)) return { summary: null, error: malformed(wire, CMD_TM_CONFIRM_IMPORT) }
     return { summary: wire, error: null }
   } catch (err) {

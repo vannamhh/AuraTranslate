@@ -530,6 +530,8 @@ pub fn load_manage_snapshot(
 pub struct ManageRow {
     pub pair: TmPair,
     pub copies: Vec<CopyRef>,
+    /// Stored copies of the same (source, target) in the loaded tiers that the filters hide.
+    pub hidden_copies: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -574,8 +576,8 @@ pub fn rank_manage_listing(
         && snapshot.work_rows.as_ref().is_none_or(Vec::is_empty);
     let mut counts = [0usize; 3];
     let needle = concordance_key(search);
-    let mut keep = |rows: Vec<RawPair>| -> Vec<RawPair> {
-        rows.into_iter()
+    let mut keep = |rows: &[RawPair]| -> Vec<RawPair> {
+        rows.iter()
             .filter(|row| {
                 let slot = match row.translation_origin {
                     PairOrigin::SelfTranslated => 0,
@@ -588,10 +590,11 @@ pub fn rank_manage_listing(
                         || concordance_key(&row.source_text).contains(&needle)
                         || concordance_key(&row.target_text).contains(&needle))
             })
+            .cloned()
             .collect()
     };
-    let global_rows = if tier.shows_global() { keep(snapshot.global_rows) } else { Vec::new() };
-    let work_rows = match snapshot.work_rows {
+    let global_rows = if tier.shows_global() { keep(&snapshot.global_rows) } else { Vec::new() };
+    let work_rows = match &snapshot.work_rows {
         Some(rows) if tier.shows_work() => Some(keep(rows)),
         Some(_) => Some(Vec::new()),
         None => None,
@@ -619,17 +622,36 @@ pub fn rank_manage_listing(
         }
         match groups[slot].rows.iter_mut().find(|row| row.pair.target_text == pair.target_text) {
             Some(row) => row.copies.push(copy),
-            None => groups[slot].rows.push(ManageRow { pair, copies: vec![copy] }),
+            None => groups[slot].rows.push(ManageRow { pair, copies: vec![copy], hidden_copies: 0 }),
         }
     }
     let mut ordered: Vec<(SourceGroup, (String, i64))> = groups.into_iter().zip(newest).collect();
     ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.source_text.cmp(&b.0.source_text)));
     let total_groups = ordered.len();
     ordered.truncate(MANAGE_GROUP_LIMIT);
+    let mut stored: std::collections::HashMap<(&str, &str), usize> = std::collections::HashMap::new();
+    for row in ordered.iter().flat_map(|(group, _)| group.rows.iter()) {
+        stored.insert((row.pair.source_text.as_str(), row.pair.target_text.as_str()), 0);
+    }
+    let held = snapshot.global_rows.iter().chain(snapshot.work_rows.iter().flatten());
+    for raw in held {
+        if let Some(count) = stored.get_mut(&(raw.source_text.as_str(), raw.target_text.as_str())) {
+            *count += 1;
+        }
+    }
+    let stored: std::collections::HashMap<(String, String), usize> =
+        stored.into_iter().map(|((s, t), n)| ((s.to_owned(), t.to_owned()), n)).collect();
     let groups = ordered
         .into_iter()
         .map(|(mut group, _)| {
             group.distinct_targets = group.rows.len();
+            for row in &mut group.rows {
+                let all = stored
+                    .get(&(row.pair.source_text.clone(), row.pair.target_text.clone()))
+                    .copied()
+                    .unwrap_or(0);
+                row.hidden_copies = all.saturating_sub(row.copies.len());
+            }
             group
         })
         .collect();
