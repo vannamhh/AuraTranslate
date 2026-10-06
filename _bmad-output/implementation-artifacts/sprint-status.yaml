@@ -1100,7 +1100,7 @@ action_items:
       khi sửa, phạm vi sửa/xoá dưới bộ lọc, TMX ngày tương lai và self ngoại lai,
       xuất xứ sau khôi phục FR101, đánh dấu là của tôi) rồi giao mã"
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-85-r-6-gộp-cặp-trùng-nguồn-đích-ở-dải-khớp"
     epic: 7
