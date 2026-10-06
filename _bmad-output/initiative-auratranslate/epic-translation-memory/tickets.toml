@@ -131,3 +131,87 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "7-11-smart-rag-ưu-tiên-cặp-của-chính-người-dùng"
+
+[[entry]]
+id = 12
+type = "bug"
+title = "Epic 7 retro R-2 — Chapter load never fails because of TM pre-fill"
+description = "TM pre-fill (7-4) is a secondary feature that can break the primary path."
+verify = "`npm run build && cargo test --test tm_contract --test ipc_contract` (from `src-tauri/`) -- expected: green."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-e7-r2-nap-chuong-khong-hong-vi-tm"
+
+[[entry]]
+id = 13
+type = "bug"
+title = "Epic 7 retro R-3 — TMX import/export stop holding OpenWorkState beyond the store access"
+description = "The three TMX wire shells (`tm_confirm_import`, `tm_open_import_preview`, `tm_export_tier`) lock `OpenWorkState` for their whole run even when the tier is Global."
+verify = "`npm run build && cd src-tauri && cargo test --test tm_wire --test tmx_contract --test config_invariants --test ipc_contract` -- expected: green."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-e7-r3-thu-hep-khoa-openworkstate-tm"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Epic 7 retro R-4 — measure how long TM-reading paths hold OpenWorkState in the packaged release app"
+description = "Six commands read the whole TM, or look it up once per sentence, while they hold `OpenWorkState` (retro Epic 7 F1.3–F1.5)."
+verify = "`bash _bmad-output/implementation-artifacts/e7-r4-ban-do/build.sh && bash _bmad-output/implementation-artifacts/e7-r4-ban-do/run.sh` -- expected: population line plus six result lines."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-7-retro-r-4-measure-openworkstate-hold"
+
+[[entry]]
+id = 15
+type = "bug"
+title = "Epic 7 retro R-6 — one row per (source, target) in the fuzzy strip and Concordance"
+description = "TM keeps duplicate (source, target) rows on disk on purpose (7-1 D2), but the fuzzy strip (7-5, cap 3) and Concordance (7-7, cap 50) list every stored row, so one pair can take 2–3 of the three fuzzy slots or several Concordance slots (retro F2.1)."
+verify = "The fuzzy strip and Concordance list one row per (source, target), the first in AD-18 order, and stored rows are never merged."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-7-retro-r-6-dedupe-fuzzy-and-concordance"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Epic 7 retro R-9 — no bare `origin` identifier, and a guard that keeps it so"
+description = "AGENTS.md §Conventions bans a bare `origin` identifier because \"origin\" names four disjoint things (spine §Consistency Conventions)."
+verify = "`npm run build`, then in `src-tauri/`: `cargo test` (full: module renames, wire key and IPC-shape change touch shared wiring) -- green."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-7-retro-r-9-subject-bearing-origin-names"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Epic 7 retro R-10 — debt ledger: close, correct and record the retro's ledger items"
+description = "The Epic 7 retro (`epic-7-retro-2026-10-05.md` §Hạng mục hành động, R-10) found ledger drift: an item that should be closed (`⌘M` vs TM management), a 7.9 item describing a command palette the repo does not have, two missing debt items (7.4 real-use pass, 7.5 yield to Proofreader), and six deferred findings plus the `commands/segment.rs` split that live only in the retro, with…"
+verify = "`npm run check:debt-owner` -- expected: all three checks OK, counts as in AC"
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-7-retro-r-10-debt-ledger"
+
+[[entry]]
+id = 18
+type = "bug"
+title = "Epic 7 retro R-5 — TM management tells what a filtered action leaves untouched; TMX import clamps future dates and asks who translated the file"
+description = "(F2.3) Edit and delete in TM management act only on the copies the filters show (7-9 Q8), but the edit hint always says Global copies are overwritten, and a delete under a tier or origin filter leaves a hidden identical copy that 7-4 keeps filling in, with nothing on screen."
+verify = "`npm run build` then `cargo test --test tm_contract --test tmx_contract --test tm_wire --test config_invariants --test ipc_argument_contract` (from `src-tauri/`) -- expected: green."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership"

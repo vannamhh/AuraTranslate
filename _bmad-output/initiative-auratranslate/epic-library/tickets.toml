@@ -167,3 +167,39 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "5-14-đo-nfr3-nfr4-nfr5-và-ghi-lại-trạng-thái-ba-ngưỡng-tạm"
+
+[[entry]]
+id = 15
+type = "bug"
+title = "Retro Epic 5 · AI-2 + AI-3 — sàn phiên bản cho lượt thu hoạch, và bề mặt cho phần bị bỏ qua"
+description = "`harvest_work_text` chỉ chặn `project.db` **mới hơn** đích, không có sàn dưới — nên một tệp **cũ hơn** lọt cửa rồi gãy ở câu SQL kế tiếp bằng một chuỗi SQLite thô (`no such table: segment` · `no such column: is_omitted`)."
+verify = "`cargo test --locked --test library_index_contract` — xanh; hai ca mới có mặt."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-5-retro-ai-2-ai-3-san-phien-ban-va-be-mat-bo-qua"
+
+[[entry]]
+id = 16
+type = "bug"
+title = "e2e: no spec inherits the previous spec in-session state"
+description = "`npm run test:e2e` gives false reds: the stock full suite is 16 passed / 8 failed, identical to nightly `e2e (macos-26)` (red every night since 2026-09-03), while the failing specs pass when run alone."
+verify = "`npm run test:e2e -- --spec e2e/specs/story-5-13-reading-marks.e2e.mjs --spec e2e/specs/story-5-6-library-grid.e2e.mjs` -- expected: 2 spec files passed. Red before the fix."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-e2e-cach-ly-trang-thai-giua-cac-spec"
+
+[[entry]]
+id = 17
+type = "bug"
+title = "e2e: the two form-driven specs create their Work through the import preview"
+description = "After G1 the full e2e suite is 22 / 2, and the two red spec files are G2 (`deferred-work.md`): `story-5-4-lifecycle` (2 cases) and `story-5-5-progress` (1 case) click the paste-text submit and expect a Work, but since Story 6.3 (`d20fe67`) that click only opens `ImportPreviewOverlay.vue`; the Work is written on its confirm button."
+verify = "`npm run test:e2e -- --spec e2e/specs/story-5-4-lifecycle.e2e.mjs --spec e2e/specs/story-5-5-progress.e2e.mjs` -- expected: 2 passed."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc"

@@ -291,3 +291,51 @@ after = [16, "16b"]
 hitl = false
 risk = "low"
 v6_key = "6-16c-nhập-song-ngữ-từ-bảng-docx"
+
+[[entry]]
+id = 19
+type = "bug"
+title = "store_contract WAL ceiling drifts with schema size, not with writes"
+description = "`store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` has failed on `windows-2025` every CI run since 2026-09-03 — the only reason the whole `check` job is red."
+verify = "`cargo test --locked --manifest-path src-tauri/Cargo.toml --test store_contract -- --nocapture`"
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-ca-wal-do-tren-windows"
+
+[[entry]]
+id = 20
+type = "bug"
+title = "AI-4 — six import commands leave the UI thread, and the gate that says so stops missing whole files"
+description = "Six wires in `commands/project.rs` are declared plain `#[tauri::command]`, so tauri runs their bodies **on the main thread**, where they block the UI event loop."
+verify = "`cargo test --locked --test config_invariants` (from `src-tauri/`) — expected: RED at step ① naming a signature; GREEN after step ②; GREEN again after step ③."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-ai-4-sau-lenh-nhap-roi-luong-giao-dien"
+
+[[entry]]
+id = 21
+type = "story"
+title = "AI-6 stage 1 — lift `wire` and `tests` out of `commands/project.rs`"
+description = "`src-tauri/src/commands/project.rs` is 6 716 lines — 1,8× the next largest file and 43% of the whole `commands/` directory."
+verify = "`cd src-tauri && cargo test` -- expected: `1 509 passed; 0 failed; 20 ignored` summed over 55 `Running` targets, exit 0. Do NOT pipe this through `head`/`tail` before summing — that is exactly how the first, wrong baseline was produced"
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-ai-6-tach-commands-project-rs"
+
+[[entry]]
+id = 22
+type = "bug"
+title = "AI-7 — one named trim for the ChapterOrigin rule, and the second divergence the 2026-09-07 measurement missed"
+description = "The rule *\"a `ChapterOrigin` field holding only whitespace becomes `NULL`\"* is written **three** times for those four columns — `commands/project.rs:3862` (`trimmed_or_none`, preview override), `commands/chapter.rs:582` (`trimmed_or_none`, edit after import), `core/webimport/origin.rs:57` (`present`, machine extraction) — all three `str::trim()`, while the preview half uses JS…"
+verify = "`npm run build` -- expected: `dist/` present. Required before `cargo test`, which otherwise fails at compile time, not at an assert."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-ai-7-mot-ham-cat-khop-trim-cua-javascript"

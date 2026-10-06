@@ -143,3 +143,75 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "3-10b-nối-hộp-thoại-chọn-tệp-vào-xuất-nhập-glossary"
+
+[[entry]]
+id = 11
+type = "bug"
+title = "Cụm A — sáu chỗ có bản vá đúng ở ngay cạnh mà chỗ này bỏ sót"
+description = "Vòng rà Epic 3 (`a2eaf7c~1..HEAD`, ba lăng kính) trả 55 phát hiện; sáu trong số đó **không phải lỗi mới** mà là **khuôn đã có bản vá đúng ở ngay cạnh, chỗ này bỏ sót** — kể cả một vệ chống mất dữ liệu **bị xoá mà chú thích của nó còn nguyên**, và đúng lớp lỗi luồng-chính vừa làm treo ứng dụng thật hôm nay."
+verify = "`npm run build` **trước** `cargo test` — thiếu `dist/` thì `cargo test` gãy ở khâu biên dịch, không ở một assert."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-a-khuon-bo-sot"
+
+[[entry]]
+id = 12
+type = "bug"
+title = "Cụm B — chín chỗ hỏng ở đường phân tích CSV/TSV và đường ghi tệp"
+description = "Vòng rà Epic 3 (`a2eaf7c~1..HEAD`, ba lăng kính) trả 55 phát hiện; **mười** thuộc đường xuất/nhập CSV-TSV mà Story 3.10 dựng."
+verify = "`cd src-tauri && cargo test --locked` -- expected: exit 0; số ca **tăng** so với 584 của lượt đo 2026-08-24, ghi lại con số thật trước/sau."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep"
+
+[[entry]]
+id = 13
+type = "bug"
+title = "Cụm C — mất cập nhật im lặng ở nhịp hai của lượt nhập Glossary"
+description = "Cụm C của vòng rà Epic 3 mang sáu phát hiện về đồng thời; Ice chốt `[S]` — **C4** (bốn hàm đọc hai tầng qua hai kết nối) đã ghi thành nợ có chủ vì nó đòi một `AD` mới, còn lượt này đóng **C1 · C2 · C3 · C5**."
+verify = "`npm run build` — expected: exit 0. **Chạy TRƯỚC `cargo test`** — thiếu `dist/` thì `cargo test` gãy ở khâu biên dịch, không ở một assert."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap"
+
+[[entry]]
+id = 14
+type = "bug"
+title = "Cụm D — mười một chỗ hỏng ở frontend Glossary: dây không ai kiểm, cờ kẹt, và một phím xoá vĩnh viễn"
+description = "Cụm D của vòng rà Epic 3 mang mười ba phát hiện ở frontend."
+verify = "`npm run test` — expected: exit 0; số ca **tăng** so với **479** (đo 2026-08-26, `0f07184`). Ghi con số thật trước/sau."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy"
+
+[[entry]]
+id = 15
+type = "bug"
+title = "Cụm E — ba lỗ hổng canh gác: cắt vệ đi rồi bộ test vẫn xanh trọn"
+description = "Cụm E của vòng rà Epic 3 là cụm DUY NHẤT trong 55 phát hiện mà bằng chứng là một lượt **chạy**, không một lượt đọc: ba vệ sản phẩm bị cắt bỏ hẳn mà bộ test vẫn xanh trọn."
+verify = "`npx vitest run tests/frontend/glossary` -- expected: 17 tệp, ≥ 268 ca, 0 đỏ (238 + 30 ca mới)."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-e-le-hong-canh-gac"
+
+[[entry]]
+id = 16
+type = "bug"
+title = "Cụm F — mục rải rác bốn tầng, và ba phát hiện bị chính phép đo bác"
+description = "Cụm F là cụm cuối của vòng rà Epic 3 và là cụm **duy nhất** mà một lượt đọc lại đã bác ba trong số các phát hiện của chính nó."
+verify = "`cd src-tauri && cargo test --locked --test glossary_scan_contract --test glossary_boundary --test glossary_import_dialog_contract --test glossary_commands_contract` -- expected: ≥ 27+11+22+29 ca, 0 đỏ."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "spec-epic-3-review-cum-f-muc-rai-rac-bon-tang"
