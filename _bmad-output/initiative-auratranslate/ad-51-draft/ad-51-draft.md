@@ -1,0 +1,152 @@
+---
+type: ad
+title: "BẢN NHÁP AD-51 — chưa vào spine"
+status: done
+created: 2026-10-02
+skill: bmad-architecture
+---
+# BẢN NHÁP AD-51 — chưa vào spine
+
+🔵 2026-10-02: đã vào spine thành AD-51, Ice chọn phương án A (`similar`). Phần "chưa vào spine" và "còn chờ Ice chọn" bên dưới hết đúng; tệp này chỉ còn là bằng chứng số đo. Bộ đo ở thư mục scratch không được giữ lại.
+
+**Ngày:** 2026-10-02 · **Người soạn:** Winston · **Đầu vào:** `ad-brief-2026-10-02-diff-khop-mo-tm.md` · **Baseline cây nguồn:** `d028a95aadb92a80b6a8a906194f8caeba899957`
+**Trạng thái:** nháp để Ice đọc. Spine, `Cargo.toml`, `src-tauri/`, `src/` chưa bị sửa một chữ. Số `AD` 51 trống (spine dừng ở AD-50, không `ad-brief-*` nào khác nhận 51).
+**Còn chờ Ice chọn:** MỘT chỗ — crate (phương án A hay B, mục "Hai phương án"). Mọi chỗ khác của bản nháp đúng với cả hai.
+
+---
+
+## Phần 1 — Văn bản đề nghị cho spine
+
+### AD-51 — Diff nguồn của gợi ý khớp mờ tính phía Rust trong `core/matching`, cạnh hàm chấm điểm; nhận một gợi ý là lượt ghi *người khác dịch*
+
+- **Binds:** C3, C5, C6 (như AD-17) · C7, C9 (như AD-47) — Story 7.5, `core/matching`, `commands/segment.rs::write_non_user_target`, Diff Viewer của Epic 8, bảng Stack, hàng Deferred.
+- **Prevents:** (1) hai cài đặt diff — một cho dải TM ở Epic 7, một cho Review Mode ở Epic 8 — tô hai kiểu cho cùng một cặp văn bản, và người dịch học hai cách đọc; đúng lớp hỏng mà AD-17 chặn cho Matcher; (2) Rust trả offset byte còn webview chỉ số theo UTF-16, nên diff tiếng Trung tô lệch ký tự mà không lỗi nào ném; (3) một cơ chế ghi `target_text` thứ tư (nhận gợi ý khớp mờ) không khai xuất xứ, và `write_non_user_target` ghi nó thành xuất xứ của lượt gần nhất — đúng im lặng mà AD-47 sinh ra để chặn; (4) hàng Deferred *"`similar` vs `dissimilar`"* bị đóng bằng mô tả trên trang crate thay vì bằng dữ liệu (NFR15, Story 8.1).
+- **Rule:**
+
+  1. **Diff tính phía Rust, trong `core/matching`, một hàm thuần.** Cạnh hàm chấm điểm của Story 7.5, không I/O (AD-13/15; `matching_boundary` đã canh). Chữ ký ý định: `diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan>`. Không crate diff nào được `use` ngoài module này; webview không tính diff và không có bản diff thứ hai (cùng tinh thần AD-17: đúng MỘT cài đặt).
+  2. **Hình dạng trên dây.** `DiffSpan { kind: equal | delete | insert, text }`. **Văn bản, không offset**: offset byte của Rust ≠ chỉ số UTF-16 của JavaScript: mỗi ký tự Hán là 3 byte UTF-8 nhưng 1 đơn vị UTF-16 (và 2 đơn vị cho chữ Hán mở rộng ngoài BMP), nên hai hệ chỉ số lệch ngay ở câu tiếng Trung bình thường. `text` là dữ liệu của người dùng, không phải văn bản hiển thị của giao diện (AD-21 không bị chạm); webview vẫn render nó như văn bản thuần (AD-16).
+  3. **Chiều và bất biến dựng lại.** `old` = nguồn của cặp TM, `new` = nguồn của segment đang mở. Ghép `equal` + `delete` theo thứ tự ra đúng `old`; ghép `equal` + `insert` ra đúng `new`. Một ca kiểm trên mọi cặp của bộ đo khoá bất biến này (đo: 0 lỗi dựng lại trên 110 cặp × 2 đến 5 biến thể, mục "Số đo").
+  4. **Chuẩn hoá đầu vào: NFC cả hai vế**, cùng phép chuẩn hoá `trim` + NFC mà AD-50 mục 4 dùng khi so mốc, nên diff và phép phân xử không bất đồng về "hai chuỗi này có giống nhau không". Đo được: ở NFD, diff cấp ký tự tách dấu thanh khỏi chữ gốc (`tiê[-́-]{+̣+}ng`, một mảnh chỉ chứa dấu kết hợp); sau NFC dấu hợp vào chữ, nên không cần diff cấp grapheme và không cần bật feature `unicode`.
+  5. **Độ mịn theo `MatchLang`** (cùng tham số mà bộ chấm điểm đã nhận từ `open_work.meta.source_lang`): tiếng Trung — cấp ký tự (không có ranh giới từ để dựa vào); tiếng Anh — theo phương án crate ở dưới. Độ mịn là chi tiết bên trong hàm: đổi nó không đổi `DiffSpan`.
+  6. **Chỉ diff hàng được hiển thị.** Lệnh đọc gợi ý chấm điểm mọi cặp, rồi chỉ tính diff cho tối đa 3 hàng đã chọn (spec 7.5: số hàng cố định 3). Không diff cho cặp dưới ngưỡng.
+  7. **Một thư viện cho Story 7.5 *và* Diff Viewer của Epic 8.** Hai ca dùng gọi cùng `diff_spans` (Review Mode truyền ngôn ngữ đích, độ mịn theo từ cho chữ Latin). Vì crate nằm sau một hàm và một kiểu trên dây, **lật crate sau này chỉ thay thân một hàm**, webview không đổi. Hệ quả cho hàng Deferred và Story 8.1 ở mục 9.
+  8. **Dòng mới của AD-47 ③ — danh mục ĐÓNG, nay thêm một hàng:**
+
+     | Lượt ghi không-phải-người-dùng | Xuất xứ nó đặt |
+     |---|---|
+     | **Nhận gợi ý TM khớp mờ (FR59)** | **người khác dịch** |
+
+     Cùng nhóm với *"Đưa đề xuất AI sang Editor"* và *"Chấp nhận thay đổi từ Review Mode"*. Hệ quả theo AD-50 mục 2 (không phải luật mới): `baseline_target_text` = văn bản cặp vừa nhận, `baseline_translation_origin` = `other`, `translation_origin` = `other`, `status` = `draft`, không `SegmentVersion`. Người dùng sửa một ký tự rồi ký ⇒ hàm phân xử (AD-50 mục 4) ra *tôi dịch*; ký không sửa ⇒ *người khác dịch* **kể cả khi cặp gốc là của tôi** (Ice đã nhận hệ quả này ngày 2026-10-02: chiều rẻ theo AD-47 ④ — khai *người khác dịch* cho chữ của chính mình chỉ làm một cặp TM bị `RagInjector` xếp sau, còn chiều ngược đầu độc kho). Khác Story 7.4 (khớp 100%, AD-47 ③ hàng *"Điền sẵn từ TM khớp 100%"* giữ xuất xứ cặp): dưới 100% văn bản đã bị người dịch coi là *chưa đúng*, nên xuất xứ của cặp không còn nói thay cho văn bản.
+  9. **Hàng Deferred và Story 8.1.** Hàng *"`similar` vs `dissimilar` cho Diff Viewer"* **chuyển từ "chưa chốt" sang "đã chốt cho nguồn TM bằng số đo; còn một phép xác nhận trên chữ đích tiếng Việt"**. Story 8.1 **không bị xoá**: AC *"chạy cả hai trên bản review thật"* và *"văn bản tiếng Việt nhiều dấu — kiểm bằng chuỗi dày dấu"* vẫn đúng và **chưa thoả** — bộ đo của `AD` này không có một câu đích tiếng Việt nào (mục "Giới hạn của số đo"). 8.1 co lại thành *xác nhận hoặc lật* crate đã chọn trên bản review thật, và lật tốn một thân hàm (mục 7). AC giấy phép của 8.1 được `AD` này thoả (mục 10); AC tương phản WCAG đã thuộc về token `diff-*` của Story 7.5.
+  10. **Giấy phép (NFR15).** Đã đọc trong mã nguồn ĐÃ TẢI (`~/.cargo/registry/src/…/`). Cả hai crate là **Apache-2.0**, tương thích GPLv3 (một chiều Apache-2.0 → GPLv3; chỉ xung đột với GPLv2, dự án là GPL-3.0-or-later). Chi tiết từng crate ở mục "Giấy phép đã đọc". Bảng Stack ghi crate được chọn **trước** khi `Cargo.toml` thêm nó; hàng hiện tại *"`similar` **hoặc** `dissimilar` — Apache-2.0 / Apache-2.0 OR MIT"* thay bằng đúng một hàng. ⚠️ Hàng cũ ghi `dissimilar` là *"Apache-2.0 OR MIT"*; `Cargo.toml` của `dissimilar` 1.0.11 ghi `license = "Apache-2.0"` — MIT chỉ áp cho phần riêng của bản Rust theo `README` (xem mục giấy phép).
+  11. **Đổi gì / không đổi gì** *(khuôn AD-46/50)*: AD-47 ③ — thêm đúng một hàng (mục 8), các hàng khác và ④⑤⑥ không đổi chữ; AD-47 ⑥ — hàng mới rơi về vế *của người khác*, tập giá trị FR117 không nới. AD-50 — không sửa chữ: hàng mới là một dòng của *"mọi hàng còn lại"* trong bảng mục 2. AD-17 — không sửa chữ: diff không phải thêm một người tiêu thụ Matcher mà là một hàm cạnh nó trong cùng module. AD-18 — không sửa (thứ tự gợi ý: điểm giảm dần, hoà theo thứ tự `pairs_for_source`, như spec 7.5). Story 7.5 — `AD` này mở khoá hai nhiệm vụ đang dừng (diff, nhận gợi ý).
+
+  → bằng chứng: `ad-brief-2026-10-02-diff-khop-mo-tm.md` · mục "Số đo" của tệp này.
+
+---
+
+## Phần 2 — Hai phương án crate, để Ice chọn
+
+Hàm `diff_spans` và kiểu `DiffSpan` giống hệt ở cả hai. Khác nhau chỉ ở thân hàm và ở hai việc kèm theo.
+
+### Phương án A — `similar` =3.1.1 (Apache-2.0), feature mặc định, Myers
+- Tiếng Trung: `diff_chars`. Tiếng Anh/Latin: `diff_words` (chọn được độ mịn theo từ).
+- Kèm một **bước gộp sau diff do dự án viết** (~15 dòng, nằm trong `core/matching`, cùng `diff_spans`): đoạn `equal` dài ≤ 2 ký tự kẹp giữa hai đoạn đổi bị gộp vào vùng đổi. Không có bước này `similar` ra nhiều mảnh vụn (bảng dưới).
+- 0 gói mới vào `Cargo.lock` với feature mặc định (`cargo tree`: `similar v3.1.1` không phụ thuộc gì). Feature `unicode` kéo `unicode-segmentation` 1.13.3 (`MIT OR Apache-2.0`, đã có trong `Cargo.lock`) — không cần theo mục 4.
+- Cần Rust ≥ 1.85, edition 2024 — khớp `rust-version = "1.85"` của dự án.
+- Giữ được đường diff **theo từ** cho chữ đích tiếng Việt ở Epic 8 mà không đổi thư viện.
+
+### Phương án B — `dissimilar` =1.0.11 (Apache-2.0; MIT cho phần riêng của bản Rust)
+- Một hàm `dissimilar::diff(&str, &str)`; **không chọn được độ mịn** (làm việc trên ký tự), tự có *semantic cleanup* (cổng Google diff-match-patch).
+- 0 phụ thuộc, 0 gói mới. Không thêm mã nào của dự án.
+- Tiếng Anh: không có diff theo từ ⇒ vết đổi cắt giữa từ (số đo: 35 điểm cắt giữa từ trên 22 cặp En thật, so với 0 của `similar` theo từ). Đường diff **theo từ** cho chữ đích tiếng Việt (Epic 8) sẽ phải mở lại câu hỏi crate hoặc tự tách từ trước khi gọi.
+- Không có `deadline`: thân hàm không chặn được thời gian trên đầu vào dài (mục "Giới hạn của số đo").
+
+---
+
+## Phần 3 — Số đo
+
+**Build:** `rustc 1.98.1 (Homebrew)`, `cargo build --release` (opt-level 3), cargo project ném đi trong scratchpad (`…/scratchpad/dp`, ngoài repo). `similar` =3.1.1 · `dissimilar` =1.0.11 · `jieba-rs` =0.10.3 (đúng bản dự án ghim, dùng để chấm "cắt giữa từ" tiếng Trung).
+**Máy:** Intel Core i9-9980HK (Mac của Ice), macOS 24.6. ⚠️ **Máy đang tải nặng** (load average 13–44 suốt lượt đo, một agent khác đang biên dịch song song): thời gian là khoảng *thấp nhất–cao nhất* qua 3 lượt chạy cùng binary, chỉ so được giữa các dòng của CÙNG bảng, không so với số đo ở máy khác.
+**Cách đo thời gian:** 20 000 vòng × 3 phép diff liên tiếp (3 gợi ý), xoay qua các cặp của tập; đơn vị µs cho 3 phép.
+**Dữ liệu:** mọi cặp đều là *(nguồn cũ, nguồn mới)* như dải khớp mờ sẽ thấy. Bốn tập, nguồn gốc nói rõ:
+
+| Tập | Nguồn | Số cặp | Ghi chú |
+|---|---|---|---|
+| `zh_real` | 7 tệp `_bmad-output/implementation-artifacts/6-1-ban-do/fixtures/html/a01..a07.html` (bài báo Hoa văn thật của The Epoch Times, giản/phồn); câu tách ở `。！？` và xuống dòng; ghép các câu có độ giống bigram (Dice) 0,50–0,99; bỏ cặp chỉ khác hậu tố `\| 大紀元` | 18 | **Thật, nhưng là tiêu đề và câu chân trang, trung bình 20 ký tự, nhiều cặp là giản↔phồn.** 7 bài không có cặp câu thân bài nào gần giống nhau. |
+| `zh_edit` | 40 câu thân bài thật (25–80 ký tự, từ cùng 7 tệp) + **một sửa chữa tạo bằng mã, hạt giống 20261002**: thay 2 ký tự bằng 2 ký tự câu khác · chèn từ 2 ký tự · xoá 4 ký tự · hoán vị hai đoạn 3 ký tự · hai chỗ thay | 40 | **Tổng hợp một phần** (câu thật, vết sửa nhân tạo). Trung bình 47 ký tự. Vị trí sửa ngẫu nhiên nên đếm "cắt giữa từ" bị thổi phồng giống nhau cho mọi biến thể. |
+| `en_real` | `src-tauri/resources/license/COPYING.txt` (GPLv3) × `~/.cargo/registry/src/…/self_cell-1.3.0/LICENSE-GPLv2`; ghép câu giữa hai bản, độ giống trigram 0,65–0,99 | 22 | **Thật** (cùng một văn bản được hiệu đính giữa hai phiên bản — đúng kiểu TM). Trung bình 158 ký tự. |
+| `en_edit` | 30 câu thật của GPLv3 + một sửa chữa tạo bằng mã (thay một từ chức năng · chèn một trạng từ · xoá hai từ) | 30 | Tổng hợp một phần. Trung bình 116 ký tự. |
+
+**Chỉ số:** `vùng đổi` = số khối đổi liền nhau (insert/delete) trên mỗi cặp · `mảnh` = tổng số đoạn trên mỗi cặp · `đổi 1 ký tự` = số đoạn insert/delete đúng 1 ký tự (cả tập) · `đảo equal ≤2` = số đoạn `equal` ≤ 2 ký tự kẹp giữa hai đoạn đổi (khớp tình cờ, khó đọc) · `cắt giữa từ` = số biên đoạn đổi rơi **trong** một từ (Trung: ranh giới `jieba-rs` ; Anh: dãy chữ-số liền) · `lỗi dựng lại` = số cặp mà ghép `equal`+`delete` ≠ `old` hoặc `equal`+`insert` ≠ `new`. Bộ đo ở `scratchpad/dp/src/main.rs`.
+
+| Tập · biến thể | vùng đổi | mảnh | đổi 1 ký tự | đảo equal ≤2 | cắt giữa từ | lỗi dựng lại | µs / 3 phép |
+|---|---|---|---|---|---|---|---|
+| **zh_real** `similar` ký tự | 2,89 | 8,94 | 62 | 18 | 68 | 0 | 22–30 |
+| zh_real `similar` ký tự + gộp ≤2 | 1,89 | 6,00 | 16 | 0 | 36 | 0 | 30–41 |
+| zh_real `dissimilar` | 2,28 | 7,17 | 34 | 7 | 47 | 0 | 18–22 |
+| **zh_edit** `similar` ký tự | 1,43 | 4,42 | 4 | 1 | 44 | 0 | 17–19 |
+| zh_edit `similar` ký tự + gộp ≤2 | 1,40 | 4,40 | 2 | 0 | 44 | 0 | 20–24 |
+| zh_edit `dissimilar` | 1,43 | 4,42 | 4 | 1 | 43 | 0 | 9–10 |
+| **en_real** `similar` ký tự | 7,18 | 18,32 | 75 | 102 | 204 | 0 | 208–222 |
+| en_real `similar` **từ** | 4,36 | 12,59 | 2 | 47 | 0 | 0 | 60–74 |
+| en_real `similar` ký tự + gộp ≤2 | 2,55 | 7,59 | 6 | 0 | 32 | 0 | 221–230 |
+| en_real `similar` **từ** + gộp ≤2 | **2,23** | **6,41** | **0** | **0** | **0** | 0 | 67–71 |
+| en_real `dissimilar` | 2,50 | 7,05 | 15 | 8 | 35 | 0 | 164–177 |
+| **en_edit** `similar` ký tự | 1,10 | 3,47 | 9 | 3 | 17 | 0 | 49–53 |
+| en_edit `similar` từ | 1,00 | 3,33 | 0 | 0 | 0 | 0 | 18–21 |
+| en_edit `similar` từ + gộp ≤2 | 1,00 | 3,33 | 0 | 0 | 0 | 0 | 21–22 |
+| en_edit `dissimilar` | 1,07 | 3,33 | 4 | 2 | 10 | 0 | 8–13 |
+
+**Câu đơn lẻ dài:** 923 ký tự Trung mỗi vế: `similar` 292–340 µs, `dissimilar` 168–226 µs/phép; 2 393 ký tự Anh: `similar` 536–609 µs, `dissimilar` 421–905 µs/phép.
+**Thời gian không phân xử.** Cả hai dưới 0,3 ms cho 3 gợi ý ở câu ngắn (≤ 160 ký tự) kể cả trên máy đang tải; chênh nhau trong khoảng nhiễu của lượt đo này.
+
+### Đọc số đo
+
+- **Tiếng Trung (đường chính của FR59 với TM Hoa→Việt): hai crate cho kết quả gần như một.** `zh_edit`: giống hệt nhau ở 32/40 cặp, 4 chỗ đổi 1 ký tự mỗi bên, 0 lỗi. Chỗ khác nhau chỉ ở sửa **nằm rải** (`zh_real`: giản↔phồn đổi từng ký tự rời): `similar` thô ra 62 mảnh 1 ký tự, 18 đảo equal; `dissimilar` ra 34 và 7 vì *semantic cleanup* gộp (`[-国家队-]{+國家隊+}` thay vì `[-国-]{+國+}家[-队-]{+隊+}`); `similar` + bước gộp ra 16 và 0 — tốt hơn cả `dissimilar` ở hai chỉ số đó, nhưng trả bằng ~15 dòng mã.
+- **Tiếng Anh (`en_real`): khác biệt thật nằm ở đây.** `dissimilar` chỉ làm việc cấp ký tự nên cắt giữa từ 35 lần trên 22 cặp (`…is fre[-e software--to make sure the software is fre-]{+…+}e`, một khối chứa nửa từ ở hai đầu); `similar` theo từ cắt giữa từ **0 lần** và khi thêm bước gộp ≤2 là phương án ít mảnh vụn nhất (2,23 vùng đổi, 0 đổi 1 ký tự, 0 đảo). `similar` ký tự trên En thật là phương án tệ nhất (204 điểm cắt giữa từ, 102 đảo) — bài học: độ mịn theo từ là chỗ `similar` thắng.
+- **Dựng lại: 0 lỗi / 110 cặp × mọi biến thể** — mọi biến thể đều đúng đắn; khác biệt chỉ ở độ đọc được.
+- **Sửa dạng hoán vị/di chuyển đoạn** (`zh_edit`, 8/40 cặp khác nhau giữa hai crate): `similar` hiện một `insert` + một `delete` rời nhau (trung thực với việc đoạn đã chuyển chỗ); `dissimilar` căn theo đoạn chung gần nhất nên đoạn bị coi là *không đổi* còn đoạn kế bên bị tô (`[-請鎖定-]本期節{+請鎖定+}`). Cả hai dựng lại đúng; cái nào dễ đọc hơn là phán đoán của người dịch, không phải số đo.
+- **NFD (tiếng Việt, 1 mẫu, không phải bộ đo):** cả `similar` ký tự và `dissimilar` tách dấu thanh thành mảnh riêng (`tiê[-́-]{+̣+}ng`); `similar` cấp grapheme cho `ti[-ế-]{+ệ+}ng`. Sau NFC cả hai cho một ký tự đổi (mục 4).
+
+### Giới hạn của số đo — đừng đọc quá mức
+
+- `zh_real` chỉ 18 cặp và là tiêu đề/chân trang; 7 bài báo không có cặp câu thân bài nào gần giống nhau. Số đo Trung "thân bài" dựa vào `zh_edit` **có vết sửa nhân tạo**. Chưa có TM thật nào của Ice trong repo để đo.
+- Chưa đo **tiếng Việt** (chữ đích Review Mode, Epic 8). Mọi nhận xét về `similar` theo từ cho chữ Việt là suy luận từ kết quả tiếng Anh, chưa phải số đo. Đó là phần còn lại của Story 8.1.
+- Chưa đo ca xấu nhất: hai văn bản không liên quan ~900 ký tự mất ~19 ms (cả hai crate, máy tải 22–44, 1 lượt) — chỉ cặp vượt ngưỡng 50–99 % được diff nên ca này không chạy trong luồng bình thường, nhưng `dissimilar` không có `deadline` còn `similar` có.
+- Thời gian đo trên máy tải nặng; không dùng làm ngưỡng NFR.
+
+---
+
+## Phần 4 — Giấy phép đã đọc (NFR15)
+
+Đọc tại `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/`.
+
+**`similar-3.1.1`** — `Cargo.toml`: `license = "Apache-2.0"`, `edition = "2024"`, `rust-version = "1.85"`. Tệp `LICENSE` (201 dòng) là nguyên văn Apache License 2.0. **Không** có `LICENSE-MIT`, **không** có tệp `NOTICE`; `grep -i 'copyright|SPDX|Exhibit'` trong `src/` cho 0 kết quả (không có header riêng từng tệp). Phụ thuộc: `bstr`, `hashbrown`, `serde`, `unicode-segmentation`, `web-time` — **tất cả `optional`**; feature mặc định (`std`, `text`) không kéo gì (`cargo tree`: `similar v3.1.1` đơn độc). `README` ghi `License: Apache-2.0`.
+
+**`dissimilar-1.0.11`** — `Cargo.toml`: `license = "Apache-2.0"` (**không** `OR MIT`), `edition = "2021"`, `rust-version = "1.68"`. Có `LICENSE-APACHE` (176 dòng, nguyên văn Apache 2.0) và `LICENSE-MIT` (23 dòng, MIT). **Không** có `NOTICE`; `src/` không có header bản quyền. `README` §License: thuật toán là bản chuyển sang Rust từ `google/diff-match-patch` (Apache-2.0) *"made available here under the Apache License, Version 2.0 … This entire project … distributed under this Apache license"*; riêng *"intellectual property that is unique to the Rust implementation is additionally made available … dually under the MIT license"*. ⇒ Hiệu lực với dự án: **Apache-2.0**; MIT chỉ là lựa chọn thêm cho phần riêng, không thể dùng để bỏ qua Apache cho cả crate. Không phụ thuộc nào (`cargo tree`: `dissimilar v1.0.11` đơn độc).
+
+**Kết luận:** cả hai Apache-2.0 ⇒ tương thích GPLv3; không có Exhibit B. Apache-2.0 §4 đòi kèm bản giấy phép khi phân phối lại nhị phân — Amelia kiểm cách dự án đang ship `resources/license/` cho các phụ thuộc Apache-2.0 khác và áp cùng cách, không phải việc của `AD` này.
+
+---
+
+## Phần 5 — Khuyến nghị (của Winston; KHÔNG phải quyết định — Ice chọn)
+
+**Nghiêng về A (`similar` =3.1.1, `diff_chars` cho Trung, `diff_words` cho Anh/Latin, cộng bước gộp ≤2).** Lý do, theo thứ tự trọng lượng:
+
+1. Chỗ hai crate thực sự khác nhau trong số đo là **tiếng Anh**, và ở đó `similar` theo từ + gộp thắng rõ (0 cắt giữa từ / 0 đổi 1 ký tự / ít vùng đổi nhất) so với `dissimilar` (35 cắt giữa từ). Ở tiếng Trung hai bên gần như hoà, và `similar` + gộp còn bằng hoặc hơn `dissimilar` ở các chỉ số vụn.
+2. Mục 7 chọn *một* crate cho cả Epic 7 và Epic 8. Chữ đích Review Mode là tiếng Việt, phân tách bằng khoảng trắng, nơi diff cấp từ đúng là cái người dịch cần; `dissimilar` không có cách nào chọn độ mịn. Chọn A giữ cửa đó mở mà không phải mở lại câu hỏi crate.
+3. Giá của A là ~15 dòng mã dự án và một chữ ký phụ (`gộp ≤2`) phải có ca kiểm riêng; tôi chấp nhận vì nó nằm trong cùng một hàm, cùng module, và mỗi giá trị `2` ấy đo được (từ 102 đảo equal xuống 0 trên En thật).
+
+**Cái B thắng và Ice nên cân:** không thêm mã nào; semantic cleanup có sẵn từ dự án Google; ở tiếng Trung — đường chính của 7.5 — kết quả đọc được tương đương mà không viết gì. Nếu Ice coi tiếng Trung là *toàn bộ* phạm vi 7.5 và chấp nhận mở lại câu hỏi crate ở Story 8.1 cho chữ Việt, B là phương án gọn hơn. Hai phương án đều hợp lệ; số đo không loại phương án nào.
+
+**Không nên làm:** tự viết diff LCS (Ice đã loại ở 2B), và không nên chọn mà bỏ qua bước gộp rồi đo lại sau — bảng cho thấy `similar` thô là phương án tệ nhất trên En thật.
+
+---
+
+## Phần 6 — Việc cần làm sau khi Ice chọn (không thuộc `AD`)
+
+- Winston chép Phần 1 vào spine (kèm hàng AD-47 ③ mới và các dòng 🔵 đánh dấu AD-47 ③/Deferred/Stack), thay hàng Stack `similar` **hoặc** `dissimilar` bằng đúng crate được chọn, đổi hàng Deferred theo mục 9; ghi `spine-evidence.md#AD-51`.
+- Amelia: thêm đúng một crate vào `src-tauri/Cargo.toml` (ghim `=`), xoá/sửa chú thích dòng 164–167 nói "chưa cài một trong hai"; thêm hai ca khoá: bất biến dựng lại (mục 3) và `matching_boundary` cấm `use` crate diff ngoài `core/matching`; đối chứng đỏ bằng phép GỠ thật (bước gộp ≤2 nếu A).
+- Story 8.1: thu hẹp AC thành "xác nhận/lật trên bản review thật + chuỗi tiếng Việt dày dấu", nợ có chủ (`Chủ: Story 8.1`).
+- Bộ đo ném đi ở `/private/tmp/claude-501/-Users-hoangnam-LocalSites-addon-AuraTranslate/5f1d25eb-b3fe-49db-ae7e-0735e0c51bc2/scratchpad/` (`dp/`, `mine.py`, `mkb.py`, `*.tsv`); nằm ngoài repo và sẽ mất khi thư mục tạm dọn — nói nếu Ice muốn lưu vào `_bmad-output/`.
