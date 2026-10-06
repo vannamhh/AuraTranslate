@@ -525,11 +525,11 @@ pub fn write_planned_pairs(
                 Some(at) => at,
                 None => &now,
             };
-            let origin = pair_origin_for(pair.translation_origin, file_is_mine);
+            let pair_origin = pair_origin_for(pair.translation_origin, file_is_mine);
             tx.execute(
                 "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
                  VALUES (?1, ?2, ?3, ?4)",
-                (&pair.source_text, &pair.target_text, origin.as_str(), created_at),
+                (&pair.source_text, &pair.target_text, pair_origin.as_str(), created_at),
             )?;
             inserted += 1;
         }
