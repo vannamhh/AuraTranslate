@@ -3,7 +3,7 @@ ticket: 6
 title: 'Story 4.6 — Smart RAG Injector is a pure function'
 type: 'feature'
 created: '2026-09-17'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 1
 baseline_revision: 'a4a552637adbbe466c954a42a7e61b0129001157'

@@ -3,7 +3,7 @@ ticket: 9
 title: 'Story 4.9 — Batch-translate the selected segments, with progress and mid-flight cancel'
 type: 'feature' # feature | bugfix | refactor | chore
 created: '2026-09-21'
-status: in-review
+status: done
 route: 'dispatch' # oneshot | dispatch
 baseline_revision: '2376aebbc713cd80beea3ecd64e2fba68919f904'
 review_loop_iteration: 0

@@ -3,7 +3,7 @@ ticket: 10
 title: 'Story 4.10 — Network errors and API errors'
 type: 'feature' # feature | bugfix | refactor | chore
 created: '2026-09-22'
-status: in-review
+status: done
 route: 'dispatch' # oneshot | dispatch
 review_loop_iteration: 0
 baseline_revision: '915f1af6a84ff81b1184cadd26c00dccd551d317'

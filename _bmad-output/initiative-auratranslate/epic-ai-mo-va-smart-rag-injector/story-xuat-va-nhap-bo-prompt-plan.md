@@ -3,7 +3,7 @@ ticket: 5
 title: 'Story 4.5 — Export and import prompt sets'
 type: 'feature'
 created: '2026-09-17'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '3cebcc666bb6c42f2ef23afbb8ac585b0e16779b'

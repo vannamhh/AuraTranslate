@@ -3,7 +3,7 @@ ticket: 12
 title: 'Story 4.12: Narrow-window layout and threshold calibration'
 type: 'feature' # feature | bugfix | refactor | chore
 created: '2026-09-22'
-status: in-review
+status: done
 route: 'dispatch' # oneshot | dispatch
 baseline_revision: 'bb902f9fe190b782f8221e2becb1f2e337a8b071'
 review_loop_iteration: 0

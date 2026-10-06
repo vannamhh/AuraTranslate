@@ -3,7 +3,7 @@ ticket: 2
 title: 'Story 4.2 — Cấu hình nhà cung cấp AI'
 type: 'feature'
 created: '2026-09-16'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '334a3d0f3f3d42f7a29337086c0ab981cdbb714f'

@@ -3,7 +3,7 @@ ticket: 8
 title: 'Story 4.8 — Translate one segment with a streamed result'
 type: 'feature'
 created: '2026-09-21'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '5a23410790642ea43ae0ca3169a49dbef425d517'

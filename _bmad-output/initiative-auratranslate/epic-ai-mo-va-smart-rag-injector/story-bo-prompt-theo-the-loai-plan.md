@@ -3,7 +3,7 @@ ticket: 4
 title: 'Story 4.4 — Genre-specific prompt sets'
 type: 'feature'
 created: '2026-09-17'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '8c816b990c5e273f04c5e6ea189032237b788c15'

@@ -3,7 +3,7 @@ ticket: 11
 title: 'Story 4.11 — Token counts and cost estimate'
 type: 'feature' # feature | bugfix | refactor | chore
 created: '2026-09-22'
-status: in-review
+status: done
 route: 'dispatch' # oneshot | dispatch
 review_loop_iteration: 0
 baseline_revision: 'afbe740e6f8b264de4bed5b5367a27e694e539a0'

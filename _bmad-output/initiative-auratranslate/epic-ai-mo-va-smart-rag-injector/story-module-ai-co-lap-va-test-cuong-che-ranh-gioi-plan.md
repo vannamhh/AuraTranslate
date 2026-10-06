@@ -3,7 +3,7 @@ ticket: 1
 title: 'Story 4.1 — Module `ai/` cô lập và test cưỡng chế ranh giới'
 type: 'feature'
 created: '2026-08-26'
-status: in-review
+status: done
 review_loop_iteration: 0
 baseline_revision: 'e663705738dbf62ee5f5e5805542e95fa01709f7'
 context:

@@ -3,7 +3,7 @@ ticket: 7
 title: 'Story 4.7 — Inspect the exact prompt that was sent'
 type: 'feature'
 created: '2026-09-18'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 2
 baseline_revision: '6de227da1a097456b8e6f8efc2ca70ac5bc2f6cf'

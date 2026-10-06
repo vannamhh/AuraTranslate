@@ -3,7 +3,7 @@ ticket: 3
 title: 'Story 4.3 — API key trong keychain'
 type: 'feature'
 created: '2026-09-16'
-status: in-review
+status: done
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '93fe113dc2fc0b71012388d7f043c2527b66a5c5'
