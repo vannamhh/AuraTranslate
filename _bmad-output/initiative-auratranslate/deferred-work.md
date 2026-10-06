@@ -643,6 +643,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 🔴 **BỐN NGƯỠNG MÀN HÌNH HẸP của UX-DR15 KHÔNG đóng ở đây — chủ sở hữu là Story 4.12. **(Chủ: Story 4.12.)** `epics.md:1617` cấm tường minh: *"ngưỡng kích thước cụ thể đóng ở Story 4.12, không đóng ở đây"* và *"không được cài cơ chế ẩn theo cách khiến Story 4.12 phải mổ lại bố cục"*. Story này giao **CƠ CHẾ**: `SACRIFICE_ORDER` · `NEVER_SACRIFICED` · `nextToSacrifice()` · `nextToRestore()` ở `src/layout/workspaceLayout.ts` — **hàm thuần**, không đọc `window.innerWidth`, không một `matchMedia` nào trong toàn `src/**`. `scripts/check-layout.mjs` Kiểm A cưỡng chế ba mệnh đề của AC7 trên **cả 16 tập con** của bốn panel. ⇒ 4.12 **chỉ phải nối ngưỡng vào**.
   ⚠️ Vế *"Tra cứu rút về THANH TRẠNG THÁI, không bao giờ mất hẳn"* **chưa cài** — `panel.lookup` hôm nay chỉ **nhường**. Đừng đọc `SACRIFICE_ORDER` thành *"Tra cứu được phép biến mất"*. Cũng thuộc **Story 4.12**; ngăn kéo cũng vậy.
   ⚠️ **Sự thật đã có mà 4.12 sẽ đụng:** `tauri.conf.json:19-20` khai `minWidth: 960` · `minHeight: 600`, nên ngưỡng *"< 860 rộng ⇒ báo không hỗ trợ"* của UX-DR15 **không đến được bằng cách kéo cửa sổ** trên cấu hình hôm nay. Story này không sửa `tauri.conf.json` *(`deferred-work.md` [D4], Ice chốt lần thứ tư)* — ghi ra để 4.12 quyết **một lần**.
+  → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - ⚠️ **LỖ NFR17 MỞ RA CÓ Ý THỨC: bốn `layout.toggle_*` không có phím.** Ẩn/hiện panel hôm nay **chỉ tới được bằng chuột** *(qua menu ngữ cảnh của dockview)*. Đổi lại: `unbound()` giữ được **bốn** phần tử thật, nên **AC6 của Story 1.6** *(*"liệt kê được thao tác chưa gán phím"*)* không mất bằng chứng — gán phím cho cả bốn sẽ làm `unbound()` trả mảng rỗng và **không cổng nào đỏ** *(§Bẫy 5 của story)*. Một lỗ **có tên và có chủ** tốt hơn một bằng chứng bị xoá. Chủ: **Story 1.21** *(màn hình gán phím)*. ⚠️ Handler thì **chạy thật** — `registry.ts` ném với một `run` thiếu, nên không có command rỗng nào ở đây.
   → ⚠️ **ĐÓNG MỘT NỬA 2026-08-11 (Story 1.21), và nửa còn lại KHÔNG được đóng — mệnh đề ghi ra bằng chữ thay vì gạch mục.**
@@ -865,6 +866,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **`.parallel-note` (Panel Source, Story 1.16) đổi cỡ chữ 11,5px → 12px** khi chuyển từ `ui-sm` sang `ui-md-wrap` (Quyết định #7). Đây là một thay đổi THỊ GIÁC trên một bề mặt đã ship từ Story 1.16, không chỉ thêm token cho chuỗi mới — Ice đã chốt chấp nhận đổi cỡ để đóng dứt điểm `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*` thay vì rải thêm một token `ui-sm-wrap`. **Chưa nghiệm thu bằng mắt trên máy thật** (chỉ Playwright headless) rằng 0,5px đổi cỡ không làm vỡ bố cục dải tab của `SourcePanel.vue` ở màn hình hẹp — nhặt lại nếu Story 4.12 (bố cục màn hình hẹp) phát hiện vấn đề. **(Chủ: story kế tiếp dựng panel chạm `.parallel-note`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tokens.json dòng 564 vẫn ghi .parallel-note đổi 11,5 sang 12px là quyết định chấp nhận, chưa có ghi chú nghiệm thu bằng mắt trên máy thật ở tài liệu Story 4.12. **Chủ: Story 4.12.**
+  → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - 📝 **Mục từ TIẾNG ANH của Panel Lookup dùng hình dạng TẠM** — nhắc lại mục `:317` (chủ sở hữu Sally, `bmad-ux`): `LookupRecord.vue` dùng **cùng cấu trúc khối** cho tiếng Anh và tiếng Trung (chỉ khác token đầu mục), một lựa chọn tự chế ở tầng story mà mục `:317` tự cảnh báo là "đúng cách một bất nhất giao diện ra đời". **KHÔNG ĐÓNG** — chữ ký UX chính thức vẫn thiếu. **(Chủ: Sally — bmad-ux, xem mục `:317`.)**
 
@@ -877,6 +879,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 📝 **Chip thanh nhịp bị `overflow: hidden` cắt CÂM khi nhiều nguồn** (`src/panels/LookupPanel.vue:109-113,131-137`) — `.lookup-head` khoá `height: 76px` + `overflow: hidden` để giữ bất biến AC7, còn `.lookup-spine` là `flex-wrap: wrap`. Đo thật cho `山` ra **7–8 nhóm** ⇒ chip tràn sang dòng thứ ba trở đi bị cắt mất hoàn toàn: không dấu hiệu, không cuộn, không chỉ báo `+N`. Đây là đánh đổi CÓ CHỦ ĐÍCH đã ghi trong chú thích tại chỗ (giữ chiều cao bất biến quan trọng hơn), nhưng hệ quả "tên nguồn biến mất" thì chưa ai quyết. Nhặt lại cùng Story 4.12 (bố cục màn hình hẹp) hoặc khi thanh nhịp có chủ sở hữu UX thật. **(Chủ: story kế tiếp chạm `LookupPanel.vue` (thanh nhịp).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: LookupPanel.vue dòng 974-990: .lookup-head vẫn height:76px + overflow:hidden, .lookup-spine flex-wrap; cơ chế hidden_sources/AC12 mới chỉ phủ nguồn bị LIMIT cắt ở backend, không phủ chip bị CSS overflow cắt khi tràn dòng thứ ba. **Chủ: Story 4.12.**
+  → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - 📝 **`layers_loaded = false` khi MỌI tệp `.db` hỏng ⇒ panel hiện "chưa gắn lớp từ điển nào" — một chẩn đoán SAI** (`src-tauri/src/core/dict/layer.rs:460-493`) — `DictLayers::new` đẩy mọi lớp mở-hỏng vào `skipped` chứ không vào `layers`, nên `layers_loaded: !layers.layers().is_empty()` cho `false` cả khi thư mục ĐẦY tệp `.db` hỏng. AC6 dựng chuỗi đó riêng cho ca "thư mục rỗng" (AD-25). Rủi ro thấp: banner `someLayerFailed` vẫn hiện song song nên người dùng không bị bỏ câm, chỉ đọc được hai câu hơi lệch nhau. Sửa gọn: `!layers().is_empty() || !skipped().is_empty()`. **(Chủ: story kế tiếp chạm `core/dict/layer.rs`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/core/dict/mod.rs:935 vẫn dùng `layers_loaded: !layers.layers().is_empty()`, chưa cộng thêm `!skipped().is_empty()` như đề xuất. **Chủ: Ice.**
@@ -2111,6 +2114,7 @@ Ice ký đường ① *(cho `section.mode`/`section.panel` thôi giành tiêu đ
 
 **Không ai giành tiêu điểm cả.** Đo thẳng vào từng ứng viên:
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: isTypingZone (keys.ts:434-438) vẫn coi mọi tagName INPUT là vùng gõ, không phân biệt type. Epic 3 (GlossaryQuickAdd.vue:174, đã done) và Story 4.4 (PromptLibraryOverlay.vue:530, đang review) đã thêm input radio/checkbox thật. **Chủ: Story 4.4.**
+  → 2026-10-06 (Story 4.4 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - `focus.ts::enter()` chỉ chạy lúc **đổi chế độ** *(`WorkspaceMode.vue::onMounted`, `modeState.ts`)*, không chạy ở một cú bấm; **(Chủ: story kế tiếp chạm `focus.ts`.)**
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — enterFocus() nay chạy ở nhiều lượt bấm thật: WorkspaceDock.vue:964 gọi khi e.origin==='user' (đổi panel bằng chuột), editorPanelState.ts:1808,1950 gọi khi mở Chương, ReadingMode.vue:88,102,167 gọi khi chuyển Chế độ đọc.
@@ -2765,6 +2769,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   bố cục kia.
 
   **Chủ: Story 4.12** *(chủ cũ, chỉ mở rộng phạm vi)*.
+  → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - 🔵 **CHUYỂN CHỦ 2026-08-14 — hàng *"thư viện editor"* từ Story 2.4 sang Story 2.5b.**
 
@@ -5199,6 +5204,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     call`), đúng câu chữ ledger gốc đã để ngỏ. **Chủ: Story 4.9** nếu Ice muốn đóng ngay bằng
     cache trong cùng story; **chủ: Story 4.11/4.12** nếu Ice chọn đặt một trần N thay vì cache
     (một quyết định khác, ngược Decision 1 hôm nay, cũng cần Ice ký riêng).
+  → 2026-10-06 (Story 4.11 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - ⚠️ **`pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay
   khẳng định phiên bản 4, tức bước `glossary_entry`, không phải bước `pinned_entry` mà tên
@@ -7309,6 +7315,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Notes #3 cấm. **Chủ chuyển sang câu chuyện chung của Epic 4 — story ĐẦU TIÊN thêm `pub`
     kiểu/hàm vào `core/ai/mod.rs`/`core/ai/**`** (đo tại thời điểm đó xem có `pub use` nào
     re-export hay không trước khi quyết định dựng cổng).
+  → 2026-10-06 (Story 4.2 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
   summary: **Hai rủi ro mở của Story 4.1 chưa có lực cưỡng chế** — `walk()` chưa từng chạy trên
@@ -11402,6 +11409,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     bị sửa (một năng lực chưa dựng không phải một lệch spec). **Chủ mới:** một story CHƯA CÓ
     SỐ cho nút "Kiểm tra kết nối" trên màn Cài đặt — không một story đã đánh số nào trong sprint
     hiện tại (4.9 lô, 4.10 lỗi, 4.11 token, 4.12 bố cục hẹp) tự nhiên ôm nó. Cần Ice xếp lịch.
+  → 2026-10-06 (Story 4.8 đã done) — Chủ: Ice — mục tự ghi chủ mới là một story chưa có số và cần Ice xếp lịch.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-cau-hinh-nha-cung-cap-ai.md`
   summary: **21 hằng floor sàn quần thể (ngoài hai hằng `ai_boundary.rs` chính story này vừa
@@ -11709,6 +11717,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     chỉ vì có thêm một chỗ gọi provider. **Chủ mới: Ice** — quyết có đáng đầu tư một harness né
     hộp xin quyền (ví dụ biến môi trường CI đã cấp quyền sẵn) cho hai chỗ còn lại, hay giữ lập
     luận cấu trúc vĩnh viễn; không story sản phẩm nào tự nhiên sở hữu quyết định đó.
+  → 2026-10-06 (Story 4.8 đã done) — Chủ: Ice — mục tự ghi "Chủ mới: Ice" nhưng chưa ở dạng `Chủ:` mà cổng đọc được.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-api-key-trong-keychain.md`
   summary: **Cả bốn hàm keychain ném bỏ lỗi gốc bằng `map_err(|_| KeychainUnavailable)`, nên
@@ -11790,6 +11799,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     story nào trong sprint hiện tại ghi bộ prompt tầng Work độc lập với vòng đời `global.db` —
     giữ nguyên cho tới khi một story như vậy xuất hiện; cho tới lúc đó đây là một quyết định đã
     chốt có test canh (`prompt_set_contract.rs`), không phải một khoảng hở đang chờ.
+  → 2026-10-06 (Story 4.8 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-bo-prompt-theo-the-loai.md`
   summary: **`src-tauri/AGENTS.md:37` nay khai SAI — nó nói "không cổng nào canh cặp này" về
@@ -11891,6 +11901,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     `Store`, việc `Store` hôm nay không làm. **Chủ mới: Story 10.9** — cùng story đo NFR trên
     thư viện thật mà mục liền kề (dòng ngay trên, "Phép tái cấu trúc dùng chung...") đã được
     giao; đo TRƯỚC rồi quyết có cần phơi bộ đếm ở tầng `Store` hay không, đừng vá mù.
+  → 2026-10-06 (Story 4.8 đã done) — Chủ: Story 10.9 — mục tự ghi "Chủ mới: Story 10.9" nhưng chưa ở dạng `Chủ:` mà cổng đọc được.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **Thân prompt dùng CRLF để sót một ký tự `\r` mồ côi khi một dòng marker bị gỡ và
@@ -12212,6 +12223,7 @@ chính nó.
     `expand_prompt_body` có thể đặt tại một ranh giới mảnh, hoặc một property test trên thân CRLF.
     **(Chủ: story nào chạm lại `core/ai/rag.rs`.)**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: pop_piece (src-tauri/src/core/ai/rag.rs:352-367) vẫn gỡ ký tự \r dựa theo đuôi của out, không theo đuôi của chính mảnh; không tìm thấy proptest nào trong ai_rag_contract.rs; còn thiếu: Chưa chứng minh nhánh đó bất khả hay liệt kê đầy đủ những gì expand_prompt_body có thể đặt ở một ranh giới mảnh. **Chủ: Story 4.8.**
+  → 2026-10-06 (Story 4.8 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **Nhánh `Done` của `wire::ai_translate_segment` gọi `mark_prompt_as_sent` không ca nào
@@ -12285,6 +12297,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-9-dich-theo-lo-va-huy-giua-chung.md`
   summary: Danh sách hàng của lô ở Panel AI Translation không cắt cửa sổ và chưa được đo ở đúng cỡ N mà Quyết định 1 cố ý không đặt trần. **(Chủ: Story 4.12 — bố cục màn hình hẹp, nơi đã có lịch đo trên máy thật.)**
   evidence: `<li v-for="row in aiTranslateBatchRows">` không windowing, và mảng nền bị thay mới ở mỗi sự kiện token/done/skipped, tức mỗi token gây một lượt so khớp lại trọn danh sách. Bất đối xứng đo được với chính build này: chi phí phía Rust đã được đo lại ở N≈184-262 câu (mục ngay trên), phía webview thì chưa có một con số nào ở cùng cỡ. Cần một phép đo ở N thật trên máy Ice trước khi quyết có phải virtualise hay không — NFR2 là 50 ms mỗi frame.
+  → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
 
 ## Deferred from: Story 4.10 — Lỗi mạng và lỗi API (2026-09-22)
 

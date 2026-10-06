@@ -60,7 +60,7 @@ Sau đợt di trú BMad v7, `check:debt-owner` dừng với lỗi hạ tầng v�
    **When** chạy `npm run test:story <ref> -- --list`
    **Then** lệnh tìm plan qua cây vé, và `4.8` với `4-8` ra cùng một plan
    **And** plan có khai test thì lệnh liệt kê đúng các test đó
-   **And** plan không khai test nào thì lệnh nói rõ như vậy và thoát khác 0, không in danh sách rỗng
+   **And** plan không khai test nào thì lệnh in cảnh báo nói rõ như vậy và vẫn chạy test lấy từ diff; lệnh chỉ thoát khác 0 khi không còn test nào để chạy
    **And** ref không có trong cây vé thì lệnh thoát khác 0 và nói đã tìm ở đâu
 
 8. **Luật trong AGENTS.md mô tả đúng cổng**
@@ -93,4 +93,5 @@ Sau đợt di trú BMad v7, `check:debt-owner` dừng với lỗi hạ tầng v�
 - Assumption: trạng thái của `Epic N` là `status:` trong tệp epic của nó.
 - Decision: (Ice đồng ý 2026-10-06) chủ mới mặc định cho một mục Story 4.x là `Epic 4` (epic còn mở). Mục nào rõ là thuộc một story đã lên kế hoạch ở epic khác thì chuyển sang story đó.
 - Assumption: các con trỏ chết khác trong AGENTS.md gốc (§15) nằm ngoài story này; story chỉ sửa câu mô tả cổng.
+- Decision: (Ice, 2026-10-06, lúc lập plan) AC7 nới: plan không khai test chỉ là cảnh báo, vì 126/141 plan không có dòng "Tests that move".
 - Risk medium: phần mềm không bị ảnh hưởng, nhưng cổng này chặn mọi lần push, và lỗi kiểu "xanh mà không quét gì" thì không ai thấy.

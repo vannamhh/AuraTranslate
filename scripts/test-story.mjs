@@ -65,12 +65,12 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, relative } from 'node:path';
+import { readTicketTree } from './lib/ticket-tree.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const RUST_TEST_DIR = join(ROOT, 'src-tauri', 'tests');
 const FRONT_TEST_DIR = join(ROOT, 'tests', 'frontend');
-const SPEC_DIR = join(ROOT, '_bmad-output', 'implementation-artifacts');
 
 // ── quần thể thật: đừng đoán, hãy đếm ────────────────────────────────────────────
 const rustTargets = readdirSync(RUST_TEST_DIR)
@@ -96,12 +96,9 @@ const strict = flag('strict');
 const diffRef = flagVal('diff', 'HEAD');
 
 // ── ① lời khai của spec ──────────────────────────────────────────────────────────
-function findSpec(id) {
-  const slug = id.replace(/\./g, '-');
-  const hit = readdirSync(SPEC_DIR).find(
-    (f) => f.startsWith(`spec-${slug}-`) || f === `spec-${slug}.md`,
-  );
-  return hit ? join(SPEC_DIR, hit) : null;
+function findSpec(ref) {
+  const tree = readTicketTree(ROOT);
+  return { path: tree.planFor(ref), searched: tree.searched };
 }
 
 function declaredFrom(specPath) {
@@ -149,12 +146,23 @@ let declared = { rust: new Set(), front: new Set() };
 let specPath = null;
 
 if (storyArg) {
-  specPath = findSpec(storyArg);
+  let found;
+  try {
+    found = findSpec(storyArg);
+  } catch (err) {
+    console.error(`Cây vé không đọc được: ${err.message}`);
+    process.exit(1);
+  }
+  specPath = found.path;
   if (!specPath) {
-    console.error(`KHÔNG tìm thấy spec cho story "${storyArg}" trong ${SPEC_DIR}`);
+    console.error(`KHÔNG tìm thấy plan cho ticket "${storyArg}" trong cây vé. Đã tìm ở:`);
+    for (const d of found.searched) console.error(`  ${relative(ROOT, d)}`);
     process.exit(1);
   }
   declared = declaredFrom(specPath);
+  if (!declared.rust.size && !declared.front.size) {
+    console.warn(`⚠️ plan ${relative(ROOT, specPath)} không khai test nào — chỉ chạy test lấy từ diff.`);
+  }
 }
 
 const touched = touchedFrom(diffRef);
@@ -167,7 +175,7 @@ const runFront = [...new Set([...declared.front, ...touched.front])].sort();
 
 // ── báo cáo ──────────────────────────────────────────────────────────────────────
 console.log('─'.repeat(78));
-if (specPath) console.log(`spec       : ${specPath.slice(ROOT.length + 1)}`);
+if (specPath) console.log(`plan       : ${relative(ROOT, specPath)}`);
 console.log(`mốc diff   : ${diffRef}${touched.ok ? '' : '  (git không đọc được — bỏ qua đối chứng)'}`);
 console.log(
   `quần thể   : ${rustTargets.length} target Rust · ${frontTests.length} tệp frontend`,
