@@ -1092,7 +1092,7 @@ action_items:
       nạp Chương có điền sẵn 7-4, Dịch AI một câu và Xem prompt; ghi số vào các mục
       nợ đo đã có và thêm mục cho nạp Chương (F1.3–F1.5)"
     owner: "Murat"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md"
   - id: "epic-7-retro-item-84-r-5-ice-quyết-năm-câu-ngữ-nghĩa-tm-q-1-q"
     epic: 7
