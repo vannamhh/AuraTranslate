@@ -279,6 +279,8 @@ const DICT_RESOURCE_DIR: &str = "dict";
 mod nfr_bench {
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, TryLockError};
     use std::thread;
     use std::time::{Duration, Instant};
 
@@ -292,6 +294,7 @@ mod nfr_bench {
     const MARKER_PREFIX: &str = "__nfr_bench_";
     const MARKER_SUFFIX: &str = "__";
     const MAX_MARKER_VALUE_BYTES: usize = 16 * 1024;
+    const LOCK_WATCH_MAX_REPORTED_WINDOWS: usize = 400;
     /// Tên Tác phẩm mặc định — lịch sử Story 5.14 (một fixture SQL thô, một Tác phẩm duy
     /// nhất). Story 6.18 Quyết định 5 tổng quát hoá: `AURA_NFR_BENCH_WORK_NAME` cho bàn đo
     /// khác trỏ đúng Tác phẩm của NÓ mà không sửa mã — 6.18 tự mở "NFR Story 6.18 Work 00"
@@ -403,7 +406,7 @@ mod nfr_bench {
 
     fn marker_key(marker: &str) -> Result<String, String> {
         match marker {
-            "usable" | "invalid" | "reading" | "back_library" => {
+            "usable" | "invalid" | "reading" | "back_library" | "e7_probe_done" | "e7_probe_error" | "e7_progress" => {
                 Ok(format!("{MARKER_PREFIX}{marker}{MARKER_SUFFIX}"))
             }
             _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
@@ -641,6 +644,315 @@ mod nfr_bench {
                 Ok("ack".to_owned())
             }
             _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
+        }
+    }
+
+    struct LockWatch {
+        stop: Arc<AtomicBool>,
+        join: thread::JoinHandle<LockWatchReport>,
+    }
+
+    struct LockWatchReport {
+        windows_us: Vec<u64>,
+        open_at_stop: bool,
+        max_gap_us: u64,
+        state_missing: bool,
+    }
+
+    /// `Poisoned` counts as unlocked: the guard is gone, only the data is suspect.
+    fn open_work_is_held(app: &tauri::AppHandle) -> Option<bool> {
+        let state = app.try_state::<crate::commands::project::OpenWorkState>()?;
+        let held = matches!(state.inner().try_lock(), Err(TryLockError::WouldBlock));
+        Some(held)
+    }
+
+    fn run_lock_watch(app: tauri::AppHandle, stop: Arc<AtomicBool>) -> LockWatchReport {
+        let mut report = LockWatchReport {
+            windows_us: Vec::new(),
+            open_at_stop: false,
+            max_gap_us: 0,
+            state_missing: false,
+        };
+        let mut window_start: Option<Instant> = None;
+        let mut last_poll = Instant::now();
+        loop {
+            let now = Instant::now();
+            report.max_gap_us = report.max_gap_us.max(now.duration_since(last_poll).as_micros() as u64);
+            last_poll = now;
+            match open_work_is_held(&app) {
+                None => report.state_missing = true,
+                Some(true) => {
+                    window_start.get_or_insert(now);
+                }
+                Some(false) => {
+                    if let Some(start) = window_start.take() {
+                        report.windows_us.push(now.duration_since(start).as_micros() as u64);
+                    }
+                }
+            }
+            if stop.load(Ordering::Acquire) {
+                if let Some(start) = window_start.take() {
+                    report.open_at_stop = true;
+                    report.windows_us.push(Instant::now().duration_since(start).as_micros() as u64);
+                }
+                return report;
+            }
+            thread::yield_now();
+        }
+    }
+
+    fn spawn_lock_watch(app: tauri::AppHandle) -> LockWatch {
+        let stop = Arc::new(AtomicBool::new(false));
+        let join = {
+            let stop = Arc::clone(&stop);
+            thread::spawn(move || run_lock_watch(app, stop))
+        };
+        LockWatch { stop, join }
+    }
+
+    fn finish_lock_watch(watch: LockWatch) -> Result<LockWatchReport, String> {
+        watch.stop.store(true, Ordering::Release);
+        watch.join.join().map_err(|_| "nfr-bench lock watcher thread panicked".to_owned())
+    }
+
+    struct Round {
+        hold_us: u64,
+        sum_us: u64,
+        windows: usize,
+        wall_ms: u64,
+        flags: u8,
+        max_poll_gap_us: u64,
+        outcome: String,
+    }
+
+    impl Round {
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({
+                "h": self.hold_us,
+                "s": self.sum_us,
+                "w": self.windows,
+                "t": self.wall_ms,
+                "f": self.flags,
+                "g": self.max_poll_gap_us,
+                "o": self.outcome,
+            })
+        }
+    }
+
+    fn measure_round(app: &tauri::AppHandle, stage: &str, action: impl FnOnce() -> String) -> Result<Round, String> {
+        put_marker(app, "e7_progress", &serde_json::json!({ "stage": stage }).to_string())?;
+        let watch = spawn_lock_watch(app.clone());
+        let started = Instant::now();
+        let outcome = action();
+        let wall_ms = started.elapsed().as_millis() as u64;
+        let report = finish_lock_watch(watch)?;
+        let mut flags = 0u8;
+        flags |= u8::from(report.windows_us.len() > LOCK_WATCH_MAX_REPORTED_WINDOWS);
+        flags |= u8::from(report.open_at_stop) << 1;
+        flags |= u8::from(report.state_missing) << 2;
+        Ok(Round {
+            hold_us: report.windows_us.iter().copied().max().unwrap_or(0),
+            sum_us: report.windows_us.iter().sum(),
+            windows: report.windows_us.len(),
+            wall_ms,
+            flags,
+            max_poll_gap_us: report.max_gap_us,
+            outcome,
+        })
+    }
+
+    fn outcome_of<T, E: std::fmt::Debug>(result: &Result<T, E>) -> String {
+        match result {
+            Ok(_) => "ok".to_owned(),
+            Err(err) => {
+                let debug = format!("{err:?}");
+                let code = debug.split('"').nth(1).unwrap_or(&debug);
+                format!("rejected:{code}").chars().take(60).collect()
+            }
+        }
+    }
+
+    const E7_ROUNDS: usize = 20;
+    const E7_BATCH_SIZE: usize = 100;
+    const E7_PROMPT_SET: &str = "E7 R4 TM prompt";
+    const E7_PROMPT_BODY: &str = "Translate the sentence to Vietnamese.\n{{tm_similar_segments}}\n{{source_segment}}";
+
+    /// Drives the six measured commands through their real wire shells on this thread, so a
+    /// stalled webview cannot hold up the measurement.
+    fn run_e7_probe(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+        use crate::commands::{aiconfig, aiprompt, aitranslate, chapter, promptset, segment, tm};
+        use crate::core::aiconfig::{AiConfigField, AiConfigTier};
+        use crate::core::promptset::PromptSetTier;
+        use tauri::ipc::Channel;
+
+        let ipc = |what: &str, err: &dyn std::fmt::Debug| format!("{what}: {err:?}");
+        for (field, value) in [
+            (AiConfigField::Provider, "e7-r4-bench"),
+            (AiConfigField::Endpoint, "http://127.0.0.1:1/v1"),
+            (AiConfigField::Model, "e7-r4-bench-model"),
+            (AiConfigField::Temperature, "0.3"),
+            (AiConfigField::MaxTokens, "256"),
+        ] {
+            aiconfig::wire::ai_config_save_field(app.clone(), AiConfigTier::Global, field, value.to_owned())
+                .map_err(|e| ipc("ai_config_save_field", &e))?;
+        }
+        promptset::wire::prompt_set_create(
+            app.clone(),
+            PromptSetTier::Global,
+            E7_PROMPT_SET.to_owned(),
+            E7_PROMPT_BODY.to_owned(),
+        )
+        .map_err(|e| ipc("prompt_set_create", &e))?;
+        let chapters = chapter::wire::list_chapters(app.clone()).map_err(|e| ipc("list_chapters", &e))?;
+        let [only_chapter] = chapters.as_slice() else {
+            return Err(format!("expected exactly one Chapter, got {}", chapters.len()));
+        };
+        chapter::wire::open_chapter(app.clone(), only_chapter.chapter_id).map_err(|e| ipc("open_chapter", &e))?;
+        let loaded = segment::wire::read_open_chapter_segments(app.clone(), Some(false))
+            .map_err(|e| ipc("read_open_chapter_segments", &e))?;
+        let live: Vec<_> = loaded.segments.iter().filter(|s| s.retired_at.is_none()).collect();
+        let ids: Vec<i64> = live.iter().map(|s| s.id).collect();
+        let sources: Vec<String> = live.iter().map(|s| s.source_text.clone()).collect();
+        let distinct: std::collections::BTreeSet<&String> = sources.iter().collect();
+        let population = serde_json::json!({
+            "segments": live.len(),
+            "empty_targets_before_prefill": live.iter().filter(|s| s.target_text.is_empty()).count(),
+            "distinct_sources": distinct.len(),
+        });
+        if ids.len() < E7_BATCH_SIZE {
+            return Err(format!("Chapter holds {} segments, the batch needs {E7_BATCH_SIZE}", ids.len()));
+        }
+        let batch_ids: Vec<i64> = ids[..E7_BATCH_SIZE].to_vec();
+
+        let control = measure_round(app, "control", || {
+            thread::sleep(Duration::from_secs(1));
+            "ok".to_owned()
+        })?;
+
+        let assembled =
+            aiprompt::wire::ai_prompt_assemble(app.clone(), Some(E7_PROMPT_SET.to_owned()), ids[0])
+                .map_err(|e| ipc("ai_prompt_assemble", &e))?;
+        let prompt_has_tm = assembled.ledger.tm.kind == "searched";
+        let prompt_tm_similar_count = assembled.ledger.tm.similar_segments.as_ref().map(Vec::len);
+
+        let mut details = serde_json::Map::new();
+        let mut commands = serde_json::Map::new();
+        for label in [
+            "tm_concordance",
+            "tm_list_pairs",
+            "read_open_chapter_segments",
+            "ai_translate_segment",
+            "ai_prompt_assemble",
+            "ai_translate_batch",
+        ] {
+            let mut rounds = Vec::with_capacity(E7_ROUNDS);
+            for round in 0..E7_ROUNDS {
+                let stage = format!("{label} r{round}");
+                let segment_id = ids[(round * 7) % ids.len()];
+                let measured = match label {
+                    "tm_concordance" => {
+                        let query: String = sources[(round * 11) % sources.len()].chars().take(4).collect();
+                        measure_round(app, &stage, || {
+                            let result = segment::wire::tm_concordance(app.clone(), query);
+                            if round == 0 {
+                                if let Ok(found) = &result {
+                                    details.insert("concordance_hits_round_1".to_owned(), found.hits.len().into());
+                                }
+                            }
+                            outcome_of(&result)
+                        })?
+                    }
+                    "tm_list_pairs" => measure_round(app, &stage, || {
+                        let result =
+                            tm::wire::tm_list_pairs(app.clone(), "all".to_owned(), "both".to_owned(), String::new());
+                        if round == 0 {
+                            if let Ok(listed) = &result {
+                                details.insert("list_pairs_total_round_1".to_owned(), listed.total_pairs.into());
+                            }
+                        }
+                        outcome_of(&result)
+                    })?,
+                    "read_open_chapter_segments" => measure_round(app, &stage, || {
+                        let result = segment::wire::read_open_chapter_segments(app.clone(), Some(true));
+                        if round == 0 {
+                            if let Ok(read) = &result {
+                                let filled = read.segments.iter().filter(|s| !s.target_text.is_empty()).count();
+                                details.insert("prefill_filled_after_round_1".to_owned(), filled.into());
+                            }
+                        }
+                        outcome_of(&result)
+                    })?,
+                    "ai_translate_segment" => measure_round(app, &stage, || {
+                        let result = tauri::async_runtime::block_on(aitranslate::wire::ai_translate_segment(
+                            app.clone(),
+                            segment_id,
+                            Some(E7_PROMPT_SET.to_owned()),
+                            Channel::new(|_| Ok(())),
+                        ));
+                        outcome_of(&result)
+                    })?,
+                    "ai_prompt_assemble" => measure_round(app, &stage, || {
+                        let result = aiprompt::wire::ai_prompt_assemble(
+                            app.clone(),
+                            Some(E7_PROMPT_SET.to_owned()),
+                            segment_id,
+                        );
+                        outcome_of(&result)
+                    })?,
+                    _ => measure_round(app, &stage, || {
+                        let result = tauri::async_runtime::block_on(aitranslate::wire::ai_translate_batch(
+                            app.clone(),
+                            batch_ids.clone(),
+                            Some(E7_PROMPT_SET.to_owned()),
+                            Channel::new(|_| Ok(())),
+                        ));
+                        outcome_of(&result)
+                    })?,
+                };
+                rounds.push(measured.to_json());
+            }
+            commands.insert(label.to_owned(), serde_json::Value::Array(rounds));
+        }
+
+        Ok(serde_json::json!({
+            "rounds": E7_ROUNDS,
+            "batch_size": E7_BATCH_SIZE,
+            "population": population,
+            "prompt_has_tm": prompt_has_tm,
+            "prompt_tm_similar_count": prompt_tm_similar_count,
+            "control": control.to_json(),
+            "commands": commands,
+            "details": details,
+        }))
+    }
+
+    static E7_PROBE_STARTED: AtomicBool = AtomicBool::new(false);
+
+    /// Runs the whole R-4 measurement on a background thread; the result lands in marker `e7_probe_done`.
+    #[tauri::command]
+    pub fn nfr_bench_e7_start(app: tauri::AppHandle) -> Result<(), String> {
+        bench_home()?;
+        if E7_PROBE_STARTED.swap(true, Ordering::AcqRel) {
+            return Err("nfr-bench e7 probe was already started".to_owned());
+        }
+        thread::spawn(move || match run_e7_probe(&app) {
+            Ok(result) => {
+                let _ = put_marker(&app, "e7_probe_done", &result.to_string());
+            }
+            Err(detail) => {
+                let _ = put_marker(&app, "e7_probe_error", &serde_json::json!({ "detail": detail }).to_string());
+            }
+        });
+        Ok(())
+    }
+
+    /// Lets the probe record its completion or failure in the marker table.
+    #[tauri::command]
+    pub fn nfr_bench_e7_put_marker(app: tauri::AppHandle, marker: String, value: String) -> Result<(), String> {
+        bench_home()?;
+        match marker.as_str() {
+            "e7_probe_done" | "e7_probe_error" | "e7_progress" => put_marker(&app, &marker, &value),
+            _ => Err(format!("nfr-bench e7 marker is outside the reviewed allowlist: {marker:?}")),
         }
     }
 }
@@ -988,6 +1300,10 @@ pub fn run() {
             // mang ten nay, mot cong moi, hay dependency moi.
             #[cfg(feature = "nfr-bench")]
             nfr_bench::nfr_bench_mark_and_wait_phase,
+            #[cfg(feature = "nfr-bench")]
+            nfr_bench::nfr_bench_e7_put_marker,
+            #[cfg(feature = "nfr-bench")]
+            nfr_bench::nfr_bench_e7_start,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

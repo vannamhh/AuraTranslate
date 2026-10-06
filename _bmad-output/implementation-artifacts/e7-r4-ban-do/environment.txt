@@ -1,0 +1,16 @@
+measurement_started_utc=2026-10-06T01:40:49Z
+measurement_ended_utc=2026-10-06T02:24:37Z
+baseline_commit=bc4b41d06fb36bb6b0275a4786ee762155982300
+working_diff_sha256=b115719d02463bc69a8c53f7966bd4ca99863b22d7918f08328620e37ce6a41b
+release_app_sha256=a8c5d13b367cc8ed7068b27bc3b5dda820c2558d63ddde95aa96b191da6191b0
+profile=release, feature nfr-bench, no dictionary layers bundled
+os=macOS 15.8.1 (24H212)
+model=MacBookPro16,1
+cpu=Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
+logical_cpu=16
+ram_bytes=68719476736
+rustc=rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)
+load_before= 8:40  up 4 days, 2 mins, 6 users, load averages: 7.85 4.49 3.59
+load_after= 9:24  up 4 days, 45 mins, 6 users, load averages: 10.22 11.08 11.40
+watcher=try_lock poll, yield_now spin; hold = longest single held window per round
+ai_endpoint=http://127.0.0.1:1/v1; keychain read stubbed under nfr-bench

@@ -738,6 +738,95 @@ fn nfr_bench_is_absent_from_default_and_its_command_is_cfg_gated() {
     );
 }
 
+/// The bench probe commands are registered only under the `nfr-bench`
+/// guard, and live inside the `mod nfr_bench` that is itself gated.
+#[test]
+fn the_bench_probe_commands_are_cfg_gated_and_live_inside_the_bench_module() {
+    const GUARD: &str = r#"#[cfg(feature = "nfr-bench")]"#;
+    const REGISTRATIONS: [&str; 2] = [
+        "nfr_bench::nfr_bench_e7_put_marker,",
+        "nfr_bench::nfr_bench_e7_start,",
+    ];
+    let lib_path = manifest_dir().join("src/lib.rs");
+    let lib_src = fs::read_to_string(&lib_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", lib_path.display()));
+    let lines: Vec<&str> = lib_src.lines().collect();
+    for registration in REGISTRATIONS {
+        let at = lines
+            .iter()
+            .position(|line| line.trim() == registration)
+            .unwrap_or_else(|| panic!("`src/lib.rs` no longer registers `{registration}`"));
+        let above = lines[..at]
+            .iter()
+            .rev()
+            .map(|l| l.trim())
+            .find(|t| !t.is_empty() && !t.starts_with("//"));
+        assert_eq!(
+            above,
+            Some(GUARD),
+            "`{registration}` is not directly under `{GUARD}`: a default build would expose it"
+        );
+    }
+
+    let module_start = lines
+        .iter()
+        .position(|line| line.trim() == "mod nfr_bench {")
+        .expect("`mod nfr_bench {` not found in src/lib.rs");
+    assert_eq!(
+        lines[..module_start].iter().rev().map(|l| l.trim()).find(|t| !t.is_empty() && !t.starts_with("//")),
+        Some(GUARD),
+        "`mod nfr_bench` lost its cfg guard"
+    );
+    let module_end = lines
+        .iter()
+        .enumerate()
+        .skip(module_start)
+        .find(|(_, line)| **line == "}")
+        .map(|(i, _)| i)
+        .expect("end of `mod nfr_bench` not found");
+    for name in [
+        "fn nfr_bench_e7_put_marker",
+        "fn nfr_bench_e7_start",
+        "OpenWorkState",
+    ] {
+        let inside = lines[module_start..module_end].iter().any(|l| l.contains(name));
+        assert!(inside, "`{name}` is not inside `mod nfr_bench` of src/lib.rs");
+        let outside = lines[..module_start].iter().chain(lines[module_end..].iter()).any(|l| {
+            let t = l.trim();
+            !t.starts_with("//") && t.contains(name) && !t.contains("nfr_bench::")
+        });
+        assert!(
+            name == "OpenWorkState" || !outside,
+            "`{name}` also appears outside `mod nfr_bench` of src/lib.rs"
+        );
+    }
+}
+
+/// The dummy API key exists only in the `nfr-bench` build of
+/// `keychain::read`; the default `read` is the real keychain call and carries the negated guard.
+#[test]
+fn the_dummy_api_key_stub_is_cfg_gated_and_the_default_read_is_the_real_keychain_call() {
+    let path = manifest_dir().join("src/core/aiconfig/keychain.rs");
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let lines: Vec<&str> = src.lines().collect();
+    const SIGNATURE: &str = "pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {";
+    let defs: Vec<usize> = lines.iter().enumerate().filter(|(_, l)| l.trim() == SIGNATURE).map(|(i, _)| i).collect();
+    assert_eq!(defs.len(), 2, "`keychain::read` must have exactly two cfg-selected definitions");
+    let guard_of = |at: usize| -> &str {
+        lines[..at].iter().rev().map(|l| l.trim()).find(|t| !t.is_empty() && !t.starts_with("///") && !t.starts_with("//")).unwrap_or("")
+    };
+    assert_eq!(guard_of(defs[0]), r#"#[cfg(feature = "nfr-bench")]"#, "stub definition lost its guard");
+    assert_eq!(guard_of(defs[1]), r#"#[cfg(not(feature = "nfr-bench"))]"#, "real definition lost its negated guard");
+
+    let stub_body: String = lines[defs[0]..defs[1]].join("\n");
+    assert!(stub_body.contains("ApiKeySecret::new("), "stub must return a dummy key");
+    assert!(!stub_body.contains("entry()"), "stub must never touch the OS keychain");
+    let real_body: String = lines[defs[1]..].join("\n");
+    assert!(real_body.contains("entry()?"), "default `read` must call the real keychain");
+    assert!(!real_body.contains("dummy"), "default `read` must not carry the dummy key");
+    assert_eq!(src.matches("dummy-api-key").count(), 1, "the dummy key literal must appear exactly once");
+}
+
 /// Bộ lái e2e và mã Rust phải khai **cùng một** tên biến.
 ///
 /// 🔴 Đây là ca đắt nhất của nhóm này, vì chỗ trôi hỏng **IM LẶNG và theo hướng tệ nhất**:
@@ -1696,13 +1785,13 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
     ("src/commands/tm.rs", 3, 6, 6, ""),
     (
         "src/lib.rs",
-        2,
+        4,
         0,
         0,
-        "CHUA DO -- chu: Dev. Hai vo: `confirm_exit_flush`, va `nfr_bench_mark_and_wait_phase` \
-         chi ton tai duoi `#[cfg(feature = \"nfr-bench\")]`. Phep dem nay doc VAN BAN NGUON nen \
-         no dem ca hai trong MOI ban dung, co hay khong co `--features nfr-bench` -- do la ly \
-         do cong nay cho cung mot phan quyet o ca hai ban dung.",
+        "CHUA DO -- chu: Dev. Bon vo: `confirm_exit_flush`, va ba lenh `nfr_bench_*` chi ton tai \
+         duoi `#[cfg(feature = \"nfr-bench\")]` (mark_and_wait_phase, e7_put_marker, e7_start). \
+         Phep dem nay doc VAN BAN NGUON nen no dem ca ba trong MOI ban dung, co hay khong co `--features \
+         nfr-bench` -- do la ly do cong nay cho cung mot phan quyet o ca hai ban dung.",
     ),
 ];
 
@@ -1840,9 +1929,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (66, 49),
+        (68, 49),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         66/49.\n\n\
+         68/49.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

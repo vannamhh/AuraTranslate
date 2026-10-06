@@ -183,6 +183,12 @@ pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
     }
 }
 
+/// Fixed dummy key so a bench build reaches prompt assembly without the OS keychain.
+#[cfg(feature = "nfr-bench")]
+pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
+    Ok(Some(ApiKeySecret::new("nfr-bench-dummy-api-key".to_owned())))
+}
+
 /// Đọc giá trị thô, bọc trong [`ApiKeySecret`] — Story 4.8 (`TranslationProvider`, AD-2).
 ///
 /// 🔵 **SỬA 2026-09-21 (Story 4.8, Phase 2) — `#[allow(dead_code)]` gỡ bỏ, chỗ gọi đã có
@@ -190,6 +196,7 @@ pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
 /// dựng `TranslateRequest`, đúng lời câu cũ đã hứa ("Story 4.8 là chỗ gọi đầu tiên"). Giữ
 /// `#[allow]` sau khi có chỗ gọi thật là một lời nói dối về đồ thị gọi (root `AGENTS.md`).
 /// `None` khi chưa cấu hình (khác lỗi keychain từ chối trả lời), cùng phân biệt `configured`.
+#[cfg(not(feature = "nfr-bench"))]
 pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
     match entry()?.get_password() {
         Ok(value) => Ok(Some(ApiKeySecret::new(value))),
