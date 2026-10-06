@@ -1,0 +1,293 @@
+# tickets.toml — Đường nhập — mọi nguồn văn bản vào được, và không hỏng im lặng. One [[entry]] per story, in the order epics.md writes them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Mũi thăm dò ba lựa chọn thư viện"
+description = "Biết trước ba thư viện nền của đường nhập có dùng được không và có tương thích GPL v3 không."
+verify = "tỉ lệ bóc sai được đo và ghi lại."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-1-mũi-thăm-dò-ba-lựa-chọn-thư-viện"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Pipeline nhập một chuỗi thứ tự cố định, dùng chung mọi nguồn"
+description = "Mọi nguồn văn bản đi qua đúng một chuỗi xử lý theo đúng một thứ tự."
+verify = "đúng thứ tự: giải mã bảng mã → bóc nội dung chính → làm sạch theo luật → chuẩn hoá đoạn & khoảng trắng → tách Chương theo mẫu phân tách → xem trước + sửa tay → tách segment + cờ kết đoạn → ghi xuống `.atproj`."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-2-pipeline-nhập-một-chuỗi-thứ-tự-cố-định-dùng-chung-mọi-nguồn"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Bảng mã — phát hiện và dải đối chiếu năm bản dựng thật"
+description = "Thấy ngay bằng mắt rằng bảng mã đang sai và sửa được trong một giây."
+verify = "hệ thống tự phát hiện trong năm bảng mã: UTF-8 · GB18030 · GBK · Big5 · UTF-16."
+covers = ["FR126"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-3-bảng-mã-phát-hiện-và-dải-đối-chiếu-năm-bản-dựng-thật"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Chuẩn hoá xuống dòng và khoảng trắng"
+description = "Văn bản tải về được dọn cho gọn trước khi tách câu."
+verify = "các dòng đó được gộp lại."
+covers = ["FR125"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-4-chuẩn-hoá-xuống-dòng-và-khoảng-trắng"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Luật làm sạch lộ ra và hiện thứ sắp xoá"
+description = "Thấy chính xác luật nào sắp xoá chữ nào trước khi nó xoá."
+verify = "là một danh sách mẫu — chuỗi hoặc biểu thức chính quy."
+covers = ["FR124"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-5-luật-làm-sạch-lộ-ra-và-hiện-thứ-sắp-xoá"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Tách Chương theo mẫu phân tách"
+description = "Cấu hình mẫu nhận diện đầu chương và thấy ngay kết quả tách."
+verify = "hệ thống mời tách thành nhiều Chương thay vì tạo một Chương khổng lồ."
+covers = ["FR14"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-6-tách-chương-theo-mẫu-phân-tách"
+
+[[entry]]
+id = "6b"
+type = "story"
+title = "Nhập nhiều tệp cùng lúc"
+description = "Đưa nhiều tệp vào một lần và soát chúng trong cùng một màn xem trước."
+verify = "mỗi tệp thành một Chương, hoặc được tách tiếp theo mẫu phân tách — theo lựa chọn của người dùng."
+covers = ["FR14"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-6b-nhập-nhiều-tệp-cùng-lúc"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Nhập từ URL bằng danh sách link"
+description = "Dán một danh sách link và biết chắc ứng dụng chỉ tải đúng những link đó."
+verify = "hệ thống xử lý đúng thứ tự đã cho."
+covers = ["FR122"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-7-nhập-từ-url-bằng-danh-sách-link"
+
+[[entry]]
+id = "7b"
+type = "story"
+title = "Thêm Chương vào Tác phẩm có sẵn"
+description = "Dán link các chương mới vào đúng Tác phẩm tôi đang dịch."
+verify = "chọn được Tác phẩm mới hoặc một Tác phẩm sẵn có trong Library."
+covers = ["FR122"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-7b-thêm-chương-vào-tác-phẩm-có-sẵn"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Allowlist mạng hai tầng và nhật ký domain"
+description = "Kiểm chứng được bằng mắt rằng ứng dụng chỉ gọi tới những nơi tôi cho phép."
+verify = "allowlist được lập và sống đúng một lần nhập — hết lần nhập thì hết hiệu lực."
+covers = ["NFR19", "NFR12"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Bóc nội dung chính và sửa ranh giới bằng bàn phím"
+description = "Sửa lại chỗ thuật toán bóc thiếu hoặc bóc thừa, bằng bàn phím."
+verify = "dùng một thuật toán chung, không có bộ đọc riêng cho từng website."
+covers = ["FR123"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-9-bóc-nội-dung-chính-và-sửa-ranh-giới-bằng-bàn-phím"
+
+[[entry]]
+id = "10a"
+type = "story"
+title = "Xem trước theo từng Chương và điều hướng Chương"
+description = "Soát được từng Chương một, không chỉ Chương đầu."
+verify = "mỗi Chương mang dữ liệu của chính nó ở cả tầng ranh giới bóc lẫn tầng luật làm sạch."
+covers = ["FR132"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-10a-xem-trước-theo-từng-chương-và-điều-hướng-chương"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Bộ lọc \"cần xem\""
+description = "Công cụ chỉ cho tôi những Chương thật sự cần nhìn."
+verify = "đầu màn hình luôn hiện hai con số: *`N` Chương cần xem* và *`M` Chương sạch*."
+covers = ["FR132"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-10-bộ-lọc-cần-xem"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Ảnh tải về `.atproj`, neo vị trí, và URL gốc"
+description = "Ảnh trong bài nằm ngay trong thư mục Tác phẩm của tôi."
+verify = "tải về và lưu bên trong `.atproj/assets/` như một file thật."
+covers = ["FR45", "FR127"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-11-ảnh-tải-về-atproj-neo-vị-trí-và-url-gốc"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Đọc `.docx`"
+description = "Mở một file `.docx` như mọi định dạng khác."
+verify = "văn bản đọc ra đúng và đi vào pipeline từ bước sau giải mã bảng mã."
+covers = ["FR13"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-12-đọc-docx"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Alt-text và caption là hai `Segment` mang trường vai"
+description = "Dịch riêng chú thích ảnh và mô tả cho trình đọc màn hình."
+verify = "là một `Segment` bình thường mang trường vai = `alt`."
+covers = ["FR44", "FR129"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-13-alt-text-và-caption-là-hai-segment-mang-trường-vai"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Hiển thị ảnh đúng vị trí"
+description = "Thấy ảnh nằm đúng chỗ của nó trong bài, cả khi dịch lẫn khi đọc lại."
+verify = "ảnh hiển thị đúng vị trí của chúng trong văn bản gốc."
+covers = ["FR42", "FR43"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-14-hiển-thị-ảnh-đúng-vị-trí"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Xuất xứ tài liệu ở tầng Chương"
+description = "Tác giả và link bài gốc được ghi lại tự động ngay lúc nhập."
+verify = "bốn trường trên `CHAPTER`: tên tác giả bài gốc · tên báo hoặc website nguồn · URL bài gốc · ngày đăng bài gốc."
+covers = ["FR128"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-15-xuất-xứ-tài-liệu-ở-tầng-chương"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Nhập tài liệu song ngữ hai cột"
+description = "Đưa một bản dịch do người khác làm vào công cụ mà không mất bản dịch đó."
+verify = "người dùng khai báo cột nào là nguồn, cột nào là đích, và ngôn ngữ nguồn."
+covers = ["FR115"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-16-nhập-tài-liệu-song-ngữ-hai-cột"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Khớp câu trong từng cặp hàng"
+description = "Nối tay những chỗ số câu hai bên lệch nhau."
+verify = "hệ thống tách cả hai phía thành câu và khớp bên trong từng cặp hàng."
+covers = ["FR116"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-17-khớp-câu-trong-từng-cặp-hàng"
+
+[[entry]]
+id = "16b"
+type = "story"
+title = "Bộ lọc \"cần xem\" cho bản xem trước song ngữ"
+description = "Thấy ngay Chương nào luật làm sạch hay bước chuẩn hoá đã đụng mạnh tay."
+verify = "đầu màn hình luôn hiện hai con số: *`N` Chương cần xem* và *`M` Chương sạch*."
+covers = ["FR132"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-16b-bộ-lọc-cần-xem-cho-bản-xem-trước-song-ngữ"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật"
+description = "Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật. Đã gộp vào Story 10.9 (AC đã ở 10.9); phần việc đã làm là đầu vào của 10.9."
+verify = "Phán quyết đo NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật do Story 10.9 nghiệm thu."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that"
+
+[[entry]]
+id = "16c"
+type = "story"
+title = "Nhập song ngữ từ bảng `.docx`"
+description = """
+Nhập bảng hai cột trong `.docx` như nhập `.csv`.
+
+Criteria gốc từ epics.md (Story 6.16c):
+
+**Given** một `.docx` có bảng hai cột
+**When** nhập song ngữ
+**Then** bộ đọc `.docx` giao **hàng** của bảng (không làm phẳng ô thành đoạn rời), và đường song ngữ của Story 6.16 nhận chúng như hàng `.csv`
+
+**Given** một `.docx` có nhiều bảng hoặc không có bảng nào
+**When** xem trước
+**Then** màn xem trước nói rõ bảng nào được dùng, hoặc từ chối có tên lý do — không nhập im lặng một bảng đoán
+
+**Given** thay đổi bộ đọc `.docx`
+**When** kiểm
+**Then** đường nhập `.docx` đơn ngữ giữ nguyên từng byte, và `docx_boundary.rs` vẫn xanh
+"""
+verify = "bộ đọc `.docx` giao hàng của bảng (không làm phẳng ô thành đoạn rời), và đường song ngữ của Story 6.16 nhận chúng như hàng `.csv`."
+covers = ["FR115"]
+after = [16, "16b"]
+hitl = false
+risk = "low"
+v6_key = "6-16c-nhập-song-ngữ-từ-bảng-docx"

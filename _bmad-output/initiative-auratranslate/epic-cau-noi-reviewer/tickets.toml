@@ -1,0 +1,660 @@
+# tickets.toml — epic-cau-noi-reviewer. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Mũi thăm dò thư viện diff"
+description = '''
+Chủ dự án được: chọn thư viện diff bằng dữ liệu thật thay vì bằng mô tả trên trang crate. Mục đích: Review Mode bôi màu đúng chỗ mắt người cần nhìn.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** `similar` và `dissimilar`
+**When** thử
+**Then** chạy **cả hai** trên bản review thật của chủ dự án
+
+**Given** hai kết quả diff
+**When** so
+**Then** đánh giá theo đánh đổi đã biết — diff cấp grapheme so với semantic cleanup
+
+**Given** thư viện được chọn
+**When** đưa vào Stack
+**Then** đã rà tương thích GPL v3
+**And** ghi vào bảng Stack của `ARCHITECTURE-SPINE.md`
+
+**Given** văn bản tiếng Việt nhiều dấu
+**When** diff
+**Then** kiểm bằng chuỗi dày dấu — không đánh giá bằng chuỗi Latin
+
+**Given** phần bôi màu diff
+**When** kiểm tương phản
+**Then** đạt WCAG AA ở **cả hai** theme
+'''
+verify = "Với `similar` và `dissimilar`, khi thử thì chạy cả hai trên bản review thật của chủ dự án"
+covers = ["NFR15"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-1-mũi-thăm-dò-thư-viện-diff"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Phạm vi xuất"
+description = '''
+Người dịch được: chọn xuất một chương, vài chương, hay cả bộ. Mục đích: tôi gửi đúng phần reviewer cần mà không phải cắt file bằng tay.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** màn hình xuất
+**When** mở
+**Then** chọn được phạm vi: **một Chương · nhiều Chương đã chọn · cả Tác phẩm**
+
+**Given** phạm vi đã chọn
+**When** hiển thị
+**Then** thấy số Chương và số segment sẽ được xuất
+
+**Given** phạm vi xuất
+**When** áp
+**Then** áp cho **mọi định dạng xuất** như nhau
+
+**Given** phạm vi xuất còn câu **chưa xác nhận**
+**When** người dùng chuẩn bị xuất
+**Then** hiện cảnh báo **trước lúc xuất**, nêu rõ bao nhiêu câu
+
+**Given** đường dẫn xuất
+**When** chọn
+**Then** cấp qua hộp thoại chọn thư mục — scope động, không phải scope tĩnh
+
+**Given** màn hình xuất có khối xem trước hình dạng file
+**When** hiển thị
+**Then** khối đó **mô phỏng một tài liệu Word**, dùng màu viết cứng có chủ ý chứ không dùng token giấy ngà của ứng dụng
+**And** các màu đó vẫn phải đạt WCAG AA
+**And** đây là **ngoại lệ đã đặc tả** — áp token vào đó sẽ nói dối về thứ reviewer thật sự nhìn thấy
+
+**Given** mọi thao tác trên màn hình xuất
+**When** thực hiện
+**Then** làm được bằng bàn phím
+'''
+verify = "Với màn hình xuất, khi mở thì chọn được phạm vi: một Chương · nhiều Chương đã chọn · cả Tác phẩm"
+covers = ["FR89"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-2-phạm-vi-xuất"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Xuất `.docx` bảng hai cột theo segment"
+description = '''
+Người dịch được: gửi reviewer một file mà mỗi câu nằm một hàng. Mục đích: họ sửa ở đâu tôi cũng nhập ngược về đúng chỗ đó được.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** phạm vi xuất đã chọn
+**When** xuất định dạng này
+**Then** sinh ra `.docx` dạng **bảng hai cột** — cột trái văn bản gốc, cột phải bản dịch
+
+**Given** bảng xuất ra
+**When** kiểm cấu trúc
+**Then** **đối xứng theo segment** — mỗi segment một hàng
+
+**Given** file xuất ra
+**When** mở bằng Microsoft Word hoặc LibreOffice
+**Then** hiển thị đúng, bảng không vỡ
+
+**Given** một segment chưa có bản dịch
+**When** xuất
+**Then** ô bên phải trống, hàng vẫn tồn tại để giữ đối xứng
+
+**Given** định dạng này
+**When** người dùng chọn
+**Then** màn hình xuất nêu rõ **đây là định dạng nhập lại được**
+
+**Given** file này
+**When** nhập ngược vào app
+**Then** đi qua đường FR90/FR91 bình thường
+'''
+verify = "Với phạm vi xuất đã chọn, khi xuất định dạng này thì sinh ra `.docx` dạng bảng hai cột — cột trái văn bản gốc, cột phải bản dịch"
+covers = ["FR87"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-3-xuất-docx-bảng-hai-cột-theo-segment"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Xuất `.docx` một khối theo đoạn cho đăng bài"
+description = '''
+Người dịch bài đăng được: bôi đen cột phải và dán thẳng sang trình soạn thảo website. Mục đích: người đăng nhận được văn bản liền mạch chứ không phải mảnh vụn bảng biểu.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** phạm vi xuất đã chọn
+**When** xuất định dạng này
+**Then** sinh ra `.docx` bảng hai cột với **một hàng duy nhất cho cả Chương**
+
+**Given** bảng xuất ra
+**When** kiểm hình thức
+**Then** **không có đường kẻ ngang**
+
+**Given** hai ô của hàng
+**When** kiểm cấu trúc đoạn
+**Then** giữ **đúng số lần xuống đoạn như nhau**
+
+**Given** số lần xuống đoạn
+**When** xác định
+**Then** đọc từ **cờ kết đoạn đã lưu** trên segment
+**And** **không có đường mã nào suy ra đoạn từ nội dung lúc xuất**
+
+**Given** người dùng bôi đen cột phải rồi dán sang trình soạn thảo của website
+**When** thực hiện
+**Then** ra **văn bản liền mạch**, không kèm mảnh vụn bảng biểu
+
+**Given** người dùng chọn định dạng này
+**When** hiển thị
+**Then** màn hình xuất nói rõ **ngay lúc chọn** rằng định dạng này **không nhập lại được**
+**And** thông tin này không nằm trong tài liệu hướng dẫn
+
+**Given** phạm vi xuất còn câu chưa xác nhận
+**When** xuất định dạng này
+**Then** **cảnh báo trước lúc xuất**
+**And** **không đánh dấu câu chưa xác nhận trong file** — một nền màu hay dòng ghi chú xen giữa văn xuôi sẽ đi thẳng vào bài đăng
+'''
+verify = "Với phạm vi xuất đã chọn, khi xuất định dạng này thì sinh ra `.docx` bảng hai cột với một hàng duy nhất cho cả Chương"
+covers = ["FR121"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-4-xuất-docx-một-khối-theo-đoạn-cho-đăng-bài"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Chọn cách xuất hình ảnh"
+description = '''
+Người dịch bài đăng được: chọn xuất ảnh theo link gốc để người đăng dựng lại bài trên website. Mục đích: họ không phải tự đi tìm lại từng tấm ảnh.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** màn hình xuất
+**When** mở
+**Then** có lựa chọn **theo link gốc** hoặc **theo file ảnh**
+
+**Given** lựa chọn này
+**When** áp
+**Then** áp cho **từng lần xuất**, cùng khuôn với phạm vi xuất
+
+**Given** người dùng chọn **theo link gốc**
+**When** xuất
+**Then** tài liệu xuất ra trỏ tới **URL ảnh của bài gốc**
+
+**Given** người dùng chọn **theo file ảnh**
+**When** xuất
+**Then** ảnh đi kèm tài liệu xuất, lấy từ `.atproj/assets/`
+
+**Given** phạm vi xuất chứa ảnh **không có `source_url`**
+**When** người dùng chọn *theo link gốc*
+**Then** đường xuất **quét phạm vi trước** và **liệt kê rõ ảnh nào sẽ không có link**
+
+**Given** ảnh thiếu URL gốc
+**When** xuất
+**Then** **không đường mã nào được bỏ qua trong im lặng**
+
+**Given** thông tin về ảnh thiếu link
+**When** hiển thị
+**Then** xuất hiện **ngay lúc chọn**, không nằm trong tài liệu hướng dẫn
+
+**Given** phạm vi xuất **không có ảnh nào mang `source_url`**
+**When** hiển thị
+**Then** lựa chọn *theo link gốc* nêu rõ nó không dùng được cho phạm vi này
+'''
+verify = "Với màn hình xuất, khi mở thì có lựa chọn theo link gốc hoặc theo file ảnh"
+covers = ["FR130"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-5-chọn-cách-xuất-hình-ảnh"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Xuất `.md` và text thuần"
+description = '''
+Người dịch được: một bản Markdown giữ nguyên ảnh, chú thích và mô tả đã dịch. Mục đích: người đăng dựng lại được trọn bài chứ không chỉ nhận chữ.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** phạm vi xuất đã chọn
+**When** xuất `.md`
+**Then** sinh ra Markdown hợp lệ
+
+**Given** phạm vi xuất đã chọn
+**When** xuất text thuần
+**Then** sinh ra văn bản không đánh dấu
+
+**Given** một Chương có ảnh
+**When** xuất `.md`
+**Then** ảnh được tham chiếu theo kiểu người dùng chọn ở Story 8.5
+
+**Given** một ảnh có alt-text đã dịch
+**When** xuất `.md`
+**Then** **alt-text đã dịch** được đưa vào, không phải alt-text gốc
+
+**Given** một ảnh có caption đã dịch
+**When** xuất
+**Then** **caption đã dịch** được đưa vào, tách bạch với alt-text
+
+**Given** cấu trúc đoạn
+**When** xuất
+**Then** đọc từ cờ kết đoạn đã lưu, không suy ra từ nội dung
+
+**Given** định dạng text thuần
+**When** người dùng chọn
+**Then** màn hình xuất nói rõ nó **không nhập lại được**, cùng nhóm với `.docx` một khối
+'''
+verify = "Với phạm vi xuất đã chọn, khi xuất `.md` thì sinh ra Markdown hợp lệ"
+covers = ["FR88"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-6-xuất-md-và-text-thuần"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Khối ghi nguồn"
+description = '''
+Người dịch bài đăng được: khối ghi nguồn nằm sẵn trong file bàn giao. Mục đích: người đăng — không cài app, không hỏi thêm câu nào — vẫn ghi nguồn đúng.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** khối ghi nguồn
+**When** dựng
+**Then** gồm **năm trường**: tác giả · tên báo/website · URL bài gốc · ngày đăng gốc · **tên người dịch**
+
+**Given** bốn trường đầu
+**When** lấy
+**Then** lấy từ dữ liệu xuất xứ trên `CHAPTER`
+
+**Given** trường tên người dịch
+**When** lấy
+**Then** lấy từ cấu hình **toàn cục**, đặt một lần, không phải gõ lại mỗi bài
+**And** phân giải qua `ScopeResolver` với ngữ nghĩa ghi đè
+
+**Given** khối ghi nguồn
+**When** dựng
+**Then** **dựng lúc xuất** từ các trường nguồn
+**And** **không lưu chuỗi đã định dạng ở bất kỳ đâu**
+
+**Given** người dùng sửa một trường xuất xứ ở tầng Chương
+**When** xuất lại
+**Then** khối ghi nguồn phản ánh giá trị mới ngay
+
+**Given** khối ghi nguồn
+**When** cấu hình
+**Then** **bật/tắt được**
+**And** áp cho **mọi định dạng xuất** — bảng theo segment, `.md`/text thuần, và một khối theo đoạn
+
+**Given** khối ghi nguồn
+**When** ở trạng thái mặc định
+**Then** **tắt** — truyện xuất ra vẫn sạch trừ khi người dùng chủ động bật
+'''
+verify = "Với khối ghi nguồn, khi dựng thì gồm năm trường: tác giả · tên báo/website · URL bài gốc · ngày đăng gốc · tên người dịch"
+covers = ["FR131"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-7-khối-ghi-nguồn"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Cổng kiểm hình dạng bảng `.docx`"
+description = '''
+Người dịch được: ứng dụng từ chối một file mà việc nhập nó sẽ phá dữ liệu của tôi. Mục đích: một lần kéo nhầm file không ghi đè cả Chương đã xác nhận.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một file `.docx` được đưa vào đường nhập
+**When** xử lý
+**Then** kiểm hình dạng bảng chạy **ở Rust**, ở **cổng vào** của đường nhập trong `core/export/`
+
+**Given** kiểm hình dạng
+**When** chạy
+**Then** chạy **trước alignment** và **trước mọi lệnh ghi**
+
+**Given** một bảng có **đúng một hàng** *và* ô chứa **nhiều hơn một đoạn**
+**When** kiểm
+**Then** **từ chối** kèm câu giải thích rằng đây là bản dành cho đăng bài và không nhập lại được
+**And** **không chạy alignment, không ghi gì**
+
+**Given** mọi hình dạng bảng khác
+**When** kiểm
+**Then** đi tiếp qua alignment
+
+**Given** việc nhận dạng
+**When** thực hiện
+**Then** dựa trên **hình dạng**
+**And** **không** dựa trên metadata hay tên file — file do người khác tạo không mang dấu của ta, và tên file thì ai cũng đổi được
+
+**Given** một Chương ngắn chỉ có **một đoạn** nhưng nhiều câu
+**When** kiểm
+**Then** hai hình dạng không phân biệt được — đây là **ca sót lại đã chấp nhận có ý thức**, hậu quả nhẹ vì đúng là một đoạn thật
+
+**Given** một bản `.docx` một khối vừa xuất ở Story 8.4
+**When** thử nhập lại
+**Then** bị từ chối bởi cổng này — nghiệm thu bằng đúng phép thử này
+'''
+verify = "Với một file `.docx` được đưa vào đường nhập, khi xử lý thì kiểm hình dạng bảng chạy ở Rust, ở cổng vào của đường nhập trong `core/export/`"
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-8-cổng-kiểm-hình-dạng-bảng-docx"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Nhập lại file reviewer đã sửa"
+description = '''
+Người dịch được: đưa bản reviewer đã sửa trở lại đúng Tác phẩm của mình. Mục đích: công sức họ bỏ ra không dừng lại ở một file trong hộp thư.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một file `.docx` hoặc `.md` reviewer đã chỉnh sửa
+**When** nhập
+**Then** nhập vào **đúng Tác phẩm hiện có**, không tạo Tác phẩm mới
+
+**Given** một file nhập vào
+**When** xử lý
+**Then** đi qua cổng kiểm hình dạng của Story 8.8 trước
+
+**Given** nội dung file
+**When** phân tích
+**Then** Rust phân tích thành **mô hình dữ liệu có cấu trúc**, Vue render từ mô hình đó
+**And** không tồn tại đường nào đưa chuỗi từ file vào `v-html` hoặc tương đương
+
+**Given** người dùng chọn Tác phẩm đích
+**When** nhập
+**Then** hiện rõ Chương nào sẽ bị ảnh hưởng trước khi ghi
+
+**Given** một file không khớp với Tác phẩm đã chọn
+**When** nhập
+**Then** báo rõ và không ghi
+
+**Given** quá trình nhập
+**When** chưa được người dùng xác nhận
+**Then** **chưa có gì ghi xuống đĩa**
+'''
+verify = "Với một file `.docx` hoặc `.md` reviewer đã chỉnh sửa, khi nhập thì nhập vào đúng Tác phẩm hiện có, không tạo Tác phẩm mới"
+covers = ["FR90"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-9-nhập-lại-file-reviewer-đã-sửa"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Segment alignment — máy khớp, người sửa"
+description = '''
+Người dịch được: thấy rõ những đoạn hệ thống không khớp được và tự nối chúng. Mục đích: một lần khớp im lặng không đẩy cả chương lệch đi một câu.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** file reviewer đã nhập
+**When** alignment chạy
+**Then** hệ thống khớp cấu trúc đoạn giữa file nhập và dữ liệu sẵn có
+
+**Given** các segment khớp được
+**When** xử lý
+**Then** khớp tự động
+
+**Given** các segment **không khớp được**
+**When** xảy ra
+**Then** **hiện ra thành danh sách cho người dùng nối tay**
+
+**Given** một segment không khớp
+**When** hiển thị
+**Then** thấy cả phía bản của mình và phía bản reviewer để đối chiếu
+
+**Given** người dùng nối tay
+**When** thực hiện
+**Then** nối và tách được để khớp hai phía
+
+**Given** alignment
+**When** chạy
+**Then** **không có khớp im lặng** — mọi chỗ không chắc chắn đều hiện ra
+
+**Given** người dùng chưa xử lý xong các chỗ không khớp
+**When** ở trạng thái đó
+**Then** chưa ghi thay đổi nào vào segment
+
+**Given** toàn bộ thao tác nối tay
+**When** thực hiện
+**Then** làm được bằng bàn phím
+'''
+verify = "Với file reviewer đã nhập, khi alignment chạy thì hệ thống khớp cấu trúc đoạn giữa file nhập và dữ liệu sẵn có"
+covers = ["FR91"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-10-segment-alignment-máy-khớp-người-sửa"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Review Mode — bố cục hai cửa sổ side-by-side"
+description = '''
+Người dịch được: đặt bản của mình cạnh bản reviewer đã sửa. Mục đích: tôi lướt qua từng chỗ khác biệt thay vì đọc lại cả chương.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một Chương đã nhập bản review
+**When** người dùng mở Review Mode
+**Then** Workspace chuyển sang bố cục **hai cửa sổ side-by-side**
+
+**Given** bố cục Review Mode
+**When** hiển thị
+**Then** trái là bản dịch của người dùng, phải là bản đã nhập từ Reviewer
+
+**Given** Review Mode
+**When** cài đặt
+**Then** là **một bố cục dockview**, không phải cửa sổ hệ điều hành thứ hai
+
+**Given** Review Mode
+**When** so với ba chế độ
+**Then** nó **không phải chế độ thứ tư** — vẫn nằm trong Workspace
+
+**Given** Review Mode
+**When** kích hoạt
+**Then** khai điểm vào focus tường minh, focus không rơi về `body`
+
+**Given** người dùng rời Review Mode
+**When** xảy ra
+**Then** quay lại bố cục Workspace trước đó, giữ nguyên ngữ cảnh
+
+**Given** lệnh mở và đóng Review Mode
+**When** gọi
+**Then** là command đăng ký, gán phím được
+'''
+verify = "Với một Chương đã nhập bản review, khi người dùng mở Review Mode thì Workspace chuyển sang bố cục hai cửa sổ side-by-side"
+covers = ["FR92"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-11-review-mode-bố-cục-hai-cửa-sổ-side-by-side"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Diff bôi màu, ẩn văn bản gốc"
+description = '''
+Người dịch được: chỉ nhìn hai bản dịch và chỗ chúng khác nhau. Mục đích: mắt tôi không phải lọc qua nguyên văn tiếng Trung khi đang so hai bản tiếng Việt.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** Review Mode đang mở
+**When** hiển thị
+**Then** **ẩn văn bản gốc**
+
+**Given** hai bản dịch
+**When** so
+**Then** thuật toán diff bôi màu phần **thêm / xoá / sửa**
+
+**Given** phần bôi màu diff
+**When** kiểm tương phản
+**Then** đạt **WCAG AA ở cả hai theme**
+
+**Given** màu dùng cho diff
+**When** chọn
+**Then** đến từ bộ token đã kiểm tương phản, không viết thẳng trong component
+
+**Given** một Chương dài
+**When** người dùng lướt
+**Then** cuộn đồng bộ giữa hai cửa sổ để hai phía luôn khớp chỗ
+
+**Given** một chỗ không có khác biệt nào
+**When** hiển thị
+**Then** không bôi màu — chỉ chỗ khác mới nổi lên
+
+**Given** lệnh nhảy tới khác biệt kế tiếp và trước đó
+**When** gọi
+**Then** là command đăng ký, gán phím được
+'''
+verify = "Với Review Mode đang mở, khi hiển thị thì ẩn văn bản gốc"
+covers = ["FR93"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-12-diff-bôi-màu-ẩn-văn-bản-gốc"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Chấp nhận từng thay đổi"
+description = '''
+Người dịch được: chọn lấy những sửa đổi tôi đồng ý và bỏ những chỗ tôi không. Mục đích: reviewer là người góp ý chứ không phải người quyết định.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một thay đổi trong Review Mode
+**When** người dùng chấp nhận
+**Then** thay đổi đó vào bản dịch của mình
+
+**Given** một thay đổi
+**When** người dùng bỏ qua
+**Then** bản dịch của mình giữ nguyên
+
+**Given** một segment vừa nhận thay đổi
+**When** ghi
+**Then** trạng thái về **chưa xác nhận**
+**And** **không** tạo `SegmentVersion`
+
+**Given** một thay đổi vừa được chấp nhận
+**When** ghi xuống
+**Then** ghi **ngay**, không đi qua bộ đệm gõ — đây là một hành động dứt khoát của người dùng
+
+**Given** nhiều thay đổi
+**When** người dùng xử lý
+**Then** chấp nhận hoặc bỏ **từng cái một**, không có thao tác nhận tất cả một cách mù
+
+**Given** người dùng đã xử lý hết
+**When** rời Review Mode
+**Then** các segment đã nhận thay đổi hiện ở trạng thái chưa xác nhận trong Editor
+
+**Given** lệnh chấp nhận và bỏ qua
+**When** gọi
+**Then** là command đăng ký, gán phím được
+'''
+verify = "Với một thay đổi trong Review Mode, khi người dùng chấp nhận thì thay đổi đó vào bản dịch của mình"
+covers = ["FR94"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-13-chấp-nhận-từng-thay-đổi"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Thu hoạch thuật ngữ từ bản review"
+description = '''
+Người dịch được: công cụ nhận ra reviewer đã đổi cách gọi một nhân vật. Mục đích: từ chương sau AI dùng đúng cách gọi đó thay vì lặp lại lỗi cũ.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một bản review vừa nhập
+**When** phân tích
+**Then** hệ thống tìm các trường hợp reviewer đổi thuật ngữ *X* thành *Y* một cách **nhất quán**
+
+**Given** một cặp đổi được phát hiện
+**When** đề xuất
+**Then** nêu rõ **số lần đổi trên tổng số lần xuất hiện** — để người dùng tự phán xét mức nhất quán
+
+**Given** một đề xuất thu hoạch
+**When** ghi
+**Then** ghi vào **bảng chờ** của Epic 3
+**And** **không** ghi thẳng vào Glossary
+
+**Given** một đề xuất được người dùng duyệt
+**When** vào Glossary
+**Then** mang xuất xứ **thu hoạch từ bản review**
+**And** vào thẳng trạng thái **đã chốt** — cặp nguồn–đích đã có sẵn
+
+**Given** một đề xuất bị bỏ
+**When** nhập một bản review khác về sau
+**Then** không đề xuất lại cùng cặp đó trong cùng Tác phẩm
+
+**Given** một cặp vừa vào Glossary từ đường này
+**When** gọi AI ở Chương sau
+**Then** Smart RAG Injector chèn nó vào prompt
+'''
+verify = "Với một bản review vừa nhập, khi phân tích thì hệ thống tìm các trường hợp reviewer đổi thuật ngữ *X* thành *Y* một cách nhất quán"
+covers = ["FR54"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-14-thu-hoạch-thuật-ngữ-từ-bản-review"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Thu hoạch chạy độc lập với Review Mode"
+description = '''
+Người dịch được: công sức của reviewer chuyển thành giá trị kể cả khi tôi không mở Diff Viewer. Mục đích: vòng lặp học hỏi đóng lại ở tầng hệ thống thay vì trông chờ vào kỷ luật của tôi.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** người dùng nhập một bản review
+**When** nhập hoàn tất
+**Then** cơ chế thu hoạch thuật ngữ **kích hoạt ngay**
+
+**Given** người dùng **không bao giờ mở Review Mode**
+**When** nhập một bản review
+**Then** thu hoạch vẫn chạy đầy đủ và đề xuất vẫn xuất hiện
+
+**Given** chuỗi phụ thuộc trong mã
+**When** rà
+**Then** thu hoạch **không phụ thuộc** vào việc Review Mode được mở hay bố cục Review Mode có được dựng hay không
+
+**Given** đề xuất thu hoạch
+**When** xuất hiện
+**Then** hiện ở một chỗ người dùng chắc chắn nhìn thấy dù không vào Review Mode
+
+**Given** Review Mode bị gỡ khỏi bản dựng
+**When** chạy bộ test
+**Then** các test của Story 8.14 và story này **vẫn xanh**
+
+**Given** kịch bản cắt phạm vi ở R1
+**When** cắt Diff Viewer
+**Then** cơ chế thu hoạch **không được cắt theo**
+'''
+verify = "Với người dùng nhập một bản review, khi nhập hoàn tất thì cơ chế thu hoạch thuật ngữ kích hoạt ngay"
+covers = ["FR95"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "8-15-thu-hoạch-chạy-độc-lập-với-review-mode"

@@ -1,0 +1,145 @@
+# tickets.toml — Glossary — chốt thuật ngữ một lần, dùng mãi. One [[entry]] per story, in the order epics.md writes them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Mô hình Glossary hai tầng và vòng đời ba trạng thái"
+description = "Một thuật ngữ tôi chốt riêng cho một Tác phẩm đè lên cách dịch chung của mình."
+verify = "mang thuật ngữ nguồn, bản dịch, ghi chú, phân loại *(tên người / địa danh / thuật ngữ chuyên ngành / khác)*, ngày thêm, và xuất xứ *(nhập thủ công / đề xuất khi nhập tài liệu / thu hoạch từ bản review)*."
+covers = ["FR46", "FR47"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-1-mô-hình-glossary-hai-tầng-và-vòng-đời-ba-trạng-thái"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Bảng chờ ứng viên tách hẳn khỏi Glossary"
+description = "Chắc chắn không đề xuất nào của máy lọt vào Glossary sau lưng tôi."
+verify = "ghi vào một bảng chờ riêng."
+covers = ["FR55"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-2-bảng-chờ-ứng-viên-tách-hẳn-khỏi-glossary"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Thêm nhanh thuật ngữ từ bất kỳ panel nào"
+description = "Chốt một thuật ngữ ngay khi gặp nó mà không rời câu đang dịch."
+verify = "hộp thêm nhanh mở ra với cụm đó điền sẵn."
+covers = ["FR48"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-3-thêm-nhanh-thuật-ngữ-từ-bất-kỳ-panel-nào"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Khớp thuật ngữ theo ngôn ngữ qua Matcher dùng chung"
+description = "Thấy ngay câu đang dịch chứa thuật ngữ nào đã chốt."
+verify = "dùng khớp chính xác."
+covers = ["FR51", "FR50"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-4-khớp-thuật-ngữ-theo-ngôn-ngữ-qua-matcher-dùng-chung"
+
+[[entry]]
+id = "4b"
+type = "story"
+title = "Đánh dấu thuật ngữ ở cột nguyên văn của lưới"
+description = "Thấy ngay câu đang dịch chứa thuật ngữ nào đã chốt."
+verify = "thuật ngữ đó được đánh dấu bằng màu `primary`."
+covers = ["FR50"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-4b-đánh-dấu-thuật-ngữ-ở-cột-nguyên-văn-của-lưới"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Quét ứng viên khi nhập tài liệu"
+description = "Công cụ tự tìm ra những cái tên lặp đi lặp lại trong một bộ truyện."
+verify = "tìm các chuỗi lặp lại từ 5 lần trở lên *và* không có trong từ điển nhúng."
+covers = ["FR52"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-5-quét-ứng-viên-khi-nhập-tài-liệu"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Trạng thái chờ chốt và dải mọc chốt lần đầu gặp"
+description = "Quyết định cách dịch một thuật ngữ khi tôi đang nhìn đúng câu chứa nó."
+verify = "mục vào Glossary với trường bản dịch ở trạng thái chờ chốt."
+covers = ["FR114"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-6-trạng-thái-chờ-chốt-và-dải-mọc-chốt-lần-đầu-gặp"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Đề xuất bản dịch bằng âm Hán Việt"
+description = "Công cụ tự điền sẵn *\"Bắc Lương\"* khi nó thấy `北涼`."
+verify = "đề xuất bản dịch là âm Hán Việt của chuỗi đó."
+covers = ["FR113"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-7-đề-xuất-bản-dịch-bằng-âm-hán-việt"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Duyệt hàng loạt một phím"
+description = "Duyệt 340 ứng viên bằng một phím mỗi mục."
+verify = "hiện danh sách xếp theo tần suất giảm dần."
+covers = ["FR53"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-8-duyệt-hàng-loạt-một-phím"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Quản lý Glossary"
+description = "Rà lại và dọn Glossary của mình."
+verify = "hiện mục của cả hai tầng, phân biệt được tầng nào."
+covers = ["FR49"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-9-quản-lý-glossary"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Xuất và nhập Glossary qua CSV/TSV"
+description = "Gửi bộ thuật ngữ của mình cho một người dịch khác bằng một file."
+verify = "sinh ra file CSV hoặc TSV chứa đầy đủ các trường của mỗi mục."
+covers = ["FR49"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-10-xuất-và-nhập-glossary-qua-csv-tsv"
+
+[[entry]]
+id = "10b"
+type = "story"
+title = "Nối hộp thoại chọn tệp vào xuất/nhập Glossary"
+description = "Chọn tệp Glossary bằng hộp thoại của hệ điều hành."
+verify = "hộp thoại lưu tệp của hệ điều hành mở ra."
+covers = ["FR49"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "3-10b-nối-hộp-thoại-chọn-tệp-vào-xuất-nhập-glossary"

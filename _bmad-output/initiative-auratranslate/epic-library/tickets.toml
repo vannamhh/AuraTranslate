@@ -1,0 +1,169 @@
+# tickets.toml — Library — kho tác phẩm, tìm kiếm, và đọc lại thành quả. One [[entry]] per story, in the order epics.md writes them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Mô hình Library hai tầng"
+description = "Mọi thứ tôi dịch nằm trong một cấu trúc hai tầng đơn giản."
+verify = "hai tầng: Tác phẩm → Chương."
+covers = ["FR1", "FR2", "FR3", "FR4"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-1-mô-hình-library-hai-tầng"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Chỉ mục Library dẫn xuất, một đường ghi duy nhất"
+description = "Xoá một file chỉ mục hỏng mà không mất gì cả."
+verify = "là một file riêng, không nằm chung `global.db`."
+covers = ["FR98"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-2-chỉ-mục-library-dẫn-xuất-một-đường-ghi-duy-nhất"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Quét lại thư mục"
+description = "Copy một thư mục `.atproj` vào là nó xuất hiện trong Library."
+verify = "nó vào chỉ mục và hiện trong Library."
+covers = ["FR99"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-3-quét-lại-thư-mục"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Bốn trạng thái vòng đời"
+description = "Phân biệt *\"chưa bắt đầu\"* với *\"đã làm dở rồi bỏ\"*."
+verify = "bốn giá trị: *Chưa bắt đầu · Đang dịch · Tạm ngưng · Đã xong*."
+covers = ["FR5", "FR6"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-4-bốn-trạng-thái-vòng-đời"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Tiến độ Tác phẩm"
+description = "Liếc qua Library là biết mình còn bao nhiêu."
+verify = "thấy số Chương đã xong trên tổng số kèm thanh tiến độ trực quan."
+covers = ["FR7"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-5-tiến-độ-tác-phẩm"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Lưới Tác phẩm, lọc và sắp xếp"
+description = "Mở ứng dụng là thấy ngay mình đang có gì."
+verify = "vào Library, không vào Workspace."
+covers = ["FR10"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-6-lưới-tác-phẩm-lọc-và-sắp-xếp"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Danh sách Chương và mở Chương vào Workspace"
+description = "Mở đúng chương đang dở và thấy con trỏ ở đúng câu tôi bỏ dở."
+verify = "thấy danh sách Chương kèm trạng thái từng Chương."
+covers = ["FR12"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-7-danh-sách-chương-và-mở-chương-vào-workspace"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Tổ chức lại Chương sau khi nhập"
+description = "Sửa lại thứ tự và ranh giới Chương sau khi nhập mà không mất công đã dịch."
+verify = "tên đổi và mọi tham chiếu giữ nguyên."
+covers = ["FR15"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-8-tổ-chức-lại-chương-sau-khi-nhập"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Tìm kiếm full-text xuyên Library"
+description = "Tìm một câu tôi từng dịch ở đâu đó trong cả thư viện."
+verify = "tìm đồng thời trong văn bản nguồn và văn bản dịch của mọi Tác phẩm."
+covers = ["FR8", "NFR3"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-9-tìm-kiếm-full-text-xuyên-library"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Hai chế độ dấu"
+description = "Công cụ vẫn tìm ra thứ tôi cần."
+verify = "hệ thống thử chế độ chính xác dấu trước."
+covers = ["FR9"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-10-hai-chế-độ-dấu"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Chế độ đọc — typography và bố cục đọc dài"
+description = "Đọc lại bản dịch của mình như đọc một trang sách."
+verify = "không hiển thị công cụ biên tập nào — không vạch lề trạng thái, không nút xác nhận, không panel."
+covers = ["FR11"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-11-chế-độ-đọc-typography-và-bố-cục-đọc-dài"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Chế độ đọc chỉ đọc phần đã xong"
+description = "Chế độ đọc không bao giờ ném nguyên văn tiếng Trung vào giữa trang đọc tiếng Việt của tôi."
+verify = "đọc liên tục qua chúng, chuyển Chương liền mạch, không phải quay về Library."
+covers = ["FR120"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-12-chế-độ-đọc-chỉ-đọc-phần-đã-xong"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Đánh dấu chỗ cần sửa khi đang đọc"
+description = "Đánh dấu một câu sai rồi đọc tiếp ngay."
+verify = "affordance đánh dấu hiện ra."
+covers = ["FR119"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-13-đánh-dấu-chỗ-cần-sửa-khi-đang-đọc"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Đo NFR3, NFR4, NFR5 và ghi lại trạng thái ba ngưỡng tạm"
+description = "Có số đo thật thay vì ba giả định."
+verify = "p95 được ghi lại kèm quy mô thư viện đã dùng."
+covers = ["NFR3", "NFR4", "NFR5"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "5-14-đo-nfr3-nfr4-nfr5-và-ghi-lại-trạng-thái-ba-ngưỡng-tạm"

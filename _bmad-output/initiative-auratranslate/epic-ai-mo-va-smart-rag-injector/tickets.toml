@@ -1,0 +1,145 @@
+# tickets.toml — epic-ai-mo-va-smart-rag-injector. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Module `ai/` cô lập và test cưỡng chế ranh giới"
+description = "Người dịch không dùng AI được: gỡ sạch cấu hình AI mà mọi thứ khác vẫn chạy đầy đủ. Mục đích: công cụ này là của tôi chứ không phải một vỏ bọc quanh một dịch vụ đám mây."
+verify = "Với module `core/ai/`, khi dựng thì không module nào khác trong `core/` import nó"
+covers = ["FR77"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-1-module-ai-cô-lập-và-test-cưỡng-chế-ranh-giới"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Cấu hình nhà cung cấp AI"
+description = "Người dịch được: dùng API key của chính mình hoặc một mô hình chạy trên máy tôi qua cùng một chỗ cấu hình. Mục đích: tôi không bị khoá vào một nhà cung cấp nào."
+verify = "Với màn hình cấu hình AI, khi mở thì nhập được endpoint, tên mô hình và tham số sinh"
+covers = ["FR65", "FR66", "FR68"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-2-cấu-hình-nhà-cung-cấp-ai"
+
+[[entry]]
+id = 3
+type = "story"
+title = "API key trong keychain"
+description = "Người dịch được: khoá API của mình không bao giờ nằm trong một file nào trên máy. Mục đích: một lần chia sẻ thư mục dự án không làm lộ nó."
+verify = "Với một API key, khi lưu thì vào keychain / credential manager của hệ điều hành, qua crate `keyring` gọi trực tiếp trong Rust"
+covers = ["FR67", "NFR11"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-3-api-key-trong-keychain"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Bộ prompt theo thể loại"
+description = "Người dịch làm nhiều lĩnh vực được: một bộ prompt riêng cho tiên hiệp và một bộ khác cho báo chí. Mục đích: một công cụ phục vụ được mọi lĩnh vực mà không cần nhiều chế độ riêng."
+verify = "Với màn hình bộ prompt, khi mở thì soạn, sửa, xoá và đặt tên được từng bộ"
+covers = ["FR69"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-4-bộ-prompt-theo-thể-loại"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Xuất và nhập bộ prompt"
+description = "Người dịch được: gửi bộ prompt tiên hiệp của mình cho người khác bằng một file. Mục đích: cộng đồng chia sẻ quy chuẩn dịch mà không cần hạ tầng nào."
+verify = "Với một bộ prompt, khi xuất thì sinh ra file văn bản mở"
+covers = ["FR79"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-5-xuất-và-nhập-bộ-prompt"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Smart RAG Injector là một hàm thuần"
+description = "Người dịch được: AI luôn nhận đúng những thuật ngữ tôi đã chốt cho câu đang dịch. Mục đích: nó không gọi nhân vật của tôi bằng một cái tên khác ở mỗi chương."
+verify = "Với `RagInjector`, khi cài đặt thì là một hàm thuần nhận `(câu nguồn, scope, Glossary, TM)` và trả về prompt đã lắp hoàn chỉnh"
+covers = ["FR70"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-6-smart-rag-injector-là-một-hàm-thuần"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Xem prompt cuối cùng đã gửi"
+description = "Người dịch được: nhìn được vào hộp đen. Mục đích: khi AI không tuân thủ Glossary tôi biết vì sao chứ không phải đoán."
+verify = "Với một lời gọi AI vừa thực hiện, khi người dùng mở Xem prompt thì thấy prompt cuối cùng đã gửi đi, nguyên vẹn"
+covers = ["FR71"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-7-xem-prompt-cuối-cùng-đã-gửi"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Dịch một segment với kết quả chảy dần"
+description = "Người dịch được: thấy bản dịch AI hiện dần ngay khi mô hình đang sinh, và nó nằm yên ở panel riêng. Mục đích: tôi đọc sớm được mà vẫn là người quyết định đưa gì vào bản dịch."
+verify = "Với một segment đang chọn, khi người dùng gọi lệnh dịch thì lời gọi AI thực hiện với prompt do `RagInjector` lắp"
+covers = ["FR72", "FR74"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-8-dịch-một-segment-với-kết-quả-chảy-dần"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Dịch theo lô và huỷ giữa chừng"
+description = "Người dịch được: cho AI dịch trước một loạt câu rồi biên tập lại, và dừng nó bất cứ lúc nào. Mục đích: tôi không bị khoá vào một lệnh đã lỡ bấm."
+verify = "Với nhiều segment liên tiếp đang chọn, khi người dùng gọi lệnh dịch lô thì hệ thống dịch lần lượt từng segment"
+covers = ["FR73"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-9-dịch-theo-lô-và-huỷ-giữa-chừng"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Lỗi mạng và lỗi API"
+description = "Người dịch dùng API key của chính mình được: một lần lỗi không tốn thêm tiền của tôi và không làm mất câu tôi đang gõ. Mục đích: tôi tin được vào công cụ khi mạng chập chờn."
+verify = "Với một lỗi mạng hoặc lỗi API, khi xảy ra thì thông báo nêu rõ nguyên nhân"
+covers = ["FR75"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-10-lỗi-mạng-và-lỗi-api"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Số token và ước tính chi phí"
+description = "Người dịch trả tiền cho từng lời gọi được: thấy mỗi lần bấm tốn bao nhiêu. Mục đích: tôi biết mình đang tiêu gì."
+verify = "Với một lời gọi AI hoàn tất, khi hiển thị thì thấy số token đã dùng"
+covers = ["FR76"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-11-số-token-và-ước-tính-chi-phí"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Bố cục màn hình hẹp và hiệu chỉnh ngưỡng"
+description = "Người dịch làm trên một laptop nhỏ được: cặp Nguyên văn và Bản dịch không bao giờ bị nhường chỗ cho panel khác. Mục đích: cửa sổ hẹp làm tôi khó chịu chứ không làm tôi không dịch được."
+verify = "Với ngưỡng bố cục, khi đo thì đo theo vùng làm việc — chiều cao cửa sổ trừ thanh tiêu đề 38px và thanh trạng thái 32px"
+covers = ["UX-DR15"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "4-12-bố-cục-màn-hình-hẹp-và-hiệu-chỉnh-ngưỡng"

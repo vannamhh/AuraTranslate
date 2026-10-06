@@ -1,0 +1,411 @@
+# tickets.toml — epic-phat-hanh-va-tin-cay. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Build công khai qua GitHub Actions"
+description = '''
+Người dùng cẩn thận được: kiểm chứng được binary khớp với mã nguồn. Mục đích: tôi tin được một bản cài không ai ký tên vào.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một bản phát hành
+**When** build
+**Then** build công khai qua **GitHub Actions**, log xem được
+
+**Given** dữ liệu từ điển
+**When** CI cần
+**Then** tải theo `dict-manifest.toml`
+**And** **đối chiếu SHA-256** trước khi dùng
+
+**Given** một file `.db` có checksum không khớp manifest
+**When** CI chạy
+**Then** build **thất bại**, không đóng gói tiếp
+
+**Given** repo
+**When** kiểm
+**Then** chứa **mã build tool** và `dict-manifest.toml`
+**And** **không chứa** nguồn thô 1,13 GB hay các file `.db` (~320 MB cho ba tệp)
+
+**Given** parser định dạng từ điển
+**When** kiểm bản phát hành
+**Then** **không có mặt** — chúng chỉ sống trong `tools/dict-build`
+
+**Given** bất kỳ ai
+**When** đọc cấu hình CI
+**Then** dựng lại được chuỗi từ mã nguồn tới artifact
+'''
+verify = "Với một bản phát hành, khi build thì build công khai qua GitHub Actions, log xem được"
+covers = ["FR107"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-1-build-công-khai-qua-github-actions"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Phát hành cho macOS và Windows"
+description = '''
+Người dịch trên macOS được: một bản cài cho hệ điều hành của mình. Mục đích: tôi không bị bỏ lại như thời QuickTranslator.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một phiên bản
+**When** phát hành
+**Then** có bản cài cho **macOS** và bản cài cho **Windows**
+
+**Given** bản phát hành
+**When** công bố
+**Then** qua **GitHub Releases**
+
+**Given** cùng một mã nguồn
+**When** chạy trên hai nền tảng
+**Then** **hành vi tương đương** trên cả hai
+
+**Given** font nhúng
+**When** kiểm hai bản cài
+**Then** cả hai dùng cùng bộ font đóng gói, không dùng font hệ điều hành
+
+**Given** bản phát hành
+**When** kiểm
+**Then** **không ký số, không notarize** — đây là ràng buộc đã chấp nhận, ghi rõ trong ghi chú phát hành
+
+**Given** dữ liệu từ điển
+**When** kiểm bản cài
+**Then** đã nhúng đầy đủ
+**And** **không có cơ chế tải thêm sau khi cài**
+'''
+verify = "Với một phiên bản, khi phát hành thì có bản cài cho macOS và bản cài cho Windows"
+covers = ["FR105"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-2-phát-hành-cho-macos-và-windows"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Checksum SHA-256"
+description = '''
+Người dùng cẩn thận được: đối chiếu được file mình tải với thứ dự án công bố. Mục đích: tôi có một cách xác minh thay cho chữ ký số.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** mọi artifact phát hành
+**When** công bố
+**Then** kèm **checksum SHA-256**
+
+**Given** checksum
+**When** công bố
+**Then** đặt ở nơi người dùng thấy được ngay trên trang Release
+
+**Given** hướng dẫn cài đặt
+**When** viết
+**Then** chỉ rõ cách đối chiếu checksum trên macOS và trên Windows
+
+**Given** checksum
+**When** sinh
+**Then** sinh trong CI, không sinh thủ công trên máy cá nhân
+'''
+verify = "Với mọi artifact phát hành, khi công bố thì kèm checksum SHA-256"
+covers = ["FR106"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-3-checksum-sha-256"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Màn hình Attribution"
+description = '''
+Người dịch được: thấy mọi nguồn từ điển và giấy phép của chúng ngay trong ứng dụng. Mục đích: tôi biết mình đang đọc dữ liệu của ai.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** màn hình Attribution
+**When** mở
+**Then** liệt kê **mọi nguồn từ điển** kèm giấy phép tương ứng và ghi công đầy đủ
+
+**Given** danh sách nguồn
+**When** dựng
+**Then** dựng từ **các file `.db` thực sự có mặt** trong bản cài
+**And** không từ một danh sách viết cứng trong mã
+
+**Given** một file `.db` bị gỡ khỏi bản phát hành
+**When** mở Attribution
+**Then** ghi công của nguồn đó cũng biến mất
+**And** **không để lại ghi công mồ côi**
+
+**Given** trường giấy phép của mỗi nguồn
+**When** hiển thị
+**Then** biểu diễn được **cả giấy phép mở lẫn phép sử dụng riêng do tác giả cấp**
+
+**Given** lớp HVTĐTD
+**When** hiển thị
+**Then** ghi rõ © Đặng Thế Kiệt, dùng theo **phép riêng tác giả cấp**, **không thuộc GPL v3**
+
+**Given** các nguồn mang CC-BY-SA
+**When** hiển thị
+**Then** ghi công theo đúng yêu cầu của giấy phép đó
+
+**Given** màn hình Attribution
+**When** điều hướng
+**Then** làm được bằng bàn phím
+'''
+verify = "Với màn hình Attribution, khi mở thì liệt kê mọi nguồn từ điển kèm giấy phép tương ứng và ghi công đầy đủ"
+covers = ["FR109"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-4-màn-hình-attribution"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Giấy phép trong bản phát hành"
+description = '''
+Người đóng góp được: thấy toàn bộ giấy phép đi kèm bản phát hành. Mục đích: tôi biết mình dùng lại được những gì và với điều kiện nào.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** bản phát hành
+**When** kiểm
+**Then** kèm văn bản giấy phép **GPL v3** đầy đủ
+
+**Given** bản phát hành
+**When** kiểm
+**Then** kèm **toàn bộ giấy phép của các bộ dữ liệu**
+
+**Given** `LICENSE` và `NOTICE`
+**When** viết
+**Then** nêu rõ phần dữ liệu HVTĐTD thuộc © Đặng Thế Kiệt, dùng theo phép riêng tác giả cấp, **không thuộc GPL v3**
+
+**Given** dữ liệu phái sinh từ nguồn CC-BY-SA
+**When** phân phối
+**Then** giữ **share-alike** theo đúng yêu cầu
+
+**Given** mọi crate và thư viện frontend
+**When** rà trước phát hành
+**Then** đã kiểm tương thích GPL v3
+**And** kết quả rà ghi vào bảng Stack
+'''
+verify = "Với bản phát hành, khi kiểm thì kèm văn bản giấy phép GPL v3 đầy đủ"
+covers = ["FR110"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-5-giấy-phép-trong-bản-phát-hành"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Hướng dẫn cài đặt có ảnh chụp màn hình"
+description = '''
+Người dịch không rành kỹ thuật được: được chỉ từng bước cách vượt qua cảnh báo của hệ điều hành. Mục đích: tôi không bỏ cuộc ở màn hình đầu tiên.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** hướng dẫn cài đặt
+**When** viết
+**Then** có cho **cả macOS và Windows**
+
+**Given** hướng dẫn
+**When** viết
+**Then** có **ảnh chụp màn hình** cho từng bước
+
+**Given** cảnh báo Gatekeeper trên macOS
+**When** hướng dẫn
+**Then** xử lý **tường minh** — chuột phải → Mở
+
+**Given** cảnh báo SmartScreen trên Windows
+**When** hướng dẫn
+**Then** xử lý **tường minh** — More info → Run anyway
+
+**Given** hướng dẫn
+**When** viết
+**Then** **không né tránh** việc bản phát hành không được ký số, và nói rõ vì sao
+
+**Given** bước đối chiếu checksum
+**When** hướng dẫn
+**Then** đưa vào như một bước có thật, kèm lệnh cụ thể cho từng hệ điều hành
+'''
+verify = "Với hướng dẫn cài đặt, khi viết thì có cho cả macOS và Windows"
+covers = ["FR108"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-6-hướng-dẫn-cài-đặt-có-ảnh-chụp-màn-hình"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Cập nhật chỉ kiểm tra và thông báo"
+description = '''
+Người dịch được: ứng dụng không bao giờ tự tải và tự cài một thứ gì. Mục đích: một bản không ký số không trở thành đường tấn công vào máy tôi.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** cơ chế cập nhật
+**When** chạy
+**Then** **chỉ kiểm tra và thông báo** phiên bản mới
+
+**Given** một phiên bản mới có sẵn
+**When** thông báo
+**Then** dẫn người dùng tới GitHub Releases để tự tải
+**And** nhắc đối chiếu checksum
+
+**Given** toàn bộ mã nguồn
+**When** rà
+**Then** **không có đường nào tự động tải** bản cập nhật
+**And** **không có đường nào tự động cài**
+
+**Given** việc kiểm tra phiên bản
+**When** thực hiện
+**Then** là **điểm ra mạng thứ hai** trong đúng ba điểm của toàn ứng dụng
+**And** chỉ chạy theo một thao tác của người dùng
+
+**Given** người dùng tắt kiểm tra phiên bản
+**When** xảy ra
+**Then** ứng dụng không gọi ra mạng vì lý do này nữa
+
+**Given** chuỗi ràng buộc nối tiếp
+**When** ghi lại trong tài liệu dự án
+**Then** nêu rõ: không kinh phí → không ký số → niềm tin đến từ build công khai + checksum → **và vì vậy cấm cơ chế tự cập nhật**
+'''
+verify = "Với cơ chế cập nhật, khi chạy thì chỉ kiểm tra và thông báo phiên bản mới"
+covers = ["FR111"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-7-cập-nhật-chỉ-kiểm-tra-và-thông-báo"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Chính sách gỡ bỏ dữ liệu"
+description = '''
+Chủ dự án được: gỡ một nguồn dữ liệu khỏi bản phát hành kế tiếp trong vài phút. Mục đích: một khiếu nại không biến thành một đợt sửa mã nguồn.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một nguồn dữ liệu cần gỡ
+**When** thực hiện
+**Then** thao tác là **xoá một file `.db`** khỏi `dict-manifest.toml` và khỏi bản đóng gói
+
+**Given** thao tác gỡ
+**When** thực hiện
+**Then** **không đổi một dòng mã nguồn nào**
+
+**Given** một nguồn vừa bị gỡ
+**When** chạy lại toàn bộ bộ test tra cứu
+**Then** **vẫn xanh**
+
+**Given** một nguồn vừa bị gỡ
+**When** mở màn hình Attribution
+**Then** ghi công của nó cũng biến mất theo
+
+**Given** lớp HVTĐTD bị gỡ
+**When** tra một mục Hán Việt
+**Then** rơi về nhãn tiếng Anh của lớp nền
+**And** chức năng tra cứu vẫn đầy đủ
+
+**Given** quy trình gỡ bỏ
+**When** viết
+**Then** ghi thành tài liệu trong repo, không nằm trong đầu một người
+
+**Given** nghiệm thu của story này
+**When** thực hiện
+**Then** **chạy thao tác gỡ thật** với một lớp gỡ rời, không nghiệm thu bằng suy luận
+'''
+verify = "Với một nguồn dữ liệu cần gỡ, khi thực hiện thì thao tác là xoá một file `.db` khỏi `dict-manifest.toml` và khỏi bản đóng gói"
+covers = ["FR112"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-8-chính-sách-gỡ-bỏ-dữ-liệu"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Nghiệm thu cuối các ngưỡng phi chức năng"
+description = '''
+Chủ dự án được: một cổng cuối kiểm lại những ngưỡng chỉ đo được khi sản phẩm đã đủ. Mục đích: v1 phát hành với bằng chứng chứ không với giả định.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** bản cài hoàn chỉnh kèm toàn bộ dữ liệu từ điển và font
+**When** đo dung lượng
+**Then** **payload sản phẩm** nằm dưới trần **400.000.000 byte** của NFR6 *(trần nâng 2026-08-05; đo ở Story 1.10 = 343.991.430 byte)*
+**And** **bản WebView2 Runtime nhúng của `.msi` ghi thành dòng riêng, không cộng vào phép đối chiếu** *(NFR6 sửa 2026-08-03)*
+**And** con số thật của **cả hai dòng** được ghi vào ghi chú phát hành — người dùng tải về thấy dung lượng tổng, nên giấu dòng thứ hai là nói thiếu
+
+**Given** dung lượng vượt trần
+**When** xảy ra
+**Then** báo cáo là **thay đổi tầng PRD cần chủ dự án quyết**
+
+**Given** bản cài trên macOS và trên Windows
+**When** chạy cùng một kịch bản
+**Then** hành vi tương đương (NFR14)
+
+**Given** toàn bộ crate Rust và thư viện frontend đang dùng
+**When** rà lần cuối
+**Then** tất cả tương thích GPL v3 (NFR15)
+**And** bảng Stack khớp với cây phụ thuộc thật
+
+**Given** một vòng dịch trọn một Chương — mở từ Library, tra cứu, gọi AI, đưa sang, sửa, gộp một câu, xác nhận, sang Chương kế
+**When** thực hiện
+**Then** làm được **không chạm chuột một lần nào** (NFR17)
+
+**Given** mọi chuỗi giao diện
+**When** rà
+**Then** nằm trong `vi.json`
+**And** không chuỗi tiếng Việt nào trong `.rs` hay `.vue` (NFR16)
+
+**Given** mọi màu dùng trong ứng dụng
+**When** kiểm tương phản lần cuối
+**Then** đạt WCAG AA ở **cả hai** theme, kể cả Chế độ đọc và phần bôi màu diff của Review Mode
+
+**Given** nghĩa vụ ngoài mã nguồn
+**When** hoàn thành v1
+**Then** **thông báo cho tác giả Đặng Thế Kiệt** — đề nghị tường minh trong thư đồng ý, và là điều kiện của phép sử dụng
+
+> 🔵 *(Năm khối AC dưới đây **gộp từ Story 6.18** ngày 2026-09-15 qua `correct-course` —
+> `sprint-change-proposal-2026-09-15.md`. Giữ nguyên văn, chỉ sửa *"ở epic này"* thành *"ở Epic 6"*.
+> Đầu vào đã có: task 1–6 của `spec-6-18-…md`, bộ đo `6-18-ban-do/`, ba tệp `story_6_18_*.rs`,
+> feature `nfr-bench`.)*
+
+**Given** đường nhập hàng loạt (FR14) đã tồn tại ở Epic 6
+**When** dựng bộ dữ liệu đo
+**Then** tạo được một thư viện **5.000 Chương** bằng **chính đường nhập của sản phẩm**, không bằng một script nhét thẳng vào database
+**And** đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương
+
+**Given** thư viện 5.000 Chương
+**When** đo
+**Then** ghi lại **p95 tìm kiếm full-text** (NFR3), **thời gian khởi động tới lúc Library dùng được** (NFR4), và **bộ nhớ khi nhàn rỗi** (NFR5)
+**And** đo trên **cả macOS lẫn Windows**
+
+**Given** số đo và ba ngưỡng tạm A6, A7, A8
+**When** đối chiếu
+**Then** mỗi ngưỡng nhận **đúng một** trong ba kết luận: **giữ nguyên** · **sửa thành số đo được** · **vượt quá xa nên là thay đổi tầng PRD cần chủ dự án quyết**
+**And** kết luận được ghi vào PRD, không chỉ ghi trong một lần chạy
+
+**Given** Story 5.14 đã ghi số sơ bộ trên thư viện nhỏ
+**When** phép đo này hoàn tất
+**Then** kết quả ở đây **thay thế** số đó
+**And** Story 5.14 được đánh dấu rõ là phép đo **sơ bộ**, không phải phép đo nghiệm thu
+
+**Given** ba kết luận đã ghi
+**When** hoàn tất
+**Then** **Q4 đóng**
+**And** không còn ngưỡng nào của NFR3, NFR4, NFR5 mang nhãn ngưỡng tạm
+
+Gộp từ Story 6.18 (2026-09-15, `correct-course`): story này nhận AC đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương; AC của 6.18 đã nằm ở trên.
+'''
+verify = "Với bản cài hoàn chỉnh kèm toàn bộ dữ liệu từ điển và font, khi đo dung lượng thì payload sản phẩm nằm dưới trần 400.000.000 byte của NFR6 *(trần nâng 2026-08-05; đo ở Story 1.10 = 343.991.430 byte)*"
+covers = ["NFR1", "NFR19", "NFR3", "NFR4", "NFR5"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "10-9-nghiệm-thu-cuối-các-ngưỡng-phi-chức-năng"

@@ -1,0 +1,329 @@
+# tickets.toml — epic-ai-proofreader. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Quét chính tả và ngữ pháp tiếng Việt"
+description = '''
+Người dịch được: bắt những lỗi chính tả và ngữ pháp tôi không còn nhìn ra sau bốn tiếng dịch. Mục đích: bản bàn giao không mang những lỗi mà chính tôi thấy ngay nếu đọc lại hôm sau.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** bản dịch tiếng Việt của người dùng
+**When** quét
+**Then** phát hiện lỗi chính tả và lỗi ngữ pháp
+
+**Given** một phát hiện thuộc loại chính tả hoặc ngữ pháp
+**When** hiển thị
+**Then** dùng màu `error` — loại lỗi này **có đáp án đúng**
+
+**Given** lời gọi quét
+**When** thực hiện
+**Then** đi qua prompt lắp bởi `RagInjector`, không nối chuỗi tại chỗ gọi
+
+**Given** module thực hiện quét
+**When** đặt trong cây nguồn
+**Then** nằm trong `core/ai/`
+**And** không module nào ngoài `ai/` import nó
+
+**Given** ứng dụng chưa cấu hình AI
+**When** người dùng gọi proofreader
+**Then** mời cấu hình
+**And** mọi năng lực khác vẫn chạy đầy đủ
+'''
+verify = "Với bản dịch tiếng Việt của người dùng, khi quét thì phát hiện lỗi chính tả và lỗi ngữ pháp"
+covers = ["FR80"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-1-quét-chính-tả-và-ngữ-pháp-tiếng-việt"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Đối chiếu bản dịch với bản gốc"
+description = '''
+Người dịch được: biết chỗ nào tôi dịch lệch nghĩa hoặc viết ra một câu tối nghĩa. Mục đích: reviewer không phải là người đầu tiên phát hiện ra chúng.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một segment có cả văn bản nguồn và bản dịch
+**When** quét
+**Then** đối chiếu hai phía và đánh dấu đoạn nghi **dịch sai**, **dịch thoát nghĩa quá xa**, hoặc **cấu trúc câu tối nghĩa**
+
+**Given** một phát hiện thuộc loại nghi về nghĩa
+**When** hiển thị
+**Then** dùng màu `tm-rule` — đây là **phán đoán**, không phải một lỗi có đáp án
+**And** không thêm màu mới nào vào bảng token
+
+**Given** hai loại phát hiện
+**When** hiển thị cạnh nhau
+**Then** phân biệt được bằng màu, không cần đọc nhãn
+
+**Given** một segment chưa có bản dịch
+**When** quét
+**Then** không sinh phát hiện loại này
+
+**Given** một Chương dài
+**When** quét
+**Then** phát hiện gắn đúng segment sinh ra nó, tham chiếu `segment.id` chứ không tham chiếu vị trí
+'''
+verify = "Với một segment có cả văn bản nguồn và bản dịch, khi quét thì đối chiếu hai phía và đánh dấu đoạn nghi dịch sai, dịch thoát nghĩa quá xa, hoặc cấu trúc câu tối nghĩa"
+covers = ["FR81"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-2-đối-chiếu-bản-dịch-với-bản-gốc"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Chạy theo yêu cầu, không chạy nền"
+description = '''
+Người dịch dùng API key của chính mình được: proofreader chỉ chạy khi tôi bảo nó chạy. Mục đích: tôi không bị tính phí cho những lần quét tôi không yêu cầu.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** proofreader
+**When** cài đặt
+**Then** chạy **theo yêu cầu của người dùng**
+
+**Given** phạm vi quét
+**When** người dùng chọn
+**Then** chọn được **một segment**, **một Chương**, hoặc **vùng đang chọn**
+
+**Given** ứng dụng đang chạy
+**When** người dùng không gọi proofreader
+**Then** **không có lời gọi AI nào** phát sinh từ proofreader
+
+**Given** một phiên làm việc dài
+**When** quan sát tài nguyên máy và lưu lượng mạng
+**Then** proofreader không chiếm gì cả khi không được gọi
+
+**Given** một lần quét đang chạy
+**When** người dùng huỷ
+**Then** dừng được giữa chừng
+
+**Given** một lần quét
+**When** hoàn tất
+**Then** hiển thị số token và ước tính chi phí như mọi lời gọi AI khác
+
+**Given** lệnh gọi proofreader và lệnh huỷ
+**When** gọi
+**Then** là command đăng ký, gán phím được
+'''
+verify = "Với proofreader, khi cài đặt thì chạy theo yêu cầu của người dùng"
+covers = ["FR82"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-3-chạy-theo-yêu-cầu-không-chạy-nền"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Hình dạng một phát hiện và xử lý từng cái một"
+description = '''
+Người dịch được: mỗi cảnh báo nói rõ nó là lỗi gì và đề nghị sửa thế nào. Mục đích: tôi phán xét được thay vì phải tự đoán ý của máy.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một phát hiện
+**When** hiển thị
+**Then** gồm **loại lỗi · vị trí · giải thích ngắn · đề xuất sửa**
+
+**Given** một phát hiện
+**When** người dùng xử lý
+**Then** chấp nhận hoặc bỏ qua **từng phát hiện một**
+
+**Given** nhiều phát hiện trong một Chương
+**When** hiển thị
+**Then** **không có thao tác chấp nhận tất cả một cách mù**
+
+**Given** người dùng chấp nhận một đề xuất sửa
+**When** xảy ra
+**Then** văn bản đổi theo đề xuất
+**And** segment về trạng thái chưa xác nhận
+
+**Given** phát hiện hiển thị trong một dải mọc dưới câu
+**When** một câu kích hoạt đồng thời chốt Glossary và phát hiện Proofreader
+**Then** chốt Glossary thắng, Proofreader đứng thứ hai
+**And** gợi ý TM nhường cả hai
+
+**Given** giải thích của một phát hiện
+**When** soạn
+**Then** nói việc, không đổ lỗi người dùng
+
+**Given** thao tác chấp nhận, bỏ qua, và nhảy tới phát hiện kế tiếp
+**When** gọi
+**Then** là command đăng ký, gán phím được
+'''
+verify = "Với một phát hiện, khi hiển thị thì gồm loại lỗi · vị trí · giải thích ngắn · đề xuất sửa"
+covers = ["FR83"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-4-hình-dạng-một-phát-hiện-và-xử-lý-từng-cái-một"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Hiển thị tại chỗ bằng gạch chân lượn sóng"
+description = '''
+Người dịch được: thấy chính xác cụm chữ nào có vấn đề ngay trên câu tôi đang đọc. Mục đích: tôi không phải tự đối chiếu vị trí từ một danh sách rời.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một phát hiện
+**When** hiển thị
+**Then** **gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề** trong Editor
+
+**Given** gạch chân
+**When** đặt
+**Then** ở `text-underline-offset: 4px`
+**And** không chạm dấu nằm dưới của `ạ` `ộ` `ợ`
+
+**Given** phát hiện
+**When** hiển thị
+**Then** **không dùng vạch lề** — vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-14: năm → sáu)*
+
+**Given** hai lớp thông tin
+**When** người dùng đọc
+**Then** vạch lề nói **trạng thái câu**, gạch chân nói **chỗ nghi ngờ** — hai chỗ đọc khác nhau
+
+**Given** kết quả proofread
+**When** hiển thị
+**Then** **không phải một danh sách rời** bắt người dùng tự đối chiếu vị trí
+
+**Given** Editor
+**When** có phát hiện
+**Then** vẫn là một trang văn bản liền mạch — không chia thành ô hay bảng
+
+**Given** màu của gạch chân
+**When** chọn
+**Then** đến từ bộ token đã kiểm tương phản, đạt WCAG AA ở cả hai theme
+'''
+verify = "Với một phát hiện, khi hiển thị thì gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề trong Editor"
+covers = ["FR86"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-5-hiển-thị-tại-chỗ-bằng-gạch-chân-lượn-sóng"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Bỏ qua có ghi nhớ"
+description = '''
+Người dịch được: một cảnh báo tôi đã bác bỏ đừng quay lại lần sau. Mục đích: tôi không tắt hẳn proofreader và mất luôn những cảnh báo đúng.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** một phát hiện
+**When** người dùng đánh dấu *"không phải lỗi"*
+**Then** lần quét sau **không báo lại phát hiện đó**
+
+**Given** phạm vi ghi nhớ
+**When** xác định
+**Then** **trong cùng Tác phẩm**
+
+**Given** ghi nhớ proofreader
+**When** khoá
+**Then** khoá theo `(work, chữ ký phát hiện)`
+**And** **không** khoá theo `segment.id`
+
+**Given** một segment bị gộp hoặc tách sau khi một phát hiện đã được bỏ qua
+**When** quét lại
+**Then** ghi nhớ **sống sót** — phát hiện đó vẫn không báo lại
+
+**Given** cùng một loại phát hiện xuất hiện ở một Tác phẩm khác
+**When** quét
+**Then** **vẫn báo** — ghi nhớ không lan sang Tác phẩm khác
+
+**Given** danh sách các phát hiện đã bỏ qua
+**When** người dùng mở
+**Then** xem lại và bỏ ghi nhớ được
+'''
+verify = "Với một phát hiện, khi người dùng đánh dấu *\"không phải lỗi\"* thì lần quét sau không báo lại phát hiện đó"
+covers = ["FR84"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-6-bỏ-qua-có-ghi-nhớ"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Proofreader không tự sửa văn bản"
+description = '''
+Người dịch được: chắc chắn không dòng nào trong bản dịch của tôi tự đổi. Mục đích: tôi vẫn là người quyết định từng chữ trong bản của mình.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** proofreader chạy xong
+**When** kiểm văn bản
+**Then** **không một ký tự nào** trong bản dịch bị đổi
+
+**Given** toàn bộ mã nguồn
+**When** rà
+**Then** không có đường nào từ proofreader ghi thẳng vào văn bản đích của segment
+
+**Given** một đề xuất sửa
+**When** áp
+**Then** chỉ áp sau một thao tác **chấp nhận tường minh** của người dùng
+
+**Given** một lần quét trên cả Chương
+**When** hoàn tất mà người dùng chưa xử lý phát hiện nào
+**Then** Chương giữ nguyên hoàn toàn
+
+**Given** trạng thái xác nhận của các segment
+**When** proofreader chạy
+**Then** không segment nào đổi trạng thái
+'''
+verify = "Với proofreader chạy xong, khi kiểm văn bản thì không một ký tự nào trong bản dịch bị đổi"
+covers = ["FR85"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-7-proofreader-không-tự-sửa-văn-bản"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Đo tỷ lệ báo động giả"
+description = '''
+Chủ dự án được: biết proofreader có đủ chính xác để đáng dùng hay không. Mục đích: tôi không giữ một tính năng mà người dùng sẽ tắt hẳn đi.
+
+Tiêu chí gốc (epics.md, nguyên văn):
+
+**Given** độ chính xác của phán đoán nghi về nghĩa
+**When** nghiệm thu
+**Then** **không nghiệm thu theo lối thông thường** — không có đáp án đúng để đối chiếu
+
+**Given** chỉ số nghiệm thu
+**When** xác định
+**Then** là **tỷ lệ báo động giả**: số phát hiện bị đánh dấu *"không phải lỗi"* trên tổng số phát hiện
+
+**Given** tỷ lệ báo động giả
+**When** đo
+**Then** đo trên bản dịch thật của chủ dự án qua ít nhất một Chương trọn vẹn
+
+**Given** tỷ lệ đo được
+**When** đánh giá
+**Then** ngưỡng đỗ là **đủ thấp để người dùng không tắt hẳn tính năng**
+
+**Given** chỉ số này
+**When** thu thập
+**Then** neo trực tiếp vào dữ liệu của Story 9.6 — mỗi lần bỏ qua có ghi nhớ là một điểm dữ liệu
+
+**Given** tỷ lệ quá cao
+**When** xảy ra
+**Then** báo cáo kèm đề xuất — chỉnh prompt, hạ độ nhạy, hoặc tách riêng hai loại phát hiện
+**And** ghi lại số đo để so ở lần sau
+'''
+verify = "Với độ chính xác của phán đoán nghi về nghĩa, khi nghiệm thu thì không nghiệm thu theo lối thông thường — không có đáp án đúng để đối chiếu"
+covers = ["FR81"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "9-8-đo-tỷ-lệ-báo-động-giả"

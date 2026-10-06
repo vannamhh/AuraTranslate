@@ -1,0 +1,133 @@
+# tickets.toml — epic-translation-memory. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Ghi TM tự động, khoá theo cặp văn bản"
+description = "Người dịch được: mỗi câu tôi xác nhận tự vào kho mà không phải bấm thêm gì. Mục đích: kho của tôi dày lên như một hệ quả của việc làm, không phải như một việc phải nhớ."
+verify = "Với người dùng xác nhận một segment, khi xảy ra thì cặp *(văn bản nguồn → văn bản đích)* được ghi vào Translation Memory"
+covers = ["FR44", "FR56", "FR129"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-1-ghi-tm-tự-động-khoá-theo-cặp-văn-bản"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Xuất xứ trên từng cặp TM"
+description = "Người dịch làm cả vai biên tập được: mỗi cặp trong kho biết nó là chữ của ai. Mục đích: kho của tôi không âm thầm đầy lên bằng văn phong người khác."
+verify = "Với một cặp TM, khi ghi thì mang xuất xứ kế thừa từ segment sinh ra nó"
+covers = ["FR118"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-2-xuất-xứ-trên-từng-cặp-tm"
+
+[[entry]]
+id = 3
+type = "story"
+title = "TM phạm vi kép và thứ tự sắp xếp hai khoá"
+description = "Người dịch được: kết quả TM ưu tiên đúng thứ giống văn phong tôi nhất. Mục đích: gợi ý đầu tiên tôi thấy là gợi ý đáng dùng nhất."
+verify = "Với Translation Memory, khi mô hình hoá phạm vi thì có TM riêng theo Tác phẩm và TM chung toàn cục"
+covers = ["FR57"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-3-tm-phạm-vi-kép-và-thứ-tự-sắp-xếp-hai-khoá"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Khớp tuyệt đối 100%"
+description = "Người dịch được: câu y hệt tôi từng dịch được điền sẵn nhưng vẫn chờ tôi gật đầu. Mục đích: công cụ không bao giờ tự coi một câu là xong thay tôi."
+verify = "Với một segment có văn bản nguồn y hệt một cặp đã có trong TM, khi mở thì bản dịch cũ được điền sẵn vào Editor"
+covers = ["FR58"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-4-khớp-tuyệt-đối-100"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Khớp mờ"
+description = "Người dịch được: thấy câu gần giống mình từng dịch và biết nó khác chỗ nào. Mục đích: tôi sửa nhanh thay vì dịch lại từ đầu."
+verify = "Với một segment có cặp TM tương tự nhưng không y hệt, khi mở thì một dải mọc dưới câu đang sửa hiện các bản dịch cũ tương tự"
+covers = ["FR59"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-5-khớp-mờ"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Thuật toán khớp theo ngôn ngữ"
+description = "Người dựng được: TM khớp bằng đúng cơ chế mà từ điển và Glossary đang dùng. Mục đích: ba nơi không bao giờ bắt được những biến thể khác nhau."
+verify = "Với khớp TM, khi cài đặt thì dùng đúng component `Matcher` dùng chung của Epic 1"
+covers = ["FR61"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-6-thuật-toán-khớp-theo-ngôn-ngữ"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Concordance"
+description = "Người dịch được: hỏi *\"cụm này trước đây tôi dịch thế nào?\"* ngay tại chỗ tôi đang tra từ điển. Mục đích: tôi không phải nhớ hai chỗ khác nhau cho hai loại tra cứu."
+verify = "Với một cụm từ đang chọn, khi người dùng gọi lệnh Concordance thì hệ thống tra ngược trên toàn bộ Translation Memory"
+covers = ["FR60"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-7-concordance"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Nhiều bản dịch cho cùng một câu nguồn"
+description = "Người dịch được: giữ lại cả hai cách tôi từng dịch một câu. Mục đích: tôi tự chọn theo ngữ cảnh thay vì bị công cụ chọn hộ."
+verify = "Với một câu nguồn đã có bản dịch trong TM, khi người dùng xác nhận một bản dịch khác cho cùng câu nguồn đó thì hệ thống giữ lại cả hai"
+covers = ["FR63"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-8-nhiều-bản-dịch-cho-cùng-một-câu-nguồn"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Quản lý Translation Memory"
+description = "Người dịch được: rà lại kho của mình và dọn phần không phải văn phong của tôi. Mục đích: tôi kiểm soát được thứ AI đang học từ tôi."
+verify = "Với màn hình quản lý TM, khi mở thì xem được từng mục TM"
+covers = ["FR62"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-9-quản-lý-translation-memory"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Xuất và nhập TMX"
+description = "Người dịch được: mang kho dịch của mình sang một công cụ khác. Mục đích: dữ liệu của tôi sống lâu hơn phần mềm và tôi không bị khoá vào `.atproj`."
+verify = "Với một Translation Memory ở tầng bất kỳ, khi người dùng xuất thì sinh ra file TMX hợp lệ"
+covers = ["FR64"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-10-xuất-và-nhập-tmx"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Smart RAG ưu tiên cặp của chính người dùng"
+description = "Người dịch được: AI học văn phong của chính tôi chứ không phải của người tôi biên tập hộ. Mục đích: càng dùng lâu bản đề xuất càng giống tôi viết, chứ không lệch dần đi."
+verify = "Với `RagInjector`, khi lắp prompt thì chèn các segment TM tương tự tìm được, không đổi chữ ký hàm đã định ở Story 4.6"
+covers = ["FR70", "FR118"]
+after = []
+hitl = false
+risk = "low"
+v6_key = "7-11-smart-rag-ưu-tiên-cặp-của-chính-người-dùng"

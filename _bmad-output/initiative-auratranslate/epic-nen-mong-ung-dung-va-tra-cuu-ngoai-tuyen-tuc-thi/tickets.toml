@@ -1,0 +1,287 @@
+# tickets.toml — epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi. One [[entry]] per Story 1.M, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Mũi thăm dò font — đo dung lượng thật và rà giấy phép"
+description = "Biết chắc bộ font nhúng nằm trong ngân sách NFR6 và giấy phép cho phép phân phối lại, để tôi không phải bóc font ra sau khi đã dựng nửa giao diện trên nó."
+verify = "Với ba họ font đã chốt — `Source Serif 4`, `Source Han Serif` (chỉ Regular), `Source Sans 3`, khi đóng gói thử một `.dmg` có nhúng font và một `.dmg` không nhúng, thì chênh lệch dung lượng được ghi lại thành số cụ thể."
+covers = ["NFR6", "NFR15"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Scaffold dự án và khoá phạm vi filesystem, phạm vi mạng"
+description = "Một khung dự án dựng theo đúng cây nguồn đã chốt với phạm vi filesystem và CSP khoá từ commit đầu tiên, để \"không ai đọc được tài liệu của bạn\" là ràng buộc do framework cưỡng chế chứ không phải một lời hứa."
+verify = "Với cây nguồn ở Structural Seed, khi scaffold hoàn tất, thì tồn tại `src-tauri/src/{commands,core/{segment,matching,glossary,tm,dict,library,export,webimport,ai,scope,store},ports}`, `src-tauri/capabilities/`, `src-tauri/resources/dict/`, `src/{modes,panels,layout,commands,tokens,i18n}`, `tools/dict-build/`, `dict-manifest.toml`."
+covers = ["FR104", "NFR12", "NFR14"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 3
+type = "story"
+title = "CI tối thiểu — hai nền tảng, mỗi lần push"
+description = "Mỗi lần push đều được build và chạy test trên cả macOS lẫn Windows, để một khác biệt nền tảng lọt vào ở Epic 2 không nằm im tới tận Epic 10 mới lộ ra."
+verify = "Với một commit bất kỳ được đẩy lên, khi CI chạy, thì `cargo test` và build ứng dụng chạy trên cả macOS lẫn Windows."
+covers = ["NFR14", "NFR15", "NFR6", "FR107"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Bộ token màu và chữ hai theme, có kiểm tương phản tự động"
+description = "Mọi màu và mọi cỡ chữ đến từ một bộ token đã kiểm tương phản, để một lần đổi nhầm không thể âm thầm đẩy chữ xuống dưới WCAG AA."
+verify = "Với bốn bảng token ở `DESIGN.md` — Bảng token màu, Bảng token typography, Bảng token khoảng cách và hình dạng, khi `src/tokens/` dựng xong, thì có đủ 16 token màu cho theme sáng và 16 cho theme tối, 14 token typography, bốn họ chữ (`read` · `read-cjk` · `ui` · `mono`), bộ spacing và bộ rounded."
+covers = ["NFR17", "UX-DR1", "UX-DR2", "UX-DR3", "UX-DR5", "UX-DR6", "UX-DR10", "UX-DR11", "UX-DR14", "UX-DR16"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Tài nguyên chuỗi giao diện và hình dạng lỗi qua IPC"
+description = "Không một chuỗi hiển thị nào nằm trong mã nguồn, kể cả chuỗi lỗi, để thêm một ngôn ngữ về sau không phải rà lại toàn bộ codebase."
+verify = "Với `src/i18n/vi.json`, khi ứng dụng chạy, thì mọi chuỗi hiển thị phân giải từ file đó theo khoá chấm."
+covers = ["NFR16"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 6
+type = "story"
+title = "CommandRegistry, ba chế độ, và tiêu điểm bàn phím"
+description = "Mọi thao tác của ứng dụng gọi được bằng bàn phím và luôn thấy rõ mình đang ở đâu, để một phiên làm việc dài không bắt tôi rời tay khỏi bàn phím."
+verify = "Với `CommandRegistry`, khi một thao tác được thêm vào ứng dụng, thì nó đăng ký ở đó trước khi bind vào chuột hoặc phím."
+covers = ["FR22"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Tầng ghi dữ liệu — một writer nối tiếp và lược đồ có phiên bản"
+description = "Ứng dụng không bao giờ khựng lại vì đang ghi dữ liệu và không bao giờ làm hỏng dữ liệu cũ khi tôi nâng cấp, để tôi tin được vào một công cụ mình dùng hàng năm."
+verify = "Với mỗi kho ghi được, khi mở, thì có đúng một kết nối ghi đặt sau một hàng đợi nối tiếp."
+covers = ["NFR10"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Phân giải cấu hình hai tầng"
+description = "Cấu hình riêng của một Tác phẩm đè lên cấu hình chung một cách nhất quán ở mọi nơi, để tôi không phải nhớ chỗ nào theo luật nào."
+verify = "Với mọi phân giải hai tầng trong hệ thống, khi xảy ra, thì đi qua đúng một `ScopeResolver`."
+covers = ["FR103"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Dựng dữ liệu từ điển lớp nền"
+description = "Năm nguồn từ điển có giấy phép sạch gộp thành một artifact SQLite có phiên bản và checksum, để bản phát hành kiểm chứng được và không parser nào lọt vào sản phẩm."
+verify = "Với nguồn thô CVDICT, Unihan, CC-CEDICT, viwiktionary, en.wiktionary, khi `tools/dict-build` chạy, thì sinh ra `dict-core.db` theo lược đồ `từ khoá → [nguồn, từ loại, nghĩa, ví dụ[], trích dẫn[], ghi chú]`."
+covers = ["FR27", "NFR6"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Đóng gói bốn lớp gỡ rời thành file độc lập"
+description = "Gỡ một nguồn dữ liệu khỏi bản phát hành chỉ bằng cách xoá một file, để chính sách gỡ bỏ thực thi được mà không đổi một dòng mã."
+verify = "Với Thiều Chửu, Cổ hán văn, VietPhrase, HVTĐTD, khi `tools/dict-build` chạy, thì mỗi nguồn sinh ra một file `.db` độc lập, không gộp vào `dict-core.db`."
+covers = ["FR27", "FR36"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "10b"
+type = "story"
+title = "Dựng dữ liệu từ điển tiếng Anh"
+description = "Đầu mục tiếng Anh có mặt trong dữ liệu từ điển đóng gói, để cặp Anh → Việt có nền dữ liệu như cặp Trung → Việt đã có."
+verify = "Với `raw/viwiktionary/vi-extract.jsonl` đã có · When dựng dữ liệu từ điển, khi , thì `viwiktionary` vai A dựng thành nguồn thứ sáu, dùng lại `wiktextract_common::parse(reader, \"vi\", Some(\"en\"))` — không parser mới, không crate mới."
+covers = ["FR34", "NFR6", "NFR8"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "10c"
+type = "story"
+title = "Âm Hán Việt — đúng nguồn và đúng nhãn"
+description = "Âm Hán Việt trong công cụ là âm Hán Việt thật, để tab Hán Việt và đề xuất Glossary không dạy tôi sai một chữ nào."
+verify = "Với lớp nền đang mang âm Nôm ở cột `han_viet` · When dựng lại dữ liệu từ điển, khi , thì `kVietnamese` đổi vai sang một cột `nom_reading` riêng — không mất một byte dữ liệu nào."
+covers = ["FR33", "FR113", "FR27", "FR32", "NFR6", "NFR13", "NFR14", "NFR15"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Ba nhánh truy vấn tiếng Trung"
+description = "Tra một chữ Hán đơn hay một từ hai chữ đều ra kết quả, để công cụ không im lặng trả về rỗng ở đúng những từ tôi tra nhiều nhất."
+verify = "Với một truy vấn tra chính xác đầu mục, khi thực hiện, thì đi qua chỉ mục B-tree."
+covers = ["FR39", "NFR1"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "11b"
+type = "story"
+title = "Đường tra cứu tiếng Anh"
+description = "Bôi đen một từ tiếng Anh và thấy ngay nghĩa tiếng Việt kèm từ loại, để cặp Anh → Việt dùng được thật, không chỉ có trong tài liệu."
+verify = "Với dữ liệu tiếng Anh đã đóng gói (Story 1.10b) · When tra một từ tiếng Anh, khi , thì đi qua cùng cổng `DictionarySource` của Story 1.13 — không mã riêng cho từng ngôn ngữ, ngoài phần chiến lược truy vấn mà AD mới quy định."
+covers = ["FR34", "FR19", "FR40"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Matcher dùng chung"
+description = "Một component khớp ngôn ngữ duy nhất phục vụ cả từ điển, Glossary và Translation Memory, để ba nơi không bao giờ bắt được những biến thể khác nhau mà không ai hiểu vì sao."
+verify = "Với `core/matching/`, khi kiểm, thì tồn tại đúng một cài đặt khớp ngôn ngữ."
+covers = ["FR40"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Đường tra cứu giữ nguyên bất đồng giữa các nguồn"
+description = "Thấy mỗi định nghĩa đến từ đâu và thấy các nguồn nói khác nhau, để tôi tự phán xét thay vì tin một câu trả lời đã bị gộp lại."
+verify = "Với cổng `DictionarySource`, khi định nghĩa, thì mỗi file `.db` là một adapter đi qua cùng một cổng."
+covers = ["FR29", "FR30", "FR31", "FR32", "FR34", "FR35"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Khung bốn panel"
+description = "Bốn panel trong một cửa sổ duy nhất và sắp xếp được theo cách tôi làm việc, để tôi không phải mở bốn năm cửa sổ rời như trước."
+verify = "Với Workspace, khi mở, thì bốn slot panel Source, Lookup, AI Translation, Editor tồn tại trong một cửa sổ hệ điều hành duy nhất."
+covers = ["FR16", "FR17", "FR18"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Tác phẩm trên đĩa và đường vào văn bản tối thiểu"
+description = "Đưa một đoạn văn bản vào công cụ và biết chắc nó nằm trong một thư mục tôi copy đi được, để dữ liệu của tôi không bị khoá trong ứng dụng."
+verify = "Với người dùng dán văn bản trực tiếp, hoặc mở một file `.txt` hay `.md`, khi xác nhận, thì một Tác phẩm được tạo với đúng một Chương chứa văn bản nguồn."
+covers = ["FR13", "FR96", "FR97", "FR102"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Panel Source và tab Hán Việt"
+description = "Thấy âm Hán Việt của từng ký tự ngay cạnh nguyên văn, để tôi đọc được văn bản mà không phải tra từng chữ một."
+verify = "Với một Chương có văn bản nguồn, khi mở Workspace, thì Panel Source hiển thị nguyên văn bằng token `source-cjk`."
+covers = ["FR19", "FR33"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Panel Lookup — bản ghi có cấu trúc"
+description = "Kết quả tra cứu hiện thành bản ghi có cấu trúc chứ không phải một đoạn văn, để mắt tôi nhặt được thứ cần trong một giây."
+verify = "Với một kết quả tra cứu, khi hiển thị, thì mỗi nguồn là một khối riêng xếp chồng dọc, có vạch trái 2px và thụt 13px."
+covers = ["FR28", "FR32"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Auto-Lookup"
+description = "Bôi đen một cụm từ là thấy ngay nghĩa của nó, để tôi không phải copy, paste hay chuyển cửa sổ hàng trăm lần mỗi Chương."
+verify = "Với người dùng bôi đen một cụm từ ở Panel Source, khi thả chuột hoặc kết thúc vùng chọn bằng bàn phím, thì kết quả tra cứu hiện ở Panel Lookup mà không có thao tác nào khác."
+covers = ["FR21"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "18b"
+type = "story"
+title = "Tách từ tiếng Trung cho tab Hán Việt — double-click chọn CỤM TỪ"
+description = "Double-click ở tab Hán Việt chọn được cả cụm từ đúng như ở tab nguyên văn, để tôi tra một từ ghép bằng hai cú bấm thay vì phải kéo chọn thủ công từng lần."
+verify = "Với tab Hán Việt đang chọn theo âm tiết · When người dịch double-click một từ ghép, khi , thì vùng chọn trùm cả cụm từ, ở cả hai kiểu xem."
+covers = ["FR135", "NFR1", "NFR13", "NFR14", "NFR15", "NFR16", "NFR17"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 19
+type = "story"
+title = "Bật tắt nguồn từ điển và ghi công"
+description = "Tắt một nguồn từ điển tôi không tin và luôn thấy được ghi công đầy đủ, để tôi kiểm soát được thứ mình đang đọc."
+verify = "Với danh sách nguồn từ điển, khi mở trong Panel Lookup, thì người dùng bật/tắt được từng nguồn."
+covers = ["FR37", "FR38"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 20
+type = "story"
+title = "Lịch sử tra cứu và mục đã ghim"
+description = "Xem lại những gì mình vừa tra và ghim những mục hay dùng, để tôi không phải tra lại cùng một chữ năm lần trong một Chương."
+verify = "Với người dùng tra nhiều lần trong một phiên, khi mở tab lịch sử, thì thấy các lần tra theo thứ tự gần nhất trước."
+covers = ["FR41"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 21
+type = "story"
+title = "Phím tắt cấu hình lại được"
+description = "Đổi mọi phím tắt theo thói quen của mình, để công cụ chạy theo tay tôi chứ không ngược lại."
+verify = "Với danh sách command đã đăng ký, khi mở màn hình phím tắt, thì mọi command hiện ra kèm phím đang gán."
+covers = ["FR22"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 22
+type = "story"
+title = "Bộ chạy e2e trong webview thật"
+description = "Một bộ chạy lái được cửa sổ Tauri thật, để món nợ nghiệm thu thị giác — món duy nhất có hệ số nhân — có một đường đóng bằng máy thay vì chỉ bằng mắt."
+verify = "Với một hàng bàn đo thị giác viết thành kịch bản, khi nó chạy, thì nó chạy trong webview THẬT của sản phẩm — WKWebView trên macOS, WebView2 trên Windows — không trong Chrome."
+covers = []
+after = []
+hitl = false
+risk = "low"

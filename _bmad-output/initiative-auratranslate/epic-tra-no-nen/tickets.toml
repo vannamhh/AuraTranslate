@@ -1,0 +1,97 @@
+# tickets.toml — epic-tra-no-nen. One [[entry]] per story, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Trả nợ cổng và công cụ kiểm"
+description = "Chủ dự án được: nợ nhóm cổng và công cụ kiểm (`scripts/check-*`, hook, lint) được đóng hoặc quyết dứt điểm. Mục đích: một cổng xanh nghĩa là điều nó khai, trước khi Epic 7 dựa vào nó."
+verify = "Mọi mục `Chủ: Story 11.1` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-1-trả-nợ-cổng-và-công-cụ-kiểm"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Trả nợ hạ tầng e2e và bộ chạy test"
+description = "Chủ dự án được: nợ nhóm hạ tầng e2e và bộ chạy test được đóng hoặc quyết dứt điểm. Mục đích: một lượt e2e đỏ chỉ ra lỗi thật, không phải thước đo chập chờn."
+verify = "Mọi mục `Chủ: Story 11.2` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-2-trả-nợ-hạ-tầng-e2e-và-bộ-chạy-test"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Trả nợ tra cứu và dữ liệu từ điển"
+description = "Chủ dự án được: nợ nhóm tra cứu và dữ liệu từ điển (Epic 1) được đóng hoặc quyết dứt điểm. Mục đích: Concordance ở Story 7.7 dựng lên đường tra cứu đã vá."
+verify = "Mọi mục `Chủ: Story 11.3` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-3-trả-nợ-tra-cứu-và-dữ-liệu-từ-điển"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Trả nợ Glossary"
+description = "Chủ dự án được: nợ nhóm Glossary (Epic 3) được đóng hoặc quyết dứt điểm. Mục đích: TM ở Epic 7 nhân giá trị với một Glossary không còn lỗ đã biết."
+verify = "Mọi mục `Chủ: Story 11.4` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-4-trả-nợ-glossary"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Trả nợ editor, segment và tầng ghi"
+description = "Chủ dự án được: nợ nhóm editor, segment và tầng ghi (Epic 2, `core/store`) được đóng hoặc quyết dứt điểm. Mục đích: cặp TM ghi tại chuyển tiếp xác nhận (AD-31) đi qua một đường ghi đã vá."
+verify = "Mọi mục `Chủ: Story 11.5` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-5-trả-nợ-editor-segment-và-tầng-ghi"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Trả nợ đường nhập và Library"
+description = "Chủ dự án được: nợ nhóm đường nhập và Library (Epic 5, Epic 6) được đóng hoặc quyết dứt điểm. Mục đích: dữ liệu vào TM là dữ liệu đã nhập đúng."
+verify = "Mọi mục `Chủ: Story 11.6` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-6-trả-nợ-nhập-và-library"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Trả nợ nền giao diện dùng chung và AI"
+description = "Chủ dự án được: nợ nhóm nền giao diện dùng chung (lệnh, tiêu điểm, phím tắt, a11y) và module AI (Epic 4) được đóng hoặc quyết dứt điểm. Mục đích: các bề mặt mới của Epic 7–9 dựng trên nền lệnh và tiêu điểm đã vá."
+verify = "Mọi mục `Chủ: Story 11.7` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-7-trả-nợ-nền-giao-diện-dùng-chung-và-ai"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Sửa lỗi ranh giới giữa các story của Epic 11"
+description = "Chủ dự án được: các lỗi mà hai story Epic 11 cùng tạo ra ở chỗ giao nhau — nơi không phiên nào thấy cả hai phía — được sửa hoặc quyết dứt điểm. Mục đích: Epic 7 dựng trên một nền có nightly e2e xanh và guard đỏ được khi gỡ seam."
+verify = "Mọi mục `Chủ: Story 11.8` trong `deferred-work.md` kết thúc bằng một trong ba dạng đóng của AC chung Epic 11, và `check:debt-owner` Kiểm C xanh."
+covers = []
+after = []
+hitl = false
+risk = "low"
+v6_key = "11-8-sửa-lỗi-ranh-giới-giữa-các-story"

@@ -1,0 +1,177 @@
+# tickets.toml — epic-bien-tap-theo-segment. One [[entry]] per Story 2.M, in the order epics.md wrote them.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Tách segment cấp câu và cờ kết đoạn"
+description = "Văn bản được chia thành từng câu ngay khi nhập và ranh giới đó ổn định mãi mãi, để lịch sử và trạng thái công việc của tôi không bao giờ trỏ sai chỗ."
+verify = "Với văn bản tiếng Trung, khi tách segment, thì tách theo `。！？；`."
+covers = ["FR23"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Panel Editor liền mạch"
+description = "Gõ trên một trang văn bản liền chứ không phải một cái bảng, mà vẫn đọc được trạng thái từng câu, để tôi viết tự do trong khi sổ sách segment vẫn sạch."
+verify = "Với Panel Editor, khi hiển thị, thì văn bản là một trang liền mạch — không ô, không bảng, không khối."
+covers = ["UX-DR19", "UX-DR20", "UX-DR2", "UX-DR12", "UX-DR7", "UX-DR13"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Hợp đồng flush và trạng thái đã lưu"
+description = "Không bao giờ mất quá năm giây công việc dù ứng dụng có sập giữa lúc tôi đang gõ, để tôi không phải bận tâm về việc lưu."
+verify = "Với người dùng ngừng gõ khoảng 2 giây, khi xảy ra, thì văn bản Editor flush xuống Rust."
+covers = ["FR100"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Mũi thăm dò — đo NFR18 và NFR2 đồng thời"
+description = "Biết chắc nhịp auto-save đạt được cả hai ngưỡng cùng lúc, để tôi không phát hiện ra chúng xung khắc sau khi đã xây tám story lên trên."
+verify = "Với một phiên gõ liên tục ít nhất 30 phút trên một Chương thật, khi đo, thì không frame nào vượt 50 ms trong lúc auto-save chạy (NFR2)."
+covers = ["NFR2", "NFR18"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Xác nhận segment và máy trạng thái"
+description = "Đánh dấu một câu là đạt chuẩn của mình và thấy nó đổi màu ngay, để tôi biết mình đang ở đâu trong một Chương dài."
+verify = "Với một segment, khi người dùng xác nhận, thì trạng thái chuyển sang đã xác nhận và vạch lề chuyển `confirmed`."
+covers = ["FR24"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "5b"
+type = "story"
+title = "Lưới hai cột đối chiếu"
+description = "Thấy nguyên văn và bản dịch của cùng một câu trên cùng một hàng, để đối chiếu không còn là việc mắt tôi phải tự làm."
+verify = "Với Workspace, khi mở, thì ba slot panel `panel.grid`, `panel.lookup`, `panel.ai_translation` tồn tại trong một cửa sổ hệ điều hành duy nhất."
+covers = ["UX-DR13", "UX-DR15", "UX-DR19", "FR16", "FR19", "FR21"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "5c"
+type = "story"
+title = "Cắt bỏ câu khỏi bản dịch"
+description = "Bỏ hẳn một câu hoặc một dải câu khỏi bản dịch mà vẫn thấy mình đã bỏ gì, để quyết định \"đoạn này không thuộc bản dịch\" không biến thành một lỗ hổng im lặng."
+verify = "Với một câu hoặc một dải câu đang chọn, khi gọi thao tác cắt bỏ, thì cờ đặt trên câu nguồn."
+covers = ["FR133"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = "5d"
+type = "story"
+title = "Ngắt đoạn của bản dịch"
+description = "Tách một đoạn nguồn dài thành hai đoạn trong bản dịch, để bản dịch có nhịp của tiếng Việt chứ không phải nhịp của bản gốc."
+verify = "Với con trỏ trong ô bản dịch, khi người dùng bấm `Enter`, thì xuống dòng trong ô, ký tự lưu vào `target_text`."
+covers = ["FR134"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Lịch sử phiên bản segment và khôi phục"
+description = "Xem lại các bản dịch trước của một câu và quay về một trong số đó, để tôi thử một cách diễn đạt khác mà không sợ mất bản cũ."
+verify = "Với một segment đã được xác nhận nhiều lần, khi mở lịch sử, thì thấy các phiên bản kèm thời điểm, mới nhất trước."
+covers = ["FR101"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Xuất xứ bản dịch cấp segment"
+description = "Hệ thống tự biết câu nào là chữ của tôi và câu nào là của người khác, để kho Translation Memory về sau không bị trộn phong cách."
+verify = "Với người dùng gõ bản dịch rồi xác nhận, khi ghi xuất xứ, thì là tôi dịch."
+covers = ["FR117"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Gộp và tách segment tường minh"
+description = "Sửa lại chỗ máy tách câu sai, để một dấu chấm trong chữ viết tắt không phá cấu trúc cả Chương."
+verify = "Với hai segment liền nhau, khi người dùng gộp bằng `⌘M`, thì cả hai đánh dấu về hưu và một segment mới được tạo."
+covers = ["FR78"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Gộp bằng `Backspace` ở đầu ô"
+description = "Nối câu này với câu trên bằng chính phím xoá lui, để tôi không phải dừng lại ra lệnh cho công cụ giữa dòng suy nghĩ."
+verify = "Với con trỏ ở đầu ô bản dịch của một câu, khi người dùng bấm `Backspace`, thì hệ thống gộp câu đó với câu trên."
+covers = ["FR78"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Điều hướng segment"
+description = "Nhảy tới câu chưa dịch tiếp theo bằng một phím, để tôi không phải cuộn tìm bằng mắt trong một Chương dài."
+verify = "Với con trỏ ở một segment, khi gọi lệnh segment kế tiếp, thì focus chuyển sang segment ngay sau nó."
+covers = ["FR25"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Chuyển Chương trong Workspace"
+description = "Sang Chương kế tiếp mà không phải quay về Library, để mạch làm việc của tôi không bị cắt."
+verify = "Với một Chương đang mở trong Workspace, khi gọi lệnh Chương sau, thì Chương kế tiếp trong cùng Tác phẩm mở ra."
+covers = ["FR26"]
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Hạ tầng e2e và cổng còn thiếu"
+description = "Bộ đo e2e nói thật và hai cổng còn thiếu đứng dậy, để Epic 3 không dựng một cột dữ liệu mới lên trên một lưới nghiệm thu đang nói dối."
+verify = "Với Vite đang chạy nhưng module graph đã vỡ (vẫn trả 200 cho `/`), khi `devServerIsUp()` chạy, thì nó trả `false`, và bộ e2e dừng với một câu nói đúng nguyên nhân."
+covers = []
+after = []
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Phân loại sổ nợ — 199 mục mồ côi và một luật đang bị phá"
+description = "Mọi món nợ đang mở có một chủ đọc được, để sổ nợ trở lại là một hàng đợi có người phục vụ, thay vì một kho trung thực mà không ai đọc."
+verify = "Với sổ nợ sau lượt này, khi đếm bằng lệnh ghi trong story, thì số mục MỞ mà không có `Chủ:` = 0."
+covers = []
+after = []
+hitl = false
+risk = "low"
