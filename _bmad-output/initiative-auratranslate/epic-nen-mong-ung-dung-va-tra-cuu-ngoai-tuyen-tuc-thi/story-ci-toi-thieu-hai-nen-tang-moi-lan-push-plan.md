@@ -68,7 +68,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
 
 ### AC6 — Hai phép đo `.msi`, ghi lại ở MỖI lần chạy
 
-*(Nhận bàn giao từ Story 1.1 ngày 2026-08-03. Công thức: [`research/font-spike-results-2026-08-03.md`](../planning-artifacts/research/font-spike-results-2026-08-03.md) §Công thức đo trên Windows.)*
+*(Nhận bàn giao từ Story 1.1 ngày 2026-08-03. Công thức: [`research/font-spike-results-2026-08-03.md`](research-font-spike-results/research-font-spike-results.md) §Công thức đo trên Windows.)*
 
 **Given** runner Windows của CI đã chạy được
 **When** CI chạy trên một commit bất kỳ
@@ -500,16 +500,16 @@ jobs:
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.3` — bảy AC nguyên văn, `:1080-1128`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Epic 1 · Ghi chú cài đặt` — vì sao CI đứng ngay sau scaffold, `:812`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.3` — bảy AC nguyên văn, `:1080-1128`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Epic 1 · Ghi chú cài đặt` — vì sao CI đứng ngay sau scaffold, `:812`]
 - [Source: `_bmad-output/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md#Stack` — 19 hàng đã ghim, `scripts/check-deps.sh` (nay `.mjs`) *"Story 1.3 gắn script này vào CI"*, `:611`]
 - [Source: `_bmad-output/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md#AD-15` — ba điểm ra mạng; không có điểm thứ tư]
-- [Source: `_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md#Công thức đo trên Windows` — `:417-451`, kèm cảnh báo chiều trừ đảo]
-- [Source: `_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md#Phép đo 2` — dải ước 16,0–20,3 MiB và giới hạn của phép tự kiểm, `:105-148`]
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Công thức đo trên Windows` — `:417-451`, kèm cảnh báo chiều trừ đảo]
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Phép đo 2` — dải ước 16,0–20,3 MiB và giới hạn của phép tự kiểm, `:105-148`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#Debug Log References` — ba lệnh, bảng đỏ/xanh, `:597-615`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#AC6` — vì sao `cargo check` cho Windows gãy trên máy Ice, `:716-742`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#Bàn giao tường minh` — ba việc giao cho 1.3, `:773-784`]
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md` — `:6`, `:13-18`]
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md` — `:6`, `:13-18`]
 - [Source: `src-tauri/tauri.conf.json` — `bundle.targets`, `webviewInstallMode: offlineInstaller`, `bundle.resources`]
 - [Source: `src-tauri/src/lib.rs:14-88` — móc self-check, `#[cfg(debug_assertions)]`]
 - [Source: `src/App.vue:14,19` — `VITE_SCOPE_SELFTEST` gate lúc build]
@@ -687,8 +687,8 @@ Chạy được ngay khi có `gh`: `git push` → CI tự chạy (`on: push`, m�
 | `src-tauri/tests/config_invariants.rs` | +1 test `nofonts_overlay_drops_resources_with_an_explicit_null` (12 → **13** test) |
 | `src/selftest/scopeCheck.ts` | Nhận biết chế độ CSP; thêm trạng thái `unmeasured`; **nhánh dev giữ nguyên hành vi Story 1.2** |
 | `package.json` | +script `check:scope:bundled` |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Đóng mục `:13`; thêm mục `connect-src`; thêm mục bốn phép nghiệm thu chờ runner |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-3-…` → `in-progress` |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | Đóng mục `:13`; thêm mục `connect-src`; thêm mục bốn phép nghiệm thu chờ runner |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `1-3-…` → `in-progress` |
 | `_bmad-output/implementation-artifacts/1-3-…-moi-lan-push.md` | Chính tệp này |
 | `scripts/check-deps.mjs` | *(lượt rà soát)* `shell: IS_WIN` cho `npm ls` — thiếu nó là job Windows chết ở bước 5; `cargo tree --locked` |
 | `src-tauri/tests/config_invariants.rs` | *(lượt rà soát)* `csp_directives` giữ bản ĐẦU + `csp_directive_counts`; test `capabilities/` đệ quy và mọi phần mở rộng; +2 test CSP (13 → **15**) |

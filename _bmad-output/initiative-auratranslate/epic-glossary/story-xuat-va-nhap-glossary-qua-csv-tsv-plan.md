@@ -7,9 +7,9 @@ status: done
 review_loop_iteration: 1
 baseline_revision: '3a1d8295a395639cb2c05a731328e1c55c83ee8a'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md'
-  - '{project-root}/_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-quan-ly-glossary-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/ad-brief-hop-thoai-chon-tep/ad-brief-hop-thoai-chon-tep.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -288,58 +288,58 @@ Ba đối chứng bắt buộc của §Verification, mỗi ca gỡ rồi khôi p
 **Ghi vào dữ liệu người dùng — chỗ vòng rà tìm ra lỗi nặng nhất**
 
 - Điểm vào: *lấy của file* ghi ĐÚNG một cột; `note`/`category` không bao giờ bị chạm.
-  [`store.rs:1416`](../../src-tauri/src/core/glossary/store.rs#L1416)
+  [`store.rs:1416`](../../../src-tauri/src/core/glossary/store.rs#L1416)
 
 - Cả lô đi trong MỘT giao dịch, và phân tích đã xong trọn trước khi nó mở.
-  [`store.rs:1357`](../../src-tauri/src/core/glossary/store.rs#L1357)
+  [`store.rs:1357`](../../../src-tauri/src/core/glossary/store.rs#L1357)
 
 - Va `UNIQUE` nhận diện bằng `extended_code` của SQLite, không bằng so chuỗi.
-  [`mod.rs:139`](../../src-tauri/src/core/store/mod.rs#L139)
+  [`mod.rs:139`](../../../src-tauri/src/core/store/mod.rs#L139)
 
 **Bước di trú — lần ĐẦU kho này dựng lại một bảng**
 
 - Hằng MỚI, không sửa DDL cũ tại chỗ; mốc `sqlite_sequence` mang theo trước `DROP`.
-  [`schema.rs:521`](../../src-tauri/src/core/store/schema.rs#L521)
+  [`schema.rs:521`](../../../src-tauri/src/core/store/schema.rs#L521)
 
 - Cùng một hằng vào hai thang: `global.db` bước 5…
-  [`schema.rs:606`](../../src-tauri/src/core/store/schema.rs#L606)
+  [`schema.rs:606`](../../../src-tauri/src/core/store/schema.rs#L606)
 
 - …và `project.db` bước 15.
-  [`schema.rs:1374`](../../src-tauri/src/core/store/schema.rs#L1374)
+  [`schema.rs:1374`](../../../src-tauri/src/core/store/schema.rs#L1374)
 
 - Xuất xứ thứ tư; đường ghi tự đặt nó, không nhận qua tham số (`FR55`).
-  [`entry.rs:98`](../../src-tauri/src/core/glossary/entry.rs#L98)
+  [`entry.rs:98`](../../../src-tauri/src/core/glossary/entry.rs#L98)
 
 **Định dạng thuần — `&str` vào, `String` ra, 0 phụ thuộc mới**
 
 - Một đường bọc nháy kép dùng chung cho CSV lẫn TSV — chỗ giữ vòng tròn khép kín.
-  [`exchange.rs:110`](../../src-tauri/src/core/glossary/exchange.rs#L110)
+  [`exchange.rs:110`](../../../src-tauri/src/core/glossary/exchange.rs#L110)
 
 - Phân tích TRỌN rồi mới trả lỗi, để người dùng thấy mọi lỗi trong một lượt.
-  [`exchange.rs:470`](../../src-tauri/src/core/glossary/exchange.rs#L470)
+  [`exchange.rs:470`](../../../src-tauri/src/core/glossary/exchange.rs#L470)
 
 - Dòng logic rỗng không phải một hàng dữ liệu — cùng luật cho cuối tệp và giữa tệp.
-  [`exchange.rs:402`](../../src-tauri/src/core/glossary/exchange.rs#L402)
+  [`exchange.rs:402`](../../../src-tauri/src/core/glossary/exchange.rs#L402)
 
 - Ba nhánh *mới* / *giống* / *bất đồng*; mặc định là giữ của tôi.
-  [`exchange.rs:679`](../../src-tauri/src/core/glossary/exchange.rs#L679)
+  [`exchange.rs:679`](../../../src-tauri/src/core/glossary/exchange.rs#L679)
 
 - Xuất đọc ĐÚNG một tầng, không qua `list_all_entries` — tránh `source_term` trùng.
-  [`store.rs:1283`](../../src-tauri/src/core/glossary/store.rs#L1283)
+  [`store.rs:1283`](../../../src-tauri/src/core/glossary/store.rs#L1283)
 
 **Phép kiểm — bốn ca mang nhiều sức nặng nhất**
 
 - Ca canh lỗi phá dữ liệu; gỡ bản vá ra thì nó và một ca nữa ĐỎ, ca cũ vẫn xanh.
-  [`glossary_exchange_contract.rs:619`](../../src-tauri/tests/glossary_exchange_contract.rs#L619)
+  [`glossary_exchange_contract.rs:619`](../../../src-tauri/tests/glossary_exchange_contract.rs#L619)
 
 - Di trú: `id` không đổi, index và trigger dựng lại, `id` kế tiếp không tái dùng.
-  [`glossary_contract.rs:2802`](../../src-tauri/tests/glossary_contract.rs#L2802)
+  [`glossary_contract.rs:2802`](../../../src-tauri/tests/glossary_contract.rs#L2802)
 
 - `match` toàn phần: một `ParseIssue` mới không biên dịch được cho tới khi ánh xạ khoá.
-  [`glossary_exchange_contract.rs:444`](../../src-tauri/tests/glossary_exchange_contract.rs#L444)
+  [`glossary_exchange_contract.rs:444`](../../../src-tauri/tests/glossary_exchange_contract.rs#L444)
 
 - Khoảng hở vòng rà tìm ra: `created_at` đi trọn đường ghi rồi đọc lại từ kho.
-  [`glossary_exchange_contract.rs:916`](../../src-tauri/tests/glossary_exchange_contract.rs#L916)
+  [`glossary_exchange_contract.rs:916`](../../../src-tauri/tests/glossary_exchange_contract.rs#L916)
 
 ---
 
@@ -353,7 +353,7 @@ thuộc về tệp này. Không sửa một ký tự.
   # TSV"*) đòi một hộp thoại chọn tệp; `check-deps.mjs:163,165` cấm `tauri-plugin-fs` và
   # `tauri-plugin-dialog`. Ice chốt đi đường `tauri-plugin-dialog` (chọn hai lần, lần sau
   # đã đọc số đo) ⇒ đó là một `AD` MỚI, và `AD` giao Winston soạn, không phải dev.
-  # Hồ sơ bàn giao: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`.
+  # Hồ sơ bàn giao: `_bmad-output/initiative-auratranslate/ad-brief-hop-thoai-chon-tep/ad-brief-hop-thoai-chon-tep.md`.
   # 🔵 2026-08-24 (cùng ngày, muộn hơn) — MỆNH ĐỀ "ở lại backlog" HẾT ĐÚNG. Ice chốt TÁCH:
   # nửa CHỌN TỆP hoãn (sổ nợ, chủ Winston) — nửa ĐỊNH DẠNG chạy ngay và KHÔNG đụng hộp thoại.
   # Nửa đang chạy: sinh/phân tích CSV-TSV (`&str` vào, `String` ra) + một đường ghi nguyên tử

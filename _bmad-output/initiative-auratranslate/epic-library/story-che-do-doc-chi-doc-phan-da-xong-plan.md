@@ -198,7 +198,7 @@ nói vì sao dãy dừng ở đó. Chương chưa `done` **không bao giờ rờ
   ⚠️ tên tham số đi **camelCase** (`segmentId`). `e2e/specs/story-5-4-lifecycle.e2e.mjs:50-57` — chọn
   Tác phẩm và các nút vòng đời. `e2e/support/workspace.mjs:57` `openWorkspaceWithWork(...)`.
   ⚠️ `story-5-6-library-grid.e2e.mjs` đỏ từ baseline (chủ Story 5.6) — không đọc thành hồi quy.
-- `_bmad-output/implementation-artifacts/deferred-work.md:3743-3749` — mục Chế độ đọc, dòng
+- `_bmad-output/initiative-auratranslate/deferred-work.md:3743-3749` — mục Chế độ đọc, dòng
   *"đọc liên tục xuyên Chương (FR120) … chủ riêng: Story 5.12 · 5.13"*: story này đóng vế FR120.
   `:5047` và `:8746` — món nợ **vị trí cuộn**, chủ *"Story 5.12 hoặc 5.13"*: story này **thu hẹp chủ
   về 5.13**, không đóng.
@@ -327,7 +327,7 @@ nói vì sao dãy dừng ở đó. Chương chưa `done` **không bao giờ rờ
     — Rationale: mệnh đề *"nguyên văn của Chương chưa xong KHÔNG xuất hiện"* là một mệnh đề về **cây
     DOM trong engine thật**; `happy-dom` chạy trên `invoke` giả nên nó chỉ chứng minh được rằng dữ
     liệu giả không có mặt.
-19. `_bmad-output/implementation-artifacts/deferred-work.md` — **đóng bằng chữ** vế FR120 của mục
+19. `_bmad-output/initiative-auratranslate/deferred-work.md` — **đóng bằng chữ** vế FR120 của mục
     *"Chế độ đọc → Epic 5"* (`:3743-3749`) theo khuôn `→ ✅ ĐÃ ĐÓNG <ngày> (Story 5.12)`; **thu hẹp**
     món nợ vị trí cuộn (`:5047` · `:8746`) từ *"Story 5.12 hoặc 5.13"* về **chủ duy nhất: Story 5.13**,
     kèm lý do; **mở** hai mục có chủ: `↵` của mốc biên chưa có hợp âm (**chủ: Ice**, cùng hạng món nợ

@@ -314,7 +314,7 @@ phần quan trọng hơn con số là tiền đề: xem mục kế.
 Tiền đề của sổ nợ là *"Story 5.6 là nơi bìa LẦN ĐẦU được NHÌN THẤY"*. Đo lại:
 `grep -rni cover src-tauri/src src` ⇒ **3** kết quả, **0** cái nào là một trường dữ liệu (hai
 cái là chữ "covering index", một là chính câu cấm ở `schema.rs:1575`). Và `grep -n "bìa"
-_bmad-output/planning-artifacts/epics.md` ⇒ **0** story nào mở một đường cho người dùng
+_bmad-output/initiative-auratranslate/archive-v6/epics.md` ⇒ **0** story nào mở một đường cho người dùng
 **ĐẶT** ảnh bìa — FR3 ghi *"ảnh bìa (tuỳ chọn)"*, không AC nào ở bất kỳ epic nào dựng đường
 chọn tệp bìa.
 

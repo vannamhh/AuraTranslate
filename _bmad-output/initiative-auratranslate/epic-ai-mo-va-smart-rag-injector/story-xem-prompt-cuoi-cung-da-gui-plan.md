@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 2
 baseline_revision: '6de227da1a097456b8e6f8efc2ca70ac5bc2f6cf'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -419,7 +419,7 @@ Split into four phases along the shape above, each handed to a fresh agent throu
       — rationale: finding B15; a brand-new file should not inherit the family's exemption.
 - [x] `src-tauri/tests/glossary_contract.rs` — extend the wire-spelling agreement test to
       `GlossaryTierWire` — rationale: finding B7; that test exists because two spellings already did.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — fix the "Hai mục" preamble that now
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — fix the "Hai mục" preamble that now
       lists three (B10), give the a11y item an owner the gate can read (B11), and add the entry for
       AC5's unread-CI half (B12); record B9 (the control writes into the real `target/`) and V6 with
       owners — rationale: findings B9, B10, B11, B12, V6.
@@ -457,7 +457,7 @@ accepted only on a removal counter-check that goes red for the right reason.*
       a CSS rule and a case for every kind including `tm` — rationale: findings P7 and P9.
 - [x] `src-tauri/tests/ai_boundary.rs` — a line carrying the approved prefix must still be scanned for
       a SECOND forbidden token rather than skipped whole — rationale: finding P8.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — correct the a11y entry (the
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — correct the a11y entry (the
       `aria-labelledby` it describes was added in this same diff, P10) and the stale `ai_boundary.rs`
       test count (P11); record P12's remaining wording items and the `latestAssembleSequence` branch
       with owners — rationale: a ledger that describes a defect that no longer exists sends the next
@@ -1677,7 +1677,7 @@ defect, then was restored and re-verified green).
   `element.textContent` raw, over a 5-piece fixture with deliberate leading/trailing whitespace
   on both `authored` pieces and one piece of every kind including the new `source_segment`/`tm`
   (folds in the "a case for every kind" half of P7/P9 at the screen layer too).
-- `_bmad-output/implementation-artifacts/deferred-work.md` — finding P10: the a11y entry
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — finding P10: the a11y entry
   corrected — it described `AiPromptInspectorOverlay.vue` as still missing `aria-labelledby`,
   which loop 1's own finding B15 had already added in the SAME diff; re-scoped to the real
   remaining three overlays (`PromptLibraryOverlay.vue`/`PromptImportOverlay.vue`/

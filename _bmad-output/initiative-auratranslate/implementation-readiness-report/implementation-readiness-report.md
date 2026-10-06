@@ -17,14 +17,14 @@ requirementsExtracted:
   functional: 131
   nonFunctional: 19
 documentsIncluded:
-  prd: _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md
-  prd_addendum: _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/addendum.md
-  architecture: _bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md
-  epics: _bmad-output/planning-artifacts/epics.md
-  ux_experience: _bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md
-  ux_design: _bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/DESIGN.md
-  spec: _bmad-output/specs/spec-AuraTranslate/SPEC.md
-  brief: _bmad-output/planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/brief.md
+  prd: _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
+  prd_addendum: _bmad-output/initiative-auratranslate/prd-auratranslate/addendum.md
+  architecture: _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md
+  epics: _bmad-output/initiative-auratranslate/archive-v6/epics.md
+  ux_experience: _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md
+  ux_design: _bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md
+  spec: _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
+  brief: _bmad-output/initiative-auratranslate/brief-auratranslate/brief-auratranslate.md
 ---
 
 # Implementation Readiness Assessment Report
@@ -72,8 +72,8 @@ documentsIncluded:
 
 ### Tài liệu bổ trợ (ngoài `planning_artifacts`)
 
-- `_bmad-output/specs/spec-AuraTranslate/SPEC.md` + `requirements.md`, `build-sequence.md`, `risks.md`, `data-sources.md`, `glossary.md`
-- `planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/brief.md` + `addendum.md`
+- `_bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md` + `requirements.md`, `build-sequence.md`, `risks.md`, `data-sources.md`, `glossary.md`
+- `initiative-auratranslate/brief-auratranslate/brief-auratranslate.md` + `addendum.md`
 - `planning-artifacts/research/` — 3 tài liệu nghiên cứu, gồm `phase-0-spike-results-2026-08-02.md`
 
 ### Vấn đề phát hiện

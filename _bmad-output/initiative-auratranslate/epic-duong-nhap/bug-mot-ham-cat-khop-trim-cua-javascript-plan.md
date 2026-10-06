@@ -87,7 +87,7 @@ Applies to each of the four columns `origin_author` · `origin_site_name` · `or
 - [x] `src-tauri/tests/chapter_origin_contract.rs` -- extend both whitespace cases to the matrix rows -- the existing `'   '` value cannot fail on either side.
 - [x] `tests/frontend/importPreviewChapterOrigin.test.ts` -- same rows on the JS side -- proves the two halves now agree on the same inputs.
 - [x] `src-tauri/tests/webimport_contract.rs` -- add a `U+0085`-only pasted line next to the existing `U+FEFF` cases at `:860-881` -- D1 changes this path too: today Rust drops such a line and `pastedUrlLines` keeps it, so the on-screen *N link* count and the number of Chapters created disagree by one. After the patch both keep it. Show this case RED before the patch.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- two owned entries: the three `title` sites, and the D1 consequence (a `U+0085`-only origin field now stored verbatim, rendering as an unlabelled blank box) -- `AGENTS.md`: never mark something passed by inference.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- two owned entries: the three `title` sites, and the D1 consequence (a `U+0085`-only origin field now stored verbatim, rendering as an unlabelled blank box) -- `AGENTS.md`: never mark something passed by inference.
 
 **Acceptance Criteria:**
 - Given a `ChapterOrigin` field holding only `U+FEFF`, when the Work is created from a URL preview **and** when the field is later cleared from the chapter list, then the column is `NULL` on disk and the preview and `LibraryMode` both show the "Không tìm thấy" label — the same outcome on both paths.

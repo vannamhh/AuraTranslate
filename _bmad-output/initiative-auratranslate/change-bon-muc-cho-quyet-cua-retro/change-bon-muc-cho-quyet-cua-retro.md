@@ -9,7 +9,7 @@ skill: bmad-correct-course
 
 **Người soạn:** `bmad-correct-course` (chế độ Incremental) · **Người duyệt:** Ice
 **Baseline:** `1eb781b` (master, chưa đẩy — `origin` đi sau 3 commit) · cây có `sprint-status.yaml` sửa chưa commit
-**Nguồn:** `_bmad-output/implementation-artifacts/epic-6-retro-2026-09-15.md` — F4, F5, F9, và câu hỏi mở 1
+**Nguồn:** `_bmad-output/initiative-auratranslate/epic-duong-nhap/epic-duong-nhap-retrospective.md` — F4, F5, F9, và câu hỏi mở 1
 **Trạng thái:** chờ Ice duyệt lượt cuối. Chưa tệp nào được sửa.
 
 ---

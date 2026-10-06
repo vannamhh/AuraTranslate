@@ -14,7 +14,7 @@ AD-49 khớp mã ở phần lõi (Rule 1's cơ chế nhường vùng gõ, cặp 
 - Không phải lớp (i): không có lệnh nghịch đảo nào đăng ký cho nó (`grep -rn "promote" src/commands/index.ts` không ra một cặp undo).
 - Không phải lớp (ii): nội dung cũ (bản người dùng gõ, kể cả bản CHƯA flush vào `editorEditedText`) bị mất, không "vẫn tra lại được".
 - Không phải lớp (iii) hợp lệ: chính phép thử Rule 2(iii) — "cái sắp mất có bản sao ở đâu không" — được cài ĐÚNG ở `restore_segment_version` (`segment.rs:824-829`, `SELECT EXISTS(... segment_version WHERE segment_id=? AND target_text=?)`) nhưng KHÔNG được gọi ở đường promote.
-- `_bmad-output/implementation-artifacts/deferred-work.md:2500-2502` có nhắc `promote_ai_translation không ghi segment_version` nhưng chỉ để giải thích UX cuộn-theo-lô (Story 4.9, Decision 2) — không đóng dấu đây là một khoảng hở của AD-49, không có mục nợ nào mang `Chủ:` trỏ vào AD-49 Rule 2/3 cho lệnh này. AD-49 tự nhận nó "sẽ là một mục nợ" (theo bối cảnh giao việc) nhưng mục đó chưa tồn tại trong sổ nợ.
+- `_bmad-output/initiative-auratranslate/deferred-work.md:2500-2502` có nhắc `promote_ai_translation không ghi segment_version` nhưng chỉ để giải thích UX cuộn-theo-lô (Story 4.9, Decision 2) — không đóng dấu đây là một khoảng hở của AD-49, không có mục nợ nào mang `Chủ:` trỏ vào AD-49 Rule 2/3 cho lệnh này. AD-49 tự nhận nó "sẽ là một mục nợ" (theo bối cảnh giao việc) nhưng mục đó chưa tồn tại trong sổ nợ.
 - Hệ quả: một prompt AI có thể ghi đè bản người dùng tự gõ (chưa `confirm`, chưa có `segment_version`) mà không hỏi gì — đúng lớp lỗi "rỗng im lặng" mà AGENTS.md liệt là trung tâm.
 
 ### 2. [CAO] "`⌘Z` gốc sửa văn bản trong đúng một editing host" vỡ chính bởi lệnh promote đó
@@ -38,4 +38,4 @@ AD-49 khớp mã ở phần lõi (Rule 1's cơ chế nhường vùng gõ, cặp 
 - `restore_segment_version` (`src-tauri/src/commands/segment.rs:733-850`) cài đúng phép thử "bản sao ở đâu không" bằng `EXISTS` trên `segment_version` (dòng 824-829), có `needs_confirmation`/`force` đúng khuôn, và tự ghi rõ giới hạn thật của nó (chuỗi rỗng bỏ qua phép kiểm, dòng 807-822) — mức minh bạch đúng luật "measurement states its build/population".
 - Không có binding `Mod+Z`/`Mod+Shift+Z` nào tồn tại trong toàn bộ `src/` hôm nay (`grep -rn "KeyZ" src/` = 0 dòng), nên Rule 1 hiện không bị vi phạm bởi bất kỳ command nào — đúng như AD-49 mô tả cho THỜI ĐIỂM VIẾT.
 
-File: `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/reviews/review-ad-49-reality-2026-09-23.md`
+File: `_bmad-output/initiative-auratranslate/architecture-auratranslate/reviews/review-ad-49-reality-2026-09-23.md`

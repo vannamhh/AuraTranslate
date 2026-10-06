@@ -146,7 +146,7 @@ header; rows travel decode → cleanup → normalize → chapter split on the SO
 - [x] `src-tauri/tests/bilingual_import_contract.rs` (new) -- every I/O Matrix row on the product path.
 - [x] `tests/frontend/importPreviewBilingual.test.ts` (new) -- mount, fake at the IPC boundary.
 - [x] Existing tests in §Code Map -- one 🔵 line where a claim actually went stale (`segment_contract.rs` — see §Implementation Notes); `review_contract.rs`/`cleanup_contract.rs` checked, no stale claim found, left untouched.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- closed `:9128-9134` and the FR115 rows of `:4245`/`:4253` with evidence; new entry re-owning `:4372-4382` to Ice (reachable now); the two `.md`/`.docx` `source_spec` entries already existed from planning.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- closed `:9128-9134` and the FR115 rows of `:4245`/`:4253` with evidence; new entry re-owning `:4372-4382` to Ice (reachable now); the two `.md`/`.docx` `source_spec` entries already existed from planning.
 
 **Acceptance Criteria:**
 - 🔴 Given the `target_text` write REMOVED from the new insert path, when the new suite runs, then it is RED.

@@ -8,7 +8,7 @@ baseline_revision: 'b825a58836f2af221cc6c353daffbcbd3319bcf2'
 review_loop_iteration: 1
 context:
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 relates_to: 1
 ---
 
@@ -63,7 +63,7 @@ relates_to: 1
 - `segment_boundary.rs:141` `is_comment` -- half-handles block comments; `store_boundary.rs:151,162,241,244` -- the comment filter is inlined.
 - `dict_boundary.rs:957` test, `walk_any` at `:1013`, panicking read at `:981`. `:591` `mentions_a_dict_db_file`, `:860` `ordering_lacks_a_tiebreaker`.
 - `tests/fixtures_docx.rs` + `segment_contract.rs:18-19` -- the `#[path]` sharing precedent, with `#[allow(dead_code)]` and a reason.
-- Ballot `planning-artifacts/sprint-change-proposal-2026-09-24b-phieu-quyet.md:352` (#106) cites `b8f22f7:11211 (+ 11646)`. In `b8f22f7`, line 11646 is the tail of the `api_key` item. The closure line sits under the FR77 item instead (`deferred-work.md` ~:11873).
+- Ballot `initiative-auratranslate/change-phieu-quyet-no-dung-ten-ice-hang-p/change-phieu-quyet-no-dung-ten-ice-hang-p.md:352` (#106) cites `b8f22f7:11211 (+ 11646)`. In `b8f22f7`, line 11646 is the tail of the `api_key` item. The closure line sits under the FR77 item instead (`deferred-work.md` ~:11873).
 - HEAD has no `/*` on any non-comment line of `src-tauri/src`, so comment stripping changes no verdict today.
 
 ## Tasks & Acceptance

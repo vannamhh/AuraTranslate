@@ -242,7 +242,7 @@ what makes Story 6.10's two counts and `⌥W` mean something at N files.
 - [x] **MEASURE, do not claim** -- time one preview pass for a realistic batch (target: 200 files)
       and record the number with its date next to the existing 440 KB baseline; if it is slow, book
       an owned debt entry rather than a sentence
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- close `:10083-10112` with a `→`
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- close `:10083-10112` with a `→`
       line (`check:debt-owner` reads the `→` line, not the prose), and book one owned entry for what
       §Decisions defers: `.docx` in a batch needs a sidecar per unit and per-unit weaving, which
       belongs to a story that may touch the anchor invariants of 6.11/6.13/6.14

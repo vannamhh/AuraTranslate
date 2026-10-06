@@ -9,7 +9,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-5-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -78,7 +78,7 @@ context:
 - [x] `AGENTS.md` -- sửa câu *"Không cổng nào canh luật này"* thành tên tệp cổng vừa dựng -- lời tự khai phải theo kịp thực tế.
 - [x] `AGENTS.md` -- mở dòng luật để nó nêu **đủ tám** mục miễn trừ thay vì hai -- cổng khai "miễn trừ NGUYÊN VĂN" nhưng luật chỉ viết ra 2/8; sửa nguồn cho lời khai thành đúng, thay vì hạ giọng lời khai.
 - [x] `src-tauri/tests/naming_boundary.rs` -- thêm ca thứ 13 đối chiếu dòng luật `AGENTS.md` với mảng `STORE_EXEMPT` -- câu "hai danh sách phải khớp" vừa viết ra cũng là một quy ước không cổng nào canh.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- ghi hai món nợ có chủ: `cover` (chủ: Story 5.6) và `work.updated_at` không bao giờ đổi (chủ: Story 5.2) -- nợ có chủ, không phải nợ trôi nổi.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- ghi hai món nợ có chủ: `cover` (chủ: Story 5.6) và `work.updated_at` không bao giờ đổi (chủ: Story 5.2) -- nợ có chủ, không phải nợ trôi nổi.
 
 **Acceptance Criteria:**
 - Given cây nguồn sau khi đổi tên, when chạy `naming_boundary.rs`, then 0 vi phạm và cổng vẫn bắt được cả bốn chuỗi vi phạm dựng tay.
@@ -153,55 +153,55 @@ context:
 **Cổng — thứ story này thật sự thêm vào kho**
 
 - Bắt đầu ở đây: bốn từ cấm và tám miễn trừ, cạnh nhau, là toàn bộ luật.
-  [`naming_boundary.rs:82`](../../src-tauri/tests/naming_boundary.rs#L82)
+  [`naming_boundary.rs:82`](../../../src-tauri/tests/naming_boundary.rs#L82)
 
 - Nguồn của luật; cổng chỉ thi hành nó, và ca ở dòng 941 canh hai bên khớp nhau.
-  [`AGENTS.md:41`](../../AGENTS.md#L41)
+  [`AGENTS.md:41`](../../../AGENTS.md#L41)
 
 - Đối chứng nặng nhất: cây nguồn thật, 0 vi phạm — phần còn lại chứng minh phép quét không mù.
-  [`naming_boundary.rs:765`](../../src-tauri/tests/naming_boundary.rs#L765)
+  [`naming_boundary.rs:765`](../../../src-tauri/tests/naming_boundary.rs#L765)
 
 - Che theo neo biên, không theo chuỗi con: `ProjectStoreView` vẫn bị bắt.
-  [`naming_boundary.rs:305`](../../src-tauri/tests/naming_boundary.rs#L305)
+  [`naming_boundary.rs:305`](../../../src-tauri/tests/naming_boundary.rs#L305)
 
 - Vế viết thường, thêm ở vòng rà: cổng cũ mù với `code` của IPC.
-  [`naming_boundary.rs:400`](../../src-tauri/tests/naming_boundary.rs#L400)
+  [`naming_boundary.rs:400`](../../../src-tauri/tests/naming_boundary.rs#L400)
 
 - Miễn trừ hẹp cho kiểu DOM; `DocumentStore` cùng vị trí vẫn phải đỏ.
-  [`naming_boundary.rs:338`](../../src-tauri/tests/naming_boundary.rs#L338)
+  [`naming_boundary.rs:338`](../../../src-tauri/tests/naming_boundary.rs#L338)
 
 **Đổi tên — ba họ định danh thật, cộng chuỗi `code` bắt được ở vòng rà**
 
 - Tên nay nói đúng tầng nó phục vụ, không phải tên kho.
-  [`library/mod.rs:33`](../../src-tauri/src/core/library/mod.rs#L33)
+  [`library/mod.rs:33`](../../../src-tauri/src/core/library/mod.rs#L33)
 
 - Chỗ hở vòng rà 1: `code` từng nói "project" trong khi hai lớp kia đã đổi.
-  [`library/mod.rs:87`](../../src-tauri/src/core/library/mod.rs#L87)
+  [`library/mod.rs:87`](../../../src-tauri/src/core/library/mod.rs#L87)
 
 - Cùng lỗi, chỗ thứ hai — thứ `grep err.project.` không thể bắt.
-  [`chapter.rs:65`](../../src-tauri/src/commands/chapter.rs#L65)
+  [`chapter.rs:65`](../../../src-tauri/src/commands/chapter.rs#L65)
 
 - Khoá lộ ra ngoài cũng là tên thực thể, nên đổi cùng lượt.
-  [`i18n/mod.rs:156`](../../src-tauri/src/core/i18n/mod.rs#L156)
+  [`i18n/mod.rs:156`](../../../src-tauri/src/core/i18n/mod.rs#L156)
 
 - Đầu kia của khoá; `check-i18n.mjs` đỏ nếu lệch một bên.
-  [`vi.json:14`](../../src/i18n/vi.json#L14)
+  [`vi.json:14`](../../../src/i18n/vi.json#L14)
 
 **Ba mệnh đề trước nay chỉ sống trong chú thích**
 
 - Không thực thể tầng ba — tách hàm thuần để gieo được vi phạm giả.
-  [`project_contract.rs:959`](../../src-tauri/tests/project_contract.rs#L959)
+  [`project_contract.rs:959`](../../../src-tauri/tests/project_contract.rs#L959)
 
 - Bất biến `source_lang` thành phép đo, không còn là lời khai trong `schema.rs`.
-  [`project_contract.rs:1217`](../../src-tauri/tests/project_contract.rs#L1217)
+  [`project_contract.rs:1217`](../../../src-tauri/tests/project_contract.rs#L1217)
 
 - Glossary/TM phân giải thật qua `ScopeResolver`, không chỉ đọc bảng tĩnh.
-  [`project_contract.rs:1369`](../../src-tauri/tests/project_contract.rs#L1369)
+  [`project_contract.rs:1369`](../../../src-tauri/tests/project_contract.rs#L1369)
 
 **Phần đỡ**
 
 - Bộ tách literal Rust: xử literal ký tự, raw string, và dòng nối bắt đầu bằng `//`.
-  [`project_contract.rs:1081`](../../src-tauri/tests/project_contract.rs#L1081)
+  [`project_contract.rs:1081`](../../../src-tauri/tests/project_contract.rs#L1081)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

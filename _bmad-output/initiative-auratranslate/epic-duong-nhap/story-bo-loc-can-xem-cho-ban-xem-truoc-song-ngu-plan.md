@@ -223,7 +223,7 @@ bilingual module. Rust classifies, TypeScript renders (AD-1).
 - [x] `src/i18n/vi.json` -- only the keys that do not exist yet; reuse `:331-341` verbatim.
 - [x] `tests/frontend/importPreviewBilingual.test.ts` -- mount cases for the chips, the cause chips
       and `⌥W`, using the `{ code: 'KeyW', key: '∑' }` event shape.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- close or re-own whatever this
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- close or re-own whatever this
       story settles; every open item keeps a real `Chủ:`.
 
 **Acceptance Criteria:**

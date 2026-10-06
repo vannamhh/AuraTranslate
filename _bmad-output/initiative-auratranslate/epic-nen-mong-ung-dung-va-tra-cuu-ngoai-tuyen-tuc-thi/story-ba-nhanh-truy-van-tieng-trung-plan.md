@@ -14,7 +14,7 @@ Status: done
 
 **Covers:** FR39 · NFR1 · AD-26 · AD-19 *(hình dạng kết quả)* · AD-11 *(đường mở tệp)*
 **Epic:** 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
-**Story trước:** [1.10b — Dựng dữ liệu từ điển tiếng Anh](1-10b-dung-du-lieu-tu-dien-tieng-anh.md) *(done)*
+**Story trước:** [1.10b — Dựng dữ liệu từ điển tiếng Anh](story-dung-du-lieu-tu-dien-tieng-anh-plan.md) *(done)*
 
 ---
 
@@ -505,7 +505,7 @@ src-tauri/tests/
 ### References
 
 **Kiến trúc**
-- AD-26 *Ba nhánh truy vấn tiếng Trung* `[ADOPTED]` — [ARCHITECTURE-SPINE.md#AD-26](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md)
+- AD-26 *Ba nhánh truy vấn tiếng Trung* `[ADOPTED]` — [ARCHITECTURE-SPINE.md#AD-26](../architecture-auratranslate/architecture-auratranslate.md)
 - AD-19 *Không tồn tại bước hợp nhất nguồn từ điển* · AD-10 *Mỗi lớp gỡ rời một tệp `.db`* · AD-7 *dữ liệu từ điển chỉ đọc, luôn luôn* · AD-11 *một writer duy nhất* · AD-25 *artifact có phiên bản và checksum* — cùng tệp
 - Bảng Stack — `LIKE` trên đường nóng tra cứu nằm trong *"Không dùng, đã loại có lý do"*
 - Capability map: **C3** Dictionary & Lookup → `core/dict/`, `ports/DictionarySource`, `resources/dict/`
@@ -829,9 +829,9 @@ Mục đó viết *"tra một chữ Hán sẽ nhận về `dictionary`, `lock`, 
 | `src-tauri/src/core/store/reader.rs` | Bóc thân dùng chung `open_with` · thêm `ReaderPool::open_readonly` |
 | `src-tauri/src/core/dict/mod.rs` | Module thật: `LookupMode` · `QueryBranch` · `EntryHit` · `LookupResult` · `pick_branch` · `lookup` |
 | `src-tauri/tests/store_contract.rs` | **MỘT** dòng: `assert_eq!(StoreKind::Dict.as_str(), "dict")` |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Mục `## Deferred from: 1-11-…` — đính chính, trạng thái ba bàn giao, phát hiện NFR1 |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-11-…: ready-for-dev → in-progress → review` |
-| `_bmad-output/implementation-artifacts/1-11-ba-nhanh-truy-van-tieng-trung.md` | Checkbox · Dev Agent Record · File List · Change Log · Status |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | Mục `## Deferred from: 1-11-…` — đính chính, trạng thái ba bàn giao, phát hiện NFR1 |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `1-11-…: ready-for-dev → in-progress → review` |
+| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-ba-nhanh-truy-van-tieng-trung-plan.md` | Checkbox · Dev Agent Record · File List · Change Log · Status |
 
 ### Change Log
 

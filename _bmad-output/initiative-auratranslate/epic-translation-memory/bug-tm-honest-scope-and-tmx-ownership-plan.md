@@ -83,7 +83,7 @@ context:
 
 ## Implementation Notes
 
-- Built in two phases (Rust, then webview); working notes in [epic-7-retro-r-5-phases-2026-10-06.md](epic-7-retro-r-5-phases-2026-10-06.md).
+- Built in two phases (Rust, then webview); working notes in [epic-7-retro-r-5-phases-2026-10-06.md](handoff-tm-honest-scope-and-tmx-ownership-phases/handoff-tm-honest-scope-and-tmx-ownership-phases.md).
 - `pair_origin_for` is the single place a file label becomes a stored origin; `PlannedPair.translation_origin` now holds the raw label (`Option`), resolved at confirm, so the preview counts are unchanged.
 - `write_planned_pairs` reads "now" once per transaction; the old `COALESCE(?4, now)` in SQL is gone because the clamp needs the same value in Rust.
 - `hidden_copies` is counted only for the at most 200 groups shipped, from the unfiltered snapshot; `keep` now borrows the snapshot and clones the rows it keeps.

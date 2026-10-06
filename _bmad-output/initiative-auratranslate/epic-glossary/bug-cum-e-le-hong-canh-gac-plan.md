@@ -7,7 +7,7 @@ status: 'done'
 review_loop_iteration: 0
 baseline_revision: '3be0f5f85cafb67fe98febdcc589467938ec816f'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
@@ -98,7 +98,7 @@ context:
 - [x] `src-tauri/tests/glossary_scan_contract.rs` -- thêm vào Hàng 2 một ca `Zh` mà chuỗi dài bị loại **CHỈ** qua `drop_first` (①a) và một ca đối chứng ngược (①b); doc-comment nói rõ vì sao `drop_last` phải lệch tần suất -- hai ca hiện có đều đi qua `drop_last`, một ca né `drop_first` có chủ ý.
 - [x] `tests/frontend/glossaryIpcBridge.test.ts` -- tệp MỚI: bảng 15 adapter × 2 chiều `hasIpcBridge()`, mock ở biên `@tauri-apps/api/core`, lái `window.__TAURI_INTERNALS__` -- vệ này gác 15 nhánh `catch` mà 0 ca nào chạm; danh sách adapter viết ĐÓNG để thêm hàm thứ 16 là một lượt sửa thấy được.
 - [x] `src-tauri/tests/scope_contract.rs` -- thêm ca đi-về `glossary_scan_threshold` (③a–③d), chép khuôn `the_last_mode_survives_a_write_and_a_reopen` -- `ipc_contract.rs:177` chốt cứng đúng giá trị mặc định nên đường đọc gãy vẫn xanh.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối `→ ✅ ĐÃ ĐÓNG 2026-08-26` vào mục `Cụm E` kèm tên ba ca mới và số ca ĐỎ thật của ba phép GỠ; 🔵 sửa tại chỗ hai con số 14/186 đã hết đúng -- không xoá mục, không làm tròn lên.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối `→ ✅ ĐÃ ĐÓNG 2026-08-26` vào mục `Cụm E` kèm tên ba ca mới và số ca ĐỎ thật của ba phép GỠ; 🔵 sửa tại chỗ hai con số 14/186 đã hết đúng -- không xoá mục, không làm tròn lên.
 
 **Acceptance Criteria:**
 - Given `zh_nested_padding` bị cắt vế `|| matches_child(&drop_first)`, when chạy `cargo test --test glossary_scan_contract`, then ca ①a **ĐỎ** và số ca đỏ được ghi lại; khôi phục vế đó thì cả bộ xanh trở lại.
@@ -180,48 +180,48 @@ Ba lượt khôi phục đều đối chứng bằng `git status`, không bằng
 **Điểm vào — vệ nào bị lật, và tại sao 137 ca không thấy**
 
 - Bảng ba phép GỠ kèm số ca đỏ thật; đọc đây trước, mọi thứ khác là bằng chứng.
-  [`spec…cum-e.md` §Completion Notes](./spec-epic-3-review-cum-e-le-hong-canh-gac.md)
+  [`spec…cum-e.md` §Completion Notes](./bug-cum-e-le-hong-canh-gac-plan.md)
 
 - Mục nợ gốc, nay đã đóng, kèm hai con số cũ được sửa tại chỗ.
-  [`deferred-work.md:7290`](./deferred-work.md#L7290)
+  [`deferred-work.md:7290`](../deferred-work.md#L7290)
 
 **① `drop_first` — nhánh chưa từng ai canh**
 
 - Fixture cô lập đúng vế phải: `萧炎` bằng 40, `在萧` lệch thành 47.
-  [`glossary_scan_contract.rs:158`](../../src-tauri/tests/glossary_scan_contract.rs#L158)
+  [`glossary_scan_contract.rs:158`](../../../src-tauri/tests/glossary_scan_contract.rs#L158)
 
 - Ghim số học trước khi kết luận — chống ca xanh vì một lý do khác.
-  [`glossary_scan_contract.rs:182`](../../src-tauri/tests/glossary_scan_contract.rs#L182)
+  [`glossary_scan_contract.rs:182`](../../../src-tauri/tests/glossary_scan_contract.rs#L182)
 
 - Đối chứng ngược: cả hai chuỗi con lệch ⇒ chuỗi dài phải được GIỮ.
-  [`glossary_scan_contract.rs:209`](../../src-tauri/tests/glossary_scan_contract.rs#L209)
+  [`glossary_scan_contract.rs:209`](../../../src-tauri/tests/glossary_scan_contract.rs#L209)
 
 **② `hasIpcBridge()` — vệ gác nửa sau của 15 khối `catch`**
 
 - Ca quần thể: so BẰNG với tập hàm export, không chốt cứng số 15.
-  [`glossaryIpcBridge.test.ts:273`](../../tests/frontend/glossaryIpcBridge.test.ts#L273)
+  [`glossaryIpcBridge.test.ts:273`](../../../tests/frontend/glossaryIpcBridge.test.ts#L273)
 
 - Bảng 15 adapter viết đóng; ba hình dạng trả về gộp thành hai họ.
-  [`glossaryIpcBridge.test.ts:80`](../../tests/frontend/glossaryIpcBridge.test.ts#L80)
+  [`glossaryIpcBridge.test.ts:80`](../../../tests/frontend/glossaryIpcBridge.test.ts#L80)
 
 - Chiều "có cầu": lỗi thật không bị nuốt, chẩn đoán nêu đích danh command.
-  [`glossaryIpcBridge.test.ts:217`](../../tests/frontend/glossaryIpcBridge.test.ts#L217)
+  [`glossaryIpcBridge.test.ts:217`](../../../tests/frontend/glossaryIpcBridge.test.ts#L217)
 
 - Chiều "không cầu": im lặng có chủ, và không một `error` lạc.
-  [`glossaryIpcBridge.test.ts:234`](../../tests/frontend/glossaryIpcBridge.test.ts#L234)
+  [`glossaryIpcBridge.test.ts:234`](../../../tests/frontend/glossaryIpcBridge.test.ts#L234)
 
 **③ Đường đọc ngưỡng — `ipc_contract` không canh được vì nó chốt đúng giá trị mặc định**
 
 - Ghi `12` rồi mở lại kho; giá trị KHÁC mặc định là điều kiện duy nhất.
-  [`scope_contract.rs:758`](../../src-tauri/tests/scope_contract.rs#L758)
+  [`scope_contract.rs:758`](../../../src-tauri/tests/scope_contract.rs#L758)
 
 - Phạm vi ghi thẳng: nửa `commands/project.rs` vẫn hở, đã có chủ.
-  [`scope_contract.rs:741`](../../src-tauri/tests/scope_contract.rs#L741)
+  [`scope_contract.rs:741`](../../../src-tauri/tests/scope_contract.rs#L741)
 
 **Ngoại vi — hai món nợ mới, cả hai có chủ**
 
 - Nửa đường đọc ngưỡng không gọi được từ `tests/**` nếu không dựng app.
-  [`deferred-work.md:7346`](./deferred-work.md#L7346)
+  [`deferred-work.md:7346`](../deferred-work.md#L7346)
 
 - Bộ vitest Glossary đỏ ngẫu nhiên dưới tải CPU — có TRƯỚC lượt vá này.
-  [`deferred-work.md:7371`](./deferred-work.md#L7371)
+  [`deferred-work.md:7371`](../deferred-work.md#L7371)

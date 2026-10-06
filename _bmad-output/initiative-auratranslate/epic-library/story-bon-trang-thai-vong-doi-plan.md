@@ -14,7 +14,7 @@ context:
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/tests/AGENTS.md'
   - '{project-root}/e2e/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-5-context.md'
 warnings: ['oversized']
 deferred:
   - summary: >-
@@ -183,7 +183,7 @@ deferred:
 - `src/commands/index.ts:200-230` -- `CommandDeps` (khuôn `deps.<port>` tiêm vào); `:856-916` -- năm lệnh `library.*` của 5.3 + lý lẽ chọn hợp âm (`Mod+Alt+K` đã dùng; đo trước khi cấp phím mới). `src/main.ts:52-66,315-327` -- nơi nối port.
 - `src/i18n/vi.json:44-45` -- `err.library.*`; `:57-63` -- `command.library.*`; `:131-160` -- `mode.library.*`.
 - `e2e/specs/story-5-3-rescan.e2e.mjs` -- khuôn spec e2e gần nhất (6 ca, `realClick()` bắt buộc); `e2e/support/pointer.mjs` -- `realClick`.
-- `_bmad-output/implementation-artifacts/deferred-work.md` -- nợ *"trùng `work_id` chưa có bề mặt hiển thị"* và *"đường ĐỌC thuần thay cho lượt quét lúc mở Library"*, cả hai **chủ Story 5.6** ⇒ story này **nối tiếp**, không viết đè.
+- `_bmad-output/initiative-auratranslate/deferred-work.md` -- nợ *"trùng `work_id` chưa có bề mặt hiển thị"* và *"đường ĐỌC thuần thay cho lượt quét lúc mở Library"*, cả hai **chủ Story 5.6** ⇒ story này **nối tiếp**, không viết đè.
 - `src-tauri/AGENTS.md:29` -- khối 🔵 hai lớp về `library-index.db`/`meta.json` dẫn xuất; phải nối tiếp sau khi bảng chỉ mục đổi hình dạng.
 
 ## Tasks & Acceptance
@@ -209,7 +209,7 @@ deferred:
 - `src/modes/LibraryMode.vue` -- thêm khối "Tác phẩm" (danh sách phẳng: tên · nhãn trạng thái · dấu **chữ** cho ghi đè thủ công), hàng bốn nút lọc + nút bỏ lọc, dòng luôn nói `matched/total`, và khối vòng đời cho Tác phẩm đang mở; mọi `@click` là đúng một `dispatch('<id>')`, mọi nhãn qua `t()`, mọi node kết quả `role="status"` LUÔN có mặt, chỉ dùng token -- AD-34 §1, `check:tokens` Kiểm B/B2 và `check:i18n` Kiểm A2 đều đọc tĩnh tệp này.
 - `tests/frontend/libraryWorks.test.ts` -- **tệp mới** (đuôi `.test.ts`, không `.spec.ts` — `vitest.config.ts` chỉ nạp `*.test.ts`): adapter không ném trên lỗi IPC; `worksHaveLoaded` sai trước lượt gọi đầu; bốn bộ lọc bật/tắt riêng rẽ; `matched = 0` với `total > 0` cho ra câu *bộ lọc không khớp* chứ không câu *Library trống*; hàng `status = null` hiện *chưa biết* và không khớp bộ lọc nào -- `happy-dom` chỉ được canh hành vi module thuần, không canh hình học.
 - `e2e/specs/story-5-4-lifecycle.e2e.mjs` -- **tệp mới**: đi trọn đường nút thật → `dispatch` → registry → `invoke` → Rust → DOM cho ít nhất *ghi đè thủ công hiện dấu phân biệt* và *một bộ lọc lọc riêng rẽ*, dùng `realClick()` -- một bộ test xanh KHÔNG chứng minh chỗ nối được canh; Epic 3 dính năm lần trong bảy ngày.
-- `src-tauri/AGENTS.md` + `_bmad-output/implementation-artifacts/deferred-work.md` + `_bmad-output/implementation-artifacts/sprint-status.yaml` -- nối tiếp khối 🔵 dòng 29 (bảng chỉ mục nay chở `status`/`status_is_override`, và một hàng `status IS NULL` nghĩa là *chưa biết*); ghi nợ **có chủ** cho: lượt reindex TOÀN BỘ sau mỗi lượt ghi trạng thái (chủ 5.6, cùng món nợ "đường ĐỌC thuần"), và bề mặt đổi trạng thái chỉ với Tác phẩm **đang mở** vì đường mở lại `.atproj` chưa tồn tại (chủ 5.6/5.7) -- không mục nào mồ côi, không mục cũ bị xoá.
+- `src-tauri/AGENTS.md` + `_bmad-output/initiative-auratranslate/deferred-work.md` + `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` -- nối tiếp khối 🔵 dòng 29 (bảng chỉ mục nay chở `status`/`status_is_override`, và một hàng `status IS NULL` nghĩa là *chưa biết*); ghi nợ **có chủ** cho: lượt reindex TOÀN BỘ sau mỗi lượt ghi trạng thái (chủ 5.6, cùng món nợ "đường ĐỌC thuần"), và bề mặt đổi trạng thái chỉ với Tác phẩm **đang mở** vì đường mở lại `.atproj` chưa tồn tại (chủ 5.6/5.7) -- không mục nào mồ côi, không mục cũ bị xoá.
 
 **Acceptance Criteria:**
 - Given bảng bốn giá trị, when gỡ hoặc thêm một hàng trong `lifecycle_statuses!`, then `cargo test --locked` **đỏ** ở ca đối chiếu `ALL.len()` với hằng viết tay và ở ca đồng bộ nhãn với `vi.json` — và không tệp nào ngoài `core/lifecycle/**` mang một danh sách bốn giá trị viết tay song song.
@@ -435,7 +435,7 @@ mở" (ba nút, dấu ghi đè viết thành chữ, không ký hiệu đúc mớ
   một bộ lọc lọc riêng rẽ) — CHƯA CHẠY THẬT trong phiên này (cần WKWebView, nhịp đêm).
 
 **Sổ sách**
-- `_bmad-output/implementation-artifacts/deferred-work.md` — nối tiếp ba mục cũ (đường ĐỌC
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — nối tiếp ba mục cũ (đường ĐỌC
   thuần đóng MỘT NỬA; chỗ gọi thứ tư của `reindex_library`); hai mục MỚI có chủ (chi phí quét
   toàn bộ sau mỗi lượt ghi trạng thái, chủ 5.6; bề mặt đổi trạng thái chỉ Tác phẩm đang mở, chủ
   5.6/5.7).

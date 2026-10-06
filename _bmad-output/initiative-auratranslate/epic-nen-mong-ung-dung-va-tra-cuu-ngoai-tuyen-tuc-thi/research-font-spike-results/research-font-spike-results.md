@@ -6,10 +6,10 @@ status: complete
 created: 2026-08-03
 updated: 2026-08-03
 relates_to:
-  - '_bmad-output/implementation-artifacts/1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep.md'
-  - '_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md'
-  - '_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/DESIGN.md'
-  - '_bmad-output/planning-artifacts/research/phase-0-spike-results-2026-08-02.md'
+  - '_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md'
+  - '_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md'
+  - '_bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md'
+  - '_bmad-output/initiative-auratranslate/research-phase-0-spike-results/research-phase-0-spike-results.md'
 ---
 
 # Story 1.1 — Mũi thăm dò font: dung lượng thật và rà giấy phép
@@ -197,10 +197,10 @@ Hệ quả có răng thật: nếu về sau subset để ghìm dung lượng, **
 
 App thăm dò nạp **cả năm** tệp font qua asset protocol từ `$RESOURCE/fonts/**` và dựng cùng một nội dung hai lần, một lần với `NotoSerifCJKtc`, một lần với `NotoSerifCJKsc`.
 
-- [`font-spike-2026-08-03/tc-vs-sc-glyphs.png`](font-spike-2026-08-03/tc-vs-sc-glyphs.png) — bảng 10 mã Hán dùng chung, hai cột
-- [`font-spike-2026-08-03/zoom-glyphs-4-ma.png`](font-spike-2026-08-03/zoom-glyphs-4-ma.png) — phóng to 骨 · 直 · 房 · 令
-- [`font-spike-2026-08-03/zoom-dau-cau.png`](font-spike-2026-08-03/zoom-dau-cau.png) — cùng một đoạn văn, hai biến thể
-- [`font-spike-2026-08-03/tc-vs-sc-paragraph-and-latin.png`](font-spike-2026-08-03/tc-vs-sc-paragraph-and-latin.png) — đoạn văn + dải nét Latin
+- [`font-spike-2026-08-03/tc-vs-sc-glyphs.png`](tc-vs-sc-glyphs.png) — bảng 10 mã Hán dùng chung, hai cột
+- [`font-spike-2026-08-03/zoom-glyphs-4-ma.png`](zoom-glyphs-4-ma.png) — phóng to 骨 · 直 · 房 · 令
+- [`font-spike-2026-08-03/zoom-dau-cau.png`](zoom-dau-cau.png) — cùng một đoạn văn, hai biến thể
+- [`font-spike-2026-08-03/tc-vs-sc-paragraph-and-latin.png`](tc-vs-sc-paragraph-and-latin.png) — đoạn văn + dải nét Latin
 
 Khác biệt đọc được bằng mắt, ở **cùng một mã Unicode**:
 
@@ -213,7 +213,7 @@ Khác biệt đọc được bằng mắt, ở **cùng một mã Unicode**:
 
 ### Khác biệt quyết định lại không nằm ở dáng chữ, mà ở **vị trí dấu câu**
 
-Xem [`zoom-dau-cau.png`](font-spike-2026-08-03/zoom-dau-cau.png): TC đặt 「，」 và 「。」 **giữa ô chữ**; SC đặt chúng ở **góc dưới bên trái**, để lại một khoảng trống thấy rõ phía trên.
+Xem [`zoom-dau-cau.png`](zoom-dau-cau.png): TC đặt 「，」 và 「。」 **giữa ô chữ**; SC đặt chúng ở **góc dưới bên trái**, để lại một khoảng trống thấy rõ phía trên.
 
 **Đây mới là thứ đáng cân nhắc, vì nó xuất hiện ở mọi dòng**, không phải chỉ ở vài mã hiếm. Panel Nguyên văn là nơi mắt người dịch ở lâu nhất trong sản phẩm (`DESIGN.md` §Typography nói đúng điều này khi lập luận vì sao phải nhúng font). Một quy ước đặt dấu câu sai mạch sẽ gặm mòn suốt cả phiên làm việc.
 

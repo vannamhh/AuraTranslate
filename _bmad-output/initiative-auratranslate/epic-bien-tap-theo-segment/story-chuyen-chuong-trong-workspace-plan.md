@@ -303,7 +303,7 @@ cổng. Story này **không** tự dựng cổng đó; nó chỉ không được
 2. Ghi chữ ký vào §Dev Agent Record **kèm ngày**, và ghi cả **đường bị loại kèm lý do**.
 3. 🔴 **Task 0.4** — nếu chữ ký nào đòi sửa một bất biến *(AD-35 ở #7, AD-1 ở #2/#3, AD-3 ở #4)*
    thì đó là một **AD MỚI**: dừng story, soạn hồ sơ bàn giao cho Winston, **không tự soạn AD**.
-   Khuôn có sẵn: `planning-artifacts/ad-brief-2026-08-16-xuat-xu-ban-dich.md` *(AD-47)* và
+   Khuôn có sẵn: `initiative-auratranslate/ad-brief-xuat-xu-ban-dich/ad-brief-xuat-xu-ban-dich.md` *(AD-47)* và
    `ad-brief-2026-08-17-mo-hinh-hoan-tac.md` *(AD-48)*.
 4. 🔴 **LUẬT DỪNG:** ba vòng chẩn đoán liên tiếp trên một giả thuyết về **sản phẩm** bị phép đo bác
    ⇒ **DỪNG, báo Ice**. *(Đếm vòng bị bác, không đếm lượt sửa thước.)*
@@ -622,7 +622,7 @@ TRƯỚC dòng mã đầu tiên**.
 ### References
 
 **Đặc tả**
-- `_bmad-output/planning-artifacts/epics.md:2623-2656` — Story 2.11, sáu AC nguyên văn
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2623-2656` — Story 2.11, sáu AC nguyên văn
 - `epics.md:660` · `:662` · `:663` — FR12 → Epic 5 · FR14 → Epic 6 · FR15 → Epic 5
 - `epics.md:599` *(UX-DR33)* · `:601` *(UX-DR34)* · `:603` *(UX-DR35)*
 - `prds/prd-AuraTranslate-2026-08-02/prd.md:456` — FR26 · `:293` — FR12
@@ -649,7 +649,7 @@ TRƯỚC dòng mã đầu tiên**.
   không phím mặc định · #7 cơ chế cuộn
 
 **Luật kho**
-- `_bmad-output/project-context.md` — 131 luật. Đọc **trước** dòng mã đầu tiên.
+- `_bmad-output/inbox/project-context.md` — 131 luật. Đọc **trước** dòng mã đầu tiên.
 
 ### Thông tin kỹ thuật mới nhất
 
@@ -839,12 +839,12 @@ sau story vẫn mười bước, đích **11**, bước kế tiếp **12**. *(Kh
 - `tests/frontend/editorChapterSwitch.test.ts` — **NEW** · 14 ca
 
 **Tài liệu**
-- `_bmad-output/implementation-artifacts/deferred-work.md` — UPDATE · đóng `:650`, định chính
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — UPDATE · đóng `:650`, định chính
   `:151`, thêm 6 mục mới có chủ
 - `_bmad-output/planning-artifacts/ux-designs/…/EXPERIENCE.md` — UPDATE · hàng `⌘⌥]`/`⌘⌥[` vào
   bảng Phím Workspace
-- `_bmad-output/implementation-artifacts/2-11-chuyen-chuong-trong-workspace.md` — story
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-chuyen-chuong-trong-workspace-plan.md` — story
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái
 
 ### Change Log
 

@@ -30,7 +30,7 @@ context: []
 
 ## Code Map
 
-- `_bmad-output/implementation-artifacts/deferred-work.md` -- the only file changed; item ⌘M at the line starting `- ⚠️ **\`⌘M\` sẽ va Quản lý TM ở Epic 7.**`; 7.9 real-app item at `summary: In the real app, unverified: the TM management overlay opened from the command palette`
+- `_bmad-output/initiative-auratranslate/deferred-work.md` -- the only file changed; item ⌘M at the line starting `- ⚠️ **\`⌘M\` sẽ va Quản lý TM ở Epic 7.**`; 7.9 real-app item at `summary: In the real app, unverified: the TM management overlay opened from the command palette`
 - `scripts/check-debt-owner.mjs` -- read-only; `HALF_ON_CLOSED_LINE_RE` (`một nửa|một phần|vẫn (còn )?mở|còn mở`) must not appear on a new ✅ line; owner regex accepts `Ice|Winston|Sally|John|Amelia|Murat|Mary`, `Story N.M`, `Epic N`
 - `src/commands/index.ts` `tm.manage.open` (`keys: undefined`) and `src/App.vue` `data-tm-manage-open` button -- evidence for closing ⌘M and for the 🔵 on 7.9
 - Current pointers for findings (verified at HEAD `31d7b7ebc033523d749c91d68df899298eb5e15f`):

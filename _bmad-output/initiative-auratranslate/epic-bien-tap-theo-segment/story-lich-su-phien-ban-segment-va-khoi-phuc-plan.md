@@ -331,7 +331,7 @@ Doc-comment trong mã nói y hệt (`schema.rs:454-459`).
 
 ### Đọc trước khi viết dòng đầu tiên
 
-`_bmad-output/project-context.md` — 130 luật. Bốn mục sát story này: §Critical Don't-Miss Rules *("Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN" và "Rỗng IM LẶNG bị cấm")*, §Testing Rules *(bốn đường nghiệm thu, bốn vai không chồng nhau)*, §Code Quality *(chú thích nói **lý do**, kèm **phép đo**)*, §Story và spec *("năng lực chưa dựng ≠ lệch spec")*.
+`_bmad-output/inbox/project-context.md` — 130 luật. Bốn mục sát story này: §Critical Don't-Miss Rules *("Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN" và "Rỗng IM LẶNG bị cấm")*, §Testing Rules *(bốn đường nghiệm thu, bốn vai không chồng nhau)*, §Code Quality *(chú thích nói **lý do**, kèm **phép đo**)*, §Story và spec *("năng lực chưa dựng ≠ lệch spec")*.
 
 ### 🔴 Story này KHÔNG thêm phụ thuộc nào — và có MỘT cám dỗ đã được đặt tên
 
@@ -488,13 +488,13 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:2413-2443` — Story 2.6, năm AC · `:2038-2040` — mục tiêu Epic 2 *(gồm câu "Mọi phiên bản cũ của một segment xem lại và khôi phục được")*
-- `_bmad-output/planning-artifacts/epics.md:2215-2249` — Story 2.5 *(nguồn của `segment_version`)* · `:2446-2484` — Story 2.7 *(xuất xứ, story kế)* · `:2487-2528` — Story 2.8 *(gộp/tách, `backlog`)*
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:777` — FR101 nguyên văn · `:775` — FR100 · `:767` — FR97 *(`.atproj` tự chứa, gồm lịch sử phiên bản)* · `:443` — FR117 · `:831` — NFR2 · `:904` — NFR18
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2413-2443` — Story 2.6, năm AC · `:2038-2040` — mục tiêu Epic 2 *(gồm câu "Mọi phiên bản cũ của một segment xem lại và khôi phục được")*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2215-2249` — Story 2.5 *(nguồn của `segment_version`)* · `:2446-2484` — Story 2.7 *(xuất xứ, story kế)* · `:2487-2528` — Story 2.8 *(gộp/tách, `backlog`)*
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:777` — FR101 nguyên văn · `:775` — FR100 · `:767` — FR97 *(`.atproj` tự chứa, gồm lịch sử phiên bản)* · `:443` — FR117 · `:831` — NFR2 · `:904` — NFR18
 - `.../architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md:368-392` — **AD-31 đầy đủ, bảng sáu hàng** · `:89-93` — AD-3 · `:103-111` — AD-5 · `:153-157` — AD-11 · `:362-366` — AD-30 · `:394-398` — AD-32 · `:406-417` — AD-34 · `:419-425` — AD-35 · `:652-673` — AD-46 · `:675-699` — Consistency Conventions · `:831` — sơ đồ ER `SEGMENT ||--o{ SEGMENT_VERSION` · `:915` — hàng Deferred của Diff Viewer
 - `.../ux-designs/ux-AuraTranslate-2026-08-02/mockups/data-integrity.html:179-248` — **bề mặt FR101 đầy đủ** · `:226-229` — hộp *"Khôi phục là tạo phiên bản mới"* · `:259-271` — cây `.atproj` **đã lỗi thời** · `:307` — chân trang FR101
 - `.../ux-designs/.../EXPERIENCE.md:261-268` — bảng phím sáu hàng · `:56` · `:171` · `:382` — ba chỗ nói *"lịch sử của hai câu cũ vẫn tra lại được"*
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md:344` — *"2.6 → 2.11 theo thứ tự cũ"*, story này **không** bị correct-course chạm
+- `_bmad-output/initiative-auratranslate/change-be-mat-nhap-lat-sang-luoi-hai-cot/change-be-mat-nhap-lat-sang-luoi-hai-cot.md:344` — *"2.6 → 2.11 theo thứ tự cũ"*, story này **không** bị correct-course chạm
 - `src-tauri/src/core/store/schema.rs:436-459` *(bốn mệnh đề của lược đồ + chủ của index)* · `:460-467` *(DDL)* · `:296-298` *(`retired_at`)* · `:583-586` *(tiền lệ DDL+DML)* · `:665-711` *(`PROJECT_MIGRATIONS`)* · `:812-866` *(`migrate`)*
 - `src-tauri/src/commands/segment.rs:154-163` *(nguyên vụ cột bị quên)* · `:187-198` *(`ChapterSegment`)* · `:340-384` *(đường đọc)* · `:759-769` *(`ConfirmOutcome`)* · `:821-828` *(`ConfirmReject`)* · `:888-984` *(`confirm_segment` trọn vẹn)* · `:946-959` *(chốt AC13 + `INSERT`)* · `:1078-1158` *(`set_segment_omitted`)* · `:1362-1540` *(`wire`)*
 - `src-tauri/src/core/i18n/mod.rs:62-91` *(`message_keys!`)* · `:209` · `:220` · `:229` · `:248` *(bốn khoá `err.segment.*`)* · `:350-387` *(`IpcError::new`)*
@@ -506,9 +506,9 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 - `src/ShortcutsOverlay.vue` · `src/AttributionOverlay.vue` — hai tiền lệ lớp nổi · `src/commands/focus.ts:394-405` *(`focusReturnTargetOnOpen`)* · `src/commands/index.ts:66-73` *(`FOCUS_OWNERS`)*
 - `src/StatusBar.vue:36-83` — bề mặt "thời gian trôi" duy nhất, số học epoch thuần
 - `scripts/check-commands.mjs:241` *(`COMMAND_FLOOR` = 33)* · `:794-813` *(Kiểm I `abort`)* · `:2116-2269` *(Kiểm I)*
-- `_bmad-output/implementation-artifacts/deferred-work.md:2780-2785` · `:2787-2792` *(hai món có chủ 2.6)* · `:1959-1968` · `:2825-2840` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3543-3575`
-- `_bmad-output/implementation-artifacts/1-20-lich-su-tra-cuu-va-muc-da-ghim.md:350-378` — khuôn dải tab + state cấp module
-- `_bmad-output/implementation-artifacts/2-5-xac-nhan-segment-va-may-trang-thai.md:169-185` — **Quyết định #6 của 2.5**, chỗ bảng `segment_version` được đặt ra và ranh giới với story này
+- `_bmad-output/initiative-auratranslate/deferred-work.md:2780-2785` · `:2787-2792` *(hai món có chủ 2.6)* · `:1959-1968` · `:2825-2840` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3543-3575`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-lich-su-tra-cuu-va-muc-da-ghim-plan.md:350-378` — khuôn dải tab + state cấp module
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-xac-nhan-segment-va-may-trang-thai-plan.md:169-185` — **Quyết định #6 của 2.5**, chỗ bảng `segment_version` được đặt ra và ranh giới với story này
 - SQLite `CREATE INDEX` — https://www.sqlite.org/lang_createindex.html
 
 ---
@@ -1064,8 +1064,8 @@ Kê từ `git status --porcelain`, **không** từ trí nhớ.
 | `src/i18n/vi.json` | 5 nhãn lệnh + 14 chuỗi giao diện *(gồm bốn khoá `history.time_*`)* |
 | `src/panels/README.md` | §Lịch sử phiên bản segment |
 | `scripts/check-commands.mjs` | `COMMAND_FLOOR` 33 → **35** |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | đóng **hai** món có chủ 2.6 *(nối tiếp, không xoá)* + **chín** món mới/giao lại |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | trạng thái story |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | đóng **hai** món có chủ 2.6 *(nối tiếp, không xoá)* + **chín** món mới/giao lại |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | trạng thái story |
 
 **Mới (7)**
 

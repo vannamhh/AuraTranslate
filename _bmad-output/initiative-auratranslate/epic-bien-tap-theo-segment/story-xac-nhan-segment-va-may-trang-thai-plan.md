@@ -399,25 +399,25 @@ Ghi ra để không ai làm thừa, và để không ai tưởng đã được x
 
 ## References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story-2.5`] — dòng 2170-2204, sáu AC nguyên văn
-- [Source: `_bmad-output/planning-artifacts/epics.md#Epic-2-Ghi-chú-cài-đặt`] — dòng 830-843, *"bốn bất biến hội tụ"*
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story-2.5`] — dòng 2170-2204, sáu AC nguyên văn
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Epic-2-Ghi-chú-cài-đặt`] — dòng 830-843, *"bốn bất biến hội tụ"*
 - [Source: `ARCHITECTURE-SPINE.md#AD-31`] — dòng 368-392, máy trạng thái + bảng xuất xứ + hợp đồng phụ
 - [Source: `ARCHITECTURE-SPINE.md#AD-35`] — dòng 419-425, hợp đồng flush, mệnh đề (c) và *"thao tác rời rạc ghi ngay"*
 - [Source: `ARCHITECTURE-SPINE.md#AD-1`] — dòng 75-79 · [`#AD-3`] 89-93 · [`#AD-6`] 113-117 · [`#AD-11`] 153-157 · [`#AD-18`] 238-288 · [`#AD-30`] 362-366 · [`#AD-32`] 394-398 · [`#AD-34`] 406-417 · [`#Consistency-Conventions`] 652-677
 - [Source: `prds/prd-AuraTranslate-2026-08-02/prd.md#FR24`] — dòng 437-439 · [`#FR22`] 425 · [`#FR56`] 578 · [`#FR58`] 590 · [`#FR100`] 765 · [`#FR101`] 767 · [`#FR117`] 441-450 · [`#NFR2`] 821 · [`#NFR18`] 894-898 · [`#nói-dối-về-trạng-thái`] 291
 - [Source: `ux-designs/…/EXPERIENCE.md#State-Patterns`] — dòng 105-115, năm giá trị vạch · [`#KF-2`] 285-297 · [`#Accessibility-Floor`] 175-186 · [`#Voice-and-Tone`] 51-61
 - [Source: `ux-designs/…/DESIGN.md`] — dòng 180-204 (bảng token + sàn tương phản) · 380-382 (vạch lề segment) · 133-140 (`gutter-width 22px`, `segment-gutter-rule 2px`)
-- [Source: `implementation-artifacts/deferred-work.md`] — `:2046` · `:2052-2064` · `:2066-2072` · `:2388-2391` (bốn món có chủ 2.5) · `:166` (Kiểm A chỉ canh `@click`) · `:1961-1968` (chưa có `SegmentVersion`)
-- [Source: `implementation-artifacts/2-3-hop-dong-flush-va-trang-thai-da-luu.md`] — §Dev Agent Record, Quyết định #1/#2, chẩn đoán bị bác, ca đỏ `<span>` rỗng
-- [Source: `implementation-artifacts/2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi.md`] — `:1280-1294` (Task 1.0 mở), `:1580-1618` (NFR18 không đạt), `:1575-1578` (phát hiện UX có chủ là Ice)
+- [Source: `initiative-auratranslate/deferred-work.md`] — `:2046` · `:2052-2064` · `:2066-2072` · `:2388-2391` (bốn món có chủ 2.5) · `:166` (Kiểm A chỉ canh `@click`) · `:1961-1968` (chưa có `SegmentVersion`)
+- [Source: `initiative-auratranslate/epic-bien-tap-theo-segment/story-hop-dong-flush-va-trang-thai-da-luu-plan.md`] — §Dev Agent Record, Quyết định #1/#2, chẩn đoán bị bác, ca đỏ `<span>` rỗng
+- [Source: `initiative-auratranslate/epic-bien-tap-theo-segment/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md`] — `:1280-1294` (Task 1.0 mở), `:1580-1618` (NFR18 không đạt), `:1575-1578` (phát hiện UX có chủ là Ice)
 - [Source: `src-tauri/src/core/store/schema.rs`] — `:285-345` (`SEGMENT_DDL` + ba cột cố ý vắng), `:431-455` (`PROJECT_MIGRATIONS`)
 - [Source: `src-tauri/src/commands/segment.rs`] — `:377-389` (auto-save chạm đúng hai cột), `:420` (hàm thuần), `:583` (`mod wire`)
 - [Source: `src-tauri/tests/segment_contract.rs`] — `:472` (cấm số 4), `:1318` (hai cột)
 - [Source: `src/panels/editorSegments.ts`] — `:51` (năm giá trị), `:91-125` (thứ tự ưu tiên + khe hở), `:134-147` (hai dòng cần sửa)
 - [Source: `src/panels/editorPanelState.ts`] — `:136-141` (`setEditorCaret` flush khi rời câu), `:161-165` (`editedText` tách rời `segments`), `:273` (`flushEditorNow`)
 - [Source: `src/commands/index.ts`] — `:161` (`CommandDeps`), `:531-600` (khuôn `register`), `:886` (`installCommands`)
-- [Source: `_bmad-output/project-context.md`] — 130 luật; §Critical Don't-Miss Rules là mục phải đọc trước dòng mã đầu tiên
-- [Source: `_bmad-output/specs/spec-AuraTranslate/requirements.md`] — `:141-143` (FR24 + FR117), `:485` (KF-2 chuỗi FR)
+- [Source: `_bmad-output/inbox/project-context.md`] — 130 luật; §Critical Don't-Miss Rules là mục phải đọc trước dòng mã đầu tiên
+- [Source: `_bmad-output/initiative-auratranslate/spec-auratranslate/requirements.md`] — `:141-143` (FR24 + FR117), `:485` (KF-2 chuỗi FR)
 
 ---
 
@@ -616,9 +616,9 @@ của Ice.
 
 - `_bmad-output/implementation-artifacts/2-5-ban-do-hai-vach.html` *(mới)*
 - `_bmad-output/implementation-artifacts/2-5-ban-do/` *(mới — *`chup.mjs`* · *`README.md`* · 4 PNG · *`bao-cao.json`*)*
-- `_bmad-output/implementation-artifacts/deferred-work.md` — đóng 4 món, mở 8 món có chủ
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `_bmad-output/implementation-artifacts/2-5-xac-nhan-segment-va-may-trang-thai.md`
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng 4 món, mở 8 món có chủ
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-xac-nhan-segment-va-may-trang-thai-plan.md`
 
 ### Change Log
 
@@ -671,7 +671,7 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   #      ⚠️ Do 18/8: loadavg nen 6-7 tren may 8 nhan. NFR18 la menh de ve DUOI phan bo, nen chay
   #      luoi tren may dang tai se cho mot bang duoi khong doc duoc.
   #   ② ✅ NUA NFR2 ĐA QUA CORRECT-COURSE 2026-08-18 — Ice ky, da thi hanh.
-  #      Tai lieu: planning-artifacts/sprint-change-proposal-2026-08-18c-nfr2-be-mat-luoi.md
+  #      Tai lieu: initiative-auratranslate/change-nfr2-be-mat-luoi/change-nfr2-be-mat-luoi.md
   #      Ra TRON 22 AC (Ice ky pham vi): 🟢 12 giu nguyen · 🟡 7 sua du kien · 🔴 3 viet lai.
   #      - AC12 -> ba duong nong THAT cua luoi: doi con tro (GridPanel.vue:459,:766 — DA DO
   #        706-770 ms) · onSelectionChange->setEditorCaret (:875,:885) · restoreEditedText

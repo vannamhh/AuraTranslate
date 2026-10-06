@@ -424,8 +424,8 @@ Ba điểm của Vue 3.5 đáng dùng ở story này, tất cả đã có sẵn 
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md#Story 1.6` — sáu AC nguyên văn *(`:1213-1251`)*
-- `_bmad-output/planning-artifacts/epics.md#Story 1.14` · `#Story 1.21` — hai ranh giới liền kề *(`:1533`, `:1835`)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.6` — sáu AC nguyên văn *(`:1213-1251`)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.14` · `#Story 1.21` — hai ranh giới liền kề *(`:1533`, `:1835`)*
 - `ARCHITECTURE-SPINE.md#AD-34` — sàn khả năng tiếp cận là cấu trúc, ba mệnh đề + luật khoá chấm
 - `ARCHITECTURE-SPINE.md#AD-24` — một cửa sổ OS, ba chế độ; Review Mode là bố cục không phải cửa sổ
 - `ARCHITECTURE-SPINE.md#AD-1` — frontend giữ state UI: focus, cuộn, vùng chọn, bố cục panel
@@ -641,8 +641,8 @@ Cả chín chuỗi qua Kiểm D của `check-i18n` (vô nhân xưng, không *"ch
 | `src/panels/README.md` | Bảng ranh giới sở hữu + hợp đồng thị giác tiêu điểm đã đo + hai cơ chế phân tách panel |
 | `package.json` | +1 dòng `scripts`: `"check:commands"` |
 | `.github/workflows/ci.yml` | +**một** bước trong job `check` đã có, kề `check:i18n`, **trước** `npm run build` + một dòng vào sổ *"CHỖ MÓC CHO EPIC SAU"*. Không workflow thứ hai, không sắp xếp lại bước nào |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Sửa lời hứa `:38` *(không đóng)* + mở 10 mục mới cho Story 1.6 |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-6-…` → `in-progress` → `review` |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | Sửa lời hứa `:38` *(không đóng)* + mở 10 mục mới cho Story 1.6 |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `1-6-…` → `in-progress` → `review` |
 
 **Không đụng tới** *(đã kiểm bằng `git status`)*: `src-tauri/**` · `tauri.conf.json` · `Cargo.toml` · `src/selftest/**` · `src/tokens/**` · `_bmad-output/planning-artifacts/**` · `index.html` · `vite.config.ts` · `tsconfig.json`. **Không một phụ thuộc nào được thêm** — `package.json` chỉ nhận đúng một dòng `scripts`.
 

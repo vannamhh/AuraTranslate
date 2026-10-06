@@ -487,7 +487,7 @@ Hình dạng nhiều tệp trong một thư mục module là khuôn spine đã d
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:1298-1328` — năm AC nguyên văn của Story 1.8
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1298-1328` — năm AC nguyên văn của Story 1.8
 - `epics.md:1254-1296` *(Story 1.7)* · `:1533-1578` *(1.14)* · `:1580-1623` *(1.15)* · `:1835-1868` *(1.21)* — bốn ranh giới liền kề
 - `epics.md:421` — dòng bất biến AD-18 của Epic 1 · `:409-416` — bốn dòng bất biến lưu trữ/ghi/di trú
 - `epics.md:296` FR103 · `:282-298` FR96–FR104 · `:723` bảng truy vết FR103 → `ScopeResolver`
@@ -689,9 +689,9 @@ Mỗi lượt: gỡ đúng một thứ → chạy đúng một ca → trả lạ
 - `scripts/check-i18n.mjs` — `RS_FLOOR` 18 → 21
 
 **Sửa — tài liệu (3)**
-- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` — **bảng AD-18: ba hàng `chỉ toàn cục` + làm rõ `Cấu hình AI` theo từng trường + lý do không loại `ngôn ngữ nguồn`** *(Ice ký 2026-08-04)*
-- `_bmad-output/implementation-artifacts/deferred-work.md` — đóng `:49` · `:140` · `:177`; mở §*Deferred from: 1-8-…* (8 mục)
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `1-8-…: ready-for-dev → in-progress → review`
+- `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` — **bảng AD-18: ba hàng `chỉ toàn cục` + làm rõ `Cấu hình AI` theo từng trường + lý do không loại `ngôn ngữ nguồn`** *(Ice ký 2026-08-04)*
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng `:49` · `:140` · `:177`; mở §*Deferred from: 1-8-…* (8 mục)
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `1-8-…: ready-for-dev → in-progress → review`
 
 **Không đụng:** `Cargo.toml` · `package.json` · `capabilities/main.json` · `ports/mod.rs` · `src/layout/` · `.github/workflows/ci.yml` · `src/i18n/vi.json`.
 

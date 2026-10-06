@@ -100,7 +100,7 @@ So that **tôi không phải bóc font ra sau khi đã dựng nửa giao diện 
   - [x] ⚠️ Dùng **biến thể vùng đầy đủ** — `SourceHanSerifTC` / `SourceHanSerifSC` (Adobe) hoặc `NotoSerifCJKtc` / `NotoSerifCJKsc` (Google). **Không** dùng bản subset theo ngôn ngữ: `SourceHanSerifTW`/`CN`, tức `NotoSerifTC`/`NotoSerifSC` — xem §Bẫy chọn tệp và cảnh báo tên gọi chéo kênh ở §Hai kênh phát hành. *(Đã kiểm dung lượng asset trên release API để chắc lấy đúng cặp.)*
 
 - [x] **Task 7 — Ghi kết quả vào tài liệu** (AC: 1, 2, 3, 4)
-  - [x] Viết `_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md` theo **đúng khuôn** `phase-0-spike-results-2026-08-02.md` (frontmatter · bảng tóm tắt · từng phép đo · kết luận · việc cần Ice quyết).
+  - [x] Viết `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md` theo **đúng khuôn** `phase-0-spike-results-2026-08-02.md` (frontmatter · bảng tóm tắt · từng phép đo · kết luận · việc cần Ice quyết).
   - [x] `ARCHITECTURE-SPINE.md` → bảng **Stack**: thêm ba hàng font (AC2).
   - [x] `ARCHITECTURE-SPINE.md` → bảng **Deferred**: đóng hai hàng *"Dung lượng và giấy phép font nhúng"* và *"Biến thể vùng cho Source Han Serif"*, dùng đúng khuôn gạch ngang + `✅ Đã đóng 2026-08-03` như hàng HVTĐTD và hàng FR115 đã dùng.
   - [x] `DESIGN.md` → frontmatter `fonts-bundled`: thay `license: 'SIL OFL — CẦN RÀ TƯỜNG MINH…'`, `size-budget: 'CHƯA ĐO…'`, `region-variant: 'CHƯA CHỐT…'` bằng kết quả thật.
@@ -283,10 +283,10 @@ Story này không sinh mã sản phẩm nên **không có unit test**. Thứ tha
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.1`] — AC nguyên văn, phạm vi, mệnh đề chặn Epic 1
-- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md#7.2`] — NFR6: ngân sách 150–200 MB, không tải thêm sau cài `[A2]`
-- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md#7.4`] — NFR15: mọi thư viện phải tương thích GPL v3, rà tường minh trước khi thêm
-- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md#Giả định A2`] — 150–200 MB chưa gồm Unihan, Thiều Chửu, Cổ hán văn, VietPhrase
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.1`] — AC nguyên văn, phạm vi, mệnh đề chặn Epic 1
+- [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md#7.2`] — NFR6: ngân sách 150–200 MB, không tải thêm sau cài `[A2]`
+- [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md#7.4`] — NFR15: mọi thư viện phải tương thích GPL v3, rà tường minh trước khi thêm
+- [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md#Giả định A2`] — 150–200 MB chưa gồm Unihan, Thiều Chửu, Cổ hán văn, VietPhrase
 - [Source: `ARCHITECTURE-SPINE.md#Stack`] — bảng phải bổ sung ba hàng font; quy ước ghi phiên bản và giấy phép
 - [Source: `ARCHITECTURE-SPINE.md#Deferred`] — hai hàng phải đóng: *Dung lượng và giấy phép font nhúng* (điều kiện: mũi thăm dò trước Giai đoạn 1) · *Biến thể vùng cho Source Han Serif*
 - [Source: `ARCHITECTURE-SPINE.md#AD-15`] — CSP giữ nguyên, cấm origin từ xa: không CDN, không font ngoài, không ảnh ngoài
@@ -296,8 +296,8 @@ Story này không sinh mã sản phẩm nên **không có unit test**. Thứ tha
 - [Source: `DESIGN.md#Typography`] — bốn họ chữ; *"Ba việc chưa xong"*; lý do nhúng font thay vì dùng font hệ điều hành (NFR14)
 - [Source: `DESIGN.md#Bảng token typography`] — 14 token, xác định đúng những nét cần đóng gói
 - [Source: `EXPERIENCE.md#Còn thiếu`] — mục *"Font thật chưa đo"* phải đóng
-- [Source: `_bmad-output/planning-artifacts/research/phase-0-spike-results-2026-08-02.md`] — khuôn báo cáo mũi thăm dò; quy ước mã dùng một lần không vào repo; số 130 MB
-- [Source: `_bmad-output/planning-artifacts/implementation-readiness-report-2026-08-03.md:769,1090`] — Story 1.1 là đường đóng cho khoảng trống font; AC tự mang mệnh đề chặn
+- [Source: `_bmad-output/initiative-auratranslate/research-phase-0-spike-results/research-phase-0-spike-results.md`] — khuôn báo cáo mũi thăm dò; quy ước mã dùng một lần không vào repo; số 130 MB
+- [Source: `_bmad-output/initiative-auratranslate/implementation-readiness-report/implementation-readiness-report.md:769,1090`] — Story 1.1 là đường đóng cho khoảng trống font; AC tự mang mệnh đề chặn
 - [Web 2026-08-03] GitHub Releases API `adobe-fonts/source-han-serif` 2.003R · `adobe-fonts/source-serif` 4.005R · `adobe-fonts/source-sans` 3.052R — dung lượng asset
 - [Web 2026-08-03] GitHub License API ba repo Adobe — OFL-1.1, Reserved Font Name `'Source'`
 - [Web 2026-08-03] OFL-FAQ (openfontlicense.org) — đóng gói cùng phần mềm FLOSS; đổi tên khi sửa/subset; khi nào được lược bản văn giấy phép
@@ -316,7 +316,7 @@ Story này không sinh mã sản phẩm nên **không có unit test**. Thứ tha
 
 ### Debug Log References
 
-Số liệu thô, lệnh chính xác và SHA-256 từng tệp: [`research/font-spike-results-2026-08-03.md`](../planning-artifacts/research/font-spike-results-2026-08-03.md).
+Số liệu thô, lệnh chính xác và SHA-256 từng tệp: [`research/font-spike-results-2026-08-03.md`](research-font-spike-results/research-font-spike-results.md).
 
 Bốn chỗ vấp, ghi lại vì Story 1.2 và 1.3 sẽ gặp lại:
 
@@ -327,7 +327,7 @@ Bốn chỗ vấp, ghi lại vì Story 1.2 và 1.3 sẽ gặp lại:
 
 ### Completion Notes List
 
-**Bàn giao chính:** [`_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md`](../planning-artifacts/research/font-spike-results-2026-08-03.md) + bốn ảnh chụp trong `research/font-spike-2026-08-03/`. Không một dòng mã nào vào repo — đã xác minh bằng `git status`: không có `src-tauri/`, `package.json`, `Cargo.toml`.
+**Bàn giao chính:** [`_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md`](research-font-spike-results/research-font-spike-results.md) + bốn ảnh chụp trong `research/font-spike-2026-08-03/`. Không một dòng mã nào vào repo — đã xác minh bằng `git status`: không có `src-tauri/`, `package.json`, `Cargo.toml`.
 
 **Kết quả từng AC:**
 
@@ -369,7 +369,7 @@ error: invalid value 'msi' for '--bundles [<BUNDLES>...]'
 2. Rủi ro Windows thật sự **không nằm ở font** mà ở **chế độ cài WebView2**: `embedBootstrapper` hay `offlineInstaller` làm `.msi` phình ~150 MB và vỡ NFR6 kể cả khi font bằng 0. Thứ đó chỉ CI bắt được, không phải phép đo một lần này.
 3. Story 1.3 dựng CI hai nền tảng — chi phí thêm gần bằng **0**, và ghi lại **mỗi lần phát hành** nên còn bắt được cả hồi quy, thứ mà một phép đo một lần không làm được.
 
-**Công thức chạy** đã chép vào [§Công thức đo trên Windows](../planning-artifacts/research/font-spike-results-2026-08-03.md) của báo cáo — đặt ở đó chứ không chỉ trong thư mục tạm, để nó **không mất khi scratchpad bị dọn**. Gói mang đi `font-spike-windows.zip` (SHA-256 `776e8d06dca6210fded432e7baec6505813571afabcf7c5435e09afda1b07af2`) vẫn còn trong scratchpad nếu Story 1.3 muốn dùng lại đúng bộ font đã đo, nhưng **không bắt buộc** — CI dựng từ cây nguồn thật.
+**Công thức chạy** đã chép vào [§Công thức đo trên Windows](research-font-spike-results/research-font-spike-results.md) của báo cáo — đặt ở đó chứ không chỉ trong thư mục tạm, để nó **không mất khi scratchpad bị dọn**. Gói mang đi `font-spike-windows.zip` (SHA-256 `776e8d06dca6210fded432e7baec6505813571afabcf7c5435e09afda1b07af2`) vẫn còn trong scratchpad nếu Story 1.3 muốn dùng lại đúng bộ font đã đo, nhưng **không bắt buộc** — CI dựng từ cây nguồn thật.
 
 **Epic 1 không bị chặn.** Mệnh đề chặn của AC4 là *"kết quả được ghi lại"*, và kết quả đã ghi vào **6 tệp quy hoạch** (`ARCHITECTURE-SPINE.md` · `.memlog.md` architecture · `DESIGN.md` · `EXPERIENCE.md` · `.memlog.md` ux · `epics.md`) **+ 1 báo cáo mới + 4 ảnh chụp**, ngoài ra story file và `sprint-status.yaml` là tài liệu triển khai chứ không phải tài liệu quy hoạch. *(Sửa 2026-08-03: ba chỗ trong chính tệp này từng ghi ba con số khác nhau — 7, 6 và 8.)*
 
@@ -381,22 +381,22 @@ Chỉ tài liệu quy hoạch — story này không sinh mã sản phẩm.
 
 **Mới:**
 
-- `_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md`
-- `_bmad-output/planning-artifacts/research/font-spike-2026-08-03/tc-vs-sc-glyphs.png`
-- `_bmad-output/planning-artifacts/research/font-spike-2026-08-03/tc-vs-sc-paragraph-and-latin.png`
-- `_bmad-output/planning-artifacts/research/font-spike-2026-08-03/zoom-glyphs-4-ma.png`
-- `_bmad-output/planning-artifacts/research/font-spike-2026-08-03/zoom-dau-cau.png`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/tc-vs-sc-glyphs.png`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/tc-vs-sc-paragraph-and-latin.png`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/zoom-glyphs-4-ma.png`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/zoom-dau-cau.png`
 
 **Sửa:**
 
-- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` — bảng Stack +3 hàng font; bảng Deferred đóng 2 hàng; `sources` +1
-- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/.memlog.md`
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/DESIGN.md` — `updated`; `families.read` / `families.read-cjk`; `fonts-bundled.license` / `.size-budget` / `.region-variant`; §Typography *"Ba việc chưa xong"*; ghi chú bốn họ chữ và ghi chú tổng hợp giả
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md` — §Còn thiếu, đóng mục *"Font thật chưa đo"*
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/.memlog.md`
-- `_bmad-output/planning-artifacts/epics.md` — **Story 1.1 AC1 thu hẹp** (bỏ `.msi`, bản gốc giữ dạng gạch ngang); **Story 1.3 nhận AC mới** đo `.msi`; ghi chú Epic 1 *"mũi thăm dò font phải chạy trước"* đánh dấu đã xong. ⚠️ Ngoài phạm vi sửa mặc định của workflow `dev-story` — **Ice chỉ đạo tường minh 2026-08-03**
-- `_bmad-output/implementation-artifacts/1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep.md` — story này *(gồm cả §AC1, sửa theo cùng chỉ đạo trên)*
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `ready-for-dev` → `in-progress` → `review`
+- `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` — bảng Stack +3 hàng font; bảng Deferred đóng 2 hàng; `sources` +1
+- `_bmad-output/initiative-auratranslate/architecture-auratranslate/.memlog.md`
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md` — `updated`; `families.read` / `families.read-cjk`; `fonts-bundled.license` / `.size-budget` / `.region-variant`; §Typography *"Ba việc chưa xong"*; ghi chú bốn họ chữ và ghi chú tổng hợp giả
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md` — §Còn thiếu, đóng mục *"Font thật chưa đo"*
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/.memlog.md`
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md` — **Story 1.1 AC1 thu hẹp** (bỏ `.msi`, bản gốc giữ dạng gạch ngang); **Story 1.3 nhận AC mới** đo `.msi`; ghi chú Epic 1 *"mũi thăm dò font phải chạy trước"* đánh dấu đã xong. ⚠️ Ngoài phạm vi sửa mặc định của workflow `dev-story` — **Ice chỉ đạo tường minh 2026-08-03**
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md` — story này *(gồm cả §AC1, sửa theo cùng chỉ đạo trên)*
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `ready-for-dev` → `in-progress` → `review`
 
 **Không vào repo, đúng §Ranh giới phạm vi** — nằm trong scratchpad của phiên: `font-spike/app/` (app Tauri thăm dò) · `font-spike/downloads/` (zip gốc + tệp font) · `font-spike/measurements/` (hai bản `.dmg`, ảnh chụp, số liệu thô).
 

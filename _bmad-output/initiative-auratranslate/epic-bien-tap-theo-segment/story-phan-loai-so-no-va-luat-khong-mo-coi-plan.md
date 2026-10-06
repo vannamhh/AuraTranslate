@@ -514,10 +514,10 @@ của nó sẽ đóng chúng.
 
 | Tệp | Loại | Việc |
 |---|---|---|
-| `_bmad-output/implementation-artifacts/deferred-work.md` | UPDATE | **tệp chính**; chỉ dài ra, không ngắn đi |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | UPDATE | **tệp chính**; chỉ dài ra, không ngắn đi |
 | `scripts/check-*.mjs` | NEW ×0-1 | **chỉ nếu** chữ ký #3 = (a) |
 | `package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push` | UPDATE | **chỉ nếu** có cổng mới |
-| `_bmad-output/project-context.md` | UPDATE | **chỉ nếu** chữ ký #4 = (a) — và đó là một lượt riêng |
+| `_bmad-output/inbox/project-context.md` | UPDATE | **chỉ nếu** chữ ký #4 = (a) — và đó là một lượt riêng |
 | `src/**` · `src-tauri/**` | 🔴 **KHÔNG CHẠM** | Task 5.4 canh vế này bằng số test |
 
 ### References
@@ -611,7 +611,7 @@ ngay sau §ĐỌC TRƯỚC, cho số đo và đường bị loại chi tiết.)*
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/deferred-work.md` — UPDATE. 5.162 → 5.194 dòng (+32,
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — UPDATE. 5.162 → 5.194 dòng (+32,
   không xoá mục nào — 467 mục cấp một trước/sau). ~190 mục nhận `Chủ:`/đóng/`KHÔNG LÀM`.
 - `scripts/check-debt-owner.mjs` — NEW. Cổng + lệnh đếm AC5 (Kiểm A/B), Task 1 và Task 4.
 - `package.json` — UPDATE. Thêm `"check:debt-owner": "node scripts/check-debt-owner.mjs"`.
@@ -675,19 +675,19 @@ chưa có story nào cho nó.
 **Cổng mới — đọc từ chỗ quyết định hình dạng, không từ đầu tệp**
 
 - Điểm vào: hai đường tách hẳn, Kiểm A luôn đọc sổ THẬT — vá lỗ vô hiệu hoá cổng.
-  [`check-debt-owner.mjs`](../../scripts/check-debt-owner.mjs)
+  [`check-debt-owner.mjs`](../../../scripts/check-debt-owner.mjs)
 
 - Sàn quần thể: *"cây rỗng không phải cây sạch"* — chặn một Kiểm A không quét gì.
-  [`check-debt-owner.mjs` §ITEM_FLOOR](../../scripts/check-debt-owner.mjs)
+  [`check-debt-owner.mjs` §ITEM_FLOOR](../../../scripts/check-debt-owner.mjs)
 
 - Luật CHỦ theo chữ ký Ice: `Chủ:` hẹp, có cờ `i`, và bác cụm phủ định.
-  [`check-debt-owner.mjs` §detectOwner](../../scripts/check-debt-owner.mjs)
+  [`check-debt-owner.mjs` §detectOwner](../../../scripts/check-debt-owner.mjs)
 
 - `---` là ranh giới mục: thẻ chủ đặt sai chỗ MẤT hiệu lực thay vì được tính.
-  [`check-debt-owner.mjs` §parseItems](../../scripts/check-debt-owner.mjs)
+  [`check-debt-owner.mjs` §parseItems](../../../scripts/check-debt-owner.mjs)
 
 - Kiểm B: 13 ca mục + 1 ca thẻ-trên-`---` + 5 ca `--file`, gọi CHÍNH hàm sản phẩm.
-  [`check-debt-owner.mjs` §runSelftest](../../scripts/check-debt-owner.mjs)
+  [`check-debt-owner.mjs` §runSelftest](../../../scripts/check-debt-owner.mjs)
 
 **Ba danh sách cổng — `check:gates` Kiểm D/E/F canh cả ba**
 
@@ -695,15 +695,15 @@ chưa có story nào cho nó.
   [`pre-push`](../../.githooks/pre-push)
 
 - Bước CI, kèm chú thích nói ra BA cơ sở đếm cổng khác nhau.
-  [`ci.yml`](../../.github/workflows/ci.yml)
+  [`ci.yml`](../../../.github/workflows/ci.yml)
 
 - Script `check:debt-owner` — danh sách thứ ba.
-  [`package.json`](../../package.json)
+  [`package.json`](../../../package.json)
 
 **Sổ nợ — nội dung, không cơ chế**
 
 - 469 mục, 0 mồ côi. Chỉ dài ra; không mục nào bị xoá (AC4).
-  [`deferred-work.md`](./deferred-work.md)
+  [`deferred-work.md`](../deferred-work.md)
 
 ---
 

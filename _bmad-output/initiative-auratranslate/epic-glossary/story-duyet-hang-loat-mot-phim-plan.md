@@ -7,8 +7,8 @@ status: done
 review_loop_iteration: 0
 baseline_revision: '3170ce4db5d547106fd933bebde97aa2f3c8c500'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-de-xuat-ban-dich-bang-am-han-viet-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -290,68 +290,68 @@ dựng. Chạy tay + đọc số hồi quy là việc của Ice.
 **Điểm vào — quyết định trung tâm của story**
 
 - Thứ tự mới; mốc phụ `id ASC` là thứ làm "mở lại đúng vị trí" tất định.
-  [`candidate_store.rs:74`](../../src-tauri/src/core/glossary/candidate_store.rs#L74)
+  [`candidate_store.rs:74`](../../../src-tauri/src/core/glossary/candidate_store.rs#L74)
 
 - Vì sao 0 bước di trú: hàng đã quyết tự rời `resolution IS NULL`.
-  [`3-8…-mot-phim.md:150`](3-8-duyet-hang-loat-mot-phim.md#L150)
+  [`3-8…-mot-phim.md:150`](story-duyet-hang-loat-mot-phim-plan.md#L150)
 
 **Đường ghi mới (Rust) — một vỏ IPC duy nhất**
 
 - Vỏ IPC đầu tiên của `reject_candidate`; chép khuôn `approve`.
-  [`glossary.rs:494`](../../src-tauri/src/commands/glossary.rs#L494)
+  [`glossary.rs:494`](../../../src-tauri/src/commands/glossary.rs#L494)
 
 - Đăng ký vỏ thứ tám vào `invoke_handler`.
-  [`lib.rs:388`](../../src-tauri/src/lib.rs#L388)
+  [`lib.rs:388`](../../../src-tauri/src/lib.rs#L388)
 
 - Cổng thật: danh sách được phép lên 9, đóng món nợ mang tên story này.
-  [`glossary_boundary.rs:187`](../../src-tauri/tests/glossary_boundary.rs#L187)
+  [`glossary_boundary.rs:187`](../../../src-tauri/tests/glossary_boundary.rs#L187)
 
 **Trạng thái bảng chờ — chỗ "rỗng im lặng" bị chặn**
 
 - Năm trạng thái, để một danh sách rỗng không tự kể chuyện.
-  [`glossaryQueueState.ts:60`](../../src/glossaryQueueState.ts#L60)
+  [`glossaryQueueState.ts:60`](../../../src/glossaryQueueState.ts#L60)
 
 - Phân biệt "chưa mở Tác phẩm" khỏi "bảng chờ sạch", chỉ khi rỗng.
-  [`glossaryQueueState.ts:160`](../../src/glossaryQueueState.ts#L160)
+  [`glossaryQueueState.ts:160`](../../../src/glossaryQueueState.ts#L160)
 
 - Nhận: đề xuất có ⇒ đã chốt, không ⇒ chờ chốt; con trỏ tiến có chốt đua.
-  [`glossaryQueueState.ts:223`](../../src/glossaryQueueState.ts#L223)
+  [`glossaryQueueState.ts:223`](../../../src/glossaryQueueState.ts#L223)
 
 - Adapter ba trạng thái cho lượt Bỏ.
-  [`glossary.ts:561`](../../src/config/glossary.ts#L561)
+  [`glossary.ts:561`](../../../src/config/glossary.ts#L561)
 
 **Lớp phủ — nơi vòng rà tìm ra lỗ nặng nhất**
 
 - Lọc hợp âm bổ trợ: `⌘N` từng ghi thẳng một mục vào Glossary.
-  [`GlossaryQueueOverlay.vue:140`](../../src/GlossaryQueueOverlay.vue#L140)
+  [`GlossaryQueueOverlay.vue:140`](../../../src/GlossaryQueueOverlay.vue#L140)
 
 - Dấu `✓`/`✕` là trang trí; tín hiệu đọc được đi đường riêng.
-  [`GlossaryQueueOverlay.vue:252`](../../src/GlossaryQueueOverlay.vue#L252)
+  [`GlossaryQueueOverlay.vue:252`](../../../src/GlossaryQueueOverlay.vue#L252)
 
 **Lệnh, chuỗi, chỗ dựng**
 
 - Sáu lệnh; chỉ lệnh mở mang hợp âm mặc định.
-  [`index.ts:1670`](../../src/commands/index.ts#L1670)
+  [`index.ts:1670`](../../../src/commands/index.ts#L1670)
 
 - Tiêm handler qua `CommandDeps` — state Vue không vào `commands/`.
-  [`main.ts:161`](../../src/main.ts#L161)
+  [`main.ts:161`](../../../src/main.ts#L161)
 
 - Chỗ dựng lớp phủ thứ năm.
-  [`App.vue:59`](../../src/App.vue#L59)
+  [`App.vue:59`](../../../src/App.vue#L59)
 
 - Ba câu rỗng khác nhau, cộng câu đang tải.
-  [`vi.json:286`](../../src/i18n/vi.json#L286)
+  [`vi.json:286`](../../../src/i18n/vi.json#L286)
 
 **Nghiệm thu**
 
 - Đối chứng `⌘N`/`⌘1` không kích hoạt gì, kèm đối chứng dương phím trần.
-  [`glossaryQueue.test.ts:460`](../../tests/frontend/glossaryQueue.test.ts#L460)
+  [`glossaryQueue.test.ts:460`](../../../tests/frontend/glossaryQueue.test.ts#L460)
 
 - Hợp đồng thứ tự, gồm ca đồng hạng tần suất.
-  [`glossary_commands_contract.rs:247`](../../src-tauri/tests/glossary_commands_contract.rs#L247)
+  [`glossary_commands_contract.rs:247`](../../../src-tauri/tests/glossary_commands_contract.rs#L247)
 
 - Mệnh đề cũ đã hết đúng, sửa tại chỗ thay vì để nó lặng lẽ sai.
-  [`glossary_contract.rs:1169`](../../src-tauri/tests/glossary_contract.rs#L1169)
+  [`glossary_contract.rs:1169`](../../../src-tauri/tests/glossary_contract.rs#L1169)
 
 ---
 

@@ -515,7 +515,7 @@ Hình dạng nhiều tệp trong một thư mục module là khuôn mà chính s
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:1254-1296` — bảy AC nguyên văn của Story 1.7
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1254-1296` — bảy AC nguyên văn của Story 1.7
 - `epics.md:1298-1330` *(Story 1.8)* · `:1580-1625` *(Story 1.15)* — hai ranh giới liền kề
 - `epics.md:410-416` — bốn dòng bất biến dữ liệu của Epic 1; `:454` — hàng Deferred giao ngưỡng WAL cho **Giai đoạn 2**
 - `epics.md:326` NFR2 · `:344` NFR10 · `:358` NFR14 · `:368` NFR18 · `:282-294` FR96–FR102
@@ -688,8 +688,8 @@ Hai cổng cuối chạy **sau** khi sửa `lib.rs` *(Task 8)*, và đó là đi
 - `src-tauri/src/lib.rs` — `build(ctx)?.run(callback)` · `setup()` mở `global.db` · `RunEvent::Exit` ⇒ `close()`
 - `src/i18n/vi.json` — 5 chuỗi tương ứng *(11 → 16 khoá)*
 - `scripts/check-i18n.mjs` — `RS_FLOOR` 14 → 18 kèm lý do
-- `_bmad-output/implementation-artifacts/deferred-work.md` — cập nhật mục `panic = "abort"`; mở mục mới cho Story 1.7
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái story
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — cập nhật mục `panic = "abort"`; mở mục mới cho Story 1.7
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái story
 
 **Không đụng:** `src-tauri/Cargo.toml` *(gồm `[profile.release]`)* · `tauri.conf.json` · `capabilities/**` · `package.json` · `.github/workflows/ci.yml` · `src/selftest/**` · `src/tokens/**` · `src/commands/**` · `ports/mod.rs` · `_bmad-output/planning-artifacts/**`.
 

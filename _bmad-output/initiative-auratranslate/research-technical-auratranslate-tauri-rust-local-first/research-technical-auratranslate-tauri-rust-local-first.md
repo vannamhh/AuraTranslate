@@ -6,8 +6,8 @@ created: 2026-08-02
 skill: bmad-technical-research
 stepsCompleted: [1, 2, 3, 4, 5, 6]
 inputDocuments:
-  - '_bmad-output/planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/brief.md'
-  - '_bmad-output/planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/addendum.md'
+  - '_bmad-output/initiative-auratranslate/brief-auratranslate/brief-auratranslate.md'
+  - '_bmad-output/initiative-auratranslate/brief-auratranslate/addendum.md'
 workflowType: 'research'
 lastStep: 6
 research_type: 'technical'

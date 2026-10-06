@@ -268,8 +268,8 @@ Lượt code review 2026-08-11 trên diff `fe952de..9940ee5` (16 tệp mã, +2.0
 - [x] [Review][Patch] `unassignShortcut`/`resetShortcut` thành công mà không xoá `notice` cũ ⇒ câu xung đột còn treo sau khi đã sửa xong [src/config/shortcutsState.ts:280-297]
 - [x] [Review][Patch] `aimRowFrom` huỷ lượt bắt bằng `capturing.value = false` thay vì `cancelCapture()` ⇒ câu "Đang chờ một tổ hợp phím" còn treo sau khi đã huỷ [src/config/shortcutsState.ts:216]
 - [x] [Review][Patch] `shortcuts.col_note` = "Ghi chú" đứng đầu cột chứa hai NÚT thao tác — nhãn cột không khớp nội dung cột [src/ShortcutsOverlay.vue:220]
-- [x] [Review][Patch] §Completion Notes và §File List khai "**22** khoá mới *(5 nhãn command + 17 chuỗi màn hình)*"; số thật đo được là **25** *(5 + 20)* — `vi.json` đi từ 129 lên 154 khoá [_bmad-output/implementation-artifacts/1-21-phim-tat-cau-hinh-lai-duoc.md:736]
-- [x] [Review][Patch] §KHÔNG-LÀM ⑬.5 vẫn viết "**Không** cờ `repeatable`" trong khi Quyết định #7 đã lật và mã đã có `CommandSpec.repeatable` [_bmad-output/implementation-artifacts/1-21-phim-tat-cau-hinh-lai-duoc.md:456]
+- [x] [Review][Patch] §Completion Notes và §File List khai "**22** khoá mới *(5 nhãn command + 17 chuỗi màn hình)*"; số thật đo được là **25** *(5 + 20)* — `vi.json` đi từ 129 lên 154 khoá [_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-phim-tat-cau-hinh-lai-duoc-plan.md:736]
+- [x] [Review][Patch] §KHÔNG-LÀM ⑬.5 vẫn viết "**Không** cờ `repeatable`" trong khi Quyết định #7 đã lật và mã đã có `CommandSpec.repeatable` [_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-phim-tat-cau-hinh-lai-duoc-plan.md:456]
 
 **Đã kiểm và ĐẠT, ghi ra để lượt review sau không đo lại:** cả sáu sàn `*_FLOOR` của `check-commands.mjs` và hai sàn của `check-i18n.mjs` khớp số thật đo lại *(15 `.vue` · 31 `.ts` · 34 command · 21 `@click` · 28 `dispatch()` · 7 bề mặt · 41 `.rs` không đổi)* — AC14 đứng. Chín cổng xanh · `build` xanh · `cargo test` 264/0/5, khớp §Completion Notes. Danh sách 16 phần tử của `unbound()` khớp nguyên văn — AC7 đứng. Đường Rust `delete_value` có cả ba nhánh *(khoá vắng · loại sai · xoá thật)* và cả ba có test. `applyBindings` dựng vào biến tạm rồi mới thay — Bẫy 9 đứng. Proxy ổn định ở `attachKeyboard` vá đúng lỗ closure đã đo ở Quyết định #1. `overrides` giữ đủ ba trạng thái bằng `hasOwnProperty` — AC8 đứng ở tầng cơ chế.
 
@@ -779,7 +779,7 @@ Nạp chính `src/commands/index.ts` của sản phẩm bằng **Node thuần** 
 - `src-tauri/tests/scope_contract.rs` — **3** ca mới cho đường xoá khoá
 - `scripts/check-commands.mjs` — 6 sàn nâng · lưới `chordFromEvent`/`formatChord` hai nền tảng · lưới `repeatable` · lưới `overrides` bốn trạng thái · khẳng định `NAMED_CODES` không chứa `,`
 - `scripts/check-i18n.mjs` — `VUE_FLOOR` nâng; `RS_FLOOR` giữ nguyên kèm lý do
-- `_bmad-output/implementation-artifacts/deferred-work.md` — 6 mục mới, 6 mục cũ cập nhật
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — 6 mục mới, 6 mục cũ cập nhật
 
 ---
 

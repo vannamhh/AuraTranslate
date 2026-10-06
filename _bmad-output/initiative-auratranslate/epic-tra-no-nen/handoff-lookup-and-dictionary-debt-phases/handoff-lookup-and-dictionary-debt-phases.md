@@ -431,7 +431,7 @@ frozen block untouched.
   Epic 11`"), **removed** the spec file rather than leave a permanently-red/always-skipped
   test in `e2e/specs/`. `deferred-work.md`'s L1042 disposition records the measured finding
   (not a vague "couldn't do it").
-- **Story 2.9 🔵 pointer** — `_bmad-output/implementation-artifacts/2-9-gop-bang-backspace-dau-o.md`,
+- **Story 2.9 🔵 pointer** — `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-gop-bang-backspace-dau-o-plan.md`,
   right after AC9's Given/When/Then block: a dated correction noting phiếu quyết #89 reversed
   the "chính xác từng chữ ở `parallel`" clause. Original AC9 text kept in place (not deleted),
   per "a claim that stops being true is fixed in place with 🔵 and a date."

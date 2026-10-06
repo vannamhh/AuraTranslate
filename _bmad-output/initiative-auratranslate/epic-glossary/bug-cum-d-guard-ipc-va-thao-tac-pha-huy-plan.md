@@ -7,7 +7,7 @@ status: 'done'
 review_loop_iteration: 0
 baseline_revision: '0f071845f01c02f48799108fae568844c639fc1a'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/tests/AGENTS.md'
@@ -150,7 +150,7 @@ context:
 - [x] `src/commands/registry.ts` — bọc `spec.run()`, ghi chẩn đoán nêu đích danh `id`, **giữ nguyên** `throw` cho id chưa đăng ký; không thêm một dòng `import` nào.
 - [x] `src/GlossaryQuickAdd.vue` — radio tầng Tác phẩm `disabled` khi `quickAddWorkTierAvailable === false`, chép khuôn `GlossaryManageOverlay.vue:443`.
 - [x] `tests/frontend/**` — ca cho ①…⑰; nhóm ① mock đúng biên `@tauri-apps/api/core`, nhóm ③/⑤ mount component thật. Sửa `glossaryManage.test.ts:418-447` cho khớp hành vi hai nhịp, kiểm **cả hai** nhịp. Mỗi mục kèm một phép đối chứng gỡ-chỗ-nối **đã chạy thật**.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng mục **Cụm D** bằng chữ, và đóng mục **"hai lượt xuất song song"** bằng `→ ✅` kèm tên chỗ gác đã có sẵn; hai mục bị bác đóng bằng `→ KHÔNG LÀM 2026-08-26 — <lý do kèm số đo>`. Không xoá mục cũ, không làm tròn lên.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng mục **Cụm D** bằng chữ, và đóng mục **"hai lượt xuất song song"** bằng `→ ✅` kèm tên chỗ gác đã có sẵn; hai mục bị bác đóng bằng `→ KHÔNG LÀM 2026-08-26 — <lý do kèm số đo>`. Không xoá mục cũ, không làm tròn lên.
 
 **Acceptance Criteria:**
 - Given mỗi mục vá, when gỡ riêng bản vá đó ra và chạy bộ test, then **có ít nhất một ca đỏ trỏ đúng mục đó**; tên ca và số ca đỏ ghi lại thành số thật, không suy.
@@ -250,67 +250,67 @@ thứ lượt rà này tồn tại để bắt.
 **Thao tác phá huỷ — đọc trước hết, đây là chỗ một lỗi ở lại vĩnh viễn**
 
 - Điểm vào: nhịp một chỉ đổi trạng thái, 0 lượt IPC; nhịp hai mới ghi.
-  [`glossaryManageState.ts:471`](../../src/glossaryManageState.ts#L471)
+  [`glossaryManageState.ts:471`](../../../src/glossaryManageState.ts#L471)
 
 - Lỗ vòng rà bắt được: giữ phím tự lặp từng đi xuyên qua cả hai nhịp.
-  [`GlossaryManageOverlay.vue:246`](../../src/GlossaryManageOverlay.vue#L246)
+  [`GlossaryManageOverlay.vue:246`](../../../src/GlossaryManageOverlay.vue#L246)
 
 - Câu hint phải gọi đúng tên nhãn nút đang hiển thị, không tên cũ.
-  [`vi.json:353`](../../src/i18n/vi.json#L353)
+  [`vi.json:353`](../../../src/i18n/vi.json#L353)
 
 **Cửa loại trừ Xuất↔Nhập — vì sao một module thứ ba, không phải import chéo**
 
 - Ô nhớ đứng ngoài cả hai state; đồ thị import hai cạnh vào, không cạnh ra.
-  [`glossaryExchangeGate.ts:1`](../../src/glossaryExchangeGate.ts#L1)
+  [`glossaryExchangeGate.ts:1`](../../../src/glossaryExchangeGate.ts#L1)
 
 - Chiều Xuất: kiểm vé cũ TRƯỚC khi hạ cờ dùng chung.
-  [`glossaryManageState.ts:561`](../../src/glossaryManageState.ts#L561)
+  [`glossaryManageState.ts:561`](../../../src/glossaryManageState.ts#L561)
 
 - Nút bị khoá phải nói VÌ SAO, không chỉ xám đi.
-  [`GlossaryManageOverlay.vue:532`](../../src/GlossaryManageOverlay.vue#L532)
+  [`GlossaryManageOverlay.vue:532`](../../../src/GlossaryManageOverlay.vue#L532)
 
 **Guard lúc chạy trên dây — sáu đường, một khuôn**
 
 - Đường nặng nhất: object lồng, trước đây 0 phép kiểm nào.
-  [`glossary.ts:102`](../../src/config/glossary.ts#L102)
+  [`glossary.ts:102`](../../../src/config/glossary.ts#L102)
 
 - Chỗ nối guard vào adapter; `invoke<unknown>` thay cho generic tin tưởng.
-  [`glossary.ts:147`](../../src/config/glossary.ts#L147)
+  [`glossary.ts:147`](../../../src/config/glossary.ts#L147)
 
 - Bất biến chéo trường mà doc-comment của kiểu đã khai từ trước.
-  [`glossary.ts:677`](../../src/config/glossary.ts#L677)
+  [`glossary.ts:677`](../../../src/config/glossary.ts#L677)
 
 - `null` vẫn là "đã huỷ hộp thoại"; chuỗi rỗng thì không phải thành công.
-  [`glossary.ts:804`](../../src/config/glossary.ts#L804)
+  [`glossary.ts:804`](../../../src/config/glossary.ts#L804)
 
 **Cờ và nhánh trạng thái — rỗng phải nói vì sao nó rỗng**
 
 - Cờ hạ đồng bộ ngay khi lượt mở mới bắt đầu, không đợi biết `outcome`.
-  [`glossaryImportState.ts:152`](../../src/glossaryImportState.ts#L152)
+  [`glossaryImportState.ts:152`](../../../src/glossaryImportState.ts#L152)
 
 - Ca "đang nạp" có tên riêng; "đã duyệt hết" đo bằng số hàng chưa xử lý.
-  [`glossaryQueueState.ts:122`](../../src/glossaryQueueState.ts#L122)
+  [`glossaryQueueState.ts:122`](../../../src/glossaryQueueState.ts#L122)
 
 **Ngoại lệ dưới listener bàn phím — và giới hạn thật của bản vá**
 
 - Bọc `spec.run()`; `throw` cho id chưa đăng ký giữ nguyên phía trên.
-  [`registry.ts:239`](../../src/commands/registry.ts#L239)
+  [`registry.ts:239`](../../../src/commands/registry.ts#L239)
 
 - Hai chỗ gọi `resolve()` của panel, không một chỗ như sổ nợ ghi.
-  [`selectionContract.ts:217`](../../src/panels/selectionContract.ts#L217)
+  [`selectionContract.ts:217`](../../../src/panels/selectionContract.ts#L217)
 
 **Một dòng UI**
 
 - Chặn lượt gửi khi tầng Tác phẩm lật thành không khả dụng giữa phiên.
-  [`GlossaryQuickAdd.vue:238`](../../src/GlossaryQuickAdd.vue#L238)
+  [`GlossaryQuickAdd.vue:238`](../../../src/GlossaryQuickAdd.vue#L238)
 
 **Phần đỡ — test và sổ nợ**
 
 - Ca nhóm ① mock đúng biên IPC nên guard sản phẩm chạy thật.
-  [`glossaryConfigGuards.test.ts:46`](../../tests/frontend/glossaryConfigGuards.test.ts#L46)
+  [`glossaryConfigGuards.test.ts:46`](../../../tests/frontend/glossaryConfigGuards.test.ts#L46)
 
 - Ca đọc DOM đã mount, không chỉ đọc `ref` của tầng state.
-  [`glossaryManage.test.ts:1`](../../tests/frontend/glossaryManage.test.ts#L1)
+  [`glossaryManage.test.ts:1`](../../../tests/frontend/glossaryManage.test.ts#L1)
 
 - Hai mục bị bác đóng bằng chữ kèm số đo, không bằng mã.
-  [`deferred-work.md:7201`](./deferred-work.md#L7201)
+  [`deferred-work.md:7201`](../deferred-work.md#L7201)

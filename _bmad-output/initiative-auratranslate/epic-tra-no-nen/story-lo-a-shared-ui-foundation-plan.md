@@ -9,7 +9,7 @@ baseline_revision: '32d933cc9ab412aaa41ba5037a6a8c11f4209559'
 review_loop_iteration: 0
 context:
   - '{project-root}/src/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">

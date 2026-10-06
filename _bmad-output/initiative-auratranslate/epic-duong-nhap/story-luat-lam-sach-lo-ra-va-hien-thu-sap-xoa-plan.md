@@ -10,7 +10,7 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -115,7 +115,7 @@ bị diệt ở **cả hai** chỗ thay vì một.
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` -- 🔴 **LÀM TRƯỚC MỌI THỨ**: cửa NFR15 ba bước cho `regex` — mở tệp giấy phép trong `~/.cargo/registry/src/**/regex-1.13.1/` mà **đọc** (không tin nhãn registry), ghi một hàng vào bảng §Stack kèm giấy phép và lý do, **rồi mới** thêm vào `Cargo.toml`. Ghim bằng `=` (`regex = "=1.13.1"`) -- lock chỉ giữ số đúng tới lần `cargo update` đầu tiên
+- [x] `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` -- 🔴 **LÀM TRƯỚC MỌI THỨ**: cửa NFR15 ba bước cho `regex` — mở tệp giấy phép trong `~/.cargo/registry/src/**/regex-1.13.1/` mà **đọc** (không tin nhãn registry), ghi một hàng vào bảng §Stack kèm giấy phép và lý do, **rồi mới** thêm vào `Cargo.toml`. Ghim bằng `=` (`regex = "=1.13.1"`) -- lock chỉ giữ số đúng tới lần `cargo update` đầu tiên
 - [x] `src-tauri/src/core/store/schema.rs` -- hằng `IMPORT_CLEANUP_RULE_DDL` mới (`id` AUTOINCREMENT · `pattern` · `kind CHECK IN ('literal','regex')` · `enabled` · `ord` · `created_at`), rào rỗng liệt **trọn 25 điểm mã** như `GLOSSARY_ENTRY_DDL:305-323`; **bước song sinh** dùng **cùng một hằng** vào `GLOBAL_MIGRATIONS` (`to_version: 7`) và `PROJECT_MIGRATIONS` (`to_version: 19`) -- một bảng chép hai lần là hai nguồn sự thật
 - [x] `src-tauri/tests/pinned_contract.rs` + `src-tauri/tests/project_contract.rs` -- cập nhật hai assert độ dài bộ di trú và danh sách bảng `project.db`; mỗi lượt sửa kèm lý do là **thêm bảng**, không phải một kỳ vọng đã nới
 - [x] `src-tauri/src/core/cleanup/mod.rs` -- tạo mới, **THUẦN**: `CleanupRule { id, tier, pattern, kind, enabled }`, `CleanupMatch { rule_key, start, end }` (**điểm mã, nửa-mở `[start,end)`** — cùng quy ước `SegmentTermSpan`), `apply(text, &[CleanupRule]) -> Cleaned { text, matches, per_rule_counts }`. Biên dịch regex **một lần**/lượt; mẫu hỏng trả `Err`, không `panic!`. Đếm cho **mọi** luật kể cả luật đã tắt; **xoá** chỉ luật đang bật. Chỗ khớp chồng nhau ⇒ xoá một lần, nhưng **mỗi** luật vẫn đếm -- không khử trùng lặp (AD-18 hợp nhất)
@@ -141,7 +141,7 @@ bị diệt ở **cả hai** chỗ thay vì một.
 - [x] **ĐO, đừng khai** -- xem trước nay chạy trọn chuỗi tới **sáu** lượt trên **toàn** văn bản (năm ứng viên + đường tự khai). Chú thích hiện khẳng định *"CPU của regex/normalize rẻ"* mà không có số. Đo trên một Chương lớn thật, ghi con số vào chú thích; nếu chậm thì ghi nợ có chủ -- một mệnh đề hiệu năng không kèm phép đo là đúng thứ kho này cấm
 - [x] `src/commands/index.ts` + `src/i18n/vi.json` -- lệnh bật/tắt luật khớp **khối đang chọn** hôm nay chưa có bề mặt khối (tầng 2 là Story 6.9) ⇒ **không** đăng ký phím `R` trong story này, ghi nợ có chủ thay vì một hợp âm không có đối tượng; khoá `mode.library.preview.tier3_*` mới, xoá `tier_empty_story_6_5` (`:226`) -- khoá phải là literal trong `t('…')` để `check:i18n` thấy
 - [x] `tests/frontend/importPreviewCleanup.test.ts` (mới) + `importPreviewEncodingWireShape.test.ts` + `importPreviewOverlayRender.test.ts` -- tầng 3 dựng đúng span của ứng viên đang chọn; đổi ô ⇒ khối làm sạch đổi mà **0 lời gọi IPC**; đường tự khai có khối riêng; hình dạng dây mới có ca. 🔴 giữ nguyên ba ca "đổi ứng viên = 0 IPC" (`importPreviewEncoding.test.ts:192-211`) **không sửa kỳ vọng**
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối dòng `→` cho `:9359` (✅ đóng), `:9066` (🟡 tầng 3 xong, tầng 2 còn mở), `:9172` (✅ xem trước nay chạy chuỗi thật); ghi nợ **MỚI có chủ** cho: phím `R` + luật khớp khối chọn (**Story 6.9**) · số *"cả lần nhập"* mới bằng số *"Chương này"* khi lần nhập có đúng một Chương (**Story 6.6/6.7**) · va hợp âm `⌘↵` `:2971` (chuyển chủ nếu story này không đăng ký) · test DOM overlay `:9293` nếu chưa đóng hết -- `check:debt-owner` đọc **dòng `→`**, một câu trong thân mục thì cổng không thấy
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối dòng `→` cho `:9359` (✅ đóng), `:9066` (🟡 tầng 3 xong, tầng 2 còn mở), `:9172` (✅ xem trước nay chạy chuỗi thật); ghi nợ **MỚI có chủ** cho: phím `R` + luật khớp khối chọn (**Story 6.9**) · số *"cả lần nhập"* mới bằng số *"Chương này"* khi lần nhập có đúng một Chương (**Story 6.6/6.7**) · va hợp âm `⌘↵` `:2971` (chuyển chủ nếu story này không đăng ký) · test DOM overlay `:9293` nếu chưa đóng hết -- `check:debt-owner` đọc **dòng `→`**, một câu trong thân mục thì cổng không thấy
 
 **Acceptance Criteria:**
 - Given một lượt nhập bất kỳ, when so `source_text` mà `confirm_import_with_encoding` ghi xuống với văn bản mà `preview_import_encoding` vừa hiện, then **giống nhau từng byte** — và ca kiểm phải chạy trên đường lệnh thật, không trên hai hàm thuần đặt cạnh nhau.
@@ -226,56 +226,56 @@ xoá + nhãn trợ năng · gỡ dữ liệu chết · đánh lại số hàng �
 **Điểm tiêm — đọc trước nhất**
 
 - Thân bước 3 gọi xuống module thuần; `trace.push` ở lại trong nhánh.
-  [`pipeline.rs:393`](../../src-tauri/src/core/segment/pipeline.rs#L393)
+  [`pipeline.rs:393`](../../../src-tauri/src/core/segment/pipeline.rs#L393)
 
 - Luật đã tắt vẫn ĐẾM, chỉ không XOÁ; chỗ khớp chồng nhau xoá một lần.
-  [`cleanup/mod.rs:275`](../../src-tauri/src/core/cleanup/mod.rs#L275)
+  [`cleanup/mod.rs:275`](../../../src-tauri/src/core/cleanup/mod.rs#L275)
 
 **Hai tầng — consumer sản phẩm đầu tiên của `apply_merge`**
 
 - Hợp nhất, không ghi đè; đột biến sang `apply_override` làm nhiều ca đỏ.
-  [`cleanup/store.rs:109`](../../src-tauri/src/core/cleanup/store.rs#L109)
+  [`cleanup/store.rs:109`](../../../src-tauri/src/core/cleanup/store.rs#L109)
 
 - Một hằng DDL, hai bước di trú song sinh (7 và 19), rào rỗng 25 điểm mã.
-  [`schema.rs:852`](../../src-tauri/src/core/store/schema.rs#L852)
+  [`schema.rs:852`](../../../src-tauri/src/core/store/schema.rs#L852)
 
 **Xem trước chạy CHÍNH chuỗi — chỗ đóng nợ `:9359`**
 
 - Chạy `run_pipeline` trên TOÀN văn bản; không dựng lại thứ tự bước lần hai.
-  [`project.rs:1191`](../../src-tauri/src/commands/project.rs#L1191)
+  [`project.rs:1191`](../../../src-tauri/src/commands/project.rs#L1191)
 
 - Span vắt qua biên cửa sổ được CẮT về biên, không bị loại bỏ.
-  [`project.rs:1258`](../../src-tauri/src/commands/project.rs#L1258)
+  [`project.rs:1258`](../../../src-tauri/src/commands/project.rs#L1258)
 
 **Chỗ hở đã vá ở vòng rà — đọc kỹ nhất**
 
 - Tầng Tác phẩm phân giải từ Tác phẩm ĐANG MỞ; vì thế bề mặt soạn chỉ tạo luật Toàn cục.
-  [`project.rs:2630`](../../src-tauri/src/commands/project.rs#L2630)
+  [`project.rs:2630`](../../../src-tauri/src/commands/project.rs#L2630)
 
 - Tải lại sau CRUD phải GIỮ ứng viên người dùng đã chọn, nếu không ghi sai bảng mã.
-  [`importPreviewState.ts:319`](../../src/importPreviewState.ts#L319)
+  [`importPreviewState.ts:319`](../../../src/importPreviewState.ts#L319)
 
 **Bề mặt — dữ liệu, không markup**
 
 - Gạch ngang là màu NÉT (`text-decoration-color`), không bao giờ màu chữ.
-  [`ImportPreviewOverlay.vue:492`](../../src/ImportPreviewOverlay.vue#L492)
+  [`ImportPreviewOverlay.vue:492`](../../../src/ImportPreviewOverlay.vue#L492)
 
 - Tick bật/tắt mang `aria-label` nêu đích danh mẫu luật.
-  [`ImportPreviewOverlay.vue:556`](../../src/ImportPreviewOverlay.vue#L556)
+  [`ImportPreviewOverlay.vue:556`](../../../src/ImportPreviewOverlay.vue#L556)
 
 **Cổng — và chỗ mù đã vá**
 
 - Cổng thân-bước nay lọc `#[cfg(test)]` trước khi quét; trước đó thân test làm nó xanh giả.
-  [`cleanup_boundary.rs:133`](../../src-tauri/tests/cleanup_boundary.rs#L133)
+  [`cleanup_boundary.rs:133`](../../../src-tauri/tests/cleanup_boundary.rs#L133)
 
 - Số đếm của TOÀN Chương dù bản dựng bị cắt — ca này đã chứng minh ĐỎ trước khi mã được sửa.
-  [`cleanup_contract.rs:656`](../../src-tauri/tests/cleanup_contract.rs#L656)
+  [`cleanup_contract.rs:656`](../../../src-tauri/tests/cleanup_contract.rs#L656)
 
 - Chỗ khớp vắt biên bị cắt chứ không mất dấu — đối chứng đỏ đã chạy.
-  [`cleanup_contract.rs:709`](../../src-tauri/tests/cleanup_contract.rs#L709)
+  [`cleanup_contract.rs:709`](../../../src-tauri/tests/cleanup_contract.rs#L709)
 
 - Mệnh đề hiệu năng có SỐ, không có lời khai: sáu lượt chuỗi trên Chương 440 KB.
-  [`cleanup_contract.rs:809`](../../src-tauri/tests/cleanup_contract.rs#L809)
+  [`cleanup_contract.rs:809`](../../../src-tauri/tests/cleanup_contract.rs#L809)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

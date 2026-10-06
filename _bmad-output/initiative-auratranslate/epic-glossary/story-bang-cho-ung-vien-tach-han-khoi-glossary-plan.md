@@ -7,8 +7,8 @@ status: done
 baseline_revision: 'e6dee97da65368afe2c973cdfbba0e0a006a2711'
 review_loop_iteration: 1
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -73,7 +73,7 @@ context:
 - **Sẽ đỏ vì nâng target 12 → 13** *(đã liệt kê đủ, đừng để sót như lượt 3.1)*: `segment_contract.rs:516` (thang nguyên văn) · `:577,790,908,1201,1306,1508,5358` (**tám** chỗ `schema_version() == 12` — đo lại bằng `grep -n "^        12,$"`, danh sách bảy dòng này thiếu một) · `:1580-1608` `STEP_THIRTEEN` — **panic ngầm, không phải lỗi biên dịch**: mảng `[Migration; 12]` + bước giả `to_version: 13` nay trùng target thật ⇒ `Store::open` hết từ chối; phải lên `[Migration; 13]` + bước giả `14` + đổi tên. `pinned_contract.rs:187` (`len() == 11`) · `:194` (`== 12`).
 - **Đối chứng phải GIỮ XANH** (không đụng `GLOBAL_MIGRATIONS`): `pinned_contract.rs:74,81,127` · `store_contract.rs:891,919` · `glossary_contract.rs:534` · `segment_contract.rs:474`.
 - Không cổng `check:*` nào đọc thang di trú — vùng đỏ nằm trọn ở `cargo test --locked`.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — `:5328` (`translation` là trường `pub`, chủ Epic 4) · `:5358` (`GLOSSARY_ONLY_SURFACE` khớp chuỗi con tên hàm trần — **đổi tên hàm ở story này chạm đúng mục này**) · `:5365` (trigger không canh `INSERT OR REPLACE`, chủ 3.9) · `:5306` (chuẩn hoá `source_term` để lại cho 3.4).
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — `:5328` (`translation` là trường `pub`, chủ Epic 4) · `:5358` (`GLOSSARY_ONLY_SURFACE` khớp chuỗi con tên hàm trần — **đổi tên hàm ở story này chạm đúng mục này**) · `:5365` (trigger không canh `INSERT OR REPLACE`, chủ 3.9) · `:5306` (chuẩn hoá `source_term` để lại cho 3.4).
 
 ## Tasks & Acceptance
 
@@ -90,8 +90,8 @@ context:
 - [ ] `src-tauri/tests/glossary_contract.rs` -- thêm phép kiểm chéo: bảng ký tự WS trong hai hằng DDL **trùng từng byte** -- cùng khuôn `han_ranges_are_verbatim_from_dict_build_char_idx`; hai bản chép không có cổng là hai bản chép sẽ lệch.
 - [ ] `src-tauri/tests/segment_contract.rs` -- thang `:516`, **tám** chỗ `== 12`, và `STEP_THIRTEEN` `:1580-1608`; mỗi chỗ kèm 🔵 + ngày; **không** đụng `:474`. *(Tám chỗ `== 12`, không bảy — vết sẹo `PROJECT_MIGRATIONS` số 4 làm thang lệch một; xem Completion Notes.)*
 - [ ] `src-tauri/tests/pinned_contract.rs` -- `:187` và `:194` kèm 🔵 + ngày.
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- thêm bốn mục nữa, mỗi mục MỘT chủ (`check:debt-owner` đỏ với mục mồ côi): **chủ = Story 3.9** — `DELETE` rồi `INSERT` lại cùng `source_term` đặt `resolution` về NULL, đúng lỗ mà mục `:5365` đã ghi cho trigger của `glossary_entry`; **chủ = Story 3.5** — một ứng viên trùng `source_term` với mục Glossary có sẵn thì không bao giờ duyệt được và nằm lại bảng chờ vĩnh viễn, chỗ chặn đúng là lượt quét (`epics.md:2984-2985`); **chủ = Story 3.8** — `ORDER BY source_term` là đối chiếu byte, vô nghĩa với chữ Hán và tiếng Việt, và `WHERE resolution IS NULL` chưa có chỉ mục; **chủ = story dựng chỗ gọi sản phẩm đầu tiên** — bốn hàm `candidate_store` chưa vào `GLOSSARY_ONLY_SURFACE` vì chưa có chỗ gọi, hôm nay chỉ một doc-comment nói ra.
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối mục mới **chủ = Story 8.14**: khoá duy nhất theo **chuỗi** ở story này hẹp hơn luật "cùng cặp X→Y" mà `epics.md:6115-6117` đòi, nên một bản dịch thu hoạch khác cho chuỗi đã bị bỏ sẽ không đề xuất được; và mục **chủ = Story 3.8** cho `resolution` chưa mang thời điểm -- không mục nào mồ côi.
+- [ ] `_bmad-output/initiative-auratranslate/deferred-work.md` -- thêm bốn mục nữa, mỗi mục MỘT chủ (`check:debt-owner` đỏ với mục mồ côi): **chủ = Story 3.9** — `DELETE` rồi `INSERT` lại cùng `source_term` đặt `resolution` về NULL, đúng lỗ mà mục `:5365` đã ghi cho trigger của `glossary_entry`; **chủ = Story 3.5** — một ứng viên trùng `source_term` với mục Glossary có sẵn thì không bao giờ duyệt được và nằm lại bảng chờ vĩnh viễn, chỗ chặn đúng là lượt quét (`epics.md:2984-2985`); **chủ = Story 3.8** — `ORDER BY source_term` là đối chiếu byte, vô nghĩa với chữ Hán và tiếng Việt, và `WHERE resolution IS NULL` chưa có chỉ mục; **chủ = story dựng chỗ gọi sản phẩm đầu tiên** — bốn hàm `candidate_store` chưa vào `GLOSSARY_ONLY_SURFACE` vì chưa có chỗ gọi, hôm nay chỉ một doc-comment nói ra.
+- [ ] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối mục mới **chủ = Story 8.14**: khoá duy nhất theo **chuỗi** ở story này hẹp hơn luật "cùng cặp X→Y" mà `epics.md:6115-6117` đòi, nên một bản dịch thu hoạch khác cho chuỗi đã bị bỏ sẽ không đề xuất được; và mục **chủ = Story 3.8** cho `resolution` chưa mang thời điểm -- không mục nào mồ côi.
 
 **Acceptance Criteria:**
 - Given một `project.db` mới tinh, when mở, then thang đã chạy là `[1,2,3,5,6,7,8,9,10,11,12,13]`, số 4 vẫn vắng, và `global.db` vẫn dừng ở **4**.
@@ -229,65 +229,65 @@ BEGIN SELECT RAISE(ABORT, 'glossary candidate resolution is one-way'); END;
 **Bất biến trung tâm — FR55 thành cấu trúc, không còn là kỷ luật**
 
 - Chữ ký đã mất `term_origin`: nơi gọi ngoài không diễn đạt được một mục phi-manual.
-  [`store.rs:111`](../../src-tauri/src/core/glossary/store.rs#L111)
+  [`store.rs:111`](../../../src-tauri/src/core/glossary/store.rs#L111)
 
 - Cửa DUY NHẤT còn sinh ra `term_origin` phi-manual — suy từ chính hàng ứng viên.
-  [`candidate_store.rs:120`](../../src-tauri/src/core/glossary/candidate_store.rs#L120)
+  [`candidate_store.rs:120`](../../../src-tauri/src/core/glossary/candidate_store.rs#L120)
 
 - Ánh xạ toàn phần: `CandidateOrigin` chỉ hai biến thể, `Manual` không biểu diễn được.
-  [`candidate.rs:26`](../../src-tauri/src/core/glossary/candidate.rs#L26)
+  [`candidate.rs:26`](../../../src-tauri/src/core/glossary/candidate.rs#L26)
 
 - Helper chèn dùng chung cho cả hai cửa — một hình dạng hàng, không hai.
-  [`store.rs:78`](../../src-tauri/src/core/glossary/store.rs#L78)
+  [`store.rs:78`](../../../src-tauri/src/core/glossary/store.rs#L78)
 
 **Vòng đời một chiều — chỗ vòng rà soát #1 đã sửa**
 
 - `WHEN OLD.resolution IS NOT NULL`: đã quyết thì không quyết lại, kể cả quyết y hệt.
-  [`schema.rs:427`](../../src-tauri/src/core/store/schema.rs#L427)
+  [`schema.rs:427`](../../../src-tauri/src/core/store/schema.rs#L427)
 
 - Lớp Rust cho một lỗi ĐỌC ĐƯỢC, phân biệt với "id không tồn tại".
-  [`candidate_store.rs:172`](../../src-tauri/src/core/glossary/candidate_store.rs#L172)
+  [`candidate_store.rs:172`](../../../src-tauri/src/core/glossary/candidate_store.rs#L172)
 
 - *Chờ duyệt* ⟺ `resolution IS NULL` — không cột song song nào nói cùng chuyện.
-  [`candidate.rs:129`](../../src-tauri/src/core/glossary/candidate.rs#L129)
+  [`candidate.rs:129`](../../../src-tauri/src/core/glossary/candidate.rs#L129)
 
 **Lược đồ — một bảng mới, chỉ ở `project.db`**
 
 - Bảng chờ, `UNIQUE(source_term)` là cơ chế "không quay lại", không phải một phép kiểm.
-  [`schema.rs:409`](../../src-tauri/src/core/store/schema.rs#L409)
+  [`schema.rs:409`](../../../src-tauri/src/core/store/schema.rs#L409)
 
 - Bước 13, và chỉ thang project — `global.db` vẫn dừng ở 4.
-  [`schema.rs:1210`](../../src-tauri/src/core/store/schema.rs#L1210)
+  [`schema.rs:1210`](../../../src-tauri/src/core/store/schema.rs#L1210)
 
 **Cưỡng chế — cổng biên, gồm chỗ suýt đỏ oan**
 
 - Hai tên bảng, không một chuỗi cứng: cổng cũ để lọt mọi bảng đặt tên khác.
-  [`glossary_boundary.rs:70`](../../src-tauri/tests/glossary_boundary.rs#L70)
+  [`glossary_boundary.rs:70`](../../../src-tauri/tests/glossary_boundary.rs#L70)
 
 - Chuỗi ĐỦ ĐỊNH DANH — dạng trần bắt nhầm `CandidateOrigin` của Story 3.5.
-  [`glossary_boundary.rs:123`](../../src-tauri/tests/glossary_boundary.rs#L123)
+  [`glossary_boundary.rs:123`](../../../src-tauri/tests/glossary_boundary.rs#L123)
 
 - Tự kiểm hai chiều: bắt được `TermOrigin::`, không bắt `CandidateOrigin::`.
-  [`glossary_boundary.rs:450`](../../src-tauri/tests/glossary_boundary.rs#L450)
+  [`glossary_boundary.rs:450`](../../../src-tauri/tests/glossary_boundary.rs#L450)
 
 **Test — bốn ca đáng đọc nhất**
 
 - Ca giết story nếu cài ngược: bỏ rồi duyệt lại không được phục sinh thuật ngữ.
-  [`glossary_contract.rs:1593`](../../src-tauri/tests/glossary_contract.rs#L1593)
+  [`glossary_contract.rs:1593`](../../../src-tauri/tests/glossary_contract.rs#L1593)
 
 - Chiều ngược: duyệt rồi bỏ — hai bảng không được nói ngược nhau.
-  [`glossary_contract.rs:1631`](../../src-tauri/tests/glossary_contract.rs#L1631)
+  [`glossary_contract.rs:1631`](../../../src-tauri/tests/glossary_contract.rs#L1631)
 
 - Mọi bước ngang sau một quyết định, không riêng lượt lùi về NULL.
-  [`glossary_contract.rs:1462`](../../src-tauri/tests/glossary_contract.rs#L1462)
+  [`glossary_contract.rs:1462`](../../../src-tauri/tests/glossary_contract.rs#L1462)
 
 - Ghim hành vi ĐANG hở, có chủ ở sổ nợ — không phải hành vi mong muốn.
-  [`glossary_contract.rs:1680`](../../src-tauri/tests/glossary_contract.rs#L1680)
+  [`glossary_contract.rs:1680`](../../../src-tauri/tests/glossary_contract.rs#L1680)
 
 **Ngoại vi — neo phiên bản, chỗ panic ngầm**
 
 - Bước giả nâng lên 14; để nguyên 13 thì ca này panic chứ không đỏ lúc biên dịch.
-  [`segment_contract.rs:1600`](../../src-tauri/tests/segment_contract.rs#L1600)
+  [`segment_contract.rs:1600`](../../../src-tauri/tests/segment_contract.rs#L1600)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

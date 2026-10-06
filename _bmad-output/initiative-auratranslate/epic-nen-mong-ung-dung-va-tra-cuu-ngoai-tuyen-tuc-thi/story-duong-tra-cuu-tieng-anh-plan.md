@@ -521,8 +521,8 @@ ports/           # DictionarySource · … (AD-2)                    ← không 
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.11b: Đường tra cứu tiếng Anh`] — `:1478-1495`
-- [Source: `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md#AD-44`] — `:571-633` *(sáu mệnh đề ①–⑥ + bốn chỗ vá Reviewer Gate)*
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.11b: Đường tra cứu tiếng Anh`] — `:1478-1495`
+- [Source: `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md#AD-44`] — `:571-633` *(sáu mệnh đề ①–⑥ + bốn chỗ vá Reviewer Gate)*
 - [Source: `…/ARCHITECTURE-SPINE.md#AD-26`] — `:334-342` *(phạm vi tiếng Trung nay nằm trong **thân** Rule; dải hiệu năng cũ **LỖI THỜI**)*
 - [Source: `…/ARCHITECTURE-SPINE.md#AD-17`] — `:230-236` *(ranh giới: đường **từ điển** tiếng Anh không gọi Matcher)*
 - [Source: `…/ARCHITECTURE-SPINE.md#AD-19`] · `#AD-10` · `#AD-2` · `#AD-25` · `#AD-27` · `#AD-21`
@@ -530,10 +530,10 @@ ports/           # DictionarySource · … (AD-2)                    ← không 
 - [Source: `…/ARCHITECTURE-SPINE.md#Deferred`] — `:852-853` *(stemming · cụm từ nhiều chữ)*
 - [Source: `…/reviews/review-ad-44-2026-08-05.md`] — A1 *(vị từ chạy ở đâu)* · A2 *(cấm sổ đăng ký)* · A3 *(vị từ nhị phân)* · A4 *(lowercase không phụ thuộc locale)* · V1 *(bảng stem là assertion)*
 - [Source: `…/architecture-AuraTranslate-2026-08-02/.memlog.md`] — `:162-172` *(mọi số đo `sqlite3` 2026-08-05; mục 🔴 CHẶN **đã đóng**)*
-- [Source: `_bmad-output/implementation-artifacts/1-11-ba-nhanh-truy-van-tieng-trung.md`] — chữ ký, SQL, khuôn test, bench, 15 bẫy
-- [Source: `_bmad-output/implementation-artifacts/1-10b-dung-du-lieu-tu-dien-tieng-anh.md`] — `viwiktionary-en`, hình dạng mục tiếng Anh, số đo
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md`] — `:275-290` *(AD-44 đóng chặn)* · `:285-309` *(lọc `lang` — **vẫn mở cho story này**)* · `:289` *(UX mục tiếng Anh — Sally)*
-- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md`] — `:814` *(NFR1 p95 < 100 ms đầu-cuối; ~99,95 ms cho IPC + render)*
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — chữ ký, SQL, khuôn test, bench, 15 bẫy
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dung-du-lieu-tu-dien-tieng-anh-plan.md`] — `viwiktionary-en`, hình dạng mục tiếng Anh, số đo
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md`] — `:275-290` *(AD-44 đóng chặn)* · `:285-309` *(lọc `lang` — **vẫn mở cho story này**)* · `:289` *(UX mục tiếng Anh — Sally)*
+- [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md`] — `:814` *(NFR1 p95 < 100 ms đầu-cuối; ~99,95 ms cho IPC + render)*
 - [Source: `src-tauri/src/core/dict/mod.rs`] · [`query.rs`] · [`src-tauri/src/core/store/{readonly,pragmas,reader,mod}.rs`]
 - [Source: `src-tauri/tests/{dict_lookup,dict_boundary,store_contract,store_boundary}.rs`]
 - [Source: `tools/dict-build/src/char_idx.rs`] — `:14-25` *(bảy dải `is_han` — **nguồn sự thật**)*
@@ -725,8 +725,8 @@ incompatible with this crate's strategy of 'unwind'` × 144. Nguyên nhân: `[pr
 | `src-tauri/src/core/dict/query.rs` | **sửa** — `+ exact_en` · `+ fts_trigram_en`; doc-comment module *(luật 2 đảo chiều theo đường)*. **Không** một câu SQL zh nào bị sửa |
 | `src-tauri/tests/dict_lookup.rs` | **sửa** — xoá bản sao `is_han` chỉ-BMP; `+ HAN_RANGES`; `SEEDS` 8 → 10 hàng; `+ 17` ca *(1 cổng parity · 4 vị từ điều phối · 2 bảng nhánh En · 10 hành vi En/AC11)*; bench mở rộng 3 tổ hợp tiếng Anh; 18 ca cũ chỉ đổi **chỗ gọi** |
 | `src-tauri/tests/dict_boundary.rs` | **sửa** — `+ 2` ca *(vị từ ở đúng một tệp · một định nghĩa `is_han` trong `src-tauri/**`)*; `+ SRC_TAURI_RS_FLOOR`; đối chứng dương nới quần thể sang `lang = 'en'` |
-| `_bmad-output/implementation-artifacts/1-11b-duong-tra-cuu-tieng-anh.md` | **sửa** — `baseline_commit`, Status, Tasks, Dev Agent Record, File List |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | **sửa** — `1-11b` → `review`, `last_updated` |
+| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-duong-tra-cuu-tieng-anh-plan.md` | **sửa** — `baseline_commit`, Status, Tasks, Dev Agent Record, File List |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | **sửa** — `1-11b` → `review`, `last_updated` |
 
 
 ## Acceptance Criteria (gộp từ epics.md, Story 1.11b)

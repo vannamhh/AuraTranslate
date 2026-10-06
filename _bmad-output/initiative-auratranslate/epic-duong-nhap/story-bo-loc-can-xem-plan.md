@@ -104,7 +104,7 @@ context:
 - `src/ImportPreviewOverlay.vue` — tầng 4 `:1150-1291`; `<ul role="listbox" :aria-activedescendant="currentChapterDomId ?? undefined">` `:1202-1207`; **ba nhánh `v-for` lặp cùng khối `<li>`** `:1216` / `:1239` / `:1263`. `chapterSortByLength` `:333` · `chapterEntriesSortedByLength` `:343-347` (không co gọn) · `chapterEntriesDefaultWindow` `:351-367` (`first`/`last`/`showEllipsis`) · `currentChapterDomId` `:373-386` — 🔴 doc-comment `:373-376` **tự thừa nhận** con trỏ có thể vô hình khi Chương bị co gọn. Handler: `onTier2Keydown` `:569` (chặn `:570`), `onChapterCursorKeydown` `:634` (chặn `:635`), `onScrimKeydown` `:663-666`, gắn ở `:708`. `grep "@click"` cho `:717`, `:804`, `:1318`, `:1330`, `:1338` — **0** dòng trên hàng Chương.
 - `src/commands/index.ts` — 11 command `import.preview.*` (`:1133` `open_picker` `keys: ['E']` · `:1144` `confirm` `Mod+Alt+Enter` · `:1261`/`:1272` `chapter_next`/`chapter_prev` `keys: undefined`); doc-comment `:1252-1256` giải thích vì sao `⌥` đi đường DOM cục bộ. `CommandDeps` `:162`, khuôn dep tuỳ chọn `:267`/`:270`. **`Alt+W` trần chưa ai chiếm** (`Mod+Alt+W` = `library.list_works` `:1365` là hợp âm **khác**).
 - `src/i18n/vi.json` — khoá tầng 4 `:284-292`; khoá con trỏ Chương `:253-255`. **0 khoá nào nói về *cần xem* / *sạch* / bộ lọc.**
-- Mockup: `planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/mockups/web-import.html:242-247` — chip hai số nằm **cạnh** thanh con trỏ Chương, kèm gợi ý phím `⌥W`.
+- Mockup: `initiative-auratranslate/ux-auratranslate/mockups/web-import.html:242-247` — chip hai số nằm **cạnh** thanh con trỏ Chương, kèm gợi ý phím `⌥W`.
 
 **Cổng và test — ai đang canh mệnh đề nào**
 - `src-tauri/tests/segment_contract.rs:9324-9377` `the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers` — ca **DUY NHẤT** đọc `chapters[]` với N = 3 Chương thật; fixture đặt `cleanup_match_count: 0` làm *"số thật"* ⇒ 🔴 **phải sửa cùng lượt kèm 🔵**, cộng vị từ TS `config/project.ts:355`.
@@ -140,7 +140,7 @@ context:
 - [x] `src/i18n/vi.json` — khoá chip hai số, dòng tách hai vế, **bốn khoá nguyên nhân literal riêng** qua `switch` cạn, dòng *"chưa đủ Chương để so"*, dòng cờ bảng mã tin cậy thấp, dòng *"không có Chương nào cần xem"*; giọng **vô nhân xưng**, không giá trị rỗng
 - [x] `tests/frontend/` — mở rộng `importPreviewChapters.test.ts` (bật/tắt lọc, dời con trỏ, ca 0-cần-xem) và `importPreviewOverlayRender.test.ts` (`⌥W` ở DOM thật qua `event.code`, và **không** thao tác khi lớp phủ đóng)
 - [x] `src-tauri/src/commands/project.rs:1194-1200` doc-comment §Never spec 6.6 — 🔵 sửa tại chỗ: lệnh cấm cờ *"đáng ngờ"* là một lượt **HOÃN** (`deferred-work.md:9825`), và lý do hoãn (*"đòi một hằng số ngưỡng chưa đo được"*) đã được phép so **tương đối** trả lời
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng `:9825` (cờ + nút lọc), nửa `⌥W` của `:9844`, `:9948` (phép so trung vị), vế thi công của `:9478`, và hai nợ tầng 4 của 6.10a (`role="option"` không chọn được bằng chuột · con trỏ vô hình khi co gọn); ghi nợ **MỚI có chủ** cho `FILE_FLOOR = 39` và mọi vế còn hở — đóng bằng **chữ**, không xoá; đóng nửa thì 🟡 kèm phần còn hở
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng `:9825` (cờ + nút lọc), nửa `⌥W` của `:9844`, `:9948` (phép so trung vị), vế thi công của `:9478`, và hai nợ tầng 4 của 6.10a (`role="option"` không chọn được bằng chuột · con trỏ vô hình khi co gọn); ghi nợ **MỚI có chủ** cho `FILE_FLOOR = 39` và mọi vế còn hở — đóng bằng **chữ**, không xoá; đóng nửa thì 🟡 kèm phần còn hở
 
 **Acceptance Criteria:**
 - 🔴 Given một lượt nhập N Chương có hàng rào tồn tại và một Chương mang giá trị `null`, when đọc hai con số, then Chương đó nằm trong **`N cần xem`** và **KHÔNG** trong `M sạch` — và ca này phải **ĐỎ** nếu ai trả `cleanup_match_count` về `usize` với mặc định `0`
@@ -189,59 +189,59 @@ context:
 **Phán quyết "cần xem" — nơi luật thật sự sống**
 
 - Điểm vào: toàn bộ luật phân loại nằm trong một hàm thuần duy nhất.
-  [`review.rs:193`](../../src-tauri/src/core/segment/review.rs#L193)
+  [`review.rs:193`](../../../src-tauri/src/core/segment/review.rs#L193)
 
 - Hàng rào Tukey; `1,5` là hằng có tên duy nhất, `IQR = 0` trả `None`.
-  [`review.rs:161`](../../src-tauri/src/core/segment/review.rs#L161)
+  [`review.rs:161`](../../../src-tauri/src/core/segment/review.rs#L161)
 
 - Sàn bốn giá trị là HỆ QUẢ số học, không phải ngưỡng chỉnh được.
-  [`review.rs:125`](../../src-tauri/src/core/segment/review.rs#L125)
+  [`review.rs:125`](../../../src-tauri/src/core/segment/review.rs#L125)
 
 - Vòng rà bắt: thiếu CẢ HAI tín hiệu từng cho hai nhãn trùng khoá.
-  [`review.rs:217`](../../src-tauri/src/core/segment/review.rs#L217)
+  [`review.rs:217`](../../../src-tauri/src/core/segment/review.rs#L217)
 
 **Con số FR125 từng được tính rồi vứt đi**
 
 - `Flow` nay chở số dòng bị nối theo từng đơn vị, khuôn `cleanup_reports`.
-  [`pipeline.rs:476`](../../src-tauri/src/core/segment/pipeline.rs#L476)
+  [`pipeline.rs:476`](../../../src-tauri/src/core/segment/pipeline.rs#L476)
 
 - Đường `Blob`: `None` cho CẢ N — kể cả `ord = 1`, vì số đo thuộc toàn tài liệu.
-  [`pipeline.rs:536`](../../src-tauri/src/core/segment/pipeline.rs#L536)
+  [`pipeline.rs:536`](../../../src-tauri/src/core/segment/pipeline.rs#L536)
 
 **Dây — chỗ hai nghĩa được tách ra**
 
 - `cleanup_match_count` thành `Option`; `0` thôi mang hai nghĩa.
-  [`project.rs:1208`](../../src-tauri/src/commands/project.rs#L1208)
+  [`project.rs:1208`](../../../src-tauri/src/commands/project.rs#L1208)
 
 - Hai con số do Rust cộng, gồm cả vế link hỏng (AD-1).
-  [`project.rs:1306`](../../src-tauri/src/commands/project.rs#L1306)
+  [`project.rs:1306`](../../../src-tauri/src/commands/project.rs#L1306)
 
 - Số mục hỏng đi vào qua tham số; đường tệp/dán tay truyền `0`.
-  [`project.rs:1732`](../../src-tauri/src/commands/project.rs#L1732)
+  [`project.rs:1732`](../../../src-tauri/src/commands/project.rs#L1732)
 
 **Bàn phím và trạng thái bộ lọc**
 
 - `⌥W` so `event.code`; trên macOS `event.key` là `∑`, không bao giờ `'w'`.
-  [`ImportPreviewOverlay.vue:731`](../../src/ImportPreviewOverlay.vue#L731)
+  [`ImportPreviewOverlay.vue:731`](../../../src/ImportPreviewOverlay.vue#L731)
 
 - Chặn BẬT khi không hàng rào nào tồn tại — vòng rà bắt được lỗ này.
-  [`importPreviewState.ts:1076`](../../src/importPreviewState.ts#L1076)
+  [`importPreviewState.ts:1076`](../../../src/importPreviewState.ts#L1076)
 
 **Màn hình**
 
 - Lọc thì bỏ co gọn, nên `aria-activedescendant` không thể trỏ hàng đã lọc.
-  [`ImportPreviewOverlay.vue:389`](../../src/ImportPreviewOverlay.vue#L389)
+  [`ImportPreviewOverlay.vue:389`](../../../src/ImportPreviewOverlay.vue#L389)
 
 - Một `v-for` duy nhất thay ba nhánh lặp — điều kiện để thêm chiều thứ ba.
-  [`ImportPreviewOverlay.vue:403`](../../src/ImportPreviewOverlay.vue#L403)
+  [`ImportPreviewOverlay.vue:403`](../../../src/ImportPreviewOverlay.vue#L403)
 
 - Bốn nhãn nguyên nhân qua `switch` cạn, để `check:i18n` thấy literal.
-  [`ImportPreviewOverlay.vue:355`](../../src/ImportPreviewOverlay.vue#L355)
+  [`ImportPreviewOverlay.vue:355`](../../../src/ImportPreviewOverlay.vue#L355)
 
 **Ngoại vi**
 
 - Bốn ca đầu-cuối qua dây thật, gồm ca `Blob` của ma trận.
-  [`review_contract.rs:20`](../../src-tauri/tests/review_contract.rs#L20)
+  [`review_contract.rs:20`](../../../src-tauri/tests/review_contract.rs#L20)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

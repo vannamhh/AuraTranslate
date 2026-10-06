@@ -1363,4 +1363,4 @@ và lúc đó con số này thành thật.
 - `scripts/check-i18n.mjs` — UPDATE: `VUE_FLOOR` 10→11
 - `scripts/check-layout.mjs` — UPDATE: `FILE_FLOOR` 28→30 (+ `window.getSelection` vào `ALLOWED_GLOBAL_MEMBERS`, đã ghi ở Task 4)
 - `src/panels/README.md` — UPDATE: hàng 1.17 → ✅, đoạn "Chữ trong thân panel" cho Panel Lookup
-- `_bmad-output/implementation-artifacts/deferred-work.md` — UPDATE: đóng mười một mục gọi tên Story 1.17 (`:453`/`:129`/`:131`/`:133`/`:115` cuối/`:343`/`:363`/`:416`/`:419`/`:449`/`:504`), ghi `:317` là tạm/không đóng, thêm mục mới "Deferred from: 1-17-panel-lookup-ban-ghi-co-cau-truc" (năm phát hiện)
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — UPDATE: đóng mười một mục gọi tên Story 1.17 (`:453`/`:129`/`:131`/`:133`/`:115` cuối/`:343`/`:363`/`:416`/`:419`/`:449`/`:504`), ghi `:317` là tạm/không đóng, thêm mục mới "Deferred from: 1-17-panel-lookup-ban-ghi-co-cau-truc" (năm phát hiện)

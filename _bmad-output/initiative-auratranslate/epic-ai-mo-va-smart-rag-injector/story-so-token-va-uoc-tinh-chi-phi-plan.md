@@ -8,7 +8,7 @@ route: 'dispatch' # oneshot | dispatch
 review_loop_iteration: 0
 baseline_revision: 'afbe740e6f8b264de4bed5b5367a27e694e539a0'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -192,7 +192,7 @@ harnesses already drive a fake Channel: `pendingRun()` (`aiTranslate.test.ts:106
       rendered string for: figure with cost, figure without a configured price, no figure from the
       provider, and a batch total that covers only the reporting sentences -- assert the text, not
       that a call happened.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- re-defer the Prompt Inspector
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- re-defer the Prompt Inspector
       "sửa ngay" item (`:10873`) with a named owner, and file the two mockup surfaces this story
       defers by Ice's 2026-09-22 scope decision — the status-bar cumulative figure (`:192`) and the
       per-task breakdown table (`:261-279`) -- cite §SECTION NAME, never a line number.

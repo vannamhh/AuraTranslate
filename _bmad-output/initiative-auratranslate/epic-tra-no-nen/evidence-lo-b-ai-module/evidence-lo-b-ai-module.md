@@ -9,7 +9,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 relates_to: 7
 ---
 
@@ -82,7 +82,7 @@ Ice, 2026-09-29 (L11769 answers given before any code, as #99 required):
 
 ## Implementation Notes
 
-Phase working notes: [11-7-lo-b-phases-2026-09-30.md](11-7-lo-b-phases-2026-09-30.md).
+Phase working notes: [11-7-lo-b-phases-2026-09-30.md](../handoff-lo-b-ai-module-phases/handoff-lo-b-ai-module-phases.md).
 - Global view of a field is `tier === 'work' ? (shadowed ?? '') : value`; the chosen view tier is reset each time the AI section is activated (`settingsState.ts::loadAiConfig`), because `resetAiConfigSection` has no production caller.
 - The harness needs the wires generic over `R: tauri::Runtime`; `ipc_contract.rs` and `ipc_argument_contract.rs` text scans had to learn the generic signature (the latter was found only by the full suite).
 - L10836: 70 plain wires screened structurally, nine flipped to `(async)`; the editor-flush wires in `segment.rs`/`chapter.rs` stay plain until measured (ledger 🟡, `Chủ: Amelia`). The webview already serialises the flipped `open_work` and `tier2_block_*` calls with busy flags.

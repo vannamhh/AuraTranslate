@@ -265,7 +265,7 @@ data, so the write must be additive-only and provably so.
 
 **Mockup**
 
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/mockups/web-import.html:198-207`
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/mockups/web-import.html:198-207`
   — the destination control is **two radios**, not a `<select>`: *"Tác phẩm mới — Tạo một Tác
   phẩm rồi thêm cả 50 Chương vào đó"* and *"Tác phẩm đã có — Thêm Chương vào **cuối** một Tác
   phẩm sẵn có"*, in the same right-hand column as the Work name and source language. 🔵 The
@@ -368,12 +368,12 @@ Split into four phases along the shape above, each handed to a fresh agent throu
       Work; picking an existing Work makes name/genre read-only; changing the destination
       triggers exactly **one** preview rebuild; an empty Library offers New Work only. Measure
       IPC by the **difference between mock call counts**, not `not.toHaveBeenCalled()`.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- a `→` line closing
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- a `→` line closing
       `:10354-10396`, plus two **new owned** entries: ① the bilingual import path still always
       creates a new Work (Decision 1) · ② a batch whose language disagrees with the
       destination's `source_lang` is split by the wrong rules and nothing says so
       (Decision 2). Both need a real `Chủ:` — `check:debt-owner` rejects "chưa có chủ".
-- [x] `_bmad-output/planning-artifacts/epics.md` (`:4861`) and
+- [x] `_bmad-output/initiative-auratranslate/archive-v6/epics.md` (`:4861`) and
       `sprint-change-proposal-2026-09-15.md` (`:52`) -- `AD-44` → `AD-8` with 🔵 and the date
       (Decision 4). Touch only those two citations; change nothing else in either file.
 

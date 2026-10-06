@@ -10,7 +10,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-7-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-7-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">

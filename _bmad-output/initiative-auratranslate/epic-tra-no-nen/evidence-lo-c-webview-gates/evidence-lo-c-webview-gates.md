@@ -8,7 +8,7 @@ baseline_revision: 'cd72651484c56ae01e8f132d48486376adda97aa'
 review_loop_iteration: 0
 context:
   - '{project-root}/scripts/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 relates_to: 1
 ---
 

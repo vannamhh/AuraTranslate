@@ -52,7 +52,7 @@ context: ['e2e/AGENTS.md']
 - `e2e/specs/story-3-5-review.e2e.mjs:58-61` -- persists `glossary_scan_threshold` = 7 and never restores it: an on-disk leak that fresh dirs remove.
 - `e2e/support/panelReset.mjs:23-24` -- rejects per-spec sessions citing "18m51s", which was the ninth full-suite run of 2026-08-18 (`wdio.conf.mjs:82-84`), never a relaunch measurement. Keep `resetPanelState()` and its caller `e2e/support/workspace.mjs:125`: it still resets between Works inside one spec file.
 - `e2e/AGENTS.md:15` -- the one-app-process pitfall; false under 1a.
-- `_bmad-output/implementation-artifacts/deferred-work.md:11605-11638` -- G1 entry; its "live in-process state, NOT `$APPDATA`" and "18m51s" claims are refuted. `:11580-11603` G2 becomes verifiable by a full run once this lands.
+- `_bmad-output/initiative-auratranslate/deferred-work.md:11605-11638` -- G1 entry; its "live in-process state, NOT `$APPDATA`" and "18m51s" claims are refuted. `:11580-11603` G2 becomes verifiable by a full run once this lands.
 
 ## Tasks & Acceptance
 
@@ -62,7 +62,7 @@ context: ['e2e/AGENTS.md']
 - [x] `e2e/wdio.conf.mjs` -- correct `:150-178` and `:180` in place with the 2026-09-14 table, stating only what was measured and the guarantees the code actually gives (fatal hook failures, per-worker gating); leave no "not yet measured" line behind -- a refuted mechanism must not keep standing, and neither may a new unverified one
 - [x] `e2e/support/panelReset.mjs` -- correct the rejection at `:23-24` with what 18m51s measured and the measured relaunch cost, without attributing the 2026-08-18 timeouts to any cause (never measured) -- the rejection rested on a number that measured something else
 - [x] `e2e/AGENTS.md` -- replace the one-app-process pitfall: each spec file gets a new app process and fresh dirs; state still carries between cases inside one file; do not point at text that no longer exists
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- close G1 with the table, correct its two refuted claims with a dated note, and mark G2 verifiable; no unmeasured causal claims
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- close G1 with the table, correct its two refuted claims with a dated note, and mark G2 verifiable; no unmeasured causal claims
 
 **Acceptance Criteria:**
 - Given a clean, still tree, when `npm run test:e2e` runs three times in a row, then every run has 22 of 24 spec files passing and the only failures are `story-5-4-lifecycle` (2) and `story-5-5-progress` (1).

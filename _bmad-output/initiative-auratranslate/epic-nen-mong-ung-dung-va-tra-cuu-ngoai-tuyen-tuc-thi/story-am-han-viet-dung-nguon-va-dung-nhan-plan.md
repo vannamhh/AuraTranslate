@@ -590,8 +590,8 @@ Bốn SHA-256 **giữ nguyên y hệt** bản ghi Task 8 gốc — bản vá ch�
 - `dict-manifest.toml` — bốn mục cập nhật/mới
 - `scripts/check-dict-build.mjs` — `RS_FILE_FLOOR` 21→24
 - `scripts/check-dict-manifest.mjs` — `EXPECTED_DETACHABLE_NAMES` 2→3
-- `_bmad-output/implementation-artifacts/deferred-work.md` — mở mục `§1-10c`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái story
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — mở mục `§1-10c`
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái story
 
 
 ## Acceptance Criteria (gộp từ epics.md, Story 1.10c)

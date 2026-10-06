@@ -7,7 +7,7 @@ status: in-review
 review_loop_iteration: 0
 baseline_revision: 'e663705738dbf62ee5f5e5805542e95fa01709f7'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -72,7 +72,7 @@ context:
 - `src/panels/PanelFrame.vue:227-234` — đổi ba biến của `.status` sang họ `ui-md-wrap`. *(🔵 Sửa 2026-08-26 sau vòng rà 1: bản đầu ghi `:215-222`, trỏ vào khối chú thích chứ không vào ba dòng khai báo — người theo con trỏ sẽ đọc phần lý do rồi tưởng mình đã thấy chỗ sửa.)* CSS **scoped**; chỉ ba panel truyền `status-key` (AI Translation · Lookup · Grid). Cùng 13px ⇒ đổi duy nhất giãn dòng 1,5 → 1,66.
 - `src/panels/AiTranslationPanel.vue:49` — **chỉ đọc**. `status-key` phải ở lại một chuỗi literal (Kiểm E của `check-commands` đọc tĩnh).
 - `src/tokens/tokens.json:469-475` — **chỉ đọc**. `ui-md-wrap` đã tồn tại (token thứ 17, Story 1.17 Quyết định #7). Cổng đếm **định nghĩa**, không đếm chỗ dùng ⇒ `EXPECTED_COUNTS` không đổi.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — nối mục nợ mới ở **cuối tệp** (EOF hiện tại 7845). Khuôn: `- source_spec:` / `summary:` / `evidence:` / `**(Chủ: …)**`. Gate `check-debt-owner` đòi mục mở phải có `Chủ:` dương; hiện 580 mục, 379 mở, **0 mồ côi**, `ITEM_FLOOR` 490. Mục `:116` là món nợ `.status`/`ui-md` mà lượt này **đóng** — nối tiếp bằng `→ ✅`, không xoá.
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — nối mục nợ mới ở **cuối tệp** (EOF hiện tại 7845). Khuôn: `- source_spec:` / `summary:` / `evidence:` / `**(Chủ: …)**`. Gate `check-debt-owner` đòi mục mở phải có `Chủ:` dương; hiện 580 mục, 379 mở, **0 mồ côi**, `ITEM_FLOOR` 490. Mục `:116` là món nợ `.status`/`ui-md` mà lượt này **đóng** — nối tiếp bằng `→ ✅`, không xoá.
 
 ## Tasks & Acceptance
 
@@ -81,7 +81,7 @@ context:
 - [x] `src-tauri/tests/ai_boundary.rs` — ca sàn quần thể + ca ranh giới + **ca gieo vi phạm tổng hợp** + ca khẳng định `core/mod.rs` khai `ai` — rationale: bốn ca là bốn mệnh đề khác nhau; thiếu ca gieo thì ba ca kia xanh rỗng.
 - [x] `src/i18n/vi.json` — sửa giá trị `panel.ai_translation.status`: giữ vế mời cấu hình, **thêm vế "mọi thứ khác vẫn chạy đầy đủ"**, giọng mời — rationale: đóng nốt nửa còn thiếu của AC panel thay vì chấm đạt bằng suy luận.
 - [x] `src/panels/PanelFrame.vue` — `.status` đổi sang `--face-ui-md-wrap` / `--font-ui-md-wrap` / `--leading-ui-md-wrap` — rationale: Ice chốt 2026-08-26; câu vừa dài thêm mà giữ `ui-md` (`wraps: false`, 1,5) là làm nặng một món nợ đã ký thay vì đóng nó.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — nối bốn mục có chủ: ① năm AC rỗng, kèm ảnh chụp nền có số (chủ: Story 4.2); ② chiều ngược `ai/` → `glossary/`/`tm/`/`segment/` chưa chứng minh được (chủ: Story 4.6); ③ AC ranh giới phải chạy LẠI trên bộ test Epic 5/6 khi 4.2 tới lượt (chủ: Story 4.2); ④ điểm mù re-export ở `core/mod.rs` (chủ: Story 4.2). Và nối `→ ✅` đóng mục `:116` — rationale: sổ nợ là bằng chứng cho quyết định kế tiếp; không mục nào mồ côi, không mục đã đóng nào bị xoá.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — nối bốn mục có chủ: ① năm AC rỗng, kèm ảnh chụp nền có số (chủ: Story 4.2); ② chiều ngược `ai/` → `glossary/`/`tm/`/`segment/` chưa chứng minh được (chủ: Story 4.6); ③ AC ranh giới phải chạy LẠI trên bộ test Epic 5/6 khi 4.2 tới lượt (chủ: Story 4.2); ④ điểm mù re-export ở `core/mod.rs` (chủ: Story 4.2). Và nối `→ ✅` đóng mục `:116` — rationale: sổ nợ là bằng chứng cho quyết định kế tiếp; không mục nào mồ côi, không mục đã đóng nào bị xoá.
 
 **Acceptance Criteria:**
 - Given một tệp bất kỳ ngoài `core/ai/**` mang `crate::core::ai` hoặc `super::ai` ở **vị trí mã**, when chạy `cargo test --locked --test ai_boundary`, then ca ranh giới ĐỎ và nêu đích danh `file:line`.
@@ -199,54 +199,54 @@ Phép đo cũng sửa một mệnh đề tôi vừa viết: `code_lines` **khôn
 **Điểm vào — vì sao cổng này đứng trước khi `core/ai/` có một dòng mã**
 
 - Đọc đây trước: đối chứng dương quen thuộc dựng không được ở đây, và khuôn thay thế.
-  [`ai_boundary.rs:19`](../../src-tauri/tests/ai_boundary.rs#L19)
+  [`ai_boundary.rs:19`](../../../src-tauri/tests/ai_boundary.rs#L19)
 
 **🔴 Ba vị từ — và ba khuyết tật "thiếu neo biên" vòng rà 1 vá**
 
 - 🔴 Nặng nhất: miễn trừ khớp theo BIÊN THƯ MỤC. Bản đầu dùng `starts_with` ⇒ xanh giả.
-  [`ai_boundary.rs:197`](../../src-tauri/tests/ai_boundary.rs#L197)
+  [`ai_boundary.rs:197`](../../../src-tauri/tests/ai_boundary.rs#L197)
 
 - Vị từ token neo ký tự sau needle — `crate::core::aiven` không còn bị bắt oan.
-  [`ai_boundary.rs:178`](../../src-tauri/tests/ai_boundary.rs#L178)
+  [`ai_boundary.rs:178`](../../../src-tauri/tests/ai_boundary.rs#L178)
 
 - Vị từ re-export neo theo đoạn định danh — `pub use domain_ai::Config;` không còn đỏ oan.
-  [`ai_boundary.rs:212`](../../src-tauri/tests/ai_boundary.rs#L212)
+  [`ai_boundary.rs:212`](../../../src-tauri/tests/ai_boundary.rs#L212)
 
 **Bốn mệnh đề của cổng, mỗi ca một mệnh đề**
 
 - Cổng thật: quét toàn cây trừ `core/ai/**`, và đòi miễn trừ phải khớp thứ gì đó.
-  [`ai_boundary.rs:252`](../../src-tauri/tests/ai_boundary.rs#L252)
+  [`ai_boundary.rs:252`](../../../src-tauri/tests/ai_boundary.rs#L252)
 
 - 🔴 Đối chứng dương bắt buộc: vị từ nổ được trên chuỗi dựng tay, độc lập với cây.
-  [`ai_boundary.rs:302`](../../src-tauri/tests/ai_boundary.rs#L302)
+  [`ai_boundary.rs:302`](../../../src-tauri/tests/ai_boundary.rs#L302)
 
 - Ca vòng rà 1 khoá cả ba neo — gỡ neo nào ra cũng đúng ca này đỏ.
-  [`ai_boundary.rs:469`](../../src-tauri/tests/ai_boundary.rs#L469)
+  [`ai_boundary.rs:469`](../../../src-tauri/tests/ai_boundary.rs#L469)
 
 - Điểm mù có tên: `core/mod.rs` khai `pub mod ai;` trần, không re-export.
-  [`ai_boundary.rs:373`](../../src-tauri/tests/ai_boundary.rs#L373)
+  [`ai_boundary.rs:373`](../../../src-tauri/tests/ai_boundary.rs#L373)
 
 - Sàn quần thể — "cây rỗng đọc thành sạch"; đo lại 55 tệp, sàn 44.
-  [`ai_boundary.rs:225`](../../src-tauri/tests/ai_boundary.rs#L225)
+  [`ai_boundary.rs:225`](../../../src-tauri/tests/ai_boundary.rs#L225)
 
 - NFR14: miễn trừ vẫn khớp khi đường dẫn tới ở hình dạng Windows.
-  [`ai_boundary.rs:433`](../../src-tauri/tests/ai_boundary.rs#L433)
+  [`ai_boundary.rs:433`](../../../src-tauri/tests/ai_boundary.rs#L433)
 
 **Nửa giao diện — đóng nốt AC panel và một món nợ đã ký**
 
 - Câu trạng thái nay nói cả hai vế: mời cấu hình, VÀ mọi năng lực khác chạy đầy đủ.
-  [`vi.json:190`](../../src/i18n/vi.json#L190)
+  [`vi.json:190`](../../../src/i18n/vi.json#L190)
 
 - `.status` sang `ui-md-wrap` — cùng 13px, giãn dòng 1,5 → 1,66. Ba panel đổi theo.
-  [`PanelFrame.vue:227`](../../src/panels/PanelFrame.vue#L227)
+  [`PanelFrame.vue:227`](../../../src/panels/PanelFrame.vue#L227)
 
 **Sổ nợ — thứ story này giao lại, và thứ nó đóng**
 
 - Món nợ Story 1.17 đóng TRỌN sau bốn tháng treo ở `PanelFrame.vue`.
-  [`deferred-work.md:117`](./deferred-work.md#L117)
+  [`deferred-work.md:117`](../deferred-work.md#L117)
 
 - Bảy mục mới có chủ — gồm phép đo cho thấy năm tệp boundary kia mang cùng lỗ hổng ②.
-  [`deferred-work.md:7848`](./deferred-work.md#L7848)
+  [`deferred-work.md:7848`](../deferred-work.md#L7848)
 
 ## Acceptance criteria from epics.md
 

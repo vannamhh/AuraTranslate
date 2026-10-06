@@ -11,7 +11,7 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-7-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-7-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -75,7 +75,7 @@ context:
 - `src/TmManageOverlay.vue` -- add an exchange block (tier radiogroup, Xuất TMX, Nhập TMX) near `.tm-actions` :561; `src/tmManageState.ts` write pattern (`deleteTmManageOthers` :370); `src/tmManageCommandDeps.ts`; `src/config/tm.ts` wrappers (`malformed(value, command)` order).
 - `src/GlossaryManageOverlay.vue:621-695` `.gm-exchange`, `src/glossaryExchangeGate.ts` (one dialog at a time; reuse), `src/GlossaryImportOverlay.vue` + `src/glossaryImportState.ts` -- copy the shape into `src/TmImportOverlay.vue` + `src/tmImportState.ts`, mount in `src/App.vue` beside :383, wire in `src/main.ts`.
 - `src/i18n/vi.json` -- `tm.manage.*` :929-985; mirror `glossary.manage.exchange_*` :1029 and `glossary.import.*` :1036.
-- Mockup `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/mockups/tm-manage.html:261-308` (rewrite copy; no "bạn").
+- Mockup `_bmad-output/initiative-auratranslate/ux-auratranslate/mockups/tm-manage.html:261-308` (rewrite copy; no "bạn").
 
 ## Tasks & Acceptance
 

@@ -7,8 +7,8 @@ status: done
 baseline_revision: '99dad1f8b3935a31b33102f9f37276a95e645f08'
 review_loop_iteration: 0
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -147,7 +147,7 @@ context:
 - [x] `scripts/check-debt-owner.mjs` + `src-tauri/tests/glossary_boundary.rs` -- **sửa sau rà ba lớp**: `ITEM_FLOOR` 444 (85,06 %, NHỈNH TRÊN dải 80–85 % do làm tròn lên) → 443 (84,87 %); `glossary_boundary.rs::RS_FLOOR` 43 (81 %) → 44 (83 %), khớp `check-i18n.mjs::RS_FLOOR` — cả hai quét CÙNG quần thể (53 tệp `.rs` dưới `src-tauri/src/**`) nên không có lý do chính đáng để hai con số lệch nhau.
 - [x] `tests/frontend/bootstrap.test.ts` (mới) -- **bổ sung sau rà ba lớp** — `loadBootstrapConfig()` THẬT (mock `@tauri-apps/api/core`, không mock trọn `config/bootstrap`) chạy qua nhánh phân giải `glossary_scan_threshold` với sáu payload dây giả: thiếu trường · chuỗi `"5"` · `0` · `-1` · `3.5` · số nguyên hợp lệ (`12`) -- trước đó nhánh này có 0 test chạy QUA nó (`glossarySettings.test.ts` mock TRỌN `config/bootstrap`), lệch parity với `isGlossaryMarkArray`/`glossaryMarksRefresh.test.ts`.
 - [x] `src-tauri/src/commands/project.rs` -- **vá sau rà ba lớp** — tách `guarded_dict_layers` (hàm thuần, cùng khuôn `guarded_open_store`): `DictLayers` CHƯA quản lý (`try_state` trả `None`) nay `eprintln!` rồi DỪNG lượt quét, thay vì âm thầm rơi về `DictLayers::empty()` — bản đầu gộp ca đó với ca "đã quản lý nhưng rỗng" (trạng thái BÌNH THƯỜNG, AD-25) thành một nhánh im lặng duy nhất, khiến `is_known` LUÔN `false` và bộ lọc từ điển vô hiệu HOÀN TOÀN mà không một dòng chẩn đoán — đúng ca bàn đo của story đã chạy phải (`DictLayers::empty()`, 969 ứng viên). Hai ca test mới trong `mod tests` của chính tệp.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- đóng mục Story 3.2 "va UNIQUE glossary_entry" (✅, mục ở dòng ~5606 lúc lập spec) và mục Story 3.2 "bốn hàm chưa vào GLOSSARY_ONLY_SURFACE" (🟡, mục ở dòng ~5630); mở mục mới `## Deferred from: 3-5-quet-ung-vien-khi-nhap-tai-lieu (2026-08-22)` với bốn mục có chủ: vế *"một loạt Chương"* (chủ **Epic 6**), bề mặt duyệt bảng chờ (chủ **Story 3.8**), AC "đo trên Chương thật + từ điển thật" chưa đóng trọn (chủ **Ice**, môi trường cài đặt không có `.db`/kho `.atproj` thật), AC NFR2 đóng bằng lập luận kiến trúc chứ chưa một phép đo khung hình thật (chủ **Ice**, cần webview thật).
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- đóng mục Story 3.2 "va UNIQUE glossary_entry" (✅, mục ở dòng ~5606 lúc lập spec) và mục Story 3.2 "bốn hàm chưa vào GLOSSARY_ONLY_SURFACE" (🟡, mục ở dòng ~5630); mở mục mới `## Deferred from: 3-5-quet-ung-vien-khi-nhap-tai-lieu (2026-08-22)` với bốn mục có chủ: vế *"một loạt Chương"* (chủ **Epic 6**), bề mặt duyệt bảng chờ (chủ **Story 3.8**), AC "đo trên Chương thật + từ điển thật" chưa đóng trọn (chủ **Ice**, môi trường cài đặt không có `.db`/kho `.atproj` thật), AC NFR2 đóng bằng lập luận kiến trúc chứ chưa một phép đo khung hình thật (chủ **Ice**, cần webview thật).
 
 **Acceptance Criteria:**
 - Given một Chương tiếng Trung thật vừa nhập, when lượt quét chạy, then thời gian tường **và** số ứng viên sinh ra được ghi thẳng vào story kèm toolchain + ngày — **đo**, không suy luận; và nếu vượt 5 giây thì HALT theo §Ask First.
@@ -443,83 +443,83 @@ chỉnh ngưỡng mặc định"* của §Ask First. Cả hai giới hạn đã 
 **Điểm vào — thuật toán quét**
 
 - Hàm thuần, tiêm vị từ từ điển: lọc tần suất TRƯỚC, tra SAU.
-  [`scan.rs:93`](../../src-tauri/src/core/glossary/scan.rs#L93)
+  [`scan.rs:93`](../../../src-tauri/src/core/glossary/scan.rs#L93)
 
 - Trần độ dài ví dụ ngữ cảnh, cắt ở biên ký tự — vá từ vòng rà.
-  [`scan.rs:47`](../../src-tauri/src/core/glossary/scan.rs#L47)
+  [`scan.rs:47`](../../../src-tauri/src/core/glossary/scan.rs#L47)
 
 - Bảng họ nút cứng: 0 phụ thuộc mới, 0 cửa NFR15, 0 lượt dựng lại `.db`.
-  [`surnames.rs:31`](../../src-tauri/src/core/glossary/surnames.rs#L31)
+  [`surnames.rs:31`](../../../src-tauri/src/core/glossary/surnames.rs#L31)
 
 **Lược đồ và đường ghi**
 
 - Bước di trú 14 — `ALTER TABLE` riêng, không sửa DDL gốc tại chỗ.
-  [`schema.rs:1257`](../../src-tauri/src/core/store/schema.rs#L1257)
+  [`schema.rs:1257`](../../../src-tauri/src/core/store/schema.rs#L1257)
 
 - Ghi lô một transaction; `DO NOTHING` để ứng viên đã bỏ không hồi sinh.
-  [`candidate_store.rs:146`](../../src-tauri/src/core/glossary/candidate_store.rs#L146)
+  [`candidate_store.rs:146`](../../../src-tauri/src/core/glossary/candidate_store.rs#L146)
 
 **Chạy nền và hai vệ bảo vệ** *(rủi ro cao nhất của lượt này)*
 
 - Luồng nền sau commit; khoá `OpenWorkState` hai lần NGẮN, không một lần dài.
-  [`project.rs:385`](../../src-tauri/src/commands/project.rs#L385)
+  [`project.rs:385`](../../../src-tauri/src/commands/project.rs#L385)
 
 - Vệ bảo vệ Tác phẩm đổi giữa chừng — hàm thuần, gọi ở CẢ HAI lần khoá.
-  [`project.rs:327`](../../src-tauri/src/commands/project.rs#L327)
+  [`project.rs:327`](../../../src-tauri/src/commands/project.rs#L327)
 
 - Vệ bảo vệ `DictLayers` chưa quản: dừng và NÓI RA, không rơi im lặng.
-  [`project.rs:350`](../../src-tauri/src/commands/project.rs#L350)
+  [`project.rs:350`](../../../src-tauri/src/commands/project.rs#L350)
 
 **Ngưỡng cấu hình được**
 
 - Chỗ DUY NHẤT quyết một giá trị hợp lệ; `config_value` không có `CHECK`.
-  [`store.rs:145`](../../src-tauri/src/core/scope/store.rs#L145)
+  [`store.rs:145`](../../../src-tauri/src/core/scope/store.rs#L145)
 
 - Lớp TS phải khớp Rust cả hai chiều: nhận `+`, chặn trần `u32::MAX`.
-  [`glossarySettingsState.ts:83`](../../src/glossarySettingsState.ts#L83)
+  [`glossarySettingsState.ts:83`](../../../src/glossarySettingsState.ts#L83)
 
 - Bộ phân giải lúc khởi động, có vệ kiểu lúc chạy.
-  [`bootstrap.ts:86`](../../src/config/bootstrap.ts#L86)
+  [`bootstrap.ts:86`](../../../src/config/bootstrap.ts#L86)
 
 **Bề mặt**
 
 - Vỏ IPC chỉ-đọc — chỗ gọi sản phẩm ĐẦU TIÊN của lõi Story 3.2.
-  [`glossary.rs:329`](../../src-tauri/src/commands/glossary.rs#L329)
+  [`glossary.rs:329`](../../../src-tauri/src/commands/glossary.rs#L329)
 
 - Adapter ba trạng thái + type guard lúc chạy cho mảng.
-  [`glossary.ts:375`](../../src/config/glossary.ts#L375)
+  [`glossary.ts:375`](../../../src/config/glossary.ts#L375)
 
 - Lớp phủ thứ tư; câu từ chối hiện NGAY, không đợi vòng IPC.
-  [`GlossarySettingsOverlay.vue:134`](../../src/GlossarySettingsOverlay.vue#L134)
+  [`GlossarySettingsOverlay.vue:134`](../../../src/GlossarySettingsOverlay.vue#L134)
 
 - Đăng ký lệnh + hợp âm `Mod+Alt+T` (đã đối chứng: duy nhất trong kho).
-  [`index.ts:532`](../../src/commands/index.ts#L532)
+  [`index.ts:532`](../../../src/commands/index.ts#L532)
 
 - Lớp phủ mount cạnh ba cái đã có, cùng tầng.
-  [`App.vue:52`](../../src/App.vue#L52)
+  [`App.vue:52`](../../../src/App.vue#L52)
 
 **Ngoại vi — test và cổng**
 
 - N-gram lồng: chuỗi cha cùng tần suất là rác đuôi, bị loại.
-  [`glossary_scan_contract.rs:54`](../../src-tauri/tests/glossary_scan_contract.rs#L54)
+  [`glossary_scan_contract.rs:54`](../../../src-tauri/tests/glossary_scan_contract.rs#L54)
 
 - Ca đã tự chạy phép đỏ→xanh: gỡ vệ ⇒ ứng viên giả lọt vào bảng chờ.
-  [`project.rs:606`](../../src-tauri/src/commands/project.rs#L606)
+  [`project.rs:606`](../../../src-tauri/src/commands/project.rs#L606)
 
 - Ứng viên đã `rejected` không đổi một cột nào — đối chứng bằng `SELECT`.
-  [`glossary_contract.rs:1209`](../../src-tauri/tests/glossary_contract.rs#L1209)
+  [`glossary_contract.rs:1209`](../../../src-tauri/tests/glossary_contract.rs#L1209)
 
 - Bốn ca trần `u32` — ba ca đỏ nếu gỡ vá, đã tự chạy lại.
-  [`glossarySettings.test.ts:81`](../../tests/frontend/glossarySettings.test.ts#L81)
+  [`glossarySettings.test.ts:81`](../../../tests/frontend/glossarySettings.test.ts#L81)
 
 - Chạy bộ phân giải THẬT, không mock trọn module.
-  [`bootstrap.test.ts:18`](../../tests/frontend/bootstrap.test.ts#L18)
+  [`bootstrap.test.ts:18`](../../../tests/frontend/bootstrap.test.ts#L18)
 
 - Ghim phiên bản lược đồ 13 → 14; cổng cố ý, là chữ ký cho lượt đổi.
-  [`segment_contract.rs:566`](../../src-tauri/tests/segment_contract.rs#L566)
+  [`segment_contract.rs:566`](../../../src-tauri/tests/segment_contract.rs#L566)
 
 - Năm miễn trừ CÓ TÊN, theo tiền lệ `shortcutsState.ts` đã có sẵn.
-  [`check-panel-refs.mjs:284`](../../scripts/check-panel-refs.mjs#L284)
+  [`check-panel-refs.mjs:284`](../../../scripts/check-panel-refs.mjs#L284)
 
 ## Kết quả đóng vòng review 2026-08-22 — spec `3-5-fix-review-findings`
 

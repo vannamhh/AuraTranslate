@@ -133,7 +133,7 @@ và không đụng `PIPELINE_ORDER`.
 - [x] `src-tauri/tests/webimport_contract.rs` — ca tầng 2 đi **đầu-cuối** qua `create_work` (host ngoài tầng 2 bị chặn **trước khi** mở kết nối; tầng 2 **không** tải được tài liệu). Đừng chép lại bốn ca AD-41 đã có ở `:986-1057`.
 - [x] `src-tauri/tests/config_invariants.rs` — **không sửa**; chạy để chứng minh `assetProtocol.scope` và `capabilities/main.json` **không đổi** (phép đo cho §Never).
 - [x] `src-tauri/tests/library_index_contract.rs` (hoặc nơi đang canh) — ca khẳng định `MINIMUM_HARVEST_SCHEMA_VERSION` **vẫn là 8** sau bước 20, và một `.atproj` lược đồ 19 vẫn thu hoạch được.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng bằng chữ ba mục `:10156` · `:10296` · `:10342` (🟡 nếu chỉ đóng một nửa, liệt phần còn hở); ghi nợ **MỚI có chủ** cho: vế *"copy sang máy khác ⇒ ảnh hiển thị đầy đủ"* (**Chủ: Story 6.14** — hôm nay **0** chỗ gọi `asset_protocol_scope`/`allow_directory` trong `src-tauri/src/`), `srcset`/`<picture>` chưa đọc, `image/svg+xml` bị loại, và chỗ lệch vai ở `:10342`.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng bằng chữ ba mục `:10156` · `:10296` · `:10342` (🟡 nếu chỉ đóng một nửa, liệt phần còn hở); ghi nợ **MỚI có chủ** cho: vế *"copy sang máy khác ⇒ ảnh hiển thị đầy đủ"* (**Chủ: Story 6.14** — hôm nay **0** chỗ gọi `asset_protocol_scope`/`allow_directory` trong `src-tauri/src/`), `srcset`/`<picture>` chưa đọc, `image/svg+xml` bị loại, và chỗ lệch vai ở `:10342`.
 
 - [x] `src-tauri/src/core/webimport/domain_log.rs:55-63` — **nới `DomainLogEntry` một trường KẾT QUẢ** (Ice ký 2026-09-08, §Spec Change Log vòng rà 1) để hai ô `Error Handling` của ma trận có chỗ mà sống: một lượt `Allowed(Tier::Two)` rồi trượt phải phân biệt được với một lượt tải xong. Danh mục ĐÓNG, `snake_case`, phủ đúng các lý do đã có (`FetchError` + MIME bị loại) — 🔵 sửa TẠI CHỖ doc-comment `:52-54` (*"trừ cột Kết quả"*) vì mệnh đề đó hết đúng từ story này, kèm ngày và lý do. Cập nhật `fetcher.rs` (nơi dựng bản ghi), `webimport_contract.rs`/`ipc_contract.rs` nếu chúng khoá hình dạng, và bề mặt Cài đặt › Quyền riêng tư nếu nó đọc trường mới.
 
@@ -265,62 +265,62 @@ thêm.
 **Neo vị trí — chỗ luật thật sự sống**
 
 - Điểm vào: cả cơ chế neo nằm trong một hàm thuần, có bước TỰ KIỂM tiền tố.
-  [`anchor.rs:62`](../../src-tauri/src/core/segment/anchor.rs#L62)
+  [`anchor.rs:62`](../../../src-tauri/src/core/segment/anchor.rs#L62)
 
 - Đếm segment lọt vào tiền tố; trả lỗi phân biệt được thay vì làm tròn về `0`.
-  [`anchor.rs:130`](../../src-tauri/src/core/segment/anchor.rs#L130)
+  [`anchor.rs:130`](../../../src-tauri/src/core/segment/anchor.rs#L130)
 
 **Bảng `asset` và bước di trú 20**
 
 - Hình dạng bảng: `source_url` cho `NULL`, rào rỗng 25 điểm mã, `chapter_id` không `work_id`.
-  [`schema.rs:981`](../../src-tauri/src/core/store/schema.rs#L981)
+  [`schema.rs:981`](../../../src-tauri/src/core/store/schema.rs#L981)
 
 - Bước 20 nối vào cuối `PROJECT_MIGRATIONS`; sàn thu hoạch của Indexer giữ nguyên 8.
-  [`schema.rs:1828`](../../src-tauri/src/core/store/schema.rs#L1828)
+  [`schema.rs:1828`](../../../src-tauri/src/core/store/schema.rs#L1828)
 
 **Pha tải ảnh — chạy giữa pipeline và giao dịch ghi**
 
 - Neo tính TRƯỚC mạng; tầng 2 dựng chỉ từ host của ảnh đang GIỮ.
-  [`project.rs:782`](../../src-tauri/src/commands/project.rs#L782)
+  [`project.rs:782`](../../../src-tauri/src/commands/project.rs#L782)
 
 - Đường `fs::write` duy nhất của cả pha; `extension_for_mime` là điểm gác MIME duy nhất.
-  [`project.rs:1017`](../../src-tauri/src/commands/project.rs#L1017)
+  [`project.rs:1017`](../../../src-tauri/src/commands/project.rs#L1017)
 
 - URL trang đọc từ `shape` trước khi `run_import` nuốt nó.
-  [`project.rs:700`](../../src-tauri/src/commands/project.rs#L700)
+  [`project.rs:700`](../../../src-tauri/src/commands/project.rs#L700)
 
 **Duy trì neo khi người dùng tổ chức lại Chương**
 
 - Gộp Chương: hàng `asset` theo đúng khuôn segment ngay trên, cùng một `shift`.
-  [`chapter.rs:784`](../../src-tauri/src/commands/chapter.rs#L784)
+  [`chapter.rs:784`](../../../src-tauri/src/commands/chapter.rs#L784)
 
 - Tách Chương: ảnh đi theo nửa chứa neo của nó, cùng công thức segment.
-  [`chapter.rs:966`](../../src-tauri/src/commands/chapter.rs#L966)
+  [`chapter.rs:966`](../../../src-tauri/src/commands/chapter.rs#L966)
 
 - Gom nhóm câu: ba miền `CASE`; miền giữa mang một quyết định CHƯA AI KÝ.
-  [`segment.rs:2768`](../../src-tauri/src/commands/segment.rs#L2768)
+  [`segment.rs:2768`](../../../src-tauri/src/commands/segment.rs#L2768)
 
 **Nhật ký domain nay chở KẾT QUẢ, không chỉ quyết định**
 
 - Danh mục đóng tám biến thể; `MimeRejected` chỉ `commands` gán, không phải Fetcher (AD-40).
-  [`domain_log.rs:63`](../../src-tauri/src/core/webimport/domain_log.rs#L63)
+  [`domain_log.rs:63`](../../../src-tauri/src/core/webimport/domain_log.rs#L63)
 
 - Ánh xạ lý do trượt sang kết quả, gắn vào bản ghi chặng cuối.
-  [`fetcher.rs:418`](../../src-tauri/src/core/webimport/fetcher.rs#L418)
+  [`fetcher.rs:418`](../../../src-tauri/src/core/webimport/fetcher.rs#L418)
 
 - Một bản ghi lạ chỉ mất chính nó, không kéo cả nhật ký xuống trạng thái lỗi.
-  [`project.ts:923`](../../src/config/project.ts#L923)
+  [`project.ts:923`](../../../src/config/project.ts#L923)
 
 **Ngoại vi**
 
 - Ca đầu-cuối: ảnh nhập THẬT sống sót một lượt tổ chức lại Chương không liên quan.
-  [`asset_contract.rs:1354`](../../src-tauri/tests/asset_contract.rs#L1354)
+  [`asset_contract.rs:1354`](../../../src-tauri/tests/asset_contract.rs#L1354)
 
 - Đường huỷ lượt nhập, gây lỗi bằng chướng ngại thật — chỉ nghiệm thu được trên Unix.
-  [`asset_contract.rs:648`](../../src-tauri/tests/asset_contract.rs#L648)
+  [`asset_contract.rs:648`](../../../src-tauri/tests/asset_contract.rs#L648)
 
 - Ba ca cô lập hai-Chương: một lượt tổ chức lại không chạm ảnh của Chương khác.
-  [`project_contract.rs:2919`](../../src-tauri/tests/project_contract.rs#L2919)
+  [`project_contract.rs:2919`](../../../src-tauri/tests/project_contract.rs#L2919)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

@@ -10,7 +10,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-7-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-7-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -22,7 +22,7 @@ context:
 **Approach:** Give TM its own closed origin type with an exhaustive mine/others projection, make `insert_pair` accept only that type so `''` cannot reach `tm_unit`, and guard every FR117 branch at the pair level, including an edited 200-chapter-style bilingual Work (AC5: no skipping). Persist the comparison baseline in Rust so it survives chapter reload and restart (D1).
 
 **Decisions (Ice, 2026-10-01):**
-- D1 The baseline lives in Rust, set by every AD-47 ③ write, and `confirm_segment` compares against it instead of trusting the webview's load snapshot. This amends AD-47 ③ (chapter-load row) and Decision #2(b), so it needs a new AD drafted by Winston first (brief: `planning-artifacts/ad-brief-2026-10-01-moc-so-xuat-xu-luu-phia-rust.md`). Implementation of D1 waits for that AD; its shape (columns, migration 28, IPC) comes from the AD, not this spec. 🔵 2026-10-01: the AD is AD-50; D1 is implemented to it.
+- D1 The baseline lives in Rust, set by every AD-47 ③ write, and `confirm_segment` compares against it instead of trusting the webview's load snapshot. This amends AD-47 ③ (chapter-load row) and Decision #2(b), so it needs a new AD drafted by Winston first (brief: `initiative-auratranslate/ad-brief-moc-so-xuat-xu-luu-phia-rust/ad-brief-moc-so-xuat-xu-luu-phia-rust.md`). Implementation of D1 waits for that AD; its shape (columns, migration 28, IPC) comes from the AD, not this spec. 🔵 2026-10-01: the AD is AD-50; D1 is implemented to it.
 
 ## Boundaries & Constraints
 

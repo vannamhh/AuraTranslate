@@ -100,7 +100,7 @@ về hưu. Không thêm dependency, box-shadow, màu/cỡ chữ viết cứng, h
   dùng token `surface-tm`, `tm-text`, `surface-accent`, không hardcode màu.
 - `e2e/specs/story-5-12-reading-frontier.e2e.mjs` — khuôn fixture Chế độ đọc thật; story mới phải
   dùng `realClick` và kiểm computed visibility, mode, segment đích, marker retired.
-- `_bmad-output/implementation-artifacts/deferred-work.md:5039-5067,8759-8766` — đóng tại chỗ món
+- `_bmad-output/initiative-auratranslate/deferred-work.md:5039-5067,8759-8766` — đóng tại chỗ món
   nợ vị trí đọc bằng neo `segment.id`; FR119 đang có chủ duy nhất Story 5.13.
 
 ## Tasks & Acceptance
@@ -133,7 +133,7 @@ về hưu. Không thêm dependency, box-shadow, màu/cỡ chữ viết cứng, h
 9. `tests/**` + `e2e/specs/story-5-13-reading-marks.e2e.mjs` — test adapter/state/DOM và bề mặt
    WebKit: hover/focus visibility, M không đổi mode/vị trí, Enter exact, list nhiều Chương, retired
    qua regroup lặp và neo cuộn trở lại.
-10. `_bmad-output/implementation-artifacts/deferred-work.md` + story/sprint tracking — đóng FR119 và
+10. `_bmad-output/initiative-auratranslate/deferred-work.md` + story/sprint tracking — đóng FR119 và
     món nợ vị trí đọc bằng chữ, chỉ sau khi có bằng chứng; không xoá lịch sử.
 
 **Acceptance Criteria:**

@@ -6,7 +6,7 @@ skill: bmad-architecture
 name: 'Kế hoạch gọn hoá ARCHITECTURE-SPINE.md'
 date: '2026-09-23'
 status: done — thi hành 2026-09-23
-target: '_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md'
+target: '_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md'
 ---
 
 # Kế hoạch gọn hoá Architecture Spine

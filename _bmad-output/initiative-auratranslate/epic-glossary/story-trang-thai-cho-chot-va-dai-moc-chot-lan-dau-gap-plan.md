@@ -7,8 +7,8 @@ status: done
 review_loop_iteration: 0
 baseline_revision: 'a2a0e47c0af4bfbd95647cfc2ca0182d82003c1b'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-quet-ung-vien-khi-nhap-tai-lieu-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -131,7 +131,7 @@ context:
 - [x] `tests/frontend/inlineStripPriority.test.ts` (mới) -- `topmostStrip` trên mọi tập con: rỗng ⇒ `null`; một mục ⇒ chính nó; quick-add + confirm ⇒ quick-add; cả bốn ⇒ quick-add; confirm + proofreader + tm ⇒ confirm -- thứ tự `EXPERIENCE.md` khoá bằng máy, để Story FR83/FR59 chỉ việc đăng ký chứ không dựng lại.
 - [x] `tests/frontend/glossaryConfirmStrip.test.ts` (mới) -- mọi hàng §I/O Matrix ở tầng frontend: hai span chờ chốt (trái nhất trước, dải kế mọc không thao tác), chuỗi rỗng bị chặn trước IPC, lượt ghi trượt ⇒ dải Ở LẠI kèm lỗi, `Esc` ⇒ không hỏi lại trong Chương, đổi Chương ⇒ sổ hoãn xoá, `glossaryMarksHaveLoaded() === false` ⇒ 0 dải, quick-add đang mở ⇒ 0 dải chốt -- mock `@tauri-apps/api/core` ở đúng biên IPC, khuôn `tests/frontend/bootstrap.test.ts:18-21`.
 - [x] `scripts/check-*.mjs` + `src-tauri/tests/segment_boundary.rs` -- đo lại bằng chính các cổng SAU khi thêm tệp rồi nâng sàn về dải 80–85 %, ghi ngày tại chỗ: `check-commands` (`VUE_FLOOR` · `TS_FLOOR` · `COMMAND_FLOOR` · `CLICK_FLOOR` · `DISPATCH_FLOOR`), `check-i18n` (`VUE_FLOOR`), `check-tokens` (`FILE_FLOOR` · `COMPONENT_FILE_FLOOR`), `check-layout` (`FILE_FLOOR`), `check-panel-refs` (`FILE_FLOOR`), `segment_boundary.rs` (`WEBVIEW_FLOOR`) -- sàn là cận DƯỚI nên tệp mới không làm cổng đỏ; không nâng thì sàn thành vô nghĩa trong im lặng.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- mở mục `## Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)` với các mục có chủ: ba nguồn gợi ý của mockup (*âm Hán Việt* chủ **Story 3.7**, *TM* chủ **Epic 7**, *bạn vừa viết* cần một phép căn chỉnh cụm chưa tồn tại — chủ **Story 3.7**), hoàn tác một lượt chốt (chủ **Ice**, qua `ad-brief-2026-08-17-mo-hinh-hoan-tac.md`), số lần xuất hiện của thuật ngữ trên dải (mockup vẽ *644 lần*; `GlossaryMark` không mang nó — chủ **Story 3.8**); và nối một dòng `→ 🔵` vào mục `GLOSSARY_IMPORT_SCAN_EVENT` (`deferred-work.md` §*vòng rà ba lớp của Story 3.5*) ghi rằng story này KHÔNG dựng người nghe nên chủ thu về đúng **Story 3.8** -- không mục nào mồ côi, và không xoá một mục đã có.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- mở mục `## Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)` với các mục có chủ: ba nguồn gợi ý của mockup (*âm Hán Việt* chủ **Story 3.7**, *TM* chủ **Epic 7**, *bạn vừa viết* cần một phép căn chỉnh cụm chưa tồn tại — chủ **Story 3.7**), hoàn tác một lượt chốt (chủ **Ice**, qua `ad-brief-2026-08-17-mo-hinh-hoan-tac.md`), số lần xuất hiện của thuật ngữ trên dải (mockup vẽ *644 lần*; `GlossaryMark` không mang nó — chủ **Story 3.8**); và nối một dòng `→ 🔵` vào mục `GLOSSARY_IMPORT_SCAN_EVENT` (`deferred-work.md` §*vòng rà ba lớp của Story 3.5*) ghi rằng story này KHÔNG dựng người nghe nên chủ thu về đúng **Story 3.8** -- không mục nào mồ côi, và không xoá một mục đã có.
 
 **Acceptance Criteria:**
 - Given một Tác phẩm có mục Glossary chờ chốt, when nghiệm thu bằng mắt trên bản dựng thật, then dải mọc **đẩy** vùng làm việc co lại và **không** che một dòng nào của lưới — đo bằng chiều cao `.modeport` trước và sau, hai số ghi thẳng vào story kèm ngày.
@@ -412,80 +412,80 @@ không chạy thì tính là thiếu). **12 hàng đóng trọn; 1 hàng đóng 
 **Khoá ghi trên dây — đọc chỗ này trước, cả story đứng trên nó**
 
 - Mark nay mang `id`/`source_term`; doc-comment cũ sửa tại chỗ, không xoá.
-  [`entry.rs:244`](../../src-tauri/src/core/glossary/entry.rs#L244)
+  [`entry.rs:244`](../../../src-tauri/src/core/glossary/entry.rs#L244)
 
 - Vì sao bề mặt đã khớp KHÔNG dùng làm khoá ghi: `dragons` so với `dragon`.
-  [`glossary_marks_contract.rs`](../../src-tauri/tests/glossary_marks_contract.rs)
+  [`glossary_marks_contract.rs`](../../../src-tauri/tests/glossary_marks_contract.rs)
 
 - Hai trường mới điền từ chính `GlossaryEntry` đã phân giải — 0 truy vấn thêm.
-  [`store.rs:860`](../../src-tauri/src/core/glossary/store.rs#L860)
+  [`store.rs:860`](../../../src-tauri/src/core/glossary/store.rs#L860)
 
 - Hình dạng dây, giữ `snake_case`, không `rename_all`.
-  [`glossary.rs:209`](../../src-tauri/src/commands/glossary.rs#L209)
+  [`glossary.rs:209`](../../../src-tauri/src/commands/glossary.rs#L209)
 
 **Đường chốt — sửa CHỮ KÝ thay vì nới cổng**
 
 - Hàm bọc mới, vì `confirm_translation` bị `GLOSSARY_ONLY_SURFACE` cấm gọi từ `commands/**`.
-  [`store.rs:696`](../../src-tauri/src/core/glossary/store.rs#L696)
+  [`store.rs:696`](../../../src-tauri/src/core/glossary/store.rs#L696)
 
 - Vỏ `wire` chốt bản dịch — `try_state`, không `state()`.
-  [`glossary.rs:371`](../../src-tauri/src/commands/glossary.rs#L371)
+  [`glossary.rs:371`](../../../src-tauri/src/commands/glossary.rs#L371)
 
 - Nhận ứng viên không đề xuất; bề mặt duyệt vẫn là Story 3.8.
-  [`glossary.rs:405`](../../src-tauri/src/commands/glossary.rs#L405)
+  [`glossary.rs:405`](../../../src-tauri/src/commands/glossary.rs#L405)
 
 - Danh sách bề mặt cho phép lên 7 — cổng đòi lời gọi thật, không chỉ một cái tên.
-  [`glossary_boundary.rs:123`](../../src-tauri/tests/glossary_boundary.rs#L123)
+  [`glossary_boundary.rs:123`](../../../src-tauri/tests/glossary_boundary.rs#L123)
 
 **Dải mọc — một thể hiện, một slot, một dải tại một thời điểm**
 
 - Sổ ưu tiên: hàm thuần, danh mục đóng bốn loại, hai loại chưa có mã.
-  [`inlineStripPriority.ts:49`](../../src/panels/inlineStripPriority.ts#L49)
+  [`inlineStripPriority.ts:49`](../../../src/panels/inlineStripPriority.ts#L49)
 
 - `watch` sống trong component (leaf) để không dựng vòng import.
-  [`GlossaryConfirmStrip.vue:46`](../../src/GlossaryConfirmStrip.vue#L46)
+  [`GlossaryConfirmStrip.vue:46`](../../../src/GlossaryConfirmStrip.vue#L46)
 
 - Điều kiện HIỆN tách khỏi điều kiện ĐỦ ĐIỀU KIỆN.
-  [`GlossaryConfirmStrip.vue:60`](../../src/GlossaryConfirmStrip.vue#L60)
+  [`GlossaryConfirmStrip.vue:60`](../../../src/GlossaryConfirmStrip.vue#L60)
 
 - Mount giữa dải Thêm thuật ngữ và StatusBar — đẩy `.modeport` co lại, không phủ.
-  [`App.vue:298`](../../src/App.vue#L298)
+  [`App.vue:298`](../../../src/App.vue#L298)
 
 **Hai lớp đua mà vòng rà bắt được — đọc kỹ nhất ở đây**
 
 - Vệ danh tính cho lượt ghi đang bay; ghi thành công vẫn phải làm mới marks.
-  [`glossaryConfirmStripState.ts:328`](../../src/glossaryConfirmStripState.ts#L328)
+  [`glossaryConfirmStripState.ts:328`](../../../src/glossaryConfirmStripState.ts#L328)
 
 - Đổi mục thì dọn luôn tiêu điểm đã lưu, nếu không hợp âm sau nhảy về câu cũ.
-  [`glossaryConfirmStripState.ts:141`](../../src/glossaryConfirmStripState.ts#L141)
+  [`glossaryConfirmStripState.ts:141`](../../../src/glossaryConfirmStripState.ts#L141)
 
 - Hợp âm khi dải không hiện: không chạm state, kêu một dòng, trả `false`.
-  [`glossaryConfirmStripState.ts:209`](../../src/glossaryConfirmStripState.ts#L209)
+  [`glossaryConfirmStripState.ts:209`](../../../src/glossaryConfirmStripState.ts#L209)
 
 **Chỗ nối — thứ dễ bị gỡ mất trong một lượt refactor sau này**
 
 - Teardown đổi Chương/Tác phẩm và gộp/tách cùng thu dải.
-  [`editorPanelState.ts:655`](../../src/panels/editorPanelState.ts#L655)
+  [`editorPanelState.ts:655`](../../../src/panels/editorPanelState.ts#L655)
 
 - Mệnh đề "chỉ hai chỗ gọi" hết đúng — chỗ thứ ba là thao tác rời rạc.
-  [`glossaryMarksState.ts:26`](../../src/panels/glossaryMarksState.ts#L26)
+  [`glossaryMarksState.ts:26`](../../../src/panels/glossaryMarksState.ts#L26)
 
 - Span mang `id`/`sourceTerm`/`tier` xuống tới từng segment.
-  [`glossaryMarksMap.ts:46`](../../src/panels/glossaryMarksMap.ts#L46)
+  [`glossaryMarksMap.ts:46`](../../../src/panels/glossaryMarksMap.ts#L46)
 
 - Ba lệnh mới; chỉ `focus` có hợp âm, hai lệnh kia cố ý 0 hợp âm.
-  [`index.ts:1608`](../../src/commands/index.ts#L1608)
+  [`index.ts:1608`](../../../src/commands/index.ts#L1608)
 
 **Ngoại vi**
 
 - Adapter ba trạng thái, không bao giờ ném.
-  [`glossary.ts:426`](../../src/config/glossary.ts#L426)
+  [`glossary.ts:426`](../../../src/config/glossary.ts#L426)
 
 - Vế TEMPLATE — tệp này ra đời vì vòng rà, cùng lý do `glossaryQuickAddStrip.test.ts`.
-  [`glossaryConfirmStripTemplate.test.ts:96`](../../tests/frontend/glossaryConfirmStripTemplate.test.ts#L96)
+  [`glossaryConfirmStripTemplate.test.ts:96`](../../../tests/frontend/glossaryConfirmStripTemplate.test.ts#L96)
 
 - Canh CHỖ NỐI, không canh hàm: gỡ lời gọi ⇒ ca đỏ.
-  [`glossaryConfirmStripResetWiring.test.ts:83`](../../tests/frontend/glossaryConfirmStripResetWiring.test.ts#L83)
+  [`glossaryConfirmStripResetWiring.test.ts:83`](../../../tests/frontend/glossaryConfirmStripResetWiring.test.ts#L83)
 
 ---
 

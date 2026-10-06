@@ -62,7 +62,7 @@ một p95. Không sửa ngưỡng để đổi màu và không đóng A6–A8/Q4
 - `src/modes/readingState.ts:43,113-119` · `src/modes/ReadingMode.vue:463-540` · `src/App.vue:291-306`
   — memory ReadingRun/DOM/KeepAlive.
 - `_bmad-output/implementation-artifacts/2-4-ban-do/` — khuôn release/probe/HOME nháp/dấu sống.
-- `_bmad-output/specs/spec-AuraTranslate/{SPEC.md,requirements.md}` · `deferred-work.md` — nơi ghi
+- `_bmad-output/initiative-auratranslate/spec-auratranslate{SPEC.md,requirements.md}` · `deferred-work.md` — nơi ghi
   A6–A8/Q4 sơ bộ và món nợ `read_reading_run`.
 - `5-14-ban-do/run.sh:23-405` · `probe.js` · `summarize.mjs` — review 2026-09-02 buộc hàng rào
   staged+untracked, manifest provenance, phase-file atomic, tập WebKit không đổi, ma trận raw đủ,
@@ -83,7 +83,7 @@ một p95. Không sửa ngưỡng để đổi màu và không đóng A6–A8/Q4
 - [x] Chạy ≥3 phiên; NFR4 lạnh/ấm, NFR5 10 mẫu idle/pha cho app + WebKit; lưu TSV, env và báo cáo.
   *Bằng chứng: lượt 2026-09-02 xanh trọn — 9/9 launch, 12/12 chuyển pha, 180 hàng bộ nhớ (0 hàng
   không `ok`), 15 hàng NFR3, 2 hàng `read_reading_run`; `REPORT.md` + `environment.txt` sinh lại.*
-- [x] `_bmad-output/specs/spec-AuraTranslate/{SPEC.md,requirements.md}` — nối trạng thái sơ bộ vào
+- [x] `_bmad-output/initiative-auratranslate/spec-auratranslate{SPEC.md,requirements.md}` — nối trạng thái sơ bộ vào
   A6–A8/Q4/NFR3–5, giữ nguyên ngưỡng/Q4.
   *A6 dưới ngưỡng · A7 và A8 vượt, đều ghi "sơ bộ". Không ngưỡng nào bị sửa; Q4 giữ nguyên MỞ và
   ghi rõ điều kiện đóng là Story 6.18 trên thư viện tạo qua FR14.*

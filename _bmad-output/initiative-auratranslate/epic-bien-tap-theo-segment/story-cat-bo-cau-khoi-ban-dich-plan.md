@@ -208,7 +208,7 @@ Từ vựng `omitted` đã có tiền lệ ở hai nơi: `DESIGN.md:148` khai to
 
 ### Đọc trước khi viết dòng đầu tiên
 
-`_bmad-output/project-context.md` — 130 luật. Ba mục sát story này: §Critical Don't-Miss Rules (*"Rỗng IM LẶNG bị cấm"* · *"Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN"*), §Testing Rules (bốn đường nghiệm thu, bốn vai không chồng nhau), §Code Quality (văn hoá chú thích: **lý do**, kèm **phép đo**, không sở thích).
+`_bmad-output/inbox/project-context.md` — 130 luật. Ba mục sát story này: §Critical Don't-Miss Rules (*"Rỗng IM LẶNG bị cấm"* · *"Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN"*), §Testing Rules (bốn đường nghiệm thu, bốn vai không chồng nhau), §Code Quality (văn hoá chú thích: **lý do**, kèm **phép đo**, không sở thích).
 
 ### 🔴 Story này KHÔNG thêm phụ thuộc nào
 
@@ -332,16 +332,16 @@ Tệp phải **nạp được bằng Node trần** (cổng `import()` chúng đ�
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:2333-2373` — Story 2.5c, bảy AC
-- `_bmad-output/planning-artifacts/epics.md:2596-2602` — Story 2.10 mang **cùng** AC "bỏ qua câu đã cắt bỏ"
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:458` — FR133 nguyên văn
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2333-2373` — Story 2.5c, bảy AC
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2596-2602` — Story 2.10 mang **cùng** AC "bỏ qua câu đã cắt bỏ"
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:458` — FR133 nguyên văn
 - `.../ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md:126-132` — cắt bỏ là trục riêng
 - `.../EXPERIENCE.md:95` — *"phân biệt giữ lại với loại bỏ bằng độ lùi, không bằng màu nhấn thứ hai"*
 - `.../EXPERIENCE.md:99` — bảng vạch lề là *"tài nguyên đã tiêu hết"*
 - `.../DESIGN.md:148` — token `grid-row-omitted`
 - `.../DESIGN.md:230` — luật `opacity` không áp cho chữ
 - `.../architecture/.../ARCHITECTURE-SPINE.md:89-93` (AD-3) · `:362-366` (AD-30) · `:368-392` (AD-31) · `:75-79` (AD-1) · `:406-417` (AD-34) · `:689,694` (Consistency Conventions)
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md:333-344` — thứ tự thi công 2.5b → 2.5c → 2.5d
+- `_bmad-output/initiative-auratranslate/change-be-mat-nhap-lat-sang-luoi-hai-cot/change-be-mat-nhap-lat-sang-luoi-hai-cot.md:333-344` — thứ tự thi công 2.5b → 2.5c → 2.5d
 - `src-tauri/src/core/store/schema.rs:335-346` · `:374-375` · `:451-458` · `:494-523` · `:524-555` · `:617-710`
 - `src-tauri/src/commands/segment.rs:144-163` · `:305-328` · `:549-579` · `:683-757` · `:983-1100`
 - `src-tauri/tests/segment_contract.rs:473` · `:492` · `:912` · `:1512` · `:1609` · `:2005`
@@ -351,8 +351,8 @@ Tệp phải **nạp được bằng Node trần** (cổng `import()` chúng đ�
 - `src/config/segment.ts:66-89`
 - `scripts/check-commands.mjs:2116-2269` (Kiểm I) · `:1876-2113` (Kiểm F) · `:665-746` (Kiểm A)
 - `scripts/check-tokens.mjs:833-1064` (Kiểm B/B2) · `:1345-1396` (Kiểm D)
-- `_bmad-output/implementation-artifacts/2-5b-luoi-hai-cot-doi-chieu.md:696-710` · `:738-762` · `:775-814` · `:851-947`
-- `_bmad-output/implementation-artifacts/deferred-work.md:3093-3129` · `:3164-3194` · `:3274-3330`
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-luoi-hai-cot-doi-chieu-plan.md:696-710` · `:738-762` · `:775-814` · `:851-947`
+- `_bmad-output/initiative-auratranslate/deferred-work.md:3093-3129` · `:3164-3194` · `:3274-3330`
 - XLIFF 2.0 `translate` — https://simplelocalize.io/docs/file-formats/xliff-2/
 - SQLite `ALTER TABLE ADD COLUMN` — https://www.geeksforgeeks.org/sqlite/sqlite-alter-table/
 
@@ -558,7 +558,7 @@ tệp kê thừa *"mua thời gian đọc một tệp không đổi"* và làm n
 | --- | --- |
 | `src-tauri/src/core/segment/omit.rs` | chốt lọc cho mọi đầu ra (AC5, Quyết định #2(b)) |
 | `tests/frontend/editorOmitSegment.test.ts` | 9 ca — ảnh chụp hiển thị, bốn nhóm |
-| `_bmad-output/implementation-artifacts/2-5c-cat-bo-cau-khoi-ban-dich.md` | chính tệp story |
+| `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-cat-bo-cau-khoi-ban-dich-plan.md` | chính tệp story |
 
 **Sửa (20)**
 
@@ -599,8 +599,8 @@ tệp kê thừa *"mua thời gian đọc một tệp không đổi"* và làm n
 | Tệp |  |
 | --- | --- |
 | `_bmad-output/.../DESIGN.md` | `:148` theo Quyết định #6; **và** `:145`/`:146` — hai dòng cũ mâu thuẫn `:213` và mâu thuẫn mã từ 2.5b |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | 6 mục *(3 ghi lúc ký Task 0, 3 lúc nghiệm thu)* |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | trạng thái story |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | 6 mục *(3 ghi lúc ký Task 0, 3 lúc nghiệm thu)* |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | trạng thái story |
 
 🔴 **Không đụng một dòng nào:** `selectionContract.ts` · `editorSegments.ts` ·
 `editorFlush.ts` · `SEGMENT_RULE_VALUES` · `focus.ts` · `check-*.mjs`. Không cổng mới, không

@@ -8,7 +8,7 @@ skill: bmad-architecture
 # Hồ sơ bàn giao cho Winston — một `AD` mới: **thư viện diff cho dải khớp mờ TM, và xuất xứ khi nhận gợi ý khớp mờ**
 
 **Ngày:** 2026-10-02 · **Người bàn giao:** lượt `bmad-build` mở Story 7.5 · **Người nhận:** Winston (architect)
-**Nguồn gốc:** FR59 (*"hiển thị các bản dịch cũ tương tự kèm phần trăm khớp và diff phần khác biệt"*), spec `implementation-artifacts/spec-7-5-khop-mo.md`.
+**Nguồn gốc:** FR59 (*"hiển thị các bản dịch cũ tương tự kèm phần trăm khớp và diff phần khác biệt"*), spec `initiative-auratranslate/epic-translation-memory/story-khop-mo-plan.md`.
 **Quyết định của Ice (2026-10-02):** câu 2 = (A) kéo lựa chọn thư viện diff về Story 7.5, đo trên câu TM thật; câu 3 = (A) nhận gợi ý khớp mờ đặt xuất xứ **người khác dịch**. Phương án bị loại: tự viết diff LCS trong mã dự án (2B), chỉ hiện phần trăm (2C), giữ xuất xứ của cặp TM (3B).
 **Baseline cây nguồn:** `d028a95aadb92a80b6a8a906194f8caeba899957`. Số `AD` trống kế tiếp: **51** (spine dừng ở AD-50; không hồ sơ `ad-brief-*` nào đã nhận 51).
 

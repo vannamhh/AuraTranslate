@@ -4,9 +4,9 @@ status: final
 created: 2026-08-02
 updated: 2026-08-14
 sources:
-  - _bmad-output/specs/spec-AuraTranslate/SPEC.md
-  - _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md
-  - _bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md
+  - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
+  - _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
+  - _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md
 colors:
   background: '#f4f1ea'
   surface: '#fbfaf6'
@@ -250,7 +250,7 @@ Vì vậy cả ba đến từ **một chương trình thiết kế duy nhất**:
 
 **Lấy tệp từ kênh Google không có nghĩa là gọi Google lúc chạy.** `fonts.googleapis.com` vẫn bị `AD-15` cấm tuyệt đối như mọi origin từ xa. Kênh phát hành là chỗ **tải tệp về lúc dựng**; luật đóng gói không đổi.
 
-Ba việc chưa xong ở bản trước, **nay xong cả ba** *(Story 1.1, 2026-08-03 — số đo và bằng chứng ở [`research/font-spike-results-2026-08-03.md`](../../research/font-spike-results-2026-08-03.md))*:
+Ba việc chưa xong ở bản trước, **nay xong cả ba** *(Story 1.1, 2026-08-03 — số đo và bằng chứng ở [`research/font-spike-results-2026-08-03.md`](../epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md))*:
 
 1. ~~**Rà giấy phép tường minh** theo `NFR15`~~ — ✅ **đã rà 2026-08-03.** Cả ba là **SIL OFL 1.1**, tương thích `GPL v3` theo diện **gộp gói** (font nằm cạnh mã, không liên kết vào mã). Một khác biệt phải nhớ: `Noto Serif CJK` và `Source Serif 4` bản Google Fonts **không khai** Reserved Font Name, nhưng `Source Sans 3` **có khai** RFN `'Source'` — nên nếu subset riêng tệp Sans thì phải đổi tên font. Kết luận ghi vào bảng Stack của `ARCHITECTURE-SPINE.md` ở Story 1.1. *(Xác minh lại bằng chính tệp `LICENSE` trong bản release đã tải, không tin nhãn GitHub — cả ba khớp dự đoán.)*
 2. ~~**Đo dung lượng thật.**~~ — ✅ **đã đo 2026-08-03.** Trên đĩa **25,991 MiB** cho bốn tệp. Ước 21,6 MB của bản trước **quá thấp**: phần CJK là **23,405 MiB** chứ không phải ≈19 MB, vì phép chia zip 7 nét cho 7 giả định các nét bằng nhau mà chúng không bằng. Chênh lệch `.dmg` thật: **20,300 MiB = 21,29 MB** (1,337 → 21,637 MiB). Tổng với database 130 MB hiện tại = **151,29 MB — dưới trần `NFR6`**. `.msi` chưa đo được trên macOS; ước 16,0–20,3 MiB, đóng ở Story 1.3. **Rủi ro còn mở:** trần 150–200 MB là trần của **cả bản cài, đã bao gồm font**, nên phép tính đúng là **trừ dư địa** chứ không cộng lên trần — 200 − 21,29 (font) − 1,40 (baseline app **rỗng**) − 130 (ba nguồn đầu) = **còn ~47 MB** cho các nguồn từ điển còn lại, chỉ mục FTS phụ, **và toàn bộ mã sản phẩm chưa viết**. Đây là thay đổi ở tầng PRD, không phải tầng thiết kế, và đã ghi vào mục *Cần Ice quyết* của báo cáo.

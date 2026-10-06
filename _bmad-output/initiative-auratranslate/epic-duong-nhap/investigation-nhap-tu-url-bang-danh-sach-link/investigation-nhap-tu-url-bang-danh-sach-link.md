@@ -211,7 +211,7 @@ Lý lẽ đã dùng để loại hai phương án kia:
 
 ## 6. Mockup
 
-**`_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/mockups/web-import.html`**
+**`_bmad-output/initiative-auratranslate/ux-auratranslate/mockups/web-import.html`**
 (531 dòng) — mockup ĐÚNG cho 6.7:
 - Bước 1 (`:174-216`): ô dán link đánh số dòng (`:181-189`); ngay dưới **hai con số**
   *"50 link · sẽ tạo 50 Chương · 1 domain"* (`:193`) + câu cam kết (`:194`); cột phải chọn đích

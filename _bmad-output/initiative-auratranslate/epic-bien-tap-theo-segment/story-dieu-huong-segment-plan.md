@@ -550,7 +550,7 @@ nó**. 🔴 Một số `cargo test` nhúc nhích ở đây nghĩa là đã đi l
 *(Nguồn sự thật là `PROJECT_MIGRATIONS`, **không** dòng này. Đo lại ở Task 0.1.)*
 
 **② `⌘Z` / mô hình hoàn tác.** AD-48 **chưa tồn tại**; hồ sơ bàn giao đã soạn ở
-`planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md`. **Chủ: Ice phân định → Winston
+`initiative-auratranslate/ad-brief-mo-hinh-hoan-tac/ad-brief-mo-hinh-hoan-tac.md`. **Chủ: Ice phân định → Winston
 soạn AD.** Story này không chạm.
 
 **③ Vá NFR2.** Chủ là Story 2.4. Xem Cạm bẫy ④.
@@ -612,8 +612,8 @@ behavior")*. Toàn bộ Story 2.9 đã vào ba commit (`4d72cd4` · `0f67808` ·
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:2572-2620` — Story 2.10, chín mệnh đề AC
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:454` — FR25 ·
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2572-2620` — Story 2.10, chín mệnh đề AC
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:454` — FR25 ·
   `:458-460` FR133 (*"lệnh 'câu chưa dịch kế tiếp' sẽ liên tục nhảy vào đúng những câu người
   dùng cố ý bỏ"*) · `:903` NFR17 (sàn khả năng tiếp cận)
 - `ARCHITECTURE-SPINE.md` — AD-1 (frontend giữ *focus, cuộn, vùng chọn*) · AD-3 (`ord` là thứ
@@ -625,14 +625,14 @@ behavior")*. Toàn bộ Story 2.9 đã vào ba commit (`4d72cd4` · `0f67808` ·
   ứng"*, phạm vi **Panel Lookup**) · `:376` (`prefers-reduced-motion` bỏ **toàn bộ** hiệu ứng —
   thuộc sàn khả năng tiếp cận) · `:379` (ba cấm chung toàn ứng dụng) · `:391` (bảng vạch lề).
   ⚠️ **`DESIGN.md:342` KHÔNG phải nguồn cho luật cuộn** — xem Quyết định #7
-- `_bmad-output/implementation-artifacts/deferred-work.md:2837-2847` — món nợ **chủ 2.10**
+- `_bmad-output/initiative-auratranslate/deferred-work.md:2837-2847` — món nợ **chủ 2.10**
 - `src/commands/index.ts:1046-1084` — `editor.next_untranslated` và khối giao món nợ `:1053-1065`
 - `src/panels/segmentNavigation.ts` — toàn tệp, đặc biệt `:44-62` (định nghĩa *chưa dịch*) và
   `:74-89` (không quay vòng · bỏ qua về hưu · bỏ qua cắt bỏ, và **vì sao lọc ở hàm gọi**)
 - `src/panels/editorPanelState.ts:130-150` (`setEditorCaret` = AD-35 vế d) · `:1013-1035`
 - `src/panels/LookupPanel.vue:269-283` — tiền lệ *cuộn tức thì* duy nhất của kho
-- `_bmad-output/planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — AD-48, chủ Ice
-- `_bmad-output/project-context.md` — luật kho, đọc **trước** dòng mã đầu tiên
+- `_bmad-output/initiative-auratranslate/ad-brief-mo-hinh-hoan-tac/ad-brief-mo-hinh-hoan-tac.md` — AD-48, chủ Ice
+- `_bmad-output/inbox/project-context.md` — luật kho, đọc **trước** dòng mã đầu tiên
 
 ### Thông tin kỹ thuật mới nhất — `scrollIntoView` (tra 2026-08-17)
 
@@ -717,8 +717,8 @@ kiểm lại thay vì thừa kế:
 Story viết *"cây **sạch** tại `a664dac`"*. Đo lúc bắt đầu thi công:
 
 ```
- M _bmad-output/implementation-artifacts/sprint-status.yaml
-?? _bmad-output/implementation-artifacts/2-10-dieu-huong-segment.md
+ M _bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml
+?? _bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-dieu-huong-segment-plan.md
 ```
 
 ⇒ Hai tệp này **là tạo tác của chính lượt `create-story`** *(tệp story + dòng `ready-for-dev`)*,
@@ -1023,12 +1023,12 @@ bàn đo Ⓘ đọc đồng bộ · không giật khi bấm liên tục: e2e Ⓔ
 - `_bmad-output/implementation-artifacts/2-10-ban-do/probe-hop-am-driver.e2e.mjs` — **NEW**
 
 **Tài liệu**
-- `_bmad-output/implementation-artifacts/deferred-work.md` — UPDATE: 🟡 đóng một nửa món nợ chủ
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — UPDATE: 🟡 đóng một nửa món nợ chủ
   2.10, cộng **sáu** mục mới kèm chủ
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md` —
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md` —
   UPDATE: 🔵 sửa hàng `⌥↓` → `⌘⌥↓`, thêm hàng hai lệnh tuần tự
-- `_bmad-output/implementation-artifacts/2-10-dieu-huong-segment.md` — UPDATE: tệp này
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — UPDATE: trạng thái story
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-dieu-huong-segment-plan.md` — UPDATE: tệp này
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — UPDATE: trạng thái story
 
 ### Change Log
 
@@ -1052,7 +1052,7 @@ cả bảy đều đứng** *(`cargo test` 401/0/5 · vitest 224/224 20 tệp ·
 xanh · 49 command · `COMMAND_FLOOR` 41 · `src-tauri/**` 0 dòng diff)*.
 
 - [x] [Review][Decision] ✅ **ĐÃ CHỐT 2026-08-17 — Ice ký đường 1: soạn hồ sơ bàn giao.** Tệp:
-      `planning-artifacts/ad-brief-2026-08-17-vach-le-cau-cuoi-chuong.md`, đúng khuôn hai tiền lệ.
+      `initiative-auratranslate/ad-brief-vach-le-cau-cuoi-chuong/ad-brief-vach-le-cau-cuoi-chuong.md`, đúng khuôn hai tiền lệ.
       🔴 Lượt soạn tìm ra **một vế chưa ai khai**: cột nhãn trạng thái khoá theo cùng
       `SegmentRuleValue` nên ở câu cuối Chương nó đọc *"đang sửa"*, và cột ấy **là** kênh khả năng
       tiếp cận *(vạch mang `aria-hidden`)* ⇒ khoảng hở chạm **AD-34 §2 + NFR17**, không chỉ màu.
@@ -1061,7 +1061,7 @@ xanh · 49 command · `COMMAND_FLOOR` 41 · `src-tauri/**` 0 dòng diff)*.
       *(Bối cảnh gốc của mục này:)* — sổ nợ ghi
       đúng khuôn 🟡 kèm *"Chủ: Ice phân định → Winston soạn AD"*, **không** xoá mục gốc. Nhưng
       hai tiền lệ gần nhất của cùng lớp cửa chặn đều sinh một tệp riêng
-      (`planning-artifacts/ad-brief-2026-08-16-xuat-xu-ban-dich.md` ·
+      (`initiative-auratranslate/ad-brief-xuat-xu-ban-dich/ad-brief-xuat-xu-ban-dich.md` ·
       `ad-brief-2026-08-17-mo-hinh-hoan-tac.md`); lượt này chỉ có một đoạn văn trong
       `deferred-work.md`. ⇒ Cần Ice phân định: vế *"vạch lề ở câu cuối Chương không chuyển
       `confirmed`"* có đủ tầm một `AD` *(và vì thế cần một hồ sơ bàn giao)*, hay nó ở lại một
@@ -1070,7 +1070,7 @@ xanh · 49 command · `COMMAND_FLOOR` 41 · `src-tauri/**` 0 dòng diff)*.
 - [x] [Review][Patch] 🔴 **Dời con trỏ THÀNH CÔNG không dọn ô nhớ ⇒ thanh trạng thái nói dối,
       và mốc *"Đã lưu N giây trước"* bị che vô thời hạn** [`src/panels/editorPanelState.ts:1172-1175`]
 - [x] [Review][Patch] **`deferred-work.md` gán công trạng cho một cơ chế ĐÃ BỊ GỠ, và nêu
-      `focus()` là tác nhân trong khi bàn đo đo được nó vô can** [`_bmad-output/implementation-artifacts/deferred-work.md:4437-4441`]
+      `focus()` là tác nhân trong khi bàn đo đo được nó vô can** [`_bmad-output/initiative-auratranslate/deferred-work.md:4437-4441`]
 - [x] [Review][Patch] **Task 3.6 tick `[x]` mà không một dòng mã nào chứng minh** — và điều kiện
       của nó *(`nếu` Ice ký #1 đường (b))* **không xảy ra**: chữ ký là (c), và chính đoạn ký
       liệt kê *"Loại (b) cửa thứ hai ở `onEditKeydown`"*. Đo: `git diff HEAD -- src/panels/GridPanel.vue`

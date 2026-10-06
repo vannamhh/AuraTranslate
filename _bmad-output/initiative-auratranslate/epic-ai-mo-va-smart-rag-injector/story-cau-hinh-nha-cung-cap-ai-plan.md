@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '334a3d0f3f3d42f7a29337086c0ab981cdbb714f'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -167,7 +167,7 @@ carrying overridden and inherited fields side by side.
 - `src-tauri/tests/ai_boundary.rs` — bump `SRC_RS_FLOOR` 44 → 65 (~80% of the measured 82).
   `AI_FLOOR` stays 1: this story adds no file to `core/ai/`. Do not touch the exemption
   predicate or `FORBIDDEN_BARE_TOKENS`.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — append at EOF only; never edit
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — append at EOF only; never edit
   or delete existing entries; every open entry needs a real `Chủ:`.
 
 ## Tasks & Acceptance
@@ -201,7 +201,7 @@ carrying overridden and inherited fields side by side.
 - [x] `src-tauri/tests/ai_boundary.rs` — bump `SRC_RS_FLOOR` to 65 — rationale: closes the
       measured half of the assigned debt; 44 against a real 82 means the floor stopped being a
       tripwire.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — append the deferred
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — append the deferred
       connection test (owner: the first story that calls a provider), FR65 + the key field
       (owner: Story 4.3), the 22 drifted floors with the measured table (owner: unassigned —
       flag for Ice), and the re-export gate decision; mark the boundary-rerun debt closed with

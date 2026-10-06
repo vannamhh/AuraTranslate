@@ -7,7 +7,7 @@ status: 'done'
 review_loop_iteration: 1
 baseline_revision: '85a7ab282ab6175f01a3a61166741bf9e88e31c2'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
@@ -171,8 +171,8 @@ phép **đếm bằng chữ** (`grep` số `#[test]` / `it(` trong tệp nguồn
 - [x] `src-tauri/src/core/glossary/surnames.rs` + `src-tauri/tests/glossary_scan_contract.rs` (doc ④c) -- sửa HAI mệnh đề sai: `:72` ghi `於` ở *"hàng 6, cột 1"* (đo thật: **hàng 13, cột 11**; hàng 6 cột 2 là `于` GIẢN thể), và câu *"một alias `於→于` sai sẽ nới ngưỡng"* — sai, vì `effective_threshold` đoản mạch ở `surnames.contains(&first)` và `於` ĐÃ có trong bảng ⇒ thêm cặp đó **không đổi hành vi**; lý do loại nó là **mô hình** (nó khai `於` và `于` là một họ, trong khi bảng coi chúng là hai). Mệnh đề "nới ngưỡng cho chuỗi không phải tên người" vẫn ĐÚNG cho `鬍 週 鬱 餘 衚` -- cả năm đã đo là KHÔNG có trong `COMMON_SURNAMES`.
 - [x] `src-tauri/tests/glossary_scan_contract.rs` -- doc-comment ④c nói rõ giới hạn: ca này KHÔNG bắt được lớp *"chữ phồn không phải họ, vế giản là họ thật"* (`衚→胡`, `鬍→胡`) -- và sửa câu *"duyệt từng cặp qua ca ④c"* trong sổ nợ, vì theo đúng câu đó vẫn thêm nhầm `衚→胡` được.
 - [x] `scripts/check-debt-owner.mjs` -- nâng `ITEM_FLOOR` 443 → **490** (`0,85 × 577 = 490,45`, làm tròn **XUỐNG** đúng bài học của lượt sửa 2026-08-22 ngay trong doc-comment đó) -- 443/577 = **76,8 %**, dưới dải 80–85 % mà chính doc-comment của biến này đặt; lượt vá này nối thêm mục vào sổ mà chưa xét lại sàn.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nói rõ ĐƠN VỊ ĐẾM (*"tám **bản vá** phủ mười một **vị trí**; ba vị trí còn lại bị bác"* — 8 ≠ 11 vì ④ gộp hai chỗ gọi và ⑥ gộp bốn khai báo px), và ghi `.lookup-citation` (`panels/LookupRecord.vue:312`) mang **11px thứ hai** ở `margin` chưa được đếm vào khuôn "nét dẫn".
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối `→` vào mục `Cụm F`: tám mục đã đóng, **ba mục bị bác kèm phép đo và dư địa có chủ**, 🔵 sửa tại chỗ con số *"mười bảy"*; thêm hai mục nợ mới (16 tệp px thô kèm số đo; ~105 họ phồn thể kèm bảng 134 cặp) -- không xoá mục, không làm tròn lên.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nói rõ ĐƠN VỊ ĐẾM (*"tám **bản vá** phủ mười một **vị trí**; ba vị trí còn lại bị bác"* — 8 ≠ 11 vì ④ gộp hai chỗ gọi và ⑥ gộp bốn khai báo px), và ghi `.lookup-citation` (`panels/LookupRecord.vue:312`) mang **11px thứ hai** ở `margin` chưa được đếm vào khuôn "nét dẫn".
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối `→` vào mục `Cụm F`: tám mục đã đóng, **ba mục bị bác kèm phép đo và dư địa có chủ**, 🔵 sửa tại chỗ con số *"mười bảy"*; thêm hai mục nợ mới (16 tệp px thô kèm số đo; ~105 họ phồn thể kèm bảng 134 cặp) -- không xoá mục, không làm tròn lên.
 
 **Acceptance Criteria:**
 - Given hàm thuần mới nhận `Vec::new()`, when chạy `cargo test --test glossary_import_dialog_contract`, then nó trả `MessageKey::Unknown` và **không** ca nào panic; khôi phục `.expect(...)` ⇒ ca ①b ĐỎ.
@@ -416,84 +416,84 @@ Sau mỗi lượt, tệp bị sửa được khôi phục lại nguyên trạng 
 **Điểm vào — cụm F bác ba phát hiện của chính nó**
 
 - Đọc đây trước: tám mục vá, ba mục bị đo bác, và vì sao "mười bảy" là mười bốn.
-  [`deferred-work.md:7391`](./deferred-work.md#L7391)
+  [`deferred-work.md:7391`](../deferred-work.md#L7391)
 
 **⑦ + P1 — vá một lỗ a11y rồi tự mở một lỗ bàn phím, và đóng lại**
 
 - Vòng 1 dời tiêu điểm sang `<ul>` để `aria-activedescendant` có nghĩa thật.
-  [`GlossaryManageOverlay.vue:140`](../../src/GlossaryManageOverlay.vue#L140)
+  [`GlossaryManageOverlay.vue:140`](../../../src/GlossaryManageOverlay.vue#L140)
 
 - 🔴 P1: vệ đối xứng N→0 — `<ul>` bị `v-if` gỡ thì tiêu điểm phải về `panel`, không rơi ra `body`.
-  [`GlossaryManageOverlay.vue:167`](../../src/GlossaryManageOverlay.vue#L167)
+  [`GlossaryManageOverlay.vue:167`](../../../src/GlossaryManageOverlay.vue#L167)
 
 - `<ul>` nay có `tabindex="-1"` và giữ tiêu điểm — nửa cơ chế mà bản đầu thiếu.
-  [`GlossaryManageOverlay.vue:456`](../../src/GlossaryManageOverlay.vue#L456)
+  [`GlossaryManageOverlay.vue:456`](../../../src/GlossaryManageOverlay.vue#L456)
 
 - Một hàm dựng `id` dùng chung cho `<li>` và `<ul>`, không chép công thức hai chỗ.
-  [`GlossaryManageOverlay.vue:220`](../../src/GlossaryManageOverlay.vue#L220)
+  [`GlossaryManageOverlay.vue:220`](../../../src/GlossaryManageOverlay.vue#L220)
 
 - Rơi về `panel` khi chưa có hàng; điều kiện `list.value !== null` là chỗ đã hụt một lần.
-  [`GlossaryManageOverlay.vue:95`](../../src/GlossaryManageOverlay.vue#L95)
+  [`GlossaryManageOverlay.vue:95`](../../../src/GlossaryManageOverlay.vue#L95)
 
 **① `panic = "abort"` — hai điểm nổ, sổ nợ chỉ nêu một**
 
 - Hàm thuần thay khối `map_err`: danh sách rỗng rơi về `MessageKey::Unknown`, không panic.
-  [`glossary.rs:749`](../../src-tauri/src/commands/glossary.rs#L749)
+  [`glossary.rs:749`](../../../src-tauri/src/commands/glossary.rs#L749)
 
 **④ — gộp "chưa quản lý" với "rỗng" là anti-pattern `project.rs` gọi tên hai ngày trước**
 
 - Combinator, không nhánh viết tay: vỏ `wire::` không gọi được từ `tests/**`.
-  [`glossary.rs:1081`](../../src-tauri/src/commands/glossary.rs#L1081)
+  [`glossary.rs:1081`](../../../src-tauri/src/commands/glossary.rs#L1081)
 
 - Helper dùng chung, mở phạm vi + thêm tham số nêu đúng bề mặt gọi.
-  [`project.rs:492`](../../src-tauri/src/commands/project.rs#L492)
+  [`project.rs:492`](../../../src-tauri/src/commands/project.rs#L492)
 
 **⑤ — bảng họ phồn thể, và cái bẫy `於`**
 
 - Năm cặp Ice chốt; doc-comment chở phép đo 134/110/272 và vì sao KHÔNG nhập trọn.
-  [`surnames.rs:102`](../../src-tauri/src/core/glossary/surnames.rs#L102)
+  [`surnames.rs:102`](../../../src-tauri/src/core/glossary/surnames.rs#L102)
 
 **⑥ — px thô về token mà không đổi một pixel nào**
 
 - Bốn khai báo, bốn bội số giữ nguyên giá trị cũ; `×2.75` có lý do viết ra.
-  [`GlossarySettingsOverlay.vue:235`](../../src/GlossarySettingsOverlay.vue#L235)
+  [`GlossarySettingsOverlay.vue:235`](../../../src/GlossarySettingsOverlay.vue#L235)
 
 **Cổng — ba cổng cấu trúc mới, và một sàn đã hết nghĩa**
 
 - Xoá một API không giữ nó khỏi được dựng lại.
-  [`glossary_boundary.rs:743`](../../src-tauri/tests/glossary_boundary.rs#L743)
+  [`glossary_boundary.rs:743`](../../../src-tauri/tests/glossary_boundary.rs#L743)
 
 - So CẤU TRÚC, không so chuỗi literal — một tên biến khác đã đủ để lách bản đầu.
-  [`config_invariants.rs:1094`](../../src-tauri/tests/config_invariants.rs#L1094)
+  [`config_invariants.rs:1094`](../../../src-tauri/tests/config_invariants.rs#L1094)
 
 - P3: hoán hai literal `surface` thì cổng kia vẫn xanh; cổng này so theo CẶP.
-  [`config_invariants.rs:1173`](../../src-tauri/tests/config_invariants.rs#L1173)
+  [`config_invariants.rs:1173`](../../../src-tauri/tests/config_invariants.rs#L1173)
 
 - Sàn 443/577 = 76,8 % đã tụt khỏi dải chính nó đặt; nâng 490, làm tròn XUỐNG.
-  [`check-debt-owner.mjs:514`](../../scripts/check-debt-owner.mjs#L514)
+  [`check-debt-owner.mjs:514`](../../../scripts/check-debt-owner.mjs#L514)
 
 **Ngoại vi — các ca test, xếp theo thứ tự chúng bị vòng rà bắt thiếu**
 
 - ⑤a: giá trị thuộc tính đúng — nhưng CHỈ giá trị, đó là điều vòng rà 1 bắt.
-  [`glossaryManage.test.ts:953`](../../tests/frontend/glossaryManage.test.ts#L953)
+  [`glossaryManage.test.ts:953`](../../../tests/frontend/glossaryManage.test.ts#L953)
 
 - ⑤d: phần tử mang thuộc tính phải CHÍNH LÀ `document.activeElement`.
-  [`glossaryManage.test.ts:1034`](../../tests/frontend/glossaryManage.test.ts#L1034)
+  [`glossaryManage.test.ts:1034`](../../../tests/frontend/glossaryManage.test.ts#L1034)
 
 - ⑤e: xoá hàng cuối bằng lời gọi THẬT, không `.trigger()` — `.trigger()` cho xanh giả ở đây.
-  [`glossaryManage.test.ts:1087`](../../tests/frontend/glossaryManage.test.ts#L1087)
+  [`glossaryManage.test.ts:1087`](../../../tests/frontend/glossaryManage.test.ts#L1087)
 
 - ⑤f: đổi bộ lọc không được cướp tiêu điểm khỏi ô tìm đang gõ.
-  [`glossaryManage.test.ts:1132`](../../tests/frontend/glossaryManage.test.ts#L1132)
+  [`glossaryManage.test.ts:1132`](../../../tests/frontend/glossaryManage.test.ts#L1132)
 
 - ④a: `陳` nới ngưỡng đúng như vế giản `陈`.
-  [`glossary_scan_contract.rs:383`](../../src-tauri/tests/glossary_scan_contract.rs#L383)
+  [`glossary_scan_contract.rs:383`](../../../src-tauri/tests/glossary_scan_contract.rs#L383)
 
 - ④b: `鬍` KHÔNG được nới — bảng chỉ nới cho họ.
-  [`glossary_scan_contract.rs:402`](../../src-tauri/tests/glossary_scan_contract.rs#L402)
+  [`glossary_scan_contract.rs:402`](../../../src-tauri/tests/glossary_scan_contract.rs#L402)
 
 - ④c: ca quần thể bắt `於` nếu ai đó dán nguyên bảng đo vào.
-  [`glossary_scan_contract.rs:433`](../../src-tauri/tests/glossary_scan_contract.rs#L433)
+  [`glossary_scan_contract.rs:433`](../../../src-tauri/tests/glossary_scan_contract.rs#L433)
 
 - ①b: `Err(vec![])` không lái được qua `parse()` thật, nên hàm thuần là đường duy nhất.
-  [`glossary_import_dialog_contract.rs:732`](../../src-tauri/tests/glossary_import_dialog_contract.rs#L732)
+  [`glossary_import_dialog_contract.rs:732`](../../../src-tauri/tests/glossary_import_dialog_contract.rs#L732)

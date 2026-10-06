@@ -549,7 +549,7 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 
 ### References
 
-- AC nguyên văn — `_bmad-output/planning-artifacts/epics.md:2075-2115`
+- AC nguyên văn — `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2075-2115`
 - FR100 — `epics.md:290` · NFR2 — `:326` · NFR18 — `:368` · UX-DR30 — `:563` · UX-DR32 *(gộp ngầm, Story 2.9)* — `:569`
 - Hợp đồng flush ở dạng bảng — `epics.md:415`
 - AD-1 — `ARCHITECTURE-SPINE.md:75-79` · AD-4 — `:95-101` · AD-11 — `:153-157` · AD-12 — `:159-163` · AD-21 — `:302-306` · AD-31 — `:368-392` · **AD-35 — `:419-425`** · AD-34 — `:406-417`
@@ -576,8 +576,8 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 - Cổng phụ thuộc, sàn cây, và luật *"exit khác 0 khi thất bại"* — `scripts/check-deps.mjs:1-52`
 - **Bảng Stack là tài liệu Dev ĐƯỢC đồng bộ** — action item Epic 1 *(“`ARCHITECTURE-SPINE.md` lỗi thời so với mã — 8 chỗ… bảng Stack +10 phụ thuộc… `lint_spine.py` 0 findings”)*, `sprint-status.yaml` §action_items
 - Nợ `isTypingZone` — `deferred-work.md:181-182` · nợ **Kiểm J hết hạn** — `:2135-2139` · nợ *"xét lại `Selection.anchorNode` ở 2.3"* — `:2120-2126` · nợ WKWebView thật — `:2127-2134` · giới hạn bàn đo 2.2 — `:2113-2119` · trần NFR2 dựng 9.850 span — `:2100-2112` · nợ *"mọi bằng chứng trên Blink"* — `:145` · vết sẹo rò ký tự chèn — `:839-848` · không bộ chạy test frontend — `:875-882`
-- Bài học Epic 1 — `_bmad-output/implementation-artifacts/epic-1-retro-2026-08-11.md` §4, §5, §7.1, §8.1, §8.2
-- Story trước — `_bmad-output/implementation-artifacts/2-2-panel-editor-lien-mach.md` · bàn đo — `2-2-ban-do-editor.html`
+- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
+- Story trước — `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-panel-editor-lien-mach-plan.md` · bàn đo — `2-2-ban-do-editor.html`
 
 ---
 
@@ -914,8 +914,8 @@ eslint.config.js                           # + tests/frontend/** vào hai khối
 .github/workflows/ci.yml                   # + bước `npm run test`
 .githooks/pre-push                         # + `npm run test` (danh sách thứ BA)
 _bmad-output/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md   # bảng Stack + 3 hàng
-_bmad-output/implementation-artifacts/deferred-work.md                   # đóng 2 món, ghi 10 món
-_bmad-output/implementation-artifacts/sprint-status.yaml                 # in-progress → review
+_bmad-output/initiative-auratranslate/deferred-work.md                   # đóng 2 món, ghi 10 món
+_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml                 # in-progress → review
 ```
 
 **Không đụng, có chủ ý:** `epics.md` · `DESIGN.md` · `capabilities/main.json` · `schema.rs` *(không bước di trú 7)* · hành vi `createWriteSchedule` · `check-layout.mjs` Kiểm B · `check-commands.mjs` Kiểm C/E · `core/segment/split.rs` · `PanelFrame.vue` · `SourcePanel.vue`.
@@ -1051,6 +1051,6 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   # hoi "co NEN chay khong?" — Ice tra loi ngay 2026-08-13: KHONG. AC23 nay doc: "Editor KHONG
   # phat luot tra tu dien". `EditorPanel.vue` + `AiTranslationPanel.vue` doi vai 'source' →
   # 'display'; `editorAutoLookup.test.ts` dao menh de + THEM mot ca doi chung duong; Kiem F
-  # nhan menh de ③ ghim hai panel. Chi tiet: `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+  # nhan menh de ③ ghim hai panel. Chi tiet: `initiative-auratranslate/change-auto-lookup-thu-ve-panel-source/change-auto-lookup-thu-ve-panel-source.md`.
   # ⚠️ Cung luot do sua mot menh de NGUYEN TAC o `EXPERIENCE.md:131` — xem §4.8 cua proposal.
 ```

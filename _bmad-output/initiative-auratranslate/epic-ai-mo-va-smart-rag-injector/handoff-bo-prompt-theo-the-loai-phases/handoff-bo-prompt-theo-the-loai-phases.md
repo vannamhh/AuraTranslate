@@ -775,7 +775,7 @@ one item — nothing to close in words in the ledger since nothing was entered).
 
 Task 14.
 
-`_bmad-output/implementation-artifacts/deferred-work.md`, appended at EOF only. Two items, each
+`_bmad-output/initiative-auratranslate/deferred-work.md`, appended at EOF only. Two items, each
 with an owner: the mockup's language pair and applicability pills (Decision 4, owner Story 4.5),
 and `{{chapter_context}}` staying outside the ratified vocabulary (owner Story 4.6). Never modify
 or delete an existing entry.

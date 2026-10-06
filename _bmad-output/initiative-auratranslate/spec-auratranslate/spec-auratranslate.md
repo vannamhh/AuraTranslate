@@ -11,12 +11,12 @@ companions:
   - data-sources.md
   - build-sequence.md
   - risks.md
-  - _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/addendum.md
-  - _bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/DESIGN.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md
+  - _bmad-output/initiative-auratranslate/prd-auratranslate/addendum.md
+  - _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md
+  - _bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md
+  - _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md
 sources:
-  - _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md
+  - _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
 ---
 
 > **Hợp đồng canonical.** SPEC này cùng các file trong `companions:` là hợp đồng đầy đủ, đã qua kiểm chứng bảo toàn, về thứ phải xây, phải test và phải nghiệm thu. Tài liệu ở `sources:` chỉ phục vụ truy vết — chỉ mở khi cần phần lập luận tường thuật mà hợp đồng này cố ý lược bỏ.

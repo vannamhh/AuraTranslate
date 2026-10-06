@@ -7,8 +7,8 @@ status: done
 baseline_revision: '07766f01df4152144e742b33c2427d6ac9d9e404'
 review_loop_iteration: 0
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-bang-cho-ung-vien-tach-han-khoi-glossary-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -108,11 +108,11 @@ context:
 - [x] `src/commands/index.ts` + `src/main.ts` -- lệnh `glossary.add_term`, `labelKey: 'command.glossary.add_term'`, `keys: ['Mod+Alt+G']`; field `CommandDeps` mới nhận hàm mở dải và một hàm đọc vùng chọn thô; nối thật ở `main.ts` -- `index.ts` phải nạp được bằng Node thuần nên mọi state Vue đi vào qua `CommandDeps`, không qua `import`.
 - [x] `src/i18n/vi.json` -- khoá `command.glossary.add_term` + nhãn dải, bốn phân loại, hai tầng, lý do tầng Tác phẩm chưa dùng được, hai khoá lỗi Rust -- giọng vô nhân xưng, khoá phẳng có tiền tố miền, placeholder đúng dải `{ten_tham_so}`.
 - [x] `scripts/check-commands.mjs` · `check-i18n.mjs` · `check-panel-refs.mjs` · `check-layout.mjs` · `check-tokens.mjs` · `src-tauri/tests/glossary_boundary.rs` -- đo lại bằng chính cổng rồi nâng tám hằng sàn về dải 80–85 %, mỗi hằng kèm số THẬT + ngày -- sàn là cận dưới nên tệp thừa không làm cổng đỏ, nó chỉ làm sàn vô nghĩa; `RS_FLOOR = 36` đã tụt còn 73 % **trước** story này.
-- [x] `_bmad-output/project-context.md` -- sửa `:184-187` kèm 🔵 + ngày: **bảy** adapter, không sáu -- mệnh đề hết đúng thì sửa tại chỗ.
+- [x] `_bmad-output/inbox/project-context.md` -- sửa `:184-187` kèm 🔵 + ngày: **bảy** adapter, không sáu -- mệnh đề hết đúng thì sửa tại chỗ.
 - [x] `src-tauri/tests/glossary_boundary.rs` -- giữ `GLOSSARY_ONLY_SURFACE` ở ba tên; thêm phép kiểm ba hàm mới **được phép** gọi từ `commands/glossary.rs` và một đối chứng dương rằng cổng vẫn đỏ nếu ai gọi `load_tier` từ đó -- một cổng chưa bao giờ đỏ là một cổng chưa ai biết nó có chạy không.
 - [x] `src-tauri/tests/glossary_contract.rs` -- mọi hàng của I/O Matrix chạm Rust, tên hàm là một CÂU khẳng định; tái dùng `every_blank_form()` `:296` -- ca *"cụm có ở CẢ hai tầng"* và ca *"cụm đang chờ chốt vẫn mở SỬA"* là hai ca dễ cài ngược nhất.
 - [x] `tests/frontend/glossaryQuickAdd.test.ts` -- chế độ dải là **hàm thuần** của `(source_term, kết quả tra)`; ô nguồn rỗng khi không có vùng chọn; `Esc` trả lại phần tử focus đã lưu; ba trạng thái của vị từ `…HasLoaded` -- vế **thị giác** và vế **vùng chọn trên engine thật** thuộc bàn đo tay, không thuộc `happy-dom`.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối 🔵 vào `:5506-5520` chuyển chủ sang **Story 3.8** kèm lý do *(story 3.3 không gọi `approve_candidate`/`reject_candidate` một lần nào — tiền đề "bề mặt IPC đầu tiên chạm `candidate_store`" đo lại là sai)*; đóng `:5380-5385` và `:603`; mở bốn mục mới MỖI mục một chủ: `From<ScopeError> for IpcError` đứng riêng (**Chủ: Epic 7**) · `debug_assert_eq!` không bắn ở release (**Chủ: Story 3.9**) · đổi tầng một mục đã có (**Chủ: Story 3.9**) · ứng viên trùng một mục vừa thêm tay nằm lại bảng chờ (**Chủ: Story 3.5**) -- `check:debt-owner` đỏ với mục mồ côi, và không bao giờ xoá một mục đã đóng.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối 🔵 vào `:5506-5520` chuyển chủ sang **Story 3.8** kèm lý do *(story 3.3 không gọi `approve_candidate`/`reject_candidate` một lần nào — tiền đề "bề mặt IPC đầu tiên chạm `candidate_store`" đo lại là sai)*; đóng `:5380-5385` và `:603`; mở bốn mục mới MỖI mục một chủ: `From<ScopeError> for IpcError` đứng riêng (**Chủ: Epic 7**) · `debug_assert_eq!` không bắn ở release (**Chủ: Story 3.9**) · đổi tầng một mục đã có (**Chủ: Story 3.9**) · ứng viên trùng một mục vừa thêm tay nằm lại bảng chờ (**Chủ: Story 3.5**) -- `check:debt-owner` đỏ với mục mồ côi, và không bao giờ xoá một mục đã đóng.
 
 **Acceptance Criteria:**
 - Given một `grep` trên `src-tauri/src/**`, when tìm `insert_manual_entry`/`confirm_translation`/`load_tier`, then không tệp nào ngoài `core/glossary/**` gõ ba tên đó — kể cả `commands/glossary.rs` vừa dựng.
@@ -191,65 +191,65 @@ mode(source_term, lookup) =
 **Bất biến trung tâm — bề mặt IPC đầu tiên của `glossary/`, và ba tên bị cấm vẫn bị cấm**
 
 - Chỗ ĐẦU TIÊN `OpenWork.scope` được đọc trong mã sản phẩm — đóng `deferred-work.md:603`.
-  [`glossary.rs:54`](../../src-tauri/src/commands/glossary.rs#L54)
+  [`glossary.rs:54`](../../../src-tauri/src/commands/glossary.rs#L54)
 
 - Ba hàm phơi ra MỚI, không nới cổng: đường Ice đã ký ở Story 3.1.
-  [`store.rs:495`](../../src-tauri/src/core/glossary/store.rs#L495)
+  [`store.rs:495`](../../../src-tauri/src/core/glossary/store.rs#L495)
 
 - Ghi tay đi qua helper dùng chung — một hình dạng hàng, không hai.
-  [`store.rs:79`](../../src-tauri/src/core/glossary/store.rs#L79)
+  [`store.rs:79`](../../../src-tauri/src/core/glossary/store.rs#L79)
 
 - Cầu lỗi sang dây; nhánh `Scope` mang `code` ổn định, KHÔNG tham số mang câu.
-  [`store.rs:378`](../../src-tauri/src/core/glossary/store.rs#L378)
+  [`store.rs:378`](../../../src-tauri/src/core/glossary/store.rs#L378)
 
 **Tra hai tầng — chỗ dễ cài ngược nhất**
 
 - Không lọc `is_confirmed`: mục chờ chốt bị lọc mất thì dải mở nhầm chế độ THÊM.
-  [`store.rs:495`](../../src-tauri/src/core/glossary/store.rs#L495)
+  [`store.rs:495`](../../../src-tauri/src/core/glossary/store.rs#L495)
 
 - Sửa theo cặp `(tầng, id)` — `id` trần là một lượt `UPDATE` vào nhầm kho.
-  [`store.rs:577`](../../src-tauri/src/core/glossary/store.rs#L577)
+  [`store.rs:577`](../../../src-tauri/src/core/glossary/store.rs#L577)
 
 **Vùng chọn — điều kiện khởi hành của story**
 
 - Đường RIÊNG, không lọc `role`: `currentSelectionText()` rỗng ở ba trong bốn bề mặt.
-  [`selectionContract.ts:232`](../../src/panels/selectionContract.ts#L232)
+  [`selectionContract.ts:232`](../../../src/panels/selectionContract.ts#L232)
 
 **Dải — chế độ là hàm thuần, và lượt ghi có chốt**
 
 - Chế độ suy từ kết quả tra, không phải cờ đặt lúc mở.
-  [`glossaryQuickAddState.ts:109`](../../src/glossaryQuickAddState.ts#L109)
+  [`glossaryQuickAddState.ts:109`](../../../src/glossaryQuickAddState.ts#L109)
 
 - `Esc` giữa lúc ghi KHÔNG đóng dải — màn hình không được nói khác đĩa.
-  [`glossaryQuickAddState.ts:248`](../../src/glossaryQuickAddState.ts#L248)
+  [`glossaryQuickAddState.ts:248`](../../../src/glossaryQuickAddState.ts#L248)
 
 - Chốt tái nhập: lượt Lưu thứ hai bị từ chối, không phát IPC thứ hai.
-  [`glossaryQuickAddState.ts:267`](../../src/glossaryQuickAddState.ts#L267)
+  [`glossaryQuickAddState.ts:267`](../../../src/glossaryQuickAddState.ts#L267)
 
 - Nút Lưu là `submit`, nên Kiểm A của `check:commands` không canh nó — đọc kỹ chỗ này.
-  [`GlossaryQuickAdd.vue:99`](../../src/GlossaryQuickAdd.vue#L99)
+  [`GlossaryQuickAdd.vue:99`](../../../src/GlossaryQuickAdd.vue#L99)
 
 **Cưỡng chế — cổng biên giữ nguyên ba tên**
 
 - Danh sách cấm KHÔNG nới thêm dù có chỗ gọi sản phẩm mới.
-  [`glossary_boundary.rs:99`](../../src-tauri/tests/glossary_boundary.rs#L99)
+  [`glossary_boundary.rs:99`](../../../src-tauri/tests/glossary_boundary.rs#L99)
 
 - Cổng khẳng định bề mặt IPC gọi ba hàm mới, không gọi ba tên cấm.
-  [`glossary_boundary.rs:536`](../../src-tauri/tests/glossary_boundary.rs#L536)
+  [`glossary_boundary.rs:536`](../../../src-tauri/tests/glossary_boundary.rs#L536)
 
 **Test — bốn ca đáng đọc nhất**
 
 - Ca giết story nếu `work_context` thoái hoá: AD-18 qua chính bề mặt thật.
-  [`glossary_commands_contract.rs:140`](../../src-tauri/tests/glossary_commands_contract.rs#L140)
+  [`glossary_commands_contract.rs:140`](../../../src-tauri/tests/glossary_commands_contract.rs#L140)
 
 - Hai bản chép của cùng một hợp đồng dây nay có cổng kiểm chéo.
-  [`glossary_contract.rs:2305`](../../src-tauri/tests/glossary_contract.rs#L2305)
+  [`glossary_contract.rs:2305`](../../../src-tauri/tests/glossary_contract.rs#L2305)
 
 - Mục chờ chốt vẫn mở SỬA — vế mà `entries_eligible_for_injection` lọc mất.
-  [`glossary_contract.rs:1955`](../../src-tauri/tests/glossary_contract.rs#L1955)
+  [`glossary_contract.rs:1955`](../../../src-tauri/tests/glossary_contract.rs#L1955)
 
 - Đối chứng hai chiều cho vai `display`; một chiều thôi không chứng minh gì.
-  [`glossarySelectionContract.test.ts:68`](../../tests/frontend/glossarySelectionContract.test.ts#L68)
+  [`glossarySelectionContract.test.ts:68`](../../../tests/frontend/glossarySelectionContract.test.ts#L68)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

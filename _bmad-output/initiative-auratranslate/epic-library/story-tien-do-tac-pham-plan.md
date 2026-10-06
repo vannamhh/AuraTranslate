@@ -15,7 +15,7 @@ context:
   - '{project-root}/tests/AGENTS.md'
   - '{project-root}/e2e/AGENTS.md'
   - '{project-root}/scripts/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-5-context.md'
 warnings: ['oversized']
 deferred:
   - summary: >-
@@ -247,7 +247,7 @@ cây nguồn, không bằng một lượt rà tay.
     Đã xong" → tải lại → khẳng định `1 / 1` và `aria-valuenow="1"`. Dùng `realClick`, móc
     `[data-lifecycle-action="…"]`, không `:nth-of-type`. -- AC5 là mệnh đề ĐẦU-TỚI-CUỐI; nó
     chỉ được nghiệm thu ở webview thật.
-12. [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- đóng bằng chữ mục *"`meta.json`
+12. [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- đóng bằng chữ mục *"`meta.json`
     (và do đó mọi cột `library_work` chép từ nó) là ẢNH CHỤP lúc tạo"* cho **vế
     `chapter_count`** kèm số đo mới (xem §Design Notes), và ghi rõ vế `updated_at` VẪN MỞ, chủ
     Story 5.6. -- Luật đóng nợ bằng chữ; không xoá mục đã đóng.

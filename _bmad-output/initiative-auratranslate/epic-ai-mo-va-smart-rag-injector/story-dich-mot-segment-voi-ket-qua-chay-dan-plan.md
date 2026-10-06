@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '5a23410790642ea43ae0ca3169a49dbef425d517'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -456,7 +456,7 @@ implement a whole story).
       debt item `deferred-work.md:10653` has **no** standing guard; and `pop_piece` pops `'\r'` from
       the `pieces` mirror based on what `out` ends with, not on what that piece ends with, so the two
       can disagree if a `\r` and its `\n` ever land in different pieces.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — close the four absorbed items in
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — close the four absorbed items in
       words (`:10653` · `:10666` · `:10789` · `:10441`), and re-own the other eight, each with a
       named owner: `:4540` · `:10485` · `:10497` · `:10513` · `:10552` · `:10642` · `:10840`, plus
       `:10240` (the "test connection" AC, Decision 4) — rationale: a debt item closes in words or

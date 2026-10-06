@@ -247,7 +247,7 @@ Ghi lệch mockup này vào Change Log.
 - [x] [Review][Patch] `toggleLookupPin` tính hướng ghim/bỏ-ghim từ `pinnedRaw` chưa cập nhật — hai lượt bấm nhanh cho hai lượt GHIM thay vì ghim-rồi-bỏ [src/panels/lookupHistoryState.ts:464]
 - [x] [Review][Patch] Mũi tên trái/phải trên dải tab đổi tab nhưng **không** dời tiêu điểm DOM — hợp đồng `tabindex` roving khai một nửa, và người dùng bàn phím kẹt ở tab thứ hai [src/panels/LookupPanel.vue:395]
 - [x] [Review][Patch] Ba chú thích còn sót lại phạm vi CŨ sau lượt ký lại 2026-08-11 — một trong số đó mô tả sai chính hàm ngay dưới nó [src-tauri/src/lib.rs:88 · src/panels/lookupPanelState.ts:330 · src-tauri/src/core/store/schema.rs:256]
-- [x] [Review][Patch] Ba con số trong §Completion Notes / §Task 5 / §File List không khớp số đo lại — vi phạm chính AC13 [_bmad-output/implementation-artifacts/1-20-lich-su-tra-cuu-va-muc-da-ghim.md:759]
+- [x] [Review][Patch] Ba con số trong §Completion Notes / §Task 5 / §File List không khớp số đo lại — vi phạm chính AC13 [_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-lich-su-tra-cuu-va-muc-da-ghim-plan.md:759]
 - [x] [Review][Patch] `resetLookupHistory()` không rào lượt ghi ghim đang bay — một lỗi ghi về muộn dựng lại banner của Tác phẩm đã rời [src/panels/lookupHistoryState.ts:344]
 - [x] [Review][Patch] *(từ Decision 1)* Dựng thêm lưới bằng máy thu hẹp khoảng trống AC3 — hôm nay `pins_survive_closing_and_reopening_the_store` dừng ở tầng `Store`, không chạm mối nối `commands::pinned` [src-tauri/tests/pinned_contract.rs]
 - [x] [Review][Defer] Không token thứ tự giữa phản hồi `loadPinnedEntries()` và phản hồi `pinWriteQueue` [src/panels/lookupHistoryState.ts:365] — deferred, hôm nay chỉ có một lượt nạp và không đường nào tới được
@@ -669,8 +669,8 @@ Test bắt buộc cho story này:
 
 ## References
 
-- `_bmad-output/planning-artifacts/epics.md:1845-1878` — Story 1.20, sáu AC nguyên văn
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:504` — FR41 · `:1080` — giả định A9 · `:877,890` — NFR16, NFR17
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1845-1878` — Story 1.20, sáu AC nguyên văn
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:504` — FR41 · `:1080` — giả định A9 · `:877,890` — NFR16, NFR17
 - `.../architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` — AD-1 `:75-79` · AD-7 `:119-131` · AD-11 `:153-157` · AD-21 `:302-306` · AD-30 `:362-366` · AD-34 `:406-417` · AD-35 `:425` · AD-44 ④ `:622` · Conventions `:639-652` · Stack `:664-712` · Structural Seed `:781-815` · Capability Map `:823`
 - `.../ux-designs/ux-AuraTranslate-2026-08-02/mockups/lookup-history-pins.html` — mockup chính; `:103` dải tab · `:106-111` bộ lọc (bị loại, QĐ #5) · `:114-131` hàng ghim · `:133-155` hàng lịch sử · `:157-158` quy tắc ghim-vs-lịch-sử · `:171-172` luật dedupe · `:189-206` hai trạng thái rỗng
 - `.../ux-designs/.../DESIGN.md:169-186` token màu · `:260-297` typography · `:341-348` motion · `:354-360` hình dạng và component "Bản ghi từ điển" · `:377` cấm màu viết thẳng
@@ -684,9 +684,9 @@ Test bắt buộc cho story này:
 - `src-tauri/src/commands/config.rs:104-192` khuôn IPC hai lớp
 - `src-tauri/src/core/i18n/mod.rs:216-297` `IpcError`, `MessageKey`
 - `scripts/check-commands.mjs:211-238` các sàn · `:1648` `SELECTION_SURFACE_FLOOR`
-- `_bmad-output/implementation-artifacts/deferred-work.md:656` `event.repeat` · `:672` `SELECTION_PANEL_FILES` chép tay · `:836-846` nợ "không bộ chạy test frontend" · `:886-891` luật ghi số bất thường · `:940-943` luật "chạy thật, không đọc chú thích"
-- `_bmad-output/implementation-artifacts/1-18-auto-lookup.md:83-91,256` ràng buộc một điểm nghẽn để lại cho 1.20
-- `_bmad-output/implementation-artifacts/1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md:154-155` phân định tab thứ ba · `:206-229` tiền lệ persistence · `:607-633` Bẫy 4 và Bẫy 8
+- `_bmad-output/initiative-auratranslate/deferred-work.md:656` `event.repeat` · `:672` `SELECTION_PANEL_FILES` chép tay · `:836-846` nợ "không bộ chạy test frontend" · `:886-891` luật ghi số bất thường · `:940-943` luật "chạy thật, không đọc chú thích"
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-auto-lookup-plan.md:83-91,256` ràng buộc một điểm nghẽn để lại cho 1.20
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-bat-tat-nguon-tu-dien-va-ghi-cong-plan.md:154-155` phân định tab thứ ba · `:206-229` tiền lệ persistence · `:607-633` Bẫy 4 và Bẫy 8
 
 ---
 
@@ -874,5 +874,5 @@ bằng Rust.
 - `scripts/check-i18n.mjs` — nâng `RS_FLOOR`
 - `src-tauri/tests/store_contract.rs` — target `global.db` 2 → 3, sổ di trú 3 bản ghi, assert bảng mới
 - `src-tauri/tests/scope_contract.rs` — `== 2` nới thành `>= 2` (ca đó không sở hữu target)
-- `_bmad-output/implementation-artifacts/deferred-work.md` — 10 mục nợ mới
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái story
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — 10 mục nợ mới
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái story

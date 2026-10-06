@@ -1081,7 +1081,7 @@ editor bằng doctrine `deferred-work.md:2261` *(không phải AD đánh số)*.
 - [x] [Review][Decision] **AC8 bị bác thì AC3 không có đường về** — AC8 nói rõ *"lệch ⇒ giả thuyết sai… báo, đừng vá"*, nhưng AC3 vẫn buộc *"chọn được một giá trị đạt cả hai ngưỡng"*. Nếu giả thuyết ở §Điều kiện khởi hành mục 7-8 *(`wal_threshold_bytes` chỉ đánh đổi với NFR2, không với NFR18)* sai, toàn bộ mô hình phân rã sụp và spec không nói dựa vào tiêu chí nào để chọn giá trị nữa.
 - [x] [Review][Decision] **AC19 chốt ngưỡng lặp lại đúng bằng cỡ mẫu mà chính nó dẫn ra là đã bị bác** — AC19 đòi *"ít nhất một phép đo chạy **hai** lượt độc lập"*, đồng thời trích bài học C3 của Story 1.22: kết luận "ổn định" trên **n=2** rồi bị chính bộ e2e bác ở lượt thứ tám. Cảnh báo *"nói cỡ mẫu ra, đừng nói ổn định"* có, nhưng ngưỡng nghiệm thu vẫn dừng ở đúng n=2. Ice chốt: giữ n=2 kèm cấm mọi lời khai "ổn định", hay nâng sàn?
 - [x] [Review][Decision] **Hai bàn đo cho trần 9.850 span chưa được nối khớp** — bảng số cũ *(300,1 ms Blink · 1.308,0 ms WebKit)* đến từ bàn đo **hai engine ngoài app** (Playwright, kiểu 2.2/2.3). Nhưng ĐÍNH CHÍNH của Quyết định #1 chốt đo **trong app Tauri thật** — tức **chỉ WKWebView**. Task 3 đòi *"đo lại… đặt cạnh số cũ"* mà không nói dùng bàn nào. Vỡ khi: dev chỉ đo lại WKWebView rồi đặt cạnh một số Blink không được đo lại — bảng so sánh lẫn số cũ *(synthetic, text rỗng)* với số mới *(text thật)* và không ai kiểm phép so sánh còn hợp lệ không.
-- [x] [Review][Patch] 🔴 `sprint-status.yaml` khai sai trạng thái thật của story [_bmad-output/implementation-artifacts/sprint-status.yaml:9] — dòng log ghi *"chuyen sang **ready-for-dev** (create-story)"* trong khi giá trị thật ở `:34` là `in-progress`, và story ghi `Status: in-progress`. Nặng hơn: lý do chặn ghi mơ hồ là *"co dieu kien chan"*, nhưng §Dev Agent Record *(`:952`, chặn ở `:1277`)* cho thấy đây **không** còn là "điều kiện khởi hành chưa mở" — mà là **bản thân bộ đo đang bế tắc**: bốn lượt build hỏng, bốn giả thuyết bị bác, chưa tiêm được `bench.js` vào webview bản release. Người đọc sprint-status sẽ đánh giá sai hoàn toàn mức sẵn sàng.
+- [x] [Review][Patch] 🔴 `sprint-status.yaml` khai sai trạng thái thật của story [_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml:9] — dòng log ghi *"chuyen sang **ready-for-dev** (create-story)"* trong khi giá trị thật ở `:34` là `in-progress`, và story ghi `Status: in-progress`. Nặng hơn: lý do chặn ghi mơ hồ là *"co dieu kien chan"*, nhưng §Dev Agent Record *(`:952`, chặn ở `:1277`)* cho thấy đây **không** còn là "điều kiện khởi hành chưa mở" — mà là **bản thân bộ đo đang bế tắc**: bốn lượt build hỏng, bốn giả thuyết bị bác, chưa tiêm được `bench.js` vào webview bản release. Người đọc sprint-status sẽ đánh giá sai hoàn toàn mức sẵn sàng.
 - [x] [Review][Patch] 🔴 AC3 thu hẹp câu hỏi của hàng Deferred `:894` mà không có chỗ ghi sự thu hẹp [ARCHITECTURE-SPINE.md:894] — hàng Deferred đóng khung bài toán là `wal_threshold_bytes` ⟷ nhịp flush **đánh đổi lẫn nhau** để đạt **cả** NFR18 và NFR2. §Điều kiện khởi hành mục 7-8 tự kết luận NFR18 **không** treo trên `wal_threshold_bytes` *(vì `synchronous=FULL` đã đảm bảo bền)*, nên *"cặp đánh đổi thật của AC3 là `wal_threshold_bytes` ⟷ NFR2"*. Nếu AC8 xác nhận, khuôn `✅ Đã đóng` sẽ đóng một câu hỏi **hẹp hơn** câu hỏi gốc — và không cơ chế nào buộc ghi sự thu hẹp vào chính dòng đóng. Người đọc SPINE sau này tin nhầm trade-off gốc đã giải triệt để.
 - [x] [Review][Patch] Trích dẫn `deferred-work.md:145` sai ~1.800 dòng [2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi.md:AC20] — story trích `:145` cho luận điểm *"trọn phần Windows dời về cuối dự án — Ice chốt 2026-08-12"* ở cả §Điều kiện khởi hành mục 13, AC20 và §References. Nhưng `:145` thật là nợ của **Story 1.6**: *"Nghiệm thu DOM chạy trên Blink (Chrome), KHÔNG phải WKWebView"* — nói về **engine**, không về Windows. Câu được trích thật sự nằm ở **`:1954-1957`**. *(Đã kiểm tay.)*
 - [x] [Review][Patch] AC9 đếm nhầm cái cần đếm, và tiêu chí loại mẫu có thể bẻ cong phân bố [2-4-...md:AC9] — ① Task 4 đòi *"≥ 20 lượt SIGKILL"* còn AC9 lại vứt lượt nào để lại `.db-wal` = 0 byte; bắn 20 lượt mà 8 lượt trúng ngay sau checkpoint thì còn **12 mẫu hợp lệ** nhưng Task 4 vẫn coi là xong — phải đòi ≥ 20 lượt **hợp lệ**. ② Một `SIGKILL` rơi đúng lúc app rảnh *(đã checkpoint xong, không còn gì chờ ghi)* để lại WAL gần rỗng — đó là một kết quả **THÀNH CÔNG** *(mất 0 giây công việc)*, không phải "kill trượt". Loại thẳng nhóm này đẩy phân bố đo được lệch về phía **xấu hơn** thực tế; cần tách "kill trượt" khỏi "kill trúng lúc rảnh" bằng dấu hiệu khác kích thước WAL.
@@ -1245,7 +1245,7 @@ src/panels/editorFlush.ts              # ba hằng + doc-comment "TẠM" → s�
 ARCHITECTURE-SPINE.md                  # bảng Deferred: đóng :990 và :993 (+ bảng Stack nếu AC4 chốt "có")
 architecture/.../.memlog.md            # một dòng (version) + một dòng (decision)
 _bmad-output/implementation-artifacts/2-2-ban-do-editor.html   # sửa lời khai NFR15 ở dòng 11
-_bmad-output/implementation-artifacts/deferred-work.md         # đóng mười món, mở món mới KÈM CHỦ
+_bmad-output/initiative-auratranslate/deferred-work.md         # đóng mười món, mở món mới KÈM CHỦ
 src/panels/GridPanel.vue               # CHỈ nếu Task 6 kết luận cần vá, và chỉ ba đường đã nêu tên
 ```
 
@@ -1281,7 +1281,7 @@ tiền tố `test_`.
 
 ### References
 
-- AC nguyên văn — `_bmad-output/planning-artifacts/epics.md:2118-2149`
+- AC nguyên văn — `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2118-2149`
 - NFR2 — `epics.md:326` · NFR18 — `epics.md:368` · hợp đồng flush dạng bảng — `:415` · hàng *"Ngưỡng WAL + nhịp flush"* trong bảng NFR — `:454` · ghi chú cài đặt Epic 2 *(mũi thăm dò bắt buộc)* — `:830-836`
 - AD-1 — `ARCHITECTURE-SPINE.md:75-79` · AD-4 — `:95-101` · **AD-11 — `:153-157`** · **AD-12 — `:159-163`** · AD-21 — `:302-306` · AD-31 — `:368-392` · AD-34 — `:406-417` · **AD-35 — `:419-425`**
 - **Hàng Deferred phải đóng** — `ARCHITECTURE-SPINE.md:990` *(ngưỡng WAL + nhịp flush)* · `:993` *(thư viện editor)* · **hàng KHÔNG đóng** — `:995` *(ảo hoá danh sách dài)*
@@ -1296,7 +1296,7 @@ tiền tố `test_`.
 - Móc e2e hai lớp AD-45 — `src-tauri/src/lib.rs:60-144` · `default_library_root` — `src-tauri/src/commands/project.rs:61-80` · `wire_exit_flush` — `lib.rs:343-350` · `RunEvent::Exit` — `:272-278`
 - `[profile.release]` *(`opt-level = "s"`, `lto`, `panic = "abort"`, `strip`)* — `src-tauri/Cargo.toml`
 - Fixture workspace + hai lựa chọn có chủ ý — `e2e/support/workspace.mjs` · giới hạn bộ e2e *(chập chờn, `element.click()` không trung thực, `$APPDATA`/Library root)* — `e2e/wdio.conf.mjs` §Giới hạn · chuột thật — `e2e/support/pointer.mjs`
-- **Khuôn báo cáo mũi thăm dò** — `_bmad-output/planning-artifacts/research/phase-0-spike-results-2026-08-02.md` · `font-spike-results-2026-08-03.md` · §Tiền lệ cần theo của Story 1.1 — `1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep.md:254-273`
+- **Khuôn báo cáo mũi thăm dò** — `_bmad-output/initiative-auratranslate/research-phase-0-spike-results/research-phase-0-spike-results.md` · `font-spike-results-2026-08-03.md` · §Tiền lệ cần theo của Story 1.1 — `1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep.md:254-273`
 - **Story trước** — `2-3-hop-dong-flush-va-trang-thai-da-luu.md` *(đặc biệt §ĐÍNH CHÍNH đầu tệp · §Debug Log Task 0.1 · §Bảng AC25 · §Nghiệm thu cuối)* · `2-2-panel-editor-lien-mach.md` · bàn đo — `2-2-ban-do-editor.html` · `2-3-ban-do-vung-go.html`
 - **Nợ có chủ là story này** — `deferred-work.md:201-212` · `:214` · `:234` · `:570` · `:591` · `:2084-2090` · `:2167-2168` · `:2419` · `:2441` · `:2449`
 - **Nợ đi qua, chủ khác** — `deferred-work.md:2290-2297` *(ca e2e còn đỏ — Story 2.3 tiếp)* · `:2317-2340` *(phán quyết AD-34 — Ice)* · `:145` *(mọi bằng chứng chỉ macOS)*
@@ -2544,7 +2544,7 @@ Lượt 2026-08-18 **(a)** — 🔴 **0 tệp mã sản phẩm**. Toàn bộ n�
 
 **Sửa:**
 ```
-_bmad-output/implementation-artifacts/2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi.md
+_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md
 _bmad-output/implementation-artifacts/2-4-ban-do/README.md
 _bmad-output/implementation-artifacts/2-4-ban-do/focus-segment.sh      # nhịp 2,4 s → 4,5 s · toạ độ +640 → +372
 _bmad-output/implementation-artifacts/2-4-ban-do/kill-campaign-v2.sh   # vá cổng AC21 · tách nhịp stat() · ghi loadavg

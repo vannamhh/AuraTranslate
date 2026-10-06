@@ -716,7 +716,7 @@ entry `sprint-status.yaml`)* ⇒ **không** commit riêng.
 - `2-8-gop-va-tach-segment-tuong-minh.md:508` — lỗ `write_regroup` của cổng-AC8
 
 **Luật kho**
-- `_bmad-output/project-context.md` — 131 luật, đặc biệt `:253-338` *(Testing Rules, bốn đường)* ·
+- `_bmad-output/inbox/project-context.md` — 131 luật, đặc biệt `:253-338` *(Testing Rules, bốn đường)* ·
   `:300-321` *(luật của một CỔNG)* · `:456-466` *(story và spec)*. Đọc **trước** dòng mã đầu tiên.
 
 ### Thông tin kỹ thuật mới nhất
@@ -1004,7 +1004,7 @@ cũng **không** kích hoạt: `import()` động qua Vite dev cho đúng module
 - `src-tauri/tests/segment_contract.rs` — ca AC6
 
 **SỬA — tài liệu (3)**
-- `_bmad-output/implementation-artifacts/deferred-work.md` · `sprint-status.yaml` · tệp story này
+- `_bmad-output/initiative-auratranslate/deferred-work.md` · `sprint-status.yaml` · tệp story này
 
 ### Change Log
 

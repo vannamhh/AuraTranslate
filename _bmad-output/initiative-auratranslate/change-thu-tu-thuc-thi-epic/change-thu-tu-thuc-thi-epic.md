@@ -266,7 +266,7 @@ trước, rồi `epics.md`, `ARCHITECTURE-SPINE.md`, `sprint-status.yaml`.
 
 ---
 
-### 4.1 `_bmad-output/specs/spec-AuraTranslate/build-sequence.md` — bảng Giai đoạn
+### 4.1 `_bmad-output/initiative-auratranslate/spec-auratranslate/build-sequence.md` — bảng Giai đoạn
 
 **Vị trí:** dòng 5–14 (bảng chính)
 
@@ -462,7 +462,7 @@ giới `ai/` chỉ cần canh ba epic đầu — một AC **xanh mà không canh
 
 ---
 
-### 4.6 `_bmad-output/implementation-artifacts/sprint-status.yaml`
+### 4.6 `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
 
 **Vị trí:** đầu tệp (khối comment) + khối `development_status`
 

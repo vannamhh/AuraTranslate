@@ -10,7 +10,7 @@ skill: bmad-build
 
 Spec: `spec-7-5-khop-mo.md`. Baseline `d028a95aadb92a80b6a8a906194f8caeba899957`.
 
-Blocked until AD-51 (Winston, `planning-artifacts/ad-brief-2026-10-02-diff-khop-mo-tm.md`): the diff crate and wrapper, the diff field on the wire, `accept_tm_fuzzy`, and the spine AD-47 ③ row. Phases before that leave those out and say so here.
+Blocked until AD-51 (Winston, `initiative-auratranslate/ad-brief-diff-khop-mo-tm/ad-brief-diff-khop-mo-tm.md`): the diff crate and wrapper, the diff field on the wire, `accept_tm_fuzzy`, and the spine AD-47 ③ row. Phases before that leave those out and say so here.
 
 ## Rust phase
 

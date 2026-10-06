@@ -10,7 +10,7 @@ baseline_revision: 'd58cb771c39bfc51aa4f756717225abb2ccea7e4'
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -96,7 +96,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md:803` — **LÀM TRƯỚC MỌI THỨ**: hai hàng Stack mới (`zip 8.6.0`, `quick-xml 0.41.0`) sau khi mở tệp giấy phép bằng mắt, ghi đường dẫn đã mở + dòng đầu. Rồi mới `src-tauri/Cargo.toml` (ghim `=`, chú thích nêu module sở hữu).
+- [x] `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md:803` — **LÀM TRƯỚC MỌI THỨ**: hai hàng Stack mới (`zip 8.6.0`, `quick-xml 0.41.0`) sau khi mở tệp giấy phép bằng mắt, ghi đường dẫn đã mở + dòng đầu. Rồi mới `src-tauri/Cargo.toml` (ghim `=`, chú thích nêu module sở hữu).
 - [x] `src-tauri/src/core/docx/mod.rs` (**mới**) — đọc OOXML → ① văn bản đã ghép theo đoạn, ② `Vec<Block>` (đoạn + ảnh), ③ cấu trúc **đếm bảng** (`rows`, `cells_per_row`, `paragraphs_per_cell`) cho AD-38. Hàm thuần, **`Result` ở mọi nhánh, 0 điểm panic**, không chạm đĩa ngoài byte được truyền vào.
 - [x] `src-tauri/src/core/segment/import.rs:65/:479` — thêm `"docx"` vào `SUPPORTED_EXTENSIONS`; nhánh mới trong `import_file` trả `Blob(ChapterInput::AlreadyText(text))`; gỡ `.docx` khỏi nhánh `UnsupportedFormat` (`:63`/`:90`) và `commands/project.rs:1563`.
 - [x] `src-tauri/src/commands/project.rs:1017` — tách `fetch_and_write_one_asset` thành hai nửa: "lấy byte" (mạng **hoặc** zip) và "ghi + dựng hàng"; đường `.docx` đi nửa sau với `source_url = None`. **Không** dựng `Allowlist` nào trên đường này.
@@ -106,7 +106,7 @@ context:
 - [x] `src-tauri/tests/docx_contract.rs` (**mới**) — mọi hàng của ma trận I/O, chạy trên fixture **thật**; cộng ca *"đường `.txt`/dán tay không đổi một byte"*.
 - [x] `src-tauri/tests/fixtures_docx.rs` (**mới**, helper dùng chung) — sinh bảy fixture tại lúc chạy, **không commit blob**: `plain` · `table_two_columns` · `table_one_row_multi_paragraph` (ca AD-38) · `image_png` · `empty` (0 đoạn) — bằng `docx-rs` (bộ GHI); `truncated` (chặt nửa một tệp hợp lệ) và `not_a_zip` — dựng tay.
 - [x] `src-tauri/tests/docx_probe.rs` (**mới**) + `_bmad-output/implementation-artifacts/6-12-ban-do/` — bàn đo `#[ignore]` theo khuôn `webimport_probe.rs`: quét `src-tauri/tests/fixtures/docx/*.docx` (tệp **Word thật**, gitignore), ghi TSV (tên tệp · số hàng · số ô · số đoạn từng ô · số ảnh · lỗi), **0 mẫu ⇒ thoát khác 0**. `REPORT.md` + `environment.txt` mang `baseline_commit` đầy đủ.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng bằng chữ: `:9170` → **🟡** (một tệp `.docx` đi trọn đường sản phẩm; vế "do Word sinh ra" còn hở) và `:2214` → ✅ (câu bị cắt giữa ô bảng); ghi nợ **MỚI có chủ** cho mọi vế còn hở: 🔴 **0 tệp Word THẬT đi qua — fixture tự sinh chứng minh luật của ta, không chứng minh hình dạng XML Word sinh ra (Chủ: Ice)**; ảnh SVG/EMF/WMF; header/footer/footnote/ghi chú chưa đọc; `w:tbl` lồng trong ô.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng bằng chữ: `:9170` → **🟡** (một tệp `.docx` đi trọn đường sản phẩm; vế "do Word sinh ra" còn hở) và `:2214` → ✅ (câu bị cắt giữa ô bảng); ghi nợ **MỚI có chủ** cho mọi vế còn hở: 🔴 **0 tệp Word THẬT đi qua — fixture tự sinh chứng minh luật của ta, không chứng minh hình dạng XML Word sinh ra (Chủ: Ice)**; ảnh SVG/EMF/WMF; header/footer/footnote/ghi chú chưa đọc; `w:tbl` lồng trong ô.
 
 **Acceptance Criteria:**
 - 🔴 Given một `.docx` có ảnh nhúng đi trọn đường sản phẩm, when nhập và xác nhận, then mỗi ảnh giữ có **một tệp thật** trong `assets/` và **một hàng `asset`** với `source_url IS NULL`; ca này phải **ĐỎ** nếu ai chỉ ghi hàng SQL mà không ghi tệp.

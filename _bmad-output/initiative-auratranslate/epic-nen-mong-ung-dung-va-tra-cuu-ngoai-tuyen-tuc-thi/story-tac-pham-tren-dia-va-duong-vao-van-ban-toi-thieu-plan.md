@@ -696,10 +696,10 @@ Năm commit gần nhất và thứ chúng để lại cho story này:
 ### References
 
 **Yêu cầu**
-- `_bmad-output/planning-artifacts/epics.md:1626-1669` — §Story 1.15, AC nguyên văn
-- `_bmad-output/planning-artifacts/epics.md:801-820` — Epic 1 objectives + ghi chú cài đặt *(đặc biệt `:819` — nhánh `.docx` đóng ở Epic 6)*
-- `_bmad-output/planning-artifacts/epics.md:1922-2045` — Story 2.1 + 2.3 *(ràng buộc xuôi dòng: `segment.id`, `ord`, cờ kết đoạn, `store::Writer`)*
-- `_bmad-output/planning-artifacts/epics.md:3327-3408` — Story 5.1 + 5.2 *(`.atproj` ghi **trước**, chỉ mục ghi **sau**)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1626-1669` — §Story 1.15, AC nguyên văn
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:801-820` — Epic 1 objectives + ghi chú cài đặt *(đặc biệt `:819` — nhánh `.docx` đóng ở Epic 6)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1922-2045` — Story 2.1 + 2.3 *(ràng buộc xuôi dòng: `segment.id`, `ord`, cờ kết đoạn, `store::Writer`)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:3327-3408` — Story 5.1 + 5.2 *(`.atproj` ghi **trước**, chỉ mục ghi **sau**)*
 - `prds/prd-AuraTranslate-2026-08-02/prd.md` §6.1 *(FR2, FR3, FR5, FR13)* · §6.9 *(FR96, FR97, FR98, FR100–FR103)* · §7.2 *(NFR9, NFR10)* · §7.5 *(NFR17, NFR18)*
 
 **Kiến trúc**
@@ -976,10 +976,10 @@ References cho số liệu đầy đủ trước/sau.
 - `src/modes/LibraryMode.vue` — form nhập + trạng thái rỗng thay thế
 
 **Tài liệu:**
-- `_bmad-output/implementation-artifacts/deferred-work.md` — đóng một phần mục AC9/Story 1.8,
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng một phần mục AC9/Story 1.8,
   đổi trạng thái `Checkpointer::shutdown()` từ "vô hại" sang "rủi ro thật", mở **13 mục** dưới
   hai đề mục `1-15` *(7 mục ở lượt triển khai + 6 mục ở lượt code review 2026-08-06)*
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — story chuyển `in-progress`
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — story chuyển `in-progress`
 
 ⚠️ **Ba con số ở §File List/Task 12 trước lượt code review đã SAI, sửa lại tại chỗ** *(bản
 gốc ghi "năm mục mới" ở Task 12 và "sáu mục mới" ở đây, trong khi §1-15 thật có **bảy**; và

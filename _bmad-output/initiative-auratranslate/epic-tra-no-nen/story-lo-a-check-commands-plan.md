@@ -9,7 +9,7 @@ baseline_revision: '2abddd34c6440458d1deb1c9cd5fca58c1623ff0'
 review_loop_iteration: 0
 context:
   - '{project-root}/scripts/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -58,7 +58,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- Task 0: re-read the nine items against HEAD; record any that self-closed.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- Task 0: re-read the nine items against HEAD; record any that self-closed.
 - [x] `scripts/lib/commands-scan.mjs` (new) + `scripts/check-commands.mjs` -- extract `maskScript`, `maskTemplate`, `attributesIn`, a string-blanked `code` view and the handler scan into a pure module; the gate imports it; behaviour and output stay identical except for the new Kiểm.
 - [x] `tsconfig.node.json` -- type-check the extracted module and `check-commands.mjs` under strict mode, fixing the 92 errors through JSDoc and types, not `any`.
 - [x] `tests/frontend/checkCommandsScan.test.ts` (new) -- unit-test the module, covering every I/O row.

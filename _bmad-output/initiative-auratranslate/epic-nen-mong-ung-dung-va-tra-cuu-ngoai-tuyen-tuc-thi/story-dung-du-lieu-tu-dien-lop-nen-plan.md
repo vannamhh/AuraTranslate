@@ -638,16 +638,16 @@ AuraTranslate/
 
 ### References
 
-- **AC gốc của story:** [`epics.md`](../planning-artifacts/epics.md) §Story 1.9, dòng 1331–1371 *(gồm khối bổ sung NFR6 ngày 2026-08-03)*
-- **FR27–FR41:** [`prd.md`](../planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md) §6.3, dòng 454–496
+- **AC gốc của story:** [`epics.md`](../archive-v6/epics.md) §Story 1.9, dòng 1331–1371 *(gồm khối bổ sung NFR6 ngày 2026-08-03)*
+- **FR27–FR41:** [`prd.md`](../prd-auratranslate/prd-auratranslate.md) §6.3, dòng 454–496
 - **Bộ nguồn + giấy phép:** `prd.md` §8.2 dòng 886–896 · §8.3 dòng 898–921 · §8.6 dòng 933–952
 - **NFR6 + giả định `[A2]`:** `prd.md:826`, `:832`, `:1022`
-- **AD-7** (năm loại kho, `dict-core.db` chỉ đọc) · **AD-10** (lớp gỡ rời, trường giấy phép) · **AD-19** (không hợp nhất) · **AD-25** (artifact có checksum) · **AD-26** (ba nhánh) · **AD-27** (`remove_diacritics 0`): [`ARCHITECTURE-SPINE.md`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md) dòng 119–151, 288–292, 326–342
+- **AD-7** (năm loại kho, `dict-core.db` chỉ đọc) · **AD-10** (lớp gỡ rời, trường giấy phép) · **AD-19** (không hợp nhất) · **AD-25** (artifact có checksum) · **AD-26** (ba nhánh) · **AD-27** (`remove_diacritics 0`): [`ARCHITECTURE-SPINE.md`](../architecture-auratranslate/architecture-auratranslate.md) dòng 119–151, 288–292, 326–342
 - **Cây nguồn + sơ đồ đường dữ liệu:** `ARCHITECTURE-SPINE.md` dòng 644–744
 - **Sàn SQLite** (trigram ≥ 3.34, `remove_diacritics 0` ≥ 3.27): `ARCHITECTURE-SPINE.md:638`
-- **Số đo Giai đoạn 0:** [`phase-0-spike-results-2026-08-02.md`](../planning-artifacts/research/phase-0-spike-results-2026-08-02.md) — kích thước theo tầng `:55-69` · trigram rỗng `:75-89` · `char_idx` `:91-98` · dấu tiếng Việt `:110-125` · độ phủ kaikki `:129-169`
-- **Số đo font + kế toán NFR6:** [`font-spike-results-2026-08-03.md`](../planning-artifacts/research/font-spike-results-2026-08-03.md) — `:78` quy ước đơn vị · `:82` số byte font · `:352-388` bảng dư địa và ba danh sách · `:437` chiều phép trừ đã đảo
-- **Nợ đang mở:** [`deferred-work.md`](deferred-work.md) `:21` `:23` `:31` `:44` `:57` `:79`
+- **Số đo Giai đoạn 0:** [`phase-0-spike-results-2026-08-02.md`](../research-phase-0-spike-results/research-phase-0-spike-results.md) — kích thước theo tầng `:55-69` · trigram rỗng `:75-89` · `char_idx` `:91-98` · dấu tiếng Việt `:110-125` · độ phủ kaikki `:129-169`
+- **Số đo font + kế toán NFR6:** [`font-spike-results-2026-08-03.md`](research-font-spike-results/research-font-spike-results.md) — `:78` quy ước đơn vị · `:82` số byte font · `:352-388` bảng dư địa và ba danh sách · `:437` chiều phép trừ đã đảo
+- **Nợ đang mở:** [`deferred-work.md`](../deferred-work.md) `:21` `:23` `:31` `:44` `:57` `:79`
 - **Khuôn mã trong repo:** `src-tauri/src/core/store/schema.rs` (DDL hằng, `user_version`) · `src-tauri/tests/store_boundary.rs:44` (sàn số tệp) · `scripts/check-deps.mjs:15-27` (doctrine cổng) · `scripts/check-i18n.mjs` (§EXEMPT có tên)
 - **Nguồn ngoài, kiểm 2026-08-04:** [CVDICT](https://github.com/ph0ngp/CVDICT) · [CC-CEDICT (MDBG)](https://www.mdbg.net/chinese/dictionary?page=cc-cedict) · [UAX #38 Unihan](https://www.unicode.org/reports/tr38/) · [kaikki.org raw data](https://kaikki.org/dictionary/rawdata.html)
 
@@ -940,8 +940,8 @@ story này"* — chỉ `tauri.conf.json` và `tests/config_invariants.rs` đổi
 - `src-tauri/resources/dict/README.md` — trạng thái tệp + scope
 - `dict-manifest.toml` — `[base]` điền thật
 - `.gitignore` — `tools/dict-build/{raw,out,work,target}/`
-- `_bmad-output/implementation-artifacts/deferred-work.md` — đóng `:44` `:79` `:21` `:57`, cập nhật `[D4]`, thêm mục Story 10.1
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái story
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng `:44` `:79` `:21` `:57`, cập nhật `[D4]`, thêm mục Story 10.1
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái story
 
 **Không vào git (đã ignore, đúng chủ ý):** `tools/dict-build/raw/**` (~1,4 GB dữ liệu thô đã tải) · `tools/dict-build/out/dict-core.db` (154.836.992 byte — artifact phát hành qua GitHub Release, không qua git) · `tools/dict-build/target/`.
 

@@ -9,7 +9,7 @@ baseline_revision: 'a5701b865a4a501db5d3ff797efa832facdf54a5'
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -71,7 +71,7 @@ context:
 - `src-tauri/tests/segment_contract.rs:1-12` bốn luật thừa kế (một temp dir mỗi ca, thả `Store` trước khi xoá thư mục trên Windows, không `sleep` dài, không treo khi trượt); `:41` `temp_dir` chép tay — quy ước, không phải sơ suất.
 - `src-tauri/Cargo.toml:95` `encoding_rs =0.8.35` đã ghim, đã bắc cầu sẵn nên tốn **0 byte**; `:92-94` chú thích khai chủ là `core::webimport` — **hết đúng** khi bước giải mã về `core/segment/`.
 - `_bmad-output/planning-artifacts/architecture/…/ARCHITECTURE-SPINE.md:465-504` AD-39 (`:470` ca 40 MB, `:473-482` thứ tự tám bước, `:486-491` bảng hình dạng, `:498` chuỗi sống ở `core/segment/`, `:500` `.docx` bỏ qua giải mã, `:502` xem trước sau TOÀN BỘ chuỗi).
-- `_bmad-output/implementation-artifacts/deferred-work.md:2941-2951` — nợ hợp âm `⌘↵`, đang ghi *"Chủ: Story 6.2"*.
+- `_bmad-output/initiative-auratranslate/deferred-work.md:2941-2951` — nợ hợp âm `⌘↵`, đang ghi *"Chủ: Story 6.2"*.
 
 ## Tasks & Acceptance
 
@@ -84,7 +84,7 @@ context:
 - [x] `src-tauri/tests/segment_pipeline_boundary.rs` -- tạo mới: `PIPELINE_ORDER` khớp đúng thứ tự AD-39; `run_import` là chỗ gọi sản phẩm DUY NHẤT của bộ chạy nhận thứ tự tuỳ ý; sàn quần thể + kiểm chứng dương theo khuôn `ai_boundary.rs:225,302` -- seam mở cho test không được thành đường tắt cho story sau
 - [x] `src-tauri/tests/segment_contract.rs` -- ca hành vi: thứ tự sai ⇒ đúng 1 Chương và KHÔNG lỗi; thứ tự đúng ⇒ N Chương; đầu vào đã-là-văn-bản bỏ qua bước giải mã; đầu vào đã-chia-Chương bỏ qua bước tách -- tên hàm là câu khẳng định, không `test_foo`
 - [x] `src-tauri/Cargo.toml` -- sửa tại chỗ kèm 🔵 và ngày: chủ của `encoding_rs` là `core::segment` (bước giải mã của chuỗi), `chardetng` vẫn `core::webimport` -- `:92-94`, mệnh đề hết đúng thì sửa chứ không để lặng lẽ sai
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối 🔵 vào mục `:2941-2951`: chủ hợp âm `⌘↵` chuyển sang story đăng ký lệnh xác nhận nhập thật, kèm lý do đo được (6.2 đăng ký 0 lệnh); ghi nợ mới cho mọi vế story này KHÔNG nghiệm thu được, mỗi vế một chủ -- không mục nào mồ côi, không mục nào đóng khống
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối 🔵 vào mục `:2941-2951`: chủ hợp âm `⌘↵` chuyển sang story đăng ký lệnh xác nhận nhập thật, kèm lý do đo được (6.2 đăng ký 0 lệnh); ghi nợ mới cho mọi vế story này KHÔNG nghiệm thu được, mỗi vế một chủ -- không mục nào mồ côi, không mục nào đóng khống
 
 **Acceptance Criteria:**
 - Given cây nguồn sau story, when đếm chỗ cài đặt chuỗi, then có ĐÚNG MỘT, ở `core/segment/`, và không module nguồn nào giữ bản sao của một bước dùng chung.
@@ -136,82 +136,82 @@ context:
 **Thứ tự là dữ liệu — đọc trước tiên, vì đây là thứ story này thực sự giao**
 
 - Điểm vào: bảy bước khai thành một hằng, đối chiếu được từng bước với AD-39 spine `:473-482`.
-  [`pipeline.rs:104`](../../src-tauri/src/core/segment/pipeline.rs#L104)
+  [`pipeline.rs:104`](../../../src-tauri/src/core/segment/pipeline.rs#L104)
 
 - Bộ chạy tiêu thụ CHÍNH hằng đó — không có bản chép thứ hai của chuỗi.
-  [`pipeline.rs:292`](../../src-tauri/src/core/segment/pipeline.rs#L292)
+  [`pipeline.rs:292`](../../../src-tauri/src/core/segment/pipeline.rs#L292)
 
 - Đường sản phẩm duy nhất, uỷ quyền thẳng; seam nhận thứ tự tuỳ ý không lộ ra `commands/`.
-  [`pipeline.rs:375`](../../src-tauri/src/core/segment/pipeline.rs#L375)
+  [`pipeline.rs:375`](../../../src-tauri/src/core/segment/pipeline.rs#L375)
 
 - Từ chối một thứ tự không phải hoán vị — bước trùng, bước thiếu, mảng rỗng đều chặn TRƯỚC khi chạy.
-  [`pipeline.rs:119`](../../src-tauri/src/core/segment/pipeline.rs#L119)
+  [`pipeline.rs:119`](../../../src-tauri/src/core/segment/pipeline.rs#L119)
 
 **Điều kiện áp bước khai theo HÌNH DẠNG, không theo độ dài**
 
 - Cờ đặt MỘT LẦN từ `PipelineShape`; một danh sách một link không bị tách lại.
-  [`pipeline.rs:277`](../../src-tauri/src/core/segment/pipeline.rs#L277)
+  [`pipeline.rs:277`](../../../src-tauri/src/core/segment/pipeline.rs#L277)
 
 - Bước tách Chương rẽ theo cờ đó, không đếm `units.len()`.
-  [`pipeline.rs:477`](../../src-tauri/src/core/segment/pipeline.rs#L477)
+  [`pipeline.rs:477`](../../../src-tauri/src/core/segment/pipeline.rs#L477)
 
 - `.docx` bỏ qua vế transcode; UTF-8 giữ đường 0 chép thay vì copy trọn bộ đệm.
-  [`pipeline.rs:404`](../../src-tauri/src/core/segment/pipeline.rs#L404)
+  [`pipeline.rs:404`](../../../src-tauri/src/core/segment/pipeline.rs#L404)
 
 **Bước 8 ở nguyên `commands/` — và không bước nào chạy sau nó**
 
 - Chuỗi chạy TRƯỚC và NGOÀI giao dịch; kết quả mới đi vào lượt ghi.
-  [`project.rs:269`](../../src-tauri/src/commands/project.rs#L269)
+  [`project.rs:269`](../../../src-tauri/src/commands/project.rs#L269)
 
 - Danh sách rỗng bị từ chối TRƯỚC khi mở giao dịch — `panic = "abort"` không có chỗ bám.
-  [`project.rs:287`](../../src-tauri/src/commands/project.rs#L287)
+  [`project.rs:287`](../../../src-tauri/src/commands/project.rs#L287)
 
 - Ghi N Chương `ord` 1..N trong đúng giao dịch cũ, khuôn bốn bước không đổi.
-  [`project.rs:326`](../../src-tauri/src/commands/project.rs#L326)
+  [`project.rs:326`](../../../src-tauri/src/commands/project.rs#L326)
 
 **Hai hàm nhập thu về đúng BƯỚC ĐẦU VÀO**
 
 - Dán tay nay chỉ dựng hình dạng, không giải mã, không cắt BOM.
-  [`import.rs:240`](../../src-tauri/src/core/segment/import.rs#L240)
+  [`import.rs:240`](../../../src-tauri/src/core/segment/import.rs#L240)
 
 - Đọc tệp trả byte thô kèm hình dạng; giải mã lùi vào chuỗi.
-  [`import.rs:259`](../../src-tauri/src/core/segment/import.rs#L259)
+  [`import.rs:259`](../../../src-tauri/src/core/segment/import.rs#L259)
 
 **Cổng — chỗ vòng rà đối kháng bắt được lỗ hổng nặng nhất**
 
 - ⚠️ Bản đầu chỉ bắt `run_import(`, nên `run_import_with_order(` lọt qua xanh. Nay hai vị từ.
-  [`segment_pipeline_boundary.rs:123`](../../src-tauri/tests/segment_pipeline_boundary.rs#L123)
+  [`segment_pipeline_boundary.rs:123`](../../../src-tauri/tests/segment_pipeline_boundary.rs#L123)
 
 - Cổng đếm chỗ gọi sản phẩm cho CẢ HAI tên — gieo một vi phạm thật thì nó đỏ.
-  [`segment_pipeline_boundary.rs:171`](../../src-tauri/tests/segment_pipeline_boundary.rs#L171)
+  [`segment_pipeline_boundary.rs:171`](../../../src-tauri/tests/segment_pipeline_boundary.rs#L171)
 
 - Kiểm chứng dương mới: nổ trên dòng vi phạm dựng tay, không nổ oan trên `use`.
-  [`segment_pipeline_boundary.rs:236`](../../src-tauri/tests/segment_pipeline_boundary.rs#L236)
+  [`segment_pipeline_boundary.rs:236`](../../../src-tauri/tests/segment_pipeline_boundary.rs#L236)
 
 - So mảng từng phần tử — đảo hai bước là đỏ, đo thật 2026-09-04.
-  [`segment_pipeline_boundary.rs:147`](../../src-tauri/tests/segment_pipeline_boundary.rs#L147)
+  [`segment_pipeline_boundary.rs:147`](../../../src-tauri/tests/segment_pipeline_boundary.rs#L147)
 
 - Cổng cũ dời theo mã: đếm chính xác, không nới thành kiểm thành viên.
-  [`segment_boundary.rs:324`](../../src-tauri/tests/segment_boundary.rs#L324)
+  [`segment_boundary.rs:324`](../../../src-tauri/tests/segment_boundary.rs#L324)
 
 **Đối chứng AD-39 — ca hỏng im lặng, dựng được hôm nay**
 
 - Thứ tự sai trên byte GBK: đúng 1 Chương, KHÔNG lỗi nào — đúng câu spine `:470` mô tả.
-  [`segment_contract.rs:7982`](../../src-tauri/tests/segment_contract.rs#L7982)
+  [`segment_contract.rs:7982`](../../../src-tauri/tests/segment_contract.rs#L7982)
 
 - Thứ tự đúng: 3 Chương, và khẳng định VĂN BẢN từng Chương chứ không chỉ đếm.
-  [`segment_contract.rs:8029`](../../src-tauri/tests/segment_contract.rs#L8029)
+  [`segment_contract.rs:8029`](../../../src-tauri/tests/segment_contract.rs#L8029)
 
 - Hình dạng đã chia Chương giữ nguyên số đơn vị vào.
-  [`segment_contract.rs:8110`](../../src-tauri/tests/segment_contract.rs#L8110)
+  [`segment_contract.rs:8110`](../../../src-tauri/tests/segment_contract.rs#L8110)
 
 - Bước thân rỗng vẫn nói được là đã đi qua — trace ghi từ TRONG mỗi bước.
-  [`segment_contract.rs:8229`](../../src-tauri/tests/segment_contract.rs#L8229)
+  [`segment_contract.rs:8229`](../../../src-tauri/tests/segment_contract.rs#L8229)
 
 **Ngoại vi**
 
 - Chủ của `encoding_rs` chuyển sang `core::segment`, sửa tại chỗ kèm 🔵.
-  [`Cargo.toml:99`](../../src-tauri/Cargo.toml#L99)
+  [`Cargo.toml:99`](../../../src-tauri/Cargo.toml#L99)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

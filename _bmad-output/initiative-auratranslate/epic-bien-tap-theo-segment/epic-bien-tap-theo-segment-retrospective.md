@@ -426,7 +426,7 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
 ```
   # ✅ 2026-08-18 — RETRO EPIC 2 XONG, che do MOT PHAN (Ice chot): 12/14 story done, `2-3` va
   #   `2-4` con in-progress va duoc coi la DOI TUONG cua phien, khong phan thieu cua no.
-  #   Tai lieu: implementation-artifacts/epic-2-retro-2026-08-18.md
+  #   Tai lieu: initiative-auratranslate/epic-bien-tap-theo-segment/epic-bien-tap-theo-segment-retrospective.md
   #   Do lai tu nguon, khong chep story file: 9/9 cong doc-tep exit 0 · vitest 249/249 (21 tep) ·
   #   cargo test --locked 409/0. KHOP so ghi trong story 2-11.
   #   🔴 HAI CUA CHAN Ice ky, Epic 3 KHONG mo truoc chung: (B1) go Story 2.4 — NFR2 vuot tran

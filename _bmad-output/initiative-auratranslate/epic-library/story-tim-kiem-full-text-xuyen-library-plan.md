@@ -415,7 +415,7 @@ kết quả; một khối tìm kiếm ở Library; và một lượt chọn kế
 17. `e2e/specs/story-5-9-library-search.e2e.mjs` — trong WKWebView thật: tạo hai Tác phẩm, gõ
     truy vấn, `realClick` một kết quả, khẳng định Workspace mở đúng Chương của đúng Tác phẩm và
     con trỏ ở đúng câu. -- Rationale: hành vi trong engine thật không có chủ ở ba đường kia.
-18. `_bmad-output/implementation-artifacts/deferred-work.md` — mục nợ **có chủ** cho: ① truy vấn
+18. `_bmad-output/initiative-auratranslate/deferred-work.md` — mục nợ **có chủ** cho: ① truy vấn
     1–2 ký tự (đặc biệt từ ghép chữ Hán hai chữ) không tra được nửa nguyên văn — hai phương án
     kèm số đo, chủ **Ice**; ② câu mời chế độ khoan dung chưa có cửa bấm, chủ **Story 5.10**;
     ③ thu hoạch toàn phần mỗi lượt `rebuild` vì món nợ `work.updated_at` (chủ **Story 5.6**) làm

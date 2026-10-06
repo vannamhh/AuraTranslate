@@ -686,7 +686,7 @@ và `e2e/specs/segment-merge-split.e2e.mjs`** — tức chính hạ tầng story
 | `src/i18n/vi.json` | Khoá mới, PHẲNG, khoá chấm, tiền tố miền | Không giá trị rỗng; placeholder khớp `[a-z_][a-z0-9_]*` |
 | `tests/frontend/*.test.ts` | Ca mới cho helper + kênh thông điệp | Cây test **không** đổ vào `src/**` |
 | `e2e/specs/segment-merge-split.e2e.mjs` | Ca `Backspace` | Khuôn `KeyboardEvent` tổng hợp; `realClick()` |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Đóng/ghi nợ | **Không xoá** mục đã đóng |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | Đóng/ghi nợ | **Không xoá** mục đã đóng |
 
 **Không sửa:** `src-tauri/**` *(nghiệp vụ gộp đã đủ cho AC1–4, AC6 — xem cảnh báo về AC5 ở
 §Đường dây)* · `epics.md` · `prd.md` · `ARCHITECTURE-SPINE.md` *(một `AD` mới đi qua thủ tục
@@ -705,15 +705,15 @@ phá · ⚠️ bẫy/giới hạn · ✅ đã đóng · 🟡 đóng một nửa 
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:2531-2568` — Story 2.9, sáu AC
-- `_bmad-output/planning-artifacts/epics.md:595-597` — UX-DR32 (kèm khối 🔵 sửa 2026-08-14)
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:437` — FR78
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2531-2568` — Story 2.9, sáu AC
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:595-597` — UX-DR32 (kèm khối 🔵 sửa 2026-08-14)
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:437` — FR78
 - `.../architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md:103-111` — AD-5
 - `ARCHITECTURE-SPINE.md:419-425` — AD-35 (hợp đồng flush) · `:406-417` — AD-34 · `:75-79` — AD-1
 - `ARCHITECTURE-SPINE.md:675-745` — AD-47 (mốc so + xuất xứ; ④ là luật gộp)
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md:294` — lượt đổi tên + đổi tiền đề
+- `_bmad-output/initiative-auratranslate/change-be-mat-nhap-lat-sang-luoi-hai-cot/change-be-mat-nhap-lat-sang-luoi-hai-cot.md:294` — lượt đổi tên + đổi tiền đề
 - `.../ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md:171` — UX-DR32 bản đã sửa · `:261-268` — bảng phím
-- `_bmad-output/implementation-artifacts/2-8-gop-va-tach-segment-tuong-minh.md:190-214` — Quyết định #9, Ice ký (a)
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-gop-va-tach-segment-tuong-minh-plan.md:190-214` — Quyết định #9, Ice ký (a)
 - `deferred-work.md:3036-3061` — đo `beforeinput` trên WebKit · `:4103-4109` — khe `StatusBar` + `⌘Z`
 - `src/panels/GridPanel.vue:42-46, 1041-1052, 1252-1261, 1289-1303, 1623`
 - `src/panels/editorPanelState.ts:1021-1027, 1101-1103, 1132-1154, 1163-1221, 1229-1233`
@@ -763,7 +763,7 @@ tức một **lời hứa**, không một mô hình. Phân biệt này là toàn
 
 #### Task 0.2 — hồ sơ bàn giao
 
-`_bmad-output/planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md`. Tám mục: hai đường
+`_bmad-output/initiative-auratranslate/ad-brief-mo-hinh-hoan-tac/ad-brief-mo-hinh-hoan-tac.md`. Tám mục: hai đường
 (A)/(B) kèm hệ quả trên đĩa · ba mức phạm vi ①/②/③ · tám ràng buộc cứng (AD-3 · AD-5 · AD-31 ·
 AD-11 · AD-30 · AD-1 · AD-34 §1 · AD-35) · sáu điều kiện nghiệm thu · bảng 5/6 AC.
 
@@ -1057,13 +1057,13 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
   đặt ô nhớ ở sáu chỗ; dọn ở `noteEditorEdit`; `regroup()` nhận `ten: 'gop' | 'tach'`
 - `src/StatusBar.vue` — `REGROUP_NOTICE_KEYS` + `regroupNoticeText`; nhánh `v-else-if`
 - `src/i18n/vi.json` — 6 khoá `panel.grid.regroup_*`
-- `_bmad-output/implementation-artifacts/deferred-work.md` — 2 món đóng bằng cách nối tiếp, 5 món mới
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái + ghi chép
-- `_bmad-output/implementation-artifacts/2-9-gop-bang-backspace-dau-o.md` — tệp story này
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — 2 món đóng bằng cách nối tiếp, 5 món mới
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái + ghi chép
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-gop-bang-backspace-dau-o-plan.md` — tệp story này
 - `e2e/specs/segment-merge-split.e2e.mjs` — hai lượt `mouseup` thêm `metaKey` (hệ quả của AC7)
 - `tests/frontend/editorSourceCut.test.ts` — 6 ca đổi sang hình dạng neo, **giữ nguyên bài
   học**; cộng 8 ca mới cho AC9
-- `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md` —
+- `_bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md` —
   văn xuôi `:169` + một hàng mới trong bảng Phím `:267`
 
 **Mới (ADD):**
@@ -1074,7 +1074,7 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
 - `_bmad-output/implementation-artifacts/2-9-ban-do/han-viet-cho-cat.e2e.mjs` — bàn đo AC9
 - `_bmad-output/implementation-artifacts/2-9-ban-do/dau-cat-chieu-cao.e2e.mjs` — bàn đo Task 9.3
 - `e2e/specs/segment-backspace-merge.e2e.mjs` — 3 ca
-- `_bmad-output/planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — hồ sơ bàn giao `AD-48`
+- `_bmad-output/initiative-auratranslate/ad-brief-mo-hinh-hoan-tac/ad-brief-mo-hinh-hoan-tac.md` — hồ sơ bàn giao `AD-48`
 - `_bmad-output/implementation-artifacts/2-9-ban-do/README.md`
 - `_bmad-output/implementation-artifacts/2-9-ban-do/backspace-dau-o-wkwebview.e2e.mjs` — vòng 1
 - `_bmad-output/implementation-artifacts/2-9-ban-do/caret-dau-o-vong2.e2e.mjs` — vòng 2
@@ -1146,7 +1146,7 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   #   (khong cot le thu sau) · ③ giu Backspace GOP MOT LAN roi dung (chot bang `event.repeat`).
   #   🔴 CUA CHAN TASK 0.4 KICH HOAT MOT NUA, va Ice phan dinh no chi chan **AC5**, khong chan
   #   ca story — khac 2.7, noi chu ky #8(b) dung ca story vi no dung mot AC dang thi cong.
-  #   Ho so ban giao AD-48 da soan: planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md
+  #   Ho so ban giao AD-48 da soan: initiative-auratranslate/ad-brief-mo-hinh-hoan-tac/ad-brief-mo-hinh-hoan-tac.md
   #   (hai duong (A)/(B) kem he qua tren dia · ba muc pham vi · tam rang buoc cung · sau dieu
   #   kien nghiem thu). Chu: Ice phan dinh -> Winston soan AD.
   #   Nghiem thu: 11 cong npm (9 doc-tep + check:scope + check:scope:bundled chay tay) · build ·

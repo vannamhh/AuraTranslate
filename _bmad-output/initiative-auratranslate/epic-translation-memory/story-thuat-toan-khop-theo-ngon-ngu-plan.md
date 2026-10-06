@@ -10,7 +10,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-7-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-7-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -78,7 +78,7 @@ context:
   - `MATCHING_FORBIDDEN_USES` is at :74. Add a separate I/O-token list (`std::fs`, `std::io`, `std::net`, `std::process`, `rusqlite`, `reqwest`, `tauri`) scanned on code lines only, same scanner style as :279.
 - `src-tauri/tests/matching_contract.rs`: imports `auratranslate_lib::core::matching` at :17; the score tests are at :558-642. Add the scorer-vs-`ngrams` Dice test here.
 - The parity test needs both stores. Seed them the way `tests/tm_contract.rs` (fuzzy cases) and the Glossary marks tests do. Put it in `tm_contract.rs` or a new file. A new file must raise any test-file floor to the live count.
-- `_bmad-output/implementation-artifacts/deferred-work.md`, items for Story 7.6 (append-only close lines, never delete):
+- `_bmad-output/initiative-auratranslate/deferred-work.md`, items for Story 7.6 (append-only close lines, never delete):
   - L575 (AD-15 guard) ⇒ ✅.
   - L578 (measurements in doc) ⇒ ✅.
   - L579 (re-tokenize) ⇒ KHÔNG LÀM: no path calls `find_terms` and `ngrams`/scorer on the same text. The scorer is used only at `tm/mod.rs:279`, `ngrams` only at `scan.rs:231`.

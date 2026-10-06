@@ -694,7 +694,7 @@ Cộng một lỗi thứ năm về **chẩn đoán ồn**: `onDidActivePanelChan
 
 `src/main.ts` · `src/App.vue` · `src/modes/WorkspaceMode.vue` · `src/panels/PanelFrame.vue` · `src/commands/index.ts` · `src/commands/focus.ts` · `src/config/bootstrap.ts` · `src/i18n/vi.json` · `src/tokens/tokens.json` · `scripts/check-tokens.mjs` · `scripts/check-i18n.mjs` · `scripts/check-commands.mjs` · `package.json` · `src-tauri/src/core/scope/store.rs` · `src-tauri/src/commands/config.rs` · `src-tauri/tests/ipc_contract.rs` · `src-tauri/tests/scope_contract.rs`
 
-**Tài liệu** — `_bmad-output/implementation-artifacts/deferred-work.md` · `sprint-status.yaml` · story file này.
+**Tài liệu** — `_bmad-output/initiative-auratranslate/deferred-work.md` · `sprint-status.yaml` · story file này.
 
 ### Review Findings
 

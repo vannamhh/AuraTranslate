@@ -395,7 +395,7 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 
 ### References
 
-- AC nguyên văn — `_bmad-output/planning-artifacts/epics.md:2042-2071`
+- AC nguyên văn — `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2042-2071`
 - UX-DR2 · DR3 · DR5 · DR6 · DR7 · DR8 · DR12 · DR16 · DR19 · DR20 — `epics.md:495`, `:497`, `:503`, `:505`, `:507`, `:509`, `:519`, `:529`, `:537`, `:539`
 - Vạch lề segment và ranh giới câu — `ux-designs/.../DESIGN.md:380`, `:382`, `:400`; `EXPERIENCE.md:99`, `:105-115`, `:312`
 - Mockup Editor — `mockups/key-screen-workspace.html:57-77` (CSS), `:113-133` (HTML), `:188-191` (chú giải); `mockups/workspace-dark.html:59-71`, `:126-141`
@@ -410,11 +410,11 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 - Kiểm C `neverTextTokens` — `scripts/check-tokens.mjs:1242-1257` · Kiểm D `opacity` — `:1260-1311` · Kiểm F elevation — `:1358-1398` · Kiểm H focus ring — `:1401`
 - Sàn cổng — `scripts/check-commands.mjs:211,216,223,1835` · `scripts/check-i18n.mjs:279,289` · `scripts/check-tokens.mjs:86-87` · `scripts/check-layout.mjs:95`
 - NFR15 *(không bộ chạy test frontend)* — `src/commands/registry.ts:10-13` · `src/commands/README.md:20` · `src/i18n/README.md:101`
-- Nợ `insert_segments` chủ là 2.2 — `_bmad-output/implementation-artifacts/deferred-work.md:2012-2024`
+- Nợ `insert_segments` chủ là 2.2 — `_bmad-output/initiative-auratranslate/deferred-work.md:2012-2024`
 - Vết sẹo rò ký tự chèn lúc copy — `deferred-work.md:839-848` · nợ *"nghiệm thu chạy trên Blink, không phải WKWebView"* — `:145`
 - Nợ bề mặt đọc phải tự khai token — `deferred-work.md:130-133`
-- Bài học Epic 1 — `_bmad-output/implementation-artifacts/epic-1-retro-2026-08-11.md` §4, §5, §7.1, §8.1, §8.2
-- Story trước — `_bmad-output/implementation-artifacts/2-1-tach-segment-cap-cau-va-co-ket-doan.md`
+- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
+- Story trước — `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-tach-segment-cap-cau-va-co-ket-doan-plan.md`
 
 ---
 
@@ -699,9 +699,9 @@ src-tauri/tests/pinned_contract.rs
 scripts/check-tokens.mjs
 scripts/check-commands.mjs
 scripts/check-layout.mjs
-_bmad-output/implementation-artifacts/deferred-work.md
-_bmad-output/implementation-artifacts/sprint-status.yaml
-_bmad-output/implementation-artifacts/2-2-panel-editor-lien-mach.md
+_bmad-output/initiative-auratranslate/deferred-work.md
+_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml
+_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-panel-editor-lien-mach-plan.md
 ```
 
 ⚠️ **Không** đụng: `src/layout/**` · `PanelFrame.vue` · `SourcePanel.vue` · `core/segment/split.rs`

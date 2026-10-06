@@ -540,7 +540,7 @@ mình cắt.
 
 ---
 
-### 4.10 `_bmad-output/specs/spec-AuraTranslate/requirements.md:133` — **BẢN FR21 THỨ BA**
+### 4.10 `_bmad-output/initiative-auratranslate/spec-auratranslate/requirements.md:133` — **BẢN FR21 THỨ BA**
 
 🔴 **Chỗ này suýt lọt.** Kho có **ba** bản FR21 sống *(không phải hai)*: PRD · `epics.md` ·
 và **SPEC**. Bản thứ ba là *"hợp đồng máy chính tắc cho công việc xuôi dòng"* — để nó trôi là

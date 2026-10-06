@@ -116,7 +116,7 @@ context:
 - [x] `src/i18n/vi.json` -- khoá mới cho khối mẫu và danh sách Chương; placeholder đúng dải `{ten_tham_so}`
 - [x] `tests/frontend/importPreviewChapters.test.ts` (mới) + `importPreviewEncodingWireShape.test.ts` -- khối tách của ứng viên đang chọn; đổi ứng viên ⇒ khối đổi mà **0 lời gọi IPC**; sửa mẫu ⇒ **đúng một** vòng IPC và ứng viên đang chọn còn nguyên; hình dạng dây mới có ca. 🔴 ba ca "0 IPC" hiện có **không sửa kỳ vọng**
 - [x] **ĐO, đừng khai** -- xem trước nay chạy chuỗi kèm tách Chương. Mốc trước story: 6 lượt `run_pipeline`, ~13-17 ms/lượt trên 440 KB (`project.rs:1162-1178`). Đo lại trên một nguồn **nhiều Chương thật**, ghi số + ngày vào chú thích; chậm thì ghi nợ có chủ -- một mệnh đề hiệu năng không kèm phép đo là thứ kho này cấm
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối dòng `→` cho `:9414` (🟡 vế tiêu đề đầu Chương đóng, vế tiêu đề phụ trong thân còn mở) và `:9535` (✅ đóng bằng ca `Σ count_in_chapter`); ghi nợ **MỚI có chủ** cho: ① cờ *"đáng ngờ"* + nút lọc, Ice chốt 2026-09-05 không làm ở đây (**Chủ: Story 6.10**) · ② `spawn_import_scan` chỉ quét Chương ĐẦU, N−1 Chương không được quét ứng viên Glossary và không cổng nào đỏ (**Chủ: Story 6.10**) · ③ `⌥W`/`⌥←`/`⌥→` chưa đăng ký (**Chủ: Story 6.10**) -- `check:debt-owner` đọc **dòng `→`**, một câu trong thân mục thì cổng không thấy
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối dòng `→` cho `:9414` (🟡 vế tiêu đề đầu Chương đóng, vế tiêu đề phụ trong thân còn mở) và `:9535` (✅ đóng bằng ca `Σ count_in_chapter`); ghi nợ **MỚI có chủ** cho: ① cờ *"đáng ngờ"* + nút lọc, Ice chốt 2026-09-05 không làm ở đây (**Chủ: Story 6.10**) · ② `spawn_import_scan` chỉ quét Chương ĐẦU, N−1 Chương không được quét ứng viên Glossary và không cổng nào đỏ (**Chủ: Story 6.10**) · ③ `⌥W`/`⌥←`/`⌥→` chưa đăng ký (**Chủ: Story 6.10**) -- `check:debt-owner` đọc **dòng `→`**, một câu trong thân mục thì cổng không thấy
 
 **Acceptance Criteria:**
 - Given một nguồn có N dòng khớp mẫu, when nhập rồi đọc lại `project.db`, then có đúng N (hoặc N+1 khi có lời tựa) hàng `chapter`, `ord` liên tục từ 1, **mọi** hàng `status = 'not_started'`, và `source_text` của mỗi Chương **bắt đầu bằng** dòng tiêu đề của chính nó.
@@ -164,63 +164,63 @@ context:
 **Cơ chế tách — đọc trước tiên**
 
 - Điểm vào: ba cửa thoát sớm rồi rẽ hai nhánh theo hình dạng đơn vị.
-  [`pipeline.rs:648`](../../src-tauri/src/core/segment/pipeline.rs#L648)
+  [`pipeline.rs:648`](../../../src-tauri/src/core/segment/pipeline.rs#L648)
 
 - Tách theo VỊ TRÍ `[start_i, start_{i+1})` — thay `str::split` vốn nuốt dấu phân tách.
-  [`pipeline.rs:737`](../../src-tauri/src/core/segment/pipeline.rs#L737)
+  [`pipeline.rs:737`](../../../src-tauri/src/core/segment/pipeline.rs#L737)
 
 - Quy tắc tiêu đề dựa trên SỐ DÒNG, không một ngưỡng độ dài nào.
-  [`pipeline.rs:773`](../../src-tauri/src/core/segment/pipeline.rs#L773)
+  [`pipeline.rs:773`](../../../src-tauri/src/core/segment/pipeline.rs#L773)
 
 - Module thuần: `multi_line(true)` bắt buộc, lọc khớp độ dài 0, mẫu hỏng trả `Err`.
-  [`chapterpattern.rs:74`](../../src-tauri/src/core/segment/chapterpattern.rs#L74)
+  [`chapterpattern.rs:74`](../../../src-tauri/src/core/segment/chapterpattern.rs#L74)
 
 **Ranh giới lệnh — nơi mẫu được nghiệm thu và N Chương được ghi**
 
 - Rào biên dịch thử: mẫu hỏng bị chặn TRƯỚC khi chạm chuỗi pipeline.
-  [`project.rs:256`](../../src-tauri/src/commands/project.rs#L256)
+  [`project.rs:256`](../../../src-tauri/src/commands/project.rs#L256)
 
 - Vòng ghi N Chương: `ord` liên tục, `title` thay `NULL`, mọi hàng `not_started`.
-  [`project.rs:414`](../../src-tauri/src/commands/project.rs#L414)
+  [`project.rs:414`](../../../src-tauri/src/commands/project.rs#L414)
 
 - Xem trước đọc TOÀN BỘ `outcome.chapters`, không còn `.next()`.
-  [`project.rs:1363`](../../src-tauri/src/commands/project.rs#L1363)
+  [`project.rs:1363`](../../../src-tauri/src/commands/project.rs#L1363)
 
 - Hình dạng dây của khối tách, dựng cho MỖI ứng viên bảng mã.
-  [`project.rs:1165`](../../src-tauri/src/commands/project.rs#L1165)
+  [`project.rs:1165`](../../../src-tauri/src/commands/project.rs#L1165)
 
 **Trạng thái frontend — ba chỗ dễ sai nhất**
 
 - Lõi tải lại dùng chung: gửi mẫu hiện hành ở mọi lượt, hai tầng không trôi khỏi nhau.
-  [`importPreviewState.ts:456`](../../src/importPreviewState.ts#L456)
+  [`importPreviewState.ts:456`](../../../src/importPreviewState.ts#L456)
 
 - Lỗi mẫu hỏng KHÔNG được sụp lớp phủ — định tuyến riêng theo mã lỗi.
-  [`importPreviewState.ts:180`](../../src/importPreviewState.ts#L180)
+  [`importPreviewState.ts:180`](../../../src/importPreviewState.ts#L180)
 
 - Sửa mẫu: xếp hàng lượt gõ sau, chặn xác nhận khi đang bay.
-  [`importPreviewState.ts:574`](../../src/importPreviewState.ts#L574)
+  [`importPreviewState.ts:574`](../../../src/importPreviewState.ts#L574)
 
 - `trim` để một ô toàn khoảng trắng không thành mẫu literal thật.
-  [`importPreviewState.ts:444`](../../src/importPreviewState.ts#L444)
+  [`importPreviewState.ts:444`](../../../src/importPreviewState.ts#L444)
 
 **Giao diện**
 
 - Tầng 4: ô mẫu qua `@change`, danh sách Chương sắp xếp được theo độ dài.
-  [`ImportPreviewOverlay.vue:717`](../../src/ImportPreviewOverlay.vue#L717)
+  [`ImportPreviewOverlay.vue:717`](../../../src/ImportPreviewOverlay.vue#L717)
 
 - Kiểm kiểu lúc chạy cho từng trường mới của khối tách.
-  [`project.ts:330`](../../src/config/project.ts#L330)
+  [`project.ts:330`](../../../src/config/project.ts#L330)
 
 **Cổng và đối chứng — đọc sau cùng**
 
 - Cổng mới: mọi assert thật đều cắt `#[cfg(test)]` trước khi quét.
-  [`segment_chapterpattern_boundary.rs:144`](../../src-tauri/tests/segment_chapterpattern_boundary.rs#L144)
+  [`segment_chapterpattern_boundary.rs:144`](../../../src-tauri/tests/segment_chapterpattern_boundary.rs#L144)
 
 - Ca đóng nợ: đọc `count_in_import` TỪ dây sản phẩm, không tự cộng trong ca test.
-  [`cleanup_contract.rs:900`](../../src-tauri/tests/cleanup_contract.rs#L900)
+  [`cleanup_contract.rs:900`](../../../src-tauri/tests/cleanup_contract.rs#L900)
 
 - N Chương đến TỪ mẫu phân tách, không phải hình dạng viết tay.
-  [`project_contract.rs:679`](../../src-tauri/tests/project_contract.rs#L679)
+  [`project_contract.rs:679`](../../../src-tauri/tests/project_contract.rs#L679)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

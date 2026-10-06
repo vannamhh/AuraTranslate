@@ -234,7 +234,7 @@ cũng chọn thẳng chế độ khoan dung được bằng hai nút. Mỗi hit 
 - `scripts/check-commands.mjs` — `COMMAND_FLOOR` 52 · `CLICK_FLOOR` 27 · `DISPATCH_FLOOR` 40, đều
   là cận DƯỚI (thêm lệnh không làm đỏ). `scripts/check-i18n.mjs` Kiểm A cấm chữ tiếng Việt CÓ DẤU
   ở vị trí mã trong `src-tauri/src/**`.
-- `_bmad-output/implementation-artifacts/deferred-work.md:8551-8562` — mục 🟡 *"Chế độ khoan dung
+- `_bmad-output/initiative-auratranslate/deferred-work.md:8551-8562` — mục 🟡 *"Chế độ khoan dung
   dấu … chưa có cửa bấm"*, **chủ Story 5.10**: mục này đóng ở đây.
 
 ## Tasks & Acceptance
@@ -305,7 +305,7 @@ cũng chọn thẳng chế độ khoan dung được bằng hai nút. Mỗi hit 
     không dựng được trong bàn đo e2e (`create_work_from_text` chỉ tạo `source_text`).
     -- Rationale: hành vi trong engine thật không có chủ ở ba đường kia; một giới hạn không viết
     ra là một giới hạn người sau tưởng đã được xét.
-14. [x] `_bmad-output/implementation-artifacts/deferred-work.md` — ① đóng mục 🟡 *"Chế độ khoan dung
+14. [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — ① đóng mục 🟡 *"Chế độ khoan dung
     dấu"* bằng `→ ✅ ĐÃ ĐÓNG 2026-08-29 (Story 5.10)` kèm cách đóng; ② mục nợ MỚI **có chủ Ice**:
     `đ`/`Đ` (U+0111/U+0110) **không** được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào —
     `duong` không tìm ra `đường` (số đo ở §Design Notes), đóng nó cần một hàm gấp dấu trong Rust,

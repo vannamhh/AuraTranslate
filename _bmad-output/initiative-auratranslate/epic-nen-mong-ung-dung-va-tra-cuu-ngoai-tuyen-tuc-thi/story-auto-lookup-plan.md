@@ -930,7 +930,7 @@ scripts/check-commands.mjs      UPDATE  🔴 CỔNG MỚI đếm lời gọi đ�
 scripts/check-layout.mjs        UPDATE  ALLOWED_GLOBAL_MEMBERS + dòng lý do AC + FILE_FLOOR
 scripts/check-tokens.mjs        UPDATE  FILE_FLOOR / COMPONENT_FILE_FLOOR
 scripts/check-i18n.mjs          UPDATE  VUE_FLOOR / RS_FLOOR
-_bmad-output/implementation-artifacts/deferred-work.md   UPDATE  đóng :608 :635 · chuyển 3 mục
+_bmad-output/initiative-auratranslate/deferred-work.md   UPDATE  đóng :608 :635 · chuyển 3 mục
 ```
 
 ⚠️ **không tệp Rust nào trong danh sách** — và đó là một **dữ kiện của story**, không một thiếu sót:
@@ -998,7 +998,7 @@ bảng Stack **trước**, và `check-deps.mjs` có danh sách cấm cùng ngư�
   hướng C "Kế thừa QuickTranslator"** ngày 2026-08-02. Bản mới: *QuickTranslator là mốc tham
   khảo để vượt qua* — bất biến là **thao tác**, **cài đặt** thì mở. Cùng lượt đó FR21 thu hẹp
   còn **Panel Source**. ⇒ Câu trích ở trên là **ảnh chụp 2026-08-07**, đừng trích lại nó như
-  một mệnh đề đang hiệu lực. Xem `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+  một mệnh đề đang hiệu lực. Xem `initiative-auratranslate/change-auto-lookup-thu-ve-panel-source/change-auto-lookup-thu-ve-panel-source.md`.
 - `mockups/motion-auto-lookup.html:185-205` — **bảng đặc tả chuyển động** · `:187`
   *(*"Tra nhanh liên tiếp thì thành không có hiệu ứng"*)* · `:200` *(*"không tra khi con trỏ còn
   đang kéo"*)*
@@ -1248,9 +1248,9 @@ Sáu mục trên đã ghi vào `deferred-work.md` §1.18 kèm chủ sở hữu.
 - `src-tauri/src/core/dict/query.rs`
 - `src-tauri/tests/dict_lookup.rs`
 - `src-tauri/tests/dict_sources.rs`
-- `_bmad-output/implementation-artifacts/deferred-work.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `_bmad-output/implementation-artifacts/1-18-auto-lookup.md`
+- `_bmad-output/initiative-auratranslate/deferred-work.md`
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-auto-lookup-plan.md`
 
 ⚠️ `src/modes/libraryImport.ts` **không thuộc story này** — nó là commit riêng `09d9c87`
 *(bản vá chưa commit lúc tạo story; Ice chốt tách ra ở Task 0)*.

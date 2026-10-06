@@ -44,5 +44,5 @@ Docs xuất lại, để đo đúng "Word thật sinh ra hình dạng gì") vào
 `src-tauri/tests/fixtures/docx/`, rồi chạy lại lệnh ở trên; `docx-raw.tsv` sẽ xuất hiện trong
 thư mục này.
 
-Xem `_bmad-output/implementation-artifacts/deferred-work.md` (mục Story 6.12) cho đầy đủ danh
+Xem `_bmad-output/initiative-auratranslate/deferred-work.md` (mục Story 6.12) cho đầy đủ danh
 sách nợ mới, bao gồm mục này.

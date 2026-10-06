@@ -536,9 +536,9 @@ Chưa có framework test nào trong repo, và **story này không phải chỗ c
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.2`] — sáu AC nguyên văn, Covers FR104 · NFR12 · NFR14
-- [Source: `_bmad-output/planning-artifacts/epics.md#Starter template & khung dự án`] — *"KHÔNG có starter template bên ngoài nào được chỉ định"*; cây nguồn bắt buộc; ba phụ thuộc đã loại có lý do
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.3`] — story nhận bàn giao AC6 và hai phép đo `.msi`; *"gắn vào chính pipeline này, không dựng pipeline thứ hai"*
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.2`] — sáu AC nguyên văn, Covers FR104 · NFR12 · NFR14
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Starter template & khung dự án`] — *"KHÔNG có starter template bên ngoài nào được chỉ định"*; cây nguồn bắt buộc; ba phụ thuộc đã loại có lý do
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.3`] — story nhận bàn giao AC6 và hai phép đo `.msi`; *"gắn vào chính pipeline này, không dựng pipeline thứ hai"*
 - [Source: `ARCHITECTURE-SPINE.md#Structural Seed`] — cây nguồn đầy đủ kèm chú thích AD từng module
 - [Source: `ARCHITECTURE-SPINE.md#Stack`] — bảng ghim phiên bản; *"Không dùng, đã loại có lý do"*
 - [Source: `ARCHITECTURE-SPINE.md#AD-23`] — scope tĩnh ba vùng: `$RESOURCE/dict/**` · `$RESOURCE/fonts/**` chỉ đọc, `$APPDATA/**` đọc+ghi; scope động chỉ cấp qua hộp thoại
@@ -551,7 +551,7 @@ Chưa có framework test nào trong repo, và **story này không phải chỗ c
 - [Source: `ARCHITECTURE-SPINE.md#AD-21`, `#Consistency Conventions`] — không chuỗi tiếng Việt trong `.rs`/`.vue`; quy ước đặt tên; *"mỗi phụ thuộc mới phải rà tương thích GPLv3 trước khi thêm vào (NFR15) và ghi vào bảng Stack"*
 - [Source: `prd.md:778`] — FR104 không telemetry
 - [Source: `prd.md:838–851`] — NFR11 · NFR12 · NFR13 · NFR14 · NFR15 · NFR16
-- [Source: `_bmad-output/implementation-artifacts/1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep.md#Ranh giới phạm vi`] — *"Không dùng app thăm dò làm scaffold cho Story 1.2"*; trạng thái repo
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md#Ranh giới phạm vi`] — *"Không dùng app thăm dò làm scaffold cho Story 1.2"*; trạng thái repo
 - [Source: `research/font-spike-results-2026-08-03.md#Cấu hình Tauri đã kiểm chứng`] — khối `security` (CSP + `assetProtocol`) đã kiểm trên bản release, ghi rõ *"Story 1.2 chép lại đúng chỗ này"*
 - [Source: `research/font-spike-results-2026-08-03.md#Bẫy gặp thật khi làm`] — bốn bẫy Tauri
 - [Source: `research/font-spike-results-2026-08-03.md#Phép đo 5`] — bốn tệp font + SHA-256 (Task 9 dùng nếu Ice đồng ý)
@@ -819,12 +819,12 @@ Không có chuỗi tiếng Việt nào là **văn bản hiển thị** trong `.r
 **Sửa:**
 
 - `.gitignore` — thêm `/src-tauri/target/`, `/src-tauri/gen/schemas/`, `*.tsbuildinfo`; ghi chú giữ dòng `*.db` (AD-25)
-- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md` — bảng Stack: 7 hàng mới, `reqwest` → 0.13.4, TypeScript → 5.9.3, cột giấy phép mang dấu ✓/⚠️; §rà NFR15 lượt hai; `tauri-plugin-fs`/`sql`/`dialog` vào danh sách "Không dùng"
-- `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/.memlog.md` — 4 dòng
-- `_bmad-output/implementation-artifacts/1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang.md` — story này
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `ready-for-dev` → `in-progress` → `review`
+- `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` — bảng Stack: 7 hàng mới, `reqwest` → 0.13.4, TypeScript → 5.9.3, cột giấy phép mang dấu ✓/⚠️; §rà NFR15 lượt hai; `tauri-plugin-fs`/`sql`/`dialog` vào danh sách "Không dùng"
+- `_bmad-output/initiative-auratranslate/architecture-auratranslate/.memlog.md` — 4 dòng
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang-plan.md` — story này
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `ready-for-dev` → `in-progress` → `review`
 
-**KHÔNG sửa (có chủ ý):** `_bmad-output/planning-artifacts/epics.md` — Ice chốt 2026-08-03, giữ tiền lệ Story 1.1.
+**KHÔNG sửa (có chủ ý):** `_bmad-output/initiative-auratranslate/archive-v6/epics.md` — Ice chốt 2026-08-03, giữ tiền lệ Story 1.1.
 
 **Không vào repo** — nằm trong scratchpad của phiên: `observe-network.sh` · `license_audit.py` · `make_icon.py` · `build.log` · `network.log` · `scope*.log`.
 

@@ -48,7 +48,7 @@ Proposition 2 must keep catching the case proposition 1 alone misses: a mechanis
 - `:636` -- proposition 0: a checkpoint ran before the threshold was crossed. Green.
 - `src-tauri/src/core/store` -- the mechanism under test. Measured healthy; out of scope per §Never.
 - `PROJECT_MIGRATIONS` (search `src-tauri/src/core/store` for the migration list) -- prime suspect for the +23 pages; compare the list at `f5feca0` against 2026-08-11 to name the migrations Epic 5/6 added.
-- `_bmad-output/implementation-artifacts/deferred-work.md` -- the owned entries for this test: the 2026-08-11 Ice decision ("AC5 nói CHỮNG LẠI, không nói có trần tuyệt đối"), the n=1 calibration warning, and debt A5. Update them rather than writing a fourth account.
+- `_bmad-output/initiative-auratranslate/deferred-work.md` -- the owned entries for this test: the 2026-08-11 Ice decision ("AC5 nói CHỮNG LẠI, không nói có trần tuyệt đối"), the n=1 calibration warning, and debt A5. Update them rather than writing a fourth account.
 
 ## Tasks & Acceptance
 
@@ -56,7 +56,7 @@ Proposition 2 must keep catching the case proposition 1 alone misses: a mechanis
 - [x] `src-tauri/src/core/store` (read-only) -- identify which migrations added pages between 2026-08-11 and 2026-09-05 and confirm they account for ~23 pages -- the assertion must not change on an unnamed cause
 - [x] `src-tauri/tests/store_contract.rs` -- **(amended 2026-09-13 after review round 1 — see §Spec Change Log)** split proposition 2 onto two axes: **2a** `after_second <= after_first`, tolerance exactly 0, no external constant; **2b** `(after_first - before_writes) < written * NUM/DEN`, platform ceilings unchanged, which is the only clause that catches a very-late-reacting mechanism. Neither clause may carry a tolerance that grows with schema size except 2b's subtracted baseline, and that cost must be recorded as an owned debt. Keep a comment carrying the 2026-09-13 numbers and why the fraction-of-written form was retired
 - [x] `src-tauri/tests/store_contract.rs` -- extend the assertion message so a future failure says which of the two causes it is, using the numbers already printed -- this is what made today's diagnosis possible
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- close or amend the n=1 calibration entry and debt A5 with the 2026-09-13 measurements (Windows n=7 identical, macOS n=1 local) -- A5 asked for a Windows measurement and CI has been printing one nightly
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- close or amend the n=1 calibration entry and debt A5 with the 2026-09-13 measurements (Windows n=7 identical, macOS n=1 local) -- A5 asked for a Windows measurement and CI has been printing one nightly
 
 **Acceptance Criteria:**
 - Given a local macOS run of `cargo test --locked --test store_contract the_wal_stops_growing -- --nocapture`, when it completes, then it passes and prints the peak.

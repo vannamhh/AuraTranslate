@@ -963,8 +963,8 @@ phải một trong hai engine mục tiêu — nó xác nhận CƠ CHẾ (positio
 - `src/panels/sourcePanelState.ts`
 
 **Sửa:**
-- `_bmad-output/implementation-artifacts/deferred-work.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/initiative-auratranslate/deferred-work.md`
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
 - `scripts/check-tokens.mjs`
 - `src-tauri/src/commands/mod.rs`
 - `src-tauri/src/commands/project.rs`

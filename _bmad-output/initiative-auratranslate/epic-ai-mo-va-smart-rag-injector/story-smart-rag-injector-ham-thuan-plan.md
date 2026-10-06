@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 1
 baseline_revision: 'a4a552637adbbe466c954a42a7e61b0129001157'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -265,7 +265,7 @@ emptiness is the failure class root `AGENTS.md` names as this project's central 
       `warm()`, with the assertion outside the timed loop, reporting per-call cost, row count and
       build profile — rationale: `deferred-work.md:5882` is about cost per translated sentence;
       loop 0 timed only the tier load, on seeded terms that matched no sentence.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — close or re-own the four items
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — close or re-own the four items
       named in the Code Map, plus one new item for `entries_eligible_for_injection` returning to
       zero product callers. Every hand-off must be written as `Chủ: <owner>`; state build and
       population on every measurement; do not delete or absorb the `- source_spec:` line that

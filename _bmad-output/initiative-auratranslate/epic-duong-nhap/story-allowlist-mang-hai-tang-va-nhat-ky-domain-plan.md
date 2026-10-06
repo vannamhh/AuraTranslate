@@ -124,7 +124,7 @@ context:
 - [x] `src/commands/index.ts` + `src/main.ts` -- đăng ký command mở Cài đặt + tiêm hàm -- `@click` là **đúng một** `dispatch('<id>')` (`check:commands` Kiểm A)
 - [x] `src/i18n/vi.json` -- mọi chuỗi mới, giọng **vô nhân xưng** -- Kiểm D cấm "bạn"/"chúng tôi", `VOICE_EXCEPTIONS` rỗng ⇒ ba câu mockup viết ngôi hai **phải viết lại**
 - [x] `tests/frontend/` -- ca cho dòng tóm tắt (kể cả khi `importPreview === null`) và bảng gộp -- khuôn `importPreviewOverlayRender.test.ts:1-60` (nạp **động** cả state lẫn component trong cùng một lượt)
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- ba mục: AC ảnh (**Chủ: 6.11**), hàng tầng AI (**Chủ: Epic 4**), khung Cài đặt 10 mục còn rỗng (**Chủ: Ice**); và 🔵 sửa tại chỗ mục `:9942` -- đóng bằng chữ, không xoá
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- ba mục: AC ảnh (**Chủ: 6.11**), hàng tầng AI (**Chủ: Epic 4**), khung Cài đặt 10 mục còn rỗng (**Chủ: Ice**); và 🔵 sửa tại chỗ mục `:9942` -- đóng bằng chữ, không xoá
 
 **Acceptance Criteria:**
 - Given một host không nằm trong hai tầng, when `fetch` được gọi, then máy chủ đích nhận **đúng 0 kết nối** — đo bằng `AtomicUsize`, không bằng mã trả về

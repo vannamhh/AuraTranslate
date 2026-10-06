@@ -10,7 +10,7 @@ baseline_revision: '2644a5243b8fb8a48731ee0d8d33a24645ee552c'
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -102,7 +102,7 @@ context:
 - [x] `src/config/segment.ts` — thêm `role` vào bản chép tay, kèm chú thích trỏ về struct Rust.
 - [x] `src-tauri/tests/pinned_contract.rs` + `src-tauri/tests/segment_contract.rs` — cập nhật ba số đã ghim (19→20, 20→21, 13→14) và `SegmentRow`/`read_all_segment_rows`, mỗi chỗ một câu nói vì sao.
 - [x] `src-tauri/tests/segment_role_contract.rs` (**mới**) — mọi hàng của ma trận I/O trên đường sản phẩm thật (`create_work_from_*`), cộng ca *"đường `.txt`/dán tay không đổi một byte"* và ca xác nhận một segment vai sinh **đúng một** `segment_version`.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng bằng chữ vế `caption`/`alt` của `:10186-10189` và `:10396-10401`; ghi nợ **MỚI có chủ** cho từng vế còn hở, mỗi mục một `Chủ:` thật (`check:debt-owner` đỏ nếu thiếu): ① `.docx` không sinh alt/caption (**Chủ: Ice** — quy ước caption của Word chưa ai chốt); ② **chưa đo được** số ảnh GIỮ có `alt` trên trang thật, nên rủi ro "alt rác thành hàng phải dịch" là suy đoán chứ không phải phép đo (**Chủ: Ice**); ③ hàng `alt`/`caption` hiện **không nhãn** trong lưới (**Chủ: Story 6.14**); ④ vai mất khi gộp/tách câu (**Chủ: Story 6.14**); ⑤ nghiệm thu TM (**Chủ: Story 7.1**).
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng bằng chữ vế `caption`/`alt` của `:10186-10189` và `:10396-10401`; ghi nợ **MỚI có chủ** cho từng vế còn hở, mỗi mục một `Chủ:` thật (`check:debt-owner` đỏ nếu thiếu): ① `.docx` không sinh alt/caption (**Chủ: Ice** — quy ước caption của Word chưa ai chốt); ② **chưa đo được** số ảnh GIỮ có `alt` trên trang thật, nên rủi ro "alt rác thành hàng phải dịch" là suy đoán chứ không phải phép đo (**Chủ: Ice**); ③ hàng `alt`/`caption` hiện **không nhãn** trong lưới (**Chủ: Story 6.14**); ④ vai mất khi gộp/tách câu (**Chủ: Story 6.14**); ⑤ nghiệm thu TM (**Chủ: Story 7.1**).
 
 **Acceptance Criteria:**
 - 🔴 Given một trang có ảnh mang `alt` và một `figcaption`, when nhập trọn đường sản phẩm, then `segment` có đúng một hàng `role='alt'` và đúng một hàng `role='caption'`, `ord` của chúng đứng **ngay sau** neo của ảnh theo đúng thứ tự `alt` rồi `caption`, và **0** cột text nào được thêm vào `asset`.

@@ -7,8 +7,8 @@ status: 'done'
 review_loop_iteration: 0
 baseline_revision: 'db3833b36bf7b96c9c4de762f2b7486a23fce085'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-xuat-va-nhap-glossary-qua-csv-tsv-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -97,7 +97,7 @@ context:
 - [x] `src-tauri/src/core/i18n/mod.rs` và `src/i18n/vi.json` — khoá + câu cho biến thể mới, cạnh khối khoá Glossary hiện có.
 - [x] `src-tauri/tests/glossary_exchange_contract.rs` — ca cho ①②③③b④⑤⑥⑦, mỗi ca kèm phép đối chứng gỡ-chỗ-nối **đã chạy thật**. Ca ①/③b phải mô phỏng một lượt ghi **chen vào giữa** `classify()` và `import_into_tier()`.
 - [x] `src-tauri/tests/config_invariants.rs` — cổng quét văn bản nguồn canh CẢ BA vế của bản vá C5 (hai `#[must_use]` + dòng `deny` trong `Cargo.toml`) — thêm sau khi đo được rằng lint một mình không làm bản vá đỏ được; xem §Spec Change Log mục cuối.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng mục **Cụm C** bằng chữ: `→ 🟡` kèm phần còn hở (C4 đã có mục riêng), và ghi rõ **C2 đóng bằng `→ KHÔNG LÀM` kèm ba phép đo** đã bác nó. Không xoá mục cũ.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng mục **Cụm C** bằng chữ: `→ 🟡` kèm phần còn hở (C4 đã có mục riêng), và ghi rõ **C2 đóng bằng `→ KHÔNG LÀM` kèm ba phép đo** đã bác nó. Không xoá mục cũ.
 
 **Acceptance Criteria:**
 - Given mỗi mục vá C1/C3/C5, when gỡ riêng bản vá đó ra và chạy bộ test, then **có ít nhất một ca đỏ trỏ đúng mục đó**; tên ca và số ca đỏ được ghi lại thành số thật, không suy.
@@ -369,63 +369,63 @@ mười một cổng xanh trong **161s** — chạy LẠI sau cả phần sửa 
 **So lạc quan — chỗ đọc sai dễ nhất của cả lượt vá**
 
 - Điều kiện ghi mang theo giá trị người dùng đã nhìn; `IS` chứ không `=`.
-  [`store.rs:1701`](../../src-tauri/src/core/glossary/store.rs#L1701)
+  [`store.rs:1701`](../../../src-tauri/src/core/glossary/store.rs#L1701)
 
 - `changed == 0` nay mang HAI nghĩa; đọc lại trong cùng giao dịch để tách.
-  [`store.rs:1718`](../../src-tauri/src/core/glossary/store.rs#L1718)
+  [`store.rs:1718`](../../../src-tauri/src/core/glossary/store.rs#L1718)
 
 - Thứ tự báo khi lô có cả hai loại va chạm, và vì sao nó suy ra được.
-  [`store.rs:1772`](../../src-tauri/src/core/glossary/store.rs#L1772)
+  [`store.rs:1772`](../../../src-tauri/src/core/glossary/store.rs#L1772)
 
 **Lớp lỗi mới được cấp tên — bốn mắt, thiếu một là một cổng đỏ**
 
 - Biến thể mang danh sách, không mang một thuật ngữ lẻ.
-  [`store.rs:491`](../../src-tauri/src/core/glossary/store.rs#L491)
+  [`store.rs:491`](../../../src-tauri/src/core/glossary/store.rs#L491)
 
 - Mắt duy nhất không cổng nào canh trước vòng rà — nay có ca riêng.
-  [`store.rs:663`](../../src-tauri/src/core/glossary/store.rs#L663)
+  [`store.rs:663`](../../../src-tauri/src/core/glossary/store.rs#L663)
 
 - Khoá và tham số; `params` mang dữ liệu, không mang câu.
-  [`i18n/mod.rs:390`](../../src-tauri/src/core/i18n/mod.rs#L390)
+  [`i18n/mod.rs:390`](../../../src-tauri/src/core/i18n/mod.rs#L390)
 
 - Câu phải khác `import_unique_conflict` ở đúng vế người dùng cần phân biệt.
-  [`vi.json:43`](../../src/i18n/vi.json#L43)
+  [`vi.json:43`](../../../src/i18n/vi.json#L43)
 
 **Luật về đúng tầng — AD-1**
 
 - Phép kiểm nay ở lõi, trước khi mở giao dịch; giữ "0 lượt ghi".
-  [`store.rs:1633`](../../src-tauri/src/core/glossary/store.rs#L1633)
+  [`store.rs:1633`](../../../src-tauri/src/core/glossary/store.rs#L1633)
 
 - Adapter thôi tự kiểm, chỉ để lỗi đi xuyên qua — không giữ hai bản.
-  [`glossary.rs:861`](../../src-tauri/src/commands/glossary.rs#L861)
+  [`glossary.rs:861`](../../../src-tauri/src/commands/glossary.rs#L861)
 
 **Vé ghi — một lưới, không phải một lỗi đang sống**
 
 - Dấu trên KIỂU, kèm giới hạn có tên viết tại chỗ.
-  [`writer.rs:135`](../../src-tauri/src/core/store/writer.rs#L135)
+  [`writer.rs:135`](../../../src-tauri/src/core/store/writer.rs#L135)
 
 - Vỏ bọc không thừa hưởng dấu của kiểu bên trong nó.
-  [`candidate_store.rs:174`](../../src-tauri/src/core/glossary/candidate_store.rs#L174)
+  [`candidate_store.rs:174`](../../../src-tauri/src/core/glossary/candidate_store.rs#L174)
 
 - Đúng một lint được nâng, kèm phép đo cho phép nâng.
-  [`Cargo.toml:137`](../../src-tauri/Cargo.toml#L137)
+  [`Cargo.toml:137`](../../../src-tauri/Cargo.toml#L137)
 
 **Cổng và ca test**
 
 - Ca sinh ra vì đo được rằng lint một mình không làm bản vá đỏ được.
-  [`config_invariants.rs:997`](../../src-tauri/tests/config_invariants.rs#L997)
+  [`config_invariants.rs:997`](../../../src-tauri/tests/config_invariants.rs#L997)
 
 - Ca của vòng rà: cắt thử đổi khoá thông báo ⇒ đúng ca này đỏ.
-  [`glossary_import_dialog_contract.rs:673`](../../src-tauri/tests/glossary_import_dialog_contract.rs#L673)
+  [`glossary_import_dialog_contract.rs:673`](../../../src-tauri/tests/glossary_import_dialog_contract.rs#L673)
 
 - Lượt ghi chen ngang giữa hai nhịp, dựng thật chứ không giả lập.
-  [`glossary_exchange_contract.rs:1354`](../../src-tauri/tests/glossary_exchange_contract.rs#L1354)
+  [`glossary_exchange_contract.rs:1354`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1354)
 
 - Bẫy `NULL`: mục chờ chốt phải KHỚP, không được thành lỗi giả.
-  [`glossary_exchange_contract.rs:1404`](../../src-tauri/tests/glossary_exchange_contract.rs#L1404)
+  [`glossary_exchange_contract.rs:1404`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1404)
 
 - Gọi thẳng hàm lõi, bỏ qua adapter — đường mà C3 để hở.
-  [`glossary_exchange_contract.rs:1524`](../../src-tauri/tests/glossary_exchange_contract.rs#L1524)
+  [`glossary_exchange_contract.rs:1524`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1524)
 
 - Lô hỗn hợp: thứ tự báo tất định, khoá bằng một ca riêng.
-  [`glossary_exchange_contract.rs:1586`](../../src-tauri/tests/glossary_exchange_contract.rs#L1586)
+  [`glossary_exchange_contract.rs:1586`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1586)

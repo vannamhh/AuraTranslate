@@ -210,7 +210,7 @@ màn xem trước và mở được từ danh sách Chương, sửa tại chỗ 
       theo Chương (Tác phẩm **nhiều** Chương, sửa Chương 2 không chạm Chương 1 và 3).
 - [x] `tests/frontend/` — ca cho khối ở cả hai bề mặt (mount thật, giả ở **biên IPC**).
       ⚠️ Mệnh đề hình học/kiểu chữ thuộc e2e/bàn đo, không thuộc vitest.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — ghi bằng chữ rằng món
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — ghi bằng chữ rằng món
       `:10786-10806` **KHÔNG** được story này nhận (Ice chốt 2026-09-10: cột URL ghi URL yêu cầu),
       nó ở lại 🟡 với `chủ: Ice`, không xoá chữ cũ. Cộng một mục **MỚI có chủ** cho lượt áp xuất xứ
       hàng loạt, và cho mọi vế còn hở khác. `check:debt-owner` đỏ nếu thiếu `Chủ:`.

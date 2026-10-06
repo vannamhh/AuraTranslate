@@ -60,12 +60,12 @@ chia đôi ở §Quyết định #4 là **hợp đồng ràng buộc cả hai st
 ## Bối cảnh git — ĐỌC TRƯỚC KHI GÕ DÒNG ĐẦU TIÊN
 
 ```
- M _bmad-output/implementation-artifacts/deferred-work.md
- M _bmad-output/implementation-artifacts/sprint-status.yaml
+ M _bmad-output/initiative-auratranslate/deferred-work.md
+ M _bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml
  M src/panels/README.md              ← story này cũng sửa
  M src/panels/SourceHanViet.vue
  M src/panels/sourcePanelState.ts    ← story này có thể chạm (đường âm Hán Việt)
-?? _bmad-output/implementation-artifacts/1-18b-tach-tu-tieng-trung-tab-han-viet.md
+?? _bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-tach-tu-tieng-trung-tab-han-viet-plan.md
 ?? src/panels/wordBoundary.ts
 ```
 
@@ -714,18 +714,18 @@ một `src/config/` adapter cho `list_dict_sources`. **Không** thư mục mới
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:1807-1843` — §Story 1.19 *(sáu AC gốc)*
-- `_bmad-output/planning-artifacts/epics.md:6174-6216` — §Story 10.4 *(cùng màn hình — Quyết định #4)*
-- `_bmad-output/planning-artifacts/epics.md:148-158` — FR36 · FR37 · FR38 · FR39
-- `_bmad-output/planning-artifacts/epics.md:296,310-316` — FR103 · FR109 · FR112
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1807-1843` — §Story 1.19 *(sáu AC gốc)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:6174-6216` — §Story 10.4 *(cùng màn hình — Quyết định #4)*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:148-158` — FR36 · FR37 · FR38 · FR39
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:296,310-316` — FR103 · FR109 · FR112
 - `_bmad-output/planning-artifacts/architecture/…/ARCHITECTURE-SPINE.md:147-151` — **AD-10**
 - `_bmad-output/planning-artifacts/architecture/…/ARCHITECTURE-SPINE.md:75-79` — **AD-1**
 - `_bmad-output/planning-artifacts/ux-designs/…/mockups/sources-attribution.html` — **ba bề mặt**
 - `_bmad-output/planning-artifacts/ux-designs/…/EXPERIENCE.md:338` — bảng mockup ↔ FR
-- `_bmad-output/implementation-artifacts/1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md:71-91` — bốn trường giấy phép, và vì sao `vietphrase` **không** là `public-domain`
-- `_bmad-output/implementation-artifacts/1-17-panel-lookup-ban-ghi-co-cau-truc.md:66-73` — §KHÔNG-LÀM ② *(mệnh đề mà story này phải tôn trọng nguyên văn)*
-- `_bmad-output/implementation-artifacts/deferred-work.md:292` — nghĩa vụ thông báo tác giả HVTĐTD *(chủ: 10.4)*
-- `_bmad-output/implementation-artifacts/deferred-work.md:579-581` — rủi ro pháp lý `tran-van-chanh`, và lệch với `prd.md §8.2`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md:71-91` — bốn trường giấy phép, và vì sao `vietphrase` **không** là `public-domain`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-panel-lookup-ban-ghi-co-cau-truc-plan.md:66-73` — §KHÔNG-LÀM ② *(mệnh đề mà story này phải tôn trọng nguyên văn)*
+- `_bmad-output/initiative-auratranslate/deferred-work.md:292` — nghĩa vụ thông báo tác giả HVTĐTD *(chủ: 10.4)*
+- `_bmad-output/initiative-auratranslate/deferred-work.md:579-581` — rủi ro pháp lý `tran-van-chanh`, và lệch với `prd.md §8.2`
 - `src-tauri/src/core/dict/mod.rs:421-423` — giao **trường giấy phép** cho story này *(ghi "bốn", số thật **sáu**)*
 - `tools/dict-build/src/schema.rs:26-43` — `DICT_SOURCE_DDL` *(chín cột)*
 
@@ -963,8 +963,8 @@ lượt đọc `global.db` mỗi lượt tra **chưa ai đo** · `prd.md §8.2` 
 - `src/i18n/vi.json` — **25** khoá mới *(80 → 105, đếm bằng máy ở code review 2026-08-10; bản đầu khai 21, và số thật lúc đó đã là 23)*
 - `scripts/check-commands.mjs` · `scripts/check-i18n.mjs` · `scripts/check-tokens.mjs` · `scripts/check-layout.mjs` — nâng **9** sàn kèm số thật
 - `src/panels/README.md` — hàng 1.19 + §Bật tắt nguồn từ điển
-- `_bmad-output/implementation-artifacts/deferred-work.md` — §1-19, **8** món nợ
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `in-progress` → `review`
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — §1-19, **8** món nợ
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `in-progress` → `review`
 
 ### Review Findings
 
@@ -996,7 +996,7 @@ một danh sách **chín** mã lỗi thời **thiếu đúng `tran-van-chanh` v�
 - [x] [Review][Patch] `toggleFocusedDictSource` ưu tiên tiêu điểm DOM hơn chip vừa bấm chuột — toggle SAI nguồn trên WKWebView [src/panels/dictSourcesState.ts:263]
 - [x] [Review][Patch] `refreshHanViet` không có số thứ tự lượt — hai lượt `read_han_viet` bay song song, lượt cũ đè lượt mới [src/panels/sourcePanelState.ts:273]
 - [x] [Review][Patch] Hai lượt `put_config` liên tiếp không đảm bảo thứ tự ghi — đĩa có thể giữ ảnh chụp CŨ [src/panels/dictSourcesState.ts:150]
-- [x] [Review][Patch] Change Log khai "**7** món nợ mở", `deferred-work.md` §1-19 thực tế có **8** mục [_bmad-output/implementation-artifacts/1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md:40]
+- [x] [Review][Patch] Change Log khai "**7** món nợ mở", `deferred-work.md` §1-19 thực tế có **8** mục [_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-bat-tat-nguon-tu-dien-va-ghi-cong-plan.md:40]
 
 - [x] [Review][Patch] ~~Defer~~ **NÂNG LÊN `patch` VÀ ĐÃ VÁ 2026-08-10** — dải chip `overflow: hidden` cắt mất nút *"Nguồn dữ liệu"* *(đường chuột DUY NHẤT vào AC11)* cùng hai chip cuối, trong đó có **Trần Văn Chánh** (`copyrighted`). Lượt triage xếp `low`/`defer` vì tin chú thích CSS; Ice chạy app thật và ảnh chụp bác lại. Vùng chip nay cuộn riêng, nhãn và nút `flex: none` không bao giờ bị cắt [src/panels/LookupPanel.vue]
 - [x] [Review][Defer] `list_source_attributions` không loại trùng `code` giữa các lớp, trong khi UI dùng `code` làm `:key` duy nhất [src-tauri/src/core/dict/mod.rs:940] — deferred, pre-existing; bất biến do phía dựng `.db` giữ, không với tới được bằng dữ liệu hiện có

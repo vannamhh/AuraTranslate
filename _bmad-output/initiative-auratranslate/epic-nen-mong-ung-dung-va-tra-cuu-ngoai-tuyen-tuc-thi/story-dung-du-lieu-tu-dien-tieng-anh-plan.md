@@ -14,8 +14,8 @@ Status: done
 
 **Covers:** FR34 · NFR6 *(đo lại)* · NFR8 · AD-19 · AD-25
 **Epic:** 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
-**Story trước:** [1.10 — Đóng gói bốn lớp gỡ rời](1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md) *(done)*
-**Nguồn gốc:** [`sprint-change-proposal-2026-08-05.md`](../planning-artifacts/sprint-change-proposal-2026-08-05.md) — ✅ Ice duyệt 2026-08-05
+**Story trước:** [1.10 — Đóng gói bốn lớp gỡ rời](story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md) *(done)*
+**Nguồn gốc:** [`sprint-change-proposal-2026-08-05.md`](../change-duong-tieng-anh-bi-roi-khoi-epic/change-duong-tieng-anh-bi-roi-khoi-epic.md) — ✅ Ice duyệt 2026-08-05
 
 ---
 
@@ -613,7 +613,7 @@ scripts/check-dict-build.mjs                         # RS_FILE_FLOOR 21     (Tas
 dict-manifest.toml                                   # [base] sha256+version (Task 11)
 ```
 
-**Tài liệu (3):** `tools/dict-build/README.md` · `src-tauri/resources/dict/README.md` · `_bmad-output/implementation-artifacts/deferred-work.md`
+**Tài liệu (3):** `tools/dict-build/README.md` · `src-tauri/resources/dict/README.md` · `_bmad-output/initiative-auratranslate/deferred-work.md`
 
 **KHÔNG đụng:** `tools/dict-build/src/{schema,insert,model,char_idx,finalize,licenses,main}.rs` · `tools/dict-build/src/sources/{cvdict,cc_cedict,unihan,thieu_chuu,vietphrase,cedict_common}.rs` · `tools/dict-build/tests/{schema,layers}.rs` · `scripts/check-dict-manifest.mjs` · **toàn bộ `src-tauri/**`** · **toàn bộ `_bmad-output/planning-artifacts/**`** · `docs/dics/**`
 
@@ -640,19 +640,19 @@ dict-manifest.toml                                   # [base] sha256+version (Ta
 
 ### References
 
-- **Story gốc + AC:** [`epics.md`](../planning-artifacts/epics.md) §Story 1.10b *(`:1407-1432`)*
-- **Nguồn gốc + số đo mũi thăm dò:** [`sprint-change-proposal-2026-08-05.md`](../planning-artifacts/sprint-change-proposal-2026-08-05.md) §1 *(bảng mũi thăm dò)* · §2.4 *(char_idx 9 cặp)* · §2.5 *(NFR6)* · §5 *(tiêu chí thành công)*
-- **Hai vai của viwiktionary:** [`prd.md`](../planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md) §8.2 *(bảng nguồn + cảnh báo)* · §8.3 *(khoanh phạm vi "chỉ vai B")*
+- **Story gốc + AC:** [`epics.md`](../archive-v6/epics.md) §Story 1.10b *(`:1407-1432`)*
+- **Nguồn gốc + số đo mũi thăm dò:** [`sprint-change-proposal-2026-08-05.md`](../change-duong-tieng-anh-bi-roi-khoi-epic/change-duong-tieng-anh-bi-roi-khoi-epic.md) §1 *(bảng mũi thăm dò)* · §2.4 *(char_idx 9 cặp)* · §2.5 *(NFR6)* · §5 *(tiêu chí thành công)*
+- **Hai vai của viwiktionary:** [`prd.md`](../prd-auratranslate/prd-auratranslate.md) §8.2 *(bảng nguồn + cảnh báo)* · §8.3 *(khoanh phạm vi "chỉ vai B")*
 - **FR34:** `epics.md:144` · **FR35** *(nhãn ngoại ngữ)*: `epics.md:146` · **FR29/FR30** *(một nghĩa một hàng, ví dụ theo từ loại)*: `epics.md`
 - **NFR6 trần 400.000.000:** `prd.md:826` · `prd.md:834` *("sửa lần hai")* · `epics.md:336` · giả định **[A2]** `prd.md:1073`
 - **NFR8:** `prd.md:858` *(chi phí chỉ mục theo tỷ lệ nguồn, không phải hằng số)*
-- **AD-10** *(lớp gỡ rời — liệt kê đích danh bốn lớp)*: [`ARCHITECTURE-SPINE.md`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md) `:147`
+- **AD-10** *(lớp gỡ rời — liệt kê đích danh bốn lớp)*: [`ARCHITECTURE-SPINE.md`](../architecture-auratranslate/architecture-auratranslate.md) `:147`
 - **AD-19** *(không hợp nhất nguồn)*: `ARCHITECTURE-SPINE.md:288`
 - **AD-25** *(artifact có phiên bản + checksum)*: `ARCHITECTURE-SPINE.md:326`
 - **AD-26** *(ba nhánh truy vấn **tiếng Trung** — không áp cho EN)*: `ARCHITECTURE-SPINE.md:332`
 - **AD-27** *(FTS chính phân biệt dấu)*: `ARCHITECTURE-SPINE.md:338`
-- **Story trước, bài học + bảng kế toán NFR6:** [`1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md`](1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md) §Debug Log Task 11 · §Bẫy 1–9 · §Quyết định #1–#8 · §Review Follow-ups
-- **Bàn giao đang mở:** [`deferred-work.md`](deferred-work.md) `:272` *(dư địa NFR6)* · `:273` *(AD mới — CHẶN 1.11b)* · `:274` *(UX Panel Lookup)* · `:275` *(SPEC FR34)*
+- **Story trước, bài học + bảng kế toán NFR6:** [`1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md`](story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md) §Debug Log Task 11 · §Bẫy 1–9 · §Quyết định #1–#8 · §Review Follow-ups
+- **Bàn giao đang mở:** [`deferred-work.md`](../deferred-work.md) `:272` *(dư địa NFR6)* · `:273` *(AD mới — CHẶN 1.11b)* · `:274` *(UX Panel Lookup)* · `:275` *(SPEC FR34)*
 - **Mã sẽ sửa:** `tools/dict-build/src/sources/wiktextract_common.rs:143` *(hằng `lang: "zh"`)* · `:170-211` *(`parse`, phép gộp headword)* · `sources_meta.rs:136` *(`BASE_ALL`)* · `build.rs:210-246` *(khuôn khối chèn)* · `check-dict-build.mjs:57` *(`RS_FILE_FLOOR`)*
 
 ---
@@ -1057,18 +1057,18 @@ Ba giá trị phải khớp `dict-manifest.toml`:
 | `scripts/check-dict-build.mjs` | `RS_FILE_FLOOR 20 → 21` |
 | `dict-manifest.toml` | `[base].sha256` + `[base].source_version` *(không đụng `[[detachable]]`)* |
 | `src-tauri/resources/dict/README.md` | `dict-core.db` mô tả **sáu** nguồn + cảnh báo checksum đổi lần hai |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | `:272` số NFR6 thật · `:273` char_idx thật · **+1 mục mới** cho 1.11b/1.13 |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | `:272` số NFR6 thật · `:273` char_idx thật · **+1 mục mới** cho 1.11b/1.13 |
 
 **BẢN GHI quy trình (2):**
 
 | Tệp | Thay đổi |
 |---|---|
-| `_bmad-output/implementation-artifacts/1-10b-dung-du-lieu-tu-dien-tieng-anh.md` | tệp story này — checkbox · Dev Agent Record · File List · Change Log · Status |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-10b…: ready-for-dev → in-progress → review` · `last_updated` |
+| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dung-du-lieu-tu-dien-tieng-anh-plan.md` | tệp story này — checkbox · Dev Agent Record · File List · Change Log · Status |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `1-10b…: ready-for-dev → in-progress → review` · `last_updated` |
 
 **ARTIFACT dựng lại (ngoài git, `*.gitignore`):** `tools/dict-build/out/dict-core.db`
 
-⚠️ `_bmad-output/implementation-artifacts/1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md` và `_bmad-output/planning-artifacts/**` xuất hiện `M` trong `git status` — chúng **đã bị sửa TRƯỚC khi story này bắt đầu** *(có trong ảnh chụp `git status` ở Task 1)*. **Story này không đụng một dòng nào của chúng.**
+⚠️ `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md` và `_bmad-output/planning-artifacts/**` xuất hiện `M` trong `git status` — chúng **đã bị sửa TRƯỚC khi story này bắt đầu** *(có trong ảnh chụp `git status` ở Task 1)*. **Story này không đụng một dòng nào của chúng.**
 
 **KHÔNG đụng:** toàn bộ `src-tauri/src|tests|Cargo.toml|tauri.conf.json` *(`git diff --stat` **rỗng**)* · `tools/dict-build/src/{schema,insert,model,char_idx,finalize,licenses,main,lib}.rs` · `tools/dict-build/src/sources/{cvdict,cc_cedict,unihan,thieu_chuu,vietphrase,cedict_common}.rs` · `tools/dict-build/tests/{schema,layers}.rs` · `scripts/check-dict-manifest.mjs` · toàn bộ `_bmad-output/planning-artifacts/**` · `docs/dics/**` · tệp story 1.9 và 1.10
 

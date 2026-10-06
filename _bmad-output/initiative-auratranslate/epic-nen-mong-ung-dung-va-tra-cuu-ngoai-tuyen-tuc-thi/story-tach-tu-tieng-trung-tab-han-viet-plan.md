@@ -584,7 +584,7 @@ src/
   panels/sourcePanelState.ts    UPDATE  ⚠️ CHỈ nếu trần render đổi theo số đo (AC9)
   panels/README.md              UPDATE  hàng 1.18b + đoạn cơ chế tách từ
 scripts/check-*.mjs             UPDATE  ⚠️ CHỈ nâng sàn theo số thật (AC10)
-_bmad-output/implementation-artifacts/deferred-work.md   UPDATE  đóng mục §nghiệm thu tay
+_bmad-output/initiative-auratranslate/deferred-work.md   UPDATE  đóng mục §nghiệm thu tay
 ```
 
 ⚠️ **không tệp Rust nào trong danh sách, và đó là một DỮ KIỆN của story** *(Quyết định #1)*.
@@ -611,15 +611,15 @@ chúng nằm ở **đúng tệp** story này sẽ mổ.
 
 ### References
 
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md` §Deferred from: nghiệm thu tay tab Hán Việt (Ice, 2026-08-07)] — **nguồn gốc + toàn bộ bảng đo**
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md` §Deferred from: nghiệm thu tay tab Hán Việt (Ice, 2026-08-07)] — **nguồn gốc + toàn bộ bảng đo**
 - [Source: `ARCHITECTURE-SPINE.md:75-79`] — AD-1, danh sách frontend được giữ *(gồm **"vùng chọn"**)*
 - [Source: `ARCHITECTURE-SPINE.md:230-236`] — AD-17, Matcher là đúng một cài đặt *(`jieba-rs`, Rust)*
 - [Source: `ARCHITECTURE-SPINE.md:95-101`] — AD-4, ranh giới **segment** *(khác đơn vị với **từ**)*
 - [Source: `ARCHITECTURE-SPINE.md:406-417`] — AD-34, handler chuột chỉ `dispatch`
 - [Source: `ARCHITECTURE-SPINE.md:218`] — AD-16, không render nội dung ngoài thành HTML
 - [Source: `reviews/review-ad-44-2026-08-05.md:50`] — 🔴 phân xử *"chọn gì để tra"* vs *"tra thế nào"*
-- [Source: `_bmad-output/implementation-artifacts/1-16-panel-source-va-tab-han-viet.md:511-522`] — AC6 nguyên văn
-- [Source: `_bmad-output/implementation-artifacts/1-18-auto-lookup.md:495-521`] — AC11 · AC12 nguyên văn
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-panel-source-va-tab-han-viet-plan.md:511-522`] — AC6 nguyên văn
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-auto-lookup-plan.md:495-521`] — AC11 · AC12 nguyên văn
 - [Source: `epics.md:1497-1526`] — Story 1.12, Matcher dùng chung
 - [Source: `epics.md:503-505`] — UX-DR5 · UX-DR6
 - [Source: `EXPERIENCE.md:131`] — FR21 Auto-Lookup *"không được thiết kế lại cho khác đi"*
@@ -628,7 +628,7 @@ chúng nằm ở **đúng tệp** story này sẽ mổ.
   loại hướng C *"Kế thừa QuickTranslator"* ngày 2026-08-02. Bản mới: *QuickTranslator là mốc
   tham khảo để vượt qua* — bất biến là **thao tác**, **cài đặt** thì mở. Cùng lượt đó FR21 thu
   hẹp còn **Panel Source**. ⇒ Câu trích trên là **ảnh chụp 2026-08-07**. Xem
-  `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+  `initiative-auratranslate/change-auto-lookup-thu-ve-panel-source/change-auto-lookup-thu-ve-panel-source.md`.
 - [Source: `EXPERIENCE.md:23`] — ba thứ ở Rust: tách **câu**, khớp ngôn ngữ, phân giải scope
 - [Source: `DESIGN.md:287-291`] — sàn giãn dòng 1.66 cho họ `read`
 - [Source: `prd.md:814,866,875,876,877,887`] — NFR1 · NFR13 · NFR14 · NFR15 · NFR16 · NFR17
@@ -891,9 +891,9 @@ kiện tiên quyết của 1.18/3.4"* bị story này **phá có chủ đích**,
 | `src/panels/SourceHanViet.vue` | UPDATE — `Segment.han` theo TỪ · `buildSegments` · `switchLeads` *(thay `switchView`)* · `readingLine` · `overlapsRange` · `sliceTextNode` · `resolveParallel` · `resolveSwitch` *(thay nhánh `switch` của `resolveSelection`)* · `onCopy` · template hai kiểu xem · CSS khe hở + `.hv-unit` `display: inline` · banner viết lại |
 | `src/panels/sourcePanelState.ts` | UPDATE — **chỉ hai doc-comment** (`:84`, `:102`); `PARALLEL_VIEW_RENDER_CEILING` **giữ 50.000**, logic không đổi |
 | `src/panels/README.md` | UPDATE — hàng 1.18b · §Tách từ tiếng Trung · sửa chú thích `.hv-char` đã sai từ trước |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | UPDATE — đóng §nghiệm thu tay tab Hán Việt · mở §1-18b với **bốn** món nợ mới |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | UPDATE — `1-18b…: ready-for-dev → review` |
-| `_bmad-output/implementation-artifacts/1-18b-tach-tu-tieng-trung-tab-han-viet.md` | UPDATE — Change Log · Tasks · Dev Agent Record · File List · Status |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | UPDATE — đóng §nghiệm thu tay tab Hán Việt · mở §1-18b với **bốn** món nợ mới |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | UPDATE — `1-18b…: ready-for-dev → review` |
+| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-tach-tu-tieng-trung-tab-han-viet-plan.md` | UPDATE — Change Log · Tasks · Dev Agent Record · File List · Status |
 
 **KHÔNG đổi một dòng nào** *(kiểm bằng `git status`)*: `package.json` · `package-lock.json` ·
 `src-tauri/Cargo.toml` · `src-tauri/Cargo.lock` · `src-tauri/src/core/matching/**` ·

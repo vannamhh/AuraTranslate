@@ -552,7 +552,7 @@ src-tauri/tests/
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:1530-1576` — Story 1.13, tám AC gốc
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1530-1576` — Story 1.13, tám AC gốc
 - `ARCHITECTURE-SPINE.md:290-294` — **AD-19** *(không hợp nhất nguồn)*
 - `ARCHITECTURE-SPINE.md:84-88` — **AD-2** *(đúng ba cổng)*
 - `ARCHITECTURE-SPINE.md:151` — **AD-10** *(một tệp = một lớp; runtime không mã riêng cho từng nguồn)*
@@ -714,5 +714,5 @@ Dữ liệu giữ đúng như nguồn ghi. Tra `不是他的对手` vẫn trả 
 | `src-tauri/src/ports/mod.rs` | Khai `mod dict_source` + tái xuất; bảng trạng thái ba cổng của AD-2 |
 | `src-tauri/src/lib.rs` | `open_dict_layers` ở `setup()` · `close_dict_layers` ở `RunEvent::Exit` · hằng `DICT_RESOURCE_DIR` |
 | `src-tauri/tests/dict_boundary.rs` | **7 cổng mới**: sàn quần thể `src/**` · không literal mã nguồn · không tên tệp `.db` · không hàm hợp nhất · `ports/**` không mang cài đặt · `ORDER BY ord` phải có khoá phụ |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Bàn giao: FR36 **đóng** · phán quyết 18 đầu mục trùng · số NFR1 đường gom · HVTĐTD dữ liệu thật còn mở · `app.manage` chưa có người tiêu thụ |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `ready-for-dev` → `in-progress` → `review` |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | Bàn giao: FR36 **đóng** · phán quyết 18 đầu mục trùng · số NFR1 đường gom · HVTĐTD dữ liệu thật còn mở · `app.manage` chưa có người tiêu thụ |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `ready-for-dev` → `in-progress` → `review` |

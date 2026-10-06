@@ -9,7 +9,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-5-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -72,7 +72,7 @@ context:
 - `src-tauri/tests/store_contract.rs:51-69` -- khuôn thư mục tạm (pid + `AtomicU64`, `cleanup` sau drop); `:1303` -- ca duy nhất chạm `LibraryIndex` hôm nay (`as_str() == "library-index"`).
 - `src-tauri/tests/naming_boundary.rs:789` -- fixture chứa `enum StoreKind { … LibraryIndex … }`; nếu thêm biến thể/đổi thân enum thì chuỗi dựng tay này phải theo kịp, nếu không ca đó xanh giả.
 - `src-tauri/tests/project_contract.rs:216-239` -- ca đã có cho `rebuild_from_store` + `write_atomic`; `:8` -- doctrine *"Không thêm `tempfile`"*.
-- `_bmad-output/implementation-artifacts/deferred-work.md:761` (quét gặp năm mục), `:7992-7996` (nợ `work.updated_at`, chủ hiện là story này) -- hai mục phải nối tiếp, **không xoá**.
+- `_bmad-output/initiative-auratranslate/deferred-work.md:761` (quét gặp năm mục), `:7992-7996` (nợ `work.updated_at`, chủ hiện là story này) -- hai mục phải nối tiếp, **không xoá**.
 - `src-tauri/AGENTS.md:29` -- luật *"chỉ `Indexer` ghi `library-index.db`… Xoá chúng phải luôn là thao tác an toàn"*; sau story này phải trỏ được tới cổng có thật, theo đúng cách `AGENTS.md:41` đã được sửa ở Story 5.1.
 - `.githooks/pre-push` -- 11 cổng `check:*` → `npm run test` → `npm run build` → `cargo test --locked`. Cổng mới là **test Rust**, không phải `check-*.mjs`, nên **không** đụng ba danh sách của `check:gates`.
 
@@ -88,7 +88,7 @@ context:
 - [x] `src-tauri/tests/library_index_boundary.rs` -- **tệp mới**: cổng "chỉ `Indexer` ghi", chép đủ bốn phần khuôn `store_boundary.rs` + đối chứng dương/âm trên chuỗi dựng tay -- biến `src-tauri/AGENTS.md:29` thành phép đo.
 - [x] `src-tauri/tests/library_index_contract.rs` -- **tệp mới**: toàn bộ §I/O Matrix, cộng ca so byte `.atproj` trước/sau một lượt dựng lại -- *"không mất một byte"* phải là phép đo, không lời hứa.
 - [x] `src-tauri/AGENTS.md` -- dòng 29 trỏ tới hai tệp cổng vừa dựng -- lời tự khai phải kiểm được.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối tiếp mục `:7992` (mở rộng: `chapter.updated_at` cũng đóng băng; đổi chủ sang Story 5.6 theo phán quyết hẹp của Ice 2026-08-27) và ghi ba nợ mới có chủ: `meta.json` đóng băng từ lúc tạo (chủ **5.5**), bề mặt đọc/lưới của AC7 (chủ **5.6** + **5.9**), hiển thị cảnh báo trùng UUID (chủ **5.6**) -- không mục nào mồ côi, không mục cũ bị xoá.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối tiếp mục `:7992` (mở rộng: `chapter.updated_at` cũng đóng băng; đổi chủ sang Story 5.6 theo phán quyết hẹp của Ice 2026-08-27) và ghi ba nợ mới có chủ: `meta.json` đóng băng từ lúc tạo (chủ **5.5**), bề mặt đọc/lưới của AC7 (chủ **5.6** + **5.9**), hiển thị cảnh báo trùng UUID (chủ **5.6**) -- không mục nào mồ côi, không mục cũ bị xoá.
 
 **Acceptance Criteria:**
 - Given một chỉ mục dựng từ N `.atproj`, when xoá `library-index.db` rồi dựng lại, then chỉ mục cũ và mới bằng nhau từng hàng từng cột, và mọi tệp trong mọi `.atproj` giống hệt byte-với-byte.
@@ -135,81 +135,81 @@ context:
 **Nhánh KHÔNG-DI-TRÚ — thứ đi ngược phần còn lại của kho, đọc trước tiên**
 
 - Bắt đầu ở đây: cả hình dạng lẫn lý do nó không giống hai kho kia.
-  [`indexer.rs:69`](../../src-tauri/src/core/library/indexer.rs#L69)
+  [`indexer.rs:69`](../../../src-tauri/src/core/library/indexer.rs#L69)
 
 - Nguồn sự thật đã cũ tự sửa: kho thứ ba nay có mã, không còn là lời hứa.
-  [`store/mod.rs:181`](../../src-tauri/src/core/store/mod.rs#L181)
+  [`store/mod.rs:181`](../../../src-tauri/src/core/store/mod.rs#L181)
 
 - Nửa QUYẾT ĐỊNH: lệch phiên bản **cả hai chiều**, và không đọc được cũng tính là lệch.
-  [`store/mod.rs:890`](../../src-tauri/src/core/store/mod.rs#L890)
+  [`store/mod.rs:890`](../../../src-tauri/src/core/store/mod.rs#L890)
 
 - Nửa ĐỌC, cố ý không đi qua `Store::open` — nhánh từ chối của nó sai cho kho dẫn xuất.
-  [`store/mod.rs:834`](../../src-tauri/src/core/store/mod.rs#L834)
+  [`store/mod.rs:834`](../../../src-tauri/src/core/store/mod.rs#L834)
 
 - Mở không `CREATE`: nếu không, một tệp vừa bị xoá bị bịa lại thành phiên bản 0.
-  [`pragmas.rs:69`](../../src-tauri/src/core/store/pragmas.rs#L69)
+  [`pragmas.rs:69`](../../../src-tauri/src/core/store/pragmas.rs#L69)
 
 **Chỉ mục dẫn xuất — chỉ đọc `meta.json`, không mở `project.db` lần nào**
 
 - Đường ghi duy nhất: quét, đọc `meta.json`, ghi lại toàn bảng trong một giao dịch.
-  [`indexer.rs:98`](../../src-tauri/src/core/library/indexer.rs#L98)
+  [`indexer.rs:98`](../../../src-tauri/src/core/library/indexer.rs#L98)
 
 - Rỗng phải có lý do — ba vế phân biệt, một số `0` một mình không nói được gì.
-  [`indexer.rs:372`](../../src-tauri/src/core/library/indexer.rs#L372)
+  [`indexer.rs:372`](../../../src-tauri/src/core/library/indexer.rs#L372)
 
 - Một thư mục hỏng không được huỷ cả lượt quét; tách thuần để gieo được lỗi giả.
-  [`indexer.rs:298`](../../src-tauri/src/core/library/indexer.rs#L298)
+  [`indexer.rs:298`](../../../src-tauri/src/core/library/indexer.rs#L298)
 
 - Lược đồ: đúng bảy trường `WorkMeta` cộng đường dẫn, không cột cho tính năng chưa có.
-  [`schema.rs:1459`](../../src-tauri/src/core/store/schema.rs#L1459)
+  [`schema.rs:1459`](../../../src-tauri/src/core/store/schema.rs#L1459)
 
 - Một bước di trú duy nhất — kho không di trú thì đó là hình dạng đúng.
-  [`schema.rs:1479`](../../src-tauri/src/core/store/schema.rs#L1479)
+  [`schema.rs:1479`](../../../src-tauri/src/core/store/schema.rs#L1479)
 
 **Chỗ nối — AD-8 "ghi trước / ghi sau" viết bằng mã**
 
 - Ở lớp vỏ chứ không trong hàm thuần: `Indexer` sống trong state, hàm thuần thì không.
-  [`project.rs:1498`](../../src-tauri/src/commands/project.rs#L1498)
+  [`project.rs:1498`](../../../src-tauri/src/commands/project.rs#L1498)
 
 - Lượt dựng lại đầu tiên chạy lúc khởi động — chưa có lệnh "quét lại" nào (Story 5.3).
-  [`lib.rs:699`](../../src-tauri/src/lib.rs#L699)
+  [`lib.rs:699`](../../../src-tauri/src/lib.rs#L699)
 
 - Phát hiện trùng UUID mà không ai quan sát thì chưa phải "cảnh báo" (AD-28).
-  [`indexer.rs:402`](../../src-tauri/src/core/library/indexer.rs#L402)
+  [`indexer.rs:402`](../../../src-tauri/src/core/library/indexer.rs#L402)
 
 **Cổng — thứ story này thật sự thêm vào kho**
 
 - Bốn từ khoá và hai miễn trừ, cạnh nhau, là toàn bộ luật.
-  [`library_index_boundary.rs:35`](../../src-tauri/tests/library_index_boundary.rs#L35)
+  [`library_index_boundary.rs:35`](../../../src-tauri/tests/library_index_boundary.rs#L35)
 
 - Đối chứng nặng nhất: cây nguồn thật, 0 vi phạm — và nó lọc dòng `//`.
-  [`library_index_boundary.rs:117`](../../src-tauri/tests/library_index_boundary.rs#L117)
+  [`library_index_boundary.rs:117`](../../../src-tauri/tests/library_index_boundary.rs#L117)
 
 - Chỗ vòng rà 1 sửa: ca này từng quét toàn văn, mâu thuẫn với luật ngay trên nó.
-  [`library_index_boundary.rs:284`](../../src-tauri/tests/library_index_boundary.rs#L284)
+  [`library_index_boundary.rs:284`](../../../src-tauri/tests/library_index_boundary.rs#L284)
 
 - Vị từ DÙNG CHUNG cho cổng thật và mọi đối chứng — hai bên không trôi khỏi nhau được.
-  [`library_index_boundary.rs:97`](../../src-tauri/tests/library_index_boundary.rs#L97)
+  [`library_index_boundary.rs:97`](../../../src-tauri/tests/library_index_boundary.rs#L97)
 
 - Nguồn của luật; cổng chỉ thi hành nó, và nó nói cả hai giới hạn còn hở.
-  [`AGENTS.md:29`](../../src-tauri/AGENTS.md#L29)
+  [`AGENTS.md:29`](../../../src-tauri/AGENTS.md#L29)
 
 **Hợp đồng — chín hàng ma trận, cộng ca vòng rà bắt được**
 
 - Ca vòng rà 1: tệp rác phải tự lành, không làm `Indexer::open` hỏng vĩnh viễn.
-  [`library_index_contract.rs:593`](../../src-tauri/tests/library_index_contract.rs#L593)
+  [`library_index_contract.rs:593`](../../../src-tauri/tests/library_index_contract.rs#L593)
 
 - Lời hứa trung tâm của FR98/NFR10 thành phép đo: so byte `.atproj` trước và sau.
-  [`library_index_contract.rs:168`](../../src-tauri/tests/library_index_contract.rs#L168)
+  [`library_index_contract.rs:168`](../../../src-tauri/tests/library_index_contract.rs#L168)
 
 - Trùng `work_id`: giữ mục đầu, trả cả hai đường dẫn — không gộp, không ghi đè.
-  [`library_index_contract.rs:308`](../../src-tauri/tests/library_index_contract.rs#L308)
+  [`library_index_contract.rs:308`](../../../src-tauri/tests/library_index_contract.rs#L308)
 
 - Thứ tự ghi: hàng chỉ mục chỉ xuất hiện sau khi `meta.json` đã trên đĩa.
-  [`library_index_contract.rs:543`](../../src-tauri/tests/library_index_contract.rs#L543)
+  [`library_index_contract.rs:543`](../../../src-tauri/tests/library_index_contract.rs#L543)
 
 - Mọi trường khớp từng ký tự với `meta.json` — chỉ mục chép, không suy diễn.
-  [`library_index_contract.rs:124`](../../src-tauri/tests/library_index_contract.rs#L124)
+  [`library_index_contract.rs:124`](../../../src-tauri/tests/library_index_contract.rs#L124)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

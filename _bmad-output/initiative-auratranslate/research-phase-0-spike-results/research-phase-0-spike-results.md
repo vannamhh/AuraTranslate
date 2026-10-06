@@ -6,8 +6,8 @@ status: complete
 created: 2026-08-02
 updated: 2026-08-02
 relates_to:
-  - '_bmad-output/planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/brief.md'
-  - '_bmad-output/planning-artifacts/research/technical-auratranslate-tauri-rust-local-first-research-2026-08-02.md'
+  - '_bmad-output/initiative-auratranslate/brief-auratranslate/brief-auratranslate.md'
+  - '_bmad-output/initiative-auratranslate/research-technical-auratranslate-tauri-rust-local-first/research-technical-auratranslate-tauri-rust-local-first.md'
 ---
 
 # Giai đoạn 0 — Kết quả bốn mũi thăm dò

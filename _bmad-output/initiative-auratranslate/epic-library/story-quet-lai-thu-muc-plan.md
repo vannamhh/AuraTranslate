@@ -12,7 +12,7 @@ context:
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/tests/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-5-context.md'
 warnings: ['oversized']
 deferred:
   - summary: >-
@@ -217,7 +217,7 @@ deferred:
 - `src/glossaryManageState.ts:83,144,193-197,356-366,448` -- **khuôn con trỏ danh sách**: `cursor` riêng tư + `readonly` export + `.at(cursor)` + `next`/`prev` + kẹp lại sau khi danh sách đổi. `src/GlossaryManageOverlay.vue:561-580` -- khuôn nút `@click="dispatch('<id>')"` với `:disabled="<row> === null"`.
 - `src/modes/LibraryMode.vue:63-150` -- khung có sẵn: `.empty` + `form.import-form` + ba node `role="status"` LUÔN có mặt; `:170-200` -- CSS dùng token (`--space-panel-block`, …). `src/modes/libraryImport.ts:1-18` -- lý do một module thuần riêng thay vì viết trong `.vue`.
 - `src/config/project.ts` -- khuôn adapter ba trạng thái (adapter thứ 8 chép đúng khuôn này). `src/i18n/vi.json:55-56,124-137` -- khoá `command.library.*` và `mode.library.*`.
-- `_bmad-output/implementation-artifacts/deferred-work.md:8079-8091` -- món nợ **"hai lượt `rebuild` chồng nhau"**, chủ ghi đích danh **Story 5.3**; `:8060-8077` -- món nợ "đoạn nối không ca nào chạm", chủ Story 5.6 (**không** đóng ở đây, chỉ nối tiếp nếu có gì đổi).
+- `_bmad-output/initiative-auratranslate/deferred-work.md:8079-8091` -- món nợ **"hai lượt `rebuild` chồng nhau"**, chủ ghi đích danh **Story 5.3**; `:8060-8077` -- món nợ "đoạn nối không ca nào chạm", chủ Story 5.6 (**không** đóng ở đây, chỉ nối tiếp nếu có gì đổi).
 - `src-tauri/AGENTS.md:29` -- luật `library-index.db`/`meta.json` là dẫn xuất + hai giới hạn đang mở; phải cập nhật 🔵 sau khi ngữ nghĩa mồ côi ra đời.
 
 ## Tasks & Acceptance
@@ -239,7 +239,7 @@ deferred:
 - [x] `src/commands/index.ts` + `src/main.ts` -- đăng ký `library.rescan` (**có phím**, AC7) · `library.choose_root` · `library.forget_orphan` · `library.orphan_next` · `library.orphan_prev` qua `deps` tiêm vào, kèm `portMissing` -- đăng ký ở `main.ts` chứ không trong `.vue`, nếu không `check:commands` Kiểm B không thấy id nào.
 - [x] `src/modes/LibraryMode.vue` -- thêm khối "thư mục gốc + quét lại + mục mồ côi": mỗi `@click` là **đúng một** `dispatch('<id>')`, mọi nhãn qua `t()`, node kết quả `role="status"` LUÔN có mặt, chỉ dùng token màu/cỡ chữ -- AD-34 §1 và `check:tokens` Kiểm B/B2 đều đọc tĩnh tệp này.
 - [x] `tests/frontend/libraryRescan.test.ts` -- **tệp mới** (đặt `.test.ts`, không `.spec.ts` -- xem §Spec Change Log): adapter không ném trên lỗi IPC, `libraryScanHasLoaded` sai trước lượt gọi đầu, con trỏ mồ côi kẹp lại đúng sau khi một mục bị gỡ, `forgetOrphan` không gọi IPC khi chưa chọn mục nào -- `happy-dom` chỉ được canh hành vi module thuần, không canh hình học.
-- [x] `src-tauri/AGENTS.md` + `_bmad-output/implementation-artifacts/deferred-work.md` -- sửa 🔵 dòng 29 (chỉ mục nay giữ hàng mồ côi, tức nó **không còn** dẫn xuất trọn vẹn từ đĩa) và nối tiếp món nợ `:8079` bằng `→ ✅ ĐÃ ĐÓNG 2026-08-27 (Story 5.3)` kèm cách đóng; ghi nợ mới có chủ cho vế hiển thị còn thiếu (bề mặt cảnh báo trùng `work_id` ⇒ 5.6; đường ĐỌC thuần thay cho lượt quét lúc mở Library ⇒ 5.6) -- không mục nào mồ côi, không mục cũ bị xoá.
+- [x] `src-tauri/AGENTS.md` + `_bmad-output/initiative-auratranslate/deferred-work.md` -- sửa 🔵 dòng 29 (chỉ mục nay giữ hàng mồ côi, tức nó **không còn** dẫn xuất trọn vẹn từ đĩa) và nối tiếp món nợ `:8079` bằng `→ ✅ ĐÃ ĐÓNG 2026-08-27 (Story 5.3)` kèm cách đóng; ghi nợ mới có chủ cho vế hiển thị còn thiếu (bề mặt cảnh báo trùng `work_id` ⇒ 5.6; đường ĐỌC thuần thay cho lượt quét lúc mở Library ⇒ 5.6) -- không mục nào mồ côi, không mục cũ bị xoá.
 
 **Acceptance Criteria:**
 - Given một chỉ mục có N Tác phẩm và người dùng bấm **quét lại**, when giao diện đang xử lý lượt quét, then cửa sổ vẫn nhận thao tác (vỏ IPC chạy ngoài luồng chính, có cổng canh), và khi xong màn hình nói đủ **ba** con số phân biệt được: đã lập chỉ mục · trùng `work_id` · bỏ qua.
@@ -252,7 +252,7 @@ deferred:
 ## Spec Change Log
 
 - **Vòng dựng đầu — hai lệch tường tự sửa, không hoàn nguyên.**
-  **① Tên tệp test frontend sai đuôi.** §Code Map/§Tasks đặt tên `tests/frontend/libraryRescan.spec.ts`, nhưng `vitest.config.ts:60` chỉ nạp `tests/frontend/**/*.test.ts` — mọi 43 tệp có sẵn trong cây đều mang đuôi `.test.ts`, không `.spec.ts`. Một tệp `.spec.ts` sẽ biên dịch sạch, không ai gọi nó, và `npm run test` báo "44 tệp" giả trong khi thực tế vẫn 43 tệp CHẠY — đúng lớp "một bộ test xanh không chứng minh chỗ nối được canh" mà `AGENTS.md::Known pitfalls` cấm. Đặt tên `libraryRescan.test.ts` theo cây nguồn thật (`vitest.config.ts` thắng, đúng luật "cây nguồn thắng, báo lại chỗ lệch" của chính `_bmad-output/project-context.md`). Đo sau khi sửa: `npm run test` → 44 tệp / 573 ca, đúng bằng baseline 43/567 cộng đúng 1 tệp/6 ca mới.
+  **① Tên tệp test frontend sai đuôi.** §Code Map/§Tasks đặt tên `tests/frontend/libraryRescan.spec.ts`, nhưng `vitest.config.ts:60` chỉ nạp `tests/frontend/**/*.test.ts` — mọi 43 tệp có sẵn trong cây đều mang đuôi `.test.ts`, không `.spec.ts`. Một tệp `.spec.ts` sẽ biên dịch sạch, không ai gọi nó, và `npm run test` báo "44 tệp" giả trong khi thực tế vẫn 43 tệp CHẠY — đúng lớp "một bộ test xanh không chứng minh chỗ nối được canh" mà `AGENTS.md::Known pitfalls` cấm. Đặt tên `libraryRescan.test.ts` theo cây nguồn thật (`vitest.config.ts` thắng, đúng luật "cây nguồn thắng, báo lại chỗ lệch" của chính `_bmad-output/inbox/project-context.md`). Đo sau khi sửa: `npm run test` → 44 tệp / 573 ca, đúng bằng baseline 43/567 cộng đúng 1 tệp/6 ca mới.
   **② `check:debt-owner` đỏ từ TRƯỚC baseline, không do story này.** Đối chứng: `git diff <baseline>..HEAD -- deferred-work.md` trước khi story này chạm gì vào tệp đó là RỖNG, và `npm run check:debt-owner` đã đỏ đúng ở `deferred-work.md:8017` (mục "22 cảnh báo clippy" từ Story 5.1, thiếu `Chủ:`) — một món nợ mồ côi từ trước, không phải hệ quả của story này. `§Verification` của story này đòi cổng đó xanh (nó nằm trong chuỗi lệnh bắt buộc), và sửa nó là một dòng thêm siêu nhỏ, không đổi nội dung mục cũ — thêm `**Chủ: Ice — quyết định có đưa clippy vào một cổng hay không**`, đúng khuôn "Ice là người chốt các quyết định mở". Xếp `patch` chứ không `bad_spec`: sửa TẠI CHỖ một khoảng trống trong tài liệu, không đụng một dòng mã hay một quyết định kiến trúc nào.
   **KEEP — phải sống sót mọi lần dựng lại:** (1) `Đối chứng bắt buộc` của §Verification phải THẬT SỰ chạy — cả hai (gỡ vế đánh dấu mồ côi; gỡ `(async)`) đã chạy tay, đỏ đúng chỗ, rồi khôi phục; (2) vị từ mồ côi giữ ĐÚNG hai vế (không đọc được VÀ không nằm trong tập liệt kê được) — biến thể một-vế đã bị loại tường minh ở §Design Notes, đừng đơn giản hoá lại; (3) `Indexer::rebuild_lock` khoá TOÀN BỘ scan+ghi, không chỉ giai đoạn ghi — đây là điểm mấu chốt đóng món nợ `:8079`, một Mutex chỉ bọc `store.write` sẽ không đóng được nó; (4) `commands/library.rs` KHÔNG được nhắc `StoreKind::LibraryIndex`/`StoreSpec::library_index` ở vị trí MÃ (comment thì được) — cổng ranh giới `library_index_boundary.rs` canh đúng việc đó.
 
@@ -466,7 +466,7 @@ Cùng lượt, đóng món nợ `deferred-work.md` mà Story 5.2 giao đích dan
 
 **Tài liệu**
 - `src-tauri/AGENTS.md:29` — 🔵 sửa tại chỗ: `library-index.db` **không còn** dẫn xuất trọn vẹn từ đĩa.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — đóng món nợ "hai lượt `rebuild` chồng nhau"; mở rộng món nợ "đoạn nối không ca nào chạm" sang ba vỏ mới; ghi một nợ mới có chủ (đường ĐỌC THUẦN cho lúc mở Library, chủ 5.6); vá một mục mồ côi có sẵn từ Story 5.1.
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng món nợ "hai lượt `rebuild` chồng nhau"; mở rộng món nợ "đoạn nối không ca nào chạm" sang ba vỏ mới; ghi một nợ mới có chủ (đường ĐỌC THUẦN cho lúc mở Library, chủ 5.6); vá một mục mồ côi có sẵn từ Story 5.1.
 
 ### Kết quả vòng rà
 

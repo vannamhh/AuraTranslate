@@ -617,7 +617,7 @@ AuraTranslate/
     check-dict-manifest.mjs  # đòi ĐÚNG 2 [[detachable]]
   dict-manifest.toml         # + 2 khối [[detachable]] điền thật
   src-tauri/resources/dict/README.md   # "tệp nào tồn tại": 1 → 3
-  _bmad-output/implementation-artifacts/deferred-work.md
+  _bmad-output/initiative-auratranslate/deferred-work.md
   docs/dics/                 # không CHỈ ĐỌC — kho nguồn thô của Ice
 ```
 
@@ -631,16 +631,16 @@ AuraTranslate/
 
 ### References
 
-- **AC gốc của story:** [`epics.md`](../planning-artifacts/epics.md) §Story 1.10, dòng 1374–1405 *(⚠️ nói **bốn** lớp; Ice thu hẹp xuống **hai** ngày 2026-08-05)*
-- **AC6 nhận bàn giao:** [`1-9-dung-du-lieu-tu-dien-lop-nen.md`](1-9-dung-du-lieu-tu-dien-lop-nen.md) §Quyết định của Ice #1 · §Completion Notes #6 *(dư địa 21.507.450 byte)* · §Debug Log References *(bảng kế toán NFR6)*
-- **FR27 · FR36 · FR112:** [`prd.md`](../planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md) `:458` · `:488` · `:802`
+- **AC gốc của story:** [`epics.md`](../archive-v6/epics.md) §Story 1.10, dòng 1374–1405 *(⚠️ nói **bốn** lớp; Ice thu hẹp xuống **hai** ngày 2026-08-05)*
+- **AC6 nhận bàn giao:** [`1-9-dung-du-lieu-tu-dien-lop-nen.md`](story-dung-du-lieu-tu-dien-lop-nen-plan.md) §Quyết định của Ice #1 · §Completion Notes #6 *(dư địa 21.507.450 byte)* · §Debug Log References *(bảng kế toán NFR6)*
+- **FR27 · FR36 · FR112:** [`prd.md`](../prd-auratranslate/prd-auratranslate.md) `:458` · `:488` · `:802`
 - **Bộ nguồn + trạng thái pháp lý:** `prd.md` §8.2 `:886-897` · §8.5 `:925-931` · §8.6 `:933-952` · rủi ro **R6/R7** `:1053-1054` · giả định **[A2]/[A3]** `:1022-1023`
-- **AD-7** *(dict `.db` chỉ đọc, luôn luôn)* · **AD-10** *(lớp gỡ rời, trường giấy phép, nghiệm thu FR36)* · **AD-19** *(không hợp nhất)* · **AD-25** *(artifact có checksum)*: [`ARCHITECTURE-SPINE.md`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md) dòng 119–151, 288–292, 324–336
-- **Hệ số dung lượng 2,67× và chi phí từng tầng chỉ mục:** [`phase-0-spike-results-2026-08-02.md`](../planning-artifacts/research/phase-0-spike-results-2026-08-02.md) `:55-69`
-- **Số byte font + quy ước đơn vị:** [`font-spike-results-2026-08-03.md`](../planning-artifacts/research/font-spike-results-2026-08-03.md) `:78` `:82`
-- **Quyền nhân thân vô thời hạn của Thiều Chửu:** [`technical-…-research-2026-08-02.md`](../planning-artifacts/research/technical-auratranslate-tauri-rust-local-first-research-2026-08-02.md) `:433-450`
-- **Kho nguồn thô + phán quyết từng tệp:** [`docs/dics/README.md`](../../docs/dics/README.md) · [`docs/dics/_khong-dung/README.md`](../../docs/dics/_khong-dung/README.md)
-- **Nợ đang mở:** [`deferred-work.md`](deferred-work.md) `:75` `:236`
+- **AD-7** *(dict `.db` chỉ đọc, luôn luôn)* · **AD-10** *(lớp gỡ rời, trường giấy phép, nghiệm thu FR36)* · **AD-19** *(không hợp nhất)* · **AD-25** *(artifact có checksum)*: [`ARCHITECTURE-SPINE.md`](../architecture-auratranslate/architecture-auratranslate.md) dòng 119–151, 288–292, 324–336
+- **Hệ số dung lượng 2,67× và chi phí từng tầng chỉ mục:** [`phase-0-spike-results-2026-08-02.md`](../research-phase-0-spike-results/research-phase-0-spike-results.md) `:55-69`
+- **Số byte font + quy ước đơn vị:** [`font-spike-results-2026-08-03.md`](research-font-spike-results/research-font-spike-results.md) `:78` `:82`
+- **Quyền nhân thân vô thời hạn của Thiều Chửu:** [`technical-…-research-2026-08-02.md`](../research-technical-auratranslate-tauri-rust-local-first/research-technical-auratranslate-tauri-rust-local-first.md) `:433-450`
+- **Kho nguồn thô + phán quyết từng tệp:** [`docs/dics/README.md`](../../../docs/dics/README.md) · [`docs/dics/_khong-dung/README.md`](../../../docs/dics/_khong-dung/README.md)
+- **Nợ đang mở:** [`deferred-work.md`](../deferred-work.md) `:75` `:236`
 - **Khuôn mã phải đọc trước khi viết:** `tools/dict-build/src/schema.rs` *(DDL hằng)* · `src/sources_meta.rs` *(khuôn `SourceMeta` + `LicenseRef` enum đóng)* · `src/build.rs` *(điều phối + `require_nonempty` + transaction)* · `src/finalize.rs` *(đuôi dùng chung)* · `src/sources/cedict_common.rs` *(tách `/` thành nhiều nghĩa)* · `scripts/check-dict-build.mjs` *(doctrine cổng + miễn trừ có tên)*
 
 ---
@@ -1096,9 +1096,9 @@ PRD, chuyển cho Ice ở §Câu hỏi cho Ice #1 (mặc định nếu Ice khôn
 - `scripts/check-dict-manifest.mjs` (`[[detachable]]` đòi đúng 2 mục)
 - `dict-manifest.toml` (2 khối `[[detachable]]` điền thật, `[base].sha256` cập nhật)
 - `src-tauri/resources/dict/README.md`
-- `_bmad-output/implementation-artifacts/deferred-work.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `_bmad-output/implementation-artifacts/1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md` (chính story này)
+- `_bmad-output/initiative-auratranslate/deferred-work.md`
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
+- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md` (chính story này)
 
 **Không commit (`.gitignore`, artifact tải về):**
 - `tools/dict-build/raw/thieu_chuu/TudienThienChuu.txt` · `tools/dict-build/raw/vietphrase/VietPhrase.txt`
@@ -1132,7 +1132,7 @@ PRD, chuyển cho Ice ở §Câu hỏi cho Ice #1 (mặc định nếu Ice khôn
 - [x] [Review][Patch] `is_han` sao chép nguyên bảy dải từ `char_idx.rs`, bỏ hết comment giải thích — hai hàm cùng tên cùng nội dung sẽ trôi khỏi nhau khi bổ sung CJK Ext H/I [tools/dict-build/src/sources/thieu_chuu.rs:152, tools/dict-build/src/char_idx.rs:9]
 - [x] [Review][Patch] `thieu_chuu.rs` không lột BOM, bất đối xứng với `vietphrase.rs:32-37` — `raw.trim()` KHÔNG bỏ U+FEFF (ký tự `Cf`), nên một lượt `iconv` để lại BOM sẽ tạo headword `"\u{feff}一"`: không rỗng, không lỗi, một đầu mục vĩnh viễn không tra ra được. README mới cảnh báo đúng ca này [tools/dict-build/src/sources/thieu_chuu.rs:26]
 - [x] [Review][Patch] CLI không có một test nào dù mở rộng CLI là Task 4 — `--out-dir --layer` (thiếu giá trị) làm `create_dir_all("--layer")` tạo thật một thư mục rồi dựng đủ ba `.db` vào đó với `ExitCode::SUCCESS`; cờ lặp lại nhận âm thầm; `run_detachable_by_code` là `pub` nhưng không `create_dir_all` (khác `run_all`); và §Bẫy 7 *"hỏng nếu BẤT KỲ lớp nào thiếu nguồn"* không có test — chính lượt xác minh tay đã lộ ra lỗi phá huỷ tệp ở trên [tools/dict-build/src/main.rs:26, tools/dict-build/src/build.rs:372]
-- [x] [Review][Patch] Năm chỗ câu chữ sai/lỗi thời: §Debug Log Task 11 khai `git diff --stat` = *"0 dòng đổi ✅"* trong khi thật là `+11/−3` ở `src-tauri/resources/dict/README.md` *(số `.dmg` vẫn tái dùng được vì `resources/dict/**` không nằm trong `bundle.resources`, nhưng bản ghi sai sự thật và nó là chứng cứ DUY NHẤT cho hai dòng đầu bảng AC6)* · AC6 bỏ trống số byte dòng WebView2 dù Story 1.9 đã có · Task 8 còn ghi *"Kiểm D hiện ĐANG FAIL có chủ ý"* trong khi đã xanh · `Cargo.toml:12` `description` vẫn nói *"gộp năm nguồn thành dict-core.db"* ngay tại commit nâng lên `0.2.0` · `deferred-work.md` hứa thêm một lớp chỉ là *"3 chỗ"* trong khi thật là ≥10 chỗ (`sources_meta.rs` ×4 kể cả test hardcode `2` · `licenses.rs` · `sources/mod.rs` · `build.rs:339` · manifest · `check-dict-manifest.mjs:234` · `check-dict-build.mjs:54`+`:319` · `layers.rs:55`+`:70` · usage `main.rs:67` · README) [_bmad-output/implementation-artifacts/1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap.md, tools/dict-build/Cargo.toml:12]
+- [x] [Review][Patch] Năm chỗ câu chữ sai/lỗi thời: §Debug Log Task 11 khai `git diff --stat` = *"0 dòng đổi ✅"* trong khi thật là `+11/−3` ở `src-tauri/resources/dict/README.md` *(số `.dmg` vẫn tái dùng được vì `resources/dict/**` không nằm trong `bundle.resources`, nhưng bản ghi sai sự thật và nó là chứng cứ DUY NHẤT cho hai dòng đầu bảng AC6)* · AC6 bỏ trống số byte dòng WebView2 dù Story 1.9 đã có · Task 8 còn ghi *"Kiểm D hiện ĐANG FAIL có chủ ý"* trong khi đã xanh · `Cargo.toml:12` `description` vẫn nói *"gộp năm nguồn thành dict-core.db"* ngay tại commit nâng lên `0.2.0` · `deferred-work.md` hứa thêm một lớp chỉ là *"3 chỗ"* trong khi thật là ≥10 chỗ (`sources_meta.rs` ×4 kể cả test hardcode `2` · `licenses.rs` · `sources/mod.rs` · `build.rs:339` · manifest · `check-dict-manifest.mjs:234` · `check-dict-build.mjs:54`+`:319` · `layers.rs:55`+`:70` · usage `main.rs:67` · README) [_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dong-goi-bon-lop-go-roi-thanh-file-doc-lap-plan.md, tools/dict-build/Cargo.toml:12]
 
 **Hoãn (`defer`)**
 

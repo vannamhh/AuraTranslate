@@ -397,9 +397,9 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · kh
 
 ### References
 
-- FR23 — `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:421-427`
+- FR23 — `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:421-427`
 - FR78 (gộp/tách là đường lui), FR125 (thứ tự chuẩn hoá trước tách), A4 — `prd.md:429`, `:347-349`, `:1075`
-- AC nguyên văn — `_bmad-output/planning-artifacts/epics.md:1986-2032`
+- AC nguyên văn — `_bmad-output/initiative-auratranslate/archive-v6/epics.md:1986-2032`
 - AD-3 · AD-4 · AD-5 — `ARCHITECTURE-SPINE.md:89-111`
 - AD-11 (một writer) — `:153-157` · AD-21 (hình dạng lỗi IPC) — `:302-306`
 - AD-28 (id cục bộ) — `:350-354` · AD-30 (lược đồ có phiên bản) — `:362-366` · AD-31 — `:368-392` · AD-32 — `:394-398`
@@ -410,10 +410,10 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · kh
 - Doctrine `AUTOINCREMENT` — `schema.rs:225-231` · `CHAPTER_DDL` — `:245-254`
 - `Store::write` — `src-tauri/src/core/store/mod.rs:612-618`
 - `create_work` một giao dịch — `src-tauri/src/commands/project.rs:119-133`
-- `segment_count = 0` — `_bmad-output/implementation-artifacts/deferred-work.md:542`
+- `segment_count = 0` — `_bmad-output/initiative-auratranslate/deferred-work.md:542`
 - Nợ CRLF giao cho 2.1 — `deferred-work.md:561`
 - Hai quyết định của Ice (CI · Windows) — `deferred-work.md:1861-1918`
-- Action item A6 + retro §10 — `_bmad-output/implementation-artifacts/epic-1-retro-2026-08-11.md:229-231`, `:291`, `:305-306`
+- Action item A6 + retro §10 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md:229-231`, `:291`, `:305-306`
 - UX vạch lề và ranh giới câu — `ux-designs/.../DESIGN.md:380`, `:382`, `:400`; `EXPERIENCE.md:23`, `:99`, `:105-115`
 
 ---
@@ -632,8 +632,8 @@ src-tauri/tests/dict_boundary.rs           SRC_TAURI_RS_FLOOR 20 → 46 · SRC_O
 src/i18n/vi.json                           + 2 khoá err.segment.*
 scripts/check-i18n.mjs                     RS_FLOOR 35 → 36
 scripts/check-commands.mjs                 TS_FLOOR 26 → 27
-_bmad-output/implementation-artifacts/deferred-work.md      đóng 3 nợ, ghi 5 nợ mới có chủ
-_bmad-output/implementation-artifacts/sprint-status.yaml    2-1 → review
+_bmad-output/initiative-auratranslate/deferred-work.md      đóng 3 nợ, ghi 5 nợ mới có chủ
+_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml    2-1 → review
 ```
 
 ### Change Log

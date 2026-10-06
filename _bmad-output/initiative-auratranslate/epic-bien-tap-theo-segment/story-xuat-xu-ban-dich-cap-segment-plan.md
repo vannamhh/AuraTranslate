@@ -215,7 +215,7 @@ Món nợ **chủ Ice** đang mở nguyên văn (`deferred-work.md:3770-3781`): 
 
 ### Đọc trước khi viết dòng đầu tiên
 
-`_bmad-output/project-context.md` (130 luật) · `ARCHITECTURE-SPINE.md` §AD-31 (`:368-392`), AD-1 (`:75-79`), AD-5 (`:103-111`), AD-11 (`:153-157`), AD-35 (`:419-425`) · doc-comment của chính tệp đang sửa.
+`_bmad-output/inbox/project-context.md` (130 luật) · `ARCHITECTURE-SPINE.md` §AD-31 (`:368-392`), AD-1 (`:75-79`), AD-5 (`:103-111`), AD-11 (`:153-157`), AD-35 (`:419-425`) · doc-comment của chính tệp đang sửa.
 
 ### 🔴 Story này KHÔNG thêm phụ thuộc nào
 
@@ -289,7 +289,7 @@ Cây test frontend ở `tests/frontend/**`, **không** đồng vị trí trong `
 
 ### References
 
-- FR117: `planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:443-452` · FR56 `:588` · FR118 `:590` · FR62 `:610` · FR70 `:644` · R13 `:1126` · vai biên tập `:98`
+- FR117: `initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:443-452` · FR56 `:588` · FR118 `:590` · FR62 `:610` · FR70 `:644` · R13 `:1126` · vai biên tập `:98`
 - AD-31 (máy trạng thái + **bảng xuất xứ** + hợp đồng phụ): `ARCHITECTURE-SPINE.md:368-392` · AD-1 `:75-79` · AD-3 `:89-93` · AD-5 `:103-111` · AD-11 `:153-157` · AD-34 `:406-417` · AD-35 `:419-425` · ERD `:818-844` · capability map `:895`
 - Story 2.7: `epics.md:2446-2485` · ghi chú cài đặt Epic 2 `:873` · Story 2.8 `:2487-2529` · Story 7.2 `:5066-5096` · Story 7.4 `:5168-5170`
 - UX: `EXPERIENCE.md:261-268` (bảng phím) · `:466` (mockup tham chiếu) · `DESIGN.md:146` · `:190` · `:199` · `:213` · `:391` · `mockups/data-integrity.html:221`
@@ -413,7 +413,7 @@ Ice chọn đường 2 trong ba đường được trình *(dev tự soạn `AD`
 Lý do đường này đúng vai: một `AD` đi qua thủ tục kiến trúc đầy đủ thay vì một lượt tiện tay từ
 dev-story.
 
-**Hồ sơ bàn giao:** `_bmad-output/planning-artifacts/ad-brief-2026-08-16-xuat-xu-ban-dich.md`.
+**Hồ sơ bàn giao:** `_bmad-output/initiative-auratranslate/ad-brief-xuat-xu-ban-dich/ad-brief-xuat-xu-ban-dich.md`.
 Nó chở: bảy chữ ký đã có **và ràng buộc chúng đặt lên `AD`** · hai câu hỏi phải trả lời kèm số đo và
 đường ứng viên · thứ `AD` **không** được đụng · năm điều kiện nghiệm thu để 2.7 mở lại được · toàn
 bộ số baseline để Winston khỏi đo lại.
@@ -704,8 +704,8 @@ không đứng được, và chữ ký #1(a) đẩy nó xa thêm một bậc.
 - `e2e/specs/segment-history-restore.e2e.mjs` — `signWith` nhận `textAtLoad` (mặc định `''`) + một chỗ gọi trực tiếp nữa; khối lý do ghi lại phép đo ở §Debug Log Ⓖ
 
 **Tài liệu**
-- `_bmad-output/implementation-artifacts/deferred-work.md` — bảy món, mỗi món một chủ
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` · tệp story này
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — bảy món, mỗi món một chủ
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` · tệp story này
 
 ⚠️ **KHÔNG chạm:** `epics.md` · `prd.md` · `ARCHITECTURE-SPINE.md` *(cả ba là tạo tác quy hoạch;
 `AD-47` do Winston viết và đã commit riêng ở `5a7e007`)* · `vi.json` · `src/commands/index.ts` ·
@@ -866,7 +866,7 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   #   Cay nguon con nguyen baseline 440c6d5 (git diff --stat tren src/ src-tauri/ scripts/ tests/
   #   e2e/ = RONG).
   # ✅ 2026-08-16 — ICE CHOT: AD moi GIAO CHO WINSTON (architect), khong dev tu soan. Ho so ban
-  #   giao: planning-artifacts/ad-brief-2026-08-16-xuat-xu-ban-dich.md — cho bay chu ky da co VA
+  #   giao: initiative-auratranslate/ad-brief-xuat-xu-ban-dich/ad-brief-xuat-xu-ban-dich.md — cho bay chu ky da co VA
   #   rang buoc chung dat len AD · hai cau hoi phai tra loi kem so do va duong ung vien · thu AD
   #   KHONG duoc dung · nam dieu kien nghiem thu · toan bo so baseline.
   # 🔴 MOT SO DO CHI LO RA SAU LUC ICE KY #8(b): mockup data-integrity.html ve BON nhan xuat xu

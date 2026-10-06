@@ -9,7 +9,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/e2e/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 relates_to: 8
 ---
 
@@ -74,7 +74,7 @@ Ice, 2026-10-01:
 
 ## Implementation Notes
 
-Phase working notes: [11-8-lo-b-phases-2026-10-01.md](11-8-lo-b-phases-2026-10-01.md).
+Phase working notes: [11-8-lo-b-phases-2026-10-01.md](../handoff-lo-b-webview-e2e-ci-phases/handoff-lo-b-webview-e2e-ci-phases.md).
 - Every webview guard was red on the pre-fix code, F-W-2 included, so F-W-2 is a reproduced bug, not `KHÔNG LÀM`. The F-W-7 DOM half is real: Vue keeps the typed `99` because `null ?? ''` does not change.
 - F-W-1: the orphan read compares a separate `writeEpoch`, moved only where a write applies its result and on reset. A write that fails while a read is in flight no longer drops that read (review patch).
 - F-W-4 (Ice 12): restoring the deleted term turns nothing red. Nothing drives `boot()`'s `isBlocked` for any overlay; that is now a ledger item, `Chủ: Amelia`.

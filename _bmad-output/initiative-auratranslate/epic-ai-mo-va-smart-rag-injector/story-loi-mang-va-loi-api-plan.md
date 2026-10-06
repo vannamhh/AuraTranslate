@@ -8,7 +8,7 @@ route: 'dispatch' # oneshot | dispatch
 review_loop_iteration: 0
 baseline_revision: '915f1af6a84ff81b1184cadd26c00dccd551d317'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -233,7 +233,7 @@ restate them.
       button appears only for a retryable cause, a batch retry dispatches exactly the unrun ids,
       and a `cancelled` row is not offered as an error -- assert the ids passed, not just that a
       call happened.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- discharge or re-defer, in words,
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- discharge or re-defer, in words,
       the three entries naming this story, per Decisions 1, 3 and 5 -- cite
       §SECTION NAME, never a line number.
 

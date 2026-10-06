@@ -54,7 +54,7 @@ context: ['{project-root}/e2e/AGENTS.md']
 - `src/importPreviewState.ts:390-393` -- `importPreviewCanConfirm` is `preview !== null` on the text branch.
 - `src/ImportPreviewOverlay.vue:804-811` -- `.ip-scrim` root exists only while open; `:1512-1519` `.ip-act-primary` confirm; `:830`, `:1486` `.ip-error` load and confirm errors.
 - `e2e/support/pointer.mjs` -- `realClick`. `e2e/support/workspace.mjs` -- the IPC fixture; do not change.
-- `_bmad-output/implementation-artifacts/deferred-work.md:11580-11610` -- G2 entry to close.
+- `_bmad-output/initiative-auratranslate/deferred-work.md:11580-11610` -- G2 entry to close.
 
 ## Tasks & Acceptance
 
@@ -62,7 +62,7 @@ context: ['{project-root}/e2e/AGENTS.md']
 - [x] `e2e/support/importForm.mjs` -- new; export `createWorkThroughForm(name)` implementing the Approach and Always rules, with a doc-comment explaining the Story 6.3 path and why not IPC -- one place to change when the overlay changes again.
 - [x] `e2e/specs/story-5-4-lifecycle.e2e.mjs` -- import the helper, delete the local copy, update the `:59-67` comment to the confirm path -- G2.
 - [x] `e2e/specs/story-5-5-progress.e2e.mjs` -- import the helper, delete the local copy -- G2.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- close G2 with a dated note and the measured runs -- keeps the debt ledger honest.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- close G2 with a dated note and the measured runs -- keeps the debt ledger honest.
 
 **Acceptance Criteria:**
 - Given a still tree, when the pair runs alone, then 2 / 2 spec files and 3 / 3 cases pass.

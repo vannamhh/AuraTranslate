@@ -13,7 +13,7 @@ context:
 ---
 
 > 🔵 **2026-09-15 — Story 6.18 gộp vào Story 10.9** qua `bmad-correct-course`
-> (`_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-15.md`), quyết định của Ice.
+> (`_bmad-output/initiative-auratranslate/change-bon-muc-cho-quyet-cua-retro/change-bon-muc-cho-quyet-cua-retro.md`), quyết định của Ice.
 > Khoá `6-18-…` đã gỡ khỏi `sprint-status.yaml`; AC chuyển sang Story 10.9 trong `epics.md`.
 >
 > Spec này **giữ nguyên** và là đầu vào của Story 10.9, cùng với `6-18-ban-do/`, ba tệp
@@ -165,8 +165,8 @@ Line numbers drift — re-locate by symbol.
 - Ice-owned inputs: NFR5 routes entry and `char_idx` third-branch entry get the numbers appended only.
 
 **Records**
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md` (NFR3–5, A6–A8, Q4);
-  `_bmad-output/specs/spec-AuraTranslate/SPEC.md` (A6–A8, Q4), `requirements.md` (NFR3–5).
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md` (NFR3–5, A6–A8, Q4);
+  `_bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md` (A6–A8, Q4), `requirements.md` (NFR3–5).
 
 ## Tasks & Acceptance
 

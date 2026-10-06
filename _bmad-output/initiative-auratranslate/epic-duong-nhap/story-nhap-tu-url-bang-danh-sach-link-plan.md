@@ -128,7 +128,7 @@ context:
 - [x] `tests/frontend/importPreviewUrls.test.ts` (mới) -- 🔴 ca AC7 chép khuôn **HIỆU SỐ ba mock** (`importPreviewNormalized.test.ts:107-120`), **không** `not.toHaveBeenCalled()`: dán N link ⇒ hai số hiện đúng ⇒ hiệu số = 0. Cộng: thứ tự giữ nguyên; bỏ một mục ⇒ hai số cùng giảm; tải lại một mục ⇒ **đúng một** vòng IPC. Ba ca "0 IPC" hiện có **không sửa kỳ vọng**
 - [x] **ĐO NFR6, đừng khai** -- 🔴 con số `−16 byte` của bàn đo 6.1 **hết đúng ở story này**: nó đo *"đã ghim, chưa gọi"*, và `dom_smoothie` nay có mã sản phẩm gọi tới. Dựng lại hai bản `--release` theo đúng khuôn 6.1 (`REPORT.md`, cùng `dist/`, `git worktree` cho baseline), ghi delta thật + ngày vào spine §Deferred và đóng nợ `:9049`
 - [x] **ĐO hiệu năng** -- mốc trước story: 5 ứng viên × 2.000 Chương ~242-286 ms (`project.rs:1288-1300`, debug). Bóc nội dung nay chạy trong mỗi lượt `run_pipeline`. Đo lại trên danh sách N link thật (server cục bộ), ghi số + ngày. Suy tuyến tính bị CẤM (Ice 2026-09-05)
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- dòng `→` cho `:9262` (✅ đường ②), `:9049` (✅ đo lại NFR6), `:9067` (🟡 vế danh sách rỗng); nợ MỚI có chủ cho: ① `:9188` `SelfDeclared` từ `charset` HTTP -- `Fetcher` nay tồn tại nhưng story này không dùng charset khai báo, **cần chủ mới** · ② tỉ lệ bóc sai mới đo trên **một** site (`epochtimes.com`, 7 mẫu, bàn đo 6.1) -- chưa nói gì về trang đọc truyện chữ (**Chủ: Story 6.10**) · ③ `spawn_import_scan` vẫn chỉ quét Chương ĐẦU (**Chủ: Story 6.10**) · ④ ảnh/caption/alt-text bị `Extractor` bỏ (**Chủ: Story 6.11/6.13**). `check:debt-owner` đọc **dòng `→`**
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- dòng `→` cho `:9262` (✅ đường ②), `:9049` (✅ đo lại NFR6), `:9067` (🟡 vế danh sách rỗng); nợ MỚI có chủ cho: ① `:9188` `SelfDeclared` từ `charset` HTTP -- `Fetcher` nay tồn tại nhưng story này không dùng charset khai báo, **cần chủ mới** · ② tỉ lệ bóc sai mới đo trên **một** site (`epochtimes.com`, 7 mẫu, bàn đo 6.1) -- chưa nói gì về trang đọc truyện chữ (**Chủ: Story 6.10**) · ③ `spawn_import_scan` vẫn chỉ quét Chương ĐẦU (**Chủ: Story 6.10**) · ④ ảnh/caption/alt-text bị `Extractor` bỏ (**Chủ: Story 6.11/6.13**). `check:debt-owner` đọc **dòng `→`**
 
 **Acceptance Criteria:**
 - Given người dùng dán N link và **chưa bấm nút**, when đo lưu lượng, then **0** lời gọi mạng và **0** lời gọi IPC — chứng minh bằng hiệu số ba mock, không bằng một phép quét token.
@@ -179,72 +179,72 @@ context:
 **Điểm ra mạng thứ ba — đọc trước tiên (AD-15 · AD-40)**
 
 - Điểm vào: module tự khai hai nửa, kèm phép đo Task 0 cho `blocking` trong Tauri.
-  [`webimport/mod.rs:18`](../../src-tauri/src/core/webimport/mod.rs#L18)
+  [`webimport/mod.rs:18`](../../../src-tauri/src/core/webimport/mod.rs#L18)
 
 - Tám lý do hỏng — danh mục đóng, mỗi lý do một khoá i18n riêng.
-  [`webimport/mod.rs:58`](../../src-tauri/src/core/webimport/mod.rs#L58)
+  [`webimport/mod.rs:58`](../../../src-tauri/src/core/webimport/mod.rs#L58)
 
 - `Fetcher`: byte + `content-type`, 0 dòng phân tích nội dung.
-  [`fetcher.rs:97`](../../src-tauri/src/core/webimport/fetcher.rs#L97)
+  [`fetcher.rs:97`](../../../src-tauri/src/core/webimport/fetcher.rs#L97)
 
 - Trần chặng chuyển hướng — số 10 trích nguồn từ reqwest, không đúc mới.
-  [`fetcher.rs:111`](../../src-tauri/src/core/webimport/fetcher.rs#L111)
+  [`fetcher.rs:111`](../../../src-tauri/src/core/webimport/fetcher.rs#L111)
 
 - `content-type` so BẰNG sau khi cắt tham số, không khớp chuỗi con.
-  [`fetcher.rs:198`](../../src-tauri/src/core/webimport/fetcher.rs#L198)
+  [`fetcher.rs:198`](../../../src-tauri/src/core/webimport/fetcher.rs#L198)
 
 - `Extractor`: chỉ đọc `text_content` với `TextMode::Formatted`; `content` (HTML) không rời hàm.
-  [`extractor.rs:47`](../../src-tauri/src/core/webimport/extractor.rs#L47)
+  [`extractor.rs:47`](../../../src-tauri/src/core/webimport/extractor.rs#L47)
 
 **Chuỗi AD-39 — bước 2 lần đầu có thân thật**
 
 - Bước 2 gọi XUỐNG `webimport::extract`, không viết lại nội tuyến.
-  [`pipeline.rs:491`](../../src-tauri/src/core/segment/pipeline.rs#L491)
+  [`pipeline.rs:491`](../../../src-tauri/src/core/segment/pipeline.rs#L491)
 
 - Một bảng mã cho CẢ danh sách — quyết định của Ice, kèm ca còn hở ghi thẳng ra.
-  [`pipeline.rs:226`](../../src-tauri/src/core/segment/pipeline.rs#L226)
+  [`pipeline.rs:226`](../../../src-tauri/src/core/segment/pipeline.rs#L226)
 
 **Đường lệnh — N link ⇒ N Chương, và 0 hàng ghi khi còn mục hỏng**
 
 - Phép cắt dòng khớp ĐÚNG `trim()` của JS — chỗ lệch `U+FEFF` đo được.
-  [`project.rs:2021`](../../src-tauri/src/commands/project.rs#L2021)
+  [`project.rs:2021`](../../../src-tauri/src/commands/project.rs#L2021)
 
 - Còn một mục hỏng, hoặc một mục "ok" thiếu byte ⇒ `None`, không Chương rỗng.
-  [`project.rs:2042`](../../src-tauri/src/commands/project.rs#L2042)
+  [`project.rs:2042`](../../../src-tauri/src/commands/project.rs#L2042)
 
 - Dọn danh sách URL chỉ khi `create_work` thành công, cùng kỷ luật ô đang chờ.
-  [`project.rs:1938`](../../src-tauri/src/commands/project.rs#L1938)
+  [`project.rs:1938`](../../../src-tauri/src/commands/project.rs#L1938)
 
 - Ba lệnh mới trong `generate_handler!` — thiếu một dòng là "command not found" lúc chạy.
-  [`lib.rs:649`](../../src-tauri/src/lib.rs#L649)
+  [`lib.rs:649`](../../../src-tauri/src/lib.rs#L649)
 
 **Hai con số — bằng chứng CẤU TẠO cho "chưa bấm ⇒ 0 lời gọi"**
 
 - Đếm bằng computed cục bộ, JS thuần: không đường mã nào ở đây gọi được `invoke`.
-  [`libraryImport.ts:127`](../../src/modes/libraryImport.ts#L127)
+  [`libraryImport.ts:127`](../../../src/modes/libraryImport.ts#L127)
 
 - Hai con số và câu cam kết hiện ngay dưới ô dán.
-  [`LibraryMode.vue:1273`](../../src/modes/LibraryMode.vue#L1273)
+  [`LibraryMode.vue:1273`](../../../src/modes/LibraryMode.vue#L1273)
 
 - Mở lớp phủ từ danh sách URL — biến thể thứ ba của `lastSubmittedFrom`.
-  [`importPreviewState.ts:467`](../../src/importPreviewState.ts#L467)
+  [`importPreviewState.ts:467`](../../../src/importPreviewState.ts#L467)
 
 - Nút xác nhận khoá khi còn mục hỏng HOẶC đang có lượt sửa danh sách bay dở.
-  [`ImportPreviewOverlay.vue:940`](../../src/ImportPreviewOverlay.vue#L940)
+  [`ImportPreviewOverlay.vue:940`](../../../src/ImportPreviewOverlay.vue#L940)
 
 **Cổng và nghiệm thu — đọc sau cùng**
 
 - Cổng ranh giới AD-40: gỡ nó ra thì bộ test cũ vẫn xanh (đã đo).
-  [`webimport_boundary.rs:167`](../../src-tauri/tests/webimport_boundary.rs#L167)
+  [`webimport_boundary.rs:167`](../../../src-tauri/tests/webimport_boundary.rs#L167)
 
 - Văn bản đã bóc không chứa một dấu `<` nào của thẻ nguồn.
-  [`webimport_contract.rs:191`](../../src-tauri/tests/webimport_contract.rs#L191)
+  [`webimport_contract.rs:191`](../../../src-tauri/tests/webimport_contract.rs#L191)
 
 - AC4 thành test: một BOM vô hình không được làm hai con số lệch nhau.
-  [`webimport_contract.rs:679`](../../src-tauri/tests/webimport_contract.rs#L679)
+  [`webimport_contract.rs:679`](../../../src-tauri/tests/webimport_contract.rs#L679)
 
 - Cổng chặn plugin HTTP — trước story này không cổng nào chặn nó.
-  [`check-deps.mjs:182`](../../scripts/check-deps.mjs#L182)
+  [`check-deps.mjs:182`](../../../scripts/check-deps.mjs#L182)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

@@ -121,7 +121,7 @@ context:
 - [x] `src/commands/index.ts` + `src/main.ts` — hai command `import.preview.chapter_next`/`chapter_prev`, `keys: undefined`, dep tuỳ chọn; 🔵 sửa doc-comment `:1110-1112` (`⌥W` vẫn còn nợ, `⌥←`/`⌥→` hết nợ)
 - [x] `src/i18n/vi.json` — viết lại `:251` `tier2_url_first_note` (mệnh đề "Chương ĐẦU TIÊN" hết đúng); khoá mới cho con trỏ, giọng **vô nhân xưng**
 - [x] `tests/frontend/` — mở rộng `importPreviewChapters.test.ts` (trạng thái con trỏ, dừng ở hai đầu) và `importPreviewOverlayRender.test.ts` (`⌥←`/`⌥→` ở tầng DOM thật, và **không** thao tác khi lớp phủ đóng)
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng `:9890` (tầng 3), `:10028` (tầng 2), nửa `⌥←`/`⌥→` của `:9844`, và xử lý `:10037`; nợ **MỚI có chủ** cho mọi vế còn hở — đóng bằng chữ, không xoá; đóng nửa thì 🟡 kèm phần còn hở
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng `:9890` (tầng 3), `:10028` (tầng 2), nửa `⌥←`/`⌥→` của `:9844`, và xử lý `:10037`; nợ **MỚI có chủ** cho mọi vế còn hở — đóng bằng chữ, không xoá; đóng nửa thì 🟡 kèm phần còn hở
 
 **Acceptance Criteria:**
 - Given một lượt nhập N Chương, when **GỠ** phép truyền chỉ số con trỏ xuống `cleanup_and_chapters_preview_for`, then bộ test **CŨ** phải **ĐỎ** — đối chứng là một phép **GỠ**, không phải một phép chèn
@@ -188,65 +188,65 @@ context:
 **Nguyên nhân gốc — đọc ba chỗ này là đủ hiểu cả story**
 
 - Chỗ Chương 2..N từng biến mất: nay nạp thẳng `shape` đủ N, còn dò bảng mã vẫn chốt từ đơn vị đầu.
-  [`project.rs:1944`](../../src-tauri/src/commands/project.rs#L1944)
+  [`project.rs:1944`](../../../src-tauri/src/commands/project.rs#L1944)
 
 - Tóm tắt cho MỌI Chương, chi tiết cho MỘT Chương — hai nhịp của dây, gói gọn trong một tham số.
-  [`project.rs:1649`](../../src-tauri/src/commands/project.rs#L1649)
+  [`project.rs:1649`](../../../src-tauri/src/commands/project.rs#L1649)
 
 - Vị từ XEM, tách hẳn khỏi vị từ GHI; một mục hỏng không còn giết cả màn xem trước.
-  [`project.rs:2564`](../../src-tauri/src/commands/project.rs#L2564)
+  [`project.rs:2564`](../../../src-tauri/src/commands/project.rs#L2564)
 
 **Chỗ vòng rà tìm ra, đọc kỹ nhất ở đây**
 
 - Chương k > 0 nhận lát rỗng: override của Chương 0 từng làm màn hình khai "người dùng đã xác nhận".
-  [`project.rs:1649`](../../src-tauri/src/commands/project.rs#L1649)
+  [`project.rs:1649`](../../../src-tauri/src/commands/project.rs#L1649)
 
 - Nút xác nhận nay gác trên vị từ RIÊNG — `preview === null` đã hết trùng với "có mục hỏng".
-  [`importPreviewState.ts:353`](../../src/importPreviewState.ts#L353)
+  [`importPreviewState.ts:353`](../../../src/importPreviewState.ts#L353)
 
 - Lỗi và trạng thái cũ đều DỌN chi tiết; rỗng có lý do thay vì Chương k−1 dưới nhãn Chương k.
-  [`importPreviewState.ts:963`](../../src/importPreviewState.ts#L963)
+  [`importPreviewState.ts:963`](../../../src/importPreviewState.ts#L963)
 
 - Token riêng từng lượt gọi — `chapterCursor !== index` không phân biệt được hai lượt cùng index.
-  [`importPreviewState.ts:932`](../../src/importPreviewState.ts#L932)
+  [`importPreviewState.ts:932`](../../../src/importPreviewState.ts#L932)
 
 **Chi tiết lazy — một lệnh IPC mới, và cái giá của nó**
 
 - Chạy trên TOÀN `shape` chứ không cắt: cắt sẽ đặt Chương đang xem vào vị trí 0 của override.
-  [`project.rs:2112`](../../src-tauri/src/commands/project.rs#L2112)
+  [`project.rs:2112`](../../../src-tauri/src/commands/project.rs#L2112)
 
 - Trả `None` thay vì đoán khi `chapter_index` không còn khớp, và khi nhánh `Blob` gặp k > 0.
-  [`project.rs:2049`](../../src-tauri/src/commands/project.rs#L2049)
+  [`project.rs:2049`](../../../src-tauri/src/commands/project.rs#L2049)
 
 - Vỏ mỏng `try_state`; thiếu một dòng ở `generate_handler!` thì lỗi chỉ lộ khi người dùng bấm.
-  [`project.rs:4479`](../../src-tauri/src/commands/project.rs#L4479)
+  [`project.rs:4479`](../../../src-tauri/src/commands/project.rs#L4479)
 
 - Dòng đăng ký đó — không cổng chung nào canh nó, nên có một ca test mang tên chính lệnh.
-  [`lib.rs:664`](../../src-tauri/src/lib.rs#L664)
+  [`lib.rs:664`](../../../src-tauri/src/lib.rs#L664)
 
 **Bàn phím — hai handler độc lập, không nới cái nào**
 
 - `⌥` đi đường riêng; nới vị từ của tầng 2 sẽ làm `⌥`+`j` bật/tắt một khối ngoài ý muốn.
-  [`ImportPreviewOverlay.vue:634`](../../src/ImportPreviewOverlay.vue#L634)
+  [`ImportPreviewOverlay.vue:634`](../../../src/ImportPreviewOverlay.vue#L634)
 
 - Hàm tổng hợp thuần tuý — Vue chỉ cho một `@keydown` trần trên một phần tử.
-  [`ImportPreviewOverlay.vue:663`](../../src/ImportPreviewOverlay.vue#L663)
+  [`ImportPreviewOverlay.vue:663`](../../../src/ImportPreviewOverlay.vue#L663)
 
 - Dừng ở hai đầu, no-op ngoài đường URL, và chặn chồng lệnh — ba vị từ, mỗi cái một lý do.
-  [`importPreviewState.ts:1020`](../../src/importPreviewState.ts#L1020)
+  [`importPreviewState.ts:1020`](../../../src/importPreviewState.ts#L1020)
 
 **Trục tóm tắt — thứ Story 6.10 sẽ bám**
 
 - `0` ở đây nghĩa là "không đo được cho Chương này", không phải một giá trị giữ chỗ né `Option`.
-  [`project.rs:1200`](../../src-tauri/src/commands/project.rs#L1200)
+  [`project.rs:1200`](../../../src-tauri/src/commands/project.rs#L1200)
 
 **Cổng và phép kiểm**
 
 - Đối chứng P1: gỡ lát rỗng ra thì ca này đỏ vì `confirmed` hoá `true`.
-  [`cleanup_contract.rs:1341`](../../src-tauri/tests/cleanup_contract.rs#L1341)
+  [`cleanup_contract.rs:1341`](../../../src-tauri/tests/cleanup_contract.rs#L1341)
 
 - Cụm phủ định của cổng chống-nợ-mồ-côi — chỉ `chưa ai` là đo được, hai cụm đoán đã bị gỡ.
-  [`check-debt-owner.mjs:192`](../../scripts/check-debt-owner.mjs#L192)
+  [`check-debt-owner.mjs:192`](../../../scripts/check-debt-owner.mjs#L192)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

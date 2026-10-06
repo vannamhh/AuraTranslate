@@ -7,7 +7,7 @@ status: done
 baseline_revision: 'a83a1b756abae08cbc0c8f5a595c1be722f0c95c'
 review_loop_iteration: 2
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -72,7 +72,7 @@ context:
 - `src-tauri/tests/store_contract.rs:881` — `a_fresh_database_migrates_up_to_target_and_logs_it` khẳng định `global.db` = **3**. Đỏ có chủ đích.
 - `src-tauri/tests/segment_contract.rs:506` — `the_project_migration_set_matches_the_declared_ladder_step_for_step` khẳng định thang **nguyên văn**. Đỏ có chủ đích. `:474` (`…never_reuses_the_burned_number_four`) phải **giữ xanh**.
 - `src-tauri/tests/scope_contract.rs` — ~10 chỗ gọi ba hàm đổi chữ ký (`:227,267,298,323,361,396,417,439,503,522,767`); `ScopeError` khớp mẫu ở `:450,464,477,490,514`.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — `:272` (cổng `ScopeKind`, chủ = story này) · `:601` (tầng Work chưa có consumer) · `:2465` (không có đường mở lại `.atproj`).
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — `:272` (cổng `ScopeKind`, chủ = story này) · `:601` (tầng Work chưa có consumer) · `:2465` (không có đường mở lại `.atproj`).
 
 ## Tasks & Acceptance
 
@@ -87,7 +87,7 @@ context:
 - [x] `src-tauri/tests/segment_contract.rs` -- thêm `12` vào thang khai ở `:506` kèm 🔵 + ngày; **không** đụng `:474`. *(Nâng target kéo theo ~10 chỗ hardcode `schema_version() == 11` khác trong cùng tệp — mỗi `Store::open(StoreSpec::project(..))` không dùng fixture cắt đều đi tới target mới; sửa hết cùng lượt, kèm fixture "phiên bản mới hơn" nâng từ 12 lên 13.)*
 - [x] `src-tauri/tests/glossary_contract.rs` -- mới: mọi hàng của I/O Matrix, mỗi tên hàm là một CÂU khẳng định -- ca "chờ chốt che đã chốt" là ca dễ cài ngược nhất.
 - [x] `src-tauri/tests/glossary_boundary.rs` -- mới: không tệp nào ngoài `core/glossary/**` và `core/store/schema.rs` được mang chuỗi `glossary_entry` -- cưỡng chế "`ai/` không có đường nào khác chạm dữ liệu Glossary" trước khi Epic 4 tồn tại.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối `✅ ĐÃ ĐÓNG 2026-08-19 (Story 3.1)` vào `:272`; nối 🟡 vào `:601` (hàm tiêu thụ đã có, **chưa** có chỗ gọi sản phẩm — chủ chuyển sang Story 3.3); thêm mục mới **chủ = Epic 5** cho việc `project.db` chưa mở lại được -- không mục nào mồ côi.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối `✅ ĐÃ ĐÓNG 2026-08-19 (Story 3.1)` vào `:272`; nối 🟡 vào `:601` (hàm tiêu thụ đã có, **chưa** có chỗ gọi sản phẩm — chủ chuyển sang Story 3.3); thêm mục mới **chủ = Epic 5** cho việc `project.db` chưa mở lại được -- không mục nào mồ côi.
 
 *(Ngoài phạm vi khai ban đầu, cùng lượt vì cùng nguyên nhân: `src-tauri/tests/pinned_contract.rs` cũng hardcode `GLOBAL_MIGRATIONS.len() == 3` và `schema_version() == 3`/`11` — sửa theo cùng luật 🔵 + ngày.)*
 
@@ -204,48 +204,48 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;
 **Bất biến trung tâm — điều kiện chèn**
 
 - Điểm vào: hàm DUY NHẤT module khác gọi được; lọc SAU khi phân giải.
-  [`store.rs:280`](../../src-tauri/src/core/glossary/store.rs#L280)
+  [`store.rs:280`](../../../src-tauri/src/core/glossary/store.rs#L280)
 
 - Vị từ DUY NHẤT định nghĩa "đã chốt" — suy từ `translation`, không từ cột `status`.
-  [`entry.rs:132`](../../src-tauri/src/core/glossary/entry.rs#L132)
+  [`entry.rs:132`](../../../src-tauri/src/core/glossary/entry.rs#L132)
 
 - Hai họ lỗi giữ phân biệt được: `ScopeError` không bao giờ qua IPC, `StoreError` thì có.
-  [`store.rs:229`](../../src-tauri/src/core/glossary/store.rs#L229)
+  [`store.rs:229`](../../../src-tauri/src/core/glossary/store.rs#L229)
 
 **Lược đồ — một hằng, hai thang**
 
 - DDL cùng hai `CHECK` khoảng trắng đã đo; bảng ký tự viết khai triển tại chỗ.
-  [`schema.rs:277`](../../src-tauri/src/core/store/schema.rs#L277)
+  [`schema.rs:277`](../../../src-tauri/src/core/store/schema.rs#L277)
 
 - Bước 4 của `global.db`.
-  [`schema.rs:327`](../../src-tauri/src/core/store/schema.rs#L327)
+  [`schema.rs:327`](../../../src-tauri/src/core/store/schema.rs#L327)
 
 - Bước 12 của `project.db` — không phải 5; số 4 đã bị đốt.
-  [`schema.rs:1060`](../../src-tauri/src/core/store/schema.rs#L1060)
+  [`schema.rs:1060`](../../../src-tauri/src/core/store/schema.rs#L1060)
 
 **Phân giải hai tầng — sửa nguồn thay vì nới cổng**
 
 - Chữ ký nhận `&str`, nên module miền không bao giờ gõ tên kiểu `ScopeKind`.
-  [`mod.rs:281`](../../src-tauri/src/core/scope/mod.rs#L281)
+  [`mod.rs:281`](../../../src-tauri/src/core/scope/mod.rs#L281)
 
 - `ScopeError` mất `Copy` vì biến thể mới mang `String` — lý do ghi tại chỗ.
-  [`mod.rs:124`](../../src-tauri/src/core/scope/mod.rs#L124)
+  [`mod.rs:124`](../../../src-tauri/src/core/scope/mod.rs#L124)
 
 **Cưỡng chế — hai cổng mới**
 
 - Chỉ `core/glossary/**` và `schema.rs` được mang tên bảng.
-  [`glossary_boundary.rs:153`](../../src-tauri/tests/glossary_boundary.rs#L153)
+  [`glossary_boundary.rs:153`](../../../src-tauri/tests/glossary_boundary.rs#L153)
 
 - Vế hai của AD-36: `ai/` không có đường nào khác chạm dữ liệu Glossary.
-  [`glossary_boundary.rs:253`](../../src-tauri/tests/glossary_boundary.rs#L253)
+  [`glossary_boundary.rs:253`](../../../src-tauri/tests/glossary_boundary.rs#L253)
 
 **Test — hai ca đáng đọc nhất**
 
 - Ca dễ cài ngược nhất của cả story: chờ chốt che đã chốt.
-  [`glossary_contract.rs:155`](../../src-tauri/tests/glossary_contract.rs#L155)
+  [`glossary_contract.rs:155`](../../../src-tauri/tests/glossary_contract.rs#L155)
 
 - Ca từng xanh giả: tên khẳng định khoảng trắng, thân chỉ thử dấu cách.
-  [`glossary_contract.rs:301`](../../src-tauri/tests/glossary_contract.rs#L301)
+  [`glossary_contract.rs:301`](../../../src-tauri/tests/glossary_contract.rs#L301)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

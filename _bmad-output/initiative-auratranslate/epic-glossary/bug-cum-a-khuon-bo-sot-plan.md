@@ -7,7 +7,7 @@ status: 'done'
 review_loop_iteration: 1
 baseline_revision: 'b731b417003ed09778ab11f0f128feb51bccb8a7'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -229,63 +229,63 @@ thoát thật `0`** · `.githooks/pre-push` **exit 0** (140 s).
 **Vệ bị xoá mà chú thích của nó còn nguyên — chỗ mất dữ liệu im lặng**
 
 - Điểm vào: dòng bị xoá ở Story 3.4b, nay nối lại đúng chỗ chú thích đang trỏ tới.
-  [`editorPanelState.ts:2030`](../../src/panels/editorPanelState.ts#L2030)
+  [`editorPanelState.ts:2030`](../../../src/panels/editorPanelState.ts#L2030)
 
 - Vệ thiếu ở chỗ gọi thứ hai — hai ref lệch Chương thì nạp dấu sai Chương.
-  [`editorPanelState.ts:2068`](../../src/panels/editorPanelState.ts#L2068)
+  [`editorPanelState.ts:2068`](../../../src/panels/editorPanelState.ts#L2068)
 
 - Khuôn ĐỦ mà chỗ trên chép về: chính tệp gọi vế này là "BẮT BUỘC".
-  [`editorPanelState.ts:1581`](../../src/panels/editorPanelState.ts#L1581)
+  [`editorPanelState.ts:1581`](../../../src/panels/editorPanelState.ts#L1581)
 
 **Bảy vỏ chặn phải chạy ngoài luồng chính — đúng lớp lỗi vừa treo ứng dụng thật**
 
 - Cổng giữ danh sách VÀ con số; đọc nó trước, đừng đọc từng vỏ rồi tự cộng.
-  [`config_invariants.rs:887`](../../src-tauri/tests/config_invariants.rs#L887)
+  [`config_invariants.rs:887`](../../../src-tauri/tests/config_invariants.rs#L887)
 
 - Vỏ đáng chuyển nhất trong cả tệp: nạp trọn hai tầng ở MỖI lượt gõ.
-  [`glossary.rs:932`](../../src-tauri/src/commands/glossary.rs#L932)
+  [`glossary.rs:932`](../../../src-tauri/src/commands/glossary.rs#L932)
 
 - Đường ghi hàng loạt — chặn `WriteTicket::wait()` qua trọn một lô 16 MiB.
-  [`glossary.rs:1404`](../../src-tauri/src/commands/glossary.rs#L1404)
+  [`glossary.rs:1404`](../../../src-tauri/src/commands/glossary.rs#L1404)
 
 - Matcher trên trọn văn bản một Chương, mỗi lượt mở Chương và mỗi lượt gộp/tách.
-  [`glossary.rs:1039`](../../src-tauri/src/commands/glossary.rs#L1039)
+  [`glossary.rs:1039`](../../../src-tauri/src/commands/glossary.rs#L1039)
 
 - `suggest_han_viet_batch` cho MỌI ứng viên chờ, ở mỗi lượt đọc hàng chờ.
-  [`glossary.rs:1088`](../../src-tauri/src/commands/glossary.rs#L1088)
+  [`glossary.rs:1088`](../../../src-tauri/src/commands/glossary.rs#L1088)
 
 - Nạp trọn bảng cả hai tầng rồi dựng một `Vec` cỡ toàn bộ Glossary.
-  [`glossary.rs:1180`](../../src-tauri/src/commands/glossary.rs#L1180)
+  [`glossary.rs:1180`](../../../src-tauri/src/commands/glossary.rs#L1180)
 
 **`Escape` làm hai việc — và vì sao bản vá KHÔNG ở `isBlocked`**
 
 - Cửa duy nhất hai lời tuyên bố va nhau; lý do bác hai chỗ hiển nhiên hơn nằm ngay trên.
-  [`main.ts:453`](../../src/main.ts#L453)
+  [`main.ts:453`](../../../src/main.ts#L453)
 
 - Nửa còn lại của cùng một lỗ: hợp âm `Mod+số` bị đường DOM cục bộ bắt nhầm.
-  [`GlossaryQuickAdd.vue:68`](../../src/GlossaryQuickAdd.vue#L68)
+  [`GlossaryQuickAdd.vue:68`](../../../src/GlossaryQuickAdd.vue#L68)
 
 **Tiêu đề di trú nói một số, mảng dưới nói số khác — lần thứ hai, nên nay có cổng**
 
 - Cổng số: cả hai bộ phải khai đúng `to_version` mà mảng của nó chạm tới.
-  [`segment_contract.rs:512`](../../src-tauri/tests/segment_contract.rs#L512)
+  [`segment_contract.rs:512`](../../../src-tauri/tests/segment_contract.rs#L512)
 
 - Tiêu đề đã sửa, kèm khối cập nhật Story 3.10 soi gương khối của bộ kia.
-  [`schema.rs:1181`](../../src-tauri/src/core/store/schema.rs#L1181)
+  [`schema.rs:1181`](../../../src-tauri/src/core/store/schema.rs#L1181)
 
 - Câu khai đích thêm vào bộ Global — không có nó, cổng chỉ canh được một nửa.
-  [`schema.rs:568`](../../src-tauri/src/core/store/schema.rs#L568)
+  [`schema.rs:568`](../../../src-tauri/src/core/store/schema.rs#L568)
 
 **Bàn test — nơi bốn vệ trên được đo, và một bản sao không ai canh**
 
 - Hai vệ `applyRegroup`, mỗi vệ một đối chứng gỡ chỗ nối đã chạy ĐỎ.
-  [`editorRegroupGuards.test.ts:132`](../../tests/frontend/editorRegroupGuards.test.ts#L132)
+  [`editorRegroupGuards.test.ts:132`](../../../tests/frontend/editorRegroupGuards.test.ts#L132)
 
 - Cử chỉ `Escape` THẬT qua keymap — đo mệnh đề `isTypingZone` mà cả thiết kế dựa vào.
-  [`editorClearSourceCuts.test.ts:292`](../../tests/frontend/editorClearSourceCuts.test.ts#L292)
+  [`editorClearSourceCuts.test.ts:292`](../../../tests/frontend/editorClearSourceCuts.test.ts#L292)
 
 - Bản sao cổng `main.ts` sống ở đây; nó lệch được một lần rồi, và không cổng nào canh.
-  [`editorClearSourceCuts.test.ts:81`](../../tests/frontend/editorClearSourceCuts.test.ts#L81)
+  [`editorClearSourceCuts.test.ts:81`](../../../tests/frontend/editorClearSourceCuts.test.ts#L81)
 
 - Hợp âm `Mod+số` không đổi phân loại; `Shift` cố ý không lọc, ca ④ khoá lý do đó lại.
-  [`glossaryQuickAddStrip.test.ts:314`](../../tests/frontend/glossaryQuickAddStrip.test.ts#L314)
+  [`glossaryQuickAddStrip.test.ts:314`](../../../tests/frontend/glossaryQuickAddStrip.test.ts#L314)

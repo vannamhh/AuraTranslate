@@ -180,7 +180,7 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 - [x] [Review][Patch] Kiểm D so cụm bị cấm bằng `indexOf` chuỗi liền ⇒ mọi biến thể khoảng trắng lọt: `"Chúng  tôi không đọc được tệp."` (hai dấu cách, hoặc xuống dòng giữa hai tiếng) ⇒ **xanh**. Sửa: chuẩn hoá khoảng trắng trước khi so, hoặc dùng regex `chúng\s+tôi` [`scripts/check-i18n.mjs:698,707-717`]
 - [x] [Review][Patch] Trùng khoá trong `vi.json` bị **nuốt im lặng ở cả hai phía**: `JSON.parse` giữ lần xuất hiện cuối, `serde_json` vào `BTreeMap` cũng vậy. `{"err.unknown":"A", …, "err.unknown":"B"}` ⇒ một chuỗi đã soạn và đã duyệt biến mất, hai cổng đều xanh. Phía Rust đã có `message_key_catalog_has_no_duplicate_keys`; phía `vi.json` thì không. `catalogRaw` đã sẵn ở `:612` để làm phép kiểm này [`scripts/check-i18n.mjs:609-613`]
 - [x] [Review][Patch] Doc-comment `fallbackReport.ts` nêu **sai lý do** hai chuỗi được an toàn: nó nói chúng nằm sau *"miễn trừ CÓ TÊN"*. Thật ra Kiểm A chỉ quét `.rs` và `.vue`, `src/selftest/**` khớp **0 tệp** và chính cổng in ra con số đó mỗi lượt. Chúng an toàn vì là `.ts` — một lỗ phạm vi, không phải một miễn trừ đã duyệt. Comment này dạy người đọc sau một mô hình sai, đúng lúc repo vừa có một ví dụ mẫu về cách chuyển chuỗi từ `.vue` sang `.ts` để cổng xanh [`src/selftest/fallbackReport.ts:16-19`]
-- [x] [Review][Patch] `sprint-status.yaml` `last_updated` bị đẩy **lùi 90 phút** (`2026-08-04T01:30:00` → `T00:00:00`) ở cả header comment lẫn khối dữ liệu — ghi đè một giá trị mới hơn do story trước viết. Task 9 không yêu cầu điều này [`_bmad-output/implementation-artifacts/sprint-status.yaml:2,44`]
+- [x] [Review][Patch] `sprint-status.yaml` `last_updated` bị đẩy **lùi 90 phút** (`2026-08-04T01:30:00` → `T00:00:00`) ở cả header comment lẫn khối dữ liệu — ghi đè một giá trị mới hơn do story trước viết. Task 9 không yêu cầu điều này [`_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml:2,44`]
 - [x] [Review][Patch] `README.md` dẫn đầu bằng `import { t, tError } from '@/i18n'` nhưng **không có alias `@`** ở `vite.config.ts` hay `tsconfig.json` (đã grep: không `alias`, không `paths`). Cùng tệp, `:85` đặt tiêu đề *"Ba thứ sẽ hỏng im lặng nếu **bạn** không biết"* — chính đại từ Kiểm D cấm, trong tài liệu dạy quy tắc vô nhân xưng [`src/i18n/README.md:17,85`]
 - [x] [Review][Patch] Kiểm B và test Rust cưỡng chế **hai văn phạm khoá khác nhau**: `^[a-z0-9]+(\.[a-z0-9_]+)+$` so với `contains('.')` + lọc ký tự. `err_io.read_failed` qua được phía Rust và đỏ ở Kiểm B — trong khi doc-comment Rust `:192-193` tuyên bố áp *"đúng luật mà Kiểm B áp"* [`src-tauri/tests/ipc_contract.rs:192-203` · `scripts/check-i18n.mjs:624`]
 - [x] [Review][Patch] Năm chỗ tài liệu lệch với mã, gom một mục: (1) `deferred-work.md` — giới hạn `.ts` là một dòng `⚠️` **lồng dưới mục đã gạch ngang + ✅ ĐÃ ĐÓNG**, không phải "một mục mới" như Change Log tuyên bố; người rà mục còn mở sẽ bỏ qua cả khối. (2) Comment cạnh `RS_FLOOR` nói *"17 tệp `.rs` (sau miễn trừ)"*, số thật là **18** — và đó đúng là chỗ người sửa sàn sẽ đọc. (3) Change Log nói *"tám tệp sửa"*, File List liệt kê **chín**. (4) Completion Notes `:588` nói *"đã chọn Kiểm B… không viết test thứ ba trùng lặp"*, nhưng doc-comment `read_vi_json` tự viết *"cưỡng chế ở **cả hai phía**"* và ca R5 xác nhận `cargo test` cũng đỏ khi `vi.json` lồng — hai tài liệu do cùng một lượt viết ra mâu thuẫn nhau. (5) `tError(err, params?)` có tham số thứ hai mà Task 2 không nêu và §"Ba việc ngoài danh sách" không khai [`deferred-work.md:22-24` · `check-i18n.mjs:202` · story `:588,679` · `src/i18n/index.ts:59`]
@@ -503,22 +503,22 @@ Hai commit gần nhất còn cho thấy một nếp viết mã của repo: **m�
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.5` — năm AC nguyên văn, `:1179-1210`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#NonFunctional Requirements` — NFR16, `:362`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX Design Requirements` — UX-DR47 năm quy tắc giọng văn, `:605`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Additional Requirements` — AD-21 phát biểu rút gọn, `:443`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Epic 1` — *"hai yêu cầu cắt ngang áp từ Giai đoạn 1, không được để lại sau"*, `:479`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.6` — id command *"cùng hình dạng khoá `vi.json`"*, `:1230`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.14` — panel trống *"nêu rõ trạng thái bằng chuỗi trong `vi.json`"*, `:1576`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 4.10` — lỗi AI dùng lại đúng hình dạng bốn trường, `:3178-3180`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 10.9` — nghiệm thu cuối: *"không chuỗi tiếng Việt nào trong `.rs` hay `.vue`"*, `:6354-6355`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.5` — năm AC nguyên văn, `:1179-1210`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#NonFunctional Requirements` — NFR16, `:362`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX Design Requirements` — UX-DR47 năm quy tắc giọng văn, `:605`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Additional Requirements` — AD-21 phát biểu rút gọn, `:443`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Epic 1` — *"hai yêu cầu cắt ngang áp từ Giai đoạn 1, không được để lại sau"*, `:479`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.6` — id command *"cùng hình dạng khoá `vi.json`"*, `:1230`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.14` — panel trống *"nêu rõ trạng thái bằng chuỗi trong `vi.json`"*, `:1576`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 4.10` — lỗi AI dùng lại đúng hình dạng bốn trường, `:3178-3180`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 10.9` — nghiệm thu cuối: *"không chuỗi tiếng Việt nào trong `.rs` hay `.vue`"*, `:6354-6355`]
 - [Source: `.../ARCHITECTURE-SPINE.md#AD-21` — Binds *tất cả*; Prevents *"NFR16 bị thủng ở tầng lỗi — chỗ dễ quên nhất và đắt nhất để sửa sau"*, `:269-273`]
 - [Source: `.../ARCHITECTURE-SPINE.md#AD-22` — *"không bao giờ tự thử lại"*, ràng buộc lên `retryable`, `:275-279`]
 - [Source: `.../ARCHITECTURE-SPINE.md#Consistency Conventions` — `vi.json` **phẳng** theo khoá chấm `:540`; hình dạng lỗi `:550`; chuỗi giao diện `:551`; NFR15 rà giấy phép trước khi thêm `:557`]
 - [Source: `.../ARCHITECTURE-SPINE.md#Cây nguồn` — `i18n/vi.json` *"toàn bộ chuỗi giao diện (NFR16, AD-21)"*, `:710`]
 - [Source: `.../ux-designs/.../EXPERIENCE.md#Voice and Tone` — năm quy tắc + *"Rust trả `{ code, message_key, params, retryable }`"*, `:51-61`]
 - [Source: `.../prds/.../prd.md` — NFR16 và giải thích *"rẻ nếu làm từ đầu, rất đắt nếu làm sau"*, `:853-855`]
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md:19` — mục story này đóng]
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md:19` — mục story này đóng]
 - [Source: `_bmad-output/implementation-artifacts/1-3-…-moi-lan-push.md:481` — *"NFR16 không có cơ chế cưỡng chế → chủ sở hữu là Story 1.5"*]
 - [Source: `_bmad-output/implementation-artifacts/1-4-…-tu-dong.md:147` — 1.4 giao lại: *"chuỗi giao diện, `vi.json`, hình dạng lỗi IPC — Story 1.5"*]
 - [Source: `src-tauri/src/core/i18n/mod.rs:1-14` — doc-comment giao việc, *"quyết định của Story 1.5"*]
@@ -716,8 +716,8 @@ Cả ba đều là hệ quả trực tiếp của một lượt nghiệm thu ch�
 | `src-tauri/src/commands/mod.rs` | Doc-comment `:7-8` khớp tên kiểu thật (`IpcError`, `MessageKey`) |
 | `package.json` | Thêm đúng một dòng `scripts`: `check:i18n` |
 | `.github/workflows/ci.yml` | Thêm **một** bước trong job `check` đã có + một dòng vào sổ *"CHỖ MÓC CHO EPIC SAU"* |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | `:19` đánh dấu **đã đóng**, ghi cơ chế đóng và giới hạn còn lại |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-5-…` → `in-progress` → `review` |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | `:19` đánh dấu **đã đóng**, ghi cơ chế đóng và giới hạn còn lại |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `1-5-…` → `in-progress` → `review` |
 | `_bmad-output/implementation-artifacts/1-5-…-qua-ipc.md` | Chính tệp này — frontmatter `baseline_commit`, 60 checkbox, Dev Agent Record, File List, Change Log, Status |
 
 **Không đụng tới** (đúng §Ranh giới phạm vi): `src-tauri/tauri.conf.json` · `Cargo.toml` · `src/selftest/scopeCheck.ts` · `_bmad-output/planning-artifacts/**`. **Không thêm một phụ thuộc nào** — `check:deps` xanh sau khi xong, bảng Stack 19 hàng không đổi.

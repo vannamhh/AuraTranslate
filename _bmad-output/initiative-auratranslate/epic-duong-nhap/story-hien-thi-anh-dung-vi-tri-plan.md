@@ -11,7 +11,7 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src-tauri/SECURITY-NOTES.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -205,7 +205,7 @@ CÙNG lượt `store.read`; webview chỉ render. Cấp `assetProtocol` scope **
 - [x] `tests/frontend/` — ca cho lưới và Chế độ đọc (mount thật, giả ở **biên IPC**, khuôn
       `editorTypingZone.test.ts:34-51`). ⚠️ `happy-dom` không phải WebKit ⇒ mệnh đề **hình học**
       ("ảnh đúng chỗ, năm cột còn thẳng hàng") thuộc e2e/bàn đo, không thuộc vitest (`tests/AGENTS.md`).
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng bằng chữ: mục A
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng bằng chữ: mục A
       (`:10621-10634`, `assetProtocol.scope`) và nợ ③ (`:11028-11040`, nhãn vai). Nợ ④
       (`:11042-11055`) **chuyển chủ sang Story 7.1** kèm lý do, không xoá chữ cũ (AGENTS.md:42).
       Mục B (`:10737-10744`, tệp ảnh mồ côi) và mục C (`:10761-10770`, `source_url` là URL yêu cầu

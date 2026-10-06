@@ -6,8 +6,8 @@ status: done
 baseline_revision: '6a517d11824886a001e480fb9fd9262833eafa02'
 review_loop_iteration: 0
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-quet-ung-vien-khi-nhap-tai-lieu-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/tests/AGENTS.md'
@@ -63,7 +63,7 @@ relates_to: 5
 - [x] `src-tauri/src/core/glossary/{candidate_store.rs,store.rs,scan.rs,surnames.rs}` -- lọc batch hai tầng, chuẩn hoá cụm hoa, alias phồn thể, cache context và hook huỷ.
 - [x] `src/config/bootstrap.ts` · `src/glossarySettingsState.ts` · `src/main.ts` · `src/GlossarySettingsOverlay.vue` · `scripts/check-commands.mjs` -- vá bốn lỗi frontend và nâng sàn selection surface theo số thật.
 - [x] `src-tauri/tests/**` · `tests/frontend/**` · `e2e/**` -- ca đỏ→xanh cho Matrix và năm verification gap; e2e dùng `realClick`, đăng ký event trước import, Work mới cho mỗi ngưỡng.
-- [x] `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md` -- nối append-only kết quả review, finding trùng/phóng đại và bằng chứng; không chạm khối frozen.
+- [x] `_bmad-output/initiative-auratranslate/epic-glossary/story-quet-ung-vien-khi-nhap-tai-lieu-plan.md` -- nối append-only kết quả review, finding trùng/phóng đại và bằng chứng; không chạm khối frozen.
 
 **Acceptance Criteria:**
 - Given corpus tần suất 5 và config persisted 6 rồi 5, when import hai Work qua IPC, then command trả trước event và chỉ Work ngưỡng 5 có term.
@@ -95,38 +95,38 @@ Lọc Global không gọi resolve từng term: batch nạp mỗi tier một lầ
 **Worker, outcome và cancellation**
 
 - Điểm vào chính: phân loại lookup, outcome và payload không kết luận.
-  [`project.rs:322`](../../src-tauri/src/commands/project.rs#L322)
+  [`project.rs:322`](../../../../src-tauri/src/commands/project.rs#L322)
 
 - Scope filter xong mới kiểm generation, enqueue dưới guard ngắn.
-  [`project.rs:435`](../../src-tauri/src/commands/project.rs#L435)
+  [`project.rs:435`](../../../../src-tauri/src/commands/project.rs#L435)
 
 - Quét ba trạng thái, huỷ được và chỉ dựng context cho `Missing`.
-  [`scan.rs:152`](../../src-tauri/src/core/glossary/scan.rs#L152)
+  [`scan.rs:152`](../../../../src-tauri/src/core/glossary/scan.rs#L152)
 
 **Phân giải hai tầng và frontend**
 
 - Query chỉ lấy key nhưng vẫn qua `ScopeResolver::apply_override`.
-  [`store.rs:275`](../../src-tauri/src/core/glossary/store.rs#L275)
+  [`store.rs:275`](../../../../src-tauri/src/core/glossary/store.rs#L275)
 
 - Lỗi IPC lạ phân biệt Tauri thật với trình duyệt thường.
-  [`bootstrap.ts:224`](../../src/config/bootstrap.ts#L224)
+  [`bootstrap.ts:224`](../../../../src/config/bootstrap.ts#L224)
 
 - Modal tự khai vai `display`, không thành nguồn Auto-Lookup.
-  [`GlossarySettingsOverlay.vue:34`](../../src/GlossarySettingsOverlay.vue#L34)
+  [`GlossarySettingsOverlay.vue:34`](../../../../src/GlossarySettingsOverlay.vue#L34)
 
 - Global keymap bị chặn trong toàn vòng đời modal.
-  [`main.ts:463`](../../src/main.ts#L463)
+  [`main.ts:463`](../../../../src/main.ts#L463)
 
 **Bằng chứng hồi quy**
 
 - Unit khóa precedence, payload và cancellation muộn không write-ticket.
-  [`project.rs:896`](../../src-tauri/src/commands/project.rs#L896)
+  [`project.rs:896`](../../../../src-tauri/src/commands/project.rs#L896)
 
 - Contract khóa nhiều term cùng segment giữ nguyên context và output.
-  [`glossary_scan_contract.rs:495`](../../src-tauri/tests/glossary_scan_contract.rs#L495)
+  [`glossary_scan_contract.rs:495`](../../../../src-tauri/tests/glossary_scan_contract.rs#L495)
 
 - Vitest mount modal thật và kiểm selection contract lúc chạy.
-  [`glossarySettings.test.ts:246`](../../tests/frontend/glossarySettings.test.ts#L246)
+  [`glossarySettings.test.ts:246`](../../../../tests/frontend/glossarySettings.test.ts#L246)
 
 - WKWebView khóa một event, mode precondition và fallback save.
-  [`story-3-5-review.e2e.mjs:82`](../../e2e/specs/story-3-5-review.e2e.mjs#L82)
+  [`story-3-5-review.e2e.mjs:82`](../../../../e2e/specs/story-3-5-review.e2e.mjs#L82)

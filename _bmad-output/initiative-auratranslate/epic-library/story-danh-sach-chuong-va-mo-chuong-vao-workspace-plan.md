@@ -440,7 +440,7 @@ pixel (AD-3, Ice ký 2026-08-18) — và `read_open_chapter_segments` chở `car
     NỘI DUNG, không bằng `chapter_id` — id là số cục bộ từng kho) → `library.open_chapter` →
     Workspace nạp lưới → vị trí khôi phục đúng câu thứ hai. Vế "bằng bàn phím" của AC7 **không**
     được spec này nghiệm thu — ghi nợ có chủ, xem §Auto Run Result.
-23. [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- đóng **bằng chữ** bốn mục có
+23. [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- đóng **bằng chữ** bốn mục có
     chủ là story/epic này, mỗi mục kèm cách đóng: `:759` (bề mặt hiển thị `meta_too_new`),
     `:2632` (*"đóng app → mở lại → chữ còn đó"*), `:5004` (AC5 của Story 2.11 -- vị trí làm
     việc), `:5449` (Glossary tầng Tác phẩm sau một lượt mở lại). Mục `:8307` (ba lệnh vòng đời

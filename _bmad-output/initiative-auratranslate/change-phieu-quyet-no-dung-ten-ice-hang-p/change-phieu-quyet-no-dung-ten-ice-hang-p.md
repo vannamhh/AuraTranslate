@@ -9,7 +9,7 @@ skill: bmad-correct-course
 
 **Nguồn:** `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md` §6 · **Người quyết:** Ice · **Người trình:** John
 
-108 quyết định riêng (119 mục, 11 mục gộp vào câu gốc). `b8f22f7:NNNN` là dòng của mục trên `b8f22f7`; tìm trên HEAD bằng `git show b8f22f7:_bmad-output/implementation-artifacts/deferred-work.md | sed -n NNNNp` rồi grep dòng đầu.
+108 quyết định riêng (119 mục, 11 mục gộp vào câu gốc). `b8f22f7:NNNN` là dòng của mục trên `b8f22f7`; tìm trên HEAD bằng `git show b8f22f7:_bmad-output/initiative-auratranslate/deferred-work.md | sed -n NNNNp` rồi grep dòng đầu.
 
 Mỗi câu trả lời một trong: **chọn (x)** · **KHÔNG LÀM** · **giữ Ice đến khi <điều kiện>** · **giao <story/người>**. John thi hành câu trả lời vào `deferred-work.md` sau mỗi phiên.
 

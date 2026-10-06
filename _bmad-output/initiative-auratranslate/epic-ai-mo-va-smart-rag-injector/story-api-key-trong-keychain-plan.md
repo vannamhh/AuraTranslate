@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '93fe113dc2fc0b71012388d7f043c2527b66a5c5'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -156,7 +156,7 @@ keychain itself is the source of truth for whether a key exists.
 - `_bmad-output/planning-artifacts/architecture/…/ARCHITECTURE-SPINE.md:827` — the `keyring`
   Stack row, dated 2026-08-02 from crates.io rather than from downloaded source. The NFR15
   round record goes below, in the shape of rounds five through eight.
-- `_bmad-output/implementation-artifacts/deferred-work.md` — append at EOF only; the FR65 entry
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — append at EOF only; the FR65 entry
   owned by this story closes in words, never by deletion.
 
 ## Tasks & Acceptance

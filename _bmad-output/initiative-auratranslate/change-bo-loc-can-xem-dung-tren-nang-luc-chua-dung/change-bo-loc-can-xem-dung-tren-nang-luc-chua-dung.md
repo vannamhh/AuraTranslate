@@ -9,7 +9,7 @@ skill: bmad-correct-course
 
 **Người soạn:** `bmad-correct-course` (chế độ Batch) · **Người duyệt:** Ice
 **Baseline:** `24d07c4` (master, đã đẩy) · `grep -c "^### AD-"` = **48**
-**Hồ sơ điều tra kèm phép đo:** `_bmad-output/implementation-artifacts/ho-so-dieu-tra-6-10-bo-loc-can-xem-2026-09-08.md`
+**Hồ sơ điều tra kèm phép đo:** `_bmad-output/initiative-auratranslate/epic-duong-nhap/investigation-bo-loc-can-xem/investigation-bo-loc-can-xem.md`
 
 ---
 

@@ -255,7 +255,7 @@ Ràng buộc đã cố định (không phải chỗ chọn): nếu có thao tác
 
 ### Đọc trước khi viết dòng đầu tiên
 
-`_bmad-output/project-context.md` — 130 luật. Ba mục sát story này: §Critical Don't-Miss Rules (*"Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN"*), §Testing Rules *(bốn đường nghiệm thu, bốn vai không chồng nhau)*, §Code Quality *(chú thích nói **lý do**, kèm **phép đo**, không sở thích)*.
+`_bmad-output/inbox/project-context.md` — 130 luật. Ba mục sát story này: §Critical Don't-Miss Rules (*"Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN"*), §Testing Rules *(bốn đường nghiệm thu, bốn vai không chồng nhau)*, §Code Quality *(chú thích nói **lý do**, kèm **phép đo**, không sở thích)*.
 
 ### 🔴 Story này KHÔNG thêm phụ thuộc nào
 
@@ -395,13 +395,13 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md:2376-2410` — Story 2.5d, sáu AC
-- `_bmad-output/planning-artifacts/epics.md:132` — FR134 · `:280` — FR121 sửa 2026-08-14 · `:407` — AD-46 trong bảng bất biến · `:986` — *"đường xuất phải đọc CẢ HAI nguồn"*
-- `_bmad-output/planning-artifacts/epics.md:2487-2529` — Story 2.8 (gộp/tách, `backlog`) · `:2531-2570` — Story 2.9 · `:2572-2621` — Story 2.10
-- `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md:462-464` — FR134 nguyên văn kèm ràng buộc kiến trúc
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2376-2410` — Story 2.5d, sáu AC
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:132` — FR134 · `:280` — FR121 sửa 2026-08-14 · `:407` — AD-46 trong bảng bất biến · `:986` — *"đường xuất phải đọc CẢ HAI nguồn"*
+- `_bmad-output/initiative-auratranslate/archive-v6/epics.md:2487-2529` — Story 2.8 (gộp/tách, `backlog`) · `:2531-2570` — Story 2.9 · `:2572-2621` — Story 2.10
+- `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md:462-464` — FR134 nguyên văn kèm ràng buộc kiến trúc
 - `.../architecture/.../ARCHITECTURE-SPINE.md:652-670` — AD-46 đầy đủ · `:437-453` — AD-37 và bảng ba ca biên · `:689` (Consistency Conventions) · `:75-79` (AD-1)
 - `.../ux-designs/.../EXPERIENCE.md:236` — ngắt đoạn là khoảng thở, không một hàng rỗng · `:262-271` — bảng phím và vì sao `Enter` trần không ký · `:273-275` — tách ở cột nguyên văn, gộp từ cả hai phía
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md:103-107` · `:225-256` · `:291` · `:337-344`
+- `_bmad-output/initiative-auratranslate/change-be-mat-nhap-lat-sang-luoi-hai-cot/change-be-mat-nhap-lat-sang-luoi-hai-cot.md:103-107` · `:225-256` · `:291` · `:337-344`
 - `src-tauri/src/core/store/schema.rs:278-295` · `:335-346` · `:380-424` · `:460-511` · `:513-531` · `:553-579` · `:580-618` · `:624-652` · `:733-770`
 - `src-tauri/src/commands/segment.rs:96-117` · `:144-153` · `:164-174` · `:316-357` · `:450-545` · `:740-760` · `:860-950`
 - `src-tauri/src/core/segment/split.rs:104-120` · `:168-181` · `:258-263` · `:377-390`
@@ -415,9 +415,9 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 - `tests/frontend/support/segmentFixture.ts:38-78` · `tests/frontend/editorTypingZone.test.ts:168-191`
 - `scripts/check-commands.mjs:235` · `:794-813` · `:1876-2113` (Kiểm F) · `:2116-2269` (Kiểm I)
 - `scripts/check-tokens.mjs:880-912` · `:1300-1334` · `:1345-1396`
-- `_bmad-output/implementation-artifacts/2-5c-cat-bo-cau-khoi-ban-dich.md` — năm chữ ký + Quyết định #6 phát sinh
-- `_bmad-output/implementation-artifacts/2-5b-luoi-hai-cot-doi-chieu.md:775-814` — bàn đo hai engine, năm mệnh đề
-- `_bmad-output/implementation-artifacts/deferred-work.md:2969-2981` · `:3012-3037` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3496-3507`
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-cat-bo-cau-khoi-ban-dich-plan.md` — năm chữ ký + Quyết định #6 phát sinh
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-luoi-hai-cot-doi-chieu-plan.md:775-814` — bàn đo hai engine, năm mệnh đề
+- `_bmad-output/initiative-auratranslate/deferred-work.md:2969-2981` · `:3012-3037` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3496-3507`
 - MDN `Element: beforeinput` / `InputEvent.inputType` — https://developer.mozilla.org/en-US/docs/Web/API/InputEvent/inputType
 - SQLite `ALTER TABLE ADD COLUMN` *(ràng buộc `DEFAULT` phải là hằng)* — https://www.sqlite.org/lang_altertable.html
 
@@ -475,7 +475,7 @@ Bốn đường nghiệm thu, **bốn vai không chồng nhau**. Chọn sai đư
 
 ### Baseline đo trước khi chạm dòng đầu tiên
 
-**Đo 2026-08-15, trước khi chạm một dòng nào.** Cây sạch — `git status --porcelain` chỉ có `?? _bmad-output/implementation-artifacts/2-5d-ngat-doan-ban-dich.md` *(chính tệp story)*.
+**Đo 2026-08-15, trước khi chạm một dòng nào.** Cây sạch — `git status --porcelain` chỉ có `?? _bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-ngat-doan-ban-dich-plan.md` *(chính tệp story)*.
 
 | Phép đo | Ghi chép trong story | Đo lại | |
 | --- | --- | --- | --- |
@@ -693,9 +693,9 @@ Kê từ `git status --porcelain`, không từ trí nhớ. **24 sửa · 3 thêm
 - `_bmad-output/implementation-artifacts/2-5d-ban-do/` *(**thêm**)* — `insertparagraph-wkwebview.e2e.mjs` + `README.md`
 
 **Tài liệu**
-- `_bmad-output/implementation-artifacts/deferred-work.md` *(sửa)* — 6 mục nợ mới
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` *(sửa)*
-- `_bmad-output/implementation-artifacts/2-5d-ngat-doan-ban-dich.md` *(**thêm**)*
+- `_bmad-output/initiative-auratranslate/deferred-work.md` *(sửa)* — 6 mục nợ mới
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` *(sửa)*
+- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-ngat-doan-ban-dich-plan.md` *(**thêm**)*
 
 
 ### Change Log
@@ -730,7 +730,7 @@ nợ đúng"*, Edge Case Hunter đo ra một vi phạm AC3 **đang sống trong 
 - [x] [Review][Patch] 🔴 **Ice ký 2026-08-16 — đường (a): lệnh TỪ CHỐI, kèm một `message_key` MỚI.** **`set_segment_paragraph_end` cho phép BẬT cờ đích trên segment CUỐI Chương** — AC3 đòi ca *"segment cuối Chương → tắt, LUÔN LUÔN"* áp y nguyên cho cờ đích, và `paragraph.rs::at_end_of_chapter` đã dựng sẵn hàm thuần cho ca đó. Nhưng lệnh `Mod+Alt+P` (`src-tauri/src/commands/segment.rs:419-473`) chỉ kiểm `retired_at` và giá trị hiện tại — **không** hỏi segment có phải câu cuối Chương không, và không gọi `at_end_of_chapter`. Cờ có bề mặt hiển thị THẬT hôm nay (`GridPanel.vue:1063` gắn `tgt-para-end`, `:1429` vẽ đường kẻ đáy) ⇒ người dùng bấm `Mod+Alt+P` trên câu cuối vẽ được một ranh giới đoạn dưới câu cuối cùng, đúng thứ AC3 nói không bao giờ được có. Món nợ AC3 đã ghi chỉ phủ **gộp/tách** (chủ Story 2.8), **không** phủ ca này. ⇒ Vá theo (a). ⚠️ Khoá thứ ba **không** phá lý lẽ của doc-comment hiện có (*"đừng dựng khoá thứ ba nói cùng một chuyện"*): hai khoá cũ nói *không tìm thấy* và *đã về hưu*; đây là một sự thật **khác** — câu tồn tại, còn sống, và vẫn không được mang cờ. Ba nhánh từ chối, ba sự thật.
 - [x] [Review][Patch] 🔴 **Ice ký 2026-08-16 — đường (b): cho DÁN giữ `\n`.** **Đường DÁN vẫn làm phẳng `\n` thành khoảng trắng, trong khi `Enter` gõ tay nay giữ nguyên** — `GridPanel.vue:771` (`raw.replace(/[\r\n]+/g, ' ')`) **không** bị story này chạm. Chú thích tại chỗ nói lý do: dán hai đoạn vào một ô thì hai chữ ở hai đầu ranh giới không được dính. Lý do đó viết khi `\n` **không thể** tồn tại trong ô; AC1 vừa làm nó tồn tại được. ⇒ Hai đường vào cùng một ô nay mang hai luật khác nhau, và lượt dán mất ranh giới dòng **không một lời cảnh báo**. ⇒ Vá theo (b) — một đường vào ô, một luật. ⚠️ Vế *"hai chữ ở hai đầu ranh giới không được dính"* mà chú thích cũ bảo vệ **vẫn được giữ**: `\n` là một dấu tách thật, không phải bị bỏ đi — đó chính là điều đã đổi kể từ khi lý lẽ cũ được viết. Phép gộp khoảng trắng ngang (`[ \t]+`) giữ nguyên.
 - [x] [Review][Patch] 🔵 **Ice ký 2026-08-16 — GIỮ `--color-primary`, chỉ ghi rõ đây là lượt tái dùng CÓ CHỦ Ý.** **`--color-primary` nay mang hai nghĩa trong cùng một khung nhìn** — cột vạch dùng nó cho *"hàng đang có con trỏ"* (`GridPanel.vue:1251`); story này dùng **đúng token đó** cho *"cờ kết đoạn bản dịch đang BẬT"* (`:1430`). Doc-comment của Quyết định #4 đo rất kỹ vế **hình học** (vì sao không `padding-bottom`) nhưng không bàn vế **token màu**. Hai chỗ khác hình dạng (nền vạch vs viền dưới) nên nhầm lẫn là có thể, không chắc chắn. ⇒ Không đổi token. Vá: một dòng chú thích tại `:1430` nói thẳng lượt tái dùng là có chủ ý và vì sao (hai hình dạng khác nhau, cùng nghĩa rộng *đang bật*), để lượt rà sau không hỏi lại cùng một câu.
-- [x] [Review][Patch] Nợ **AC6** được tự chấm 🟡 bằng lời nhưng KHÔNG có mục trong sổ nợ [`_bmad-output/implementation-artifacts/deferred-work.md`] — diff thêm **7** mục (AC3 · AC4 · ô lỗi lệnh · khuyết tật `check-i18n` · e2e Blink · fixture · NFR2), không mục nào là AC6; trong khi `sprint-status.yaml` viết *"BA AC đóng một nửa, cả ba ghi nợ có chủ"*. Câu đó sai với chính diff của nó. Vá: thêm mục AC6 kèm chủ, và sửa câu ở `sprint-status.yaml`.
+- [x] [Review][Patch] Nợ **AC6** được tự chấm 🟡 bằng lời nhưng KHÔNG có mục trong sổ nợ [`_bmad-output/initiative-auratranslate/deferred-work.md`] — diff thêm **7** mục (AC3 · AC4 · ô lỗi lệnh · khuyết tật `check-i18n` · e2e Blink · fixture · NFR2), không mục nào là AC6; trong khi `sprint-status.yaml` viết *"BA AC đóng một nửa, cả ba ghi nợ có chủ"*. Câu đó sai với chính diff của nó. Vá: thêm mục AC6 kèm chủ, và sửa câu ở `sprint-status.yaml`.
 - [x] [Review][Patch] Hai tầng đọc hai định nghĩa **"ô rỗng"** khác nhau [src/panels/GridPanel.vue:1060] — lưới dùng `=== ''`, Rust dùng `target_text.trim().is_empty()` (`commands/segment.rs:886`). Ô chỉ chứa `"\n"` (bấm `Enter` trong ô rỗng) **mất** class `.cell-tgt.empty` nên trông đã dịch, nhưng `confirm_segment` từ chối ký nó — không giải thích vì sao. Cộng thêm: bàn đo Task 1 chạy cả bốn vòng trên ô **đã có** nội dung `"A"`, **không** vòng nào đo `Enter` là thao tác gõ đầu tiên trong ô rỗng.
 - [x] [Review][Patch] Hai chuỗi từ chối dùng chung mang từ vựng **"xác nhận"** [src/i18n/vi.json:19-20] — `"…không có gì được xác nhận."` / `"…không xác nhận được nữa."`. Doc-comment của lệnh mới khẳng định *"cùng ngữ nghĩa, cùng thông điệp"* — đúng ở mức `message_key`, **sai ở mức câu chữ**. Hôm nay vô hình (lệnh chưa có đường ra màn hình); ngày món nợ *"đường báo lỗi dùng chung"* được đóng, người bấm `Mod+Alt+P` trên câu đã về hưu đọc một câu nói về xác nhận. Test chỉ so `message_key` enum nên không bắt được.
 - [x] [Review][Patch] Chú thích MỚI gọi sai cơ chế thật đang giữ AC11 [src/panels/GridPanel.vue] — doc-comment của `onEditKeydown` nói `Enter` trần bị `keys.ts::isTypingZone` chặn. Đọc `keys.ts:508-510`: vòng lặp `continue` ở `entry.code !== event.code || !sameMods(...)` **trước** khi chạm `isTypingZone`; lệnh duy nhất gắn `Enter` là `Mod+Enter`, nên `Enter` trần không bao giờ khớp và không bao giờ tới dòng đó. AC11 giữ đúng — nhưng vì `sameMods`, không vì `isTypingZone`. Hậu quả hôm nay bằng 0; nó dạy sai cho người thêm một hợp âm `Enter` trần sau này.

@@ -10,7 +10,7 @@ headless: false
 
 ## Tóm tắt epic
 
-- Epic: 11 — *Trả nợ nền — đóng nợ đã hoãn của Epic 1–6 trước khi xây tiếp* (`planning-artifacts/epics.md` §Epic 11; nguồn quyết: `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`).
+- Epic: 11 — *Trả nợ nền — đóng nợ đã hoãn của Epic 1–6 trước khi xây tiếp* (`initiative-auratranslate/archive-v6/epics.md` §Epic 11; nguồn quyết: `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`).
 - Tiêu chí: **khai báo** — bốn khối "AC chung cho mọi story của Epic 11" trong `epics.md` §Epic 11; mỗi story thừa kế, AC riêng rút từ các mục `Chủ: Story 11.N`.
 - Story: 7/7 `done` (`detect-epic --epic 11`: `story_count: 7`, `pending_stories: []`). Ice ký 11-4…11-7 từ `review` sang `done` ở `e390078` trước retro.
 - Dải diff: `b825a58^..5897669` — 15 commit không merge, 0 merge, 338 tệp, +34 807 / −9 179 dòng (`git_evidence.py`). Commit lập kế hoạch epic (`b8f22f7`…`2abddd3`) nằm trước dải và không tính vào.

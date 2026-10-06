@@ -65,7 +65,7 @@ context:
 - [x] `src-tauri/tests/tm_contract.rs` (+ the literal at `ipc_contract.rs`) -- one wire case per matrix row, invert :1242.
 - [x] `src/config/segment.ts`, `src/panels/editorPanelState.ts`, `src/StatusBar.vue`, `src/i18n/vi.json` -- mirror the type and guard, show the notice on a skipped load, pass `prefill: false` from `refreshChapterAssetsAfterRegroup` and remove its TM adoption loop.
 - [x] `tests/frontend/*` -- guard-shape case, notice case, and a "type while refresh in flight" case using the existing deferreds.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- one item (≤5 lines): a bad-origin `tm_unit` row still fails Fuzzy/Concordance/RAG/TM management and TMX export (`core/tm/mod.rs:188-194`, `:426-428`). Chủ: Amelia.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- one item (≤5 lines): a bad-origin `tm_unit` row still fails Fuzzy/Concordance/RAG/TM management and TMX export (`core/tm/mod.rs:188-194`, `:426-428`). Chủ: Amelia.
 
 **Acceptance Criteria:**
 - Given the No-global and Bad-origin cases, when the degrade branch is really removed (the `?` restored), then both go red, and the Ran case stays green.

@@ -12,7 +12,7 @@ Bản ghi build v6 của story này bị thiếu: `sprint-status.yaml` ghi `done
 
 **Covers:** đường đóng cho **nợ nghiệm thu thị giác** của Epic 1 *(không FR mới)* · **AD-45** · liên đới action item **A4** và **A5**
 
-> ⚠️ **Story này dựng SAU khi mã đã viết — ghi thẳng thay vì để nó trông bình thường.** Bộ chạy ra đời ngày 2026-08-11 từ một đề xuất được Ice ký, và Bước 0 tới Bước 2 đã chạy xong. Lý do vẫn dựng story: bộ chạy đang mang **ba khuyết tật có tên** mà không tạo tác nào ở tầng quy hoạch chịu trách nhiệm cho chúng. Không có story thì ba mục đó sống trong một tệp đề xuất, và Epic 2 sẽ dựng Panel Editor — bề mặt thị giác lớn nhất dự án — lên trên một nền như vậy. Kết quả đo và ba giả định bị lật: `implementation-artifacts/proposal-tauri-window-automation-2026-08-11.md` §8.
+> ⚠️ **Story này dựng SAU khi mã đã viết — ghi thẳng thay vì để nó trông bình thường.** Bộ chạy ra đời ngày 2026-08-11 từ một đề xuất được Ice ký, và Bước 0 tới Bước 2 đã chạy xong. Lý do vẫn dựng story: bộ chạy đang mang **ba khuyết tật có tên** mà không tạo tác nào ở tầng quy hoạch chịu trách nhiệm cho chúng. Không có story thì ba mục đó sống trong một tệp đề xuất, và Epic 2 sẽ dựng Panel Editor — bề mặt thị giác lớn nhất dự án — lên trên một nền như vậy. Kết quả đo và ba giả định bị lật: `initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/proposal-tauri-window-automation/proposal-tauri-window-automation.md` §8.
 
 As a chủ dự án,
 I want một bộ chạy lái được cửa sổ Tauri thật,

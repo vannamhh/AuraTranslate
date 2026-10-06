@@ -9,7 +9,7 @@ baseline_revision: '0736243c8e8946760e1d8c0f36e2f63b9311542d'
 review_loop_iteration: 0
 context:
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-11-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -76,7 +76,7 @@ Ice, 2026-09-30:
 
 ## Implementation Notes
 
-Phase working notes: [11-8-lo-a-phases-2026-09-30.md](11-8-lo-a-phases-2026-09-30.md).
+Phase working notes: [11-8-lo-a-phases-2026-09-30.md](handoff-lo-a-rust-boundary-and-guards-phases/handoff-lo-a-rust-boundary-and-guards-phases.md).
 - Only the `aitranslate` wires were generic; `open_work`, `confirm_import_with_encoding`, `promote_ai_translation`, `glossary_pending_candidates` and their private helpers now take `AppHandle<R>`, and the text pins in `config_invariants.rs`, `ipc_contract.rs`, `project_contract.rs` follow.
 - Tauri 2.11.5 `forbid_directory` has no inverse (`scope/fs.rs` has no remove), so the old revoke broke A → B → A; decisions 15/15b: the scope grows per session until the URI-scheme item (`Chủ: Winston`) restores #52. `close_open_work` still forbids, on `RunEvent::Exit` only.
 - F-R-3 before/after in one probe (release, K=500, C=300×4,000 chars, no dict layers): old lock-hold p95 966 ms, new waiter p95 6 ms. The APPEND hold over image download is structural and stays `Chủ: Ice`.

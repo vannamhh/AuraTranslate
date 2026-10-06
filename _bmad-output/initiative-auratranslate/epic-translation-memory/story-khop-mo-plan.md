@@ -11,7 +11,7 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-7-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-7-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -26,13 +26,13 @@ context:
 
 **Decisions (Ice, 2026-10-02):**
 - Q1 = A: the score function is built here in `core/matching`; Story 7.6 keeps the Glossary/TM variant-parity proof and its four ledger items.
-- Q2 = A: the diff library (`similar` vs `dissimilar`) is chosen in this story by an AD from Winston (`planning-artifacts/ad-brief-2026-10-02-diff-khop-mo-tm.md`, AD-51), measured on real Zh/En sentences; both options with measurements go to Ice. The diff and accept tasks wait for that AD.
+- Q2 = A: the diff library (`similar` vs `dissimilar`) is chosen in this story by an AD from Winston (`initiative-auratranslate/ad-brief-diff-khop-mo-tm/ad-brief-diff-khop-mo-tm.md`, AD-51), measured on real Zh/En sentences; both options with measurements go to Ice. The diff and accept tasks wait for that AD.
 - Q3 = A: accepting a fuzzy suggestion sets origin `other` (new AD-47 ③ row, same AD). Confirm unedited ⇒ `other`, even if the pair was mine.
 - Q4 = A: four new tokens `diff-add-bg`, `diff-add-ink`, `diff-del-bg`, `diff-del-ink` in both themes with contrast pairs; Sally signs the dark values.
 - Q5 = B: one registered command (`Mod+Alt+E`, free on both platforms, rebindable) moves focus from the cell into the strip; inside it ↑/↓ move, Enter or 1–3 accept, Esc hides the strip for that segment and returns focus to the cell. The cell's bare `Escape` is untouched.
 - Q6 = B: one settings key `tm_fuzzy_threshold` (integer percent, default 65, accepted 50–99, one parser like `parse_glossary_scan_threshold`), editable in Settings. Row count fixed at 3.
 - Spec kept whole above 1600 tokens (Ice).
-- AD-51 crate (Ice, 2026-10-02): option A, `similar` =3.1.1 with chars for Zh, words for En, plus the absorb pass for equal runs of 2 or fewer (`planning-artifacts/ad-51-draft-2026-10-02.md`).
+- AD-51 crate (Ice, 2026-10-02): option A, `similar` =3.1.1 with chars for Zh, words for En, plus the absorb pass for equal runs of 2 or fewer (`initiative-auratranslate/ad-51-draft/ad-51-draft.md`).
 - Latency (Ice, 2026-10-02): about 650-715 ms per call at 100,000 pairs per tier (release, loaded machine) is accepted; no speed-up work. The scan must not hold the `OpenWorkState` lock while scoring.
 
 **Always:**
@@ -89,7 +89,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] AD-51 (Winston, from `planning-artifacts/ad-brief-2026-10-02-diff-khop-mo-tm.md`) -- diff crate measured on real Zh/En sentences, Ice picks, Stack row + licence, AD-47 ③ row `other`. Blocks the diff and accept tasks only.
+- [x] AD-51 (Winston, from `initiative-auratranslate/ad-brief-diff-khop-mo-tm/ad-brief-diff-khop-mo-tm.md`) -- diff crate measured on real Zh/En sentences, Ice picks, Stack row + licence, AD-47 ③ row `other`. Blocks the diff and accept tasks only.
 - [x] `src-tauri/src/core/matching/mod.rs` -- score function (Dice over `ngrams`, n per language) and, after AD-51, the diff wrapper; contract cases in `tests/matching_contract.rs`.
 - [x] `src-tauri/src/core/tm/mod.rs` -- fuzzy read over both tiers: exact excluded, threshold, top 3, order; `TmPair.id`.
 - [x] `src-tauri/src/core/scope/store.rs`, `commands/config.rs` -- `tm_fuzzy_threshold` key and its single parser.

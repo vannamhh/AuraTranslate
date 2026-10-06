@@ -8,7 +8,7 @@ skill: bmad-architecture
 # Hồ sơ bàn giao cho Winston — một `AD` mới: **mốc so xuất xứ lưu phía Rust**
 
 **Ngày:** 2026-10-01 · **Người bàn giao:** lượt `bmad-build` mở Story 7.2 · **Người nhận:** Winston (architect)
-**Nguồn gốc:** AC3 của Story 7.2 (*"câu họ viết lại mang xuất xứ tôi dịch"*), spec `implementation-artifacts/spec-7-2-xuat-xu-tren-tung-cap-tm.md` §D1.
+**Nguồn gốc:** AC3 của Story 7.2 (*"câu họ viết lại mang xuất xứ tôi dịch"*), spec `initiative-auratranslate/epic-translation-memory/story-xuat-xu-tren-tung-cap-tm-plan.md` §D1.
 **Quyết định của Ice (2026-10-01):** phương án (A) — lưu mốc phía Rust. Hai phương án bị loại: (B) giữ mốc trong webview suốt phiên (vẫn mất khi mở lại app); (C) không sửa, ghi nợ.
 **Baseline cây nguồn:** `266c155f5ab91c00337cd065b50e81a668efee13`. Số `AD` trống kế tiếp: **50** (spine dừng ở AD-49; hồ sơ `ad-brief-2026-08-17-vach-le-cau-cuoi-chuong.md` chưa viết và cố ý không nhận số).
 

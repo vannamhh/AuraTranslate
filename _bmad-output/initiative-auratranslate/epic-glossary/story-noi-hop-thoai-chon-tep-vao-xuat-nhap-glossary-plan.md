@@ -7,8 +7,8 @@ status: done
 review_loop_iteration: 0
 baseline_revision: 'ce5d2760c23444d3aaa8547919fc91015fc658bc'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-xuat-va-nhap-glossary-qua-csv-tsv-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -152,7 +152,7 @@ context:
 - [x] `src-tauri/tests/glossary_exchange_contract.rs` + tệp hợp đồng mới cho `exchange_io` -- phủ trọn §I/O Matrix: trần kích thước (kiểm **trước** khi đọc), phi-UTF-8, ghi nguyên tử không để lại `.tmp`, quyết định trỏ thuật ngữ lạ, xác nhận khi không có lô, lô thứ hai thay lô thứ nhất, nháy kép đặt sai chỗ, trùng + `category` lạ.
 - [x] `src-tauri/tests/config_invariants.rs` -- ca **mới** khẳng định `tauri_plugin_dialog::init()` **có** đăng ký và `tauri_plugin_fs::init()` **không** xuất hiện ở bất kỳ đâu trong `src-tauri/src/**` -- 🔴 `main_capability_grants_the_minimum_and_no_plugin_permission` **không sửa một chữ**; ca mới đứng cạnh nó, không thay nó.
 - [x] `tests/frontend/glossaryImportPreview.test.ts` (**mới**) -- state + overlay: mặc định *giữ của tôi*, đổi quyết định, bốn nhánh lý-do-rỗng, huỷ dọn lô -- mock **module adapter**, `freshState()` trước `mockResolvedValue`.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- ghi **số byte thật** của delta nhị phân kèm ngày và phiên bản toolchain; đóng bằng chữ các mục `:6752` (cả hai vế) · `:6763` · `:6776` · `:6787` · `:6798` -- 🔴 baseline phải dựng **lại ở HEAD trước khi thêm phụ thuộc**; nhị phân sẵn có dựng 21-08, bốn ngày và một story trước HEAD.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- ghi **số byte thật** của delta nhị phân kèm ngày và phiên bản toolchain; đóng bằng chữ các mục `:6752` (cả hai vế) · `:6763` · `:6776` · `:6787` · `:6798` -- 🔴 baseline phải dựng **lại ở HEAD trước khi thêm phụ thuộc**; nhị phân sẵn có dựng 21-08, bốn ngày và một story trước HEAD.
 
 **Acceptance Criteria:**
 - Given hai bản dựng release **chỉ khác nhau đúng một phụ thuộc** (cùng `dist/`, không dựng lại giữa hai lượt), when so kích thước nhị phân, then delta ghi vào `deferred-work.md` bằng **byte** kèm ngày và phiên bản toolchain; và nếu vượt **1 MB** thì dừng và trình số cho Ice (AD-48 đặt sẵn đường quay lui `rfd` thẳng). 🔴 Một delta đo ở CUỐI story gộp cả overlay Vue mới — nó không trả lời được câu hỏi AD-48 hỏi và **không** dùng thay được.
@@ -361,65 +361,65 @@ không đổi (P9 không thêm command mới — `opening` là state nội bộ,
 **Hộp thoại gọi TỪ RUST — chỗ AD-48 sống hay chết**
 
 - Điểm vào: kiểm đủ ba điều kiện TRƯỚC khi mở hộp thoại, khoá lại MỚI sau khi nó đóng.
-  [`glossary.rs:1230`](../../src-tauri/src/commands/glossary.rs#L1230)
+  [`glossary.rs:1230`](../../../src-tauri/src/commands/glossary.rs#L1230)
 
 - Vì sao có helper này: một lượt khoá NGẮN, không giữ `MutexGuard` qua lượt chờ người dùng.
-  [`glossary.rs:1206`](../../src-tauri/src/commands/glossary.rs#L1206)
+  [`glossary.rs:1206`](../../../src-tauri/src/commands/glossary.rs#L1206)
 
 - Đăng ký plugin là bắt buộc — `DialogExt::dialog()` gọi `state()`, thiếu nó là `abort`.
-  [`lib.rs:308`](../../src-tauri/src/lib.rs#L308)
+  [`lib.rs:308`](../../../src-tauri/src/lib.rs#L308)
 
 **Lượt nhập HAI NHỊP — nội dung tệp không rời Rust**
 
 - Kế hoạch đã phân tích ở lại đây giữa hai nhịp; webview chỉ gửi lại quyết định.
-  [`glossary.rs:639`](../../src-tauri/src/commands/glossary.rs#L639)
+  [`glossary.rs:639`](../../../src-tauri/src/commands/glossary.rs#L639)
 
 - Mô hình đã kiểm đi ra dây: số liệu và hai bản dịch, không một byte thô nào.
-  [`glossary.rs:714`](../../src-tauri/src/commands/glossary.rs#L714)
+  [`glossary.rs:714`](../../../src-tauri/src/commands/glossary.rs#L714)
 
 - Quyết định chỉ khớp hàng BẤT ĐỒNG — khớp hàng khác là im lặng vô tác dụng.
-  [`glossary.rs:863`](../../src-tauri/src/commands/glossary.rs#L863)
+  [`glossary.rs:863`](../../../src-tauri/src/commands/glossary.rs#L863)
 
 **I/O tệp — module mới giữ `exchange.rs` ở lại thuần**
 
 - Trần kích thước kiểm bằng `metadata` trước khi chạm một byte nào.
-  [`exchange_io.rs:41`](../../src-tauri/src/core/glossary/exchange_io.rs#L41)
+  [`exchange_io.rs:41`](../../../src-tauri/src/core/glossary/exchange_io.rs#L41)
 
 - Ghi nguyên tử ra một đường dẫn NGƯỜI DÙNG chọn — kho chưa có tiền lệ này.
-  [`exchange_io.rs:74`](../../src-tauri/src/core/glossary/exchange_io.rs#L74)
+  [`exchange_io.rs:74`](../../../src-tauri/src/core/glossary/exchange_io.rs#L74)
 
 - Nháy kép chỉ mở ô bọc khi đứng đầu ô — nay đúng ở CẢ hai bước cắt.
-  [`exchange.rs:393`](../../src-tauri/src/core/glossary/exchange.rs#L393)
+  [`exchange.rs:393`](../../../src-tauri/src/core/glossary/exchange.rs#L393)
 
 **Cổng — hai mệnh đề khác nhau, đừng đọc cái này thay cái kia**
 
 - Sáu tên xuống bốn, và chú thích nay nói đúng thứ nó canh: mã trong nhị phân.
-  [`check-deps.mjs:172`](../../scripts/check-deps.mjs#L172)
+  [`check-deps.mjs:172`](../../../scripts/check-deps.mjs#L172)
 
 **Frontend — huỷ và "không có cầu IPC" phải phân biệt được**
 
 - Liên hợp có nhãn `outcome`: gộp hai ca này lại là dựng một đường rỗng im lặng.
-  [`glossary.ts:729`](../../src/config/glossary.ts#L729)
+  [`glossary.ts:729`](../../../src/config/glossary.ts#L729)
 
 - Vị từ lý-do-rỗng bốn nhánh, mỗi nhánh tới được — khuôn `manageEmptyReasonFor`.
-  [`glossaryImportState.ts:85`](../../src/glossaryImportState.ts#L85)
+  [`glossaryImportState.ts:85`](../../../src/glossaryImportState.ts#L85)
 
 - Huỷ xuất xoá đường dẫn cũ; giữ lại là để một câu cũ nói dối về lượt vừa rồi.
-  [`glossaryManageState.ts:117`](../../src/glossaryManageState.ts#L117)
+  [`glossaryManageState.ts:117`](../../../src/glossaryManageState.ts#L117)
 
 - Quyết định từng hàng là `radiogroup`, không `dispatch` — bàn phím có sẵn ngữ nghĩa.
-  [`GlossaryImportOverlay.vue:193`](../../src/GlossaryImportOverlay.vue#L193)
+  [`GlossaryImportOverlay.vue:193`](../../../src/GlossaryImportOverlay.vue#L193)
 
 **Phép kiểm — bốn ca mang nhiều sức nặng nhất**
 
 - Chỗ đăng ký plugin và lệnh cấm `fs::init()` nay là mệnh đề kiểm được, không lời dặn.
-  [`config_invariants.rs:723`](../../src-tauri/tests/config_invariants.rs#L723)
+  [`config_invariants.rs:723`](../../../src-tauri/tests/config_invariants.rs#L723)
 
 - Ca cấu trúc: khoá `OpenWorkState` phải lấy SAU lượt gọi chặn, không trước.
-  [`config_invariants.rs:783`](../../src-tauri/tests/config_invariants.rs#L783)
+  [`config_invariants.rs:783`](../../../src-tauri/tests/config_invariants.rs#L783)
 
 - Giải mã chuỗi dây thật của `ConflictDecision` — gõ sai `rename` nay đỏ được.
-  [`glossary_import_dialog_contract.rs:552`](../../src-tauri/tests/glossary_import_dialog_contract.rs#L552)
+  [`glossary_import_dialog_contract.rs:552`](../../../src-tauri/tests/glossary_import_dialog_contract.rs#L552)
 
 ---
 

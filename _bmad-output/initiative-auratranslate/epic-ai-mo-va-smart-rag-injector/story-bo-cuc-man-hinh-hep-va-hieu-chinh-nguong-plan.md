@@ -248,11 +248,11 @@ already covers it.
       content and parallel gloss off in Ⓑ-2 (Decision 3), and record each measurement's window
       size, work area, preset and verdict in §Implementation Notes -- Ⓑ-1 and Ⓑ-2 compress
       differently, so one set does not derive the other. 🔵 2026-09-23 — closed by Ice's ruling, not as written: one measurement (Ⓑ-2 only), then the seed numbers were ruled final for both presets. See §Implementation Notes → Phase 5 and §Spec Change Log.
-- [x] `_bmad-output/specs/spec-AuraTranslate/SPEC.md` -- write the calibrated numbers into `[A11]`,
+- [x] `_bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md` -- write the calibrated numbers into `[A11]`,
       mark `Q9` closed, and fix A11's pre-2026-08-14 wording (`giữ 2×2`, `gộp hàng dưới`) in place
       with 🔵 and today's date -- `epics.md:543` is the live wording; `SPEC.md:126` was missed in
       that pass.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- record, with a named owner and a
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- record, with a named owner and a
       §SECTION NAME citation: the undocumented `titlebar-height` 38 → 40 divergence between
       `DESIGN.md:132` and the frozen token (owner Ice, the same shape `StatusBar.vue` §AC9 used for
       `status-height`), and the Ⓑ-2 parallel-gloss UX choice Decision 3 leaves with Ice -- cite

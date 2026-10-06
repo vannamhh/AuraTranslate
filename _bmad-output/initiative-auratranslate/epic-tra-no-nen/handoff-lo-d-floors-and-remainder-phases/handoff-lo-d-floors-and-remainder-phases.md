@@ -611,7 +611,7 @@ are all frontend/`scripts`-adjacent (`src/**`, `.githooks/**`); phases 1-3 alrea
 
 ## Phase 5 (ledger dispositions for all 18 items) — done
 
-Scope: `_bmad-output/implementation-artifacts/deferred-work.md` only — one `→` line appended to
+Scope: `_bmad-output/initiative-auratranslate/deferred-work.md` only — one `→` line appended to
 each of the 18 items (item text untouched). No code, no spec, no `sprint-status.yaml`. No commit.
 
 Found the 18 items by `grep -n 'Chủ: Story 11.1'` plus full-context `Read` around every hit

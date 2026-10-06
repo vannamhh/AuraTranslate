@@ -10,7 +10,7 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-6-context.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -121,7 +121,7 @@ khớp một mệnh đề sai — sửa một chỗ mà bỏ chỗ kia là để
 - [x] `src/i18n/vi.json` -- khoá `mode.library.preview.tier_normalized_*` (tiêu đề · hai số đếm · nhãn phạm vi cửa sổ) -- khoá phải là literal trong `t('…')` để `check:i18n` thấy
 - [x] `tests/frontend/importPreviewEncoding.test.ts` + `importPreviewEncodingWireShape.test.ts` -- cập nhật ba fixture builder và hình dạng dây; 🔴 giữ nguyên ba ca canh "đổi ứng viên = 0 IPC" (`:123,161,192`) **không sửa kỳ vọng**
 - [x] `tests/frontend/importPreviewNormalized.test.ts` -- tạo mới: tầng hiện đúng bản dựng của ứng viên đang chọn; đổi ô ⇒ bản dựng và số đếm đổi mà **0 lời gọi IPC**; phạm vi cửa sổ hiện ra -- khuôn `importPreviewEncoding.test.ts:18-36`
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- nối `→ 🟡` cho D1 (`:744`, vế FR125 đóng cho đường nhập TỚI, dữ liệu cũ trên đĩa vẫn mở) và cho D3 (`:9052`); ghi nợ MỚI có chủ cho: số đếm trên TOÀN Chương (**Story 6.10**, FR132 không liệt FR125 làm dấu hiệu "cần xem"), tiêu đề không dấu chấm bị nối oan (**Story 6.6**), di trú dữ liệu cũ (**Ice**) -- không mục nào mồ côi, không mục nào đóng khống
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- nối `→ 🟡` cho D1 (`:744`, vế FR125 đóng cho đường nhập TỚI, dữ liệu cũ trên đĩa vẫn mở) và cho D3 (`:9052`); ghi nợ MỚI có chủ cho: số đếm trên TOÀN Chương (**Story 6.10**, FR132 không liệt FR125 làm dấu hiệu "cần xem"), tiêu đề không dấu chấm bị nối oan (**Story 6.6**), di trú dữ liệu cũ (**Ice**) -- không mục nào mồ côi, không mục nào đóng khống
 
 **Vá vòng rà 1 (2026-09-04) — xem §Spec Change Log:**
 - [x] `src-tauri/src/commands/project.rs` + `src-tauri/src/core/segment/encoding.rs` -- 🔴 **đường tự khai phải có bản dựng chuẩn hoá**: ca `AlreadyText` (và mọi ca 0 ứng viên) vẫn phải chở một bản chuẩn hoá + hai số đếm trên dây, dựng từ chính văn bản tự khai. Cơ chế theo-ứng-viên KHÔNG phủ ca này -- không có nó, luật gộp dòng chạy mà người dùng không thấy gì
@@ -131,7 +131,7 @@ khớp một mệnh đề sai — sửa một chỗ mà bỏ chỗ kia là để
 - [x] `src-tauri/tests/segment_normalize_boundary.rs` -- neo `#[cfg(test)]` theo ĐẦU DÒNG (không `text.find` chuỗi trần) và cho `code_lines()` lọc cả `/* */` -- một lần nhắc chuỗi ấy trong chú thích làm cổng mù đúng mệnh đề nó tuyên bố canh
 - [x] `src-tauri/src/core/segment/split.rs` -- ca unit riêng cho `line_ends_a_sentence` (dấu kết trần · dấu kết + đóng ngoặc · không dấu kết · dòng rỗng), cả hai nhánh ngôn ngữ -- seam mới phải tự canh, không mượn ca của module khác
 - [x] `src/ImportPreviewOverlay.vue` -- gộp hai luật CSS `.ip-normalized-counts` / `.ip-normalized-window-note` trùng nguyên văn
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- ghi ba nợ MỚI có chủ: xem trước sẽ lệch bản sản phẩm khi bước 2/3 có thân (**Story 6.5 / 6.9**) · `normalize()` chép toàn buffer hai lượt kể cả khi không có `\r` (**Story 6.18**, cùng lượt đo quy mô thật) · ghi chú peak-RSS 100 MB chưa tính lượt quét mới (**Story 6.18**)
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- ghi ba nợ MỚI có chủ: xem trước sẽ lệch bản sản phẩm khi bước 2/3 có thân (**Story 6.5 / 6.9**) · `normalize()` chép toàn buffer hai lượt kể cả khi không có `\r` (**Story 6.18**, cùng lượt đo quy mô thật) · ghi chú peak-RSS 100 MB chưa tính lượt quét mới (**Story 6.18**)
 
 **Acceptance Criteria:**
 - Given một lượt nhập **dán văn bản tay** (0 ứng viên bảng mã), when mở màn xem trước, then tầng chuẩn hoá hiện **văn bản đã chuẩn hoá cùng hai số đếm** — AC6 của `epics.md` áp cho **mọi** đường đi qua xem trước, không riêng đường có ứng viên.
@@ -213,51 +213,51 @@ mục vá; §Acceptance Criteria thêm hai mệnh đề (AC6 phủ **mọi** đ�
 **Điểm tiêm — đọc trước nhất**
 
 - Thân bước 4 gọi xuống module thuần; `trace.push` ở lại trong nhánh.
-  [`pipeline.rs:357`](../../src-tauri/src/core/segment/pipeline.rs#L357)
+  [`pipeline.rs:357`](../../../src-tauri/src/core/segment/pipeline.rs#L357)
 
 - Ba phép đúng thứ tự; nhóm theo đoạn rồi mới nối trong từng đoạn.
-  [`normalize.rs:78`](../../src-tauri/src/core/segment/normalize.rs#L78)
+  [`normalize.rs:78`](../../../src-tauri/src/core/segment/normalize.rs#L78)
 
 **Một chủ cho mỗi bảng**
 
 - Vị từ kết câu sống cạnh bảng, nên `normalize.rs` mang 0 ký tự kết câu.
-  [`split.rs:362`](../../src-tauri/src/core/segment/split.rs#L362)
+  [`split.rs:362`](../../../src-tauri/src/core/segment/split.rs#L362)
 
 - Dấu nối theo ngôn ngữ chỉ mở tầm nhìn, không sao chép.
-  [`regroup.rs:106`](../../src-tauri/src/core/segment/regroup.rs#L106)
+  [`regroup.rs:106`](../../../src-tauri/src/core/segment/regroup.rs#L106)
 
 **Cửa sổ bằng chứng — chỗ dễ nói dối nhất**
 
 - Bỏ dòng cuối vì quyết định nối của nó nằm ngoài cửa sổ.
-  [`normalize.rs:165`](../../src-tauri/src/core/segment/normalize.rs#L165)
+  [`normalize.rs:165`](../../../src-tauri/src/core/segment/normalize.rs#L165)
 
 - Ép nhánh cắt cho ứng viên; số đếm và bản dựng cùng một cửa sổ.
-  [`encoding.rs:305`](../../src-tauri/src/core/segment/encoding.rs#L305)
+  [`encoding.rs:305`](../../../src-tauri/src/core/segment/encoding.rs#L305)
 
 **Vá vòng rà 1 — đường tự khai**
 
 - Ca 0 ứng viên vẫn phải có bản dựng; cơ chế theo-ứng-viên không phủ nó.
-  [`project.rs:1085`](../../src-tauri/src/commands/project.rs#L1085)
+  [`project.rs:1085`](../../../src-tauri/src/commands/project.rs#L1085)
 
 - Bản dựng tự khai, chuẩn hoá trên văn bản thật thay vì cửa sổ byte.
-  [`encoding.rs:339`](../../src-tauri/src/core/segment/encoding.rs#L339)
+  [`encoding.rs:339`](../../../src-tauri/src/core/segment/encoding.rs#L339)
 
 - Đọc ứng viên khi có, rơi về bản tự khai khi không — giữ 0 lời gọi IPC.
-  [`importPreviewState.ts:152`](../../src/importPreviewState.ts#L152)
+  [`importPreviewState.ts:152`](../../../src/importPreviewState.ts#L152)
 
 - Tầng mới đặt ngay sau bảng mã, đúng thứ tự nhân quả của xem trước.
-  [`ImportPreviewOverlay.vue:255`](../../src/ImportPreviewOverlay.vue#L255)
+  [`ImportPreviewOverlay.vue:255`](../../../src/ImportPreviewOverlay.vue#L255)
 
 **Cổng — và chỗ mù đã vá**
 
 - Cổng thân-bước: pipeline phải GỌI module, không viết lại nội tuyến.
-  [`segment_normalize_boundary.rs:137`](../../src-tauri/tests/segment_normalize_boundary.rs#L137)
+  [`segment_normalize_boundary.rs:137`](../../../src-tauri/tests/segment_normalize_boundary.rs#L137)
 
 - Neo theo đầu dòng; một chú thích nhắc chuỗi ấy từng làm cổng mù.
-  [`segment_normalize_boundary.rs:98`](../../src-tauri/tests/segment_normalize_boundary.rs#L98)
+  [`segment_normalize_boundary.rs:98`](../../../src-tauri/tests/segment_normalize_boundary.rs#L98)
 
 - Kiểm chứng dương cho chính phép neo trên — cổng đọc được sự lệch.
-  [`segment_normalize_boundary.rs:231`](../../src-tauri/tests/segment_normalize_boundary.rs#L231)
+  [`segment_normalize_boundary.rs:231`](../../../src-tauri/tests/segment_normalize_boundary.rs#L231)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

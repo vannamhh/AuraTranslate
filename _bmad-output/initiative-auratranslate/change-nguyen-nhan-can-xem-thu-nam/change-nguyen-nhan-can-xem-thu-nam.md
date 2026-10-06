@@ -209,7 +209,7 @@ story chưa bắt đầu và sửa bốn tài liệu cho khớp nhau.
 **Giao cho: agent Developer** (`bmad-build`), chạy lại từ đầu cho Story 6.10 trên AC **đã nới**.
 
 **Thứ lượt build đó thừa hưởng, không phải hỏi lại** — ba quyết định Ice chốt ở bước 2 ngày 2026-09-08, ghi
-đầy đủ ở `implementation-artifacts/ho-so-dieu-tra-6-10-bo-loc-can-xem-2026-09-08.md` §9:
+đầy đủ ở `initiative-auratranslate/epic-duong-nhap/investigation-bo-loc-can-xem/investigation-bo-loc-can-xem.md` §9:
 
 1. **Quy tắc ngưỡng: hàng rào Tukey** — *ngắn bất thường* = dưới `Q1 − 1,5 × IQR`; *xoá quá nhiều* (và nay
    *nối nhiều*) = trên `Q3 + 1,5 × IQR`. Một cơ chế cho mọi tín hiệu so-tương-đối. Hằng `1,5` là quy ước

@@ -254,7 +254,7 @@ nguyên sáu token đã có (`read-lg`/`read-md`/`read-sm` × `read-measure-lg/m
 - `e2e/support/workspace.mjs:57` `openWorkspaceWithWork(...)` · `:128` `browser.keys(['Meta','2'])`;
   `e2e/support/pointer.mjs` `realClick` (🔴 cấm `.click()` của driver).
   ⚠️ `story-5-6-library-grid.e2e.mjs` đỏ từ baseline (chủ Story 5.6) — **không** đọc thành hồi quy.
-- `_bmad-output/implementation-artifacts/deferred-work.md:3743` — mục 🟡 *"Chế độ đọc → Epic 5
+- `_bmad-output/initiative-auratranslate/deferred-work.md:3743` — mục 🟡 *"Chế độ đọc → Epic 5
   (Story 5.11 · 5.12 · 5.13)"*, vế Chế độ đọc của AC5 Story 2.5c: story này đóng nó.
   `:5030-5032` — món nợ *"đổi CHẾ ĐỘ Workspace ↔ Chế độ đọc giữ đúng Chương/câu/vị trí cuộn"*,
   **chủ: story dựng Chế độ đọc (5.11–5.13)**: story này đóng vế *đúng Chương*, thu hẹp phần còn lại.
@@ -376,7 +376,7 @@ nguyên sáu token đã có (`read-lg`/`read-md`/`read-sm` × `read-measure-lg/m
     nằm **bên trái** cột đọc (`rect.left` nhỏ hơn) và cột đọc **giữ nguyên** bề rộng; ⑤ `D` đổi
     `document.documentElement.dataset.theme`. — Rationale: mọi mệnh đề về **hình học** thuộc engine
     thật; `happy-dom` không bố cục.
-21. `_bmad-output/implementation-artifacts/deferred-work.md` — đóng bằng chữ mục *"Chế độ đọc →
+21. `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng bằng chữ mục *"Chế độ đọc →
     Epic 5"* (`:3743`) theo khuôn `→ ✅ ĐÃ ĐÓNG <ngày> (Story 5.11)`; thu hẹp mục vị trí đọc
     (`:5030-5032`) thành phần còn hở thật (**vị trí cuộn** khi đổi chế độ — story này đóng vế *đúng
     Chương*); mở hai mục mới có chủ: **⌘, chưa gán cho tinh chỉnh** (chủ **Ice**) và **tuỳ chọn đọc

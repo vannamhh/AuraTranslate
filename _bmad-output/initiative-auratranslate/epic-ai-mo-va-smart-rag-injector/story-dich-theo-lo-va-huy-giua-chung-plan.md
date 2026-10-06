@@ -303,7 +303,7 @@ not implement a whole story).
       measured as an absence, not asserted as a flag.
 - [x] `tests/frontend/aiTranslateBatch.test.ts` (new) — progress counts, cancel keeping finished
       rows, error stopping at the named row, and the reset clusters cancelling an in-flight batch.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — discharge the entry re-owned to this
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — discharge the entry re-owned to this
       story at `:4517` (owner line `:4550`): measure `entries_eligible_for_injection` on a **release**
       build with a real Work open, recording **both** the one-tier and the two-tier branch with the
       population each ran on; if the two-tier per-call cost times the largest batch the UI permits

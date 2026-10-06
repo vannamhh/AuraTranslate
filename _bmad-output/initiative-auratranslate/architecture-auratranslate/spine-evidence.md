@@ -5,7 +5,7 @@ base_commit: 'd861aab'
 
 # Spine evidence
 
-Tệp này giữ nguyên văn lịch sử, số đo, 🔵 và trỏ nợ đã cắt khỏi `ARCHITECTURE-SPINE.md` ở lượt gọn 2026-09-23. Spine là nguồn luật; tệp này là bằng chứng — không đọc như một luật thứ hai. Quyết định phạm vi cắt: `../spine-condense-plan-2026-09-23.md` §6 (không chép lại nội dung §6 ở đây).
+Tệp này giữ nguyên văn lịch sử, số đo, 🔵 và trỏ nợ đã cắt khỏi `ARCHITECTURE-SPINE.md` ở lượt gọn 2026-09-23. Spine là nguồn luật; tệp này là bằng chứng — không đọc như một luật thứ hai. Quyết định phạm vi cắt: `../plan-condense-spine/plan-condense-spine.md` §6 (không chép lại nội dung §6 ở đây).
 
 ## AD-10
 
@@ -275,7 +275,7 @@ Phiên bản và tên họ ghi ở đây đọc từ bảng `name` của chính 
 
 *(Tên họ lấy ở **name ID 16** với `Source Sans 3` — ID 1 của tệp đó là `Source Sans 3 ExtraLight` vì nó là font biến thiên có mặc định trục `wght = 200`; hai tệp kia lấy ở **ID 1**.)*
 
-Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../../research/font-spike-results-2026-08-03.md).
+Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md).
 
 L870 (ba mảnh cắt, theo thứ tự xuất hiện):
 

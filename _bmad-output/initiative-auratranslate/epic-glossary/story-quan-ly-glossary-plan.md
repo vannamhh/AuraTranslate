@@ -7,8 +7,8 @@ status: done
 review_loop_iteration: 0
 baseline_revision: 'da681257e6ccebfc3bc41dcb88c0e896320310a9'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-duyet-hang-loat-mot-phim-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -212,70 +212,70 @@ một mục.
 **Hai tầng và cờ "đang bị che" — chỗ mang ý đồ thiết kế**
 
 - Điểm vào: phát cả hàng thắng lẫn hàng bị che, nên không mục nào biến mất im lặng.
-  [`store.rs:723`](../../src-tauri/src/core/glossary/store.rs#L723)
+  [`store.rs:723`](../../../src-tauri/src/core/glossary/store.rs#L723)
 
 - `Resolved` giữ mục Global thua ở `shadowed()` — nguồn duy nhất của cờ, không chép sang TypeScript.
-  [`resolve.rs:45`](../../src-tauri/src/core/scope/resolve.rs#L45)
+  [`resolve.rs:45`](../../../src-tauri/src/core/scope/resolve.rs#L45)
 
 **Ghi bắc qua hai kho — chỗ rủi ro nhất của story**
 
 - Kiểm đích trước, `INSERT` global trước, `DELETE` work sau: sập để lại trạng thái DƯ, không THIẾU.
-  [`store.rs:828`](../../src-tauri/src/core/glossary/store.rs#L828)
+  [`store.rs:828`](../../../src-tauri/src/core/glossary/store.rs#L828)
 
 - Đích đã có `source_term` ⇒ lỗi có tên, 0 lượt ghi, không ghi đè bản dịch nào.
-  [`store.rs:414`](../../src-tauri/src/core/glossary/store.rs#L414)
+  [`store.rs:414`](../../../src-tauri/src/core/glossary/store.rs#L414)
 
 - Xoá định tuyến `&Store` theo `tier` — `id` chỉ duy nhất trong một kho.
-  [`store.rs:777`](../../src-tauri/src/core/glossary/store.rs#L777)
+  [`store.rs:777`](../../../src-tauri/src/core/glossary/store.rs#L777)
 
 **Bề mặt IPC — ba vỏ mới, tám thành mười một**
 
 - `tier` đi trên dây theo từng hàng; thiếu nó là một lượt ghi nhắm nhầm kho.
-  [`glossary.rs:513`](../../src-tauri/src/commands/glossary.rs#L513)
+  [`glossary.rs:513`](../../../src-tauri/src/commands/glossary.rs#L513)
 
 - Ba vỏ mỏng, `try_state` chứ không `state()` — mở kho có thể đã thất bại.
-  [`glossary.rs:863`](../../src-tauri/src/commands/glossary.rs#L863)
+  [`glossary.rs:863`](../../../src-tauri/src/commands/glossary.rs#L863)
 
 - Đăng ký ba vỏ vào `invoke_handler`.
-  [`lib.rs:394`](../../src-tauri/src/lib.rs#L394)
+  [`lib.rs:394`](../../../src-tauri/src/lib.rs#L394)
 
 **Bốn ca rỗng — chỗ vòng rà tìm ra lỗi nặng nhất**
 
 - Tổng số hàng THẬT phải là export riêng; suy từ danh sách đã lọc là tự bịa.
-  [`glossaryManageState.ts:134`](../../src/glossaryManageState.ts#L134)
+  [`glossaryManageState.ts:134`](../../../src/glossaryManageState.ts#L134)
 
 - Vị từ bốn ca: "bộ lọc không khớp" khác hẳn "Glossary trống".
-  [`glossaryManageState.ts:168`](../../src/glossaryManageState.ts#L168)
+  [`glossaryManageState.ts:168`](../../../src/glossaryManageState.ts#L168)
 
 - Chỗ gọi sau vá — đọc số thật thay vì `filteredCount` trá hình.
-  [`GlossaryManageOverlay.vue:292`](../../src/GlossaryManageOverlay.vue#L292)
+  [`GlossaryManageOverlay.vue:292`](../../../src/GlossaryManageOverlay.vue#L292)
 
 **Bàn phím và khả năng tiếp cận**
 
 - `HTMLButtonElement` trong danh sách miễn: thiếu nó, Enter trên nút làm VIỆC KHÁC.
-  [`GlossaryManageOverlay.vue:192`](../../src/GlossaryManageOverlay.vue#L192)
+  [`GlossaryManageOverlay.vue:192`](../../../src/GlossaryManageOverlay.vue#L192)
 
 - `role="listbox"` + `aria-selected`: con trỏ không còn chỉ tồn tại bằng màu.
-  [`GlossaryManageOverlay.vue:311`](../../src/GlossaryManageOverlay.vue#L311)
+  [`GlossaryManageOverlay.vue:311`](../../../src/GlossaryManageOverlay.vue#L311)
 
 - Lớp phủ mới phải chặn keymap toàn cục trong lúc mở.
-  [`main.ts:567`](../../src/main.ts#L567)
+  [`main.ts:567`](../../../src/main.ts#L567)
 
 **Đồng bộ dấu ở lưới và trạng thái**
 
 - Xoá/đẩy tầng thành công mới gọi refresh; SỬA thì không, và lý do ghi tại chỗ.
-  [`glossaryManageState.ts:409`](../../src/glossaryManageState.ts#L409)
+  [`glossaryManageState.ts:409`](../../../src/glossaryManageState.ts#L409)
 
 - Thao tác nào đang bay — trước đó xoá một mục thì màn hình nói "Đang lưu…".
-  [`glossaryManageState.ts:95`](../../src/glossaryManageState.ts#L95)
+  [`glossaryManageState.ts:95`](../../../src/glossaryManageState.ts#L95)
 
 - Hàm reset nhắc TÊN mọi ô nhớ, mỗi khai báo một dòng (`check:panel-refs`).
-  [`glossaryManageState.ts:445`](../../src/glossaryManageState.ts#L445)
+  [`glossaryManageState.ts:445`](../../../src/glossaryManageState.ts#L445)
 
 **Phép kiểm**
 
 - Ba ca đối chứng của vòng rà — mỗi ca đã được nghiệm bằng cách GỠ chỗ nối và thấy nó đỏ.
-  [`glossaryManage.test.ts:436`](../../tests/frontend/glossaryManage.test.ts#L436)
+  [`glossaryManage.test.ts:436`](../../../tests/frontend/glossaryManage.test.ts#L436)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

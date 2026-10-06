@@ -9,7 +9,7 @@ review_loop_iteration: 0
 context:
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-library/epic-library-retrospective.md'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -81,7 +81,7 @@ context:
 - [x] `src/modes/librarySearch.ts` — hai ref + export mới, và hàm **thuần** `librarySearchCoverageGap(worksTotal, worksWithText): { missing, total } | null` (trả `null` khi `worksTotal === 0` hoặc không thủng).
 - [x] `src/modes/LibraryMode.vue` + `src/i18n/vi.json` — `<p role="status">` mới, `v-if` theo hàm trên, khoá `mode.library.search_coverage_gap` `{missing}`/`{total}` nói cả **cách sửa** ("mở Tác phẩm một lần để nâng cấp, rồi quét lại"); và hiện số `text_skipped` ở khối kết quả quét lại.
 - [x] `tests/frontend/` — ca vitest cho `librarySearchCoverageGap` (thủng · không thủng · `worksTotal = 0`).
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — món nợ **có chủ** cho vế FR8 còn lại: 35 Tác phẩm ở v ≤ 7 vẫn nằm ngoài chỉ mục cho tới khi có một đường nâng cấp; chủ: Ice (quyết trước Epic 6).
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — món nợ **có chủ** cho vế FR8 còn lại: 35 Tác phẩm ở v ≤ 7 vẫn nằm ngoài chỉ mục cho tới khi có một đường nâng cấp; chủ: Ice (quyết trước Epic 6).
 
 **Acceptance Criteria:**
 - Given một `project.db` ở `user_version` 7, when `Indexer::rebuild` chạy, then `text_skipped` mang đúng một mục `SchemaTooOld { found: 7, minimum: 8 }` và **không** một chuỗi lỗi SQLite thô nào xuất hiện.
@@ -121,51 +121,51 @@ Khuôn cần chép nguyên (`core/dict/layer.rs:60-73`) đã viết sẵn cả c
 **Sàn phiên bản — vì sao con số là 8**
 
 - Điểm vào: hằng kèm dẫn xuất theo CỘT SQL, không theo mẫu quan sát.
-  [`indexer.rs:1309`](../../src-tauri/src/core/library/indexer.rs#L1309)
+  [`indexer.rs:1309`](../../../src-tauri/src/core/library/indexer.rs#L1309)
 
 - Nhánh chặn chiều DƯỚI, đặt TRƯỚC `ReadOnlyDb::open` nên 0 câu SQL chạy.
-  [`indexer.rs:1440`](../../src-tauri/src/core/library/indexer.rs#L1440)
+  [`indexer.rs:1440`](../../../src-tauri/src/core/library/indexer.rs#L1440)
 
 - Lý do thành GIÁ TRỊ có tên: sáu biến thể, `code()` cho dây, `diagnostic()` cho log.
-  [`indexer.rs:1319`](../../src-tauri/src/core/library/indexer.rs#L1319)
+  [`indexer.rs:1319`](../../../src-tauri/src/core/library/indexer.rs#L1319)
 
 **Độ phủ — đếm ở lúc TRUY VẤN, không đọc `text_skipped`**
 
 - Hai `COUNT` trong cùng closure với `indexed_segments`; xem chú thích cho lý do.
-  [`indexer.rs:809`](../../src-tauri/src/core/library/indexer.rs#L809)
+  [`indexer.rs:809`](../../../src-tauri/src/core/library/indexer.rs#L809)
 
 - Hàm THUẦN quyết khi nào có chỗ thủng — `null` khi `worksTotal === 0`.
-  [`librarySearch.ts:204`](../../src/modes/librarySearch.ts#L204)
+  [`librarySearch.ts:204`](../../../src/modes/librarySearch.ts#L204)
 
 - Bề mặt ĐỘC LẬP với khối tám nhánh: hiện cả khi lượt tìm CÓ kết quả.
-  [`LibraryMode.vue:567`](../../src/modes/LibraryMode.vue#L567)
+  [`LibraryMode.vue:567`](../../../src/modes/LibraryMode.vue#L567)
 
 - Câu không khẳng định MỘT nguyên nhân — phán quyết Ice (B), 2026-09-03.
-  [`vi.json:282`](../../src/i18n/vi.json#L282)
+  [`vi.json:282`](../../../src/i18n/vi.json#L282)
 
 **Biên IPC — chỗ nối trước đây không ai canh**
 
 - `text_skipped` thôi bị vứt; `reason` mang mã ổn định, không chuỗi SQLite thô.
-  [`library.rs:108`](../../src-tauri/src/commands/library.rs#L108)
+  [`library.rs:108`](../../../src-tauri/src/commands/library.rs#L108)
 
 - Hai trường độ phủ chép qua `From` — hoán vị chúng từng đi qua sạch cả bộ test.
-  [`library.rs:537`](../../src-tauri/src/commands/library.rs#L537)
+  [`library.rs:537`](../../../src-tauri/src/commands/library.rs#L537)
 
 **Test — đọc phần này như bằng chứng, không như phụ lục**
 
 - Ca bịt đúng chỗ hở trên: gọi `rescan`/`search_library` THẬT, đỏ khi hoán vị.
-  [`library_commands_contract.rs:774`](../../src-tauri/tests/library_commands_contract.rs#L774)
+  [`library_commands_contract.rs:774`](../../../src-tauri/tests/library_commands_contract.rs#L774)
 
 - Chiều CŨ, đối xứng với ca chiều MỚI; gỡ sàn ra thì đỏ bằng `no such column`.
-  [`library_index_contract.rs:2584`](../../src-tauri/tests/library_index_contract.rs#L2584)
+  [`library_index_contract.rs:2584`](../../../src-tauri/tests/library_index_contract.rs#L2584)
 
 - Ca biên đúng tại sàn — thứ phân xử `<` với `<=`.
-  [`library_index_contract.rs:2645`](../../src-tauri/tests/library_index_contract.rs#L2645)
+  [`library_index_contract.rs:2645`](../../../src-tauri/tests/library_index_contract.rs#L2645)
 
 - Độ phủ ở tầng lõi: 2 Tác phẩm, 1 trượt.
-  [`library_index_contract.rs:2693`](../../src-tauri/tests/library_index_contract.rs#L2693)
+  [`library_index_contract.rs:2693`](../../../src-tauri/tests/library_index_contract.rs#L2693)
 
 **Ngoại vi**
 
 - Guard kiểm MỌI phần tử, không chỉ `value[0]` — chú thích nói vì sao không chép người anh em yếu hơn.
-  [`library.ts:137`](../../src/config/library.ts#L137)
+  [`library.ts:137`](../../../src/config/library.ts#L137)

@@ -8,7 +8,7 @@ route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: '8c816b990c5e273f04c5e6ea189032237b788c15'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-4-context.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'

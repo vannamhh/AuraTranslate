@@ -172,7 +172,7 @@ So that **một lần đổi nhầm không thể âm thầm đẩy chữ xuống
 - [x] [Review][Patch] `loadFonts()` nối tiếp, không có hạn giờ, không luỹ đẳng [src/tokens/fonts.ts:96,102] — `for … await` bốn tệp một hàng: nếu tệp đầu **treo** thay vì reject thì ba tệp sau không bao giờ được dựng, promise không bao giờ settle, và `.then` ở `main.ts:26` không chạy ⇒ **treo không phân biệt được với thành công trong log**. Gọi lại lần hai (HMR) thêm bốn `FontFace` trùng vào `document.fonts`, không có chốt.
 - [x] [Review][Patch] Kiểm F cấm `z-index` mà không có đường miễn trừ có tên [scripts/check-tokens.mjs:886] — trong khi Kiểm D có `/* aura-allow-opacity: … */`. Panel của Story 1.14, dropdown, tooltip và chính dockview đều cần ngữ cảnh xếp lớp; cái `z-index` hợp lệ đầu tiên không có chỗ để tự biện minh, nên phản ứng tự nhiên là **xoá nó khỏi `BANNED_PROPS`** — mất luôn hai lệnh cấm `box-shadow`/`text-shadow` dùng chung tập đó.
 - [x] [Review][Patch] `walk()` đi theo symlink không có chốt vòng [scripts/check-tokens.mjs:202] — `statSync` giải symlink ⇒ một liên kết trỏ về thư mục cha làm đệ quy không dừng; một symlink gãy thì ném `ENOENT` và bị báo thành *"cây nguồn không đọc được"*, tức một liên kết hỏng làm sập cả cổng dưới danh nghĩa lỗi hạ tầng. Dùng `lstatSync` + tập đã thăm.
-- [x] [Review][Patch] §File List thiếu một thay đổi [_bmad-output/implementation-artifacts/sprint-status.yaml:57] — dòng `1-5-…: backlog → ready-for-dev` nằm trong change set nhưng File List chỉ khai đường đi trạng thái của story 1.4. Bổ sung một dòng, hoặc tách nó khỏi lượt commit này.
+- [x] [Review][Patch] §File List thiếu một thay đổi [_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml:57] — dòng `1-5-…: backlog → ready-for-dev` nằm trong change set nhưng File List chỉ khai đường đi trạng thái của story 1.4. Bổ sung một dòng, hoặc tách nó khỏi lượt commit này.
 - [x] [Review][Patch] `spacing.unit` lấy từ **frontmatter**, không từ bảng [src/tokens/tokens.json:284] — `DESIGN.md:127` (frontmatter YAML) có `unit: 4px`; §Bảng token khoảng cách và hình dạng ở `:283` thì **không**. Task 1 dặn tường minh *"chép từ bảng, không chép từ frontmatter YAML"*. Giá trị vô hại nhưng nó là token thứ mười đi qua Kiểm A từ một nguồn story đã loại — hoặc gỡ, hoặc ghi vào `notes` như trường hợp `source-cjk.family`.
 
 ---
@@ -397,12 +397,12 @@ mono      ui-monospace, SFMono-Regular, Consolas, monospace
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.4` — bảy AC nguyên văn, `:1134-1176`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX-DR1` — 16 token màu, hai theme, liệt kê tường minh, `:493`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX-DR2, UX-DR3` — 14 token typography, bốn họ, spacing/rounded, `:495-497`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX-DR5, UX-DR6` — ba màu đã loại; luật `opacity`, `:503-505`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX-DR10, UX-DR11` — sàn 1.66 và ngoại lệ nhãn một dòng, `:515-517`]
-- [Source: `_bmad-output/planning-artifacts/epics.md#UX-DR14, UX-DR16` — phân tách panel đảo ngược; không elevation, `:525-529`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.4` — bảy AC nguyên văn, `:1134-1176`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX-DR1` — 16 token màu, hai theme, liệt kê tường minh, `:493`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX-DR2, UX-DR3` — 14 token typography, bốn họ, spacing/rounded, `:495-497`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX-DR5, UX-DR6` — ba màu đã loại; luật `opacity`, `:503-505`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX-DR10, UX-DR11` — sàn 1.66 và ngoại lệ nhãn một dòng, `:515-517`]
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#UX-DR14, UX-DR16` — phân tách panel đảo ngược; không elevation, `:525-529`]
 - [Source: `.../DESIGN.md#Bảng token màu` — **nguồn sự thật**, 16 hàng hai theme, `:165-190`]
 - [Source: `.../DESIGN.md#Sàn tương phản — đã kiểm, đừng hạ` — ba màu đã loại kèm tỉ lệ, `:192-204`]
 - [Source: `.../DESIGN.md#Opacity không được dùng để làm mờ chữ` — số đo 5,2 → 2,3, `:206-219`]
@@ -414,7 +414,7 @@ mono      ui-monospace, SFMono-Regular, Consolas, monospace
 - [Source: `.../ARCHITECTURE-SPINE.md#Stack` — `Source Sans 3` `name ID 1 = ExtraLight`, mặc định `wght = 200`, RFN `'Source'`, `:586-590`]
 - [Source: `.../ARCHITECTURE-SPINE.md#Structural Seed` — `src/tokens/` giữ token đã kiểm tương phản, `:709`]
 - [Source: `_bmad-output/implementation-artifacts/1-3-…-moi-lan-push.md#AC4` — chỗ móc mang tên *"lint cấm màu viết thẳng (AD-34)"*, `:52-58`]
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md` — `:7`, `:20`, `:26`, `:47`]
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md` — `:7`, `:20`, `:26`, `:47`]
 - [Source: `src/tokens/README.md` — bàn giao Story 1.1: descriptor `{ weight: "200 900" }`]
 - [Source: `src/selftest/scopeCheck.ts:165,220-242` — đường `FontFace` đã chứng minh chạy dưới CSP]
 - [Source: `src-tauri/tauri.conf.json:25` — CSP: `font-src` **có** `asset:`, `connect-src` **không**]
@@ -646,8 +646,8 @@ Nhưng câu chuyện của story là *"mọi màu **và mọi cỡ chữ** đế
 | `src/tokens/README.md` | Viết lại: bốn tệp, quy ước biến, ba bẫy, số đo `fvar`. **Rà soát:** thêm §tầm quét, §"không phán quyết nào đọc tham số từ `tokens.json`", bảng **ba đường miễn trừ có tên** |
 | `package.json` | thêm script `check:tokens` |
 | `.github/workflows/ci.yml` | thêm **một** bước `check design tokens`, đặt **trước** `npm run build`; đánh dấu ✅ hàng Story 1.4 ở khối *CHỖ MÓC CHO EPIC SAU* |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | đóng mục reset CSS · hạ mục "đường nạp font trên Windows" xuống *đóng một nửa* · thêm mục của story này. **Rà soát:** đánh dấu Ice đã phê chuẩn ba deviation *(còn mở: `DESIGN.md` chưa sửa)* · thêm mục **ba mệnh đề thị giác đứng bằng văn xuôi** · thêm mục **`body` chạy ở giãn dòng 1.5** |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `ready-for-dev` → `in-progress` → `review` → `done`. ⚠️ **Cùng tệp, cùng change set:** `1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc` `backlog` → `ready-for-dev` — do lượt `bmad-create-story` riêng, không thuộc story này; tệp story 1.5 tương ứng nằm ngoài File List này |
+| `_bmad-output/initiative-auratranslate/deferred-work.md` | đóng mục reset CSS · hạ mục "đường nạp font trên Windows" xuống *đóng một nửa* · thêm mục của story này. **Rà soát:** đánh dấu Ice đã phê chuẩn ba deviation *(còn mở: `DESIGN.md` chưa sửa)* · thêm mục **ba mệnh đề thị giác đứng bằng văn xuôi** · thêm mục **`body` chạy ở giãn dòng 1.5** |
+| `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | `ready-for-dev` → `in-progress` → `review` → `done`. ⚠️ **Cùng tệp, cùng change set:** `1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc` `backlog` → `ready-for-dev` — do lượt `bmad-create-story` riêng, không thuộc story này; tệp story 1.5 tương ứng nằm ngoài File List này |
 | chính tệp story này | |
 
 **Lượt rà soát mã 2026-08-03 — 21 bản vá, đã áp toàn bộ**

@@ -510,7 +510,7 @@ ports/           # DictionarySource · … (AD-2)                 ← không Sto
 
 ### References
 
-- [Source: `_bmad-output/planning-artifacts/epics.md#Story 1.12: Matcher dùng chung`] — `:1497-1527` *(🔴 vế `dict/` dùng nó ở `:1510` **đã bị AD-17 lật** — xem đầu story)*
+- [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Story 1.12: Matcher dùng chung`] — `:1497-1527` *(🔴 vế `dict/` dùng nó ở `:1510` **đã bị AD-17 lật** — xem đầu story)*
 - [Source: `…/epics.md#Story 3.4`] — `:2518-2554` *(người tiêu thụ thứ nhất: khớp chính xác cho zh, stemming cho en, **đánh dấu bằng màu** ⇒ cần span)*
 - [Source: `…/epics.md#Story 7.6`] — `:4932-4959` *(người tiêu thụ thứ hai: n-gram ký tự cho zh, token n-gram sau stemming cho en; *"một biến thể Glossary bắt được thì TM cũng bắt được"*)*
 - [Source: `…/epics.md#Requirements Inventory`] — `:156` *(FR40)* · `:172` *(FR51)* · `:200` *(FR61)* · `:420` *(tóm tắt AD-17)*
@@ -521,9 +521,9 @@ ports/           # DictionarySource · … (AD-2)                 ← không Sto
 - [Source: `…/ARCHITECTURE-SPINE.md#Stack`] — `:681-682` *(`jieba-rs` 0.10.3 MIT ⚠️ · `tantivy-stemmers` 0.4.0 BSD-3-Clause ✓)* · `:695`, `:701`, `:704` *(rà giấy phép lượt hai)*
 - [Source: `…/ARCHITECTURE-SPINE.md#Deferred`] — hàng *Stemming trên đường tra cứu TỪ ĐIỂN tiếng Anh* `:852` · hàng font *(trần NFR6 = **400.000.000 byte**, payload **343.991.430**)*
 - [Source: `…/ARCHITECTURE-SPINE.md#Cây nguồn`] — `:788-795`
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md`] — `:278-283` *(phát hiện AD-44 về stemming; `:281` nói **Story 1.12 vẫn dựng Matcher đầy đủ**; `:282` chủ sở hữu các chỗ lệch)*
-- [Source: `_bmad-output/implementation-artifacts/1-11b-duong-tra-cuu-tieng-anh.md`] — AC10 *(không Matcher)* · §Bẫy kế thừa · §Quy ước test · §Trạng thái baseline · bảng đột biến M1–M7
-- [Source: `_bmad-output/implementation-artifacts/1-11-ba-nhanh-truy-van-tieng-trung.md`] — bẫy `len()` vs `chars().count()`, khuôn cổng ranh giới
+- [Source: `_bmad-output/initiative-auratranslate/deferred-work.md`] — `:278-283` *(phát hiện AD-44 về stemming; `:281` nói **Story 1.12 vẫn dựng Matcher đầy đủ**; `:282` chủ sở hữu các chỗ lệch)*
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-duong-tra-cuu-tieng-anh-plan.md`] — AC10 *(không Matcher)* · §Bẫy kế thừa · §Quy ước test · §Trạng thái baseline · bảng đột biến M1–M7
+- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — bẫy `len()` vs `chars().count()`, khuôn cổng ranh giới
 - [Source: `src-tauri/src/core/matching/mod.rs`] *(8 dòng, 0 mã)* · [`core/mod.rs`] · [`core/dict/mod.rs`] *(phong cách doc-comment mẫu)* · [`core/{glossary,tm}/mod.rs`]
 - [Source: `src-tauri/Cargo.toml`] — `:56-57` *(hai crate đã ghim)* · `:60-67` *(`[profile.release]` — **không đổi**)*
 - [Source: `src-tauri/tests/dict_boundary.rs`] — `:27-64` *(khuôn `DICT_DIR` · `DICT_FLOOR` · `FORBIDDEN` · `contains_forbidden_token` không phân biệt hoa/thường)* · `:88-104` *(`src_root` · `rel_posix` · `walk`)* · `:197-203` *(khuôn đối chứng dương)*
@@ -532,7 +532,7 @@ ports/           # DictionarySource · … (AD-2)                 ← không Sto
 - [Source: `scripts/check-deps.mjs`] — `:50-51` *(`RUST_TREE_FLOOR = 200` · `NPM_TREE_FLOOR = 30`)*
 - [Source: `~/.cargo/registry/src/…/jieba-rs-0.10.3/src/lib.rs`] — `:104` *(dict nhúng)* · `:233-256` *(`TokenizeMode`, `Token`)* · `:322-380` *(`empty`/`new`/`load_default_dict`)* · `:933-1032` *(`cut` · `cut_all` · `cut_for_search` · `tokenize`)*
 - [Source: `~/.cargo/registry/src/…/tantivy-stemmers-0.4.0/src/lib.rs`] — `:12` *(🔴 *"Tokens are expected to be lowercased beforehand"*)* · `:33-46` *(`TokenFilter`/`StemmerFilter` — **không** dùng)* · [`src/algorithms.rs`] — `:5` *(`type Algorithm`)* · `:81` *(`english_porter_2`)* · [`Cargo.toml`] — `default = ["english_porter_2"]`
-- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md`] — `:765-774` *(ngôn ngữ nguồn là trường **bất biến**, đặt lúc tạo — nền của AC4)*
+- [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md`] — `:765-774` *(ngôn ngữ nguồn là trường **bất biến**, đặt lúc tạo — nền của AC4)*
 
 ---
 
@@ -741,8 +741,8 @@ Cộng ba mục **mới phát sinh từ số đo**: 🔴 `Jieba` init vượt NF
 **Sửa**
 
 - `src-tauri/src/core/matching/mod.rs` — từ 7 dòng doc-comment / 0 dòng mã ⇒ **514 dòng**: `MatchLang` · `MatchToken` · `TermMatch` · `HMM` · `static JIEBA: LazyLock<Jieba>` · `tokenize` · `normalize` · `ngrams` · `find_terms`
-- `_bmad-output/implementation-artifacts/deferred-work.md` — thêm §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*, 6 mục
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `1-12-matcher-dung-chung`: `ready-for-dev` → `in-progress` → `review`
+- `_bmad-output/initiative-auratranslate/deferred-work.md` — thêm §*Deferred from: 1-12-matcher-dung-chung (2026-08-05)*, 6 mục
+- `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `1-12-matcher-dung-chung`: `ready-for-dev` → `in-progress` → `review`
 
 **Thêm**
 

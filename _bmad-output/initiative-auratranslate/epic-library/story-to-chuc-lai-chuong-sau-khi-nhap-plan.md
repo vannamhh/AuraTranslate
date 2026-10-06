@@ -392,7 +392,7 @@ nhất một câu được chọn — cùng chỗ và cùng khuôn `editor.split
     khớp từng bước. **Chỉ đường CHUỘT (`realClick`)**; ghi ra bằng chữ rằng vế bàn phím không
     được nghiệm thu ở đây. -- Rationale: `focusViaJs` + `browser.keys` cho `window.__logs`
     RỖNG (đo 2026-08-29) -- khai nó thành đạt là *"đánh dấu đạt bằng suy luận"*.
-25. `_bmad-output/implementation-artifacts/deferred-work.md` -- mục *"Deferred from: 5-8…"*
+25. `_bmad-output/initiative-auratranslate/deferred-work.md` -- mục *"Deferred from: 5-8…"*
     cho: (a) mất khoảng trắng/dòng trống của `chapter.source_text` ở đường TÁCH (§Design
     Notes), (b) `work.last_chapter_id` -- *"mở Tác phẩm ở Chương nào"* nay **quan sát được**
     vì Chương thứ hai tồn tại thật, mà `open_work` vẫn mở Chương đầu; và **đóng** mục

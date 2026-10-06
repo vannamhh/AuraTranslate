@@ -7,8 +7,8 @@ status: 'done'
 review_loop_iteration: 0
 baseline_revision: '3e76711f18b5a7d9ac261ec97626a705f37bf8a3'
 context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
-  - '{project-root}/_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-xuat-va-nhap-glossary-qua-csv-tsv-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -96,7 +96,7 @@ context:
 - [x] `src/i18n/vi.json` — hai câu mới, cùng khuôn kết *"— chưa có gì được nhập."*
 - [x] `src-tauri/tests/glossary_exchange_contract.rs` — ca cho ①②③④⑤⑥⑥b⑦, mỗi ca kèm phép đối chứng gỡ-chỗ-nối đã chạy thật.
 - [x] `src-tauri/tests/glossary_import_dialog_contract.rs` và/hoặc `mod tests` nội bộ của `exchange_io.rs` — ca cho ⑧ và ⑨.
-- [x] `_bmad-output/implementation-artifacts/deferred-work.md` — đóng mục cụm B bằng chữ (`→ ✅` / `→ 🟡` kèm phần còn hở), và ghi **một mục nợ mới**: vế SQL + `insert_manual_entry` của lỗ zero-width, chủ là story đầu tiên chạm `GLOSSARY_ENTRY_DDL`.
+- [x] `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng mục cụm B bằng chữ (`→ ✅` / `→ 🟡` kèm phần còn hở), và ghi **một mục nợ mới**: vế SQL + `insert_manual_entry` của lỗ zero-width, chủ là story đầu tiên chạm `GLOSSARY_ENTRY_DDL`.
 
 **Acceptance Criteria:**
 - Given một tệp xuất có ô `=1+1`, when mở bằng bảng tính, then ô hiển thị **văn bản** `=1+1` chứ không chạy công thức; và when nhập lại chính tệp đó bằng `parse` của kho, then giá trị đọc ra bằng **đúng từng byte** giá trị đã xuất.
@@ -180,59 +180,59 @@ U+FEFF  trim() ⇒ "\u{feff}"    rỗng sau trim: FALSE   is_whitespace: FALSE
 **Rào công thức — mục ①, chỗ dễ đọc sai nhất**
 
 - Vị từ CHUNG cho cả hai chiều; bất đối xứng ở đây là nguồn của mất dữ liệu.
-  [`exchange.rs:122`](../../src-tauri/src/core/glossary/exchange.rs#L122)
+  [`exchange.rs:122`](../../../src-tauri/src/core/glossary/exchange.rs#L122)
 
 - Xuất thêm đúng một `'`; nhập bỏ đúng một — khuôn RFC 4180 nhân đôi `"`.
-  [`exchange.rs:137`](../../src-tauri/src/core/glossary/exchange.rs#L137)
+  [`exchange.rs:137`](../../../src-tauri/src/core/glossary/exchange.rs#L137)
 
 - Mệnh đề "không phủ được nếu không thêm cột" đã sai; sửa tại chỗ, không xoá.
-  [`exchange.rs:84`](../../src-tauri/src/core/glossary/exchange.rs#L84)
+  [`exchange.rs:84`](../../../src-tauri/src/core/glossary/exchange.rs#L84)
 
 **Hai lớp lỗi được cấp tên — mục ② và ⑤**
 
 - Hai biến thể mới; `match` exhaustive làm quên một mắt đỏ ở khâu biên dịch.
-  [`exchange.rs:285`](../../src-tauri/src/core/glossary/exchange.rs#L285)
+  [`exchange.rs:285`](../../../src-tauri/src/core/glossary/exchange.rs#L285)
 
 - Cột trùng bắt bằng đếm, không bằng `position()` lấy khớp đầu.
-  [`exchange.rs:822`](../../src-tauri/src/core/glossary/exchange.rs#L822)
+  [`exchange.rs:822`](../../../src-tauri/src/core/glossary/exchange.rs#L822)
 
 - Chín khoá phân tích, danh mục đóng; doc-comment "TÁM khoá" sửa tại chỗ.
-  [`i18n/mod.rs:344`](../../src-tauri/src/core/i18n/mod.rs#L344)
+  [`i18n/mod.rs:344`](../../../src-tauri/src/core/i18n/mod.rs#L344)
 
 **Rỗng im lặng — mục ⑥ và ⑥c, lớp lỗi trung tâm của kho**
 
 - Ba cột văn bản tự do, không riêng `source_term` — vế Ice ký nới phạm vi.
-  [`exchange.rs:992`](../../src-tauri/src/core/glossary/exchange.rs#L992)
+  [`exchange.rs:992`](../../../src-tauri/src/core/glossary/exchange.rs#L992)
 
 - Năm ký tự zero-width lọt cả `str::trim()` lẫn bảng 25 điểm mã của SQL.
-  [`exchange.rs:507`](../../src-tauri/src/core/glossary/exchange.rs#L507)
+  [`exchange.rs:507`](../../../src-tauri/src/core/glossary/exchange.rs#L507)
 
 **Ranh giới dòng và dấu phân cách — mục ③ và ④**
 
 - Đếm `\r`, `\r\n`, `\n` mỗi thứ một ranh giới; trước đó chỉ đếm `\n`.
-  [`exchange.rs:615`](../../src-tauri/src/core/glossary/exchange.rs#L615)
+  [`exchange.rs:615`](../../../src-tauri/src/core/glossary/exchange.rs#L615)
 
 - Quét nhận biết nháy kép thay vì `contains()` trên văn bản thô.
-  [`exchange.rs:726`](../../src-tauri/src/core/glossary/exchange.rs#L726)
+  [`exchange.rs:726`](../../../src-tauri/src/core/glossary/exchange.rs#L726)
 
 **I/O tệp — mục ⑧ và ⑨, hai bề mặt chạm đĩa duy nhất**
 
 - Chặn thật bằng `take(LIMIT+1)`; `metadata` không còn quyết định gì.
-  [`exchange_io.rs:60`](../../src-tauri/src/core/glossary/exchange_io.rs#L60)
+  [`exchange_io.rs:60`](../../../src-tauri/src/core/glossary/exchange_io.rs#L60)
 
 - Hậu tố `pid`+`uuid`: khuôn `write_atomic` đúng cho đường nội bộ, không cho đường người dùng chọn.
-  [`exchange_io.rs:135`](../../src-tauri/src/core/glossary/exchange_io.rs#L135)
+  [`exchange_io.rs:135`](../../../src-tauri/src/core/glossary/exchange_io.rs#L135)
 
 - `size` nay là số byte đã đọc, không phải kích thước tệp — đánh đổi ghi rõ.
-  [`store.rs:476`](../../src-tauri/src/core/glossary/store.rs#L476)
+  [`store.rs:476`](../../../src-tauri/src/core/glossary/store.rs#L476)
 
 **Phép kiểm — đọc sau cùng, nhưng đọc kỹ ba ca này**
 
 - Ca lật miễn trừ sai: `'=1+1` phải về nguyên vẹn.
-  [`glossary_exchange_contract.rs:196`](../../src-tauri/tests/glossary_exchange_contract.rs#L196)
+  [`glossary_exchange_contract.rs:196`](../../../src-tauri/tests/glossary_exchange_contract.rs#L196)
 
 - Ca chứng minh `translation` toàn zero-width không thành mục đã chốt vô hình.
-  [`glossary_exchange_contract.rs:1265`](../../src-tauri/tests/glossary_exchange_contract.rs#L1265)
+  [`glossary_exchange_contract.rs:1265`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1265)
 
 - Ba ca biên; ca cột-lặp-ba-lần đỏ trong khi ca cột-lặp-hai-lần vẫn xanh.
-  [`glossary_exchange_contract.rs:1312`](../../src-tauri/tests/glossary_exchange_contract.rs#L1312)
+  [`glossary_exchange_contract.rs:1312`](../../../src-tauri/tests/glossary_exchange_contract.rs#L1312)

@@ -34,7 +34,7 @@ Story đã được soạn ngày 2026-08-18 và đang ở `ready-for-dev` trong 
 | `grep "^### Story .*(e2e\|hạ tầng\|cổng)" epics.md` | chỉ **Story 1.22** *(`in-progress`)* và **Story 8.8** *(cổng `.docx`)* |
 | Món nợ trong `deferred-work.md` mang chủ *"story hạ tầng e2e"* | **11**, và **không có ngày** cho tới khi cửa chặn ② ra đời |
 | Khoá trong `sprint-status.yaml` | `2-12-ha-tang-e2e-va-cong-con-thieu: ready-for-dev` ✅ |
-| Tệp story | `implementation-artifacts/2-12-ha-tang-e2e-va-cong-con-thieu.md`, 7 AC, 8 chữ ký ✅ |
+| Tệp story | `initiative-auratranslate/epic-bien-tap-theo-segment/story-ha-tang-e2e-va-cong-con-thieu-plan.md`, 7 AC, 8 chữ ký ✅ |
 
 ### Loại vấn đề
 
