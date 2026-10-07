@@ -6,6 +6,7 @@ covers: [FR54, FR87, FR88, FR89, FR90, FR91, FR92, FR93, FR94, FR95, FR121, FR13
 after: []
 assignee: ""
 risk: low
+status: in-progress
 ---
 
 # Cầu nối Reviewer — xuất, nhập lại, đối chiếu, và hấp thụ bài học
