@@ -1,13 +1,13 @@
 ---
 ticket: 3
-status: built
+status: done
 type: chore
 baseline_revision: a2a5612defa545c105f41306e22357269285fdc1
 ---
 
 # Story 1.3: CI tối thiểu — hai nền tảng, mỗi lần push
 
-Status: built
+Status: done
 
 > **Đã qua một lượt code review 2026-08-03** (ba lớp song song, xem §Review Findings). 16 bản vá đã áp và đã nghiệm thu đỏ-rồi-xanh tại máy; 4 quyết định của Ice đã ghi. **Story vẫn `in-progress`, không lên `review`** — cùng lý do như trước lượt rà soát: AC6, AC7, Task 11 hàng 4 và AC3/Task 4 đều cần một lượt runner thật, và nay thêm hai thứ nữa chỉ runner mới trả lời được: bước `check:scope` mới của D1 có mở được webview trên `macos-26`/`windows-2025` không, và trạng thái cuối của AC8 (D2) phụ thuộc chính câu trả lời đó.
 >
@@ -729,7 +729,9 @@ Nguồn: run push 37446210896 (`0c26cc7`, cả hai job xanh), run 31568723620 (`
 | `src/App.vue` | *(lượt rà soát)* Bọc `catch` lần hai; dùng hằng tên event; payload thêm `mode` |
 | `scripts/check-scope.mjs` · `check-scope-bundled.mjs` | *(lượt rà soát)* `readTimeoutMs` từ chối `""`/NaN; `killTree()` giết cả cây + lưới an toàn 5s; kiểm `code`/`signal`; đọc `[package] name` đúng section |
 
-**Không** đụng tới: `src-tauri/src/**` · `src-tauri/Cargo.toml` · `_bmad-output/planning-artifacts/**`.
+**Không** đụng tới: `src-tauri/src/**` · `src-tauri/Cargo.toml` · ~~`_bmad-output/planning-artifacts/**`~~.
+
+🔵 2026-10-07: vế `_bmad-output/planning-artifacts/**` sai từ đầu, vì dải commit của story có sửa `epics.md` và `prd.md` theo quyết định #3 của Ice (xem ghi chú ⚠️ ngay dưới bảng).
 
 > ⚠️ **Bảng trên đã sửa hai chỗ khai sai mà lượt rà soát bắt được.** (1) `src-tauri/tauri.conf.json` **có** bị sửa (CSP + `bundle.resources`) nên nó rời khỏi danh sách không — thay đổi là hệ quả của hai patch đã được duyệt, không phải một lượt sửa lén. (2) Dòng không cũ khai *"không đụng `_bmad-output/planning-artifacts/**`"* là **sai sự thật** ngay từ trước lượt rà soát: dải commit của story có sửa `epics.md` (+14/−) và `prd.md` (+6/−) theo đúng quyết định #3 của Ice. Đã ghi vào `deferred-work.md` §lượt rà soát.
 
