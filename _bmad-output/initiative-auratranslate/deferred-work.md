@@ -379,6 +379,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — Story 1.13 Quyết định #2 (1-13-...md:674-677) chốt ĐỂ NGUYÊN vì khoá gom là code nên 18 mục trùng vào MỘT nhóm vietphrase; LookupRecord.vue:93 v-for="cluster in clusters" key=entryId trình bày từng entry riêng mà không đổi dữ liệu -- đúng bàn giao.
 - 🟡 **VietPhrase tách `/` vô điều kiện, không một ngoại lệ** (`tools/dict-build/src/sources/vietphrase.rs:77`). Bất kỳ nghĩa hợp lệ nào chứa `/` — `và/hoặc`, `24/7`, `n/a`, một URL trong nghĩa — bị bẻ thành nhiều `dict_sense` giả với `ord` 0/1, trong khi `ord` được cả story tuyên bố là *"thứ tự ƯU TIÊN của bản dịch"*. **Không vá vì Task 6 chốt thẳng luật tách `/`**, và không có luật rõ nào phân biệt dấu `/` phân tách với dấu `/` trong nội dung. Ghi lại để lượt rà chất lượng dữ liệu sau này (hoặc story harvest thuật ngữ 8.14/8.15) biết nó tồn tại.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: tools/dict-build/src/sources/vietphrase.rs:73-94 vẫn .split('/') vô điều kiện, không ngoại lệ cho '/' trong nội dung hợp lệ (và/hoặc, 24/7, URL). **Chủ: Story 8.14.**
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — tách `/` của VietPhrase là chất lượng dữ liệu từ điển, không dính gì thu hoạch thuật ngữ của 8.14. Chủ: Ice.
 ## Deferred from: correct-course — đường tiếng Anh (2026-08-05)
 
 - 🔴 **Dư địa NFR6 nay là 15.474.554 byte ĐO THẬT — HVTĐTD và Cổ hán văn phải được ĐO trước khi hứa đóng gói. Chủ sở hữu: story nối tiếp của Story 1.10.** **(Chủ: story nối tiếp của Story 1.10.)**
@@ -3242,6 +3243,7 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
   `docx-rs` khai ở `Cargo.toml` nhưng `grep docx_rs` trong `src-tauri/src/**/*.rs` chỉ trúng chính
   dòng comment đó. *(Story ghi "7 dòng"; số thật là 6 — đính chính tại chỗ, không đổi kết luận.)* **(Chủ: story kế tiếp dựng export DOCX.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/core/export/mod.rs vẫn 15 dòng toàn doc-comment (không mã); grep docx_rs trong src-tauri/src chỉ trúng hai dòng chú thích, không có lời gọi ghi .docx. **Chủ: Epic 8.**
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — lượt ghi `.docx` đầu tiên của Epic 8 là bảng hai cột. Chủ: Story 8.3.
 - `src/modes/ReadingMode.vue` — template chỉ có một `<p>` chở `t('mode.reading.status')`.
   Doc-comment tự ghi *"KHUNG RỖNG có chủ ý… toàn bộ thuộc Epic 5"*; `modeState.ts:30` xác nhận
   *"cả ba chế độ đều rỗng"*.
@@ -3393,6 +3395,7 @@ dây IPC đã chở nó, lưới đã đọc nó. Nhưng bề mặt **tiêu th�
 của Epic 8 tham chiếu ngược lại AD-46 ⇒ người viết Story 8.3 đọc AC của chính nó, thấy đủ,
 và xuất ra một tệp mang nhịp của **bản gốc**.
 **Chủ: Epic 8** *(Story 8.3 · 8.4 · 8.6)*.
+→ 2026-10-07 (incept Epic 8, Ice duyệt) — AD-46 vào AC của 8.3/8.4/8.6 khi refine; 8.6 là story cuối của ba, đóng mục này khi cả ba đọc cấu trúc đoạn của bản dịch. Chủ: Story 8.6.
 
 ### 🟡 Lượt đổi cờ đích bị TỪ CHỐI không có đường ra màn hình
 
@@ -3551,6 +3554,7 @@ mục nào mồ côi.
   🔴 Khi diff được dựng: **không** `v-html`. Rust phân tích thành mô hình dữ liệu có cấu trúc,
   Vue render từ mô hình đó, và mô hình **không có nhánh nào mang HTML** (AD-16).
   **Chủ: Story 8.1.**
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-51 mục 9 co 8.1 thành phép đo trên bản review thật; phần render `DiffSpan` dựng ở 8.12, xét dùng lại cho lịch sử segment tại đó. Chủ: Story 8.12.
 
 - 🔴 **HỞ THẬT: `is_target_paragraph_end` KHÔNG được khôi phục cùng `target_text`, và bảng không
   có chỗ nào lưu nó.** Cờ ngắt đoạn của bản dịch (bước di trú 9, Story 2.5d, AD-46) là **dữ liệu
@@ -9516,6 +9520,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Vế trong-một-lượt-create_work đã đóng thật (asset_contract.rs, cột source_url). commands/project/mod.rs:1415 cache dedup vẫn là HashMap cục bộ MỘT lời gọi, không truy vấn hàng asset cũ trong DB; còn thiếu: So source_url với các hàng asset đã có TỪ TRƯỚC (vd thêm Chương vào Tác phẩm đang mở) chưa có đường sản phẩm nào; spec-6-7b dựng đúng kịch bản này nhưng không nói tới dedup ảnh. **Chủ: 6.7b.**
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Story 6.7b có spec riêng (spec-6-7b-them-chuong-vao-tac-pham-co-san.md), status review; commands/project/mod.rs:1415 cache dedup vẫn là HashMap cục bộ một lời gọi, chưa truy vấn hàng asset cũ trong DB; còn thiếu: So source_url với hàng asset đã có TỪ TRƯỚC khi thêm Chương vào Tác phẩm đang mở vẫn chưa có đường sản phẩm. **Chủ: Story 6.7b.**
   → 2026-10-05 (retro Epic 7) — 6-7b đã done, vế cache khử trùng ảnh xuyên lượt gọi (truy vấn bảng `asset` thay HashMap cục bộ) chưa có chủ sống. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — khử trùng ảnh là đường nhập, ngoài ranh giới Epic 8. Chủ: Epic 6.
 
 - ⚠️ **Hàng tầng `AI` trong bảng nhật ký domain (mockup `web-import.html:439-443`) không
   dựng.** `core/ai/mod.rs` hôm nay **10 dòng, 0 dòng mã** — điểm ra mạng thứ NHẤT của AD-15
@@ -12869,21 +12874,27 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.4: `commands/segment.rs::accept_tm_fuzzy` and `::accept_tm_exact` re-read the pair via `pair_by_id` and write `pair.target_text`, while the webview sends only `unitId`, so a pair edited between display and accept is accepted silently with different text.
   evidence: the user agreed to the text shown, not the text re-read. Pointer: `src/tmFuzzyStripState.ts`. Reconsidered when Epic 8 is planned; Kiểm C blocks Epic 8 closing. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.7: `core/tm/tmx.rs::escape_into` silently drops characters below 0x20 and U+FFFE/FFFF, and `MAX_TMX_BYTES` is checked only in `decode_tmx_bytes`, so a pair holding such a character comes back as a "new" pair on re-import; and `render_tmx`/`commands/tm.rs::tm_export_tier` have no cap, so a large enough TM exports a file the importer rejects.
   evidence: the 7.10 review rejected this without a debt item; a measured 262 MB export is within about 2.5% of the 256 MiB import cap. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.9: `core/tm/mod.rs::load_fuzzy_candidates`, `::load_concordance_candidates` and `::load_manage_snapshot` build the identical `{global_rows, work_rows}`, and `core/tm/tmx.rs::distinct_tier_pairs` and `core/ai/rag.rs::TmRows` also wrap `load_all_pair_rows`.
   evidence: duplication, no behaviour defect found; five wrappers of the same loader must change together. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.4: `core/tm/mod.rs::fuzzy_pairs_in_candidates` scores all `global_rows` with one `SimilarityScorer::new(source_text, lang)` and no language filter, so pairs of another language pair are scored against this source.
   evidence: the Global tier stores no language, so zh and en pairs mix; the 7.5 strip and 7.11 RAG may insert another language's pair. Unmeasured: measure before calling it a bug. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; đo trước khi gọi là lỗi. Chủ: Story 8.17.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.5: `core/matching/mod.rs::SimilarityScorer` compares raw text, `::diff_spans` trims and NFC-normalises, and `core/tm/mod.rs::concordance_key` trims, NFC-normalises and lowercases, so the three disagree on what counts as the same text.
   evidence: a source differing only in whitespace shows "75%" while its diff is all Equal. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; 8.12 dùng chung `diff_spans`. Chủ: Story 8.17.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: Split `commands/segment.rs` (4557 lines, one file, TM commands divided between it and `commands/tm.rs`) along the Epic 6 AI-6 split of `commands/project.rs`.
   evidence: a file too large to hold as a map costs every agent that reads it. Pointer: `commands/segment.rs`, `commands/tm.rs`. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — story chuẩn bị tách tệp, làm trước 8.9 và 8.13 thêm lượt ghi segment. Chủ: Story 8.16.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-4-measure-openworkstate-hold.md`
   summary: Chapter load with the 7-4 exact-match prefill (`read_open_chapter_segments`) looks up every distinct source of the Chapter in both TM tiers while it holds `OpenWorkState`; its hold had no measurement and no ledger item.
   evidence: `commands/segment.rs::wire::read_open_chapter_segments` calls `load_open_chapter_segments` under the guard. Chủ: Epic 7.
@@ -12898,6 +12909,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-4-measure-openworkstate-hold.md`
   summary: Two doc comments in `src-tauri/tests/config_invariants.rs` still say "53 plain / 26 async" while `COMMAND_FILE_CENSUS` asserts a different tree total; already wrong at `bc4b41d`.
   evidence: review finding VG-3 of the R-4 build; pointer `config_invariants.rs` doc comments above `COMMAND_FILE_CENSUS` and the AI-4 note. Chủ: Epic 8.
+  → 2026-10-07 (incept Epic 8, Ice duyệt) — cùng lượt tách `commands/segment.rs`, vốn đổi `COMMAND_FILE_CENSUS`. Chủ: Story 8.16.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
   summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
   evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.

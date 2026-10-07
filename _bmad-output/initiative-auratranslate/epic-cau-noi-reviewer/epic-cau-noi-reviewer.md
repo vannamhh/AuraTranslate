@@ -40,11 +40,11 @@ Người dịch trao đổi file với reviewer không cài AuraTranslate, nhậ
 2. Nhập lại file reviewer đã sửa: cổng hình dạng chặn bản một khối trước mọi lệnh ghi, alignment hiện chỗ không khớp cho người dùng nối tay.
 3. Review Mode hai cửa sổ ẩn văn bản gốc, bôi màu thêm/xoá/sửa, và chấp nhận được từng thay đổi.
 4. Thu hoạch thuật ngữ nêu số lần đổi trên tổng số lần xuất hiện, và chạy độc lập khi Review Mode không được mở.
-5. Mũi thăm dò thư viện diff và đọc `.docx` bảng hai cột cho kết luận kèm giấy phép GPLv3-tương thích.
+5. Mũi thăm dò thư viện diff và đọc `.docx` bảng hai cột cho kết luận kèm giấy phép GPLv3-tương thích. 🔵 2026-10-07: crate diff và giấy phép đã chốt ở AD-51 (`similar` =3.1.1); đọc `.docx` đã có `core::docx` từ Story 6.12. Còn lại đúng phép xác nhận của AD-51 mục 9 trên bản review thật tiếng Việt (Story 8.1).
 
 ## Boundaries
 
-Trao đổi file với reviewer và Review Mode. Không phải gọi AI và không phải phát hành.
+Trao đổi file với reviewer và Review Mode. Không phải gọi AI và không phải phát hành. 🔵 2026-10-07: thêm Story 8.17, nợ khớp TM từ retro Epic 7 — ngoài trục trao đổi file, Ice chọn đặt ở đây thay vì mở epic nợ riêng.
 
 ## References
 
@@ -55,3 +55,7 @@ Trao đổi file với reviewer và Review Mode. Không phải gọi AI và khô
 ## Notes
 
 - Decision: AD-38 (cổng hình dạng `.docx`) là cổng vào bắt buộc ở Rust, chạy trước alignment và trước mọi lệnh ghi (epics.md, ghi chú cài đặt).
+- Decision (2026-10-07, Ice): khai `after` cho cả 15 entry — bản chuyển từ v6 để trống nên `next` coi cả epic là sẵn sàng. Story đầu tiên là 8.2.
+- Decision (2026-10-07, Ice): 8.1 thành `hitl` + `refine` — AD-51 mục 9 co nó lại thành xác nhận hoặc lật `similar` trên bản review thật của Ice; AC giấy phép/Stack đã thoả.
+- Decision (2026-10-07, Ice): 8.4 cần `refine` — AC "hai ô giữ đúng số lần xuống đoạn như nhau" đã hết đúng theo FR121 🔵 2026-08-14 và AD-46: mỗi cột giữ cấu trúc đoạn của chính nó.
+- Decision (2026-10-07, Ice): mười mục nợ `Chủ: Epic 8` và hai mục giao nhầm (`Chủ: Story 8.1` · `Story 8.14`) chuyển chủ trong `deferred-work.md`, nhãn `incept Epic 8`. Thêm 8.16 (tách `commands/segment.rs`, trước 8.9) và 8.17 (nợ khớp TM, sau 8.16).

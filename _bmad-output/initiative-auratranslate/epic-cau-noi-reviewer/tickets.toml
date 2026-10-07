@@ -33,7 +33,8 @@ Tiêu chí gốc (epics.md, nguyên văn):
 verify = "Với `similar` và `dissimilar`, khi thử thì chạy cả hai trên bản review thật của chủ dự án"
 covers = ["NFR15"]
 after = []
-hitl = false
+hitl = true
+refine = true
 risk = "low"
 v6_key = "8-1-mũi-thăm-dò-thư-viện-diff"
 
@@ -115,10 +116,11 @@ Tiêu chí gốc (epics.md, nguyên văn):
 **Given** file này
 **When** nhập ngược vào app
 **Then** đi qua đường FR90/FR91 bình thường
+Ràng buộc (AD-46): cấu trúc đoạn của file xuất đọc từ cờ kết đoạn **của bản dịch**, không của bản gốc — mục AD-46 trong `deferred-work.md` (Chủ: Story 8.6).
 '''
 verify = "Với phạm vi xuất đã chọn, khi xuất định dạng này thì sinh ra `.docx` dạng bảng hai cột — cột trái văn bản gốc, cột phải bản dịch"
 covers = ["FR87"]
-after = []
+after = [2]
 hitl = false
 risk = "low"
 v6_key = "8-3-xuất-docx-bảng-hai-cột-theo-segment"
@@ -165,8 +167,9 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với phạm vi xuất đã chọn, khi xuất định dạng này thì sinh ra `.docx` bảng hai cột với một hàng duy nhất cho cả Chương"
 covers = ["FR121"]
-after = []
+after = [2]
 hitl = false
+refine = true
 risk = "low"
 v6_key = "8-4-xuất-docx-một-khối-theo-đoạn-cho-đăng-bài"
 
@@ -213,7 +216,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với màn hình xuất, khi mở thì có lựa chọn theo link gốc hoặc theo file ảnh"
 covers = ["FR130"]
-after = []
+after = [2]
 hitl = false
 risk = "low"
 v6_key = "8-5-chọn-cách-xuất-hình-ảnh"
@@ -254,10 +257,11 @@ Tiêu chí gốc (epics.md, nguyên văn):
 **Given** định dạng text thuần
 **When** người dùng chọn
 **Then** màn hình xuất nói rõ nó **không nhập lại được**, cùng nhóm với `.docx` một khối
+Ràng buộc (AD-46): cấu trúc đoạn của file xuất đọc từ cờ kết đoạn **của bản dịch**, không của bản gốc — mục AD-46 trong `deferred-work.md` (Chủ: Story 8.6).
 '''
 verify = "Với phạm vi xuất đã chọn, khi xuất `.md` thì sinh ra Markdown hợp lệ"
 covers = ["FR88"]
-after = []
+after = [2, 5]
 hitl = false
 risk = "low"
 v6_key = "8-6-xuất-md-và-text-thuần"
@@ -304,7 +308,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với khối ghi nguồn, khi dựng thì gồm năm trường: tác giả · tên báo/website · URL bài gốc · ngày đăng gốc · tên người dịch"
 covers = ["FR131"]
-after = []
+after = [3, 4, 6]
 hitl = false
 risk = "low"
 v6_key = "8-7-khối-ghi-nguồn"
@@ -350,10 +354,25 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một file `.docx` được đưa vào đường nhập, khi xử lý thì kiểm hình dạng bảng chạy ở Rust, ở cổng vào của đường nhập trong `core/export/`"
 covers = []
-after = []
+after = [4]
 hitl = false
 risk = "low"
 v6_key = "8-8-cổng-kiểm-hình-dạng-bảng-docx"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Tách `commands/segment.rs` trước khi thêm lượt ghi segment"
+description = '''
+Story chuẩn bị, không đổi hành vi. `commands/segment.rs` (4557 dòng) chứa cả lệnh TM chia đôi với `commands/tm.rs`; 8.9 và 8.13 sắp thêm lượt ghi segment vào đúng tệp này. Tách theo khuôn AI-6 của Epic 6 đã tách `commands/project.rs`, và sửa doc comment "53 plain / 26 async" sai trong `src-tauri/tests/config_invariants.rs` cùng lượt vì `COMMAND_FILE_CENSUS` đổi theo.
+
+Nợ: `deferred-work.md` mục "Split `commands/segment.rs`" và mục VG-3 của R-4 (retro Epic 7).
+'''
+verify = "Không lệnh IPC nào đổi tên hay chữ ký; `ipc_contract` và `config_invariants` xanh; không tệp nào trong `commands/` quá ngưỡng đọc được thành bản đồ"
+covers = []
+after = []
+hitl = false
+risk = "medium"
 
 [[entry]]
 id = 9
@@ -391,7 +410,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một file `.docx` hoặc `.md` reviewer đã chỉnh sửa, khi nhập thì nhập vào đúng Tác phẩm hiện có, không tạo Tác phẩm mới"
 covers = ["FR90"]
-after = []
+after = [3, 8, 16]
 hitl = false
 risk = "low"
 v6_key = "8-9-nhập-lại-file-reviewer-đã-sửa"
@@ -439,7 +458,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với file reviewer đã nhập, khi alignment chạy thì hệ thống khớp cấu trúc đoạn giữa file nhập và dữ liệu sẵn có"
 covers = ["FR91"]
-after = []
+after = [9]
 hitl = false
 risk = "low"
 v6_key = "8-10-segment-alignment-máy-khớp-người-sửa"
@@ -483,7 +502,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một Chương đã nhập bản review, khi người dùng mở Review Mode thì Workspace chuyển sang bố cục hai cửa sổ side-by-side"
 covers = ["FR92"]
-after = []
+after = [9]
 hitl = false
 risk = "low"
 v6_key = "8-11-review-mode-bố-cục-hai-cửa-sổ-side-by-side"
@@ -527,7 +546,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với Review Mode đang mở, khi hiển thị thì ẩn văn bản gốc"
 covers = ["FR93"]
-after = []
+after = [1, 11]
 hitl = false
 risk = "low"
 v6_key = "8-12-diff-bôi-màu-ẩn-văn-bản-gốc"
@@ -572,7 +591,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một thay đổi trong Review Mode, khi người dùng chấp nhận thì thay đổi đó vào bản dịch của mình"
 covers = ["FR94"]
-after = []
+after = [10, 12]
 hitl = false
 risk = "low"
 v6_key = "8-13-chấp-nhận-từng-thay-đổi"
@@ -614,7 +633,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một bản review vừa nhập, khi phân tích thì hệ thống tìm các trường hợp reviewer đổi thuật ngữ *X* thành *Y* một cách nhất quán"
 covers = ["FR54"]
-after = []
+after = [10]
 hitl = false
 risk = "low"
 v6_key = "8-14-thu-hoạch-thuật-ngữ-từ-bản-review"
@@ -654,7 +673,22 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với người dùng nhập một bản review, khi nhập hoàn tất thì cơ chế thu hoạch thuật ngữ kích hoạt ngay"
 covers = ["FR95"]
-after = []
+after = [14]
 hitl = false
 risk = "low"
 v6_key = "8-15-thu-hoạch-chạy-độc-lập-với-review-mode"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Nợ khớp TM từ retro Epic 7"
+description = '''
+Năm mục retro Epic 7 hoãn tới lúc lên kế hoạch Epic 8, gom một chỗ: F2.4 (`accept_tm_fuzzy`/`accept_tm_exact` đọc lại cặp và ghi văn bản người dùng chưa thấy), F2.7 (`escape_into` bỏ im lặng ký tự điều khiển; xuất TMX không có trần trong khi nhập có), F2.9 (năm hàm bọc `load_all_pair_rows`), F3.4 (tầng Global không lọc ngôn ngữ — đo trước khi gọi là lỗi), F3.5 (`SimilarityScorer`, `diff_spans`, `concordance_key` bất đồng về "cùng văn bản").
+
+Nằm ngoài ranh giới "trao đổi file với reviewer" của epic; Ice chọn đặt ở đây (Notes của epic).
+'''
+verify = "Mỗi mục trong năm mục đóng, 🟡, hoặc KHÔNG LÀM bằng một dòng trong `deferred-work.md`; F3.4 có số đo trước khi sửa"
+covers = []
+after = [16]
+hitl = false
+risk = "medium"
