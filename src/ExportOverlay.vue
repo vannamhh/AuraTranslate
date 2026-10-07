@@ -13,13 +13,18 @@ import {
   exportFolder,
   exportFolderError,
   exportFolderUnavailable,
+  exportFormat,
   exportLoadError,
   exportLoadStatus,
   exportOverlayIsOpen,
+  exportRunError,
+  exportRunResult,
+  exportRunStatus,
   exportScopeKind,
   exportSelectedChapterIds,
   exportSingleChapterId,
   selectExportSingleChapter,
+  setExportFormat,
   setExportScopeKind,
   toggleExportChapter,
 } from './exportState'
@@ -38,6 +43,10 @@ const scopeChoices: readonly { kind: ExportScopeKind; labelKey: string }[] = [
 ]
 
 const listVisible = computed(() => exportScopeKind.value !== 'work')
+
+const canRun = computed(
+  () => exportFolder.value !== null && exportCountsStatus.value === 'loaded' && exportRunStatus.value !== 'running',
+)
 
 function chapterLabel(row: ChapterRow): string {
   return row.title === null ? t('mode.library.chapter_untitled', { ord: String(row.ord) }) : row.title
@@ -177,6 +186,22 @@ function trapTab(event: KeyboardEvent): void {
           </template>
         </div>
 
+        <fieldset class="ex-format">
+          <legend class="ex-legend">{{ t('export.format.legend') }}</legend>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-format"
+              :checked="exportFormat === 'docx_two_column'"
+              @change="setExportFormat('docx_two_column')"
+            />
+            <span>{{ t('export.format.docx_two_column') }}</span>
+          </label>
+          <p v-if="exportFormat === 'docx_two_column'" class="ex-note" data-export-reimportable>
+            {{ t('export.format.reimportable') }}
+          </p>
+        </fieldset>
+
         <div class="ex-folder">
           <span class="ex-legend">{{ t('export.folder.label') }}</span>
           <!-- aura-allow-text: data (folder path chosen by the user). -->
@@ -191,6 +216,32 @@ function trapTab(event: KeyboardEvent): void {
           {{ tError(exportFolderError) }}
         </p>
         <p v-else-if="exportFolderUnavailable" class="ex-status" role="status">{{ t('export.folder.unavailable') }}</p>
+
+        <div class="ex-folder">
+          <button type="button" class="ex-act" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
+            {{ t('command.export.run') }}
+          </button>
+          <span v-if="exportFolder === null" class="ex-note">{{ t('export.run.need_folder') }}</span>
+        </div>
+        <p v-if="exportRunStatus === 'running'" class="ex-status" role="status">{{ t('export.run.running') }}</p>
+        <p v-else-if="exportRunStatus === 'ipc_unavailable'" class="ex-status" role="status">
+          {{ t('export.run.ipc_unavailable') }}
+        </p>
+        <p v-else-if="exportRunStatus === 'error' && exportRunError !== null" class="ex-status ex-error" role="alert">
+          <!-- aura-allow-text: result of tError() on the IPC error. -->
+          {{ tError(exportRunError) }}
+        </p>
+        <p v-else-if="exportRunStatus === 'done' && exportRunResult !== null" class="ex-status" role="status">
+          <!-- aura-allow-text: result of t() with the counts interpolated. -->
+          {{
+            t('export.run.done', {
+              count: String(exportRunResult.segment_count),
+              chapters: String(exportRunResult.chapter_count),
+            })
+          }}
+          <!-- aura-allow-text: data (path of the file Rust wrote). -->
+          <span class="ex-path" data-export-result>{{ exportRunResult.path }}</span>
+        </p>
 
         <section class="ex-preview" aria-labelledby="ex-preview-title">
           <h3 id="ex-preview-title" class="ex-legend">{{ t('export.preview.heading') }}</h3>
@@ -269,6 +320,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .ex-scope,
+.ex-format,
 .ex-chapters {
   margin: 0 0 var(--space-panel-block) 0;
   padding: 0;

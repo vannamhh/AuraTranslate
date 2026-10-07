@@ -1,5 +1,5 @@
 /**
- * IPC adapter of the export screen: scope counts and the destination-folder dialog.
+ * IPC adapter of the export screen: scope counts, the destination-folder dialog and the file write.
  * Never throws; `{ value: null, error: null }` means the IPC bridge is unavailable.
  */
 import { invoke } from '@tauri-apps/api/core'
@@ -15,6 +15,10 @@ export type ExportScopeCounts = {
 
 export type ExportScopeSummaryResult = { counts: ExportScopeCounts | null; error: IpcError | null }
 
+export type ExportedFile = { path: string; chapter_count: number; segment_count: number }
+
+export type ExportRunResult = { file: ExportedFile | null; error: IpcError | null }
+
 export type ExportFolderResult =
   | { outcome: 'picked'; path: string }
   | { outcome: 'cancelled' }
@@ -23,6 +27,7 @@ export type ExportFolderResult =
 
 const CMD_EXPORT_SCOPE_SUMMARY = 'export_scope_summary'
 const CMD_EXPORT_CHOOSE_FOLDER = 'export_choose_folder'
+const CMD_EXPORT_DOCX_TWO_COLUMN = 'export_docx_two_column'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -93,5 +98,24 @@ export async function exportChooseFolder(): Promise<ExportFolderResult> {
   } catch (err) {
     const error = failureOf(err, CMD_EXPORT_CHOOSE_FOLDER)
     return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
+  }
+}
+
+function isExportedFile(value: unknown): value is ExportedFile {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ExportedFile>
+  return typeof v.path === 'string' && typeof v.chapter_count === 'number' && typeof v.segment_count === 'number'
+}
+
+export async function exportDocxTwoColumn(scope: ExportScope, folder: string): Promise<ExportRunResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, folder })
+    if (!isExportedFile(raw)) {
+      console.error(`[export] \`${CMD_EXPORT_DOCX_TWO_COLUMN}\` returned an unexpected shape: ${String(raw)}`)
+      return { file: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { file: raw, error: null }
+  } catch (err) {
+    return { file: null, error: failureOf(err, CMD_EXPORT_DOCX_TWO_COLUMN) }
   }
 }

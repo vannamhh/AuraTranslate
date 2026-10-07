@@ -14,6 +14,12 @@
 //! (`tests/fixtures_docx.rs`), một cài đặt ĐỘC LẬP với `core::docx` nên không phải một vòng
 //! tròn "tự sinh rồi tự đọc lại".
 
+mod docx_table;
+mod new_file;
 mod scope;
+mod table_rows;
 
+pub use docx_table::{DocxWriteError, write_two_column_docx};
+pub use new_file::{safe_stem, write_new_file};
 pub use scope::{ExportScope, ScopeCounts, ScopeError, count_scope, resolve_chapter_ids};
+pub use table_rows::{ChapterTable, ExportCell, ExportRow, load_chapter_tables};

@@ -219,7 +219,7 @@ pub(super) fn already_split(chapter_id: i64, count: i64) -> IpcError {
 /// [`crate::core::store::Store::read`] — hàm này không tự mở lượt đọc riêng, đúng lý lẽ mọi
 /// lượt đọc của cùng một ảnh chụp phải chung một `Store::read` (xem doc-comment
 /// `read_reading_run`/`caret_segment_id` ngay dưới).
-pub(super) fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
+pub(crate) fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = conn.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
          is_omitted, is_target_paragraph_end, role, translation_origin \

@@ -21,6 +21,7 @@ vi.mock('../../src/config/chapter', () => ({
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
+  exportDocxTwoColumn: () => Promise.resolve({ file: null, error: null }),
 }))
 
 function row(id: number, ord: number, title: string | null): ChapterRow {

@@ -890,6 +890,8 @@ export type CommandDeps = {
   closeExport?: () => void
   /** Opens the destination-folder dialog in Rust. Handler of `export.choose_folder`. */
   chooseExportFolder?: () => void
+  /** Writes the selected export format into the chosen folder. Handler of `export.run`. */
+  runExport?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -3309,6 +3311,15 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.chooseExportFolder === undefined) return portMissing('export.choose_folder', 'chooseExportFolder')
       deps.chooseExportFolder()
+    },
+  })
+  target.register({
+    id: 'export.run',
+    labelKey: 'command.export.run',
+    keys: undefined,
+    run: () => {
+      if (deps.runExport === undefined) return portMissing('export.run', 'runExport')
+      deps.runExport()
     },
   })
 

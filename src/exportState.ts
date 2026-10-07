@@ -8,10 +8,12 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
-import { exportChooseFolder, exportScopeSummary } from './config/export'
-import type { ExportScope, ExportScopeCounts } from './config/export'
+import { exportChooseFolder, exportDocxTwoColumn, exportScopeSummary } from './config/export'
+import type { ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
 import type { IpcError } from './i18n'
 
+export type ExportFormat = 'docx_two_column'
+export type ExportRunStatus = 'idle' | 'running' | 'done' | 'error' | 'ipc_unavailable'
 export type ExportScopeKind = 'chapter' | 'chapters' | 'work'
 export type ExportLoadStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
 export type ExportCountsStatus = 'unknown' | 'none_selected' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -30,6 +32,10 @@ const folder = ref<string | null>(null)
 const folderError = ref<IpcError | null>(null)
 const folderUnavailable = ref(false)
 const choosingFolder = ref(false)
+const format = ref<ExportFormat>('docx_two_column')
+const runStatus = ref<ExportRunStatus>('idle')
+const runResult = ref<ExportedFile | null>(null)
+const runError = ref<IpcError | null>(null)
 let sequence = 0
 
 export const exportOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
@@ -46,6 +52,16 @@ export const exportFolder: DeepReadonly<Ref<string | null>> = readonly(folder)
 export const exportFolderError: DeepReadonly<Ref<IpcError | null>> = readonly(folderError)
 export const exportFolderUnavailable: DeepReadonly<Ref<boolean>> = readonly(folderUnavailable)
 export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosingFolder)
+export const exportFormat: DeepReadonly<Ref<ExportFormat>> = readonly(format)
+export const exportRunStatus: DeepReadonly<Ref<ExportRunStatus>> = readonly(runStatus)
+export const exportRunResult: DeepReadonly<Ref<ExportedFile | null>> = readonly(runResult)
+export const exportRunError: DeepReadonly<Ref<IpcError | null>> = readonly(runError)
+
+function clearRun(): void {
+  runStatus.value = 'idle'
+  runResult.value = null
+  runError.value = null
+}
 
 /** The scope a later export command sends to Rust; `null` while nothing is selected. */
 export function currentExportScope(): ExportScope | null {
@@ -59,6 +75,7 @@ export function currentExportScope(): ExportScope | null {
 async function refreshCounts(): Promise<void> {
   sequence += 1
   const mySequence = sequence
+  clearRun()
   const scope = currentExportScope()
   if (scope === null) {
     counts.value = null
@@ -113,6 +130,11 @@ export async function openExport(): Promise<void> {
   await refreshCounts()
 }
 
+export function setExportFormat(next: ExportFormat): void {
+  format.value = next
+  clearRun()
+}
+
 export function closeExport(): void {
   if (!overlayOpen.value) return
   sequence += 1
@@ -147,9 +169,31 @@ export async function chooseExportFolder(): Promise<void> {
   const result = await exportChooseFolder()
   choosingFolder.value = false
 
-  if (result.outcome === 'picked') folder.value = result.path
+  if (result.outcome === 'picked') {
+    folder.value = result.path
+    clearRun()
+  }
   else if (result.outcome === 'error') folderError.value = result.error
   else if (result.outcome === 'ipc_unavailable') folderUnavailable.value = true
+}
+
+/** Writes the selected format for the current scope into the chosen folder. */
+export async function runExport(): Promise<void> {
+  const scope = currentExportScope()
+  const target = folder.value
+  if (runStatus.value === 'running' || scope === null || target === null) return
+
+  runStatus.value = 'running'
+  runResult.value = null
+  runError.value = null
+  const result = await exportDocxTwoColumn(scope, target)
+  if (result.file !== null) {
+    runResult.value = result.file
+    runStatus.value = 'done'
+    return
+  }
+  runError.value = result.error
+  runStatus.value = result.error === null ? 'ipc_unavailable' : 'error'
 }
 
 export function resetExport(): void {
@@ -168,4 +212,6 @@ export function resetExport(): void {
   folderError.value = null
   folderUnavailable.value = false
   choosingFolder.value = false
+  format.value = 'docx_two_column'
+  clearRun()
 }

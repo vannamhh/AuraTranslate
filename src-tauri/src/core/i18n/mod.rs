@@ -899,6 +899,8 @@ message_keys! {
     ExportScopeEmpty => "err.export.scope_empty" [],
     /// Thư mục đích vừa chọn không dùng được (đường dẫn không đọc được thành văn bản).
     ExportFolderInvalid => "err.export.folder_invalid" [],
+    /// Không ghi được tệp xuất vào thư mục đích (thư mục không ghi được, hết chỗ, …).
+    ExportWriteFailed => "err.export.write_failed" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.
