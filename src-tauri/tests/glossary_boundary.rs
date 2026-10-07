@@ -54,7 +54,7 @@ const SCHEMA_FILE: &str = "core/store/schema.rs";
 /// KHÔNG chung với quần thể `check-i18n.mjs::RS_FLOOR` quét (nó thêm `tools/**`, trừ
 /// `tests/**`/`tools/**`); hai con số trùng nhau ở một số lần đo là trùng hợp, không phải
 /// bằng chứng cùng quần thể.
-const RS_FLOOR: usize = 84;
+const RS_FLOOR: usize = 97;
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).

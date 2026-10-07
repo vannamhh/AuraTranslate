@@ -12895,6 +12895,7 @@ chính nó.
   summary: Split `commands/segment.rs` (4557 lines, one file, TM commands divided between it and `commands/tm.rs`) along the Epic 6 AI-6 split of `commands/project.rs`.
   evidence: a file too large to hold as a map costs every agent that reads it. Pointer: `commands/segment.rs`, `commands/tm.rs`. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — story chuẩn bị tách tệp, làm trước 8.9 và 8.13 thêm lượt ghi segment. Chủ: Story 8.16.
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8-16) — `commands/segment.rs` 4557 dòng thành `commands/segment/` gồm `mod.rs` 136 · `wire.rs` 485 · `import.rs` 255 · `history.rs` 414 · `chapter_read.rs` 585 · `reading.rs` 656 · `targets.rs` 365 · `tm_match.rs` 383 · `confirm.rs` 667 · `regroup.rs` 635 (dải dời byte-identical, chỉ đổi 12 chữ ký sang `pub(super)`). Lệnh TM vẫn chia giữa `segment/tm_match.rs` và `commands/tm.rs`; gộp đổi đường dẫn và hàng census nên không làm trong lượt tách, và chưa có mục nợ riêng.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-4-measure-openworkstate-hold.md`
   summary: Chapter load with the 7-4 exact-match prefill (`read_open_chapter_segments`) looks up every distinct source of the Chapter in both TM tiers while it holds `OpenWorkState`; its hold had no measurement and no ledger item.
   evidence: `commands/segment.rs::wire::read_open_chapter_segments` calls `load_open_chapter_segments` under the guard. Chủ: Epic 7.
@@ -12910,6 +12911,7 @@ chính nó.
   summary: Two doc comments in `src-tauri/tests/config_invariants.rs` still say "53 plain / 26 async" while `COMMAND_FILE_CENSUS` asserts a different tree total; already wrong at `bc4b41d`.
   evidence: review finding VG-3 of the R-4 build; pointer `config_invariants.rs` doc comments above `COMMAND_FILE_CENSUS` and the AI-4 note. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — cùng lượt tách `commands/segment.rs`, vốn đổi `COMMAND_FILE_CENSUS`. Chủ: Story 8.16.
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8-16) — hai câu "53 plain / 26 async" thay bằng câu trỏ về bảng; tổng đọc từ `COMMAND_FILE_CENSUS` hôm nay là 68 plain / 49 async trên 16 tệp (tính tay từ bảng trước lượt tách, hàng segment đổi thành `src/commands/segment/wire.rs` 17/2/2 và tổng không đổi).
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
   summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
   evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.

@@ -1682,7 +1682,7 @@ fn the_read_reading_run_wire_is_registered() {
         );
     }
     let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
     assert!(
@@ -2208,19 +2208,14 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
          `src/config/aitranslate.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
 
-    // `promote_ai_translation` mang HAI khối `pub fn` cùng tên trong `commands/segment.rs` (hàm
-    // thuần đồng bộ + vỏ `pub mod wire`, AD-47①/③) — `fn_param_list` khớp khối ĐẦU TIÊN trong
-    // `src` truyền vào (xem doc-comment của nó), nên phải thu hẹp `src` tới ĐÚNG `pub mod wire
-    // { … }` trước, không được khớp nhầm khối hàm thuần đứng TRƯỚC nó trong tệp.
+    // `promote_ai_translation` mang HAI khối `pub fn` cùng tên: hàm thuần ở
+    // `commands/segment/targets.rs` và vỏ ở `commands/segment/wire.rs`. `fn_param_list` khớp
+    // khối ĐẦU TIÊN trong `src` truyền vào (xem doc-comment của nó), nên chỉ đọc `wire.rs`.
     let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
-    let wire_mod_marker = "pub mod wire {";
-    let wire_mod_start = segment_src
-        .find(wire_mod_marker)
-        .unwrap_or_else(|| panic!("khong tim thay `{wire_mod_marker}` trong {}", segment_rs.display()));
-    let segment_wire_src = &segment_src[wire_mod_start..];
+    let segment_wire_src = segment_src.as_str();
 
     let promote_params = fn_param_list(segment_wire_src, "promote_ai_translation");
     assert_eq!(
@@ -2228,7 +2223,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         normalize_param_list(
             "app: tauri::AppHandle<R>, segment_id: i64, target_text: String, force: bool,"
         ),
-        "vo `promote_ai_translation` trong `pub mod wire` cua commands/segment.rs khong con \
+        "vo `promote_ai_translation` trong `commands/segment/wire.rs` khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
          `src/config/segment.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
@@ -2239,14 +2234,10 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
 #[test]
 fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carries_no_baseline() {
     let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
-    let wire_mod_marker = "pub mod wire {";
-    let wire_mod_start = segment_src
-        .find(wire_mod_marker)
-        .unwrap_or_else(|| panic!("khong tim thay `{wire_mod_marker}` trong {}", segment_rs.display()));
-    let segment_wire_src = &segment_src[wire_mod_start..];
+    let segment_wire_src = segment_src.as_str();
 
     let confirm_params = fn_param_list(segment_wire_src, "confirm_segment");
     assert_eq!(
@@ -2254,7 +2245,7 @@ fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carrie
         normalize_param_list(
             "app: tauri::AppHandle<R>, segment_id: i64,"
         ),
-        "vo `confirm_segment` trong `pub mod wire` cua commands/segment.rs khong con dung danh \
+        "vo `confirm_segment` trong `commands/segment/wire.rs` khong con dung danh \
          sach tham so mong doi -- doi ten/thu tu tham so la doi DAY."
     );
 

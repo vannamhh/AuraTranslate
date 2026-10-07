@@ -43,7 +43,7 @@ const CHAPTER_READ_FILE: &str = "commands/chapter.rs";
 /// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`,
 /// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm cả `build.rs`). Hai con số gần nhau
 /// và chúng **không** thay thế nhau được.
-const SRC_RS_FLOOR: usize = 84;
+const SRC_RS_FLOOR: usize = 97;
 
 /// Số tệp `.ts` + `.vue` tối thiểu dưới `src/**`.
 const WEBVIEW_FLOOR: usize = 109;
@@ -291,7 +291,7 @@ fn the_splitter_has_exactly_one_product_call_site_outside_core_segment() {
     assert_eq!(
         call_sites.len(),
         2,
-        "số dòng khớp `split_source_text` ngoài `core/segment/` đã đổi — kỳ vọng ĐÚNG 2 (một          dòng `use` + một lời gọi, cả hai trong `commands/segment.rs`), tìm thấy {}:
+        "số dòng khớp `split_source_text` ngoài `core/segment/` đã đổi — kỳ vọng ĐÚNG 2 (một          dòng `use` + một lời gọi, cả hai trong `commands/segment/import.rs`), tìm thấy {}:
 {}",
         call_sites.len(),
         call_sites.join("
@@ -299,8 +299,8 @@ fn the_splitter_has_exactly_one_product_call_site_outside_core_segment() {
     );
     for site in &call_sites {
         assert!(
-            site.starts_with("commands/segment.rs"),
-            "chỗ khớp phải ở `commands/segment.rs` — tìm thấy: {site}"
+            site.starts_with("commands/segment/import.rs"),
+            "chỗ khớp phải ở `commands/segment/import.rs` — tìm thấy: {site}"
         );
     }
 }
@@ -378,22 +378,30 @@ fn the_splitter_stays_pure() {
 /// nó không nhận `&Store`, và một bộ đọc thô sẽ đỏ vì đúng đoạn văn dạy nó điều phải kiểm.
 #[test]
 fn the_target_write_path_never_takes_a_store_below_the_command_shell() {
-    let text = read(&src_root().join("commands/segment.rs"));
+    let sources: Vec<(String, String)> = boundary_scan::rust_sources(&src_root())
+        .into_iter()
+        .filter(|(rel, _)| is_inside(rel, "commands/segment"))
+        .collect();
+    assert!(!sources.is_empty(), "không đọc được tệp nào dưới `commands/segment/`");
 
     // Thân closure trao cho `Store::write` nhận `&Transaction` — đó là hình dạng ĐÚNG, và nó
     // phải còn đó. Mất nó nghĩa là đường ghi đã đổi hình dạng dưới chân AC12.
     assert!(
-        text.contains("write(move |tx: &Transaction<'_>|"),
-        "không còn một closure `Store::write(move |tx: &Transaction<'_>| …)` nào trong \
-         `commands/segment.rs`. AC12 của Story 2.3 đứng trên hình dạng đó: một lô, một giao \
+        sources.iter().any(|(_, text)| text.contains("write(move |tx: &Transaction<'_>|")),
+        "không còn một closure `Store::write(move |tx: &Transaction<'_>| …)` nào dưới \
+         `commands/segment/`. AC12 của Story 2.3 đứng trên hình dạng đó: một lô, một giao \
          dịch, và tầng dưới nhận `&Transaction` chứ không `&Store`."
     );
 
     // Không hàm nào Ở TẦNG DƯỚI được nhận `&Store`. Vỏ lệnh nhận `Option<&OpenWork>` và đọc
     // `open.store` — đó là tầng TRÊN, và nó được phép.
-    let offenders: Vec<String> = boundary_scan::code_lines(&text)
-        .filter(|(_, code)| code.contains("&Store") || code.contains("Connection::open"))
-        .map(|(index, code)| format!("segment.rs:{index}  {code}"))
+    let offenders: Vec<String> = sources
+        .iter()
+        .flat_map(|(rel, text)| {
+            boundary_scan::code_lines(text)
+                .filter(|(_, code)| code.contains("&Store") || code.contains("Connection::open"))
+                .map(move |(index, code)| format!("{rel}:{index}  {code}"))
+        })
         .collect();
 
     assert!(

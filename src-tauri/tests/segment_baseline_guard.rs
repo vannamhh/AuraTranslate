@@ -5,9 +5,9 @@
 #[allow(dead_code)] // shared module: not every helper is used in this file
 mod boundary_scan;
 
-const SRC_RS_FLOOR: usize = 88;
+const SRC_RS_FLOOR: usize = 97;
 
-const FLUSH_EXEMPT_FILE: &str = "commands/segment.rs";
+const FLUSH_EXEMPT_FILE: &str = "commands/segment/targets.rs";
 const FLUSH_EXEMPT_PREFIX: &str = "UPDATE segment SET target_text = ?1, updated_at";
 
 /// Statements that write `target_text` on `segment`, as `(1-based line, collapsed text)`.
@@ -92,7 +92,7 @@ fn the_guard_sees_the_known_writers_and_exactly_one_flush_exemption() {
                 if is_flush(&rel, &statement) {
                     flushes += 1;
                 }
-            } else if rel == "commands/segment.rs" {
+            } else if rel.starts_with("commands/segment/") {
                 with_baseline += 1;
             }
         }

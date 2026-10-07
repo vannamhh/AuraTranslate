@@ -26,7 +26,7 @@ const WEBIMPORT_DIR: &str = "core/webimport";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ
 /// `segment_pipeline_boundary.rs::SRC_RS_FLOOR`.
-const SRC_RS_FLOOR: usize = 84;
+const SRC_RS_FLOOR: usize = 97;
 
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())

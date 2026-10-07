@@ -928,7 +928,7 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 
 /// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
 /// `glossary_boundary.rs`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 84;
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 97;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -1118,12 +1118,12 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
         ),
         (
-            "src/commands/segment.rs",
+            "src/commands/segment/wire.rs",
             "pub fn tm_fuzzy_matches<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "quet TOAN BO cap TM ca hai tang (Dice tren n-gram), chi phi scale theo kich thuoc TM",
         ),
         (
-            "src/commands/segment.rs",
+            "src/commands/segment/wire.rs",
             "pub fn tm_concordance<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "doc TOAN BO cap TM ca hai tang roi loc chuoi con, chi phi scale theo kich thuoc TM",
         ),
@@ -1370,9 +1370,8 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
 /// ② chi phí của nó **scale theo kích thước tài liệu hoặc tập dữ liệu**.
 /// Các vỏ còn lại ở lại đồng bộ; đừng rải `(async)` cho chúng "cho nhất quán".
 /// 🔵 **SỬA 2026-09-15 (AI-4)** — câu này từng nói **TÁM** vỏ còn lại, con số của lần mở thứ
-/// hai và chỉ đúng trong phạm vi `commands/glossary.rs` lúc đó. Đếm trên toàn cây sau lượt
-/// lật AI-4: **53** vỏ đồng bộ còn lại (`COMMAND_FILE_CENSUS`, 53 plain / 26 async). Đừng
-/// chép con số 53 đi đâu nữa — đọc nó từ bảng.
+/// hai và chỉ đúng trong phạm vi `commands/glossary.rs` lúc đó. Số vỏ đồng bộ còn lại trên
+/// toàn cây là tổng cột `plain` của `COMMAND_FILE_CENSUS` — đọc nó từ bảng, đừng chép đi đâu.
 ///
 /// 🔵 **MỞ LẦN HAI 2026-08-25 (vòng rà bước 4), từ năm lên BẢY — và lý do đáng nhớ hơn hai vỏ.**
 /// Bản trước của chính doc-comment này khai *"Mười vỏ còn lại … tra/ghi MỘT hàng"*, một con số
@@ -1613,9 +1612,9 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// 🔴 **Mọi tệp MANG lệnh dưới `src-tauri/src/**`, kèm phép đếm ĐÃ ĐO — một dây bẫy, KHÔNG
 /// phải một lập luận an toàn.**
 ///
-/// Đếm lại trên cây đã sửa, 2026-09-15 (AI-4), sau lượt lật sáu vỏ của `project.rs`:
-/// **53 plain / 26 async** trên **mười một** tệp. `commands/mod.rs` khai **mười** `pub mod`
-/// và KHÔNG mang lệnh nào, nên nó không có hàng ở đây.
+/// Tổng hiện tại là tổng các cột `plain`/`async` của bảng này, và là con số DUY NHẤT đáng
+/// tin; các dòng CẬP NHẬT bên dưới là nhật ký từng lượt đổi, mỗi dòng đúng tại thời điểm của
+/// nó, không phải tổng hôm nay. `commands/mod.rs` KHÔNG mang lệnh nào nên không có hàng ở đây.
 ///
 /// 🔵 **CẬP NHẬT 2026-09-16 (Story 4.2)** — `commands/aiconfig.rs` MỚI ra đời (ba vỏ, cùng
 /// khuôn `commands/cleanup.rs`: `mod wire` lồng trong CÙNG tệp, không đường `.rs` riêng). Đếm
@@ -1688,9 +1687,9 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 ///
 /// **Cột `why` là một LỜI KHAI CÓ CHỦ, CHƯA ĐO — không phải một phán quyết an toàn (D5).**
 /// Một tệp 0 `(async)` ghi ở đây nghĩa là: *chưa ai đo, và đây là người nhận trách nhiệm đo*.
-/// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment.rs` cố ý để TRỐNG:
-/// chính tệp đó mang một chú thích 🔴 ở `:448-451` nói rằng thời gian CPU trong closure ghi
-/// chặn MỌI lượt ghi khác của tiến trình — một lời khai "nhẹ" ở đây sẽ mâu thuẫn với nó.
+/// Nó KHÔNG nói "các vỏ này an toàn khi chạy đồng bộ". `commands/segment/wire.rs` cố ý để
+/// TRỐNG: `commands/segment/import.rs` mang một chú thích nói rằng thời gian CPU trong
+/// closure ghi chặn MỌI lượt ghi khác của tiến trình — một lời khai "nhẹ" ở đây sẽ mâu thuẫn với nó.
 ///
 /// **Cột `cases` giữ số hàng của tệp đó trong [`blocking_wire_cases`].** Không có nó, xoá một
 /// hàng `cases` đi qua mọi cổng: số `(async)` trong mã nguồn không đổi, nên phép đếm vẫn
@@ -1770,15 +1769,16 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
         3,
         "MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren.",
     ),
-    // `segment.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
-    // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh tep
-    // do mang mot chu thich 🔴 o `:448-451` mau thuan voi bat ky loi khai "nhe" nao.
+    // `segment/wire.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
+    // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh nhom
+    // tep do mang mot chu thich o `segment/import.rs` (thoi gian CPU trong closure ghi chan
+    // MOI luot ghi khac) mau thuan voi bat ky loi khai "nhe" nao.
     // 🔵 SUA 2026-09-21 (Story 4.8, Phase 2) -- 14 → 15: `promote_ai_translation` (vo PLAIN,
     // mot cau `UPDATE` tuc thoi) them vao.
     // `tm_fuzzy_matches` is the one `(async)` shell here: it scans every pair of both TM tiers.
     // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
-    ("src/commands/segment.rs", 17, 2, 2, ""),
+    ("src/commands/segment/wire.rs", 17, 2, 2, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -1849,12 +1849,12 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
         // `segment.rs` la ngoai le DUY NHAT va duoc neu dich danh, de mot ngoai le thu hai
         // phai di qua cho nay.
         if want_async == 0 {
-            let deliberately_empty = rel == "src/commands/segment.rs";
+            let deliberately_empty = rel == "src/commands/segment/wire.rs";
             assert_eq!(
                 why.is_empty(),
                 deliberately_empty,
                 "`{rel}` co 0 `(async)`. D5 doi mot LOI KHAI CO CHU o cot `why` (chua ai do, \
-                 va day la nguoi nhan trach nhiem do) -- tru `src/commands/segment.rs`, co y \
+                 va day la nguoi nhan trach nhiem do) -- tru `src/commands/segment/wire.rs`, co y \
                  de TRONG vi chinh tep do mang chu thich 🔴 mau thuan voi mot loi khai \"nhe\". \
                  Hang nay dang {}.",
                 if why.is_empty() { "TRONG" } else { "co ghi chu" }
