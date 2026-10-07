@@ -3244,6 +3244,7 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
   dòng comment đó. *(Story ghi "7 dòng"; số thật là 6 — đính chính tại chỗ, không đổi kết luận.)* **(Chủ: story kế tiếp dựng export DOCX.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/core/export/mod.rs vẫn 15 dòng toàn doc-comment (không mã); grep docx_rs trong src-tauri/src chỉ trúng hai dòng chú thích, không có lời gọi ghi .docx. **Chủ: Epic 8.**
   → 2026-10-07 (incept Epic 8, Ice duyệt) — lượt ghi `.docx` đầu tiên của Epic 8 là bảng hai cột. Chủ: Story 8.3.
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8-3) — `core/export` có lượt ghi `.docx` đầu tiên: `docx_table.rs` ghi bảng hai cột bằng `docx-rs`, `table_rows.rs` đọc segment qua `segments_in_translation`, `commands/export.rs` gọi hai bước đó và ghi tệp không đè.
 - `src/modes/ReadingMode.vue` — template chỉ có một `<p>` chở `t('mode.reading.status')`.
   Doc-comment tự ghi *"KHUNG RỖNG có chủ ý… toàn bộ thuộc Epic 5"*; `modeState.ts:30` xác nhận
   *"cả ba chế độ đều rỗng"*.
@@ -3253,6 +3254,7 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
 
 ⇒ Vế còn hở là **hai lượt CẮM VÀO chốt đó**: **(Chủ: Epic 5.)**
 - Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
+  → 🟡 2026-10-07 (Story 8-3) — 8.3 là bề mặt xuất đầu tiên gọi chốt: `export_docx_two_column` đi qua `segments_in_translation`, và `export_docx_contract.rs` đỏ khi bỏ phép lọc (3 ca). Còn 8.4 · 8.6. Chủ: Epic 8.
 
 ### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
 
@@ -3396,6 +3398,7 @@ của Epic 8 tham chiếu ngược lại AD-46 ⇒ người viết Story 8.3 đ�
 và xuất ra một tệp mang nhịp của **bản gốc**.
 **Chủ: Epic 8** *(Story 8.3 · 8.4 · 8.6)*.
 → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-46 vào AC của 8.3/8.4/8.6 khi refine; 8.6 là story cuối của ba, đóng mục này khi cả ba đọc cấu trúc đoạn của bản dịch. Chủ: Story 8.6.
+→ 🟡 2026-10-07 (Story 8-3) — 8.3 đã đọc cả hai nguồn cho cột phải: cờ đích `is_target_paragraph_end` thành khoảng cách sau đoạn cuối của ô, ký tự xuống dòng trong `target_text` thành đoạn riêng; đối chứng: thay cờ đích bằng cờ nguồn làm `each_column_takes_its_gap_from_its_own_paragraph_end_flag` đỏ. Còn 8.4 · 8.6. Chủ: Story 8.6.
 
 ### 🟡 Lượt đổi cờ đích bị TỪ CHỐI không có đường ra màn hình
 
@@ -12928,6 +12931,9 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-pham-vi-xuat-plan.md`
   summary: Real-app check of 8-2 not yet run: open Xuất from the title bar, pick a scope, press "Chọn thư mục…" (the OS folder dialog must open without "Not Responding" and cancelling must keep the old folder), Tab through every control, and look at the Word-like block next to a real `.docx` in Word.
   evidence: only a person can see the OS dialog and the Word look in the packaged app; Rust and vitest guards cover counts, warning and contrast arithmetic. Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-bang-hai-cot-theo-segment-plan.md`
+  summary: Real-app check of 8-3 not yet run: export a Work with an omitted segment, an untranslated segment and a multi-paragraph target, then open the `.docx` in Microsoft Word and in LibreOffice (table not broken, one row per segment, empty right cell kept, paragraph gaps visible) and let a reviewer edit one right cell.
+  evidence: only a person can open the file in Word or LibreOffice; `core::docx` reads it back to the same rows and paragraph counts, which says nothing about how either program renders it. Chủ: Epic 8.
 
 ## Deferred from: rà các plan in-progress (2026-10-07)
 
