@@ -291,17 +291,18 @@ pub struct FuzzyPair {
     pub percent: u8,
 }
 
-/// Every pair of both tiers, read once so scoring can run after the caller released its locks.
-pub struct FuzzyCandidates {
+/// Every pair of both tiers, read once so scoring, filtering and sorting can run after the
+/// caller released its locks.
+pub struct TierRows {
     global_rows: Vec<RawPair>,
     work_rows: Option<Vec<RawPair>>,
 }
 
-pub fn load_fuzzy_candidates(
+pub fn load_tier_rows(
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
-) -> Result<FuzzyCandidates, TmStoreError> {
-    Ok(FuzzyCandidates {
+) -> Result<TierRows, TmStoreError> {
+    Ok(TierRows {
         global_rows: load_all_pair_rows(global)?,
         work_rows: work.map(load_all_pair_rows).transpose()?,
     })
@@ -319,13 +320,13 @@ pub fn fuzzy_pairs_for_source(
     lang: crate::core::matching::MatchLang,
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
-    let candidates = load_fuzzy_candidates(global, work)?;
+    let candidates = load_tier_rows(global, work)?;
     rank_fuzzy_candidates(resolver, candidates, source_text, lang, threshold)
 }
 
 pub fn rank_fuzzy_candidates(
     resolver: &crate::core::scope::ScopeResolver,
-    candidates: FuzzyCandidates,
+    candidates: TierRows,
     source_text: &str,
     lang: crate::core::matching::MatchLang,
     threshold: u8,
@@ -344,7 +345,7 @@ pub fn rank_fuzzy_candidates(
 /// can serve many sentences.
 pub fn fuzzy_pairs_in_candidates(
     resolver: &crate::core::scope::ScopeResolver,
-    candidates: &FuzzyCandidates,
+    candidates: &TierRows,
     source_text: &str,
     lang: crate::core::matching::MatchLang,
     threshold: u8,
@@ -370,22 +371,6 @@ pub fn fuzzy_pairs_in_candidates(
 /// Most hits one Concordance search ships; the total is reported beside them.
 pub const CONCORDANCE_HIT_LIMIT: usize = 50;
 
-/// Every pair of both tiers, read once so the substring filter can run after the caller released its locks.
-pub struct ConcordanceCandidates {
-    global_rows: Vec<RawPair>,
-    work_rows: Option<Vec<RawPair>>,
-}
-
-pub fn load_concordance_candidates(
-    global: &crate::core::store::Store,
-    work: Option<&crate::core::store::Store>,
-) -> Result<ConcordanceCandidates, TmStoreError> {
-    Ok(ConcordanceCandidates {
-        global_rows: load_all_pair_rows(global)?,
-        work_rows: work.map(load_all_pair_rows).transpose()?,
-    })
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConcordanceHits {
     /// Both tiers hold zero rows, as opposed to rows that simply do not contain the phrase.
@@ -406,7 +391,7 @@ fn concordance_key(text: &str) -> String {
 /// first in AD-18 order. A blank query hits nothing.
 pub fn rank_concordance(
     resolver: &crate::core::scope::ScopeResolver,
-    candidates: ConcordanceCandidates,
+    candidates: TierRows,
     query: &str,
 ) -> Result<ConcordanceHits, TmStoreError> {
     let tm_empty = candidates.global_rows.is_empty()
@@ -507,23 +492,6 @@ impl PairOriginFilter {
     }
 }
 
-/// Every pair of both tiers, read once so filtering and sorting can run after the caller
-/// released its locks.
-pub struct ManageSnapshot {
-    global_rows: Vec<RawPair>,
-    work_rows: Option<Vec<RawPair>>,
-}
-
-pub fn load_manage_snapshot(
-    global: &crate::core::store::Store,
-    work: Option<&crate::core::store::Store>,
-) -> Result<ManageSnapshot, TmStoreError> {
-    Ok(ManageSnapshot {
-        global_rows: load_all_pair_rows(global)?,
-        work_rows: work.map(load_all_pair_rows).transpose()?,
-    })
-}
-
 /// One list row: identical (source, target) copies collapse into it (Q8). `pair` is the first
 /// copy in AD-18 order, `copies` holds every copy in that order, `pair` included.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -567,7 +535,7 @@ pub struct ManageListing {
 /// substring search over source and target, grouped by exact source text.
 pub fn rank_manage_listing(
     resolver: &crate::core::scope::ScopeResolver,
-    snapshot: ManageSnapshot,
+    snapshot: TierRows,
     tier: TierFilter,
     pair_origin: PairOriginFilter,
     search: &str,

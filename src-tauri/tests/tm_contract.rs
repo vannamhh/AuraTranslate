@@ -1689,7 +1689,7 @@ fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str
 
 fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
     use auratranslate_lib::core::glossary::match_lang_for_source_lang;
-    use auratranslate_lib::core::tm::{load_fuzzy_candidates, rank_fuzzy_candidates};
+    use auratranslate_lib::core::tm::{load_tier_rows, rank_fuzzy_candidates};
     let dir = temp_dir("parity-tm");
     let _guard = DirGuard(dir.clone());
     let global = open_global_db(&dir);
@@ -1698,7 +1698,7 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
         let exact = pairs_for_source(&ScopeResolver::global_only(), &global, None, query);
         return exact.expect("tra chinh xac").len() == 1;
     }
-    let candidates = load_fuzzy_candidates(&global, None).expect("nap ung vien");
+    let candidates = load_tier_rows(&global, None).expect("nap ung vien");
     let ranked = rank_fuzzy_candidates(
         &ScopeResolver::global_only(),
         candidates,

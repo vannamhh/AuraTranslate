@@ -16,8 +16,12 @@ pub fn read_tmx_file(path: &Path) -> Result<String, TmxError> {
     decode_tmx_bytes(&bytes)
 }
 
-/// Writes `contents` to a unique temp file beside `path`, then renames it over `path`.
+/// Writes `contents` to a unique temp file beside `path`, then renames it over `path`. Contents
+/// the importer would refuse (`MAX_TMX_BYTES`) are refused before any file is created.
 pub fn write_tmx_file(path: &Path, contents: &str) -> Result<(), TmxError> {
+    if contents.len() as u64 > MAX_TMX_BYTES {
+        return Err(TmxError::TooLarge { limit: MAX_TMX_BYTES });
+    }
     let failed = |detail: String| TmxError::WriteFailed { detail: format!("{}: {detail}", path.display()) };
     let Some(file_name) = path.file_name() else {
         return Err(failed("no file name".to_owned()));

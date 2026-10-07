@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::tm::{
     PendingTmxImport, PendingTmxImportState, clear_pending_tmx_import_for_work, tm_cancel_import, tm_confirm_global_import, tm_confirm_import,
-    tm_export_tier, tm_export_tier_after_dialog, tm_open_import_preview,
+    tm_export_tier, tm_export_tier_after_dialog, tm_open_import_preview, tm_write_export,
 };
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use auratranslate_lib::core::tm::tmx::{MAX_TMX_BYTES, PlannedPair, TmxError, decode_tmx_bytes, parse_tmx};
@@ -605,6 +605,23 @@ fn a_file_over_the_cap_is_refused_without_being_loaded() {
 
     assert_eq!(err.code(), "tm.tmx_too_large");
     assert_eq!(read_tmx_file(&path), Err(TmxError::TooLarge { limit: MAX_TMX_BYTES }));
+}
+
+#[test]
+fn an_export_over_the_import_cap_is_refused_before_any_file_is_created() {
+    let f = fixture("export-too-large");
+    let path = f.dir.join("big.tmx");
+    let at_cap = "x".repeat(usize::try_from(MAX_TMX_BYTES).unwrap());
+
+    tm_write_export(&path, &at_cap).expect("dung tran thi ghi");
+    assert_eq!(read_tmx_file(&path).map(|t| t.len() as u64), Ok(MAX_TMX_BYTES));
+    fs::remove_file(&path).unwrap();
+
+    let err = tm_write_export(&path, &format!("{at_cap}x")).expect_err("qua tran");
+
+    assert_eq!(err.code(), "tm.tmx_too_large");
+    assert!(fs::read_dir(&f.dir).unwrap().all(|e| e.unwrap().file_name() != "big.tmx"));
+    assert!(fs::read_dir(&f.dir).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().ends_with(".tmp")));
 }
 
 #[test]

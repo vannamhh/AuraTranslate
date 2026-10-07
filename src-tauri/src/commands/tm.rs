@@ -164,7 +164,7 @@ pub struct TmListScan {
     pair_origin: PairOriginFilter,
     search: String,
     resolver: crate::core::scope::ScopeResolver,
-    snapshot: crate::core::tm::ManageSnapshot,
+    snapshot: crate::core::tm::TierRows,
 }
 
 /// Validates the filters and loads every pair of both tiers; no Work open means Global only.
@@ -184,7 +184,7 @@ pub fn prepare_tm_list(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let snapshot = crate::core::tm::load_manage_snapshot(global, open.map(|o| &o.store))
+    let snapshot = crate::core::tm::load_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmListScan { work_open: open.is_some(), tier, pair_origin, search: search.to_owned(), resolver, snapshot })
 }

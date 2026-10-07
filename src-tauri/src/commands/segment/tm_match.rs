@@ -58,7 +58,7 @@ pub struct TmFuzzyScan {
     lang: crate::core::matching::MatchLang,
     threshold: u8,
     resolver: crate::core::scope::ScopeResolver,
-    candidates: crate::core::tm::FuzzyCandidates,
+    candidates: crate::core::tm::TierRows,
 }
 
 pub enum TmFuzzyPrepared {
@@ -123,7 +123,7 @@ pub fn prepare_tm_fuzzy(
     }
 
     let threshold = crate::core::scope::load_global_config(global)?.tm_fuzzy_threshold();
-    let candidates = crate::core::tm::load_fuzzy_candidates(global, Some(&open.store))
+    let candidates = crate::core::tm::load_tier_rows(global, Some(&open.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmFuzzyPrepared::Scan(TmFuzzyScan {
         segment_id,
@@ -210,7 +210,7 @@ pub struct TmConcordance {
 pub struct TmConcordanceScan {
     query: String,
     resolver: crate::core::scope::ScopeResolver,
-    candidates: crate::core::tm::ConcordanceCandidates,
+    candidates: crate::core::tm::TierRows,
 }
 
 /// Loads every pair of both tiers; no Work open means the Global tier only.
@@ -224,7 +224,7 @@ pub fn prepare_tm_concordance(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let candidates = crate::core::tm::load_concordance_candidates(global, open.map(|o| &o.store))
+    let candidates = crate::core::tm::load_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmConcordanceScan { query: query.to_owned(), resolver, candidates })
 }

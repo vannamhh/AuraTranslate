@@ -45,8 +45,8 @@ use crate::core::promptset::{PromptVariable, scan_markers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::Store;
 use crate::core::tm::{
-    FuzzyCandidates, PairSide, SimilarSegment, TmStoreError, TmTier, fuzzy_pairs_in_candidates,
-    load_fuzzy_candidates,
+    PairSide, SimilarSegment, TierRows, TmStoreError, TmTier, fuzzy_pairs_in_candidates,
+    load_tier_rows,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -257,7 +257,7 @@ const TM_REFERENCE_LABEL: &str = "Văn phong tham khảo (bản dịch của ng�
 /// Every TM row of both tiers plus the fuzzy threshold, read once so many sentences can be
 /// scored against one read.
 pub struct TmRows {
-    candidates: FuzzyCandidates,
+    candidates: TierRows,
     threshold: u8,
 }
 
@@ -274,7 +274,7 @@ pub fn load_tm_rows(
     let threshold =
         crate::core::scope::load_global_config(global).map_err(TmStoreError::Store)?.tm_fuzzy_threshold();
     Ok(Some(TmRows {
-        candidates: load_fuzzy_candidates(global, work)?,
+        candidates: load_tier_rows(global, work)?,
         threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
     }))
 }
