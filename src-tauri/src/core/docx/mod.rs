@@ -401,7 +401,7 @@ fn parse_body(xml: &str) -> Result<Vec<BodyItem>, DocxError> {
             Event::Start(e) => {
                 let local = local_name_of(&e);
                 match local.as_str() {
-                    "p" => items.push(BodyItem::Para(parse_paragraph(&mut reader)?)),
+                    "p" => items.push(BodyItem::Para(parse_paragraph(&mut reader, ' ')?)),
                     "tbl" => {
                         let (table, nested) = parse_table(&mut reader)?;
                         items.push(BodyItem::Table(table, nested));
@@ -483,7 +483,7 @@ fn parse_cell(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Res
             Event::Start(e) => {
                 let local = local_name_of(&e);
                 if local == "p" {
-                    paragraphs.push(parse_paragraph(reader)?);
+                    paragraphs.push(parse_paragraph(reader, '\n')?);
                 } else if local == "tbl" {
                     // Recurses, so multi-level nesting is collected too, in document order
                     // (this nested table's own nested tables are already spliced in right
@@ -519,7 +519,7 @@ fn parse_notes_body(xml: &str, note_local: &str) -> Result<Vec<ParaContent>, Doc
                 skip_current = false;
             }
             Event::Start(e) if local_name_of(&e) == "p" => {
-                let para = parse_paragraph(&mut reader)?;
+                let para = parse_paragraph(&mut reader, ' ')?;
                 if !skip_current {
                     paragraphs.push(para);
                 }
@@ -545,7 +545,9 @@ fn paragraph_text_only(para: &ParaContent) -> String {
     out
 }
 
-fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError> {
+// `soft_break` is what `w:br`/`w:cr` read as: a space in running text, `\n` inside table cells
+// so an exported cell keeps its line breaks.
+fn parse_paragraph(reader: &mut Reader<&[u8]>, soft_break: char) -> Result<ParaContent, DocxError> {
     let mut pieces = Vec::new();
     let mut current = String::new();
     loop {
@@ -557,7 +559,7 @@ fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError>
                 match local.as_str() {
                     "t" => current.push_str(&read_element_text(reader)?),
                     "tab" => current.push('\t'),
-                    "br" | "cr" => current.push('\n'),
+                    "br" | "cr" => current.push(soft_break),
                     "drawing" | "pict" => {
                         if let Some(rid) = find_image_rel_id(reader)? {
                             if !current.is_empty() {
@@ -577,7 +579,7 @@ fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError>
                 let local = local_name_of(&e);
                 match local.as_str() {
                     "tab" => current.push('\t'),
-                    "br" | "cr" => current.push('\n'),
+                    "br" | "cr" => current.push(soft_break),
                     "t" => {}
                     _ => {}
                 }

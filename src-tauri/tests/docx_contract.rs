@@ -45,6 +45,13 @@ fn write_docx(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
 
 /// Ma trận I/O — "Văn bản thường".
 #[test]
+fn a_soft_break_in_a_body_paragraph_reads_as_a_space_not_a_newline() {
+    let parsed = read_docx(&fixtures_docx::soft_break_in_body_paragraph()).expect("doc fixture that bai");
+
+    assert_eq!(parsed.text, "Dong mot dong hai");
+}
+
+#[test]
 fn plain_docx_yields_the_expected_paragraph_text_and_zero_tables_or_images() {
     let bytes = fixtures_docx::plain();
     let parsed = read_docx(&bytes).expect("doc fixture plain that bai");

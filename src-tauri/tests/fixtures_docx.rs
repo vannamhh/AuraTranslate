@@ -55,6 +55,13 @@ pub fn plain() -> Vec<u8> {
     )
 }
 
+/// **`soft_break_in_body_paragraph`** — one body paragraph (no table) holding a soft line break.
+pub fn soft_break_in_body_paragraph() -> Vec<u8> {
+    pack(Docx::new().add_paragraph(Paragraph::new().add_run(
+        Run::new().add_text("Dong mot").add_break(docx_rs::BreakType::TextWrapping).add_text("dong hai"),
+    )))
+}
+
 /// **`table_two_columns`** — bảng 2 hàng × 2 cột. Ô `(0, 0)` mang HAI CÂU trong CÙNG một
 /// đoạn (ca "Ô nhiều câu" của Ma trận I/O — xem doc-comment đầu tệp); ba ô còn lại mang một
 /// câu đơn để phép đếm (rows=2, cells_per_row=[2,2], paragraphs_per_cell=[[1,1],[1,1]]) không
