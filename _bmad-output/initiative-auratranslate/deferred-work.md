@@ -70,6 +70,7 @@
   - **AC7** — thời gian tường + phút tính phí, cache lạnh và cache nóng, cả hai nền tảng. ⚠️ Rủi ro đã biết: job biên dịch Rust **hai profile** (`dev` cho AC8, `release` cho AC1/AC6) và dựng **ba** bản `.msi`; trên macOS hệ số ×10.
   - **Task 11 hàng 4** — `#[cfg(windows)] compile_error!` phải làm **chỉ** job Windows đỏ trong khi macOS **vẫn xanh** (phép kiểm của `fail-fast: false` và của AC1 *"tách bạch"*). Ba hàng còn lại đã nghiệm thu tại chỗ.
   - **AC3 / Task 4** — mệnh đề *rào biên dịch C của `zstd-sys` · `libsqlite3-sys` · `aws-lc-sys` biến mất trên `windows-2025`* mới là **kỳ vọng đọc từ tài liệu**, chưa ai đo. Cùng chỗ: WiX v3 — mũi thăm dò nói *"Tauri CLI tự tải lần build đầu"*, tài liệu Tauri nói phải cài sẵn; **hai nguồn nói khác nhau**, lượt chạy đầu phân xử. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
+    → 🟡 2026-10-07 (Story 1.3) — cùng bốn phép như mục §Story 1.3 dưới (dòng *"Bốn phép nghiệm thu runner của Story 1.3 vẫn CHƯA ĐỌC"*): hai phép đã đóng, AC7 còn ô `macos-26` cache lạnh, AC6 còn ba số `.msi`. **Chủ: B7 — bảng nghiệm thu Windows, chủ Ice.**
 
 ## Deferred from: code review of 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)
 
@@ -1515,12 +1516,14 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   bước *"check scope chiều âm (chế độ dev — 403 thật)"* **XANH**. 🔴 **Chưa đóng trọn:**
   cùng bước đó trên `windows-2025` chưa từng chạy tới (job chết ở `cargo test` trước đó).
   Đóng khi có một lượt Windows xanh. **Chủ: Story 1.3.**
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 1.3) — run 37446210896, job `windows-2025`: `check:scope` chiều âm `[PASS] out-of-scope: C:\Windows\win.ini — denied with HTTP 403`, `check:scope:bundled` `VERDICT: PASS`.
 
 - 🔴 **Bốn phép nghiệm thu runner của Story 1.3 vẫn CHƯA ĐỌC, và nay chúng đã hết lý do.**
   AC6 (ba số `.msi` + hai dòng NFR6) · AC7 (thời gian tường + phút tính phí, cache lạnh và
   nóng) · Task 11 hàng 4 (`#[cfg(windows)] compile_error!` làm CHỈ job Windows đỏ) ·
   AC3/Task 4 (rào biên dịch C và WiX v3 trên `windows-2025` — hai nguồn tài liệu nói khác
   nhau). Cả bốn nằm sau đúng một lượt Windows xanh. **Chủ: Story 1.3.**
+  → 🟡 2026-10-07 (Story 1.3) — đã đọc trên run 37446210896 và run dò 37572393449: AC3/Task 4 (WiX v3.14 do `tauri-cli` tự tải), Task 11 hàng 4 (chỉ Windows đỏ) và AC7 trừ một ô đã đóng, số ở §Nghiệm thu runner — đọc 2026-10-07 của plan 1.3. Còn: ba số `.msi` của AC6 (step summary chỉ hiện khi đăng nhập GitHub) và lượt `macos-26` cache lạnh của AC7. **Chủ: Story 1.3.**
 
 - ⚠️ **Nợ nghiệm thu thị giác của Epic 1 có HỆ SỐ NHÂN, không phải hằng số.** Mọi bản vá
   tầng DOM đều không đo được bằng bộ cổng hiện có (cổng nạp mã bằng Node thuần — không
@@ -12883,3 +12886,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
   summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
   evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.
+
+## Deferred from: rà các plan in-progress (2026-10-07)
+
+- 🔴 **`store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` vẫn đỏ trên CI: 7/17 lượt CI đỏ từ 2026-09-16 tới 2026-10-06 là ca này.** Lượt push `9d5e27c` (run 37489737293) đỏ cả `macos-26` lẫn `windows-2025`; lượt lịch đêm cùng commit (37539268051) xanh. Mệnh đề *có trần* xanh, mệnh đề *chững lại* đỏ: Windows **+832.240 B, cùng một con số ở ba lượt** (37489737293 · 36934046809 · 35943564794) nên có thể không phải biến động nhịp; macOS +4.120 B và +20.600 B. Bốn lượt đỏ còn lại: 35658307292 · 35534874121 · 35390781942 · 35148735115; thêm 36059125872 đỏ ở ca cùng họ `an_idle_pause_triggers_one_passive_checkpoint`.
+  Vì sao đáng giữ: mục *"hồi quy của tầng Store, hay biến động runner?"* ở trên đóng bằng cảnh báo pre-push, không đo nguyên nhân; một cổng đỏ khoảng mỗi tuần một lần dạy người đọc bỏ qua màu đỏ, và lượt đỏ thật của tầng Store sẽ lẫn vào.
+  Chủ: Ice — chọn đo nguyên nhân (`walRestartLog` theo nhịp runner, con số Windows lặp lại) hay đổi hình dạng mệnh đề; không nới dung sai theo phản xạ (thông điệp assert của ca đã dặn).
