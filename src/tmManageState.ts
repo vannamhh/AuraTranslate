@@ -230,6 +230,7 @@ export function setTmManageExchangeTier(value: TmManageTier): void {
   if (value === 'work' && !tmManageWorkOpen.value) return
   exchangeTierState.value = value
   exportedPath.value = null
+  exportLeftOutCount.value = 0
   importDone.value = null
   exportError.value = null
   exportIpcUnavailable.value = false
@@ -243,6 +244,7 @@ export async function exportTmManageTier(): Promise<void> {
   exportError.value = null
   exportIpcUnavailable.value = false
   exportedPath.value = null
+  exportLeftOutCount.value = 0
   importDone.value = null
   const mySession = session
 
@@ -301,6 +303,7 @@ export function resetTmManage(): void {
   exportError.value = null
   exportIpcUnavailable.value = false
   exportedPath.value = null
+  exportLeftOutCount.value = 0
   importDone.value = null
   resetGlossaryExchangeGate()
 }
