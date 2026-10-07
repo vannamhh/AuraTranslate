@@ -164,6 +164,10 @@ const EXPECTED_COLORS_LIGHT = {
   'diff-add-ink': '#3f5b34',
   'diff-del-bg': '#f7e6e3',
   'diff-del-ink': '#8f2f22',
+  'word-page': '#ffffff',
+  'word-ink': '#1a1a1a',
+  'word-rule': '#767676',
+  'word-header-fill': '#e7e6e6',
 }
 
 const EXPECTED_COLORS_DARK = {
@@ -189,6 +193,10 @@ const EXPECTED_COLORS_DARK = {
   'diff-add-ink': '#a9c99a',
   'diff-del-bg': '#3e2824',
   'diff-del-ink': '#e5867a',
+  'word-page': '#ffffff',
+  'word-ink': '#1a1a1a',
+  'word-rule': '#767676',
+  'word-header-fill': '#e7e6e6',
 }
 
 /** Cỡ / giãn dòng / nét / kiểu / giãn chữ — nguyên văn §Bảng token typography. */
@@ -281,7 +289,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 21, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 25, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`

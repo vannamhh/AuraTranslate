@@ -37,22 +37,6 @@ const scopeChoices: readonly { kind: ExportScopeKind; labelKey: string }[] = [
   { kind: 'work', labelKey: 'export.scope.work' },
 ]
 
-// Word mock: hard-coded paper colours on purpose, so the block shows what the reviewer sees in
-// Word and not the app's paper tokens. Every pair is WCAG AA (text >= 4.5:1, rules >= 3:1).
-/* aura-allow-literal: Word page white; ink on it is 17:1 */
-const WORD_PAGE = '#ffffff'
-/* aura-allow-literal: Word body ink on white, 17:1 */
-const WORD_INK = '#1a1a1a'
-/* aura-allow-literal: Word rules and page edge, 4.5:1 against white */
-const WORD_RULE = '#767676'
-/* aura-allow-literal: Word table header fill; ink on it is 13:1 */
-const WORD_HEADER_FILL = '#e7e6e6'
-
-const wordPageStyle = { backgroundColor: WORD_PAGE, border: `1px solid ${WORD_RULE}` }
-const wordTableStyle = { color: WORD_INK }
-const wordCellStyle = { border: `1px solid ${WORD_RULE}` }
-const wordHeadStyle = { border: `1px solid ${WORD_RULE}`, backgroundColor: WORD_HEADER_FILL }
-
 const listVisible = computed(() => exportScopeKind.value !== 'work')
 
 function chapterLabel(row: ChapterRow): string {
@@ -211,18 +195,18 @@ function trapTab(event: KeyboardEvent): void {
         <section class="ex-preview" aria-labelledby="ex-preview-title">
           <h3 id="ex-preview-title" class="ex-legend">{{ t('export.preview.heading') }}</h3>
           <p class="ex-note">{{ t('export.preview.note') }}</p>
-          <div class="ex-word" data-export-word-preview :style="wordPageStyle">
-            <table class="ex-word-table" :style="wordTableStyle">
+          <div class="ex-word" data-export-word-preview>
+            <table class="ex-word-table">
               <thead>
                 <tr>
-                  <th :style="wordHeadStyle">{{ t('export.preview.source_header') }}</th>
-                  <th :style="wordHeadStyle">{{ t('export.preview.target_header') }}</th>
+                  <th>{{ t('export.preview.source_header') }}</th>
+                  <th>{{ t('export.preview.target_header') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td :style="wordCellStyle">{{ t('export.preview.source_sample') }}</td>
-                  <td :style="wordCellStyle">{{ t('export.preview.target_sample') }}</td>
+                  <td>{{ t('export.preview.source_sample') }}</td>
+                  <td>{{ t('export.preview.target_sample') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -380,6 +364,8 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-word {
   padding: calc(var(--space-unit) * 4);
+  background-color: var(--color-word-page);
+  border: 1px solid var(--color-word-rule);
 }
 
 .ex-word-table {
@@ -387,13 +373,19 @@ function trapTab(event: KeyboardEvent): void {
   border-collapse: collapse;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-sm);
+  color: var(--color-word-ink);
 }
 
 .ex-word-table th,
 .ex-word-table td {
+  border: 1px solid var(--color-word-rule);
   padding: calc(var(--space-unit) * 2);
   text-align: left;
   vertical-align: top;
+}
+
+.ex-word-table th {
+  background-color: var(--color-word-header-fill);
 }
 </style>
 

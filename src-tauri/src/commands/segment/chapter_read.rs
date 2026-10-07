@@ -1,4 +1,5 @@
 use super::*;
+use crate::core::segment::omit::IN_TRANSLATION_SQL;
 
 /// Một hàng `segment` đi ra qua dây — Story 2.2, AC13.
 ///
@@ -507,11 +508,11 @@ fn fill_exact_tm_matches(
 ) -> Result<Vec<i64>, IpcError> {
     let chapter_id = open.chapter_id;
     let candidates: Vec<(i64, String)> = open.store.read(move |conn| {
-        let mut stmt = conn.prepare(
+        let mut stmt = conn.prepare(&format!(
             "SELECT id, source_text FROM segment \
-             WHERE chapter_id = ?1 AND retired_at IS NULL AND is_omitted = 0 AND status = ?2 \
-             ORDER BY ord, id",
-        )?;
+             WHERE chapter_id = ?1 AND retired_at IS NULL AND {IN_TRANSLATION_SQL} AND status = ?2 \
+             ORDER BY ord, id"
+        ))?;
         let rows = stmt
             .query_map((chapter_id, SEGMENT_STATUS_DRAFT), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
@@ -547,8 +548,10 @@ fn fill_exact_tm_matches(
         let mut filled = Vec::new();
         for (id, target, pair_origin) in &picks {
             let still_eligible: bool = tx.query_row(
-                "SELECT status = ?2 AND trim(target_text) = '' AND is_omitted = 0 \
-                 AND retired_at IS NULL FROM segment WHERE id = ?1",
+                &format!(
+                    "SELECT status = ?2 AND trim(target_text) = '' AND {IN_TRANSLATION_SQL} \
+                     AND retired_at IS NULL FROM segment WHERE id = ?1"
+                ),
                 (id, SEGMENT_STATUS_DRAFT),
                 |row| row.get(0),
             )?;

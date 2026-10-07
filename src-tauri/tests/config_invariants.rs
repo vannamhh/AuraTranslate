@@ -1164,7 +1164,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
              dien con bam/go duoc suot luot tren mot thu vien lon",
         ),
         (
-            "src/commands/chapter.rs",
+            "src/commands/export.rs",
             "pub fn export_choose_folder(app: tauri::AppHandle",
             "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
         ),
@@ -1701,7 +1701,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 17] = [
     (
         "src/commands/aiconfig.rs",
         2,
@@ -1732,7 +1732,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
          `#[tauri::command]` tran (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong \
          bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau.",
     ),
-    ("src/commands/chapter.rs", 5, 6, 6, ""),
+    ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
         "src/commands/cleanup.rs",
         5,
@@ -1756,6 +1756,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
         "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
+    ("src/commands/export.rs", 1, 1, 1, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),

@@ -44,8 +44,8 @@ context: []
 
 ## Code Map
 
-- `src-tauri/src/core/export/mod.rs` -- `ExportScope`, `resolve_chapter_ids`, `count_scope`; 8.3-8.7 gọi lại hai hàm này.
-- `src-tauri/src/commands/chapter.rs` -- hàm thuần `export_scope_summary`, `export_folder_from_dialog` và hai vỏ `wire` (vỏ chọn thư mục là `(async)`).
+- `src-tauri/src/core/export/scope.rs` -- `ExportScope`, `resolve_chapter_ids`, `count_scope` (`mod.rs` chỉ `pub use`); 8.3-8.7 gọi lại hai hàm này.
+- `src-tauri/src/commands/export.rs` -- hàm thuần `export_scope_summary`, `export_folder_from_dialog` và hai vỏ `wire` (vỏ chọn thư mục là `(async)`).
 - `src-tauri/src/core/i18n/mod.rs`, `src/i18n/vi.json` -- khoá `err.export.*`, `export.*`, `command.export.*`.
 - `src/config/export.ts` -- adapter IPC không ném lỗi.
 - `src/exportState.ts`, `src/ExportOverlay.vue`, `src/exportCommandDeps.ts` -- trạng thái và lớp phủ; mẫu: `tmImportState.ts` + `TmImportOverlay.vue`.
@@ -70,19 +70,21 @@ context: []
 
 ## Implementation Notes
 
-- Rust để trong hai tệp có sẵn (`core/export/mod.rs`, `commands/chapter.rs`), không tệp mới: mỗi tệp `.rs` mới làm 19 test sàn quần thể (`*_boundary.rs`) đỏ vì sàn 84 < 80% của 107 tệp. Đo: thêm 2 tệp ⇒ 19 target đỏ, thêm 0 ⇒ xanh. Xem Open Questions.
-- Phép đếm lọc `retired_at IS NULL AND is_omitted = 0` bằng SQL, một bản sao thứ hai của vị từ trong `core::segment::omit` (FR133); `export_contract.rs` canh nó (gỡ `is_omitted = 0` ⇒ 2 ca đỏ).
+- Rust nằm trong tệp riêng theo trách nhiệm (`core/export/scope.rs`, `commands/export.rs`) theo quyết định của Ice; hai tệp mới không làm sàn `.rs` nào đỏ (cây 116 tệp, sàn 97), còn `check:doc-refs` `FILE_FLOOR` 421→451 vì quần thể 530 tệp.
+- Phép đếm lọc `retired_at IS NULL` và hằng `core::segment::omit::IN_TRANSLATION_SQL` (một bản SQL của vị từ FR133, dùng cả ở `chapter_read.rs`); `export_contract.rs` đối chiếu số đếm SQL với `count_in_translation` (đặt hằng thành `1 = 1` ⇒ 3 ca đỏ).
 - "Chưa xác nhận" = `status <> 'confirmed'` trong số câu được đếm. Chọn rỗng là lỗi có tên `export.scope_empty`, không phải số 0.
 - Hộp thoại thư mục dùng `blocking_pick_folder()` trong vỏ `(async)`, thêm một hàng vào `blocking_wire_cases`; `capabilities/main.json` không đổi.
 - Màn hình chưa có nút xuất và chưa có chọn định dạng; `currentExportScope()` trong `exportState.ts` và `exportFolder` là chỗ 8.3-8.7 cắm vào.
-- Khối Word: màu viết cứng là hằng trong `<script>` kèm `aura-allow-literal` có lý do, gắn bằng `:style`. CSS không có đường miễn trừ có tên cho `color`/`background-color` ở `check-tokens` Kiểm B, nên không đặt hex trong `<style>`. Tỉ lệ tương phản được test tính từ chính hằng đó.
+- Khối Word dùng họ vai `word-text`/`word-fill`/`word-stroke` trong `tokens.json` (`word-page` `#ffffff`, `word-ink` `#1a1a1a`, `word-rule` `#767676`, `word-header-fill` `#e7e6e6`), cùng giá trị hai theme, ba cặp trong `contrast.pairs` (17,40 · 13,97 · 4,54); màu qua `var(--color-word-*)` trong CSS, không `:style`, không `aura-allow-literal`. Hạ `word-rule` xuống `#aaaaaa` ⇒ `check:tokens` đỏ vì 2,323:1 dưới sàn 4,5.
 - Sàn quần thể frontend phải nâng vì 4 tệp mới: `check-tokens.mjs` FILE_FLOOR 106→115, `check-commands.mjs` TS_FLOOR 75→82, `check-panel-refs.mjs` FILE_FLOOR 75→82; `trapTab` khai vào `HANDLER_TABLE`.
 
 ## Open Questions
 
-1. Sàn quần thể Rust: (A) thêm tệp `.rs` riêng cho phạm vi xuất và nâng 19 sàn `*_boundary.rs` + `config_invariants.rs` lên 91 (đo: 107 tệp, sàn 84 đỏ ở 19 target; câu lệnh báo sẵn `ceil(0.85 x live)`), hay (B) giữ hiện trạng, gộp vào tệp có sẵn. Đã chọn B tạm vì đảo ngược rẻ và story 8.16 song song cũng sẽ chạm đúng các dòng sàn đó (xung đột merge). Ice quyết.
+1. Đã giải quyết: chọn (A), tệp riêng; xem Plan Change Log.
 
 ## Plan Change Log
+
+- Ice chốt: mã vào tệp `.rs` riêng và nâng sàn cùng lượt; màu khối Word thành token (vai `word-*`) thay cho hằng có miễn trừ; vị từ SQL một bản ở `omit.rs`. Ràng buộc "Always" và AC khối Word ở phần đóng băng nói về hằng có miễn trừ: nay được thoả bằng token đạt AA, `aura-allow-*` không còn dùng. Nợ real-app của 8-2 giữ nguyên.
 
 ## Review Triage Log
 

@@ -44,6 +44,7 @@ pub mod chapter;
 pub mod cleanup;
 pub mod config;
 pub mod dict;
+pub mod export;
 pub mod glossary;
 pub mod library;
 pub mod lifecycle;

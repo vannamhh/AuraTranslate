@@ -71,6 +71,10 @@ pub fn segments_in_translation(segments: &[ChapterSegment]) -> Vec<&ChapterSegme
     segments.iter().filter(|s| !s.is_omitted).collect()
 }
 
+/// Bản SQL của vị từ trong [`segments_in_translation`], cho phép đếm hoặc lọc ngay trong truy
+/// vấn mà không nạp văn bản. Không lọc `retired_at`, cùng lý do như hàm Rust.
+pub const IN_TRANSLATION_SQL: &str = "is_omitted = 0";
+
 /// Số câu **thuộc bản dịch** — cùng vị từ với [`segments_in_translation`], không một phép
 /// đếm thứ hai.
 ///

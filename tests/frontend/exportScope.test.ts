@@ -270,38 +270,26 @@ describe('keyboard', () => {
 describe('Word-like preview', () => {
   const source = readFileSync(resolve(__dirname, '../../src/ExportOverlay.vue'), 'utf8')
 
-  function constant(name: string): string {
-    const m = new RegExp(`const ${name} = '(#[0-9a-f]{6})'`).exec(source)
-    if (m === null) throw new Error(`${name} not found in ExportOverlay.vue`)
-    return m[1]
+  const tokens = JSON.parse(readFileSync(resolve(__dirname, '../../src/tokens/tokens.json'), 'utf8')) as {
+    colors: { light: Record<string, string>; dark: Record<string, string> }
+    contrast: { pairs: { fg: string; bg: string }[] }
   }
+  const wordTokens = ['word-page', 'word-ink', 'word-rule', 'word-header-fill']
 
-  function luminance(hex: string): number {
-    const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-    const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-  }
-
-  function ratio(a: string, b: string): number {
-    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-    return (hi + 0.05) / (lo + 0.05)
-  }
-
-  it('uses its own hard-coded paper colours, each constant carrying a named reason', () => {
-    for (const name of ['WORD_PAGE', 'WORD_INK', 'WORD_RULE', 'WORD_HEADER_FILL']) {
-      expect(source).toMatch(new RegExp(`aura-allow-literal: [^*]+\\*/\\nconst ${name} = '#`))
-    }
+  it('takes every colour from the word-* role tokens, with no literal and no inline style', () => {
+    for (const name of wordTokens) expect(source).toContain(`var(--color-${name})`)
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(source).not.toContain('aura-allow-literal')
+    expect(source).not.toMatch(/:style=/)
     expect(source).toContain('data-export-word-preview')
   })
 
-  it('keeps every text and line pair at WCAG AA', () => {
-    const page = constant('WORD_PAGE')
-    const ink = constant('WORD_INK')
-    const rule = constant('WORD_RULE')
-    const header = constant('WORD_HEADER_FILL')
-    expect(ratio(ink, page)).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(ink, header)).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(rule, page)).toBeGreaterThanOrEqual(3)
+  it('keeps the word-* tokens identical in both themes and declares their contrast pairs', () => {
+    for (const name of wordTokens) expect(tokens.colors.dark[name]).toBe(tokens.colors.light[name])
+    const declared = tokens.contrast.pairs.map((p) => `${p.fg}|${p.bg}`)
+    for (const pair of ['word-ink|word-page', 'word-ink|word-header-fill', 'word-rule|word-page']) {
+      expect(declared).toContain(pair)
+    }
   })
 
   it('renders a two-column table with a header row for the file shape', async () => {

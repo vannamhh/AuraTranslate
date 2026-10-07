@@ -1104,8 +1104,8 @@ pub fn run() {
             // sach KHONG mang `source_text`; `open_chapter` doi con tro SAU khi truy van
             // thanh cong, dung khuon `open_adjacent_chapter`.
             crate::commands::chapter::wire::list_chapters,
-            crate::commands::chapter::wire::export_scope_summary,
-            crate::commands::chapter::wire::export_choose_folder,
+            crate::commands::export::wire::export_scope_summary,
+            crate::commands::export::wire::export_choose_folder,
             crate::commands::chapter::wire::open_chapter,
             // Story 5.8 -- "To chuc lai Chuong sau khi nhap" (FR15, AD-32). Bon vo, ca bon
             // `(async)` -- buoc 4 quet toan bo thu muc goc Library, xem doc-comment cua

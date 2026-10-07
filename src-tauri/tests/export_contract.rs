@@ -4,10 +4,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::chapter::{export_folder_from_dialog, export_scope_summary};
+use auratranslate_lib::commands::export::{export_folder_from_dialog, export_scope_summary};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::export::ExportScope;
+use auratranslate_lib::commands::segment::read_open_chapter_segments;
 use auratranslate_lib::core::i18n::MessageKey;
+use auratranslate_lib::core::segment::omit::count_in_translation;
 use auratranslate_lib::core::store::Transaction;
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -96,6 +98,20 @@ fn the_whole_work_counts_every_chapter_and_only_live_non_omitted_segments() {
     assert_eq!(counts.chapter_count, 2);
     assert_eq!(counts.segment_count, 5, "bo cau bi cat bo va cau ve huu");
     assert_eq!(counts.unconfirmed_count, 2);
+    f.finish();
+}
+
+#[test]
+fn the_sql_count_equals_the_rust_predicate_on_omitted_and_retired_segments() {
+    let f = fixture("predicate");
+    let loaded = read_open_chapter_segments(Some(&f.open)).expect("nap Chuong that bai");
+    assert!(loaded.segments.iter().any(|s| s.is_omitted), "fixture phai co cau bi cat bo");
+    let counts = export_scope_summary(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![f.first] })
+        .expect("dem that bai");
+    assert_eq!(
+        usize::try_from(counts.segment_count).expect("so am"),
+        count_in_translation(&loaded.segments)
+    );
     f.finish();
 }
 
