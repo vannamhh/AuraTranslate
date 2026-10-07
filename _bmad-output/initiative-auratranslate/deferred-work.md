@@ -12944,3 +12944,7 @@ chính nó.
   summary: Refuse characters XML 1.0 cannot represent (below 0x20 except tab, LF, CR; U+FFFE, U+FFFF) when a pair enters a TM tier, so no stored pair is one the TMX export must leave out.
   evidence: Story 8.17 leaves such pairs out of the export and counts them (Ice, option A); this is the option D that was split off. Entry paths: segment confirm, `push_copies_to_global`, TMX import.
   Chủ: Ice.
+- source_spec: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md`
+  summary: `e2e/specs/hanviet-segmenter-webkit.e2e.mjs` case ② is red on Ice's Mac: both syllables of the fixture word read `·` (no Hán Việt reading), so the U+2060 clause is never reached; cases ① and ③ are green.
+  evidence: same red on `adb934f` (twice) and on `9d5e27c` (pre-Epic 8, fresh worktree) with WebKit 605.1.15, macOS 15.8.1, 2026-10-08; CI nightly `37539268051` at `9d5e27c` green. Ruled out: Epic 8 commits (none touch the Hán Việt path), user config (wdio gives a temp `$APPDATA`), dictionary files (sha256 equal `dict-manifest.toml`). Cause not found; not an Epic 8 regression.
+  Chủ: Ice.
