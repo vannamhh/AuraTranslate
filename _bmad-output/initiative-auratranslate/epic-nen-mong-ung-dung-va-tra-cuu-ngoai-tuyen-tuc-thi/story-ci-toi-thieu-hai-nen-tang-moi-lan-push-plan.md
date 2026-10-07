@@ -11,7 +11,7 @@ Status: in-progress
 
 > **Đã qua một lượt code review 2026-08-03** (ba lớp song song, xem §Review Findings). 16 bản vá đã áp và đã nghiệm thu đỏ-rồi-xanh tại máy; 4 quyết định của Ice đã ghi. **Story vẫn `in-progress`, không lên `review`** — cùng lý do như trước lượt rà soát: AC6, AC7, Task 11 hàng 4 và AC3/Task 4 đều cần một lượt runner thật, và nay thêm hai thứ nữa chỉ runner mới trả lời được: bước `check:scope` mới của D1 có mở được webview trên `macos-26`/`windows-2025` không, và trạng thái cuối của AC8 (D2) phụ thuộc chính câu trả lời đó.
 >
-> 🔵 **2026-10-07:** đã đọc trên runner AC3/Task 4, Task 11 hàng 4, AC8 hai nền tảng và phần lớn AC7 (§Nghiệm thu runner — đọc 2026-10-07). Story vẫn `in-progress` vì còn hai chỗ: ba số `.msi` của AC6/NFR6 chỉ đọc được khi đăng nhập GitHub (chờ Ice chép), và chưa có lượt `macos-26` cache lạnh cho AC7.
+> 🔵 **2026-10-07:** đã đọc trên runner AC3/Task 4, Task 11 hàng 4, AC8 hai nền tảng và phần lớn AC7 (§Nghiệm thu runner — đọc 2026-10-07). Ice chép ba số `.msi` cùng ngày, nên AC6/NFR6 đã đóng. Story vẫn `in-progress` vì còn đúng một ô: chưa có lượt `macos-26` cache lạnh cho AC7.
 
 Epic: 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
 Covers: NFR14 · NFR15 · **NFR6** *(nửa Windows — bàn giao từ Story 1.1, 2026-08-03)* · lưới an toàn cho AC6 của Story 1.2 · **bốn mục Deferred của code review Story 1.2** *(xem `deferred-work.md:13-14`)*
@@ -133,7 +133,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] **Không** upload artifact lên GitHub Release, **không** sinh checksum SHA-256, **không** đụng `dict-manifest.toml` (AC5). Dùng `actions/upload-artifact` để giữ `.msi`/`.dmg` cho lượt rà soát thì được — đó là artifact của lượt chạy, không phải bản phát hành.
   - [x] `cargo check --target x86_64-pc-windows-msvc` mà Story 1.2 **không chạy được trên máy Ice** nay đóng ở đây, dưới dạng `cargo test` + `tauri build` chạy **native** trên runner Windows. `windows-2025` có sẵn VS 2022 Build Tools nên rào biên dịch C của ba crate (`zstd-sys`, `libsqlite3-sys`, `aws-lc-sys`) **không còn**. Ghi xác nhận vào Completion Notes.
 
-- [ ] **Task 5 — Hai phép đo `.msi`, và chiều trừ đã ĐẢO** (AC: 6, 7)
+- [x] **Task 5 — Hai phép đo `.msi`, và chiều trừ đã ĐẢO** (AC: 6, 7)
   - [x] Tạo **`src-tauri/tauri.nofonts.conf.json`** chứa **đúng** nội dung:
     ```json
     { "bundle": { "resources": null } }
@@ -145,11 +145,11 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] ⚠️ **Hai lệnh ghi ra CÙNG một đường dẫn** `src-tauri/target/release/bundle/msi/*.msi`. Đọc và ghi lại số của bản thứ nhất **trước khi** chạy lệnh thứ hai.
   - [x] Chạy **cả hai bản trong cùng một job** — biên dịch Rust dùng chung, bản thứ hai chỉ tốn khâu đóng gói. Chạy hai job riêng là trả tiền biên dịch hai lần cho đúng một số đo (AC7).
   - [x] Đọc dung lượng bằng `(Get-Item "src-tauri\target\release\bundle\msi\*.msi").Length` (PowerShell) hoặc tương đương trong Node. In **byte**, không in "MB làm tròn".
-  - [ ] Đối chiếu chênh lệch với dải **16,0–20,3 MiB**. **Rơi NGOÀI dải mới là phát hiện đáng ghi** — khi đó xem lại mức nén CAB mà Tauri đặt cho WiX (`MSZIP` vs `LZX`), thứ chưa xác minh được từ macOS.
+  - [x] Đối chiếu chênh lệch với dải **16,0–20,3 MiB**. **Rơi NGOÀI dải mới là phát hiện đáng ghi** — khi đó xem lại mức nén CAB mà Tauri đặt cho WiX (`MSZIP` vs `LZX`), thứ chưa xác minh được từ macOS.
   - [x] Ghi kèm: chế độ WebView2 **đang dùng thật** (đọc từ `tauri.conf.json`, đừng chép từ tài liệu), `rustc --version`, `npx tauri --version`, nhãn ảnh runner. Tất cả vào `$GITHUB_STEP_SUMMARY` để đọc được mà không phải mở log.
   - [x] **Đừng đổi `webviewInstallMode` để số đẹp lại.** Ice đã chốt `offlineInstaller` ngày 2026-08-03 sau khi cân với lời hứa *"fully offline"*. Nhiệm vụ của story này là **đo và báo cáo**, xem Task 6.
 
-- [ ] **Task 6 — NFR6: tách hai dòng, đối chiếu đúng một dòng** (AC: 6)
+- [x] **Task 6 — NFR6: tách hai dòng, đối chiếu đúng một dòng** (AC: 6)
   - [x] Ghi **dung lượng tuyệt đối** của `.msi` bản có font, không chỉ chênh lệch.
   - [x] **Tách con số đó làm hai dòng** — đây là hình dạng nghiệm thu mà NFR6 sửa ngày 2026-08-03 đòi:
     | Dòng | Gồm gì | Đối chiếu trần? |
@@ -158,7 +158,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
     | **WebView2 Runtime nhúng** | phần `offlineInstaller` nhúng vào, ≈ 127 MB | **Không** — chỉ ghi ra |
   - [x] **Tách bằng phép trừ, không bằng ước lượng, nếu làm được rẻ:** một bản `.msi` thứ ba dựng với `webviewInstallMode = downloadBootstrapper` (qua `--config`, giống hệt cách Task 5 dựng bản không font) trừ khỏi bản chính cho ra **đúng** phần runtime nhúng. Biên dịch đã dùng chung, bản thứ ba chỉ tốn khâu đóng gói. Nếu không làm được thì dùng ≈ 127 MB của tài liệu Tauri và **ghi rõ đó là số mượn từ tài liệu, không phải số đo** — đúng tinh thần cột ✓/⚠️ mà Story 1.2 đưa vào bảng Stack.
   - [x] **Không** sửa `webviewInstallMode` trong `tauri.conf.json`. Cấu hình trong repo giữ nguyên `offlineInstaller`; bản thứ ba chỉ tồn tại trong một lượt đo.
-  - [ ] Kết luận NFR6 vào Completion Notes theo khuôn Story 1.1: **payload** vượt trần ⇒ **thay đổi tầng PRD cần Ice quyết**. **Runtime nhúng vượt bao nhiêu cũng KHÔNG phải vi phạm NFR6** — Ice đã đưa nó ra ngoài ngân sách ngày 2026-08-03, và `prd.md` §7.2 + `epics.md` §NFR6 đã ghi thành chữ.
+  - [x] Kết luận NFR6 vào Completion Notes theo khuôn Story 1.1: **payload** vượt trần ⇒ **thay đổi tầng PRD cần Ice quyết**. **Runtime nhúng vượt bao nhiêu cũng KHÔNG phải vi phạm NFR6** — Ice đã đưa nó ra ngoài ngân sách ngày 2026-08-03, và `prd.md` §7.2 + `epics.md` §NFR6 đã ghi thành chữ.
   - [x] ⚠️ **Nhưng vẫn nói thẳng con số tổng.** Người dùng tải về thấy dung lượng tổng, không thấy hai dòng của ta. Nếu `.msi` tổng lớn tới mức thành rào cản tải xuống thì ghi thành mục riêng cuối Completion Notes để Ice cân ở **Story 10.2** — nơi đường quay lui còn mở: `downloadBootstrapper` (mất mệnh đề cài offline) hoặc **NSIS** thay `.msi` (chạm hàng Deferred *"chưa khai artifact phát hành chính thức cho Windows"*, `deferred-work.md:6`). Không tự chọn.
 
 - [x] **Task 7 — AC8: Kiểm 3 ngoài chế độ dev, trên cả hai nền tảng** (AC: 8)
@@ -685,7 +685,18 @@ Nguồn: run push 37446210896 (`0c26cc7`, cả hai job xanh), run 31568723620 (`
   | `macos-26` | **chưa có**: 22 lượt xanh từ 2026-09-13 đều khôi phục cache | 14m13s (37446210896) |
 
   Phút tính phí là **0** ở cả hai nền tảng của cả hai run (API `timing`), vì repo đã chuyển sang công khai. Hệ số ×10 của §Ngân sách CI không còn áp. Cũng đã đo: rủi ro đã biết ở mục 2 bên trên là có thật. Mỗi bản `.msi` biên dịch lại profile release khoảng 3 phút (`Finished release` 3m00s · 2m51s · 3m01s), nên bước đo `.msi` mất 10m08s chứ không "chỉ tốn khâu đóng gói". Bước `cargo test` của Windows mất 12m53s.
-- **AC6 / NFR6:** chưa đóng. Ba số `.msi` chỉ nằm trong `$GITHUB_STEP_SUMMARY`; GitHub chỉ hiện summary cho người đã đăng nhập, và không có API đọc nó. Cần Ice chép bảng *"Windows — ba phép đo `.msi`"* của run 37446210896 vào đây.
+- **AC6 / NFR6:** đã đóng. Ba số `.msi` chỉ nằm trong `$GITHUB_STEP_SUMMARY`, mà GitHub chỉ hiện summary cho người đã đăng nhập; Ice chép từ run 37446210896 (`windows-2025`, `offlineInstaller` đọc từ `tauri.conf.json`, rustc 1.97.1, tauri-cli 2.11.4):
+
+  | Bản dựng | byte | MiB | thời gian |
+  |---|---:|---:|---:|
+  | có font *(bản chính)* | 241.790.976 | 230,59 | 214 s |
+  | không font | 220.483.584 | 210,27 | 194 s |
+  | `downloadBootstrapper` | 29.220.864 | 27,87 | 199 s |
+
+  - **Bộ font:** 21.307.392 B = 20,32 MiB, và bước đo gắn cờ *"NGOÀI dải 16,0–20,3 MiB"*. Cờ đó không phải dấu hiệu nén CAB khác dự kiến. Lớp phủ `nofonts` gỡ cả `bundle.resources`, gồm `license/COPYING.txt` 35.149 B; trừ tệp đó ra, phần font còn **20,29 MiB, trong dải**. Bước đo trong `ci.yml` chưa tách tệp giấy phép, nên cờ sẽ còn bật ở mọi lượt.
+  - **NFR6, payload sản phẩm:** 29.220.864 B = **29,22 MB, dưới trần 150–200 MB ⇒ đạt.** Đây là proxy (bằng đúng dung lượng bản `downloadBootstrapper`, còn stub bootstrapper trong đó). Bản build không đóng gói dữ liệu từ điển (`bundle.resources` chỉ có `fonts/` và `license/`; từ điển đi qua GitHub Release theo AD-25).
+  - **NFR6, WebView2 Runtime nhúng:** 212.570.112 B = 212,57 MB, nằm ngoài ngân sách theo quyết định của Ice 2026-08-03, nên không phải vi phạm. ⚠️ Con số đo được lớn hơn khoảng **85 MB** so với ≈127 MB của tài liệu Tauri mà story và PRD đang dẫn.
+- **Cho Ice cân ở Story 10.2 — số tổng người dùng tải về:** `.msi` là **241,79 MB**, trong đó khoảng 88 % là runtime nhúng. Đường quay lui vẫn như Task 6 ghi: `downloadBootstrapper` (bản đó 27,87 MiB, nhưng mất mệnh đề cài offline) hoặc NSIS thay `.msi`. Story này không chọn.
 
 ### File List
 
@@ -731,3 +742,4 @@ Nguồn: run push 37446210896 (`0c26cc7`, cả hai job xanh), run 31568723620 (`
 | 2026-08-11 | 🔴 **RÀ SOÁT TOÀN EPIC 1 — dòng 2026-08-03 ở trên đã HẾT ĐÚNG từ lâu mà không ai sửa.** Repo đẩy lên remote từ **2026-08-05** và CI đã chạy **12** lượt: `macos-26` **XANH** ở mọi lượt hoàn tất *(gồm `tauri build` dựng `.dmg`, `check:scope:bundled` chiều dương, và `check:scope` chiều ÂM — tức điều kiện mà [D2] đặt ra cho AC8 đã thoả trên nền tảng này)*; `windows-2025` **ĐỎ** ở **12/12**, luôn ở bước `cargo test`, luôn với `0xc0000139` `STATUS_ENTRYPOINT_NOT_FOUND`. Bốn phép nghiệm thu runner của story *(AC6 · AC7 · Task 11 hàng 4 · AC3/Task 4)* vì vậy **chưa món nào được đọc** — không phải vì chưa có lượt chạy, mà vì không ai mở tab Actions. **Nguyên nhân gốc đo được:** `tauri-build` nhét app manifest qua `embed_resource::compile()`, hàm đó phát `cargo:rustc-link-arg-BINS` ⇒ nhị phân **test** không có manifest ⇒ thiếu `Microsoft.Windows.Common-Controls 6.0.0.0` ⇒ trình nạp gắn `comctl32` v5. Hệ quả nặng hơn một job đỏ: `cargo test` dừng ở nhị phân tích hợp đầu tiên theo thứ tự chữ cái, nên **12 trên 13 tệp `tests/**` chưa từng chạy một lần nào trên Windows** suốt Epic 1 — nửa Windows của NFR14 chưa từng có bằng chứng. Vá ở nhánh `fix/ci-windows-cargo-test` (`build.rs` phát `/MANIFEST:EMBED` + `/MANIFESTINPUT` qua `rustc-link-arg-tests`). Cùng lượt: `check:lint` (cổng thứ mười) **thiếu khỏi `ci.yml`** đã thêm, và dựng cổng thứ mười một `check:gates` buộc `package.json` với `ci.yml` khai cùng một bộ. Chi tiết: `epic-1-retro-2026-08-11.md` |
 | 2026-08-11 | ✅ **NỬA WINDOWS CỦA PIPELINE SỐNG LẠI — đo trên runner, ba lượt.** `31468807121` *(sau bản vá manifest)*: `STATUS_ENTRYPOINT_NOT_FOUND` **biến mất**, `config_invariants` 15 xanh và `dict_boundary` 14 xanh — lần đầu tiên trong đời dự án; đỏ ở chỗ mới là cổng parity lược đồ của `dict_lookup`, và nguyên nhân là `core.autocrlf=true` của ảnh runner *(vá bằng `.gitattributes` `* -text`, KHÔNG `eol=lf` — kho có fixture mang CRLF có chủ ý)*. `31469843146` *(sau bản vá CRLF)*: **15 trên 15** nhị phân test chạy được, **263 trên 264** ca **XANH**. Job `macos-26` XANH trọn vẹn ở cả ba lượt, gồm `tauri build` dựng `.dmg`, `check:scope:bundled` (AC8 chiều dương) và `check:scope` (AC8 chiều ÂM) ⇒ điều kiện của [D2] đã thoả **trên macOS**. 🔴 **Còn đúng MỘT ca đỏ, và nó cần Ice quyết chứ không cần một bản vá:** `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` (AC5 của Story 1.7) — `.db-wal` **889.952 B** trên trần assert 327.680 B, trong khi cơ chế checkpoint **có chạy** *(51 lượt theo ngưỡng, 6.392 frame, 0 bị chặn, 0 lỗi, `idle_triggered = 0`)* và mệnh đề *"chững lại"* của chính ca đó **ĐẠT**. Câu hỏi: AC5 nói *"chững lại"* hay *"có trần tuyệt đối"*? Chi tiết + ba đường đi và cái giá của từng đường: `epic-1-retro-2026-08-11.md` §3c |
 | 2026-10-07 | 🔵 **Đọc các phép nghiệm thu runner còn treo.** AC3/Task 4 (WiX v3.14 do `tauri-cli` tự tải), AC8 Windows (`VERDICT: PASS` cả hai chiều) và Task 11 hàng 4 (nhánh dò `422415d`, run 37572393449: chỉ Windows đỏ) đã đóng. Phút tính phí là 0 vì repo công khai. Mỗi bản `.msi` biên dịch lại release khoảng 3 phút. Còn mở: ba số `.msi` (summary cần đăng nhập) và lượt `macos-26` cache lạnh. |
+| 2026-10-07 | 🔵 **AC6/NFR6 đóng bằng ba số `.msi` Ice chép từ step summary của run 37446210896.** Payload 29,22 MB dưới trần; runtime WebView2 nhúng đo được 212,57 MB, không phải ≈127 MB như tài liệu; tổng 241,79 MB để Ice cân ở Story 10.2. Cờ *"bộ font NGOÀI dải"* (20,32 MiB) do `license/COPYING.txt` nằm chung lớp phủ; trừ ra còn 20,29 MiB. Còn mở: lượt `macos-26` cache lạnh của AC7. |
