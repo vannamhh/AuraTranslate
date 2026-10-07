@@ -356,8 +356,6 @@
   "export.folder.unavailable": "Hộp thoại chọn thư mục chỉ mở được trong ứng dụng.",
   "export.preview.heading": "Xem trước hình dạng file",
   "export.preview.note": "Khối này mô phỏng một tài liệu Word, nên màu của nó cố ý không theo giao diện ứng dụng.",
-  "export.preview.source_header": "Văn bản gốc",
-  "export.preview.target_header": "Bản dịch",
   "export.preview.source_sample": "Câu gốc đầu tiên của Chương.",
   "export.preview.target_sample": "Câu dịch tương ứng của người dịch.",
   "command.tm.manage.open": "Quản lý bộ nhớ dịch (TM)",

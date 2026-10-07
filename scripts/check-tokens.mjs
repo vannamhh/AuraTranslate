@@ -167,7 +167,6 @@ const EXPECTED_COLORS_LIGHT = {
   'word-page': '#ffffff',
   'word-ink': '#1a1a1a',
   'word-rule': '#767676',
-  'word-header-fill': '#e7e6e6',
 }
 
 const EXPECTED_COLORS_DARK = {
@@ -196,7 +195,6 @@ const EXPECTED_COLORS_DARK = {
   'word-page': '#ffffff',
   'word-ink': '#1a1a1a',
   'word-rule': '#767676',
-  'word-header-fill': '#e7e6e6',
 }
 
 /** Cỡ / giãn dòng / nét / kiểu / giãn chữ — nguyên văn §Bảng token typography. */
@@ -289,7 +287,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 25, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 24, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`

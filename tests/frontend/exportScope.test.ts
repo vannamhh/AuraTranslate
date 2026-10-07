@@ -275,7 +275,7 @@ describe('Word-like preview', () => {
     colors: { light: Record<string, string>; dark: Record<string, string> }
     contrast: { pairs: { fg: string; bg: string }[] }
   }
-  const wordTokens = ['word-page', 'word-ink', 'word-rule', 'word-header-fill']
+  const wordTokens = ['word-page', 'word-ink', 'word-rule']
 
   it('takes every colour from the word-* role tokens, with no literal and no inline style', () => {
     for (const name of wordTokens) expect(source).toContain(`var(--color-${name})`)
@@ -288,19 +288,20 @@ describe('Word-like preview', () => {
   it('keeps the word-* tokens identical in both themes and declares their contrast pairs', () => {
     for (const name of wordTokens) expect(tokens.colors.dark[name]).toBe(tokens.colors.light[name])
     const declared = tokens.contrast.pairs.map((p) => `${p.fg}|${p.bg}`)
-    for (const pair of ['word-ink|word-page', 'word-ink|word-header-fill', 'word-rule|word-page']) {
+    for (const pair of ['word-ink|word-page', 'word-rule|word-page']) {
       expect(declared).toContain(pair)
     }
   })
 
-  it('renders a two-column table with a header row for the file shape', async () => {
+  it('renders a two-column table with no header row, as in the file', async () => {
     const { state, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     await settle(wrapper)
 
     const preview = wrapper.get('[data-export-word-preview]')
-    expect(preview.findAll('th').length).toBe(2)
+    expect(preview.findAll('th').length).toBe(0)
+    expect(preview.findAll('thead').length).toBe(0)
     expect(preview.findAll('tbody td').length).toBe(2)
     wrapper.unmount()
   })

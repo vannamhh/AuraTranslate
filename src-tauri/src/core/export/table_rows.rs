@@ -2,10 +2,11 @@ use crate::commands::segment::{ChapterSegment, select_chapter_segments};
 use crate::core::segment::omit::segments_in_translation;
 use crate::core::store::{Store, StoreError};
 
-/// Một ô của bảng xuất: các đoạn của chính cột đó và cờ kết đoạn của chính cột đó.
+/// Một ô của bảng xuất: đúng một đoạn (`\n` trong chữ thành dấu xuống dòng của đoạn đó) và cờ
+/// kết đoạn của chính cột đó.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportCell {
-    pub paragraphs: Vec<String>,
+    pub text: String,
     pub ends_paragraph: bool,
 }
 
@@ -23,16 +24,17 @@ pub struct ChapterTable {
     pub rows: Vec<ExportRow>,
 }
 
-/// Cột phải: cấu trúc đoạn đọc từ cờ đích đã lưu và từ ký tự xuống dòng trong `target_text`
-/// (AD-46), không suy từ nguyên văn. Câu chưa dịch là một đoạn rỗng để ô vẫn tồn tại.
+/// Cột phải: cờ kết đoạn đọc từ cờ đích đã lưu (AD-46), không suy từ nguyên văn. Mỗi ô là một
+/// đoạn duy nhất để bảng một hàng không bao giờ mang hình dạng AD-38 từ chối. Câu chưa dịch là
+/// một đoạn rỗng để ô vẫn tồn tại.
 fn row_of(segment: &ChapterSegment) -> ExportRow {
     ExportRow {
         source: ExportCell {
-            paragraphs: vec![segment.source_text.clone()],
+            text: segment.source_text.clone(),
             ends_paragraph: segment.is_paragraph_end,
         },
         target: ExportCell {
-            paragraphs: segment.target_text.split('\n').map(str::to_owned).collect(),
+            text: segment.target_text.clone(),
             ends_paragraph: segment.is_target_paragraph_end,
         },
     }

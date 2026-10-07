@@ -557,7 +557,7 @@ fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError>
                 match local.as_str() {
                     "t" => current.push_str(&read_element_text(reader)?),
                     "tab" => current.push('\t'),
-                    "br" | "cr" => current.push(' '),
+                    "br" | "cr" => current.push('\n'),
                     "drawing" | "pict" => {
                         if let Some(rid) = find_image_rel_id(reader)? {
                             if !current.is_empty() {
@@ -577,7 +577,7 @@ fn parse_paragraph(reader: &mut Reader<&[u8]>) -> Result<ParaContent, DocxError>
                 let local = local_name_of(&e);
                 match local.as_str() {
                     "tab" => current.push('\t'),
-                    "br" | "cr" => current.push(' '),
+                    "br" | "cr" => current.push('\n'),
                     "t" => {}
                     _ => {}
                 }

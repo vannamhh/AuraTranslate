@@ -248,12 +248,6 @@ function trapTab(event: KeyboardEvent): void {
           <p class="ex-note">{{ t('export.preview.note') }}</p>
           <div class="ex-word" data-export-word-preview>
             <table class="ex-word-table">
-              <thead>
-                <tr>
-                  <th>{{ t('export.preview.source_header') }}</th>
-                  <th>{{ t('export.preview.target_header') }}</th>
-                </tr>
-              </thead>
               <tbody>
                 <tr>
                   <td>{{ t('export.preview.source_sample') }}</td>
@@ -428,16 +422,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-word-ink);
 }
 
-.ex-word-table th,
 .ex-word-table td {
   border: 1px solid var(--color-word-rule);
   padding: calc(var(--space-unit) * 2);
   text-align: left;
   vertical-align: top;
-}
-
-.ex-word-table th {
-  background-color: var(--color-word-header-fill);
 }
 </style>
 

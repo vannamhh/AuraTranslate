@@ -172,12 +172,29 @@ fn an_untranslated_segment_keeps_its_row_with_an_empty_right_cell() {
 }
 
 #[test]
-fn newlines_inside_a_target_become_paragraphs_of_the_right_cell_only() {
-    let f = fixture("newline", None, vec![seg("mot cau nguon", "doan mot\ndoan hai\ndoan ba")]);
+fn a_newline_inside_a_segment_is_a_line_break_in_one_paragraph_and_survives_the_round_trip() {
+    let f = fixture(
+        "newline",
+        Some("Tieu de"),
+        vec![seg("nguon mot\nnguon hai", "doan mot\ndoan hai\ndoan ba"), seg("cau sau", "dich sau")],
+    );
     let path = f.export(&ExportScope::Work);
     let doc = parsed(&path);
 
-    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 3]]);
+    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 1], vec![1, 1]]);
+    let texts: Vec<&str> = doc.text.split("\n\n").collect();
+    assert_eq!(texts, vec!["Tieu de", "nguon mot\nnguon hai", "doan mot\ndoan hai\ndoan ba", "cau sau", "dich sau"]);
+    assert!(document_xml(&path).contains("<w:br"), "dau xuong dong la w:br");
+    f.finish();
+}
+
+#[test]
+fn a_one_segment_chapter_with_a_newline_is_a_one_row_table_of_single_paragraph_cells() {
+    let f = fixture("one-row", None, vec![seg("mot cau nguon", "doan mot\ndoan hai")]);
+    let doc = parsed(&f.export(&ExportScope::Work));
+
+    assert_eq!(doc.tables[0].rows, 1);
+    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 1]], "hinh dang ma AD-38 tu choi la mot hang, mot o nhieu doan");
     f.finish();
 }
 

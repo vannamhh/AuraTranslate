@@ -37,7 +37,7 @@ context: []
 | Nhiều Chương / cả Tác phẩm | nhiều Chương | mỗi Chương một tiêu đề đoạn rồi một bảng, theo `(ord, id)` | — |
 | Câu chưa dịch | `target_text = ''` | hàng vẫn có, ô phải một đoạn rỗng | — |
 | Câu bị cắt bỏ / về hưu | `is_omitted = 1` hoặc `retired_at` | không có hàng | — |
-| Câu có nhiều đoạn dịch | `target_text` chứa `\n` | ô phải nhiều đoạn, mỗi `\n` một đoạn | — |
+| Câu có nhiều đoạn dịch | `target_text` chứa `\n` | ô phải một đoạn, mỗi `\n` một dấu xuống dòng (Decision 2026-10-07) | — |
 | Cờ kết đoạn | `is_paragraph_end` / `is_target_paragraph_end` | đoạn cuối của ô có khoảng cách sau theo cờ của chính cột đó | — |
 | Chương không còn câu thuộc bản dịch | mọi câu bị cắt | tiêu đề Chương, không bảng | — |
 | Tên tệp trùng | tệp cùng tên có sẵn | ghi tệp mới với hậu tố số, không đè | — |
@@ -77,14 +77,16 @@ context: []
 
 ## Implementation Notes
 
-- Cột phải đọc `is_target_paragraph_end` và `\n` của `target_text` (AD-46); cột trái đọc `is_paragraph_end`. Ranh giới đoạn thành khoảng cách sau (`w:after` 240 hay 0) của đoạn cuối mỗi ô, vì bảng một-segment-một-hàng không có chỗ nào khác chở cờ. Đối chứng: thay cờ đích bằng cờ nguồn ⇒ `each_column_takes_its_gap_from_its_own_paragraph_end_flag` đỏ; bỏ `segments_in_translation` ⇒ 3 ca đỏ; bỏ `split('\n')` ⇒ ca xuống dòng đỏ.
+- Cột phải đọc `is_target_paragraph_end` và `\n` của `target_text` (AD-46); cột trái đọc `is_paragraph_end`. Ranh giới đoạn thành khoảng cách sau (`w:after` 240 hay 0) của đoạn cuối mỗi ô, vì bảng một-segment-một-hàng không có chỗ nào khác chở cờ. Đối chứng: thay cờ đích bằng cờ nguồn ⇒ `each_column_takes_its_gap_from_its_own_paragraph_end_flag` đỏ; bỏ `segments_in_translation` ⇒ 3 ca đỏ; bỏ `split('\n')` ⇒ ca xuống dòng đỏ. 🔵 2026-10-07: không còn `split('\n')`, xem Decision 1.
 - Nhiều Chương: mỗi Chương một đoạn tiêu đề rồi một bảng riêng (hai bảng liền nhau Word gộp làm một); Chương hết câu thuộc bản dịch chỉ còn tiêu đề. Tiêu đề rỗng khi `chapter.title` là NULL vì Rust không mang chữ hiển thị.
 - Không có hàng đầu bảng: một hàng đầu không phải segment, và chữ của nó là chữ hiển thị mà Rust không được viết.
 - Đọc ngược qua `core::docx`: số hàng, số ô mỗi hàng, số đoạn mỗi ô và thứ tự văn bản khớp với đã ghi. Nhập ngược thật và cổng hình dạng AD-38 là 8.8-8.9.
 - Câu `alt`/`caption` của ảnh cũng là segment nên cũng một hàng; chưa có cột/nhãn vai.
 - Tệp tên `<tên Tác phẩm>-hai-cot.docx`, `create_new` và hậu tố ` (n)`, không bao giờ ghi đè. Lệnh `(async)` giữ khoá `OpenWorkState` suốt lượt ghi, như `export_scope_summary` giữ khoá lúc đếm.
 - `docx-rs` đã ở `Cargo.toml` (AD-38): không phụ thuộc mới. Ba tệp `.rs` mới (cây 119 tệp) không làm sàn `.rs` nào trôi dưới 80% (cần 122), frontend 0 tệp mới nên không sàn nào đổi; `config_invariants.rs` `COMMAND_FILE_CENSUS` của `commands/export.rs` 1/1/1 → 1/2/2.
-- Câu hỏi mở cho Ice: (1) khối xem trước Word của 8.2 vẫn vẽ hàng đầu bảng "Văn bản gốc / Bản dịch" mà tệp thật không có; bỏ nó kéo theo token `word-header-fill` và hai khoá i18n. (2) Một bảng mỗi Chương kèm tiêu đề có hợp với cổng hình dạng AD-38 của 8.8 (đang hiểu là một bảng hai cột) hay 8.8 phải đọc nhiều bảng.
+- Decision (2026-10-07, Ice): `\n` trong một segment ghi thành dấu xuống dòng (`<w:br/>`) trong MỘT đoạn, không tách đoạn. Lý do: Chương một segment có `\n` sẽ ra bảng một hàng có ô nhiều đoạn, đúng hình dạng AD-38 từ chối là bản xuất bản không nhập lại được; sau đổi mọi ô của 8.3 là một đoạn. `core::docx` đọc `w:br`/`w:cr` về `\n` (trước đó về dấu cách nên không khứ hồi). Đối chứng: ghi lại thành nhiều đoạn ⇒ hai ca xuống dòng đỏ.
+- Decision (2026-10-07, Ice): bỏ hàng đầu bảng "Văn bản gốc / Bản dịch" khỏi xem trước Word của 8.2 vì tệp thật không có; xoá token `word-header-fill`, cặp tương phản `word-ink|word-header-fill` và hai khoá i18n `export.preview.source_header`/`target_header`.
+- Câu hỏi mở cho Ice: (1) đã chốt, xem Decision thứ hai ở trên. (2) Một bảng mỗi Chương kèm tiêu đề có hợp với cổng hình dạng AD-38 của 8.8 (đang hiểu là một bảng hai cột) hay 8.8 phải đọc nhiều bảng.
 
 ## Plan Change Log
 

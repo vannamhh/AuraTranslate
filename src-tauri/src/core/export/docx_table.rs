@@ -24,15 +24,7 @@ fn paragraph_of(text: &str, gap_after: bool) -> Paragraph {
 }
 
 fn cell_of(cell: &ExportCell) -> TableCell {
-    let out = TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa);
-    if cell.paragraphs.is_empty() {
-        return out.add_paragraph(paragraph_of("", cell.ends_paragraph));
-    }
-    let last = cell.paragraphs.len() - 1;
-    cell.paragraphs.iter().enumerate().fold(out, |acc, (i, text)| {
-        let gap_after = if i == last { cell.ends_paragraph } else { true };
-        acc.add_paragraph(paragraph_of(text, gap_after))
-    })
+    TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(paragraph_of(&cell.text, cell.ends_paragraph))
 }
 
 /// Mỗi Chương: một đoạn tiêu đề rồi một bảng hai cột, mỗi segment một hàng, không hàng đầu bảng.
