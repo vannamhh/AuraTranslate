@@ -214,16 +214,19 @@ describe('write wrappers', () => {
 })
 
 describe('TMX exchange wrappers', () => {
-  it('export sends the tier; null is a cancelled dialog; an empty path is refused', async () => {
+  it('export sends the tier; null is a cancelled dialog; an empty path or a missing left-out count is refused', async () => {
     const a = await freshAdapter()
-    mockInvoke.mockResolvedValue('/tmp/tm_work.tmx')
-    expect(await a.tmExportTier('work')).toEqual({ outcome: 'done', path: '/tmp/tm_work.tmx' })
+    mockInvoke.mockResolvedValue({ path: '/tmp/tm_work.tmx', left_out_count: 3 })
+    expect(await a.tmExportTier('work')).toEqual({ outcome: 'done', path: '/tmp/tm_work.tmx', leftOutCount: 3 })
     expect(mockInvoke).toHaveBeenCalledWith('tm_export_tier', { tier: 'work' })
 
     mockInvoke.mockResolvedValue(null)
     expect(await a.tmExportTier('global')).toEqual({ outcome: 'cancelled' })
 
-    mockInvoke.mockResolvedValue('')
+    mockInvoke.mockResolvedValue({ path: '', left_out_count: 0 })
+    expect((await a.tmExportTier('global')).outcome).toBe('error')
+
+    mockInvoke.mockResolvedValue({ path: '/tmp/x.tmx' })
     expect((await a.tmExportTier('global')).outcome).toBe('error')
   })
 

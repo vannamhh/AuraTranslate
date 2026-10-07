@@ -285,6 +285,10 @@ pub fn distinct_exact_targets(pairs: Vec<TmPair>) -> Vec<TmPair> {
 /// Number of fuzzy rows the strip shows.
 pub const FUZZY_MATCH_LIMIT: usize = 3;
 
+/// Score shown for a pair whose source differs from the sentence only by surrounding whitespace:
+/// `diff_spans` reports those as all equal, so the raw gram score must not read lower.
+const FUZZY_SAME_TEXT_PERCENT: u8 = 99;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuzzyPair {
     pub pair: TmPair,
@@ -298,7 +302,7 @@ pub struct TierRows {
     work_rows: Option<Vec<RawPair>>,
 }
 
-pub fn load_tier_rows(
+pub fn read_tier_rows(
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
 ) -> Result<TierRows, TmStoreError> {
@@ -320,7 +324,7 @@ pub fn fuzzy_pairs_for_source(
     lang: crate::core::matching::MatchLang,
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
-    let candidates = load_tier_rows(global, work)?;
+    let candidates = read_tier_rows(global, work)?;
     rank_fuzzy_candidates(resolver, candidates, source_text, lang, threshold)
 }
 
@@ -351,11 +355,16 @@ pub fn fuzzy_pairs_in_candidates(
     threshold: u8,
 ) -> Result<Vec<FuzzyPair>, TmStoreError> {
     let mut scorer = crate::core::matching::SimilarityScorer::new(source_text, lang);
+    let query_trimmed = source_text.trim();
     let mut keep = |rows: &[RawPair]| -> Vec<(RawPair, u8)> {
         rows.iter()
             .filter(|row| row.source_text != source_text)
             .filter_map(|row| {
-                let percent = scorer.percent(&row.source_text).min(99);
+                let percent = if row.source_text.trim() == query_trimmed {
+                    FUZZY_SAME_TEXT_PERCENT
+                } else {
+                    scorer.percent(&row.source_text).min(99)
+                };
                 (percent >= threshold).then(|| (row.clone(), percent))
             })
             .collect()

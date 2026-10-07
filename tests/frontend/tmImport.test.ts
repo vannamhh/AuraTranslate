@@ -110,7 +110,7 @@ describe('export', () => {
     expect(manage.tmManageExportIpcUnavailable.value).toBe(false)
 
     manage.setTmManageExchangeTier('global')
-    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx' })
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx', leftOutCount: 0 })
     await manage.exportTmManageTier()
     expect(exportMock).toHaveBeenLastCalledWith('global')
     expect(manage.tmManageExportedPath.value).toBe('/tmp/tm_global.tmx')
@@ -119,7 +119,7 @@ describe('export', () => {
   it('tells an error and an absent bridge apart, and drops the old path before the dialog opens', async () => {
     const { manage } = await fresh()
     await manage.openTmManage()
-    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/a.tmx' })
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/a.tmx', leftOutCount: 0 })
     await manage.exportTmManageTier()
 
     let release: (v: unknown) => void = () => undefined
@@ -301,12 +301,18 @@ describe('overlays', () => {
     expect((radios[1].element as HTMLInputElement).checked).toBe(true)
     expect(wrapper.text()).toContain(i18n.t('tm.exchange.work_unavailable'))
 
-    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx' })
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx', leftOutCount: 0 })
     const [exportButton] = wrapper.findAll('.tm-exchange-actions button')
     await exportButton.trigger('click')
     await settle(wrapper)
     expect(exportMock).toHaveBeenCalledWith('global')
     expect(wrapper.text()).toContain(i18n.t('tm.exchange.export_done', { path: '/tmp/tm_global.tmx' }))
+    expect(wrapper.text()).not.toContain(i18n.t('tm.exchange.export_left_out', { count: '2' }))
+
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx', leftOutCount: 2 })
+    await exportButton.trigger('click')
+    await settle(wrapper)
+    expect(wrapper.text()).toContain(i18n.t('tm.exchange.export_left_out', { count: '2' }))
     wrapper.unmount()
   })
 

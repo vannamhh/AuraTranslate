@@ -46,7 +46,7 @@ use crate::core::scope::ScopeResolver;
 use crate::core::store::Store;
 use crate::core::tm::{
     PairSide, SimilarSegment, TierRows, TmStoreError, TmTier, fuzzy_pairs_in_candidates,
-    load_tier_rows,
+    read_tier_rows,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -274,7 +274,7 @@ pub fn load_tm_rows(
     let threshold =
         crate::core::scope::load_global_config(global).map_err(TmStoreError::Store)?.tm_fuzzy_threshold();
     Ok(Some(TmRows {
-        candidates: load_tier_rows(global, work)?,
+        candidates: read_tier_rows(global, work)?,
         threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
     }))
 }

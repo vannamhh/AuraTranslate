@@ -1491,7 +1491,7 @@ fn a_hit_carries_the_source_diff_from_the_pair_source_to_the_caret_source() {
 
 fn accept(w: &Wired, id: i64, m: &auratranslate_lib::commands::segment::TmFuzzyMatch, force: bool)
     -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
-    wire::accept_tm_fuzzy(w.app.handle().clone(), id, m.tier.to_owned(), m.unit_id, force)
+    wire::accept_tm_fuzzy(w.app.handle().clone(), id, m.tier.to_owned(), m.unit_id, m.target_text.clone(), force)
 }
 
 #[test]
@@ -1689,7 +1689,7 @@ fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str
 
 fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
     use auratranslate_lib::core::glossary::match_lang_for_source_lang;
-    use auratranslate_lib::core::tm::{load_tier_rows, rank_fuzzy_candidates};
+    use auratranslate_lib::core::tm::{read_tier_rows, rank_fuzzy_candidates};
     let dir = temp_dir("parity-tm");
     let _guard = DirGuard(dir.clone());
     let global = open_global_db(&dir);
@@ -1698,7 +1698,7 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
         let exact = pairs_for_source(&ScopeResolver::global_only(), &global, None, query);
         return exact.expect("tra chinh xac").len() == 1;
     }
-    let candidates = load_tier_rows(&global, None).expect("nap ung vien");
+    let candidates = read_tier_rows(&global, None).expect("nap ung vien");
     let ranked = rank_fuzzy_candidates(
         &ScopeResolver::global_only(),
         candidates,
@@ -1708,6 +1708,32 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
     )
     .expect("xep hang");
     ranked.len() == 1
+}
+
+#[test]
+fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair_changes() {
+    use auratranslate_lib::core::matching::{DiffKind, MatchLang, diff_spans};
+    use auratranslate_lib::core::tm::{read_tier_rows, rank_fuzzy_candidates};
+    let dir = temp_dir("same-text");
+    let _guard = DirGuard(dir.clone());
+    let global = open_global_db(&dir);
+    seed(&global, &[(" \u{3000}\u{7b2c}\u{4e09}\u{7ae0}\n", "padded", "self"), ("\u{7b2c}\u{4e09}\u{7ae0}\u{3002}", "punct", "self")]);
+
+    let ranked = rank_fuzzy_candidates(
+        &ScopeResolver::global_only(),
+        read_tier_rows(&global, None).expect("nap"),
+        "\u{7b2c}\u{4e09}\u{7ae0}",
+        MatchLang::Zh,
+        65,
+    )
+    .expect("xep hang");
+
+    let percent = |target: &str| ranked.iter().find(|f| f.pair.target_text == target).map(|f| f.percent);
+    assert_eq!((percent("padded"), percent("punct")), (Some(99), Some(83)));
+    let padded = ranked.iter().find(|f| f.pair.target_text == "padded").expect("hang padded");
+    assert!(
+        diff_spans(&padded.pair.source_text, "\u{7b2c}\u{4e09}\u{7ae0}", MatchLang::Zh).iter().all(|s| s.kind == DiffKind::Equal)
+    );
 }
 
 #[test]
@@ -1878,9 +1904,9 @@ fn exact_shape(m: &auratranslate_lib::commands::segment::TmFuzzyMatches) -> Vec<
     m.exact.iter().map(|x| (x.target_text.as_str(), x.tier, x.side, x.created_at.as_str())).collect()
 }
 
-fn pick(w: &Wired, id: i64, tier: &str, unit_id: i64, force: bool)
+fn pick(w: &Wired, id: i64, tier: &str, unit_id: i64, expected: &str, force: bool)
     -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
-    wire::accept_tm_exact(w.app.handle().clone(), id, tier.to_owned(), unit_id, force)
+    wire::accept_tm_exact(w.app.handle().clone(), id, tier.to_owned(), unit_id, expected.to_owned(), force)
 }
 
 #[test]
@@ -1975,7 +2001,7 @@ fn a_pick_writes_the_pairs_own_origin_with_baseline_and_no_version() {
     let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
     assert_eq!((b.tier, b.side), ("global", "others"));
 
-    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+    let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
 
     assert!(!out.needs_confirmation);
     assert_eq!((out.target_text.as_str(), out.translation_origin.as_str(), out.status.as_str()), ("B", "other", "draft"));
@@ -1983,7 +2009,7 @@ fn a_pick_writes_the_pairs_own_origin_with_baseline_and_no_version() {
     assert_eq!(w.target_and_baseline(id), ("B".to_owned(), "B".to_owned(), "other".to_owned()));
 
     let a = got.exact.iter().find(|x| x.target_text == "A").expect("hang A");
-    pick(&w, id, a.tier, a.unit_id, false).expect("chon lai");
+    pick(&w, id, a.tier, a.unit_id, &a.target_text, false).expect("chon lai");
     assert_eq!(w.with_open(|o| state_of(o, id)).1, "self");
     assert_eq!(w.target_and_baseline(id), ("A".to_owned(), "A".to_owned(), "self".to_owned()));
 }
@@ -1996,7 +2022,7 @@ fn a_pick_over_a_prefilled_text_never_asks() {
     assert_eq!(prefilled, "A");
     let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
 
-    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+    let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
 
     assert!(!out.needs_confirmation);
     assert_eq!(w.with_open(|o| w_target(o, id)), "B");
@@ -2012,12 +2038,12 @@ fn a_pick_over_typed_text_writes_nothing_until_forced() {
     });
     let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
 
-    let held = pick(&w, id, b.tier, b.unit_id, false).expect("giu");
+    let held = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("giu");
 
     assert!(held.needs_confirmation);
     assert_eq!(held.unsigned_draft.as_deref(), Some("Ban nhap dang go."));
     assert_eq!(w.with_open(|o| w_target(o, id)), "Ban nhap dang go.");
-    let forced = pick(&w, id, b.tier, b.unit_id, true).expect("ghi de");
+    let forced = pick(&w, id, b.tier, b.unit_id, &b.target_text, true).expect("ghi de");
     assert!(!forced.needs_confirmation);
     assert_eq!(w.with_open(|o| w_target(o, id)), "B");
 }
@@ -2027,7 +2053,7 @@ fn a_pick_over_text_equal_to_the_baseline_never_asks_even_without_a_version() {
     let (w, id, got) = two_targets("ex-baseline");
     w.set_target_state(id, "Cu", "Cu");
     let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
-    let out = pick(&w, id, b.tier, b.unit_id, false).expect("chon");
+    let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
     assert!(!out.needs_confirmation);
     assert_eq!(w.with_open(|o| w_target(o, id)), "B");
 }
@@ -2036,7 +2062,7 @@ fn a_pick_over_text_equal_to_the_baseline_never_asks_even_without_a_version() {
 fn a_pick_whose_pair_is_gone_or_whose_source_differs_writes_nothing() {
     let (w, id, got) = two_targets("ex-stale");
     let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
-    let gone = pick(&w, id, b.tier, 9_999_999, false).expect_err("cap da mat");
+    let gone = pick(&w, id, b.tier, 9_999_999, &b.target_text, false).expect_err("cap da mat");
     assert_eq!(gone.code(), "tm.pair_not_found");
 
     w.seed_global_dated("Another source.", "Z", "self", "2026-09-09T00:00:00.000Z");
@@ -2045,8 +2071,41 @@ fn a_pick_whose_pair_is_gone_or_whose_source_differs_writes_nothing() {
         .state::<Store>()
         .read(|conn| conn.query_row("SELECT id FROM tm_unit WHERE target_text = 'Z'", [], |r| r.get::<_, i64>(0)))
         .expect("doc id");
-    let differs = pick(&w, id, "global", other_id, false).expect_err("nguon khac");
+    let differs = pick(&w, id, "global", other_id, "Z", false).expect_err("nguon khac");
     assert_eq!(differs.code(), "tm.pair_not_found");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn accepting_a_row_whose_pair_was_edited_after_it_was_shown_writes_nothing_and_errors() {
+    let w = wired("fz-edited", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+    w.with_open(|o| {
+        o.store
+            .write(|tx: &Transaction<'_>| tx.execute("UPDATE tm_unit SET target_text = 'edited'", []))
+            .expect("sua cap")
+    });
+
+    let err = accept(&w, id, &m, false).expect_err("cap da doi");
+
+    assert_eq!(err.code(), "tm.pair_not_found");
+    assert_eq!(w.with_open(|o| w_target(o, id)), "");
+}
+
+#[test]
+fn picking_a_target_edited_after_the_list_was_shown_writes_nothing_and_errors() {
+    let (w, id, got) = two_targets("ex-edited");
+    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    w.app
+        .state::<Store>()
+        .write(|tx: &Transaction<'_>| tx.execute("UPDATE tm_unit SET target_text = 'B2' WHERE target_text = 'B'", []))
+        .expect("sua cap");
+
+    let err = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect_err("cap da doi");
+
+    assert_eq!(err.code(), "tm.pair_not_found");
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
 }
 

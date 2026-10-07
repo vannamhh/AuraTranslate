@@ -123,7 +123,7 @@ pub fn prepare_tm_fuzzy(
     }
 
     let threshold = crate::core::scope::load_global_config(global)?.tm_fuzzy_threshold();
-    let candidates = crate::core::tm::load_tier_rows(global, Some(&open.store))
+    let candidates = crate::core::tm::read_tier_rows(global, Some(&open.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmFuzzyPrepared::Scan(TmFuzzyScan {
         segment_id,
@@ -224,7 +224,7 @@ pub fn prepare_tm_concordance(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let candidates = crate::core::tm::load_tier_rows(global, open.map(|o| &o.store))
+    let candidates = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmConcordanceScan { query: query.to_owned(), resolver, candidates })
 }
@@ -265,8 +265,9 @@ pub fn tm_pair_not_found(tier: &str, unit_id: i64) -> IpcError {
     )
 }
 
-/// Accepts one fuzzy row (FR59, AD-51 rule 8): re-reads the pair by tier and id, then writes
-/// its target as an unconfirmed `draft` with origin `other` through the promote path, so a
+/// Accepts one fuzzy row (FR59, AD-51 rule 8): re-reads the pair by tier and id, refuses it
+/// (`tm.pair_not_found`, nothing written) when its target is no longer `expected_target`, the text
+/// the user saw, then writes its target as an unconfirmed `draft` with origin `other` through the promote path, so a
 /// draft with text needs `force` after `needs_confirmation`. `tier` is `"work"` or `"global"`.
 pub fn accept_tm_fuzzy(
     global: Option<&crate::core::store::Store>,
@@ -274,6 +275,7 @@ pub fn accept_tm_fuzzy(
     segment_id: i64,
     tier: &str,
     unit_id: i64,
+    expected_target: &str,
     force: bool,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
@@ -285,12 +287,14 @@ pub fn accept_tm_fuzzy(
     };
     let pair = crate::core::tm::pair_by_id(store, pair_tier, unit_id)
         .map_err(|e| tm_lookup_failed(&e))?
+        .filter(|pair| pair.target_text == expected_target)
         .ok_or_else(|| tm_pair_not_found(tier, unit_id))?;
     promote_ai_translation(open, segment_id, &pair.target_text, force)
 }
 
 /// Picks one target of an exact-source list (FR63): re-reads the pair by tier and id, refuses
-/// it when its source is no longer the segment's source, then writes the pair's own origin as an
+/// it when its target is no longer `expected_target`, the text the user saw, or its source is no
+/// longer the segment's source, then writes the pair's own origin as an
 /// unconfirmed `draft` (AD-47 ③ "Điền sẵn từ TM khớp 100%"). Asks (`needs_confirmation`, nothing
 /// written) only when the current text was typed by the user: non-empty, different from
 /// `baseline_target_text`, and with no copy in `segment_version`.
@@ -300,6 +304,7 @@ pub fn accept_tm_exact(
     segment_id: i64,
     tier: &str,
     unit_id: i64,
+    expected_target: &str,
     force: bool,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
@@ -311,6 +316,7 @@ pub fn accept_tm_exact(
     };
     let pair = crate::core::tm::pair_by_id(store, pair_tier, unit_id)
         .map_err(|e| tm_lookup_failed(&e))?
+        .filter(|pair| pair.target_text == expected_target)
         .ok_or_else(|| tm_pair_not_found(tier, unit_id))?;
     let pair_origin = pair.translation_origin.as_str();
     let target = pair.target_text;

@@ -30,6 +30,7 @@ import {
   tmManageExportBusy,
   tmManageExportError,
   tmManageExportIpcUnavailable,
+  tmManageExportLeftOutCount,
   tmManageExportedPath,
   tmManageFlatRows,
   tmManageHealth,
@@ -696,6 +697,9 @@ function onKeydown(event: KeyboardEvent): void {
         <p v-else-if="tmManageExportedPath !== null" class="tm-status" role="status">
           <!-- aura-allow-text: result of t() with the path interpolated. -->
           {{ t('tm.exchange.export_done', { path: tmManageExportedPath }) }}
+          <template v-if="tmManageExportLeftOutCount > 0">
+            {{ t('tm.exchange.export_left_out', { count: String(tmManageExportLeftOutCount) }) }}
+          </template>
         </p>
         <p v-else-if="tmManageImportDone !== null" class="tm-status" role="status">
           <!-- aura-allow-text: result of t() with the counts interpolated. -->

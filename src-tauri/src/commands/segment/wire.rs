@@ -389,42 +389,44 @@
         super::score_tm_concordance(scan)
     }
 
-    /// Wire shell of [`super::accept_tm_fuzzy`]; `segmentId`, `tier`, `unitId`, `force` on the wire.
+    /// Wire shell of [`super::accept_tm_fuzzy`]; `segmentId`, `tier`, `unitId`, `expectedTarget`, `force` on the wire.
     #[tauri::command]
     pub fn accept_tm_fuzzy<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         segment_id: i64,
         tier: String,
         unit_id: i64,
+        expected_target: String,
         force: bool,
     ) -> Result<PromoteAiTranslationOutcome, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::accept_tm_fuzzy(global.as_deref(), None, segment_id, &tier, unit_id, force);
+            return super::accept_tm_fuzzy(global.as_deref(), None, segment_id, &tier, unit_id, &expected_target, force);
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::accept_tm_fuzzy(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, force)
+        super::accept_tm_fuzzy(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, &expected_target, force)
     }
 
-    /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `force` on the wire.
+    /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `expectedTarget`, `force` on the wire.
     #[tauri::command]
     pub fn accept_tm_exact<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         segment_id: i64,
         tier: String,
         unit_id: i64,
+        expected_target: String,
         force: bool,
     ) -> Result<PromoteAiTranslationOutcome, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::accept_tm_exact(global.as_deref(), None, segment_id, &tier, unit_id, force);
+            return super::accept_tm_exact(global.as_deref(), None, segment_id, &tier, unit_id, &expected_target, force);
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::accept_tm_exact(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, force)
+        super::accept_tm_exact(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, &expected_target, force)
     }
 
     /// Vỏ IPC của [`super::merge_segments`]. Story 2.8 · FR78 · AD-5 · AC1.

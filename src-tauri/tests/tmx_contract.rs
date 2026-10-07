@@ -625,6 +625,25 @@ fn an_export_over_the_import_cap_is_refused_before_any_file_is_created() {
 }
 
 #[test]
+fn a_pair_xml_cannot_represent_is_left_out_of_the_export_and_counted() {
+    let f = fixture("export-left-out");
+    seed(
+        &f.open.store,
+        &[("S", "A", "self", D1), ("S\u{1}x", "B", "self", D1), ("T", "C\u{fffe}", "self", D1)],
+    );
+    let path = f.dir.join("out.tmx");
+
+    let exported = tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", Some(path.clone()))
+        .unwrap()
+        .expect("da ghi");
+
+    assert_eq!(exported.left_out_count, 2);
+    let text = fs::read_to_string(&path).unwrap();
+    assert_eq!(text.matches("<tu ").count(), 1);
+    assert!(text.contains("<seg>S</seg>") && !text.contains('\u{1}'));
+}
+
+#[test]
 fn a_cancelled_save_dialog_writes_no_file_and_a_picked_one_writes_atomically() {
     let f = fixture("dialog");
     seed(&f.open.store, &[("S", "A", "self", D1)]);
@@ -634,7 +653,7 @@ fn a_cancelled_save_dialog_writes_no_file_and_a_picked_one_writes_atomically() {
     assert!(!path.exists());
 
     let written = tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", Some(path.clone())).unwrap();
-    assert_eq!(written.as_deref(), Some(path.display().to_string().as_str()));
+    assert_eq!(written.map(|w| (w.path, w.left_out_count)), Some((path.display().to_string(), 0)));
     let leftovers: Vec<_> = fs::read_dir(&f.dir)
         .unwrap()
         .flatten()

@@ -56,6 +56,10 @@ fn has_han(text: &str) -> bool {
     text.chars().any(crate::core::dict::is_han)
 }
 
+fn xml_representable(text: &str) -> bool {
+    text.chars().all(|c| matches!(c, '\t' | '\n' | '\r') || ((c as u32) >= 0x20 && !matches!(c as u32, 0xFFFE | 0xFFFF)))
+}
+
 fn escape_into(out: &mut String, text: &str) {
     for c in text.chars() {
         match c {
@@ -120,8 +124,17 @@ fn iso_from_tmx_date(value: &str) -> Option<String> {
     date_parts_valid(y, mo, d, h, mi, s).then(|| format!("{y}-{mo}-{d}T{h}:{mi}:{s}.000Z"))
 }
 
-/// Renders distinct pairs as a TMX 1.4b document. Illegal XML 1.0 control characters are dropped.
-pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> String {
+/// A TMX document and how many pairs it leaves out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenderedTmx {
+    pub text: String,
+    /// Pairs holding a character XML 1.0 cannot represent; they are not in `text`.
+    pub left_out: usize,
+}
+
+/// Renders distinct pairs as a TMX 1.4b document. A pair whose source, target or date holds a
+/// character XML 1.0 cannot represent is left out and counted, never written altered.
+pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> RenderedTmx {
     let srclang = match tier {
         TmxTier::Work { source_lang } => source_lang,
         TmxTier::Global => ALL_LANGS,
@@ -132,7 +145,12 @@ pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> String {
     out.push_str("\" segtype=\"sentence\" o-tmf=\"AuraTranslate\" adminlang=\"vi\" srclang=\"");
     escape_into(&mut out, srclang);
     out.push_str("\" datatype=\"plaintext\"/>\n  <body>\n");
+    let mut left_out = 0;
     for pair in pairs {
+        if ![&pair.source_text, &pair.target_text, &pair.created_at].into_iter().all(|t| xml_representable(t)) {
+            left_out += 1;
+            continue;
+        }
         let source_lang = match tier {
             TmxTier::Work { source_lang } => source_lang,
             TmxTier::Global if has_han(&pair.source_text) => "zh",
@@ -163,7 +181,7 @@ pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> String {
         out.push_str("</seg></tuv>\n    </tu>\n");
     }
     out.push_str("  </body>\n</tmx>\n");
-    out
+    RenderedTmx { text: out, left_out }
 }
 
 /// UTF-8 (BOM allowed) or UTF-16 with BOM to text; anything else is `NotUtf8`.

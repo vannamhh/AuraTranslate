@@ -11,7 +11,7 @@ use crate::commands::segment::{global_store_missing, side_wire, tier_wire, tm_lo
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::Store;
 use crate::core::tm::tmx::{
-    ImportPlan, PlannedPair, TmxError, TmxTier, distinct_tier_pairs, existing_pair_keys, pairs_not_in, parse_tmx,
+    ImportPlan, PlannedPair, RenderedTmx, TmxError, TmxTier, distinct_tier_pairs, existing_pair_keys, pairs_not_in, parse_tmx,
     plan_import, render_tmx, write_planned_pairs,
 };
 use crate::core::tm::tmx_io::{read_tmx_file, write_tmx_file};
@@ -184,7 +184,7 @@ pub fn prepare_tm_list(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let snapshot = crate::core::tm::load_tier_rows(global, open.map(|o| &o.store))
+    let snapshot = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmListScan { work_open: open.is_some(), tier, pair_origin, search: search.to_owned(), resolver, snapshot })
 }
@@ -437,7 +437,7 @@ pub fn tm_read_tier_pairs(global: Option<&Store>, open: Option<&OpenWork>, tier:
 }
 
 /// Renders pairs read by [`tm_read_tier_pairs`] as TMX 1.4b: one `<tu>` per distinct (source, target).
-pub fn tm_render_tier_pairs(read: &TierPairs) -> String {
+pub fn tm_render_tier_pairs(read: &TierPairs) -> RenderedTmx {
     let label = match (&read.tier, &read.source_lang) {
         (TmTier::Work, Some(source_lang)) => TmxTier::Work { source_lang },
         _ => TmxTier::Global,
@@ -446,7 +446,7 @@ pub fn tm_render_tier_pairs(read: &TierPairs) -> String {
 }
 
 /// Renders one tier as TMX 1.4b. Reads the store only; the file is written by [`tm_write_export`].
-pub fn tm_render_tier(global: Option<&Store>, open: Option<&OpenWork>, tier: &str) -> Result<String, IpcError> {
+pub fn tm_render_tier(global: Option<&Store>, open: Option<&OpenWork>, tier: &str) -> Result<RenderedTmx, IpcError> {
     Ok(tm_render_tier_pairs(&tm_read_tier_pairs(global, open, tier)?))
 }
 
@@ -455,13 +455,26 @@ pub fn tm_write_export(path: &Path, text: &str) -> Result<(), IpcError> {
     write_tmx_file(path, text).map_err(tmx_error)
 }
 
+/// What an export wrote: where, and how many pairs it left out because XML 1.0 cannot represent them.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TmxExported {
+    pub path: String,
+    pub left_out_count: usize,
+}
+
+/// Writes the rendered `rendered` to `path` and reports it as an export result.
+pub fn tm_write_rendered(path: &Path, rendered: &RenderedTmx) -> Result<TmxExported, IpcError> {
+    tm_write_export(path, &rendered.text)?;
+    Ok(TmxExported { path: path.display().to_string(), left_out_count: rendered.left_out })
+}
+
 pub fn tm_export_tier(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: &str,
     path: &Path,
-) -> Result<(), IpcError> {
-    tm_write_export(path, &tm_render_tier(global, open, tier)?)
+) -> Result<TmxExported, IpcError> {
+    tm_write_rendered(path, &tm_render_tier(global, open, tier)?)
 }
 
 /// The export once the dialog answered: `None` (cancelled) touches no file.
@@ -470,10 +483,9 @@ pub fn tm_export_tier_after_dialog(
     open: Option<&OpenWork>,
     tier: &str,
     picked_path: Option<PathBuf>,
-) -> Result<Option<String>, IpcError> {
+) -> Result<Option<TmxExported>, IpcError> {
     let Some(path) = picked_path else { return Ok(None) };
-    tm_export_tier(global, open, tier, &path)?;
-    Ok(Some(path.display().to_string()))
+    tm_export_tier(global, open, tier, &path).map(Some)
 }
 
 fn counts(plan: &ImportPlan, new_count: usize, file_name: String, tier: TmTier) -> TmxImportPreviewWire {
@@ -799,10 +811,9 @@ pub mod wire {
         app: &tauri::AppHandle<R>,
         tier: &str,
         path: &std::path::Path,
-    ) -> Result<Option<String>, IpcError> {
+    ) -> Result<Option<super::TmxExported>, IpcError> {
         let read = with_tier_store(app, tier, |global, open| super::tm_read_tier_pairs(global, open, tier))?;
-        super::tm_write_export(path, &super::tm_render_tier_pairs(&read))?;
-        Ok(Some(path.display().to_string()))
+        super::tm_write_rendered(path, &super::tm_render_tier_pairs(&read)).map(Some)
     }
 
     /// Wire shell of [`super::tm_export_tier_after_dialog`]; `tier` on the wire. Async: the save
@@ -812,7 +823,7 @@ pub mod wire {
     pub fn tm_export_tier<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         tier: String,
-    ) -> Result<Option<String>, IpcError> {
+    ) -> Result<Option<super::TmxExported>, IpcError> {
         use tauri_plugin_dialog::DialogExt as _;
 
         tier_is_ready(&app, &tier)?;

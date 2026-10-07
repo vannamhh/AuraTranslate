@@ -48,7 +48,7 @@ describe('tmFuzzyMatches', () => {
 })
 
 describe('acceptTmFuzzy', () => {
-  it('sends the pair identity and force, not its text', async () => {
+  it('sends the pair identity, the text shown and force', async () => {
     mockInvoke.mockResolvedValueOnce({
       segment_id: 9,
       target_text: 'x',
@@ -58,8 +58,8 @@ describe('acceptTmFuzzy', () => {
       unsigned_draft: null,
     })
     const { acceptTmFuzzy } = await import('../../src/config/segment')
-    const result = await acceptTmFuzzy(9, 'global', 4, true)
-    expect(mockInvoke).toHaveBeenCalledWith('accept_tm_fuzzy', { segmentId: 9, tier: 'global', unitId: 4, force: true })
+    const result = await acceptTmFuzzy(9, 'global', 4, 'Hắn đẩy cửa ra.', true)
+    expect(mockInvoke).toHaveBeenCalledWith('accept_tm_fuzzy', { segmentId: 9, tier: 'global', unitId: 4, expectedTarget: 'Hắn đẩy cửa ra.', force: true })
     expect(result.outcome?.status).toBe('draft')
   })
 })
@@ -112,8 +112,8 @@ describe('Story 7.8 wire', () => {
       segment_id: 9, target_text: 'x', translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null,
     })
     const { acceptTmExact } = await import('../../src/config/segment')
-    const result = await acceptTmExact(9, 'work', 3, false)
-    expect(mockInvoke).toHaveBeenCalledWith('accept_tm_exact', { segmentId: 9, tier: 'work', unitId: 3, force: false })
+    const result = await acceptTmExact(9, 'work', 3, 'Bản mới', false)
+    expect(mockInvoke).toHaveBeenCalledWith('accept_tm_exact', { segmentId: 9, tier: 'work', unitId: 3, expectedTarget: 'Bản mới', force: false })
     expect(result.outcome?.translation_origin).toBe('self')
   })
 

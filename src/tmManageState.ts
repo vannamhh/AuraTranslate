@@ -68,6 +68,7 @@ const exportBusy = ref(false)
 const exportError = ref<IpcError | null>(null)
 const exportIpcUnavailable = ref(false)
 const exportedPath = ref<string | null>(null)
+const exportLeftOutCount = ref(0)
 const importDone = ref<TmxImportSummary | null>(null)
 let listToken = 0
 let searchTimer: ReturnType<typeof setTimeout> | null = null
@@ -95,6 +96,7 @@ export const tmManageExportBusy: DeepReadonly<Ref<boolean>> = readonly(exportBus
 export const tmManageExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
 export const tmManageExportIpcUnavailable: DeepReadonly<Ref<boolean>> = readonly(exportIpcUnavailable)
 export const tmManageExportedPath: DeepReadonly<Ref<string | null>> = readonly(exportedPath)
+export const tmManageExportLeftOutCount: DeepReadonly<Ref<number>> = readonly(exportLeftOutCount)
 
 export const tmManageImportDone: DeepReadonly<Ref<TmxImportSummary | null>> = readonly(importDone)
 
@@ -259,6 +261,7 @@ export async function exportTmManageTier(): Promise<void> {
     return
   }
   exportedPath.value = result.path
+  exportLeftOutCount.value = result.leftOutCount
 }
 
 export function closeTmManage(): void {

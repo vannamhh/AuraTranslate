@@ -8,6 +8,7 @@ export type TmFuzzyPendingAccept = {
   segmentId: number
   tier: TmFuzzyTier
   unitId: number
+  expectedTarget: string
   draft: string
   kind: 'fuzzy' | 'exact'
 }

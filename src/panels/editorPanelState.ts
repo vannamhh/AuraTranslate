@@ -426,6 +426,7 @@ export async function acceptTmFuzzyToEditor(
   segmentId: number,
   tier: TmFuzzyTier,
   unitId: number,
+  expectedTarget: string,
   force = false,
   kind: 'fuzzy' | 'exact' = 'fuzzy',
 ): Promise<AcceptTmFuzzyResult> {
@@ -441,7 +442,7 @@ export async function acceptTmFuzzyToEditor(
 
   setTmFuzzyAccepting(true)
   try {
-    const { outcome, error } = await (kind === 'exact' ? acceptTmExact : acceptTmFuzzy)(segmentId, tier, unitId, force)
+    const { outcome, error } = await (kind === 'exact' ? acceptTmExact : acceptTmFuzzy)(segmentId, tier, unitId, expectedTarget, force)
     if (outcome === null) {
       setTmFuzzyAcceptError(error)
       setTmFuzzyPendingAccept(null)
@@ -449,7 +450,7 @@ export async function acceptTmFuzzyToEditor(
     }
     setTmFuzzyAcceptError(null)
     if (outcome.needs_confirmation) {
-      setTmFuzzyPendingAccept({ segmentId, tier, unitId, draft: outcome.unsigned_draft ?? '', kind })
+      setTmFuzzyPendingAccept({ segmentId, tier, unitId, expectedTarget, draft: outcome.unsigned_draft ?? '', kind })
       return 'needs-confirmation'
     }
     setTmFuzzyPendingAccept(null)

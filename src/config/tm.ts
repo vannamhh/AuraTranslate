@@ -58,7 +58,7 @@ export type TmxImportPreview = {
 export type TmxImportSummary = { inserted: number; already_count: number; future_dated_count: number }
 
 export type TmExportResult =
-  | { outcome: 'done'; path: string }
+  | { outcome: 'done'; path: string; leftOutCount: number }
   | { outcome: 'cancelled' }
   | { outcome: 'ipc_unavailable' }
   | { outcome: 'error'; error: IpcError }
@@ -311,6 +311,12 @@ function isImportPreview(value: unknown): value is TmxImportPreview {
   )
 }
 
+function isExported(value: unknown): value is { path: string; left_out_count: number } {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { path?: unknown; left_out_count?: unknown }
+  return typeof v.path === 'string' && v.path !== '' && isCount(v.left_out_count)
+}
+
 function isImportSummary(value: unknown): value is TmxImportSummary {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmxImportSummary>
@@ -320,12 +326,10 @@ function isImportSummary(value: unknown): value is TmxImportSummary {
 /** Opens the save dialog in Rust and writes one tier as TMX. `null` from Rust is a cancelled dialog. Never throws. */
 export async function tmExportTier(tier: TmManageTier): Promise<TmExportResult> {
   try {
-    const path = await invoke<unknown>(CMD_TM_EXPORT_TIER, { tier })
-    if (path === null) return { outcome: 'cancelled' }
-    if (typeof path !== 'string' || path === '') {
-      return { outcome: 'error', error: malformed(path, CMD_TM_EXPORT_TIER) }
-    }
-    return { outcome: 'done', path }
+    const wire = await invoke<unknown>(CMD_TM_EXPORT_TIER, { tier })
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!isExported(wire)) return { outcome: 'error', error: malformed(wire, CMD_TM_EXPORT_TIER) }
+    return { outcome: 'done', path: wire.path, leftOutCount: wire.left_out_count }
   } catch (err) {
     const error = failureOf(err, CMD_TM_EXPORT_TIER)
     return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }

@@ -1258,17 +1258,19 @@ export async function tmFuzzyMatches(segmentId: number): Promise<TmFuzzyMatchesR
 }
 
 /**
- * Accept one fuzzy pair, identified by tier and `tm_unit.id` (Rust re-reads the text).
+ * Accept one fuzzy pair, identified by tier and `tm_unit.id`. `expectedTarget` is the text the
+ * strip showed; Rust refuses with `tm.pair_not_found` and writes nothing when the pair changed.
  * Same outcome and `force` / `needs_confirmation` contract as [`promoteAiTranslation`].
  */
 export async function acceptTmFuzzy(
   segmentId: number,
   tier: TmFuzzyTier,
   unitId: number,
+  expectedTarget: string,
   force: boolean,
 ): Promise<PromoteAiTranslationResult> {
   try {
-    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_FUZZY, { segmentId, tier, unitId, force })
+    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_FUZZY, { segmentId, tier, unitId, expectedTarget, force })
     if (!isPromoteAiTranslationOutcome(outcome)) {
       console.error(
         `[segment] \`${CMD_ACCEPT_TM_FUZZY}\` trả một PromoteAiTranslationOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,
@@ -1289,10 +1291,11 @@ export async function acceptTmExact(
   segmentId: number,
   tier: TmFuzzyTier,
   unitId: number,
+  expectedTarget: string,
   force: boolean,
 ): Promise<PromoteAiTranslationResult> {
   try {
-    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_EXACT, { segmentId, tier, unitId, force })
+    const outcome = await invoke<unknown>(CMD_ACCEPT_TM_EXACT, { segmentId, tier, unitId, expectedTarget, force })
     if (!isPromoteAiTranslationOutcome(outcome)) {
       console.error(
         `[segment] \`${CMD_ACCEPT_TM_EXACT}\` trả một PromoteAiTranslationOutcome SAI HÌNH DẠNG: ${JSON.stringify(outcome)}`,

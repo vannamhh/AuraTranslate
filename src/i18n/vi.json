@@ -1028,6 +1028,7 @@
   "tm.exchange.import_tmx": "Nhập TMX",
   "tm.exchange.exporting": "Đang xuất…",
   "tm.exchange.export_done": "Đã ghi vào {path}",
+  "tm.exchange.export_left_out": "{count} cặp không có trong tệp vì chứa ký tự điều khiển mà TMX (XML 1.0) không biểu diễn được.",
   "tm.exchange.export_ipc_unavailable": "Không xuất được — cầu IPC chưa sẵn sàng.",
   "tm.exchange.busy_other": "Một thao tác Xuất/Nhập khác đang mở hộp thoại — đợi thao tác đó xong rồi thử lại.",
   "tm.exchange.work_unavailable": "Chưa mở Tác phẩm nào — chỉ xuất và nhập được tầng Toàn cục.",
