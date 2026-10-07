@@ -895,6 +895,10 @@ message_keys! {
     /// hình của lô CÓ giá — tổng tiền chỉ CỘNG những hàng đã báo, đúng cùng kỷ luật "never
     /// silently sum a subset as if whole" áp cho cả số token lẫn số tiền.
     AiTranslateBatchUsagePartialWithCost => "ai.translate.batch_usage_partial_with_cost" ["token_count", "cost_usd", "reported_count", "sentence_count"],
+    /// Phạm vi xuất không có Chương nào (chưa chọn Chương, hoặc Tác phẩm không có Chương).
+    ExportScopeEmpty => "err.export.scope_empty" [],
+    /// Thư mục đích vừa chọn không dùng được (đường dẫn không đọc được thành văn bản).
+    ExportFolderInvalid => "err.export.folder_invalid" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

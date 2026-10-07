@@ -1164,6 +1164,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
              dien con bam/go duoc suot luot tren mot thu vien lon",
         ),
         (
+            "src/commands/chapter.rs",
+            "pub fn export_choose_folder(app: tauri::AppHandle",
+            "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
+        ),
+        (
             "src/commands/library.rs",
             "pub fn library_choose_root(app: tauri::AppHandle",
             "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
@@ -1727,7 +1732,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 16] = [
          `#[tauri::command]` tran (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong \
          bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau.",
     ),
-    ("src/commands/chapter.rs", 4, 5, 5, ""),
+    ("src/commands/chapter.rs", 5, 6, 6, ""),
     (
         "src/commands/cleanup.rs",
         5,
@@ -1929,9 +1934,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (68, 49),
+        (69, 50),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         68/49.\n\n\
+         69/50.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
