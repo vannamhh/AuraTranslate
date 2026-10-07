@@ -883,6 +883,14 @@ export type CommandDeps = {
   /** Saves the threshold typed in Settings. Handler of `tm.settings.save`. */
   saveTmSettings?: () => void
 
+  // ── Export screen (FR89) ──
+  /** Opens the export screen. Handler of `export.open`. */
+  openExport?: () => void
+  /** Closes the export screen. Handler of `export.close`. */
+  closeExport?: () => void
+  /** Opens the destination-folder dialog in Rust. Handler of `export.choose_folder`. */
+  chooseExportFolder?: () => void
+
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
   openTmManage?: () => void
@@ -3272,6 +3280,35 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('tm.settings.save', 'saveTmSettings')
       }
       deps.saveTmSettings()
+    },
+  })
+
+  // Export screen: the title-bar button dispatches `export.open`; no default chord.
+  target.register({
+    id: 'export.open',
+    labelKey: 'command.export.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openExport === undefined) return portMissing('export.open', 'openExport')
+      deps.openExport()
+    },
+  })
+  target.register({
+    id: 'export.close',
+    labelKey: 'command.export.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeExport === undefined) return portMissing('export.close', 'closeExport')
+      deps.closeExport()
+    },
+  })
+  target.register({
+    id: 'export.choose_folder',
+    labelKey: 'command.export.choose_folder',
+    keys: undefined,
+    run: () => {
+      if (deps.chooseExportFolder === undefined) return portMissing('export.choose_folder', 'chooseExportFolder')
+      deps.chooseExportFolder()
     },
   })
 

@@ -12915,6 +12915,9 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
   summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
   evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-pham-vi-xuat-plan.md`
+  summary: Real-app check of 8-2 not yet run: open Xuất from the title bar, pick a scope, press "Chọn thư mục…" (the OS folder dialog must open without "Not Responding" and cancelling must keep the old folder), Tab through every control, and look at the Word-like block next to a real `.docx` in Word.
+  evidence: only a person can see the OS dialog and the Word look in the packaged app; Rust and vitest guards cover counts, warning and contrast arithmetic. Chủ: Epic 8.
 
 ## Deferred from: rà các plan in-progress (2026-10-07)
 

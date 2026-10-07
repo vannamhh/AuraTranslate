@@ -228,7 +228,7 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 30
-const TS_FLOOR = 75
+const TS_FLOOR = 82
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
@@ -2374,6 +2374,7 @@ const HANDLER_TABLE = {
     ],
   },
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
+  'src/ExportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
   'src/TmManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
