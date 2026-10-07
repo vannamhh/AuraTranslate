@@ -3,7 +3,7 @@ title: 'Tách `commands/segment.rs` trước khi thêm lượt ghi segment'
 type: 'refactor'
 ticket: '16'
 created: '2026-10-07'
-status: 'in-review'
+status: 'built'
 baseline_revision: 'd6001d8fdf919b2b74cdbad79826e70cc78d4033'
 route: 'full'
 route_source: 'auto'
@@ -68,9 +68,14 @@ context: []
 - Baseline on `d6001d8`: 2182 passed / 0 failed / 27 ignored over 75 `Running` entries; after the split the same tuple.
 - TM commands stay divided between `segment/tm_match.rs` and `commands/tm.rs`; merging them changes paths and census rows and is left to Ice.
 
+- `scripts/check-i18n.mjs` `RS_FLOOR` 85 to 98 as well (found by review: the gate aborted, Kiểm A never ran). The 12 pre-push `check:*` gates are green after it.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+- medium: `check-i18n.mjs` `RS_FLOOR` not raised, gate aborts on 115 files; verified by running it; fixed.
+- low: ledger closure wrote `Story 8-16`; ledger form is `Story 8.16`; fixed.
 
 ## Verification
 
