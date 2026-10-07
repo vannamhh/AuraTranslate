@@ -12875,22 +12875,27 @@ chính nó.
   summary: F2.4: `commands/segment.rs::accept_tm_fuzzy` and `::accept_tm_exact` re-read the pair via `pair_by_id` and write `pair.target_text`, while the webview sends only `unitId`, so a pair edited between display and accept is accepted silently with different text.
   evidence: the user agreed to the text shown, not the text re-read. Pointer: `src/tmFuzzyStripState.ts`. Reconsidered when Epic 8 is planned; Kiểm C blocks Epic 8 closing. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
+  → 🟡 2026-10-07 (Story 8.17) — chưa sửa: gửi `expectedTarget` rồi so (không migration) hoặc tem phiên bản (cột mới, migration một chiều) — hai hình dạng hợp lệ, chờ Ice, Open Questions 1 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.7: `core/tm/tmx.rs::escape_into` silently drops characters below 0x20 and U+FFFE/FFFF, and `MAX_TMX_BYTES` is checked only in `decode_tmx_bytes`, so a pair holding such a character comes back as a "new" pair on re-import; and `render_tmx`/`commands/tm.rs::tm_export_tier` have no cap, so a large enough TM exports a file the importer rejects.
   evidence: the 7.10 review rejected this without a debt item; a measured 262 MB export is within about 2.5% of the 256 MiB import cap. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
+  → 🟡 2026-10-07 (Story 8.17) — trần xuất đã đóng (`write_tmx_file` từ chối quá `MAX_TMX_BYTES` trước khi tạo tệp); còn ký tự điều khiển bị bỏ im lặng khi xuất (đo: nhập lại thành cặp "mới"), bốn phương án chờ Ice, Open Questions 2 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.9: `core/tm/mod.rs::load_fuzzy_candidates`, `::load_concordance_candidates` and `::load_manage_snapshot` build the identical `{global_rows, work_rows}`, and `core/tm/tmx.rs::distinct_tier_pairs` and `core/ai/rag.rs::TmRows` also wrap `load_all_pair_rows`.
   evidence: duplication, no behaviour defect found; five wrappers of the same loader must change together. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8.17) — `FuzzyCandidates`, `ConcordanceCandidates`, `ManageSnapshot` và ba hàm nạp thành `TierRows` + `load_tier_rows`; `rag::TmRows` (thêm ngưỡng) và `distinct_tier_pairs` (một kho) không phải bản sao nên giữ.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.4: `core/tm/mod.rs::fuzzy_pairs_in_candidates` scores all `global_rows` with one `SimilarityScorer::new(source_text, lang)` and no language filter, so pairs of another language pair are scored against this source.
   evidence: the Global tier stores no language, so zh and en pairs mix; the 7.5 strip and 7.11 RAG may insert another language's pair. Unmeasured: measure before calling it a bug. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; đo trước khi gọi là lỗi. Chủ: Story 8.17.
+  → 🟡 2026-10-07 (Story 8.17) — đã đo: câu dài khác ngôn ngữ tối đa 52 (dưới ngưỡng 65), nhưng tiêu đề ngắn hỗn hợp chữ vượt (75, một ca 100); chưa có số trên TM thật. Sửa cần lọc theo hình dạng hoặc cột ngôn ngữ (migration) — chờ Ice, Open Questions 3 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.5: `core/matching/mod.rs::SimilarityScorer` compares raw text, `::diff_spans` trims and NFC-normalises, and `core/tm/mod.rs::concordance_key` trims, NFC-normalises and lowercases, so the three disagree on what counts as the same text.
   evidence: a source differing only in whitespace shows "75%" while its diff is all Equal. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; 8.12 dùng chung `diff_spans`. Chủ: Story 8.17.
+  → 🟡 2026-10-07 (Story 8.17) — đã đo: Zh "第三章" ~ " 第三章" = 83 trong khi diff toàn Equal; đổi chấm điểm đổi phần trăm người dùng thấy và lật ca khoá NFC/NFD của `tm_contract` — ba phương án chờ Ice, Open Questions 4 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: Split `commands/segment.rs` (4557 lines, one file, TM commands divided between it and `commands/tm.rs`) along the Epic 6 AI-6 split of `commands/project.rs`.
   evidence: a file too large to hold as a map costs every agent that reads it. Pointer: `commands/segment.rs`, `commands/tm.rs`. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
