@@ -72,6 +72,7 @@
   - **AC3 / Task 4** — mệnh đề *rào biên dịch C của `zstd-sys` · `libsqlite3-sys` · `aws-lc-sys` biến mất trên `windows-2025`* mới là **kỳ vọng đọc từ tài liệu**, chưa ai đo. Cùng chỗ: WiX v3 — mũi thăm dò nói *"Tauri CLI tự tải lần build đầu"*, tài liệu Tauri nói phải cài sẵn; **hai nguồn nói khác nhau**, lượt chạy đầu phân xử. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
     → 🟡 2026-10-07 (Story 1.3) — cùng bốn phép như mục §Story 1.3 dưới (dòng *"Bốn phép nghiệm thu runner của Story 1.3 vẫn CHƯA ĐỌC"*): hai phép đã đóng, AC7 còn ô `macos-26` cache lạnh, AC6 còn ba số `.msi`. **Chủ: B7 — bảng nghiệm thu Windows, chủ Ice.**
     → 🟡 2026-10-07 (Story 1.3) — AC6 cũng đã đóng (ba số `.msi` Ice chép từ run 37446210896); còn đúng ô `macos-26` cache lạnh của AC7. **Chủ: B7 — bảng nghiệm thu Windows, chủ Ice.**
+    → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 1.3) — `macos-26` cache lạnh 22m35s (run 37588467333); cả bốn phép đã đọc, số ở plan 1.3.
 
 ## Deferred from: code review of 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)
 
@@ -1527,6 +1528,7 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   nhau). Cả bốn nằm sau đúng một lượt Windows xanh. **Chủ: Story 1.3.**
   → 🟡 2026-10-07 (Story 1.3) — đã đọc trên run 37446210896 và run dò 37572393449: AC3/Task 4 (WiX v3.14 do `tauri-cli` tự tải), Task 11 hàng 4 (chỉ Windows đỏ) và AC7 trừ một ô đã đóng, số ở §Nghiệm thu runner — đọc 2026-10-07 của plan 1.3. Còn: ba số `.msi` của AC6 (step summary chỉ hiện khi đăng nhập GitHub) và lượt `macos-26` cache lạnh của AC7. **Chủ: Story 1.3.**
   → 🟡 2026-10-07 (Story 1.3) — AC6 đóng: Ice chép ba số `.msi` từ step summary của run 37446210896 (241.790.976 · 220.483.584 · 29.220.864 B), payload 29,22 MB dưới trần NFR6, số ở plan 1.3. Còn đúng một ô: lượt `macos-26` cache lạnh của AC7. **Chủ: Story 1.3.**
+  → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 1.3) — ô cuối của AC7: `macos-26` cache lạnh 22m35s (run 37588467333, rust-cache *"No cache found"*). Cả bốn phép nghiệm thu runner đã đọc, số ở plan 1.3 §Nghiệm thu runner — đọc 2026-10-07.
 
 - ⚠️ **Nợ nghiệm thu thị giác của Epic 1 có HỆ SỐ NHÂN, không phải hằng số.** Mọi bản vá
   tầng DOM đều không đo được bằng bộ cổng hiện có (cổng nạp mã bằng Node thuần — không

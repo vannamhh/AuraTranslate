@@ -1,17 +1,17 @@
 ---
 ticket: 3
-status: in-progress
+status: built
 type: chore
 baseline_revision: a2a5612defa545c105f41306e22357269285fdc1
 ---
 
 # Story 1.3: CI tối thiểu — hai nền tảng, mỗi lần push
 
-Status: in-progress
+Status: built
 
 > **Đã qua một lượt code review 2026-08-03** (ba lớp song song, xem §Review Findings). 16 bản vá đã áp và đã nghiệm thu đỏ-rồi-xanh tại máy; 4 quyết định của Ice đã ghi. **Story vẫn `in-progress`, không lên `review`** — cùng lý do như trước lượt rà soát: AC6, AC7, Task 11 hàng 4 và AC3/Task 4 đều cần một lượt runner thật, và nay thêm hai thứ nữa chỉ runner mới trả lời được: bước `check:scope` mới của D1 có mở được webview trên `macos-26`/`windows-2025` không, và trạng thái cuối của AC8 (D2) phụ thuộc chính câu trả lời đó.
 >
-> 🔵 **2026-10-07:** đã đọc trên runner AC3/Task 4, Task 11 hàng 4, AC8 hai nền tảng và phần lớn AC7 (§Nghiệm thu runner — đọc 2026-10-07). Ice chép ba số `.msi` cùng ngày, nên AC6/NFR6 đã đóng. Story vẫn `in-progress` vì còn đúng một ô: chưa có lượt `macos-26` cache lạnh cho AC7.
+> 🔵 **2026-10-07:** đã đọc trên runner AC3/Task 4, Task 11 hàng 4, AC8 hai nền tảng và phần lớn AC7 (§Nghiệm thu runner — đọc 2026-10-07). Ice chép ba số `.msi` cùng ngày, nên AC6/NFR6 đã đóng; lượt `macos-26` cache lạnh (run 37588467333) đóng AC7. Mọi task đã tick, plan lên `built` và chờ Ice ký.
 
 Epic: 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
 Covers: NFR14 · NFR15 · **NFR6** *(nửa Windows — bàn giao từ Story 1.1, 2026-08-03)* · lưới an toàn cho AC6 của Story 1.2 · **bốn mục Deferred của code review Story 1.2** *(xem `deferred-work.md:13-14`)*
@@ -191,7 +191,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] Chú thích đầu `ci.yml`: *"Đây KHÔNG phải FR107. Không build công khai kiểm chứng được, không checksum, không `dict-manifest.toml`, không GitHub Release. FR107 đóng ở Story 10.1 với phạm vi nguyên vẹn."*
   - [x] Rà lại một lượt cuối: không bước nào tải dữ liệu từ điển, không bước nào tạo release, không bước nào sinh checksum (AC5, AC7).
 
-- [ ] **Task 11 — Nghiệm thu: đỏ thật rồi xanh thật** (AC: 2)
+- [x] **Task 11 — Nghiệm thu: đỏ thật rồi xanh thật** (AC: 2)
   - [x] **Một pipeline chưa từng đỏ là một pipeline chưa được nghiệm thu.** Cố ý phá rồi khôi phục, ghi kết quả từng lượt:
     | Phá cái gì | Phải đỏ ở đâu |
     |---|---|
@@ -199,7 +199,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
     | Đổi `tauri.nofonts.conf.json` từ `null` sang `{}` | test mới ở Task 5 |
     | Tạo `node_modules/@tauri-apps/plugin-fs/` | `npm run check:deps`, exit 1 |
     | Thêm một lỗi biên dịch chỉ ở nhánh Windows (`#[cfg(windows)] compile_error!`) | **chỉ** job Windows đỏ, job macOS **vẫn xanh** — đây là phép kiểm của AC1 (*"tách bạch"*) và của `fail-fast: false` |
-  - [ ] Ghi số của AC7: **thời gian tường mỗi job** ở lượt cache lạnh và lượt cache nóng, **phút tính phí** ước tính theo hệ số ở §Ngân sách CI. Không ghi *"chạy nhanh"*.
+  - [x] Ghi số của AC7: **thời gian tường mỗi job** ở lượt cache lạnh và lượt cache nóng, **phút tính phí** ước tính theo hệ số ở §Ngân sách CI. Không ghi *"chạy nhanh"*.
   - [x] Cập nhật `deferred-work.md`: đóng mục *"Tổ hợp CSP + asset protocol của bản RELEASE"* (Task 7) và mục *"NFR6 phải đo lại"* (Task 5, 6) — hoặc ghi lại chúng với trạng thái mới nếu chưa đóng được.
 
 ---
@@ -677,14 +677,16 @@ Nguồn: run push 37446210896 (`0c26cc7`, cả hai job xanh), run 31568723620 (`
 - **AC3 / Task 4:** đã đóng. `windows-2025` biên dịch native và chạy `cargo test` xanh trên mọi nhị phân test, rồi dựng `.msi`, nên rào biên dịch C của `zstd-sys`, `libsqlite3-sys` và `aws-lc-sys` không còn. WiX: `tauri-cli` **tự tải** `wix314-binaries.zip` (WiX v3.14) ở lượt build đầu của job; ảnh runner không có sẵn. Mũi thăm dò nói đúng.
 - **Task 11 hàng 4:** đã đóng. Xem bảng ở trên.
 - **AC8 trên Windows:** đã đóng. `check:scope:bundled` cho `mode: bundled-csp`, `[PASS] in-scope qua font-src`, chiều âm `[----] unmeasured` đúng thiết kế, `VERDICT: PASS`. `check:scope` (dev) cho `[PASS] out-of-scope: C:\Windows\win.ini — denied with HTTP 403`.
-- **AC7:** còn thiếu một số. Thời gian tường mỗi job:
+- **AC7:** đã đóng. Thời gian tường mỗi job:
 
   | Job | Cache lạnh | Cache nóng |
   |---|---|---|
   | `windows-2025` | 29m31s (31568723620, *"No cache found"*) | 28m08s (37446210896) |
-  | `macos-26` | **chưa có**: 22 lượt xanh từ 2026-09-13 đều khôi phục cache | 14m13s (37446210896) |
+  | `macos-26` | 22m35s (37588467333, `workflow_dispatch` sau khi xoá ba cache `v0-rust-check-Darwin-*`; *"No cache found"*, cache npm vẫn trúng như lượt lạnh Windows) | 14m13s (37446210896) |
 
-  Phút tính phí là **0** ở cả hai nền tảng của cả hai run (API `timing`), vì repo đã chuyển sang công khai. Hệ số ×10 của §Ngân sách CI không còn áp. Cũng đã đo: rủi ro đã biết ở mục 2 bên trên là có thật. Mỗi bản `.msi` biên dịch lại profile release khoảng 3 phút (`Finished release` 3m00s · 2m51s · 3m01s), nên bước đo `.msi` mất 10m08s chứ không "chỉ tốn khâu đóng gói". Bước `cargo test` của Windows mất 12m53s.
+  Lượt lạnh macOS tăng chủ yếu ở hai bước: `cargo test` 4m54s (nóng 2m31s) và `tauri build` 9m01s (nóng 4m47s). Cùng run đó, job Windows chạy với cache nóng mất 31m01s.
+
+  Phút tính phí là **0** ở cả hai nền tảng của cả ba run (API `timing`), vì repo đã chuyển sang công khai. Hệ số ×10 của §Ngân sách CI không còn áp. Cũng đã đo: rủi ro đã biết ở mục 2 bên trên là có thật. Mỗi bản `.msi` biên dịch lại profile release khoảng 3 phút (`Finished release` 3m00s · 2m51s · 3m01s), nên bước đo `.msi` mất 10m08s chứ không "chỉ tốn khâu đóng gói". Bước `cargo test` của Windows mất 12m53s.
 - **AC6 / NFR6:** đã đóng. Ba số `.msi` chỉ nằm trong `$GITHUB_STEP_SUMMARY`, mà GitHub chỉ hiện summary cho người đã đăng nhập; Ice chép từ run 37446210896 (`windows-2025`, `offlineInstaller` đọc từ `tauri.conf.json`, rustc 1.97.1, tauri-cli 2.11.4):
 
   | Bản dựng | byte | MiB | thời gian |
@@ -743,3 +745,4 @@ Nguồn: run push 37446210896 (`0c26cc7`, cả hai job xanh), run 31568723620 (`
 | 2026-08-11 | ✅ **NỬA WINDOWS CỦA PIPELINE SỐNG LẠI — đo trên runner, ba lượt.** `31468807121` *(sau bản vá manifest)*: `STATUS_ENTRYPOINT_NOT_FOUND` **biến mất**, `config_invariants` 15 xanh và `dict_boundary` 14 xanh — lần đầu tiên trong đời dự án; đỏ ở chỗ mới là cổng parity lược đồ của `dict_lookup`, và nguyên nhân là `core.autocrlf=true` của ảnh runner *(vá bằng `.gitattributes` `* -text`, KHÔNG `eol=lf` — kho có fixture mang CRLF có chủ ý)*. `31469843146` *(sau bản vá CRLF)*: **15 trên 15** nhị phân test chạy được, **263 trên 264** ca **XANH**. Job `macos-26` XANH trọn vẹn ở cả ba lượt, gồm `tauri build` dựng `.dmg`, `check:scope:bundled` (AC8 chiều dương) và `check:scope` (AC8 chiều ÂM) ⇒ điều kiện của [D2] đã thoả **trên macOS**. 🔴 **Còn đúng MỘT ca đỏ, và nó cần Ice quyết chứ không cần một bản vá:** `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` (AC5 của Story 1.7) — `.db-wal` **889.952 B** trên trần assert 327.680 B, trong khi cơ chế checkpoint **có chạy** *(51 lượt theo ngưỡng, 6.392 frame, 0 bị chặn, 0 lỗi, `idle_triggered = 0`)* và mệnh đề *"chững lại"* của chính ca đó **ĐẠT**. Câu hỏi: AC5 nói *"chững lại"* hay *"có trần tuyệt đối"*? Chi tiết + ba đường đi và cái giá của từng đường: `epic-1-retro-2026-08-11.md` §3c |
 | 2026-10-07 | 🔵 **Đọc các phép nghiệm thu runner còn treo.** AC3/Task 4 (WiX v3.14 do `tauri-cli` tự tải), AC8 Windows (`VERDICT: PASS` cả hai chiều) và Task 11 hàng 4 (nhánh dò `422415d`, run 37572393449: chỉ Windows đỏ) đã đóng. Phút tính phí là 0 vì repo công khai. Mỗi bản `.msi` biên dịch lại release khoảng 3 phút. Còn mở: ba số `.msi` (summary cần đăng nhập) và lượt `macos-26` cache lạnh. |
 | 2026-10-07 | 🔵 **AC6/NFR6 đóng bằng ba số `.msi` Ice chép từ step summary của run 37446210896.** Payload 29,22 MB dưới trần; runtime WebView2 nhúng đo được 212,57 MB, không phải ≈127 MB như tài liệu; tổng 241,79 MB để Ice cân ở Story 10.2. Cờ *"bộ font NGOÀI dải"* (20,32 MiB) do `license/COPYING.txt` nằm chung lớp phủ; trừ ra còn 20,29 MiB. Còn mở: lượt `macos-26` cache lạnh của AC7. |
+| 2026-10-07 | 🔵 **AC7 đóng: lượt `macos-26` cache lạnh mất 22m35s** (run 37588467333, dựng bằng cách xoá ba cache `v0-rust-check-Darwin-*` rồi `workflow_dispatch`; Ice đồng ý). Mọi task đã tick ⇒ plan `in-progress` → `built`, chờ Ice ký. |
