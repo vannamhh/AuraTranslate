@@ -1184,6 +1184,21 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "doc moi segment cua pham vi (ca Tac pham) roi ghi mot tep .md hoac .txt xuong dia",
         ),
         (
+            "src/commands/export.rs",
+            "pub fn reviewer_import_open_preview(app: tauri::AppHandle",
+            "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien, roi doc va phan tich ca tep",
+        ),
+        (
+            "src/commands/export.rs",
+            "pub fn reviewer_import_confirm(app: tauri::AppHandle",
+            "ghi mot giao dich cho moi Chuong cua tep, giu PendingReviewerImportState suot luot ghi",
+        ),
+        (
+            "src/commands/export.rs",
+            "pub fn reviewer_import_cancel(app: tauri::AppHandle",
+            "khoa `PendingReviewerImportState`, mutex ma `reviewer_import_confirm` giu suot luot ghi",
+        ),
+        (
             "src/commands/library.rs",
             "pub fn library_choose_root(app: tauri::AppHandle",
             "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
@@ -1778,7 +1793,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 18] = [
         "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
-    ("src/commands/export.rs", 1, 4, 4, ""),
+    ("src/commands/export.rs", 1, 7, 7, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
@@ -1957,7 +1972,7 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (71, 53),
+        (71, 56),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
          71/53.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \

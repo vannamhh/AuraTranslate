@@ -118,6 +118,15 @@ pub struct TableShape {
     pub paragraphs_per_cell: Vec<Vec<usize>>,
 }
 
+/// Thân tài liệu có cấu trúc: đoạn hoặc bảng, ô rỗng được giữ. Chữ của một ô là các đoạn nối
+/// bằng `\n`; ảnh nhúng không có chữ nên không góp vào.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DocxBodyItem {
+    Paragraph(String),
+    /// `[hàng][cột]`; bảng lồng đứng ngay sau bảng cha, như trong `tables`.
+    Table(Vec<Vec<String>>),
+}
+
 /// Kết quả đọc trọn một `.docx`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocxParsed {
@@ -133,6 +142,7 @@ pub struct DocxParsed {
     pub tables: Vec<TableShape>,
     /// Byte thật của mọi ảnh nhúng phân giải được — xem [`DocxImage`].
     pub images: Vec<DocxImage>,
+    pub body: Vec<DocxBodyItem>,
 }
 
 /// Đọc trọn một `.docx` từ byte trong bộ nhớ — hàm THUẦN, không chạm đĩa ngoài `bytes` được
@@ -182,15 +192,19 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
     let mut images: Vec<DocxImage> = Vec::new();
     let mut tables: Vec<TableShape> = Vec::new();
     let mut first_text_seen = false;
+    let mut body: Vec<DocxBodyItem> = Vec::new();
 
     for item in &items {
         match item {
             BodyItem::Para(p) => {
+                body.push(DocxBodyItem::Paragraph(paragraph_text_only(p)));
                 push_paragraph(p, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive);
             }
             BodyItem::Table(t, nested) => {
+                body.push(DocxBodyItem::Table(table_cell_texts(t)));
                 tables.push(absorb_table(t, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
                 for n in nested {
+                    body.push(DocxBodyItem::Table(table_cell_texts(n)));
                     tables.push(absorb_table(n, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
                 }
             }
@@ -234,7 +248,7 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         return Err(DocxError::EmptyText);
     }
 
-    Ok(DocxParsed { text, blocks, tables, images })
+    Ok(DocxParsed { text, blocks, tables, images, body })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -667,6 +681,18 @@ fn find_image_rel_id(reader: &mut Reader<&[u8]>) -> Result<Option<String>, DocxE
 
 fn local_name_of_end(e: &quick_xml::events::BytesEnd) -> String {
     std::str::from_utf8(e.local_name().as_ref()).unwrap_or("").to_owned()
+}
+
+fn table_cell_texts(t: &TableContent) -> Vec<Vec<String>> {
+    t.rows
+        .iter()
+        .map(|row| {
+            row.cells
+                .iter()
+                .map(|cell| cell.paragraphs.iter().map(paragraph_text_only).collect::<Vec<_>>().join("\n"))
+                .collect()
+        })
+        .collect()
 }
 
 // Pushes a table's paragraphs (top-level or a split-out nested sibling) into `blocks` in

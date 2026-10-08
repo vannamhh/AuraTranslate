@@ -64,3 +64,9 @@ pub fn attribution_lines(chapter_origin: &ChapterOrigin, translator: Option<&str
     }
     lines
 }
+
+/// Whether a line is one of the labelled lines [`attribution_lines`] writes.
+pub(super) fn is_attribution_line(line: &str) -> bool {
+    // aura-allow-text: labels read back from the exported file, kept next to the writer above
+    ["Tác giả: ", "Nguồn: ", "Ngày đăng gốc: ", "Người dịch: "].iter().any(|label| line.starts_with(label))
+}

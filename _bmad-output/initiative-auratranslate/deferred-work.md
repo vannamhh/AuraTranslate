@@ -12955,6 +12955,7 @@ chính nó.
   summary: Since 8.5, `.docx` hai cột has image rows (link or `<stem>-anh/` path, same text in both cells), yet the format screen still says it is re-importable; re-import must recognise these rows instead of reading them as source/target sentences.
   evidence: maybe-false — the Epic 8 re-import path (8.8 shape gate, 8.9) is not built; settled by an 8.9 case that re-imports an 8.5 export containing both image-row kinds and asserts no segment is created or changed from them.
   Chủ: Story 8.9.
+  → ✅ ĐÃ ĐÓNG 2026-10-08 (Story 8-9): `reviewer_import_contract` nhập lại bản xuất 8-5 có cả hai kiểu hàng ảnh; hàng ảnh được nhận diện, bỏ qua, không tạo hay đổi segment nào.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-mot-khoi-theo-oan-cho-ang-bai-plan.md`
   summary: Dán thật tệp `.docx` một khối của 8.4 sang trình soạn thảo website (WordPress/Blogger...) chưa được ai làm: bảng một hàng không viền, ô nhiều đoạn, ảnh theo link hoặc theo đường dẫn; kiểm đoạn không dính, không còn viền, ảnh hiện.
   evidence: maybe-false — tests chỉ đọc lại XML của tệp, không có trình soạn thảo thật nào tham gia; cần Ice dán một tệp xuất từ Tác phẩm có ảnh vào ít nhất một trình soạn thảo và xem kết quả.
@@ -12979,3 +12980,12 @@ chính nó.
   summary: Alignment và lệnh nhập lại của 8.9 phải nhận `ReviewerDocx` (cổng `core::export::ReviewerDocx::admit`), không nhận `DocxParsed`; cần ca chứng minh khi cổng từ chối thì không ghi gì vào kho.
   evidence: 8.8 chỉ dựng cổng và kiểu; chưa có đường nhập lại nào gọi nó nên chưa có gì để chứng minh "không ghi".
   Chủ: Story 8.9.
+  → ✅ ĐÃ ĐÓNG 2026-10-08 (Story 8-9): `ReviewerDocx::admit` là cửa duy nhất của bộ đọc `.docx` trong `reviewer_copy.rs`; `reviewer_import_contract` có ca từ chối bản một khối, chạy `PRAGMA data_version` và số hàng mọi bảng không đổi.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-nhap-lai-file-reviewer-a-sua-plan.md`
+  summary: Chưa ai nhập một tệp Word thật đã sửa trong Word (hai cột, có ảnh, có ô sửa) qua nút "Nhập bản reviewer" ở thanh tiêu đề; test chỉ dựng tệp bằng hàm xuất của 8-3/8-5/8-6 và đọc lại bằng `core::docx`.
+  evidence: Word ghi lại XML khác bản xuất (run tách, thuộc tính `w:rsid`, ô gộp); chỉ lượt dùng thật mới cho biết bộ khớp còn nhận ra Chương.
+  Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-nhap-lai-file-reviewer-a-sua-plan.md`
+  summary: Thông báo "Chương đã đổi sau lúc nhập" khi `read_review_copy` trả `Stale` chưa có chỗ hiển thị; Review Mode (8-11) phải bắt `ReviewCopyError::Stale`, không đọc nó như danh sách rỗng.
+  evidence: 8-9 chỉ dựng hàm đọc có lỗi kiểu và màn xem trước; chưa có giao diện nào đọc bản reviewer.
+  Chủ: Epic 8.

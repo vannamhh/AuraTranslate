@@ -920,6 +920,30 @@ ALTER TABLE segment ADD COLUMN baseline_target_text TEXT NOT NULL DEFAULT '';
 ALTER TABLE segment ADD COLUMN baseline_translation_origin TEXT NOT NULL DEFAULT '';
 UPDATE segment SET baseline_target_text = target_text, baseline_translation_origin = translation_origin;";
 
+/// Step 30 (AD-52 rules 1-2): the re-imported reviewer copy. One live `review_chapter` per Chapter
+/// (`UNIQUE(chapter_id)`), plain-text `review_row`s in file order. No `REFERENCES`, so every delete of
+/// a dependent row is written by hand.
+pub const REVIEW_COPY_DDL: &str = "\
+CREATE TABLE review_chapter (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  chapter_id  INTEGER NOT NULL UNIQUE,
+  file_name   TEXT    NOT NULL,
+  file_kind   TEXT    NOT NULL,
+  imported_at TEXT    NOT NULL,
+  stale_at    TEXT,
+  CHECK (file_kind IN ('docx', 'md'))
+);
+CREATE TABLE review_row (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  review_chapter_id INTEGER NOT NULL,
+  ord               INTEGER NOT NULL,
+  kind              TEXT    NOT NULL,
+  source_text       TEXT,
+  target_text       TEXT    NOT NULL,
+  UNIQUE (review_chapter_id, ord),
+  CHECK (kind IN ('text', 'alt', 'caption'))
+);";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1895,7 +1919,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi tám bước, và đích là phiên bản 29.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Hai mươi chín bước, và đích là phiên bản 30.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2239,6 +2263,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 29,
         sql: TM_UNIT_SOURCE_INDEX_DDL,
+    },
+    Migration {
+        to_version: 30,
+        sql: REVIEW_COPY_DDL,
     },
 ];
 

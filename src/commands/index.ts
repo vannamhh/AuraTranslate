@@ -892,6 +892,12 @@ export type CommandDeps = {
   chooseExportFolder?: () => void
   /** Writes the selected export format into the chosen folder. Handler of `export.run`. */
   runExport?: () => void
+  /** Opens the reviewer-copy file dialog and previews the import. Handler of `export.reviewer_import.open`. */
+  openReviewerImportPreview?: () => void
+  /** Writes the previewed reviewer copy. Handler of `export.reviewer_import.confirm`. */
+  confirmReviewerImportPreview?: () => void
+  /** Drops the previewed reviewer copy or closes the result. Handler of `export.reviewer_import.cancel`. */
+  cancelReviewerImportPreview?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -3320,6 +3326,33 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.runExport === undefined) return portMissing('export.run', 'runExport')
       deps.runExport()
+    },
+  })
+  target.register({
+    id: 'export.reviewer_import.open',
+    labelKey: 'command.export.reviewer_import.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openReviewerImportPreview === undefined) return portMissing('export.reviewer_import.open', 'openReviewerImportPreview')
+      deps.openReviewerImportPreview()
+    },
+  })
+  target.register({
+    id: 'export.reviewer_import.confirm',
+    labelKey: 'command.export.reviewer_import.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmReviewerImportPreview === undefined) return portMissing('export.reviewer_import.confirm', 'confirmReviewerImportPreview')
+      deps.confirmReviewerImportPreview()
+    },
+  })
+  target.register({
+    id: 'export.reviewer_import.cancel',
+    labelKey: 'command.export.reviewer_import.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelReviewerImportPreview === undefined) return portMissing('export.reviewer_import.cancel', 'cancelReviewerImportPreview')
+      deps.cancelReviewerImportPreview()
     },
   })
 

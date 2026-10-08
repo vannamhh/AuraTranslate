@@ -76,6 +76,11 @@ export default tseslint.config(
   },
 
   {
+    files: ['src/**/*.vue'],
+    rules: { 'vue/no-v-html': 'error' },
+  },
+
+  {
     // Bans a second `invoke('confirm_segment')` surface outside `src/config/segment.ts`.
     files: ['src/**/*.ts', 'src/**/*.vue'],
     ignores: ['src/config/segment.ts'],

@@ -927,6 +927,17 @@ pub fn merge_chapter_into_previous(
         )?;
 
         tx.execute("DELETE FROM chapter_position WHERE chapter_id = ?1", [chapter_id])?;
+        tx.execute(
+            "DELETE FROM review_row WHERE review_chapter_id IN \
+             (SELECT id FROM review_chapter WHERE chapter_id = ?1)",
+            [chapter_id],
+        )?;
+        tx.execute("DELETE FROM review_chapter WHERE chapter_id = ?1", [chapter_id])?;
+        tx.execute(
+            "UPDATE review_chapter SET stale_at = COALESCE(stale_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+             WHERE chapter_id = ?1",
+            [a_id],
+        )?;
         tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id])?;
         // Chương SAU B tịnh tiến `ord - 1` -- một phép SẮP LẠI, không `updated_at`.
         tx.execute("UPDATE chapter SET ord = ord - 1 WHERE ord > ?1", [b_ord])?;
@@ -1054,6 +1065,12 @@ pub fn split_chapter_at_segment(
         tx.execute(
             "UPDATE chapter SET ord = ord + 1 WHERE ord > ?1 AND id <> ?2",
             (ord_a, chapter_b),
+        )?;
+
+        tx.execute(
+            "UPDATE review_chapter SET stale_at = COALESCE(stale_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+             WHERE chapter_id = ?1",
+            [chapter_a],
         )?;
 
         // 🔴 Mọi hàng TẠI và SAU `(ord, id)` của `s` -- SỐNG và VỀ HƯU -- đổi sang B, không

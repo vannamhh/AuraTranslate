@@ -906,6 +906,14 @@ message_keys! {
     ExportImageFileMissing => "err.export.image_file_missing" ["chapter_ord", "file_name"],
     /// Tệp `.docx` một khối dành cho đăng bài: không nhập lại được.
     ExportPublishCopyNotReimportable => "err.export.publish_copy_not_reimportable" [],
+    /// Tệp reviewer không khớp Chương nào của Tác phẩm đang mở.
+    ExportReviewerWrongWork => "err.export.reviewer_import_wrong_work" ["work_name"],
+    /// Tệp reviewer không đọc được hoặc không đúng hình dạng bản xuất hai cột / `.md`.
+    ExportReviewerUnreadable => "err.export.reviewer_import_unreadable" [],
+    /// Tập Chương khớp lúc xác nhận khác lúc xem trước.
+    ExportReviewerPreviewStale => "err.export.reviewer_import_preview_stale" [],
+    /// Xác nhận khi không có bản xem trước nào đang treo.
+    ExportReviewerNoPending => "err.export.reviewer_import_no_pending" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

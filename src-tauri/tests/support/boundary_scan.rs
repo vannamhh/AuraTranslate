@@ -322,7 +322,7 @@ pub fn code_lines(text: &str) -> impl Iterator<Item = (usize, String)> {
 /// The char index (not byte index) of the `}` matching a `{` already open at depth 1, in
 /// `chars[start..]`, skipping any brace inside a comment/string/char literal (via
 /// [`atom_end`]). `None` if unbalanced.
-fn matching_close_brace(chars: &[char], start: usize) -> Option<usize> {
+pub fn matching_close_brace(chars: &[char], start: usize) -> Option<usize> {
     let n = chars.len();
     let mut depth = 1usize;
     let mut i = start;

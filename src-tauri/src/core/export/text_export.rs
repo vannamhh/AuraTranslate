@@ -42,7 +42,7 @@ pub struct LoadedText {
     pub images_skipped_missing_link: i64,
 }
 
-fn one_line(text: &str) -> String {
+pub(super) fn one_line(text: &str) -> String {
     text.split(char::is_whitespace).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
@@ -195,12 +195,16 @@ fn plain_block(item: &TextItem, reference: ImageReference<'_>) -> String {
     }
 }
 
-fn heading_of(chapter: &TextChapter) -> String {
-    match chapter.title.as_deref().map(one_line) {
+pub(super) fn heading_text(title: Option<&str>, chapter_ord: i64) -> String {
+    match title.map(one_line) {
         Some(title) if !title.is_empty() => title,
         // aura-allow-text: heading written into the exported file, not UI text
-        _ => format!("Chương {}", chapter.chapter_ord),
+        _ => format!("Chương {chapter_ord}"),
     }
+}
+
+fn heading_of(chapter: &TextChapter) -> String {
+    heading_text(chapter.title.as_deref(), chapter.chapter_ord)
 }
 
 fn attribution_block(lines: &[String], format: TextFormat) -> String {

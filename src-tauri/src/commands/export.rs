@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
+    ConfirmError, ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
+    read_markdown_copy,
     Attribution, ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
     load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
@@ -243,9 +245,217 @@ pub fn export_text(
     exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
 }
 
+const MAX_REVIEWER_DOCX_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_REVIEWER_MD_BYTES: u64 = 16 * 1024 * 1024;
+
+/// Plan of a reviewer file that was previewed and not yet confirmed (AD-48). The parsed file stays
+/// in Rust; the webview only sees [`ReviewerImportPreviewWire`].
+#[derive(Debug)]
+pub struct PendingReviewerImport {
+    plan: ReviewerImportPlan,
+}
+
+pub type PendingReviewerImportState = std::sync::Mutex<Option<PendingReviewerImport>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportReplacedWire {
+    pub file_name: String,
+    pub stale: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportChapterWire {
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    pub title: Option<String>,
+    pub row_count: i64,
+    pub replaces: Option<ReviewerImportReplacedWire>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportSkippedWire {
+    pub heading: String,
+    pub row_count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportPreviewWire {
+    pub file_name: String,
+    pub file_kind: String,
+    pub chapters: Vec<ReviewerImportChapterWire>,
+    pub skipped: Vec<ReviewerImportSkippedWire>,
+    pub image_rows_ignored: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportSummaryWire {
+    pub chapter_count: i64,
+    pub row_count: i64,
+    pub replaced_count: i64,
+}
+
+fn count_wire(n: usize) -> i64 {
+    i64::try_from(n).unwrap_or(i64::MAX)
+}
+
+fn reviewer_unreadable(detail: &str) -> IpcError {
+    eprintln!("nhap lai tep reviewer that bai: {detail}");
+    IpcError::new("export.reviewer_import_unreadable", MessageKey::ExportReviewerUnreadable, BTreeMap::new(), false)
+}
+
+fn reviewer_preview_stale() -> IpcError {
+    IpcError::new("export.reviewer_import_preview_stale", MessageKey::ExportReviewerPreviewStale, BTreeMap::new(), false)
+}
+
+fn reviewer_no_pending() -> IpcError {
+    IpcError::new("export.reviewer_import_no_pending", MessageKey::ExportReviewerNoPending, BTreeMap::new(), false)
+}
+
+fn reviewer_wrong_work(work_name: &str) -> IpcError {
+    IpcError::new(
+        "export.reviewer_import_wrong_work",
+        MessageKey::ExportReviewerWrongWork,
+        BTreeMap::from([("work_name".to_owned(), work_name.to_owned())]),
+        false,
+    )
+}
+
+fn read_reviewer_file(path: &std::path::Path) -> Result<crate::core::export::ReviewerCopy, IpcError> {
+    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let extension = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let (kind, limit) = match extension.as_str() {
+        "docx" => (ReviewFileKind::Docx, MAX_REVIEWER_DOCX_BYTES),
+        "md" => (ReviewFileKind::Markdown, MAX_REVIEWER_MD_BYTES),
+        _ => return Err(reviewer_unreadable("extension")),
+    };
+    let size = std::fs::metadata(path).map_err(|e| reviewer_unreadable(&e.to_string()))?.len();
+    if size > limit {
+        return Err(reviewer_unreadable("too large"));
+    }
+    let bytes = std::fs::read(path).map_err(|e| reviewer_unreadable(&e.to_string()))?;
+    let copy = match kind {
+        ReviewFileKind::Docx => {
+            let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| reviewer_unreadable(&format!("{e:?}")))?;
+            let docx = ReviewerDocx::admit(parsed).map_err(IpcError::from)?;
+            read_docx_copy(&docx, &file_name)
+        }
+        ReviewFileKind::Markdown => {
+            let text = String::from_utf8(bytes).map_err(|_| reviewer_unreadable("not utf-8"))?;
+            read_markdown_copy(&text, &file_name)
+        }
+    };
+    copy.map_err(|_| reviewer_unreadable("shape"))
+}
+
+fn reviewer_preview_wire(plan: &ReviewerImportPlan) -> ReviewerImportPreviewWire {
+    ReviewerImportPreviewWire {
+        file_name: plan.copy.file_name.clone(),
+        file_kind: plan.copy.kind.as_str().to_owned(),
+        chapters: plan
+            .chapters
+            .iter()
+            .map(|c| ReviewerImportChapterWire {
+                chapter_id: c.chapter_id,
+                chapter_ord: c.chapter_ord,
+                title: c.title.clone(),
+                row_count: count_wire(c.rows.len()),
+                replaces: c.replaces.as_ref().map(|r| ReviewerImportReplacedWire { file_name: r.file_name.clone(), stale: r.stale }),
+            })
+            .collect(),
+        skipped: plan
+            .skipped
+            .iter()
+            .map(|s| ReviewerImportSkippedWire { heading: s.heading.clone(), row_count: count_wire(s.row_count) })
+            .collect(),
+        image_rows_ignored: count_wire(plan.image_rows_ignored),
+    }
+}
+
+/// Drops any previewed reviewer file; used when a new preview opens, on cancel, and when the Work closes.
+pub fn reviewer_import_cancel(pending: &PendingReviewerImportState) {
+    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+}
+
+/// First beat of the reviewer re-import (FR90): parse `path`, match it to the open Work and keep the
+/// plan in `pending`. Writes nothing to `project.db`.
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - not a two-column `.docx` / `.md` => `export.reviewer_import_unreadable`;
+/// - a one-block publishing copy => `export.publish_copy_not_reimportable`;
+/// - no section matches a Chapter => `export.reviewer_import_wrong_work`.
+pub fn reviewer_import_preview(
+    open: Option<&OpenWork>,
+    pending: &PendingReviewerImportState,
+    path: &std::path::Path,
+) -> Result<ReviewerImportPreviewWire, IpcError> {
+    reviewer_import_cancel(pending);
+    let open = open.ok_or_else(no_work_open)?;
+    let copy = read_reviewer_file(path)?;
+    let plan = open
+        .store
+        .read(|conn| match plan_import(conn, &copy) {
+            Err(ReviewCopyError::Sql(e)) => Err(e),
+            other => Ok(other),
+        })
+        .map_err(IpcError::from)?
+        .map_err(|e| match e {
+            ReviewCopyError::NoMatch => reviewer_wrong_work(&open.meta.name),
+            ReviewCopyError::Store(e) => IpcError::from(e),
+            other => reviewer_unreadable(&format!("{other:?}")),
+        })?;
+    let wire = reviewer_preview_wire(&plan);
+    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PendingReviewerImport { plan });
+    Ok(wire)
+}
+
+/// Second beat: write the previewed reviewer copy in one transaction (AD-52 rule 3). The match is
+/// redone inside the transaction; a different set of Chapters writes nothing.
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - nothing previewed => `export.reviewer_import_no_pending`;
+/// - Chapters changed since the preview => `export.reviewer_import_preview_stale` (pending dropped);
+/// - a write failure rolls back and keeps the preview so it can be retried.
+pub fn reviewer_import_confirm(
+    open: Option<&OpenWork>,
+    pending: &PendingReviewerImportState,
+) -> Result<ReviewerImportSummaryWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(previewed) = guard.as_ref().map(|p| p.plan.clone()) else {
+        return Err(reviewer_no_pending());
+    };
+    let outcome = open
+        .store
+        .write(move |tx| match confirm_import(tx, &previewed) {
+            Ok(summary) => Ok(Some(summary)),
+            Err(ConfirmError::Stale) => Ok(None),
+            Err(ConfirmError::Sql(e)) => Err(e),
+        })
+        .map_err(IpcError::from)?;
+    match outcome {
+        Some(summary) => {
+            *guard = None;
+            Ok(ReviewerImportSummaryWire {
+                chapter_count: count_wire(summary.chapter_count),
+                row_count: count_wire(summary.row_count),
+                replaced_count: count_wire(summary.replaced_count),
+            })
+        }
+        None => {
+            *guard = None;
+            Err(reviewer_preview_stale())
+        }
+    }
+}
+
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
 pub mod wire {
-    use super::{ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, TextFormat};
+    use super::{
+        ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, PendingReviewerImportState,
+        ReviewerImportPreviewWire, ReviewerImportSummaryWire, TextFormat,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::store::Store;
 
@@ -343,4 +553,52 @@ pub mod wire {
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::export_text(guard.as_ref(), &scope, image_mode, format, attribution.as_ref(), &folder)
     }
+    /// `(async)`: `blocking_pick_file()` on the main thread deadlocks the event loop the dialog
+    /// waits on. `OpenWorkState` is locked only after the dialog closes.
+    #[tauri::command(async)]
+    pub fn reviewer_import_open_preview(app: tauri::AppHandle) -> Result<Option<ReviewerImportPreviewWire>, IpcError> {
+        use tauri::Manager as _;
+        use tauri_plugin_dialog::DialogExt as _;
+
+        let Some(pending) = app.try_state::<PendingReviewerImportState>() else {
+            return Err(super::reviewer_no_pending());
+        };
+        super::reviewer_import_cancel(pending.inner());
+        let Some(picked) =
+            app.dialog().file().add_filter("Reviewer", &["docx", "md"]).blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|_| super::reviewer_unreadable("dialog path"))?;
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+        super::reviewer_import_preview(open, pending.inner(), &path).map(Some)
+    }
+
+    /// `(async)`: holds `PendingReviewerImportState` for the whole write.
+    #[tauri::command(async)]
+    pub fn reviewer_import_confirm(app: tauri::AppHandle) -> Result<ReviewerImportSummaryWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(pending) = app.try_state::<PendingReviewerImportState>() else {
+            return Err(super::reviewer_no_pending());
+        };
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+        super::reviewer_import_confirm(open, pending.inner())
+    }
+
+    /// `(async)`: locks `PendingReviewerImportState`, which `reviewer_import_confirm` holds for its write.
+    #[tauri::command(async)]
+    pub fn reviewer_import_cancel(app: tauri::AppHandle) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if let Some(pending) = app.try_state::<PendingReviewerImportState>() {
+            super::reviewer_import_cancel(pending.inner());
+        }
+        Ok(())
+    }
+
 }

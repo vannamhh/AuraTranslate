@@ -256,8 +256,8 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // Steps 24 -> 25, target 25 -> 26 (work.last_chapter_id), then step 27, target 27 (tm_unit).
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        28,
-        "`PROJECT_MIGRATIONS` phai co hai muoi sau buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        29,
+        "`PROJECT_MIGRATIONS` phai co hai muoi chin buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
@@ -266,9 +266,8 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     );
     assert_eq!(
         opened.store.schema_version(),
-        29,
-        "mot `project.db` moi phai dung o phien ban 29 (so 4 da chay, buoc 29 them \
-         chi muc tm_unit)"
+        30,
+        "mot `project.db` moi phai dung o phien ban 30 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

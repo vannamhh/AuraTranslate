@@ -1109,6 +1109,9 @@ pub fn run() {
             crate::commands::export::wire::export_docx_two_column,
             crate::commands::export::wire::export_docx_one_block,
             crate::commands::export::wire::export_text,
+            crate::commands::export::wire::reviewer_import_open_preview,
+            crate::commands::export::wire::reviewer_import_confirm,
+            crate::commands::export::wire::reviewer_import_cancel,
             crate::commands::attribution::wire::translator_name_get,
             crate::commands::attribution::wire::translator_name_save,
             crate::commands::chapter::wire::open_chapter,
@@ -1549,6 +1552,7 @@ fn open_work_slot(app: &tauri::App) {
     // xem close_open_work.
     app.manage(crate::commands::glossary::PendingImportState::new(None));
     app.manage(crate::commands::tm::PendingTmxImportState::new(None));
+    app.manage(crate::commands::export::PendingReviewerImportState::new(None));
     // Story 4.5 (AD-48) -- lo nhap bo prompt dang TREO giua nhip mot va nhip hai. Quan ly
     // canh OpenWorkState cung ly do PendingImportState cua Glossary ngay tren -- nua Tac
     // pham cua lo (neu co) phai chet cung Tac pham dang mo no, xem close_open_work.
@@ -1697,6 +1701,9 @@ fn close_open_work(handle: &tauri::AppHandle) {
     }
     if let Some(pending) = handle.try_state::<crate::commands::tm::PendingTmxImportState>() {
         crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
+    }
+    if let Some(pending) = handle.try_state::<crate::commands::export::PendingReviewerImportState>() {
+        crate::commands::export::reviewer_import_cancel(&pending);
     }
     // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt: chi ha `work_kind` ve `None`
     // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).

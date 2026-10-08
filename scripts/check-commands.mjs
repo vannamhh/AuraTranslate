@@ -227,7 +227,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 30
+const VUE_FLOOR = 33
 const TS_FLOOR = 82
 
 /**
@@ -1809,7 +1809,7 @@ const SELECTION_PANEL_FILES = {
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
 /** `ceil(0.85 × live)`, qua `judgeFloor`. */
-const SELECTION_SURFACE_FLOOR = 14
+const SELECTION_SURFACE_FLOOR = 16
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 
@@ -2376,6 +2376,7 @@ const HANDLER_TABLE = {
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
   'src/ExportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
   'src/TmManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onKeydown': {
@@ -2626,7 +2627,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 84
+const HANDLER_ATTR_FLOOR = 91
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,
