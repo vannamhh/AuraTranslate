@@ -3,7 +3,7 @@ title: 'Xuất .docx bảng hai cột theo segment'
 type: 'feature'
 ticket: '3'
 created: '2026-10-07'
-status: 'in-review'
+status: done
 baseline_revision: 'a524023bae24e506c2f5cffba84282dd179c66da'
 route: 'full'
 route_source: 'auto'

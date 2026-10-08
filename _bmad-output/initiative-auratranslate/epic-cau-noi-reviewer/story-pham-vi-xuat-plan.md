@@ -3,7 +3,7 @@ title: 'Phạm vi xuất'
 type: 'feature'
 ticket: '2'
 created: '2026-10-07'
-status: 'in-review'
+status: done
 baseline_revision: '9d5e27ce2c0c3144d072eaa52f8a3a3d319b8a17'
 route: 'full'
 route_source: 'auto'

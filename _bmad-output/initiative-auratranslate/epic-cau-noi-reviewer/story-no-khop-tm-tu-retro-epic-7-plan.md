@@ -3,7 +3,7 @@ title: 'Nợ khớp TM từ retro Epic 7'
 type: 'chore'
 ticket: '17'
 created: '2026-10-07'
-status: 'built'
+status: done
 baseline_revision: 'a524023bae24e506c2f5cffba84282dd179c66da'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Tách `commands/segment.rs` trước khi thêm lượt ghi segment'
 type: 'refactor'
 ticket: '16'
 created: '2026-10-07'
-status: 'built'
+status: done
 baseline_revision: 'd6001d8fdf919b2b74cdbad79826e70cc78d4033'
 route: 'full'
 route_source: 'auto'
