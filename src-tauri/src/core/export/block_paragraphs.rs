@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use super::images::{ImageMode, ScopeImage, chapter_images};
+use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
@@ -85,7 +85,7 @@ impl ColumnBuilder {
     }
 }
 
-fn target_pieces(text: &str) -> Vec<&str> {
+pub(super) fn target_pieces(text: &str) -> Vec<&str> {
     text.split('\n').map(|piece| piece.trim_matches(BLANK_CHARS)).filter(|piece| !is_blank(piece)).collect()
 }
 
@@ -122,33 +122,14 @@ fn build_column<'a>(
     column.paragraphs
 }
 
-pub fn build_chapter_block(
+fn build_chapter_block(
     chapter_id: i64,
     title: Option<String>,
     segments: &[ChapterSegment],
-    images: Vec<ScopeImage>,
-    chapter_ord: i64,
+    images: ImageSplit<ExportImage>,
     source_lang: &str,
 ) -> ChapterBlock {
-    let survivors: BTreeSet<i64> = segments.iter().filter(|s| !s.is_omitted).map(|s| s.id).collect();
-    let mut head = Vec::new();
-    let mut orphans = Vec::new();
-    let mut by_anchor: BTreeMap<i64, Vec<ExportImage>> = BTreeMap::new();
-    for image in images {
-        let anchor = image.after_segment_id;
-        let export = ExportImage {
-            chapter_id,
-            chapter_ord,
-            asset_id: image.asset_id,
-            file_name: image.file_name,
-            source_url: image.source_url,
-        };
-        match anchor {
-            None => head.push(export),
-            Some(id) if survivors.contains(&id) => by_anchor.entry(id).or_default().push(export),
-            Some(_) => orphans.push(export),
-        }
-    }
+    let ImageSplit { head, by_anchor, orphans, .. } = images;
     let source = build_column(
         segments,
         |s| s.is_paragraph_end,
@@ -185,15 +166,15 @@ pub fn load_chapter_blocks(
                 title_stmt.query_row([chapter_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
             let segments = select_chapter_segments(conn, chapter_id)?;
             let assets = select_chapter_assets(conn, chapter_id)?;
-            let mut kept = Vec::new();
-            for image in chapter_images(&segments, &assets) {
-                if image_mode == ImageMode::Link && image.source_url.is_none() {
-                    skipped += 1;
-                } else {
-                    kept.push(image);
-                }
-            }
-            blocks.push(build_chapter_block(chapter_id, title, &segments, kept, chapter_ord, source_lang));
+            let split = split_by_anchor(&segments, chapter_images(&segments, &assets), image_mode, |image| ExportImage {
+                chapter_id,
+                chapter_ord,
+                asset_id: image.asset_id,
+                file_name: image.file_name,
+                source_url: image.source_url,
+            });
+            skipped += split.skipped;
+            blocks.push(build_chapter_block(chapter_id, title, &segments, split, source_lang));
         }
         Ok(LoadedBlocks { blocks, images_skipped_missing_link: skipped })
     })

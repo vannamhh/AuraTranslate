@@ -101,7 +101,7 @@ describe('format choice', () => {
     await settle(wrapper)
 
     const radios = wrapper.findAll('input[name="export-format"]')
-    expect(radios).toHaveLength(2)
+    expect(radios).toHaveLength(4)
     expect(radios[1].element.tagName).toBe('INPUT')
     expect(radios[1].attributes('type')).toBe('radio')
     expect(radios[1].attributes('disabled')).toBeUndefined()

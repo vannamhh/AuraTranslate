@@ -22,14 +22,16 @@ mod images;
 mod new_file;
 mod scope;
 mod table_rows;
+mod text_export;
 
 pub use block_paragraphs::{
     BlockParagraph, ChapterBlock, LoadedBlocks, UNTRANSLATED_SQL, is_untranslated, load_chapter_blocks,
 };
 pub use docx_block::write_one_block_docx;
 pub use docx_table::{DocxWriteError, ImageReference, write_two_column_docx};
-pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_docx_with_images};
+pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_file_with_images};
 pub use images::{ImageMode, ImageScan, MissingLinkImage, scan_images};
 pub use new_file::{safe_stem, write_new_file};
 pub use scope::{ExportScope, ScopeCounts, ScopeError, count_scope, resolve_chapter_ids};
+pub use text_export::{TextFormat, load_chapter_text, render_text};
 pub use table_rows::{ChapterTable, ExportCell, ExportImage, ExportRow, LoadedTables, load_chapter_tables};

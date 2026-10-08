@@ -3401,6 +3401,7 @@ và xuất ra một tệp mang nhịp của **bản gốc**.
 → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-46 vào AC của 8.3/8.4/8.6 khi refine; 8.6 là story cuối của ba, đóng mục này khi cả ba đọc cấu trúc đoạn của bản dịch. Chủ: Story 8.6.
 → 🟡 2026-10-07 (Story 8-3) — 8.3 đã đọc cả hai nguồn cho cột phải: cờ đích `is_target_paragraph_end` thành khoảng cách sau đoạn cuối của ô, ký tự xuống dòng trong `target_text` thành đoạn riêng; đối chứng: thay cờ đích bằng cờ nguồn làm `each_column_takes_its_gap_from_its_own_paragraph_end_flag` đỏ. Còn 8.4 · 8.6. Chủ: Story 8.6.
 → 🟡 2026-10-08 (Story 8-4) — 8.4 đọc cả hai nguồn: cột trái theo `is_paragraph_end`, cột phải theo `is_target_paragraph_end` cộng `\n`, cùng một phép gom `paragraphs_by_flag` (không có bản thứ hai); đối chứng: tháo phép dời cờ câu lược ⇒ ca FR133 đỏ. Còn 8.6. Chủ: Story 8.6.
+→ ✅ ĐÃ ĐÓNG 2026-10-08 (Story 8-6) — `.md` và text thuần đọc cờ đích qua cùng `paragraphs_by_flag`, vai alt/caption bỏ khỏi văn xuôi; đối chứng: đọc cờ nguồn thay cờ đích làm `paragraphs_follow_the_target_flag_and_newlines_split_them` đỏ.
 
 ### 🟡 Lượt đổi cờ đích bị TỪ CHỐI không có đường ra màn hình
 
@@ -12958,3 +12959,11 @@ chính nó.
   summary: Dán thật tệp `.docx` một khối của 8.4 sang trình soạn thảo website (WordPress/Blogger...) chưa được ai làm: bảng một hàng không viền, ô nhiều đoạn, ảnh theo link hoặc theo đường dẫn; kiểm đoạn không dính, không còn viền, ảnh hiện.
   evidence: maybe-false — tests chỉ đọc lại XML của tệp, không có trình soạn thảo thật nào tham gia; cần Ice dán một tệp xuất từ Tác phẩm có ảnh vào ít nhất một trình soạn thảo và xem kết quả.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-md-va-text-thuan-plan.md`
+  summary: Chưa ai mở tệp `.md` của 8.6 trong trình xem Markdown thật: ảnh theo link, ảnh theo file (đích `<Tác phẩm-anh/…>` có khoảng trắng), dòng chú thích nghiêng, chữ đã escape.
+  evidence: maybe-false — repo không có bộ phân tích CommonMark nào; test chỉ so chuỗi viết tay. Cần Ice xuất một Tác phẩm có ảnh ra `.md` ở cả hai chế độ và mở bằng ít nhất một trình xem.
+  Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-md-va-text-thuan-plan.md`
+  summary: Xuất `.md`/`.txt` (và `.docx` một khối của 8.4) khi mọi Chương trong phạm vi chưa có câu dịch nào và không có ảnh vẫn ghi một tệp rỗng và báo thành công.
+  evidence: màn hình chỉ cảnh báo số câu chưa dịch trước khi xuất; `render_text` trả `""` và `export_text` vẫn ghi tệp. Cần quyết: chặn bằng lỗi có tên, hay giữ tệp rỗng kèm cảnh báo hiện có.
+  Chủ: Ice.

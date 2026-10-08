@@ -7,6 +7,8 @@ import type { IpcError } from '../i18n'
 
 export type ExportScope = { kind: 'work' } | { kind: 'chapters'; chapter_ids: number[] }
 
+export type ExportTextFormat = 'markdown' | 'plain'
+
 export type ExportImageMode = 'link' | 'file'
 
 export type MissingLinkImage = {
@@ -50,6 +52,7 @@ const CMD_EXPORT_SCOPE_SUMMARY = 'export_scope_summary'
 const CMD_EXPORT_CHOOSE_FOLDER = 'export_choose_folder'
 const CMD_EXPORT_DOCX_TWO_COLUMN = 'export_docx_two_column'
 const CMD_EXPORT_DOCX_ONE_BLOCK = 'export_docx_one_block'
+const CMD_EXPORT_TEXT = 'export_text'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -184,5 +187,23 @@ export async function exportDocxOneBlock(
     return { file: raw, error: null }
   } catch (err) {
     return { file: null, error: failureOf(err, CMD_EXPORT_DOCX_ONE_BLOCK) }
+  }
+}
+
+export async function exportText(
+  scope: ExportScope,
+  imageMode: ExportImageMode,
+  format: ExportTextFormat,
+  folder: string,
+): Promise<ExportRunResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, folder })
+    if (!isExportedFile(raw)) {
+      console.error(`[export] \`${CMD_EXPORT_TEXT}\` returned an unexpected shape: ${String(raw)}`)
+      return { file: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { file: raw, error: null }
+  } catch (err) {
+    return { file: null, error: failureOf(err, CMD_EXPORT_TEXT) }
   }
 }

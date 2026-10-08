@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::image::resolve_chapter_images;
 use crate::core::store::{Store, StoreError};
@@ -20,6 +22,7 @@ pub struct ScopeImage {
     /// Hàng (segment thuộc bản dịch) đứng ngay trước ảnh; `None` ⇒ đầu Chương.
     pub after_segment_id: Option<i64>,
     pub alt_text: Option<String>,
+    pub caption_text: Option<String>,
     /// Thứ tự ảnh trong Chương, từ 1.
     pub index_in_chapter: i64,
 }
@@ -39,9 +42,41 @@ pub(crate) fn chapter_images(
             source_url: image.source_url,
             after_segment_id: image.after_segment_id,
             alt_text: image.alt_text,
+            caption_text: image.caption_text,
             index_in_chapter: i64::try_from(i).map_or(i64::MAX, |n| n + 1),
         })
         .collect()
+}
+
+pub(super) struct ImageSplit<T> {
+    pub head: Vec<T>,
+    pub by_anchor: BTreeMap<i64, Vec<T>>,
+    pub orphans: Vec<T>,
+    pub skipped: i64,
+}
+
+/// Link mode drops images without `source_url` and counts them; an anchor on an omitted segment
+/// makes the image an orphan placed at the end of the Chapter.
+pub(super) fn split_by_anchor<T>(
+    segments: &[ChapterSegment],
+    images: Vec<ScopeImage>,
+    image_mode: ImageMode,
+    mut make: impl FnMut(ScopeImage) -> T,
+) -> ImageSplit<T> {
+    let survivors: BTreeSet<i64> = segments.iter().filter(|s| !s.is_omitted).map(|s| s.id).collect();
+    let mut split = ImageSplit { head: Vec::new(), by_anchor: BTreeMap::new(), orphans: Vec::new(), skipped: 0 };
+    for image in images {
+        if image_mode == ImageMode::Link && image.source_url.is_none() {
+            split.skipped += 1;
+            continue;
+        }
+        match image.after_segment_id {
+            None => split.head.push(make(image)),
+            Some(id) if survivors.contains(&id) => split.by_anchor.entry(id).or_default().push(make(image)),
+            Some(_) => split.orphans.push(make(image)),
+        }
+    }
+    split
 }
 
 /// Ảnh thiếu `source_url` của phạm vi, để người dùng thấy trước khi chọn chế độ link.

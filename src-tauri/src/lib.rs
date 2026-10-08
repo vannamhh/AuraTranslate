@@ -1108,6 +1108,7 @@ pub fn run() {
             crate::commands::export::wire::export_choose_folder,
             crate::commands::export::wire::export_docx_two_column,
             crate::commands::export::wire::export_docx_one_block,
+            crate::commands::export::wire::export_text,
             crate::commands::chapter::wire::open_chapter,
             // Story 5.8 -- "To chuc lai Chuong sau khi nhap" (FR15, AD-32). Bon vo, ca bon
             // `(async)` -- buoc 4 quet toan bo thu muc goc Library, xem doc-comment cua

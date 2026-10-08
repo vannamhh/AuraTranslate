@@ -8,11 +8,15 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
-import { exportChooseFolder, exportDocxOneBlock, exportDocxTwoColumn, exportScopeSummary } from './config/export'
-import type { ExportImageMode, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
+import { exportChooseFolder, exportDocxOneBlock, exportDocxTwoColumn, exportScopeSummary, exportText } from './config/export'
+import type { ExportImageMode, ExportRunResult, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
 import type { IpcError } from './i18n'
 
-export type ExportFormat = 'docx_two_column' | 'docx_one_block'
+export type ExportFormat = 'docx_two_column' | 'docx_one_block' | 'markdown' | 'plain_text'
+
+export function exportFormatIsForPublishing(value: ExportFormat): boolean {
+  return value === 'docx_one_block' || value === 'markdown' || value === 'plain_text'
+}
 export type ExportRunStatus = 'idle' | 'running' | 'done' | 'error' | 'ipc_unavailable'
 export type ExportScopeKind = 'chapter' | 'chapters' | 'work'
 export type ExportLoadStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -192,6 +196,17 @@ export async function chooseExportFolder(): Promise<void> {
   else if (result.outcome === 'ipc_unavailable') folderUnavailable.value = true
 }
 
+function writeFormat(
+  chosen: ExportFormat,
+  scope: ExportScope,
+  mode: ExportImageMode,
+  target: string,
+): Promise<ExportRunResult> {
+  if (chosen === 'markdown') return exportText(scope, mode, 'markdown', target)
+  if (chosen === 'plain_text') return exportText(scope, mode, 'plain', target)
+  return chosen === 'docx_one_block' ? exportDocxOneBlock(scope, mode, target) : exportDocxTwoColumn(scope, mode, target)
+}
+
 /** Writes the selected format for the current scope into the chosen folder. */
 export async function runExport(): Promise<void> {
   const scope = currentExportScope()
@@ -201,8 +216,7 @@ export async function runExport(): Promise<void> {
   runStatus.value = 'running'
   runResult.value = null
   runError.value = null
-  const write = format.value === 'docx_one_block' ? exportDocxOneBlock : exportDocxTwoColumn
-  const result = await write(scope, imageMode.value, target)
+  const result = await writeFormat(format.value, scope, imageMode.value, target)
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'

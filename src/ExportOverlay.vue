@@ -14,6 +14,7 @@ import {
   exportFolderError,
   exportFolderUnavailable,
   exportFormat,
+  exportFormatIsForPublishing,
   exportImageMode,
   exportLinkUsable,
   exportLoadError,
@@ -207,6 +208,16 @@ function trapTab(event: KeyboardEvent): void {
                 {{ t('export.block.untranslated_warning', { count: String(exportCounts.untranslated_count) }) }}
               </p>
             </template>
+            <template v-else-if="exportFormatIsForPublishing(exportFormat)">
+              <p v-if="exportCounts.unconfirmed_translated_count > 0" class="ex-warning" role="alert" data-export-block-unconfirmed>
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('export.text.unconfirmed_warning', { count: String(exportCounts.unconfirmed_translated_count) }) }}
+              </p>
+              <p v-if="exportCounts.untranslated_count > 0" class="ex-warning" role="alert" data-export-block-untranslated>
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('export.text.untranslated_warning', { count: String(exportCounts.untranslated_count) }) }}
+              </p>
+            </template>
           </template>
         </div>
 
@@ -235,6 +246,27 @@ function trapTab(event: KeyboardEvent): void {
           </label>
           <p v-if="exportFormat === 'docx_one_block'" class="ex-note" data-export-not-reimportable>
             {{ t('export.format.not_reimportable') }}
+          </p>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-format"
+              :checked="exportFormat === 'markdown'"
+              @change="setExportFormat('markdown')"
+            />
+            <span>{{ t('export.format.markdown') }}</span>
+          </label>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-format"
+              :checked="exportFormat === 'plain_text'"
+              @change="setExportFormat('plain_text')"
+            />
+            <span>{{ t('export.format.plain_text') }}</span>
+          </label>
+          <p v-if="exportFormat === 'plain_text'" class="ex-note" data-export-not-reimportable>
+            {{ t('export.format.plain_not_reimportable') }}
           </p>
         </fieldset>
 

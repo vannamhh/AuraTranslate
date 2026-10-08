@@ -21,7 +21,7 @@ pub fn copied_name(image: &ExportImage) -> String {
 
 #[derive(Debug)]
 pub struct WrittenWithImages {
-    pub docx_path: PathBuf,
+    pub file_path: PathBuf,
     pub images_dir: PathBuf,
 }
 
@@ -42,12 +42,13 @@ fn copy_all(sources: &[(PathBuf, String)], dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Chọn stem cuối cùng mà cả `<stem>.docx` lẫn `<stem>-anh/` đều chưa có, tạo thư mục ảnh và
-/// chép ảnh vào, rồi mới ghi `.docx` do `build(stem)` dựng. Lỗi giữa chừng xoá thư mục vừa tạo;
+/// Chọn stem cuối cùng mà cả `<stem>.<extension>` lẫn `<stem>-anh/` đều chưa có, tạo thư mục
+/// ảnh và chép ảnh vào, rồi mới ghi tệp do `build(stem)` dựng. Lỗi giữa chừng xoá thư mục vừa tạo;
 /// không bao giờ ghi đè thứ có sẵn.
-pub fn write_docx_with_images(
+pub fn write_file_with_images(
     folder: &Path,
     stem: &str,
+    extension: &str,
     assets_dir: &Path,
     images: &[&ExportImage],
     build: impl Fn(&str) -> Result<Vec<u8>, String>,
@@ -59,9 +60,9 @@ pub fn write_docx_with_images(
     let io = |e: std::io::Error| ImageFilesError::Write(e.to_string());
     for attempt in 1..=MAX_ATTEMPTS {
         let final_stem = candidate_stem(stem, attempt);
-        let docx_path = folder.join(format!("{final_stem}.docx"));
+        let file_path = folder.join(format!("{final_stem}.{extension}"));
         let images_dir = folder.join(format!("{final_stem}{IMAGE_DIR_SUFFIX}"));
-        if docx_path.exists() || images_dir.exists() {
+        if file_path.exists() || images_dir.exists() {
             continue;
         }
         match fs::create_dir(&images_dir) {
@@ -72,10 +73,10 @@ pub fn write_docx_with_images(
         let outcome = copy_all(&sources, &images_dir)
             .map_err(io)
             .and_then(|()| build(&final_stem).map_err(ImageFilesError::Write))
-            .and_then(|bytes| create_and_write(&docx_path, &bytes).map_err(io));
+            .and_then(|bytes| create_and_write(&file_path, &bytes).map_err(io));
         match outcome {
-            Ok(()) => return Ok(WrittenWithImages { docx_path, images_dir }),
-            Err(ImageFilesError::Write(_)) if docx_path.exists() => {
+            Ok(()) => return Ok(WrittenWithImages { file_path, images_dir }),
+            Err(ImageFilesError::Write(_)) if file_path.exists() => {
                 let _ = fs::remove_dir_all(&images_dir);
             }
             Err(e) => {

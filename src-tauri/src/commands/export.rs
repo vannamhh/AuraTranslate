@@ -7,7 +7,7 @@ use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
     ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
-    load_chapter_blocks, load_chapter_tables, resolve_chapter_ids, safe_stem, scan_images, write_docx_with_images, write_new_file,
+    load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
 };
 use crate::core::i18n::{IpcError, MessageKey};
@@ -72,7 +72,7 @@ pub fn export_folder_from_dialog(picked: Option<&std::path::Path>) -> Result<Opt
     }
 }
 
-/// Tệp `.docx` vừa ghi. `images_dir` chỉ có khi chế độ file ghi ít nhất một ảnh.
+/// Tệp vừa ghi. `images_dir` chỉ có khi chế độ file ghi ít nhất một ảnh.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExportedFile {
     pub path: String,
@@ -119,7 +119,7 @@ pub fn export_docx_two_column(
     let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-hai-cot", safe_stem(&open.meta.name, "export"));
-    let (path, images_dir) = write_export_docx(open, folder, &stem, image_mode, &images, |reference| {
+    let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
         write_two_column_docx(&loaded.tables, reference)
     })?;
     exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
@@ -134,16 +134,17 @@ fn loaded_summary(images: &[&ExportImage], images_skipped_missing_link: i64) -> 
     ImageSummary { image_count: i64::try_from(images.len()).unwrap_or(i64::MAX), images_skipped_missing_link }
 }
 
-fn write_export_docx(
+fn write_export_file(
     open: &OpenWork,
     folder: &std::path::Path,
     stem: &str,
+    extension: &str,
     image_mode: ImageMode,
     images: &[&ExportImage],
     build: impl Fn(ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError>,
 ) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), IpcError> {
     if image_mode == ImageMode::File && !images.is_empty() {
-        let written = write_docx_with_images(folder, stem, &open.dir.join("assets"), images, |final_stem| {
+        let written = write_file_with_images(folder, stem, extension, &open.dir.join("assets"), images, |final_stem| {
             let dir_name = format!("{final_stem}{}", crate::core::export::IMAGE_DIR_SUFFIX);
             build(ImageReference::Dir(&dir_name)).map_err(|e| e.0)
         })
@@ -151,10 +152,10 @@ fn write_export_docx(
             ImageFilesError::SourceMissing { chapter_ord, file_name } => image_file_missing(chapter_ord, &file_name),
             ImageFilesError::Write(detail) => export_write_failed(&detail),
         })?;
-        Ok((written.docx_path, Some(written.images_dir)))
+        Ok((written.file_path, Some(written.images_dir)))
     } else {
         let bytes = build(ImageReference::Link).map_err(|e| export_write_failed(&e.0))?;
-        let path = write_new_file(folder, stem, "docx", &bytes).map_err(|e| export_write_failed(&e.to_string()))?;
+        let path = write_new_file(folder, stem, extension, &bytes).map_err(|e| export_write_failed(&e.to_string()))?;
         Ok((path, None))
     }
 }
@@ -194,15 +195,42 @@ pub fn export_docx_one_block(
         load_chapter_blocks(&open.store, &chapter_ids, image_mode, &open.meta.source_lang).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-mot-khoi", safe_stem(&open.meta.name, "export"));
-    let (path, images_dir) = write_export_docx(open, folder, &stem, image_mode, &images, |reference| {
+    let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
         write_one_block_docx(&loaded.blocks, reference)
+    })?;
+    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
+}
+
+/// Writes `<Work name>.md` or `<Work name>.txt`; never overwrites an existing file.
+pub fn export_text(
+    open: Option<&OpenWork>,
+    scope: &ExportScope,
+    image_mode: ImageMode,
+    format: TextFormat,
+    folder: &std::path::Path,
+) -> Result<ExportedFile, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let counts = count_scope(&open.store, scope).map_err(scope_error)?;
+    if !folder.is_dir() {
+        return Err(export_folder_invalid());
+    }
+    let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
+    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode).map_err(IpcError::from)?;
+    let images = loaded.images();
+    let stem = safe_stem(&open.meta.name, "export");
+    let extension = match format {
+        TextFormat::Markdown => "md",
+        TextFormat::Plain => "txt",
+    };
+    let (path, images_dir) = write_export_file(open, folder, &stem, extension, image_mode, &images, |reference| {
+        Ok(render_text(&loaded, format, reference).into_bytes())
     })?;
     exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
 }
 
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
 pub mod wire {
-    use super::{ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError};
+    use super::{ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, TextFormat};
     use crate::commands::project::OpenWorkState;
 
     /// Vỏ IPC của [`super::export_scope_summary`].
@@ -269,5 +297,25 @@ pub mod wire {
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::export_docx_one_block(guard.as_ref(), &scope, image_mode, &folder)
+    }
+
+    /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
+    /// must not carry.
+    #[tauri::command(async)]
+    pub fn export_text(
+        app: tauri::AppHandle,
+        scope: ExportScope,
+        image_mode: ImageMode,
+        format: TextFormat,
+        folder: String,
+    ) -> Result<ExportedFile, IpcError> {
+        use tauri::Manager as _;
+
+        let folder = std::path::PathBuf::from(folder);
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::export_text(None, &scope, image_mode, format, &folder);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::export_text(guard.as_ref(), &scope, image_mode, format, &folder)
     }
 }
