@@ -904,6 +904,8 @@ message_keys! {
     ExportWriteFailed => "err.export.write_failed" [],
     /// Chế độ "theo file ảnh": tệp của một ảnh không còn trong `assets/` của Tác phẩm.
     ExportImageFileMissing => "err.export.image_file_missing" ["chapter_ord", "file_name"],
+    /// Tệp `.docx` một khối dành cho đăng bài: không nhập lại được.
+    ExportPublishCopyNotReimportable => "err.export.publish_copy_not_reimportable" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

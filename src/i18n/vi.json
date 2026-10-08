@@ -192,6 +192,7 @@
   "err.export.scope_empty": "Phạm vi xuất chưa có Chương nào — chọn ít nhất một Chương.",
   "err.export.folder_invalid": "Không dùng được thư mục vừa chọn làm nơi xuất — chọn một thư mục khác.",
   "err.export.image_file_missing": "Không tìm thấy tệp ảnh {file_name} của Chương {chapter_ord} trong kho của Tác phẩm — không thể xuất theo file ảnh.",
+  "err.export.publish_copy_not_reimportable": "Đây là bản .docx dành cho đăng bài (một khối theo đoạn) nên không nhập lại được — hãy dùng bản .docx hai cột theo segment để nhập lại.",
   "err.export.write_failed": "Không ghi được tệp vào thư mục đã chọn — kiểm tra quyền ghi hoặc chọn thư mục khác.",
   "err.library.root_invalid": "Không dùng được thư mục vừa chọn làm thư mục gốc Library — chọn một thư mục khác.",
   "err.library.unknown_sort": "Khoá sắp xếp \"{sort}\" không nằm trong hai giá trị hợp lệ — danh sách giữ nguyên thứ tự trước đó.",

@@ -12975,3 +12975,7 @@ chính nó.
   summary: Chưa ai mở bản xuất có khối ghi nguồn của 8.7 trong Word hoặc LibreOffice để xem khối hiện thành bốn dòng trước tiêu đề Chương, cũng chưa ai bôi cột phải của `.docx` một khối rồi dán sang trình soạn thảo web để xem khối có lẫn vào phần dán không.
   evidence: test chỉ đọc lại XML bằng `core::docx::read_docx`; cách một chương trình thật hiển thị ngắt dòng `TextWrapping` và vùng bôi thì chỉ người làm mới thấy.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-cong-kiem-hinh-dang-bang-docx-plan.md`
+  summary: Alignment và lệnh nhập lại của 8.9 phải nhận `ReviewerDocx` (cổng `core::export::ReviewerDocx::admit`), không nhận `DocxParsed`; cần ca chứng minh khi cổng từ chối thì không ghi gì vào kho.
+  evidence: 8.8 chỉ dựng cổng và kiểu; chưa có đường nhập lại nào gọi nó nên chưa có gì để chứng minh "không ghi".
+  Chủ: Story 8.9.

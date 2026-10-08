@@ -106,9 +106,9 @@ pub struct DocxImage {
     pub content_type: String,
 }
 
-/// Cấu trúc ĐẾM của một bảng (`w:tbl` cấp CAO NHẤT — không tính `w:tbl` lồng trong ô, xem
-/// doc-comment đầu module mục 6) — năng lực AD-38 mà story này CẤP, không CÀI cổng chặn (đó
-/// là Story 8.8).
+/// Cấu trúc ĐẾM của một bảng (`w:tbl`; bảng lồng trong ô thành `TableShape` anh em ngay sau
+/// bảng cha, xem doc-comment đầu module mục 6) — năng lực AD-38 mà story này CẤP; cổng chặn
+/// nằm ở `core::export::ReviewerDocx::admit`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableShape {
     pub rows: usize,
@@ -128,8 +128,8 @@ pub struct DocxParsed {
     /// Đoạn + ảnh, cùng hình dạng [`Block`] mà `core::webimport::Extractor` dùng cho HTML —
     /// tái dùng máy tính neo ảnh của Story 6.11 (`core::segment::anchor::compute_anchor`).
     pub blocks: Vec<Block>,
-    /// Cấu trúc đếm bảng cho AD-38 — một phần tử cho mỗi `w:tbl` cấp cao nhất, theo thứ tự
-    /// tài liệu.
+    /// Cấu trúc đếm bảng cho AD-38 — một phần tử cho mỗi `w:tbl` (bảng lồng đứng ngay sau bảng
+    /// cha), theo thứ tự tài liệu.
     pub tables: Vec<TableShape>,
     /// Byte thật của mọi ảnh nhúng phân giải được — xem [`DocxImage`].
     pub images: Vec<DocxImage>,
