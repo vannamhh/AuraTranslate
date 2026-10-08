@@ -150,3 +150,47 @@ Hàm `diff_spans` và kiểu `DiffSpan` giống hệt ở cả hai. Khác nhau c
 - Amelia: thêm đúng một crate vào `src-tauri/Cargo.toml` (ghim `=`), xoá/sửa chú thích dòng 164–167 nói "chưa cài một trong hai"; thêm hai ca khoá: bất biến dựng lại (mục 3) và `matching_boundary` cấm `use` crate diff ngoài `core/matching`; đối chứng đỏ bằng phép GỠ thật (bước gộp ≤2 nếu A).
 - Story 8.1: thu hẹp AC thành "xác nhận/lật trên bản review thật + chuỗi tiếng Việt dày dấu", nợ có chủ (`Chủ: Story 8.1`).
 - Bộ đo ném đi ở `/private/tmp/claude-501/-Users-hoangnam-LocalSites-addon-AuraTranslate/5f1d25eb-b3fe-49db-ae7e-0735e0c51bc2/scratchpad/` (`dp/`, `mine.py`, `mkb.py`, `*.tsv`); nằm ngoài repo và sẽ mất khi thư mục tạm dọn — nói nếu Ice muốn lưu vào `_bmad-output/`.
+
+---
+
+## Phần 7 — Xác nhận trên chữ đích tiếng Việt (Story 8.1, 2026-10-08)
+
+**Kết luận:** giữ `similar`. Ở độ mịn ký tự, `similar` ký tự + gộp ≤ 2 cho cùng số đo với `dissimilar`, chỉ hơn một vùng thừa. `similar` có thêm đường theo từ mà AD-51 mục 7 đòi cho chữ Latin. Vì vậy dữ liệu tiếng Việt không cho lý do nào để lật crate. Số đo này không quyết độ mịn, vì độ mịn đã do AD-51 mục 7 chốt. Đánh đổi độ mịn đo được ghi ở mục "Đọc số đo".
+
+**Dữ liệu và giới hạn:** Ice chỉ có một bản review, `docs/Bản sao của Chuộc tội, trong những ngày tuyết bay (Phần 1).docx`. Tệp này là bảng một hàng, cột phải chỉ có **một** bản tiếng Việt (40 đoạn, 9 575 ký tự, cả 40 đoạn đã ở dạng NFC). Tệp không có track changes, nên không có cặp trước/sau review thật nào để đo. Ice chốt "có bao nhiêu làm bấy nhiêu", không ghi nợ. Vì vậy AC *"bản review thật"* **không được đo**.
+
+Tập `vi_edit` gồm 86 câu thật lấy từ tệp đó (30–260 ký tự, trung bình 102), mỗi câu mang một vết sửa tạo bằng mã (hạt giống 20261008), xoay vòng sáu kiểu: chỉ đổi dấu thanh (15) · thay một từ (15) · chèn một từ (14) · xoá hai từ (14) · đảo hai cụm hai từ (14) · đổi dấu kèm thay từ (14). Mật độ là 21,2 dấu thanh trên 100 chữ cái. Vết sửa rơi đúng biên từ, trừ kiểu đổi dấu, nên tập này nghiêng về đường theo từ. Một lỗi gõ nằm giữa âm tiết của reviewer thật chưa được đo.
+
+**Build:** `rustc 1.98.1 (Homebrew)`, `--release`, binary ký ad-hoc, cargo project ném đi trong scratchpad. Các crate: `similar` =3.1.1 (`unicode` chỉ bật trong bộ đo để có biến thể grapheme), `dissimilar` =1.0.11. Biến thể đầu tiên chép nguyên thân `diff_spans` ở `3b686ec5446f4c423ecc0ce131adf47a030db683`. **Máy:** i9-9980HK, load average 16–25. Thời gian chỉ so được giữa các dòng của bảng này. Thời gian không gồm `trim` + NFC, vì hai bước đó chạy một lần lúc nạp, còn `diff_spans` chạy chúng ở mỗi lần gọi.
+
+Chỉ số dùng như Phần 3, thêm ba chỉ số mới:
+- `vùng thừa`: số vùng đổi vượt số sửa đã cài.
+- `ký tự tô`: tổng ký tự của các đoạn đổi trên mỗi cặp.
+- `tô ở tập chỉ đổi dấu`: cùng chỉ số đó, chỉ tính trên 15 cặp đổi dấu.
+
+| Biến thể | vùng đổi | mảnh | đổi 1 ký tự | đảo equal ≤2 | cắt giữa từ | vùng thừa | ký tự tô | tô ở tập chỉ đổi dấu | lỗi dựng lại | µs / 3 phép |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **`similar` từ + gộp ≤2 (= `diff_spans`)** | **1,31** | **4,24** | **0** | **0** | **0** | **0** | 9,9 | 6,8 | 0 | 35–46 |
+| `similar` từ | 1,33 | 4,28 | 0 | 1 | 0 | 0 | 9,8 | 6,8 | 0 | 31–83 |
+| `similar` unicode_words + gộp ≤2 | 1,31 | 4,24 | 0 | 0 | 0 | 0 | 9,8 | 6,7 | 0 | 66–112 |
+| `similar` ký tự + gộp ≤2 (= đường `Zh`) | 1,34 | 4,35 | 55 | 0 | 102 | 1 | 8,1 | 2,1 | 0 | 64–131 |
+| `similar` ký tự | 1,45 | 4,58 | 66 | 10 | 128 | 11 | 7,8 | 2,1 | 0 | 57–102 |
+| `similar` grapheme | 1,45 | 4,58 | 66 | 10 | 128 | 11 | 7,8 | 2,1 | 0 | 152–174 |
+| `similar` grapheme + gộp ≤2 | 1,34 | 4,35 | 55 | 0 | 102 | 1 | 8,1 | 2,1 | 0 | 157–167 |
+| `dissimilar` | 1,29 | 4,26 | 55 | 0 | 98 | 0 | 8,6 | 2,1 | 0 | 21–30 |
+
+**Đọc số đo:**
+- **Theo kiểu sửa, ba họ chỉ khác nhau ở sửa chỉ đổi dấu.** Ba họ là theo từ, ký tự + gộp, và `dissimilar`. Ở `replace`, `insert` và `delete`, cả ba cho 0 cắt giữa từ và cùng số ký tự tô (7,1 · 5,7 · 8,3). Ở `swap`, theo từ và `dissimilar` cho 0, còn ký tự + gộp cho 4. Toàn bộ 98 lần cắt giữa từ và 55 đoạn 1 ký tự của `dissimilar` đến từ 29 cặp có đổi dấu (`tone` và `tone+replace`). Đó không phải một cái giá riêng: chỉ số "cắt giữa từ" luôn tính một vùng tô hẹp hơn âm tiết là một lần cắt.
+- **Đánh đổi độ mịn, chưa đo được cái nào dễ đọc hơn.** Cấp ký tự tô đúng nguyên âm, ví dụ `cảm gi[-á-]{+ạ+}c`, trung bình 2,1 ký tự trên mỗi cặp chỉ đổi dấu. Theo từ tô cả âm tiết, ví dụ `cảm [-giác-]{+giạc+}`, trung bình 6,8 ký tự. Không chỉ số nào ở đây đo được người đọc thấy chỗ nào dễ hơn. AD-51 mục 7 đã chọn theo từ. Muốn đổi sang cấp ký tự cho chữ Việt thì cần một AD mới, không cần đổi crate: truyền `MatchLang::Zh` là đủ.
+- **Grapheme bằng ký tự là do cấu tạo, không phải phát hiện.** Sau NFC mọi chữ Việt, kể cả chữ mang hai dấu như `ệ`, đều là một ký tự dựng sẵn. Vì vậy đường grapheme trùng đường ký tự, và một đoạn đổi chỉ gồm dấu rời không thể xuất hiện. Bộ đo chưa thử đầu vào NFD. Kết quả này chỉ nhắc lại AD-51 mục 4.
+- **`unicode_words` tách dấu câu khỏi từ.** Nó tô ít hơn `from_words` một chút (9,8 so với 9,9 ký tự mỗi cặp), vì dấu câu dính vào từ bị đổi không bị tô. Số vùng đổi bằng nhau, nhưng nó chậm hơn. Không đổi.
+- **Đảo cụm** (`swap`): đường theo từ cho một `insert` và một `delete` rời nhau. `dissimilar` căn theo cụm chung và tô cụm còn lại. Cả hai dựng lại đúng, giống nhận xét `zh_edit` ở Phần 3.
+- **Dựng lại:** 0 lỗi trên 86 cặp × 8 biến thể.
+
+**Màu (AC WCAG AA):**
+- **Tương phản chữ đạt.** Họ `diff-text`/`diff-fill` có ở cả hai theme, và `npm run check:tokens` xanh. Tỉ số mực trên nền: sáng add 6,52 · sáng del 6,69 · tối add 6,61 · tối del 5,23. Cả bốn đều ≥ 4,5.
+- **Tương phản phi chữ chưa đạt.** Đây là phép đo khác, giữa nền tô và nền trang `surface`: sáng add 1,12 · sáng del 1,16 · tối add 1,29 · tối del 1,13. Cả bốn đều dưới 3:1 (WCAG 1.4.11).
+- **Chỗ thêm chỉ được đánh dấu bằng màu.** `.tmf-ins` đặt `text-decoration: none` (`src/TmFuzzyStrip.vue`), nên chỗ thêm không có dấu hiệu nào ngoài màu (WCAG 1.4.1).
+- Phần hiển thị của Review Mode mang cùng AC ở Story 8.12.
+
+**Cho Review Mode:** `MatchLang` chỉ có `Zh` và `En`. Chữ Việt phải đi đường theo từ, hôm nay là `En`. Đi `Zh` thì ra hàng "ký tự + gộp" của bảng trên.
