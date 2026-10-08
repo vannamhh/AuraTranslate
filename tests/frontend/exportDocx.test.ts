@@ -46,7 +46,7 @@ async function fresh() {
   for (const m of [listMock, summaryMock, folderMock, docxMock]) m.mockReset()
   listMock.mockResolvedValue({ chapters: [row(10, 1), row(11, 2)], error: null })
   summaryMock.mockResolvedValue({
-    counts: { chapter_count: 2, segment_count: 6, unconfirmed_count: 0, image_count: 0, missing_link_images: [] },
+    counts: { chapter_count: 2, segment_count: 6, unconfirmed_count: 0, unconfirmed_translated_count: 0, untranslated_count: 0, image_count: 0, missing_link_images: [] },
     error: null,
   })
   folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/out' })

@@ -39,7 +39,7 @@ use boundary_scan::{code_lines, is_inside, src_root};
 const SEGMENT_DIR: &str = "core/segment";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-const SRC_RS_FLOOR: usize = 97;
+const SRC_RS_FLOOR: usize = 105;
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {

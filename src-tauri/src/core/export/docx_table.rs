@@ -15,14 +15,14 @@ pub enum ImageReference<'a> {
     Dir(&'a str),
 }
 
-const COLUMN_WIDTH_DXA: usize = 4513;
+pub(super) const COLUMN_WIDTH_DXA: usize = 4513;
 const PARAGRAPH_GAP_DXA: u32 = 240;
 
 /// Lý do ghi `.docx` thất bại; chỉ để chẩn đoán, không đi lên giao diện.
 #[derive(Debug)]
 pub struct DocxWriteError(pub String);
 
-fn paragraph_of(text: &str, gap_after: bool) -> Paragraph {
+pub(super) fn paragraph_of(text: &str, gap_after: bool) -> Paragraph {
     let mut run = Run::new();
     for (i, line) in text.split('\n').enumerate() {
         if i > 0 {
@@ -38,7 +38,7 @@ fn cell_of(cell: &ExportCell) -> TableCell {
     TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(paragraph_of(&cell.text, cell.ends_paragraph))
 }
 
-fn image_paragraph(image: &ExportImage, reference: ImageReference<'_>) -> Paragraph {
+pub(super) fn image_paragraph(image: &ExportImage, reference: ImageReference<'_>) -> Paragraph {
     let paragraph = Paragraph::new().line_spacing(LineSpacing::new().after(PARAGRAPH_GAP_DXA));
     match (reference, image.source_url.as_deref()) {
         (ImageReference::Link, Some(url)) => paragraph

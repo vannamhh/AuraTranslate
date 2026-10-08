@@ -6,9 +6,9 @@ use std::collections::BTreeMap;
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
-    ExportScope, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
-    load_chapter_tables, resolve_chapter_ids, safe_stem, scan_images, write_docx_with_images, write_new_file,
-    write_two_column_docx,
+    ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
+    load_chapter_blocks, load_chapter_tables, resolve_chapter_ids, safe_stem, scan_images, write_docx_with_images, write_new_file,
+    write_one_block_docx, write_two_column_docx,
 };
 use crate::core::i18n::{IpcError, MessageKey};
 
@@ -18,6 +18,8 @@ pub struct ExportScopeSummary {
     pub chapter_count: i64,
     pub segment_count: i64,
     pub unconfirmed_count: i64,
+    pub unconfirmed_translated_count: i64,
+    pub untranslated_count: i64,
     pub image_count: i64,
     pub missing_link_images: Vec<MissingLinkImage>,
 }
@@ -51,6 +53,8 @@ pub fn export_scope_summary(
         chapter_count: counts.chapter_count,
         segment_count: counts.segment_count,
         unconfirmed_count: counts.unconfirmed_count,
+        unconfirmed_translated_count: counts.unconfirmed_translated_count,
+        untranslated_count: counts.untranslated_count,
         image_count: scan.image_count,
         missing_link_images: scan.missing_link_images,
     })
@@ -115,31 +119,85 @@ pub fn export_docx_two_column(
     let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-hai-cot", safe_stem(&open.meta.name, "export"));
-    let (path, images_dir) = if image_mode == ImageMode::File && !images.is_empty() {
-        let written = write_docx_with_images(folder, &stem, &open.dir.join("assets"), &images, |final_stem| {
+    let (path, images_dir) = write_export_docx(open, folder, &stem, image_mode, &images, |reference| {
+        write_two_column_docx(&loaded.tables, reference)
+    })?;
+    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
+}
+
+struct ImageSummary {
+    image_count: i64,
+    images_skipped_missing_link: i64,
+}
+
+fn loaded_summary(images: &[&ExportImage], images_skipped_missing_link: i64) -> ImageSummary {
+    ImageSummary { image_count: i64::try_from(images.len()).unwrap_or(i64::MAX), images_skipped_missing_link }
+}
+
+fn write_export_docx(
+    open: &OpenWork,
+    folder: &std::path::Path,
+    stem: &str,
+    image_mode: ImageMode,
+    images: &[&ExportImage],
+    build: impl Fn(ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError>,
+) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), IpcError> {
+    if image_mode == ImageMode::File && !images.is_empty() {
+        let written = write_docx_with_images(folder, stem, &open.dir.join("assets"), images, |final_stem| {
             let dir_name = format!("{final_stem}{}", crate::core::export::IMAGE_DIR_SUFFIX);
-            write_two_column_docx(&loaded.tables, ImageReference::Dir(&dir_name)).map_err(|e| e.0)
+            build(ImageReference::Dir(&dir_name)).map_err(|e| e.0)
         })
         .map_err(|err| match err {
             ImageFilesError::SourceMissing { chapter_ord, file_name } => image_file_missing(chapter_ord, &file_name),
             ImageFilesError::Write(detail) => export_write_failed(&detail),
         })?;
-        (written.docx_path, Some(written.images_dir))
+        Ok((written.docx_path, Some(written.images_dir)))
     } else {
-        let bytes = write_two_column_docx(&loaded.tables, ImageReference::Link).map_err(|e| export_write_failed(&e.0))?;
-        let path = write_new_file(folder, &stem, "docx", &bytes).map_err(|e| export_write_failed(&e.to_string()))?;
-        (path, None)
-    };
+        let bytes = build(ImageReference::Link).map_err(|e| export_write_failed(&e.0))?;
+        let path = write_new_file(folder, stem, "docx", &bytes).map_err(|e| export_write_failed(&e.to_string()))?;
+        Ok((path, None))
+    }
+}
+
+fn exported_file(
+    counts: &crate::core::export::ScopeCounts,
+    images: &ImageSummary,
+    path: std::path::PathBuf,
+    images_dir: Option<std::path::PathBuf>,
+) -> Result<ExportedFile, IpcError> {
     let path = path.to_str().ok_or_else(export_folder_invalid)?.to_owned();
     let images_dir = images_dir.map(|dir| dir.to_str().map(str::to_owned).ok_or_else(export_folder_invalid)).transpose()?;
     Ok(ExportedFile {
         path,
         chapter_count: counts.chapter_count,
         segment_count: counts.segment_count,
-        image_count: i64::try_from(images.len()).unwrap_or(i64::MAX),
-        images_skipped_missing_link: loaded.images_skipped_missing_link,
+        image_count: images.image_count,
+        images_skipped_missing_link: images.images_skipped_missing_link,
         images_dir,
     })
+}
+
+/// Never overwrites an existing file.
+pub fn export_docx_one_block(
+    open: Option<&OpenWork>,
+    scope: &ExportScope,
+    image_mode: ImageMode,
+    folder: &std::path::Path,
+) -> Result<ExportedFile, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let counts = count_scope(&open.store, scope).map_err(scope_error)?;
+    if !folder.is_dir() {
+        return Err(export_folder_invalid());
+    }
+    let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
+    let loaded =
+        load_chapter_blocks(&open.store, &chapter_ids, image_mode, &open.meta.source_lang).map_err(IpcError::from)?;
+    let images = loaded.images();
+    let stem = format!("{}-mot-khoi", safe_stem(&open.meta.name, "export"));
+    let (path, images_dir) = write_export_docx(open, folder, &stem, image_mode, &images, |reference| {
+        write_one_block_docx(&loaded.blocks, reference)
+    })?;
+    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
 }
 
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
@@ -192,5 +250,24 @@ pub mod wire {
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         super::export_docx_two_column(guard.as_ref(), &scope, image_mode, &folder)
+    }
+
+    /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
+    /// must not carry.
+    #[tauri::command(async)]
+    pub fn export_docx_one_block(
+        app: tauri::AppHandle,
+        scope: ExportScope,
+        image_mode: ImageMode,
+        folder: String,
+    ) -> Result<ExportedFile, IpcError> {
+        use tauri::Manager as _;
+
+        let folder = std::path::PathBuf::from(folder);
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::export_docx_one_block(None, &scope, image_mode, &folder);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::export_docx_one_block(guard.as_ref(), &scope, image_mode, &folder)
     }
 }

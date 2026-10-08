@@ -928,7 +928,7 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 
 /// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
 /// `glossary_boundary.rs`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 97;
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 105;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -1171,6 +1171,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         (
             "src/commands/export.rs",
             "pub fn export_docx_two_column(\n        app: tauri::AppHandle",
+            "doc moi segment cua pham vi (ca Tac pham) roi ghi mot tep .docx xuong dia",
+        ),
+        (
+            "src/commands/export.rs",
+            "pub fn export_docx_one_block(\n        app: tauri::AppHandle",
             "doc moi segment cua pham vi (ca Tac pham) roi ghi mot tep .docx xuong dia",
         ),
         (
@@ -1761,7 +1766,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 17] = [
         "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
-    ("src/commands/export.rs", 1, 2, 2, ""),
+    ("src/commands/export.rs", 1, 3, 3, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
@@ -1940,9 +1945,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (69, 51),
+        (69, 52),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         69/51.\n\n\
+         69/52.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

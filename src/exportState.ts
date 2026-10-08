@@ -8,11 +8,11 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
-import { exportChooseFolder, exportDocxTwoColumn, exportScopeSummary } from './config/export'
+import { exportChooseFolder, exportDocxOneBlock, exportDocxTwoColumn, exportScopeSummary } from './config/export'
 import type { ExportImageMode, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
 import type { IpcError } from './i18n'
 
-export type ExportFormat = 'docx_two_column'
+export type ExportFormat = 'docx_two_column' | 'docx_one_block'
 export type ExportRunStatus = 'idle' | 'running' | 'done' | 'error' | 'ipc_unavailable'
 export type ExportScopeKind = 'chapter' | 'chapters' | 'work'
 export type ExportLoadStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -201,7 +201,8 @@ export async function runExport(): Promise<void> {
   runStatus.value = 'running'
   runResult.value = null
   runError.value = null
-  const result = await exportDocxTwoColumn(scope, imageMode.value, target)
+  const write = format.value === 'docx_one_block' ? exportDocxOneBlock : exportDocxTwoColumn
+  const result = await write(scope, imageMode.value, target)
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'

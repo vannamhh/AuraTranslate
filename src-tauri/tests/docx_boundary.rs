@@ -23,7 +23,7 @@ mod boundary_scan;
 use boundary_scan::{code_lines, src_root};
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` — cùng lý lẽ mọi `*_boundary.rs` khác.
-const SRC_RS_FLOOR: usize = 97;
+const SRC_RS_FLOOR: usize = 105;
 
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())

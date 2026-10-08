@@ -43,7 +43,7 @@ const CHAPTER_READ_FILE: &str = "commands/chapter.rs";
 /// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`,
 /// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm cả `build.rs`). Hai con số gần nhau
 /// và chúng **không** thay thế nhau được.
-const SRC_RS_FLOOR: usize = 97;
+const SRC_RS_FLOOR: usize = 105;
 
 /// Số tệp `.ts` + `.vue` tối thiểu dưới `src/**`.
 const WEBVIEW_FLOOR: usize = 109;

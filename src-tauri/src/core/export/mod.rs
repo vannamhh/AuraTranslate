@@ -14,6 +14,8 @@
 //! (`tests/fixtures_docx.rs`), một cài đặt ĐỘC LẬP với `core::docx` nên không phải một vòng
 //! tròn "tự sinh rồi tự đọc lại".
 
+mod block_paragraphs;
+mod docx_block;
 mod docx_table;
 mod image_files;
 mod images;
@@ -21,6 +23,10 @@ mod new_file;
 mod scope;
 mod table_rows;
 
+pub use block_paragraphs::{
+    BlockParagraph, ChapterBlock, LoadedBlocks, UNTRANSLATED_SQL, is_untranslated, load_chapter_blocks,
+};
+pub use docx_block::write_one_block_docx;
 pub use docx_table::{DocxWriteError, ImageReference, write_two_column_docx};
 pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_docx_with_images};
 pub use images::{ImageMode, ImageScan, MissingLinkImage, scan_images};

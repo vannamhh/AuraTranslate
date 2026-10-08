@@ -191,10 +191,22 @@ function trapTab(event: KeyboardEvent): void {
               <!-- aura-allow-text: result of t() with the count interpolated. -->
               <li>{{ t('export.counts.segments', { count: String(exportCounts.segment_count) }) }}</li>
             </ul>
-            <p v-if="exportCounts.unconfirmed_count > 0" class="ex-warning" role="alert" data-export-unconfirmed>
+            <p
+              v-if="exportFormat === 'docx_two_column' && exportCounts.unconfirmed_count > 0"
+              class="ex-warning" role="alert" data-export-unconfirmed>
               <!-- aura-allow-text: result of t() with the count interpolated. -->
               {{ t('export.unconfirmed_warning', { count: String(exportCounts.unconfirmed_count) }) }}
             </p>
+            <template v-if="exportFormat === 'docx_one_block'">
+              <p v-if="exportCounts.unconfirmed_translated_count > 0" class="ex-warning" role="alert" data-export-block-unconfirmed>
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('export.block.unconfirmed_warning', { count: String(exportCounts.unconfirmed_translated_count) }) }}
+              </p>
+              <p v-if="exportCounts.untranslated_count > 0" class="ex-warning" role="alert" data-export-block-untranslated>
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('export.block.untranslated_warning', { count: String(exportCounts.untranslated_count) }) }}
+              </p>
+            </template>
           </template>
         </div>
 
@@ -211,6 +223,18 @@ function trapTab(event: KeyboardEvent): void {
           </label>
           <p v-if="exportFormat === 'docx_two_column'" class="ex-note" data-export-reimportable>
             {{ t('export.format.reimportable') }}
+          </p>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-format"
+              :checked="exportFormat === 'docx_one_block'"
+              @change="setExportFormat('docx_one_block')"
+            />
+            <span>{{ t('export.format.docx_one_block') }}</span>
+          </label>
+          <p v-if="exportFormat === 'docx_one_block'" class="ex-note" data-export-not-reimportable>
+            {{ t('export.format.not_reimportable') }}
           </p>
         </fieldset>
 

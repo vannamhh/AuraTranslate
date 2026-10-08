@@ -288,7 +288,8 @@ fn the_summary_and_the_image_mode_have_the_wire_shape_the_webview_reads() {
     assert_eq!(
         json,
         serde_json::json!({
-            "chapter_count": 1, "segment_count": 2, "unconfirmed_count": 1, "image_count": 1,
+            "chapter_count": 1, "segment_count": 2, "unconfirmed_count": 1,
+            "unconfirmed_translated_count": 0, "untranslated_count": 2, "image_count": 1,
             "missing_link_images": [
                 { "chapter_id": f.first, "chapter_ord": 1, "chapter_title": null, "image_index": 1, "alt_text": null }
             ]

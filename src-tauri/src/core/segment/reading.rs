@@ -51,6 +51,14 @@ use super::omit;
 ///   không có gì để đóng — đúng ca *"cả một đoạn bị cắt bỏ"*.
 #[must_use]
 pub fn paragraphs_in_translation(segments: &[ChapterSegment]) -> Vec<Vec<&ChapterSegment>> {
+    paragraphs_by_flag(segments, |segment| segment.is_target_paragraph_end)
+}
+
+#[must_use]
+pub fn paragraphs_by_flag(
+    segments: &[ChapterSegment],
+    ends_paragraph: impl Fn(&ChapterSegment) -> bool,
+) -> Vec<Vec<&ChapterSegment>> {
     // 🔴 Chốt lọc DUY NHẤT — xem doc-comment đầu tệp. `surviving` giữ THAM CHIẾU vào chính
     // các phần tử của `segments`, nên `std::ptr::eq` dưới đây so được từng phần tử một mà
     // không cần một vị từ `!is_omitted` thứ hai.
@@ -67,7 +75,7 @@ pub fn paragraphs_in_translation(segments: &[ChapterSegment]) -> Vec<Vec<&Chapte
         if is_surviving {
             next_surviving += 1;
             current.push(segment);
-            if segment.is_target_paragraph_end {
+            if ends_paragraph(segment) {
                 result.push(std::mem::take(&mut current));
             }
             continue;
@@ -76,7 +84,7 @@ pub fn paragraphs_in_translation(segments: &[ChapterSegment]) -> Vec<Vec<&Chapte
         // Câu đã CẮT BỎ — không đẩy vào đâu cả (AC5 · FR133: vắng mặt hoàn toàn, không
         // chỗ trống, không `[…]`). Cờ kết đoạn của nó, nếu có, chuyển cho câu còn sống
         // liền trước trong `current` bằng cách đóng đoạn ĐANG GOM ngay tại đây.
-        if segment.is_target_paragraph_end && !current.is_empty() {
+        if ends_paragraph(segment) && !current.is_empty() {
             result.push(std::mem::take(&mut current));
         }
     }

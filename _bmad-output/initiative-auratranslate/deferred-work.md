@@ -3276,6 +3276,7 @@ cái này"*, không phải *"bỏ cái này đi"*. Loại suy đúng ở vế *"
 **Chủ: Ice** — quyết định: có thêm một AC tham chiếu FR133 vào Story 5.11–5.13 và 8.3 · 8.4 · 8.6
 không. Đây là một quyết định về **quy hoạch**, không phải một dòng mã, nên nó không tự đóng được ở
 tầng dev.
+→ 🟡 2026-10-08 (Story 8-4) — 8.4 mang FR133 thành tiêu chí 6 (Ice đã quyết ở Notes của vé): `paragraphs_by_flag` dời cờ kết đoạn của câu bị lược về câu còn lại liền trước ở cả hai cột; đối chứng: bỏ phép dời ⇒ ca FR133 cột trái đỏ. Còn 5.11–5.13 · 8.6. Chủ: Ice.
 
 ### 🔴 MÓN MỚI — `ornament` làm màu chữ: đặc tả nói một đằng, cổng cưỡng chế một nẻo
 
@@ -3399,6 +3400,7 @@ và xuất ra một tệp mang nhịp của **bản gốc**.
 **Chủ: Epic 8** *(Story 8.3 · 8.4 · 8.6)*.
 → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-46 vào AC của 8.3/8.4/8.6 khi refine; 8.6 là story cuối của ba, đóng mục này khi cả ba đọc cấu trúc đoạn của bản dịch. Chủ: Story 8.6.
 → 🟡 2026-10-07 (Story 8-3) — 8.3 đã đọc cả hai nguồn cho cột phải: cờ đích `is_target_paragraph_end` thành khoảng cách sau đoạn cuối của ô, ký tự xuống dòng trong `target_text` thành đoạn riêng; đối chứng: thay cờ đích bằng cờ nguồn làm `each_column_takes_its_gap_from_its_own_paragraph_end_flag` đỏ. Còn 8.4 · 8.6. Chủ: Story 8.6.
+→ 🟡 2026-10-08 (Story 8-4) — 8.4 đọc cả hai nguồn: cột trái theo `is_paragraph_end`, cột phải theo `is_target_paragraph_end` cộng `\n`, cùng một phép gom `paragraphs_by_flag` (không có bản thứ hai); đối chứng: tháo phép dời cờ câu lược ⇒ ca FR133 đỏ. Còn 8.6. Chủ: Story 8.6.
 
 ### 🟡 Lượt đổi cờ đích bị TỪ CHỐI không có đường ra màn hình
 
@@ -12952,3 +12954,7 @@ chính nó.
   summary: Since 8.5, `.docx` hai cột has image rows (link or `<stem>-anh/` path, same text in both cells), yet the format screen still says it is re-importable; re-import must recognise these rows instead of reading them as source/target sentences.
   evidence: maybe-false — the Epic 8 re-import path (8.8 shape gate, 8.9) is not built; settled by an 8.9 case that re-imports an 8.5 export containing both image-row kinds and asserts no segment is created or changed from them.
   Chủ: Story 8.9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-mot-khoi-theo-oan-cho-ang-bai-plan.md`
+  summary: Dán thật tệp `.docx` một khối của 8.4 sang trình soạn thảo website (WordPress/Blogger...) chưa được ai làm: bảng một hàng không viền, ô nhiều đoạn, ảnh theo link hoặc theo đường dẫn; kiểm đoạn không dính, không còn viền, ảnh hiện.
+  evidence: maybe-false — tests chỉ đọc lại XML của tệp, không có trình soạn thảo thật nào tham gia; cần Ice dán một tệp xuất từ Tác phẩm có ảnh vào ít nhất một trình soạn thảo và xem kết quả.
+  Chủ: Epic 8.

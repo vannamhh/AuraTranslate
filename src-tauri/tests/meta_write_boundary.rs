@@ -58,7 +58,7 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 }
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-const RS_FLOOR: usize = 97;
+const RS_FLOOR: usize = 105;
 
 /// Vị từ THUẦN trên một DÒNG MÃ đã biết KHÔNG PHẢI comment — chỗ gọi thật (mỗi Phần 1 dưới
 /// đây) lọc dòng `//` TRƯỚC khi gọi hàm này, đúng khuôn

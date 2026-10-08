@@ -21,6 +21,8 @@ export type ExportScopeCounts = {
   chapter_count: number
   segment_count: number
   unconfirmed_count: number
+  unconfirmed_translated_count: number
+  untranslated_count: number
   image_count: number
   missing_link_images: MissingLinkImage[]
 }
@@ -47,6 +49,7 @@ export type ExportFolderResult =
 const CMD_EXPORT_SCOPE_SUMMARY = 'export_scope_summary'
 const CMD_EXPORT_CHOOSE_FOLDER = 'export_choose_folder'
 const CMD_EXPORT_DOCX_TWO_COLUMN = 'export_docx_two_column'
+const CMD_EXPORT_DOCX_ONE_BLOCK = 'export_docx_one_block'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -101,6 +104,8 @@ function isCounts(value: unknown): value is ExportScopeCounts {
     typeof v.chapter_count === 'number' &&
     typeof v.segment_count === 'number' &&
     typeof v.unconfirmed_count === 'number' &&
+    typeof v.unconfirmed_translated_count === 'number' &&
+    typeof v.untranslated_count === 'number' &&
     typeof v.image_count === 'number' &&
     Array.isArray(v.missing_link_images) &&
     v.missing_link_images.every(isMissingLinkImage)
@@ -162,5 +167,22 @@ export async function exportDocxTwoColumn(
     return { file: raw, error: null }
   } catch (err) {
     return { file: null, error: failureOf(err, CMD_EXPORT_DOCX_TWO_COLUMN) }
+  }
+}
+
+export async function exportDocxOneBlock(
+  scope: ExportScope,
+  imageMode: ExportImageMode,
+  folder: string,
+): Promise<ExportRunResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, folder })
+    if (!isExportedFile(raw)) {
+      console.error(`[export] \`${CMD_EXPORT_DOCX_ONE_BLOCK}\` returned an unexpected shape: ${String(raw)}`)
+      return { file: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { file: raw, error: null }
+  } catch (err) {
+    return { file: null, error: failureOf(err, CMD_EXPORT_DOCX_ONE_BLOCK) }
   }
 }

@@ -47,7 +47,7 @@ const STORE_DIR: &str = "core/store";
 /// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm `build.rs`). Hai con số gần nhau và
 /// chúng **không** thay thế nhau được; chép số của tệp kia sang đây là đặt một cái sàn cho
 /// một cây khác.
-const RS_FLOOR: usize = 97;
+const RS_FLOOR: usize = 105;
 
 /// Những chuỗi mà **chỉ** `core::store` được mang.
 ///
