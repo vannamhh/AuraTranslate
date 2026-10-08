@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-02'
+updated: '2026-10-08'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -845,6 +845,68 @@ graph TD
 
   → bằng chứng: `ad-51-draft-2026-10-02.md` (Phần 3 số đo, Phần 4 giấy phép) · `ad-brief-2026-10-02-diff-khop-mo-tm.md`.
 
+### AD-52 — Bản reviewer đã nhập lại sống trong `project.db`, mỗi Chương tối đa một bản, chỉ lượt xác nhận nhập ghi, bất biến sau khi nhập
+
+- **Binds:** C8, C9 — Story 8.9 (nhập lại), 8.10 (alignment), 8.11–8.13 (Review Mode, chấp nhận từng thay đổi), 8.14–8.15 (thu hoạch, FR95); `core/export/`, `core/store/schema.rs`, mọi đường gộp hoặc tách Chương trong `commands/chapter.rs`.
+- **Prevents:**
+  1. Mỗi story của Epic 8 tự đặt một chỗ lưu riêng cho cùng một bản reviewer.
+  2. Nhập lại lần hai sinh ra hai bản sống của một Chương, khiến Review Mode và thu hoạch chọn hai bản khác nhau và FR54 đếm trùng.
+  3. Gộp hoặc tách Chương để lại bản reviewer trỏ vào một ranh giới không còn tồn tại, hoặc vào một Chương đã bị xoá, rồi alignment hay thu hoạch chạy trên đó mà không báo gì.
+  4. Hai người ghi hiểu khác nhau về hình dạng một hàng (một ô hay một đoạn; `NULL` hay `''`).
+  5. Lượt nhập ghi vào `segment`, tức một người ghi `target_text` ngoài danh mục đóng AD-47 ③.
+- **Rule:**
+
+  1. **Hai bảng trong `project.db`, chỉ chứa văn bản thuần (AD-16).**
+     - `review_chapter`: mỗi Chương một hàng. Cột: `chapter_id` **`UNIQUE`**, `file_name`, `file_kind` (`docx` | `md`), `imported_at`, `stale_at` (`NULL` nghĩa là còn dùng được). Hai cột thời điểm dùng cùng định dạng với `chapter.created_at`.
+     - `review_row`: nội dung đọc được từ tệp, theo thứ tự. Cột: `review_chapter_id`, `ord`, `kind` (`text` | `alt` | `caption`), `source_text`, `target_text`.
+     - Đơn vị sống là **Chương**, không phải lần nhập: một tệp mới có thể thay bản reviewer của vài Chương trong khi bản của các Chương khác vẫn đến từ tệp cũ.
+  2. **Hợp đồng của một hàng `review_row`.**
+     - **Hạt:** một hàng là một đơn vị của tệp, tức một hàng bảng `.docx` hoặc một đoạn `.md`. Mỗi dòng alt-text và mỗi dòng chú thích trong dòng ảnh `.md` là một hàng riêng (`kind` = `alt` hoặc `caption`). Bản `.docx` hai cột đưa alt-text và chú thích ra thành hàng văn bản thường, nên mọi hàng `.docx` đều là `kind = 'text'`.
+     - **Đoạn bên trong:** một ô có nhiều đoạn thì nối các đoạn bằng đúng một `\n`, cùng ký hiệu AD-46 dùng trong `target_text`.
+     - **Thứ tự:** `ord` bắt đầu từ 0, liền mạch, `UNIQUE(review_chapter_id, ord)`.
+     - **Nguồn:** `source_text` là `NULL` khi và chỉ khi tệp là `.md` (tệp đó không mang nguồn). Ô trái rỗng của `.docx` ghi `''`.
+     - **Đích:** `target_text` là `NOT NULL`, và `''` nghĩa là reviewer đã xoá chữ.
+     - Hàng ảnh không được lưu: tham chiếu ảnh không phải chữ reviewer sửa.
+  3. **Một người ghi duy nhất.** Lượt xác nhận nhập (FR90) trong `core/export/` làm mọi việc trong **một** giao dịch:
+     - Khớp lại tệp với Tác phẩm ngay trong giao dịch. Tập Chương ra khác bản xem trước thì huỷ, không ghi gì.
+     - Xoá bản cũ của mỗi Chương bị thay, cùng mọi hàng phụ thuộc theo mục 6.
+     - Chèn `review_chapter` và `review_row`. Thay bản luôn là `DELETE` rồi `INSERT` với id `AUTOINCREMENT` mới, không bao giờ `REPLACE`.
+
+     Trước khi người dùng xác nhận thì không ghi gì cả. Lượt nhập không chạm `segment`, nên AD-47 ③ giữ nguyên.
+  4. **Nhập lần hai thay bản cũ.**
+     - `UNIQUE(chapter_id)` là phép cưỡng chế, không phải quy ước, nên không có vị từ "bản mới nhất" nào cho người đọc tự cài.
+     - Bản xem trước phải nêu Chương nào đang có bản reviewer sắp bị thay, kèm phần việc nối tay hay chấp nhận nào sẽ mất cùng nó.
+     - `review_row` **bất biến sau khi nhập**: hàng chỉ mất đi khi bản của Chương bị thay hoặc bị xoá theo mục 5. Alignment, chấp nhận thay đổi và thu hoạch đều không sửa nó.
+  5. **Đổi ranh giới Chương.**
+     - **Gộp B vào A:** trong chính giao dịch gộp, bản reviewer của B bị **xoá** cùng mọi hàng phụ thuộc, theo khuôn `chapter_position`. A nhận `stale_at`.
+     - **Tách A:** A nhận `stale_at`, không xoá gì và không mang bản sang Chương mới.
+     - **Lời báo:** Review Mode nói rõ Chương đã đổi sau lúc nhập (và khi có, một bản reviewer của Chương bị gộp đã bị bỏ), rồi mời nhập lại tệp.
+     - **Cổng canh:** một cổng quét dòng mã đỏ khi một chỗ nào đó `DELETE FROM chapter` hoặc ghi `segment.chapter_id` mà cùng hàm không chạm `review_chapter`. Đối chứng: gỡ câu ghi `review_chapter` khỏi đường gộp hoặc tách thì đúng ca đó đỏ.
+  6. **Hàng phụ thuộc và người đọc.**
+     - Mọi bảng trỏ vào bản reviewer (kết quả alignment, trạng thái chấp nhận) khoá theo `review_chapter_id` và bị xoá trong cùng giao dịch xoá bản đó.
+     - Mọi người đọc (alignment, Review Mode, chấp nhận, thu hoạch) đi qua **một hàm đọc** trong `core/export/`. Hàm này trả lỗi có kiểu, *lỗi thời* hoặc *không có bản*, chứ không bao giờ trả danh sách rỗng thay cho hai trạng thái đó.
+  7. **Alignment (FR91) và các trạng thái sau nó.**
+     - Phần máy của alignment chạy ngay sau lượt xác nhận nhập, không chờ Review Mode. Kết quả của nó, kể cả phần người dùng nối tay, được lưu bền trong một thực thể do 8.10 sở hữu và thiết kế. Thực thể đó không ghi đè `review_row`.
+     - Liên kết tới segment không được trỏ im lặng vào segment đã về hưu. Nó được dời trong cùng giao dịch gộp hoặc tách segment, theo khuôn `navigation_segment_id` trong `write_regroup`.
+     - Trạng thái chấp nhận hoặc bỏ qua từng thay đổi (FR94) do 8.13 sở hữu và khoá theo hàng reviewer.
+     - Thu hoạch (FR95) đọc các cặp alignment đã khớp, nên chạy được khi Review Mode chưa từng mở.
+     - Thuật toán alignment vẫn ở hàng Deferred.
+  8. **Đổi gì / không đổi gì:**
+     - Sơ đồ ER thêm `REVIEW_CHAPTER` và `REVIEW_ROW`.
+     - Bản đồ năng lực C8 thêm AD-52.
+     - AD-38, AD-16, AD-46 và AD-47 không sửa chữ nào.
+
+- **Phương án bị loại:**
+  - **Một cột `segment_id` trên `review_row`:** sai với `.md`. Một đoạn `.md` gom nhiều segment theo cờ kết đoạn (AD-46), và reviewer có thể gộp đoạn, nên quan hệ là nhiều–nhiều.
+  - **Một blob JSON mỗi Chương:** SQL không đếm hay lọc được, và 8.10 cùng 8.14 sẽ phải tự giải JSON.
+  - **Mang bản reviewer theo khi gộp hoặc tách:** trước alignment không biết cắt ở đâu.
+  - **Xoá bản của Chương còn sống khi gộp hoặc tách:** mất bản đang review mà không có lời báo.
+  - **Giữ bản của Chương đã bị xoá ở trạng thái lỗi thời:** bản đó vô hình vĩnh viễn, không đường nào đọc tới.
+  - **Giữ lịch sử mọi lần nhập:** FR54 đếm trùng, và mỗi người đọc phải tự cài vị từ "bản mới nhất".
+  - **Dấu vân tay ranh giới** (số segment sống, min/max `segment.id`): gộp hay tách câu trong Editor cũng đổi dấu vân tay, nên báo lỗi thời giả.
+
+  → bằng chứng: `ad-brief-luu-ban-reviewer.md` · `reviews/review-ad-52-{rubric,reality,adversarial}-2026-10-08.md` · memlog 2026-10-08.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1084,6 +1146,8 @@ erDiagram
   WORK ||--o{ PROOF_IGNORE : "không phải lỗi, phạm vi Tác phẩm"
   SEGMENT }o--|| ASSET : "alt-text hoặc caption — phân biệt bằng trường vai"
   GLOSSARY_CANDIDATE }o--|| GLOSSARY_ENTRY : "được duyệt thành"
+  CHAPTER ||--o| REVIEW_CHAPTER : "bản reviewer sống — tối đa một, lỗi thời khi gộp/tách (AD-52)"
+  REVIEW_CHAPTER ||--|{ REVIEW_ROW : "nội dung tệp theo thứ tự — bất biến sau nhập"
   DICT_ENTRY ||--o{ DICT_SENSE : "nhiều từ loại"
   DICT_SENSE ||--o{ DICT_EXAMPLE : "ví dụ theo từ loại"
   DICT_SENSE ||--o{ DICT_CITATION : "trích dẫn có xuất xứ"
@@ -1150,7 +1214,7 @@ AuraTranslate/
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22 |
-| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51 |
+| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43 |
 | **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 

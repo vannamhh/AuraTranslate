@@ -1,0 +1,45 @@
+# Review đối kháng AD-52 — 2026-10-08
+
+Phạm vi: `### AD-52` (dòng 848-880) đọc cùng AD-16, AD-38, AD-46, AD-47, ER (1118-1119), ACs 8.9/8.10/8.13/8.14/8.15 trong `epic-cau-noi-reviewer/tickets.toml`, và `schema.rs` (kho `project.db` tắt `PRAGMA foreign_keys`, không `ON DELETE CASCADE`). Mã chỉ đọc, không sửa.
+
+Phán quyết: AD-52 khoá đúng chỗ LƯU và NGƯỜI GHI, nhưng chưa khoá NGỮ NGHĨA dữ liệu và CÁC ĐƯỜNG LÀM MẤT HIỆU LỰC; 5 lỗ, 2 lỗ nặng.
+
+## H1 (Cao) — `review_row.target_text` không có hợp đồng đoạn; 8.10 và 8.14 xây không tương thích
+Rule mục 1 chỉ nói "nội dung đọc được từ tệp, theo thứ tự". AD-46 chỉ định cấu trúc đoạn của `segment.target_text` (cờ đích + `\n` trong chuỗi). Không chỗ nào nói `.docx` ô nhiều đoạn / đoạn `.md` đi vào `review_row` thế nào.
+- Đơn vị A (8.9, đúng chữ): một hàng = một ô `.docx` (hoặc một đoạn `.md`), đoạn nội bộ nối bằng `\n`. Hợp AD-16, AD-38 (cổng chỉ cần số đoạn lúc đọc).
+- Đơn vị B (8.10, đúng chữ): một hàng = một đoạn; ô nhiều đoạn tách thành nhiều hàng cùng `ord` kề nhau (cũng hợp "theo thứ tự").
+- Hệ quả: 8.10 so `\n` với cờ đích và `\n` trong segment (AD-46) chỉ khớp khi A; 8.14 đếm "số lần đổi trên tổng lần xuất hiện" theo hàng thì A cho mẫu số khác B; 8.13 chấp nhận một thay đổi ghi `target_text` từ một hàng: nếu A thì `\n` thành đoạn dịch ngay trong segment (AD-46 "trong một segment"), nếu B thì mất ranh giới. Không test nào đỏ vì cả hai đều hợp lệ SQL.
+- `source_text` NULL vs `''`: mục 1 nói NULL cho `.md`, nhưng `.docx` ô trái rỗng (reviewer xoá chữ nguồn) cũng có thể bị đơn vị nhập chuẩn hoá thành NULL; reader dùng `source_text IS NULL` để nhận ra `.md` sẽ coi cả hàng rỗng là "không có nguồn" và 8.10 bỏ qua hàng đó im lặng (đúng loại 0-hàng-không-lỗi trong AGENTS.md). Cũng: `target_text` rỗng (reviewer xoá câu) khác "hàng không tồn tại" — 8.14 phải đọc thành "xoá", không phải "không đổi".
+- `ord`: không nói đếm từ 0 hay 1, liên tục hay thưa, duy nhất theo `(review_chapter_id, ord)` hay không; hàng ảnh bị loại nên `ord` có hố; 8.10 cần quan hệ vị trí với ảnh không còn.
+
+Rule đề xuất (thêm vào mục 1): "`target_text` của `review_row` là chữ của MỘT đơn vị tệp: một ô trái/phải của một hàng bảng `.docx`, hoặc một đoạn `.md`. Các đoạn bên trong một ô nối bằng đúng một `\n` (cùng nghĩa 'trong một segment' của AD-46), không tách thành nhiều hàng. `ord` là số nguyên tăng chặt từ 0, không hố (hàng ảnh không chiếm `ord`), `UNIQUE(review_chapter_id, ord)`. `source_text` là `NULL` khi và chỉ khi `file_kind='md'`; ô nguồn `.docx` rỗng lưu `''`. `target_text` luôn `NOT NULL`, rỗng lưu `''` và nghĩa là 'reviewer xoá', không phải 'không đọc được'. Người đọc không chuẩn hoá hai giá trị này."
+
+## H2 (Cao) — Kết quả alignment/thu hoạch mồ côi khi bản reviewer bị thay hoặc lỗi thời
+Mục 6 giao 8.10 sở hữu bảng alignment và chỉ buộc "không ghi đè review_row" và "liên kết tới segment sống sót". Không nói liên kết về phía `review_row`.
+- Mục 3/4: nhập lại xoá `review_row` cũ trong một giao dịch. `foreign_keys` tắt, không CASCADE (schema.rs:1519, 1730). Đơn vị A (8.10): bảng alignment giữ `review_row_id` -> thành khoá mồ côi, đọc bằng JOIN thì 0 hàng không lỗi; đơn vị B (8.14): bảng chờ thu hoạch giữ cặp X->Y đã tách chữ, không giữ khoá -> sống sót, nhưng đếm "n/tổng" của một bản đã bị thay vẫn hiện như hợp lệ. Hai bảng cùng một sự kiện, hai kết cục.
+- Trường hợp `UNIQUE(chapter_id)` + xoá rồi chèn: `review_chapter.id` mới (hoặc, với `INSERT OR REPLACE`, id có thể tái dùng!) nên liên kết cũ có thể trỏ SANG bản mới sai nội dung. Rule không nói id có được tái dùng không.
+- Alignment dở dang (người dùng đã nối tay một nửa) rồi nhập lại: mất công im lặng. Mục 3 chỉ buộc bản xem trước nêu Chương bị thay, không nêu "alignment đã có sẽ mất".
+- 8.13 chấp nhận một thay đổi rồi `stale_at` được đặt (sau gộp/tách): `segment.target_text` đã ghi (AD-47) và độc lập, nhưng "đã chấp nhận hàng X" nằm ở bảng của 8.10/8.13 mà mục 5 nói Review Mode không chạy trên bản stale -> các hàng đã chấp nhận biến khỏi giao diện, các hàng chưa xử lý cũng khoá; không có đường "xong" cho Chương.
+
+Rule đề xuất (thêm mục 6 và 3): "Mọi bảng khác tham chiếu `review_chapter`/`review_row` (alignment, trạng thái chấp nhận, đề xuất thu hoạch) mang `review_chapter_id` và bị XOÁ trong CHÍNH giao dịch của mục 2 khi bản bị thay; `review_chapter.id` là AUTOINCREMENT, không bao giờ tái dùng, và lượt thay dùng DELETE rồi INSERT, không `REPLACE`. Không bảng nào cho phép khoá `review_row_id` sống lâu hơn `review_chapter_id` của nó. Bản xem trước (mục 3) phải nêu số kết quả alignment và quyết định chấp nhận sẽ mất. Quyết định đã chấp nhận ghi ở `segment` (AD-47) nên không phụ thuộc bản stale; bản stale chỉ khoá VIỆC XEM, không khoá quyết định đã ghi."
+
+## H3 (Cao) — Chương bị xoá, Tác phẩm đóng, `move_chapter`: mục 5 chỉ phủ gộp/tách
+- Hiện chỉ có `move_chapter`, `merge_chapter_into_previous`, `split_chapter_at_segment` trong `commands/chapter.rs`; không có lệnh xoá Chương, nhưng mục 5 nói "mọi đường đổi ranh giới" mà không nêu xoá/gỡ Tác phẩm. Khi sau này xuất hiện, `review_chapter.chapter_id` mồ côi (không FK), `UNIQUE` vẫn giữ id cũ; Review Mode đọc `review_chapter` rồi nối `chapter` -> 0 hàng, không lỗi. Thu hoạch (mục 7 "đọc từ các bảng này") vẫn chạy trên bản của Chương không còn.
+- Gộp: bản của Chương A (đích) và B (bị gộp) đều stale; nhưng `chapter_id` của B còn tồn tại sau gộp không? Nếu B bị xoá hàng, bản của B mồ côi; nếu B giữ hàng rỗng, ok. Mục 5 không nói.
+- `move_chapter` đổi `ord` của `chapter` không đổi ranh giới nên không stale — đúng — nhưng 8.9 trình bày "Chương nào bị ảnh hưởng" theo vị trí và `review_row.ord` là thứ tự TRONG Chương; hai nghĩa `ord` (chapter.ord vs review_row.ord) dễ lẫn trong cùng một query.
+- Đóng Tác phẩm giữa lúc xem trước (mục 2: "trước khi xác nhận thì không ghi gì"): bản xem trước nằm trong bộ nhớ; xác nhận sau khi kho đã đóng/đổi Tác phẩm có thể ghi `review_chapter` cho `chapter_id` của Tác phẩm khác hoặc đã gộp/tách trong lúc chờ (xem trước tính trên ranh giới cũ, xác nhận ghi bản "tươi" lên ranh giới mới, không có `stale_at`). Đây là lỗ im lặng nặng nhất ở H3: bản tươi trên ranh giới đã đổi.
+
+Rule đề xuất (mục 5 và 2): "(5) Mọi đường làm một `chapter_id` mất, đổi ranh giới hoặc rời Tác phẩm — gộp, tách, xoá, gỡ Tác phẩm — hoặc xoá `review_chapter` của nó trong chính giao dịch (khi Chương mất) hoặc đặt `stale_at` (khi ranh giới đổi); không có đường thứ ba. Đọc `review_chapter` luôn nối `chapter` bằng INNER JOIN và coi hàng không nối được là lỗi hiển thị, không phải rỗng. (2) Lượt xác nhận mang theo dấu vân của ranh giới lúc xem trước (danh sách `chapter_id` + số segment/`updated_at` của mỗi Chương) và, trong giao dịch, so lại; lệch thì huỷ và yêu cầu xem trước lại. Tác phẩm đóng thì bản xem trước bị bỏ."
+
+## H4 (Trung bình) — "stale" là cờ mà từng người đọc có thể quên
+Mục 5 buộc Review Mode và thu hoạch kiểm `stale_at`, nhưng mục 6 không buộc alignment (8.10) và AD không đặt đường đọc duy nhất. Đơn vị A (8.10) đọc `review_row` thẳng bằng `chapter_id`, bỏ qua `stale_at`; đơn vị B (8.14) lọc `stale_at IS NULL`. 8.15 yêu cầu thu hoạch "kích hoạt ngay khi nhập xong" — lúc vừa nhập thì chưa stale, nhưng một thu hoạch chạy lại/trì hoãn sau gộp lại chạy trên bản stale nếu nó lười lọc. Còn `stale_at` ghi bằng giao dịch gộp, nhưng nhập lại phải xoá nó (bản mới là hàng mới nên tự sạch — được, chỉ cần nói rõ).
+Rule đề xuất (mục 5): "Chỉ có MỘT hàm đọc bản reviewer dùng được (`live_review_rows(chapter_id)`), trả lỗi có kiểu `Stale`/`Absent` phân biệt nhau; không đọc `review_row` bằng SQL rời. Alignment, Review Mode, chấp nhận và thu hoạch đều qua hàm đó. `Absent` (chưa nhập) và `Stale` không bao giờ trả danh sách rỗng."
+
+## H5 (Trung bình) — Hai chủ sở hữu "đã xử lý" của một thay đổi
+8.13 (chấp nhận/bỏ qua từng cái) và 8.14 ("đề xuất bị bỏ thì không đề xuất lại cùng cặp trong cùng Tác phẩm") đều cần nhớ quyết định của người dùng; mục 4 cấm sửa `review_row` nên mỗi story tự đặt một bảng "đã chấp nhận/đã bỏ qua" (khoá theo `review_row_id` hay theo cặp chữ?). Một bảng sống theo bản reviewer (mất khi nhập lại), một bảng sống theo Tác phẩm (cặp bị bỏ) — đúng loại "hai chủ một thực thể" mà AD này sinh ra để chặn ở mục Prevents (1), nhưng chỉ chặn cho văn bản chứ không cho QUYẾT ĐỊNH.
+Rule đề xuất (thêm mục 6b): "Trạng thái xử lý của người dùng trên một thay đổi (chấp nhận · bỏ qua) là một thực thể duy nhất do 8.13 sở hữu, khoá theo `(review_chapter_id, ord)`, sống và chết cùng `review_chapter` (mục H2). Đề xuất thu hoạch bị bỏ (8.14) là thực thể khác, khoá theo Tác phẩm và cặp chữ nguồn-đích, và KHÔNG tham chiếu `review_row`. Hai thực thể không đọc nhau."
+
+## Ghi chú nhỏ
+- Mục 4 "bất biến" chưa có cưỡng chế như `UNIQUE`: chỉ có quy ước; đề xuất test dạng AD ('không câu `UPDATE review_row`/`DELETE FROM review_row` ngoài `core/export/`') hoặc trigger `BEFORE UPDATE ... RAISE(ABORT)`.
+- `file_kind` chỉ `docx|md` nhưng AD-16 nhắc `.txt`; nói rõ `.txt` bị từ chối hay đi vào `md`.
+- AD-38 cổng chạy "trước mọi lệnh ghi" — mục 2 nên nhắc rõ cổng nằm TRONG bước xem trước, không phải trong bước xác nhận, để hai bước không cùng đòi chạy lại.
