@@ -167,7 +167,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với phạm vi xuất đã chọn, khi xuất định dạng này thì sinh ra `.docx` bảng hai cột với một hàng duy nhất cho cả Chương"
 covers = ["FR121"]
-after = [2]
+after = [2, 3, 5]
 hitl = false
 refine = true
 risk = "low"
