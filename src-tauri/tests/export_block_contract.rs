@@ -99,7 +99,7 @@ fn fixture_in(tag: &str, lang: &str, first_title: Option<&str>, segs: Vec<Seg>) 
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file = export_docx_one_block(Some(&self.open), scope, ImageMode::File, &self.out).expect("xuat that bai");
+        let file = export_docx_one_block(Some(&self.open), scope, ImageMode::File, None, &self.out).expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -382,7 +382,7 @@ fn link_mode_puts_one_hyperlink_paragraph_after_the_anchor_in_both_cells_and_cou
     insert_asset(&f.open, f.first, "head.jpg", Some("https://x.test/head.jpg"), 0);
     insert_asset(&f.open, f.first, "mid.jpg", Some("https://x.test/mid.jpg"), 1);
     insert_asset(&f.open, f.first, "nolink.jpg", None, 1);
-    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, &f.out).expect("xuat");
+    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, None, &f.out).expect("xuat");
     let xml = document_xml(Path::new(&file.path));
     let cells = cells(&xml);
 
@@ -399,7 +399,7 @@ fn file_mode_writes_relative_paths_into_the_stem_folder_and_copies_the_files() {
     let f = fixture("img-file", None, vec![seg("s0", "t0")]);
     insert_asset(&f.open, f.first, "p.jpg", Some("https://x.test/p.jpg"), 0);
     put_asset_file(&f.open, "p.jpg", b"jpg");
-    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::File, &f.out).expect("xuat");
+    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::File, None, &f.out).expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));
 
     assert!(file.path.ends_with("Tac Pham-mot-khoi.docx"));
@@ -416,7 +416,7 @@ fn file_mode_writes_relative_paths_into_the_stem_folder_and_copies_the_files() {
 fn a_missing_image_file_is_the_named_error_of_the_two_column_export() {
     let f = fixture("img-missing", None, vec![seg("s0", "t0")]);
     insert_asset(&f.open, f.first, "gone.jpg", None, 0);
-    let err = export_docx_one_block(Some(&f.open), &work(), ImageMode::File, &f.out).expect_err("phai loi");
+    let err = export_docx_one_block(Some(&f.open), &work(), ImageMode::File, None, &f.out).expect_err("phai loi");
     assert_eq!(err.code(), "export.image_file_missing");
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0);
     f.finish();
@@ -451,10 +451,10 @@ fn confirmed_and_unconfirmed_sentences_are_written_identically() {
 fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope_screen() {
     let f = fixture("errors", None, vec![seg("a", "b")]);
     let code = |r: Result<_, auratranslate_lib::core::i18n::IpcError>| r.map(|_: auratranslate_lib::commands::export::ExportedFile| ()).expect_err("phai loi").code().to_owned();
-    assert_eq!(code(export_docx_one_block(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, &f.out)), "export.scope_empty");
-    assert_eq!(code(export_docx_one_block(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9999] }, ImageMode::File, &f.out)), "segment.chapter_not_found");
-    assert_eq!(code(export_docx_one_block(None, &work(), ImageMode::File, &f.out)), "work.none_open");
-    assert_eq!(code(export_docx_one_block(Some(&f.open), &work(), ImageMode::File, &f.out.join("khong-co"))), "export.folder_invalid");
+    assert_eq!(code(export_docx_one_block(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, None, &f.out)), "export.scope_empty");
+    assert_eq!(code(export_docx_one_block(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9999] }, ImageMode::File, None, &f.out)), "segment.chapter_not_found");
+    assert_eq!(code(export_docx_one_block(None, &work(), ImageMode::File, None, &f.out)), "work.none_open");
+    assert_eq!(code(export_docx_one_block(Some(&f.open), &work(), ImageMode::File, None, &f.out.join("khong-co"))), "export.folder_invalid");
     f.finish();
 }
 
@@ -494,7 +494,7 @@ fn the_summary_counts_unconfirmed_translated_and_untranslated_apart_and_skips_om
 #[test]
 fn the_two_column_export_of_the_same_work_is_unchanged_by_the_block_command() {
     let f = fixture("coexist", Some("T"), vec![seg("a", "b")]);
-    let two = export_docx_two_column(Some(&f.open), &work(), ImageMode::File, &f.out).expect("hai cot");
+    let two = export_docx_two_column(Some(&f.open), &work(), ImageMode::File, None, &f.out).expect("hai cot");
     assert!(two.path.ends_with("Tac Pham-hai-cot.docx"));
     assert_eq!(parsed(Path::new(&two.path)).tables[0].rows, 1);
     f.finish();
@@ -519,7 +519,7 @@ fn translated_sentences_with_edge_spaces_join_with_a_single_space_and_keep_no_ed
 fn an_untranslated_chapter_with_an_anchored_image_shows_the_image_and_no_text_on_the_right() {
     let f = fixture("untranslated-img", None, vec![flagged("s0", " ", true, true)]);
     insert_asset(&f.open, f.first, "p.jpg", Some("https://x.test/p.jpg"), 0);
-    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, &f.out).expect("xuat");
+    let file = export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, None, &f.out).expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));
 
     assert_eq!(cells[1], paras(&["https://x.test/p.jpg"]));

@@ -104,7 +104,7 @@ impl Fixture {
     }
 
     fn run(&self, mode: ImageMode, format: TextFormat) -> (ExportedFile, String) {
-        let file = export_text(Some(&self.open), &ExportScope::Work, mode, format, &self.out).expect("xuat");
+        let file = export_text(Some(&self.open), &ExportScope::Work, mode, format, None, &self.out).expect("xuat");
         let text = fs::read_to_string(&file.path).expect("doc tep");
         (file, text)
     }
@@ -214,7 +214,7 @@ fn file_mode_copies_images_next_to_the_file_and_references_them_relatively() {
 fn a_missing_image_file_is_the_named_error_and_nothing_is_overwritten() {
     let f = fixture("gone", Some("T"), vec![seg("p", "Hello")]);
     f.asset("gone.jpg", None, 0);
-    let err = export_text(Some(&f.open), &ExportScope::Work, ImageMode::File, MD, &f.out).expect_err("phai loi");
+    let err = export_text(Some(&f.open), &ExportScope::Work, ImageMode::File, MD, None, &f.out).expect_err("phai loi");
     assert_eq!(err.code(), "export.image_file_missing");
     let g = fixture("twice", Some("T"), vec![seg("p", "Hello")]);
     let (first, _) = g.run(ImageMode::File, MD);
@@ -236,7 +236,7 @@ fn a_chapter_with_nothing_translated_and_no_image_is_absent() {
 fn an_empty_scope_an_unknown_chapter_and_no_open_work_are_the_named_errors() {
     let f = fixture("scope", Some("T"), vec![seg("p", "Hello")]);
     let code = |open: Option<&OpenWork>, scope: ExportScope| {
-        export_text(open, &scope, ImageMode::File, MD, &f.out).expect_err("phai loi").code().to_owned()
+        export_text(open, &scope, ImageMode::File, MD, None, &f.out).expect_err("phai loi").code().to_owned()
     };
     assert_eq!(code(Some(&f.open), ExportScope::Chapters { chapter_ids: vec![] }), "export.scope_empty");
     assert_eq!(code(Some(&f.open), ExportScope::Chapters { chapter_ids: vec![9_999] }), "segment.chapter_not_found");

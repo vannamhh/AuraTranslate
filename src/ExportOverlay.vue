@@ -9,6 +9,7 @@ import {
   exportChoosingFolder,
   exportCounts,
   exportCountsError,
+  exportAttribution,
   exportCountsStatus,
   exportFolder,
   exportFolderError,
@@ -26,7 +27,10 @@ import {
   exportScopeKind,
   exportSelectedChapterIds,
   exportSingleChapterId,
+  exportTranslatorName,
+  exportTranslatorNameError,
   selectExportSingleChapter,
+  setExportAttribution,
   setExportFormat,
   setExportImageMode,
   setExportScopeKind,
@@ -310,6 +314,33 @@ function trapTab(event: KeyboardEvent): void {
           </template>
         </fieldset>
 
+        <fieldset class="ex-format" data-export-attribution>
+          <legend class="ex-legend">{{ t('export.attribution.legend') }}</legend>
+          <label class="ex-choice">
+            <input
+              type="checkbox"
+              data-export-attribution-toggle
+              :checked="exportAttribution"
+              @change="setExportAttribution(($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ t('export.attribution.toggle') }}</span>
+          </label>
+          <p class="ex-note" data-export-attribution-default>{{ t('export.attribution.default_off') }}</p>
+          <p v-if="exportAttribution && exportTranslatorNameError !== null" class="ex-status ex-error" role="alert" data-export-translator-error>
+            <!-- aura-allow-text: result of tError() on the IPC error. -->
+            {{ tError(exportTranslatorNameError) }}
+          </p>
+          <p v-else-if="exportAttribution && exportTranslatorName !== null" class="ex-note" data-export-translator>
+            {{ t('export.attribution.translator') }}
+            <!-- aura-allow-text: data (translator name set in Settings). -->
+            <strong>{{ exportTranslatorName }}</strong>
+            <span class="ex-badge">{{ t('export.attribution.global_badge') }}</span>
+          </p>
+          <p v-else-if="exportAttribution" class="ex-note" data-export-translator-missing>
+            {{ t('export.attribution.translator_missing') }}
+          </p>
+        </fieldset>
+
         <div class="ex-folder">
           <span class="ex-legend">{{ t('export.folder.label') }}</span>
           <!-- aura-allow-text: data (folder path chosen by the user). -->
@@ -460,6 +491,16 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.ex-badge {
+  margin-left: calc(var(--space-unit) * 2);
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
 }
 
 .ex-status,

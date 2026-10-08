@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use super::attribution::{Attribution, lines_for};
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
@@ -31,6 +32,7 @@ pub enum BlockParagraph {
 pub struct ChapterBlock {
     pub chapter_id: i64,
     pub title: Option<String>,
+    pub attribution: Vec<String>,
     pub source: Vec<BlockParagraph>,
     pub target: Vec<BlockParagraph>,
 }
@@ -125,6 +127,7 @@ fn build_column<'a>(
 fn build_chapter_block(
     chapter_id: i64,
     title: Option<String>,
+    attribution: Vec<String>,
     segments: &[ChapterSegment],
     images: ImageSplit<ExportImage>,
     source_lang: &str,
@@ -148,7 +151,7 @@ fn build_chapter_block(
         &by_anchor,
         &orphans,
     );
-    ChapterBlock { chapter_id, title, source, target }
+    ChapterBlock { chapter_id, title, attribution, source, target }
 }
 
 pub fn load_chapter_blocks(
@@ -156,6 +159,7 @@ pub fn load_chapter_blocks(
     chapter_ids: &[i64],
     image_mode: ImageMode,
     source_lang: &str,
+    attribution: Option<&Attribution>,
 ) -> Result<LoadedBlocks, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -174,7 +178,8 @@ pub fn load_chapter_blocks(
                 source_url: image.source_url,
             });
             skipped += split.skipped;
-            blocks.push(build_chapter_block(chapter_id, title, &segments, split, source_lang));
+            let lines = lines_for(conn, chapter_id, attribution)?;
+            blocks.push(build_chapter_block(chapter_id, title, lines, &segments, split, source_lang));
         }
         Ok(LoadedBlocks { blocks, images_skipped_missing_link: skipped })
     })

@@ -131,7 +131,7 @@ describe('image mode choice', () => {
     await state.chooseExportFolder()
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out')
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false)
     wrapper.unmount()
   })
 
@@ -140,7 +140,7 @@ describe('image mode choice', () => {
     await state.openExport()
     await state.chooseExportFolder()
     await state.runExport()
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out')
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
   })
 })
 

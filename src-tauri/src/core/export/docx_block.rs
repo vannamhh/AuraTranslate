@@ -23,6 +23,9 @@ fn cell_of(paragraphs: &[BlockParagraph], reference: ImageReference<'_>) -> Tabl
 pub fn write_one_block_docx(blocks: &[ChapterBlock], reference: ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError> {
     let mut docx = Docx::new();
     for block in blocks {
+        if !block.attribution.is_empty() {
+            docx = docx.add_paragraph(paragraph_of(&block.attribution.join("\n"), true));
+        }
         docx = docx.add_paragraph(paragraph_of(block.title.as_deref().unwrap_or(""), true));
         if !block.has_table() {
             continue;

@@ -9,6 +9,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
 import { exportChooseFolder, exportDocxOneBlock, exportDocxTwoColumn, exportScopeSummary, exportText } from './config/export'
+import { translatorNameGet } from './config/attribution'
 import type { ExportImageMode, ExportRunResult, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
 import type { IpcError } from './i18n'
 
@@ -38,6 +39,9 @@ const folderUnavailable = ref(false)
 const choosingFolder = ref(false)
 const format = ref<ExportFormat>('docx_two_column')
 const imageMode = ref<ExportImageMode>('file')
+const attribution = ref(false)
+const translatorName = ref<string | null>(null)
+const translatorNameError = ref<IpcError | null>(null)
 const runStatus = ref<ExportRunStatus>('idle')
 const runResult = ref<ExportedFile | null>(null)
 const runError = ref<IpcError | null>(null)
@@ -59,6 +63,9 @@ export const exportFolderUnavailable: DeepReadonly<Ref<boolean>> = readonly(fold
 export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosingFolder)
 export const exportFormat: DeepReadonly<Ref<ExportFormat>> = readonly(format)
 export const exportImageMode: DeepReadonly<Ref<ExportImageMode>> = readonly(imageMode)
+export const exportAttribution: DeepReadonly<Ref<boolean>> = readonly(attribution)
+export const exportTranslatorName: DeepReadonly<Ref<string | null>> = readonly(translatorName)
+export const exportTranslatorNameError: DeepReadonly<Ref<IpcError | null>> = readonly(translatorNameError)
 export const exportRunStatus: DeepReadonly<Ref<ExportRunStatus>> = readonly(runStatus)
 export const exportRunResult: DeepReadonly<Ref<ExportedFile | null>> = readonly(runResult)
 export const exportRunError: DeepReadonly<Ref<IpcError | null>> = readonly(runError)
@@ -124,6 +131,11 @@ export async function openExport(): Promise<void> {
   folderError.value = null
   folderUnavailable.value = false
 
+  const nameResult = await translatorNameGet()
+  if (mySequence !== sequence) return
+  translatorName.value = nameResult.name
+  translatorNameError.value = nameResult.error
+
   const result = await listChapters()
   if (mySequence !== sequence) return
   if (result.chapters === null) {
@@ -151,6 +163,11 @@ export function setExportFormat(next: ExportFormat): void {
 export function setExportImageMode(next: ExportImageMode): void {
   if (next === 'link' && !exportLinkUsable()) return
   imageMode.value = next
+  clearRun()
+}
+
+export function setExportAttribution(next: boolean): void {
+  attribution.value = next
   clearRun()
 }
 
@@ -201,10 +218,13 @@ function writeFormat(
   scope: ExportScope,
   mode: ExportImageMode,
   target: string,
+  withAttribution: boolean,
 ): Promise<ExportRunResult> {
-  if (chosen === 'markdown') return exportText(scope, mode, 'markdown', target)
-  if (chosen === 'plain_text') return exportText(scope, mode, 'plain', target)
-  return chosen === 'docx_one_block' ? exportDocxOneBlock(scope, mode, target) : exportDocxTwoColumn(scope, mode, target)
+  if (chosen === 'markdown') return exportText(scope, mode, 'markdown', target, withAttribution)
+  if (chosen === 'plain_text') return exportText(scope, mode, 'plain', target, withAttribution)
+  return chosen === 'docx_one_block'
+    ? exportDocxOneBlock(scope, mode, target, withAttribution)
+    : exportDocxTwoColumn(scope, mode, target, withAttribution)
 }
 
 /** Writes the selected format for the current scope into the chosen folder. */
@@ -216,7 +236,7 @@ export async function runExport(): Promise<void> {
   runStatus.value = 'running'
   runResult.value = null
   runError.value = null
-  const result = await writeFormat(format.value, scope, imageMode.value, target)
+  const result = await writeFormat(format.value, scope, imageMode.value, target, attribution.value)
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'
@@ -244,5 +264,8 @@ export function resetExport(): void {
   choosingFolder.value = false
   format.value = 'docx_two_column'
   imageMode.value = 'file'
+  attribution.value = false
+  translatorName.value = null
+  translatorNameError.value = null
   clearRun()
 }

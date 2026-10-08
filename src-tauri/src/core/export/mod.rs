@@ -1,7 +1,7 @@
 //! Xuất: docx · md · TMX + segment alignment + khối ghi nguồn (AD-38, AD-43).
 //!
 //! Cấu trúc đoạn là dữ liệu ĐƯỢC LƯU, không phải thứ suy ra lúc xuất (AD-37).
-//! Khối ghi nguồn dựng từ `SOURCE_ORIGIN` lúc chạy, không lưu sẵn (AD-43).
+//! Khối ghi nguồn dựng lúc xuất từ các cột `chapter.origin_*`, không lưu sẵn (AD-43).
 //!
 //! Crate dành cho module này: `docx-rs` (bộ GHI `.docx`).
 //!
@@ -14,6 +14,7 @@
 //! (`tests/fixtures_docx.rs`), một cài đặt ĐỘC LẬP với `core::docx` nên không phải một vòng
 //! tròn "tự sinh rồi tự đọc lại".
 
+mod attribution;
 mod block_paragraphs;
 mod docx_block;
 mod docx_table;
@@ -24,6 +25,7 @@ mod scope;
 mod table_rows;
 mod text_export;
 
+pub use attribution::{Attribution, ChapterOrigin, attribution_lines};
 pub use block_paragraphs::{
     BlockParagraph, ChapterBlock, LoadedBlocks, UNTRANSLATED_SQL, is_untranslated, load_chapter_blocks,
 };

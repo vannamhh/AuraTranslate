@@ -1,3 +1,4 @@
+use super::attribution::{Attribution, lines_for};
 use super::block_paragraphs::target_pieces;
 use super::docx_table::ImageReference;
 use super::image_files::copied_name;
@@ -31,6 +32,7 @@ enum TextItem {
 struct TextChapter {
     chapter_ord: i64,
     title: Option<String>,
+    attribution: Vec<String>,
     items: Vec<TextItem>,
 }
 
@@ -48,6 +50,7 @@ pub fn load_chapter_text(
     store: &Store,
     chapter_ids: &[i64],
     image_mode: ImageMode,
+    attribution: Option<&Attribution>,
 ) -> Result<LoadedText, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -97,7 +100,8 @@ pub fn load_chapter_text(
                 flush(&mut pieces, &mut items);
             }
             items.extend(orphans.into_iter().map(TextItem::Image));
-            chapters.push(TextChapter { chapter_ord, title, items });
+            let attribution = lines_for(conn, chapter_id, attribution)?;
+            chapters.push(TextChapter { chapter_ord, title, attribution, items });
         }
         Ok(LoadedText { chapters, images_skipped_missing_link: skipped })
     })
@@ -199,6 +203,15 @@ fn heading_of(chapter: &TextChapter) -> String {
     }
 }
 
+fn attribution_block(lines: &[String], format: TextFormat) -> String {
+    match format {
+        TextFormat::Markdown => {
+            lines.iter().map(|line| markdown_text(line)).collect::<Vec<_>>().join("\\\n")
+        }
+        TextFormat::Plain => lines.join("\n"),
+    }
+}
+
 pub fn render_text(loaded: &LoadedText, format: TextFormat, reference: ImageReference<'_>) -> String {
     let mut sections = Vec::new();
     for chapter in loaded.chapters.iter().filter(|c| !c.items.is_empty()) {
@@ -206,7 +219,11 @@ pub fn render_text(loaded: &LoadedText, format: TextFormat, reference: ImageRefe
             TextFormat::Markdown => format!("## {}", markdown_heading(&heading_of(chapter))),
             TextFormat::Plain => heading_of(chapter),
         };
-        let mut blocks = vec![heading];
+        let mut blocks = Vec::new();
+        if !chapter.attribution.is_empty() {
+            blocks.push(attribution_block(&chapter.attribution, format));
+        }
+        blocks.push(heading);
         blocks.extend(chapter.items.iter().map(|item| match format {
             TextFormat::Markdown => markdown_block(item, reference),
             TextFormat::Plain => plain_block(item, reference),

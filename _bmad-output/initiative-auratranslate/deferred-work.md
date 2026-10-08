@@ -12967,3 +12967,11 @@ chính nó.
   summary: Xuất `.md`/`.txt` (và `.docx` một khối của 8.4) khi mọi Chương trong phạm vi chưa có câu dịch nào và không có ảnh vẫn ghi một tệp rỗng và báo thành công.
   evidence: màn hình chỉ cảnh báo số câu chưa dịch trước khi xuất; `render_text` trả `""` và `export_text` vẫn ghi tệp. Cần quyết: chặn bằng lỗi có tên, hay giữ tệp rỗng kèm cảnh báo hiện có.
   Chủ: Ice.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-khoi-ghi-nguon-plan.md`
+  summary: Ghi đè tên người dịch theo Tác phẩm chưa có: kind `TranslatorName` đã khai `Override` nhưng chỉ tầng toàn cục (`global.db`, bảng `translator_name`) được dựng; không có bảng ở `project.db`, không lệnh, không UI cho tầng Tác phẩm.
+  evidence: maybe-false — Ice chốt 2026-10-08 chỉ làm tầng toàn cục ở 8.7; nhu cầu mỗi Tác phẩm một tên người dịch khác nhau chưa được xác nhận bằng dùng thật.
+  Chủ: Ice.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-khoi-ghi-nguon-plan.md`
+  summary: Chưa ai mở bản xuất có khối ghi nguồn của 8.7 trong Word hoặc LibreOffice để xem khối hiện thành bốn dòng trước tiêu đề Chương, cũng chưa ai bôi cột phải của `.docx` một khối rồi dán sang trình soạn thảo web để xem khối có lẫn vào phần dán không.
+  evidence: test chỉ đọc lại XML bằng `core::docx::read_docx`; cách một chương trình thật hiển thị ngắt dòng `TextWrapping` và vùng bôi thì chỉ người làm mới thấy.
+  Chủ: Epic 8.

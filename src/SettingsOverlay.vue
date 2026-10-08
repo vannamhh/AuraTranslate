@@ -41,6 +41,7 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { cancelCapture, captureIsArmed } from './config/shortcutsState'
 import SettingsGlossarySection from './SettingsGlossarySection.vue'
 import SettingsShortcutsSection from './SettingsShortcutsSection.vue'
+import SettingsExportSection from './SettingsExportSection.vue'
 import SettingsTmSection from './SettingsTmSection.vue'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
@@ -464,6 +465,11 @@ function onDeleteAiConfigKey(): void {
             <h3 class="set-h2">{{ t('tm.settings.title') }}</h3>
             <p class="set-h2s">{{ t('tm.settings.intro') }}</p>
             <SettingsTmSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'export'">
+            <h3 class="set-h2">{{ t('export.settings.title') }}</h3>
+            <p class="set-h2s">{{ t('export.settings.intro') }}</p>
+            <SettingsExportSection />
           </template>
           <template v-else-if="settingsActiveSection === 'shortcuts'">
             <h3 class="set-h2">{{ t('shortcuts.title') }}</h3>

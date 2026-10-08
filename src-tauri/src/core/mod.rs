@@ -5,6 +5,7 @@
 
 pub mod ai;
 pub mod aiconfig;
+pub mod attribution;
 pub mod cleanup;
 pub mod dict;
 pub mod docx;

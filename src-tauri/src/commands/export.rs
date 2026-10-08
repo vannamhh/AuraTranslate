@@ -6,11 +6,14 @@ use std::collections::BTreeMap;
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
-    ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
+    Attribution, ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
     load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
 };
+use crate::core::attribution::resolve_translator_name;
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::scope::ScopeResolver;
+use crate::core::store::Store;
 
 /// Tóm tắt phạm vi xuất: phép đếm của FR89 cùng kết quả quét ảnh (AD-43).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -58,6 +61,15 @@ pub fn export_scope_summary(
         image_count: scan.image_count,
         missing_link_images: scan.missing_link_images,
     })
+}
+
+pub fn attribution_of(attribution: bool, global: Option<&Store>) -> Result<Option<Attribution>, IpcError> {
+    if !attribution {
+        return Ok(None);
+    }
+    let global = global.ok_or_else(crate::commands::attribution::store_is_missing)?;
+    let translator = resolve_translator_name(&ScopeResolver::global_only(), global).map_err(IpcError::from)?;
+    Ok(Some(Attribution { translator }))
 }
 
 fn export_folder_invalid() -> IpcError {
@@ -108,6 +120,7 @@ pub fn export_docx_two_column(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
+    attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
@@ -116,7 +129,7 @@ pub fn export_docx_two_column(
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode).map_err(IpcError::from)?;
+    let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode, attribution).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-hai-cot", safe_stem(&open.meta.name, "export"));
     let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
@@ -183,6 +196,7 @@ pub fn export_docx_one_block(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
+    attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
@@ -192,7 +206,7 @@ pub fn export_docx_one_block(
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
     let loaded =
-        load_chapter_blocks(&open.store, &chapter_ids, image_mode, &open.meta.source_lang).map_err(IpcError::from)?;
+        load_chapter_blocks(&open.store, &chapter_ids, image_mode, &open.meta.source_lang, attribution).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-mot-khoi", safe_stem(&open.meta.name, "export"));
     let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
@@ -207,6 +221,7 @@ pub fn export_text(
     scope: &ExportScope,
     image_mode: ImageMode,
     format: TextFormat,
+    attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
@@ -215,7 +230,7 @@ pub fn export_text(
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode).map_err(IpcError::from)?;
+    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode, attribution).map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = safe_stem(&open.meta.name, "export");
     let extension = match format {
@@ -232,6 +247,7 @@ pub fn export_text(
 pub mod wire {
     use super::{ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, TextFormat};
     use crate::commands::project::OpenWorkState;
+    use crate::core::store::Store;
 
     /// Vỏ IPC của [`super::export_scope_summary`].
     #[tauri::command]
@@ -268,16 +284,19 @@ pub mod wire {
         app: tauri::AppHandle,
         scope: ExportScope,
         image_mode: ImageMode,
+        attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
         let folder = std::path::PathBuf::from(folder);
+        let global = app.try_state::<Store>();
+        let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_docx_two_column(None, &scope, image_mode, &folder);
+            return super::export_docx_two_column(None, &scope, image_mode, attribution.as_ref(), &folder);
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_docx_two_column(guard.as_ref(), &scope, image_mode, &folder)
+        super::export_docx_two_column(guard.as_ref(), &scope, image_mode, attribution.as_ref(), &folder)
     }
 
     /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
@@ -287,16 +306,19 @@ pub mod wire {
         app: tauri::AppHandle,
         scope: ExportScope,
         image_mode: ImageMode,
+        attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
         let folder = std::path::PathBuf::from(folder);
+        let global = app.try_state::<Store>();
+        let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_docx_one_block(None, &scope, image_mode, &folder);
+            return super::export_docx_one_block(None, &scope, image_mode, attribution.as_ref(), &folder);
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_docx_one_block(guard.as_ref(), &scope, image_mode, &folder)
+        super::export_docx_one_block(guard.as_ref(), &scope, image_mode, attribution.as_ref(), &folder)
     }
 
     /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
@@ -307,15 +329,18 @@ pub mod wire {
         scope: ExportScope,
         image_mode: ImageMode,
         format: TextFormat,
+        attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
         let folder = std::path::PathBuf::from(folder);
+        let global = app.try_state::<Store>();
+        let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_text(None, &scope, image_mode, format, &folder);
+            return super::export_text(None, &scope, image_mode, format, attribution.as_ref(), &folder);
         };
         let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_text(guard.as_ref(), &scope, image_mode, format, &folder)
+        super::export_text(guard.as_ref(), &scope, image_mode, format, attribution.as_ref(), &folder)
     }
 }

@@ -97,7 +97,7 @@ describe('running the export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out')
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-hai-cot.docx')
     wrapper.unmount()
   })

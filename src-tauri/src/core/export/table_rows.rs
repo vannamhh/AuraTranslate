@@ -1,3 +1,4 @@
+use super::attribution::{Attribution, lines_for};
 use super::images::{ImageMode, ScopeImage, chapter_images};
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::omit::segments_in_translation;
@@ -32,6 +33,7 @@ pub enum ExportRow {
 pub struct ChapterTable {
     pub chapter_id: i64,
     pub title: Option<String>,
+    pub attribution: Vec<String>,
     pub rows: Vec<ExportRow>,
 }
 
@@ -87,6 +89,7 @@ pub fn load_chapter_tables(
     store: &Store,
     chapter_ids: &[i64],
     image_mode: ImageMode,
+    attribution: Option<&Attribution>,
 ) -> Result<LoadedTables, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -116,7 +119,8 @@ pub fn load_chapter_tables(
                 rows.extend(here.into_iter().map(|image| image_row(chapter_id, chapter_ord, image)));
             }
             rows.extend(rest.into_iter().map(|image| image_row(chapter_id, chapter_ord, image)));
-            tables.push(ChapterTable { chapter_id, title, rows });
+            let attribution = lines_for(conn, chapter_id, attribution)?;
+            tables.push(ChapterTable { chapter_id, title, attribution, rows });
         }
         Ok(LoadedTables { tables, images_skipped_missing_link: skipped })
     })

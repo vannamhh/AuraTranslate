@@ -211,7 +211,7 @@ describe('running the one-block export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out')
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-mot-khoi.docx')
     wrapper.unmount()
@@ -225,7 +225,7 @@ describe('running the one-block export', () => {
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
 
-    expect(twoColumnMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out')
+    expect(twoColumnMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
     expect(oneBlockMock).not.toHaveBeenCalled()
   })
 
@@ -238,6 +238,6 @@ describe('running the one-block export', () => {
     state.setExportImageMode('link')
 
     await state.runExport()
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out')
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false)
   })
 })

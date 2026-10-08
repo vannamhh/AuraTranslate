@@ -721,7 +721,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười hai bước, và đích là phiên bản 12.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười ba bước, và đích là phiên bản 13.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -816,7 +816,18 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 12,
         sql: TM_UNIT_SOURCE_INDEX_DDL,
     },
+    Migration {
+        to_version: 13,
+        sql: TRANSLATOR_NAME_DDL,
+    },
 ];
+
+pub const TRANSLATOR_NAME_DDL: &str = "\
+CREATE TABLE translator_name (
+  key        TEXT NOT NULL PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);";
 
 /// Lược đồ bảng `work` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///

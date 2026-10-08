@@ -692,6 +692,7 @@ message_keys! {
     /// `core::aiconfig::store::AiConfigStoreError::Scope` — lỗi LẬP TRÌNH, không nên xảy ra
     /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `CleanupScopeError`/`GlossaryScopeError`.
     AiConfigScopeError => "err.ai_config.scope_error" [],
+    AttributionScopeError => "err.attribution.scope_error" [],
 
     // ── Story 4.3 (FR65/FR67/NFR11, AD-29) — ba khoá, bí mật khoá API trong keychain ──
     //

@@ -1716,7 +1716,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 17] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 18] = [
     (
         "src/commands/aiconfig.rs",
         2,
@@ -1755,6 +1755,13 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 17] = [
         0,
         "CHUA DO -- chu: Dev. Nam vo doc/ghi luat lam sach; chua ai do chi phi cua chung tren \
          mot bo luat lon.",
+    ),
+    (
+        "src/commands/attribution.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. Hai vo doc/ghi mot hang ten nguoi dich trong `global.db`.",
     ),
     (
         "src/commands/config.rs",
@@ -1950,9 +1957,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (69, 53),
+        (71, 53),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         69/53.\n\n\
+         71/53.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

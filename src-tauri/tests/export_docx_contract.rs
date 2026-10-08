@@ -97,7 +97,7 @@ fn fixture(tag: &str, first_title: Option<&str>, segs: Vec<Seg>) -> Fixture {
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file = export_docx_two_column(Some(&self.open), scope, ImageMode::File, &self.out).expect("xuat that bai");
+        let file = export_docx_two_column(Some(&self.open), scope, ImageMode::File, None, &self.out).expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -271,7 +271,7 @@ fn the_written_name_is_safe_and_ends_in_docx() {
 fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
     let f = fixture("nofolder", None, vec![seg("a", "b")]);
     let missing = f.out.join("khong-co");
-    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &missing).expect_err("thu muc la phai la loi");
+    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &missing).expect_err("thu muc la phai la loi");
     assert_eq!(err.code(), "export.folder_invalid");
     assert!(!missing.exists());
     f.finish();
@@ -280,14 +280,14 @@ fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
 #[test]
 fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
     let f = fixture("errors", None, vec![seg("a", "b")]);
-    let empty = export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, &f.out)
+    let empty = export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, None, &f.out)
         .expect_err("pham vi rong");
     assert_eq!(empty.code(), "export.scope_empty");
     let unknown =
-        export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9_999] }, ImageMode::File, &f.out)
+        export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9_999] }, ImageMode::File, None, &f.out)
             .expect_err("Chuong la");
     assert_eq!(unknown.code(), "segment.chapter_not_found");
-    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, &f.out).expect_err("chua mo Tac pham");
+    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, None, &f.out).expect_err("chua mo Tac pham");
     assert_eq!(none.code(), "work.none_open");
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0, "loi khong de lai tep");
     f.finish();
@@ -298,7 +298,7 @@ fn the_returned_counts_match_the_rows_written() {
     let mut cut = seg("bi cat", "bi cat");
     cut.omitted = true;
     let f = fixture("counts", None, vec![seg("a", "b"), cut, seg("c", "d")]);
-    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &f.out).expect("xuat");
+    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &f.out).expect("xuat");
     assert_eq!((file.chapter_count, file.segment_count), (1, 2));
     assert_eq!(parsed(Path::new(&file.path)).tables[0].rows, 2);
     f.finish();
@@ -325,7 +325,7 @@ fn put_asset_file(open: &OpenWork, file_name: &str, bytes: &[u8]) {
 }
 
 fn export_with(f: &Fixture, mode: ImageMode) -> auratranslate_lib::commands::export::ExportedFile {
-    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, &f.out).expect("xuat that bai")
+    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, None, &f.out).expect("xuat that bai")
 }
 
 fn three() -> Vec<Seg> {
@@ -387,7 +387,7 @@ fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behin
     insert_asset(&f.open, f.first, "here.jpg", None, 1);
     insert_asset(&f.open, f.first, "gone.jpg", None, 2);
     put_asset_file(&f.open, "here.jpg", b"x");
-    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &f.out)
+    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &f.out)
         .expect_err("thieu tep anh phai la loi");
     assert_eq!(err.code(), "export.image_file_missing");
     assert!(format!("{err:?}").contains("gone.jpg") && format!("{err:?}").contains("chapter_ord"));

@@ -27,7 +27,7 @@ vi.mock('../../src/config/aiconfig', () => ({
   aiConfigDeleteKey: vi.fn(),
 }))
 
-const EXPECTED_SECTIONS = ['ai_and_model', 'prompt', 'glossary', 'tm', 'shortcuts', 'privacy']
+const EXPECTED_SECTIONS = ['ai_and_model', 'prompt', 'glossary', 'tm', 'export', 'shortcuts', 'privacy']
 
 const cleanups: Array<() => void> = []
 
@@ -81,6 +81,7 @@ describe('Settings nav', () => {
       ai_and_model: (root) => root.find('.ai-key-field').exists(),
       prompt: (root) => root.find('[data-prompt-library-open]').exists(),
       glossary: (root) => root.find('input.gs-input').exists(),
+      export: (root) => root.find('[data-export-translator-input]').exists(),
       shortcuts: (root) => root.find('table.sc-table').exists(),
       privacy: (root) => root.find('.set-main').text().includes(t('settings.privacy.empty')),
     }

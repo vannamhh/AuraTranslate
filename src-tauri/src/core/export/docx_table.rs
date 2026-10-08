@@ -67,6 +67,9 @@ fn row_of(row: &ExportRow, reference: ImageReference<'_>) -> TableRow {
 pub fn write_two_column_docx(tables: &[ChapterTable], reference: ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError> {
     let mut docx = Docx::new();
     for chapter in tables {
+        if !chapter.attribution.is_empty() {
+            docx = docx.add_paragraph(paragraph_of(&chapter.attribution.join("\n"), true));
+        }
         docx = docx.add_paragraph(paragraph_of(chapter.title.as_deref().unwrap_or(""), true));
         if chapter.rows.is_empty() {
             continue;

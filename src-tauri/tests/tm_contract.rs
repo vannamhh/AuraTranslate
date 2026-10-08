@@ -993,7 +993,7 @@ fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
 }
 
 #[test]
-fn a_fresh_and_an_upgraded_global_db_both_end_at_version_12_with_tm_unit_and_its_source_index() {
+fn a_fresh_and_an_upgraded_global_db_both_end_at_version_13_with_tm_unit_and_its_source_index() {
     let has_tm = |s: &Store| -> i64 {
         s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit'", [], |r| r.get(0)))
             .expect("doc master")
@@ -1004,7 +1004,7 @@ fn a_fresh_and_an_upgraded_global_db_both_end_at_version_12_with_tm_unit_and_its
     };
     let fresh_dir = temp_dir("dual-fresh");
     let fresh = open_global_db(&fresh_dir);
-    assert_eq!((fresh.schema_version(), has_tm(&fresh), has_index(&fresh)), (12, 1, 1));
+    assert_eq!((fresh.schema_version(), has_tm(&fresh), has_index(&fresh)), (13, 1, 1));
 
     let old_dir = temp_dir("dual-upgrade");
     let old = Store::open(StoreSpec { migrations: &GLOBAL_MIGRATIONS[..11], ..StoreSpec::global(old_dir.join("global.db")) })
@@ -1012,7 +1012,7 @@ fn a_fresh_and_an_upgraded_global_db_both_end_at_version_12_with_tm_unit_and_its
     assert_eq!((old.schema_version(), has_tm(&old), has_index(&old)), (11, 1, 0));
     drop(old);
     let upgraded = open_global_db(&old_dir);
-    assert_eq!((upgraded.schema_version(), has_tm(&upgraded), has_index(&upgraded)), (12, 1, 1));
+    assert_eq!((upgraded.schema_version(), has_tm(&upgraded), has_index(&upgraded)), (13, 1, 1));
     drop((fresh, upgraded));
     let _ = fs::remove_dir_all(fresh_dir);
     let _ = fs::remove_dir_all(old_dir);

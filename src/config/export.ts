@@ -160,9 +160,10 @@ export async function exportDocxTwoColumn(
   scope: ExportScope,
   imageMode: ExportImageMode,
   folder: string,
+  attribution: boolean,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, folder })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_TWO_COLUMN}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -177,9 +178,10 @@ export async function exportDocxOneBlock(
   scope: ExportScope,
   imageMode: ExportImageMode,
   folder: string,
+  attribution: boolean,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, folder })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_ONE_BLOCK}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -195,9 +197,10 @@ export async function exportText(
   imageMode: ExportImageMode,
   format: ExportTextFormat,
   folder: string,
+  attribution: boolean,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, folder })
+    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_TEXT}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }

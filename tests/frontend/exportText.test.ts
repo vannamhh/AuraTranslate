@@ -152,7 +152,7 @@ describe('run', () => {
     state.setExportFormat(format)
     await state.runExport()
 
-    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out')
+    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out', false)
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(oneBlockMock).not.toHaveBeenCalled()
     expect(state.exportRunStatus.value).toBe('done')
