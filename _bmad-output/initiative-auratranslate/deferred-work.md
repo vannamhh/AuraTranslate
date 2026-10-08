@@ -12989,3 +12989,11 @@ chính nó.
   summary: Thông báo "Chương đã đổi sau lúc nhập" khi `read_review_copy` trả `Stale` chưa có chỗ hiển thị; Review Mode (8-11) phải bắt `ReviewCopyError::Stale`, không đọc nó như danh sách rỗng.
   evidence: 8-9 chỉ dựng hàm đọc có lỗi kiểu và màn xem trước; chưa có giao diện nào đọc bản reviewer.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
+  summary: Lớp phủ nối tay của 8-10 xếp segment chưa khớp tách khỏi hàng reviewer chưa khớp, không đặt cạnh nhau theo khoảng giữa hai neo như mockup `review-mode.html`; chưa biết cách xếp này có làm việc nối tay khó trên Chương thật không (medium nếu có, chưa xác minh).
+  evidence: chưa ai dùng lớp phủ trong ứng dụng thật với một bản reviewer thật; test chỉ kiểm con trỏ và lệnh. Một lượt dùng thật trên Chương có nhiều mục chưa khớp sẽ trả lời; 8-11 nhúng lại nội dung này nên sửa ở đó cũng được.
+  Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
+  summary: Chưa ai chạy alignment 8-10 trong ứng dụng thật: nhập một bản reviewer đã sửa, mở lớp phủ nối tay từ màn "đã nhập" và từ nút thanh tiêu đề, rồi nối, bỏ qua và tách chỉ bằng bàn phím (↑↓, Space, ↵, S, U, Esc) đến khi Chương báo đã xử lý xong.
+  evidence: test frontend gọi lệnh qua bộ đăng ký trong jsdom; focus thật, bẫy Tab và độ trễ trên Chương lớn (danh sách nhóm không ảo hoá) chỉ thấy trong ứng dụng.
+  Chủ: Epic 8.

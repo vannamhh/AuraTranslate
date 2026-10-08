@@ -898,6 +898,22 @@ export type CommandDeps = {
   confirmReviewerImportPreview?: () => void
   /** Drops the previewed reviewer copy or closes the result. Handler of `export.reviewer_import.cancel`. */
   cancelReviewerImportPreview?: () => void
+  /** Opens the alignment overlay for the open Chapter. Handler of `export.alignment.open`. */
+  openAlignment?: () => void
+  /** Closes the alignment overlay. Handler of `export.alignment.close`. */
+  closeAlignment?: () => void
+  /** Moves the alignment cursor down. Handler of `export.alignment.next`. */
+  nextAlignmentEntry?: () => void
+  /** Moves the alignment cursor up. Handler of `export.alignment.prev`. */
+  prevAlignmentEntry?: () => void
+  /** Marks or unmarks the entry under the cursor for joining. Handler of `export.alignment.toggle`. */
+  toggleAlignmentMark?: () => void
+  /** Joins the marked segments and reviewer rows into one group. Handler of `export.alignment.join`. */
+  joinAlignmentMarks?: () => void
+  /** Sets the entry under the cursor aside. Handler of `export.alignment.skip`. */
+  skipAlignmentEntry?: () => void
+  /** Dissolves the group under the cursor. Handler of `export.alignment.unjoin`. */
+  unjoinAlignmentEntry?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -3353,6 +3369,78 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.cancelReviewerImportPreview === undefined) return portMissing('export.reviewer_import.cancel', 'cancelReviewerImportPreview')
       deps.cancelReviewerImportPreview()
+    },
+  })
+  target.register({
+    id: 'export.alignment.open',
+    labelKey: 'command.export.alignment.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openAlignment === undefined) return portMissing('export.alignment.open', 'openAlignment')
+      deps.openAlignment()
+    },
+  })
+  target.register({
+    id: 'export.alignment.close',
+    labelKey: 'command.export.alignment.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeAlignment === undefined) return portMissing('export.alignment.close', 'closeAlignment')
+      deps.closeAlignment()
+    },
+  })
+  target.register({
+    id: 'export.alignment.next',
+    labelKey: 'command.export.alignment.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextAlignmentEntry === undefined) return portMissing('export.alignment.next', 'nextAlignmentEntry')
+      deps.nextAlignmentEntry()
+    },
+  })
+  target.register({
+    id: 'export.alignment.prev',
+    labelKey: 'command.export.alignment.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevAlignmentEntry === undefined) return portMissing('export.alignment.prev', 'prevAlignmentEntry')
+      deps.prevAlignmentEntry()
+    },
+  })
+  target.register({
+    id: 'export.alignment.toggle',
+    labelKey: 'command.export.alignment.toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleAlignmentMark === undefined) return portMissing('export.alignment.toggle', 'toggleAlignmentMark')
+      deps.toggleAlignmentMark()
+    },
+  })
+  target.register({
+    id: 'export.alignment.join',
+    labelKey: 'command.export.alignment.join',
+    keys: undefined,
+    run: () => {
+      if (deps.joinAlignmentMarks === undefined) return portMissing('export.alignment.join', 'joinAlignmentMarks')
+      deps.joinAlignmentMarks()
+    },
+  })
+  target.register({
+    id: 'export.alignment.skip',
+    labelKey: 'command.export.alignment.skip',
+    keys: undefined,
+    run: () => {
+      if (deps.skipAlignmentEntry === undefined) return portMissing('export.alignment.skip', 'skipAlignmentEntry')
+      deps.skipAlignmentEntry()
+    },
+  })
+  target.register({
+    id: 'export.alignment.unjoin',
+    labelKey: 'command.export.alignment.unjoin',
+    keys: undefined,
+    run: () => {
+      if (deps.unjoinAlignmentEntry === undefined) return portMissing('export.alignment.unjoin', 'unjoinAlignmentEntry')
+      deps.unjoinAlignmentEntry()
     },
   })
 

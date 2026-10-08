@@ -23,6 +23,8 @@ pub struct ScopeImage {
     pub after_segment_id: Option<i64>,
     pub alt_text: Option<String>,
     pub caption_text: Option<String>,
+    pub alt_segment_id: Option<i64>,
+    pub caption_segment_id: Option<i64>,
     /// Thứ tự ảnh trong Chương, từ 1.
     pub index_in_chapter: i64,
 }
@@ -43,6 +45,8 @@ pub(crate) fn chapter_images(
             after_segment_id: image.after_segment_id,
             alt_text: image.alt_text,
             caption_text: image.caption_text,
+            alt_segment_id: image.alt_segment_id,
+            caption_segment_id: image.caption_segment_id,
             index_in_chapter: i64::try_from(i).map_or(i64::MAX, |n| n + 1),
         })
         .collect()

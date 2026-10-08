@@ -682,14 +682,14 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30); \
+                 DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 30, "mo lai phai chay buoc 28, 29 va 30 that");
+    assert_eq!(open.store.schema_version(), 31, "mo lai phai chay buoc 28 den 31 that");
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
@@ -714,14 +714,14 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30); \
+                 DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 30);
+    assert_eq!(open.store.schema_version(), 31);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -1025,7 +1025,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1033,7 +1033,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (30, 1));
+    assert_eq!((open.store.schema_version(), has_index), (31, 1));
     drop(open);
     let _ = fs::remove_dir_all(root);
 }

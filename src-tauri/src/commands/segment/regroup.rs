@@ -345,6 +345,8 @@ fn write_regroup(
         }
     }
 
+    crate::core::export::move_members_of_retired(tx, retire, &new_ids)?;
+
     Ok(new_ids)
 }
 

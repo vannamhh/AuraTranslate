@@ -272,6 +272,8 @@ import { tmConcordanceCommandDeps } from './tmConcordanceCommandDeps'
 import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
 import { exportCommandDeps } from './exportCommandDeps'
 import { reviewerImportCommandDeps } from './reviewerImportCommandDeps'
+import { alignmentCommandDeps } from './alignmentCommandDeps'
+import { alignmentOverlayIsOpen } from './alignmentState'
 import { reviewerImportOverlayIsOpen } from './reviewerImportState'
 import { exportOverlayIsOpen } from './exportState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
@@ -875,6 +877,7 @@ async function boot(): Promise<void> {
       ...tmManageCommandDeps(),
       ...exportCommandDeps(),
       ...reviewerImportCommandDeps(),
+      ...alignmentCommandDeps(),
       // Story 3.8 · FR53/FR55 — lớp phủ "Duyệt hàng loạt một phím".
       openGlossaryQueue: () => {
         void openGlossaryQueue()
@@ -979,6 +982,7 @@ async function boot(): Promise<void> {
         tmImportOverlayIsOpen.value ||
         exportOverlayIsOpen.value ||
         reviewerImportOverlayIsOpen.value ||
+        alignmentOverlayIsOpen.value ||
         importOverlayIsOpen.value ||
         // Story 6.8 — cùng lý do `attributionIsOpen`: `SettingsOverlay.vue` khai
         // `aria-modal="true"` và `trapTab`; không chặn ở đây thì một hợp âm đổi preset bố

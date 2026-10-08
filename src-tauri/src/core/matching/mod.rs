@@ -550,6 +550,35 @@ pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
     spans
 }
 
+/// Share of tokens two texts have in common as a whole percent, rounded down (an f32 ratio that is exact in decimal still counts): both sides trimmed
+/// and NFC, characters for `Zh`, words for `En`. `100` means equal after normalisation.
+pub fn similarity_percent(a: &str, b: &str, lang: MatchLang) -> u8 {
+    use similar::TextDiff;
+    use unicode_normalization::UnicodeNormalization;
+
+    let a: String = a.trim().nfc().collect();
+    let b: String = b.trim().nfc().collect();
+    let diff = match lang {
+        MatchLang::Zh => TextDiff::from_chars(a.as_str(), b.as_str()),
+        MatchLang::En => TextDiff::from_words(a.as_str(), b.as_str()),
+    };
+    let ratio = f64::from(diff.ratio());
+    u8::try_from((ratio * 100.0 + 1e-4).floor() as i64).unwrap_or(100).min(100)
+}
+
+/// Index pairs `(i, j)` with `old[i] == new[j]` along a longest common subsequence, in order.
+pub fn common_subsequence<T: Eq + std::hash::Hash>(old: &[T], new: &[T]) -> Vec<(usize, usize)> {
+    use similar::{Algorithm, DiffOp, capture_diff_slices};
+
+    let mut pairs = Vec::new();
+    for op in capture_diff_slices(Algorithm::Myers, old, new) {
+        if let DiffOp::Equal { old_index, new_index, len } = op {
+            pairs.extend((0..len).map(|k| (old_index + k, new_index + k)));
+        }
+    }
+    pairs
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // find_terms — điểm vào của Glossary (FR51, Story 3.4)
 // ═════════════════════════════════════════════════════════════════════════════════

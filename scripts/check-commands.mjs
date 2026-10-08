@@ -228,13 +228,13 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 33
-const TS_FLOOR = 82
+const TS_FLOOR = 89
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 171
+const COMMAND_FLOOR = 184
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -243,8 +243,8 @@ const COMMAND_FLOOR = 171
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 127
-const DISPATCH_FLOOR = 183
+const CLICK_FLOOR = 140
+const DISPATCH_FLOOR = 204
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2311,6 +2311,17 @@ const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a name
 
 /** @type {Record<string, HandlerExpectation>} */
 const HANDLER_TABLE = {
+  'src/AlignmentOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/AlignmentOverlay.vue::onKeydown': {
+    ids: [
+      'export.alignment.next',
+      'export.alignment.prev',
+      'export.alignment.toggle',
+      'export.alignment.join',
+      'export.alignment.skip',
+      'export.alignment.unjoin',
+    ],
+  },
   'src/AiPromptInspectorOverlay.vue::onEscape': { ids: ['ai.prompt_inspector.close'] },
   'src/AiPromptInspectorOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/App.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },

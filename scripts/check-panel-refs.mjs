@@ -593,7 +593,7 @@ try {
  * Sàn là cận dưới: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa —
  * thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 82
+const FILE_FLOOR = 89
 {
   const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp `.ts` dưới `src/**`')
   if (!v.ok) abort('cây nguồn `src/**`', new Error(v.message))

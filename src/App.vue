@@ -63,6 +63,7 @@ import TmImportOverlay from './TmImportOverlay.vue'
 import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
 import ExportOverlay from './ExportOverlay.vue'
 import ReviewerImportOverlay from './ReviewerImportOverlay.vue'
+import AlignmentOverlay from './AlignmentOverlay.vue'
 // Story 6.3 — lớp phủ "Xem trước lượt nhập — bảng mã" (FR126), lớp phủ THỨ TÁM. Mở TỪ
 // `LibraryMode.vue` (nộp form) nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác — luật của
 // kho: "LibraryMode.vue không mở lớp phủ" (§Code Map spec 6.3).
@@ -314,6 +315,16 @@ function focusOnPointerDown(event: MouseEvent) {
         {{ t('command.export.reviewer_import.open') }}
       </button>
 
+      <button
+        type="button"
+        class="titlebar-act"
+        data-alignment-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('export.alignment.open')"
+      >
+        {{ t('command.export.alignment.open') }}
+      </button>
+
       <!--
         Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn các nút ngay trên:
         `data-settings-open` là đường lui của tiêu điểm (UX-DR17).
@@ -406,6 +417,7 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <ExportOverlay />
     <ReviewerImportOverlay />
+    <AlignmentOverlay />
 
     <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
     <GlossaryImportOverlay />

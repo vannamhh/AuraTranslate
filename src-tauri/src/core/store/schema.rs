@@ -944,6 +944,30 @@ CREATE TABLE review_row (
   CHECK (kind IN ('text', 'alt', 'caption'))
 );";
 
+/// Step 31 (AD-52 rule 7): machine and user alignment between a reviewer copy and the live
+/// segments. Every `alignment_group` is keyed by `review_chapter_id` and dies with the copy; a
+/// member names a `review_row` or a `segment`, never both. A row or segment in no group is
+/// unprocessed, so there is no "unmatched" state to store. `aligned_at IS NULL` marks a copy
+/// imported before this step, aligned on first read.
+pub const ALIGNMENT_DDL: &str = "\
+ALTER TABLE review_chapter ADD COLUMN aligned_at TEXT;
+CREATE TABLE alignment_group (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  review_chapter_id INTEGER NOT NULL,
+  decided_by        TEXT    NOT NULL,
+  CHECK (decided_by IN ('machine', 'user'))
+);
+CREATE INDEX alignment_group_review_chapter ON alignment_group(review_chapter_id);
+CREATE TABLE alignment_member (
+  group_id      INTEGER NOT NULL,
+  review_row_id INTEGER,
+  segment_id    INTEGER,
+  UNIQUE (review_row_id),
+  UNIQUE (segment_id),
+  CHECK ((review_row_id IS NULL) <> (segment_id IS NULL))
+);
+CREATE INDEX alignment_member_group ON alignment_member(group_id);";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1919,7 +1943,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Hai mươi chín bước, và đích là phiên bản 30.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi bước, và đích là phiên bản 31.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2267,6 +2291,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 30,
         sql: REVIEW_COPY_DDL,
+    },
+    Migration {
+        to_version: 31,
+        sql: ALIGNMENT_DDL,
     },
 ];
 

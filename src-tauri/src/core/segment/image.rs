@@ -72,6 +72,10 @@ pub struct ResolvedImage {
     /// không có segment `caption` nào. Chuỗi RỖNG (caption chưa dịch) vẫn được trả nguyên vẹn
     /// ở đây; "không chỗ trống khi chưa dịch" là việc của TẦNG HIỂN THỊ, không của hàm này.
     pub caption_text: Option<String>,
+    /// `id` of the segment behind [`Self::alt_text`].
+    pub alt_segment_id: Option<i64>,
+    /// `id` of the segment behind [`Self::caption_text`].
+    pub caption_segment_id: Option<i64>,
 }
 
 /// `id` của segment đủ điều kiện làm neo, có `ord` LỚN NHẤT còn `<= anchor` — xem doc-comment
@@ -101,7 +105,13 @@ fn after_segment_id(
 /// AD-42 hứa "nhiều nhất một segment mỗi vai" cho một ảnh; hàm này giữ giá trị ĐẦU TIÊN gặp
 /// của mỗi vai và bỏ qua phần dư — phòng thủ, không panic, không giả định hợp đồng đó đứng
 /// vững mãi mãi.
-fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> (Option<String>, Option<String>) {
+#[derive(Default)]
+struct AttachedRoles {
+    alt: Option<(String, i64)>,
+    caption: Option<(String, i64)>,
+}
+
+fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> AttachedRoles {
     let start = match after {
         None => 0,
         Some(id) => match segments.iter().position(|s| s.id == id) {
@@ -109,7 +119,7 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> (Optio
             // Phòng thủ: `after` không tìm thấy trong CHÍNH `segments` truyền vào (không thể
             // xảy ra trên đường sản phẩm -- `after_segment_id` chỉ trả `id` lấy từ đúng dãy
             // này) -- không vệt nào để đọc thay vì panic bằng `.unwrap()`/chỉ số âm.
-            None => return (None, None),
+            None => return AttachedRoles::default(),
         },
     };
 
@@ -117,9 +127,9 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> (Optio
     let mut caption_text = None;
     for seg in &segments[start..] {
         match seg.role.as_deref().and_then(SegmentRole::from_str) {
-            Some(SegmentRole::Alt) if alt_text.is_none() => alt_text = Some(seg.target_text.clone()),
+            Some(SegmentRole::Alt) if alt_text.is_none() => alt_text = Some((seg.target_text.clone(), seg.id)),
             Some(SegmentRole::Caption) if caption_text.is_none() => {
-                caption_text = Some(seg.target_text.clone());
+                caption_text = Some((seg.target_text.clone(), seg.id));
             }
             // 🔴 Gap lai MOT vai da dien ⇒ vet cua ANH NAY da het, va segment nay thuoc ve
             // ANH KE TIEP -- DUNG. Ban dau cho nay `{}` (bo qua, di tiep) voi ly le "phong thu
@@ -130,7 +140,7 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> (Optio
             None => break, // vet ket thuc.
         }
     }
-    (alt_text, caption_text)
+    AttachedRoles { alt: alt_text, caption: caption_text }
 }
 
 /// Phân giải MỌI ảnh của một Chương — hàm THUẦN, 0 điểm panic, không chạm đĩa.
@@ -163,14 +173,16 @@ pub fn resolve_chapter_images(
                 after_segment_id(segments, asset.anchor_after_segment_ord, true, false);
             let display_after =
                 after_segment_id(segments, asset.anchor_after_segment_ord, include_omitted, exclude_roles);
-            let (alt_text, caption_text) = attached_role_text(segments, canonical_after);
+            let AttachedRoles { alt, caption } = attached_role_text(segments, canonical_after);
             ResolvedImage {
                 asset_id: asset.id,
                 file_name: asset.file_name.clone(),
                 source_url: asset.source_url.clone(),
                 after_segment_id: display_after,
-                alt_text,
-                caption_text,
+                alt_segment_id: alt.as_ref().map(|(_, id)| *id),
+                caption_segment_id: caption.as_ref().map(|(_, id)| *id),
+                alt_text: alt.map(|(text, _)| text),
+                caption_text: caption.map(|(text, _)| text),
             }
         })
         .collect()

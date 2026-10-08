@@ -100,16 +100,23 @@ function trapTab(event: KeyboardEvent): void {
         <!-- aura-allow-text: result of tError() computed in the script. -->
         {{ tError(reviewerImportLoadError) }}
       </p>
-      <p v-else-if="reviewerImportStatus === 'done' && reviewerImportSummary !== null" class="ri-status" role="status">
-        <!-- aura-allow-text: result of t() with the counts interpolated. -->
-        {{
-          t('reviewer.import.done', {
-            chapters: String(reviewerImportSummary.chapter_count),
-            rows: String(reviewerImportSummary.row_count),
-            replaced: String(reviewerImportSummary.replaced_count),
-          })
-        }}
-      </p>
+      <template v-else-if="reviewerImportStatus === 'done' && reviewerImportSummary !== null">
+        <p class="ri-status" role="status">
+          <!-- aura-allow-text: result of t() with the counts interpolated. -->
+          {{
+            t('reviewer.import.done', {
+              chapters: String(reviewerImportSummary.chapter_count),
+              rows: String(reviewerImportSummary.row_count),
+              replaced: String(reviewerImportSummary.replaced_count),
+            })
+          }}
+        </p>
+        <div class="ri-actions">
+          <button type="button" class="ri-act ri-act-primary" @click="dispatch('export.alignment.open')">
+            {{ t('command.export.alignment.open') }}
+          </button>
+        </div>
+      </template>
       <template v-else-if="reviewerImportStatus === 'loaded' && reviewerImportPreview !== null">
         <dl class="ri-summary">
           <div class="ri-summary-row">
@@ -145,6 +152,10 @@ function trapTab(event: KeyboardEvent): void {
                   file_name: chapter.replaces.file_name,
                 })
               }}
+              <template v-if="chapter.replaces.user_group_count > 0">
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('reviewer.import.replaces_user_groups', { count: String(chapter.replaces.user_group_count) }) }}
+              </template>
             </span>
           </li>
         </ul>

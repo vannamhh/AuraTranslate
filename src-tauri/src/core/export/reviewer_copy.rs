@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
+use super::alignment::{align_chapter, delete_alignment_of_chapter, user_group_count};
 use super::attribution::is_attribution_line;
 use super::image_files::{IMAGE_DIR_SUFFIX, copied_name};
 use super::reimport_gate::ReviewerDocx;
@@ -32,7 +33,7 @@ impl ReviewFileKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReviewRowKind {
     Text,
     Alt,
@@ -40,7 +41,7 @@ pub enum ReviewRowKind {
 }
 
 impl ReviewRowKind {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Text => "text",
             Self::Alt => "alt",
@@ -48,7 +49,7 @@ impl ReviewRowKind {
         }
     }
 
-    fn from_column(value: &str) -> Option<Self> {
+    pub(super) fn from_column(value: &str) -> Option<Self> {
         match value {
             "text" => Some(Self::Text),
             "alt" => Some(Self::Alt),
@@ -365,6 +366,8 @@ fn match_markdown_section(section: &ReviewSection, chapters: &[ChapterContext]) 
 pub struct ReplacedCopy {
     pub file_name: String,
     pub stale: bool,
+    /// Groups the user decided by hand; importing again discards them.
+    pub user_group_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -392,7 +395,7 @@ pub struct ReviewerImportPlan {
     pub image_rows_ignored: usize,
 }
 
-fn at_most_one<T>(found: SqlResult<T>) -> SqlResult<Option<T>> {
+pub(super) fn at_most_one<T>(found: SqlResult<T>) -> SqlResult<Option<T>> {
     match found {
         Ok(value) => Ok(Some(value)),
         Err(SqlError::QueryReturnedNoRows) => Ok(None),
@@ -401,11 +404,13 @@ fn at_most_one<T>(found: SqlResult<T>) -> SqlResult<Option<T>> {
 }
 
 fn existing_copy(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Option<ReplacedCopy>> {
-    at_most_one(conn.query_row(
+    let found = at_most_one(conn.query_row(
         "SELECT file_name, stale_at IS NOT NULL FROM review_chapter WHERE chapter_id = ?1",
         [chapter_id],
-        |row| Ok(ReplacedCopy { file_name: row.get(0)?, stale: row.get(1)? }),
-    ))
+        |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)),
+    ))?;
+    let Some((file_name, stale)) = found else { return Ok(None) };
+    Ok(Some(ReplacedCopy { file_name, stale, user_group_count: user_group_count(conn, chapter_id)? }))
 }
 
 pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<ReviewerImportPlan, ReviewCopyError> {
@@ -506,6 +511,7 @@ pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> R
     let mut row_count = 0;
     let mut replaced_count = 0;
     for chapter in &current.chapters {
+        delete_alignment_of_chapter(tx, chapter.chapter_id)?;
         tx.execute(
             "DELETE FROM review_row WHERE review_chapter_id IN (SELECT id FROM review_chapter WHERE chapter_id = ?1)",
             [chapter.chapter_id],
@@ -533,6 +539,8 @@ pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> R
             ))?;
             row_count += 1;
         }
+        drop(insert);
+        align_chapter(tx, review_chapter_id)?;
     }
     Ok(ImportSummary { chapter_count: current.chapters.len(), row_count, replaced_count })
 }
@@ -545,6 +553,8 @@ pub struct ReviewCopy {
     pub file_kind: ReviewFileKind,
     pub imported_at: String,
     pub rows: Vec<ReviewRow>,
+    /// `review_row.id` of each entry of `rows`, same order.
+    pub row_ids: Vec<i64>,
 }
 
 /// The one reader of an imported reviewer copy (AD-52 rule 6). A Chapter without a copy and a
@@ -560,11 +570,11 @@ pub fn read_review_copy(store: &Store, chapter_id: i64) -> Result<ReviewCopy, Re
             return Ok(None);
         };
         let mut stmt = conn.prepare(
-            "SELECT kind, source_text, target_text FROM review_row WHERE review_chapter_id = ?1 ORDER BY ord",
+            "SELECT kind, source_text, target_text, id FROM review_row WHERE review_chapter_id = ?1 ORDER BY ord",
         )?;
         let rows = stmt
-            .query_map([id], |row| Ok((row.get::<_, String>(0)?, row.get(1)?, row.get(2)?)))?
-            .collect::<SqlResult<Vec<(String, Option<String>, String)>>>()?;
+            .query_map([id], |row| Ok((row.get::<_, String>(0)?, row.get(1)?, row.get(2)?, row.get::<_, i64>(3)?)))?
+            .collect::<SqlResult<Vec<(String, Option<String>, String, i64)>>>()?;
         Ok(Some((id, file_name, file_kind, imported_at, stale_at, rows)))
     })?;
     let Some((id, file_name, file_kind, imported_at, stale_at, rows)) = found else {
@@ -574,12 +584,13 @@ pub fn read_review_copy(store: &Store, chapter_id: i64) -> Result<ReviewCopy, Re
         return Err(ReviewCopyError::Stale);
     }
     let file_kind = ReviewFileKind::from_column(&file_kind).ok_or(ReviewCopyError::Unreadable)?;
+    let row_ids = rows.iter().map(|(_, _, _, id)| *id).collect();
     let rows = rows
         .into_iter()
-        .map(|(kind, source_text, target_text)| {
+        .map(|(kind, source_text, target_text, _)| {
             ReviewRowKind::from_column(&kind).map(|kind| ReviewRow { kind, source_text, target_text })
         })
         .collect::<Option<Vec<_>>>()
         .ok_or(ReviewCopyError::Unreadable)?;
-    Ok(ReviewCopy { id, chapter_id, file_name, file_kind, imported_at, rows })
+    Ok(ReviewCopy { id, chapter_id, file_name, file_kind, imported_at, rows, row_ids })
 }

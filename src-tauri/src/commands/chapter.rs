@@ -927,6 +927,7 @@ pub fn merge_chapter_into_previous(
         )?;
 
         tx.execute("DELETE FROM chapter_position WHERE chapter_id = ?1", [chapter_id])?;
+        crate::core::export::delete_alignment_of_chapter(tx, chapter_id)?;
         tx.execute(
             "DELETE FROM review_row WHERE review_chapter_id IN \
              (SELECT id FROM review_chapter WHERE chapter_id = ?1)",

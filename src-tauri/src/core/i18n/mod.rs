@@ -914,6 +914,12 @@ message_keys! {
     ExportReviewerPreviewStale => "err.export.reviewer_import_preview_stale" [],
     /// Xác nhận khi không có bản xem trước nào đang treo.
     ExportReviewerNoPending => "err.export.reviewer_import_no_pending" [],
+    /// Chương chưa có bản reviewer nào được nhập để khớp.
+    ExportAlignmentNotImported => "err.export.alignment_not_imported" [],
+    /// Chương đã gộp hoặc tách sau khi nhập bản reviewer nên không còn khớp được.
+    ExportAlignmentStale => "err.export.alignment_stale" [],
+    /// Lựa chọn nối/bỏ qua/tách có id lạ, đã thuộc nhóm khác, trống hoặc lặp.
+    ExportAlignmentInvalidSelection => "err.export.alignment_invalid_selection" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

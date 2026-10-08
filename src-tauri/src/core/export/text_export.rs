@@ -3,8 +3,9 @@ use super::block_paragraphs::target_pieces;
 use super::docx_table::ImageReference;
 use super::image_files::copied_name;
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
+use std::collections::BTreeMap;
 use super::table_rows::ExportImage;
-use crate::commands::segment::{select_chapter_assets, select_chapter_segments};
+use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
 use crate::core::store::{Store, StoreError};
 
@@ -46,6 +47,58 @@ pub(super) fn one_line(text: &str) -> String {
     text.split(char::is_whitespace).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
+pub(super) enum Emitted<I> {
+    Paragraph(String),
+    Image(I),
+}
+
+/// The paragraphs and images of one Chapter in file order, each with the ids of the segments it
+/// was built from. A segment whose target holds `\n`, or that an image interrupts, is listed
+/// under every paragraph it feeds.
+pub(super) fn emit_items<I>(
+    segments: &[ChapterSegment],
+    head: Vec<I>,
+    mut by_anchor: BTreeMap<i64, Vec<I>>,
+    orphans: Vec<I>,
+) -> Vec<(Emitted<I>, Vec<i64>)> {
+    let mut items: Vec<(Emitted<I>, Vec<i64>)> = head.into_iter().map(|i| (Emitted::Image(i), Vec::new())).collect();
+    for group in paragraphs_by_flag(segments, |s| s.is_target_paragraph_end) {
+        let mut pieces: Vec<String> = Vec::new();
+        let mut ids: Vec<i64> = Vec::new();
+        let flush = |pieces: &mut Vec<String>, ids: &mut Vec<i64>, items: &mut Vec<(Emitted<I>, Vec<i64>)>| {
+            if !pieces.is_empty() {
+                items.push((Emitted::Paragraph(pieces.join(" ")), std::mem::take(ids)));
+                pieces.clear();
+            }
+            ids.clear();
+        };
+        for segment in group {
+            if segment.role.is_none() {
+                let own = target_pieces(&segment.target_text);
+                if own.is_empty() {
+                    ids.push(segment.id);
+                }
+                for (i, piece) in own.into_iter().enumerate() {
+                    if i > 0 {
+                        flush(&mut pieces, &mut ids, &mut items);
+                    }
+                    pieces.push(piece.to_owned());
+                    if ids.last() != Some(&segment.id) {
+                        ids.push(segment.id);
+                    }
+                }
+            }
+            if let Some(images) = by_anchor.remove(&segment.id) {
+                flush(&mut pieces, &mut ids, &mut items);
+                items.extend(images.into_iter().map(|i| (Emitted::Image(i), Vec::new())));
+            }
+        }
+        flush(&mut pieces, &mut ids, &mut items);
+    }
+    items.extend(orphans.into_iter().map(|i| (Emitted::Image(i), Vec::new())));
+    items
+}
+
 pub fn load_chapter_text(
     store: &Store,
     chapter_ids: &[i64],
@@ -61,7 +114,7 @@ pub fn load_chapter_text(
                 title_stmt.query_row([chapter_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
             let segments = select_chapter_segments(conn, chapter_id)?;
             let assets = select_chapter_assets(conn, chapter_id)?;
-            let ImageSplit { head, mut by_anchor, orphans, skipped: chapter_skipped } =
+            let ImageSplit { head, by_anchor, orphans, skipped: chapter_skipped } =
                 split_by_anchor(&segments, chapter_images(&segments, &assets), image_mode, |image| TextImage {
                     alt: one_line(image.alt_text.as_deref().unwrap_or("")),
                     caption: one_line(image.caption_text.as_deref().unwrap_or("")),
@@ -74,32 +127,13 @@ pub fn load_chapter_text(
                     },
                 });
             skipped += chapter_skipped;
-            let mut items: Vec<TextItem> = head.into_iter().map(TextItem::Image).collect();
-            for group in paragraphs_by_flag(&segments, |s| s.is_target_paragraph_end) {
-                let mut pieces: Vec<String> = Vec::new();
-                let flush = |pieces: &mut Vec<String>, items: &mut Vec<TextItem>| {
-                    if !pieces.is_empty() {
-                        items.push(TextItem::Paragraph(pieces.join(" ")));
-                        pieces.clear();
-                    }
-                };
-                for segment in group {
-                    if segment.role.is_none() {
-                        for (i, piece) in target_pieces(&segment.target_text).into_iter().enumerate() {
-                            if i > 0 {
-                                flush(&mut pieces, &mut items);
-                            }
-                            pieces.push(piece.to_owned());
-                        }
-                    }
-                    if let Some(images) = by_anchor.remove(&segment.id) {
-                        flush(&mut pieces, &mut items);
-                        items.extend(images.into_iter().map(TextItem::Image));
-                    }
-                }
-                flush(&mut pieces, &mut items);
-            }
-            items.extend(orphans.into_iter().map(TextItem::Image));
+            let items: Vec<TextItem> = emit_items(&segments, head, by_anchor, orphans)
+                .into_iter()
+                .map(|(item, _)| match item {
+                    Emitted::Paragraph(text) => TextItem::Paragraph(text),
+                    Emitted::Image(image) => TextItem::Image(image),
+                })
+                .collect();
             let attribution = lines_for(conn, chapter_id, attribution)?;
             chapters.push(TextChapter { chapter_ord, title, attribution, items });
         }

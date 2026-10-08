@@ -196,6 +196,8 @@ fn is_pending(state: &PendingReviewerImportState) -> bool {
 fn without_review_tables(mut dump: BTreeMap<String, Vec<String>>) -> BTreeMap<String, Vec<String>> {
     dump.remove("review_chapter");
     dump.remove("review_row");
+    dump.remove("alignment_group");
+    dump.remove("alignment_member");
     dump.remove("pragma:data_version");
     dump
 }

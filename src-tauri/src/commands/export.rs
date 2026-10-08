@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
-    ConfirmError, ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
+    AlignmentError, AlignmentItem, ChapterAlignment, ConfirmError, ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
     read_markdown_copy,
     Attribution, ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
     load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
@@ -15,7 +15,7 @@ use crate::core::export::{
 use crate::core::attribution::resolve_translator_name;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
-use crate::core::store::Store;
+use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Tóm tắt phạm vi xuất: phép đếm của FR89 cùng kết quả quét ảnh (AD-43).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -261,6 +261,7 @@ pub type PendingReviewerImportState = std::sync::Mutex<Option<PendingReviewerImp
 pub struct ReviewerImportReplacedWire {
     pub file_name: String,
     pub stale: bool,
+    pub user_group_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -359,7 +360,11 @@ fn reviewer_preview_wire(plan: &ReviewerImportPlan) -> ReviewerImportPreviewWire
                 chapter_ord: c.chapter_ord,
                 title: c.title.clone(),
                 row_count: count_wire(c.rows.len()),
-                replaces: c.replaces.as_ref().map(|r| ReviewerImportReplacedWire { file_name: r.file_name.clone(), stale: r.stale }),
+                replaces: c.replaces.as_ref().map(|r| ReviewerImportReplacedWire {
+                    file_name: r.file_name.clone(),
+                    stale: r.stale,
+                    user_group_count: count_wire(r.user_group_count),
+                }),
             })
             .collect(),
         skipped: plan
@@ -450,10 +455,172 @@ pub fn reviewer_import_confirm(
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AlignmentRowWire {
+    pub id: i64,
+    pub kind: String,
+    pub source_text: Option<String>,
+    pub target_text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AlignmentSegmentWire {
+    pub id: i64,
+    pub ord: i64,
+    pub role: Option<String>,
+    pub source_text: String,
+    pub target_text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AlignmentGroupWire {
+    pub id: i64,
+    pub decided_by: String,
+    pub row_ids: Vec<i64>,
+    pub segment_ids: Vec<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterAlignmentWire {
+    pub chapter_id: i64,
+    pub file_name: String,
+    pub file_kind: String,
+    pub rows: Vec<AlignmentRowWire>,
+    pub segments: Vec<AlignmentSegmentWire>,
+    pub groups: Vec<AlignmentGroupWire>,
+    pub unmatched_row_ids: Vec<i64>,
+    pub unmatched_segment_ids: Vec<i64>,
+    pub is_resolved: bool,
+}
+
+fn alignment_wire(alignment: ChapterAlignment) -> ChapterAlignmentWire {
+    ChapterAlignmentWire {
+        chapter_id: alignment.chapter_id,
+        file_name: alignment.file_name,
+        file_kind: alignment.file_kind.as_str().to_owned(),
+        rows: alignment
+            .rows
+            .into_iter()
+            .map(|r| AlignmentRowWire {
+                id: r.id,
+                kind: r.kind.as_str().to_owned(),
+                source_text: r.source_text,
+                target_text: r.target_text,
+            })
+            .collect(),
+        segments: alignment
+            .segments
+            .into_iter()
+            .map(|s| AlignmentSegmentWire {
+                id: s.id,
+                ord: s.ord,
+                role: s.role,
+                source_text: s.source_text,
+                target_text: s.target_text,
+            })
+            .collect(),
+        groups: alignment
+            .groups
+            .into_iter()
+            .map(|g| AlignmentGroupWire {
+                id: g.id,
+                decided_by: g.decided_by.as_str().to_owned(),
+                row_ids: g.row_ids,
+                segment_ids: g.segment_ids,
+            })
+            .collect(),
+        unmatched_row_ids: alignment.unmatched_row_ids,
+        unmatched_segment_ids: alignment.unmatched_segment_ids,
+        is_resolved: alignment.is_resolved,
+    }
+}
+
+fn alignment_error(error: AlignmentError) -> IpcError {
+    match error {
+        AlignmentError::Copy(ReviewCopyError::NotImported) => {
+            IpcError::new("export.alignment_not_imported", MessageKey::ExportAlignmentNotImported, BTreeMap::new(), false)
+        }
+        AlignmentError::Copy(ReviewCopyError::Stale) => {
+            IpcError::new("export.alignment_stale", MessageKey::ExportAlignmentStale, BTreeMap::new(), false)
+        }
+        AlignmentError::InvalidSelection => IpcError::new(
+            "export.alignment_invalid_selection",
+            MessageKey::ExportAlignmentInvalidSelection,
+            BTreeMap::new(),
+            false,
+        ),
+        AlignmentError::Copy(ReviewCopyError::Store(e)) | AlignmentError::Store(e) => IpcError::from(e),
+        AlignmentError::Copy(ReviewCopyError::Sql(e)) | AlignmentError::Sql(e) => IpcError::from(StoreError::ReadFailed { store: StoreKind::Project, detail: format!("{e:?}") }),
+        AlignmentError::Copy(other) => reviewer_unreadable(&format!("{other:?}")),
+    }
+}
+
+fn read_alignment_wire(open: &OpenWork, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+    crate::core::export::read_alignment(&open.store, chapter_id).map(alignment_wire).map_err(alignment_error)
+}
+
+/// Both sides of the reviewer copy of `chapter_id` and how they are grouped. A copy imported before
+/// step 31 is aligned by the machine on this first call.
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - no copy for the Chapter => `export.alignment_not_imported`;
+/// - the Chapter was merged or split after the import => `export.alignment_stale`.
+pub fn alignment_open(open: Option<&OpenWork>, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    read_alignment_wire(open, chapter_id)
+}
+
+/// Joins at least one segment and one reviewer row into a user group and returns the new state.
+///
+/// # Errors
+/// As [`alignment_open`], and `export.alignment_invalid_selection` (nothing written) for an
+/// empty side, a repeated or unknown id, or an id already in a group.
+pub fn alignment_join(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    segment_ids: &[i64],
+    row_ids: &[i64],
+) -> Result<ChapterAlignmentWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    crate::core::export::join(&open.store, chapter_id, segment_ids, row_ids).map_err(alignment_error)?;
+    read_alignment_wire(open, chapter_id)
+}
+
+/// Sets exactly one segment or one reviewer row aside as a one-sided user group.
+///
+/// # Errors
+/// As [`alignment_join`]; giving both ids or neither is an invalid selection.
+pub fn alignment_skip(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    segment_id: Option<i64>,
+    row_id: Option<i64>,
+) -> Result<ChapterAlignmentWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let item = match (segment_id, row_id) {
+        (Some(id), None) => AlignmentItem::Segment(id),
+        (None, Some(id)) => AlignmentItem::Row(id),
+        _ => return Err(alignment_error(AlignmentError::InvalidSelection)),
+    };
+    crate::core::export::skip(&open.store, chapter_id, item).map_err(alignment_error)?;
+    read_alignment_wire(open, chapter_id)
+}
+
+/// Dissolves a group; its members return to the unprocessed list.
+///
+/// # Errors
+/// As [`alignment_join`]; a group of another Chapter is an invalid selection.
+pub fn alignment_unjoin(open: Option<&OpenWork>, chapter_id: i64, group_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    crate::core::export::unjoin(&open.store, chapter_id, group_id).map_err(alignment_error)?;
+    read_alignment_wire(open, chapter_id)
+}
+
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
 pub mod wire {
     use super::{
-        ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, PendingReviewerImportState,
+        ChapterAlignmentWire, ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, PendingReviewerImportState,
         ReviewerImportPreviewWire, ReviewerImportSummaryWire, TextFormat,
     };
     use crate::commands::project::OpenWorkState;
@@ -601,4 +768,50 @@ pub mod wire {
         Ok(())
     }
 
+    fn with_open<T>(
+        app: &tauri::AppHandle,
+        job: impl FnOnce(Option<&crate::commands::project::OpenWork>) -> Result<T, IpcError>,
+    ) -> Result<T, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return job(None);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        job(guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::alignment_open`].
+    #[tauri::command]
+    pub fn alignment_open(app: tauri::AppHandle, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+        with_open(&app, |open| super::alignment_open(open, chapter_id))
+    }
+
+    /// Vỏ IPC của [`super::alignment_join`].
+    #[tauri::command]
+    pub fn alignment_join(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        segment_ids: Vec<i64>,
+        row_ids: Vec<i64>,
+    ) -> Result<ChapterAlignmentWire, IpcError> {
+        with_open(&app, |open| super::alignment_join(open, chapter_id, &segment_ids, &row_ids))
+    }
+
+    /// Vỏ IPC của [`super::alignment_skip`].
+    #[tauri::command]
+    pub fn alignment_skip(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        segment_id: Option<i64>,
+        row_id: Option<i64>,
+    ) -> Result<ChapterAlignmentWire, IpcError> {
+        with_open(&app, |open| super::alignment_skip(open, chapter_id, segment_id, row_id))
+    }
+
+    /// Vỏ IPC của [`super::alignment_unjoin`].
+    #[tauri::command]
+    pub fn alignment_unjoin(app: tauri::AppHandle, chapter_id: i64, group_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+        with_open(&app, |open| super::alignment_unjoin(open, chapter_id, group_id))
+    }
 }

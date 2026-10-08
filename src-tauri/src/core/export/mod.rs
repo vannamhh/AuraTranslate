@@ -14,6 +14,7 @@
 //! (`tests/fixtures_docx.rs`), một cài đặt ĐỘC LẬP với `core::docx` nên không phải một vòng
 //! tròn "tự sinh rồi tự đọc lại".
 
+mod alignment;
 mod attribution;
 mod block_paragraphs;
 mod docx_block;
@@ -27,6 +28,11 @@ mod scope;
 mod table_rows;
 mod text_export;
 
+pub use alignment::{
+    AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow, AlignmentSegment, ChapterAlignment, DecidedBy,
+    MIN_PAIR_SIMILARITY, align_chapter, delete_alignment_of_chapter, join, move_members_of_retired, read_alignment,
+    skip, unjoin,
+};
 pub use attribution::{Attribution, ChapterOrigin, attribution_lines};
 pub use block_paragraphs::{
     BlockParagraph, ChapterBlock, LoadedBlocks, UNTRANSLATED_SQL, is_untranslated, load_chapter_blocks,
