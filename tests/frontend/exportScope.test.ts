@@ -39,7 +39,7 @@ function row(id: number, ord: number, title: string | null): ChapterRow {
 }
 
 function counts(over: Partial<ExportScopeCounts> = {}): ExportScopeCounts {
-  return { chapter_count: 3, segment_count: 12, unconfirmed_count: 0, ...over }
+  return { chapter_count: 3, segment_count: 12, unconfirmed_count: 0, image_count: 0, missing_link_images: [], ...over }
 }
 
 function ipcError(code: string) {

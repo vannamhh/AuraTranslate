@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::export::{export_folder_from_dialog, export_scope_summary};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
-use auratranslate_lib::core::export::ExportScope;
+use auratranslate_lib::core::export::{ExportScope, ImageMode};
 use auratranslate_lib::commands::segment::read_open_chapter_segments;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::omit::count_in_translation;
@@ -185,4 +185,117 @@ fn cancelling_the_folder_dialog_is_ok_none_and_a_picked_folder_is_returned_as_te
     let got = export_folder_from_dialog(Some(Path::new(&dir))).expect("chon");
     assert_eq!(got.as_deref(), dir.to_str());
     let _ = fs::remove_dir_all(&dir);
+}
+
+fn insert_asset(open: &OpenWork, chapter_id: i64, file_name: &str, source_url: Option<&str>, anchor: i64) {
+    let (file_name, source_url) = (file_name.to_owned(), source_url.map(str::to_owned));
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO asset (chapter_id, file_name, source_url, anchor_after_segment_ord, byte_len, \
+                 content_type, created_at) VALUES (?1, ?2, ?3, ?4, 10, 'image/jpeg', 't')",
+                rusqlite::params![chapter_id, file_name, source_url, anchor],
+            )
+        })
+        .expect("chen asset that bai");
+}
+
+fn set_alt(open: &OpenWork, chapter_id: i64, ord: i64, text: &str) {
+    let text = text.to_owned();
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET role = 'alt', target_text = ?1 WHERE chapter_id = ?2 AND ord = ?3",
+                rusqlite::params![text, chapter_id, ord],
+            )
+        })
+        .expect("dat alt that bai");
+}
+
+#[test]
+fn a_scope_whose_images_all_carry_a_link_lists_nothing_missing() {
+    let f = fixture("img-full");
+    insert_asset(&f.open, f.first, "a.jpg", Some("https://x.test/a"), 1);
+    insert_asset(&f.open, f.second, "b.jpg", Some("https://x.test/b"), 0);
+    let summary = export_scope_summary(Some(&f.open), &ExportScope::Work).expect("quet that bai");
+    assert_eq!(summary.image_count, 2);
+    assert!(summary.missing_link_images.is_empty());
+    f.finish();
+}
+
+#[test]
+fn images_without_a_source_url_are_listed_with_chapter_position_and_alt_text() {
+    let f = fixture("img-partial");
+    insert_asset(&f.open, f.first, "a.jpg", Some("https://x.test/a"), 1);
+    insert_asset(&f.open, f.first, "b.jpg", None, 1);
+    insert_asset(&f.open, f.second, "c.jpg", None, 1);
+    set_alt(&f.open, f.first, 2, "Anh hai");
+    let summary = export_scope_summary(Some(&f.open), &ExportScope::Work).expect("quet that bai");
+
+    assert_eq!(summary.image_count, 3);
+    let listed: Vec<(i64, i64, Option<&str>)> = summary
+        .missing_link_images
+        .iter()
+        .map(|m| (m.chapter_id, m.image_index, m.alt_text.as_deref()))
+        .collect();
+    assert_eq!(listed, vec![(f.first, 2, Some("Anh hai")), (f.second, 1, None)]);
+    f.finish();
+}
+
+#[test]
+fn a_scope_where_no_image_has_a_link_lists_every_image_and_no_images_means_zero() {
+    let f = fixture("img-none-linked");
+    let empty = export_scope_summary(Some(&f.open), &ExportScope::Work).expect("quet that bai");
+    assert_eq!((empty.image_count, empty.missing_link_images.len()), (0, 0));
+    insert_asset(&f.open, f.first, "a.jpg", None, 1);
+    insert_asset(&f.open, f.first, "b.jpg", None, 2);
+    let summary = export_scope_summary(Some(&f.open), &ExportScope::Work).expect("quet that bai");
+    assert_eq!((summary.image_count, summary.missing_link_images.len()), (2, 2));
+    f.finish();
+}
+
+#[test]
+fn changing_the_scope_changes_the_scan_with_the_counts() {
+    let f = fixture("img-scope");
+    insert_asset(&f.open, f.first, "a.jpg", None, 1);
+    insert_asset(&f.open, f.second, "b.jpg", Some("https://x.test/b"), 1);
+    let first = export_scope_summary(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![f.first] })
+        .expect("quet that bai");
+    let second = export_scope_summary(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![f.second] })
+        .expect("quet that bai");
+    assert_eq!((first.image_count, first.missing_link_images.len()), (1, 1));
+    assert_eq!((second.image_count, second.missing_link_images.len()), (1, 0));
+    f.finish();
+}
+
+#[test]
+fn images_anchored_on_retired_or_omitted_segments_are_still_counted_and_listed() {
+    let f = fixture("img-retired");
+    insert_asset(&f.open, f.first, "a.jpg", None, 2);
+    insert_asset(&f.open, f.first, "b.jpg", None, 3);
+    let summary = export_scope_summary(Some(&f.open), &ExportScope::Work).expect("quet that bai");
+    assert_eq!((summary.image_count, summary.missing_link_images.len()), (2, 2));
+    f.finish();
+}
+
+#[test]
+fn the_summary_and_the_image_mode_have_the_wire_shape_the_webview_reads() {
+    let f = fixture("img-wire");
+    insert_asset(&f.open, f.first, "a.jpg", None, 1);
+    let summary = export_scope_summary(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![f.first] })
+        .expect("quet that bai");
+    let json = serde_json::to_value(&summary).expect("serialize");
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "chapter_count": 1, "segment_count": 2, "unconfirmed_count": 1, "image_count": 1,
+            "missing_link_images": [
+                { "chapter_id": f.first, "chapter_ord": 1, "chapter_title": null, "image_index": 1, "alt_text": null }
+            ]
+        })
+    );
+    assert_eq!(serde_json::from_str::<ImageMode>(r#""link""#).expect("link"), ImageMode::Link);
+    assert_eq!(serde_json::from_str::<ImageMode>(r#""file""#).expect("file"), ImageMode::File);
+    assert!(serde_json::from_str::<ImageMode>(r#""embed""#).is_err());
+    f.finish();
 }

@@ -14,6 +14,8 @@ import {
   exportFolderError,
   exportFolderUnavailable,
   exportFormat,
+  exportImageMode,
+  exportLinkUsable,
   exportLoadError,
   exportLoadStatus,
   exportOverlayIsOpen,
@@ -25,11 +27,13 @@ import {
   exportSingleChapterId,
   selectExportSingleChapter,
   setExportFormat,
+  setExportImageMode,
   setExportScopeKind,
   toggleExportChapter,
 } from './exportState'
 import type { ExportScopeKind } from './exportState'
 import type { ChapterRow } from './config/chapter'
+import type { MissingLinkImage } from './config/export'
 
 let returnFocusTo: HTMLElement | null = null
 
@@ -50,6 +54,14 @@ const canRun = computed(
 
 function chapterLabel(row: ChapterRow): string {
   return row.title === null ? t('mode.library.chapter_untitled', { ord: String(row.ord) }) : row.title
+}
+
+function missingLabel(item: MissingLinkImage): string {
+  const chapter = item.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(item.chapter_ord) })
+  const index = String(item.image_index)
+  return item.alt_text === null || item.alt_text === ''
+    ? t('export.images.missing_item', { chapter, index })
+    : t('export.images.missing_item_alt', { chapter, index, alt: item.alt_text })
 }
 
 watch(exportOverlayIsOpen, (open) => {
@@ -202,6 +214,46 @@ function trapTab(event: KeyboardEvent): void {
           </p>
         </fieldset>
 
+        <fieldset v-if="exportCounts !== null" class="ex-format" data-export-images>
+          <legend class="ex-legend">{{ t('export.images.legend') }}</legend>
+          <!-- aura-allow-text: result of t() with the count interpolated. -->
+          <p class="ex-note" data-export-image-count>{{ t('export.images.count', { count: String(exportCounts.image_count) }) }}</p>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-image-mode"
+              value="file"
+              :checked="exportImageMode === 'file'"
+              @change="setExportImageMode('file')"
+            />
+            <span>{{ t('export.images.file') }}</span>
+          </label>
+          <label class="ex-choice">
+            <input
+              type="radio"
+              name="export-image-mode"
+              value="link"
+              :checked="exportImageMode === 'link'"
+              :disabled="!exportLinkUsable()"
+              @change="setExportImageMode('link')"
+            />
+            <span>{{ t('export.images.link') }}</span>
+          </label>
+          <p v-if="!exportLinkUsable()" class="ex-note" data-export-link-disabled>{{ t('export.images.link_disabled') }}</p>
+          <template v-else-if="exportImageMode === 'link' && exportCounts.missing_link_images.length > 0">
+            <!-- aura-allow-text: result of t() with the count interpolated. -->
+            <p class="ex-warning" role="alert" data-export-missing-heading>
+              {{ t('export.images.missing_heading', { count: String(exportCounts.missing_link_images.length) }) }}
+            </p>
+            <ul class="ex-count-list" data-export-missing-links>
+              <!-- aura-allow-text: result of t() with chapter label and alt text interpolated. -->
+              <li v-for="item in exportCounts.missing_link_images" :key="`${item.chapter_id}-${item.image_index}`">
+                {{ missingLabel(item) }}
+              </li>
+            </ul>
+          </template>
+        </fieldset>
+
         <div class="ex-folder">
           <span class="ex-legend">{{ t('export.folder.label') }}</span>
           <!-- aura-allow-text: data (folder path chosen by the user). -->
@@ -241,6 +293,19 @@ function trapTab(event: KeyboardEvent): void {
           }}
           <!-- aura-allow-text: data (path of the file Rust wrote). -->
           <span class="ex-path" data-export-result>{{ exportRunResult.path }}</span>
+        </p>
+        <p v-if="exportRunStatus === 'done' && exportRunResult !== null" class="ex-status" role="status" data-export-image-result>
+          <!-- aura-allow-text: result of t() with the counts interpolated. -->
+          {{ t('export.run.images_written', { count: String(exportRunResult.image_count) }) }}
+          <template v-if="exportRunResult.images_skipped_missing_link > 0">
+            <!-- aura-allow-text: result of t() with the count interpolated. -->
+            {{ t('export.run.images_skipped', { count: String(exportRunResult.images_skipped_missing_link) }) }}
+          </template>
+          <template v-if="exportRunResult.images_dir !== null">
+            {{ t('export.run.images_dir') }}
+            <!-- aura-allow-text: data (folder Rust wrote the image files into). -->
+            <span class="ex-path" data-export-images-dir>{{ exportRunResult.images_dir }}</span>
+          </template>
         </p>
 
         <section class="ex-preview" aria-labelledby="ex-preview-title">

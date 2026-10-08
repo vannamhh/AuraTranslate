@@ -1,8 +1,19 @@
 use std::io::Cursor;
 
-use docx_rs::{BreakType, Docx, LineSpacing, Paragraph, Run, Table, TableCell, TableLayoutType, TableRow, WidthType};
+use docx_rs::{
+    BreakType, Docx, Hyperlink, HyperlinkType, LineSpacing, Paragraph, Run, Table, TableCell, TableLayoutType, TableRow,
+    WidthType,
+};
 
-use super::table_rows::{ChapterTable, ExportCell};
+use super::image_files::copied_name;
+use super::table_rows::{ChapterTable, ExportCell, ExportImage, ExportRow};
+
+/// Điều một hàng ảnh ghi ra: link tới `source_url`, hoặc đường dẫn tương đối tới tệp trong thư mục ảnh.
+#[derive(Debug, Clone, Copy)]
+pub enum ImageReference<'a> {
+    Link,
+    Dir(&'a str),
+}
 
 const COLUMN_WIDTH_DXA: usize = 4513;
 const PARAGRAPH_GAP_DXA: u32 = 240;
@@ -27,20 +38,40 @@ fn cell_of(cell: &ExportCell) -> TableCell {
     TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(paragraph_of(&cell.text, cell.ends_paragraph))
 }
 
+fn image_paragraph(image: &ExportImage, reference: ImageReference<'_>) -> Paragraph {
+    let paragraph = Paragraph::new().line_spacing(LineSpacing::new().after(PARAGRAPH_GAP_DXA));
+    match (reference, image.source_url.as_deref()) {
+        (ImageReference::Link, Some(url)) => paragraph
+            .add_hyperlink(Hyperlink::new(url, HyperlinkType::External).add_run(Run::new().add_text(url))),
+        (ImageReference::Dir(dir), _) => {
+            paragraph.add_run(Run::new().add_text(format!("{dir}/{}", copied_name(image))))
+        }
+        (ImageReference::Link, None) => paragraph.add_run(Run::new().add_text(&image.file_name)),
+    }
+}
+
+fn image_cell(image: &ExportImage, reference: ImageReference<'_>) -> TableCell {
+    TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(image_paragraph(image, reference))
+}
+
+fn row_of(row: &ExportRow, reference: ImageReference<'_>) -> TableRow {
+    match row {
+        ExportRow::Text { source, target } => TableRow::new(vec![cell_of(source), cell_of(target)]),
+        ExportRow::Image(image) => TableRow::new(vec![image_cell(image, reference), image_cell(image, reference)]),
+    }
+    .cant_split()
+}
+
 /// Mỗi Chương: một đoạn tiêu đề rồi một bảng hai cột, mỗi segment một hàng, không hàng đầu bảng.
 /// Chương không có hàng nào chỉ có đoạn tiêu đề (bảng không hàng làm Word từ chối tệp).
-pub fn write_two_column_docx(tables: &[ChapterTable]) -> Result<Vec<u8>, DocxWriteError> {
+pub fn write_two_column_docx(tables: &[ChapterTable], reference: ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError> {
     let mut docx = Docx::new();
     for chapter in tables {
         docx = docx.add_paragraph(paragraph_of(chapter.title.as_deref().unwrap_or(""), true));
         if chapter.rows.is_empty() {
             continue;
         }
-        let rows = chapter
-            .rows
-            .iter()
-            .map(|row| TableRow::new(vec![cell_of(&row.source), cell_of(&row.target)]).cant_split())
-            .collect();
+        let rows = chapter.rows.iter().map(|row| row_of(row, reference)).collect();
         docx = docx.add_table(
             Table::new(rows).set_grid(vec![COLUMN_WIDTH_DXA, COLUMN_WIDTH_DXA]).layout(TableLayoutType::Fixed),
         );

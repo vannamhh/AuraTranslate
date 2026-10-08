@@ -46,7 +46,7 @@ async function fresh() {
   for (const m of [listMock, summaryMock, folderMock, docxMock]) m.mockReset()
   listMock.mockResolvedValue({ chapters: [row(10, 1), row(11, 2)], error: null })
   summaryMock.mockResolvedValue({
-    counts: { chapter_count: 2, segment_count: 6, unconfirmed_count: 0 },
+    counts: { chapter_count: 2, segment_count: 6, unconfirmed_count: 0, image_count: 0, missing_link_images: [] },
     error: null,
   })
   folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/out' })
@@ -87,7 +87,7 @@ describe('format choice', () => {
 describe('running the export', () => {
   it('sends the current scope and the chosen folder to Rust and shows the written path', async () => {
     const { state, commands, Overlay } = await fresh()
-    docxMock.mockResolvedValue({ file: { path: '/tmp/out/Tac Pham-hai-cot.docx', chapter_count: 2, segment_count: 6 }, error: null })
+    docxMock.mockResolvedValue({ file: { path: '/tmp/out/Tac Pham-hai-cot.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     await state.chooseExportFolder()
@@ -97,7 +97,7 @@ describe('running the export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, '/tmp/out')
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out')
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-hai-cot.docx')
     wrapper.unmount()
   })
@@ -161,14 +161,14 @@ describe('running the export', () => {
     const first = state.runExport()
     void state.runExport()
     expect(docxMock).toHaveBeenCalledTimes(1)
-    release({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6 }, error: null })
+    release({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     await first
     expect(state.exportRunStatus.value).toBe('done')
   })
 
   it('forgets an old result when the scope or the folder changes', async () => {
     const { state } = await fresh()
-    docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6 }, error: null })
+    docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     await state.openExport()
     await state.chooseExportFolder()
     await state.runExport()

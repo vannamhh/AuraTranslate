@@ -901,6 +901,8 @@ message_keys! {
     ExportFolderInvalid => "err.export.folder_invalid" [],
     /// Không ghi được tệp xuất vào thư mục đích (thư mục không ghi được, hết chỗ, …).
     ExportWriteFailed => "err.export.write_failed" [],
+    /// Chế độ "theo file ảnh": tệp của một ảnh không còn trong `assets/` của Tác phẩm.
+    ExportImageFileMissing => "err.export.image_file_missing" ["chapter_ord", "file_name"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

@@ -257,7 +257,7 @@ pub(crate) fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> 
 ///
 /// `ORDER BY id` — không phải `anchor_after_segment_ord`: thứ tự HIỂN THỊ (hai ảnh cùng neo)
 /// là việc của [`crate::core::segment::image::resolve_chapter_images`], hàm này chỉ đọc thô.
-pub(super) fn select_chapter_assets(
+pub(crate) fn select_chapter_assets(
     conn: ReadHandle<'_>,
     chapter_id: i64,
 ) -> SqlResult<Vec<crate::core::segment::image::RawAsset>> {

@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::export::export_docx_two_column;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::docx::{DocxParsed, read_docx};
-use auratranslate_lib::core::export::ExportScope;
+use auratranslate_lib::core::export::{ExportScope, ImageMode};
 use auratranslate_lib::core::store::Transaction;
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -97,7 +97,7 @@ fn fixture(tag: &str, first_title: Option<&str>, segs: Vec<Seg>) -> Fixture {
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file = export_docx_two_column(Some(&self.open), scope, &self.out).expect("xuat that bai");
+        let file = export_docx_two_column(Some(&self.open), scope, ImageMode::File, &self.out).expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -271,7 +271,7 @@ fn the_written_name_is_safe_and_ends_in_docx() {
 fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
     let f = fixture("nofolder", None, vec![seg("a", "b")]);
     let missing = f.out.join("khong-co");
-    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, &missing).expect_err("thu muc la phai la loi");
+    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &missing).expect_err("thu muc la phai la loi");
     assert_eq!(err.code(), "export.folder_invalid");
     assert!(!missing.exists());
     f.finish();
@@ -280,14 +280,14 @@ fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
 #[test]
 fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
     let f = fixture("errors", None, vec![seg("a", "b")]);
-    let empty = export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, &f.out)
+    let empty = export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, &f.out)
         .expect_err("pham vi rong");
     assert_eq!(empty.code(), "export.scope_empty");
     let unknown =
-        export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9_999] }, &f.out)
+        export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9_999] }, ImageMode::File, &f.out)
             .expect_err("Chuong la");
     assert_eq!(unknown.code(), "segment.chapter_not_found");
-    let none = export_docx_two_column(None, &ExportScope::Work, &f.out).expect_err("chua mo Tac pham");
+    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, &f.out).expect_err("chua mo Tac pham");
     assert_eq!(none.code(), "work.none_open");
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0, "loi khong de lai tep");
     f.finish();
@@ -298,8 +298,141 @@ fn the_returned_counts_match_the_rows_written() {
     let mut cut = seg("bi cat", "bi cat");
     cut.omitted = true;
     let f = fixture("counts", None, vec![seg("a", "b"), cut, seg("c", "d")]);
-    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, &f.out).expect("xuat");
+    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &f.out).expect("xuat");
     assert_eq!((file.chapter_count, file.segment_count), (1, 2));
     assert_eq!(parsed(Path::new(&file.path)).tables[0].rows, 2);
+    f.finish();
+}
+
+fn insert_asset(open: &OpenWork, chapter_id: i64, file_name: &str, source_url: Option<&str>, anchor: i64) -> i64 {
+    let (file_name, source_url) = (file_name.to_owned(), source_url.map(str::to_owned));
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO asset (chapter_id, file_name, source_url, anchor_after_segment_ord, byte_len, \
+                 content_type, created_at) VALUES (?1, ?2, ?3, ?4, 10, 'image/jpeg', 't')",
+                rusqlite::params![chapter_id, file_name, source_url, anchor],
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen asset that bai")
+}
+
+fn put_asset_file(open: &OpenWork, file_name: &str, bytes: &[u8]) {
+    let dir = open.dir.join("assets");
+    fs::create_dir_all(&dir).expect("tao assets");
+    fs::write(dir.join(file_name), bytes).expect("ghi tep anh");
+}
+
+fn export_with(f: &Fixture, mode: ImageMode) -> auratranslate_lib::commands::export::ExportedFile {
+    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, &f.out).expect("xuat that bai")
+}
+
+fn three() -> Vec<Seg> {
+    vec![seg("s0", "t0"), seg("s1", "t1"), seg("s2", "t2")]
+}
+
+#[test]
+fn link_mode_writes_a_hyperlink_row_at_each_anchor_and_reports_the_images_it_left_out() {
+    let f = fixture("img-link", None, three());
+    insert_asset(&f.open, f.first, "head.jpg", Some("https://x.test/head.jpg"), 0);
+    insert_asset(&f.open, f.first, "mid.jpg", Some("https://x.test/mid.jpg"), 1);
+    insert_asset(&f.open, f.first, "nolink.jpg", None, 1);
+    let file = export_with(&f, ImageMode::Link);
+
+    assert_eq!((file.image_count, file.images_skipped_missing_link, file.images_dir.clone()), (2, 1, None));
+    let doc = parsed(Path::new(&file.path));
+    assert_eq!(doc.tables[0].rows, 5);
+    assert_eq!(doc.tables[0].cells_per_row, vec![2, 2, 2, 2, 2]);
+    let texts: Vec<&str> = doc.text.split("\n\n").collect();
+    assert_eq!(
+        texts,
+        vec![
+            "https://x.test/head.jpg", "https://x.test/head.jpg", "s0", "t0", "s1", "t1",
+            "https://x.test/mid.jpg", "https://x.test/mid.jpg", "s2", "t2"
+        ]
+    );
+    let xml = document_xml(Path::new(&file.path));
+    assert!(xml.contains("<w:hyperlink"), "hang anh la Hyperlink");
+    assert!(!xml.contains("nolink"), "anh thieu link vang mat");
+    assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 1, "che do link khong tao thu muc anh");
+    f.finish();
+}
+
+#[test]
+fn file_mode_copies_every_image_beside_the_docx_and_each_row_names_its_own_file() {
+    let f = fixture("img-file", None, three());
+    let a = insert_asset(&f.open, f.first, "a.jpg", Some("https://x.test/a.jpg"), 1);
+    let b = insert_asset(&f.open, f.first, "b.png", None, 2);
+    put_asset_file(&f.open, "a.jpg", b"AAA");
+    put_asset_file(&f.open, "b.png", b"BBBB");
+    let file = export_with(&f, ImageMode::File);
+
+    let docx = PathBuf::from(&file.path);
+    let stem = docx.file_stem().and_then(|n| n.to_str()).expect("stem").to_owned();
+    let dir = f.out.join(format!("{stem}-anh"));
+    assert_eq!(file.images_dir.as_deref(), dir.to_str());
+    assert_eq!((file.image_count, file.images_skipped_missing_link), (2, 0));
+    assert_eq!(fs::read(dir.join(format!("{a}-a.jpg"))).expect("anh a"), b"AAA");
+    assert_eq!(fs::read(dir.join(format!("{b}-b.png"))).expect("anh b"), b"BBBB");
+    let texts: Vec<String> = parsed(&docx).text.split("\n\n").map(str::to_owned).collect();
+    let (ra, rb) = (format!("{stem}-anh/{a}-a.jpg"), format!("{stem}-anh/{b}-b.png"));
+    assert_eq!(texts, vec!["s0", "t0", "s1", "t1", &ra, &ra, "s2", "t2", &rb, &rb]);
+    f.finish();
+}
+
+#[test]
+fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behind() {
+    let f = fixture("img-gone", None, three());
+    insert_asset(&f.open, f.first, "here.jpg", None, 1);
+    insert_asset(&f.open, f.first, "gone.jpg", None, 2);
+    put_asset_file(&f.open, "here.jpg", b"x");
+    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, &f.out)
+        .expect_err("thieu tep anh phai la loi");
+    assert_eq!(err.code(), "export.image_file_missing");
+    assert!(format!("{err:?}").contains("gone.jpg") && format!("{err:?}").contains("chapter_ord"));
+    assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0);
+    f.finish();
+}
+
+#[test]
+fn an_existing_image_folder_pushes_both_names_to_the_next_free_stem_and_is_never_touched() {
+    let f = fixture("img-clash", None, three());
+    insert_asset(&f.open, f.first, "a.jpg", None, 1);
+    put_asset_file(&f.open, "a.jpg", b"AAA");
+    let taken = f.out.join("Tac Pham-hai-cot-anh");
+    fs::create_dir_all(&taken).expect("tao thu muc co san");
+    fs::write(taken.join("keep.txt"), b"keep").expect("tep co san");
+    let file = export_with(&f, ImageMode::File);
+
+    assert!(file.path.ends_with("Tac Pham-hai-cot (2).docx"), "{}", file.path);
+    assert!(f.out.join("Tac Pham-hai-cot (2)-anh").is_dir());
+    assert_eq!(fs::read_dir(&taken).map(Iterator::count).unwrap_or(0), 1);
+    assert!(!f.out.join("Tac Pham-hai-cot.docx").exists());
+    f.finish();
+}
+
+#[test]
+fn an_image_anchored_on_an_omitted_or_retired_segment_moves_to_the_row_before_it() {
+    let mut cut = seg("cat", "cat");
+    cut.omitted = true;
+    let mut gone = seg("huu", "huu");
+    gone.retired = true;
+    let f = fixture("img-anchor", None, vec![seg("s0", "t0"), cut, gone, seg("s3", "t3")]);
+    insert_asset(&f.open, f.first, "a.jpg", Some("https://x.test/a"), 1);
+    insert_asset(&f.open, f.first, "b.jpg", Some("https://x.test/b"), 2);
+    let file = export_with(&f, ImageMode::Link);
+
+    let texts: Vec<String> = parsed(Path::new(&file.path)).text.split("\n\n").map(str::to_owned).collect();
+    assert_eq!(texts, vec!["s0", "t0", "https://x.test/a", "https://x.test/a", "https://x.test/b", "https://x.test/b", "s3", "t3"]);
+    f.finish();
+}
+
+#[test]
+fn file_mode_without_any_image_creates_no_image_folder() {
+    let f = fixture("img-none", None, three());
+    let file = export_with(&f, ImageMode::File);
+    assert_eq!((file.image_count, file.images_dir), (0, None));
+    assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 1);
     f.finish();
 }

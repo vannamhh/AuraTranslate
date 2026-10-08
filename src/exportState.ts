@@ -9,7 +9,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
 import { exportChooseFolder, exportDocxTwoColumn, exportScopeSummary } from './config/export'
-import type { ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
+import type { ExportImageMode, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
 import type { IpcError } from './i18n'
 
 export type ExportFormat = 'docx_two_column'
@@ -33,6 +33,7 @@ const folderError = ref<IpcError | null>(null)
 const folderUnavailable = ref(false)
 const choosingFolder = ref(false)
 const format = ref<ExportFormat>('docx_two_column')
+const imageMode = ref<ExportImageMode>('file')
 const runStatus = ref<ExportRunStatus>('idle')
 const runResult = ref<ExportedFile | null>(null)
 const runError = ref<IpcError | null>(null)
@@ -53,6 +54,7 @@ export const exportFolderError: DeepReadonly<Ref<IpcError | null>> = readonly(fo
 export const exportFolderUnavailable: DeepReadonly<Ref<boolean>> = readonly(folderUnavailable)
 export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosingFolder)
 export const exportFormat: DeepReadonly<Ref<ExportFormat>> = readonly(format)
+export const exportImageMode: DeepReadonly<Ref<ExportImageMode>> = readonly(imageMode)
 export const exportRunStatus: DeepReadonly<Ref<ExportRunStatus>> = readonly(runStatus)
 export const exportRunResult: DeepReadonly<Ref<ExportedFile | null>> = readonly(runResult)
 export const exportRunError: DeepReadonly<Ref<IpcError | null>> = readonly(runError)
@@ -61,6 +63,12 @@ function clearRun(): void {
   runStatus.value = 'idle'
   runResult.value = null
   runError.value = null
+}
+
+/** Link mode needs at least one image in scope that carries a source URL. */
+export function exportLinkUsable(): boolean {
+  const c = counts.value
+  return c !== null && c.image_count - c.missing_link_images.length > 0
 }
 
 /** The scope a later export command sends to Rust; `null` while nothing is selected. */
@@ -90,6 +98,7 @@ async function refreshCounts(): Promise<void> {
     counts.value = result.counts
     countsError.value = null
     countsStatus.value = 'loaded'
+    if (!exportLinkUsable()) imageMode.value = 'file'
     return
   }
   counts.value = null
@@ -132,6 +141,12 @@ export async function openExport(): Promise<void> {
 
 export function setExportFormat(next: ExportFormat): void {
   format.value = next
+  clearRun()
+}
+
+export function setExportImageMode(next: ExportImageMode): void {
+  if (next === 'link' && !exportLinkUsable()) return
+  imageMode.value = next
   clearRun()
 }
 
@@ -186,7 +201,7 @@ export async function runExport(): Promise<void> {
   runStatus.value = 'running'
   runResult.value = null
   runError.value = null
-  const result = await exportDocxTwoColumn(scope, target)
+  const result = await exportDocxTwoColumn(scope, imageMode.value, target)
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'
@@ -213,5 +228,6 @@ export function resetExport(): void {
   folderUnavailable.value = false
   choosingFolder.value = false
   format.value = 'docx_two_column'
+  imageMode.value = 'file'
   clearRun()
 }

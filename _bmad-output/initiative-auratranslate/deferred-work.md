@@ -12948,3 +12948,7 @@ chính nó.
   summary: `e2e/specs/hanviet-segmenter-webkit.e2e.mjs` case ② is red on Ice's Mac: both syllables of the fixture word read `·` (no Hán Việt reading), so the U+2060 clause is never reached; cases ① and ③ are green.
   evidence: same red on `adb934f` (twice) and on `9d5e27c` (pre-Epic 8, fresh worktree) with WebKit 605.1.15, macOS 15.8.1, 2026-10-08; CI nightly `37539268051` at `9d5e27c` green. Ruled out: Epic 8 commits (none touch the Hán Việt path), user config (wdio gives a temp `$APPDATA`), dictionary files (sha256 equal `dict-manifest.toml`). Cause not found; not an Epic 8 regression.
   Chủ: Ice.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-chon-cach-xuat-hinh-anh-plan.md`
+  summary: Since 8.5, `.docx` hai cột has image rows (link or `<stem>-anh/` path, same text in both cells), yet the format screen still says it is re-importable; re-import must recognise these rows instead of reading them as source/target sentences.
+  evidence: maybe-false — the Epic 8 re-import path (8.8 shape gate, 8.9) is not built; settled by an 8.9 case that re-imports an 8.5 export containing both image-row kinds and asserts no segment is created or changed from them.
+  Chủ: Story 8.9.

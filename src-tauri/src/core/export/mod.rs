@@ -15,11 +15,15 @@
 //! tròn "tự sinh rồi tự đọc lại".
 
 mod docx_table;
+mod image_files;
+mod images;
 mod new_file;
 mod scope;
 mod table_rows;
 
-pub use docx_table::{DocxWriteError, write_two_column_docx};
+pub use docx_table::{DocxWriteError, ImageReference, write_two_column_docx};
+pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_docx_with_images};
+pub use images::{ImageMode, ImageScan, MissingLinkImage, scan_images};
 pub use new_file::{safe_stem, write_new_file};
 pub use scope::{ExportScope, ScopeCounts, ScopeError, count_scope, resolve_chapter_ids};
-pub use table_rows::{ChapterTable, ExportCell, ExportRow, load_chapter_tables};
+pub use table_rows::{ChapterTable, ExportCell, ExportImage, ExportRow, LoadedTables, load_chapter_tables};

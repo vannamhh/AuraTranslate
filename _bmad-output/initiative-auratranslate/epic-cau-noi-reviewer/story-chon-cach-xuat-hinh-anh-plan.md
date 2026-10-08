@@ -3,14 +3,14 @@ title: 'Chọn cách xuất hình ảnh'
 type: 'feature'
 ticket: '5'
 created: '2026-10-08'
-status: 'ready-for-dev'
-baseline_revision: ''
+status: 'built'
+baseline_revision: '9b86d5cea4fc402da23db06aebbdc29117cb7e43'
 route: 'full'
 route_source: 'auto'
 risk: 'low'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: []
 ---
@@ -113,9 +113,28 @@ context: []
 
 ## Implementation Notes
 
+- Hai tệp Rust mới: `core/export/images.rs` (quét, `ImageMode`) và `core/export/image_files.rs` (chép ảnh, stem chung cho `.docx` và `-anh/`). `src-tauri/src` vì thế đúng 121 tệp, chạm trần của sàn 97: tệp `.rs` tiếp theo phải nâng sàn ở các `*_boundary.rs`.
+- `ExportRow` thành enum `Text | Image`. `load_chapter_tables` nhận `ImageMode` và đặt ảnh ngay sau hàng neo, neo tính bằng `resolve_chapter_images(false, false)`, nên neo luôn nằm trong tập `segments_in_translation`.
+- Tên ảnh chép ra là `<asset_id>-<file_name>`. Mọi tệp nguồn được kiểm trước khi tạo thư mục, nên khi thiếu ảnh thì lỗi có tên và không để lại gì. Lỗi xảy ra sau khi đã tạo thư mục thì xoá thư mục đó.
+- `export_scope_summary` trả thêm `image_count` và `missing_link_images` (Chương: `chapter_ord` + title, thứ tự ảnh, alt). Chương không có hàng `asset` thì không nạp segment.
+- Lỗi `export.image_file_missing` mang `chapter_ord` + `file_name`, không mang khoá chính.
+- Webview: `imageMode` mặc định `file`, nhớ như `format`; khi phạm vi không còn ảnh nào có link thì quay về `file`. Không thêm tệp nào trong `src/`.
+- Đối chứng đỏ: gỡ phép lọc `source_url.is_none()` trong `scan_images` ⇒ 3 ca `export_contract` đỏ, có ca "thiếu một phần".
+- Chưa kiểm trong app thật (WebKit, mở tệp `.docx` bằng Word/Pages): đó là phần nợ real-app của Epic 8.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Lượt 1 (quick): high 0 · medium 2 · low 1 · false 4 · maybe-false 1.
+- false · reject — `export_contract` ca neo câu về hưu/cắt bỏ "không phụ thuộc neo": fixture neo ord 2 (bị cắt bỏ) và ord 3 (về hưu), `resolve_chapter_images` bỏ ảnh thì `image_count` tụt ⇒ assert đỏ.
+- medium · patch — lỗi `export.image_file_missing` nêu `chapter_id` (khoá chính) làm "Chương N": đổi tham số thành `chapter_ord`.
+- low · patch (cùng gốc với dòng trên) — `missingLabel` lấy `chapter_id` làm `ord` khi không tìm thấy Chương, kèm ép kiểu `as ChapterRow`: thêm `chapter_ord` vào `MissingLinkImage`, nhãn chỉ đọc payload.
+- medium · patch — `scan_images` nạp toàn bộ segment của mọi Chương trong phạm vi ở mỗi lần đổi phạm vi kể cả Chương không ảnh: chưa đo, lấy bậc cao hơn; bỏ qua Chương không có hàng `asset`. Ba lượt đọc tách rời: reject, không chỉ ra được lúc nào lệch.
+- false · reject — `rows.extend(rest)` xếp ảnh lạc cuối Chương: với cờ `(false,false)` neo luôn rơi vào câu không về hưu, không bị cắt bỏ, tức tập `segments_in_translation`, nên `rest` luôn rỗng.
+- false · reject — nhánh thử stem kế của `write_docx_with_images` chưa có test: thư mục ảnh vừa `create_dir` nên tệp ảnh không thể trùng; tên chép có tiền tố `asset.id`; chỉ một cuộc đua mới tới được nhánh đó.
+- false · reject — `imageMode` kẹt ở `link` khi đếm lỗi: `canRun` đòi `exportCountsStatus === 'loaded'` (`ExportOverlay.vue:50`).
+- maybe-false · defer (`Chủ: Story 8.9`) — dòng ảnh trong `.docx` hai cột "nhập lại được": đường nhập lại chưa dựng.
 
 ## Verification
 
