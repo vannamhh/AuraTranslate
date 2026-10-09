@@ -13004,3 +13004,7 @@ chính nó.
   summary: Chưa ai mở Review Mode trong ứng dụng thật (WKWebView): focus vào panel trái lúc mở và về panel cũ lúc đóng, dock Workspace giữ nguyên cuộn và kích thước sau khi đóng.
   evidence: vitest chạy dockview dưới happy-dom, không tính layout và không có focus thật; `visibility: hidden` của dock Workspace chỉ đo được bằng mắt.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-diff-boi-mau-an-van-ban-goc-plan.md`
+  summary: Chưa ai xem Review Mode có tô diff trong ứng dụng thật (WKWebView): chữ tô `diff-*` đọc được ở hai theme, cuộn theo cặp khớp trên Chương dài, Alt+↓/Alt+↑ đưa khác biệt vào tầm nhìn.
+  evidence: vitest dưới happy-dom không tính layout; tương phản nền 1,12–1,29:1 nên gạch chân/gạch ngang chỉ đánh giá được bằng mắt.
+  Chủ: Epic 8.

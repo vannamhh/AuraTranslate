@@ -920,6 +920,10 @@ export type CommandDeps = {
   openReviewMode?: () => void
   /** Leaves Review Mode (or dismisses its notice). Handler of `review.close`. */
   closeReviewMode?: () => void
+  /** Jumps to the next differing pair in Review Mode. Handler of `review.diff_next`. */
+  reviewDiffNext?: () => void
+  /** Jumps to the previous differing pair in Review Mode. Handler of `review.diff_prev`. */
+  reviewDiffPrev?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -3393,6 +3397,24 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.closeReviewMode === undefined) return portMissing('review.close', 'closeReviewMode')
       deps.closeReviewMode()
+    },
+  })
+  target.register({
+    id: 'review.diff_next',
+    labelKey: 'command.review.diff_next',
+    keys: ['Alt+ArrowDown'],
+    run: () => {
+      if (deps.reviewDiffNext === undefined) return portMissing('review.diff_next', 'reviewDiffNext')
+      deps.reviewDiffNext()
+    },
+  })
+  target.register({
+    id: 'review.diff_prev',
+    labelKey: 'command.review.diff_prev',
+    keys: ['Alt+ArrowUp'],
+    run: () => {
+      if (deps.reviewDiffPrev === undefined) return portMissing('review.diff_prev', 'reviewDiffPrev')
+      deps.reviewDiffPrev()
     },
   })
   target.register({

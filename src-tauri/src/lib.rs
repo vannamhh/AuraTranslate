@@ -1113,6 +1113,7 @@ pub fn run() {
             crate::commands::export::wire::reviewer_import_confirm,
             crate::commands::export::wire::reviewer_import_cancel,
             crate::commands::export::wire::alignment_open,
+            crate::commands::export::wire::review_diff,
             crate::commands::export::wire::alignment_join,
             crate::commands::export::wire::alignment_skip,
             crate::commands::export::wire::alignment_unjoin,

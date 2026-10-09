@@ -571,6 +571,41 @@ pub fn alignment_open(open: Option<&OpenWork>, chapter_id: i64) -> Result<Chapte
     read_alignment_wire(open, chapter_id)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewDiffPairWire {
+    pub group_id: i64,
+    pub decided_by: String,
+    pub segment_ids: Vec<i64>,
+    pub row_ids: Vec<i64>,
+    pub spans: Vec<crate::core::matching::DiffSpan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewDiffWire {
+    pub chapter_id: i64,
+    pub pairs: Vec<ReviewDiffPairWire>,
+}
+
+/// Every alignment group of the reviewer copy with my text diffed to the reviewer's, in translation order.
+///
+/// # Errors
+/// As [`alignment_open`].
+pub fn review_diff(open: Option<&OpenWork>, chapter_id: i64) -> Result<ReviewDiffWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let pairs = crate::core::export::review_diff(&open.store, chapter_id)
+        .map_err(alignment_error)?
+        .into_iter()
+        .map(|d| ReviewDiffPairWire {
+            group_id: d.group_id,
+            decided_by: d.decided_by.as_str().to_owned(),
+            segment_ids: d.segment_ids,
+            row_ids: d.row_ids,
+            spans: d.spans,
+        })
+        .collect();
+    Ok(ReviewDiffWire { chapter_id, pairs })
+}
+
 /// Joins at least one segment and one reviewer row into a user group and returns the new state.
 ///
 /// # Errors
@@ -785,6 +820,12 @@ pub mod wire {
     #[tauri::command]
     pub fn alignment_open(app: tauri::AppHandle, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
         with_open(&app, |open| super::alignment_open(open, chapter_id))
+    }
+
+    /// Vỏ IPC của [`super::review_diff`].
+    #[tauri::command]
+    pub fn review_diff(app: tauri::AppHandle, chapter_id: i64) -> Result<super::ReviewDiffWire, IpcError> {
+        with_open(&app, |open| super::review_diff(open, chapter_id))
     }
 
     /// Vỏ IPC của [`super::alignment_join`].

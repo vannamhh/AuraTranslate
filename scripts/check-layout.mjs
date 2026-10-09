@@ -102,7 +102,7 @@ function walk(dir, out = [], seen = new Set()) {
  * Sàn quần thể — cổng nào đọc `src/**` thì phải xét lại sàn khi cây lớn thêm (quyết định
  * #7, Ice). `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const FILE_FLOOR = 119
+const FILE_FLOOR = 128
 
 let files = []
 try {

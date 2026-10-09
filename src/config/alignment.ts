@@ -38,6 +38,22 @@ export type ChapterAlignment = {
   is_resolved: boolean
 }
 
+export type ReviewDiffSpan = { kind: 'equal' | 'delete' | 'insert'; text: string }
+
+export type ReviewDiffPair = {
+  group_id: number
+  decided_by: 'machine' | 'user'
+  segment_ids: number[]
+  row_ids: number[]
+  spans: ReviewDiffSpan[]
+}
+
+export type ReviewDiff = { chapter_id: number; pairs: ReviewDiffPair[] }
+
+export type ReviewDiffResult =
+  | { diff: ReviewDiff; error: null }
+  | { diff: null; error: IpcError | null }
+
 export type AlignmentResult =
   | { alignment: ChapterAlignment; error: null }
   | { alignment: null; error: IpcError | null }
@@ -46,6 +62,7 @@ const CMD_OPEN = 'alignment_open'
 const CMD_JOIN = 'alignment_join'
 const CMD_SKIP = 'alignment_skip'
 const CMD_UNJOIN = 'alignment_unjoin'
+const CMD_DIFF = 'review_diff'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -135,6 +152,35 @@ function isAlignment(value: unknown): value is ChapterAlignment {
   )
 }
 
+function isDiffSpan(value: unknown): value is ReviewDiffSpan {
+  return (
+    isObject(value) &&
+    (value.kind === 'equal' || value.kind === 'delete' || value.kind === 'insert') &&
+    typeof value.text === 'string'
+  )
+}
+
+function isDiffPair(value: unknown): value is ReviewDiffPair {
+  return (
+    isObject(value) &&
+    typeof value.group_id === 'number' &&
+    (value.decided_by === 'machine' || value.decided_by === 'user') &&
+    isIdList(value.segment_ids) &&
+    isIdList(value.row_ids) &&
+    Array.isArray(value.spans) &&
+    value.spans.every(isDiffSpan)
+  )
+}
+
+function isReviewDiff(value: unknown): value is ReviewDiff {
+  return (
+    isObject(value) &&
+    typeof value.chapter_id === 'number' &&
+    Array.isArray(value.pairs) &&
+    value.pairs.every(isDiffPair)
+  )
+}
+
 async function call(command: string, args: Record<string, unknown>): Promise<AlignmentResult> {
   try {
     const wire = await invoke<unknown>(command, args)
@@ -170,4 +216,18 @@ export async function alignmentSkip(
 /** Dissolves a group; its members return to the list. Never throws. */
 export async function alignmentUnjoin(chapterId: number, groupId: number): Promise<AlignmentResult> {
   return call(CMD_UNJOIN, { chapterId, groupId })
+}
+
+/** Word-level diff of every aligned pair (mine = old, reviewer = new), computed in Rust. Never throws. */
+export async function reviewDiff(chapterId: number): Promise<ReviewDiffResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_DIFF, { chapterId })
+    if (!isReviewDiff(wire)) {
+      console.error(`[alignment] \`${CMD_DIFF}\` returned an unexpected shape: ${String(wire)}`)
+      return { diff: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { diff: wire, error: null }
+  } catch (err) {
+    return { diff: null, error: failureOf(err, CMD_DIFF) }
+  }
 }

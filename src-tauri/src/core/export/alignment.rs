@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
-use crate::core::matching::{MatchLang, common_subsequence, similarity_percent};
+use crate::core::matching::{DiffSpan, MatchLang, common_subsequence, diff_spans, similarity_percent};
 use crate::core::segment::omit::segments_in_translation;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
@@ -498,6 +498,69 @@ pub fn read_alignment(store: &Store, chapter_id: i64) -> Result<ChapterAlignment
         unmatched_segment_ids,
         is_resolved,
     })
+}
+
+/// One group with my text diffed to the reviewer's: `Delete` is what only I have, `Insert` what only
+/// the reviewer has.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupDiff {
+    pub group_id: i64,
+    pub decided_by: DecidedBy,
+    pub segment_ids: Vec<i64>,
+    pub row_ids: Vec<i64>,
+    pub spans: Vec<DiffSpan>,
+}
+
+/// Diffs every group of the reviewer copy of `chapter_id`, in the order of the translation (groups
+/// with no segment last, in row order). Writes nothing but the machine grouping a copy still waits for.
+pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, AlignmentError> {
+    let alignment = read_alignment(store, chapter_id)?;
+    let kind = alignment.file_kind;
+    let units = store.read(move |conn| {
+        let segments = select_chapter_segments(conn, chapter_id)?;
+        match kind {
+            ReviewFileKind::Docx => Ok(docx_units(&segments_in_translation(&segments))),
+            ReviewFileKind::Markdown => markdown_units(conn, chapter_id, &segments),
+        }
+    })?;
+    let row_index: HashMap<i64, usize> = alignment.rows.iter().enumerate().map(|(i, r)| (r.id, i)).collect();
+
+    let mut diffs: Vec<((usize, usize), GroupDiff)> = alignment
+        .groups
+        .iter()
+        .map(|group| {
+            let mine: Vec<usize> = units
+                .iter()
+                .enumerate()
+                .filter(|(_, unit)| unit.segment_ids.iter().any(|id| group.segment_ids.contains(id)))
+                .map(|(i, _)| i)
+                .collect();
+            let mine_text = mine.iter().map(|&i| units[i].target.as_str()).collect::<Vec<_>>().join(" ");
+            let mut row_ids = group.row_ids.clone();
+            row_ids.sort_by_key(|id| row_index.get(id).copied());
+            let theirs_text = row_ids
+                .iter()
+                .filter_map(|id| row_index.get(id).map(|&i| alignment.rows[i].target_text.as_str()))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let key = match (mine.first(), row_ids.first().and_then(|id| row_index.get(id))) {
+                (Some(&unit), _) => (0, unit),
+                (None, row) => (1, row.copied().unwrap_or(usize::MAX)),
+            };
+            (
+                key,
+                GroupDiff {
+                    group_id: group.id,
+                    decided_by: group.decided_by,
+                    segment_ids: group.segment_ids.clone(),
+                    row_ids,
+                    spans: diff_spans(&mine_text, &theirs_text, MatchLang::En),
+                },
+            )
+        })
+        .collect();
+    diffs.sort_by_key(|(key, _)| *key);
+    Ok(diffs.into_iter().map(|(_, diff)| diff).collect())
 }
 
 /// Id of the live copy of `chapter_id`, or the typed reason there is none.

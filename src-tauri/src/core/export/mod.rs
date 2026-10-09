@@ -29,9 +29,9 @@ mod table_rows;
 mod text_export;
 
 pub use alignment::{
-    AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow, AlignmentSegment, ChapterAlignment, DecidedBy,
+    AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow, AlignmentSegment, ChapterAlignment, DecidedBy, GroupDiff,
     MIN_PAIR_SIMILARITY, align_chapter, delete_alignment_of_chapter, join, move_members_of_retired, read_alignment,
-    skip, unjoin,
+    review_diff, skip, unjoin,
 };
 pub use attribution::{Attribution, ChapterOrigin, attribution_lines};
 pub use block_paragraphs::{

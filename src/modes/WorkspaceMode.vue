@@ -110,6 +110,8 @@ const reviewNotice = computed<string | null>(() => {
       return 'review.notice.stale'
     case 'error':
       return 'review.notice.error'
+    case 'diff_failed':
+      return 'review.diff_failed'
     default:
       return null
   }

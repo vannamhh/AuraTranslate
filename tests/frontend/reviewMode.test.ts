@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { defineComponent, h, KeepAlive, nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
-import type { ChapterAlignment } from '../../src/config/alignment'
+import type { ChapterAlignment, ReviewDiff, ReviewDiffSpan } from '../../src/config/alignment'
 import GridPanel from '../../src/panels/GridPanel.vue'
 import WorkspaceMode from '../../src/modes/WorkspaceMode.vue'
 import { applyPreset, isDockSuspended, panelRing, togglePanel } from '../../src/layout/dockController'
@@ -18,10 +18,12 @@ import * as state from '../../src/reviewModeState'
 import { t } from '../../src/i18n'
 
 const openMock = vi.fn()
+const diffMock = vi.fn()
 const putMock = vi.fn(() => Promise.resolve(null))
 
 vi.mock('../../src/config/alignment', () => ({
   alignmentOpen: (...args: unknown[]) => openMock(...args),
+  reviewDiff: (...args: unknown[]) => diffMock(...args),
   alignmentJoin: vi.fn(),
   alignmentSkip: vi.fn(),
   alignmentUnjoin: vi.fn(),
@@ -55,6 +57,26 @@ function alignment(over: Partial<ChapterAlignment> = {}): ChapterAlignment {
   }
 }
 
+function pair(groupId: number, segmentIds: number[], rowIds: number[], spans: ReviewDiffSpan[]) {
+  return { group_id: groupId, decided_by: 'machine' as const, segment_ids: segmentIds, row_ids: rowIds, spans }
+}
+
+function diffOf(...pairs: ReturnType<typeof pair>[]): { diff: ReviewDiff; error: null } {
+  return { diff: { chapter_id: 7, pairs }, error: null }
+}
+
+const eq = (text: string): ReviewDiffSpan => ({ kind: 'equal', text })
+const del = (text: string): ReviewDiffSpan => ({ kind: 'delete', text })
+const ins = (text: string): ReviewDiffSpan => ({ kind: 'insert', text })
+
+function defaultDiff() {
+  return diffOf(
+    pair(1, [10], [100], [eq('dịch '), del('một'), ins('sửa một')]),
+    pair(2, [11], [101], [eq('dịch hai')]),
+    pair(3, [12], [102], []),
+  )
+}
+
 const ok = (a: ChapterAlignment) => ({ alignment: a, error: null })
 const failure = (code: string) => ({
   alignment: null,
@@ -72,6 +94,8 @@ async function settle(): Promise<void> {
 
 beforeEach(() => {
   openMock.mockReset()
+  diffMock.mockReset()
+  diffMock.mockResolvedValue(defaultDiff())
   putMock.mockClear()
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 })
@@ -179,6 +203,32 @@ describe('commands', () => {
   })
 })
 
+describe('diff commands', () => {
+  it('review.diff_next and review.diff_prev are registered, rebindable and reach their handlers', async () => {
+    vi.resetModules()
+    const commands = await import('../../src/commands')
+    const reviewDiffNext = vi.fn()
+    const reviewDiffPrev = vi.fn()
+    commands.installCommands({ reviewDiffNext, reviewDiffPrev } as never)
+    const specs = commands.commandRegistry.list()
+    expect(specs.find((s) => s.id === 'review.diff_next')?.keys).toEqual(['Alt+ArrowDown'])
+    expect(specs.find((s) => s.id === 'review.diff_prev')?.keys).toEqual(['Alt+ArrowUp'])
+    const conflicts = specs.filter((s) => s.keys?.some((k) => k === 'Alt+ArrowDown' || k === 'Alt+ArrowUp'))
+    expect(conflicts.map((s) => s.id).sort()).toEqual(['review.diff_next', 'review.diff_prev'])
+    commands.dispatch('review.diff_next')
+    commands.dispatch('review.diff_prev')
+    expect(reviewDiffNext).toHaveBeenCalledTimes(1)
+    expect(reviewDiffPrev).toHaveBeenCalledTimes(1)
+  })
+
+  it('main wiring spreads both handlers', async () => {
+    const { reviewModeCommandDeps } = await import('../../src/reviewModeCommandDeps')
+    const deps = reviewModeCommandDeps()
+    expect(typeof deps.reviewDiffNext).toBe('function')
+    expect(typeof deps.reviewDiffPrev).toBe('function')
+  })
+})
+
 describe('mounted Review Mode', () => {
   let wrapper: VueWrapper | null = null
 
@@ -213,8 +263,8 @@ describe('mounted Review Mode', () => {
       t('review.untranslated'),
     ])
     expect(copy.findAll('[data-review-copy-item]').map((e) => e.text())).toEqual([
-      'sửa một',
-      `${t('review.row_caption')}chú thích`,
+      'dịch sửa một',
+      `${t('review.row_caption')}dịch hai`,
       t('review.row_empty'),
     ])
     expect(w.find('[data-review-dock] input, [data-review-dock] textarea, [data-review-dock] [contenteditable]').exists()).toBe(false)
@@ -402,5 +452,251 @@ describe('mounted Review Mode', () => {
     await settle()
     window.dispatchEvent(new Event('beforeunload'))
     for (const call of putMock.mock.calls) expect(String((call as unknown[])[2])).not.toContain('review')
+  })
+})
+
+describe('diff rendering', () => {
+  let wrapper: VueWrapper | null = null
+
+  async function openWith(diff: ReturnType<typeof diffOf>, over: Partial<ChapterAlignment> = {}): Promise<VueWrapper> {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    setMode('workspace')
+    wrapper = mount(WorkspaceMode, { attachTo: host })
+    await settle()
+    openMock.mockResolvedValue(ok(alignment(over)))
+    diffMock.mockResolvedValue(diff)
+    await state.openReviewMode(7)
+    await settle()
+    return wrapper
+  }
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    document.body.innerHTML = ''
+  })
+
+  it('changed word: left marks the old word as del only, right marks the new word as ins only', async () => {
+    const w = await openWith(defaultDiff())
+    const left = w.find('[data-review-mine]')
+    const right = w.find('[data-review-copy]')
+    expect(left.findAll('del').map((e) => e.text())).toEqual(['một'])
+    expect(left.findAll('ins')).toHaveLength(0)
+    expect(right.findAll('ins').map((e) => e.text())).toEqual(['sửa một'])
+    expect(right.findAll('del')).toHaveLength(0)
+    expect(left.findAll('[data-review-mine-item]')[1]!.findAll('ins, del')).toHaveLength(0)
+  })
+
+  it('identical pair carries no ins or del on either side', async () => {
+    const w = await openWith(diffOf(pair(2, [11], [101], [eq('giống hệt')])))
+    expect(w.find('[data-review-dock]').findAll('ins, del')).toHaveLength(0)
+    expect(w.find('[data-review-mine]').text()).toBe('giống hệt')
+    expect(w.find('[data-review-copy]').text()).toContain('giống hệt')
+  })
+
+  it('ungrouped items are listed plain and labelled, never marked', async () => {
+    const w = await openWith(diffOf(pair(1, [10], [100], [eq('a')])), {
+      unmatched_segment_ids: [11],
+      unmatched_row_ids: [101],
+    })
+    const left = w.findAll('[data-review-mine] [data-review-unmatched]')
+    const right = w.findAll('[data-review-copy] [data-review-unmatched]')
+    expect(left.map((e) => e.text())).toEqual([`${t('review.unmatched')}dịch hai`])
+    expect(right.map((e) => e.text())).toEqual([`${t('review.unmatched')}${t('review.row_caption')}chú thích`])
+    expect(w.find('[data-review-dock]').findAll('ins, del')).toHaveLength(0)
+  })
+
+  it('unmatched items sit between the neighbouring pairs, not at the end', async () => {
+    const w = await openWith(
+      diffOf(pair(1, [10], [100], [eq('a')]), pair(3, [12], [102], [eq('c')])),
+      { unmatched_segment_ids: [11], unmatched_row_ids: [101] },
+    )
+    const order = (sel: string) =>
+      w.findAll(sel).map((e) => (e.attributes('data-review-pair') ?? 'u'))
+    expect(order('[data-review-mine-item]')).toEqual(['g1', 'u', 'g3'])
+    expect(order('[data-review-copy-item]')).toEqual(['g1', 'u', 'g3'])
+  })
+
+  it('pairs follow the group ids from the diff, not the array position of segments or rows', async () => {
+    const w = await openWith(
+      diffOf(pair(9, [12], [102], [eq('chín')]), pair(4, [10], [100], [eq('bốn')])),
+    )
+    const keys = w.findAll('[data-review-mine-item]').map((e) => e.attributes('data-review-pair'))
+    expect(keys).toEqual(['g9', 'g4'])
+    const rightKeys = w.findAll('[data-review-copy-item]').map((e) => e.attributes('data-review-pair'))
+    expect(rightKeys).toEqual(keys)
+  })
+
+  it('no source text reaches the DOM', async () => {
+    const w = await openWith(defaultDiff())
+    const html = w.find('[data-review-dock]').html()
+    for (const seg of alignment().segments) expect(html).not.toContain(seg.source_text)
+    for (const row of alignment().rows) if (row.source_text !== null) expect(html).not.toContain(row.source_text)
+  })
+
+  it('a failing diff is its own notice and shows neither panel nor colour', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    setMode('workspace')
+    wrapper = mount(WorkspaceMode, { attachTo: host })
+    await settle()
+    openMock.mockResolvedValue(ok(alignment()))
+    diffMock.mockResolvedValue({
+      diff: null,
+      error: { code: 'store.read_failed', message_key: 'err.unknown', params: {}, retryable: false },
+    })
+    await state.openReviewMode(7)
+    await settle()
+    expect(state.reviewModeStatus.value).toBe('diff_failed')
+    expect(wrapper.find('[data-review-notice]').text()).toContain(t('review.diff_failed'))
+    expect(wrapper.find('[data-review-dock]').exists()).toBe(false)
+    expect(isDockSuspended()).toBe(false)
+  })
+
+  it('the panels and the shared span view carry no colour literal', () => {
+    for (const file of ['ReviewMinePanel', 'ReviewCopyPanel', 'ReviewSpans']) {
+      const code = readFileSync(`src/panels/${file}.vue`, 'utf8')
+      expect(code, file).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/)
+    }
+    const spans = readFileSync('src/panels/ReviewSpans.vue', 'utf8')
+    expect(spans).toContain('--color-diff-add-bg')
+    expect(spans).toContain('--color-diff-del-bg')
+    expect(spans).toContain('text-decoration: underline')
+    expect(spans).toContain('text-decoration: line-through')
+  })
+})
+
+describe('diff jumps and paired scrolling', () => {
+  let wrapper: VueWrapper | null = null
+
+  function threeChanges() {
+    return diffOf(
+      pair(1, [10], [100], [eq('a '), del('x'), ins('y')]),
+      pair(2, [11], [101], [eq('same')]),
+      pair(3, [12], [102], [del('p'), ins('q')]),
+    )
+  }
+
+  async function open(diff = threeChanges()): Promise<VueWrapper> {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    setMode('workspace')
+    wrapper = mount(WorkspaceMode, { attachTo: host })
+    await settle()
+    openMock.mockResolvedValue(ok(alignment()))
+    diffMock.mockResolvedValue(diff)
+    await state.openReviewMode(7)
+    await settle()
+    return wrapper
+  }
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    document.body.innerHTML = ''
+  })
+
+  it('next walks the changed pairs only, stops with a text notice at the last, never wraps', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-diff-status]').text()).toBe(t('review.diff_position', { index: '1', count: '2' }))
+    expect(w.findAll('[data-review-current]').map((e) => e.attributes('data-review-pair'))).toEqual(['g1', 'g1'])
+    state.reviewDiffNext()
+    await settle()
+    expect(w.findAll('[data-review-current]').map((e) => e.attributes('data-review-pair'))).toEqual(['g3', 'g3'])
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-diff-status]').text()).toBe(t('review.diff_last', { count: '2' }))
+    expect(w.findAll('[data-review-current]').map((e) => e.attributes('data-review-pair'))).toEqual(['g3', 'g3'])
+  })
+
+  it('prev stops at the first with a text notice', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    state.reviewDiffPrev()
+    await settle()
+    expect(w.find('[data-review-diff-status]').text()).toBe(t('review.diff_first', { count: '2' }))
+    expect(w.findAll('[data-review-current]').map((e) => e.attributes('data-review-pair'))).toEqual(['g1', 'g1'])
+  })
+
+  it('with nothing different the jump says so', async () => {
+    const w = await open(diffOf(pair(1, [10], [100], [eq('a')])))
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-diff-status]').text()).toBe(t('review.diff_none'))
+    expect(w.findAll('[data-review-current]')).toHaveLength(0)
+  })
+
+  it('a jump with focus on body lands focus in the left panel; it does nothing while Review is closed', async () => {
+    const w = await open()
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    expect(document.activeElement).toBe(document.body)
+    state.reviewDiffNext()
+    await settle()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(w.find('[data-review-mine]').element.closest('section')?.contains(document.activeElement)).toBe(true)
+
+    await state.closeReviewMode()
+    await settle()
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-dock]').exists()).toBe(false)
+    expect(state.reviewModeDiffMessage.value).toBeNull()
+  })
+
+  it('a jump scrolls both panels so the pair sits at the top of each', async () => {
+    const w = await open()
+    const left = w.find('[data-review-mine]').element as HTMLElement
+    const right = w.find('[data-review-copy]').element as HTMLElement
+    const stub = (container: HTMLElement, height: number) => {
+      let top = 0
+      Object.defineProperty(container, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => (top = v) })
+      container.getBoundingClientRect = () => ({ top: 0, bottom: 300, left: 0, right: 0, width: 0, height: 300, x: 0, y: 0, toJSON: () => '' })
+      container.querySelectorAll<HTMLElement>('[data-review-pair]').forEach((el, i) => {
+        el.getBoundingClientRect = () =>
+          ({ top: i * height - top, bottom: (i + 1) * height - top, left: 0, right: 0, width: 0, height, x: 0, y: 0, toJSON: () => '' }) as DOMRect
+      })
+      return () => top
+    }
+    const leftTop = stub(left, 100)
+    const rightTop = stub(right, 40)
+    state.reviewDiffNext()
+    state.reviewDiffNext()
+    await settle()
+    expect(leftTop()).toBe(200)
+    expect(rightTop()).toBe(80)
+  })
+
+  it('scrolling one panel puts the other at the same pair, and the echo does not bounce back', async () => {
+    const w = await open()
+    const left = w.find('[data-review-mine]').element as HTMLElement
+    const right = w.find('[data-review-copy]').element as HTMLElement
+    const writes: string[] = []
+    const stub = (name: string, container: HTMLElement, height: number) => {
+      let top = 0
+      Object.defineProperty(container, 'scrollTop', {
+        configurable: true,
+        get: () => top,
+        set: (v: number) => {
+          writes.push(`${name}:${v}`)
+          top = v
+        },
+      })
+      container.getBoundingClientRect = () => ({ top: 0, bottom: 300, left: 0, right: 0, width: 0, height: 300, x: 0, y: 0, toJSON: () => '' })
+      container.querySelectorAll<HTMLElement>('[data-review-pair]').forEach((el, i) => {
+        el.getBoundingClientRect = () =>
+          ({ top: i * height - top, bottom: (i + 1) * height - top, left: 0, right: 0, width: 0, height, x: 0, y: 0, toJSON: () => '' }) as DOMRect
+      })
+    }
+    stub('left', left, 100)
+    stub('right', right, 40)
+    left.scrollTop = 150
+    left.dispatchEvent(new Event('scroll'))
+    expect(right.scrollTop).toBe(90)
+    right.dispatchEvent(new Event('scroll'))
+    expect(left.scrollTop).toBe(150)
+    expect(writes).toEqual(['left:150', 'right:90'])
   })
 })

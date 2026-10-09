@@ -3,6 +3,8 @@ import { onBeforeUnmount } from 'vue'
 import { DockviewVue } from 'dockview-vue'
 import type { DockviewReadyEvent, VueComponent } from 'dockview-vue'
 import { enterFocus, focusRegistry } from '../commands'
+import { t } from '../i18n'
+import { reviewModeDiffMessage } from '../reviewModeState'
 import PanelTab from '../panels/PanelTab.vue'
 import ReviewCopyPanel from '../panels/ReviewCopyPanel.vue'
 import ReviewMinePanel from '../panels/ReviewMinePanel.vue'
@@ -74,6 +76,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="dock-host" data-review-dock>
+    <p class="diff-status" role="status" data-review-diff-status>
+      <template v-if="reviewModeDiffMessage !== null">{{ t(reviewModeDiffMessage.key, reviewModeDiffMessage.params) }}</template>
+    </p>
     <DockviewVue
       class="dock dockview-theme-aura"
       :theme="auraTheme"
@@ -89,8 +94,19 @@ onBeforeUnmount(() => {
 .dock-host {
   display: flex;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
   min-width: 0;
+}
+
+.diff-status {
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  min-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .dock-host > :deep(.dock) {

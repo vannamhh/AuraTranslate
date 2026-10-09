@@ -13,9 +13,9 @@ use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::segment::{merge_segments, split_segment};
 use auratranslate_lib::core::export::{
     AlignmentError, AlignmentItem, ChapterAlignment, DecidedBy, ExportScope, ImageMode, MIN_PAIR_SIMILARITY, ReviewCopyError,
-    TextFormat, join, read_alignment, read_review_copy, skip, unjoin,
+    TextFormat, join, read_alignment, read_review_copy, review_diff, skip, unjoin,
 };
-use auratranslate_lib::core::matching::{MatchLang, similarity_percent};
+use auratranslate_lib::core::matching::{DiffKind, DiffSpan, MatchLang, similarity_percent};
 use auratranslate_lib::core::store::Transaction;
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -623,4 +623,123 @@ fn merging_chapter_b_into_a_leaves_no_alignment_row_of_b() {
     assert_eq!(mine.scalar("SELECT COUNT(*) FROM alignment_member WHERE group_id NOT IN (SELECT id FROM alignment_group)"), 0);
     assert_eq!(mine.scalar("SELECT COUNT(*) FROM alignment_group"), 2, "nhom cua A con nguyen");
     mine.finish();
+}
+
+// ───────────────────────── review_diff ─────────────────────────
+
+fn side(spans: &[DiffSpan], keep: DiffKind) -> String {
+    spans.iter().filter(|s| s.kind == DiffKind::Equal || s.kind == keep).map(|s| s.text.as_str()).collect()
+}
+
+fn only_equal(spans: &[DiffSpan]) -> bool {
+    spans.iter().all(|s| s.kind == DiffKind::Equal)
+}
+
+impl Work {
+    fn diff(&self, chapter: usize) -> Vec<auratranslate_lib::core::export::GroupDiff> {
+        review_diff(&self.open.store, self.chapters[chapter]).expect("review_diff")
+    }
+}
+
+#[test]
+fn a_changed_word_is_a_delete_on_my_side_and_an_insert_on_the_reviewers_and_nothing_else_is_marked() {
+    let (mine, reviewer) = mine_and_reviewer("diff-word", vec![("a1", "dich mot"), ("a2", "dich bon"), ("a3", "dich ba")]);
+    mine.import(&reviewer.docx());
+
+    let diffs = mine.diff(0);
+    assert_eq!(diffs.len(), 3);
+    assert!(only_equal(&diffs[0].spans) && only_equal(&diffs[2].spans));
+    let changed = &diffs[1].spans;
+    assert!(changed.iter().any(|s| s.kind == DiffKind::Delete && s.text.contains("hai")), "{changed:?}");
+    assert!(changed.iter().any(|s| s.kind == DiffKind::Insert && s.text.contains("bon")), "{changed:?}");
+    assert_eq!(side(changed, DiffKind::Delete), "dich hai");
+    assert_eq!(side(changed, DiffKind::Insert), "dich bon");
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn identical_pairs_carry_no_delete_or_insert_and_the_diff_writes_nothing() {
+    let (mine, reviewer) = mine_and_reviewer("diff-same", vec![("a1", "dich mot"), ("a2", "dich hai"), ("a3", "dich ba")]);
+    mine.import(&reviewer.docx());
+    let before = (mine.dump(SEGMENT_TABLE), mine.dump(ALIGNMENT_TABLES));
+
+    let diffs = mine.diff(0);
+    assert_eq!(diffs.len(), 3);
+    assert!(diffs.iter().all(|d| only_equal(&d.spans)));
+    assert_eq!((mine.dump(SEGMENT_TABLE), mine.dump(ALIGNMENT_TABLES)), before);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn canonically_equal_texts_in_different_unicode_forms_are_not_marked() {
+    let mine = build("diff-nfc-mine", &[(Some("Mo dau"), vec![("a1", "d\u{1ecb}ch m\u{1ed9}t")])]);
+    let reviewer = build("diff-nfc-rev", &[(Some("Mo dau"), vec![("a1", "di\u{323}ch mo\u{323}\u{302}t")])]);
+    mine.import(&reviewer.docx());
+
+    let diffs = mine.diff(0);
+    assert_eq!(diffs.len(), 1);
+    assert!(only_equal(&diffs[0].spans), "{:?}", diffs[0].spans);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn groups_come_back_in_translation_order_and_a_row_only_group_comes_last() {
+    let (mine, reviewer) = mine_and_reviewer(
+        "diff-order",
+        vec![("a1", "dich mot"), ("a2", "dich hai"), ("a3", "dich ba"), ("zz", "dong them cua reviewer")],
+    );
+    mine.import(&reviewer.docx());
+    let alignment = mine.alignment(0);
+    let extra = alignment.rows[3].id;
+    skip(&mine.open.store, mine.chapters[0], AlignmentItem::Row(extra)).expect("bo qua");
+
+    let diffs = mine.diff(0);
+    let segments = mine.segment_ids(0);
+    let order: Vec<Vec<i64>> = diffs.iter().map(|d| d.segment_ids.clone()).collect();
+    assert_eq!(order, vec![vec![segments[0]], vec![segments[1]], vec![segments[2]], vec![]]);
+    assert_eq!(diffs[3].row_ids, vec![extra]);
+    assert_eq!(diffs[3].decided_by, DecidedBy::User);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn a_markdown_paragraph_of_several_segments_is_diffed_as_the_joined_text_and_the_sides_rebuild() {
+    let mine = markdown_work(
+        "diff-multi",
+        &[("a1", "cau mot.", None, false), ("a2", "cau hai.", None, true), ("a3", "doan sau.", None, true)],
+        None,
+    );
+    let exported = fs::read_to_string(mine.markdown()).expect("doc md");
+    assert!(exported.contains("cau mot. cau hai."), "{exported}");
+    let edited = temp_dir("diff-multi-edit").join("reviewer.md");
+    fs::write(&edited, exported.replace("cau mot. cau hai.", "cau mot. cau ba.")).expect("ghi md");
+    mine.import(&edited);
+
+    let diffs = mine.diff(0);
+    assert_eq!(diffs.len(), 2);
+    let first = &diffs[0];
+    assert_eq!(first.segment_ids.len(), 2);
+    assert_eq!(side(&first.spans, DiffKind::Delete), "cau mot. cau hai.");
+    assert_eq!(side(&first.spans, DiffKind::Insert), "cau mot. cau ba.");
+    assert!(first.spans.iter().any(|s| s.kind != DiffKind::Equal));
+    assert!(only_equal(&diffs[1].spans));
+    mine.finish();
+}
+
+#[test]
+fn review_diff_names_a_chapter_without_a_copy_instead_of_returning_an_empty_list() {
+    let mine = build("diff-none", &three_chapter());
+    assert!(matches!(
+        review_diff(&mine.open.store, mine.chapters[0]),
+        Err(AlignmentError::Copy(ReviewCopyError::NotImported))
+    ));
+    mine.finish();
+}
+
+fn three_chapter() -> Vec<(Option<&'static str>, Segs)> {
+    three(["dich mot", "dich hai", "dich ba"])
 }

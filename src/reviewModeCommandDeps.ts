@@ -1,9 +1,9 @@
 import type { CommandDeps } from './commands'
 import { setMode } from './modes/modeState'
 import { editorChapterId } from './panels/editorPanelState'
-import { closeReviewMode, openReviewMode } from './reviewModeState'
+import { closeReviewMode, openReviewMode, reviewDiffNext, reviewDiffPrev } from './reviewModeState'
 
-type ReviewModeDepNames = 'openReviewMode' | 'closeReviewMode'
+type ReviewModeDepNames = 'openReviewMode' | 'closeReviewMode' | 'reviewDiffNext' | 'reviewDiffPrev'
 
 /** The `CommandDeps` handlers of Review Mode; `main.ts` spreads these. */
 export function reviewModeCommandDeps(): Pick<CommandDeps, ReviewModeDepNames> {
@@ -15,5 +15,7 @@ export function reviewModeCommandDeps(): Pick<CommandDeps, ReviewModeDepNames> {
     closeReviewMode: () => {
       void closeReviewMode()
     },
+    reviewDiffNext,
+    reviewDiffPrev,
   }
 }
