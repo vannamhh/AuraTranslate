@@ -274,6 +274,7 @@ import { exportCommandDeps } from './exportCommandDeps'
 import { reviewerImportCommandDeps } from './reviewerImportCommandDeps'
 import { alignmentCommandDeps } from './alignmentCommandDeps'
 import { alignmentOverlayIsOpen } from './alignmentState'
+import { reviewModeCommandDeps } from './reviewModeCommandDeps'
 import { reviewerImportOverlayIsOpen } from './reviewerImportState'
 import { exportOverlayIsOpen } from './exportState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
@@ -878,6 +879,7 @@ async function boot(): Promise<void> {
       ...exportCommandDeps(),
       ...reviewerImportCommandDeps(),
       ...alignmentCommandDeps(),
+      ...reviewModeCommandDeps(),
       // Story 3.8 · FR53/FR55 — lớp phủ "Duyệt hàng loạt một phím".
       openGlossaryQueue: () => {
         void openGlossaryQueue()

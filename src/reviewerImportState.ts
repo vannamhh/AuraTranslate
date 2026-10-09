@@ -9,6 +9,7 @@ import { reviewerImportCancel, reviewerImportConfirm, reviewerImportOpenPreview 
 import type { ReviewerImportPreview, ReviewerImportSummary } from './config/reviewerImport'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
+import { resetReviewMode } from './reviewModeState'
 
 export type ReviewerImportStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded' | 'done'
 
@@ -100,6 +101,7 @@ export async function confirmReviewerImportPreview(): Promise<void> {
 
   summary.value = result.summary
   status.value = 'done'
+  resetReviewMode()
 }
 
 export async function cancelReviewerImportPreview(): Promise<void> {

@@ -37,7 +37,7 @@ import { configError } from './config/bootstrap'
 // ── Story 1.19 — bề mặt Attribution (§Quyết định #4a, Ice chốt 2026-08-08) ──────────
 //
 // 🔴 Một **LỚP PHỦ dựng ở đây**, không một chế độ thứ tư: AD-24 khai đúng ba chế độ ngang
-// hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+4` thuộc Story 8.11. Nó nói về **cả ứng
+// hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+Alt+3` thuộc Story 8.11. Nó nói về **cả ứng
 // dụng** chứ không về một panel, nên nó sống cùng tầng với dải báo lỗi cấu hình.
 import AttributionOverlay from './AttributionOverlay.vue'
 // Story 2.3 — thanh trạng thái, vỏ ứng dụng (Quyết định #5).
@@ -313,6 +313,16 @@ function focusOnPointerDown(event: MouseEvent) {
         @click="dispatch('export.reviewer_import.open')"
       >
         {{ t('command.export.reviewer_import.open') }}
+      </button>
+
+      <button
+        type="button"
+        class="titlebar-act"
+        data-review-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('review.open')"
+      >
+        {{ t('command.review.open') }}
       </button>
 
       <button

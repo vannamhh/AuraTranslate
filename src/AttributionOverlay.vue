@@ -5,7 +5,7 @@
 // 🔴 MỘT LỚP PHỦ, KHÔNG MỘT CHẾ ĐỘ THỨ TƯ (§Quyết định #4a, Ice chốt 2026-08-08)
 // ─────────────────────────────────────────────────────────────────────────────
 // AD-24 khai **BA** chế độ ngang hàng và `MODE_IDS` là một hằng có ba phần tử; thêm chế độ
-// thứ tư là một quyết định kiến trúc, và `Mod+4` là phím của Story 8.11. Lớp phủ dựng ở
+// thứ tư là một quyết định kiến trúc, và `Mod+Alt+3` là phím của Story 8.11. Lớp phủ dựng ở
 // `App.vue` — cùng tầng với dải báo lỗi cấu hình, không trong một panel: nó nói về **cả ứng
 // dụng**, không về một panel.
 //

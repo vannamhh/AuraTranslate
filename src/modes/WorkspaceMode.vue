@@ -29,11 +29,13 @@
 //
 // ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng
 // lý do. Người đọc dòng này là người đang mở DevTools, không phải người dùng cuối.
-import { onActivated, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
-import { declareFocus, enterFocus, releaseFocus } from '../commands'
+import { computed, onActivated, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
+import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import { bootstrapLayout, KEY_LAYOUT, putConfig, SCOPE_APP_CONFIG } from '../config/bootstrap'
 import { t } from '../i18n'
+import ReviewDock from '../layout/ReviewDock.vue'
 import WorkspaceDock from '../layout/WorkspaceDock.vue'
+import { reviewModeIsOpen, reviewModeStatus } from '../reviewModeState'
 import type { LayoutTier } from '../layout/workspaceLayout'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -95,6 +97,26 @@ const currentTier = shallowRef<LayoutTier | null>(null)
 function onTierChange(tier: LayoutTier): void {
   currentTier.value = tier
 }
+
+const reviewNotice = computed<string | null>(() => {
+  switch (reviewModeStatus.value) {
+    case 'loading':
+      return 'review.notice.loading'
+    case 'no_chapter':
+      return 'review.notice.no_chapter'
+    case 'not_imported':
+      return 'review.notice.not_imported'
+    case 'stale':
+      return 'review.notice.stale'
+    case 'error':
+      return 'review.notice.error'
+    default:
+      return null
+  }
+})
+const reviewNoticeOffersImport = computed(
+  () => reviewModeStatus.value === 'not_imported' || reviewModeStatus.value === 'stale',
+)
 </script>
 
 <template>
@@ -109,7 +131,29 @@ function onTierChange(tier: LayoutTier): void {
       <!-- aura-allow-text: KẾT QUẢ của `t()` — chuỗi đã đi qua `vi.json`. -->
       {{ t('mode.workspace.narrow_notice') }}
     </p>
-    <WorkspaceDock :saved-layout="bootstrapLayout" @persist="onPersist" @tier-change="onTierChange" />
+    <p v-if="reviewNotice !== null" class="narrow-notice review-notice" role="status" data-review-notice>
+      {{ t(reviewNotice) }}
+      <button
+        v-if="reviewNoticeOffersImport"
+        type="button"
+        class="review-notice-act"
+        data-review-notice-import
+        @click="dispatch('export.reviewer_import.open')"
+      >
+        {{ t('command.export.reviewer_import.open') }}
+      </button>
+      <button type="button" class="review-notice-act" data-review-notice-dismiss @click="dispatch('review.close')">
+        {{ t('review.notice.dismiss') }}
+      </button>
+    </p>
+    <div class="stage">
+      <div class="stage-slot" :class="{ hidden: reviewModeIsOpen }" :inert="reviewModeIsOpen" data-workspace-slot>
+        <WorkspaceDock :saved-layout="bootstrapLayout" @persist="onPersist" @tier-change="onTierChange" />
+      </div>
+      <div v-if="reviewModeIsOpen" class="stage-slot" data-review-slot>
+        <ReviewDock />
+      </div>
+    </div>
   </section>
 </template>
 
@@ -136,6 +180,36 @@ function onTierChange(tier: LayoutTier): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface);
+}
+
+/* Hide the Workspace dock with `visibility`, never `display:none`/`v-if`: dockview must not resize to 0 or rebuild its grid. */
+.stage {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.stage-slot {
+  display: flex;
+  grid-area: 1 / 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.stage-slot.hidden {
+  visibility: hidden;
+}
+
+.review-notice-act {
+  margin-left: calc(var(--space-unit) * 2);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  border: 1px solid var(--color-outline);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  cursor: pointer;
 }
 
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — chỉ gốc `tabindex="-1"`, không `*:focus`. */

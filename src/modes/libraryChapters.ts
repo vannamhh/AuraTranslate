@@ -72,6 +72,7 @@ import { resetAiTranslateBatch } from '../aiTranslateBatchState'
 // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
 // lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
+import { resetReviewMode } from '../reviewModeState'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -322,6 +323,7 @@ export async function openWorkById(workId: string): Promise<void> {
   // `panels/segmentSelectionState.ts` cho lý do lượt đổi CHƯƠNG trong cùng Tác phẩm KHÔNG
   // cần dòng này (tự lành qua `indexOf`).
   resetSegmentSelection()
+  resetReviewMode()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

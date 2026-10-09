@@ -50,7 +50,7 @@ import GridPanel from '../panels/GridPanel.vue'
 import LookupPanel from '../panels/LookupPanel.vue'
 import AiTranslationPanel from '../panels/AiTranslationPanel.vue'
 import PanelTab from '../panels/PanelTab.vue'
-import { setDockController } from './dockController'
+import { isUserActivation, setDockController } from './dockController'
 import { createWriteSchedule } from './writeSchedule'
 // Story 4.12, Phase 3a (sửa 2026-09-23) — đẩy tầng mới vào ngăn kéo Tra cứu ĐỒNG BỘ, thay
 // một thăm dò `setInterval` đã gỡ. Xem doc-comment đầu `lookupDrawerState.ts` cho lý lẽ đầy
@@ -214,6 +214,10 @@ function visiblePanelsInLayoutOrder(): readonly string[] {
   })
   rows.sort((a, b) => (a.top !== b.top ? a.top - b.top : a.left - b.left))
   return rows.map((r) => r.id)
+}
+
+function activePanelId(): string | null {
+  return dock.value?.activePanel?.id ?? null
 }
 
 const isPanelId = (id: string): id is PanelId => (PANEL_IDS as readonly string[]).includes(id)
@@ -980,14 +984,14 @@ function onReady(event: DockviewReadyEvent): void {
        * ⇒ AD-34 §2 nói *"CHUYỂN panel phải dời focus DOM tường minh"*. "Chuyển" là một
        * thao tác của NGƯỜI, và `DockviewOrigin` là chỗ dockview phân biệt đúng điều đó.
        */
-      if (e.origin !== 'user') return
+      if (!isUserActivation(e)) return
       const id = e.panel?.id
       if (id !== undefined && isPanelId(id)) void enterFocus(id)
     }),
   )
   disposables.push(api.onDidLayoutChange(onLayoutChange))
 
-  setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder })
+  setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder, activePanelId })
 
   // Story 4.12, Task 3 — tầng khởi động: `restore()` ở trên có thể đã đi qua nhánh
   // `fromJSON` (bố cục tuỳ ý, không qua `applyPreset`), nhánh đó KHÔNG tự đo tầng. Gọi ở đây
@@ -1041,12 +1045,11 @@ onDeactivated(() => {
 /**
  * ⚠️ Đăng ký lại con trỏ dock lúc quay lại: `onReady` chỉ chạy MỘT lần, còn
  * [`setDockController`] vừa bị chính `onDeactivated` ở trên gỡ mỗi lượt rời Workspace, và
- * cũng có thể đã bị một lượt `onDeactivated` của một `WorkspaceDock` khác ghi đè. Hôm nay
- * chỉ có một, nhưng Review Mode của Story 8.11 dựng cái thứ hai.
+ * cũng có thể đã bị một lượt `onDeactivated` của một `WorkspaceDock` khác ghi đè.
  */
 onActivated(() => {
   if (dock.value !== null) {
-    setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder })
+    setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder, activePanelId })
   }
 })
 

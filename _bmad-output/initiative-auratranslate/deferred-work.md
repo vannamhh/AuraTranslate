@@ -668,6 +668,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 🔴 **Vế THỊ GIÁC của story CHƯA đo trên WKWebView, và ca Windows chưa đo.** Bảng 35 ca của §Debug Log References chạy trên **Blink/Chromium (Playwright headless), macOS 24.6 arm64**. Lượt `npm run tauri dev` **có chạy** và nghiệm thu **AC4** *(vòng lưu → đóng → mở lại → khôi phục, trong WKWebView thật với IPC thật)* — nhưng nó **không** nghiệm thu bố cục, khe 2px, kéo–thả hay vòng xoay focus, vì không có đường lái cửa sổ native. **Đừng viết "tương đương" bằng suy luận.** Bàn giao **Story 1.3 / 10.9**, nơi đã có lượt runner hai nền tảng để bấu vào. *(Tiến bộ so với Story 1.6: cổng 1420 lần này **rảnh**, nên `tauri dev` chạy được — giới hạn còn lại là lái GUI, không phải hạ tầng.)* **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 
 - ⚠️ **Preset `Review Mode` chưa dựng — Story 8.11.** `LAYOUT_PRESETS` hôm nay có **hai**: `layout.preset_grid` *(2×2, mặc định)* và `layout.preset_columns` *(bốn cột)*. Hợp âm `Mod+Alt+3` **để trống có chủ ý** cho preset thứ ba *(`Bản dịch của tôi` cạnh `Bản Reviewer đã sửa`)*, đúng thứ tự mockup. **(Chủ: Story 8.11.)**
+  → ✅ ĐÃ ĐÓNG 2026-10-09 (Story 8-11) — Review Mode là một dock thứ hai trong Workspace, không phải preset của `LAYOUT_PRESETS`; `Mod+Alt+3` là `review.open`.
 
 - ⚠️ **Preset do NGƯỜI DÙNG đặt tên chưa có đường vào — Story 1.21.** `ScopeKind::LayoutPreset` *(`GlobalOnly`)* và `BootstrapConfig.layout_presets` đã có từ Story 1.8 và story này **không** ghi vào chúng: hai preset trên là hằng số ở frontend. 🔴 Và **KHÔNG dựng thanh chuyển phạm vi Toàn cục/Tác phẩm cho preset** — `kinds.rs:36` gọi tên đích danh cái bẫy đó.
   → 🔴 **ĐỔI CHỦ 2026-08-11 — Story 1.21 TRẢ LẠI món nợ này, và Ice ký.** Lý do đo được: `epics.md:1579-1581` giao FR17/FR18 cho **Story 1.14**, còn `epics.md:1883` giao Story 1.21 **đúng FR22**; một màn quản lý preset đặt tên có **0 AC** ở cả hai chỗ. Dựng một bề mặt cho `ScopeKind::LayoutPreset` trong story phím tắt là thêm một năng lực không AC nào yêu cầu — đúng thứ §KHÔNG-LÀM của mọi story lớn trong dự án này từ chối.
@@ -3475,6 +3476,7 @@ AC6 trên bề mặt đó — `Enter` làm gì, và `Mod+Enter` có còn ký đ�
 
 **Chủ: Story 8.11** *(`8-11-review-mode-bo-cuc-hai-cua-so-side-by-side` — bề mặt soạn thảo thứ
 hai gần nhất trong sổ sprint; nếu một story sớm hơn dựng bề mặt trước thì món này theo về đó)*.
+→ 2026-10-09 (Story 8-11) — Review Mode chỉ đọc nên không phải bề mặt soạn thảo thứ hai; vế *"giữ nguyên ở mọi nơi khác"* vẫn chờ một bề mặt soạn thảo thật. **Chủ: Ice.**
 
 ### 🟡 Lượt DÁN giữ `\n` — vế DỮ LIỆU đã đo, vế THỊ GIÁC thì chưa
 
@@ -12989,6 +12991,7 @@ chính nó.
   summary: Thông báo "Chương đã đổi sau lúc nhập" khi `read_review_copy` trả `Stale` chưa có chỗ hiển thị; Review Mode (8-11) phải bắt `ReviewCopyError::Stale`, không đọc nó như danh sách rỗng.
   evidence: 8-9 chỉ dựng hàm đọc có lỗi kiểu và màn xem trước; chưa có giao diện nào đọc bản reviewer.
   Chủ: Epic 8.
+  → 🟡 2026-10-09 (Story 8-11) — lời báo `Stale` đã có: Review Mode báo "Chương đã đổi sau lúc nhập" và mời nhập lại, không vào bố cục. Vế "bản reviewer của Chương bị gộp đã bị bỏ" (AD-52 ⑤) không đọc ra được từ lược đồ; cần bổ sung AD-52 và một migration. Chủ: Winston.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
   summary: Lớp phủ nối tay của 8-10 xếp segment chưa khớp tách khỏi hàng reviewer chưa khớp, không đặt cạnh nhau theo khoảng giữa hai neo như mockup `review-mode.html`; chưa biết cách xếp này có làm việc nối tay khó trên Chương thật không (medium nếu có, chưa xác minh).
   evidence: chưa ai dùng lớp phủ trong ứng dụng thật với một bản reviewer thật; test chỉ kiểm con trỏ và lệnh. Một lượt dùng thật trên Chương có nhiều mục chưa khớp sẽ trả lời; 8-11 nhúng lại nội dung này nên sửa ở đó cũng được.
@@ -12996,4 +12999,8 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
   summary: Chưa ai chạy alignment 8-10 trong ứng dụng thật: nhập một bản reviewer đã sửa, mở lớp phủ nối tay từ màn "đã nhập" và từ nút thanh tiêu đề, rồi nối, bỏ qua và tách chỉ bằng bàn phím (↑↓, Space, ↵, S, U, Esc) đến khi Chương báo đã xử lý xong.
   evidence: test frontend gọi lệnh qua bộ đăng ký trong jsdom; focus thật, bẫy Tab và độ trễ trên Chương lớn (danh sách nhóm không ảo hoá) chỉ thấy trong ứng dụng.
+  Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-review-mode-bo-cuc-hai-cua-so-side-by-side-plan.md`
+  summary: Chưa ai mở Review Mode trong ứng dụng thật (WKWebView): focus vào panel trái lúc mở và về panel cũ lúc đóng, dock Workspace giữ nguyên cuộn và kích thước sau khi đóng.
+  evidence: vitest chạy dockview dưới happy-dom, không tính layout và không có focus thật; `visibility: hidden` của dock Workspace chỉ đo được bằng mắt.
   Chủ: Epic 8.

@@ -71,6 +71,8 @@ export const FOCUS_OWNERS: readonly FocusOwner[] = [
   'panel.grid',
   'panel.lookup',
   'panel.ai_translation',
+  'panel.review_mine',
+  'panel.review_copy',
 ]
 
 const registry: Registry = createRegistry()
@@ -914,6 +916,10 @@ export type CommandDeps = {
   skipAlignmentEntry?: () => void
   /** Dissolves the group under the cursor. Handler of `export.alignment.unjoin`. */
   unjoinAlignmentEntry?: () => void
+  /** Shows the read-only two-panel Review Mode for the open Chapter. Handler of `review.open`. */
+  openReviewMode?: () => void
+  /** Leaves Review Mode (or dismisses its notice). Handler of `review.close`. */
+  closeReviewMode?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -1217,7 +1223,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    *
    * Chốt: **`Mod+Alt+<số>` cho preset · `Mod+Alt+<mũi tên>` cho đi lại giữa panel.**
    *   - giữ nguyên "số thứ tự preset" mà mockup dạy, chỉ thêm một phím bổ trợ;
-   *   - `Mod+Alt+3` để TRỐNG cho **Review Mode** ở Story 8.11 — đúng thứ tự mockup;
+   *   - `Mod+Alt+3` là **Review Mode** (`review.open`) — đúng thứ tự mockup;
    *   - một họ phím cho cả hai nhóm, nên người dùng học một lần;
    *   - không đụng `Tab` (thứ tự tiêu điểm của trình duyệt), không đụng `⌥←` `⌥→`
    *     trần (*Chương trước/sau*, `EXPERIENCE.md:148`, Story 2.11), không đụng `⌘⇧…`
@@ -3369,6 +3375,24 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.cancelReviewerImportPreview === undefined) return portMissing('export.reviewer_import.cancel', 'cancelReviewerImportPreview')
       deps.cancelReviewerImportPreview()
+    },
+  })
+  target.register({
+    id: 'review.open',
+    labelKey: 'command.review.open',
+    keys: ['Mod+Alt+3'],
+    run: () => {
+      if (deps.openReviewMode === undefined) return portMissing('review.open', 'openReviewMode')
+      deps.openReviewMode()
+    },
+  })
+  target.register({
+    id: 'review.close',
+    labelKey: 'command.review.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeReviewMode === undefined) return portMissing('review.close', 'closeReviewMode')
+      deps.closeReviewMode()
     },
   })
   target.register({

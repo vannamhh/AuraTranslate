@@ -67,6 +67,7 @@ import { resetAiTranslateBatch } from '../aiTranslateBatchState'
 // 🔴 Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
 // khuyết tật và cùng bản sửa ngay trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
+import { resetReviewMode } from '../reviewModeState'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -439,6 +440,7 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`),
     // cùng lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
     resetSegmentSelection()
+    resetReviewMode()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

@@ -88,6 +88,18 @@ describe('reviewer import overlay state', () => {
     expect(cancelMock).not.toHaveBeenCalled()
   })
 
+  it('a successful confirm resets Review Mode', async () => {
+    const review = await import('../../src/reviewModeState')
+    review.resetReviewMode()
+    await review.openReviewMode(null)
+    expect(review.reviewModeStatus.value).toBe('no_chapter')
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0 }, error: null })
+    await state.openReviewerImportPreviewOverlay()
+    await state.confirmReviewerImportPreview()
+    expect(review.reviewModeStatus.value).toBe('idle')
+  })
+
   it('a failed confirm keeps the preview so the user can retry', async () => {
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
     confirmMock.mockResolvedValue({ summary: null, error: ipcError('store.write_failed') })

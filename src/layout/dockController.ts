@@ -34,6 +34,13 @@
  * Bề mặt mà `WorkspaceDock.vue` cung cấp. ⚠️ Đây là **cổng** (AD-1): tệp này không biết
  * `dockview` tồn tại, nó chỉ biết bốn câu hỏi cần trả lời.
  */
+import type { DockviewActivePanelChangeEvent } from 'dockview-vue'
+
+/** Only a user activation may move DOM focus; dockview also activates panels on restore and addPanel. */
+export function isUserActivation(event: DockviewActivePanelChangeEvent): boolean {
+  return event.origin === 'user'
+}
+
 export type DockController = {
   /** Áp một preset bố cục đã khai (`layout.preset_grid` · `layout.preset_columns`). */
   applyPreset(presetId: string): boolean
@@ -44,9 +51,29 @@ export type DockController = {
    * tại (AC9). Panel đã ẩn không có mặt.
    */
   visiblePanelsInLayoutOrder(): readonly string[]
+  activePanelId(): string | null
 }
 
 let live: DockController | null = null
+let suspended = false
+const REVIEW_RING: readonly string[] = ['panel.review_mine', 'panel.review_copy']
+
+/** Layout commands must not run on the Workspace dock while Review Mode hides it. */
+export function setDockSuspended(value: boolean): void {
+  suspended = value
+}
+
+export function resetDockSuspended(): void {
+  suspended = false
+}
+
+export function isDockSuspended(): boolean {
+  return suspended
+}
+
+export function activeDockPanelId(): string | null {
+  return live === null ? null : live.activePanelId()
+}
 
 /**
  * `WorkspaceDock.vue` gọi hàm này lúc `@ready` và gọi lại với `null` lúc tháo.
@@ -74,13 +101,20 @@ function absent(what: string): false {
   return false
 }
 
+function refused(what: string): false {
+  console.error(`[layout] \`${what}\` bi tu choi: Review Mode dang hien, bo cuc Workspace khong doi.`)
+  return false
+}
+
 /** Handler thật của `layout.preset_grid` / `layout.preset_columns` (AC5). */
 export function applyPreset(presetId: string): boolean {
+  if (suspended) return refused(`applyPreset(${presetId})`)
   return live === null ? absent(`applyPreset(${presetId})`) : live.applyPreset(presetId)
 }
 
 /** Handler thật của bốn command `layout.toggle_*` (AC3). */
 export function togglePanel(panelId: string): boolean {
+  if (suspended) return refused(`togglePanel(${panelId})`)
   return live === null ? absent(`togglePanel(${panelId})`) : live.togglePanel(panelId)
 }
 
@@ -93,6 +127,7 @@ export function togglePanel(panelId: string): boolean {
  * đúng về triệu chứng và sai về nguyên nhân.
  */
 export function panelRing(): readonly string[] {
+  if (suspended) return REVIEW_RING
   if (live === null) return []
   return live.visiblePanelsInLayoutOrder()
 }

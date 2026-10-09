@@ -1086,7 +1086,7 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
 
 /// (file, snippet, reason). Each snippet must occur exactly once in its file.
 const BARE_ORIGIN_EXEMPT: [(&str, &str, &str); 1] =
-    [("src/layout/WorkspaceDock.vue", "e.origin", "dockview panel-activation event field (third-party API)")];
+    [("src/layout/dockController.ts", "event.origin", "dockview panel-activation event field (third-party API)")];
 
 fn blank_run(out: &mut String, chars: &[char]) {
     out.extend(chars.iter().map(|&c| if c == '\n' { '\n' } else { ' ' }));
@@ -1287,11 +1287,11 @@ fn the_bare_origin_scan_ignores_compounds_strings_comments_and_css() {
 
 #[test]
 fn the_bare_origin_exemption_is_scoped_to_its_file_and_still_matches_something_real() {
-    let line = "if (e.origin !== 'user') return\n";
-    assert!(bare_origin_violations("src/layout/WorkspaceDock.vue", line, true).is_empty());
+    let line = "return event.origin === 'user'\n";
+    assert!(bare_origin_violations("src/layout/dockController.ts", line, true).is_empty());
     assert_eq!(bare_origin_violations("src/other.vue", line, true).len(), 1);
-    let mixed = "if (e.origin !== 'user' || origin) return\n";
-    assert_eq!(bare_origin_violations("src/layout/WorkspaceDock.vue", mixed, true).len(), 1);
+    let mixed = "return event.origin === 'user' || origin\n";
+    assert_eq!(bare_origin_violations("src/layout/dockController.ts", mixed, true).len(), 1);
 
     for (file, snippet, reason) in BARE_ORIGIN_EXEMPT {
         assert!(!reason.is_empty(), "exemption {snippet:?} in {file} carries no reason");
