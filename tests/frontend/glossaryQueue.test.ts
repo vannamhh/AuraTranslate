@@ -776,3 +776,33 @@ describe('review_harvest — hàng bảng chờ và phím N', () => {
     wrapper.unmount()
   })
 })
+
+describe('the queue opened after a reviewer import', () => {
+  const harvested = () => [
+    candidate({ id: 7, source_term: '北凉王', candidate_origin: 'review_harvest', replaced_translation: 'Bắc Lương vương', proposed_translation: 'vương Bắc Lương', changed_count: 23, seen_count: 24 }),
+  ]
+
+  it('a second open while the queue is already open loads nothing more', async () => {
+    const { openGlossaryQueue } = await freshState()
+    pendingMock.mockResolvedValue({ candidates: harvested(), error: null })
+
+    await openGlossaryQueue()
+    await openGlossaryQueue()
+
+    expect(pendingMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('closing without a decision leaves the candidates pending for the next open', async () => {
+    const { openGlossaryQueue, closeGlossaryQueue, queueRows } = await freshState()
+    pendingMock.mockResolvedValue({ candidates: harvested(), error: null })
+
+    await openGlossaryQueue()
+    closeGlossaryQueue()
+    await openGlossaryQueue()
+
+    expect(approveMock).not.toHaveBeenCalled()
+    expect(rejectMock).not.toHaveBeenCalled()
+    expect(pendingMock).toHaveBeenCalledTimes(2)
+    expect(queueRows.value.map((row) => row.candidate.id)).toEqual([7])
+  })
+})

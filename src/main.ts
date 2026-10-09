@@ -275,7 +275,8 @@ import { reviewerImportCommandDeps } from './reviewerImportCommandDeps'
 import { alignmentCommandDeps } from './alignmentCommandDeps'
 import { alignmentOverlayIsOpen } from './alignmentState'
 import { reviewModeCommandDeps } from './reviewModeCommandDeps'
-import { reviewerImportOverlayIsOpen } from './reviewerImportState'
+import { installReviewerImportHooks, reviewerImportOverlayIsOpen } from './reviewerImportState'
+import { resetReviewMode } from './reviewModeState'
 import { exportOverlayIsOpen } from './exportState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
 import { tmImportOverlayIsOpen } from './tmImportState'
@@ -1091,6 +1092,13 @@ async function boot(): Promise<void> {
   // Hàm tháo listener bị bỏ có chủ ý — nó sống trọn tuổi tiến trình, cùng khuôn
   // `attachKeyboard(window, …)` ngay dưới.
   void wireExitFlush()
+
+  installReviewerImportHooks({
+    afterImported: resetReviewMode,
+    afterClosedWithHarvest: () => {
+      void openGlossaryQueue()
+    },
+  })
 
   createApp(App).mount('#app')
 

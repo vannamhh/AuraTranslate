@@ -308,6 +308,12 @@ const EXEMPT = new Map([
       'lần khởi động trên cùng một máy.',
   ],
 
+  [
+    'src/reviewerImportState.ts::hooks',
+    'Dây nối do `main.ts` gắn một lần lúc khởi động, không phải dữ liệu của Tác phẩm. Dọn nó ' +
+      'khi đổi Tác phẩm sẽ cắt việc làm mới Review Mode và việc tự mở bảng chờ thu hoạch.',
+  ],
+
   // ── Rà ba lớp 2026-08-22 (Story 3.5) — CÙNG lớp `shortcutsState.ts::aimedRow` ─────────
   //
   // `resetGlossarySettings()` từng tồn tại CHỈ để qua cổng này — `grep` cho thấy chỉ chính

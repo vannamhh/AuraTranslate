@@ -102,16 +102,61 @@ describe('reviewer import overlay state', () => {
     expect(state.reviewerImportSummary.value?.harvest_error?.code).toBe('export.harvest_failed')
   })
 
-  it('a successful confirm resets Review Mode', async () => {
-    const review = await import('../../src/reviewModeState')
-    review.resetReviewMode()
-    await review.openReviewMode(null)
-    expect(review.reviewModeStatus.value).toBe('no_chapter')
+  it('a successful confirm calls the after-imported hook exactly once', async () => {
+    const afterImported = vi.fn()
+    state.installReviewerImportHooks({ afterImported })
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
     confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 0, harvest_error: null }, error: null })
     await state.openReviewerImportPreviewOverlay()
     await state.confirmReviewerImportPreview()
-    expect(review.reviewModeStatus.value).toBe('idle')
+    expect(afterImported).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed confirm does not call the after-imported hook', async () => {
+    const afterImported = vi.fn()
+    state.installReviewerImportHooks({ afterImported })
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    confirmMock.mockResolvedValue({ summary: null, error: ipcError('store.write_failed') })
+    await state.openReviewerImportPreviewOverlay()
+    await state.confirmReviewerImportPreview()
+    expect(afterImported).not.toHaveBeenCalled()
+  })
+
+  describe('closing the overlay after an import', () => {
+    async function importThenClose(summary: { harvest_candidate_count: number | null; harvest_error: unknown }) {
+      const afterClosedWithHarvest = vi.fn()
+      state.installReviewerImportHooks({ afterClosedWithHarvest })
+      openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+      confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, ...summary }, error: null })
+      await state.openReviewerImportPreviewOverlay()
+      await state.confirmReviewerImportPreview()
+      await state.cancelReviewerImportPreview()
+      return afterClosedWithHarvest
+    }
+
+    it('opens the pending queue when the harvest queued candidates', async () => {
+      const hook = await importThenClose({ harvest_candidate_count: 2, harvest_error: null })
+      expect(hook).toHaveBeenCalledTimes(1)
+    })
+
+    it('opens nothing when the harvest queued no candidate', async () => {
+      const hook = await importThenClose({ harvest_candidate_count: 0, harvest_error: null })
+      expect(hook).not.toHaveBeenCalled()
+    })
+
+    it('opens nothing when the harvest failed', async () => {
+      const hook = await importThenClose({ harvest_candidate_count: null, harvest_error: ipcError('export.harvest_failed') })
+      expect(hook).not.toHaveBeenCalled()
+    })
+
+    it('opens nothing when cancelled before confirming', async () => {
+      const afterClosedWithHarvest = vi.fn()
+      state.installReviewerImportHooks({ afterClosedWithHarvest })
+      openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+      await state.openReviewerImportPreviewOverlay()
+      await state.cancelReviewerImportPreview()
+      expect(afterClosedWithHarvest).not.toHaveBeenCalled()
+    })
   })
 
   it('a failed confirm keeps the preview so the user can retry', async () => {

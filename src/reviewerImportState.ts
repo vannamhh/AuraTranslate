@@ -9,9 +9,19 @@ import { reviewerImportCancel, reviewerImportConfirm, reviewerImportOpenPreview 
 import type { ReviewerImportPreview, ReviewerImportSummary } from './config/reviewerImport'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
-import { resetReviewMode } from './reviewModeState'
 
 export type ReviewerImportStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded' | 'done'
+
+export interface ReviewerImportHooks {
+  afterImported?: () => void
+  afterClosedWithHarvest?: () => void
+}
+
+let hooks: ReviewerImportHooks = {}
+
+export function installReviewerImportHooks(next: ReviewerImportHooks): void {
+  hooks = next
+}
 
 const NO_PENDING_CODE = 'export.reviewer_import_no_pending'
 
@@ -101,7 +111,7 @@ export async function confirmReviewerImportPreview(): Promise<void> {
 
   summary.value = result.summary
   status.value = 'done'
-  resetReviewMode()
+  hooks.afterImported?.()
 }
 
 export async function cancelReviewerImportPreview(): Promise<void> {
@@ -110,7 +120,14 @@ export async function cancelReviewerImportPreview(): Promise<void> {
   const mySequence = sequence
   const wasDone = status.value === 'done'
   overlayOpen.value = false
-  if (wasDone) return
+  if (wasDone) {
+    const harvested = summary.value
+    const count = harvested?.harvest_candidate_count ?? null
+    if (harvested !== null && harvested.harvest_error === null && count !== null && count > 0) {
+      hooks.afterClosedWithHarvest?.()
+    }
+    return
+  }
 
   const result = await reviewerImportCancel()
   if (mySequence !== sequence) return
