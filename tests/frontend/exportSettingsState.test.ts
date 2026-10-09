@@ -53,4 +53,22 @@ describe('export settings state', () => {
     expect(s.exportSettingsSaveError.value).toEqual(ipcError)
     expect(s.exportSettingsSaved.value).toBe(false)
   })
+
+  it('reset returns every cell to its first state', async () => {
+    const s = await fresh()
+    saveMock.mockReturnValueOnce(new Promise(() => undefined))
+    s.exportSettingsNameInput.value = 'Ice'
+    void s.saveExportSettings()
+    expect(s.exportSettingsSaving.value).toBe(true)
+    s.resetExportSettings()
+    expect(s.exportSettingsNameInput.value).toBe('')
+    expect(s.exportSettingsSaving.value).toBe(false)
+
+    saveMock.mockResolvedValue({ ok: false, error: ipcError })
+    await s.saveExportSettings()
+    expect(s.exportSettingsSaveError.value).toEqual(ipcError)
+    s.resetExportSettings()
+    expect(s.exportSettingsSaveError.value).toBeNull()
+    expect(s.exportSettingsSaved.value).toBe(false)
+  })
 })

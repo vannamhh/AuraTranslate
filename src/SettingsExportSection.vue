@@ -25,7 +25,7 @@ function onInput(event: Event): void {
 </script>
 
 <template>
-  <form class="ts-form" @submit.prevent="void saveExportSettings()">
+  <form class="ts-form" @submit.prevent="saveExportSettings">
     <fieldset class="ts-fieldset" :disabled="exportSettingsSaving">
       <label class="ts-field">
         <span class="ts-field-label">{{ t('export.settings.translator_label') }}</span>

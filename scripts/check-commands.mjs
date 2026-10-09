@@ -2368,6 +2368,7 @@ const HANDLER_TABLE = {
   'src/SegmentHistoryOverlay.vue::closeSegmentHistory': { nonCommand: R_CLOSE_IMPORTED },
   'src/SegmentHistoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/SegmentHistoryOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/SettingsExportSection.vue::saveExportSettings': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onEscape': { ids: ['settings.close'] },
   'src/SettingsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/SettingsOverlay.vue::onSelectSection': { nonCommand: R_SUBMIT_DIRECT },

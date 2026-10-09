@@ -13,6 +13,13 @@ export const exportSettingsSaved: DeepReadonly<Ref<boolean>> = readonly(saved)
 export const exportSettingsSaving: DeepReadonly<Ref<boolean>> = readonly(saving)
 export const exportSettingsSaveError: DeepReadonly<Ref<IpcError | null>> = readonly(saveError)
 
+export function resetExportSettings(): void {
+  nameInput.value = ''
+  saved.value = false
+  saving.value = false
+  saveError.value = null
+}
+
 export async function loadExportSettingsForm(): Promise<void> {
   if (saving.value) return
   saveError.value = null
