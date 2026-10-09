@@ -114,7 +114,7 @@ impl fmt::Display for Resolution {
 pub struct GlossaryCandidate {
     /// Khoá hàng.
     pub id: i64,
-    /// Thuật ngữ nguồn — `UNIQUE` trong bảng (`idx_glossary_candidate_source_term`).
+    /// Source term; unique per origin (two partial indexes).
     pub source_term: String,
     /// Xuất xứ tự động — cách ứng viên này ra đời.
     pub candidate_origin: CandidateOrigin,
@@ -130,6 +130,26 @@ pub struct GlossaryCandidate {
     /// TIÊN gặp nó lúc quét. Cột `context_example`, **nullable**: `None` cho mọi hàng không
     /// tới từ một lượt quét (§ cùng lý do `occurrence_count`).
     pub context_example: Option<String>,
+    /// `Some` exactly for `CandidateOrigin::ReviewHarvest` (the four columns are all set or all
+    /// `NULL` by `CHECK`).
+    pub review_harvest: Option<ReviewHarvestDetail>,
+}
+
+/// What a reviewer did to a confirmed term: `changed_count` of its `seen_count` occurrences went
+/// from `replaced_translation` to `proposed_translation`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewHarvestDetail {
+    pub replaced_translation: String,
+    pub proposed_translation: String,
+    pub changed_count: i64,
+    pub seen_count: i64,
+}
+
+/// A term the reviewer's copy proposes to re-translate, ready to queue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewHarvestProposal {
+    pub source_term: String,
+    pub detail: ReviewHarvestDetail,
 }
 
 impl GlossaryCandidate {

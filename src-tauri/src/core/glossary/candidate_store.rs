@@ -37,11 +37,11 @@ use std::collections::BTreeSet;
 
 use crate::core::matching::{MatchLang, find_terms};
 use crate::core::store::{
-    BusinessRuleConflict, SqlError, SqlResult, SqlType, Store, StoreError, Transaction,
+    BusinessRuleConflict, Row, SqlError, SqlResult, SqlType, Store, StoreError, Transaction,
     WriteTicket,
 };
 
-use super::candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
+use super::candidate::{CandidateOrigin, GlossaryCandidate, Resolution, ReviewHarvestDetail, ReviewHarvestProposal};
 use super::entry::Category;
 use super::store::insert_entry_row;
 
@@ -52,6 +52,9 @@ use super::store::insert_entry_row;
 /// (`UNIQUE INDEX idx_glossary_candidate_source_term`) — đúng cơ chế chặn "quét lại một
 /// chuỗi đã bỏ/đã duyệt không quay lại bảng chờ": hàng cũ ở lại (không `DELETE`), nên
 /// `UNIQUE` va vào chính nó. Cũng `WriteFailed` nếu `source_term` trắng hoàn toàn (`CHECK`).
+///
+/// A `ReviewHarvest` candidate carries four columns this cannot fill, so it is refused by `CHECK`;
+/// those rows come only from [`enqueue_review_harvest`].
 pub fn insert_candidate(
     store: &Store,
     source_term: &str,
@@ -94,7 +97,8 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
     store.read(|conn| {
         let mut stmt = conn.prepare(
             "SELECT id, source_term, candidate_origin, resolution, created_at, \
-                    occurrence_count, context_example
+                    occurrence_count, context_example,
+                    replaced_translation, proposed_translation, changed_count, seen_count
              FROM glossary_candidate
              WHERE resolution IS NULL
              ORDER BY occurrence_count DESC, id ASC",
@@ -120,6 +124,7 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
                 // `context_example = NULL` đúng giá trị `DEFAULT`/nullable của cột.
                 occurrence_count: row.get(5)?,
                 context_example: row.get(6)?,
+                review_harvest: decode_review_harvest(row)?,
             });
         }
         Ok(out)
@@ -268,7 +273,7 @@ pub(crate) fn enqueue_import_scan_candidates(
                 (source_term, candidate_origin, occurrence_count, context_example, created_at)
              SELECT ?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
              WHERE NOT EXISTS (SELECT 1 FROM glossary_entry WHERE source_term = ?1)
-             ON CONFLICT (source_term) DO NOTHING",
+             ON CONFLICT (source_term) WHERE candidate_origin = 'import_scan' DO NOTHING",
         )?;
 
         let mut inserted = 0i64;
@@ -321,16 +326,17 @@ pub fn approve_candidate(
     let category = category.as_str();
 
     store.write(move |tx: &Transaction<'_>| {
-        let (source_term, candidate_origin_raw, resolution_raw, occurrence_count): (
+        let (source_term, candidate_origin_raw, resolution_raw, occurrence_count, proposed): (
             String,
             String,
             Option<String>,
             i64,
+            Option<String>,
         ) = tx.query_row(
-            "SELECT source_term, candidate_origin, resolution, occurrence_count
+            "SELECT source_term, candidate_origin, resolution, occurrence_count, proposed_translation
                  FROM glossary_candidate WHERE id = ?1",
             [id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
         )?;
 
         if let Some(resolution_raw) = resolution_raw {
@@ -338,12 +344,36 @@ pub fn approve_candidate(
             return Err(already_decided_error(2, id, resolution));
         }
 
-        let term_origin = decode_candidate_origin(1, &candidate_origin_raw)?.to_term_origin();
+        let candidate_origin = decode_candidate_origin(1, &candidate_origin_raw)?;
+        let term_origin = candidate_origin.to_term_origin();
 
         tx.execute(
             "UPDATE glossary_candidate SET resolution = 'approved' WHERE id = ?1",
             [id],
         )?;
+
+        if candidate_origin == CandidateOrigin::ReviewHarvest {
+            let translation = translation.as_deref().or(proposed.as_deref());
+            let existing: Option<i64> = tx
+                .query_row(
+                    "SELECT id FROM glossary_entry WHERE source_term = ?1",
+                    [&source_term],
+                    |r| r.get(0),
+                )
+                .map(Some)
+                .or_else(|e| match e {
+                    SqlError::QueryReturnedNoRows => Ok(None),
+                    other => Err(other),
+                })?;
+            if let Some(entry_id) = existing {
+                tx.execute(
+                    "UPDATE glossary_entry SET translation = ?1, term_origin = ?2 WHERE id = ?3",
+                    (translation, term_origin.as_str(), entry_id),
+                )?;
+                return Ok(entry_id);
+            }
+            return insert_entry_row(tx, &source_term, translation, "", category, term_origin.as_str(), None, None);
+        }
 
         insert_entry_row(
             tx,
@@ -356,6 +386,106 @@ pub fn approve_candidate(
             // Copied once from the candidate row being approved; a legacy 0 means unknown, not zero.
             (occurrence_count > 0).then_some(occurrence_count),
         )
+    })
+}
+
+/// What [`enqueue_review_harvest`] did with a batch of proposals.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReviewHarvestEnqueued {
+    pub inserted: i64,
+    /// A pending `(source_term, proposed_translation)` whose counts were refreshed.
+    pub updated: i64,
+    /// A pair the user already decided; it is never proposed again.
+    pub skipped: i64,
+    /// A pending pair the recount no longer finds; its row is deleted.
+    pub removed: i64,
+}
+
+/// Queues the proposals of a harvest in one transaction. A pending pair has its counts replaced
+/// (the harvest recounts every live reviewer copy), a decided pair is left alone, a new pair is
+/// inserted, and a pending pair the recount no longer finds is deleted. Writes no `glossary_entry`.
+///
+/// # Errors
+/// [`StoreError::WriteFailed`]; the whole batch rolls back.
+pub fn enqueue_review_harvest(
+    store: &Store,
+    proposals: &[ReviewHarvestProposal],
+) -> Result<ReviewHarvestEnqueued, StoreError> {
+    let proposals = proposals.to_vec();
+    store.write(move |tx: &Transaction<'_>| {
+        let mut outcome = ReviewHarvestEnqueued { inserted: 0, updated: 0, skipped: 0, removed: 0 };
+        let mut kept: Vec<i64> = Vec::new();
+        for ReviewHarvestProposal { source_term, detail } in &proposals {
+            let existing: Option<(i64, Option<String>)> = tx
+                .query_row(
+                    "SELECT id, resolution FROM glossary_candidate
+                     WHERE candidate_origin = 'review_harvest'
+                       AND source_term = ?1 AND proposed_translation = ?2",
+                    (source_term, &detail.proposed_translation),
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .map(Some)
+                .or_else(|e| match e {
+                    SqlError::QueryReturnedNoRows => Ok(None),
+                    other => Err(other),
+                })?;
+            match existing {
+                None => {
+                    tx.execute(
+                        "INSERT INTO glossary_candidate
+                            (source_term, candidate_origin, created_at, replaced_translation,
+                             proposed_translation, changed_count, seen_count)
+                         VALUES (?1, 'review_harvest', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                                 ?2, ?3, ?4, ?5)",
+                        (
+                            source_term,
+                            &detail.replaced_translation,
+                            &detail.proposed_translation,
+                            detail.changed_count,
+                            detail.seen_count,
+                        ),
+                    )?;
+                    kept.push(tx.last_insert_rowid());
+                    outcome.inserted += 1;
+                }
+                Some((id, None)) => {
+                    tx.execute(
+                        "UPDATE glossary_candidate
+                         SET replaced_translation = ?1, changed_count = ?2, seen_count = ?3
+                         WHERE id = ?4",
+                        (&detail.replaced_translation, detail.changed_count, detail.seen_count, id),
+                    )?;
+                    kept.push(id);
+                    outcome.updated += 1;
+                }
+                Some((_, Some(_))) => outcome.skipped += 1,
+            }
+        }
+        let pending: Vec<i64> = tx
+            .prepare(
+                "SELECT id FROM glossary_candidate
+                 WHERE candidate_origin = 'review_harvest' AND resolution IS NULL",
+            )?
+            .query_map([], |r| r.get(0))?
+            .collect::<SqlResult<Vec<i64>>>()?;
+        for id in pending.into_iter().filter(|id| !kept.contains(id)) {
+            tx.execute("DELETE FROM glossary_candidate WHERE id = ?1", [id])?;
+            outcome.removed += 1;
+        }
+        Ok(outcome)
+    })
+}
+
+fn decode_review_harvest(row: &Row<'_>) -> SqlResult<Option<ReviewHarvestDetail>> {
+    let replaced: Option<String> = row.get(7)?;
+    let proposed: Option<String> = row.get(8)?;
+    let changed: Option<i64> = row.get(9)?;
+    let seen: Option<i64> = row.get(10)?;
+    Ok(match (replaced, proposed, changed, seen) {
+        (Some(replaced_translation), Some(proposed_translation), Some(changed_count), Some(seen_count)) => {
+            Some(ReviewHarvestDetail { replaced_translation, proposed_translation, changed_count, seen_count })
+        }
+        _ => None,
     })
 }
 

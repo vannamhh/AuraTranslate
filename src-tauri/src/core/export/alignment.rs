@@ -511,9 +511,23 @@ pub struct GroupDiff {
     pub spans: Vec<DiffSpan>,
 }
 
-/// Diffs every group of the reviewer copy of `chapter_id`, in the order of the translation (groups
-/// with no segment last, in row order). Writes nothing but the machine grouping a copy still waits for.
-pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, AlignmentError> {
+/// One group with the text of each side joined the way a reader sees it: my translation units and
+/// the reviewer's rows, each in document order. `order` sorts groups in the order of the translation
+/// (groups with no segment last, in row order).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct GroupTexts {
+    pub group_id: i64,
+    pub decided_by: DecidedBy,
+    pub segment_ids: Vec<i64>,
+    pub row_ids: Vec<i64>,
+    pub mine: String,
+    pub theirs: String,
+    order: (usize, usize),
+}
+
+/// The alignment of `chapter_id` with both sides of every group joined into one string. Writes
+/// nothing but the machine grouping a copy still waits for.
+pub(super) fn group_texts(store: &Store, chapter_id: i64) -> Result<(ChapterAlignment, Vec<GroupTexts>), AlignmentError> {
     let alignment = read_alignment(store, chapter_id)?;
     let kind = alignment.file_kind;
     let units = store.read(move |conn| {
@@ -525,7 +539,7 @@ pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, Ali
     })?;
     let row_index: HashMap<i64, usize> = alignment.rows.iter().enumerate().map(|(i, r)| (r.id, i)).collect();
 
-    let mut diffs: Vec<((usize, usize), GroupDiff)> = alignment
+    let mut texts: Vec<GroupTexts> = alignment
         .groups
         .iter()
         .map(|group| {
@@ -543,24 +557,39 @@ pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, Ali
                 .filter_map(|id| row_index.get(id).map(|&i| alignment.rows[i].target_text.as_str()))
                 .collect::<Vec<_>>()
                 .join(" ");
-            let key = match (mine.first(), row_ids.first().and_then(|id| row_index.get(id))) {
+            let order = match (mine.first(), row_ids.first().and_then(|id| row_index.get(id))) {
                 (Some(&unit), _) => (0, unit),
                 (None, row) => (1, row.copied().unwrap_or(usize::MAX)),
             };
-            (
-                key,
-                GroupDiff {
-                    group_id: group.id,
-                    decided_by: group.decided_by,
-                    segment_ids: group.segment_ids.clone(),
-                    row_ids,
-                    spans: diff_spans(&mine_text, &theirs_text, MatchLang::En),
-                },
-            )
+            GroupTexts {
+                group_id: group.id,
+                decided_by: group.decided_by,
+                segment_ids: group.segment_ids.clone(),
+                row_ids,
+                mine: mine_text,
+                theirs: theirs_text,
+                order,
+            }
         })
         .collect();
-    diffs.sort_by_key(|(key, _)| *key);
-    Ok(diffs.into_iter().map(|(_, diff)| diff).collect())
+    texts.sort_by_key(|t| t.order);
+    Ok((alignment, texts))
+}
+
+/// Diffs every group of the reviewer copy of `chapter_id`, in the order of the translation (groups
+/// with no segment last, in row order). Writes nothing but the machine grouping a copy still waits for.
+pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, AlignmentError> {
+    let (_, texts) = group_texts(store, chapter_id)?;
+    Ok(texts
+        .into_iter()
+        .map(|t| GroupDiff {
+            group_id: t.group_id,
+            decided_by: t.decided_by,
+            segment_ids: t.segment_ids,
+            row_ids: t.row_ids,
+            spans: diff_spans(&t.mine, &t.theirs, MatchLang::En),
+        })
+        .collect())
 }
 
 /// Id of the live copy of `chapter_id`, or the typed reason there is none.

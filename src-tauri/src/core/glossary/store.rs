@@ -854,6 +854,28 @@ pub fn resolve_term_for_quick_add(
     }))
 }
 
+/// Every confirmed `(source_term, translation)` of the two tiers after `ScopeResolver` (a Work
+/// entry hides the Global one of the same term, confirmed or not). The one door for a module
+/// outside `core/glossary` that needs the translations without the raw tiers.
+///
+/// # Errors
+/// Same families as [`confirmed_terms_for_injection`].
+pub fn confirmed_term_translations(
+    scope: &WorkContext<'_>,
+    global: &Store,
+) -> Result<Vec<(String, String)>, GlossaryError> {
+    let global_tier = load_tier(global)?;
+    let work_tier = scope.work().map(load_tier).transpose()?;
+    let resolved =
+        scope.resolver().apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+    Ok(resolved
+        .into_iter()
+        .filter_map(|(source_term, resolved_entry)| {
+            resolved_entry.value().translation.clone().map(|translation| (source_term, translation))
+        })
+        .collect())
+}
+
 /// Thêm một mục Glossary **nhập tay** vào tầng người dùng chọn — chế độ THÊM của dải.
 ///
 /// Chọn `&Store` theo `tier` rồi gọi xuống [`insert_manual_entry`] (đường ghi phi-manual

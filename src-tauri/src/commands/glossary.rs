@@ -341,6 +341,13 @@ pub struct GlossaryCandidateWire {
     /// Count of distinct Chapters where `source_term` occurs across the whole Work,
     /// through the shared Matcher (AD-17).
     pub chapter_span_count: i64,
+    /// The four fields below are all `Some` exactly for `candidate_origin == "review_harvest"`:
+    /// `changed_count` of `seen_count` occurrences of `replaced_translation` became
+    /// `proposed_translation`.
+    pub replaced_translation: Option<String>,
+    pub proposed_translation: Option<String>,
+    pub changed_count: Option<i64>,
+    pub seen_count: Option<i64>,
 }
 
 /// Mọi ứng viên **chờ duyệt** của Tác phẩm đang mở — **hàm thuần, đây là thứ test gọi**.
@@ -456,6 +463,10 @@ pub fn build_pending_candidates(
             context_example: c.context_example.clone(),
             han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
             han_viet_status: suggestion.as_status_str().to_owned(),
+            replaced_translation: c.review_harvest.as_ref().map(|h| h.replaced_translation.clone()),
+            proposed_translation: c.review_harvest.as_ref().map(|h| h.proposed_translation.clone()),
+            changed_count: c.review_harvest.as_ref().map(|h| h.changed_count),
+            seen_count: c.review_harvest.as_ref().map(|h| h.seen_count),
         })
         .collect()
 }

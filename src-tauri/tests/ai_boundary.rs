@@ -66,7 +66,7 @@ const AI_DIR: &str = "core/ai";
 const AI_FLOOR: usize = 4;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-const SRC_RS_FLOOR: usize = 105;
+const SRC_RS_FLOOR: usize = 113;
 
 /// Hai chuỗi BARE (không tiền tố `use `) mà chỉ `core/ai/**` được phép mang ở **vị trí mã**.
 ///

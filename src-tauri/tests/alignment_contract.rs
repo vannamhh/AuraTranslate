@@ -99,7 +99,7 @@ impl Work {
     fn import(&self, path: &Path) {
         let state = pending();
         reviewer_import_preview(Some(&self.open), &state, path).expect("xem truoc");
-        reviewer_import_confirm(Some(&self.open), &state).expect("xac nhan");
+        reviewer_import_confirm(Some(&self.open), None, &state).expect("xac nhan");
     }
 
     fn alignment(&self, chapter: usize) -> ChapterAlignment {
@@ -548,7 +548,7 @@ fn importing_again_says_how_many_hand_made_groups_are_lost_and_starts_from_the_m
     let state = pending();
     let preview = reviewer_import_preview(Some(&mine.open), &state, &file).expect("xem truoc");
     assert_eq!(preview.chapters[0].replaces.as_ref().map(|r| r.user_group_count), Some(1));
-    reviewer_import_confirm(Some(&mine.open), &state).expect("xac nhan");
+    reviewer_import_confirm(Some(&mine.open), None, &state).expect("xac nhan");
 
     assert_eq!(mine.scalar("SELECT COUNT(*) FROM alignment_group WHERE decided_by = 'user'"), 0);
     assert!(!mine.alignment(0).is_resolved);

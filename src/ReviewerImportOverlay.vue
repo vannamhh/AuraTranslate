@@ -111,6 +111,14 @@ function trapTab(event: KeyboardEvent): void {
             })
           }}
         </p>
+        <p v-if="reviewerImportSummary.harvest_error !== null" class="ri-status ri-error" role="alert">
+          <!-- aura-allow-text: result of tError() computed in the script. -->
+          {{ tError(reviewerImportSummary.harvest_error) }}
+        </p>
+        <p v-else-if="reviewerImportSummary.harvest_candidate_count !== null" class="ri-status" role="status">
+          <!-- aura-allow-text: result of t() with the count interpolated. -->
+          {{ t('reviewer.import.harvest_done', { count: String(reviewerImportSummary.harvest_candidate_count) }) }}
+        </p>
         <div class="ri-actions">
           <button type="button" class="ri-act ri-act-primary" @click="dispatch('export.alignment.open')">
             {{ t('command.export.alignment.open') }}

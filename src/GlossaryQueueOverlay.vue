@@ -18,6 +18,7 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import type { GlossaryCategory } from './config/glossary'
 import {
+  isInconsistentHarvest,
   queueActionError,
   queueCurrentRow,
   queueCursor,
@@ -254,6 +255,20 @@ function onKeydown(event: KeyboardEvent): void {
               <span class="gq-term">{{ row.candidate.source_term }}</span>
               <!-- aura-allow-text: DỮ LIỆU (`occurrence_count`, một con số). -->
               <span class="gq-count">{{ row.candidate.occurrence_count }}</span>
+              <template v-if="row.candidate.candidate_origin === 'review_harvest'">
+                <!-- aura-allow-text: DỮ LIỆU (X → Y của chính hàng) + KẾT QUẢ của `t()`. -->
+                <span class="gq-harvest">{{
+                  t('glossary.queue.harvest_change', {
+                    from: row.candidate.replaced_translation ?? '',
+                    to: row.candidate.proposed_translation ?? '',
+                    changed: String(row.candidate.changed_count ?? 0),
+                    seen: String(row.candidate.seen_count ?? 0),
+                  })
+                }}</span>
+                <span v-if="isInconsistentHarvest(row.candidate)" class="gq-inconsistent">{{
+                  t('glossary.queue.harvest_inconsistent')
+                }}</span>
+              </template>
               <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
               <span class="gq-chapter-span">{{
                 t('glossary.queue.chapter_span_count', { count: String(row.candidate.chapter_span_count) })
@@ -451,6 +466,17 @@ function onKeydown(event: KeyboardEvent): void {
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   line-height: var(--leading-ui-mono);
+}
+
+.gq-harvest,
+.gq-inconsistent {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+}
+
+.gq-inconsistent {
+  color: var(--color-on-surface-variant);
 }
 
 .gq-chapter-span {

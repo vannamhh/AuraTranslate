@@ -47,6 +47,10 @@ function candidate(over: Partial<GlossaryCandidate> = {}): GlossaryCandidate {
     han_viet_suggestion: null,
     han_viet_status: 'not_chinese',
     chapter_span_count: 0,
+    replaced_translation: null,
+    proposed_translation: null,
+    changed_count: null,
+    seen_count: null,
     ...over,
   }
 }
@@ -710,5 +714,65 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
 
     wrapper.unmount()
     spy.mockRestore()
+  })
+})
+
+describe('review_harvest — hàng bảng chờ và phím N', () => {
+  const harvest = (over: Partial<GlossaryCandidate> = {}) =>
+    candidate({
+      id: 7,
+      source_term: '北凉王',
+      candidate_origin: 'review_harvest',
+      han_viet_status: 'ok',
+      han_viet_suggestion: 'Bắc Lương vương',
+      replaced_translation: 'Bắc Lương vương',
+      proposed_translation: 'vương Bắc Lương',
+      changed_count: 3,
+      seen_count: 5,
+      ...over,
+    })
+
+  it('phím N gửi proposed_translation, không gợi ý Hán Việt', async () => {
+    const state = await freshState()
+    pendingMock.mockResolvedValue({ candidates: [harvest()], error: null })
+    approveMock.mockResolvedValue({ value: 1, error: null })
+    await state.openGlossaryQueue()
+    await state.acceptGlossaryQueueCandidate()
+    expect(approveMock).toHaveBeenCalledWith(7, 'vương Bắc Lương', 'other')
+  })
+
+  it.each([
+    [2, 5, true],
+    [3, 6, true],
+    [3, 5, false],
+    [4, 4, false],
+  ])('isInconsistentHarvest(%i/%i) = %s', async (changed, seen, expected) => {
+    const state = await freshState()
+    expect(state.isInconsistentHarvest(harvest({ changed_count: changed, seen_count: seen }))).toBe(expected)
+    expect(
+      state.isInconsistentHarvest(
+        harvest({ candidate_origin: 'import_scan', changed_count: changed, seen_count: seen }),
+      ),
+    ).toBe(false)
+  })
+
+  it('hàng hiện X → Y, N/M, và nhãn không nhất quán chỉ khi N/M <= 50%', async () => {
+    const { state, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({
+      candidates: [harvest({ id: 1, changed_count: 3, seen_count: 5 }), harvest({ id: 2, changed_count: 2, seen_count: 5 })],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenLookup)
+    await state.openGlossaryQueue()
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const rows = wrapper.findAll('.gq-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.get('.gq-harvest').text()).toBe('Bắc Lương vương → vương Bắc Lương · đổi ở 3/5 lần')
+    expect(rows[0]?.find('.gq-inconsistent').exists()).toBe(false)
+    expect(rows[1]?.get('.gq-harvest').text()).toContain('2/5')
+    expect(rows[1]?.find('.gq-inconsistent').exists()).toBe(true)
+    wrapper.unmount()
   })
 })

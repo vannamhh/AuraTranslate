@@ -69,7 +69,7 @@ const AICONFIG_DIR: &str = "core/aiconfig";
 const AICONFIG_FLOOR: usize = 3;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-const SRC_RS_FLOOR: usize = 105;
+const SRC_RS_FLOOR: usize = 113;
 
 /// Hai chuỗi bị cấm ngoài `AICONFIG_DIR`, ở **vị trí mã** — không neo tiền tố `use `,
 /// đúng lý lẽ `ai_boundary.rs::FORBIDDEN_BARE_TOKENS`: một bản chỉ so `"use …"` bỏ lọt

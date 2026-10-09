@@ -5340,6 +5340,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     quyết định thuộc về story dựng chính cột đó.
     **(Chủ: Story 8.14 — hoặc epic sở hữu FR54/FR95, tuỳ số hiệu story cuối cùng khớp
     `epics.md` §Story 8.14.)**
+  → ✅ ĐÃ ĐÓNG 2026-10-09 (Story 8-14): migration v32 thay `UNIQUE (source_term)` bằng hai chỉ mục một phần, `(source_term)` cho `import_scan` và `(source_term, proposed_translation)` cho `review_harvest`; `review_harvest_contract` có ca cặp (S, Y) đã bỏ không sinh lại.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Cột `resolution` của `glossary_candidate` không mang thời điểm quyết định — khác
@@ -13008,3 +13009,7 @@ chính nó.
   summary: Chưa ai xem Review Mode có tô diff trong ứng dụng thật (WKWebView): chữ tô `diff-*` đọc được ở hai theme, cuộn theo cặp khớp trên Chương dài, Alt+↓/Alt+↑ đưa khác biệt vào tầm nhìn.
   evidence: vitest dưới happy-dom không tính layout; tương phản nền 1,12–1,29:1 nên gạch chân/gạch ngang chỉ đánh giá được bằng mắt.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-thu-hoach-thuat-ngu-tu-ban-review-plan.md`
+  summary: Thu hoạch 8-14 chỉ thấy thuật ngữ S đã chốt trong Glossary; thuật ngữ reviewer sửa mà Glossary chưa có thì không thành ứng viên.
+  evidence: thuật toán cần X là bản dịch đã chốt để đếm N/M; dò S chưa có bằng đồng xuất hiện nguồn-đích là một thuật toán khác, chưa đo, Ice chốt phạm vi ngày 2026-10-09.
+  Chủ: Ice.

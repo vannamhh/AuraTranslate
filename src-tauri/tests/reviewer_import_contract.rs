@@ -141,7 +141,7 @@ impl Work {
     }
 
     fn confirm(&self, pending: &PendingReviewerImportState) -> Result<auratranslate_lib::commands::export::ReviewerImportSummaryWire, IpcError> {
-        reviewer_import_confirm(Some(&self.open), pending)
+        reviewer_import_confirm(Some(&self.open), None, pending)
     }
 
     fn dump(&self) -> BTreeMap<String, Vec<String>> {

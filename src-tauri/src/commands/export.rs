@@ -6,13 +6,14 @@ use std::collections::BTreeMap;
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
 use crate::core::export::{
-    AlignmentError, AlignmentItem, ChapterAlignment, ConfirmError, ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
+    AlignmentError, AlignmentItem, ChapterAlignment, ConfirmError, ReviewCopyError, harvest_work, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
     read_markdown_copy,
     Attribution, ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
     load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
 };
 use crate::core::attribution::resolve_translator_name;
+use crate::core::glossary::{ReviewHarvestDetail, ReviewHarvestProposal, enqueue_review_harvest};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -288,11 +289,15 @@ pub struct ReviewerImportPreviewWire {
     pub image_rows_ignored: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReviewerImportSummaryWire {
     pub chapter_count: i64,
     pub row_count: i64,
     pub replaced_count: i64,
+    /// Glossary candidates queued or refreshed by the harvest; `None` when the harvest failed.
+    pub harvest_candidate_count: Option<i64>,
+    /// Set exactly when `harvest_candidate_count` is `None`. The import itself was written.
+    pub harvest_error: Option<IpcError>,
 }
 
 fn count_wire(n: usize) -> i64 {
@@ -306,6 +311,11 @@ fn reviewer_unreadable(detail: &str) -> IpcError {
 
 fn reviewer_preview_stale() -> IpcError {
     IpcError::new("export.reviewer_import_preview_stale", MessageKey::ExportReviewerPreviewStale, BTreeMap::new(), false)
+}
+
+fn harvest_failed(detail: &str) -> IpcError {
+    eprintln!("thu hoach thuat ngu tu ban reviewer that bai: {detail}");
+    IpcError::new("export.harvest_failed", MessageKey::ExportHarvestFailed, BTreeMap::new(), false)
 }
 
 fn reviewer_no_pending() -> IpcError {
@@ -414,6 +424,28 @@ pub fn reviewer_import_preview(
     Ok(wire)
 }
 
+/// Queues the Glossary candidates the live reviewer copies of the open Work give, after the import
+/// is written. Returns how many candidates were inserted or refreshed.
+fn harvest_reviewer_copies(open: &OpenWork, global: Option<&Store>) -> Result<i64, IpcError> {
+    let global = global.ok_or_else(|| harvest_failed("global store missing"))?;
+    let findings = harvest_work(&open.scope, global, &open.store, &open.meta.source_lang)
+        .map_err(|e| harvest_failed(&format!("{e:?}")))?;
+    let proposals: Vec<ReviewHarvestProposal> = findings
+        .into_iter()
+        .map(|f| ReviewHarvestProposal {
+            source_term: f.source_term,
+            detail: ReviewHarvestDetail {
+                replaced_translation: f.replaced_translation,
+                proposed_translation: f.proposed_translation,
+                changed_count: f.changed_count,
+                seen_count: f.seen_count,
+            },
+        })
+        .collect();
+    let queued = enqueue_review_harvest(&open.store, &proposals).map_err(|e| harvest_failed(&format!("{e:?}")))?;
+    Ok(queued.inserted + queued.updated)
+}
+
 /// Second beat: write the previewed reviewer copy in one transaction (AD-52 rule 3). The match is
 /// redone inside the transaction; a different set of Chapters writes nothing.
 ///
@@ -422,8 +454,12 @@ pub fn reviewer_import_preview(
 /// - nothing previewed => `export.reviewer_import_no_pending`;
 /// - Chapters changed since the preview => `export.reviewer_import_preview_stale` (pending dropped);
 /// - a write failure rolls back and keeps the preview so it can be retried.
+///
+/// A failed harvest after the write is not an error of this call: it comes back as
+/// `harvest_error` (`export.harvest_failed`) and the import stays.
 pub fn reviewer_import_confirm(
     open: Option<&OpenWork>,
+    global: Option<&Store>,
     pending: &PendingReviewerImportState,
 ) -> Result<ReviewerImportSummaryWire, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
@@ -442,10 +478,16 @@ pub fn reviewer_import_confirm(
     match outcome {
         Some(summary) => {
             *guard = None;
+            let (harvest_candidate_count, harvest_error) = match harvest_reviewer_copies(open, global) {
+                Ok(count) => (Some(count), None),
+                Err(error) => (None, Some(error)),
+            };
             Ok(ReviewerImportSummaryWire {
                 chapter_count: count_wire(summary.chapter_count),
                 row_count: count_wire(summary.row_count),
                 replaced_count: count_wire(summary.replaced_count),
+                harvest_candidate_count,
+                harvest_error,
             })
         }
         None => {
@@ -789,7 +831,8 @@ pub mod wire {
         let work_state = app.try_state::<OpenWorkState>();
         let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
-        super::reviewer_import_confirm(open, pending.inner())
+        let global = app.try_state::<Store>();
+        super::reviewer_import_confirm(open, global.as_deref(), pending.inner())
     }
 
     /// `(async)`: locks `PendingReviewerImportState`, which `reviewer_import_confirm` holds for its write.

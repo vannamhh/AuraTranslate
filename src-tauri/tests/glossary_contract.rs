@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::aiprompt::GlossaryTierWire;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
-    CandidateOrigin, Category, GlossaryError, GlossaryInjectionTerm, GlossaryTier, TermOrigin, WorkContext,
+    CandidateOrigin, Category, GlossaryError, ReviewHarvestDetail, ReviewHarvestProposal, enqueue_review_harvest, GlossaryInjectionTerm, GlossaryTier, TermOrigin, WorkContext,
     add_manual_term, approve_candidate, candidate_chapter_span_counts, confirm_translation,
     confirmed_terms_for_injection, delete_manual_term, insert_candidate,
     insert_import_scan_candidates, insert_manual_entry, list_all_entries, load_tier,
@@ -40,6 +40,28 @@ use auratranslate_lib::core::store::{
 };
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
+
+fn insert_harvest_candidate(store: &Store, source_term: &str) -> i64 {
+    enqueue_review_harvest(
+        store,
+        &[ReviewHarvestProposal {
+            source_term: source_term.to_owned(),
+            detail: ReviewHarvestDetail {
+                replaced_translation: "cu".to_owned(),
+                proposed_translation: "moi".to_owned(),
+                changed_count: 2,
+                seen_count: 2,
+            },
+        }],
+    )
+    .expect("chen ung vien thu hoach");
+    pending_candidates(store)
+        .expect("nap bang cho")
+        .into_iter()
+        .find(|c| c.source_term == source_term)
+        .expect("ung vien vua chen")
+        .id
+}
 
 /// Một thư mục tạm **của riêng ca này**. Xem luật 1 ở doc-comment đầu tệp.
 fn temp_dir(tag: &str) -> PathBuf {
@@ -867,8 +889,12 @@ fn every_category_and_term_origin_variant_round_trips_through_the_store() {
     for (i, category) in categories.iter().enumerate() {
         for (j, candidate_origin) in candidate_origins.iter().enumerate() {
             let term = format!("ung-vien-{i}-{j}");
-            let id = insert_candidate(&store, &term, *candidate_origin)
-                .unwrap_or_else(|e| panic!("insert_candidate({term}) phai ghi duoc. Nhan: {e:?}"));
+            let id = if *candidate_origin == CandidateOrigin::ReviewHarvest {
+                insert_harvest_candidate(&store, &term)
+            } else {
+                insert_candidate(&store, &term, *candidate_origin)
+                    .unwrap_or_else(|e| panic!("insert_candidate({term}) phai ghi duoc. Nhan: {e:?}"))
+            };
             approve_candidate(&store, id, Some("ban dich"), *category).unwrap_or_else(|e| {
                 panic!(
                     "approve_candidate voi candidate_origin={candidate_origin} \
@@ -1562,7 +1588,7 @@ fn pending_candidates_lists_every_still_pending_row_in_the_declared_order() {
     let id_alpha =
         insert_candidate(&store, "alpha", CandidateOrigin::ImportScan).expect("chen alpha");
     let id_beta =
-        insert_candidate(&store, "beta", CandidateOrigin::ReviewHarvest).expect("chen beta");
+        insert_harvest_candidate(&store, "beta");
     let id_gamma =
         insert_candidate(&store, "gamma", CandidateOrigin::ImportScan).expect("chen gamma");
 
@@ -1761,8 +1787,7 @@ fn approving_a_review_harvest_candidate_creates_a_glossary_entry_with_review_har
     let dir = temp_dir("candidate-approve-review-harvest");
     let store = open_project(&dir);
 
-    let id = insert_candidate(&store, "青丘", CandidateOrigin::ReviewHarvest)
-        .expect("chen ung vien");
+    let id = insert_harvest_candidate(&store, "青丘");
     approve_candidate(&store, id, Some("Thanh Khâu"), Category::Place).expect("duyet ung vien");
 
     let global = load_tier(&store).expect("nap glossary_entry");
@@ -2386,8 +2411,7 @@ fn each_resolution_variant_round_trips_through_the_already_decided_decode() {
     );
 
     // Bien the Rejected: bo roi bo lai.
-    let rejected_id = insert_candidate(&store, "青丘", CandidateOrigin::ReviewHarvest)
-        .expect("chen ung vien 2");
+    let rejected_id = insert_harvest_candidate(&store, "青丘");
     reject_candidate(&store, rejected_id).expect("bo lan dau");
     let rerejected = reject_candidate(&store, rejected_id);
     let err = format!("{rerejected:?}");

@@ -45,7 +45,7 @@ const EXEMPT_FILES: [&str; 2] = ["core/library/indexer.rs", "core/store/mod.rs"]
 const FORBIDDEN: [&str; 2] = ["StoreSpec::library_index", "StoreKind::LibraryIndex"];
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-const RS_FLOOR: usize = 105;
+const RS_FLOOR: usize = 113;
 
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();

@@ -5,7 +5,7 @@
 #[allow(dead_code)] // shared module: not every helper is used in this file
 mod boundary_scan;
 
-const SRC_RS_FLOOR: usize = 105;
+const SRC_RS_FLOOR: usize = 113;
 
 const FLUSH_EXEMPT_FILE: &str = "commands/segment/targets.rs";
 const FLUSH_EXEMPT_PREFIX: &str = "UPDATE segment SET target_text = ?1, updated_at";

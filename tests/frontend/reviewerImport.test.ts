@@ -78,7 +78,7 @@ describe('reviewer import overlay state', () => {
 
   it('confirm moves to done with the summary, and closing afterwards does not call cancel', async () => {
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
-    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0 }, error: null })
+    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 0, harvest_error: null }, error: null })
     await state.openReviewerImportPreviewOverlay()
     await state.confirmReviewerImportPreview()
     expect(state.reviewerImportStatus.value).toBe('done')
@@ -88,13 +88,27 @@ describe('reviewer import overlay state', () => {
     expect(cancelMock).not.toHaveBeenCalled()
   })
 
+  it('a harvest failure still counts as a finished import and keeps its own error', async () => {
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    const harvestError = ipcError('export.harvest_failed')
+    confirmMock.mockResolvedValue({
+      summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: null, harvest_error: harvestError },
+      error: null,
+    })
+    await state.openReviewerImportPreviewOverlay()
+    await state.confirmReviewerImportPreview()
+    expect(state.reviewerImportStatus.value).toBe('done')
+    expect(state.reviewerImportConfirmError.value).toBeNull()
+    expect(state.reviewerImportSummary.value?.harvest_error?.code).toBe('export.harvest_failed')
+  })
+
   it('a successful confirm resets Review Mode', async () => {
     const review = await import('../../src/reviewModeState')
     review.resetReviewMode()
     await review.openReviewMode(null)
     expect(review.reviewModeStatus.value).toBe('no_chapter')
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
-    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0 }, error: null })
+    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 0, harvest_error: null }, error: null })
     await state.openReviewerImportPreviewOverlay()
     await state.confirmReviewerImportPreview()
     expect(review.reviewModeStatus.value).toBe('idle')

@@ -19,6 +19,7 @@ mod attribution;
 mod block_paragraphs;
 mod docx_block;
 mod docx_table;
+mod harvest;
 mod image_files;
 mod images;
 mod new_file;
@@ -39,6 +40,7 @@ pub use block_paragraphs::{
 };
 pub use docx_block::write_one_block_docx;
 pub use docx_table::{DocxWriteError, ImageReference, write_two_column_docx};
+pub use harvest::{HarvestError, HarvestFinding, MIN_CHANGED_COUNT, harvest_work};
 pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_file_with_images};
 pub use images::{ImageMode, ImageScan, MissingLinkImage, scan_images};
 pub use new_file::{safe_stem, write_new_file};

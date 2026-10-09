@@ -287,11 +287,12 @@ pub mod scan;
 pub mod store;
 pub mod surnames;
 
-pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
+pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution, ReviewHarvestDetail, ReviewHarvestProposal};
 pub use candidate_store::{
     approve_candidate, candidate_chapter_span_counts, chapter_source_texts, chapter_span_counts_in,
     insert_candidate,
     insert_import_scan_candidates, pending_candidates, reject_candidate,
+    ReviewHarvestEnqueued, enqueue_review_harvest,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 pub use exchange::{
@@ -307,7 +308,7 @@ pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, SuppressedByPendingOverlap,
     WorkContext, add_manual_term, classify_import_rows, confirm_pending_translation,
-    confirm_translation, confirmed_terms_for_injection, delete_manual_term, export_tier,
+    confirm_translation, confirmed_term_translations, confirmed_terms_for_injection, delete_manual_term, export_tier,
     import_into_tier, insert_manual_entry, list_all_entries, load_tier, marks_for_source_text, match_lang_for_source_lang,
     promote_to_global, resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };

@@ -968,6 +968,28 @@ CREATE TABLE alignment_member (
 );
 CREATE INDEX alignment_member_group ON alignment_member(group_id);";
 
+/// Step 32 (AD-20, AD-52 rule 7): a `glossary_candidate` of origin `review_harvest` carries the
+/// replaced and the proposed translation and how often the reviewer made the change. The four
+/// columns are filled exactly for that origin, and the one-per-`source_term` index becomes two
+/// partial ones: a term is scanned at most once, but may be proposed with several replacements.
+/// The `CHECK` sits on the last added column because `ALTER TABLE` cannot add a table-level one.
+pub const REVIEW_HARVEST_CANDIDATE_DDL: &str = "\
+ALTER TABLE glossary_candidate ADD COLUMN replaced_translation TEXT;
+ALTER TABLE glossary_candidate ADD COLUMN proposed_translation TEXT;
+ALTER TABLE glossary_candidate ADD COLUMN changed_count INTEGER;
+ALTER TABLE glossary_candidate ADD COLUMN seen_count INTEGER
+  CHECK ((candidate_origin = 'review_harvest' AND replaced_translation IS NOT NULL
+          AND proposed_translation IS NOT NULL AND changed_count IS NOT NULL
+          AND seen_count IS NOT NULL)
+         OR (candidate_origin <> 'review_harvest' AND replaced_translation IS NULL
+          AND proposed_translation IS NULL AND changed_count IS NULL AND seen_count IS NULL));
+DROP INDEX idx_glossary_candidate_source_term;
+CREATE UNIQUE INDEX idx_glossary_candidate_import_scan ON glossary_candidate (source_term)
+  WHERE candidate_origin = 'import_scan';
+CREATE UNIQUE INDEX idx_glossary_candidate_review_harvest
+  ON glossary_candidate (source_term, proposed_translation)
+  WHERE candidate_origin = 'review_harvest';";
+
 /// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
 ///
 /// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
@@ -1943,7 +1965,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi bước, và đích là phiên bản 31.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi mốt bước, và đích là phiên bản 32.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2295,6 +2317,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 31,
         sql: ALIGNMENT_DDL,
+    },
+    Migration {
+        to_version: 32,
+        sql: REVIEW_HARVEST_CANDIDATE_DDL,
     },
 ];
 

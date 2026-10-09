@@ -912,6 +912,8 @@ message_keys! {
     ExportReviewerUnreadable => "err.export.reviewer_import_unreadable" [],
     /// Tập Chương khớp lúc xác nhận khác lúc xem trước.
     ExportReviewerPreviewStale => "err.export.reviewer_import_preview_stale" [],
+    /// The reviewer copy was imported but harvesting terms from it failed.
+    ExportHarvestFailed => "err.export.harvest_failed" [],
     /// Xác nhận khi không có bản xem trước nào đang treo.
     ExportReviewerNoPending => "err.export.reviewer_import_no_pending" [],
     /// Chương chưa có bản reviewer nào được nhập để khớp.

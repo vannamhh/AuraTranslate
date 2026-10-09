@@ -23,7 +23,14 @@ export type ReviewerImportPreview = {
   image_rows_ignored: number
 }
 
-export type ReviewerImportSummary = { chapter_count: number; row_count: number; replaced_count: number }
+export type ReviewerImportSummary = {
+  chapter_count: number
+  row_count: number
+  replaced_count: number
+  /** `null` when harvesting failed; the import itself is already written then. */
+  harvest_candidate_count: number | null
+  harvest_error: IpcError | null
+}
 
 export type ReviewerImportPreviewResult =
   | { outcome: 'loaded'; preview: ReviewerImportPreview }
@@ -121,7 +128,9 @@ function isSummary(value: unknown): value is ReviewerImportSummary {
     isObject(value) &&
     typeof value.chapter_count === 'number' &&
     typeof value.row_count === 'number' &&
-    typeof value.replaced_count === 'number'
+    typeof value.replaced_count === 'number' &&
+    (value.harvest_candidate_count === null || typeof value.harvest_candidate_count === 'number') &&
+    (value.harvest_error === null || isIpcError(value.harvest_error))
   )
 }
 

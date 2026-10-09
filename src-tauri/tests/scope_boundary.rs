@@ -48,7 +48,7 @@ const SCOPE_DIR: &str = "core/scope";
 const STORE_DIR: &str = "core/store";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-const RS_FLOOR: usize = 105;
+const RS_FLOOR: usize = 113;
 
 /// 🔴 Vế test của AC1 — những chuỗi mà **chỉ** `core::scope` được mang.
 ///

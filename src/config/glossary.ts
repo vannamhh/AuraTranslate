@@ -443,6 +443,19 @@ export type GlossaryCandidate = {
   /** Count of distinct Chapters where `source_term` occurs. Never `null` — unlike
    * `occurrence_count`, `0` is a real answer here. */
   chapter_span_count: number
+  /** The four review-harvest fields are all `null` unless `candidate_origin === 'review_harvest'`. */
+  replaced_translation: string | null
+  proposed_translation: string | null
+  changed_count: number | null
+  seen_count: number | null
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isNullableCount(value: unknown): value is number | null {
+  return value === null || (typeof value === 'number' && Number.isInteger(value) && value >= 0)
 }
 
 function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
@@ -464,7 +477,11 @@ function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
       : v.han_viet_suggestion === null) &&
     typeof v.chapter_span_count === 'number' &&
     Number.isInteger(v.chapter_span_count) &&
-    v.chapter_span_count >= 0
+    v.chapter_span_count >= 0 &&
+    isNullableString(v.replaced_translation) &&
+    isNullableString(v.proposed_translation) &&
+    isNullableCount(v.changed_count) &&
+    isNullableCount(v.seen_count)
   )
 }
 

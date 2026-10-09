@@ -278,7 +278,12 @@ export async function acceptGlossaryQueueCandidate(): Promise<void> {
   actionError.value = null
   const mySequence = sequence
 
-  const translation = row.candidate.han_viet_status === 'ok' ? row.candidate.han_viet_suggestion : null
+  const translation =
+    row.candidate.candidate_origin === 'review_harvest'
+      ? row.candidate.proposed_translation
+      : row.candidate.han_viet_status === 'ok'
+        ? row.candidate.han_viet_suggestion
+        : null
   const result = await approveGlossaryCandidate(row.candidate.id, translation, row.category)
   if (mySequence !== sequence) return // lớp phủ đã đóng rồi mở lại — bỏ, không ghi đè.
 
@@ -349,4 +354,11 @@ export function resetGlossaryQueue(): void {
   cursor.value = 0
   saving.value = false
   actionError.value = null
+}
+
+/** Reviewer changed this term in at most half of the places it occurs. */
+export function isInconsistentHarvest(candidate: GlossaryCandidate): boolean {
+  if (candidate.candidate_origin !== 'review_harvest') return false
+  const { changed_count: changed, seen_count: seen } = candidate
+  return changed !== null && seen !== null && seen > 0 && changed * 2 <= seen
 }

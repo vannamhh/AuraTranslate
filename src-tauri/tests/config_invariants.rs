@@ -928,7 +928,7 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 
 /// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
 /// `glossary_boundary.rs`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 105;
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 113;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
