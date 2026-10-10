@@ -682,14 +682,14 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 32, "mo lai phai chay buoc 28 den 32 that");
+    assert_eq!(open.store.schema_version(), 33, "mo lai phai chay buoc 28 den 33 that");
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
@@ -714,14 +714,14 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 32);
+    assert_eq!(open.store.schema_version(), 33);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -1025,7 +1025,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1033,7 +1033,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (32, 1));
+    assert_eq!((open.store.schema_version(), has_index), (33, 1));
     drop(open);
     let _ = fs::remove_dir_all(root);
 }

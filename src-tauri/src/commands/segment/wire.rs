@@ -409,6 +409,24 @@
         super::accept_tm_fuzzy(global.as_deref(), guard.as_ref(), segment_id, &tier, unit_id, &expected_target, force)
     }
 
+    /// Wire shell of [`super::review_accept_change`]; `chapterId`, `groupId`, `expectedTarget`, `force` on the wire.
+    #[tauri::command]
+    pub fn review_accept_change<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        chapter_id: i64,
+        group_id: i64,
+        expected_target: String,
+        force: bool,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::review_accept_change(None, chapter_id, group_id, &expected_target, force);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::review_accept_change(guard.as_ref(), chapter_id, group_id, &expected_target, force)
+    }
+
     /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `expectedTarget`, `force` on the wire.
     #[tauri::command]
     pub fn accept_tm_exact<R: tauri::Runtime>(

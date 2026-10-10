@@ -922,6 +922,10 @@ message_keys! {
     ExportAlignmentStale => "err.export.alignment_stale" [],
     /// Lựa chọn nối/bỏ qua/tách có id lạ, đã thuộc nhóm khác, trống hoặc lặp.
     ExportAlignmentInvalidSelection => "err.export.alignment_invalid_selection" [],
+    /// Nhóm không phải 1:1 với một segment, hoặc không còn gì để chấp nhận.
+    ReviewChangeNotAcceptable => "err.review.change_not_acceptable" [],
+    /// Bản dịch của segment đã đổi sau khi diff được tính.
+    ReviewChangeTextChanged => "err.review.change_text_changed" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

@@ -164,6 +164,10 @@ function trapTab(event: KeyboardEvent): void {
                 <!-- aura-allow-text: result of t() with the count interpolated. -->
                 {{ t('reviewer.import.replaces_user_groups', { count: String(chapter.replaces.user_group_count) }) }}
               </template>
+              <template v-if="chapter.replaces.accepted_group_count > 0">
+                <!-- aura-allow-text: result of t() with the count interpolated. -->
+                {{ t('reviewer.import.replaces_accepted_groups', { count: String(chapter.replaces.accepted_group_count) }) }}
+              </template>
             </span>
           </li>
         </ul>

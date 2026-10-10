@@ -24,16 +24,18 @@ mod image_files;
 mod images;
 mod new_file;
 mod reimport_gate;
+mod review_decision;
 mod reviewer_copy;
 mod scope;
 mod table_rows;
 mod text_export;
 
 pub use alignment::{
-    AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow, AlignmentSegment, ChapterAlignment, DecidedBy, GroupDiff,
+    AcceptableChange, AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow, AlignmentSegment, ChapterAlignment, DecidedBy, GroupDiff,
     MIN_PAIR_SIMILARITY, align_chapter, delete_alignment_of_chapter, join, move_members_of_retired, read_alignment,
-    review_diff, skip, unjoin,
+    acceptable_change, mark_accepted, review_diff, skip, skip_change, unjoin,
 };
+pub use review_decision::ReviewDecision;
 pub use attribution::{Attribution, ChapterOrigin, attribution_lines};
 pub use block_paragraphs::{
     BlockParagraph, ChapterBlock, LoadedBlocks, UNTRANSLATED_SQL, is_untranslated, load_chapter_blocks,

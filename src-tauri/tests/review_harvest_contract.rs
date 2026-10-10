@@ -473,7 +473,7 @@ fn the_check_and_the_two_partial_indexes_hold_for_each_origin() {
 fn a_database_at_step_31_migrates_and_keeps_its_import_scan_candidates() {
     let dir = temp_dir("migrate");
     let db = dir.join("project.db");
-    let old = Store::open(StoreSpec { migrations: &PROJECT_MIGRATIONS[..PROJECT_MIGRATIONS.len() - 1], ..StoreSpec::project(db.clone()) })
+    let old = Store::open(StoreSpec { migrations: &PROJECT_MIGRATIONS[..PROJECT_MIGRATIONS.len() - 2], ..StoreSpec::project(db.clone()) })
         .expect("mo o buoc 31");
     assert_eq!(old.schema_version(), 31);
     assert!(insert(&old, "INSERT INTO glossary_candidate (source_term, candidate_origin, created_at) VALUES ('A', 'import_scan', 't')"));
@@ -481,7 +481,7 @@ fn a_database_at_step_31_migrates_and_keeps_its_import_scan_candidates() {
 
     let migrated = Store::open(StoreSpec::project(db)).expect("mo lai");
 
-    assert_eq!(migrated.schema_version(), 32);
+    assert_eq!(migrated.schema_version(), 33);
     let row: (String, Option<String>) = migrated
         .read(|conn| conn.query_row("SELECT source_term, proposed_translation FROM glossary_candidate", [], |r| Ok((r.get(0)?, r.get(1)?))))
         .expect("doc");

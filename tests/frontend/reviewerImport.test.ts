@@ -204,3 +204,44 @@ describe('vue/no-v-html', { timeout: 120_000 }, () => {
     expect(await lint('  <div>{{ html }}</div>')).toHaveLength(0)
   })
 })
+
+describe('preview of a second import', () => {
+  it('names the accepted groups that will be lost, next to the hand-made ones', async () => {
+    const state = await fresh()
+    const { mount } = await import('@vue/test-utils')
+    const Overlay = (await import('../../src/ReviewerImportOverlay.vue')).default
+    const { t } = await import('../../src/i18n')
+    const withReplaced = preview()
+    withReplaced.chapters = [
+      {
+        chapter_id: 1,
+        chapter_ord: 1,
+        title: null,
+        row_count: 3,
+        replaces: { file_name: 'old.docx', stale: false, user_group_count: 2, accepted_group_count: 4 },
+      },
+    ]
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: withReplaced })
+    await state.openReviewerImportPreviewOverlay()
+
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    const text = wrapper.text()
+    expect(text).toContain(t('reviewer.import.replaces_user_groups', { count: '2' }))
+    expect(text).toContain(t('reviewer.import.replaces_accepted_groups', { count: '4' }))
+    wrapper.unmount()
+  })
+
+  it('says nothing about accepted groups when there are none', async () => {
+    const state = await fresh()
+    const { mount } = await import('@vue/test-utils')
+    const Overlay = (await import('../../src/ReviewerImportOverlay.vue')).default
+    const withReplaced = preview()
+    withReplaced.chapters[0].replaces = { file_name: 'old.docx', stale: false, user_group_count: 0, accepted_group_count: 0 }
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: withReplaced })
+    await state.openReviewerImportPreviewOverlay()
+
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    expect(wrapper.text()).not.toContain('đã chấp nhận')
+    wrapper.unmount()
+  })
+})

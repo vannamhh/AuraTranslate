@@ -924,6 +924,14 @@ export type CommandDeps = {
   reviewDiffNext?: () => void
   /** Jumps to the previous differing pair in Review Mode. Handler of `review.diff_prev`. */
   reviewDiffPrev?: () => void
+  /** Takes over the reviewer's text of the pair under the cursor in Review Mode. Handler of `review.accept_change`. */
+  reviewAcceptChange?: () => void
+  /** Skips the pair under the cursor in Review Mode. Handler of `review.skip_change`. */
+  reviewSkipChange?: () => void
+  /** Writes the held-back accept over the unsigned draft. Handler of `review.accept_overwrite`. */
+  reviewConfirmAccept?: () => void
+  /** Drops the held-back accept and keeps my text. Handler of `review.accept_keep`. */
+  reviewCancelAccept?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -3415,6 +3423,42 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.reviewDiffPrev === undefined) return portMissing('review.diff_prev', 'reviewDiffPrev')
       deps.reviewDiffPrev()
+    },
+  })
+  target.register({
+    id: 'review.accept_change',
+    labelKey: 'command.review.accept_change',
+    keys: ['Alt+Enter'],
+    run: () => {
+      if (deps.reviewAcceptChange === undefined) return portMissing('review.accept_change', 'reviewAcceptChange')
+      deps.reviewAcceptChange()
+    },
+  })
+  target.register({
+    id: 'review.skip_change',
+    labelKey: 'command.review.skip_change',
+    keys: ['Alt+Backspace'],
+    run: () => {
+      if (deps.reviewSkipChange === undefined) return portMissing('review.skip_change', 'reviewSkipChange')
+      deps.reviewSkipChange()
+    },
+  })
+  target.register({
+    id: 'review.accept_overwrite',
+    labelKey: 'command.review.accept_overwrite',
+    keys: undefined,
+    run: () => {
+      if (deps.reviewConfirmAccept === undefined) return portMissing('review.accept_overwrite', 'reviewConfirmAccept')
+      deps.reviewConfirmAccept()
+    },
+  })
+  target.register({
+    id: 'review.accept_keep',
+    labelKey: 'command.review.accept_keep',
+    keys: undefined,
+    run: () => {
+      if (deps.reviewCancelAccept === undefined) return portMissing('review.accept_keep', 'reviewCancelAccept')
+      deps.reviewCancelAccept()
     },
   })
   target.register({

@@ -6,6 +6,10 @@ use crate::core::segment::omit::segments_in_translation;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
+use super::review_decision::{
+    ReviewDecision, decisions_of_copy, delete_decisions_of_chapter, delete_decisions_of_copy, delete_decisions_of_group,
+    delete_decisions_of_rows,
+};
 use super::reviewer_copy::{ReviewCopyError, ReviewFileKind, ReviewRow, ReviewRowKind, at_most_one, read_review_copy};
 use super::text_export::{Emitted, emit_items, one_line};
 
@@ -81,6 +85,8 @@ pub enum AlignmentError {
     Copy(ReviewCopyError),
     /// An id is unknown to the Chapter, already in a group, or the selection is empty or repeats an id.
     InvalidSelection,
+    /// The group is not 1:1 with a segment whose text is the text shown, or it has nothing to accept.
+    NotAcceptable,
     Store(StoreError),
     Sql(SqlError),
 }
@@ -321,6 +327,7 @@ pub fn align_chapter(tx: &Transaction<'_>, review_chapter_id: i64) -> SqlResult<
         "docx" => ReviewFileKind::Docx,
         _ => ReviewFileKind::Markdown,
     };
+    delete_decisions_of_copy(tx, review_chapter_id)?;
     tx.execute(
         "DELETE FROM alignment_member WHERE group_id IN (SELECT id FROM alignment_group WHERE review_chapter_id = ?1)",
         [review_chapter_id],
@@ -371,6 +378,7 @@ fn align_if_pending(tx: &Transaction<'_>, review_chapter_id: i64) -> SqlResult<(
 /// Deletes every group of the reviewer copy of `chapter_id` (AD-52 rule 6). Call it before the
 /// `review_chapter` row goes, because the groups are found through it.
 pub fn delete_alignment_of_chapter(tx: &Transaction<'_>, chapter_id: i64) -> SqlResult<()> {
+    delete_decisions_of_chapter(tx, chapter_id)?;
     tx.execute(
         "DELETE FROM alignment_member WHERE group_id IN (SELECT id FROM alignment_group WHERE review_chapter_id IN \
          (SELECT id FROM review_chapter WHERE chapter_id = ?1))",
@@ -418,6 +426,7 @@ pub fn move_members_of_retired(tx: &Transaction<'_>, retired: &[i64], fresh: &[i
         }
     }
     for group_id in touched {
+        delete_decisions_of_group(tx, group_id)?;
         let segment_members: i64 = tx.query_row(
             "SELECT COUNT(*) FROM alignment_member WHERE group_id = ?1 AND segment_id IS NOT NULL",
             [group_id],
@@ -509,6 +518,8 @@ pub struct GroupDiff {
     pub segment_ids: Vec<i64>,
     pub row_ids: Vec<i64>,
     pub spans: Vec<DiffSpan>,
+    /// What the user decided about the group's reviewer rows; `None` while none is decided.
+    pub decision: Option<ReviewDecision>,
 }
 
 /// One group with the text of each side joined the way a reader sees it: my translation units and
@@ -579,17 +590,107 @@ pub(super) fn group_texts(store: &Store, chapter_id: i64) -> Result<(ChapterAlig
 /// Diffs every group of the reviewer copy of `chapter_id`, in the order of the translation (groups
 /// with no segment last, in row order). Writes nothing but the machine grouping a copy still waits for.
 pub fn review_diff(store: &Store, chapter_id: i64) -> Result<Vec<GroupDiff>, AlignmentError> {
-    let (_, texts) = group_texts(store, chapter_id)?;
+    let (alignment, texts) = group_texts(store, chapter_id)?;
+    let review_chapter_id = alignment.review_chapter_id;
+    let decisions = store.read(move |conn| decisions_of_copy(conn, review_chapter_id))?;
     Ok(texts
         .into_iter()
         .map(|t| GroupDiff {
             group_id: t.group_id,
             decided_by: t.decided_by,
+            decision: t.row_ids.iter().find_map(|id| decisions.get(id).copied()),
             segment_ids: t.segment_ids,
             row_ids: t.row_ids,
             spans: diff_spans(&t.mine, &t.theirs, MatchLang::En),
         })
         .collect())
+}
+
+/// The one change of a 1:1 group that can be taken over: my segment, the reviewer's row and the text
+/// of each side as shown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AcceptableChange {
+    pub review_chapter_id: i64,
+    pub segment_id: i64,
+    pub row_id: i64,
+    pub mine: String,
+    pub theirs: String,
+}
+
+/// Reads group `group_id` through [`group_texts`] and returns what accepting it would write.
+/// A group that is not exactly one segment and one row, whose segment text is not the text shown,
+/// or whose two sides are already equal is [`AlignmentError::NotAcceptable`]. Writes nothing but
+/// the machine grouping a copy still waits for.
+pub fn acceptable_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<AcceptableChange, AlignmentError> {
+    let (alignment, texts) = group_texts(store, chapter_id)?;
+    let Some(group) = texts.into_iter().find(|t| t.group_id == group_id) else {
+        return Err(AlignmentError::InvalidSelection);
+    };
+    let ([segment_id], [row_id]) = (group.segment_ids.as_slice(), group.row_ids.as_slice()) else {
+        return Err(AlignmentError::NotAcceptable);
+    };
+    let shown = alignment.segments.iter().find(|s| s.id == *segment_id).map(|s| s.target_text.as_str());
+    if shown != Some(group.mine.as_str()) || group.mine == group.theirs {
+        return Err(AlignmentError::NotAcceptable);
+    }
+    Ok(AcceptableChange {
+        review_chapter_id: alignment.review_chapter_id,
+        segment_id: *segment_id,
+        row_id: *row_id,
+        mine: group.mine,
+        theirs: group.theirs,
+    })
+}
+
+fn members_of_group(
+    tx: &Transaction<'_>,
+    review_chapter_id: i64,
+    group_id: i64,
+) -> SqlResult<(Vec<i64>, Vec<i64>)> {
+    let mut stmt = tx.prepare(
+        "SELECT m.review_row_id, m.segment_id FROM alignment_group g JOIN alignment_member m ON m.group_id = g.id \
+         WHERE g.id = ?1 AND g.review_chapter_id = ?2",
+    )?;
+    let members = stmt
+        .query_map((group_id, review_chapter_id), |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)))?
+        .collect::<SqlResult<Vec<_>>>()?;
+    Ok((members.iter().filter_map(|m| m.0).collect(), members.iter().filter_map(|m| m.1).collect()))
+}
+
+/// In the caller's transaction: when `group_id` of the copy `review_chapter_id` is still exactly
+/// `segment_id` and `row_id`, records the row as accepted and returns `true`; otherwise writes nothing.
+pub fn mark_accepted(
+    tx: &Transaction<'_>,
+    review_chapter_id: i64,
+    group_id: i64,
+    segment_id: i64,
+    row_id: i64,
+) -> SqlResult<bool> {
+    let (rows, segments) = members_of_group(tx, review_chapter_id, group_id)?;
+    if rows != [row_id] || segments != [segment_id] {
+        return Ok(false);
+    }
+    super::review_decision::record_decision(tx, review_chapter_id, &rows, ReviewDecision::Accepted)?;
+    Ok(true)
+}
+
+/// Skips the group: remembers that its reviewer rows were looked at and left alone. Any group with
+/// at least one reviewer row can be skipped.
+pub fn skip_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), AlignmentError> {
+    let outcome = store.write(move |tx| {
+        let review_chapter_id = match live_copy(tx, chapter_id)? {
+            Ok(id) => id,
+            Err(error) => return Ok(Err(AlignmentError::Copy(error))),
+        };
+        align_if_pending(tx, review_chapter_id)?;
+        let (row_ids, _) = members_of_group(tx, review_chapter_id, group_id)?;
+        if row_ids.is_empty() {
+            return Ok(Err(AlignmentError::InvalidSelection));
+        }
+        super::review_decision::record_decision(tx, review_chapter_id, &row_ids, ReviewDecision::Skipped)?;
+        Ok(Ok(()))
+    })?;
+    outcome
 }
 
 /// Id of the live copy of `chapter_id`, or the typed reason there is none.
@@ -656,6 +757,7 @@ fn write_user_group(
                 return Ok(Err(AlignmentError::InvalidSelection));
             }
         }
+        delete_decisions_of_rows(tx, &row_ids)?;
         tx.execute(
             "INSERT INTO alignment_group (review_chapter_id, decided_by) VALUES (?1, ?2)",
             (review_chapter_id, DecidedBy::User.as_str()),
@@ -709,6 +811,7 @@ pub fn unjoin(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), Align
         if !owned {
             return Ok(Err(AlignmentError::InvalidSelection));
         }
+        delete_decisions_of_group(tx, group_id)?;
         tx.execute("DELETE FROM alignment_member WHERE group_id = ?1", [group_id])?;
         tx.execute("DELETE FROM alignment_group WHERE id = ?1", [group_id])?;
         Ok(Ok(()))

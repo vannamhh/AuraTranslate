@@ -198,6 +198,7 @@ fn without_review_tables(mut dump: BTreeMap<String, Vec<String>>) -> BTreeMap<St
     dump.remove("review_row");
     dump.remove("alignment_group");
     dump.remove("alignment_member");
+    dump.remove("review_decision");
     dump.remove("pragma:data_version");
     dump
 }
@@ -580,6 +581,41 @@ fn importing_again_replaces_the_chapter_copy_with_a_fresh_id_and_the_preview_say
     mine.finish();
     reviewer.finish();
     second_reviewer.finish();
+}
+
+#[test]
+fn the_preview_counts_accepted_groups_and_confirming_deletes_their_decisions_in_the_same_write() {
+    let (mine, reviewer) = reviewer_targets("accepted-lost");
+    let state = pending();
+    mine.preview(&state, &reviewer.docx(ImageMode::File)).expect("xem truoc");
+    mine.confirm(&state).expect("lan mot");
+    let first = auratranslate_lib::core::export::review_diff(&mine.open.store, mine.chapters[0]).expect("diff");
+    let changed = first.iter().find(|g| g.spans.iter().any(|s| s.kind != auratranslate_lib::core::matching::DiffKind::Equal)).expect("nhom doi");
+    let group = changed.group_id;
+    auratranslate_lib::core::export::skip_change(&mine.open.store, mine.chapters[0], group).expect("bo qua");
+    let accepted = auratranslate_lib::commands::segment::review_accept_change(
+        Some(&mine.open),
+        mine.chapters[0],
+        group,
+        "dich a1",
+        true,
+    )
+    .expect("chap nhan");
+    assert_eq!(accepted.target_text, "a1 da sua");
+    assert_eq!(mine.count("review_decision"), 1);
+
+    let again = build("accepted-lost-rev2", &two_chapters(["lan hai", "lan hai b"]));
+    let preview = mine.preview(&state, &again.docx(ImageMode::File)).expect("xem truoc lan hai");
+    let counts: Vec<(i64, i64)> =
+        preview.chapters.iter().filter_map(|c| c.replaces.as_ref()).map(|r| (r.user_group_count, r.accepted_group_count)).collect();
+    assert_eq!(counts, vec![(0, 1), (0, 0)]);
+    assert_eq!(mine.count("review_decision"), 1, "xem truoc khong ghi gi");
+
+    mine.confirm(&state).expect("lan hai");
+    assert_eq!(mine.count("review_decision"), 0);
+    mine.finish();
+    reviewer.finish();
+    again.finish();
 }
 
 fn ids(work: &Work) -> Vec<i64> {

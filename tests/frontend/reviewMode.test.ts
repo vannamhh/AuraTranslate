@@ -20,6 +20,10 @@ import { t } from '../../src/i18n'
 const openMock = vi.fn()
 const diffMock = vi.fn()
 const putMock = vi.fn(() => Promise.resolve(null))
+const acceptMock = vi.fn()
+const skipMock = vi.fn()
+const flushMock = vi.fn()
+const replaceMock = vi.fn()
 
 vi.mock('../../src/config/alignment', () => ({
   alignmentOpen: (...args: unknown[]) => openMock(...args),
@@ -27,6 +31,14 @@ vi.mock('../../src/config/alignment', () => ({
   alignmentJoin: vi.fn(),
   alignmentSkip: vi.fn(),
   alignmentUnjoin: vi.fn(),
+  reviewAcceptChange: (...args: unknown[]) => acceptMock(...args),
+  reviewSkipChange: (...args: unknown[]) => skipMock(...args),
+}))
+
+vi.mock('../../src/panels/editorPanelState', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/panels/editorPanelState')>()),
+  flushEditorBeforeDiscreteWrite: (...args: unknown[]) => flushMock(...args),
+  replaceEditorSegment: (...args: unknown[]) => replaceMock(...args),
 }))
 
 vi.mock('../../src/config/bootstrap', async (importOriginal) => ({
@@ -57,8 +69,14 @@ function alignment(over: Partial<ChapterAlignment> = {}): ChapterAlignment {
   }
 }
 
-function pair(groupId: number, segmentIds: number[], rowIds: number[], spans: ReviewDiffSpan[]) {
-  return { group_id: groupId, decided_by: 'machine' as const, segment_ids: segmentIds, row_ids: rowIds, spans }
+function pair(
+  groupId: number,
+  segmentIds: number[],
+  rowIds: number[],
+  spans: ReviewDiffSpan[],
+  decision: 'accepted' | 'skipped' | null = null,
+) {
+  return { group_id: groupId, decided_by: 'machine' as const, segment_ids: segmentIds, row_ids: rowIds, spans, decision }
 }
 
 function diffOf(...pairs: ReturnType<typeof pair>[]): { diff: ReviewDiff; error: null } {
@@ -96,6 +114,11 @@ beforeEach(() => {
   openMock.mockReset()
   diffMock.mockReset()
   diffMock.mockResolvedValue(defaultDiff())
+  acceptMock.mockReset()
+  skipMock.mockReset()
+  flushMock.mockReset()
+  flushMock.mockResolvedValue('clean')
+  replaceMock.mockReset()
   putMock.mockClear()
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 })
@@ -698,5 +721,244 @@ describe('diff jumps and paired scrolling', () => {
     right.dispatchEvent(new Event('scroll'))
     expect(left.scrollTop).toBe(150)
     expect(writes).toEqual(['left:150', 'right:90'])
+  })
+})
+
+describe('accepting and skipping changes', () => {
+  let wrapper: VueWrapper | null = null
+
+  const acceptedOutcome = (over: Record<string, unknown> = {}) => ({
+    outcome: {
+      segment_id: 10,
+      target_text: 'sửa một',
+      translation_origin: 'other',
+      status: 'draft',
+      needs_confirmation: false,
+      unsigned_draft: null,
+      ...over,
+    },
+    error: null,
+  })
+
+  function threeChanges(decisions: Array<'accepted' | 'skipped' | null> = [null, null, null]) {
+    return diffOf(
+      pair(1, [10], [100], [eq('a '), del('x'), ins('y')], decisions[0]),
+      pair(2, [11], [101], [eq('a '), del('m'), ins('n')], decisions[1]),
+      pair(3, [12], [102], [del('p'), ins('q')], decisions[2]),
+    )
+  }
+
+  async function open(diff = threeChanges()): Promise<VueWrapper> {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    setMode('workspace')
+    wrapper = mount(WorkspaceMode, { attachTo: host })
+    await settle()
+    openMock.mockResolvedValue(ok(alignment()))
+    diffMock.mockResolvedValue(diff)
+    await state.openReviewMode(7)
+    await settle()
+    return wrapper
+  }
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    document.body.innerHTML = ''
+  })
+
+  it('the two commands are registered with Alt+Enter and Alt+Backspace, rebindable, and reach their handlers', async () => {
+    vi.resetModules()
+    const commands = await import('../../src/commands')
+    const reviewAcceptChange = vi.fn()
+    const reviewSkipChange = vi.fn()
+    commands.installCommands({ reviewAcceptChange, reviewSkipChange } as never)
+    const specs = commands.commandRegistry.list()
+    expect(specs.find((s) => s.id === 'review.accept_change')?.keys).toEqual(['Alt+Enter'])
+    expect(specs.find((s) => s.id === 'review.skip_change')?.keys).toEqual(['Alt+Backspace'])
+    const taken = new Map<string, string>()
+    for (const spec of specs) {
+      for (const key of spec.keys ?? []) {
+        expect(taken.has(key), `${key} used by ${taken.get(key)} and ${spec.id}`).toBe(false)
+        taken.set(key, spec.id)
+      }
+    }
+    commands.dispatch('review.accept_change')
+    commands.dispatch('review.skip_change')
+    expect(reviewAcceptChange).toHaveBeenCalledTimes(1)
+    expect(reviewSkipChange).toHaveBeenCalledTimes(1)
+    const { reviewModeCommandDeps } = await import('../../src/reviewModeCommandDeps')
+    const deps = reviewModeCommandDeps()
+    expect(typeof deps.reviewAcceptChange).toBe('function')
+    expect(typeof deps.reviewSkipChange).toBe('function')
+    expect(typeof deps.reviewConfirmAccept).toBe('function')
+    expect(typeof deps.reviewCancelAccept).toBe('function')
+  })
+
+  it('accepting flushes the typing buffer first, writes through Rust with the text shown, mirrors the Editor and jumps to the next pending change', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    await settle()
+    const order: string[] = []
+    flushMock.mockImplementation(() => {
+      order.push('flush')
+      return Promise.resolve('clean')
+    })
+    acceptMock.mockImplementation(() => {
+      order.push('accept')
+      return Promise.resolve(acceptedOutcome())
+    })
+    diffMock.mockResolvedValue(threeChanges(['accepted', null, null]))
+
+    await state.reviewAcceptChange()
+    await settle()
+
+    expect(order).toEqual(['flush', 'accept'])
+    expect(acceptMock).toHaveBeenCalledWith(7, 1, 'a x', false)
+    expect(replaceMock).toHaveBeenCalledWith(10, { target_text: 'sửa một', translation_origin: 'other', status: 'draft' })
+    expect(state.reviewModeCurrentPairKey.value).toBe('g2')
+    expect(w.find('[data-review-stats]').text()).toBe(t('review.stats', { count: '3', handled: '1' }))
+    expect(w.find('[data-review-pair="g1"] [data-review-label="accepted"]').exists()).toBe(true)
+  })
+
+  it('a flush that fails writes nothing', async () => {
+    await open()
+    state.reviewDiffNext()
+    flushMock.mockResolvedValue('failed')
+    await state.reviewAcceptChange()
+    expect(acceptMock).not.toHaveBeenCalled()
+    expect(state.reviewModeDiffMessage.value?.key).toBe('review.accept_flush_failed')
+  })
+
+  it('nothing is written when the cursor is on no change', async () => {
+    await open()
+    await state.reviewAcceptChange()
+    await state.reviewSkipChange()
+    expect(acceptMock).not.toHaveBeenCalled()
+    expect(skipMock).not.toHaveBeenCalled()
+    expect(state.reviewModeDiffMessage.value?.key).toBe('review.change_none_current')
+  })
+
+  it('an accept that Rust holds back asks in place, writes nothing, and forces only after the user agrees', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    acceptMock.mockResolvedValueOnce(acceptedOutcome({ target_text: 'bản nháp', needs_confirmation: true, unsigned_draft: 'bản nháp' }))
+    await state.reviewAcceptChange()
+    await settle()
+
+    expect(replaceMock).not.toHaveBeenCalled()
+    const block = w.find('[data-review-confirm]')
+    expect(block.exists()).toBe(true)
+    expect(block.text()).toContain('bản nháp')
+    expect(w.findAll('[role="dialog"]')).toHaveLength(0)
+
+    acceptMock.mockResolvedValueOnce(acceptedOutcome())
+    expect(w.find('[data-review-overwrite]').exists()).toBe(true)
+    await state.confirmPendingAccept()
+    await settle()
+    expect(acceptMock).toHaveBeenLastCalledWith(7, 1, 'a x', true)
+    expect(replaceMock).toHaveBeenCalledTimes(1)
+    expect(w.find('[data-review-confirm]').exists()).toBe(false)
+  })
+
+  it('keeping my text drops the question and leaves everything as it was', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    acceptMock.mockResolvedValueOnce(acceptedOutcome({ needs_confirmation: true, unsigned_draft: 'bản nháp' }))
+    await state.reviewAcceptChange()
+    await settle()
+    expect(w.find('[data-review-keep]').exists()).toBe(true)
+    state.cancelPendingAccept()
+    await settle()
+    expect(w.find('[data-review-confirm]').exists()).toBe(false)
+    expect(acceptMock).toHaveBeenCalledTimes(1)
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('a refusal because the text changed says so and reloads the diff', async () => {
+    await open()
+    state.reviewDiffNext()
+    acceptMock.mockResolvedValue({
+      outcome: null,
+      error: { code: 'review.change_text_changed', message_key: 'err.review.change_text_changed', params: {}, retryable: false },
+    })
+    diffMock.mockClear()
+    await state.reviewAcceptChange()
+    await settle()
+    expect(diffMock).toHaveBeenCalledTimes(1)
+    expect(state.reviewModeDiffMessage.value?.key).toBe('err.review.change_text_changed')
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('skipping keeps the Editor untouched, counts as handled and survives closing and opening again', async () => {
+    const w = await open()
+    state.reviewDiffNext()
+    skipMock.mockResolvedValue({ skipped: true, error: null })
+    diffMock.mockResolvedValue(threeChanges(['skipped', null, null]))
+    await state.reviewSkipChange()
+    await settle()
+
+    expect(skipMock).toHaveBeenCalledWith(7, 1)
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(flushMock).not.toHaveBeenCalled()
+    expect(w.find('[data-review-pair="g1"] [data-review-label="skipped"]').exists()).toBe(true)
+
+    await state.closeReviewMode()
+    await state.openReviewMode(7)
+    await settle()
+    expect(state.reviewModeChangeStats.value).toEqual({ count: 3, handled: 1 })
+    expect(state.reviewModePairs.value[0].pending).toBe(false)
+  })
+
+  it('when no change is left unprocessed it says so in words and stays put', async () => {
+    await open(threeChanges([null, 'skipped', 'accepted']))
+    state.reviewDiffNext()
+    skipMock.mockResolvedValue({ skipped: true, error: null })
+    diffMock.mockResolvedValue(threeChanges(['skipped', 'skipped', 'accepted']))
+    await state.reviewSkipChange()
+    await settle()
+    expect(state.reviewModeDiffMessage.value?.key).toBe('review.all_processed')
+  })
+
+  it('a group that is not one to one has no accept button, only the hand-edit notice, and refuses the command', async () => {
+    const w = await open(
+      diffOf(
+        pair(1, [10, 11], [100], [del('p'), ins('q')]),
+        pair(2, [12], [], [del('mình tôi')]),
+      ),
+    )
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-accept]').exists()).toBe(false)
+    expect(w.find('[data-review-skip]').exists()).toBe(true)
+    expect(state.reviewModeChangeStats.value).toEqual({ count: 1, handled: 0 })
+    expect(w.find('[data-review-pair="g1"] [data-review-label="manual"]').exists()).toBe(true)
+    await state.reviewAcceptChange()
+    expect(acceptMock).not.toHaveBeenCalled()
+    expect(state.reviewModeDiffMessage.value?.key).toBe('review.change_manual')
+
+    state.reviewDiffNext()
+    await settle()
+    expect(w.find('[data-review-pair="g2"] [data-review-skip]').exists()).toBe(false)
+    expect(w.find('[data-review-pair="g2"] [data-review-label="manual"]').exists()).toBe(true)
+    await state.reviewSkipChange()
+    expect(skipMock).not.toHaveBeenCalled()
+  })
+
+  it('an accepted pair keeps its place among the changes that the jumps walk, with no buttons', async () => {
+    const w = await open(
+      diffOf(
+        pair(1, [10], [100], [eq('a x')], 'accepted'),
+        pair(2, [11], [101], [eq('same')]),
+        pair(3, [12], [102], [del('p'), ins('q')]),
+      ),
+    )
+    expect(state.reviewModeChangeStats.value).toEqual({ count: 2, handled: 1 })
+    state.reviewDiffNext()
+    await settle()
+    expect(state.reviewModeCurrentPairKey.value).toBe('g1')
+    expect(w.find('[data-review-actions]').exists()).toBe(false)
+    state.reviewDiffNext()
+    expect(state.reviewModeCurrentPairKey.value).toBe('g3')
   })
 })

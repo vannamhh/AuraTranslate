@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
 use super::alignment::{align_chapter, delete_alignment_of_chapter, user_group_count};
+use super::review_decision::accepted_group_count;
 use super::attribution::is_attribution_line;
 use super::image_files::{IMAGE_DIR_SUFFIX, copied_name};
 use super::reimport_gate::ReviewerDocx;
@@ -368,6 +369,8 @@ pub struct ReplacedCopy {
     pub stale: bool,
     /// Groups the user decided by hand; importing again discards them.
     pub user_group_count: usize,
+    /// Groups the user accepted; importing again discards them, and the text they wrote stays.
+    pub accepted_group_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -410,7 +413,12 @@ fn existing_copy(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Option<Repl
         |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)),
     ))?;
     let Some((file_name, stale)) = found else { return Ok(None) };
-    Ok(Some(ReplacedCopy { file_name, stale, user_group_count: user_group_count(conn, chapter_id)? }))
+    Ok(Some(ReplacedCopy {
+        file_name,
+        stale,
+        user_group_count: user_group_count(conn, chapter_id)?,
+        accepted_group_count: accepted_group_count(conn, chapter_id)?,
+    }))
 }
 
 pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<ReviewerImportPlan, ReviewCopyError> {

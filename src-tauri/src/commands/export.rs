@@ -263,6 +263,7 @@ pub struct ReviewerImportReplacedWire {
     pub file_name: String,
     pub stale: bool,
     pub user_group_count: i64,
+    pub accepted_group_count: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -374,6 +375,7 @@ fn reviewer_preview_wire(plan: &ReviewerImportPlan) -> ReviewerImportPreviewWire
                     file_name: r.file_name.clone(),
                     stale: r.stale,
                     user_group_count: count_wire(r.user_group_count),
+                    accepted_group_count: count_wire(r.accepted_group_count),
                 }),
             })
             .collect(),
@@ -577,7 +579,7 @@ fn alignment_wire(alignment: ChapterAlignment) -> ChapterAlignmentWire {
     }
 }
 
-fn alignment_error(error: AlignmentError) -> IpcError {
+pub(crate) fn alignment_error(error: AlignmentError) -> IpcError {
     match error {
         AlignmentError::Copy(ReviewCopyError::NotImported) => {
             IpcError::new("export.alignment_not_imported", MessageKey::ExportAlignmentNotImported, BTreeMap::new(), false)
@@ -591,6 +593,9 @@ fn alignment_error(error: AlignmentError) -> IpcError {
             BTreeMap::new(),
             false,
         ),
+        AlignmentError::NotAcceptable => {
+            IpcError::new("review.change_not_acceptable", MessageKey::ReviewChangeNotAcceptable, BTreeMap::new(), false)
+        }
         AlignmentError::Copy(ReviewCopyError::Store(e)) | AlignmentError::Store(e) => IpcError::from(e),
         AlignmentError::Copy(ReviewCopyError::Sql(e)) | AlignmentError::Sql(e) => IpcError::from(StoreError::ReadFailed { store: StoreKind::Project, detail: format!("{e:?}") }),
         AlignmentError::Copy(other) => reviewer_unreadable(&format!("{other:?}")),
@@ -620,6 +625,7 @@ pub struct ReviewDiffPairWire {
     pub segment_ids: Vec<i64>,
     pub row_ids: Vec<i64>,
     pub spans: Vec<crate::core::matching::DiffSpan>,
+    pub decision: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -643,9 +649,21 @@ pub fn review_diff(open: Option<&OpenWork>, chapter_id: i64) -> Result<ReviewDif
             segment_ids: d.segment_ids,
             row_ids: d.row_ids,
             spans: d.spans,
+            decision: d.decision.map(|d| d.as_str().to_owned()),
         })
         .collect();
     Ok(ReviewDiffWire { chapter_id, pairs })
+}
+
+/// Skips one change of the reviewer copy (FR94): the segment keeps its text, and the group stops
+/// counting as unprocessed.
+///
+/// # Errors
+/// As [`alignment_open`], and `export.alignment_invalid_selection` (nothing written) for a group
+/// that is unknown or holds no reviewer row.
+pub fn review_skip_change(open: Option<&OpenWork>, chapter_id: i64, group_id: i64) -> Result<(), IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    crate::core::export::skip_change(&open.store, chapter_id, group_id).map_err(alignment_error)
 }
 
 /// Joins at least one segment and one reviewer row into a user group and returns the new state.
@@ -869,6 +887,12 @@ pub mod wire {
     #[tauri::command]
     pub fn review_diff(app: tauri::AppHandle, chapter_id: i64) -> Result<super::ReviewDiffWire, IpcError> {
         with_open(&app, |open| super::review_diff(open, chapter_id))
+    }
+
+    /// Vỏ IPC của [`super::review_skip_change`].
+    #[tauri::command]
+    pub fn review_skip_change(app: tauri::AppHandle, chapter_id: i64, group_id: i64) -> Result<(), IpcError> {
+        with_open(&app, |open| super::review_skip_change(open, chapter_id, group_id))
     }
 
     /// Vỏ IPC của [`super::alignment_join`].

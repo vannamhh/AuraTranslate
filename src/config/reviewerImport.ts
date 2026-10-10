@@ -3,7 +3,12 @@ import type { IpcError } from '../i18n'
 
 export type ReviewerFileKind = 'docx' | 'md'
 
-export type ReviewerImportReplaces = { file_name: string; stale: boolean; user_group_count: number }
+export type ReviewerImportReplaces = {
+  file_name: string
+  stale: boolean
+  user_group_count: number
+  accepted_group_count: number
+}
 
 export type ReviewerImportChapter = {
   chapter_id: number
@@ -92,7 +97,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isReplaces(value: unknown): value is ReviewerImportReplaces {
-  return isObject(value) && typeof value.file_name === 'string' && typeof value.stale === 'boolean' && typeof value.user_group_count === 'number'
+  return (
+    isObject(value) &&
+    typeof value.file_name === 'string' &&
+    typeof value.stale === 'boolean' &&
+    typeof value.user_group_count === 'number' &&
+    typeof value.accepted_group_count === 'number'
+  )
 }
 
 function isChapter(value: unknown): value is ReviewerImportChapter {

@@ -1793,7 +1793,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 18] = [
         "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
-    ("src/commands/export.rs", 6, 7, 7, ""),
+    ("src/commands/export.rs", 7, 7, 7, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 2, 4, 4, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
@@ -1821,7 +1821,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 18] = [
     // `tm_fuzzy_matches` is the one `(async)` shell here: it scans every pair of both TM tiers.
     // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
-    ("src/commands/segment/wire.rs", 17, 2, 2, ""),
+    ("src/commands/segment/wire.rs", 18, 2, 2, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -1972,9 +1972,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (76, 56),
+        (78, 56),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         76/56.\n\n\
+         78/56.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

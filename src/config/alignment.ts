@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
+import type { PromoteAiTranslationOutcome } from './segment'
 
 export type AlignmentRowKind = 'text' | 'alt' | 'caption'
 export type AlignmentSegmentRole = 'alt' | 'caption'
@@ -40,12 +41,15 @@ export type ChapterAlignment = {
 
 export type ReviewDiffSpan = { kind: 'equal' | 'delete' | 'insert'; text: string }
 
+export type ReviewDecision = 'accepted' | 'skipped'
+
 export type ReviewDiffPair = {
   group_id: number
   decided_by: 'machine' | 'user'
   segment_ids: number[]
   row_ids: number[]
   spans: ReviewDiffSpan[]
+  decision: ReviewDecision | null
 }
 
 export type ReviewDiff = { chapter_id: number; pairs: ReviewDiffPair[] }
@@ -63,6 +67,8 @@ const CMD_JOIN = 'alignment_join'
 const CMD_SKIP = 'alignment_skip'
 const CMD_UNJOIN = 'alignment_unjoin'
 const CMD_DIFF = 'review_diff'
+const CMD_ACCEPT_CHANGE = 'review_accept_change'
+const CMD_SKIP_CHANGE = 'review_skip_change'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -168,7 +174,8 @@ function isDiffPair(value: unknown): value is ReviewDiffPair {
     isIdList(value.segment_ids) &&
     isIdList(value.row_ids) &&
     Array.isArray(value.spans) &&
-    value.spans.every(isDiffSpan)
+    value.spans.every(isDiffSpan) &&
+    (value.decision === null || value.decision === 'accepted' || value.decision === 'skipped')
   )
 }
 
@@ -229,5 +236,56 @@ export async function reviewDiff(chapterId: number): Promise<ReviewDiffResult> {
     return { diff: wire, error: null }
   } catch (err) {
     return { diff: null, error: failureOf(err, CMD_DIFF) }
+  }
+}
+
+export type AcceptChangeResult =
+  | { outcome: PromoteAiTranslationOutcome; error: null }
+  | { outcome: null; error: IpcError | null }
+
+export type SkipChangeResult = { skipped: boolean; error: IpcError | null }
+
+function isAcceptOutcome(value: unknown): value is PromoteAiTranslationOutcome {
+  return (
+    isObject(value) &&
+    typeof value.segment_id === 'number' &&
+    typeof value.target_text === 'string' &&
+    typeof value.translation_origin === 'string' &&
+    (value.status === 'draft' || value.status === 'confirmed') &&
+    typeof value.needs_confirmation === 'boolean' &&
+    (typeof value.unsigned_draft === 'string' || value.unsigned_draft === null)
+  )
+}
+
+/**
+ * Takes over one reviewer change into my segment (FR94). `expectedTarget` is the text of my side as
+ * shown; Rust refuses when the segment no longer holds it. `needs_confirmation` means nothing was
+ * written: ask, then call again with `force`. The caller mirrors the outcome into the Editor. Never throws.
+ */
+export async function reviewAcceptChange(
+  chapterId: number,
+  groupId: number,
+  expectedTarget: string,
+  force: boolean,
+): Promise<AcceptChangeResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_ACCEPT_CHANGE, { chapterId, groupId, expectedTarget, force })
+    if (!isAcceptOutcome(wire)) {
+      console.error(`[alignment] \`${CMD_ACCEPT_CHANGE}\` returned an unexpected shape: ${String(wire)}`)
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: wire, error: null }
+  } catch (err) {
+    return { outcome: null, error: failureOf(err, CMD_ACCEPT_CHANGE) }
+  }
+}
+
+/** Marks one change as looked at and left alone; the segment keeps its text. Never throws. */
+export async function reviewSkipChange(chapterId: number, groupId: number): Promise<SkipChangeResult> {
+  try {
+    await invoke<unknown>(CMD_SKIP_CHANGE, { chapterId, groupId })
+    return { skipped: true, error: null }
+  } catch (err) {
+    return { skipped: false, error: failureOf(err, CMD_SKIP_CHANGE) }
   }
 }

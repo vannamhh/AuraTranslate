@@ -968,6 +968,19 @@ CREATE TABLE alignment_member (
 );
 CREATE INDEX alignment_member_group ON alignment_member(group_id);";
 
+/// Step 33 (FR94, AD-52 rules 6 and 7): what the user decided about each reviewer row of a copy,
+/// accepted or skipped. Keyed by `review_row_id` with `review_chapter_id` beside it, so it dies
+/// with the copy and with any change of the group the row sits in.
+pub const REVIEW_DECISION_DDL: &str = "\
+CREATE TABLE review_decision (
+  review_row_id     INTEGER PRIMARY KEY,
+  review_chapter_id INTEGER NOT NULL,
+  decision          TEXT    NOT NULL,
+  decided_at        TEXT    NOT NULL,
+  CHECK (decision IN ('accepted', 'skipped'))
+);
+CREATE INDEX review_decision_review_chapter ON review_decision(review_chapter_id);";
+
 /// Step 32 (AD-20, AD-52 rule 7): a `glossary_candidate` of origin `review_harvest` carries the
 /// replaced and the proposed translation and how often the reviewer made the change. The four
 /// columns are filled exactly for that origin, and the one-per-`source_term` index becomes two
@@ -1965,7 +1978,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi mốt bước, và đích là phiên bản 32.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi hai bước, và đích là phiên bản 33.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2321,6 +2334,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 32,
         sql: REVIEW_HARVEST_CANDIDATE_DDL,
+    },
+    Migration {
+        to_version: 33,
+        sql: REVIEW_DECISION_DDL,
     },
 ];
 

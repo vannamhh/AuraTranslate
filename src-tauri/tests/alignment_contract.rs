@@ -10,10 +10,10 @@ use auratranslate_lib::commands::export::{
     PendingReviewerImportState, export_docx_two_column, export_text, reviewer_import_confirm, reviewer_import_preview,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
-use auratranslate_lib::commands::segment::{merge_segments, split_segment};
+use auratranslate_lib::commands::segment::{merge_segments, review_accept_change, split_segment};
 use auratranslate_lib::core::export::{
     AlignmentError, AlignmentItem, ChapterAlignment, DecidedBy, ExportScope, ImageMode, MIN_PAIR_SIMILARITY, ReviewCopyError,
-    TextFormat, join, read_alignment, read_review_copy, review_diff, skip, unjoin,
+    TextFormat, join, read_alignment, read_review_copy, review_diff, skip, skip_change, unjoin,
 };
 use auratranslate_lib::core::matching::{DiffKind, DiffSpan, MatchLang, similarity_percent};
 use auratranslate_lib::core::store::Transaction;
@@ -742,4 +742,258 @@ fn review_diff_names_a_chapter_without_a_copy_instead_of_returning_an_empty_list
 
 fn three_chapter() -> Vec<(Option<&'static str>, Segs)> {
     three(["dich mot", "dich hai", "dich ba"])
+}
+
+const DECISION_TABLE: &[&str] = &["review_decision"];
+
+fn one_changed(tag: &str) -> (Work, Work) {
+    let (mine, reviewer) = mine_and_reviewer(tag, vec![("a1", "dich mot"), ("a2", "dich bon"), ("a3", "dich ba")]);
+    mine.import(&reviewer.docx());
+    (mine, reviewer)
+}
+
+fn changed_group(work: &Work) -> (i64, i64, i64) {
+    let diffs = work.diff(0);
+    let group = &diffs[1];
+    (group.group_id, group.segment_ids[0], group.row_ids[0])
+}
+
+fn segment_row(work: &Work, id: i64) -> (String, String, String, String, String) {
+    work.open
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT target_text, status, translation_origin, baseline_target_text, baseline_translation_origin \
+                 FROM segment WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+        })
+        .expect("doc segment")
+}
+
+fn give_copy(work: &Work, id: i64, text: &'static str) {
+    work.open
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("INSERT INTO segment_version (segment_id, target_text, created_at) VALUES (?1, ?2, 't')", (id, text))
+        })
+        .expect("chen ban sao");
+}
+
+fn code_of<T: std::fmt::Debug>(result: Result<T, auratranslate_lib::core::i18n::IpcError>) -> String {
+    result.expect_err("phai loi").code().to_owned()
+}
+
+#[test]
+fn accepting_a_one_to_one_change_writes_the_reviewers_text_as_other_draft_and_adds_no_version() {
+    let (mine, reviewer) = one_changed("accept");
+    let (group, segment, row) = changed_group(&mine);
+    give_copy(&mine, segment, "dich hai");
+    let versions = mine.scalar("SELECT COUNT(*) FROM segment_version");
+
+    let outcome = review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich hai", false).expect("chap nhan");
+
+    assert!(!outcome.needs_confirmation);
+    assert_eq!((outcome.target_text.as_str(), outcome.translation_origin.as_str(), outcome.status.as_str()), ("dich bon", "other", "draft"));
+    assert_eq!(
+        segment_row(&mine, segment),
+        ("dich bon".into(), "draft".into(), "other".into(), "dich bon".into(), "other".into())
+    );
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM segment_version"), versions, "khong tao SegmentVersion");
+    let accepted: Vec<i64> = mine
+        .open
+        .store
+        .read(|conn| {
+            conn.prepare("SELECT review_row_id FROM review_decision WHERE decision = 'accepted'")?
+                .query_map([], |r| r.get(0))?
+                .collect::<rusqlite::Result<Vec<i64>>>()
+        })
+        .expect("doc quyet dinh");
+    assert_eq!(accepted, vec![row]);
+    let after = mine.diff(0);
+    assert_eq!(after[1].group_id, group);
+    assert_eq!(after[1].decision.map(|d| d.as_str()), Some("accepted"));
+    assert!(only_equal(&after[1].spans));
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn accepting_over_an_unsigned_draft_asks_first_and_writes_nothing_until_forced() {
+    let (mine, reviewer) = one_changed("accept-ask");
+    let (group, segment, _) = changed_group(&mine);
+    let before = mine.dump(DECISION_TABLE);
+
+    let asked = review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich hai", false).expect("hoi lai");
+
+    assert!(asked.needs_confirmation);
+    assert_eq!(asked.target_text, "dich hai");
+    assert_eq!(segment_row(&mine, segment).0, "dich hai");
+    assert_eq!(segment_row(&mine, segment).2, "", "xuat xu khong doi");
+    assert_eq!(mine.dump(DECISION_TABLE), before, "nhanh hoi lai khong ghi quyet dinh");
+
+    let forced = review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich hai", true).expect("ghi de");
+    assert!(!forced.needs_confirmation);
+    assert_eq!(segment_row(&mine, segment).0, "dich bon");
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn accepting_an_empty_segment_needs_no_confirmation() {
+    let (mine, reviewer) = one_changed("accept-empty");
+    let (group, segment, _) = changed_group(&mine);
+    mine.open
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE segment SET target_text = '' WHERE id = ?1", [segment]))
+        .expect("xoa");
+    let outcome = review_accept_change(Some(&mine.open), mine.chapters[0], group, "", false).expect("chap nhan");
+    assert!(!outcome.needs_confirmation);
+    assert_eq!(segment_row(&mine, segment).0, "dich bon");
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn skipping_keeps_the_segment_and_the_decision_survives_a_fresh_read() {
+    let (mine, reviewer) = one_changed("skip");
+    let (group, segment, _) = changed_group(&mine);
+
+    skip_change(&mine.open.store, mine.chapters[0], group).expect("bo qua");
+
+    assert_eq!(segment_row(&mine, segment).0, "dich hai");
+    let again = mine.diff(0);
+    assert_eq!(again[1].decision.map(|d| d.as_str()), Some("skipped"));
+    assert!(again[0].decision.is_none() && again[2].decision.is_none());
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn a_group_that_is_not_one_to_one_cannot_be_accepted_and_one_without_a_row_cannot_be_skipped() {
+    let (mine, reviewer) = mine_and_reviewer("not-one", vec![("a1", "dich mot"), ("zz", "chuyen khac han"), ("a3", "dich ba")]);
+    mine.import(&reviewer.docx());
+    let alignment = mine.alignment(0);
+    let lone = alignment.unmatched_segment_ids[0];
+    let one_sided = skip(&mine.open.store, mine.chapters[0], AlignmentItem::Segment(lone)).expect("bo qua mot phia");
+    let before = mine.scalar("SELECT COUNT(*) FROM segment WHERE status = 'confirmed'");
+
+    assert_eq!(
+        code_of(review_accept_change(Some(&mine.open), mine.chapters[0], one_sided, "dich hai", false)),
+        "review.change_not_acceptable"
+    );
+    assert!(matches!(skip_change(&mine.open.store, mine.chapters[0], one_sided), Err(AlignmentError::InvalidSelection)));
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM review_decision"), 0);
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM segment WHERE status = 'confirmed'"), before);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn an_unchanged_pair_is_not_acceptable() {
+    let (mine, reviewer) = one_changed("unchanged");
+    let same = mine.diff(0)[0].group_id;
+    assert_eq!(
+        code_of(review_accept_change(Some(&mine.open), mine.chapters[0], same, "dich mot", false)),
+        "review.change_not_acceptable"
+    );
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn a_segment_edited_after_the_diff_is_refused_with_nothing_written() {
+    let (mine, reviewer) = one_changed("edited");
+    let (group, segment, _) = changed_group(&mine);
+    give_copy(&mine, segment, "dich hai");
+    let before = mine.dump(DECISION_TABLE);
+
+    assert_eq!(
+        code_of(review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich khac", false)),
+        "review.change_text_changed"
+    );
+    mine.open
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE segment SET target_text = 'da sua tay' WHERE id = ?1", [segment]))
+        .expect("sua tay");
+    assert_eq!(
+        code_of(review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich hai", false)),
+        "review.change_text_changed",
+        "diff cu khong con khop van ban hien tai"
+    );
+    assert_eq!(segment_row(&mine, segment).0, "da sua tay");
+    assert_eq!(mine.dump(DECISION_TABLE), before);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn accepting_without_a_live_copy_is_the_typed_alignment_error() {
+    let mine = build("accept-none", &three_chapter());
+    assert_eq!(
+        code_of(review_accept_change(Some(&mine.open), mine.chapters[0], 1, "dich mot", false)),
+        "export.alignment_not_imported"
+    );
+    mine.finish();
+}
+
+#[test]
+fn accepting_or_skipping_on_a_stale_copy_is_the_typed_error_and_writes_nothing() {
+    let (mut mine, reviewer) = one_changed("stale-accept");
+    let chapter = mine.chapters[0];
+    let (group, segment, _) = changed_group(&mine);
+    give_copy(&mine, segment, "dich hai");
+    let split_at = mine.segment_ids(0)[1];
+    auratranslate_lib::commands::chapter::split_chapter_at_segment(Some(&mut mine.open), split_at).expect("tach Chuong");
+    let before = mine.dump(DECISION_TABLE);
+
+    assert_eq!(code_of(review_accept_change(Some(&mine.open), chapter, group, "dich hai", false)), "export.alignment_stale");
+    assert!(matches!(skip_change(&mine.open.store, chapter, group), Err(AlignmentError::Copy(ReviewCopyError::Stale))));
+    assert_eq!(segment_row(&mine, segment).0, "dich hai");
+    assert_eq!(mine.dump(DECISION_TABLE), before);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn a_decision_dies_with_any_change_of_its_group() {
+    let (mine, reviewer) = one_changed("decision-dies");
+    let chapter = mine.chapters[0];
+    let (group, _, _) = changed_group(&mine);
+    skip_change(&mine.open.store, chapter, group).expect("bo qua");
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM review_decision"), 1);
+    unjoin(&mine.open.store, chapter, group).expect("tach");
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM review_decision"), 0, "tach nhom xoa quyet dinh");
+
+    let rows = mine.alignment(0).unmatched_row_ids;
+    let segments = mine.alignment(0).unmatched_segment_ids;
+    let joined = join(&mine.open.store, chapter, &segments, &rows).expect("noi lai");
+    skip_change(&mine.open.store, chapter, joined).expect("bo qua nhom noi");
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM review_decision"), 1);
+    let middle = mine.segment_ids(0)[1];
+    merge_segments(Some(&mine.open), middle).expect("gop segment");
+    assert_eq!(mine.scalar("SELECT COUNT(*) FROM review_decision"), 0, "doi thanh vien segment xoa quyet dinh");
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn merging_the_chapter_removes_its_decisions_with_the_reviewer_copy() {
+    let two = vec![
+        (Some("Mo dau"), vec![("a1", "dich mot"), ("a2", "dich hai"), ("a3", "dich ba")]),
+        (Some("Hai"), vec![("b1", "b mot")]),
+    ];
+    let mut work = build("decision-merge2", &two);
+    let rev = build("decision-merge2-rev", &[(Some("Mo dau"), vec![("a1", "dich mot"), ("a2", "dich bon"), ("a3", "dich ba")]), (Some("Hai"), vec![("b1", "b ba")])]);
+    work.import(&rev.docx());
+    let second = work.diff(1)[0].group_id;
+    skip_change(&work.open.store, work.chapters[1], second).expect("bo qua");
+    assert_eq!(work.scalar("SELECT COUNT(*) FROM review_decision"), 1);
+
+    merge_chapter_into_previous(Some(&mut work.open), work.chapters[1]).expect("gop Chuong");
+
+    assert_eq!(work.scalar("SELECT COUNT(*) FROM review_decision"), 0);
+    work.finish();
+    rev.finish();
 }
