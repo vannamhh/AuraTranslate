@@ -13034,3 +13034,7 @@ chính nó.
   summary: `wire::ai_translate_segment` và `wire::ai_translate_batch` lấy `generation_state.next()` sau `prepare_*` (đọc segment + keychain), nên `ai_translate_cancel` đến trong khe đó bị lượt dịch ghi đè và lượt dịch chạy tới cùng.
   evidence: review 9.1 thấy cùng thứ tự ở `commands/proofread.rs` và đã vá ở đó; `commands/aitranslate.rs` gọi `next()` sau `prepare_translate_call`/`prepare_batch_call`, chưa ca nào canh khe này.
   Chủ: Story 9.11.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-ad-53-luot-ghi-khi-chap-nhan-e-xuat-cua-proofreader-va-chu-k-plan.md`
+  summary: Chữ ký ghi nhớ của AD-53 mục 7 chứa loại do model gán, nên một cụm bị gọi chính tả rồi ngữ pháp ở hai lượt quét thì đổi khoá và báo lại (FR84); chữ ký loại 9.2 chỉ mang văn bản đích, không mang cụm nguồn.
+  evidence: AD-53 mục 1 ⚠️; reviews/review-ad-53-recheck-2026-10-10.md mục 5; không có dữ liệu dùng thật để đo tần suất.
+  Chủ: Story 9.8.
