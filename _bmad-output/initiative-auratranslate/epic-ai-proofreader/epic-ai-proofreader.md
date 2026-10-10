@@ -48,3 +48,16 @@ Proofreader theo yêu cầu. Không phải dịch bằng AI (epic AI mở) và k
 ## Notes
 
 - Unknown: ngưỡng đỗ tỷ lệ báo động giả (Story 9.8) chỉ được nêu là "đủ thấp để người dùng không tắt hẳn tính năng", chưa có con số.
+- Decision: 2026-10-10 — incept lại epic từ bản chuyển v6: tám story chia theo giá trị người dùng, `after` rỗng, thành chuỗi lát triển khai có tracer, AD và sweep.
+- Decision: 2026-10-10 — tracer là 9.1: quét chính tả/ngữ pháp một segment, gạch chân trong ô; đo CSS Custom Highlight API trên WKWebView ngay trong tracer, không làm được thì dừng và trình hai phương án.
+- Decision: 2026-10-10 — story mở đầu 9.9 vá C1, C2 (điều kiện Ice đặt để ký Epic 4) và C4, C6 (nằm trên đường gọi AI sắp rút chung) của retro Epic 4, cùng action #8 rút hàm chung đơn/lô. C3, C5, C7, C8 không thuộc Epic 9.
+- Decision: 2026-10-10 — AD-53 (9.10) chỉ quyết lượt ghi khi chấp nhận đề xuất, chữ ký ghi nhớ và phát hiện cũ đi khi gõ sửa; seam lệnh và provider theo AD-13/AD-15, hình dạng phát hiện do 9.1 chốt, phát hiện chỉ sống trong bộ nhớ webview.
+- Decision: 2026-10-10 — có story Refactor sweep (9.11). Ngưỡng của 9.8 để `unknown` tới khi Ice thấy 9.2 chạy thật.
+- Dropped: 2026-10-10 — 9.7 "Proofreader không tự sửa văn bản": story chỉ gồm cổng canh, setup lớn hơn việc; ba vế chia về 9.1 (quét không đổi ký tự hay trạng thái), 9.3 (quét cả Chương chưa xử lý thì Chương nguyên vẹn), 9.4 (chỉ chấp nhận tường minh mới ghi, cổng nguồn canh đường ghi duy nhất).
+- Source conflict: FR86 / tiêu chí gốc 9.5 — vạch lề "đã dùng hết sáu giá trị" vs `SEGMENT_RULE_VALUES` có năm giá trị (`src/panels/editorSegments.ts:81`, `ornament` đã bỏ).
+- Source conflict: spine AD-3 (:95) — ghi nhớ proofreader "tham chiếu `segment.id`" vs spine :918 và FR84 khoá theo `(work, chữ ký)`; AD-53 sửa.
+- Source conflict: tiêu chí gốc 9.5 — Editor "trang văn bản liền mạch, không chia ô" vs Editor là lưới mỗi segment một ô `contenteditable` từ Story 2.5b (`src/panels/GridPanel.vue`).
+- Source conflict: tiêu chí gốc 9.4 — dải "mọc dưới câu" vs khe dải chung nằm trên StatusBar trong `App.vue`, phân xử bởi `src/panels/inlineStripPriority.ts`.
+- Source conflict: epic và spine gọi `RagInjector` như một kiểu vs mã là các hàm `core::ai::rag::{gather_*, assemble_prompt}`, và `assemble_prompt` không nhận văn bản bản dịch mà FR80/FR81 cần.
+- Source conflict: tiêu chí gốc 9.5 (WCAG AA cả hai theme) vs `tm-rule` 2,48:1 ở theme sáng, DESIGN.md ghi chỉ dùng làm màu nét; là `unknown` của 9.5.
+- Source conflict: spine AD-47 ③ — bảng lượt ghi không-phải-người-dùng đã đóng, không có hàng cho chấp nhận đề xuất proofreader; AD-53 (9.10) quyết. Spine AD-51 còn trỏ `commands/segment.rs::write_non_user_target`, nay ở `commands/segment/targets.rs`.

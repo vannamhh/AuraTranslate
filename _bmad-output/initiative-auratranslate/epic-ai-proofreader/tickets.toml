@@ -1,76 +1,96 @@
-# tickets.toml — epic-ai-proofreader. One [[entry]] per story, in the order epics.md wrote them.
+# tickets.toml — epic-ai-proofreader. Thứ tự các bảng là thứ tự build (incept lại 2026-10-10); `id` không phải thứ tự.
+
+[[entry]]
+id = 9
+type = "story"
+title = "Mở đầu: vá C1, C2, C4, C6 của Epic 4 và rút đường gọi AI dùng chung"
+description = '''
+Vá hai lỗi Ice đặt làm điều kiện ký Epic 4 (C1, C2) và hai lỗi nằm trên chính đường gọi AI sắp rút chung (C4, C6), rồi rút phần chung của đường dịch đơn và đường lô thành một đường gọi AI mà proofreader dùng lại, để proofreader không thành bản chép thứ ba.
+
+- C1 (retro Epic 4 §B): "Thử lại" lô gọi `runAiTranslateBatch(retryIds)`, hàm này gán `rows.value = ids.map(…)` nên mọi hàng `done` trước đó biến khỏi danh sách (`src/aiTranslateBatchState.ts:220`).
+- C2 (retro Epic 4 §B, PLAUSIBLE): `promoteAiTranslate` ưu tiên kết quả ĐƠN cũ trước kết quả LÔ; không nơi nào gọi `resetAiTranslate` khi lô bắt đầu (nay ở `src/aiTranslateHandlers.ts:40`, lệnh `ai.translate.promote` trong `src/commands/index.ts`; retro trích `main.ts:1011-1031` trước khi tách). Retro ghi PLAUSIBLE: tái hiện trước.
+- C4 (retro Epic 4 §B): lô panic giữa chừng trả lỗi không mang `segment_id` nên hàng `running` kẹt vĩnh viễn (`aitranslate.rs` ↔ `aiTranslateBatchState.ts`). Story 11-7 đã vá "một panic của tác vụ dịch bị báo thành lỗi mạng retryable" (5897669): tái hiện trước, đã hết thì ghi lại bằng ca xanh.
+- C6 (retro Epic 4 §B): `promote_ai_translation` không kiểm segment thuộc Chương đang mở như `prepare_translate_call` có kiểm ⇒ rủi ro ghi chéo.
+- Mỗi lỗi có một ca đỏ trước khi vá (retro action #4).
+- Retro action #8: rút hàm chung cho đường đơn và đường lô (năm chỗ nêu ở §B) trước khi thêm tính năng AI tiếp theo. Hành vi dịch đơn và lô giữ nguyên.
+'''
+verify = "Ca đỏ của C1, C2, C4, C6 chuyển xanh (hoặc ca tái hiện chứng minh lỗi đã hết); dịch đơn, dịch lô, huỷ và thử lại vẫn qua test hiện có, và đường đơn với đường lô gọi cùng một hàm chung."
+covers = []
+after = []
+hitl = false
+risk = "medium"
+references = ["epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#b-góc-nhìn-tổng-hợp-trên-mã", "epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#action-items"]
+
+[[entry]]
+id = 10
+type = "story"
+title = "AD-53: lượt ghi khi chấp nhận đề xuất của proofreader và chữ ký ghi nhớ"
+description = '''
+Winston soạn và Ice ký AD-53 trong spine trước khi có đường ghi nào của proofreader.
+
+Câu hỏi AD phải trả lời:
+- Chấp nhận một đề xuất sửa (thay một cụm trong bản dịch CỦA NGƯỜI DÙNG) là lượt ghi gì: hàng mới trong bảng AD-47 ③ đóng (qua `write_non_user_target`, xuất xứ nào, mốc so nào) hay lượt sửa của người dùng (đi qua buffer gõ và flush AD-35, xác nhận sẽ phân xử `self`). Khi segment là bản nháp chưa có bản sao, có hỏi lại theo AD-49 (iii) không. Hai phương án hợp lệ ⇒ trình Ice cả hai kèm số đo.
+- Chữ ký của một phát hiện để khoá ghi nhớ "không phải lỗi" (FR84): tính từ gì để sống sót qua gộp/tách segment; sửa câu AD-3 (spine :95, "tham chiếu `segment.id`") đang mâu thuẫn với spine :918 và FR84.
+- Phát hiện cũ đi thế nào khi người dùng gõ sửa câu sau lượt quét, và lệnh chấp nhận từ chối ra sao khi văn bản đã khác văn bản lúc quét.
+
+Ngoài phạm vi AD này (quyết định 2026-10-10): seam lệnh và cổng provider đã có AD-13/AD-15 trả lời; hình dạng phát hiện trên dây do tracer 9.1 chốt, phát hiện chỉ sống trong bộ nhớ webview.
+'''
+verify = "AD-53 có trong spine, Ice đã ký, và trả lời đủ ba câu hỏi trên; câu AD-3 :95 không còn mâu thuẫn với :918."
+covers = ["FR83", "FR84", "FR85"]
+after = []
+hitl = true
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-47", "architecture-auratranslate/architecture-auratranslate.md — AD-49", "architecture-auratranslate/architecture-auratranslate.md — AD-50", "architecture-auratranslate/architecture-auratranslate.md — AD-3"]
 
 [[entry]]
 id = 1
 type = "story"
-title = "Quét chính tả và ngữ pháp tiếng Việt"
+title = "Tracer: quét chính tả và ngữ pháp một segment, gạch chân ngay trong ô"
 description = '''
-Người dịch được: bắt những lỗi chính tả và ngữ pháp tôi không còn nhìn ra sau bốn tiếng dịch. Mục đích: bản bàn giao không mang những lỗi mà chính tôi thấy ngay nếu đọc lại hôm sau.
+Đường mỏng nhất xuyên mọi lớp: lệnh đăng ký → command Rust mới (seam mới trong `ai_boundary`) → bộ lắp prompt thuần có bản dịch → `TranslationProvider` → Channel → gạch chân lượn sóng dưới đúng cụm chữ trong ô dịch của segment đang có con trỏ.
 
-Tiêu chí gốc (epics.md, nguyên văn):
+- Thấy chạy khi xong: gõ một lỗi chính tả vào một segment, gọi lệnh, thấy gạch chân lượn sóng màu `error` dưới đúng chữ đó.
+- Hình dạng phát hiện trên dây do story này chốt, đủ bốn trường của FR83 (loại · vị trí · giải thích ngắn · đề xuất sửa), để 9.4 chỉ làm phần webview và lượt ghi. Phát hiện chỉ sống trong bộ nhớ webview, không ghi `project.db`.
+- Seam lệnh mới thêm vào allow-list của `tests/ai_boundary.rs` theo AD-13, lời gọi đi qua `TranslationProvider` theo AD-15.
+- Đo cơ chế vẽ: CSS Custom Highlight API trên WKWebView (wavy, offset 4px) vì ô là `contenteditable` mà DOM giữ chữ. Không làm được thì dừng và trình Ice hai phương án (lớp phủ / cách khác) kèm số đo.
+- Có huỷ, số token và ước tính chi phí như mọi lời gọi AI, lời mời cấu hình khi chưa cấu hình AI (FR77).
 
-**Given** bản dịch tiếng Việt của người dùng
-**When** quét
-**Then** phát hiện lỗi chính tả và lỗi ngữ pháp
+Tiêu chí gốc giữ lại (epics.md 9.1, 9.7):
 
-**Given** một phát hiện thuộc loại chính tả hoặc ngữ pháp
-**When** hiển thị
-**Then** dùng màu `error` — loại lỗi này **có đáp án đúng**
-
-**Given** lời gọi quét
-**When** thực hiện
-**Then** đi qua prompt lắp bởi `RagInjector`, không nối chuỗi tại chỗ gọi
-
-**Given** module thực hiện quét
-**When** đặt trong cây nguồn
-**Then** nằm trong `core/ai/`
-**And** không module nào ngoài `ai/` import nó
-
-**Given** ứng dụng chưa cấu hình AI
-**When** người dùng gọi proofreader
-**Then** mời cấu hình
-**And** mọi năng lực khác vẫn chạy đầy đủ
+**Given** bản dịch tiếng Việt của người dùng **When** quét **Then** phát hiện lỗi chính tả và lỗi ngữ pháp
+**Given** một phát hiện thuộc loại chính tả hoặc ngữ pháp **When** hiển thị **Then** dùng màu `error` — loại lỗi này **có đáp án đúng**
+**Given** lời gọi quét **When** thực hiện **Then** đi qua prompt lắp bởi bộ lắp prompt của `core/ai/rag.rs`, không nối chuỗi tại chỗ gọi
+**Given** module thực hiện quét **When** đặt trong cây nguồn **Then** nằm trong `core/ai/` **And** không module nào ngoài `ai/` import nó
+**Given** ứng dụng chưa cấu hình AI **When** người dùng gọi proofreader **Then** mời cấu hình **And** mọi năng lực khác vẫn chạy đầy đủ
+**Given** proofreader chạy xong **When** kiểm văn bản **Then** **không một ký tự nào** trong bản dịch bị đổi (9.7)
+**Given** trạng thái xác nhận của các segment **When** proofreader chạy **Then** không segment nào đổi trạng thái (9.7)
 '''
-verify = "Với bản dịch tiếng Việt của người dùng, khi quét thì phát hiện lỗi chính tả và lỗi ngữ pháp"
-covers = ["FR80"]
-after = []
+verify = "Trên một segment có lỗi chính tả cố ý, lệnh quét vẽ gạch chân lượn sóng màu `error` dưới đúng cụm chữ, và một test chứng minh lượt quét không đổi ký tự hay trạng thái nào trong `project.db`."
+covers = ["FR80", "FR85", "FR86"]
+after = [9]
 hitl = false
-risk = "low"
+risk = "medium"
 v6_key = "9-1-quét-chính-tả-và-ngữ-pháp-tiếng-việt"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-13", "architecture-auratranslate/architecture-auratranslate.md — AD-14", "architecture-auratranslate/architecture-auratranslate.md — AD-15", "architecture-auratranslate/architecture-auratranslate.md — AD-22", "ux-auratranslate/EXPERIENCE.md", "ux-auratranslate/mockups/proofreader.html"]
 
 [[entry]]
 id = 2
 type = "story"
 title = "Đối chiếu bản dịch với bản gốc"
 description = '''
-Người dịch được: biết chỗ nào tôi dịch lệch nghĩa hoặc viết ra một câu tối nghĩa. Mục đích: reviewer không phải là người đầu tiên phát hiện ra chúng.
+Thêm loại phát hiện nghi về nghĩa: prompt đọc cả nguồn lẫn bản dịch, đánh dấu dịch sai, thoát nghĩa quá xa, câu tối nghĩa, vẽ bằng màu `tm-rule`.
 
 Tiêu chí gốc (epics.md, nguyên văn):
 
-**Given** một segment có cả văn bản nguồn và bản dịch
-**When** quét
-**Then** đối chiếu hai phía và đánh dấu đoạn nghi **dịch sai**, **dịch thoát nghĩa quá xa**, hoặc **cấu trúc câu tối nghĩa**
-
-**Given** một phát hiện thuộc loại nghi về nghĩa
-**When** hiển thị
-**Then** dùng màu `tm-rule` — đây là **phán đoán**, không phải một lỗi có đáp án
-**And** không thêm màu mới nào vào bảng token
-
-**Given** hai loại phát hiện
-**When** hiển thị cạnh nhau
-**Then** phân biệt được bằng màu, không cần đọc nhãn
-
-**Given** một segment chưa có bản dịch
-**When** quét
-**Then** không sinh phát hiện loại này
-
-**Given** một Chương dài
-**When** quét
-**Then** phát hiện gắn đúng segment sinh ra nó, tham chiếu `segment.id` chứ không tham chiếu vị trí
+**Given** một segment có cả văn bản nguồn và bản dịch **When** quét **Then** đối chiếu hai phía và đánh dấu đoạn nghi **dịch sai**, **dịch thoát nghĩa quá xa**, hoặc **cấu trúc câu tối nghĩa**
+**Given** một phát hiện thuộc loại nghi về nghĩa **When** hiển thị **Then** dùng màu `tm-rule` — đây là **phán đoán**, không phải một lỗi có đáp án **And** không thêm màu mới nào vào bảng token
+**Given** hai loại phát hiện **When** hiển thị cạnh nhau **Then** phân biệt được bằng màu, không cần đọc nhãn
+**Given** một segment chưa có bản dịch **When** quét **Then** không sinh phát hiện loại này
+**Given** một Chương dài **When** quét **Then** phát hiện gắn đúng segment sinh ra nó, tham chiếu `segment.id` chứ không tham chiếu vị trí
 '''
-verify = "Với một segment có cả văn bản nguồn và bản dịch, khi quét thì đối chiếu hai phía và đánh dấu đoạn nghi dịch sai, dịch thoát nghĩa quá xa, hoặc cấu trúc câu tối nghĩa"
+verify = "Một segment dịch lệch nghĩa cố ý sinh phát hiện màu `tm-rule`, một segment chưa dịch không sinh phát hiện loại này."
 covers = ["FR81"]
-after = []
+after = [1]
 hitl = false
 risk = "low"
 v6_key = "9-2-đối-chiếu-bản-dịch-với-bản-gốc"
@@ -78,43 +98,24 @@ v6_key = "9-2-đối-chiếu-bản-dịch-với-bản-gốc"
 [[entry]]
 id = 3
 type = "story"
-title = "Chạy theo yêu cầu, không chạy nền"
+title = "Quét một Chương hoặc vùng chọn, chỉ khi được gọi"
 description = '''
-Người dịch dùng API key của chính mình được: proofreader chỉ chạy khi tôi bảo nó chạy. Mục đích: tôi không bị tính phí cho những lần quét tôi không yêu cầu.
+Mở rộng phạm vi quét ra một Chương và vùng đang chọn, chia lời gọi theo lô, huỷ giữa chừng, tổng token và chi phí; chứng minh không có lời gọi AI nào khi người dùng không gọi.
 
 Tiêu chí gốc (epics.md, nguyên văn):
 
-**Given** proofreader
-**When** cài đặt
-**Then** chạy **theo yêu cầu của người dùng**
-
-**Given** phạm vi quét
-**When** người dùng chọn
-**Then** chọn được **một segment**, **một Chương**, hoặc **vùng đang chọn**
-
-**Given** ứng dụng đang chạy
-**When** người dùng không gọi proofreader
-**Then** **không có lời gọi AI nào** phát sinh từ proofreader
-
-**Given** một phiên làm việc dài
-**When** quan sát tài nguyên máy và lưu lượng mạng
-**Then** proofreader không chiếm gì cả khi không được gọi
-
-**Given** một lần quét đang chạy
-**When** người dùng huỷ
-**Then** dừng được giữa chừng
-
-**Given** một lần quét
-**When** hoàn tất
-**Then** hiển thị số token và ước tính chi phí như mọi lời gọi AI khác
-
-**Given** lệnh gọi proofreader và lệnh huỷ
-**When** gọi
-**Then** là command đăng ký, gán phím được
+**Given** proofreader **When** cài đặt **Then** chạy **theo yêu cầu của người dùng**
+**Given** phạm vi quét **When** người dùng chọn **Then** chọn được **một segment**, **một Chương**, hoặc **vùng đang chọn**
+**Given** ứng dụng đang chạy **When** người dùng không gọi proofreader **Then** **không có lời gọi AI nào** phát sinh từ proofreader
+**Given** một phiên làm việc dài **When** quan sát tài nguyên máy và lưu lượng mạng **Then** proofreader không chiếm gì cả khi không được gọi
+**Given** một lần quét đang chạy **When** người dùng huỷ **Then** dừng được giữa chừng
+**Given** một lần quét **When** hoàn tất **Then** hiển thị số token và ước tính chi phí như mọi lời gọi AI khác
+**Given** lệnh gọi proofreader và lệnh huỷ **When** gọi **Then** là command đăng ký, gán phím được
+**Given** một lần quét trên cả Chương **When** hoàn tất mà người dùng chưa xử lý phát hiện nào **Then** Chương giữ nguyên hoàn toàn (9.7)
 '''
-verify = "Với proofreader, khi cài đặt thì chạy theo yêu cầu của người dùng"
-covers = ["FR82"]
-after = []
+verify = "Quét một Chương rồi huỷ giữa chừng dừng lời gọi còn lại và hiện tổng token/chi phí của phần đã chạy; một test đếm 0 lời gọi provider khi lệnh không được gọi."
+covers = ["FR82", "FR85"]
+after = [2]
 hitl = false
 risk = "low"
 v6_key = "9-3-chạy-theo-yêu-cầu-không-chạy-nền"
@@ -122,133 +123,77 @@ v6_key = "9-3-chạy-theo-yêu-cầu-không-chạy-nền"
 [[entry]]
 id = 4
 type = "story"
-title = "Hình dạng một phát hiện và xử lý từng cái một"
+title = "Xử lý từng phát hiện: dải gợi ý, chấp nhận, bỏ qua, phát hiện kế"
 description = '''
-Người dịch được: mỗi cảnh báo nói rõ nó là lỗi gì và đề nghị sửa thế nào. Mục đích: tôi phán xét được thay vì phải tự đoán ý của máy.
+Hiện phát hiện ở con trỏ trong khe dải chung (ưu tiên Glossary > Proofreader > TM), chấp nhận hoặc bỏ qua từng cái, nhảy tới phát hiện kế; lượt ghi khi chấp nhận theo AD-53 và là đường DUY NHẤT từ proofreader tới `target_text`, có cổng nguồn canh.
 
-Tiêu chí gốc (epics.md, nguyên văn):
+Tiêu chí gốc (epics.md 9.4, 9.7; 🔵 2026-10-10 dải nằm ở khe chung trên StatusBar trong `App.vue`, không mọc dưới câu):
 
-**Given** một phát hiện
-**When** hiển thị
-**Then** gồm **loại lỗi · vị trí · giải thích ngắn · đề xuất sửa**
-
-**Given** một phát hiện
-**When** người dùng xử lý
-**Then** chấp nhận hoặc bỏ qua **từng phát hiện một**
-
-**Given** nhiều phát hiện trong một Chương
-**When** hiển thị
-**Then** **không có thao tác chấp nhận tất cả một cách mù**
-
-**Given** người dùng chấp nhận một đề xuất sửa
-**When** xảy ra
-**Then** văn bản đổi theo đề xuất
-**And** segment về trạng thái chưa xác nhận
-
-**Given** phát hiện hiển thị trong một dải mọc dưới câu
-**When** một câu kích hoạt đồng thời chốt Glossary và phát hiện Proofreader
-**Then** chốt Glossary thắng, Proofreader đứng thứ hai
-**And** gợi ý TM nhường cả hai
-
-**Given** giải thích của một phát hiện
-**When** soạn
-**Then** nói việc, không đổ lỗi người dùng
-
-**Given** thao tác chấp nhận, bỏ qua, và nhảy tới phát hiện kế tiếp
-**When** gọi
-**Then** là command đăng ký, gán phím được
+**Given** một phát hiện **When** hiển thị **Then** gồm **loại lỗi · vị trí · giải thích ngắn · đề xuất sửa**
+**Given** một phát hiện **When** người dùng xử lý **Then** chấp nhận hoặc bỏ qua **từng phát hiện một**
+**Given** nhiều phát hiện trong một Chương **When** hiển thị **Then** **không có thao tác chấp nhận tất cả một cách mù**
+**Given** người dùng chấp nhận một đề xuất sửa **When** xảy ra **Then** văn bản đổi theo đề xuất **And** segment về trạng thái chưa xác nhận
+**Given** phát hiện hiển thị trong khe dải gợi ý **When** một câu kích hoạt đồng thời chốt Glossary và phát hiện Proofreader **Then** chốt Glossary thắng, Proofreader đứng thứ hai **And** gợi ý TM nhường cả hai
+**Given** giải thích của một phát hiện **When** soạn **Then** nói việc, không đổ lỗi người dùng
+**Given** thao tác chấp nhận, bỏ qua, và nhảy tới phát hiện kế tiếp **When** gọi **Then** là command đăng ký, gán phím được
+**Given** toàn bộ mã nguồn **When** rà **Then** không có đường nào từ proofreader ghi thẳng vào văn bản đích của segment (9.7)
+**Given** một đề xuất sửa **When** áp **Then** chỉ áp sau một thao tác **chấp nhận tường minh** của người dùng (9.7)
 '''
-verify = "Với một phát hiện, khi hiển thị thì gồm loại lỗi · vị trí · giải thích ngắn · đề xuất sửa"
-covers = ["FR83"]
-after = []
+verify = "Chấp nhận một phát hiện đổi đúng cụm chữ theo đề xuất và đưa segment về nháp theo AD-53; bỏ qua để nguyên văn bản; một cổng nguồn đỏ khi thêm đường ghi thứ hai từ proofreader."
+covers = ["FR83", "FR85"]
+after = [1, 3, 10]
 hitl = false
-risk = "low"
+risk = "medium"
 v6_key = "9-4-hình-dạng-một-phát-hiện-và-xử-lý-từng-cái-một"
+references = ["ux-auratranslate/EXPERIENCE.md", "deferred-work.md — mục \"The 7.5 fuzzy strip does not yet yield to the Proofreader\" (Chủ: Story 9.4)"]
 
 [[entry]]
 id = 5
 type = "story"
-title = "Hiển thị tại chỗ bằng gạch chân lượn sóng"
+title = "Gạch chân lượn sóng hoàn chỉnh cho cả hai loại"
 description = '''
-Người dịch được: thấy chính xác cụm chữ nào có vấn đề ngay trên câu tôi đang đọc. Mục đích: tôi không phải tự đối chiếu vị trí từ một danh sách rời.
+Hoàn thiện lớp vẽ: offset 4px không chạm dấu dưới, hai màu phân biệt được, độ tương phản đạt ngưỡng đã chốt, phát hiện cũ đi đúng cách khi người dùng gõ sửa câu (theo AD-53), không dùng vạch lề.
 
-Tiêu chí gốc (epics.md, nguyên văn):
+Tiêu chí gốc (epics.md; 🔵 2026-10-10 vạch lề có năm giá trị `SEGMENT_RULE_VALUES`, không phải sáu; Editor là lưới mỗi segment một ô từ Story 2.5b, không phải trang liền):
 
-**Given** một phát hiện
-**When** hiển thị
-**Then** **gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề** trong Editor
-
-**Given** gạch chân
-**When** đặt
-**Then** ở `text-underline-offset: 4px`
-**And** không chạm dấu nằm dưới của `ạ` `ộ` `ợ`
-
-**Given** phát hiện
-**When** hiển thị
-**Then** **không dùng vạch lề** — vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-14: năm → sáu)*
-
-**Given** hai lớp thông tin
-**When** người dùng đọc
-**Then** vạch lề nói **trạng thái câu**, gạch chân nói **chỗ nghi ngờ** — hai chỗ đọc khác nhau
-
-**Given** kết quả proofread
-**When** hiển thị
-**Then** **không phải một danh sách rời** bắt người dùng tự đối chiếu vị trí
-
-**Given** Editor
-**When** có phát hiện
-**Then** vẫn là một trang văn bản liền mạch — không chia thành ô hay bảng
-
-**Given** màu của gạch chân
-**When** chọn
-**Then** đến từ bộ token đã kiểm tương phản, đạt WCAG AA ở cả hai theme
+**Given** một phát hiện **When** hiển thị **Then** **gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề** trong Editor
+**Given** gạch chân **When** đặt **Then** ở `text-underline-offset: 4px` **And** không chạm dấu nằm dưới của `ạ` `ộ` `ợ`
+**Given** phát hiện **When** hiển thị **Then** **không dùng vạch lề** — vạch lề đã dùng hết các giá trị cho trạng thái segment
+**Given** hai lớp thông tin **When** người dùng đọc **Then** vạch lề nói **trạng thái câu**, gạch chân nói **chỗ nghi ngờ** — hai chỗ đọc khác nhau
+**Given** kết quả proofread **When** hiển thị **Then** **không phải một danh sách rời** bắt người dùng tự đối chiếu vị trí
+**Given** Editor **When** có phát hiện **Then** chữ trong ô vẫn liền — không tách cụm chữ thành ô hay bảng con
+**Given** màu của gạch chân **When** chọn **Then** đến từ bộ token đã kiểm tương phản, đạt WCAG AA ở cả hai theme
 '''
-verify = "Với một phát hiện, khi hiển thị thì gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề trong Editor"
+verify = "Ảnh chụp hai theme cho thấy gạch chân `error` và `tm-rule` dưới `ạ ộ ợ` không chạm dấu; gõ sửa cụm chữ bị gạch thì gạch chân cũ xử lý đúng như luật AD-53 đã chốt."
 covers = ["FR86"]
-after = []
+after = [2, 4]
 hitl = false
 risk = "low"
 v6_key = "9-5-hiển-thị-tại-chỗ-bằng-gạch-chân-lượn-sóng"
+unknown = "`tm-rule` chỉ đạt 2,48:1 ở theme sáng (DESIGN.md: màu nét), dưới 3:1 của WCAG AA phi văn bản, mà AC cấm thêm màu mới — Sally và Ice chọn cách giải trước khi story này bắt đầu."
+references = ["ux-auratranslate/DESIGN.md", "ux-auratranslate/mockups/proofreader.html"]
 
 [[entry]]
 id = 6
 type = "story"
 title = "Bỏ qua có ghi nhớ"
 description = '''
-Người dịch được: một cảnh báo tôi đã bác bỏ đừng quay lại lần sau. Mục đích: tôi không tắt hẳn proofreader và mất luôn những cảnh báo đúng.
+Lưu ghi nhớ "không phải lỗi" trong `project.db` khoá theo chữ ký phát hiện của AD-53, lọc khi quét, có danh sách xem lại và bỏ ghi nhớ; ghi thêm số phát hiện của mỗi lượt quét để 9.8 có mẫu số.
 
 Tiêu chí gốc (epics.md, nguyên văn):
 
-**Given** một phát hiện
-**When** người dùng đánh dấu *"không phải lỗi"*
-**Then** lần quét sau **không báo lại phát hiện đó**
-
-**Given** phạm vi ghi nhớ
-**When** xác định
-**Then** **trong cùng Tác phẩm**
-
-**Given** ghi nhớ proofreader
-**When** khoá
-**Then** khoá theo `(work, chữ ký phát hiện)`
-**And** **không** khoá theo `segment.id`
-
-**Given** một segment bị gộp hoặc tách sau khi một phát hiện đã được bỏ qua
-**When** quét lại
-**Then** ghi nhớ **sống sót** — phát hiện đó vẫn không báo lại
-
-**Given** cùng một loại phát hiện xuất hiện ở một Tác phẩm khác
-**When** quét
-**Then** **vẫn báo** — ghi nhớ không lan sang Tác phẩm khác
-
-**Given** danh sách các phát hiện đã bỏ qua
-**When** người dùng mở
-**Then** xem lại và bỏ ghi nhớ được
+**Given** một phát hiện **When** người dùng đánh dấu *"không phải lỗi"* **Then** lần quét sau **không báo lại phát hiện đó**
+**Given** phạm vi ghi nhớ **When** xác định **Then** **trong cùng Tác phẩm**
+**Given** ghi nhớ proofreader **When** khoá **Then** khoá theo `(work, chữ ký phát hiện)` **And** **không** khoá theo `segment.id`
+**Given** một segment bị gộp hoặc tách sau khi một phát hiện đã được bỏ qua **When** quét lại **Then** ghi nhớ **sống sót** — phát hiện đó vẫn không báo lại
+**Given** cùng một loại phát hiện xuất hiện ở một Tác phẩm khác **When** quét **Then** **vẫn báo** — ghi nhớ không lan sang Tác phẩm khác
+**Given** danh sách các phát hiện đã bỏ qua **When** người dùng mở **Then** xem lại và bỏ ghi nhớ được
 '''
-verify = "Với một phát hiện, khi người dùng đánh dấu *\"không phải lỗi\"* thì lần quét sau không báo lại phát hiện đó"
+verify = "Đánh dấu một phát hiện \"không phải lỗi\", gộp segment chứa nó rồi quét lại: phát hiện không quay lại trong Tác phẩm đó nhưng vẫn báo ở Tác phẩm khác; số phát hiện mỗi lượt quét đọc lại được."
 covers = ["FR84"]
-after = []
+after = [3, 4, 10]
 hitl = false
-risk = "low"
+risk = "medium"
 v6_key = "9-6-bỏ-qua-có-ghi-nhớ"
 
 [[entry]]
@@ -256,32 +201,10 @@ id = 7
 type = "story"
 title = "Proofreader không tự sửa văn bản"
 description = '''
-Người dịch được: chắc chắn không dòng nào trong bản dịch của tôi tự đổi. Mục đích: tôi vẫn là người quyết định từng chữ trong bản của mình.
-
-Tiêu chí gốc (epics.md, nguyên văn):
-
-**Given** proofreader chạy xong
-**When** kiểm văn bản
-**Then** **không một ký tự nào** trong bản dịch bị đổi
-
-**Given** toàn bộ mã nguồn
-**When** rà
-**Then** không có đường nào từ proofreader ghi thẳng vào văn bản đích của segment
-
-**Given** một đề xuất sửa
-**When** áp
-**Then** chỉ áp sau một thao tác **chấp nhận tường minh** của người dùng
-
-**Given** một lần quét trên cả Chương
-**When** hoàn tất mà người dùng chưa xử lý phát hiện nào
-**Then** Chương giữ nguyên hoàn toàn
-
-**Given** trạng thái xác nhận của các segment
-**When** proofreader chạy
-**Then** không segment nào đổi trạng thái
+Dropped 2026-10-10 khi incept lại Epic 9: ba vế đã chia về nơi đường ghi xuất hiện — quét không đổi ký tự hay trạng thái (9.1), quét cả Chương mà chưa xử lý thì Chương giữ nguyên (9.3), chỉ chấp nhận tường minh mới ghi và cổng nguồn canh đường ghi duy nhất (9.4).
 '''
-verify = "Với proofreader chạy xong, khi kiểm văn bản thì không một ký tự nào trong bản dịch bị đổi"
-covers = ["FR85"]
+verify = "Không áp dụng — entry đã bỏ."
+covers = []
 after = []
 hitl = false
 risk = "low"
@@ -292,38 +215,32 @@ id = 8
 type = "story"
 title = "Đo tỷ lệ báo động giả"
 description = '''
-Chủ dự án được: biết proofreader có đủ chính xác để đáng dùng hay không. Mục đích: tôi không giữ một tính năng mà người dùng sẽ tắt hẳn đi.
+Ice dùng proofreader trên ít nhất một Chương thật, tỷ lệ báo động giả tính từ ghi nhớ và số phát hiện của 9.6, so với ngưỡng Ice đặt, báo cáo kèm đề xuất khi quá cao.
 
 Tiêu chí gốc (epics.md, nguyên văn):
 
-**Given** độ chính xác của phán đoán nghi về nghĩa
-**When** nghiệm thu
-**Then** **không nghiệm thu theo lối thông thường** — không có đáp án đúng để đối chiếu
-
-**Given** chỉ số nghiệm thu
-**When** xác định
-**Then** là **tỷ lệ báo động giả**: số phát hiện bị đánh dấu *"không phải lỗi"* trên tổng số phát hiện
-
-**Given** tỷ lệ báo động giả
-**When** đo
-**Then** đo trên bản dịch thật của chủ dự án qua ít nhất một Chương trọn vẹn
-
-**Given** tỷ lệ đo được
-**When** đánh giá
-**Then** ngưỡng đỗ là **đủ thấp để người dùng không tắt hẳn tính năng**
-
-**Given** chỉ số này
-**When** thu thập
-**Then** neo trực tiếp vào dữ liệu của Story 9.6 — mỗi lần bỏ qua có ghi nhớ là một điểm dữ liệu
-
-**Given** tỷ lệ quá cao
-**When** xảy ra
-**Then** báo cáo kèm đề xuất — chỉnh prompt, hạ độ nhạy, hoặc tách riêng hai loại phát hiện
-**And** ghi lại số đo để so ở lần sau
+**Given** độ chính xác của phán đoán nghi về nghĩa **When** nghiệm thu **Then** **không nghiệm thu theo lối thông thường** — không có đáp án đúng để đối chiếu
+**Given** chỉ số nghiệm thu **When** xác định **Then** là **tỷ lệ báo động giả**: số phát hiện bị đánh dấu *"không phải lỗi"* trên tổng số phát hiện
+**Given** tỷ lệ báo động giả **When** đo **Then** đo trên bản dịch thật của chủ dự án qua ít nhất một Chương trọn vẹn
+**Given** tỷ lệ đo được **When** đánh giá **Then** ngưỡng đỗ là **đủ thấp để người dùng không tắt hẳn tính năng**
+**Given** chỉ số này **When** thu thập **Then** neo trực tiếp vào dữ liệu của Story 9.6 — mỗi lần bỏ qua có ghi nhớ là một điểm dữ liệu
+**Given** tỷ lệ quá cao **When** xảy ra **Then** báo cáo kèm đề xuất — chỉnh prompt, hạ độ nhạy, hoặc tách riêng hai loại phát hiện **And** ghi lại số đo để so ở lần sau
 '''
-verify = "Với độ chính xác của phán đoán nghi về nghĩa, khi nghiệm thu thì không nghiệm thu theo lối thông thường — không có đáp án đúng để đối chiếu"
+verify = "Một số đo tỷ lệ báo động giả trên một Chương thật, nêu build và Chương đã đo, nằm dưới ngưỡng Ice đặt hoặc kèm đề xuất, và số đo được ghi lại để so lần sau."
 covers = ["FR81"]
-after = []
-hitl = false
+after = [5, 6]
+hitl = true
 risk = "low"
 v6_key = "9-8-đo-tỷ-lệ-báo-động-giả"
+unknown = "Ngưỡng đỗ tỷ lệ báo động giả — Ice đặt sau khi thấy 9.2 chạy thật trên bản dịch của mình."
+
+[[entry]]
+id = 11
+type = "story"
+title = "Refactor sweep"
+description = "Dọn dẹp cuối epic; phạm vi chốt lúc bắt đầu từ các plan và phát hiện review đã hoãn trong Epic 9, chỉ nhận việc dọn, phạm vi bị đẩy khỏi story khác là story mới."
+verify = "Mọi mục dọn đã chọn đóng hoặc ghi nợ có chủ, và test của các story Epic 9 vẫn xanh."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+hitl = false
+risk = "low"
