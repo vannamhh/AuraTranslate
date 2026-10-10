@@ -3,20 +3,33 @@
 [[entry]]
 id = 9
 type = "story"
-title = "Mở đầu: vá C1, C2, C4, C6 của Epic 4 và rút đường gọi AI dùng chung"
+title = "Mở đầu: vá C1, C2, C4, C6 của Epic 4"
 description = '''
-Vá hai lỗi Ice đặt làm điều kiện ký Epic 4 (C1, C2) và hai lỗi nằm trên chính đường gọi AI sắp rút chung (C4, C6), rồi rút phần chung của đường dịch đơn và đường lô thành một đường gọi AI mà proofreader dùng lại, để proofreader không thành bản chép thứ ba.
+Vá hai lỗi Ice đặt làm điều kiện ký Epic 4 (C1, C2) và hai lỗi nằm trên chính đường gọi AI mà 9.12 sẽ rút chung (C4, C6), mỗi lỗi một ca đỏ trước khi vá; hành vi khác giữ nguyên.
 
 - C1 (retro Epic 4 §B): "Thử lại" lô gọi `runAiTranslateBatch(retryIds)`, hàm này gán `rows.value = ids.map(…)` nên mọi hàng `done` trước đó biến khỏi danh sách (`src/aiTranslateBatchState.ts:220`).
 - C2 (retro Epic 4 §B, PLAUSIBLE): `promoteAiTranslate` ưu tiên kết quả ĐƠN cũ trước kết quả LÔ; không nơi nào gọi `resetAiTranslate` khi lô bắt đầu (nay ở `src/aiTranslateHandlers.ts:40`, lệnh `ai.translate.promote` trong `src/commands/index.ts`; retro trích `main.ts:1011-1031` trước khi tách). Retro ghi PLAUSIBLE: tái hiện trước.
 - C4 (retro Epic 4 §B): lô panic giữa chừng trả lỗi không mang `segment_id` nên hàng `running` kẹt vĩnh viễn (`aitranslate.rs` ↔ `aiTranslateBatchState.ts`). Story 11-7 đã vá "một panic của tác vụ dịch bị báo thành lỗi mạng retryable" (5897669): tái hiện trước, đã hết thì ghi lại bằng ca xanh.
 - C6 (retro Epic 4 §B): `promote_ai_translation` không kiểm segment thuộc Chương đang mở như `prepare_translate_call` có kiểm ⇒ rủi ro ghi chéo.
 - Mỗi lỗi có một ca đỏ trước khi vá (retro action #4).
-- Retro action #8: rút hàm chung cho đường đơn và đường lô (năm chỗ nêu ở §B) trước khi thêm tính năng AI tiếp theo. Hành vi dịch đơn và lô giữ nguyên.
 '''
-verify = "Ca đỏ của C1, C2, C4, C6 chuyển xanh (hoặc ca tái hiện chứng minh lỗi đã hết); dịch đơn, dịch lô, huỷ và thử lại vẫn qua test hiện có, và đường đơn với đường lô gọi cùng một hàm chung."
+verify = "Ca đỏ của C1, C2, C4, C6 chuyển xanh (hoặc ca tái hiện chứng minh lỗi đã hết), và dịch đơn, dịch lô, huỷ, thử lại vẫn qua test hiện có."
 covers = []
 after = []
+hitl = false
+risk = "medium"
+references = ["epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#b-góc-nhìn-tổng-hợp-trên-mã", "epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#action-items"]
+
+[[entry]]
+id = 12
+type = "story"
+title = "Rút đường gọi AI dùng chung cho dịch đơn và dịch lô"
+description = '''
+Rút phần chung của đường dịch đơn và đường lô (năm chỗ nêu ở retro Epic 4 §B, action #8) thành một đường gọi AI mà proofreader dùng lại, để proofreader không thành bản chép thứ ba; hành vi dịch đơn và lô giữ nguyên, các ca của 9.9 canh trong lúc chuyển chỗ.
+'''
+verify = "Đường đơn và đường lô gọi cùng một hàm chung, và mọi test dịch đơn, dịch lô, huỷ, thử lại cùng các ca C1, C2, C4, C6 của 9.9 vẫn xanh."
+covers = []
+after = [9]
 hitl = false
 risk = "medium"
 references = ["epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#b-góc-nhìn-tổng-hợp-trên-mã", "epic-ai-mo-va-smart-rag-injector/epic-ai-mo-va-smart-rag-injector-retrospective.md#action-items"]
@@ -67,7 +80,7 @@ Tiêu chí gốc giữ lại (epics.md 9.1, 9.7):
 '''
 verify = "Trên một segment có lỗi chính tả cố ý, lệnh quét vẽ gạch chân lượn sóng màu `error` dưới đúng cụm chữ, và một test chứng minh lượt quét không đổi ký tự hay trạng thái nào trong `project.db`."
 covers = ["FR80", "FR85", "FR86"]
-after = [9]
+after = [12]
 hitl = false
 risk = "medium"
 v6_key = "9-1-quét-chính-tả-và-ngữ-pháp-tiếng-việt"
@@ -241,6 +254,6 @@ title = "Refactor sweep"
 description = "Dọn dẹp cuối epic; phạm vi chốt lúc bắt đầu từ các plan và phát hiện review đã hoãn trong Epic 9, chỉ nhận việc dọn, phạm vi bị đẩy khỏi story khác là story mới."
 verify = "Mọi mục dọn đã chọn đóng hoặc ghi nợ có chủ, và test của các story Epic 9 vẫn xanh."
 covers = []
-after = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+after = [1, 2, 3, 4, 5, 6, 8, 9, 10, 12]
 hitl = false
 risk = "low"
