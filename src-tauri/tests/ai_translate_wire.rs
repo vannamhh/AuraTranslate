@@ -107,6 +107,10 @@ struct Harness {
 
 impl Harness {
     fn new(tag: &str, text: &str, connections: usize) -> Self {
+        Self::build(tag, text, connections, true)
+    }
+
+    fn build(tag: &str, text: &str, connections: usize, manage_generation: bool) -> Self {
         let global_dir = temp_dir(&format!("{tag}-global"));
         let work_dir = temp_dir(&format!("{tag}-work"));
         let global = Store::open(StoreSpec::global(global_dir.join("global.db"))).expect("mo global.db");
@@ -122,7 +126,9 @@ impl Harness {
         app.manage(global);
         app.manage(OpenWorkState::new(Some(open)));
         app.manage(LastAssembledPromptState::new(None));
-        app.manage(AiTranslateGeneration::default());
+        if manage_generation {
+            app.manage(AiTranslateGeneration::default());
+        }
         Self { app, dirs: vec![global_dir, work_dir] }
     }
 
@@ -233,4 +239,79 @@ fn a_batch_stamps_only_the_last_sentence_that_was_sent_and_never_an_omitted_tail
     assert_eq!(record.segment_id, ids[1], "ban ghi phien giu cau CUOI CUNG duoc dich, khong phai cau bi cat");
     assert!(record.sent_at.is_some(), "khoi last_sent cua lo phai danh dau ban ghi da gui");
     assert_eq!(record.sent_model.as_deref(), Some("gpt-wire"));
+}
+
+fn bare_app() -> tauri::App<MockRuntime> {
+    mock_builder().build(mock_context(noop_assets())).expect("dung app MockRuntime")
+}
+
+fn assert_state_missing(err: &auratranslate_lib::core::i18n::IpcError, code: &str) {
+    assert_eq!(err.code(), code);
+    assert_eq!(err.message_key(), auratranslate_lib::core::i18n::MessageKey::Unknown);
+    assert!(err.params().is_empty(), "params phai rong: {:?}", err.params());
+    assert!(!err.retryable());
+}
+
+#[test]
+fn single_run_without_prompt_record_state_fails_with_record_state_missing() {
+    let app = bare_app();
+    let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
+    let err =
+        tauri::async_runtime::block_on(wire::ai_translate_segment(
+            app.handle().clone(),
+            1,
+            None,
+            channel,
+        ))
+        .expect_err("thieu state ghi prompt phai la Err");
+    assert_state_missing(&err, "ai_translate.record_state_missing");
+}
+
+#[test]
+fn batch_without_prompt_record_state_fails_with_record_state_missing() {
+    let app = bare_app();
+    let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
+    let err =
+        tauri::async_runtime::block_on(wire::ai_translate_batch(
+            app.handle().clone(),
+            vec![1],
+            None,
+            channel,
+        ))
+        .expect_err("thieu state ghi prompt phai la Err");
+    assert_state_missing(&err, "ai_translate.record_state_missing");
+}
+
+#[test]
+fn single_run_without_generation_state_fails_with_generation_state_missing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-nogen-single");
+    let h = Harness::build("nogen-single", "A dragon roared.", 0, false);
+    let segment_id = h.segment_ids()[0];
+    let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
+    let err = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        segment_id,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect_err("thieu state the he phai la Err");
+    assert_state_missing(&err, "ai_translate.generation_state_missing");
+}
+
+#[test]
+fn batch_without_generation_state_fails_with_generation_state_missing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-nogen-batch");
+    let h = Harness::build("nogen-batch", "A dragon roared.", 0, false);
+    let ids = h.segment_ids();
+    let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
+    let err = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect_err("thieu state the he phai la Err");
+    assert_state_missing(&err, "ai_translate.generation_state_missing");
 }

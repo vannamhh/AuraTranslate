@@ -743,6 +743,15 @@ describe('resetAiTranslateBatch huỷ lô đang bay', () => {
 
     expect(cancelMock).not.toHaveBeenCalled()
   })
+
+  it('huỷ lô khi KHÔNG generating ⇒ không gọi IPC huỷ', async () => {
+    const { batchState } = await freshPanel()
+    cancelMock.mockClear()
+
+    batchState.cancelAiTranslateBatch()
+
+    expect(cancelMock).not.toHaveBeenCalled()
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════════

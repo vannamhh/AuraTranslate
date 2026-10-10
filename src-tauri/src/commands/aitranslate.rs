@@ -217,6 +217,69 @@ fn resolved_field_value(
     resolved.get(field.as_str()).map(|f| f.value.clone()).unwrap_or_default()
 }
 
+struct ResolvedCallConfig<'a> {
+    global_store: &'a Store,
+    open_work: &'a OpenWork,
+    endpoint: String,
+    model: String,
+    temperature: Option<f64>,
+    max_tokens: Option<u32>,
+}
+
+/// `None` only when `endpoint` or `model` is empty; an unset or unparsable
+/// `temperature`/`max_tokens` is sent as absent, never treated as "not configured".
+fn resolve_call_config<'a>(
+    global: Option<&'a Store>,
+    open: Option<&'a OpenWork>,
+) -> Result<Option<ResolvedCallConfig<'a>>, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let open_work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let resolver = open_work.scope.clone();
+    let resolved = resolve_two_tiers(&resolver, global_store, Some(&open_work.store))?;
+
+    let endpoint = resolved_field_value(&resolved, AiConfigField::Endpoint);
+    let model = resolved_field_value(&resolved, AiConfigField::Model);
+    if endpoint.trim().is_empty() || model.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let temperature: Option<f64> =
+        resolved_field_value(&resolved, AiConfigField::Temperature).trim().parse().ok();
+    let max_tokens: Option<u32> =
+        match resolved_field_value(&resolved, AiConfigField::MaxTokens).trim().parse() {
+            Ok(0) | Err(_) => None,
+            Ok(v) => Some(v),
+        };
+
+    Ok(Some(ResolvedCallConfig {
+        global_store,
+        open_work,
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+    }))
+}
+
+fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
+    eprintln!("ai_translate[{tag}] {state_name} chua duoc quan ly -- loi cau hinh setup()");
+    IpcError::new(
+        code,
+        crate::core::i18n::MessageKey::Unknown,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+fn read_api_key() -> Result<Option<String>, IpcError> {
+    match crate::core::aiconfig::keychain::read() {
+        Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
+        Ok(None) => Ok(None),
+        Err(_unavailable) => Err(keychain_unavailable()),
+    }
+}
+
 /// **Lớp ĐỒNG BỘ** — phân giải cấu hình, đọc khoá, từ chối một segment `is_omitted`, rồi gọi
 /// 4.7's producer ([`assemble_and_record_prompt`]) để lấy ĐÚNG chuỗi nó đã ghi (AD-14, §Always
 /// spec 4.8: "never a second assembly"). **Hàm thuần, đây là thứ test gọi** — không mạng, không
@@ -248,33 +311,17 @@ pub fn prepare_translate_call(
     prompt_set_name: Option<&str>,
     segment_id: i64,
 ) -> Result<PrepareOutcome, IpcError> {
-    let global_store = global.ok_or_else(store_is_missing)?;
-    let open_work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-
-    let resolver = open_work.scope.clone();
-    let resolved = resolve_two_tiers(&resolver, global_store, Some(&open_work.store))?;
-
-    let endpoint = resolved_field_value(&resolved, AiConfigField::Endpoint);
-    let model = resolved_field_value(&resolved, AiConfigField::Model);
-    if endpoint.trim().is_empty() || model.trim().is_empty() {
+    let Some(ResolvedCallConfig {
+        global_store,
+        open_work,
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+    }) = resolve_call_config(global, open)?
+    else {
         return Ok(PrepareOutcome::NotConfigured);
-    }
-
-    // 🔵 QUYET DINH 6 (Ice, 2026-09-21) -- mot `temperature`/`max_tokens` CHUA DAT KHONG phai
-    // ly do goi nha cung cap la "chua cau hinh". Ma tran I/O spec 4.8 neu ten dung
-    // `endpoint`/`model`/khoa cho hang do va khong gi khac; `aiConfigState.ts:69` khoi tao ca
-    // hai truong la chuoi rong va bieu mau khong danh dau chung bat buoc, nen ban truoc cua
-    // doan nay khoa nguoi dung ngoai cua vinh vien ma khong noi thieu gi. Chua dat ⇒ `None` ⇒
-    // `core::ai::client` BO HAN truong do khoi JSON (`skip_serializing_if`), va endpoint tuong
-    // thich OpenAI tu ap mac dinh cua no. Mot gia tri CO MAT nhung HONG cung cho `None`: no da
-    // qua `validate_field` luc ghi, nen khong phan tich duoc nghia la khong con gi de gui.
-    let temperature: Option<f64> =
-        resolved_field_value(&resolved, AiConfigField::Temperature).trim().parse().ok();
-    let max_tokens: Option<u32> =
-        match resolved_field_value(&resolved, AiConfigField::MaxTokens).trim().parse() {
-            Ok(0) | Err(_) => None,
-            Ok(v) => Some(v),
-        };
+    };
 
     // `is_omitted` -- hàng đã có sẵn trong tay qua chính lượt đọc Chương này (§Code Map spec
     // 4.8: "the row is already in hand, so the guard costs one field access, not a query").
@@ -289,10 +336,8 @@ pub fn prepare_translate_call(
         return Err(segment_is_omitted(segment_id));
     }
 
-    let api_key = match crate::core::aiconfig::keychain::read() {
-        Ok(Some(secret)) => secret.expose_secret().to_owned(),
-        Ok(None) => return Ok(PrepareOutcome::NotConfigured),
-        Err(_unavailable) => return Err(keychain_unavailable()),
+    let Some(api_key) = read_api_key()? else {
+        return Ok(PrepareOutcome::NotConfigured);
     };
 
     let assembled: AssembledPromptWire = assemble_and_record_prompt(
@@ -368,25 +413,17 @@ pub fn prepare_batch_call(
     prompt_set_name: Option<&str>,
     segment_ids: &[i64],
 ) -> Result<PrepareBatchOutcome, IpcError> {
-    let global_store = global.ok_or_else(store_is_missing)?;
-    let open_work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-
-    let resolver = open_work.scope.clone();
-    let resolved = resolve_two_tiers(&resolver, global_store, Some(&open_work.store))?;
-
-    let endpoint = resolved_field_value(&resolved, AiConfigField::Endpoint);
-    let model = resolved_field_value(&resolved, AiConfigField::Model);
-    if endpoint.trim().is_empty() || model.trim().is_empty() {
+    let Some(ResolvedCallConfig {
+        global_store,
+        open_work,
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+    }) = resolve_call_config(global, open)?
+    else {
         return Ok(PrepareBatchOutcome::NotConfigured);
-    }
-
-    let temperature: Option<f64> =
-        resolved_field_value(&resolved, AiConfigField::Temperature).trim().parse().ok();
-    let max_tokens: Option<u32> =
-        match resolved_field_value(&resolved, AiConfigField::MaxTokens).trim().parse() {
-            Ok(0) | Err(_) => None,
-            Ok(v) => Some(v),
-        };
+    };
 
     let chapter = crate::commands::segment::read_open_chapter_segments(Some(open_work))?;
 
@@ -407,10 +444,9 @@ pub fn prepare_batch_call(
 
     let needs_translation = ordered_rows.iter().any(|row| !row.is_omitted);
     let api_key: Option<String> = if needs_translation {
-        match crate::core::aiconfig::keychain::read() {
-            Ok(Some(secret)) => Some(secret.expose_secret().to_owned()),
-            Ok(None) => return Ok(PrepareBatchOutcome::NotConfigured),
-            Err(_unavailable) => return Err(keychain_unavailable()),
+        match read_api_key()? {
+            Some(key) => Some(key),
+            None => return Ok(PrepareBatchOutcome::NotConfigured),
         }
     } else {
         None
@@ -782,7 +818,7 @@ pub mod wire {
         AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration, AiTranslateOutcomeWire,
         BatchCallError, PrepareBatchOutcome, PrepareOutcome, PreparedBatchItem, batch_panicked_error,
         batch_stopped_error, prepare_batch_call, prepare_translate_call, send_prepared_batch_call,
-        send_prepared_translate_call, single_run_outcome_wire,
+        send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
@@ -805,15 +841,10 @@ pub mod wire {
         use tauri::Manager as _;
 
         let Some(record_state) = app.try_state::<LastAssembledPromptState>() else {
-            // Khong bao gio xay ra tren duong san pham -- cung khuon `ai_prompt_assemble`.
-            eprintln!(
-                "ai_translate[segment] LastAssembledPromptState chua duoc quan ly -- loi cau hinh setup()"
-            );
-            return Err(IpcError::new(
+            return Err(state_missing(
+                "segment",
+                "LastAssembledPromptState",
                 "ai_translate.record_state_missing",
-                crate::core::i18n::MessageKey::Unknown,
-                std::collections::BTreeMap::new(),
-                false,
             ));
         };
 
@@ -842,14 +873,10 @@ pub mod wire {
         };
 
         let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
-            eprintln!(
-                "ai_translate[segment] AiTranslateGeneration chua duoc quan ly -- loi cau hinh setup()"
-            );
-            return Err(IpcError::new(
+            return Err(state_missing(
+                "segment",
+                "AiTranslateGeneration",
                 "ai_translate.generation_state_missing",
-                crate::core::i18n::MessageKey::Unknown,
-                std::collections::BTreeMap::new(),
-                false,
             ));
         };
         let generation_state = generation_state.inner().clone();
@@ -903,15 +930,10 @@ pub mod wire {
         use tauri::Manager as _;
 
         let Some(record_state) = app.try_state::<LastAssembledPromptState>() else {
-            // Khong bao gio xay ra tren duong san pham -- cung khuon `ai_translate_segment`.
-            eprintln!(
-                "ai_translate[batch] LastAssembledPromptState chua duoc quan ly -- loi cau hinh setup()"
-            );
-            return Err(IpcError::new(
+            return Err(state_missing(
+                "batch",
+                "LastAssembledPromptState",
                 "ai_translate.record_state_missing",
-                crate::core::i18n::MessageKey::Unknown,
-                std::collections::BTreeMap::new(),
-                false,
             ));
         };
 
@@ -940,14 +962,10 @@ pub mod wire {
         };
 
         let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
-            eprintln!(
-                "ai_translate[batch] AiTranslateGeneration chua duoc quan ly -- loi cau hinh setup()"
-            );
-            return Err(IpcError::new(
+            return Err(state_missing(
+                "batch",
+                "AiTranslateGeneration",
                 "ai_translate.generation_state_missing",
-                crate::core::i18n::MessageKey::Unknown,
-                std::collections::BTreeMap::new(),
-                false,
             ));
         };
         let generation_state = generation_state.inner().clone();

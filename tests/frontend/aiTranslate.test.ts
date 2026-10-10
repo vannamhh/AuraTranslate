@@ -904,4 +904,13 @@ describe('resetAiTranslate huỷ lượt dịch đang bay (vòng rà 2026-09-21)
 
     expect(cancelMock).not.toHaveBeenCalled()
   })
+
+  it('huỷ khi KHÔNG generating ⇒ không gọi IPC huỷ', async () => {
+    const { state } = await freshPanel()
+    cancelMock.mockClear()
+
+    state.cancelAiTranslate()
+
+    expect(cancelMock).not.toHaveBeenCalled()
+  })
 })

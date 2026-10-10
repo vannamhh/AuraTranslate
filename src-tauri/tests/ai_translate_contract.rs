@@ -2171,6 +2171,36 @@ fn ai_not_configured_for_a_batch_reports_not_configured_before_any_provider_call
     cleanup(&global_dir);
 }
 
+#[test]
+fn batch_reports_not_configured_when_endpoint_or_model_is_empty() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-batch-empty-config");
+    let global_dir = temp_dir("batch-not-configured-empty-global");
+    let work_dir = temp_dir("batch-not-configured-empty-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "BatchNotConfiguredEmpty", "en", "Sentence one. Sentence two.");
+    let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
+    let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
+    let record = fresh_record();
+
+    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
+        .expect("khong duoc la mot Err");
+    assert!(matches!(outcome, PrepareBatchOutcome::NotConfigured));
+
+    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
+        .expect("ghi endpoint");
+    let outcome2 = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
+        .expect("khong duoc la mot Err");
+    assert!(matches!(outcome2, PrepareBatchOutcome::NotConfigured), "model van rong");
+    assert!(read_last_assembled_prompt(&record).is_none());
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
 /// I/O Matrix "No Work open" (áp cho LÔ) -- tái dùng ĐÚNG khoá `WorkNoneOpen`, cùng khoá mà
 /// lượt dịch MỘT segment dùng (`no_work_open_reuses_the_existing_work_none_open_key`). Ca đó
 /// chỉ canh nhánh ĐƠN -- `prepare_batch_call` từ chối TRƯỚC khi đụng tới `segment_ids` (dòng

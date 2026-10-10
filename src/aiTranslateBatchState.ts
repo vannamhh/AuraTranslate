@@ -50,7 +50,8 @@
  */
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
-import { cancelAiTranslateCall, runAiTranslateBatchCall } from './config/aitranslate'
+import { runAiTranslateBatchCall } from './config/aitranslate'
+import { cancelWhenGenerating } from './aiTranslateCancel'
 import type { AiTranslateBatchEventWire, AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 import { nextAiTranslateRunStamp } from './aiTranslateRunClock'
@@ -320,8 +321,7 @@ async function streamBatch(promptSetName: string | null, ids: number[]): Promise
  * đúng module của nó (xem doc-comment đầu tệp).
  */
 export function cancelAiTranslateBatch(): void {
-  if (state.value !== 'generating') return
-  void cancelAiTranslateCall()
+  cancelWhenGenerating(state)
 }
 
 /**
@@ -337,7 +337,7 @@ export function cancelAiTranslateBatch(): void {
  * và với BYOK đó là tiền người dùng trả cho những câu không ai còn thấy được.
  */
 export function resetAiTranslateBatch(): void {
-  if (state.value === 'generating') void cancelAiTranslateCall()
+  cancelWhenGenerating(state)
 
   sequence += 1
   state.value = 'not_configured'

@@ -32,7 +32,8 @@
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { cancelAiTranslateCall, runAiTranslateSegment } from './config/aitranslate'
+import { runAiTranslateSegment } from './config/aitranslate'
+import { cancelWhenGenerating } from './aiTranslateCancel'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 import { nextAiTranslateRunStamp } from './aiTranslateRunClock'
@@ -155,8 +156,7 @@ export async function runAiTranslate(promptSetName: string | null, segmentId: nu
  * một lời khai về một điều CHƯA XẢY RA.
  */
 export function cancelAiTranslate(): void {
-  if (state.value !== 'generating') return
-  void cancelAiTranslateCall()
+  cancelWhenGenerating(state)
 }
 
 /**
@@ -176,7 +176,7 @@ export function cancelAiTranslate(): void {
  * [`cancelAiTranslate`] ngay trên.
  */
 export function resetAiTranslate(): void {
-  if (state.value === 'generating') void cancelAiTranslateCall()
+  cancelWhenGenerating(state)
 
   sequence += 1
   state.value = 'not_configured'
