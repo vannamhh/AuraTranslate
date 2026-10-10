@@ -78,6 +78,7 @@ import {
 } from '../aiTranslateBatchState'
 import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
 import type { AiTranslateUsageWire } from '../config/aitranslate'
+import { formatUsdParam } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
@@ -219,17 +220,6 @@ const isAiTranslateStale = computed<boolean>(() =>
 /** Một dòng hiển thị được — khoá `vi.json` cộng tham số nó cần, hoặc `null` khi KHÔNG có gì
  * để vẽ (không một dòng rỗng nào được render — template đọc `null` để bỏ hẳn phần tử DOM). */
 type AiTranslateUsageLine = { key: string; params: Record<string, string> }
-
-/**
- * Dấu phẩy thập phân THAY vì dấu chấm — HÀM SỐ HỌC THUẦN, không `Intl.NumberFormat` (§Code Map
- * spec 4.11: "The decimal comma is produced as a param, by a pure function"). Làm tròn 4 chữ số
- * thập phân bằng phép nhân/chia số nguyên trước khi `toFixed` — tránh đuôi float dài
- * (`0.1 + 0.2`-class) lọt ra màn hình.
- */
-function formatUsdParam(costUsd: number): string {
-  const rounded = Math.round(costUsd * 10000) / 10000
-  return rounded.toFixed(4).replace('.', ',')
-}
 
 /**
  * `usage` của LƯỢT DỊCH MỘT SEGMENT (`aiTranslateState.ts::aiTranslateUsage`) → khoá + tham số

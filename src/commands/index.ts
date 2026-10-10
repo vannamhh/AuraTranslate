@@ -1072,6 +1072,10 @@ export type CommandDeps = {
   /** Huỷ lượt dịch đang chạy — không tác dụng khi không có lượt nào. Handler của
    * `ai.translate.cancel`. */
   cancelAiTranslate?: () => void
+  /** Quét chính tả và ngữ pháp câu đang có con trỏ. Handler của `ai.proofread.run`. */
+  runAiProofread?: () => void
+  /** Huỷ lượt quét đang chạy. Handler của `ai.proofread.cancel`. */
+  cancelAiProofread?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
    * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
    * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. Story 4.9, Phase 3 mở
@@ -4141,6 +4145,28 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.translate.cancel', 'cancelAiTranslate')
       }
       deps.cancelAiTranslate()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.run',
+    labelKey: 'command.ai.proofread.run',
+    keys: ['Mod+P'],
+    run: () => {
+      if (deps.runAiProofread === undefined) {
+        return portMissing('ai.proofread.run', 'runAiProofread')
+      }
+      deps.runAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.cancel',
+    labelKey: 'command.ai.proofread.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelAiProofread === undefined) {
+        return portMissing('ai.proofread.cancel', 'cancelAiProofread')
+      }
+      deps.cancelAiProofread()
     },
   })
   target.register({

@@ -45,4 +45,5 @@
 
 pub mod client;
 pub mod pricing;
+pub mod proofread;
 pub mod rag;

@@ -68,6 +68,14 @@
 // thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
 // vạch của **segment** (UX-DR19) mà tệp này dựng.
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { paintProofreadRanges, rangesForScan } from './proofreadHighlight'
+import {
+  clearProofreadFor,
+  proofreadFindings,
+  proofreadRunSegmentId,
+  proofreadScannedText,
+  proofreadStateValue,
+} from '../proofreadState'
 import PanelFrame from './PanelFrame.vue'
 import SourceHanViet from './SourceHanViet.vue'
 import { useSelectionSurface } from './selectionContract'
@@ -1076,9 +1084,31 @@ function restoreEditedText(): void {
     if (document.activeElement === el) continue
     if (el.textContent !== text) el.textContent = text
   }
+  repaintProofread()
 }
 
 watch([() => editorSegments.value, colTgt], restoreEditedText, { flush: 'post' })
+
+/** Underlines live in `CSS.highlights`, outside Vue's DOM; drawn only while the cell still holds the scanned text. */
+function repaintProofread(): void {
+  const id = proofreadRunSegmentId.value
+  const host = colTgt.value
+  if (proofreadStateValue.value !== 'done' || id === null || host === null) {
+    paintProofreadRanges(null)
+    return
+  }
+  const cell = host.querySelector<HTMLElement>(`[data-segment-id="${String(id)}"]`)
+  paintProofreadRanges(cell === null ? null : rangesForScan(cell, proofreadScannedText.value, proofreadFindings.value))
+}
+
+watch(
+  [proofreadStateValue, proofreadFindings, proofreadScannedText, proofreadRunSegmentId, () => editorSegments.value, colTgt],
+  repaintProofread,
+  { flush: 'post' },
+)
+onBeforeUnmount(() => {
+  paintProofreadRanges(null)
+})
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Con trỏ theo NEO VÙNG CHỌN — vế bàn phím của AC2, và nguồn của vạch `primary`
@@ -1549,6 +1579,7 @@ function reportEdit(cell: HTMLElement): void {
   const id = segmentIdOf(cell)
   if (id === null) return
   noteEditorEdit(id, cell.textContent)
+  clearProofreadFor(id)
 }
 
 /**
@@ -2386,6 +2417,15 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
 .cell-tgt {
   white-space: pre-line;
 }
+
+.cell-tgt::highlight(proofread-error) {
+  /* WKWebView ignores the `text-decoration` shorthand inside ::highlight(), and also
+     text-underline-offset/-position and text-decoration-thickness; only these longhands apply. */
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--color-error);
+}
+
 .cell-tgt.empty {
   min-height: 1.95em;
   border-bottom-style: dashed;

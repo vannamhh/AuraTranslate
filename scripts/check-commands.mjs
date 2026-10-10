@@ -228,7 +228,7 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 36
-const TS_FLOOR = 89
+const TS_FLOOR = 97
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà

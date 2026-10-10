@@ -45,6 +45,7 @@ import StatusBar from './StatusBar.vue'
 // Story 3.3 — dải "Thêm thuật ngữ" (FR48), MỘT thể hiện ở chân workspace, ngay TRÊN
 // `<StatusBar />`. Xem doc-comment đầu `GlossaryQuickAdd.vue` cho lý do chỗ này.
 import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
+import ProofreaderStrip from './ProofreaderStrip.vue'
 // Story 3.6 — dải "Chờ chốt lần đầu gặp" (FR114), cùng slot, mọc DƯỚI `<GlossaryQuickAdd
 // />` — thứ tự DOM là thứ tự thị giác (§Tasks của spec), dù `topmostStrip` đã đảm bảo
 // không bao giờ cả hai cùng hiện.
@@ -395,6 +396,8 @@ function focusOnPointerDown(event: MouseEvent) {
       một dải hiện tại một thời điểm.
     -->
     <GlossaryConfirmStrip />
+
+    <ProofreaderStrip />
 
     <!-- Story 7.5 · FR59 — dải khớp mờ TM, cùng slot; `topmostStrip` để dải Glossary thắng. -->
     <TmFuzzyStrip />

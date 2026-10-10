@@ -64,6 +64,7 @@ import { resetAiTranslate } from '../aiTranslateState'
 // 🔴 Story 4.9, Phase 3 — cùng khuyết tật và cùng bản sửa ngay trên: kết quả của một LÔ cũng
 // mang danh tính THEO Tác phẩm. Xem doc-comment đầu `aiTranslateBatchState.ts`.
 import { resetAiTranslateBatch } from '../aiTranslateBatchState'
+import { resetProofread } from '../proofreadState'
 // 🔴 Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
 // khuyết tật và cùng bản sửa ngay trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
@@ -437,6 +438,7 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh
     // tính THEO TÁC PHẨM. Xem doc-comment tại chỗ `import`.
     resetAiTranslateBatch()
+    resetProofread()
     // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`),
     // cùng lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
     resetSegmentSelection()

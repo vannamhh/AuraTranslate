@@ -502,6 +502,164 @@ fn ai_client_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_n
     );
 }
 
+// Fourth approved seam: `commands/proofread.rs` reaches the scan prompt, the reply parser and the
+// provider client. It is exempt per line for the `crate::core::ai::` prefix, and the exact
+// `module::name` paths it may name are frozen below.
+
+const AI_PROOFREAD_SEAM_COMMAND_FILE: &str = "commands/proofread.rs";
+
+const AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER: &str = "crate::core::ai::";
+
+const ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM: [&str; 5] = [
+    "client::OpenAiChatClient",
+    "proofread::ProofreadFinding",
+    "proofread::ProofreadReplyError",
+    "proofread::locate_findings",
+    "rag::assemble_proofread_prompt",
+];
+
+fn is_the_approved_ai_proofread_command_file(rel: &str) -> bool {
+    rel == AI_PROOFREAD_SEAM_COMMAND_FILE
+}
+
+fn line_is_the_approved_ai_proofread_import_in_command_file(rel: &str, code: &str) -> bool {
+    is_the_approved_ai_proofread_command_file(rel)
+        && code.contains(AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER)
+}
+
+/// Every `module::name` path named after [`AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER`] in `joined`.
+/// A wildcard or a bare module (`use crate::core::ai::client;`) yields `module::*`.
+fn ai_proofread_paths_named(joined: &str) -> Vec<String> {
+    let anchor = AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER;
+    let mut out = Vec::new();
+    let mut search_from = 0usize;
+
+    while let Some(found) = joined[search_from..].find(anchor) {
+        let module_start = search_from + found + anchor.len();
+        let module_len = joined[module_start..]
+            .find(|c: char| !is_ident_char(c))
+            .unwrap_or(joined.len() - module_start);
+        let module = &joined[module_start..module_start + module_len];
+        let after_module = module_start + module_len;
+        search_from = after_module.max(module_start + 1);
+
+        let Some(rest) = joined[after_module..].strip_prefix("::") else {
+            out.push(format!("{module}::*"));
+            continue;
+        };
+        let rest_start = after_module + 2;
+        let rest_trimmed = rest.trim_start();
+        let offset = rest_start + (rest.len() - rest_trimmed.len());
+
+        if let Some(group) = rest_trimmed.strip_prefix('{') {
+            let Some(close) = group.find('}') else {
+                out.push(format!("{module}::*"));
+                break;
+            };
+            for item in group[..close].split(',') {
+                let Some(raw) = item.split_whitespace().next() else { continue };
+                let name: String = raw.chars().filter(|c| is_ident_char(*c)).collect();
+                if !name.is_empty() && name != "self" {
+                    out.push(format!("{module}::{name}"));
+                }
+            }
+            search_from = offset + 1 + close;
+        } else if rest_trimmed.starts_with('*') {
+            out.push(format!("{module}::*"));
+        } else {
+            let name_len =
+                rest_trimmed.find(|c: char| !is_ident_char(c)).unwrap_or(rest_trimmed.len());
+            let name = &rest_trimmed[..name_len];
+            out.push(format!("{module}::{}", if name.is_empty() { "*" } else { name }));
+            search_from = offset + name_len;
+        }
+    }
+
+    out
+}
+
+#[test]
+fn commands_proofread_rs_names_nothing_beyond_the_allowed_ai_surface() {
+    let files = all_rust_sources();
+    let Some((_, text)) =
+        files.iter().find(|(rel, _)| is_the_approved_ai_proofread_command_file(rel))
+    else {
+        panic!("`{AI_PROOFREAD_SEAM_COMMAND_FILE}` is missing from the scanned tree");
+    };
+    let paths = ai_proofread_paths_named(&joined_code(text));
+
+    for allowed in ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM {
+        assert!(
+            paths.iter().any(|p| p == allowed),
+            "`{AI_PROOFREAD_SEAM_COMMAND_FILE}` no longer names `{allowed}`: the scan is blind or the allow-list is stale"
+        );
+    }
+    let violations: Vec<&String> = paths
+        .iter()
+        .filter(|p| !ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM.contains(&p.as_str()))
+        .collect();
+    assert!(
+        violations.is_empty(),
+        "paths outside {ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM:?} named from `core::ai` in `{AI_PROOFREAD_SEAM_COMMAND_FILE}`: {violations:?}"
+    );
+}
+
+#[test]
+fn ai_proofread_paths_named_reads_groups_singles_and_a_seeded_forbidden_path() {
+    let text = "use crate::core::ai::client::OpenAiChatClient;\n\
+                use crate::core::ai::proofread::{\n    ProofreadFinding, locate_findings,\n};\n\
+                use crate::core::ai::rag::assemble_proofread_prompt;\n";
+    assert_eq!(
+        ai_proofread_paths_named(&joined_code(text)),
+        vec![
+            "client::OpenAiChatClient",
+            "proofread::ProofreadFinding",
+            "proofread::locate_findings",
+            "rag::assemble_proofread_prompt",
+        ]
+    );
+
+    let seeded = "use crate::core::ai::rag::{assemble_proofread_prompt, assemble_prompt};\n\
+                  let _ = crate::core::ai::client::split_sse_frames(b\"\");\n\
+                  use crate::core::ai::pricing::*;\n";
+    let paths = ai_proofread_paths_named(&joined_code(seeded));
+    for forbidden in ["rag::assemble_prompt", "client::split_sse_frames", "pricing::*"] {
+        assert!(paths.contains(&forbidden.to_owned()), "seeded {forbidden} must be seen: {paths:?}");
+        assert!(!ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM.contains(&forbidden));
+    }
+}
+
+#[test]
+fn the_fourth_approved_seam_is_matched_narrowly_and_neighbours_are_not() {
+    assert!(is_the_approved_ai_proofread_command_file(AI_PROOFREAD_SEAM_COMMAND_FILE));
+    for neighbour in [
+        "commands/proofread2.rs",
+        "commands/proofread/mod.rs",
+        "core/commands/proofread.rs",
+        "commands/proofread.rs.bak",
+        AI_TRANSLATE_SEAM_COMMAND_FILE,
+        AI_PROMPT_SEAM_COMMAND_FILE,
+    ] {
+        assert!(!is_the_approved_ai_proofread_command_file(neighbour), "{neighbour}");
+    }
+    let import = "use crate::core::ai::client::OpenAiChatClient;";
+    assert!(line_is_the_approved_ai_proofread_import_in_command_file(
+        AI_PROOFREAD_SEAM_COMMAND_FILE,
+        import
+    ));
+    for other_file in ["commands/other.rs", AI_TRANSLATE_SEAM_COMMAND_FILE, "lib.rs"] {
+        assert!(!line_is_the_approved_ai_proofread_import_in_command_file(other_file, import));
+    }
+    let seeded = format!("{import} let _ = super::ai::warm_up();");
+    assert_eq!(
+        line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
+            &seeded,
+            AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER
+        )),
+        Some("super::ai")
+    );
+}
+
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())
@@ -654,6 +812,16 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
                 let remainder = line_with_marker_occurrences_removed(
                     &code,
                     AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER,
+                );
+                if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
+                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+                }
+                continue;
+            }
+            if line_is_the_approved_ai_proofread_import_in_command_file(rel, &code) {
+                let remainder = line_with_marker_occurrences_removed(
+                    &code,
+                    AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER,
                 );
                 if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
                     violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
@@ -1558,6 +1726,12 @@ fn lib_rs_without_the_approved_ai_translate_seam(text: &str) -> String {
     text_without_lines_matching_the_ai_prompt_seam_marker(text, AI_TRANSLATE_SEAM_LIB_RS_MARKER)
 }
 
+const AI_PROOFREAD_SEAM_LIB_RS_MARKER: &str = "crate::commands::proofread::";
+
+fn lib_rs_without_the_approved_ai_proofread_seam(text: &str) -> String {
+    text_without_lines_matching_the_ai_prompt_seam_marker(text, AI_PROOFREAD_SEAM_LIB_RS_MARKER)
+}
+
 /// Đối chứng dương + âm cho [`core_mod_rs_without_the_ai_declaration`] trên văn bản DỰNG TAY —
 /// độc lập với `core/mod.rs` thật, đúng khuôn mọi vị từ khác của tệp này.
 #[test]
@@ -1893,6 +2067,29 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
     fs::write(
         &lib_rs_path,
         lib_rs_without_the_approved_ai_translate_seam(&lib_rs_text_after_aiprompt),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", lib_rs_path.display()));
+
+    let proofread_path = probe_src.join(AI_PROOFREAD_SEAM_COMMAND_FILE);
+    assert!(
+        proofread_path.is_file(),
+        "`{}` is missing from the copy: nothing left to delete for the fourth seam",
+        proofread_path.display()
+    );
+    fs::remove_file(&proofread_path)
+        .unwrap_or_else(|e| panic!("khong xoa duoc {}: {e}", proofread_path.display()));
+    let commands_mod_text_after_aitranslate = fs::read_to_string(&commands_mod_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", commands_mod_path.display()));
+    fs::write(
+        &commands_mod_path,
+        mod_rs_without_declaration(&commands_mod_text_after_aitranslate, "proofread"),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", commands_mod_path.display()));
+    let lib_rs_text_after_aitranslate = fs::read_to_string(&lib_rs_path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", lib_rs_path.display()));
+    fs::write(
+        &lib_rs_path,
+        lib_rs_without_the_approved_ai_proofread_seam(&lib_rs_text_after_aitranslate),
     )
     .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", lib_rs_path.display()));
 

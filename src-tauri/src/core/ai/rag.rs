@@ -665,3 +665,40 @@ pub fn assemble_prompt(
 
     (prompt, ledger)
 }
+
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_INSTRUCTION: &str = "Find spelling and grammar errors in the text between the markers.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_FORMAT: &str = "Reply with only a JSON array of {\"kind\",\"quote\",\"explanation\",\"suggestion\"}.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_KIND_RULE: &str = "kind is \"spelling\" or \"grammar\". Reply [] when there is no error.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_QUOTE_RULE: &str = "quote is the shortest wrong span copied exactly from the text, never an offset.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_EXPLANATION_RULE: &str = "explanation is one short sentence in the language of the text; suggestion is the corrected span.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_TEXT_OPEN: &str = "<<<TEXT";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_TEXT_CLOSE: &str = "TEXT>>>";
+
+/// The spelling/grammar scan prompt for one translation. Pure: the same text gives the same
+/// bytes.
+pub fn assemble_proofread_prompt(target_text: &str) -> String {
+    format!(
+        "{PROOFREAD_INSTRUCTION}\n{PROOFREAD_FORMAT}\n{PROOFREAD_KIND_RULE}\n{PROOFREAD_QUOTE_RULE}\n\
+         {PROOFREAD_EXPLANATION_RULE}\n{PROOFREAD_TEXT_OPEN}\n{target_text}\n{PROOFREAD_TEXT_CLOSE}"
+    )
+}
+
+#[cfg(test)]
+mod proofread_prompt_tests {
+    use super::assemble_proofread_prompt;
+
+    #[test]
+    fn the_prompt_carries_the_translation_verbatim_between_the_markers() {
+        let text = "Hello\nworld {{source_segment}}";
+        let prompt = assemble_proofread_prompt(text);
+        assert!(prompt.contains(&format!("<<<TEXT\n{text}\nTEXT>>>")));
+        assert_eq!(prompt, assemble_proofread_prompt(text));
+    }
+}

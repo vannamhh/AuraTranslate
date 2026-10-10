@@ -69,6 +69,7 @@ import { resetAiTranslate } from '../aiTranslateState'
 // THEO Tác phẩm (mỗi `segmentId` của một hàng chỉ có nghĩa trong `project.db` đang mở). Xem
 // doc-comment đầu `aiTranslateBatchState.ts`.
 import { resetAiTranslateBatch } from '../aiTranslateBatchState'
+import { resetProofread } from '../proofreadState'
 // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang hai `segment.id` (`anchor`/`focus`), cùng
 // lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
@@ -317,6 +318,7 @@ export async function openWorkById(workId: string): Promise<void> {
   // 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh tính
   // THEO TÁC PHẨM; xem doc-comment tại chỗ `import`.
   resetAiTranslateBatch()
+  resetProofread()
   // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang `anchor`/`focus` là hai `segment.id`,
   // cùng lý lẽ hai dòng trên: `AUTOINCREMENT` của `project.db` đếm RIÊNG mỗi Tác phẩm, nên
   // hai id cũ tồn tại THẬT ở Tác phẩm mới và trỏ vào câu khác hẳn — xem doc-comment đầu

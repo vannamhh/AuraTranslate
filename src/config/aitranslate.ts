@@ -39,7 +39,7 @@ export type AiTranslateUsageWire = {
   cost_usd: number | null
 }
 
-function isAiTranslateUsageWire(value: unknown): value is AiTranslateUsageWire {
+export function isAiTranslateUsageWire(value: unknown): value is AiTranslateUsageWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<AiTranslateUsageWire>
   return (
@@ -65,7 +65,7 @@ export type AiTranslateOutcomeWire =
   | { state: 'done'; usage: AiTranslateUsageWire | null }
   | { state: 'cancelled' }
 
-function isIpcError(value: unknown): value is IpcError {
+export function isIpcError(value: unknown): value is IpcError {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<IpcError>
   return (
@@ -78,11 +78,11 @@ function isIpcError(value: unknown): value is IpcError {
   )
 }
 
-function hasIpcBridge(): boolean {
+export function hasIpcBridge(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-const UNKNOWN_IPC_ERROR: IpcError = {
+export const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
   message_key: 'err.unknown',
   params: {},

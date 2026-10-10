@@ -217,18 +217,18 @@ fn resolved_field_value(
     resolved.get(field.as_str()).map(|f| f.value.clone()).unwrap_or_default()
 }
 
-struct ResolvedCallConfig<'a> {
-    global_store: &'a Store,
-    open_work: &'a OpenWork,
-    endpoint: String,
-    model: String,
-    temperature: Option<f64>,
-    max_tokens: Option<u32>,
+pub(crate) struct ResolvedCallConfig<'a> {
+    pub(crate) global_store: &'a Store,
+    pub(crate) open_work: &'a OpenWork,
+    pub(crate) endpoint: String,
+    pub(crate) model: String,
+    pub(crate) temperature: Option<f64>,
+    pub(crate) max_tokens: Option<u32>,
 }
 
 /// `None` only when `endpoint` or `model` is empty; an unset or unparsable
 /// `temperature`/`max_tokens` is sent as absent, never treated as "not configured".
-fn resolve_call_config<'a>(
+pub(crate) fn resolve_call_config<'a>(
     global: Option<&'a Store>,
     open: Option<&'a OpenWork>,
 ) -> Result<Option<ResolvedCallConfig<'a>>, IpcError> {
@@ -262,7 +262,7 @@ fn resolve_call_config<'a>(
     }))
 }
 
-fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
+pub(crate) fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
     eprintln!("ai_translate[{tag}] {state_name} chua duoc quan ly -- loi cau hinh setup()");
     IpcError::new(
         code,
@@ -272,7 +272,7 @@ fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
     )
 }
 
-fn read_api_key() -> Result<Option<String>, IpcError> {
+pub(crate) fn read_api_key() -> Result<Option<String>, IpcError> {
     match crate::core::aiconfig::keychain::read() {
         Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
         Ok(None) => Ok(None),

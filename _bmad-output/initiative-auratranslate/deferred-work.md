@@ -13022,3 +13022,15 @@ chính nó.
   summary: Chưa ai nhập song ngữ một `.docx` thật có hai bảng trong ứng dụng thật (WKWebView): bộ chọn bảng hiện "Chưa chọn bảng", nút xác nhận khoá, chọn bảng thì xem trước đổi sang hàng của bảng đó, bộ chọn bảng mã bị ẩn.
   evidence: test Rust dựng `.docx` bằng `docx-rs`, chưa thử tệp Word thật; vitest chạy lớp phủ dưới happy-dom với lệnh Tauri giả.
   Chủ: Epic 6.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+  summary: Gạch chân lượn sóng của proofreader chạm dấu nằm dưới của `ạ` `ộ` `ợ`: trong `::highlight()` WKWebView bỏ qua `text-underline-offset`, `text-underline-position` và `text-decoration-thickness`, nên mức lùi 4px của EXPERIENCE.md không đạt được.
+  evidence: e2e 9.1 đo trên "họcc" (dpr 2): offset 0/4/8px, `under`, thickness 1px cho ảnh byte-giống nhau, sóng ở hàng thiết bị 288-292, chấm dưới `ọ` nằm trên đỉnh sóng; Ice chọn giữ Highlight API cho tracer ngày 2026-10-10. Lối khác đã nêu: lớp phủ đặt theo `Range.getClientRects()`, cần miễn trừ "không lớp nổi" của `src/AGENTS.md`.
+  Chủ: Story 9.5.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+  summary: Chưa ai chạy ⌘P quét một segment có lỗi cố ý với AI thật trong ứng dụng thật: gạch chân hiện dưới đúng cụm, dải trạng thái (đang quét, Huỷ, số phát hiện, token, chi phí, mời cấu hình), gõ sửa thì gạch chân mất.
+  evidence: e2e chỉ dựng Range và vẽ bằng hàm thật trên ô thật; không chạy lệnh vì `__TAURI_INTERNALS__.invoke` bị đóng băng và quét thật cần ghi khoá API vào keychain của Ice; đường lệnh và watcher chỉ có vitest.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+  summary: `wire::ai_translate_segment` và `wire::ai_translate_batch` lấy `generation_state.next()` sau `prepare_*` (đọc segment + keychain), nên `ai_translate_cancel` đến trong khe đó bị lượt dịch ghi đè và lượt dịch chạy tới cùng.
+  evidence: review 9.1 thấy cùng thứ tự ở `commands/proofread.rs` và đã vá ở đó; `commands/aitranslate.rs` gọi `next()` sau `prepare_translate_call`/`prepare_batch_call`, chưa ca nào canh khe này.
+  Chủ: Story 9.11.

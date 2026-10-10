@@ -36,6 +36,7 @@ import { ensureChapterLoaded, resetSourcePanel, sourceChapter } from './sourcePa
 // `./config/aitranslate` và `./i18n` — không import tệp này.
 import { resetAiTranslate } from '../aiTranslateState'
 import { resetAiTranslateBatch } from '../aiTranslateBatchState'
+import { resetProofread } from '../proofreadState'
 import {
   confirmSegment,
   mergeSegments,
@@ -1884,6 +1885,7 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     // doc-comment tại chỗ `import` cho lý do đây KHÔNG phải một AC riêng của story này.
     resetAiTranslate()
     resetAiTranslateBatch()
+    resetProofread()
 
     // ═════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-18 — PANEL SOURCE PHẢI ĐI CÙNG LƯỢT NÀY

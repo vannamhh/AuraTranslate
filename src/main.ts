@@ -363,6 +363,7 @@ import {
 } from './aiPromptInspectorState'
 import { selectedPromptSetName } from './promptSetState'
 import { aiTranslateHandlers } from './aiTranslateHandlers'
+import { proofreadHandlers } from './proofreadHandlers'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -953,6 +954,7 @@ async function boot(): Promise<void> {
         void assembleCurrentAiPrompt(selectedPromptSetName.value, editorCaretSegmentId.value)
       },
       ...aiTranslateHandlers,
+      ...proofreadHandlers,
       // 🔴 Câu hỏi chống mất bản nháp của PROMOTE, cùng khuôn
       // `confirmPendingRestore`/`cancelPendingRestore`.
       confirmPendingPromote,

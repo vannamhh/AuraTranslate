@@ -859,6 +859,9 @@ message_keys! {
     /// — câu chỉ vào khoá đã lưu, không đọc được. KHÔNG retryable — thất bại giống hệt mỗi lần.
     AiTranslateApiKeyHeaderInvalid => "err.ai_translate.api_key_header_invalid" [],
     AiTranslateInternalFailure => "err.ai_translate.internal_failure" [],
+    /// The scan reply was not the JSON array the prompt asked for. Retryable: a second sample
+    /// from the same model usually parses.
+    AiProofreadReplyMalformed => "err.ai_proofread.reply_malformed" [],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

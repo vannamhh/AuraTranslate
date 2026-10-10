@@ -1291,6 +1291,8 @@ pub fn run() {
             // dich mot segment o tren -- mot bo dem cho ca tien trinh, bat dau lo nay SUPERSEDE
             // mot luot don dang chay va nguoc lai.
             crate::commands::aitranslate::wire::ai_translate_batch,
+            crate::commands::proofread::wire::ai_proofread_segment,
+            crate::commands::proofread::wire::ai_proofread_cancel,
             // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
             // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no di qua
             // `write_non_user_target`, dat `target_text`, hai cot moc va
@@ -1576,6 +1578,7 @@ fn open_work_slot(app: &tauri::App) {
     // LAN cho ca PHIEN, khong theo Tac pham dang mo -- mot luot dich con dang chay khi nguoi
     // dung dong Tac pham van phai huy duoc sach, khong phai mot rang buoc voi OpenWorkState).
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
+    app.manage(crate::commands::proofread::ProofreadGeneration::default());
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
