@@ -3,7 +3,7 @@ title: 'Tracer: quét chính tả và ngữ pháp một segment, gạch chân ng
 type: 'feature'
 ticket: '1'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: 'd31e95b67d9fce242c2d515fce3da0998dcf1308'
 route: 'full'
 route_source: 'auto'
