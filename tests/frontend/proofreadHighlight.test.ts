@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { PROOFREAD_HIGHLIGHT_NAME, paintProofreadRanges, rangeForOffsets, rangesForScan } from '../../src/panels/proofreadHighlight'
+import { PROOFREAD_HIGHLIGHT_NAME, PROOFREAD_MEANING_HIGHLIGHT_NAME, paintProofreadRanges, rangeForOffsets, rangesForScan } from '../../src/panels/proofreadHighlight'
 
 function cellOf(...texts: string[]): HTMLElement {
   const cell = document.createElement('div')
@@ -70,6 +70,25 @@ describe('paintProofreadRanges', () => {
   it('removes the highlight when there is nothing to draw', () => {
     paintProofreadRanges(rangesForScan(cellOf('ab'), 'ab', [{ start: 0, end: 2 }]))
     expect(registry.has(PROOFREAD_HIGHLIGHT_NAME)).toBe(true)
+    paintProofreadRanges(null)
+    expect(registry.has(PROOFREAD_HIGHLIGHT_NAME)).toBe(false)
+  })
+
+  it('registers error and meaning ranges under separate keys', () => {
+    const cell = cellOf('ab cd')
+    paintProofreadRanges(rangesForScan(cell, 'ab cd', [{ start: 0, end: 2 }]), rangesForScan(cell, 'ab cd', [{ start: 3, end: 5 }]))
+    const error = registry.get(PROOFREAD_HIGHLIGHT_NAME) as { ranges: Range[] } | undefined
+    const meaning = registry.get(PROOFREAD_MEANING_HIGHLIGHT_NAME) as { ranges: Range[] } | undefined
+    expect(error?.ranges.map((r) => r.toString())).toEqual(['ab'])
+    expect(meaning?.ranges.map((r) => r.toString())).toEqual(['cd'])
+  })
+
+  it('deletes the key that has no ranges while keeping the other', () => {
+    const cell = cellOf('ab cd')
+    paintProofreadRanges(rangesForScan(cell, 'ab cd', [{ start: 0, end: 2 }]), rangesForScan(cell, 'ab cd', [{ start: 3, end: 5 }]))
+    paintProofreadRanges(rangesForScan(cell, 'ab cd', [{ start: 0, end: 2 }]), [])
+    expect(registry.has(PROOFREAD_HIGHLIGHT_NAME)).toBe(true)
+    expect(registry.has(PROOFREAD_MEANING_HIGHLIGHT_NAME)).toBe(false)
     paintProofreadRanges(null)
     expect(registry.has(PROOFREAD_HIGHLIGHT_NAME)).toBe(false)
   })

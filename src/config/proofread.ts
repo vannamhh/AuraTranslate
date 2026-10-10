@@ -8,7 +8,12 @@ import {
 } from './aitranslate'
 import type { AiTranslateUsageWire } from './aitranslate'
 
-export type ProofreadFindingKind = 'spelling' | 'grammar'
+export const PROOFREAD_FINDING_KINDS = ['spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure'] as const
+export type ProofreadFindingKind = (typeof PROOFREAD_FINDING_KINDS)[number]
+
+export function isMeaningKind(kind: ProofreadFindingKind): boolean {
+  return kind !== 'spelling' && kind !== 'grammar'
+}
 
 /** `start`/`end` are UTF-16 offsets into `scanned_text`, end exclusive. */
 export type ProofreadFindingWire = {
@@ -37,7 +42,8 @@ function isFindingWire(value: unknown): value is ProofreadFindingWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<Record<keyof ProofreadFindingWire, unknown>>
   return (
-    (v.kind === 'spelling' || v.kind === 'grammar') &&
+    typeof v.kind === 'string' &&
+    (PROOFREAD_FINDING_KINDS as readonly string[]).includes(v.kind) &&
     typeof v.start === 'number' &&
     typeof v.end === 'number' &&
     typeof v.explanation === 'string' &&

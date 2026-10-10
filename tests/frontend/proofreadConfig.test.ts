@@ -23,6 +23,13 @@ describe('isProofreadOutcomeWire', () => {
     expect(isProofreadOutcomeWire({ state: 'done', usage: null, scanned_text: 'a', findings: [FINDING], unlocated: 0 })).toBe(true)
   })
 
+  it('accepts every closed kind including the three meaning kinds', () => {
+    for (const kind of ['spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure']) {
+      const outcome = { state: 'done', usage: null, scanned_text: 'a', findings: [{ ...FINDING, kind }], unlocated: 0 }
+      expect(isProofreadOutcomeWire(outcome)).toBe(true)
+    }
+  })
+
   it('rejects a done outcome with a malformed finding or a missing field', () => {
     const base = { state: 'done', usage: null, scanned_text: 'a', findings: [FINDING], unlocated: 0 }
     expect(isProofreadOutcomeWire({ ...base, findings: [{ ...FINDING, kind: 'style' }] })).toBe(false)

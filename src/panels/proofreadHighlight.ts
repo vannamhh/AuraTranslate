@@ -1,4 +1,5 @@
 export const PROOFREAD_HIGHLIGHT_NAME = 'proofread-error'
+export const PROOFREAD_MEANING_HIGHLIGHT_NAME = 'proofread-meaning'
 
 export type OffsetSpan = { readonly start: number; readonly end: number }
 
@@ -36,11 +37,16 @@ export function rangesForScan(cell: Element, scannedText: string, spans: readonl
   return ranges
 }
 
-export function paintProofreadRanges(ranges: readonly Range[] | null): void {
-  if (typeof CSS === 'undefined' || !('highlights' in CSS)) return
+function setHighlight(name: string, ranges: readonly Range[] | null): void {
   if (ranges === null || ranges.length === 0) {
-    CSS.highlights.delete(PROOFREAD_HIGHLIGHT_NAME)
+    CSS.highlights.delete(name)
     return
   }
-  CSS.highlights.set(PROOFREAD_HIGHLIGHT_NAME, new Highlight(...ranges))
+  CSS.highlights.set(name, new Highlight(...ranges))
+}
+
+export function paintProofreadRanges(errorRanges: readonly Range[] | null, meaningRanges: readonly Range[] | null = null): void {
+  if (typeof CSS === 'undefined' || !('highlights' in CSS)) return
+  setHighlight(PROOFREAD_HIGHLIGHT_NAME, errorRanges)
+  setHighlight(PROOFREAD_MEANING_HIGHLIGHT_NAME, meaningRanges)
 }

@@ -68,6 +68,7 @@
 // thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
 // vạch của **segment** (UX-DR19) mà tệp này dựng.
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { isMeaningKind } from '../config/proofread'
 import { paintProofreadRanges, rangesForScan } from './proofreadHighlight'
 import {
   clearProofreadFor,
@@ -1098,7 +1099,16 @@ function repaintProofread(): void {
     return
   }
   const cell = host.querySelector<HTMLElement>(`[data-segment-id="${String(id)}"]`)
-  paintProofreadRanges(cell === null ? null : rangesForScan(cell, proofreadScannedText.value, proofreadFindings.value))
+  if (cell === null) {
+    paintProofreadRanges(null)
+    return
+  }
+  const scanned = proofreadScannedText.value
+  const findings = proofreadFindings.value
+  paintProofreadRanges(
+    rangesForScan(cell, scanned, findings.filter((f) => !isMeaningKind(f.kind))),
+    rangesForScan(cell, scanned, findings.filter((f) => isMeaningKind(f.kind))),
+  )
 }
 
 watch(
@@ -2424,6 +2434,12 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   text-decoration-line: underline;
   text-decoration-style: wavy;
   text-decoration-color: var(--color-error);
+}
+
+.cell-tgt::highlight(proofread-meaning) {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--color-tm-rule);
 }
 
 .cell-tgt.empty {

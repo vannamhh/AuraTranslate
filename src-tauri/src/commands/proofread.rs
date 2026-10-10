@@ -1,4 +1,4 @@
-//! Single-segment spelling/grammar scan over IPC (FR80, FR83, AD-22).
+//! Single-segment proofread scan over IPC (FR80, FR83, AD-22).
 //!
 //! Read-only: nothing here writes `project.db` or touches confirmation state. The reply is
 //! parsed and every quoted phrase placed in Rust; the webview only draws what it is handed.
@@ -35,6 +35,7 @@ impl ProofreadGeneration {
 pub struct PreparedProofreadCall {
     pub call: PreparedTranslateCall,
     pub scanned_text: String,
+    pub has_source: bool,
 }
 
 pub enum ProofreadPrepareOutcome {
@@ -103,9 +104,10 @@ pub fn prepare_proofread_call(
             temperature,
             max_tokens,
             api_key,
-            prompt: assemble_proofread_prompt(&row.target_text),
+            prompt: assemble_proofread_prompt(&row.source_text, &row.target_text),
         },
         scanned_text: row.target_text.clone(),
+        has_source: !row.source_text.trim().is_empty(),
     }))
 }
 
@@ -138,7 +140,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
         Err(err) => Err(ProofreadRunError::Provider(err)),
         Ok(TranslateOutcome::Cancelled) => Ok(AiProofreadOutcomeWire::Cancelled),
         Ok(TranslateOutcome::Done(usage)) => {
-            let located = locate_findings(&reply, &prepared.scanned_text)
+            let located = locate_findings(&reply, &prepared.scanned_text, prepared.has_source)
                 .map_err(|ProofreadReplyError::Malformed| ProofreadRunError::ReplyMalformed)?;
             Ok(AiProofreadOutcomeWire::Done {
                 usage: usage.map(AiTranslateUsageWire::from),

@@ -1,20 +1,15 @@
-//! Reply parsing and quote placement for the single-segment spelling/grammar scan (FR83).
+//! Reply parsing and quote placement for the single-segment proofread scan (FR81, FR83).
 //!
 //! The model returns quoted phrases, never offsets: Rust finds each phrase in the scanned text
 //! and computes the UTF-16 offsets a JS `Range` needs (AD-1).
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FindingKind {
-    Spelling,
-    Grammar,
-}
+use crate::core::segment::proofread_kind::ProofreadKind;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProofreadFinding {
-    pub kind: FindingKind,
+    pub kind: ProofreadKind,
     /// UTF-16 code unit offsets into the scanned text, `start` inclusive, `end` exclusive.
     pub start: u32,
     pub end: u32,
@@ -35,7 +30,7 @@ pub enum ProofreadReplyError {
 
 #[derive(Deserialize)]
 struct RawFinding {
-    kind: FindingKind,
+    kind: String,
     quote: String,
     #[serde(default)]
     explanation: String,
@@ -55,12 +50,16 @@ fn strip_code_fence(reply: &str) -> &str {
 
 /// Parses `reply` and places every quoted phrase in `scanned_text`.
 ///
+/// A label outside [`ProofreadKind`], or a kind judged against the source when `has_source` is
+/// false, is counted in `unlocated`.
+///
 /// A phrase occurring more than once is placed at its first occurrence not already claimed by an
 /// earlier finding. A phrase that cannot be placed is counted in `unlocated`, never dropped
 /// silently. Findings come back ordered by position.
 pub fn locate_findings(
     reply: &str,
     scanned_text: &str,
+    has_source: bool,
 ) -> Result<LocatedFindings, ProofreadReplyError> {
     let raw: Vec<RawFinding> = serde_json::from_str(strip_code_fence(reply))
         .map_err(|_| ProofreadReplyError::Malformed)?;
@@ -70,7 +69,8 @@ pub fn locate_findings(
     let mut unlocated = 0u32;
 
     for finding in raw {
-        let found = if finding.quote.is_empty() {
+        let kind = ProofreadKind::from_wire(&finding.kind).filter(|k| has_source || !k.needs_source());
+        let found = if kind.is_none() || finding.quote.is_empty() {
             None
         } else {
             scanned_text
@@ -78,13 +78,13 @@ pub fn locate_findings(
                 .map(|(start, quote)| (start, start + quote.len()))
                 .find(|&(start, end)| !claimed.iter().any(|&(c_start, c_end)| start < c_end && c_start < end))
         };
-        let Some((start, end)) = found else {
+        let (Some(kind), Some((start, end))) = (kind, found) else {
             unlocated += 1;
             continue;
         };
         claimed.push((start, end));
         findings.push(ProofreadFinding {
-            kind: finding.kind,
+            kind,
             start: utf16_len(&scanned_text[..start]),
             end: utf16_len(&scanned_text[..end]),
             explanation: finding.explanation,
@@ -112,13 +112,13 @@ mod tests {
     fn a_phrase_is_placed_with_utf16_offsets_after_astral_and_combining_text() {
         let text = "😀 cafe\u{301} wrogn";
         let r = reply(r#"{"kind":"spelling","quote":"wrogn","explanation":"e","suggestion":"wrong"}"#);
-        let got = locate_findings(&r, text).expect("valid reply");
+        let got = locate_findings(&r, text, true).expect("valid reply");
         assert_eq!(got.unlocated, 0);
         let f = &got.findings[0];
         let units: Vec<u16> = text.encode_utf16().collect();
         let quote_units: Vec<u16> = "wrogn".encode_utf16().collect();
         assert_eq!(&units[f.start as usize..f.end as usize], quote_units.as_slice());
-        assert_eq!(f.kind, FindingKind::Spelling);
+        assert_eq!(f.kind, ProofreadKind::Spelling);
         assert_eq!(f.suggestion, "wrong");
     }
 
@@ -129,7 +129,7 @@ mod tests {
             r#"{"kind":"spelling","quote":"aa","explanation":"","suggestion":""},
                {"kind":"grammar","quote":"aa","explanation":"","suggestion":""}"#,
         );
-        let got = locate_findings(&r, text).expect("valid reply");
+        let got = locate_findings(&r, text, true).expect("valid reply");
         let spans: Vec<(u32, u32)> = got.findings.iter().map(|f| (f.start, f.end)).collect();
         assert_eq!(spans, vec![(0, 2), (6, 8)]);
     }
@@ -141,7 +141,7 @@ mod tests {
                {"kind":"spelling","quote":"","explanation":"","suggestion":""},
                {"kind":"grammar","quote":"bb","explanation":"","suggestion":""}"#,
         );
-        let got = locate_findings(&r, "aa bb").expect("valid reply");
+        let got = locate_findings(&r, "aa bb", true).expect("valid reply");
         assert_eq!(got.unlocated, 2);
         assert_eq!(got.findings.len(), 1);
     }
@@ -152,20 +152,20 @@ mod tests {
             r#"{"kind":"spelling","quote":"aa","explanation":"","suggestion":""},
                {"kind":"spelling","quote":"aa","explanation":"","suggestion":""}"#,
         );
-        let got = locate_findings(&r, "aa").expect("valid reply");
+        let got = locate_findings(&r, "aa", true).expect("valid reply");
         assert_eq!((got.findings.len(), got.unlocated), (1, 1));
     }
 
     #[test]
     fn an_empty_array_is_a_valid_reply_with_no_findings() {
-        let got = locate_findings("[]", "aa").expect("valid reply");
+        let got = locate_findings("[]", "aa", true).expect("valid reply");
         assert_eq!((got.findings.len(), got.unlocated), (0, 0));
     }
 
     #[test]
     fn a_fenced_reply_is_unwrapped() {
         let r = "```json\n[{\"kind\":\"grammar\",\"quote\":\"aa\",\"explanation\":\"x\",\"suggestion\":\"y\"}]\n```";
-        let got = locate_findings(r, "aa").expect("valid reply");
+        let got = locate_findings(r, "aa", true).expect("valid reply");
         assert_eq!(got.findings.len(), 1);
     }
 
@@ -174,11 +174,39 @@ mod tests {
         for bad in [
             "not json",
             "{}",
-            r#"[{"kind":"style","quote":"a","explanation":"","suggestion":""}]"#,
             r#"[{"kind":"spelling","explanation":"","suggestion":""}]"#,
             "",
         ] {
-            assert_eq!(locate_findings(bad, "a"), Err(ProofreadReplyError::Malformed), "{bad}");
+            assert_eq!(locate_findings(bad, "a", true), Err(ProofreadReplyError::Malformed), "{bad}");
         }
+    }
+
+    #[test]
+    fn an_unknown_label_is_unlocated_and_the_rest_still_shows() {
+        let r = reply(
+            r#"{"kind":"style","quote":"aa","explanation":"","suggestion":""},
+               {"kind":"mistranslation","quote":"bb","explanation":"","suggestion":""}"#,
+        );
+        let got = locate_findings(&r, "aa bb", true).expect("valid reply");
+        assert_eq!(got.unlocated, 1);
+        assert_eq!(got.findings.len(), 1);
+        assert_eq!(got.findings[0].kind, ProofreadKind::Mistranslation);
+    }
+
+    #[test]
+    fn a_source_judged_kind_without_a_source_is_unlocated() {
+        let r = reply(
+            r#"{"kind":"obscure","quote":"aa","explanation":"","suggestion":""},
+               {"kind":"grammar","quote":"bb","explanation":"","suggestion":""}"#,
+        );
+        let got = locate_findings(&r, "aa bb", false).expect("valid reply");
+        assert_eq!((got.findings.len(), got.unlocated), (1, 1));
+        assert_eq!(got.findings[0].kind, ProofreadKind::Grammar);
+    }
+
+    #[test]
+    fn a_missing_quote_is_malformed_even_with_an_unknown_label() {
+        let bad = r#"[{"kind":"style","explanation":"","suggestion":""}]"#;
+        assert_eq!(locate_findings(bad, "a", true), Err(ProofreadReplyError::Malformed));
     }
 }

@@ -1,4 +1,4 @@
-//! Single-segment spelling/grammar scan: prepare layer, run seam with a fake provider, and the
+//! Single-segment proofread scan: prepare layer, run seam with a fake provider, and the
 //! read-only guarantee over the whole Chapter.
 
 use std::fs;
@@ -16,9 +16,9 @@ use auratranslate_lib::commands::proofread::{
 use auratranslate_lib::commands::segment::{
     ChapterSegment, confirm_segment, promote_ai_translation, read_open_chapter_segments,
 };
-use auratranslate_lib::core::ai::proofread::FindingKind;
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
+use auratranslate_lib::core::segment::proofread_kind::ProofreadKind;
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use auratranslate_lib::ports::translation_provider::{
     TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
@@ -108,7 +108,7 @@ impl TranslationProvider for FakeProvider {
     }
 }
 
-fn prepared(scanned: &str) -> PreparedProofreadCall {
+fn prepared(scanned: &str, has_source: bool) -> PreparedProofreadCall {
     PreparedProofreadCall {
         call: PreparedTranslateCall {
             endpoint: "https://api.example.invalid/v1".to_owned(),
@@ -119,6 +119,7 @@ fn prepared(scanned: &str) -> PreparedProofreadCall {
             prompt: "p".to_owned(),
         },
         scanned_text: scanned.to_owned(),
+        has_source,
     }
 }
 
@@ -142,10 +143,19 @@ fn run(
     scanned: &str,
     should_cancel: &dyn Fn() -> bool,
 ) -> (RunResult, Arc<Mutex<Vec<String>>>) {
+    run_with_source(provider, scanned, true, should_cancel)
+}
+
+fn run_with_source(
+    provider: &FakeProvider,
+    scanned: &str,
+    has_source: bool,
+    should_cancel: &dyn Fn() -> bool,
+) -> (RunResult, Arc<Mutex<Vec<String>>>) {
     let (channel, received) = collecting_channel();
     let out = tauri::async_runtime::block_on(run_proofread_call(
         provider,
-        &prepared(scanned),
+        &prepared(scanned, has_source),
         &channel,
         should_cancel,
     ));
@@ -171,9 +181,9 @@ fn a_clean_reply_with_two_findings_ends_done_with_located_findings_and_no_unloca
     assert_eq!(unlocated, 0);
     assert_eq!(usage.map(|u| u.total_tokens), Some(7));
     assert_eq!(findings.len(), 2);
-    assert_eq!(findings[0].kind, FindingKind::Spelling);
+    assert_eq!(findings[0].kind, ProofreadKind::Spelling);
     assert_eq!((findings[0].start, findings[0].end), (4, 9));
-    assert_eq!(findings[1].kind, FindingKind::Grammar);
+    assert_eq!(findings[1].kind, ProofreadKind::Grammar);
     assert_eq!(findings[0].suggestion, "người");
     assert_eq!(received.lock().unwrap().len(), 2, "every token is forwarded");
 }
@@ -270,6 +280,9 @@ fn a_configured_scan_sends_a_prompt_carrying_the_target_text_and_scans_that_exac
     };
     assert_eq!(p.scanned_text, "Mọi nguời đã đi");
     assert!(p.call.prompt.contains("Mọi nguời đã đi"));
+    assert!(p.has_source);
+    assert!(p.call.prompt.contains("<<<SOURCE\nOne.\nSOURCE>>>"), "the prompt carries the source");
+    assert!(p.call.prompt.contains("mistranslation"));
     assert_eq!(p.call.api_key, "sk-proofread");
 }
 
@@ -310,4 +323,54 @@ fn a_scan_with_findings_changes_no_target_text_origin_or_confirmation_in_the_cha
     assert!(!findings.is_empty(), "the scan must have findings for this guard to mean anything");
 
     assert_eq!(snapshot(&open), before);
+}
+
+#[test]
+fn a_meaning_finding_reaches_the_wire_with_its_exact_kind_string() {
+    let provider = FakeProvider {
+        tokens: vec![
+            r#"[{"kind":"mistranslation","quote":"đã đi","explanation":"lech nghia","suggestion":"sẽ đi"},"#,
+            r#"{"kind":"too_loose","quote":"Mọi","explanation":"","suggestion":""},"#,
+            r#"{"kind":"obscure","quote":"nguời","explanation":"","suggestion":""}]"#,
+        ],
+        fail: false,
+        usage: None,
+    };
+    let (out, _) = run(&provider, "Mọi nguời đã đi", &|| false);
+    let Ok(outcome @ AiProofreadOutcomeWire::Done { .. }) = out else { panic!("Done") };
+    let wire = serde_json::to_value(&outcome).expect("serialize");
+    let kinds: Vec<&str> =
+        wire["findings"].as_array().expect("findings").iter().map(|f| f["kind"].as_str().expect("kind")).collect();
+    assert_eq!(kinds, ["too_loose", "obscure", "mistranslation"]);
+}
+
+#[test]
+fn a_blank_source_counts_a_meaning_finding_unlocated_and_keeps_the_spelling_one() {
+    let provider = FakeProvider {
+        tokens: vec![
+            r#"[{"kind":"mistranslation","quote":"đã đi","explanation":"","suggestion":""},"#,
+            r#"{"kind":"spelling","quote":"nguời","explanation":"","suggestion":"người"}]"#,
+        ],
+        fail: false,
+        usage: None,
+    };
+    let (out, _) = run_with_source(&provider, "Mọi nguời đã đi", false, &|| false);
+    let Ok(AiProofreadOutcomeWire::Done { findings, unlocated, .. }) = out else { panic!("Done") };
+    assert_eq!((findings.len(), unlocated), (1, 1));
+    assert_eq!(findings[0].kind, ProofreadKind::Spelling);
+}
+
+#[test]
+fn an_unknown_label_is_unlocated_and_the_other_findings_still_arrive() {
+    let provider = FakeProvider {
+        tokens: vec![
+            r#"[{"kind":"style","quote":"Mọi","explanation":"","suggestion":""},"#,
+            r#"{"kind":"grammar","quote":"đã đi","explanation":"","suggestion":"đi"}]"#,
+        ],
+        fail: false,
+        usage: None,
+    };
+    let (out, _) = run(&provider, "Mọi nguời đã đi", &|| false);
+    let Ok(AiProofreadOutcomeWire::Done { findings, unlocated, .. }) = out else { panic!("Done") };
+    assert_eq!((findings.len(), unlocated), (1, 1));
 }

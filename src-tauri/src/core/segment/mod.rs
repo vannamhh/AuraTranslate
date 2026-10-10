@@ -77,6 +77,10 @@
 //! doc-comment đầu tệp cho cơ chế. [`image::strip_role_segments`] là chốt lọc RIÊNG (khác
 //! [`omit`]) loại segment mang vai khỏi dòng văn xuôi của Chế độ đọc.
 
+//! [`proofread_kind`] — tập đóng loại phát hiện của proofreader và hai thuộc tính mỗi loại khai
+//! (chữ ký ghi nhớ, xuất xứ khi chấp nhận) theo AD-53 mục 1. `core::ai` gán loại; module này
+//! không import `core::ai` (AD-13).
+
 pub mod anchor;
 pub mod bilingual;
 pub mod chapterpattern;
@@ -87,6 +91,7 @@ pub mod normalize;
 pub mod omit;
 pub mod paragraph;
 pub mod pipeline;
+pub mod proofread_kind;
 pub mod reading;
 pub mod regroup;
 pub mod review;

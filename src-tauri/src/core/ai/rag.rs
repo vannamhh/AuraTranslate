@@ -667,27 +667,46 @@ pub fn assemble_prompt(
 }
 
 // aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_INSTRUCTION: &str = "Find spelling and grammar errors in the text between the markers.";
+const PROOFREAD_INSTRUCTION: &str = "Find spelling and grammar errors in the text between the TEXT markers.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_INSTRUCTION_WITH_SOURCE: &str = "Find errors in the translation between the TEXT markers. The original it translates is between the SOURCE markers.";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_FORMAT: &str = "Reply with only a JSON array of {\"kind\",\"quote\",\"explanation\",\"suggestion\"}.";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_KIND_RULE: &str = "kind is \"spelling\" or \"grammar\". Reply [] when there is no error.";
 // aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_QUOTE_RULE: &str = "quote is the shortest wrong span copied exactly from the text, never an offset.";
+const PROOFREAD_KIND_RULE_WITH_SOURCE: &str = "kind is \"spelling\", \"grammar\", \"mistranslation\" (the translation says something different from the original), \"too_loose\" (it drifts too far from the original) or \"obscure\" (it is unclear even given the original). Reply [] when there is no error.";
 // aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_EXPLANATION_RULE: &str = "explanation is one short sentence in the language of the text; suggestion is the corrected span.";
+const PROOFREAD_QUOTE_RULE: &str = "quote is the shortest wrong span copied exactly from the translation, never an offset and never from the original.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_EXPLANATION_RULE: &str = "explanation is one short sentence in the language of the translation; suggestion is the corrected span.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_SOURCE_OPEN: &str = "<<<SOURCE";
+// aura-allow-text: prompt text sent to the model, not UI text
+const PROOFREAD_SOURCE_CLOSE: &str = "SOURCE>>>";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_TEXT_OPEN: &str = "<<<TEXT";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_TEXT_CLOSE: &str = "TEXT>>>";
 
-/// The spelling/grammar scan prompt for one translation. Pure: the same text gives the same
+/// The proofread scan prompt for one translation. With a blank `source_text` it carries no
+/// source block and asks only for spelling and grammar. Pure: the same inputs give the same
 /// bytes.
-pub fn assemble_proofread_prompt(target_text: &str) -> String {
-    format!(
-        "{PROOFREAD_INSTRUCTION}\n{PROOFREAD_FORMAT}\n{PROOFREAD_KIND_RULE}\n{PROOFREAD_QUOTE_RULE}\n\
-         {PROOFREAD_EXPLANATION_RULE}\n{PROOFREAD_TEXT_OPEN}\n{target_text}\n{PROOFREAD_TEXT_CLOSE}"
-    )
+pub fn assemble_proofread_prompt(source_text: &str, target_text: &str) -> String {
+    let rules = format!("{PROOFREAD_FORMAT}\n");
+    if source_text.trim().is_empty() {
+        format!(
+            "{PROOFREAD_INSTRUCTION}\n{rules}{PROOFREAD_KIND_RULE}\n{PROOFREAD_QUOTE_RULE}\n\
+             {PROOFREAD_EXPLANATION_RULE}\n{PROOFREAD_TEXT_OPEN}\n{target_text}\n{PROOFREAD_TEXT_CLOSE}"
+        )
+    } else {
+        format!(
+            "{PROOFREAD_INSTRUCTION_WITH_SOURCE}\n{rules}{PROOFREAD_KIND_RULE_WITH_SOURCE}\n\
+             {PROOFREAD_QUOTE_RULE}\n{PROOFREAD_EXPLANATION_RULE}\n\
+             {PROOFREAD_SOURCE_OPEN}\n{source_text}\n{PROOFREAD_SOURCE_CLOSE}\n\
+             {PROOFREAD_TEXT_OPEN}\n{target_text}\n{PROOFREAD_TEXT_CLOSE}"
+        )
+    }
 }
 
 #[cfg(test)]
@@ -697,8 +716,29 @@ mod proofread_prompt_tests {
     #[test]
     fn the_prompt_carries_the_translation_verbatim_between_the_markers() {
         let text = "Hello\nworld {{source_segment}}";
-        let prompt = assemble_proofread_prompt(text);
+        let prompt = assemble_proofread_prompt("Xin chao", text);
         assert!(prompt.contains(&format!("<<<TEXT\n{text}\nTEXT>>>")));
-        assert_eq!(prompt, assemble_proofread_prompt(text));
+        assert_eq!(prompt, assemble_proofread_prompt("Xin chao", text));
+    }
+
+    #[test]
+    fn a_source_adds_its_block_and_asks_for_the_three_meaning_kinds() {
+        let prompt = assemble_proofread_prompt("Ni hao", "Xin chao");
+        assert!(prompt.contains("<<<SOURCE\nNi hao\nSOURCE>>>"));
+        for kind in ["mistranslation", "too_loose", "obscure"] {
+            assert!(prompt.contains(kind), "{kind}");
+        }
+    }
+
+    #[test]
+    fn a_blank_source_leaves_out_the_block_and_the_meaning_kinds() {
+        for source in ["", " \n\t"] {
+            let prompt = assemble_proofread_prompt(source, "Xin chao");
+            assert!(!prompt.contains("SOURCE"));
+            for kind in ["mistranslation", "too_loose", "obscure"] {
+                assert!(!prompt.contains(kind), "{kind}");
+            }
+            assert!(prompt.contains("<<<TEXT\nXin chao\nTEXT>>>"));
+        }
     }
 }

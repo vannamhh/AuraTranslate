@@ -77,6 +77,8 @@ describe('proofread wiring in source', () => {
   it('GridPanel clears underlines on a typed edit and repaints through the text guard', () => {
     const grid = codeLines('src/panels/GridPanel.vue').join('\n')
     expect(grid).toMatch(/noteEditorEdit\(id, cell\.textContent\)\s+clearProofreadFor\(id\)/)
-    expect(grid).toContain('rangesForScan(cell, proofreadScannedText.value, proofreadFindings.value)')
+    expect(grid).toContain('const scanned = proofreadScannedText.value')
+    expect(grid).toContain('rangesForScan(cell, scanned, findings.filter((f) => !isMeaningKind(f.kind)))')
+    expect(grid).toContain('rangesForScan(cell, scanned, findings.filter((f) => isMeaningKind(f.kind)))')
   })
 })

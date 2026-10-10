@@ -8,6 +8,7 @@ import { realClick } from '../support/pointer.mjs'
 
 const TYPED = 'Tôi đi họcc ở trường lớp.'
 const QUOTE = 'họcc'
+const MEANING_QUOTE = 'trường lớp'
 
 function decodePng(path) {
   const buf = readFileSync(path)
@@ -105,43 +106,66 @@ describe('proofread underline in a real WKWebView', () => {
     // The wire cannot be stubbed (the Tauri bridge is frozen) and a real scan needs the OS keychain, so the
     // real draw helpers are called on the real cell; GridPanel's watcher wiring is guarded by vitest.
     const start = TYPED.indexOf(QUOTE)
+    const meaningStart = TYPED.indexOf(MEANING_QUOTE)
     const painted = await browser.execute(
-      async (segmentId, text, s, e) => {
+      async (segmentId, text, s, e, ms, me) => {
         const mod = await import('/src/panels/proofreadHighlight.ts')
         const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${segmentId}"]`)
         const ranges = mod.rangesForScan(cell, text, [{ start: s, end: e }])
-        mod.paintProofreadRanges(ranges)
+        const meaningRanges = mod.rangesForScan(cell, text, [{ start: ms, end: me }])
+        mod.paintProofreadRanges(ranges, meaningRanges)
         const guarded = mod.rangesForScan(cell, text + 'x', [{ start: s, end: e }])
         const h = CSS.highlights.get('proofread-error')
         const painted = h ? [...h] : []
         const rect = painted[0]?.getBoundingClientRect()
+        const mh = CSS.highlights.get('proofread-meaning')
+        const meaningPainted = mh ? [...mh] : []
+        const mrect = meaningPainted[0]?.getBoundingClientRect()
         const probe = document.createElement('canvas').getContext('2d')
-        probe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-error').trim()
+        const tokenColor = (name) => {
+          probe.fillStyle = '#000000'
+          probe.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+          return probe.fillStyle
+        }
         return {
+          meaningCount: meaningPainted.length,
+          meaningQuote: meaningPainted[0]?.toString() ?? null,
+          meaningRect: mrect ? { x0: mrect.left, x1: mrect.right, y0: mrect.top, y1: mrect.bottom } : null,
+          meaningColor: tokenColor('--color-tm-rule'),
           guardedNull: guarded === null,
           count: painted.length,
           quote: painted[0]?.toString() ?? null,
           inCell: painted[0] ? cell.contains(painted[0].startContainer) : false,
           rect: rect ? { x0: rect.left, x1: rect.right, y0: rect.top, y1: rect.bottom } : null,
-          errorColor: probe.fillStyle,
+          errorColor: tokenColor('--color-error'),
         }
       },
       targetId,
       TYPED,
       start,
       start + QUOTE.length,
+      meaningStart,
+      meaningStart + MEANING_QUOTE.length,
     )
     await expect(painted.guardedNull).toBe(true)
     await expect(painted.count).toBe(1)
     await expect(painted.quote).toBe(QUOTE)
     await expect(painted.inCell).toBe(true)
+    await expect(painted.meaningCount).toBe(1)
+    await expect(painted.meaningQuote).toBe(MEANING_QUOTE)
+    await expect(painted.meaningColor).not.toBe(painted.errorColor)
 
     await browser.pause(300)
     await browser.saveScreenshot(after)
 
-    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(painted.errorColor)
-    const rgb = m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null
+    const toRgb = (color) => {
+      const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color)
+      return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null
+    }
+    const rgb = toRgb(painted.errorColor)
+    const meaningRgb = toRgb(painted.meaningColor)
     await expect(rgb).not.toBe(null)
+    await expect(meaningRgb).not.toBe(null)
 
     const dpr = api.dpr
     const box = {
@@ -161,5 +185,19 @@ describe('proofread underline in a real WKWebView', () => {
         `rowsAfter=${JSON.stringify(post.rows)} shots=${dir} color=${painted.errorColor}`,
     )
     await expect(post.count).toBeGreaterThan(pre.count + 3)
+
+    const underBox = (rect) => ({
+      x0: rect.x0 * scale,
+      x1: rect.x1 * scale,
+      y0: (rect.y1 - 2) * scale,
+      y1: (rect.y1 + 10) * scale,
+    })
+    const mbox = underBox(painted.meaningRect)
+    const mPre = errorPixels(imgBefore, mbox, meaningRgb, 60)
+    const mPost = errorPixels(imgAfter, mbox, meaningRgb, 60)
+    const crossPost = errorPixels(imgAfter, mbox, rgb, 60)
+    console.log(`[proofread-measure] meaning before=${mPre.count} after=${mPost.count} errorColourUnderMeaning=${crossPost.count} color=${painted.meaningColor}`)
+    await expect(mPost.count).toBeGreaterThan(mPre.count + 3)
+    await expect(mPost.count).toBeGreaterThan(crossPost.count)
   })
 })
