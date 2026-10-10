@@ -107,6 +107,7 @@ after = [1]
 hitl = false
 risk = "low"
 v6_key = "9-2-đối-chiếu-bản-dịch-với-bản-gốc"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-53 mục 1, 5, 7"]
 
 [[entry]]
 id = 3
@@ -132,6 +133,7 @@ after = [2]
 hitl = false
 risk = "low"
 v6_key = "9-3-chạy-theo-yêu-cầu-không-chạy-nền"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-53 mục 5"]
 
 [[entry]]
 id = 4
@@ -158,7 +160,7 @@ after = [1, 3, 10]
 hitl = false
 risk = "medium"
 v6_key = "9-4-hình-dạng-một-phát-hiện-và-xử-lý-từng-cái-một"
-references = ["ux-auratranslate/EXPERIENCE.md", "deferred-work.md — mục \"The 7.5 fuzzy strip does not yet yield to the Proofreader\" (Chủ: Story 9.4)"]
+references = ["ux-auratranslate/EXPERIENCE.md", "deferred-work.md — mục \"The 7.5 fuzzy strip does not yet yield to the Proofreader\" (Chủ: Story 9.4)", "architecture-auratranslate/architecture-auratranslate.md — AD-53 mục 1–7"]
 
 [[entry]]
 id = 5
@@ -208,6 +210,7 @@ after = [3, 4, 10]
 hitl = false
 risk = "medium"
 v6_key = "9-6-bỏ-qua-có-ghi-nhớ"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-53 mục 4, 5, 7"]
 
 [[entry]]
 id = 7
