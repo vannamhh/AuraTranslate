@@ -89,6 +89,9 @@ function validWirePreview(): Record<string, unknown> {
     sample_rows: [['a', 'b']],
     row_count: 1,
     column_count: 2,
+    source_tables: [],
+    table_index: null,
+    table_choice_required: false,
   }
 }
 
@@ -102,7 +105,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.error).toBeNull()
     expect(result.preview).not.toBeNull()
@@ -118,7 +121,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     mockInvoke.mockResolvedValue({ confidence: 'high', selectedEncoding: 'UTF-8', candidates: [] })
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -132,7 +135,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     mockInvoke.mockResolvedValue(payload)
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -151,7 +154,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     })
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -184,7 +187,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     })
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -218,7 +221,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     })
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false)
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -228,7 +231,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
 
-    await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, true)
+    await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, true, 1)
 
     expect(mockInvoke).toHaveBeenCalledWith('preview_bilingual_import_from_file', {
       path: '/tmp/a.csv',
@@ -237,6 +240,65 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
       sourceColumn: 0,
       targetColumn: 1,
       hasHeader: true,
+      tableIndex: 1,
     })
+  })
+
+  it('bảng .docx: source_tables, table_index và table_choice_required đi qua guard thật', async () => {
+    mockInvoke.mockResolvedValue({
+      ...validWirePreview(),
+      source_tables: [
+        { index: 0, row_count: 3, column_count: 2, first_row: ['a', 'b'] },
+        { index: 1, row_count: 5, column_count: 3, first_row: ['x', 'y', 'z'] },
+      ],
+      table_index: null,
+      table_choice_required: true,
+    })
+    const { previewBilingualImportFromFile } = await import('../../src/config/project')
+
+    const result = await previewBilingualImportFromFile('/tmp/a.docx', 'en', null, 0, 1, false, null)
+
+    expect(result.error).toBeNull()
+    expect(result.preview?.source_tables).toHaveLength(2)
+    expect(result.preview?.table_choice_required).toBe(true)
+    expect(mockInvoke.mock.calls[0][1]).toMatchObject({ tableIndex: null })
+  })
+
+  it.each(['source_tables', 'table_index', 'table_choice_required'])(
+    'payload thiếu `%s` (backend cũ) bị bác',
+    async (field) => {
+      const payload = validWirePreview()
+      delete payload[field]
+      mockInvoke.mockResolvedValue(payload)
+      const { previewBilingualImportFromFile } = await import('../../src/config/project')
+
+      const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
+
+      expect(result.preview).toBeNull()
+      expect(result.error?.message_key).toBe('err.unknown')
+    },
+  )
+
+  it('một bảng trong source_tables thiếu `first_row` làm cả payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      ...validWirePreview(),
+      source_tables: [{ index: 0, row_count: 3, column_count: 2 }],
+    })
+    const { previewBilingualImportFromFile } = await import('../../src/config/project')
+
+    const result = await previewBilingualImportFromFile('/tmp/a.docx', 'en', null, 0, 1, false, null)
+
+    expect(result.preview).toBeNull()
+  })
+
+  it('rebuild và confirm gửi tableIndex', async () => {
+    mockInvoke.mockResolvedValue(validWirePreview())
+    const { rebuildBilingualImportPreview, confirmBilingualImport } = await import('../../src/config/project')
+
+    await rebuildBilingualImportPreview('en', null, 0, 1, false, [], 2)
+    await confirmBilingualImport('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 2)
+
+    expect(mockInvoke.mock.calls[0][1]).toMatchObject({ tableIndex: 2 })
+    expect(mockInvoke.mock.calls[1][1]).toMatchObject({ tableIndex: 2 })
   })
 })

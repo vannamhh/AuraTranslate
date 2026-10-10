@@ -1012,7 +1012,9 @@
     ///
     /// # Lỗi
     /// - [`PendingImportSourceState`] chưa được quản lý ⇒ `import.no_pending_source`;
-    /// - đuôi tệp không phải `.csv`/`.tsv` ⇒ `import.bilingual_unsupported_format`;
+    /// - đuôi tệp không phải `.csv`/`.tsv`/`.docx` ⇒ `import.bilingual_unsupported_format`;
+    /// - `.docx` không có bảng hai cột ⇒ `import.bilingual_no_table`; `table_index` ngoài danh
+    ///   sách ⇒ `import.bilingual_table_out_of_range`;
     /// - ứng viên bảng mã đang chọn gặp một ô mở ngoặc kép không bao giờ đóng, hoặc tệp có ít
     ///   hơn hai cột ⇒ `import.bilingual_unterminated_quoted_field` /
     ///   `import.bilingual_too_few_columns`, TỪ CHỐI trước khi có gì để xem trước, và ô đang
@@ -1036,6 +1038,7 @@
         source_column: usize,
         target_column: usize,
         has_header: bool,
+        table_index: Option<usize>,
     ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
@@ -1061,6 +1064,7 @@
             // Lượt MỞ luôn bắt đầu 0 quy nhóm — người dùng chưa thấy hàng lệch cặp nào để mà
             // sửa.
             &[],
+            table_index,
         ) {
             Ok(preview) => preview,
             Err(err) => {
@@ -1104,6 +1108,7 @@
         // cắt gọi lại vỏ này, cùng khuôn `chapter_pattern`) — Rust re-validate TOÀN BỘ danh
         // sách này ngay ở đây, đúng chữ "Rust re-validates every regrouping at rebuild".
         regroupings: Vec<super::BilingualRegroupingWire>,
+        table_index: Option<usize>,
     ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
@@ -1126,6 +1131,7 @@
             target_column,
             has_header,
             &resolved,
+            table_index,
         )
     }
 
@@ -1167,6 +1173,7 @@
         // `rebuild_bilingual_import_preview` — "Rust re-validates every regrouping ... at
         // confirm".
         regroupings: Vec<super::BilingualRegroupingWire>,
+        table_index: Option<usize>,
     ) -> Result<CreatedWork, IpcError> {
         use tauri::Manager as _;
 
@@ -1192,6 +1199,7 @@
             target_column,
             has_header,
             resolved,
+            table_index,
         )?;
 
         let created = CreatedWork::from_open(&opened);

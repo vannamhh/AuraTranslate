@@ -31,7 +31,7 @@ use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
 use crate::core::segment::import::{
-    ImportError, import_bilingual_file, import_file, import_files, import_text,
+    ImportError, import_bilingual_file, import_file, import_files, import_text, select_bilingual_table,
     web_import_item_failure_ipc_error,
 };
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
@@ -2080,7 +2080,9 @@ pub fn preview_import_encoding(
         // (`preview_bilingual_import`), KHÔNG đi qua hàm này — cùng lý do `PipelineShape::Bilingual`
         // không xuất hiện trên đường sản phẩm gọi `preview_import_encoding`. Phòng thủ kiểu,
         // không phải một trạng thái người dùng gây ra được.
-        PipelineShape::Bilingual { .. } => (self_declared_utf8(), Vec::new()),
+        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+            (self_declared_utf8(), Vec::new())
+        }
         // **THÊM 2026-09-15 (Story 6.6b) — dò TRÊN TỪNG tệp, so sánh phán quyết.** §Decisions:
         // "One encoding for the whole batch, detected on EVERY file." Dải năm ô/bản dựng thật
         // vẫn dựng từ ĐÚNG MỘT tệp đại diện (tệp ĐẦU — cùng khuôn `Chapters` ngay trên: một
@@ -2290,7 +2292,7 @@ fn display_window_for_chapter(
         // *Chương đang chọn* của Story 6.10a (hàng/Chương của nó không có "cửa sổ hiển thị"
         // bảng mã theo nghĩa này) — phòng thủ kiểu, cùng lý do các nhánh `PipelineShape::Bilingual`
         // khác trong tệp này.
-        PipelineShape::Bilingual { .. } => None,
+        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => None,
         // 🔵 **SỬA 2026-09-16 (Story 6.6b, phản biện) — không còn `None` VÔ ĐIỀU KIỆN.**
         //
         // ─────────────────────────────────────────────────────────────────────────────

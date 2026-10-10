@@ -64,6 +64,7 @@ const pendingGenre = ref('')
 const sourceColumn = ref(0)
 const targetColumn = ref(1)
 const hasHeader = ref(false)
+const tableIndex = ref<number | null>(null)
 
 /** Mẫu phân tách Chương — cùng cơ chế FR14 mà đường văn xuôi dùng, áp lên CỘT NGUỒN của từng
  * hàng (Rust: `split_bilingual_chapters`). Rỗng ⇒ không mẫu, một Chương duy nhất. */
@@ -109,6 +110,7 @@ export const bilingualImportPreviewConfirmError: DeepReadonly<Ref<IpcError | nul
 export const bilingualImportPreviewSourceColumn: DeepReadonly<Ref<number>> = readonly(sourceColumn)
 export const bilingualImportPreviewTargetColumn: DeepReadonly<Ref<number>> = readonly(targetColumn)
 export const bilingualImportPreviewHasHeader: DeepReadonly<Ref<boolean>> = readonly(hasHeader)
+export const bilingualImportPreviewTableIndex: DeepReadonly<Ref<number | null>> = readonly(tableIndex)
 export const bilingualImportPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const bilingualImportPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
@@ -122,6 +124,12 @@ export const bilingualImportPreviewSelectedCandidate = computed<BilingualEncodin
   return preview.value.candidates.find((c) => c.encoding === selectedEncoding.value) ?? null
 })
 
+function tableChoicePending(): boolean {
+  const current = preview.value
+  if (current === null) return false
+  return current.table_choice_required || (current.source_tables.length > 1 && tableIndex.value === null)
+}
+
 /** Vị từ GHI — điều kiện DUY NHẤT `confirmBilingualImportPreview` được phép chạy tiếp. Xác
  * nhận bị KHOÁ khi còn bất kỳ hàng lệch cặp nào của ứng viên đang chọn (§Boundaries: "confirm
  * is locked" — Rust-side refusal đứng SAU vị từ này, không THAY nó: xem `create_work`). */
@@ -132,7 +140,8 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
     !confirming.value &&
     !opening.value &&
     candidate !== null &&
-    candidate.mismatches.length === 0
+    candidate.mismatches.length === 0 &&
+    !tableChoicePending()
   )
 })
 
@@ -250,6 +259,7 @@ async function refresh(): Promise<void> {
     targetColumn.value,
     hasHeader.value,
     Array.from(regroupings.value.values()),
+    tableIndex.value,
   )
   if (mySequence !== sequence) return // một lượt mở/huỷ/sửa MỚI đã vượt mặt lượt này
 
@@ -309,6 +319,7 @@ export async function openBilingualImportPreview(
   sourceColumn.value = 0
   targetColumn.value = 1
   hasHeader.value = false
+  tableIndex.value = null
   chapterPatternText.value = ''
   chapterPatternKind.value = 'literal'
   confirming.value = false
@@ -319,7 +330,7 @@ export async function openBilingualImportPreview(
   chapterFilterActive.value = false
   chapterCursor.value = 0
 
-  const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false)
+  const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false, null)
   if (mySequence !== sequence) return
   opening.value = false
   overlayOpen.value = true
@@ -339,9 +350,22 @@ export async function openBilingualImportPreview(
     return
   }
   preview.value = result.preview
+  tableIndex.value = result.preview.table_index
   selectedEncoding.value = result.preview.selected_encoding
   status.value = 'loaded'
   loadError.value = null
+}
+
+// Column roles and regroupings belong to the previous table, so they reset on a switch.
+export async function setBilingualTableIndex(index: number): Promise<void> {
+  if (tableIndex.value === index) return
+  tableIndex.value = index
+  sourceColumn.value = 0
+  targetColumn.value = 1
+  regroupings.value = new Map()
+  activeMismatchRow.value = null
+  caretPosition.value = 0
+  await refresh()
 }
 
 /** Đổi cột NGUỒN — `@change` của một `<select>`, chạy lại preview TRÊN BYTE ĐÃ CẤT (0 lượt
@@ -544,6 +568,7 @@ export async function confirmBilingualImportPreview(): Promise<{
     targetColumn.value,
     hasHeader.value,
     Array.from(regroupings.value.values()),
+    tableIndex.value,
   )
   if (mySequence !== sequence) return { created: null, error: null }
 
@@ -581,6 +606,7 @@ export function resetBilingualImportPreview(): void {
   sourceColumn.value = 0
   targetColumn.value = 1
   hasHeader.value = false
+  tableIndex.value = null
   chapterPatternText.value = ''
   chapterPatternKind.value = 'literal'
   regroupings.value = new Map()

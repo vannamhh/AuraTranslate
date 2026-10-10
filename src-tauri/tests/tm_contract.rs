@@ -425,6 +425,7 @@ fn bilingual_work(tag: &str, rows: usize) -> (PathBuf, OpenWork) {
         1,
         false,
         Vec::new(),
+        None,
     )
     .expect("tao tac pham song ngu");
     (root, open)

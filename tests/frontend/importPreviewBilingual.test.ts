@@ -39,7 +39,8 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       sourceColumn: number,
       targetColumn: number,
       hasHeader: boolean,
-    ) => previewMock(path, sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader),
+      tableIndex: number | null,
+    ) => previewMock(path, sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader, tableIndex),
     rebuildBilingualImportPreview: (
       sourceLang: string,
       chapterPattern: unknown,
@@ -47,7 +48,8 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       targetColumn: number,
       hasHeader: boolean,
       regroupings: BilingualRegroupingInput[],
-    ) => rebuildMock(sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader, regroupings),
+      tableIndex: number | null,
+    ) => rebuildMock(sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader, regroupings, tableIndex),
     confirmBilingualImport: (
       name: string,
       sourceLang: string,
@@ -58,8 +60,20 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       targetColumn: number,
       hasHeader: boolean,
       regroupings: BilingualRegroupingInput[],
+      tableIndex: number | null,
     ) =>
-      confirmMock(name, sourceLang, genre, encoding, chapterPattern, sourceColumn, targetColumn, hasHeader, regroupings),
+      confirmMock(
+        name,
+        sourceLang,
+        genre,
+        encoding,
+        chapterPattern,
+        sourceColumn,
+        targetColumn,
+        hasHeader,
+        regroupings,
+        tableIndex,
+      ),
   }
 })
 
@@ -167,6 +181,9 @@ function preview(over: Partial<BilingualImportEncodingPreview> = {}): BilingualI
     sample_rows: [['a', 'b']],
     row_count: 1,
     column_count: 2,
+    source_tables: [],
+    table_index: null,
+    table_choice_required: false,
     ...over,
   }
 }
@@ -182,7 +199,7 @@ describe('bilingualImportPreviewState — mở, đóng, dọn', () => {
 
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
 
-    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-cot.csv', 'en', null, 0, 1, false)
+    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-cot.csv', 'en', null, 0, 1, false, null)
     expect(state.bilingualImportPreviewIsOpen.value).toBe(true)
     expect(state.bilingualImportPreviewStatus.value).toBe('loaded')
     expect(state.bilingualImportPreviewSelectedEncoding.value).toBe('UTF-8')
@@ -223,7 +240,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
 
     await state.swapBilingualColumns()
 
-    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [], null)
     expect(previewMock).not.toHaveBeenCalled()
     expect(state.bilingualImportPreviewSourceColumn.value).toBe(1)
     expect(state.bilingualImportPreviewTargetColumn.value).toBe(0)
@@ -238,7 +255,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
 
     await state.setBilingualHasHeader(true)
 
-    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, true, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, true, [], null)
     expect(previewMock).not.toHaveBeenCalled()
     expect(state.bilingualImportPreviewHasHeader.value).toBe(true)
   })
@@ -252,7 +269,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
 
     await state.setBilingualChapterPattern('CHUONG', 'literal')
 
-    expect(rebuildMock).toHaveBeenCalledWith('en', { pattern: 'CHUONG', kind: 'literal' }, 0, 1, false, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', { pattern: 'CHUONG', kind: 'literal' }, 0, 1, false, [], null)
     expect(previewMock).not.toHaveBeenCalled()
   })
 
@@ -277,7 +294,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
     expect(state.bilingualImportPreviewHasHeader.value).toBe(true)
 
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', null, 1, 0, true, [])
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', null, 1, 0, true, [], null)
   })
 
   // 🔴 SỬA (vòng rà đối kháng) — `refresh()` từng GHI ĐÈ ứng viên NGƯỜI DÙNG đang chọn bằng
@@ -306,7 +323,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
     expect(state.bilingualImportPreviewSelectedEncoding.value).toBe('GBK')
 
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', { pattern: 'CHUONG', kind: 'literal' }, 1, 0, true, [])
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', { pattern: 'CHUONG', kind: 'literal' }, 1, 0, true, [], null)
   })
 
   // 🔴 SỬA (vòng rà đối kháng) — nếu ứng viên đang chọn tay BIẾN MẤT khỏi dải mới (không còn
@@ -341,7 +358,7 @@ describe('bilingualImportPreviewState — trùng cột thì ĐẢO vai thay vì 
 
     expect(state.bilingualImportPreviewSourceColumn.value).toBe(1)
     expect(state.bilingualImportPreviewTargetColumn.value).toBe(0)
-    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [], null)
   })
 
   it('setBilingualTargetColumn nhận đúng cột cột NGUỒN đang giữ ⇒ đảo vai (nguồn lấy lại cột đích cũ)', async () => {
@@ -355,7 +372,7 @@ describe('bilingualImportPreviewState — trùng cột thì ĐẢO vai thay vì 
 
     expect(state.bilingualImportPreviewTargetColumn.value).toBe(0)
     expect(state.bilingualImportPreviewSourceColumn.value).toBe(1)
-    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 1, 0, false, [], null)
   })
 })
 
@@ -384,7 +401,7 @@ describe('bilingualImportPreviewState — xác nhận bị KHOÁ khi còn hàng 
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
     const result = await state.confirmBilingualImportPreview()
 
-    expect(confirmMock).toHaveBeenCalledWith('Ten Tac Pham', 'en', 'Tieu thuyet', 'UTF-8', null, 0, 1, false, [])
+    expect(confirmMock).toHaveBeenCalledWith('Ten Tac Pham', 'en', 'Tieu thuyet', 'UTF-8', null, 0, 1, false, [], null)
     expect(result.created).toEqual({ meta: { work_id: 'w1' } })
     expect(state.bilingualImportPreviewIsOpen.value).toBe(false)
   })
@@ -454,6 +471,164 @@ describe('BilingualImportPreviewOverlay.vue — nút xác nhận khoá kèm lý 
     await wrapper.find('.bip-swap').trigger('click')
 
     expect(swapMock).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.16c (FR115) — nguồn bảng .docx
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TWO_TABLES = [
+  { index: 0, row_count: 3, column_count: 2, first_row: ['a', 'b'] },
+  { index: 1, row_count: 5, column_count: 3, first_row: ['x', 'y', 'z'] },
+]
+
+function unchosenPreview(): BilingualImportEncodingPreview {
+  return preview({
+    candidates: [],
+    row_count: 0,
+    column_count: 0,
+    sample_rows: [],
+    source_tables: TWO_TABLES,
+    table_index: null,
+    table_choice_required: true,
+  })
+}
+
+function chosenPreview(index: number): BilingualImportEncodingPreview {
+  return preview({
+    candidates: [candidate({ label: 'docx' })],
+    source_tables: TWO_TABLES,
+    table_index: index,
+    table_choice_required: false,
+  })
+}
+
+describe('bilingualImportPreviewState — bảng .docx', () => {
+  it('nhiều bảng, chưa chọn: mở gửi tableIndex null, xác nhận bị khoá và không gọi Rust', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+
+    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-bang.docx', 'en', null, 0, 1, false, null)
+    expect(state.bilingualImportPreviewTableIndex.value).toBeNull()
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
+    const result = await state.confirmBilingualImportPreview()
+    expect(result).toEqual({ created: null, error: null })
+    expect(confirmMock).not.toHaveBeenCalled()
+  })
+
+  it('khoá vẫn giữ khi Rust trả một ứng viên nhưng table_index còn null', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({
+      preview: preview({ source_tables: TWO_TABLES, table_index: null, table_choice_required: false }),
+      error: null,
+    })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
+  })
+
+  it('chọn bảng: dựng lại với tableIndex đó, đưa hai cột về 0/1, mở khoá, xác nhận mang tableIndex', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+    rebuildMock.mockResolvedValue({ preview: chosenPreview(1), error: null })
+
+    await state.setBilingualTableIndex(1)
+
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [], 1)
+    expect(state.bilingualImportPreviewTableIndex.value).toBe(1)
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
+
+    confirmMock.mockResolvedValue({ created: { work_id: 'w' }, error: null })
+    await state.confirmBilingualImportPreview()
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 1)
+  })
+
+  it('một bảng: Rust tự chọn bảng 0, xác nhận mở ngay và gửi tableIndex 0', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({
+      preview: preview({ source_tables: [TWO_TABLES[0]], table_index: 0 }),
+      error: null,
+    })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/mot-bang.docx')
+
+    expect(state.bilingualImportPreviewTableIndex.value).toBe(0)
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
+    confirmMock.mockResolvedValue({ created: { work_id: 'w' }, error: null })
+    await state.confirmBilingualImportPreview()
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 0)
+  })
+
+  it('chỉ số bảng ngoài khoảng: lỗi có kiểu lên trạng thái error, không lùi về bảng khác', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+    const error = { message_key: 'err.import.bilingual_table_out_of_range', params: { index: '7', count: '2' } }
+    rebuildMock.mockResolvedValue({ preview: null, error })
+
+    await state.setBilingualTableIndex(7)
+
+    expect(state.bilingualImportPreviewStatus.value).toBe('error')
+    expect(state.bilingualImportPreviewLoadError.value).toEqual(error)
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
+  })
+
+  it('đóng rồi mở tệp khác: tableIndex về null', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: chosenPreview(1), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+    expect(state.bilingualImportPreviewTableIndex.value).toBe(1)
+
+    state.resetBilingualImportPreview()
+    expect(state.bilingualImportPreviewTableIndex.value).toBeNull()
+  })
+})
+
+describe('BilingualImportPreviewOverlay.vue — bảng .docx', () => {
+  it('chưa chọn: có bộ chọn bảng, không có dải bảng mã, không có bộ chọn cột, nút xác nhận khoá', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('#bip-table-select').exists()).toBe(true)
+    expect(wrapper.findAll('#bip-table-select option')).toHaveLength(3)
+    expect(wrapper.find('.bip-strip').exists()).toBe(false)
+    expect(wrapper.find('.bip-columns').exists()).toBe(false)
+    expect(wrapper.find('.bip-act-primary').attributes('disabled')).toBeDefined()
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('đổi bộ chọn bảng gọi dựng lại với chỉ số đó', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
+    rebuildMock.mockResolvedValue({ preview: chosenPreview(0), error: null })
+
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.get('#bip-table-select').setValue('0')
+
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [], 0)
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('nguồn .csv: không có bộ chọn bảng, dải bảng mã còn nguyên', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
+
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('#bip-table-select').exists()).toBe(false)
+    expect(wrapper.find('.bip-strip').exists()).toBe(true)
 
     wrapper.unmount()
     state.resetBilingualImportPreview()
@@ -553,7 +728,7 @@ describe('bilingualImportPreviewState — Story 6.17, Matrix bàn phím thật (
 
     expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [
       { row_number: 2, source_sentences: ['One.', 'Two.'], target_line: 'Mot hai', kind: 'cuts', cuts: [3] },
-    ])
+    ], null)
     // Hang vua cat da cap duoc (Rust tra 0 mismatch) -- danh sach rong, khoa GHI mo.
     expect(state.bilingualImportPreviewMismatches.value).toHaveLength(0)
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
@@ -573,7 +748,7 @@ describe('bilingualImportPreviewState — Story 6.17, Matrix bàn phím thật (
     expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [
       { row_number: 1, source_sentences: ['A1.', 'A2.'], target_line: 'a1 a2', kind: 'cuts', cuts: [2] },
       { row_number: 2, source_sentences: ['B1.', 'B2.'], target_line: 'b1 b2', kind: 'cuts', cuts: [2] },
-    ])
+    ], null)
     // Hang C (0 cau nguon) van con lai -- chi Skip giai quyet duoc no, khong nhan mot de xuat.
     expect(state.bilingualImportPreviewMismatches.value).toHaveLength(1)
     expect(state.bilingualImportPreviewMismatches.value[0].row_number).toBe(3)
@@ -592,7 +767,7 @@ describe('bilingualImportPreviewState — Story 6.17, Matrix bàn phím thật (
 
     expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [
       { row_number: 3, source_sentences: [], target_line: 'con mo cot', kind: 'skip', cuts: [] },
-    ])
+    ], null)
 
     // Tiêu điểm rơi về hàng còn lại — cả hai phía có câu ⇒ nút "Bỏ qua" không đủ điều kiện.
     rebuildMock.mockClear()
@@ -660,7 +835,7 @@ describe('bilingualImportPreviewState — Story 6.17, huỷ dọn SẠCH quy nh�
     rebuildMock.mockResolvedValue({ preview: preview(), error: null })
 
     await state.setBilingualHasHeader(true)
-    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, true, [])
+    expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, true, [], null)
   })
 })
 

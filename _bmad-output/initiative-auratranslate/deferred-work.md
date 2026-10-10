@@ -13018,3 +13018,7 @@ chính nó.
   summary: Chưa ai chấp nhận hay bỏ qua thay đổi của reviewer trong ứng dụng thật (WKWebView): focus sau khi bấm nút, khối hỏi lại khi đè bản nháp, và segment hiện "chưa xác nhận" trong Editor sau khi đóng Review Mode.
   evidence: vitest chạy dưới happy-dom và chỉ kiểm lời gọi `replaceEditorSegment` qua mock; Alt+Enter/Alt+Backspace trên bàn phím macOS thật chưa thử.
   Chủ: Epic 8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-duong-nhap/story-nhap-song-ngu-tu-bang-docx-plan.md`
+  summary: Chưa ai nhập song ngữ một `.docx` thật có hai bảng trong ứng dụng thật (WKWebView): bộ chọn bảng hiện "Chưa chọn bảng", nút xác nhận khoá, chọn bảng thì xem trước đổi sang hàng của bảng đó, bộ chọn bảng mã bị ẩn.
+  evidence: test Rust dựng `.docx` bằng `docx-rs`, chưa thử tệp Word thật; vitest chạy lớp phủ dưới happy-dom với lệnh Tauri giả.
+  Chủ: Epic 6.

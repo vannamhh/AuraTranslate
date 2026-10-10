@@ -665,6 +665,11 @@ message_keys! {
     /// chính nó, và mọi tổng đếm hai tín hiệu đếm gấp đôi cùng một hàng.
     ImportBilingualSameColumn => "err.import.bilingual_same_column" ["column"],
 
+    ImportBilingualNoTable => "err.import.bilingual_no_table" [],
+    /// `index` param is 1-based for display; the error field is 0-based.
+    ImportBilingualTableOutOfRange => "err.import.bilingual_table_out_of_range" ["index", "count"],
+    ImportBilingualTableNotChosen => "err.import.bilingual_table_not_chosen" ["count"],
+
     /// `source_lang` ngoài `zh`/`en` ở đường tạo/thêm Chương. Không hàng nào được ghi khi
     /// khoá này ném ra.
     ImportUnsupportedSourceLang => "err.import.unsupported_source_lang" ["source_lang"],

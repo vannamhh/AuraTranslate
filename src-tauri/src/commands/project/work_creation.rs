@@ -191,7 +191,9 @@ pub fn create_work_with_progress(
         // ngữ KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content` luôn `false` cho hình
         // dạng này — nó không phải `PipelineShape::Chapters`), nên `prepare_chapter_images`
         // không bao giờ đọc tới danh sách này; một phần tử rỗng không mất gì.
-        PipelineShape::Bilingual { .. } => vec![String::new()],
+        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+            vec![String::new()]
+        }
         // 🔴 SỬA 2026-09-16 (vòng rà đối kháng 2, mục 10/G9) — bản trước map thật
         // `chapter_input_page_url` qua từng đơn vị, mang đường dẫn hệ thống tệp THẬT ở arity
         // N-đơn-vị, trong khi một mẫu phân tách có thể cho ra > N Chương đầu ra — vector lệch
@@ -713,7 +715,9 @@ pub fn append_chapters_to_work_with_progress(
     let chapter_urls: Vec<String> = match &shape {
         PipelineShape::Blob(c) => vec![chapter_input_page_url(c)],
         PipelineShape::Chapters(cs) => cs.iter().map(chapter_input_page_url).collect(),
-        PipelineShape::Bilingual { .. } => vec![String::new()],
+        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+            vec![String::new()]
+        }
         PipelineShape::Files(_) => vec![String::new()],
     };
     let cleanup_rules_for_images = cleanup_rules.clone();

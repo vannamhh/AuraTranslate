@@ -1867,7 +1867,7 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
             // 🔵 THÊM 2026-09-11 (Story 6.16) — `PipelineShape` co them mot bien the moi
             // (`Bilingual`); hai ham dung nay chi con duoc goi voi `Chapters` hom nay va se
             // van vay sau story 6.16 (duong song ngu khong di qua `chapters_shape_*`).
-            PipelineShape::Bilingual { .. } => {
+            PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
                 panic!("hai ham dung nay phai cho Chapters, khong Bilingual")
             }
             // 🔵 THÊM 2026-09-15 (Story 6.6b) — `PipelineShape` co them mot bien the moi

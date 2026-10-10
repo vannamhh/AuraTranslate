@@ -292,6 +292,14 @@ pub enum ImportError {
         /// The 0-based column index both source and target point to.
         column: usize,
     },
+    BilingualNoTwoColumnTable,
+    BilingualTableOutOfRange {
+        index: usize,
+        count: usize,
+    },
+    BilingualTableNotChosen {
+        count: usize,
+    },
     /// `source_lang` ngoài `zh`/`en`, ở CẢ đường tạo (`create_work`)
     /// lẫn đường thêm Chương (`append_chapters_to_work`). Trước bản vá này chỉ webview kiểm
     /// (`=== 'zh'`); một `.atproj` sửa tay hoặc một lời gọi `invoke` trần với giá trị lạ ghi
@@ -365,6 +373,15 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::BilingualSameColumn { column } => {
                 write!(f, "import[bilingual]: source and target columns are both {column}")
+            }
+            ImportError::BilingualNoTwoColumnTable => {
+                write!(f, "import[bilingual]: no top-level table with at least 2 columns")
+            }
+            ImportError::BilingualTableOutOfRange { index, count } => {
+                write!(f, "import[bilingual]: table index {index} out of range, {count} table(s)")
+            }
+            ImportError::BilingualTableNotChosen { count } => {
+                write!(f, "import[bilingual]: {count} tables, none chosen")
             }
             ImportError::UnsupportedSourceLang { source_lang } => {
                 write!(f, "import: unsupported source_lang {source_lang:?}, expected zh or en")
@@ -565,6 +582,33 @@ impl From<ImportError> for IpcError {
                 IpcError::new(
                     "import.bilingual_same_column",
                     MessageKey::ImportBilingualSameColumn,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualNoTwoColumnTable => IpcError::new(
+                "import.bilingual_no_table",
+                MessageKey::ImportBilingualNoTable,
+                BTreeMap::new(),
+                false,
+            ),
+            ImportError::BilingualTableOutOfRange { index, count } => {
+                let mut params = BTreeMap::new();
+                params.insert("index".to_owned(), (index + 1).to_string());
+                params.insert("count".to_owned(), count.to_string());
+                IpcError::new(
+                    "import.bilingual_table_out_of_range",
+                    MessageKey::ImportBilingualTableOutOfRange,
+                    params,
+                    false,
+                )
+            }
+            ImportError::BilingualTableNotChosen { count } => {
+                let mut params = BTreeMap::new();
+                params.insert("count".to_owned(), count.to_string());
+                IpcError::new(
+                    "import.bilingual_table_not_chosen",
+                    MessageKey::ImportBilingualTableNotChosen,
                     params,
                     false,
                 )
@@ -870,7 +914,7 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
                 inputs.push(input);
                 items.push(FileImportItem { path: p.clone(), error: None });
             }
-            Ok((PipelineShape::Chapters(_) | PipelineShape::Bilingual { .. } | PipelineShape::Files(_), _)) => {
+            Ok((PipelineShape::Chapters(_) | PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } | PipelineShape::Files(_), _)) => {
                 unreachable!("import_file only ever returns PipelineShape::Blob")
             }
             Err(e) => {
@@ -901,21 +945,10 @@ fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
     Err(ImportError::BatchUnsupportedFormat { format: ext })
 }
 
-/// **THÊM 2026-09-11 (Story 6.16, FR115)** — hai đuôi được nhận trên đường nhập song ngữ,
-/// RIÊNG với [`SUPPORTED_EXTENSIONS`] (§Boundaries: "Scope: .csv and .tsv only"; `.md`/
-/// `.docx` bảng biểu bị hoãn, chủ Ice, `deferred-work.md`).
-const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 2] = ["csv", "tsv"];
+const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
 
-/// Bước ĐẦU VÀO — nhánh song ngữ của FR115 (Story 6.16). Cùng khuôn [`import_file`]: từ chối
-/// theo phần mở rộng TRƯỚC khi mở tệp, hỏi kích thước TRƯỚC khi đọc, `std::fs::read` một
-/// lần — 0 chuỗi nào ghi xuống đĩa (§Boundaries: "0 bytes on disk before confirm").
-///
-/// 🔴 Trả về byte THÔ CHƯA giải mã, KHÔNG tự table-parse ở đây — cả giải mã LẪN table-parse
-/// là việc của [`super::pipeline::Step::DecodeEncoding`] (AD-39: *"table parsing happens
-/// right after decode, inside the chain, and re-runs on every encoding candidate"*). Hàm
-/// này chỉ quyết định đúng MỘT điều mà table-parse không tự suy được: dấu phân cách, từ
-/// CHÍNH đuôi tệp (`.csv` ⇒ dấu phẩy, `.tsv` ⇒ Tab — §Always: "Delimiter from the
-/// extension").
+/// `.csv`/`.tsv` return undecoded bytes (decode and table-parse run inside the pipeline);
+/// `.docx` returns `BilingualTables`, which `select_bilingual_table` must turn into `BilingualRows`.
 pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
     let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
         return Err(ImportError::MissingExtension { path: path.display().to_string() });
@@ -927,9 +960,8 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
     }
     let delimiter = match ext.as_str() {
         "csv" => crate::core::glossary::exchange::Delimiter::Csv,
-        // `BILINGUAL_SUPPORTED_EXTENSIONS` has exactly two entries; the guard above already
-        // rejected everything else.
-        _ => crate::core::glossary::exchange::Delimiter::Tsv,
+        "tsv" => crate::core::glossary::exchange::Delimiter::Tsv,
+        _ => return import_bilingual_docx(path),
     };
 
     let size = std::fs::metadata(path)
@@ -951,6 +983,60 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
         input: ChapterInput::RawBytes { bytes, label: path.display().to_string() },
         delimiter,
     })
+}
+
+fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
+    let size = std::fs::metadata(path)
+        .map_err(|e| ImportError::ReadFailed { path: path.display().to_string(), detail: e.to_string() })?
+        .len();
+    if size > MAX_IMPORT_BYTES {
+        return Err(ImportError::TooLarge { size, limit: MAX_IMPORT_BYTES });
+    }
+    let bytes = std::fs::read(path)
+        .map_err(|e| ImportError::ReadFailed { path: path.display().to_string(), detail: e.to_string() })?;
+    let path_display = path.display().to_string();
+    let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
+        crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText { path: path_display.clone() },
+        other => ImportError::DocxUnreadable { path: path_display.clone(), detail: other.to_string() },
+    })?;
+    let tables: Vec<Vec<super::bilingual::BilingualRow>> = parsed
+        .top_level_tables()
+        .into_iter()
+        .map(|rows| docx_table_rows(rows))
+        .filter(|rows| super::bilingual::widest_row_column_count(rows) >= 2)
+        .collect();
+    if tables.is_empty() {
+        return Err(ImportError::BilingualNoTwoColumnTable);
+    }
+    Ok(super::pipeline::PipelineShape::BilingualTables { label: path_display, tables })
+}
+
+fn docx_table_rows(rows: &[Vec<String>]) -> Vec<super::bilingual::BilingualRow> {
+    rows.iter()
+        .enumerate()
+        .filter(|(_, cells)| cells.iter().any(|c| !c.trim().is_empty()))
+        .map(|(i, cells)| super::bilingual::BilingualRow { row_number: i + 1, cells: cells.clone() })
+        .collect()
+}
+
+pub fn select_bilingual_table(
+    shape: &super::pipeline::PipelineShape,
+    table_index: Option<usize>,
+) -> Result<super::pipeline::PipelineShape, ImportError> {
+    use super::pipeline::PipelineShape;
+    let PipelineShape::BilingualTables { label, tables } = shape else {
+        return Ok(shape.clone());
+    };
+    let count = tables.len();
+    let index = match table_index {
+        Some(i) => i,
+        None if count == 1 => 0,
+        None => return Err(ImportError::BilingualTableNotChosen { count }),
+    };
+    let Some(rows) = tables.get(index) else {
+        return Err(ImportError::BilingualTableOutOfRange { index, count });
+    };
+    Ok(PipelineShape::BilingualRows { label: label.clone(), rows: rows.clone() })
 }
 
 /// Từ chối một phần mở rộng chưa được nhận — **trước** khi mở tệp, không đọc một byte.

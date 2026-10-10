@@ -150,7 +150,7 @@ fn a_pattern_matching_three_rows_yields_one_work_with_three_in_progress_chapters
 
     // §I/O Matrix "Pattern matches 3 rows" — vế "Preview 3 Chapters", do TRUOC khi xac nhan.
     let pattern = ChapterPattern::literal("CHUONG");
-    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc tep hop le phai thanh cong");
     let selected = preview
         .candidates
@@ -177,7 +177,7 @@ fn a_pattern_matching_three_rows_yields_one_work_with_three_in_progress_chapters
         0,
         1,
         false,
-        Vec::new(),
+        Vec::new(), None,
     )
     .expect("xac nhan phai thanh cong");
 
@@ -207,7 +207,7 @@ fn equal_sentence_counts_write_both_texts_with_bilingual_origin_and_draft_status
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
-    let opened = confirm_bilingual_import(&root, &state, "Hai Cau", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "Hai Cau", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect("xac nhan phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -243,7 +243,7 @@ fn row_flags_are_off_off_on_within_a_row_and_the_chapters_last_segment_is_always
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
-    let opened = confirm_bilingual_import(&root, &state, "Co Doan", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "Co Doan", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect("xac nhan phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -271,7 +271,7 @@ fn a_quoted_cell_with_an_internal_line_break_never_sets_a_flag() {
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
-    let opened = confirm_bilingual_import(&root, &state, "Xuong Dong", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "Xuong Dong", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect("xac nhan phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -303,7 +303,7 @@ fn a_mismatched_row_is_listed_in_preview_and_confirm_is_refused_writing_nothing(
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc tep hop le phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc tep hop le phai thanh cong");
     let selected = preview
         .candidates
         .iter()
@@ -316,7 +316,7 @@ fn a_mismatched_row_is_listed_in_preview_and_confirm_is_refused_writing_nothing(
 
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
-    let err = confirm_bilingual_import(&root, &state, "Lech Cap", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let err = confirm_bilingual_import(&root, &state, "Lech Cap", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect_err("con hang lech cap thi xac nhan phai bi tu choi O RUST");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
     assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
@@ -332,7 +332,7 @@ fn a_blank_target_cell_is_a_mismatch_of_one_versus_zero() {
     let path = write_file(&root, "trong.csv", csv.as_bytes());
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc tep hop le phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc tep hop le phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert_eq!(selected.mismatches.len(), 1);
     assert_eq!(selected.mismatches[0].source_sentences.len(), 1);
@@ -353,8 +353,8 @@ fn the_header_checkbox_drops_row_1_and_toggling_rebuilds_without_rereading_the_f
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let without_header = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc tep hop le phai thanh cong");
-    let with_header = preview_bilingual_import(&shape, "en", &[], None, 0, 1, true, &[]).expect("xem truoc tep hop le phai thanh cong");
+    let without_header = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc tep hop le phai thanh cong");
+    let with_header = preview_bilingual_import(&shape, "en", &[], None, 0, 1, true, &[], None).expect("xem truoc tep hop le phai thanh cong");
     // Cùng `shape` (byte thô không đổi) — chỉ đổi tham số `has_header` giữa hai lượt gọi, 0
     // lượt đọc đĩa thêm (§I/O Matrix: "rebuilds the preview in memory").
     assert_eq!(without_header.row_count, 2, "khong bo tieu de -- ca hai hang deu la du lieu");
@@ -362,7 +362,7 @@ fn the_header_checkbox_drops_row_1_and_toggling_rebuilds_without_rereading_the_f
 
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
-    let opened = confirm_bilingual_import(&root, &state, "Co Tieu De", "en", "", "UTF-8", Vec::new(), None, 0, 1,true, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "Co Tieu De", "en", "", "UTF-8", Vec::new(), None, 0, 1,true, Vec::new(), None)
         .expect("xac nhan phai thanh cong");
     let chapters = read_chapters(&opened.store);
     let segments = read_segments(&opened.store, chapters[0].id);
@@ -400,7 +400,7 @@ fn swapping_columns_runs_the_pattern_on_the_newly_chosen_source_column() {
         1,
         0,
         false,
-        Vec::new(),
+        Vec::new(), None,
     )
     .expect("xac nhan phai thanh cong");
 
@@ -427,7 +427,7 @@ fn choosing_a_non_utf8_encoding_candidate_re_decodes_and_re_parses_the_same_stas
     let path = write_file(&root, "gbk.csv", &encoded);
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "zh", &[], None, 0, 1, false, &[]).expect("xem truoc tep GBK hop le phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "zh", &[], None, 0, 1, false, &[], None).expect("xem truoc tep GBK hop le phai thanh cong");
     assert!(
         preview.candidates.iter().any(|c| c.encoding == "GBK"),
         "dai nam ung vien phai co GBK (mot trong nam bang ma FR126)"
@@ -435,7 +435,7 @@ fn choosing_a_non_utf8_encoding_candidate_re_decodes_and_re_parses_the_same_stas
 
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
-    let opened = confirm_bilingual_import(&root, &state, "GBK", "zh", "", "GBK", Vec::new(), None, 0, 1, false, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "GBK", "zh", "", "GBK", Vec::new(), None, 0, 1, false, Vec::new(), None)
         .expect("xac nhan voi bang ma GBK da chon phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -461,7 +461,7 @@ fn an_unterminated_quoted_field_is_refused_with_its_row_number_and_writes_nothin
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
-    let err = confirm_bilingual_import(&root, &state, "Ho Ngoac", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let err = confirm_bilingual_import(&root, &state, "Ho Ngoac", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect_err("mot o mo ngoac kep khong dong phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualUnterminatedQuotedField);
     assert_eq!(err.params().get("row").map(String::as_str), Some("2"));
@@ -484,7 +484,7 @@ fn a_file_with_fewer_than_two_columns_is_refused_before_anything_is_written() {
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
 
-    let err = confirm_bilingual_import(&root, &state, "Mot Cot", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let err = confirm_bilingual_import(&root, &state, "Mot Cot", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect_err("tep chi co 1 cot phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualTooFewColumns);
     assert_eq!(err.params().get("found").map(String::as_str), Some("1"));
@@ -508,7 +508,7 @@ fn cancelling_the_preview_then_confirming_writes_nothing() {
     stash_pending_import_source(&state, shape, None);
     cancel_import_preview(&state);
 
-    let err = confirm_bilingual_import(&root, &state, "Huy Bo", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new())
+    let err = confirm_bilingual_import(&root, &state, "Huy Bo", "en", "", "UTF-8", Vec::new(), None, 0, 1,false, Vec::new(), None)
         .expect_err("da huy thi xac nhan phai tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
     assert_eq!(entry_count(&root), 1, "chi con dung tep vua tao -- 0 .atproj nao duoc ghi");
@@ -575,6 +575,7 @@ fn a_prose_md_file_containing_a_pipe_table_still_imports_as_prose_with_no_transl
 fn the_bilingual_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     use auratranslate_lib::commands::project::{
         BilingualEncodingCandidateWire, BilingualImportEncodingPreview, BilingualMismatchWire,
+        BilingualSourceTableWire,
     };
 
     let preview = BilingualImportEncodingPreview {
@@ -603,6 +604,14 @@ fn the_bilingual_import_encoding_preview_wire_shape_keeps_snake_case_field_names
         sample_rows: vec![vec!["a".to_owned(), "b".to_owned()]],
         row_count: 1,
         column_count: 2,
+        source_tables: vec![BilingualSourceTableWire {
+            index: 0,
+            row_count: 1,
+            column_count: 2,
+            first_row: vec!["a".to_owned(), "b".to_owned()],
+        }],
+        table_index: Some(0),
+        table_choice_required: false,
     };
 
     let json = serde_json::to_value(&preview).expect("serialize BilingualImportEncodingPreview");
@@ -616,8 +625,21 @@ fn the_bilingual_import_encoding_preview_wire_shape_keeps_snake_case_field_names
             &"sample_rows".to_owned(),
             &"row_count".to_owned(),
             &"column_count".to_owned(),
+            &"source_tables".to_owned(),
+            &"table_index".to_owned(),
+            &"table_choice_required".to_owned(),
         ]),
         "src/config/project.ts::BilingualImportEncodingPreview doc dung tung ten truong nay"
+    );
+
+    assert_eq!(
+        json["source_tables"][0].as_object().expect("bang nguon phai la object").keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            &"index".to_owned(),
+            &"row_count".to_owned(),
+            &"column_count".to_owned(),
+            &"first_row".to_owned(),
+        ]),
     );
 
     let candidate_json = &json["candidates"][0];
@@ -702,7 +724,7 @@ fn a_bilingual_file_past_the_size_ceiling_is_refused_before_a_single_byte_is_rea
 }
 
 #[test]
-fn the_bilingual_import_path_only_accepts_csv_and_tsv() {
+fn the_bilingual_import_path_refuses_prose_extensions_such_as_txt() {
     let root = temp_dir("bilingual-boundary");
     let path = write_file(&root, "khong-phai-song-ngu.txt", b"noi dung van xuoi");
     let err = import_bilingual_file(&path).expect_err(".txt khong duoc DUONG SONG NGU nhan");
@@ -727,7 +749,7 @@ fn preview_refuses_a_one_column_file_before_showing_anything() {
     let path = write_file(&root, "mot-cot-xem-truoc.tsv", b"ChiMotCot\nHangHai\n");
 
     let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
-    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[])
+    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None)
         .expect_err("tep mot cot phai bi tu choi NGAY o man xem truoc");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualTooFewColumns);
     assert_eq!(err.params().get("found").map(String::as_str), Some("1"));
@@ -741,7 +763,7 @@ fn preview_refuses_equal_source_and_target_columns_at_the_wire_boundary() {
     let path = write_file(&root, "cot-trung-xem-truoc.tsv", b"Nguon\tDich\nMot cau.\tCau dich.\n");
 
     let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
-    let err = preview_bilingual_import(&shape, "en", &[], None, 1, 1, false, &[])
+    let err = preview_bilingual_import(&shape, "en", &[], None, 1, 1, false, &[], None)
         .expect_err("cot nguon == cot dich phai bi tu choi NGAY tai bien IPC");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualSameColumn);
     assert_eq!(err.params().get("column").map(String::as_str), Some("1"));
@@ -756,7 +778,7 @@ fn preview_refuses_an_unterminated_quoted_field_with_its_row_number() {
     let path = write_file(&root, "ho-ngoac-xem-truoc.csv", csv.as_bytes());
 
     let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
-    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[])
+    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None)
         .expect_err("o mo ngoac kep khong dong phai bi tu choi NGAY o man xem truoc");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualUnterminatedQuotedField);
     assert_eq!(err.params().get("row").map(String::as_str), Some("2"));
@@ -777,7 +799,7 @@ fn preview_surfaces_a_non_table_error_on_the_selected_candidate_instead_of_swall
     };
 
     let shape = import_bilingual_file(&path).expect("doc tep khong table-parse, phai thanh cong");
-    let err = preview_bilingual_import(&shape, "en", std::slice::from_ref(&bad_rule), None, 0, 1, false, &[])
+    let err = preview_bilingual_import(&shape, "en", std::slice::from_ref(&bad_rule), None, 0, 1, false, &[], None)
         .expect_err("mau lam sach hong tren ung vien DANG CHON phai tro thanh mot Err that");
     assert_eq!(err.code(), "import.invalid_cleanup_pattern");
 
@@ -803,14 +825,14 @@ fn an_enabled_cleanup_rule_runs_on_both_cells_in_preview_and_on_disk() {
     };
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", std::slice::from_ref(&rule), None, 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", std::slice::from_ref(&rule), None, 0, 1, false, &[], None)
         .expect("xem truoc tep hop le phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert!(selected.mismatches.is_empty(), "luat lam sach khong duoc lam lech cap hang nay");
 
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
-    let opened = confirm_bilingual_import(&root, &state, "Lam Sach", "en", "", "UTF-8", vec![rule], None, 0, 1, false, Vec::new())
+    let opened = confirm_bilingual_import(&root, &state, "Lam Sach", "en", "", "UTF-8", vec![rule], None, 0, 1, false, Vec::new(), None)
         .expect("xac nhan phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -838,7 +860,7 @@ fn split_target_resolves_using_the_machine_proposal_and_writes_two_paired_segmen
     let path = write_file(&root, "tach.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert_eq!(selected.mismatches.len(), 1);
     let m = &selected.mismatches[0];
@@ -846,7 +868,7 @@ fn split_target_resolves_using_the_machine_proposal_and_writes_two_paired_segmen
     assert!(!m.proposed_cuts.is_empty(), "2 vs 1 phai co it nhat mot cho cat de xuat");
 
     let regrouping = cuts_regrouping(m, m.proposed_cuts.clone());
-    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping))
+    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping), None)
         .expect("xem truoc voi quy nhom phai thanh cong");
     let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
     assert!(rebuilt_selected.mismatches.is_empty(), "de xuat may phai tu giai quyet duoc hang nay");
@@ -855,7 +877,7 @@ fn split_target_resolves_using_the_machine_proposal_and_writes_two_paired_segmen
     stash_pending_import_source(&state, shape, None);
     let opened = confirm_bilingual_import(&root, &state, "Tach", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
         regrouping,
-    ])
+    ], None)
     .expect("xac nhan voi quy nhom hop le phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -886,7 +908,7 @@ fn join_target_removes_a_machine_boundary_and_merges_the_first_two_target_senten
     let path = write_file(&root, "gop.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
     assert_eq!(m.initial_cuts.len(), 2, "3 cau may = 2 ranh gioi may");
@@ -898,7 +920,7 @@ fn join_target_removes_a_machine_boundary_and_merges_the_first_two_target_senten
     let regrouping = cuts_regrouping(m, vec![kept_cut]);
     let opened = confirm_bilingual_import(&root, &state, "Gop", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
         regrouping,
-    ])
+    ], None)
     .expect("xac nhan voi quy nhom hop le phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -920,7 +942,7 @@ fn still_unequal_after_a_bad_cut_count_keeps_the_row_listed_and_confirm_refused(
     let csv = "One. Two.,Mot. Hai. Ba.\n";
     let path = write_file(&root, "van-lech.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
 
@@ -930,7 +952,7 @@ fn still_unequal_after_a_bad_cut_count_keeps_the_row_listed_and_confirm_refused(
     stash_pending_import_source(&state, shape, None);
     let err = confirm_bilingual_import(&root, &state, "Van Lech", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
         regrouping,
-    ])
+    ], None)
     .expect_err("cat khong dung so manh can phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
     assert_eq!(entry_count(&root), 1, "0 Work nao duoc ghi");
@@ -946,13 +968,13 @@ fn bad_cuts_on_the_wire_never_panic_and_leave_the_row_a_mismatch() {
     let csv = "He left. She smiled.,He left she smiled\n";
     let path = write_file(&root, "cat-hong.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = selected.mismatches[0].clone();
 
     for bad in [vec![0usize], vec![1000usize], vec![3usize, 3usize]] {
         let regrouping = cuts_regrouping(&m, bad.clone());
-        let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping))
+        let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping), None)
             .unwrap_or_else(|e| panic!("cho cat hong {bad:?} khong duoc lam ca chuoi panic/tu choi: {e:?}"));
         let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
         assert_eq!(rebuilt_selected.mismatches.len(), 1, "cho cat hong {bad:?} phai giu hang lai trong danh sach");
@@ -970,14 +992,14 @@ fn a_stale_regrouping_after_a_column_swap_is_dropped_and_the_row_is_listed_again
     let csv = "He left. She smiled.,He left she smiled\n";
     let path = write_file(&root, "cu.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
     let regrouping = cuts_regrouping(m, m.proposed_cuts.clone());
 
     // Doi vai cot (1, 0) -- CUNG quy nhom (anh chup cua cot 0/1 cu) khong con khop hang thuc su
     // dang doc voi vai cot MOI.
-    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 1, 0, false, std::slice::from_ref(&regrouping))
+    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 1, 0, false, std::slice::from_ref(&regrouping), None)
         .expect("xem truoc phai thanh cong");
     let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
     assert_eq!(rebuilt_selected.mismatches.len(), 1, "anh chup cu khong duoc ap len hang da doi vai cot");
@@ -994,14 +1016,14 @@ fn a_regrouping_for_one_row_does_not_disturb_a_second_untouched_mismatched_row()
     let csv = "He left. She smiled.,He left she smiled\n,Con mo cot nguon day\n";
     let path = write_file(&root, "hai-hang.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert_eq!(selected.mismatches.len(), 2, "ca hai hang phai lech cap");
     let row_a = selected.mismatches.iter().find(|m| !m.source_sentences.is_empty()).unwrap();
     let row_b = selected.mismatches.iter().find(|m| m.source_sentences.is_empty()).unwrap();
 
     let regrouping_a = cuts_regrouping(row_a, row_a.proposed_cuts.clone());
-    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping_a))
+    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, std::slice::from_ref(&regrouping_a), None)
         .expect("xem truoc phai thanh cong");
     let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
     assert_eq!(rebuilt_selected.mismatches.len(), 1, "hang A cap duoc, hang B (chua co quy nhom) van con lai");
@@ -1011,7 +1033,7 @@ fn a_regrouping_for_one_row_does_not_disturb_a_second_untouched_mismatched_row()
     stash_pending_import_source(&state, shape, None);
     let err = confirm_bilingual_import(&root, &state, "Chua Xong", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
         regrouping_a,
-    ])
+    ], None)
     .expect_err("con hang B chua giai quyet thi xac nhan phai bi khoa");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
     assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
@@ -1027,7 +1049,7 @@ fn bulk_accept_resolves_three_proposal_rows_and_a_fourth_skip_only_row_in_one_co
     let csv = "A1. A2.,a1 a2\nB1. B2.,b1 b2\nC1. C2.,c1 c2\nHeading Day.,\n";
     let path = write_file(&root, "bulk.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert_eq!(selected.mismatches.len(), 4);
 
@@ -1045,7 +1067,7 @@ fn bulk_accept_resolves_three_proposal_rows_and_a_fourth_skip_only_row_in_one_co
 
     let state = pending_state();
     stash_pending_import_source(&state, shape, None);
-    let opened = confirm_bilingual_import(&root, &state, "Bulk", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, regroupings)
+    let opened = confirm_bilingual_import(&root, &state, "Bulk", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, regroupings, None)
         .expect("mot lot xac nhan voi quy nhom cho ca bon hang phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -1067,7 +1089,7 @@ fn skip_on_a_blank_target_writes_one_untranslated_segment_with_no_bilingual_impo
     let csv = "Chuong Mot,\n";
     let path = write_file(&root, "tieu-de.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
     assert_eq!(m.source_sentences, vec!["Chuong Mot".to_owned()]);
@@ -1078,7 +1100,7 @@ fn skip_on_a_blank_target_writes_one_untranslated_segment_with_no_bilingual_impo
     let opened =
         confirm_bilingual_import(&root, &state, "Tieu De", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
             skip_regrouping(m),
-        ])
+        ], None)
         .expect("bo qua mot hang 1-vs-0 phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -1099,7 +1121,7 @@ fn skip_on_a_blank_source_drops_the_translation_and_yields_zero_segments() {
     let csv = ",Mot cau. Hai cau.\nCon Hang Nay.,Dich hang nay.\n";
     let path = write_file(&root, "khong-nguon.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     assert_eq!(selected.mismatches.len(), 1);
     let m = &selected.mismatches[0];
@@ -1115,7 +1137,7 @@ fn skip_on_a_blank_source_drops_the_translation_and_yields_zero_segments() {
     // ma webview lam): hang bien MAT khoi `mismatches` (da giai quyet), nhung tong tren
     // `BilingualEncodingCandidateWire` phai SONG SOT dung 2 -- day la con so "se bi bo neu
     // xac nhan ngay bay gio", khac han `target_sentence_count` cua mot hang CON lech cap.
-    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[skip_regrouping(m)])
+    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[skip_regrouping(m)], None)
         .expect("xem truoc voi quy nhom Skip phai thanh cong");
     let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
     assert!(rebuilt_selected.mismatches.is_empty(), "hang da duoc giai quyet bang Skip");
@@ -1126,7 +1148,7 @@ fn skip_on_a_blank_source_drops_the_translation_and_yields_zero_segments() {
     let opened =
         confirm_bilingual_import(&root, &state, "Khong Nguon", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
             skip_regrouping(m),
-        ])
+        ], None)
         .expect("bo qua mot hang 0-vs-n phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -1146,11 +1168,11 @@ fn skip_on_a_row_with_sentences_on_both_sides_is_refused_with_a_typed_error() {
     let csv = "He left. She smiled.,He left she smiled\n";
     let path = write_file(&root, "khong-duoc-bo-qua.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
 
-    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[skip_regrouping(m)])
+    let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[skip_regrouping(m)], None)
         .expect_err("bo qua mot hang ca hai phia deu co cau phai bi tu choi TYPED");
     assert_eq!(err.message_key(), MessageKey::ImportBilingualSkipNotAllowed);
     assert_eq!(err.params().get("row").map(String::as_str), Some(m.row_number.to_string()).as_deref());
@@ -1160,7 +1182,7 @@ fn skip_on_a_row_with_sentences_on_both_sides_is_refused_with_a_typed_error() {
     let confirm_err =
         confirm_bilingual_import(&root, &state, "Bi Tu Choi", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, vec![
             skip_regrouping(m),
-        ])
+        ], None)
         .expect_err("cung phai bi tu choi luc xac nhan");
     assert_eq!(confirm_err.message_key(), MessageKey::ImportBilingualSkipNotAllowed);
     assert_eq!(entry_count(&root), 1, "0 Work nao duoc ghi");
@@ -1178,7 +1200,7 @@ fn a_computed_regrouping_never_writes_unless_the_very_confirm_call_carries_it() 
     let csv = "He left. She smiled.,He left she smiled\n";
     let path = write_file(&root, "huy.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = &selected.mismatches[0];
     let _regrouping = cuts_regrouping(m, m.proposed_cuts.clone()); // nguoi dung da bam mot cho cat...
@@ -1187,7 +1209,7 @@ fn a_computed_regrouping_never_writes_unless_the_very_confirm_call_carries_it() 
     stash_pending_import_source(&state, shape, None);
     cancel_import_preview(&state); // ...roi huy truoc khi xac nhan.
 
-    let err = confirm_bilingual_import(&root, &state, "Da Huy", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, Vec::new())
+    let err = confirm_bilingual_import(&root, &state, "Da Huy", "en", "", "UTF-8", Vec::new(), None, 0, 1, false, Vec::new(), None)
         .expect_err("huy phai don sach nguon dang cho -- xac nhan sau do phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
     assert_eq!(entry_count(&root), 1, "0 .atproj nao duoc ghi sau mot luot huy -- chi con tep .csv vua tao");
@@ -1207,13 +1229,13 @@ fn a_regrouping_survives_a_header_toggle_that_does_not_touch_its_row() {
     let path = write_file(&root, "bat-tieu-de.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[]).expect("xem truoc phai thanh cong");
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc phai thanh cong");
     let selected = preview.candidates.iter().find(|c| c.encoding == preview.selected_encoding).unwrap();
     let m = selected.mismatches.iter().find(|m| m.row_number == 2).expect("hang 2 phai lech cap").clone();
     let regrouping = cuts_regrouping(&m, m.proposed_cuts.clone());
 
     // BAT tieu de -- hang 1 bi bo TRUOC khi tach Chuong, hang 2 giu nguyen so hang va noi dung.
-    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, true, std::slice::from_ref(&regrouping))
+    let rebuilt = preview_bilingual_import(&shape, "en", &[], None, 0, 1, true, std::slice::from_ref(&regrouping), None)
         .expect("xem truoc phai thanh cong");
     let rebuilt_selected = rebuilt.candidates.iter().find(|c| c.encoding == rebuilt.selected_encoding).unwrap();
     assert!(
@@ -1226,7 +1248,7 @@ fn a_regrouping_survives_a_header_toggle_that_does_not_touch_its_row() {
     let opened =
         confirm_bilingual_import(&root, &state, "Bat Tieu De", "en", "", "UTF-8", Vec::new(), None, 0, 1, true, vec![
             regrouping,
-        ])
+        ], None)
         .expect("xac nhan phai thanh cong");
 
     let chapters = read_chapters(&opened.store);
@@ -1292,14 +1314,14 @@ fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_
             gate.wait();
             confirm_bilingual_import(
                 &root, &state, "Race A", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
-                Vec::new(),
+                Vec::new(), None,
             )
         });
         let h2 = scope.spawn(|| {
             gate.wait();
             confirm_bilingual_import(
                 &root, &state, "Race B", "en", "", "UTF-8", Vec::new(), None, 0, 1, false,
-                Vec::new(),
+                Vec::new(), None,
             )
         });
         [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
@@ -1359,7 +1381,7 @@ fn a_table_parse_failure_on_a_non_selected_candidate_leaves_its_chapters_none_ot
     let path = write_file(&root, "ascii-hai-cot.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None)
         .expect("mot ung vien hong KHONG duoc keo ca luot xem truoc xuong khi no khong phai ung vien dang chon");
 
     assert_eq!(preview.selected_encoding, "UTF-8", "tien de: tep ASCII thuan tu doan UTF-8, tin cay cao");
@@ -1400,7 +1422,7 @@ fn ten_bilingual_chapters_show_chip_counts_and_flag_the_short_one() {
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let pattern = ChapterPattern::literal("CHUONG");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1447,7 +1469,7 @@ fn cleanup_matches_only_in_the_target_column_still_flags_the_chapter() {
         enabled: true,
     };
 
-    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1496,7 +1518,7 @@ fn joined_lines_only_in_the_target_column_still_flags_the_chapter() {
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let pattern = ChapterPattern::literal("CHUONG");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1553,7 +1575,7 @@ fn a_chapter_missing_the_target_column_entirely_is_not_measured_never_clean() {
         enabled: true,
     };
 
-    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 2, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[rule], Some(&pattern), 0, 2, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1592,7 +1614,7 @@ fn fewer_than_four_bilingual_chapters_makes_no_signal_participate() {
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let pattern = ChapterPattern::literal("CHUONG");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1629,7 +1651,7 @@ fn broken_item_count_is_always_zero_on_the_bilingual_path() {
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let pattern = ChapterPattern::literal("CHUONG");
 
-    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[])
+    let preview = preview_bilingual_import(&shape, "en", &[], Some(&pattern), 0, 1, false, &[], None)
         .expect("xem truoc phai thanh cong");
     let selected = preview
         .candidates
@@ -1644,4 +1666,277 @@ fn broken_item_count_is_always_zero_on_the_bilingual_path() {
     assert_eq!(chapters_wire.clean_count, 6);
 
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.16c (FR115) — nguon `.docx`: hang cua mot bang thay cho giai ma + parse_rows
+// ═════════════════════════════════════════════════════════════════════════════════
+
+mod docx_source {
+    use super::*;
+    use docx_rs::{Docx, Paragraph, Run, Table, TableCell, TableRow};
+
+    fn para(text: &str) -> Paragraph {
+        Paragraph::new().add_run(Run::new().add_text(text))
+    }
+
+    fn cell(text: &str) -> TableCell {
+        TableCell::new().add_paragraph(para(text))
+    }
+
+    fn table(rows: &[&[&str]]) -> Table {
+        Table::new(rows.iter().map(|r| TableRow::new(r.iter().map(|c| cell(c)).collect())).collect())
+    }
+
+    fn pack(docx: Docx) -> Vec<u8> {
+        let mut buf = std::io::Cursor::new(Vec::new());
+        docx.build().pack(&mut buf).expect("dong goi .docx fixture that bai");
+        buf.into_inner()
+    }
+
+    const THREE_ROWS: [&[&str]; 3] = [
+        &["Cau mot nguon.", "Cau mot dich."],
+        &["Cau hai nguon. Cau ba nguon.", "Cau hai dich. Cau ba dich."],
+        &["Cau bon nguon.", "Cau bon dich."],
+    ];
+
+    fn confirm(
+        root: &Path,
+        state: &PendingImportSourceState,
+        name: &str,
+        has_header: bool,
+        table_index: Option<usize>,
+    ) -> Result<auratranslate_lib::commands::project::OpenWork, auratranslate_lib::core::i18n::IpcError> {
+        confirm_bilingual_import(root, state, name, "en", "", "UTF-8", Vec::new(), None, 0, 1, has_header, Vec::new(), table_index)
+    }
+
+    #[test]
+    fn a_single_top_level_table_writes_the_same_segments_as_the_equivalent_csv() {
+        let root = temp_dir("docx-one-table");
+        let docx_path = write_file(&root, "mot-bang.docx", &pack(Docx::new().add_paragraph(para("Mo dau.")).add_table(table(&THREE_ROWS))));
+        let csv = "Cau mot nguon.,Cau mot dich.\n\"Cau hai nguon. Cau ba nguon.\",\"Cau hai dich. Cau ba dich.\"\nCau bon nguon.,Cau bon dich.\n";
+        let csv_path = write_file(&root, "mot-bang.csv", csv.as_bytes());
+
+        let shape = import_bilingual_file(&docx_path).expect("docx mot bang phai doc duoc");
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        assert_eq!(preview.source_tables.len(), 1);
+        assert_eq!(preview.table_index, Some(0));
+        assert!(!preview.table_choice_required);
+        assert_eq!(preview.row_count, 3);
+        assert_eq!(preview.candidates.len(), 1, "nguon bang khong do bang ma: dung mot ung vien");
+        assert!(entry_count(&root) == 2, "0 byte .atproj truoc xac nhan");
+
+        let state = pending_state();
+        stash_pending_import_source(&state, shape, None);
+        let from_docx = confirm(&root, &state, "Tu Docx", false, None).expect("xac nhan docx");
+
+        let csv_state = pending_state();
+        stash_pending_import_source(&csv_state, import_bilingual_file(&csv_path).expect("csv"), None);
+        let from_csv = confirm(&root, &csv_state, "Tu Csv", false, None).expect("xac nhan csv");
+
+        let docx_chapters = read_chapters(&from_docx.store);
+        let csv_chapters = read_chapters(&from_csv.store);
+        assert_eq!(docx_chapters.len(), 1);
+        assert_eq!(docx_chapters[0].status, "in_progress");
+        let docx_segments = read_segments(&from_docx.store, docx_chapters[0].id);
+        assert_eq!(docx_segments.len(), 4);
+        assert_eq!(docx_segments, read_segments(&from_csv.store, csv_chapters[0].id));
+        assert!(docx_segments.iter().all(|s| s.translation_origin == "bilingual_import" && s.status == "draft"));
+
+        cleanup(&root);
+    }
+
+    #[test]
+    fn several_tables_without_a_choice_show_the_list_lock_confirm_and_write_nothing() {
+        let root = temp_dir("docx-two-tables");
+        let bytes = pack(
+            Docx::new()
+                .add_table(table(&[&["A nguon.", "A dich."]]))
+                .add_paragraph(para("Giua."))
+                .add_table(table(&[&["B nguon.", "B dich."], &["C nguon.", "C dich."]])),
+        );
+        let path = write_file(&root, "hai-bang.docx", &bytes);
+        let shape = import_bilingual_file(&path).expect("doc");
+
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("khong phai loi");
+        assert!(preview.table_choice_required);
+        assert_eq!(preview.table_index, None);
+        assert_eq!(preview.source_tables.len(), 2);
+        assert_eq!((preview.source_tables[0].row_count, preview.source_tables[1].row_count), (1, 2));
+        assert_eq!(preview.row_count, 0);
+        assert!(preview.candidates.is_empty());
+
+        let state = pending_state();
+        stash_pending_import_source(&state, shape, None);
+        let before = entry_count(&root);
+        let err = confirm(&root, &state, "Chua Chon", false, None).err().expect("chua chon phai bi tu choi");
+        assert_eq!(err.message_key(), MessageKey::ImportBilingualTableNotChosen);
+        assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
+        assert_eq!(entry_count(&root), before, "0 Work");
+
+        cleanup(&root);
+    }
+
+    #[test]
+    fn choosing_a_table_previews_and_writes_exactly_that_tables_rows() {
+        let root = temp_dir("docx-choose");
+        let bytes = pack(
+            Docx::new()
+                .add_table(table(&[&["A nguon.", "A dich."]]))
+                .add_table(table(&[&["B nguon.", "B dich."], &["C nguon.", "C dich."]])),
+        );
+        let path = write_file(&root, "chon-bang.docx", &bytes);
+        let shape = import_bilingual_file(&path).expect("doc");
+
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], Some(1)).expect("xem truoc");
+        assert_eq!(preview.table_index, Some(1));
+        assert!(!preview.table_choice_required);
+        assert_eq!(preview.row_count, 2);
+        assert_eq!(preview.sample_rows[0], vec!["B nguon.".to_owned(), "B dich.".to_owned()]);
+
+        let state = pending_state();
+        stash_pending_import_source(&state, shape, None);
+        let opened = confirm(&root, &state, "Bang Hai", false, Some(1)).expect("xac nhan");
+        let chapters = read_chapters(&opened.store);
+        let segments = read_segments(&opened.store, chapters[0].id);
+        let sources: Vec<&str> = segments.iter().map(|s| s.source_text.as_str()).collect();
+        assert_eq!(sources, vec!["B nguon.", "C nguon."]);
+
+        cleanup(&root);
+    }
+
+    #[test]
+    fn an_out_of_range_table_index_is_refused_naming_index_and_count_never_falling_back() {
+        let root = temp_dir("docx-out-of-range");
+        let bytes = pack(Docx::new().add_table(table(&[&["A nguon.", "A dich."]])).add_table(table(&[&["B nguon.", "B dich."]])));
+        let path = write_file(&root, "ngoai-khoang.docx", &bytes);
+        let shape = import_bilingual_file(&path).expect("doc");
+
+        let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], Some(2))
+            .err()
+            .expect("chi so ngoai khoang phai bi tu choi o man xem truoc");
+        assert_eq!(err.message_key(), MessageKey::ImportBilingualTableOutOfRange);
+        assert_eq!(err.params().get("index").map(String::as_str), Some("3"));
+        assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
+
+        let state = pending_state();
+        stash_pending_import_source(&state, shape, None);
+        let before = entry_count(&root);
+        let err = confirm(&root, &state, "Ngoai Khoang", false, Some(7)).err().expect("xac nhan cung bi tu choi");
+        assert_eq!(err.message_key(), MessageKey::ImportBilingualTableOutOfRange);
+        assert_eq!(entry_count(&root), before, "0 Work");
+
+        let single = pack(Docx::new().add_table(table(&[&["A nguon.", "A dich."]])));
+        let single_shape = import_bilingual_file(&write_file(&root, "mot.docx", &single)).expect("doc");
+        let err = preview_bilingual_import(&single_shape, "en", &[], None, 0, 1, false, &[], Some(1))
+            .err()
+            .expect("mot bang: chi so 1 van ngoai khoang");
+        assert_eq!(err.message_key(), MessageKey::ImportBilingualTableOutOfRange);
+
+        cleanup(&root);
+    }
+
+    fn no_table_refusal(bytes: Vec<u8>, name: &str) {
+        let root = temp_dir(name);
+        let path = write_file(&root, &format!("{name}.docx"), &bytes);
+        let err = import_bilingual_file(&path).err().expect("khong co bang hai cot phai bi tu choi");
+        assert_eq!(auratranslate_lib::core::i18n::IpcError::from(err).message_key(), MessageKey::ImportBilingualNoTable);
+        assert_eq!(entry_count(&root), 1, "0 Work");
+        cleanup(&root);
+    }
+
+    #[test]
+    fn a_docx_with_no_table_is_refused_as_having_no_two_column_table() {
+        no_table_refusal(pack(Docx::new().add_paragraph(para("Chi co doan van."))), "docx-no-table");
+    }
+
+    #[test]
+    fn a_docx_whose_only_two_column_table_is_nested_is_refused() {
+        let nested = table(&[&["N nguon.", "N dich."]]);
+        let outer = Table::new(vec![TableRow::new(vec![TableCell::new().add_paragraph(para("Ngoai.")).add_table(nested)])]);
+        no_table_refusal(pack(Docx::new().add_table(outer)), "docx-only-nested");
+    }
+
+    #[test]
+    fn a_one_column_table_with_a_blank_two_cell_row_is_refused_as_having_no_two_column_table() {
+        no_table_refusal(pack(Docx::new().add_table(table(&[&["Mot cot."], &["", ""]]))), "docx-blank-wide-row");
+    }
+
+    #[test]
+    fn a_docx_with_only_one_column_tables_is_refused() {
+        no_table_refusal(pack(Docx::new().add_table(table(&[&["Mot cot."], &["Van mot cot."]]))), "docx-one-column");
+    }
+
+    #[test]
+    fn a_nested_table_inside_a_two_column_table_does_not_count_and_does_not_refuse() {
+        let root = temp_dir("docx-nested-plus-top");
+        let nested = table(&[&["N nguon.", "N dich."]]);
+        let outer = Table::new(vec![TableRow::new(vec![
+            TableCell::new().add_paragraph(para("Nguon ngoai.")).add_table(nested),
+            cell("Dich ngoai."),
+        ])]);
+        let shape = import_bilingual_file(&write_file(&root, "long.docx", &pack(Docx::new().add_table(outer)))).expect("doc");
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        assert_eq!(preview.source_tables.len(), 1, "bang long khong vao danh sach");
+        assert!(!preview.table_choice_required);
+        cleanup(&root);
+    }
+
+    #[test]
+    fn a_one_column_table_beside_a_two_column_table_lists_only_the_two_column_one_and_uses_it() {
+        let root = temp_dir("docx-one-and-two");
+        let bytes = pack(Docx::new().add_table(table(&[&["Mot cot."]])).add_table(table(&[&["Nguon.", "Dich."]])));
+        let shape = import_bilingual_file(&write_file(&root, "mot-hai.docx", &bytes)).expect("doc");
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        assert_eq!(preview.source_tables.len(), 1);
+        assert_eq!(preview.table_index, Some(0));
+        assert_eq!(preview.sample_rows[0], vec!["Nguon.".to_owned(), "Dich.".to_owned()]);
+        cleanup(&root);
+    }
+
+    #[test]
+    fn a_multi_paragraph_cell_stays_in_one_cell_and_a_mismatched_row_locks_confirm() {
+        let root = temp_dir("docx-multi-paragraph");
+        let two_paragraphs = TableCell::new().add_paragraph(para("Doan mot.")).add_paragraph(para("Doan hai."));
+        let t = Table::new(vec![TableRow::new(vec![two_paragraphs, cell("Chi mot cau dich.")])]);
+        let shape = import_bilingual_file(&write_file(&root, "nhieu-doan.docx", &pack(Docx::new().add_table(t)))).expect("doc");
+
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        assert_eq!(preview.sample_rows[0][0], "Doan mot.\nDoan hai.");
+        let selected = &preview.candidates[0];
+        assert_eq!(selected.mismatches.len(), 1, "hang lech cap vao danh sach lech cap");
+
+        let state = pending_state();
+        stash_pending_import_source(&state, shape, None);
+        let err = confirm(&root, &state, "Lech", false, None).err().expect("lech cap khoa xac nhan");
+        assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
+
+        cleanup(&root);
+    }
+
+    #[test]
+    fn the_header_checkbox_drops_the_first_table_row_and_row_numbers_follow_the_table() {
+        let root = temp_dir("docx-header");
+        let bytes = pack(Docx::new().add_table(table(&[&["Nguon", "Dich"], &["", ""], &["Mot nguon.", "Mot dich."]])));
+        let shape = import_bilingual_file(&write_file(&root, "tieu-de.docx", &bytes)).expect("doc");
+
+        let off = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        let on = preview_bilingual_import(&shape, "en", &[], None, 0, 1, true, &[], None).expect("xem truoc");
+        assert_eq!(off.row_count, 2, "hang rong khong tinh");
+        assert_eq!(on.row_count, 1);
+        assert_eq!(on.sample_rows[0][0], "Mot nguon.");
+        cleanup(&root);
+    }
+
+    #[test]
+    fn a_csv_or_tsv_source_lists_no_tables_and_ignores_table_index() {
+        let root = temp_dir("docx-csv-no-tables");
+        let path = write_file(&root, "x.csv", b"Nguon.,Dich.\n");
+        let shape = import_bilingual_file(&path).expect("csv");
+        let preview = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], None).expect("xem truoc");
+        assert!(preview.source_tables.is_empty());
+        assert_eq!(preview.table_index, None);
+        assert!(!preview.table_choice_required);
+        cleanup(&root);
+    }
 }

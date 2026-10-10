@@ -312,6 +312,7 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
             1,
             false,
             Vec::new(),
+            None,
         )
         .unwrap_or_else(|e| panic!("confirm_bilingual_import({work_name}) thất bại: {e:?}"));
 

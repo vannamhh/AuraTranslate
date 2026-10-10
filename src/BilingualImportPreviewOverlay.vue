@@ -37,8 +37,10 @@ import {
   bilingualImportPreviewSkippedTargetSentenceCount,
   bilingualImportPreviewSourceColumn,
   bilingualImportPreviewStatus,
+  bilingualImportPreviewTableIndex,
   bilingualImportPreviewTargetColumn,
   selectBilingualEncoding,
+  setBilingualTableIndex,
   setBilingualChapterPattern,
   setBilingualHasHeader,
   setBilingualSourceColumn,
@@ -152,6 +154,12 @@ function onTargetColumnChange(event: Event): void {
 
 function onHasHeaderChange(event: Event): void {
   void setBilingualHasHeader((event.target as HTMLInputElement).checked)
+}
+
+function onTableChange(event: Event): void {
+  const raw = (event.target as HTMLSelectElement).value
+  if (raw === '') return
+  void setBilingualTableIndex(Number(raw))
 }
 
 function onCandidateChange(encoding: string, event: Event): void {
@@ -378,8 +386,45 @@ function trapTab(event: KeyboardEvent): void {
       </p>
 
       <template v-else-if="bilingualImportPreviewStatus === 'loaded' && bilingualImportPreview !== null">
+        <section v-if="bilingualImportPreview.source_tables.length > 0" class="bip-tier" aria-labelledby="bip-tier-table-title">
+          <h3 id="bip-tier-table-title" class="bip-tier-title">
+            {{ t('mode.library.preview.bilingual_table_title') }}
+          </h3>
+          <label class="bip-field">
+            <span>{{ t('mode.library.preview.bilingual_table_label') }}</span>
+            <select
+              id="bip-table-select"
+              :value="bilingualImportPreviewTableIndex === null ? '' : String(bilingualImportPreviewTableIndex)"
+              :disabled="bilingualImportPreviewConfirming"
+              @change="onTableChange"
+            >
+              <option v-if="bilingualImportPreviewTableIndex === null" value="" disabled>
+                {{ t('mode.library.preview.bilingual_table_unchosen') }}
+              </option>
+              <option v-for="table in bilingualImportPreview.source_tables" :key="table.index" :value="String(table.index)">
+                <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU. -->
+                {{
+                  t('mode.library.preview.bilingual_table_option', {
+                    index: String(table.index + 1),
+                    rows: String(table.row_count),
+                    columns: String(table.column_count),
+                    first: table.first_row.join(' | '),
+                  })
+                }}
+              </option>
+            </select>
+          </label>
+          <p v-if="bilingualImportPreview.table_choice_required" class="bip-status" role="status">
+            {{ t('mode.library.preview.bilingual_table_choice_required') }}
+          </p>
+        </section>
+
         <!-- ═══════════════════ Dải năm ứng viên bảng mã ═══════════════════ -->
-        <section class="bip-tier" aria-labelledby="bip-tier-encoding-title">
+        <section
+          v-if="bilingualImportPreview.source_tables.length === 0"
+          class="bip-tier"
+          aria-labelledby="bip-tier-encoding-title"
+        >
           <h3 id="bip-tier-encoding-title" class="bip-tier-title">
             {{ t('mode.library.preview.tier1_title') }}
           </h3>
@@ -412,7 +457,7 @@ function trapTab(event: KeyboardEvent): void {
         </section>
 
         <!-- ═══════════════════ Vai cột + tiêu đề + mẫu phân tách ═══════════════════ -->
-        <section class="bip-tier" aria-labelledby="bip-tier-columns-title">
+        <section v-if="!bilingualImportPreview.table_choice_required" class="bip-tier" aria-labelledby="bip-tier-columns-title">
           <h3 id="bip-tier-columns-title" class="bip-tier-title">
             {{ t('mode.library.preview.bilingual_columns_title') }}
           </h3>
@@ -480,7 +525,7 @@ function trapTab(event: KeyboardEvent): void {
         </section>
 
         <!-- ═══════════════════ Số đếm + hàng lệch cặp ═══════════════════ -->
-        <section class="bip-tier" aria-labelledby="bip-tier-counts-title">
+        <section v-if="!bilingualImportPreview.table_choice_required" class="bip-tier" aria-labelledby="bip-tier-counts-title">
           <h3 id="bip-tier-counts-title" class="bip-tier-title">
             {{ t('mode.library.preview.bilingual_counts_title') }}
           </h3>

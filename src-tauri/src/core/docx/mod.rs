@@ -143,6 +143,21 @@ pub struct DocxParsed {
     /// Byte thật của mọi ảnh nhúng phân giải được — xem [`DocxImage`].
     pub images: Vec<DocxImage>,
     pub body: Vec<DocxBodyItem>,
+    /// Indexes into `body` of tables nested inside another table's cell.
+    pub nested_table_body_indexes: Vec<usize>,
+}
+
+impl DocxParsed {
+    pub fn top_level_tables(&self) -> Vec<&Vec<Vec<String>>> {
+        self.body
+            .iter()
+            .enumerate()
+            .filter_map(|(i, item)| match item {
+                DocxBodyItem::Table(rows) if !self.nested_table_body_indexes.contains(&i) => Some(rows),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 /// Đọc trọn một `.docx` từ byte trong bộ nhớ — hàm THUẦN, không chạm đĩa ngoài `bytes` được
@@ -193,6 +208,7 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
     let mut tables: Vec<TableShape> = Vec::new();
     let mut first_text_seen = false;
     let mut body: Vec<DocxBodyItem> = Vec::new();
+    let mut nested_table_body_indexes: Vec<usize> = Vec::new();
 
     for item in &items {
         match item {
@@ -204,6 +220,7 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
                 body.push(DocxBodyItem::Table(table_cell_texts(t)));
                 tables.push(absorb_table(t, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
                 for n in nested {
+                    nested_table_body_indexes.push(body.len());
                     body.push(DocxBodyItem::Table(table_cell_texts(n)));
                     tables.push(absorb_table(n, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
                 }
@@ -248,7 +265,7 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         return Err(DocxError::EmptyText);
     }
 
-    Ok(DocxParsed { text, blocks, tables, images, body })
+    Ok(DocxParsed { text, blocks, tables, images, body, nested_table_body_indexes })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

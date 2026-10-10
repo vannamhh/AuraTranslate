@@ -125,6 +125,41 @@ pub struct BilingualEncodingCandidateWire {
     pub chapters: Option<ChapterSplitPreviewWire>,
 }
 
+/// `index` is the position in the filtered list (nested and 1-column tables excluded), not in the document.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BilingualSourceTableWire {
+    pub index: usize,
+    pub row_count: usize,
+    pub column_count: usize,
+    pub first_row: Vec<String>,
+}
+
+const SOURCE_TABLE_FIRST_ROW_CELL_CHARS: usize = 60;
+
+fn bilingual_source_tables(shape: &PipelineShape) -> Vec<BilingualSourceTableWire> {
+    let PipelineShape::BilingualTables { tables, .. } = shape else {
+        return Vec::new();
+    };
+    tables
+        .iter()
+        .enumerate()
+        .map(|(index, rows)| BilingualSourceTableWire {
+            index,
+            row_count: rows.len(),
+            column_count: crate::core::segment::bilingual::widest_row_column_count(rows),
+            first_row: rows
+                .first()
+                .map(|r| {
+                    r.cells
+                        .iter()
+                        .map(|c| c.chars().take(SOURCE_TABLE_FIRST_ROW_CELL_CHARS).collect())
+                        .collect()
+                })
+                .unwrap_or_default(),
+        })
+        .collect()
+}
+
 /// Dải năm ứng viên trên dây — Story 6.16, cùng khuôn [`ImportEncodingPreview`].
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BilingualImportEncodingPreview {
@@ -142,6 +177,23 @@ pub struct BilingualImportEncodingPreview {
     /// Số cột rộng nhất đếm được ở bảng mã ĐANG CHỌN — webview dùng để dựng danh sách lựa
     /// chọn cột nguồn/đích (0-based, `0..column_count`). `0` khi tệp rỗng.
     pub column_count: usize,
+    pub source_tables: Vec<BilingualSourceTableWire>,
+    pub table_index: Option<usize>,
+    pub table_choice_required: bool,
+}
+
+fn empty_bilingual_preview() -> BilingualImportEncodingPreview {
+    BilingualImportEncodingPreview {
+        confidence: ConfidenceWire::SelfDeclared,
+        selected_encoding: encoding_rs::UTF_8.name().to_owned(),
+        candidates: Vec::new(),
+        sample_rows: Vec::new(),
+        row_count: 0,
+        column_count: 0,
+        source_tables: Vec::new(),
+        table_index: None,
+        table_choice_required: false,
+    }
 }
 
 /// **Hàm thuần** — dò bảng mã VÀ chạy TRỌN chuỗi bảy bước cho MỖI ứng viên (AD-39: "table
@@ -176,6 +228,7 @@ pub fn preview_bilingual_import(
     // (lượt MỞ đầu tiên) luôn truyền `&[]`; `rebuild_bilingual_import_preview` truyền lại danh
     // sách hiện hành mỗi lượt người dùng sửa một chỗ cắt.
     regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
+    table_index: Option<usize>,
 ) -> Result<BilingualImportEncodingPreview, IpcError> {
     // Source column == target column must be refused here, at the IPC boundary, not only
     // by the webview's own column-swap guard: callers other than that UI can reach this
@@ -183,18 +236,43 @@ pub fn preview_bilingual_import(
     if bilingual_source_column == bilingual_target_column {
         return Err(ImportError::BilingualSameColumn { column: bilingual_source_column }.into());
     }
-    let PipelineShape::Bilingual { input, .. } = shape else {
-        // Chỉ `mod wire` dựng `shape` cho hàm này, luôn từ `import_bilingual_file` — nhánh
-        // này là phòng thủ kiểu (một lỗi lập trình, không một đường sản phẩm), không phải
-        // một trạng thái người dùng gây ra được.
+    if let PipelineShape::BilingualTables { .. } = shape {
+        let source_tables = bilingual_source_tables(shape);
+        let rows_shape = match select_bilingual_table(shape, table_index) {
+            Ok(rows_shape) => rows_shape,
+            Err(ImportError::BilingualTableNotChosen { .. }) => {
+                return Ok(BilingualImportEncodingPreview {
+                    source_tables,
+                    table_choice_required: true,
+                    ..empty_bilingual_preview()
+                });
+            }
+            Err(err) => return Err(err.into()),
+        };
+        let outcome = run_pipeline(
+            PipelineInput::with_encoding(rows_shape, encoding_rs::UTF_8, source_lang)
+                .with_cleanup_rules(cleanup_rules.to_vec())
+                .with_chapter_pattern(chapter_pattern.cloned())
+                .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header)
+                .with_bilingual_regroupings(regroupings.to_vec()),
+        )
+        .map_err(IpcError::from)?;
+        let sample_rows = outcome.bilingual_sample_rows.clone();
+        let row_count = outcome.bilingual_row_count;
+        let column_count = sample_rows.iter().map(Vec::len).max().unwrap_or(0);
+        let candidate = bilingual_candidate_wire("docx", encoding_rs::UTF_8.name(), None, Some(&outcome));
         return Ok(BilingualImportEncodingPreview {
-            confidence: ConfidenceWire::SelfDeclared,
-            selected_encoding: encoding_rs::UTF_8.name().to_owned(),
-            candidates: Vec::new(),
-            sample_rows: Vec::new(),
-            row_count: 0,
-            column_count: 0,
+            candidates: vec![candidate],
+            sample_rows,
+            row_count,
+            column_count,
+            source_tables,
+            table_index: Some(table_index.unwrap_or(0)),
+            ..empty_bilingual_preview()
         });
+    }
+    let PipelineShape::Bilingual { input, .. } = shape else {
+        return Ok(empty_bilingual_preview());
     };
     let bytes: &[u8] = match input {
         ChapterInput::RawBytes { bytes, .. } => bytes,
@@ -246,57 +324,16 @@ pub fn preview_bilingual_import(
                     None => None,
                 };
 
-                let (chapter_count, pair_count, mismatches, row_count, column_count, skipped_target_sentence_count, chapters_wire) =
-                    match &outcome {
-                        Some(o) => {
-                            let pair_count: usize = o
-                                .chapters
-                                .iter()
-                                .filter_map(|c| c.bilingual_segments.as_ref())
-                                .map(|s| s.len())
-                                .sum();
-                            let mismatches: Vec<BilingualMismatchWire> =
-                                o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect();
-                            let column_count =
-                                o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
-                            // **THÊM (Story 6.16b)** — tầng 4 (Story 6.10), TÍNH LẠI trên CHÍNH
-                            // lượt chạy chuỗi thật vừa dựng `o.chapters` ở trên (không một lượt
-                            // `run_pipeline` thứ hai). `broken_item_count = 0`, `origin_overrides
-                            // = &[]` — xem doc-comment `BilingualEncodingCandidateWire::chapters`.
-                            let chapters_wire = build_chapter_split_preview_wire(&o.chapters, 0, &[]);
-                            (
-                                o.chapters.len(),
-                                pair_count,
-                                mismatches,
-                                o.bilingual_row_count,
-                                column_count,
-                                o.bilingual_skipped_target_sentence_count,
-                                Some(chapters_wire),
-                            )
-                        }
-                        None => (0, 0, Vec::new(), 0, 0, 0, None),
-                    };
-
                 if is_selected && !selected_seen {
                     selected_seen = true;
                     if let Some(o) = &outcome {
                         selected_sample_rows = o.bilingual_sample_rows.clone();
-                        selected_row_count = row_count;
-                        selected_column_count = column_count;
+                        selected_row_count = o.bilingual_row_count;
+                        selected_column_count = o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
                     }
                 }
 
-                BilingualEncodingCandidateWire {
-                    label: c.label.to_owned(),
-                    encoding: c.wire_id.to_owned(),
-                    preview: c.preview,
-                    row_count,
-                    chapter_count,
-                    pair_count,
-                    skipped_target_sentence_count,
-                    mismatches,
-                    chapters: chapters_wire,
-                }
+                bilingual_candidate_wire(c.label, c.wire_id, c.preview, outcome.as_ref())
             })
             .collect()
     };
@@ -312,7 +349,46 @@ pub fn preview_bilingual_import(
         sample_rows: selected_sample_rows,
         row_count: selected_row_count,
         column_count: selected_column_count,
+        source_tables: Vec::new(),
+        table_index: None,
+        table_choice_required: false,
     })
+}
+
+fn bilingual_candidate_wire(
+    label: &str,
+    encoding: &str,
+    preview: Option<String>,
+    outcome: Option<&crate::core::segment::pipeline::PipelineOutput>,
+) -> BilingualEncodingCandidateWire {
+    match outcome {
+        Some(o) => {
+            let pair_count: usize =
+                o.chapters.iter().filter_map(|c| c.bilingual_segments.as_ref()).map(|s| s.len()).sum();
+            BilingualEncodingCandidateWire {
+                label: label.to_owned(),
+                encoding: encoding.to_owned(),
+                preview,
+                row_count: o.bilingual_row_count,
+                chapter_count: o.chapters.len(),
+                pair_count,
+                skipped_target_sentence_count: o.bilingual_skipped_target_sentence_count,
+                mismatches: o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect(),
+                chapters: Some(build_chapter_split_preview_wire(&o.chapters, 0, &[])),
+            }
+        }
+        None => BilingualEncodingCandidateWire {
+            label: label.to_owned(),
+            encoding: encoding.to_owned(),
+            preview,
+            row_count: 0,
+            chapter_count: 0,
+            pair_count: 0,
+            skipped_target_sentence_count: 0,
+            mismatches: Vec::new(),
+            chapters: None,
+        },
+    }
 }
 
 /// **Hàm thuần** — lõi lượt xác nhận song ngữ: CLONE nguồn đang chờ từ
@@ -341,6 +417,7 @@ pub fn confirm_bilingual_import(
     // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm câu đích, cùng khuôn ba tham số vai
     // cột/tiêu đề ngay trên (tham số MỖI LƯỢT, không state).
     regroupings: Vec<crate::core::segment::bilingual::BilingualRegrouping>,
+    table_index: Option<usize>,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -348,6 +425,7 @@ pub fn confirm_bilingual_import(
 
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    let shape = select_bilingual_table(&shape, table_index)?;
 
     let opened = create_work(
         documents_root,

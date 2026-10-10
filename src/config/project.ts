@@ -777,6 +777,13 @@ export type BilingualEncodingCandidateWire = {
   chapters: ChapterSplitPreviewWire | null
 }
 
+export type BilingualSourceTableWire = {
+  index: number
+  row_count: number
+  column_count: number
+  first_row: string[]
+}
+
 /** Dải năm ứng viên — khớp `commands::project::BilingualImportEncodingPreview`. */
 export type BilingualImportEncodingPreview = {
   confidence: ImportConfidence
@@ -787,6 +794,9 @@ export type BilingualImportEncodingPreview = {
   sample_rows: string[][]
   row_count: number
   column_count: number
+  source_tables: BilingualSourceTableWire[]
+  table_index: number | null
+  table_choice_required: boolean
 }
 
 /** Ba trạng thái, cùng khuôn `ImportEncodingPreviewResult`. */
@@ -841,6 +851,17 @@ function isStringRow(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((cell) => typeof cell === 'string')
 }
 
+function isBilingualSourceTableWire(value: unknown): value is BilingualSourceTableWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BilingualSourceTableWire>
+  return (
+    typeof v.index === 'number' &&
+    typeof v.row_count === 'number' &&
+    typeof v.column_count === 'number' &&
+    isStringRow(v.first_row)
+  )
+}
+
 function isBilingualImportEncodingPreview(value: unknown): value is BilingualImportEncodingPreview {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<BilingualImportEncodingPreview>
@@ -852,7 +873,11 @@ function isBilingualImportEncodingPreview(value: unknown): value is BilingualImp
     Array.isArray(v.sample_rows) &&
     v.sample_rows.every(isStringRow) &&
     typeof v.row_count === 'number' &&
-    typeof v.column_count === 'number'
+    typeof v.column_count === 'number' &&
+    Array.isArray(v.source_tables) &&
+    v.source_tables.every(isBilingualSourceTableWire) &&
+    (v.table_index === null || typeof v.table_index === 'number') &&
+    typeof v.table_choice_required === 'boolean'
   )
 }
 
@@ -865,6 +890,7 @@ export async function previewBilingualImportFromFile(
   sourceColumn: number,
   targetColumn: number,
   hasHeader: boolean,
+  tableIndex: number | null,
 ): Promise<BilingualImportEncodingPreviewResult> {
   try {
     const preview = await invoke<BilingualImportEncodingPreview>(CMD_PREVIEW_BILINGUAL_FROM_FILE, {
@@ -874,6 +900,7 @@ export async function previewBilingualImportFromFile(
       sourceColumn,
       targetColumn,
       hasHeader,
+      tableIndex,
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(
@@ -906,6 +933,7 @@ export async function rebuildBilingualImportPreview(
   targetColumn: number,
   hasHeader: boolean,
   regroupings: BilingualRegroupingInput[],
+  tableIndex: number | null,
 ): Promise<BilingualImportEncodingPreviewResult> {
   try {
     const preview = await invoke<BilingualImportEncodingPreview>(CMD_REBUILD_BILINGUAL_PREVIEW, {
@@ -915,6 +943,7 @@ export async function rebuildBilingualImportPreview(
       targetColumn,
       hasHeader,
       regroupings,
+      tableIndex,
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(
@@ -948,6 +977,7 @@ export async function confirmBilingualImport(
   targetColumn: number,
   hasHeader: boolean,
   regroupings: BilingualRegroupingInput[],
+  tableIndex: number | null,
 ): Promise<CreateWorkResult> {
   return callCreateWork(CMD_CONFIRM_BILINGUAL_IMPORT, {
     name,
@@ -959,6 +989,7 @@ export async function confirmBilingualImport(
     targetColumn,
     hasHeader,
     regroupings,
+    tableIndex,
   })
 }
 

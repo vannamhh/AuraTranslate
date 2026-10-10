@@ -212,6 +212,15 @@ pub enum PipelineShape {
         input: ChapterInput,
         delimiter: crate::core::glossary::exchange::Delimiter,
     },
+    /// Only stashed; `select_bilingual_table` must turn it into `BilingualRows` before `run_import`.
+    BilingualTables {
+        label: String,
+        tables: Vec<Vec<BilingualRow>>,
+    },
+    BilingualRows {
+        label: String,
+        rows: Vec<BilingualRow>,
+    },
     /// **THÊM 2026-09-15 (Story 6.6b, FR14 mở rộng)** — N tệp `.txt`/`.md` rời, mỗi tệp một
     /// đơn vị NGAY TỪ ĐẦU — khác [`PipelineShape::Chapters`] (đã chia Chương, [`Step::SplitChapters`]
     /// BỎ QUA hoàn toàn): ở đây bước 5 VẪN CHẠY, chỉ chạy TRÊN TỪNG đơn vị riêng thay vì trên
@@ -518,6 +527,11 @@ impl From<ChapterInput> for Unit {
     }
 }
 
+enum BilingualSource {
+    Delimited(crate::core::glossary::exchange::Delimiter),
+    Rows(Vec<BilingualRow>),
+}
+
 /// Trạng thái đầy đủ chảy qua từng bước.
 struct Flow {
     units: Vec<Unit>,
@@ -720,12 +734,12 @@ pub fn run_import_with_order(
     // `bilingual_delimiter` — biến cục bộ, KHÔNG một trường `Flow` (cùng khuôn `source_lang`/
     // `cleanup_rules`/`chapter_pattern`: không đổi qua các bước, nên bắt trong closure của
     // vòng lặp là đủ, không cần thêm một chỗ để mà destructure/tái dựng mỗi nhánh `match`).
-    let (initial_units, initial_labels, already_chaptered, is_files, bilingual_delimiter): (
+    let (initial_units, initial_labels, already_chaptered, is_files, bilingual_source): (
         Vec<Unit>,
         Vec<String>,
         bool,
         bool,
-        Option<crate::core::glossary::exchange::Delimiter>,
+        Option<BilingualSource>,
     ) = match shape {
         PipelineShape::Blob(c) => {
             let label = label_of(&c);
@@ -737,7 +751,19 @@ pub fn run_import_with_order(
         }
         PipelineShape::Bilingual { input, delimiter } => {
             let label = label_of(&input);
-            (vec![Unit::from(input)], vec![label], false, false, Some(delimiter))
+            (vec![Unit::from(input)], vec![label], false, false, Some(BilingualSource::Delimited(delimiter)))
+        }
+        PipelineShape::BilingualRows { label, rows } => (
+            vec![Unit::Decoded(String::new())],
+            vec![label],
+            false,
+            false,
+            Some(BilingualSource::Rows(rows)),
+        ),
+        PipelineShape::BilingualTables { .. } => {
+            return Err(ImportError::InvalidPipelineOrder {
+                detail: "bang .docx phai duoc chon truoc khi vao chuoi".to_owned(),
+            });
         }
         // **THÊM 2026-09-15 (Story 6.6b)** — N tệp, mỗi tệp một đơn vị NGAY TỪ ĐẦU, nhãn GIỮ
         // NGUYÊN (khác `Blob`, nơi bước 5 xoá nhãn về rỗng) — pieces phía sau kế thừa nhãn của
@@ -773,6 +799,7 @@ pub fn run_import_with_order(
     // gán nó, nên không có lý do bắt MỌI nhánh `match` khác destructure/tái dựng thêm một
     // trường mà chúng không đọc. Đọc lại SAU vòng lặp, lúc lắp `PipelineOutput`.
     let mut bilingual_skipped_target_sentence_count = 0usize;
+    let mut bilingual_source = bilingual_source;
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
@@ -786,39 +813,33 @@ pub fn run_import_with_order(
                 // parsing happens right after decode, inside the chain, and re-runs on every
                 // encoding candidate". Chỉ `bilingual_delimiter.is_some()` (hình dạng
                 // `PipelineShape::Bilingual`, ĐÚNG MỘT đơn vị) đi nhánh này.
-                let bilingual_rows = match bilingual_delimiter {
-                    Some(delimiter) => {
-                        let Some(Unit::Decoded(text)) = units.first() else {
-                            return Err(ImportError::InvalidPipelineOrder {
-                                detail: "buoc bang phai chay sau khi giai ma xong".to_owned(),
-                            });
-                        };
-                        let mut rows = super::bilingual::parse_rows(text, delimiter).map_err(|issue| {
-                            match issue {
-                                super::bilingual::BilingualParseIssue::UnterminatedQuotedField { row } => {
-                                    ImportError::BilingualUnterminatedQuotedField { row }
-                                }
-                                super::bilingual::BilingualParseIssue::TooFewColumns { found } => {
-                                    ImportError::BilingualTooFewColumns { found }
-                                }
-                                // Programming-error class, same as the chain-state guard just
-                                // above: the tokenizer returned something `parse_rows` never
-                                // expects. Typed, never a panic.
-                                super::bilingual::BilingualParseIssue::UnexpectedTokenizerIssue { detail } => {
-                                    ImportError::InvalidPipelineOrder { detail: format!("bilingual tokenizer: {detail}") }
-                                }
+                let bilingual_rows = match bilingual_source.take() {
+                    Some(source) => {
+                        let mut rows = match source {
+                            BilingualSource::Delimited(delimiter) => {
+                                let Some(Unit::Decoded(text)) = units.first() else {
+                                    return Err(ImportError::InvalidPipelineOrder {
+                                        detail: "buoc bang phai chay sau khi giai ma xong".to_owned(),
+                                    });
+                                };
+                                super::bilingual::parse_rows(text, delimiter).map_err(|issue| match issue {
+                                    super::bilingual::BilingualParseIssue::UnterminatedQuotedField { row } => {
+                                        ImportError::BilingualUnterminatedQuotedField { row }
+                                    }
+                                    super::bilingual::BilingualParseIssue::TooFewColumns { found } => {
+                                        ImportError::BilingualTooFewColumns { found }
+                                    }
+                                    super::bilingual::BilingualParseIssue::UnexpectedTokenizerIssue { detail } => {
+                                        ImportError::InvalidPipelineOrder { detail: format!("bilingual tokenizer: {detail}") }
+                                    }
+                                })?
                             }
-                        })?;
-                        // §I/O Matrix "Fewer than 2 columns" — refused BEFORE the header row
-                        // is dropped or anything is grouped into a Chapter (this runs right
-                        // after table-parse, still inside `Step::DecodeEncoding`).
+                            BilingualSource::Rows(rows) => rows,
+                        };
                         let found = super::bilingual::widest_row_column_count(&rows);
                         if found < 2 {
                             return Err(ImportError::BilingualTooFewColumns { found });
                         }
-                        // §Always — "row 1 is dropped before the chapter split". Chạy ở đây
-                        // (chưa gì đọc `rows` sau bước này ngoài bước 5) thoả điều kiện đó mà
-                        // không cần một bước riêng.
                         if bilingual_has_header && !rows.is_empty() {
                             rows.remove(0);
                         }
