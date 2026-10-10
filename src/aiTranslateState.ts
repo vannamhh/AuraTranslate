@@ -35,6 +35,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { cancelAiTranslateCall, runAiTranslateSegment } from './config/aitranslate'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
+import { nextAiTranslateRunStamp } from './aiTranslateRunClock'
 
 /** Đúng năm giá trị của §Always spec 4.8 — không giá trị thứ sáu. */
 export type AiTranslateState = 'not_configured' | 'generating' | 'done' | 'error' | 'cancelled'
@@ -45,6 +46,7 @@ const accumulatedText = ref('')
 const error = shallowRef<IpcError | null>(null)
 /** `segment.id` mà lượt dịch hiện tại/gần nhất được khởi cho — xem doc-comment đầu tệp. */
 const runSegmentId = shallowRef<number | null>(null)
+const startStamp = ref(0)
 /**
  * Số liệu sử dụng + ước tính chi phí của lượt dịch gần nhất — Story 4.11. Có nghĩa khi và chỉ
  * khi [`aiTranslateStateValue`] là `'done'`; `null` ở MỌI trạng thái khác (kể cả `'done'` khi
@@ -67,6 +69,7 @@ export const aiTranslateAccumulatedText: DeepReadonly<Ref<string>> = readonly(ac
 /** Lỗi của lượt dịch gần nhất — có nghĩa khi và chỉ khi [`aiTranslateStateValue`] là `'error'`. */
 export const aiTranslateError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 export const aiTranslateRunSegmentId: DeepReadonly<Ref<number | null>> = readonly(runSegmentId)
+export const aiTranslateStartStamp: DeepReadonly<Ref<number>> = readonly(startStamp)
 export const aiTranslateUsage: DeepReadonly<Ref<AiTranslateUsageWire | null>> = readonly(usage)
 
 /**
@@ -107,6 +110,7 @@ export async function runAiTranslate(promptSetName: string | null, segmentId: nu
 
   const mine = ++sequence
   runSegmentId.value = segmentId
+  startStamp.value = nextAiTranslateRunStamp()
   state.value = 'generating'
   accumulatedText.value = ''
   error.value = null
@@ -179,5 +183,6 @@ export function resetAiTranslate(): void {
   accumulatedText.value = ''
   error.value = null
   runSegmentId.value = null
+  startStamp.value = 0
   usage.value = null
 }

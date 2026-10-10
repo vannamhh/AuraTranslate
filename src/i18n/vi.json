@@ -51,6 +51,7 @@
   "err.segment.unknown_ids": "{count} câu trong lượt lưu không thuộc Chương số {chapter_id} — chưa có bản dịch nào được ghi xuống.",
   "err.segment.not_found": "Không tìm thấy câu số {segment_id} trong Tác phẩm đang mở — không có gì thay đổi.",
   "err.segment.retired": "Câu số {segment_id} đã về hưu sau một lượt gộp hoặc tách — không sửa được nữa.",
+  "err.segment.not_in_open_chapter": "Câu số {segment_id} không thuộc Chương số {chapter_id} đang mở — chưa có bản dịch nào được ghi xuống.",
   "err.segment.nothing_to_confirm": "Câu số {segment_id} chưa có bản dịch — chưa có gì để xác nhận.",
   "err.segment.unknown_translation_origin": "Câu số {segment_id} mang một giá trị xuất xứ bản dịch chưa được nhận ({value}) — chưa xác nhận được, và không có gì bị thay đổi.",
   "err.segment.ends_chapter": "Câu số {segment_id} là câu cuối Chương — không đặt được chỗ ngắt đoạn sau nó.",

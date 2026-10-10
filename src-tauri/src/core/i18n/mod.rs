@@ -272,6 +272,7 @@ message_keys! {
     /// dựng trạng thái về hưu bằng SQL trong fixture, nên nhánh **được chạy**, không chỉ
     /// được biên dịch.
     SegmentRetired => "err.segment.retired" ["segment_id"],
+    SegmentNotInOpenChapter => "err.segment.not_in_open_chapter" ["segment_id", "chapter_id"],
     /// Xác nhận một câu **chưa dịch** (`target_text` rỗng) ⇒ từ chối — Quyết định #7,
     /// Ice ký 2026-08-14.
     ///

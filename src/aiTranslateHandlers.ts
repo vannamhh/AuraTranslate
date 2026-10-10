@@ -2,15 +2,18 @@ import {
   aiTranslateBatchError,
   aiTranslateBatchRetryIds,
   aiTranslateBatchRows,
+  aiTranslateBatchStartStamp,
   aiTranslateBatchStateValue,
   aiTranslateBatchTextForSegment,
   cancelAiTranslateBatch,
+  retryAiTranslateBatch,
   runAiTranslateBatch,
 } from './aiTranslateBatchState'
 import {
   aiTranslateAccumulatedText,
   aiTranslateError,
   aiTranslateRunSegmentId,
+  aiTranslateStartStamp,
   aiTranslateStateValue,
   cancelAiTranslate,
   runAiTranslate,
@@ -41,15 +44,19 @@ export const aiTranslateHandlers = {
     const state = aiTranslateStateValue.value
     const segmentId = aiTranslateRunSegmentId.value
     const text = aiTranslateAccumulatedText.value
-    if ((state === 'done' || state === 'cancelled') && segmentId !== null && text !== '') {
-      void promoteAiTranslationToEditor(segmentId, text)
-      return
-    }
+    const singleUsable = (state === 'done' || state === 'cancelled') && segmentId !== null && text !== ''
 
     const caretId = editorCaretSegmentId.value
     const batchText = caretId === null ? null : aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId)
-    if (batchText !== null && caretId !== null) {
+    const batchUsable = batchText !== null && caretId !== null
+
+    const batchIsNewer = aiTranslateBatchStartStamp.value > aiTranslateStartStamp.value
+    if (batchUsable && (batchIsNewer || !singleUsable)) {
       void promoteAiTranslationToEditor(caretId, batchText)
+      return
+    }
+    if (singleUsable) {
+      void promoteAiTranslationToEditor(segmentId, text)
       return
     }
 
@@ -108,6 +115,6 @@ export const aiTranslateHandlers = {
       console.warn('[ai-translate-batch] khong retry: khong con cau nao chua chay')
       return
     }
-    void runAiTranslateBatch(selectedPromptSetName.value, ids)
+    void retryAiTranslateBatch(selectedPromptSetName.value, ids)
   },
 }

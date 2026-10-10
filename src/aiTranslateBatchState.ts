@@ -53,6 +53,7 @@ import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { cancelAiTranslateCall, runAiTranslateBatchCall } from './config/aitranslate'
 import type { AiTranslateBatchEventWire, AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
+import { nextAiTranslateRunStamp } from './aiTranslateRunClock'
 
 /** Xem doc-comment đầu tệp §"Trạng thái mỗi hàng" cho ý nghĩa và thứ tự chuyển của sáu giá trị. */
 export type AiTranslateBatchRowStatus = 'pending' | 'running' | 'done' | 'skipped' | 'cancelled' | 'error'
@@ -80,6 +81,7 @@ export type AiTranslateBatchState = 'not_configured' | 'generating' | 'done' | '
 const state = ref<AiTranslateBatchState>('not_configured')
 const rows = ref<AiTranslateBatchRow[]>([])
 const error = shallowRef<IpcError | null>(null)
+const startStamp = ref(0)
 
 /** Cùng cơ chế `sequence` của `aiTranslateState.ts` — vô hiệu hoá khung/kết quả TRỄ của một
  * lượt đã bị [`resetAiTranslateBatch`] hoặc một lượt CHẠY MỚI vượt mặt. */
@@ -90,6 +92,7 @@ let rowIndexBySegmentId = new Map<number, number>()
 
 export const aiTranslateBatchStateValue: DeepReadonly<Ref<AiTranslateBatchState>> = readonly(state)
 export const aiTranslateBatchRows: DeepReadonly<Ref<AiTranslateBatchRow[]>> = readonly(rows)
+export const aiTranslateBatchStartStamp: DeepReadonly<Ref<number>> = readonly(startStamp)
 /** Lỗi của lô gần nhất — có nghĩa khi và chỉ khi [`aiTranslateBatchStateValue`] là `'error'`. */
 export const aiTranslateBatchError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 
@@ -214,10 +217,36 @@ export async function runAiTranslateBatch(
     return
   }
 
-  const mine = ++sequence
   const ids = segmentIds.slice()
   rowIndexBySegmentId = new Map(ids.map((id, index) => [id, index]))
   rows.value = ids.map((id) => ({ segmentId: id, status: 'pending', text: '', usage: null }))
+  await streamBatch(promptSetName, ids)
+}
+
+/** Finished rows are kept; ids absent from the current batch are ignored. */
+export async function retryAiTranslateBatch(
+  promptSetName: string | null,
+  segmentIds: readonly number[],
+): Promise<void> {
+  if (state.value === 'generating') {
+    console.warn('[ai-translate-batch] khong retry: mot lo khac dang chay')
+    return
+  }
+  const ids = segmentIds.filter((id) => rowIndexBySegmentId.has(id))
+  if (ids.length === 0) {
+    console.warn('[ai-translate-batch] khong retry: khong co hang nao de chay lai')
+    return
+  }
+  for (const id of ids) {
+    const index = rowIndexBySegmentId.get(id)
+    if (index !== undefined) setRowAt(index, { status: 'pending', text: '', usage: null })
+  }
+  await streamBatch(promptSetName, ids)
+}
+
+async function streamBatch(promptSetName: string | null, ids: number[]): Promise<void> {
+  const mine = ++sequence
+  startStamp.value = nextAiTranslateRunStamp()
   state.value = 'generating'
   error.value = null
 
@@ -259,7 +288,12 @@ export async function runAiTranslateBatch(
     // `ai_translate_contract.rs`): đoạn đã nhận trước khi provider trượt vẫn ở lại màn hình.
     const failedSegmentId = Number(result.error.params.segment_id)
     const index = Number.isNaN(failedSegmentId) ? undefined : rowIndexBySegmentId.get(failedSegmentId)
-    if (index !== undefined) setRowAt(index, { status: 'error' })
+    if (index !== undefined) {
+      setRowAt(index, { status: 'error' })
+    } else {
+      const runningIndex = rows.value.findIndex((r) => r.status === 'running')
+      if (runningIndex !== -1) setRowAt(runningIndex, { status: 'error' })
+    }
     return
   }
 
@@ -309,5 +343,6 @@ export function resetAiTranslateBatch(): void {
   state.value = 'not_configured'
   rows.value = []
   error.value = null
+  startStamp.value = 0
   rowIndexBySegmentId = new Map()
 }

@@ -125,6 +125,10 @@ function walk(dir, out = [], seen = new Set()) {
  */
 const EXEMPT = new Map([
   [
+    'src/aiTranslateRunClock.ts::stamp',
+    'Bộ đếm đơn điệu để so thứ tự giữa lượt dịch đơn và lô; không mang danh tính Tác phẩm nên không cần reset.',
+  ],
+  [
     'src/panels/lookupTiming.ts::enabled',
     'Công tắc chẩn đoán do NGƯỜI ĐO bật, không một mẩu state của phiên. `resetLookupTiming()` ' +
       'cố ý không chạm nó: dọn nó là tự tắt bàn đo giữa một lượt đo.',

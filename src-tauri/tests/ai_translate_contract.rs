@@ -1631,6 +1631,47 @@ fn promoting_into_a_retired_segment_is_refused_and_leaves_the_tombstone_untouche
     cleanup(&work_dir);
 }
 
+#[test]
+fn promoting_into_a_segment_outside_the_open_chapter_is_refused_and_writes_nothing() {
+    let work_dir = temp_dir("promote-other-chapter");
+    let mut open = open_work(&work_dir, "PromoteOtherChapter", "en", "A dragon roared.");
+    let segment_id = first_segment_id(&open);
+    let first_chapter = open.chapter_id;
+
+    let second_chapter = open
+        .store
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (2, NULL, 'Other.', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [],
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen Chuong thu hai that bai");
+    open.chapter_id = second_chapter;
+
+    let (text_before, origin_before) = read_text_and_origin(&open, segment_id);
+
+    for force in [false, true] {
+        let err = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", force)
+            .err()
+            .expect("promote vao segment ngoai Chuong dang mo phai la Err");
+        assert_eq!(err.code(), "segment.not_in_open_chapter");
+        assert_eq!(err.message_key(), MessageKey::SegmentNotInOpenChapter);
+        assert_eq!(err.params().get("segment_id"), Some(&segment_id.to_string()));
+        assert_eq!(err.params().get("chapter_id"), Some(&second_chapter.to_string()));
+        assert!(!err.retryable());
+    }
+
+    assert_eq!(read_text_and_origin(&open, segment_id), (text_before, origin_before));
+    assert_ne!(first_chapter, second_chapter);
+
+    drop(open);
+    cleanup(&work_dir);
+}
+
 fn read_text_and_origin(open: &OpenWork, id: i64) -> (String, String) {
     open.store
         .read(move |conn| {

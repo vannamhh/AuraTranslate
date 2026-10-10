@@ -621,7 +621,10 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     expect(runBatchMock).toHaveBeenCalledTimes(1)
     expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function))
     expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
-    expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([12, 13])
+    expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([11, 12, 13])
+    expect(batchState.aiTranslateBatchRows.value.map((r) => r.status)).toEqual(['done', 'pending', 'pending'])
+    expect(batchState.aiTranslateBatchRows.value[0]?.text).toBe('Ket qua 1')
+    expect(batchState.aiTranslateBatchRows.value[1]?.text).toBe('')
 
     fake2.emit({ kind: 'token', segment_id: 12, text: 'z' })
     fake2.emit({ kind: 'done', segment_id: 12, usage: null })
@@ -987,6 +990,147 @@ describe('dispatch("ai.translate.promote") — nhánh dự phòng LÔ của main
     expect(promoteMock).not.toHaveBeenCalled()
     expect(warnSpy).toHaveBeenCalled()
 
+    wrapper.unmount()
+  })
+})
+
+describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt bắt đầu sau cùng (C2)', () => {
+  async function startBatch(
+    ctx: Awaited<ReturnType<typeof freshPanel>>,
+    wrapperPanel: Component,
+    from: number,
+    extend: number,
+  ) {
+    ctx.editorState.setEditorCaret(from)
+    ctx.selectionState.resetSegmentSelection()
+    for (let i = 0; i < extend; i += 1) ctx.selectionState.extendSegmentSelectionDown()
+    const fake = pendingBatchRun()
+    const wrapper = mountPanel(wrapperPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+    return { fake, wrapper }
+  }
+
+  async function finishSingle(ctx: Awaited<ReturnType<typeof freshPanel>>, segmentId: number, text: string) {
+    ctx.editorState.setEditorCaret(segmentId)
+    const single = pendingSegmentRun()
+    ctx.commands.dispatch('ai.translate.run')
+    await flushPromises()
+    single.token(text)
+    single.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+  }
+
+  async function finishBatch(fake: ReturnType<typeof pendingBatchRun>, ids: number[], prefix: string) {
+    for (const id of ids) {
+      fake.emit({ kind: 'token', segment_id: id, text: `${prefix}${id}` })
+      fake.emit({ kind: 'done', segment_id: id, usage: null })
+    }
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+  }
+
+  it('C1: thử lại sau lỗi ở 12 ⇒ IPC nhận [12, 13], hàng 11 vẫn done và promote ghi văn bản cũ vào 11', async () => {
+    const ctx = await freshPanel()
+    const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 11, 2)
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
+    fake.settle({ value: null, error: PROVIDER_UNREACHABLE_ON_12 })
+    await flushPromises()
+
+    runBatchMock.mockClear()
+    const fake2 = pendingBatchRun()
+    ctx.commands.dispatch('ai.translate.batch_retry')
+    await flushPromises()
+
+    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function))
+    expect(ctx.batchState.aiTranslateBatchRows.value.map((r) => [r.segmentId, r.status, r.text])).toEqual([
+      [11, 'done', 'Ket qua 1'],
+      [12, 'pending', ''],
+      [13, 'pending', ''],
+    ])
+
+    ctx.editorState.setEditorCaret(11)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).toHaveBeenCalledWith(11, 'Ket qua 1')
+
+    fake2.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('C2 lô mới hơn: dịch đơn 11 rồi lô 12-13, caret 13 ⇒ ghi văn bản lô vào 13', async () => {
+    const ctx = await freshPanel()
+    await finishSingle(ctx, 11, 'T')
+    const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 12, 1)
+    await finishBatch(fake, [12, 13], 'B')
+
+    ctx.editorState.setEditorCaret(13)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).toHaveBeenCalledWith(13, 'B13')
+    wrapper.unmount()
+  })
+
+  it('C2 đơn mới hơn: lô 12-13 rồi dịch đơn 11, caret 13 ⇒ ghi T vào 11', async () => {
+    const ctx = await freshPanel()
+    const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 12, 1)
+    await finishBatch(fake, [12, 13], 'B')
+    await finishSingle(ctx, 11, 'T')
+
+    ctx.editorState.setEditorCaret(13)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).toHaveBeenCalledWith(11, 'T')
+    wrapper.unmount()
+  })
+
+  it('C2 lùi về: dịch đơn 11 rồi lô 12-13, caret 14 ngoài lô ⇒ ghi T vào 11', async () => {
+    const ctx = await freshPanel()
+    await finishSingle(ctx, 11, 'T')
+    const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 12, 1)
+    await finishBatch(fake, [12, 13], 'B')
+
+    ctx.editorState.setEditorCaret(14)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).toHaveBeenCalledWith(11, 'T')
+    wrapper.unmount()
+  })
+
+  it('C2 không đổi: dịch đơn 11, caret dời sang 14, không có lô ⇒ vẫn ghi T vào 11', async () => {
+    const ctx = await freshPanel()
+    await finishSingle(ctx, 11, 'T')
+
+    ctx.editorState.setEditorCaret(14)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).toHaveBeenCalledWith(11, 'T')
+  })
+
+  it('C4: lỗi lô không mang segment_id dùng được ⇒ hàng đang chạy thành error, giữ văn bản, không còn hàng running', async () => {
+    const ctx = await freshPanel()
+    const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 11, 2)
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua 1' })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
+    fake.emit({ kind: 'token', segment_id: 12, text: 'Dang chay' })
+    fake.settle({
+      value: null,
+      error: {
+        code: 'ai_translate.internal_failure',
+        message_key: 'err.ai_translate.internal_failure',
+        params: {},
+        retryable: false,
+      },
+    })
+    await flushPromises()
+
+    const row12 = ctx.batchState.aiTranslateBatchRows.value.find((r) => r.segmentId === 12)
+    expect(row12?.status).toBe('error')
+    expect(row12?.text).toBe('Dang chay')
+    expect(ctx.batchState.aiTranslateBatchRunningSegmentId.value).toBeNull()
     wrapper.unmount()
   })
 })

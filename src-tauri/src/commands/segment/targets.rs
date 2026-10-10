@@ -284,14 +284,16 @@ pub fn promote_ai_translation(
     enum Promoted {
         Missing,
         Retired,
+        OtherChapter,
         Row(String, String, String, bool),
     }
 
+    let open_chapter_id = open.chapter_id;
     let payload = target_text.to_owned();
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let found = tx.query_row(
-            "SELECT target_text, translation_origin, retired_at IS NOT NULL, status FROM segment \
-             WHERE id = ?1",
+            "SELECT target_text, translation_origin, retired_at IS NOT NULL, status, chapter_id \
+             FROM segment WHERE id = ?1",
             [segment_id],
             |row| {
                 Ok((
@@ -299,16 +301,20 @@ pub fn promote_ai_translation(
                     row.get::<_, String>(1)?,
                     row.get::<_, bool>(2)?,
                     row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
                 ))
             },
         );
-        let (current_text, current_origin, retired, current_status) = match found {
+        let (current_text, current_origin, retired, current_status, segment_chapter_id) = match found {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
             Err(err) => return Err(err),
         };
         if retired {
             return Ok(Promoted::Retired);
+        }
+        if segment_chapter_id != open_chapter_id {
+            return Ok(Promoted::OtherChapter);
         }
 
         // Cùng phép so VĂN BẢN của `restore_segment_version` — "chưa từng được ký" nghĩa là
@@ -346,6 +352,9 @@ pub fn promote_ai_translation(
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Promoted::Missing => return Err(segment_not_found(segment_id)),
         Promoted::Retired => return Err(segment_retired(segment_id)),
+        Promoted::OtherChapter => {
+            return Err(segment_not_in_open_chapter(segment_id, open_chapter_id));
+        }
         Promoted::Row(text, pair_origin, status, needs_confirmation) => {
             (text, pair_origin, status, needs_confirmation)
         }

@@ -47,6 +47,18 @@ pub(super) fn segment_retired(segment_id: i64) -> IpcError {
     )
 }
 
+pub(super) fn segment_not_in_open_chapter(segment_id: i64, chapter_id: i64) -> IpcError {
+    IpcError::new(
+        "segment.not_in_open_chapter",
+        MessageKey::SegmentNotInOpenChapter,
+        BTreeMap::from([
+            ("segment_id".to_owned(), segment_id.to_string()),
+            ("chapter_id".to_owned(), chapter_id.to_string()),
+        ]),
+        false,
+    )
+}
+
 /// Segment là câu **cuối Chương** ⇒ không đặt được cờ kết đoạn cho bản dịch.
 ///
 /// 🔴 Ca ① của AD-37, và là ca biên duy nhất **không** hỏi cờ cũ — code review 2026-08-16,
