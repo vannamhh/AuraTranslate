@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Condensed 2026-09-23 (Ice): rules only. The history and measurements behind each rule moved verbatim to `_bmad-output/implementation-artifacts/agent-rules-evidence.md`. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Condensed 2026-09-23 (Ice): rules only. The history and measurements behind each rule moved verbatim to `_bmad-output/initiative-auratranslate/evidence-agent-rules/evidence-agent-rules.md`. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## AuraTranslate
 
@@ -7,10 +7,10 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 
 ## Where things are
 
-- Architectural invariants (ADs, Stack table, Consistency Conventions): `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md`
-- Story specs, `sprint-status.yaml`, debt ledger `deferred-work.md`: `_bmad-output/implementation-artifacts/`
+- Architectural invariants (ADs, Stack table, Consistency Conventions): the spine, `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` (older code comments call it `ARCHITECTURE-SPINE.md`).
+- Planning (BMad v7 ticket tree): `_bmad-output/initiative-auratranslate/`. One `epic-<slug>/` per epic holds `story-*.md` and `story-*-plan.md` (status lives in the plan frontmatter); `tickets.toml`, the PRD (`prd-auratranslate/`), `ad-brief-*/` and the debt ledger `deferred-work.md` sit at its root. v6 `sprint-status.yaml` and `epics.md` are frozen in `archive-v6/`. Mockup folders `*-ban-do/` stay in `_bmad-output/implementation-artifacts/` because Rust tests read them there.
 - Directory rules: `AGENTS.md` in `src/` · `src-tauri/` · `scripts/` · `tests/` · `e2e/` · `tools/dict-build/`.
-- Why a rule exists: `agent-rules-evidence.md` (read on demand only). `project-context.md` is frozen history (2026-08-20). `docs/` is raw input for `tools/dict-build`, not documentation.
+- Why a rule exists: `evidence-agent-rules.md` (read on demand only). `_bmad-output/inbox/project-context.md` is frozen history (2026-08-20). `docs/` is raw input for `tools/dict-build`, not documentation.
 
 ## Policy
 
@@ -20,7 +20,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - Changing an architectural invariant is a new `AD` in the spine, drafted by Winston, not a line of code. Next free number: scan the spine AND every unwritten `ad-brief-*.md`.
 - Two valid options ⇒ present both with measurements for Ice; never pick one and move on.
 - Dirty tree before a story ⇒ ask Ice, then commit it separately first.
-- Agent cost is the area under the context curve, and a byte read early costs far more than one read late (evidence: `agent-token-economics.md`). So: split a story into ~4 phases (plan · Rust · Webview · Tests that move), one FRESH agent per phase, handed off through a file on disk, each under ~250 k context (a guideline, not a gate). Keep up-front reading short. Read large files with `offset`/`limit`; a file too large to hold as a map should be split, not re-peeked.
+- Agent cost is the area under the context curve, and a byte read early costs far more than one read late (evidence: `evidence-agent-token-economics.md`). So: split a story into ~4 phases (plan · Rust · Webview · Tests that move), one FRESH agent per phase, handed off through a file on disk, each under ~250 k context (a guideline, not a gate). Keep up-front reading short. Read large files with `offset`/`limit`; a file too large to hold as a map should be split, not re-peeked.
 
 ## Tests: run what the change touches
 
@@ -59,9 +59,9 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - One fact, one place. Spec = intent, decisions, acceptance. Phase handoff file = working notes for the next agent, never copied into the spec. Commit message = what was found. Link, don't copy.
 - Don't restate AGENTS.md, the spine or the PRD in a spec; cite by id (`AD-35`, `FR101`).
 - `## Implementation Notes`: at most ~10 bullets for the whole story — decisions and surprises a later reader needs. No per-phase narration, no command logs, no intermediate test counts. Review Triage Log: one line per finding.
-- `deferred-work.md` is over 1 MB: never read it whole, `grep` it. A new item is at most 5 lines: what, why it matters, owner, pointer. `Chủ:` names Ice, a persona, `Story X.Y`, `Epic N` or a sprint-status item id (`B7`); `check:debt-owner` rejects a vague owner such as "a later story touching X", and an open or 🟡 item whose last `Chủ:` is a story/epic marked `done` in, or missing from, the ticket tree (`_bmad-output/initiative-auratranslate/`). Reassign by appending a `→ … Chủ: <new>` line; the last `Chủ:` wins. Close items in words — `→ ✅ ĐÃ ĐÓNG <date> (Story x.y)` · `→ 🟡 <remaining gap>` · `→ KHÔNG LÀM <date> (Story x.y) — <what changed>` — and never delete one.
+- `deferred-work.md` is over 1 MB: never read it whole, `grep` it. A new item is at most 5 lines: what, why it matters, owner, pointer. `Chủ:` names Ice, a persona, `Story X.Y`, `Epic N` or an initiative action-item id (`B7`); `check:debt-owner` rejects a vague owner such as "a later story touching X", and an open or 🟡 item whose last `Chủ:` is a story/epic marked `done` in, or missing from, the ticket tree (`_bmad-output/initiative-auratranslate/`). Reassign by appending a `→ … Chủ: <new>` line; the last `Chủ:` wins. Close items in words — `→ ✅ ĐÃ ĐÓNG <date> (Story x.y)` · `→ 🟡 <remaining gap>` · `→ KHÔNG LÀM <date> (Story x.y) — <what changed>` — and never delete one.
 - In specs and the ledger, a claim that stops being true is fixed in place with 🔵 and a date. In AGENTS.md and in code, just replace it; git keeps the old text.
-- A capability not yet built is not a spec mismatch: record an owned debt item; don't edit `epics.md`/`prd.md` to match code.
+- A capability not yet built is not a spec mismatch: record an owned debt item; don't edit epic files or the PRD to match code.
 
 ## Conventions
 

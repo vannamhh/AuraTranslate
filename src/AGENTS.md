@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Condensed 2026-09-23 (Ice): rules only; history in `_bmad-output/implementation-artifacts/agent-rules-evidence.md`. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Condensed 2026-09-23 (Ice): rules only; history in `_bmad-output/initiative-auratranslate/evidence-agent-rules/evidence-agent-rules.md`. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## src/ — Vue 3 + TypeScript
 
