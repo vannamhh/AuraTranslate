@@ -3,7 +3,7 @@ title: 'Chấp nhận từng thay đổi'
 type: 'feature'
 ticket: '13'
 created: '2026-10-09'
-status: 'in-review'
+status: 'built'
 baseline_revision: '77d4f38f5a7f17b6ef97e2ef6bc244773dd4e377'
 route: 'full'
 route_source: 'auto'
@@ -136,6 +136,12 @@ context: []
 - Given hai lệnh mới, when mở cài đặt phím, then gán lại được và không trùng chord nào.
 
 ## Implementation Notes
+
+- Thêm hai lệnh không có trong plan, `review.accept_overwrite` và `review.accept_keep`, không có phím mặc định. Lý do: `check:commands` (AD-34) bắt nút Ghi đè và Giữ của khối hỏi lại phải dispatch một lệnh đã đăng ký.
+- Rust (`acceptable_change`) còn từ chối khi `group.mine` khác `segment.target_text` và khi hai vế đã bằng nhau, chặt hơn vị từ `acceptable` của webview. Với `.md`, đơn vị xuất là đoạn văn, nên đây là cách tránh tách văn bản.
+- Quyết định bị xoá ở năm chỗ: `delete_alignment_of_chapter` (nhập lại, gộp Chương), `align_chapter`, `unjoin`, `move_members_of_retired`, và với các hàng vào nhóm mới qua `write_user_group`.
+- Dòng "N thay đổi · đã xử lý M" chỉ đếm thay đổi có hàng reviewer, theo Decision về nhóm chỉ có bản của tôi (sửa ở vòng review 1).
+- Sổ nợ: hàng FR94 của bảng AD-47 ③ đã đóng. Phép kiểm trong app thật thành mục mới, `Chủ: Epic 8`. Mục nhãn "từ bản review" trên `segment_version` vẫn mở, vì chấp nhận không tạo `segment_version`.
 
 ## Plan Change Log
 

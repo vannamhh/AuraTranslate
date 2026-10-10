@@ -3722,6 +3722,7 @@ mục nào mồ côi.
   một thao tác. Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi *tôi dịch* cho chữ người dùng chưa
   gõ, và **không cổng nào đỏ**.
   → ✅ **HÀNG "Điền sẵn từ TM khớp 100% (FR58)" ĐÃ ĐÓNG 2026-10-02 (Story 7.4).** `fill_exact_tm_matches` ghi qua `write_non_user_target` với xuất xứ của cặp nguồn; lưới `tests/tm_contract.rs::an_exact_work_pair_prefills_an_empty_draft_with_its_origin_baseline_and_no_version` và `confirming_a_filled_segment_unedited_keeps_the_pair_origin_in_the_tm_and_on_the_segment`. Hai hàng còn lại của bảng (Review Mode FR94, đề xuất AI) **vẫn hở**, giữ nguyên chủ.
+  → ✅ **HÀNG "Chấp nhận thay đổi Review Mode (FR94)" ĐÃ ĐÓNG 2026-10-10 (Story 8.13).** `review_accept_change` ghi qua `write_non_user_target` với xuất xứ `other`, mốc so và xuất xứ trong cùng lệnh ghi; lưới `tests/alignment_contract.rs::accepting_a_one_to_one_change_writes_the_reviewers_text_as_other_draft_and_adds_no_version`. Hàng còn lại của bảng (đề xuất AI) **vẫn hở**, giữ nguyên chủ.
 
 - 🟡 **Khôi phục (FR101) trả văn bản về mà KHÔNG trả xuất xứ về — AD-47 ⑤, ngoại lệ CÓ TÊN.**
   Hệ quả bắt buộc của chữ ký #1(a): `segment_version` không mang xuất xứ nên **không có gì để
@@ -13013,3 +13014,7 @@ chính nó.
   summary: Thu hoạch 8-14 chỉ thấy thuật ngữ S đã chốt trong Glossary; thuật ngữ reviewer sửa mà Glossary chưa có thì không thành ứng viên.
   evidence: thuật toán cần X là bản dịch đã chốt để đếm N/M; dò S chưa có bằng đồng xuất hiện nguồn-đích là một thuật toán khác, chưa đo, Ice chốt phạm vi ngày 2026-10-09.
   Chủ: Ice.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-chap-nhan-tung-thay-oi-plan.md`
+  summary: Chưa ai chấp nhận hay bỏ qua thay đổi của reviewer trong ứng dụng thật (WKWebView): focus sau khi bấm nút, khối hỏi lại khi đè bản nháp, và segment hiện "chưa xác nhận" trong Editor sau khi đóng Review Mode.
+  evidence: vitest chạy dưới happy-dom và chỉ kiểm lời gọi `replaceEditorSegment` qua mock; Alt+Enter/Alt+Backspace trên bàn phím macOS thật chưa thử.
+  Chủ: Epic 8.
