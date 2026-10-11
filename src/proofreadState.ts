@@ -304,9 +304,9 @@ export const proofreadCurrent: ComputedRef<ProofreadCurrent | null> = computed((
 
 function topRevert(segmentId: number): RevertItem | null {
   const stack = reverts.value.get(segmentId)
-  const top = stack?.[stack.length - 1]
-  if (top === undefined) return null
-  return editorTextOf(segmentId) === top.text ? top : null
+  const latest = stack?.[stack.length - 1]
+  if (latest === undefined) return null
+  return editorTextOf(segmentId) === latest.text ? latest : null
 }
 
 /** An accepted suggestion at the caret that can still be undone. */
@@ -424,8 +424,8 @@ export async function revertProofreadFinding(): Promise<void> {
   if (acting.value) return
   const caret = editorCaretSegmentId.value
   if (caret === null) return
-  const top = topRevert(caret)
-  if (top === null) return
+  const latest = topRevert(caret)
+  if (latest === null) return
   const mine = sequence
   acting.value = true
   actionFailure.value = null
