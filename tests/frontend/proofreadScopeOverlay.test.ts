@@ -15,6 +15,7 @@ async function fresh() {
   invokeMock.mockReset()
   invokeMock.mockResolvedValue({ state: 'done', not_scanned: 0 })
   const caret = ref<number | null>(3)
+  const lastCaret = ref<number | null>(3)
   const segments = ref<ChapterSegment[]>(
     Array.from({ length: 30 }, (_, i) => {
       const id = i + 1
@@ -32,6 +33,7 @@ async function fresh() {
   }))
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caret,
+    editorLastCaretSegmentId: lastCaret,
     editorSegments: segments,
     flushEditorBeforeDiscreteWrite: () => Promise.resolve('clean'),
   }))
@@ -41,7 +43,7 @@ async function fresh() {
   const state = await import('../../src/proofreadState')
   const Overlay = (await import('../../src/ProofreadScopeOverlay.vue')).default
   commands.installCommands({ ...proofreadHandlers } as Parameters<typeof commands.installCommands>[0])
-  return { commands, caret, selection, state, Overlay }
+  return { commands, caret, lastCaret, selection, state, Overlay }
 }
 
 function scanCalls(): { segmentIds: number[] }[] {
@@ -115,11 +117,11 @@ describe('ProofreadScopeOverlay', () => {
   })
 
   it('keeps the last caret segment for the segment scope when a pointer-opened chooser nulls the caret', async () => {
-    const { state, Overlay, caret } = await fresh()
-    caret.value = 9
+    const { state, Overlay, caret, lastCaret } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await nextTick()
     caret.value = null
+    lastCaret.value = 9
     state.openProofreadScope()
     await nextTick()
     const cell = wrapper.find('[data-proofread-scope="segment"]')

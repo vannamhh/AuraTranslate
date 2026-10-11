@@ -5,7 +5,6 @@ import type { ProofreadEventWire, ProofreadFindingWire, ProofreadSegmentResultWi
 import type { AiUsageSummary } from './aiUsageLine'
 import type { IpcError } from './i18n'
 import { flushEditorBeforeDiscreteWrite } from './panels/editorPanelState'
-import { resetProofreadScopeCaret } from './proofreadScope'
 
 export type ProofreadState = 'idle' | 'scanning' | 'done' | 'error' | 'cancelled' | 'not_configured'
 
@@ -207,6 +206,5 @@ export function resetProofread(): void {
   state.value = 'idle'
   runSegmentIds.value = []
   scopeOpen.value = false
-  resetProofreadScopeCaret()
   clearResult()
 }

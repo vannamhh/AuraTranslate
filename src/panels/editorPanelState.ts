@@ -140,6 +140,7 @@ let sequence = 0
  * chạm là chuyện thường xuyên nhất trên một panel chỉ-đọc.
  */
 const caretSegmentId = ref<number | null>(null)
+const lastCaretSegmentId = ref<number | null>(null)
 
 const tmFilledSegmentIds = shallowRef<ReadonlySet<number>>(new Set())
 /** Segments the last load pre-filled from an exact TM match; dropped on edit, confirm and reload. */
@@ -168,6 +169,8 @@ export const editorLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(load
 export const editorPending: DeepReadonly<Ref<boolean>> = readonly(pending)
 /** Câu đang có tiêu điểm — xem [`caretSegmentId`]. */
 export const editorCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(caretSegmentId)
+/** The last non-null caret: a pointer on a titlebar button blurs the grid and nulls the caret first. */
+export const editorLastCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(lastCaretSegmentId)
 
 /**
  * 🔴 Lượt nạp **đã trả lời và trả lời được** — điều kiện để một danh sách rỗng có nghĩa.
@@ -268,6 +271,7 @@ export async function ensureSegmentsLoaded(): Promise<void> {
 export function setEditorCaret(id: number | null): void {
   const left = caretSegmentId.value
   caretSegmentId.value = id
+  if (id !== null) lastCaretSegmentId.value = id
   // Rời câu A sang câu B (cả hai khác `null`, và khác nhau) ⇒ flush ngay cho A.
   if (left !== null && id !== null && left !== id) void flushEditorNow()
 
@@ -838,6 +842,7 @@ export function resetEditorPanel(): void {
   loadError.value = null
   pending.value = false
   caretSegmentId.value = null
+  lastCaretSegmentId.value = null
   requested = false
   // 🔵 THÊM Story 6.14 — ảnh/thư mục thuộc Tác phẩm VỪA BỊ THAY, cùng lý lẽ `segments` ngay trên.
   chapterAssets.value = []

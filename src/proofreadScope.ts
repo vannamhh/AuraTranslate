@@ -1,22 +1,7 @@
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
-import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
+import { editorCaretSegmentId, editorLastCaretSegmentId, editorSegments } from './panels/editorPanelState'
 import { segmentSelectionIds } from './panels/segmentSelectionState'
-
-const lastCaret = ref<number | null>(null)
-
-// A pointer-opened chooser blurs the grid first, which nulls the caret.
-watch(
-  editorCaretSegmentId,
-  (id) => {
-    if (id !== null) lastCaret.value = id
-  },
-  { immediate: true },
-)
-
-export function resetProofreadScopeCaret(): void {
-  lastCaret.value = null
-}
 
 export type ProofreadScopeKind = 'segment' | 'selection' | 'chapter'
 
@@ -31,7 +16,7 @@ function scannableIds(ids: readonly number[]): number[] {
 
 export const proofreadScopeIds: ComputedRef<Record<ProofreadScopeKind, number[]>> = computed(() => ({
   segment: (() => {
-    const id = editorCaretSegmentId.value ?? lastCaret.value
+    const id = editorCaretSegmentId.value ?? editorLastCaretSegmentId.value
     return id !== null && editorSegments.value.some((s) => s.id === id) ? [id] : []
   })(),
   selection: [...segmentSelectionIds.value],

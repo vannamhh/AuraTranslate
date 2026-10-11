@@ -143,3 +143,17 @@ describe('rời segment = caret đổi câu (AC18)', () => {
     expect(state.editorLastSavedAt.value).toBeNull()
   })
 })
+
+describe('editorLastCaretSegmentId', () => {
+  it('keeps the last non-null caret through a blur and clears on reset', async () => {
+    const state = await freshState()
+    state.setEditorCaret(11)
+    state.setEditorCaret(null)
+    expect(state.editorCaretSegmentId.value).toBe(null)
+    expect(state.editorLastCaretSegmentId.value).toBe(11)
+    state.setEditorCaret(12)
+    expect(state.editorLastCaretSegmentId.value).toBe(12)
+    state.resetEditorPanel()
+    expect(state.editorLastCaretSegmentId.value).toBe(null)
+  })
+})
