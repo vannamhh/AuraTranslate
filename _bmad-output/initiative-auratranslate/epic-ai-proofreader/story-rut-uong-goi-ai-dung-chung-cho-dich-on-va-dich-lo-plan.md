@@ -3,7 +3,7 @@ title: 'Rút đường gọi AI dùng chung cho dịch đơn và dịch lô'
 type: 'refactor'
 ticket: '12'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: '0acd35aa57e5483b3bb24ca02e65e589e97872f6'
 route: 'full'
 route_source: 'auto'

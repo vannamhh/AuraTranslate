@@ -3,7 +3,7 @@ title: 'Đối chiếu bản dịch với bản gốc'
 type: 'feature'
 ticket: '2'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: '9f8fa8aa9e122413f437c29a00c49b148b0af126'
 route: 'full'
 route_source: 'auto'

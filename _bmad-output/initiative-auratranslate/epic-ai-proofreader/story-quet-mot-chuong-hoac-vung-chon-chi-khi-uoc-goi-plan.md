@@ -3,7 +3,7 @@ title: 'Quét một Chương hoặc vùng chọn, chỉ khi được gọi'
 type: 'feature'
 ticket: '3'
 created: '2026-10-11'
-status: 'built'
+status: done
 baseline_revision: 'cda435d970a5671a65c563a94f0bceb6bab68df0'
 route: 'full'
 route_source: 'auto'

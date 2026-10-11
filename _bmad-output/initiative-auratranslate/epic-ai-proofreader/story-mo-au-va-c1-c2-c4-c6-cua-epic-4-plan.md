@@ -3,7 +3,7 @@ title: 'Mở đầu: vá C1, C2, C4, C6 của Epic 4'
 type: 'bugfix'
 ticket: '9'
 created: '2026-10-10'
-status: 'built'
+status: done
 baseline_revision: 'a61ad96c0fbba6d829d679b0d8618f2cfb5739af'
 route: 'full'
 route_source: 'auto'
