@@ -56,25 +56,35 @@ function decodePng(path) {
   return { width, height, bpp, px }
 }
 
-/** Pixels in a device-pixel box whose colour is within `tol` of `rgb`, plus the rows they occupy. */
-function errorPixels(img, box, rgb, tol) {
-  const rows = new Set()
+/** How far `after` moved from `before` toward `token`, as `after ≈ before + a·(token − before)`. */
+function blendFit(before, after, token) {
+  const d = [0, 1, 2].map((i) => token[i] - before[i])
+  const dd = d[0] ** 2 + d[1] ** 2 + d[2] ** 2
+  if (dd < 900) return null
+  const v = [0, 1, 2].map((i) => after[i] - before[i])
+  const a = (v[0] * d[0] + v[1] * d[1] + v[2] * d[2]) / dd
+  return { a, residual: Math.hypot(...v.map((x, i) => x - a * d[i])) }
+}
+
+/**
+ * Pixels in a device-pixel box that changed toward `token` and fit it better than `other`.
+ * At dpr 1 a wavy stroke is about one anti-aliased pixel and never reaches the token colour itself.
+ */
+function tokenPixels(before, after, box, token, other) {
   let count = 0
-  const x0 = Math.max(0, Math.floor(box.x0))
-  const x1 = Math.min(img.width, Math.ceil(box.x1))
-  const y0 = Math.max(0, Math.floor(box.y0))
-  const y1 = Math.min(img.height, Math.ceil(box.y1))
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      const o = (y * img.width + x) * img.bpp
-      const d = Math.abs(img.px[o] - rgb[0]) + Math.abs(img.px[o + 1] - rgb[1]) + Math.abs(img.px[o + 2] - rgb[2])
-      if (d <= tol) {
-        count++
-        rows.add(y)
-      }
+  for (let y = Math.max(0, Math.floor(box.y0)); y < Math.min(after.height, Math.ceil(box.y1)); y++) {
+    for (let x = Math.max(0, Math.floor(box.x0)); x < Math.min(after.width, Math.ceil(box.x1)); x++) {
+      const o = (y * after.width + x) * after.bpp
+      const b = [before.px[o], before.px[o + 1], before.px[o + 2]]
+      const p = [after.px[o], after.px[o + 1], after.px[o + 2]]
+      const mine = blendFit(b, p, token)
+      if (mine === null || mine.a < 0.15 || mine.a > 1.2 || mine.residual > 12) continue
+      const theirs = blendFit(b, p, other)
+      if (theirs !== null && theirs.a >= 0.15 && theirs.residual <= mine.residual) continue
+      count++
     }
   }
-  return { count, rows: [...rows].sort((a, b) => a - b) }
+  return count
 }
 
 describe('proofread underline in a real WKWebView', () => {
@@ -167,37 +177,28 @@ describe('proofread underline in a real WKWebView', () => {
     await expect(rgb).not.toBe(null)
     await expect(meaningRgb).not.toBe(null)
 
-    const dpr = api.dpr
-    const box = {
-      x0: painted.rect.x0 * dpr,
-      x1: painted.rect.x1 * dpr,
-      y0: (painted.rect.y1 - 2) * dpr,
-      y1: (painted.rect.y1 + 10) * dpr,
-    }
     const imgBefore = decodePng(before)
     const imgAfter = decodePng(after)
     const scale = imgAfter.width / (await browser.execute(() => window.innerWidth))
-    const sbox = { x0: box.x0 / dpr * scale, x1: box.x1 / dpr * scale, y0: box.y0 / dpr * scale, y1: box.y1 / dpr * scale }
-    const pre = errorPixels(imgBefore, sbox, rgb, 200)
-    const post = errorPixels(imgAfter, sbox, rgb, 200)
-    console.log(
-      `[proofread-measure] dpr=${dpr} scale=${scale} rect=${JSON.stringify(painted.rect)} before=${pre.count} after=${post.count} ` +
-        `rowsAfter=${JSON.stringify(post.rows)} shots=${dir} color=${painted.errorColor}`,
-    )
-    await expect(post.count).toBeGreaterThan(pre.count + 3)
-
     const underBox = (rect) => ({
       x0: rect.x0 * scale,
       x1: rect.x1 * scale,
-      y0: (rect.y1 - 2) * scale,
-      y1: (rect.y1 + 10) * scale,
+      y0: (rect.y1 - 4) * scale,
+      y1: (rect.y1 + 6) * scale,
     })
+    const qbox = underBox(painted.rect)
     const mbox = underBox(painted.meaningRect)
-    const mPre = errorPixels(imgBefore, mbox, meaningRgb, 60)
-    const mPost = errorPixels(imgAfter, mbox, meaningRgb, 60)
-    const crossPost = errorPixels(imgAfter, mbox, rgb, 60)
-    console.log(`[proofread-measure] meaning before=${mPre.count} after=${mPost.count} errorColourUnderMeaning=${crossPost.count} color=${painted.meaningColor}`)
-    await expect(mPost.count).toBeGreaterThan(mPre.count + 3)
-    await expect(mPost.count).toBeGreaterThan(crossPost.count)
+    const errorUnderQuote = tokenPixels(imgBefore, imgAfter, qbox, rgb, meaningRgb)
+    const meaningUnderQuote = tokenPixels(imgBefore, imgAfter, qbox, meaningRgb, rgb)
+    const meaningUnderMeaning = tokenPixels(imgBefore, imgAfter, mbox, meaningRgb, rgb)
+    const errorUnderMeaning = tokenPixels(imgBefore, imgAfter, mbox, rgb, meaningRgb)
+    console.log(
+      `[proofread-measure] dpr=${api.dpr} scale=${scale} rect=${JSON.stringify(painted.rect)} shots=${dir} ` +
+        `quote: error=${errorUnderQuote} meaning=${meaningUnderQuote} · meaningQuote: meaning=${meaningUnderMeaning} error=${errorUnderMeaning}`,
+    )
+    await expect(errorUnderQuote).toBeGreaterThanOrEqual(10)
+    await expect(errorUnderQuote).toBeGreaterThan(5 * meaningUnderQuote)
+    await expect(meaningUnderMeaning).toBeGreaterThanOrEqual(10)
+    await expect(meaningUnderMeaning).toBeGreaterThan(5 * errorUnderMeaning)
   })
 })
