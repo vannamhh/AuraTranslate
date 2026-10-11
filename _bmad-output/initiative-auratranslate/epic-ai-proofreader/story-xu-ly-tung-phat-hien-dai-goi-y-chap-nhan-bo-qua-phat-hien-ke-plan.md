@@ -3,7 +3,7 @@ title: 'Xử lý từng phát hiện: dải gợi ý, chấp nhận, bỏ qua, p
 type: 'feature'
 ticket: '4'
 created: '2026-10-11'
-status: 'built'
+status: done
 baseline_revision: 'c2ca4be1e9f9a885d0302330ddf637f0c3f078ac'
 route: 'full'
 route_source: 'auto'
