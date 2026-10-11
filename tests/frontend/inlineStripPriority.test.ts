@@ -9,13 +9,13 @@ import { describe, expect, it } from 'vitest'
 import { topmostStrip } from '../../src/panels/inlineStripPriority'
 import type { InlineStripKind } from '../../src/panels/inlineStripPriority'
 
-describe('topmostStrip — sổ ưu tiên bốn loại dải nội tuyến', () => {
+describe('topmostStrip — sổ ưu tiên năm loại dải nội tuyến', () => {
   it('tập rỗng ⇒ null', () => {
     expect(topmostStrip([])).toBeNull()
   })
 
-  it('một mục ⇒ chính nó, cho cả bốn loại', () => {
-    const kinds: InlineStripKind[] = ['glossary_quick_add', 'glossary_confirm', 'proofreader', 'tm_fuzzy']
+  it('một mục ⇒ chính nó, cho cả năm loại', () => {
+    const kinds: InlineStripKind[] = ['glossary_quick_add', 'glossary_confirm', 'proofreader', 'tm_fuzzy', 'proofreader_summary']
     for (const kind of kinds) {
       expect(topmostStrip([kind])).toBe(kind)
     }
@@ -42,5 +42,23 @@ describe('topmostStrip — sổ ưu tiên bốn loại dải nội tuyến', () 
   it('thứ tự trong mảng `eligible` không ảnh hưởng kết quả — chỉ ưu tiên mới quyết định', () => {
     expect(topmostStrip(['proofreader', 'glossary_confirm', 'tm_fuzzy'])).toBe('glossary_confirm')
     expect(topmostStrip(['glossary_confirm', 'proofreader', 'tm_fuzzy'])).toBe('glossary_confirm')
+  })
+
+  it('tóm tắt của Proofreader nhường cả TM, việc của Proofreader đứng trên TM', () => {
+    expect(topmostStrip(['proofreader_summary', 'tm_fuzzy'])).toBe('tm_fuzzy')
+    expect(topmostStrip(['tm_fuzzy', 'proofreader', 'proofreader_summary'])).toBe('proofreader')
+    expect(topmostStrip(['proofreader_summary'])).toBe('proofreader_summary')
+  })
+
+  it('cả năm cùng đủ điều kiện ⇒ đúng thứ tự quick-add, confirm, proofreader, tm_fuzzy, proofreader_summary', () => {
+    const all: InlineStripKind[] = ['proofreader_summary', 'tm_fuzzy', 'proofreader', 'glossary_confirm', 'glossary_quick_add']
+    const order: InlineStripKind[] = []
+    let rest = all
+    while (rest.length > 0) {
+      const next = topmostStrip(rest) as InlineStripKind
+      order.push(next)
+      rest = rest.filter((kind) => kind !== next)
+    }
+    expect(order).toEqual(['glossary_quick_add', 'glossary_confirm', 'proofreader', 'tm_fuzzy', 'proofreader_summary'])
   })
 })

@@ -1626,6 +1626,11 @@ function doiConTroToi(id: number | null): boolean {
   return true
 }
 
+/** Moves the caret to `id` through the one caret path; `false` when `id` is `null`. */
+export function moveEditorCaretTo(id: number | null): boolean {
+  return doiConTroToi(id)
+}
+
 /**
  * **Segment kế tiếp** — AC1. Điều hướng **theo vị trí**: nó **không** bỏ qua câu đã cắt bỏ.
  *

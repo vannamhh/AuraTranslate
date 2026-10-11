@@ -2,7 +2,17 @@ import { aiTranslateBatchStateValue } from './aiTranslateBatchState'
 import { aiTranslateStateValue } from './aiTranslateState'
 import { proofreadScopeIds } from './proofreadScope'
 import type { ProofreadScopeKind } from './proofreadScope'
-import { cancelProofread, closeProofreadScope, openProofreadScope, runProofread } from './proofreadState'
+import {
+  acceptProofreadFinding,
+  cancelProofread,
+  closeProofreadScope,
+  dismissProofreadFinding,
+  nextProofreadFinding,
+  openProofreadScope,
+  prevProofreadFinding,
+  revertProofreadFinding,
+  runProofread,
+} from './proofreadState'
 
 function scan(kind: ProofreadScopeKind): void {
   closeProofreadScope()
@@ -36,5 +46,25 @@ export const proofreadHandlers = {
 
   cancelAiProofread: (): void => {
     cancelProofread()
+  },
+
+  acceptAiProofread: (): void => {
+    void acceptProofreadFinding()
+  },
+
+  dismissAiProofread: (): void => {
+    dismissProofreadFinding()
+  },
+
+  nextAiProofread: (): void => {
+    nextProofreadFinding()
+  },
+
+  prevAiProofread: (): void => {
+    prevProofreadFinding()
+  },
+
+  revertAiProofread: (): void => {
+    void revertProofreadFinding()
   },
 }

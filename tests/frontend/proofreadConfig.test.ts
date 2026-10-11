@@ -16,7 +16,7 @@ beforeEach(() => {
   invokeMock.mockReset()
 })
 
-const SEGMENT = { segment_id: 3, scanned_text: 'a', findings: [FINDING], unlocated: 0 }
+const SEGMENT = { segment_id: 3, scanned_text: 'a', findings: [FINDING], unlocated: 0, ambiguous: 0 }
 
 describe('isProofreadOutcomeWire', () => {
   it('accepts the three outcomes', () => {

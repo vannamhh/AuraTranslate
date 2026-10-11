@@ -548,3 +548,21 @@ fn a_blank_source_counts_a_meaning_finding_unlocated_and_keeps_the_spelling_one(
     assert_eq!((seg["findings"].as_array().map(Vec::len), seg["unlocated"].as_u64()), (Some(1), Some(1)));
     assert_eq!(seg["findings"][0]["kind"], "spelling");
 }
+
+#[test]
+fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_finding() {
+    let mut prepared = run_of(&[1]);
+    prepared.batches[0].segments[0].scanned_text = "đi và đi nữa nguời nguời".to_owned();
+    let provider = ScriptedProvider::new(vec![Step::Reply(
+        r#"[{"segment":1,"kind":"grammar","quote":"đi","explanation":"","suggestion":"đến"},
+            {"segment":1,"kind":"spelling","quote":"nguời","explanation":"","suggestion":"người"}]"#,
+        None,
+    )]);
+    let (out, events) = run(&provider, &prepared);
+    let seg = &batch_events(&events)[0]["segments"][0];
+    assert_eq!(seg["ambiguous"], 1);
+    assert_eq!(seg["unlocated"], 0);
+    let kinds: Vec<&str> = seg["findings"].as_array().expect("findings").iter().filter_map(|f| f["kind"].as_str()).collect();
+    assert_eq!(kinds, ["spelling"]);
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+}

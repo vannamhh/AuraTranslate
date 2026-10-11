@@ -7,6 +7,7 @@ import {
   UNKNOWN_IPC_ERROR,
 } from './aitranslate'
 import type { AiTranslateUsageWire } from './aitranslate'
+import type { PromoteAiTranslationOutcome } from './segment'
 
 export const PROOFREAD_FINDING_KINDS = ['spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure'] as const
 export type ProofreadFindingKind = (typeof PROOFREAD_FINDING_KINDS)[number]
@@ -29,6 +30,7 @@ export type ProofreadSegmentResultWire = {
   scanned_text: string
   findings: ProofreadFindingWire[]
   unlocated: number
+  ambiguous: number
 }
 
 export type ProofreadEventWire =
@@ -42,6 +44,8 @@ export type ProofreadOutcomeWire =
 
 const CMD_PROOFREAD = 'ai_proofread_segments'
 const CMD_PROOFREAD_CANCEL = 'ai_proofread_cancel'
+const CMD_PROOFREAD_ACCEPT = 'ai_proofread_accept'
+const CMD_PROOFREAD_REVERT = 'ai_proofread_revert'
 
 function isFindingWire(value: unknown): value is ProofreadFindingWire {
   if (typeof value !== 'object' || value === null) return false
@@ -64,7 +68,8 @@ function isSegmentResultWire(value: unknown): value is ProofreadSegmentResultWir
     typeof v.scanned_text === 'string' &&
     Array.isArray(v.findings) &&
     v.findings.every(isFindingWire) &&
-    typeof v.unlocated === 'number'
+    typeof v.unlocated === 'number' &&
+    typeof v.ambiguous === 'number'
   )
 }
 
@@ -124,5 +129,92 @@ export async function cancelProofreadCall(): Promise<void> {
     await invoke<void>(CMD_PROOFREAD_CANCEL)
   } catch (err) {
     console.error(`[proofread] \`${CMD_PROOFREAD_CANCEL}\` failed: ${String(err)}`)
+  }
+}
+
+/** `start`/`end` are UTF-16 offsets into `expectedText`; `expectedPhrase` is what `[start, end)` holds there. */
+export type ProofreadRangeWrite = {
+  segmentId: number
+  expectedText: string
+  start: number
+  end: number
+  expectedPhrase: string
+  replacement: string
+  kind: ProofreadFindingKind
+}
+
+export type ProofreadWriteResult = {
+  outcome: PromoteAiTranslationOutcome | null
+  error: IpcError | null
+}
+
+type WriteWhich = 'accept' | 'revert'
+
+function isWriteOutcome(value: unknown): value is PromoteAiTranslationOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof PromoteAiTranslationOutcome, unknown>>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    typeof v.translation_origin === 'string' &&
+    (v.status === 'draft' || v.status === 'confirmed') &&
+    typeof v.needs_confirmation === 'boolean' &&
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+  )
+}
+
+function writeFailure(which: WriteWhich, err: unknown): ProofreadWriteResult {
+  const command = which === 'accept' ? CMD_PROOFREAD_ACCEPT : CMD_PROOFREAD_REVERT
+  if (isIpcError(err)) return { outcome: null, error: err }
+  if (hasIpcBridge()) {
+    console.error(`[proofread] \`${command}\` failed with a non-IpcError: ${String(err)}`)
+    return { outcome: null, error: UNKNOWN_IPC_ERROR }
+  }
+  console.info(`[proofread] cannot call \`${command}\` outside Tauri: ${String(err)}`)
+  return { outcome: null, error: null }
+}
+
+function checkedOutcome(which: WriteWhich, wire: unknown): ProofreadWriteResult {
+  const command = which === 'accept' ? CMD_PROOFREAD_ACCEPT : CMD_PROOFREAD_REVERT
+  if (!isWriteOutcome(wire)) {
+    console.error(`[proofread] \`${command}\` returned a shape that is not a write outcome`)
+    return { outcome: null, error: UNKNOWN_IPC_ERROR }
+  }
+  return { outcome: wire, error: null }
+}
+
+/** Replaces `[start, end)` with `replacement`; Rust refuses unless the text and phrase still match. Never throws. */
+export async function acceptProofreadSuggestion(args: ProofreadRangeWrite): Promise<ProofreadWriteResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_PROOFREAD_ACCEPT, {
+      segmentId: args.segmentId,
+      expectedText: args.expectedText,
+      start: args.start,
+      end: args.end,
+      expectedPhrase: args.expectedPhrase,
+      replacement: args.replacement,
+      kind: args.kind,
+    })
+    return checkedOutcome('accept', wire)
+  } catch (err) {
+    return writeFailure('accept', err)
+  }
+}
+
+/** Same replacement with the roles swapped: `expectedPhrase` is the suggestion now in the text. Never throws. */
+export async function revertProofreadSuggestion(args: ProofreadRangeWrite): Promise<ProofreadWriteResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_PROOFREAD_REVERT, {
+      segmentId: args.segmentId,
+      expectedText: args.expectedText,
+      start: args.start,
+      end: args.end,
+      expectedPhrase: args.expectedPhrase,
+      replacement: args.replacement,
+      kind: args.kind,
+    })
+    return checkedOutcome('revert', wire)
+  } catch (err) {
+    return writeFailure('revert', err)
   }
 }

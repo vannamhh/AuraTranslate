@@ -1119,6 +1119,8 @@ pub fn run() {
             crate::commands::export::wire::alignment_unjoin,
             crate::commands::export::wire::review_skip_change,
             crate::commands::segment::wire::review_accept_change,
+            crate::commands::segment::wire::ai_proofread_accept,
+            crate::commands::segment::wire::ai_proofread_revert,
             crate::commands::attribution::wire::translator_name_get,
             crate::commands::attribution::wire::translator_name_save,
             crate::commands::chapter::wire::open_chapter,

@@ -19,7 +19,7 @@ const { t } = await import('../../src/i18n')
 const ProofreaderStrip = (await import('../../src/ProofreaderStrip.vue')).default
 
 const FINDING = { kind: 'spelling', start: 0, end: 2, explanation: 'e', suggestion: 's' }
-const result = (id: number) => ({ segment_id: id, scanned_text: 'ab', findings: [FINDING], unlocated: 0 })
+const result = (id: number) => ({ segment_id: id, scanned_text: 'ab', findings: [FINDING], unlocated: 0, ambiguous: 0 })
 const usage = (total: number, cost: number | null) => ({ prompt_tokens: total, completion_tokens: 0, total_tokens: total, cost_usd: cost })
 
 afterEach(() => {

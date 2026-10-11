@@ -32,7 +32,7 @@ function batch(ids: number[], usage: AiTranslateUsageWire | null = null): Proofr
   return {
     kind: 'batch',
     usage,
-    segments: ids.map((id) => ({ segment_id: id, scanned_text: `xin chaof ${String(id)}`, findings: [FINDING], unlocated: 0 })),
+    segments: ids.map((id) => ({ segment_id: id, scanned_text: `xin chaof ${String(id)}`, findings: [FINDING], unlocated: 0, ambiguous: 0 })),
   }
 }
 

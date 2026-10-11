@@ -2,7 +2,7 @@
 //!
 //! `core::ai` assigns a kind from the model's label; consumers outside it read the kind here.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// How a finding is identified for "not an error" memory (AD-53 rule 7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub enum AcceptanceOrigin {
     OtherTranslated,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProofreadKind {
     Spelling,

@@ -26,20 +26,26 @@
  * (`tests/frontend/inlineStripPriority.test.ts`).
  */
 
-/** Bốn loại dải nội tuyến — danh mục ĐÓNG. Thêm một loại mới là một quyết định phải viết ra. */
-export type InlineStripKind = 'glossary_quick_add' | 'glossary_confirm' | 'proofreader' | 'tm_fuzzy'
+/** Năm loại dải nội tuyến — danh mục ĐÓNG. Thêm một loại mới là một quyết định phải viết ra. */
+export type InlineStripKind =
+  | 'glossary_quick_add'
+  | 'glossary_confirm'
+  | 'proofreader'
+  | 'tm_fuzzy'
+  | 'proofreader_summary'
 
 /**
  * Thứ tự ưu tiên — số NHỎ HƠN thắng. `glossary_quick_add` (0) là thao tác người dùng VỪA yêu
  * cầu nên đứng trên hết; `glossary_confirm` (1) là dải mọc chốt lần đầu gặp (Story 3.6);
- * `proofreader` (2, FR83) và `tm_fuzzy` (3, FR59) là hai dải TỰ ĐỘNG chưa có mã, giữ chỗ theo
- * `EXPERIENCE.md:75-81`.
+ * `proofreader` (2, FR83: việc cần làm) và `tm_fuzzy` (3, FR59) là hai dải TỰ ĐỘNG, còn
+ * `proofreader_summary` (4) là phần tóm tắt của lượt quét, nhường cả TM.
  */
 const PRIORITY_ORDER: readonly InlineStripKind[] = [
   'glossary_quick_add',
   'glossary_confirm',
   'proofreader',
   'tm_fuzzy',
+  'proofreader_summary',
 ]
 
 /**

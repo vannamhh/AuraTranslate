@@ -1084,6 +1084,11 @@ export type CommandDeps = {
   closeAiProofreadScope?: () => void
   /** Huỷ lượt quét đang chạy. Handler của `ai.proofread.cancel`. */
   cancelAiProofread?: () => void
+  acceptAiProofread?: () => void
+  dismissAiProofread?: () => void
+  nextAiProofread?: () => void
+  prevAiProofread?: () => void
+  revertAiProofread?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
    * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
    * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. Story 4.9, Phase 3 mở
@@ -4219,6 +4224,61 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.proofread.cancel', 'cancelAiProofread')
       }
       deps.cancelAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.accept',
+    labelKey: 'command.ai.proofread.accept',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptAiProofread === undefined) {
+        return portMissing('ai.proofread.accept', 'acceptAiProofread')
+      }
+      deps.acceptAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.dismiss',
+    labelKey: 'command.ai.proofread.dismiss',
+    keys: undefined,
+    run: () => {
+      if (deps.dismissAiProofread === undefined) {
+        return portMissing('ai.proofread.dismiss', 'dismissAiProofread')
+      }
+      deps.dismissAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.next',
+    labelKey: 'command.ai.proofread.next',
+    keys: ['F8'],
+    run: () => {
+      if (deps.nextAiProofread === undefined) {
+        return portMissing('ai.proofread.next', 'nextAiProofread')
+      }
+      deps.nextAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.prev',
+    labelKey: 'command.ai.proofread.prev',
+    keys: ['Shift+F8'],
+    run: () => {
+      if (deps.prevAiProofread === undefined) {
+        return portMissing('ai.proofread.prev', 'prevAiProofread')
+      }
+      deps.prevAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.revert',
+    labelKey: 'command.ai.proofread.revert',
+    keys: undefined,
+    run: () => {
+      if (deps.revertAiProofread === undefined) {
+        return portMissing('ai.proofread.revert', 'revertAiProofread')
+      }
+      deps.revertAiProofread()
     },
   })
   target.register({

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::segment::proofread_kind::ProofreadKind;
+use crate::core::segment::proofread_kind::{ProofreadKind, SignatureScope};
 
 /// A batch closes before the source plus target characters of its segments would pass this.
 pub const PROOFREAD_BATCH_CHAR_BUDGET: usize = 4_000;
@@ -47,6 +47,7 @@ pub struct ProofreadFinding {
 pub struct LocatedFindings {
     pub findings: Vec<ProofreadFinding>,
     pub unlocated: u32,
+    pub ambiguous: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,9 +98,10 @@ fn strip_code_fence(reply: &str) -> &str {
 /// in the `unlocated` of the segment it points at, or of the first segment when the index
 /// itself is unusable.
 ///
-/// A phrase occurring more than once is placed at its first occurrence not already claimed by an
-/// earlier finding in the same segment. A phrase that cannot be placed is counted in `unlocated`,
-/// never dropped silently. Findings come back ordered by position.
+/// A spelling phrase occurring more than once is placed at its first occurrence not already
+/// claimed by an earlier finding in the same segment. A context-scoped kind whose phrase occurs
+/// more than once is not placed and is counted in `ambiguous` (AD-53 rule 5). A phrase that cannot
+/// be placed is counted in `unlocated`, never dropped silently. Findings come back ordered by position.
 pub fn locate_batch_findings(
     reply: &str,
     segments: &[(&str, bool)],
@@ -109,7 +111,7 @@ pub fn locate_batch_findings(
 
     let mut claimed: Vec<Vec<(usize, usize)>> = vec![Vec::new(); segments.len()];
     let mut out: Vec<LocatedFindings> =
-        segments.iter().map(|_| LocatedFindings { findings: Vec::new(), unlocated: 0 }).collect();
+        segments.iter().map(|_| LocatedFindings { findings: Vec::new(), unlocated: 0, ambiguous: 0 }).collect();
 
     for finding in raw {
         let Some(position) = finding.batch_position(segments.len()) else {
@@ -120,16 +122,24 @@ pub fn locate_batch_findings(
         };
         let (scanned_text, has_source) = segments[position];
         let kind = ProofreadKind::from_wire(&finding.kind).filter(|k| has_source || !k.needs_source());
-        let found = if kind.is_none() || finding.quote.is_empty() {
-            None
+        let occurrences: Vec<(usize, usize)> = if kind.is_none() || finding.quote.is_empty() {
+            Vec::new()
         } else {
             scanned_text
                 .match_indices(finding.quote.as_str())
                 .map(|(start, quote)| (start, start + quote.len()))
-                .find(|&(start, end)| {
-                    !claimed[position].iter().any(|&(c_start, c_end)| start < c_end && c_start < end)
-                })
+                .collect()
         };
+        if let Some(kind) = kind
+            && kind.signature_scope() == SignatureScope::PhraseAndContext
+            && occurrences.len() > 1
+        {
+            out[position].ambiguous += 1;
+            continue;
+        }
+        let found = occurrences.into_iter().find(|&(start, end)| {
+            !claimed[position].iter().any(|&(c_start, c_end)| start < c_end && c_start < end)
+        });
         let (Some(kind), Some((start, end))) = (kind, found) else {
             out[position].unlocated += 1;
             continue;
@@ -185,15 +195,27 @@ mod tests {
     }
 
     #[test]
-    fn a_repeated_phrase_takes_the_first_occurrence_not_claimed_by_an_earlier_finding() {
+    fn a_repeated_spelling_phrase_takes_the_first_occurrence_not_claimed_by_an_earlier_finding() {
         let text = "aa bb aa";
         let r = reply(
             r#"{"kind":"spelling","quote":"aa","explanation":"","suggestion":""},
-               {"kind":"grammar","quote":"aa","explanation":"","suggestion":""}"#,
+               {"kind":"spelling","quote":"aa","explanation":"","suggestion":""}"#,
         );
         let got = locate_findings(&r, text, true).expect("valid reply");
         let spans: Vec<(u32, u32)> = got.findings.iter().map(|f| (f.start, f.end)).collect();
         assert_eq!(spans, vec![(0, 2), (6, 8)]);
+    }
+
+    #[test]
+    fn a_repeated_context_kind_phrase_is_not_placed_and_counts_as_ambiguous() {
+        let r = reply(
+            r#"{"kind":"grammar","quote":"aa","explanation":"","suggestion":""},
+               {"kind":"mistranslation","quote":"bb","explanation":"","suggestion":""},
+               {"kind":"obscure","quote":"cc","explanation":"","suggestion":""}"#,
+        );
+        let got = locate_findings(&r, "aa bb aa bb cc", true).expect("valid reply");
+        assert_eq!((got.findings.len(), got.unlocated, got.ambiguous), (1, 0, 2));
+        assert_eq!(got.findings[0].kind, ProofreadKind::Obscure);
     }
 
     #[test]

@@ -862,6 +862,9 @@ message_keys! {
     /// The scan reply was not the JSON array the prompt asked for. Retryable: a second sample
     /// from the same model usually parses.
     AiProofreadReplyMalformed => "err.ai_proofread.reply_malformed" [],
+    AiProofreadTextChanged => "err.ai_proofread.text_changed" ["segment_id"],
+    AiProofreadRangeInvalid => "err.ai_proofread.range_invalid" ["segment_id"],
+    AiProofreadTextWouldBeEmpty => "err.ai_proofread.text_would_be_empty" ["segment_id"],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

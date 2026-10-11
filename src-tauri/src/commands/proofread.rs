@@ -64,6 +64,8 @@ pub struct AiProofreadSegmentWire {
     pub scanned_text: String,
     pub findings: Vec<ProofreadFinding>,
     pub unlocated: u32,
+    /// Context-scoped phrases that occur more than once in `scanned_text`, so have no position.
+    pub ambiguous: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -241,6 +243,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                         scanned_text: segment.scanned_text.clone(),
                         findings: located.findings,
                         unlocated: located.unlocated,
+                        ambiguous: located.ambiguous,
                     })
                     .collect();
                 let _ = channel.send(AiProofreadEventWire::Batch {

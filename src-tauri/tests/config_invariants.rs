@@ -1828,7 +1828,8 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     // `tm_fuzzy_matches` is the one `(async)` shell here: it scans every pair of both TM tiers.
     // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
-    ("src/commands/segment/wire.rs", 18, 2, 2, ""),
+    // `ai_proofread_accept` and `ai_proofread_revert` are plain: one text splice, then one `UPDATE`.
+    ("src/commands/segment/wire.rs", 20, 2, 2, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -1979,9 +1980,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (80, 56),
+        (82, 56),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         80/56.\n\n\
+         82/56.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -12881,6 +12881,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: The 7.5 fuzzy strip does not yet yield to the Proofreader (UX-DR21 order), so both can claim the same slot.
   evidence: Story 9.4 carries the AC "gợi ý TM nhường cả hai". Pointer: `src/tmFuzzyStripState.ts`. Chủ: Story 9.4.
+  → ✅ ĐÃ ĐÓNG 2026-10-11 (Story 9-4): `PRIORITY_ORDER` = quick_add, confirm, `proofreader` (việc), `tm_fuzzy`, `proofreader_summary`; `proofreaderStripSlots.test.ts` khoá năm ca khe (⌘P sạch, Huỷ, TM thắng tóm tắt, việc thắng TM, Glossary thắng cả hai).
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.4: `commands/segment.rs::accept_tm_fuzzy` and `::accept_tm_exact` re-read the pair via `pair_by_id` and write `pair.target_text`, while the webview sends only `unitId`, so a pair edited between display and accept is accepted silently with different text.
   evidence: the user agreed to the text shown, not the text re-read. Pointer: `src/tmFuzzyStripState.ts`. Reconsidered when Epic 8 is planned; Kiểm C blocks Epic 8 closing. Chủ: Epic 8.
@@ -13045,4 +13046,8 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
   summary: Gộp vào mục ⌘P với AI thật ở trên: chưa ai quét cả Chương hoặc vùng chọn với AI thật trong ứng dụng thật (bộ chọn, tiêu điểm trả về, gạch chân qua nhiều ô, huỷ giữa lô, tổng token/chi phí, chất lượng lô 20 câu).
   evidence: 9.3 chỉ có test Rust với provider giả và vitest; không có e2e vì e2e không giả provider; màu và bố cục bộ chọn chưa thấy trong cửa sổ thật.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-xu-ly-tung-phat-hien-dai-goi-y-chap-nhan-bo-qua-phat-hien-ke-plan.md`
+  summary: Chưa ai chấp nhận, hoàn lại và duyệt F8 trên Chương thật trong ứng dụng thật (dải ở khe StatusBar, văn bản đổi đúng khoảng, gạch chân dời đúng, hoàn lại LIFO, xuất xứ sau chấp nhận).
+  evidence: 9-4 chỉ có test Rust với cơ sở dữ liệu thật, vitest và e2e underline; e2e không giả provider nên không có phát hiện thật để bấm; F8 không chạy trong ô gõ vì `keys.ts` bỏ phím trần.
   Chủ: Epic 9.

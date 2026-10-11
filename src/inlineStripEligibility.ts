@@ -3,7 +3,14 @@ import { confirmStripIsOpen } from './glossaryConfirmStripState'
 import { quickAddIsOpen } from './glossaryQuickAddState'
 import type { InlineStripKind } from './panels/inlineStripPriority'
 import { editorCaretSegmentId } from './panels/editorPanelState'
-import { proofreadRunSegmentIds, proofreadStateValue } from './proofreadState'
+import {
+  proofreadActionError,
+  proofreadCurrent,
+  proofreadProgress,
+  proofreadRevertible,
+  proofreadRunSegmentIds,
+  proofreadStateValue,
+} from './proofreadState'
 import { tmFuzzyIsEligible } from './tmFuzzyStripState'
 
 /** Every inline strip that could render now; `topmostStrip` picks the one that does. */
@@ -13,9 +20,18 @@ export const eligibleInlineStrips = computed<InlineStripKind[]>(() => {
   if (confirmStripIsOpen.value) list.push('glossary_confirm')
   const proofread = proofreadStateValue.value
   const caret = editorCaretSegmentId.value
-  if (proofread === 'scanning' || (proofread !== 'idle' && (caret === null || proofreadRunSegmentIds.value.includes(caret)))) {
-    list.push('proofreader')
-  }
+  const hasJob =
+    proofread === 'scanning' ||
+    proofread === 'error' ||
+    proofread === 'not_configured' ||
+    (proofread === 'done' && proofreadProgress.value.total === 0) ||
+    proofreadCurrent.value !== null ||
+    proofreadRevertible.value ||
+    proofreadActionError.value !== null
+  if (hasJob) list.push('proofreader')
   if (tmFuzzyIsEligible.value) list.push('tm_fuzzy')
+  if (proofread !== 'idle' && (caret === null || proofreadRunSegmentIds.value.includes(caret))) {
+    list.push('proofreader_summary')
+  }
   return list
 })

@@ -427,6 +427,58 @@
         super::review_accept_change(guard.as_ref(), chapter_id, group_id, &expected_target, force)
     }
 
+    /// Wire shell of [`super::replace_proofread_range`] for accepting a suggestion: `expectedPhrase`
+    /// is the flagged phrase, `replacement` the suggestion.
+    #[tauri::command]
+    pub fn ai_proofread_accept<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        segment_id: i64,
+        expected_text: String,
+        start: u32,
+        end: u32,
+        expected_phrase: String,
+        replacement: String,
+        kind: crate::core::segment::proofread_kind::ProofreadKind,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::replace_proofread_range(
+                None, segment_id, &expected_text, start, end, &expected_phrase, &replacement, kind,
+            );
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::replace_proofread_range(
+            guard.as_ref(), segment_id, &expected_text, start, end, &expected_phrase, &replacement, kind,
+        )
+    }
+
+    /// Wire shell of [`super::replace_proofread_range`] for reverting an accepted suggestion:
+    /// `expectedPhrase` is the suggestion now in the text, `replacement` the original phrase.
+    #[tauri::command]
+    pub fn ai_proofread_revert<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        segment_id: i64,
+        expected_text: String,
+        start: u32,
+        end: u32,
+        expected_phrase: String,
+        replacement: String,
+        kind: crate::core::segment::proofread_kind::ProofreadKind,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::replace_proofread_range(
+                None, segment_id, &expected_text, start, end, &expected_phrase, &replacement, kind,
+            );
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::replace_proofread_range(
+            guard.as_ref(), segment_id, &expected_text, start, end, &expected_phrase, &replacement, kind,
+        )
+    }
+
     /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `expectedTarget`, `force` on the wire.
     #[tauri::command]
     pub fn accept_tm_exact<R: tauri::Runtime>(

@@ -1,10 +1,26 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
-import { cancelProofreadCall, runProofreadSegments } from './config/proofread'
-import type { ProofreadEventWire, ProofreadFindingWire, ProofreadSegmentResultWire } from './config/proofread'
+import {
+  acceptProofreadSuggestion,
+  cancelProofreadCall,
+  revertProofreadSuggestion,
+  runProofreadSegments,
+} from './config/proofread'
+import type {
+  ProofreadEventWire,
+  ProofreadFindingWire,
+  ProofreadSegmentResultWire,
+  ProofreadWriteResult,
+} from './config/proofread'
 import type { AiUsageSummary } from './aiUsageLine'
 import type { IpcError } from './i18n'
-import { flushEditorBeforeDiscreteWrite } from './panels/editorPanelState'
+import {
+  editorCaretSegmentId,
+  editorSegments,
+  flushEditorBeforeDiscreteWrite,
+  moveEditorCaretTo,
+  replaceEditorSegment,
+} from './panels/editorPanelState'
 
 export type ProofreadState = 'idle' | 'scanning' | 'done' | 'error' | 'cancelled' | 'not_configured'
 
@@ -12,7 +28,19 @@ export type ProofreadSegmentResult = {
   readonly scannedText: string
   readonly findings: readonly ProofreadFindingWire[]
   readonly unlocated: number
+  readonly ambiguous: number
 }
+
+type RevertItem = {
+  readonly finding: ProofreadFindingWire
+  readonly phrase: string
+  readonly before: string
+  start: number
+  end: number
+  text: string
+}
+
+type Span = { readonly start: number; readonly end: number }
 
 const state = ref<ProofreadState>('idle')
 const runSegmentIds = shallowRef<readonly number[]>([])
@@ -26,6 +54,10 @@ const costUsdSum = ref(0)
 const costMissing = ref(false)
 const error = shallowRef<IpcError | null>(null)
 const scopeOpen = ref(false)
+const reverts = shallowRef<ReadonlyMap<number, readonly RevertItem[]>>(new Map())
+const focus = shallowRef<{ segmentId: number; index: number }>({ segmentId: -1, index: 0 })
+const acting = ref(false)
+const actionFailure = shallowRef<{ segmentId: number; error: IpcError } | null>(null)
 
 let sequence = 0
 let flushingRun = 0
@@ -46,6 +78,12 @@ export const proofreadProgress: ComputedRef<{ done: number; total: number }> = c
 export const proofreadFindingCount: ComputedRef<number> = computed(() => {
   let count = 0
   for (const entry of results.value.values()) count += entry.findings.length
+  return count
+})
+
+export const proofreadAmbiguous: ComputedRef<number> = computed(() => {
+  let count = 0
+  for (const entry of results.value.values()) count += entry.ambiguous
   return count
 })
 
@@ -73,6 +111,7 @@ function clearResult(): void {
   costUsdSum.value = 0
   costMissing.value = false
   error.value = null
+  actionFailure.value = null
   editedWhileScanning = new Set()
 }
 
@@ -87,8 +126,9 @@ function applyEvent(event: ProofreadEventWire): void {
     if (editedWhileScanning.has(segment.segment_id)) continue
     next.set(segment.segment_id, {
       scannedText: segment.scanned_text,
-      findings: segment.findings,
+      findings: [...segment.findings].sort((a, b) => a.start - b.start),
       unlocated: segment.unlocated,
+      ambiguous: segment.ambiguous,
     })
   }
   results.value = next
@@ -170,6 +210,7 @@ export function cancelProofread(): void {
 /** A typed edit in a scanned cell invalidates its underlines; other segments are untouched. */
 export function clearProofreadFor(segmentId: number): void {
   if (!runSegmentIds.value.includes(segmentId)) return
+  dropReverts(segmentId)
   if (state.value === 'scanning') {
     if (runSegmentIds.value.length === 1) {
       resetProofread()
@@ -206,5 +247,282 @@ export function resetProofread(): void {
   state.value = 'idle'
   runSegmentIds.value = []
   scopeOpen.value = false
+  reverts.value = new Map()
+  focus.value = { segmentId: -1, index: 0 }
+  acting.value = false
   clearResult()
+}
+
+function dropReverts(segmentId: number): void {
+  if (!reverts.value.has(segmentId)) return
+  const next = new Map(reverts.value)
+  next.delete(segmentId)
+  reverts.value = next
+}
+
+function editorTextOf(segmentId: number): string | null {
+  return editorSegments.value.find((segment) => segment.id === segmentId)?.target_text ?? null
+}
+
+function flushFailure(flushed: 'failed' | 'still-dirty'): IpcError {
+  const key = flushed === 'failed' ? 'proofread.accept_flush_failed' : 'proofread.accept_flush_still_dirty'
+  return { code: key, message_key: key, params: {}, retryable: true }
+}
+
+/** `[s, e)` is the replaced span of the old text; `null` means the span overlaps it and must be dropped. */
+function shiftSpan(span: Span, replaced: Span, delta: number): Span | null {
+  if (span.end <= replaced.start) return span
+  if (span.start >= replaced.end) return { start: span.start + delta, end: span.end + delta }
+  return null
+}
+
+export type ProofreadCurrent = {
+  readonly segmentId: number
+  readonly index: number
+  readonly count: number
+  readonly finding: ProofreadFindingWire
+  readonly scannedText: string
+}
+
+/** The finding at the caret, only while the segment still holds exactly the scanned text. */
+export const proofreadCurrent: ComputedRef<ProofreadCurrent | null> = computed(() => {
+  const caret = editorCaretSegmentId.value
+  if (caret === null) return null
+  const entry = results.value.get(caret)
+  if (entry === undefined || entry.findings.length === 0) return null
+  if (editorTextOf(caret) !== entry.scannedText) return null
+  const wanted = focus.value.segmentId === caret ? focus.value.index : 0
+  const index = Math.min(Math.max(wanted, 0), entry.findings.length - 1)
+  return {
+    segmentId: caret,
+    index,
+    count: entry.findings.length,
+    finding: entry.findings[index] as ProofreadFindingWire,
+    scannedText: entry.scannedText,
+  }
+})
+
+function topRevert(segmentId: number): RevertItem | null {
+  const stack = reverts.value.get(segmentId)
+  const top = stack?.[stack.length - 1]
+  if (top === undefined) return null
+  return editorTextOf(segmentId) === top.text ? top : null
+}
+
+/** An accepted suggestion at the caret that can still be undone. */
+export const proofreadRevertible: ComputedRef<boolean> = computed(() => {
+  const caret = editorCaretSegmentId.value
+  return caret !== null && topRevert(caret) !== null
+})
+
+export const proofreadActionError: ComputedRef<IpcError | null> = computed(() => {
+  const failure = actionFailure.value
+  return failure !== null && failure.segmentId === editorCaretSegmentId.value ? failure.error : null
+})
+
+export const proofreadBusy: DeepReadonly<Ref<boolean>> = readonly(acting)
+
+function setEntry(segmentId: number, entry: ProofreadSegmentResult): void {
+  const next = new Map(results.value)
+  next.set(segmentId, entry)
+  results.value = next
+}
+
+/** Moves the remaining findings and revert items of a segment after `[replaced)` of the old text was swapped. */
+export function shiftProofreadFindings(
+  segmentId: number,
+  replaced: Span,
+  delta: number,
+  newText: string,
+  skip: ProofreadFindingWire | null,
+): void {
+  const entry = results.value.get(segmentId)
+  if (entry !== undefined) {
+    const findings: ProofreadFindingWire[] = []
+    for (const finding of entry.findings) {
+      if (finding === skip) continue
+      const moved = shiftSpan(finding, replaced, delta)
+      if (moved !== null) findings.push({ ...finding, start: moved.start, end: moved.end })
+    }
+    setEntry(segmentId, { ...entry, scannedText: newText, findings })
+  }
+  const stack = reverts.value.get(segmentId)
+  if (stack !== undefined) {
+    const kept: RevertItem[] = []
+    for (const item of stack) {
+      const moved = shiftSpan(item, replaced, delta)
+      if (moved !== null) kept.push({ ...item, start: moved.start, end: moved.end, text: newText })
+    }
+    const next = new Map(reverts.value)
+    if (kept.length === 0) next.delete(segmentId)
+    else next.set(segmentId, kept)
+    reverts.value = next
+  }
+}
+
+function mirror(outcome: NonNullable<ProofreadWriteResult['outcome']>): void {
+  replaceEditorSegment(outcome.segment_id, {
+    target_text: outcome.target_text,
+    translation_origin: outcome.translation_origin,
+    status: outcome.status,
+  })
+}
+
+export async function acceptProofreadFinding(): Promise<void> {
+  if (acting.value) return
+  const current = proofreadCurrent.value
+  if (current === null) return
+  const mine = sequence
+  const { segmentId, finding, scannedText } = current
+  acting.value = true
+  actionFailure.value = null
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      actionFailure.value = { segmentId, error: flushFailure(flushed) }
+      return
+    }
+    if (mine !== sequence || !(results.value.get(segmentId)?.findings.includes(finding) ?? false)) return
+    const result = await acceptProofreadSuggestion({
+      segmentId,
+      expectedText: scannedText,
+      start: finding.start,
+      end: finding.end,
+      expectedPhrase: scannedText.slice(finding.start, finding.end),
+      replacement: finding.suggestion,
+      kind: finding.kind,
+    })
+    if (result.outcome === null) {
+      if (result.error !== null) actionFailure.value = { segmentId, error: result.error }
+      return
+    }
+    mirror(result.outcome)
+    if (mine !== sequence) return
+    const replaced = { start: finding.start, end: finding.end }
+    const delta = finding.suggestion.length - (finding.end - finding.start)
+    shiftProofreadFindings(segmentId, replaced, delta, result.outcome.target_text, finding)
+    const stack = reverts.value.get(segmentId) ?? []
+    const next = new Map(reverts.value)
+    next.set(segmentId, [
+      ...stack,
+      {
+        finding,
+        phrase: scannedText.slice(finding.start, finding.end),
+        before: scannedText,
+        start: finding.start,
+        end: finding.start + finding.suggestion.length,
+        text: result.outcome.target_text,
+      },
+    ])
+    reverts.value = next
+  } finally {
+    acting.value = false
+  }
+}
+
+export async function revertProofreadFinding(): Promise<void> {
+  if (acting.value) return
+  const caret = editorCaretSegmentId.value
+  if (caret === null) return
+  const top = topRevert(caret)
+  if (top === null) return
+  const mine = sequence
+  acting.value = true
+  actionFailure.value = null
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      actionFailure.value = { segmentId: caret, error: flushFailure(flushed) }
+      return
+    }
+    const live = topRevert(caret)
+    if (live === null) return
+    const result = await revertProofreadSuggestion({
+      segmentId: caret,
+      expectedText: live.text,
+      start: 0,
+      end: live.text.length,
+      expectedPhrase: live.text,
+      replacement: live.before,
+      kind: live.finding.kind,
+    })
+    if (result.outcome === null) {
+      if (result.error !== null) actionFailure.value = { segmentId: caret, error: result.error }
+      return
+    }
+    mirror(result.outcome)
+    const stack = reverts.value.get(caret) ?? []
+    const rest = stack.filter((item) => item !== live)
+    const nextReverts = new Map(reverts.value)
+    if (rest.length === 0) nextReverts.delete(caret)
+    else nextReverts.set(caret, rest)
+    reverts.value = nextReverts
+    if (mine !== sequence) return
+    const delta = live.phrase.length - (live.end - live.start)
+    shiftProofreadFindings(caret, { start: live.start, end: live.end }, delta, result.outcome.target_text, null)
+    const entry = results.value.get(caret)
+    if (entry !== undefined) {
+      const restored: ProofreadFindingWire = { ...live.finding, start: live.start, end: live.start + live.phrase.length }
+      setEntry(caret, {
+        ...entry,
+        findings: [...entry.findings, restored].sort((a, b) => a.start - b.start),
+      })
+    }
+  } finally {
+    acting.value = false
+  }
+}
+
+/** Closes the finding at the caret in memory only: no IPC, nothing remembered. */
+export function dismissProofreadFinding(): void {
+  const current = proofreadCurrent.value
+  if (current === null) return
+  const entry = results.value.get(current.segmentId)
+  if (entry === undefined) return
+  actionFailure.value = null
+  focus.value = { segmentId: current.segmentId, index: current.index }
+  setEntry(current.segmentId, { ...entry, findings: entry.findings.filter((f) => f !== current.finding) })
+}
+
+type Position = { segmentId: number; index: number }
+
+function findingPositions(): Position[] {
+  const list: Position[] = []
+  for (const segment of editorSegments.value) {
+    const entry = results.value.get(segment.id)
+    if (entry === undefined || entry.scannedText !== segment.target_text) continue
+    entry.findings.forEach((_, index) => list.push({ segmentId: segment.id, index }))
+  }
+  return list
+}
+
+function step(direction: 1 | -1): void {
+  const positions = findingPositions()
+  const current = proofreadCurrent.value
+  let target: Position | undefined
+  if (current !== null) {
+    const at = positions.findIndex((p) => p.segmentId === current.segmentId && p.index === current.index)
+    target = at + direction < 0 ? undefined : positions[at + direction]
+  } else {
+    const caret = editorCaretSegmentId.value
+    const order = editorSegments.value.map((segment) => segment.id)
+    const caretAt = caret === null ? -1 : order.indexOf(caret)
+    const after = positions.filter((p) => {
+      const at = order.indexOf(p.segmentId)
+      return direction === 1 ? at > caretAt : at < caretAt
+    })
+    target = direction === 1 ? after.at(0) : after.at(-1)
+  }
+  if (target === undefined) return
+  actionFailure.value = null
+  if (target.segmentId !== editorCaretSegmentId.value && !moveEditorCaretTo(target.segmentId)) return
+  focus.value = target
+}
+
+export function nextProofreadFinding(): void {
+  step(1)
+}
+
+export function prevProofreadFinding(): void {
+  step(-1)
 }

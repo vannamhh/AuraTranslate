@@ -2264,6 +2264,31 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
     );
 }
 
+#[test]
+fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+    let wire_rs =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
+    let wire_src = fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
+
+    for name in ["ai_proofread_accept", "ai_proofread_revert"] {
+        let registered = format!("crate::commands::segment::wire::{name}");
+        assert!(lib_src.contains(&registered), "`{registered}` phai co mat trong lib.rs");
+        assert_eq!(
+            normalize_param_list(&fn_param_list(&wire_src, name)),
+            normalize_param_list(
+                "app: tauri::AppHandle<R>, segment_id: i64, expected_text: String, start: u32, end: u32, \
+                 expected_phrase: String, replacement: String, kind: crate::core::segment::proofread_kind::ProofreadKind,"
+            ),
+            "vo `{name}` khong con dung danh sach tham so mong doi -- `src/config/proofread.ts` la cho \
+             duy nhat go lai theo dung ten/thu tu do."
+        );
+    }
+}
+
 /// `confirm_segment` chỉ mang `segment_id` trên dây (AD-50 rule 5): mốc so xuất xứ nằm ở Rust,
 /// webview không khai mốc nào, và DTO của segment không mang khoá `baseline_*` nào ra ngoài.
 #[test]

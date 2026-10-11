@@ -98,6 +98,7 @@ const NAMED_CODES: Readonly<Record<string, string>> = {
   Enter: 'Enter',
   Escape: 'Escape',
   F3: 'F3',
+  F8: 'F8',
   Tab: 'Tab',
   Space: 'Space',
   Backspace: 'Backspace',
