@@ -243,7 +243,7 @@ const COMMAND_FLOOR = 184
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 140
+const CLICK_FLOOR = 151
 const DISPATCH_FLOOR = 204
 
 {
@@ -2325,6 +2325,8 @@ const HANDLER_TABLE = {
   'src/AiPromptInspectorOverlay.vue::onEscape': { ids: ['ai.prompt_inspector.close'] },
   'src/AiPromptInspectorOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/App.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
+  'src/ProofreadScopeOverlay.vue::onEscape': { ids: ['ai.proofread.scope.close'] },
+  'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/AttributionOverlay.vue::closeAttribution': { nonCommand: R_CLOSE_IMPORTED },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },
@@ -2639,7 +2641,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 91
+const HANDLER_ATTR_FLOOR = 98
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

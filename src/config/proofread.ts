@@ -24,18 +24,23 @@ export type ProofreadFindingWire = {
   suggestion: string
 }
 
+export type ProofreadSegmentResultWire = {
+  segment_id: number
+  scanned_text: string
+  findings: ProofreadFindingWire[]
+  unlocated: number
+}
+
+export type ProofreadEventWire =
+  | { kind: 'planned'; segments: number; batches: number }
+  | { kind: 'batch'; usage: AiTranslateUsageWire | null; segments: ProofreadSegmentResultWire[] }
+
 export type ProofreadOutcomeWire =
   | { state: 'not_configured' }
-  | { state: 'cancelled' }
-  | {
-      state: 'done'
-      usage: AiTranslateUsageWire | null
-      scanned_text: string
-      findings: ProofreadFindingWire[]
-      unlocated: number
-    }
+  | { state: 'cancelled'; not_scanned: number }
+  | { state: 'done'; not_scanned: number }
 
-const CMD_PROOFREAD = 'ai_proofread_segment'
+const CMD_PROOFREAD = 'ai_proofread_segments'
 const CMD_PROOFREAD_CANCEL = 'ai_proofread_cancel'
 
 function isFindingWire(value: unknown): value is ProofreadFindingWire {
@@ -51,19 +56,11 @@ function isFindingWire(value: unknown): value is ProofreadFindingWire {
   )
 }
 
-export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcomeWire {
+function isSegmentResultWire(value: unknown): value is ProofreadSegmentResultWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as {
-    state?: unknown
-    usage?: unknown
-    scanned_text?: unknown
-    findings?: unknown
-    unlocated?: unknown
-  }
-  if (v.state === 'not_configured' || v.state === 'cancelled') return true
-  if (v.state !== 'done') return false
+  const v = value as Partial<Record<keyof ProofreadSegmentResultWire, unknown>>
   return (
-    (v.usage === null || isAiTranslateUsageWire(v.usage)) &&
+    typeof v.segment_id === 'number' &&
     typeof v.scanned_text === 'string' &&
     Array.isArray(v.findings) &&
     v.findings.every(isFindingWire) &&
@@ -71,16 +68,41 @@ export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcom
   )
 }
 
-/** Never throws; `onToken` may run zero times. */
-export async function runProofreadSegment(
-  segmentId: number,
-  onToken: (text: string) => void,
+export function isProofreadEventWire(value: unknown): value is ProofreadEventWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { kind?: unknown; segments?: unknown; batches?: unknown; usage?: unknown }
+  if (v.kind === 'planned') return typeof v.segments === 'number' && typeof v.batches === 'number'
+  if (v.kind !== 'batch') return false
+  return (
+    (v.usage === null || isAiTranslateUsageWire(v.usage)) &&
+    Array.isArray(v.segments) &&
+    v.segments.every(isSegmentResultWire)
+  )
+}
+
+export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcomeWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { state?: unknown; not_scanned?: unknown }
+  if (v.state === 'not_configured') return true
+  return (v.state === 'done' || v.state === 'cancelled') && typeof v.not_scanned === 'number'
+}
+
+/** Never throws; `onEvent` receives only well-shaped events and may run zero times. */
+export async function runProofreadSegments(
+  segmentIds: readonly number[],
+  onEvent: (event: ProofreadEventWire) => void,
 ): Promise<{ value: ProofreadOutcomeWire | null; error: IpcError | null }> {
-  const channel = new Channel<string>()
-  channel.onmessage = onToken
+  const channel = new Channel<unknown>()
+  channel.onmessage = (raw) => {
+    if (!isProofreadEventWire(raw)) {
+      console.error(`[proofread] \`${CMD_PROOFREAD}\` sent an event that is not ProofreadEventWire`)
+      return
+    }
+    onEvent(raw)
+  }
 
   try {
-    const wire = await invoke<unknown>(CMD_PROOFREAD, { segmentId, channel })
+    const wire = await invoke<unknown>(CMD_PROOFREAD, { segmentIds: [...segmentIds], channel })
     if (!isProofreadOutcomeWire(wire)) {
       console.error(`[proofread] \`${CMD_PROOFREAD}\` returned a shape that is not ProofreadOutcomeWire`)
       return { value: null, error: UNKNOWN_IPC_ERROR }

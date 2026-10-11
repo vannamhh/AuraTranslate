@@ -1074,6 +1074,14 @@ export type CommandDeps = {
   cancelAiTranslate?: () => void
   /** Quét chính tả và ngữ pháp câu đang có con trỏ. Handler của `ai.proofread.run`. */
   runAiProofread?: () => void
+  /** Quét các câu đang chọn. Handler của `ai.proofread.run_selection`. */
+  runAiProofreadSelection?: () => void
+  /** Quét cả Chương đang mở. Handler của `ai.proofread.run_chapter`. */
+  runAiProofreadChapter?: () => void
+  /** Mở bộ chọn phạm vi quét. Handler của `ai.proofread.scope.open`. */
+  openAiProofreadScope?: () => void
+  /** Đóng bộ chọn phạm vi quét. Handler của `ai.proofread.scope.close`. */
+  closeAiProofreadScope?: () => void
   /** Huỷ lượt quét đang chạy. Handler của `ai.proofread.cancel`. */
   cancelAiProofread?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
@@ -4156,6 +4164,50 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.proofread.run', 'runAiProofread')
       }
       deps.runAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.run_selection',
+    labelKey: 'command.ai.proofread.run_selection',
+    keys: undefined,
+    run: () => {
+      if (deps.runAiProofreadSelection === undefined) {
+        return portMissing('ai.proofread.run_selection', 'runAiProofreadSelection')
+      }
+      deps.runAiProofreadSelection()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.run_chapter',
+    labelKey: 'command.ai.proofread.run_chapter',
+    keys: ['Mod+Shift+P'],
+    run: () => {
+      if (deps.runAiProofreadChapter === undefined) {
+        return portMissing('ai.proofread.run_chapter', 'runAiProofreadChapter')
+      }
+      deps.runAiProofreadChapter()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.scope.open',
+    labelKey: 'command.ai.proofread.scope.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiProofreadScope === undefined) {
+        return portMissing('ai.proofread.scope.open', 'openAiProofreadScope')
+      }
+      deps.openAiProofreadScope()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.scope.close',
+    labelKey: 'command.ai.proofread.scope.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeAiProofreadScope === undefined) {
+        return portMissing('ai.proofread.scope.close', 'closeAiProofreadScope')
+      }
+      deps.closeAiProofreadScope()
     },
   })
   target.register({

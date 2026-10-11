@@ -364,6 +364,7 @@ import {
 import { selectedPromptSetName } from './promptSetState'
 import { aiTranslateHandlers } from './aiTranslateHandlers'
 import { proofreadHandlers } from './proofreadHandlers'
+import { proofreadScopeIsOpen } from './proofreadState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -1002,7 +1003,8 @@ async function boot(): Promise<void> {
         promptImportOverlayIsOpen.value ||
         // Story 4.7 — cùng lý do hệt `promptLibraryOverlayIsOpen`: `AiPromptInspectorOverlay.vue`
         // cũng khai `aria-modal="true"` và `trapTab`.
-        aiPromptInspectorIsOpen.value,
+        aiPromptInspectorIsOpen.value ||
+        proofreadScopeIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

@@ -78,7 +78,8 @@ import {
 } from '../aiTranslateBatchState'
 import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
 import type { AiTranslateUsageWire } from '../config/aitranslate'
-import { formatUsdParam } from '../aiUsageLine'
+import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
+import type { AiUsageSummary } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
@@ -262,41 +263,13 @@ const aiTranslateUsageLineValue = computed<AiTranslateUsageLine | null>(() =>
  * khoá khi không), áp riêng cho từng trường hợp đầy-đủ/một-phần — bốn khoá, không hai, vì
  * "đầy đủ hay một phần" và "có giá hay không" là hai trục ĐỘC LẬP.
  */
-function aiTranslateBatchUsageLine(summary: {
-  tokenCount: number
-  reportedCount: number
-  sentenceCount: number
-  costUsd: number | null
-}): AiTranslateUsageLine | null {
-  if (summary.reportedCount === 0) return null
-  const full = summary.reportedCount === summary.sentenceCount
-  if (summary.costUsd !== null) {
-    return {
-      key: full ? 'ai.translate.batch_usage_total_with_cost' : 'ai.translate.batch_usage_partial_with_cost',
-      params: full
-        ? {
-            token_count: String(summary.tokenCount),
-            cost_usd: formatUsdParam(summary.costUsd),
-            sentence_count: String(summary.sentenceCount),
-          }
-        : {
-            token_count: String(summary.tokenCount),
-            cost_usd: formatUsdParam(summary.costUsd),
-            reported_count: String(summary.reportedCount),
-            sentence_count: String(summary.sentenceCount),
-          },
-    }
-  }
-  return {
-    key: full ? 'ai.translate.batch_usage_total' : 'ai.translate.batch_usage_partial',
-    params: full
-      ? { token_count: String(summary.tokenCount), sentence_count: String(summary.sentenceCount) }
-      : {
-          token_count: String(summary.tokenCount),
-          reported_count: String(summary.reportedCount),
-          sentence_count: String(summary.sentenceCount),
-        },
-  }
+function aiTranslateBatchUsageLine(summary: AiUsageSummary): AiTranslateUsageLine | null {
+  return aiUsageSummaryLine(summary, {
+    total: 'ai.translate.batch_usage_total',
+    totalWithCost: 'ai.translate.batch_usage_total_with_cost',
+    partial: 'ai.translate.batch_usage_partial',
+    partialWithCost: 'ai.translate.batch_usage_partial_with_cost',
+  })
 }
 
 const aiTranslateBatchUsageLineValue = computed<AiTranslateUsageLine | null>(() =>

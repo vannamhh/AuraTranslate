@@ -20,3 +20,33 @@ export function aiUsageLine(usage: AiTranslateUsageWire | null): AiUsageLine {
     params: { token_count: String(usage.total_tokens), cost_usd: formatUsdParam(usage.cost_usd) },
   }
 }
+
+export type AiUsageSummary = {
+  tokenCount: number
+  reportedCount: number
+  sentenceCount: number
+  costUsd: number | null
+}
+
+export type AiUsageSummaryKeys = {
+  total: string
+  totalWithCost: string
+  partial: string
+  partialWithCost: string
+}
+
+/** `null` when no sentence reported usage, so no "0 token" line is drawn. */
+export function aiUsageSummaryLine(summary: AiUsageSummary, keys: AiUsageSummaryKeys): AiUsageLine | null {
+  if (summary.reportedCount === 0) return null
+  const full = summary.reportedCount === summary.sentenceCount
+  const params: Record<string, string> = {
+    token_count: String(summary.tokenCount),
+    sentence_count: String(summary.sentenceCount),
+  }
+  if (!full) params.reported_count = String(summary.reportedCount)
+  if (summary.costUsd !== null) {
+    params.cost_usd = formatUsdParam(summary.costUsd)
+    return { key: full ? keys.totalWithCost : keys.partialWithCost, params }
+  }
+  return { key: full ? keys.total : keys.partial, params }
+}

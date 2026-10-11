@@ -13038,3 +13038,11 @@ chính nó.
   summary: Chữ ký ghi nhớ của AD-53 mục 7 chứa loại do model gán, nên một cụm bị gọi chính tả rồi ngữ pháp ở hai lượt quét thì đổi khoá và báo lại (FR84); chữ ký loại 9.2 chỉ mang văn bản đích, không mang cụm nguồn.
   evidence: AD-53 mục 1 ⚠️; reviews/review-ad-53-recheck-2026-10-10.md mục 5; không có dữ liệu dùng thật để đo tần suất.
   Chủ: Story 9.8.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
+  summary: Dải proofreader chưa hiện ước tính chi phí trước khi bấm quét Chương hoặc vùng chọn (mockup có, AC của 9.3 không có; dịch theo lô cũng chưa có).
+  evidence: `proofreader.html:300-302`; bộ chọn ba ô chỉ hiện số câu.
+  Chủ: Sally.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
+  summary: Gộp vào mục ⌘P với AI thật ở trên: chưa ai quét cả Chương hoặc vùng chọn với AI thật trong ứng dụng thật (bộ chọn, tiêu điểm trả về, gạch chân qua nhiều ô, huỷ giữa lô, tổng token/chi phí, chất lượng lô 20 câu).
+  evidence: 9.3 chỉ có test Rust với provider giả và vitest; không có e2e vì e2e không giả provider; màu và bố cục bộ chọn chưa thấy trong cửa sổ thật.
+  Chủ: Epic 9.

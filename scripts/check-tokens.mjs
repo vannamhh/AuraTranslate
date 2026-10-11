@@ -89,7 +89,7 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * qua `judgeFloor`.
  */
 const FILE_FLOOR = 137
-const COMPONENT_FILE_FLOOR = 127
+const COMPONENT_FILE_FLOOR = 136
 
 let failures = 0
 /** @param {string} m */

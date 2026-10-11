@@ -2236,7 +2236,7 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
     for wire in [
-        "crate::commands::proofread::wire::ai_proofread_segment",
+        "crate::commands::proofread::wire::ai_proofread_segments",
         "crate::commands::proofread::wire::ai_proofread_cancel",
         "app.manage(crate::commands::proofread::ProofreadGeneration::default());",
     ] {
@@ -2251,11 +2251,11 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", proofread_rs.display()));
 
     assert_eq!(
-        normalize_param_list(&fn_param_list_async(&proofread_src, "ai_proofread_segment")),
+        normalize_param_list(&fn_param_list_async(&proofread_src, "ai_proofread_segments")),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, segment_id: i64, channel: tauri::ipc::Channel<String>,"
+            "app: tauri::AppHandle<R>, segment_ids: Vec<i64>, channel: tauri::ipc::Channel<AiProofreadEventWire>,"
         ),
-        "vo `ai_proofread_segment` khong con dung danh sach tham so mong doi -- \
+        "vo `ai_proofread_segments` khong con dung danh sach tham so mong doi -- \
          `src/config/proofread.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
     assert_eq!(

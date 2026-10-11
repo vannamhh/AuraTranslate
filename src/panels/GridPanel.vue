@@ -70,13 +70,7 @@
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { isMeaningKind } from '../config/proofread'
 import { paintProofreadRanges, rangesForScan } from './proofreadHighlight'
-import {
-  clearProofreadFor,
-  proofreadFindings,
-  proofreadRunSegmentId,
-  proofreadScannedText,
-  proofreadStateValue,
-} from '../proofreadState'
+import { clearProofreadFor, proofreadResults } from '../proofreadState'
 import PanelFrame from './PanelFrame.vue'
 import SourceHanViet from './SourceHanViet.vue'
 import { useSelectionSurface } from './selectionContract'
@@ -1092,30 +1086,25 @@ watch([() => editorSegments.value, colTgt], restoreEditedText, { flush: 'post' }
 
 /** Underlines live in `CSS.highlights`, outside Vue's DOM; drawn only while the cell still holds the scanned text. */
 function repaintProofread(): void {
-  const id = proofreadRunSegmentId.value
   const host = colTgt.value
-  if (proofreadStateValue.value !== 'done' || id === null || host === null) {
+  if (host === null || proofreadResults.value.size === 0) {
     paintProofreadRanges(null)
     return
   }
-  const cell = host.querySelector<HTMLElement>(`[data-segment-id="${String(id)}"]`)
-  if (cell === null) {
-    paintProofreadRanges(null)
-    return
+  const errorRanges: Range[] = []
+  const meaningRanges: Range[] = []
+  for (const [id, entry] of proofreadResults.value) {
+    const cell = host.querySelector<HTMLElement>(`[data-segment-id="${String(id)}"]`)
+    if (cell === null) continue
+    const errors = rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => !isMeaningKind(f.kind)))
+    const meanings = rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => isMeaningKind(f.kind)))
+    if (errors !== null) errorRanges.push(...errors)
+    if (meanings !== null) meaningRanges.push(...meanings)
   }
-  const scanned = proofreadScannedText.value
-  const findings = proofreadFindings.value
-  paintProofreadRanges(
-    rangesForScan(cell, scanned, findings.filter((f) => !isMeaningKind(f.kind))),
-    rangesForScan(cell, scanned, findings.filter((f) => isMeaningKind(f.kind))),
-  )
+  paintProofreadRanges(errorRanges, meaningRanges)
 }
 
-watch(
-  [proofreadStateValue, proofreadFindings, proofreadScannedText, proofreadRunSegmentId, () => editorSegments.value, colTgt],
-  repaintProofread,
-  { flush: 'post' },
-)
+watch([proofreadResults, () => editorSegments.value, colTgt], repaintProofread, { flush: 'post' })
 onBeforeUnmount(() => {
   paintProofreadRanges(null)
 })

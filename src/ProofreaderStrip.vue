@@ -2,50 +2,86 @@
 import { computed } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
-import { aiUsageLine } from './aiUsageLine'
+import { aiUsageLine, aiUsageSummaryLine } from './aiUsageLine'
 import { eligibleInlineStrips } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
 import {
   proofreadError,
-  proofreadFindings,
+  proofreadFindingCount,
+  proofreadNotScanned,
+  proofreadProgress,
+  proofreadRunSegmentIds,
   proofreadStateValue,
   proofreadUnlocated,
-  proofreadUsage,
+  proofreadUsageSummary,
 } from './proofreadState'
 
 const isVisible = computed(() => topmostStrip(eligibleInlineStrips.value) === 'proofreader')
 
+const isSingle = computed(() => proofreadRunSegmentIds.value.length === 1)
+
 const summary = computed<string | null>(() => {
   switch (proofreadStateValue.value) {
-    case 'scanning':
-      return t('proofread.strip.scanning')
+    case 'scanning': {
+      if (isSingle.value) return t('proofread.strip.scanning')
+      const { done, total } = proofreadProgress.value
+      return t('proofread.strip.scanning_progress', { done_count: String(done), total_count: String(total) })
+    }
     case 'cancelled':
       return t('proofread.strip.cancelled')
     case 'not_configured':
       return t('panel.ai_translation.status')
-    case 'done': {
-      const count = proofreadFindings.value.length
-      return count === 0
-        ? t('proofread.strip.clean')
-        : t('proofread.strip.found', { finding_count: String(count) })
-    }
     default:
       return null
   }
 })
 
+const findingsText = computed<string | null>(() => {
+  const state = proofreadStateValue.value
+  if (state !== 'done' && state !== 'cancelled' && state !== 'error') return null
+  if (state === 'done' && proofreadProgress.value.total === 0) return t('proofread.strip.nothing_to_scan')
+  const count = proofreadFindingCount.value
+  if (count === 0) {
+    if (state !== 'done') return null
+    return isSingle.value
+      ? t('proofread.strip.clean')
+      : t('proofread.strip.clean_many', { sentence_count: String(proofreadProgress.value.done) })
+  }
+  return isSingle.value
+    ? t('proofread.strip.found', { finding_count: String(count) })
+    : t('proofread.strip.found_many', {
+        finding_count: String(count),
+        sentence_count: String(proofreadProgress.value.done),
+      })
+})
+
 const unlocatedText = computed<string | null>(() =>
-  proofreadStateValue.value === 'done' && proofreadUnlocated.value > 0
+  proofreadStateValue.value !== 'scanning' && proofreadUnlocated.value > 0
     ? t('proofread.strip.unlocated', { unlocated_count: String(proofreadUnlocated.value) })
     : null,
 )
 
+const notScannedText = computed<string | null>(() =>
+  proofreadStateValue.value !== 'scanning' && proofreadNotScanned.value > 0
+    ? t('proofread.strip.not_scanned', { not_scanned_count: String(proofreadNotScanned.value) })
+    : null,
+)
+
 const usageText = computed<string | null>(() => {
-  if (proofreadStateValue.value !== 'done') return null
-  const usage = proofreadUsage.value
-  if (usage === null && proofreadFindings.value.length === 0) return null
-  const line = aiUsageLine(usage)
-  return t(line.key, line.params)
+  const state = proofreadStateValue.value
+  if (state !== 'done' && state !== 'cancelled' && state !== 'error') return null
+  const summaryValue = proofreadUsageSummary.value
+  if (summaryValue.sentenceCount === 0) return null
+  const line =
+    summaryValue.reportedCount === 0
+      ? aiUsageLine(null)
+      : aiUsageSummaryLine(summaryValue, {
+          total: 'proofread.usage_total',
+          totalWithCost: 'proofread.usage_total_with_cost',
+          partial: 'proofread.usage_partial',
+          partialWithCost: 'proofread.usage_partial_with_cost',
+        })
+  return line === null ? null : t(line.key, line.params)
 })
 </script>
 
@@ -70,6 +106,14 @@ const usageText = computed<string | null>(() => {
     <p v-else-if="summary !== null" class="pfs-status" role="status">
       <!-- aura-allow-text: result of t() computed in the script. -->
       {{ summary }}
+    </p>
+    <p v-if="findingsText !== null" class="pfs-status" role="status">
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      {{ findingsText }}
+    </p>
+    <p v-if="notScannedText !== null" class="pfs-status" role="status">
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      {{ notScannedText }}
     </p>
     <p v-if="unlocatedText !== null" class="pfs-status" role="status">
       <!-- aura-allow-text: result of t() computed in the script. -->

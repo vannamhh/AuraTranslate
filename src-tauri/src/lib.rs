@@ -1291,7 +1291,7 @@ pub fn run() {
             // dich mot segment o tren -- mot bo dem cho ca tien trinh, bat dau lo nay SUPERSEDE
             // mot luot don dang chay va nguoc lai.
             crate::commands::aitranslate::wire::ai_translate_batch,
-            crate::commands::proofread::wire::ai_proofread_segment,
+            crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
             // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
             // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no di qua
