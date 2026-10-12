@@ -29,10 +29,13 @@ export function releaseVersionProblems(tag, root) {
   const match = TAG_RE.exec(tag)
   if (!match) return [`tag '${tag}' is not of the form v<major>.<minor>.<patch>`]
   const expected = match[1]
+  /** @param {string} text @returns {string} */
+  const jsonVersion = (text) => JSON.parse(text).version
+  /** @type {Array<[string, (text: string) => string]>} */
   const sources = [
-    ['package.json', (t) => JSON.parse(t).version],
+    ['package.json', jsonVersion],
     ['src-tauri/Cargo.toml', cargoPackageVersion],
-    ['src-tauri/tauri.conf.json', (t) => JSON.parse(t).version],
+    ['src-tauri/tauri.conf.json', jsonVersion],
   ]
   const problems = []
   for (const [file, read] of sources) {
