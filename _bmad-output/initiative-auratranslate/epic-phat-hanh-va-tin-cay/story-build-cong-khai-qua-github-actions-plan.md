@@ -3,7 +3,7 @@ title: 'Story 10.1 — Build công khai qua GitHub Actions'
 type: 'feature'
 ticket: "1"
 created: '2026-10-12'
-status: 'in-review'
+status: 'built'
 baseline_revision: '2fe700975c485949aaac5170b1f23ef9daf777f8'
 route: 'full'
 route_source: 'auto'
