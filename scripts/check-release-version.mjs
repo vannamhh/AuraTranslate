@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const TAG_RE = /^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/
+const TAG_RE = /^v(\d+\.\d+\.\d+)$/
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** @param {string} text */

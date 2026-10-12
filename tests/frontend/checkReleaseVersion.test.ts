@@ -36,7 +36,7 @@ describe('releaseVersionProblems', () => {
     expect(problems[1]).toContain('src-tauri/tauri.conf.json')
   })
 
-  it.each(['0.1.0', 'v0.1', 'v1.2.3.4', 'dict-v2', 'vlatest', ''])('rejects the tag %j', (tag) => {
+  it.each(['0.1.0', 'v0.1', 'v1.2.3.4', 'dict-v2', 'vlatest', 'v0.2.0-rc1', 'v1.0.0+b', ''])('rejects the tag %j', (tag) => {
     write({ pkg: '0.1.0', cargo: '0.1.0', tauri: '0.1.0' })
     expect(releaseVersionProblems(tag, root)).toHaveLength(1)
   })

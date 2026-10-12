@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Checks an unpacked release build (the `.app`, or the target of `msiexec /a`) against
- * `dict-manifest.toml` and the bundled fonts under `src-tauri/resources/fonts`, and prints a Markdown size report for the CI step summary (NFR6).
- * Exit 1 when any dictionary or font file is missing, duplicated or has the wrong SHA-256. The sizes
- * are reported, never judged.
+ * `dict-manifest.toml` and the bundled fonts under `src-tauri/resources/fonts`, and prints a
+ * Markdown size report for the CI step summary (NFR6). Exit 1 when any dictionary or font file
+ * is missing, duplicated or has the wrong SHA-256. The sizes are reported, never judged.
  *
  * Usage: node scripts/inspect-release.mjs --root <dir> --installer <file> [--manifest <path>]
  */
