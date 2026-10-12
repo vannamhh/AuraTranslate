@@ -112,8 +112,6 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
     );
 }
 
-/// Từ điển chỉ đến từ bản cài hoặc `fetch-dicts`, không bao giờ từ mạng lúc chạy: mã dưới
-/// `core/dict/**` không nhắc một HTTP client nào (AD-15: ba lối ra mạng, không có lối này).
 #[test]
 fn the_dictionary_layer_never_touches_the_network() {
     let files = dict_sources();
