@@ -63,6 +63,7 @@ Verify: Một lượt chạy `release.yml` trên một tag cho ra `.dmg` và `.m
 
 - Decision 2026-10-12: tám mục nợ làm cứng CI ở lại trong story này, không tách story riêng (Ice chọn).
 - Decision 2026-10-12: tạo release `dict-v2` chứa bốn tệp khớp manifest, manifest trỏ sang đó; `dict-v1` giữ nguyên làm lịch sử (Ice chọn). Đo ngày 2026-10-12: `dict-v1` có 3 asset với sha cũ và thiếu `dict-tran-van-chanh.db`.
+- Decision 2026-10-12: release `dict-v2` đã tạo trên tag `d3fb849`, bốn asset có sha-256 khớp `dict-manifest.toml`; không nhận nhãn Latest. `dict-manifest.toml` vẫn trỏ `dict-v1`: đổi bốn URL sang `dict-v2` là việc của lượt build (Ice chọn). Dump thô kaikki chưa tải lên.
 - Decision 2026-10-12: dựng bản cài ở tệp `release.yml` riêng, chạy trên tag; điều này gỡ ràng buộc một tệp workflow của Story 1.3 AC4 (Ice chọn).
 - Decision 2026-10-12: risk giữ `low` (Ice chọn).
 - Open question: nợ dòng 341–342 ghi ba tệp; manifest nay có bốn tệp (thêm `dict-tran-van-chanh.db`), và test có mặt phải khẳng định cả bốn.
