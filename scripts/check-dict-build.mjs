@@ -9,7 +9,8 @@
  *          `tools/dict-build/src/**\/*.rs` tìm token cấm; miễn trừ khai bằng comment
  *          `// dict-build:allow <token> — <lý do>` NGAY DÒNG TRÊN dòng vi phạm.
  * Kiểm B — cách ly workspace (AC4). `tools/dict-build/Cargo.toml` phải có `[workspace]`
- *          và KHÔNG phụ thuộc nào trỏ `path` sang `src-tauri`.
+ *          và KHÔNG phụ thuộc nào trỏ `path` sang `src-tauri`; chiều ngược lại,
+ *          `src-tauri/Cargo.toml` không nhắc tới `dict-build`.
  * Kiểm C — sàn số tệp (bài học `check-deps.mjs:15-17`, `store_boundary.rs:44`): cây
  *          rỗng không được đọc thành sạch.
  * Kiểm D — chống TRÔI giữa `sources_meta.rs` (Rust) và `dict-manifest.toml` (Story
@@ -222,6 +223,28 @@ if (workspaceTrue.test(cargoToml)) {
   fail('Cargo.toml có `workspace = true` — dấu hiệu crate này đã bị kéo vào workspace khác')
 } else {
   pass('không khai `workspace = true` cho phụ thuộc nào')
+}
+
+// Chiều ngược: `src-tauri` không được phụ thuộc vào build tool. `dict-build` là công cụ
+// ngoại tuyến sinh ra `.db`; nếu app kéo nó vào, hai cây giao nhau từ phía kia.
+const srcTauriCargoPath = join(REPO_ROOT, 'src-tauri', 'Cargo.toml')
+let srcTauriCargo = ''
+try {
+  srcTauriCargo = readFileSync(srcTauriCargoPath, 'utf8')
+} catch (err) {
+  abort(`${posix(srcTauriCargoPath)}`, err)
+}
+const srcTauriCargoCode = srcTauriCargo
+  .split(/\r\n|\n/)
+  .filter((l) => !l.trim().startsWith('#'))
+  .join('\n')
+if (!/^\[dependencies\]/m.test(srcTauriCargoCode)) {
+  abort(`${posix(srcTauriCargoPath)}`, new Error('không thấy mục [dependencies] — phép kiểm chiều ngược sẽ mù'))
+}
+if (/dict-build|dict_build|tools\/dict/.test(srcTauriCargoCode)) {
+  fail('src-tauri/Cargo.toml nhắc tới dict-build / tools/dict — hai cây đã giao nhau từ phía app')
+} else {
+  pass('src-tauri/Cargo.toml không nhắc tới dict-build')
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

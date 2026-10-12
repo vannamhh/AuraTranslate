@@ -219,12 +219,27 @@ fn no_dev_csp_and_no_platform_config_overrides() {
     );
 
     for platform in ["macos", "windows", "linux", "android", "ios"] {
-        let overlay = manifest_dir().join(format!("tauri.{platform}.conf.json"));
+        for name in [
+            format!("tauri.{platform}.conf.json"),
+            format!("tauri.{platform}.conf.json5"),
+            format!("Tauri.{platform}.toml"),
+        ] {
+            let overlay = manifest_dir().join(&name);
+            assert!(
+                !overlay.exists(),
+                "`{}` tồn tại và được Tauri merge tự động — bộ test này chỉ đọc \
+                 `tauri.conf.json` nên sẽ khẳng định sai. Mở rộng test trước khi thêm tệp đó.",
+                overlay.display()
+            );
+        }
+    }
+    for name in ["tauri.conf.json5", "Tauri.toml"] {
+        let variant = manifest_dir().join(name);
         assert!(
-            !overlay.exists(),
-            "`{}` tồn tại và được Tauri merge tự động — bộ test này chỉ đọc \
-             `tauri.conf.json` nên sẽ khẳng định sai. Mở rộng test trước khi thêm tệp đó.",
-            overlay.display()
+            !variant.exists(),
+            "`{}` tồn tại và Tauri ưu tiên nó hơn `tauri.conf.json` tuỳ định dạng — mọi test CSP \
+             ở tệp này sẽ đọc nhầm tệp.",
+            variant.display()
         );
     }
 }
@@ -310,9 +325,9 @@ fn csp_style_src_stays_at_self() {
 /// scope chỉ còn MỘT mục là để lại một cái tên nói dối, và tên test là thứ lượt rà soát
 /// sau đọc TRƯỚC tiên.
 ///
-/// 🔴 Lưới thay thế: sau lượt này, KHÔNG còn dòng nào trong `tauri.conf.json` nhắc tới
-/// `dict` cho tới Story 10.1 (đóng gói `.db` vào `bundle.resources` + lưới mới). Xem
-/// mục Story 10.1 mới trong `deferred-work.md`.
+/// 🔴 Lưới thay thế: `tauri.conf.json` không nhắc tới `dict`. Từ điển vào bản cài qua lớp
+/// phủ `tauri.release.conf.json` mà chỉ `release.yml` truyền; các ca `release_overlay_…`
+/// ở dưới canh lớp phủ đó, và ca này canh `assetProtocol.scope` vẫn chỉ có `fonts`.
 #[test]
 fn asset_protocol_scope_has_exactly_the_one_readonly_resource_area() {
     let conf = read_json("tauri.conf.json");
@@ -530,6 +545,210 @@ fn nofonts_overlay_drops_resources_with_an_explicit_null() {
          'không font' vẫn có font, chênh lệch bằng 0, CI xanh, phép đo vô nghĩa.\n\
          Đọc doc-comment của test này trước khi sửa."
     );
+}
+
+// ── Story 10.1 — lớp phủ release mang từ điển vào bản cài ─────────────────────────
+
+/// Mọi `--config` mà một workflow được phép truyền. `$bootstrapCfg` là tệp tạm do chính
+/// `ci.yml` ghi ra lúc đo `.msi`.
+const ALLOWED_CONFIG_OVERLAYS: [&str; 3] = [
+    "src-tauri/tauri.nofonts.conf.json",
+    "src-tauri/tauri.release.conf.json",
+    "$bootstrapCfg",
+];
+
+const RELEASE_OVERLAY: &str = "src-tauri/tauri.release.conf.json";
+
+fn repo_root() -> PathBuf {
+    manifest_dir()
+        .parent()
+        .expect("src-tauri has a parent directory")
+        .to_path_buf()
+}
+
+fn workflow_files() -> Vec<PathBuf> {
+    let dir = repo_root().join(".github").join("workflows");
+    let mut files: Vec<PathBuf> = fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
+        .map(|e| e.expect("directory entry").path())
+        .filter(|p| matches!(p.extension().and_then(|x| x.to_str()), Some("yml" | "yaml")))
+        .collect();
+    files.sort();
+    files
+}
+
+/// Dòng không phải comment; `#` đầu dòng là comment YAML.
+fn code_lines(text: &str) -> Vec<&str> {
+    text.lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .collect()
+}
+
+/// Giá trị đứng sau mỗi `--config` trên một dòng, chấp nhận cả `--config x` lẫn
+/// `'--config', 'x'`.
+fn config_arguments(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = line;
+    while let Some(at) = rest.find("--config") {
+        rest = &rest[at + "--config".len()..];
+        let value: String = rest
+            .trim_start_matches(|c: char| c == '\'' || c == '"' || c == ',' || c.is_whitespace())
+            .chars()
+            .take_while(|c| !c.is_whitespace() && !matches!(c, '\'' | '"' | ',' | ')'))
+            .collect();
+        out.push(value);
+    }
+    out
+}
+
+fn manifest_dict_file_names() -> Vec<String> {
+    let path = repo_root().join("dict-manifest.toml");
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    raw.lines()
+        .filter_map(|l| l.trim().strip_prefix("url"))
+        .map(|rest| {
+            let url = rest
+                .split('"')
+                .nth(1)
+                .unwrap_or_else(|| panic!("`url` line without a quoted value: {rest}"));
+            url.rsplit('/')
+                .next()
+                .expect("url has a last segment")
+                .to_owned()
+        })
+        .collect()
+}
+
+/// Từ điển chỉ vào bản cài qua lớp phủ này, và lớp phủ chỉ làm ĐÚNG việc đó.
+///
+/// Lớp phủ là một map nên Tauri merge nó (RFC 7396) vào `bundle.resources` của
+/// `tauri.conf.json` — thêm một khoá, không đụng khoá nào khác. Glob `*.db` đặt cả bốn
+/// tệp vào `dict/`; dạng mảng sẽ đặt chúng sai chỗ.
+#[test]
+fn release_overlay_adds_exactly_the_manifest_dictionary_files_under_dict() {
+    let conf = read_json("tauri.release.conf.json");
+    let root = conf.as_object().expect("overlay is a JSON object");
+    assert_eq!(
+        root.keys().map(String::as_str).collect::<Vec<_>>(),
+        vec!["bundle"]
+    );
+    let bundle = root["bundle"].as_object().expect("`bundle` is an object");
+    assert_eq!(
+        bundle.keys().map(String::as_str).collect::<Vec<_>>(),
+        vec!["resources"],
+        "lớp phủ release chỉ được thêm `bundle.resources`; mọi khoá khác đổi bản đem đi phát hành"
+    );
+
+    let resources = bundle["resources"]
+        .as_object()
+        .expect("`bundle.resources` must be an object map, an array would drop the files in the wrong place");
+    assert_eq!(
+        resources.len(),
+        1,
+        "lớp phủ release có đúng một dòng nối từ điển; thấy {resources:?}"
+    );
+    assert_eq!(
+        resources.get("resources/dict/*.db"),
+        Some(&serde_json::json!("dict/")),
+        "từ điển phải tới `$RESOURCE/dict/<tệp>.db` (AD-25)"
+    );
+
+    let mut names = manifest_dict_file_names();
+    names.sort();
+    assert_eq!(
+        names,
+        vec![
+            "dict-core.db",
+            "dict-thieu-chuu.db",
+            "dict-tran-van-chanh.db",
+            "dict-vietphrase.db",
+        ],
+        "bốn tên trong dict-manifest.toml; glob `*.db` của lớp phủ phải phủ đúng bấy nhiêu tệp"
+    );
+    assert!(names.iter().all(|n| n.ends_with(".db")));
+}
+
+#[test]
+fn base_config_never_carries_the_dictionary() {
+    let conf = read_json("tauri.conf.json");
+    let resources = conf["bundle"]["resources"]
+        .as_object()
+        .expect("`bundle.resources` is an object map");
+    for (source, target) in resources {
+        let target = target.as_str().expect("resource targets are strings");
+        assert!(
+            !source.contains("dict") && !target.contains("dict"),
+            "`tauri.conf.json` mang `{source}` → `{target}`: từ điển chỉ vào qua lớp phủ release, \
+             nếu không mọi build (dev, ci, e2e) phải có 373 MB"
+        );
+    }
+}
+
+#[test]
+fn release_workflow_passes_the_release_overlay_to_every_tauri_build() {
+    let path = repo_root()
+        .join(".github")
+        .join("workflows")
+        .join("release.yml");
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let builds: Vec<&str> = code_lines(&raw)
+        .into_iter()
+        .filter(|l| l.contains("npx tauri build"))
+        .collect();
+    assert_eq!(
+        builds.len(),
+        2,
+        "release.yml dựng một lần mỗi nền tảng (macOS .dmg, Windows .msi); thấy {builds:?}"
+    );
+    for line in builds {
+        assert_eq!(
+            config_arguments(line),
+            vec![RELEASE_OVERLAY.to_owned()],
+            "mọi `tauri build` trong release.yml phải truyền `--config {RELEASE_OVERLAY}` và không \
+             lớp phủ nào khác: `{line}`"
+        );
+    }
+}
+
+#[test]
+fn every_workflow_config_overlay_is_an_allowed_one() {
+    let mut seen = 0usize;
+    for file in workflow_files() {
+        let raw =
+            fs::read_to_string(&file).unwrap_or_else(|e| panic!("read {}: {e}", file.display()));
+        for line in code_lines(&raw) {
+            for value in config_arguments(line) {
+                seen += 1;
+                assert!(
+                    ALLOWED_CONFIG_OVERLAYS.contains(&value.as_str()),
+                    "{}: `--config {value}` không thuộc danh sách lớp phủ được phép {ALLOWED_CONFIG_OVERLAYS:?}",
+                    file.display()
+                );
+            }
+        }
+    }
+    assert!(
+        seen >= 4,
+        "ci.yml truyền hai `--config` và release.yml hai; chỉ thấy {seen} — bộ quét đã mù"
+    );
+}
+
+#[test]
+fn no_workflow_or_script_sets_tauri_config() {
+    let mut files = workflow_files();
+    files.push(repo_root().join("package.json"));
+    files.push(repo_root().join(".githooks").join("pre-push"));
+    for file in files {
+        let raw =
+            fs::read_to_string(&file).unwrap_or_else(|e| panic!("read {}: {e}", file.display()));
+        for line in code_lines(&raw) {
+            assert!(
+                !line.contains("TAURI_CONFIG"),
+                "{}: `TAURI_CONFIG` merge cấu hình ngoài các lớp phủ `--config` đã canh: `{line}`",
+                file.display()
+            );
+        }
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

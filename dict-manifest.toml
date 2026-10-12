@@ -20,11 +20,9 @@
 # Story 1.2 chỉ dựng khung này.
 
 [base]
-# ⚠️ Release `dict-v1` CHƯA TỒN TẠI trên GitHub tại thời điểm story này giao (2026-08-04)
-# — URL dưới đây ĐÚNG HÌNH DẠNG và đúng tag dự kiến (cổng `check:dict-manifest` kiểm
-# hình dạng, không kiểm tồn tại), nhưng sẽ trả 404 tới khi Ice chạy lệnh ở §Completion
-# Notes để tạo release và tải cả bốn tệp lên. Không đoán một tag khác chỉ để URL
-# phản hồi 200 — dict-v1 là tag đúng, chỉ chưa được tạo.
+# Release `dict-v2` chứa đủ bốn tệp dưới đây; `scripts/fetch-dicts.mjs` tải chúng và đối
+# chiếu `sha256` trước khi `release.yml` dựng bản cài. `dict-v1` còn trên GitHub nhưng
+# chỉ có ba tệp, sha khác bảng này và thiếu `dict-tran-van-chanh.db`, nên không còn được trỏ tới.
 #
 # 🔴 SHA-256 CẬP NHẬT LẦN BA ở **Story 1.10c** (2026-08-06) — LƯỢC ĐỒ LÊN v2 + NGUỒN NỀN
 # THỨ BẢY. `SCHEMA_VERSION` 1→2 (cột `dict_entry.nom_reading` mới, AC6) buộc dựng lại
@@ -57,22 +55,22 @@
 #
 # ✅ Xác nhận TÁI LẬP ĐƯỢC: hai lượt `--layer all` độc lập vào hai thư mục đích khác
 # nhau cho ra ĐÚNG bốn SHA-256 dưới đây, cả bốn tệp.
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v2/dict-core.db"
 sha256         = "95c9f5b118d05058621e03e2467aff6d1fb25a9b061a7e4a1d113201d68bf981"
 source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04 · en-wiktionary-vi@2026-08-06"
 
 # Ba lớp gỡ rời trong phạm vi Story 1.10c (Ice chốt 2026-08-06: + Trần Văn Chánh, cạnh
-# Thiều Chửu + VietPhrase đã có từ Story 1.10). Cùng release `dict-v1` với [base] — bốn
+# Thiều Chửu + VietPhrase đã có từ Story 1.10). Cùng release `dict-v2` với [base] — bốn
 # tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6 của Story 1.9/1.10).
 [[detachable]]
 name           = "thieu-chuu"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-thieu-chuu.db"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v2/dict-thieu-chuu.db"
 sha256         = "e391a4b242818627209fe1d8e9446cc7c60854110912add6a4de2069aac66054"
 source_version = "catusf/tudien@2.2 (2022-10-10)"
 
 [[detachable]]
 name           = "vietphrase"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-vietphrase.db"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v2/dict-vietphrase.db"
 sha256         = "9e472aeb9185d5a77b583b191a3ca39c66718de1764ecda541ebd0d9de480bb5"
 source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF-8)"
 
@@ -83,6 +81,6 @@ source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF
 # `assets/licenses/tran-van-chanh.txt` và `sources_meta::TRAN_VAN_CHANH` (AC8).
 [[detachable]]
 name           = "tran-van-chanh"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-tran-van-chanh.db"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v2/dict-tran-van-chanh.db"
 sha256         = "3eb98410478d0fab052bbcdb4fd14b88eb74043406f9c13ecd14c8d49398229f"
 source_version = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)"

@@ -1,0 +1,105 @@
+# Public release build (FR107, AD-25): a `v*` tag builds the .dmg and .msi with the four
+# dictionary files from dict-manifest.toml inside, and uploads them as workflow artifacts.
+# It publishes nothing: no GitHub Release (10.2), no checksums (10.3). Dictionary tags
+# (`dict-v*`) never match `v*`, so they start no run.
+#
+# Actions are pinned to commit SHAs resolved with `gh api` on 2026-10-12:
+#   checkout v7.0.1 · setup-node v7.0.0 · rust-cache v2.9.1 · upload-artifact v7.0.2
+#   dtolnay/rust-toolchain branch 1.97.1
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@cf201f30d2291af293e25b32e435b13c42d51aaf # 1.97.1
+        with:
+          toolchain: 1.97.1
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: npm ci
+        run: npm ci
+
+      # Exits non-zero on a hash mismatch or a failed download, before any build step, and
+      # never leaves an unverified file under src-tauri/resources/dict/.
+      - name: fetch dictionaries (sha256 against dict-manifest.toml)
+        run: node scripts/fetch-dicts.mjs
+
+      - name: tauri build (macOS .dmg)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: npx tauri build --bundles dmg --config src-tauri/tauri.release.conf.json
+
+      - name: tauri build (Windows .msi)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: npx tauri build --bundles msi --config src-tauri/tauri.release.conf.json
+
+      - name: inspect the bundle (dictionary files and NFR6 sizes)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          APPS=(src-tauri/target/release/bundle/macos/*.app)
+          DMGS=(src-tauri/target/release/bundle/dmg/*.dmg)
+          if [ ${#APPS[@]} -ne 1 ] || [ ${#DMGS[@]} -ne 1 ]; then
+            echo "expected exactly one .app and one .dmg, found ${#APPS[@]} and ${#DMGS[@]}" >&2
+            exit 1
+          fi
+          node scripts/inspect-release.mjs --root "${APPS[0]}" --installer "${DMGS[0]}" > "$RUNNER_TEMP/report.md"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: inspect the bundle (dictionary files and NFR6 sizes)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msis = @(Get-ChildItem 'src-tauri\target\release\bundle\msi\*.msi')
+          if ($msis.Count -ne 1) { throw "expected exactly one .msi, found $($msis.Count)" }
+          $target = Join-Path $env:RUNNER_TEMP 'msi-extract'
+          $msiPath = $msis[0].FullName
+          $proc = Start-Process msiexec.exe -ArgumentList '/a', "`"$msiPath`"", '/qn', "TARGETDIR=`"$target`"" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "msiexec /a exited with $($proc.ExitCode)" }
+          $report = Join-Path $env:RUNNER_TEMP 'report.md'
+          node scripts/inspect-release.mjs --root $target --installer $msiPath | Out-File -FilePath $report -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { throw "inspect-release exited with $LASTEXITCODE" }
+          Get-Content $report | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aura-translate-${{ runner.os }}
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 30

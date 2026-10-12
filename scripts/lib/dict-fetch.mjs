@@ -1,0 +1,156 @@
+import { createHash } from 'node:crypto'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { parseStrictToml } from './strict-toml.mjs'
+
+const SHA256_RE = /^[0-9a-f]{64}$/
+
+/**
+ * @typedef {{ fileName: string, url: string, sha256: string }} ManifestEntry
+ * @typedef {{ fileName: string, status: 'kept' | 'downloaded' | 'sha-mismatch' | 'download-failed', expected: string, actual?: string, detail?: string }} EntryResult
+ */
+
+/**
+ * Entries of `dict-manifest.toml`: `[base]` first, then each `[[detachable]]`, in file order.
+ * @param {string} text
+ * @returns {ManifestEntry[]}
+ */
+export function manifestEntries(text) {
+  const { tables } = parseStrictToml(text)
+  const rows = [...(tables.get('base') ?? []), ...(tables.get('detachable') ?? [])]
+  if (rows.length === 0) throw new Error('dict-manifest.toml has no [base] or [[detachable]] entry')
+  return rows.map((row) => {
+    const url = row.url
+    const sha256 = row.sha256
+    if (typeof url !== 'string' || typeof sha256 !== 'string' || !SHA256_RE.test(sha256)) {
+      throw new Error(`manifest entry without a valid url/sha256: ${JSON.stringify(row)}`)
+    }
+    const fileName = url.slice(url.lastIndexOf('/') + 1)
+    if (!/^[A-Za-z0-9._-]+\.db$/.test(fileName)) {
+      throw new Error(`manifest url does not end in a plain .db file name: ${url}`)
+    }
+    return { fileName, url, sha256 }
+  })
+}
+
+/** @param {string} path */
+async function sha256OfFile(path) {
+  const hash = createHash('sha256')
+  for await (const chunk of createReadStream(path)) hash.update(chunk)
+  return hash.digest('hex')
+}
+
+/** @param {string} path */
+async function exists(path) {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Downloads every manifest entry into `dest`, renaming a temporary file into place only after
+ * its SHA-256 equals the manifest's. A file already in `dest` whose hash matches is kept.
+ * Nothing unverified is ever left under its final name.
+ *
+ * @param {{ manifestText: string, dest: string, fetchImpl?: typeof fetch, log?: (line: string) => void }} options
+ * @returns {Promise<EntryResult[]>}
+ */
+export async function fetchDicts({ manifestText, dest, fetchImpl = fetch, log = () => {} }) {
+  const entries = manifestEntries(manifestText)
+  await mkdir(dest, { recursive: true })
+  /** @type {EntryResult[]} */
+  const results = []
+
+  for (const entry of entries) {
+    const target = join(dest, entry.fileName)
+    const partial = join(dest, `.${entry.fileName}.part`)
+
+    if (await exists(target)) {
+      const present = await sha256OfFile(target)
+      if (present === entry.sha256) {
+        log(`kept       ${entry.fileName} (sha256 already matches)`)
+        results.push({ fileName: entry.fileName, status: 'kept', expected: entry.sha256 })
+        continue
+      }
+      log(`replacing  ${entry.fileName} (sha256 ${present} does not match the manifest)`)
+    }
+
+    try {
+      const response = await fetchImpl(entry.url)
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`.trim())
+      }
+      const hash = createHash('sha256')
+      const tap = new Transform({
+        transform(chunk, _encoding, done) {
+          hash.update(chunk)
+          done(null, chunk)
+        },
+      })
+      await pipeline(Readable.fromWeb(/** @type {any} */ (response.body)), tap, createWriteStream(partial))
+      const actual = hash.digest('hex')
+      if (actual !== entry.sha256) {
+        await rm(partial, { force: true })
+        log(`SHA MISMATCH ${entry.fileName}\n  expected ${entry.sha256}\n  actual   ${actual}`)
+        results.push({ fileName: entry.fileName, status: 'sha-mismatch', expected: entry.sha256, actual })
+        continue
+      }
+      await rename(partial, target)
+      log(`downloaded ${entry.fileName} (sha256 ${actual})`)
+      results.push({ fileName: entry.fileName, status: 'downloaded', expected: entry.sha256, actual })
+    } catch (err) {
+      await rm(partial, { force: true })
+      const detail = String(err instanceof Error ? err.message : err)
+      log(`DOWNLOAD FAILED ${entry.fileName} from ${entry.url}: ${detail}`)
+      results.push({ fileName: entry.fileName, status: 'download-failed', expected: entry.sha256, detail })
+    }
+  }
+  return results
+}
+
+/** @param {string} dir @returns {Promise<{ path: string, size: number }[]>} */
+async function walkFiles(dir) {
+  /** @type {{ path: string, size: number }[]} */
+  const files = []
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...(await walkFiles(full)))
+    else if (entry.isFile()) files.push({ path: full, size: (await stat(full)).size })
+  }
+  return files
+}
+
+/**
+ * Looks for every manifest file under `root` (an unpacked `.app` or a `msiexec /a` target),
+ * requiring exactly one copy per name, inside a directory called `dict`, with the manifest's
+ * SHA-256. Also totals the bytes of the whole tree, minus files named like WebView2.
+ *
+ * @param {{ manifestText: string, root: string }} options
+ * @returns {Promise<{ problems: string[], installedBytes: number, webview2Bytes: number }>}
+ */
+export async function inspectInstalledTree({ manifestText, root }) {
+  const entries = manifestEntries(manifestText)
+  const files = await walkFiles(root)
+  const problems = []
+  for (const entry of entries) {
+    const hits = files.filter((f) => f.path.replaceAll('\\', '/').endsWith(`/dict/${entry.fileName}`))
+    if (hits.length !== 1) {
+      problems.push(`${entry.fileName}: found ${hits.length} copies under a 'dict' directory, need exactly 1`)
+      continue
+    }
+    const actual = await sha256OfFile(hits[0].path)
+    if (actual !== entry.sha256) {
+      problems.push(`${entry.fileName}: sha256 ${actual} does not match the manifest ${entry.sha256}`)
+    }
+  }
+  const webview2 = files.filter((f) => /webview2/i.test(f.path.slice(root.length)))
+  const webview2Bytes = webview2.reduce((sum, f) => sum + f.size, 0)
+  const installedBytes = files.reduce((sum, f) => sum + f.size, 0) - webview2Bytes
+  return { problems, installedBytes, webview2Bytes }
+}

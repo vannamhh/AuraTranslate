@@ -1557,8 +1557,9 @@ fn close_global_store(handle: &tauri::AppHandle) {
 /// 🔴 KHÔNG CÓ LỚP NÀO LÀ MỘT TRẠNG THÁI **BÌNH THƯỜNG CÓ TÊN**
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `src-tauri/resources/dict/` hôm nay **rỗng** trong git *(không tệp `.db` nào — AD-25)*
-/// và `bundle.resources` **chưa** mang thư mục đó *(Story 10.1)*. Nên một bản dựng hôm nay
-/// lên với **không lớp nào**, và đó **không** phải một lỗi — nó là chính hình dạng FR36
+/// và `tauri.conf.json` không mang thư mục đó: từ điển chỉ vào bản cài qua lớp phủ
+/// `tauri.release.conf.json` mà `release.yml` truyền. Nên mọi bản dựng không phải release
+/// (dev, `ci.yml`, e2e) lên với **không lớp nào**, và đó **không** phải một lỗi — nó là chính hình dạng FR36
 /// đòi hỏi: *"gỡ một lớp = xoá một file"*, và trường hợp giới hạn của mệnh đề đó là **gỡ
 /// hết**.
 ///
