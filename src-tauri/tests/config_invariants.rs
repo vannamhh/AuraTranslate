@@ -2705,9 +2705,8 @@ fn release_job_lines(raw: &str, name: &str) -> Vec<String> {
         if !in_jobs {
             continue;
         }
-        let is_job_header = line.starts_with("  ")
-            && !line.starts_with("   ")
-            && line.trim_end().ends_with(':');
+        let is_job_header =
+            line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':');
         if is_job_header {
             in_job = line.trim_end() == header;
             continue;
@@ -2735,7 +2734,10 @@ fn only_the_publish_job_may_write_contents() {
     let raw = release_workflow_text();
     let publish = release_job_lines(&raw, "publish");
     let build = release_job_lines(&raw, "build");
-    assert!(!publish.is_empty() && !build.is_empty(), "release.yml lost its build/publish jobs");
+    assert!(
+        !publish.is_empty() && !build.is_empty(),
+        "release.yml lost its build/publish jobs"
+    );
 
     let publish_perms = permission_keys(&publish);
     assert!(
@@ -2773,7 +2775,10 @@ fn only_the_publish_job_may_write_contents() {
 fn publish_job_needs_build_and_runs_only_on_v_tags() {
     let publish = release_job_lines(&release_workflow_text(), "publish");
     let trimmed: Vec<&str> = publish.iter().map(|l| l.trim()).collect();
-    assert!(trimmed.contains(&"needs: build"), "`publish` phải `needs: build`");
+    assert!(
+        trimmed.contains(&"needs: build"),
+        "`publish` phải `needs: build`"
+    );
     assert!(
         trimmed.contains(&"if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')"),
         "`publish` phải bị chặn trên tag `v*`, workflow_dispatch không được tạo release"
@@ -2787,13 +2792,27 @@ fn release_command_pins_notes_file_verify_tag_and_latest_without_clobber() {
         .into_iter()
         .filter(|l| l.contains("gh release create"))
         .collect();
-    assert_eq!(creates.len(), 1, "đúng một lệnh `gh release create`; thấy {creates:?}");
+    assert_eq!(
+        creates.len(),
+        1,
+        "đúng một lệnh `gh release create`; thấy {creates:?}"
+    );
     let line = creates[0];
-    for flag in ["--notes-file .github/release-notes.md", "--verify-tag", "--latest"] {
-        assert!(line.contains(flag), "lệnh tạo release thiếu `{flag}`: `{line}`");
+    for flag in [
+        "--notes-file .github/release-notes.md",
+        "--verify-tag",
+        "--latest",
+    ] {
+        assert!(
+            line.contains(flag),
+            "lệnh tạo release thiếu `{flag}`: `{line}`"
+        );
     }
     for banned in ["--clobber", "--draft"] {
-        assert!(!line.contains(banned), "lệnh tạo release có `{banned}`: `{line}`");
+        assert!(
+            !line.contains(banned),
+            "lệnh tạo release có `{banned}`: `{line}`"
+        );
     }
     assert!(
         !code_lines(&raw).iter().any(|l| l.contains("--clobber")),
@@ -2836,7 +2855,11 @@ fn version_check_precedes_every_tauri_build_and_macos_builds_universal() {
         .map(|(_, l)| **l)
         .filter(|l| l.contains("--bundles dmg"))
         .collect();
-    assert_eq!(mac.len(), 1, "đúng một dòng `tauri build` macOS; thấy {mac:?}");
+    assert_eq!(
+        mac.len(),
+        1,
+        "đúng một dòng `tauri build` macOS; thấy {mac:?}"
+    );
     assert!(
         mac[0].contains("--target universal-apple-darwin"),
         "dòng `tauri build` macOS phải mang `--target universal-apple-darwin`: `{}`",
