@@ -3,14 +3,14 @@ title: 'Story 10.1 — Build công khai qua GitHub Actions'
 type: 'feature'
 ticket: "1"
 created: '2026-10-12'
-status: 'ready-for-dev'
-baseline_revision: ''
+status: 'in-review'
+baseline_revision: '2fe700975c485949aaac5170b1f23ef9daf777f8'
 route: 'full'
 route_source: 'auto'
 risk: 'low'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
@@ -96,9 +96,30 @@ context:
 
 ## Implementation Notes
 
+- Bốn pha, mỗi pha một commit trở lên: `style` (fmt), `refactor(rust)` (clippy, MSRV), `feat(release)` (đường phát hành), `refactor(scripts)` + `ci` (làm cứng CI). Ghi chú bàn giao giữa các pha nằm ngoài repo.
+- ⚠️ Fmt cần hai lượt mới hội tụ. Nó làm đỏ chín chỗ quét mã nguồn theo dòng: comment miễn trừ máy đọc chỉ che dòng ngay dưới, nên phải dời vào trong biểu thức; needle chữ ký và `app.manage(...)` đổi theo văn bản đã định dạng. Hai bộ cắt thân hàm trên `\n    pub fn ` vẫn XANH nhưng yếu đi, vì không tìm thấy dấu cắt nên thân hàm chạy tới hết tệp.
+- ⚠️ `#[expect]` đặt giữa `#[tauri::command]` và `fn` làm đỏ các test đọc dòng ngay trước chữ ký; phải đặt trên `#[tauri::command]`. Sáu `#[allow(clippy::…)]` có từ trước story cũng đổi sang `#[expect(…, reason)]`.
+- `SegmentRole::from_str` đổi thành `parse`; `set_block_override` trả `Result<(), BlockIndexOutOfRange>` thay cho `Result<(), ()>`.
+- Type-check toàn bộ `scripts/**/*.mjs` ở chế độ strict của `tsconfig.node.json` ra 328 lỗi, không phải 26 như lượt đo không strict. Đã sửa hết bằng JSDoc, không dùng `@ts-expect-error`.
+- Bộ duyệt cây `walk` chặn vòng bằng chuỗi tổ tiên, không dùng tập đã-thăm toàn cục: tập toàn cục làm số gói npm rơi 522 → 305, dưới sàn 444.
+- Concurrency của CI đổi thành `ci-${{ github.head_ref || github.ref_name }}`. Lượt `schedule` trên `master` vẫn chung nhóm với push `master`, y như với `github.ref` trước đây.
+- Bản `.app` debug dựng với lớp phủ release nặng 498.562.207 byte (binary debug, không phải số NFR6). Số thật sẽ có ở lượt `release.yml` đầu tiên.
+- Còn do người làm: chạy `release.yml` lần đầu (nửa Windows chưa từng chạy), và Ice bật Dependabot alerts.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Lượt 1 (quick): high 0 · medium 4 · low 3 · false 0 · maybe-false 0; hai low bị bác.
+- medium · patch — `dict-fetch.mjs` giữ tệp sai sha dưới tên thật khi lần tải thay thế thất bại (chỉ `.part` bị xoá); xoá đích trước khi tải, thêm ca vitest.
+- medium · patch — `.part` không bị gitignore (`git check-ignore` exit 1); thêm mẫu.
+- medium · patch (sổ nợ) — mục `bundle.resources` và điều kiện khởi hành đóng ✅ bằng suy luận về `release.yml` chưa chạy; mục đầu hạ 🟡 `Chủ: Story 10.1`, mục sau chỉ dẫn run `ci.yml` 37446210896.
+- medium · chờ người — AC1/AC4 cần push và một lượt `release.yml`/CI thật; step 3 cấm push, chuyển sang bước trình bày.
+- low · patch — comment mang mã story/banner/lịch sử review ở `release.yml:3`, `config_invariants.rs:550`, `strict-toml.mjs:35,49,110`.
+- medium · patch — nhóm concurrency `ci-${{ github.head_ref || github.ref_name }}` gộp PR từ fork tên `master` với `master` thật và huỷ lượt của nó; thêm repo đầu nhánh vào khoá.
+- low · patch — `tsconfig.node.json` đổi định dạng `"lib"` ngoài phạm vi; trả về một dòng.
+- low · bác — cổng `check:clippy`/`check:fmt` không tự kiểm: phán quyết là mã thoát của cargo, cùng tiền lệ `check:lint`; đối chứng bằng tay chạy cho cả hai.
+- low · bác — chiều ngược Check B bắt mọi chuỗi `dict-build` trong `Cargo.toml`: chỉ khắt khe hơn, vô hại; đối chứng `[patch]` đã chạy ở Phase 3a.
 
 ## Verification
 
