@@ -2786,6 +2786,21 @@ fn publish_job_needs_build_and_runs_only_on_v_tags() {
 }
 
 #[test]
+fn publish_refuses_unless_ci_succeeded_on_the_same_commit_before_creating_the_release() {
+    let publish = release_job_lines(&release_workflow_text(), "publish");
+    let position = |needle: &str| publish.iter().position(|l| l.contains(needle));
+    let list = position("gh run list --workflow ci.yml --commit \"$GITHUB_SHA\"")
+        .expect("`publish` phải tra `ci.yml` trên đúng `$GITHUB_SHA`");
+    let verdict = position(r#"select(.status == "completed" and .conclusion == "success")"#)
+        .expect("`publish` phải đòi một run `ci.yml` completed + success");
+    let create = position("gh release create").expect("`publish` tạo release");
+    assert!(
+        list < verdict && verdict < create,
+        "kiểm CI xanh phải đứng trước `gh release create`"
+    );
+}
+
+#[test]
 fn release_command_pins_notes_file_verify_tag_and_latest_without_clobber() {
     let raw = release_workflow_text();
     let creates: Vec<&str> = code_lines(&raw)
