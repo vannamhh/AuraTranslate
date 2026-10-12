@@ -112,6 +112,38 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
     );
 }
 
+/// Từ điển chỉ đến từ bản cài hoặc `fetch-dicts`, không bao giờ từ mạng lúc chạy: mã dưới
+/// `core/dict/**` không nhắc một HTTP client nào (AD-15: ba lối ra mạng, không có lối này).
+#[test]
+fn the_dictionary_layer_never_touches_the_network() {
+    let files = dict_sources();
+    assert!(
+        !files.is_empty(),
+        "không có tệp nào dưới `src/{DICT_DIR}/**` để quét"
+    );
+
+    let mut violations: Vec<String> = Vec::new();
+    for (rel, text) in &files {
+        for (number, code) in boundary_scan::code_lines(text) {
+            let lowered = code.to_ascii_lowercase();
+            for needle in ["reqwest", "http", "ureq"] {
+                if lowered.contains(needle) {
+                    violations.push(format!("{rel}:{number}  {needle}  |  {code}"));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `core/dict/**` nhắc một HTTP client:\n{}\n\n\
+         Bản phát hành không có cơ chế tải thêm sau khi cài (FR111); từ điển nằm sẵn trong \
+         bản cài.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
 /// 🔴 **AC5** — không một câu `LIKE` / `GLOB` / `instr(` nào trên đường tra cứu nóng.
 #[test]
 fn the_hot_lookup_path_never_scans_the_table() {

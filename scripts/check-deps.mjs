@@ -196,6 +196,7 @@ const BANNED_CRATES = [
   // trực tiếp — một plugin HTTP song song là đường TẮT đi vòng qua điểm ra mạng thứ ba DUY
   // NHẤT (AD-15), không được phép tồn tại cạnh nó.
   ['tauri-plugin-http', 'AD-15 — Fetcher dùng `reqwest::blocking` trực tiếp, không plugin'],
+  ['tauri-plugin-updater', 'FR111 — bản phát hành không tự tải hay tự cài thêm sau khi cài'],
 ]
 
 for (const [crate, why] of BANNED_CRATES) {
@@ -264,6 +265,7 @@ const BANNED_NPM = [
   // 🔴 THÊM 2026-09-06 (Story 6.7) — cùng lý do `tauri-plugin-http` ở `BANNED_CRATES` ngay
   // trên: nửa npm của cùng một plugin, cũng phải bị chặn.
   '@tauri-apps/plugin-http',
+  '@tauri-apps/plugin-updater',
 ]
 
 for (const pkg of BANNED_NPM) {
