@@ -697,6 +697,9 @@ async fn send_prepared_translate_call(
     let join = tauri::async_runtime::spawn_blocking(move || {
         let provider = OpenAiChatClient::new();
         let should_cancel = || !generation_state.is_current(generation);
+        if should_cancel() {
+            return Ok(TranslateOutcome::Cancelled);
+        }
 
         tauri::async_runtime::handle().block_on(run_translate_call(
             &provider,
@@ -848,6 +851,17 @@ pub mod wire {
             ));
         };
 
+        // Taken before the slow prepare so a cancel arriving during it is not overwritten.
+        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
+            return Err(state_missing(
+                "segment",
+                "AiTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
         let prepared = {
             let global = app.try_state::<Store>();
             let work_state = app.try_state::<OpenWorkState>();
@@ -871,16 +885,6 @@ pub mod wire {
             PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
             PrepareOutcome::Ready(p) => p,
         };
-
-        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
-            return Err(state_missing(
-                "segment",
-                "AiTranslateGeneration",
-                "ai_translate.generation_state_missing",
-            ));
-        };
-        let generation_state = generation_state.inner().clone();
-        let generation = generation_state.next();
 
         // `prepared.model`/`prepared.prompt` doc TRUOC khi `prepared` bi MOVE lam tham so cua
         // `send_prepared_translate_call` ngay duoi day -- can hai gia tri nay SAU luot `.await`
@@ -937,6 +941,17 @@ pub mod wire {
             ));
         };
 
+        // Taken before the slow prepare so a cancel arriving during it is not overwritten.
+        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
+            return Err(state_missing(
+                "batch",
+                "AiTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
         let prepared = {
             let global = app.try_state::<Store>();
             let work_state = app.try_state::<OpenWorkState>();
@@ -960,16 +975,6 @@ pub mod wire {
             PrepareBatchOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
             PrepareBatchOutcome::Ready(items) => items,
         };
-
-        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
-            return Err(state_missing(
-                "batch",
-                "AiTranslateGeneration",
-                "ai_translate.generation_state_missing",
-            ));
-        };
-        let generation_state = generation_state.inner().clone();
-        let generation = generation_state.next();
 
         // Cau CUOI CUNG can dich trong `items` (dung thu tu tai lieu `prepare_batch_call` da
         // sap) la cau ma ban ghi phien (LastAssembledPromptState) con giu SAU khi prepare xong
@@ -1019,7 +1024,7 @@ pub mod wire {
     /// không cần `(async)`. Dùng CHUNG cho cả lượt dịch một segment lẫn một lô (Decision "one
     /// `AiTranslateGeneration` and it stays one", spec 4.9).
     #[tauri::command]
-    pub fn ai_translate_cancel(app: tauri::AppHandle) {
+    pub fn ai_translate_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
         use tauri::Manager as _;
 
         let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {

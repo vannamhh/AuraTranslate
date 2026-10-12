@@ -8,7 +8,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
 use auratranslate_lib::commands::aiconfig::{ai_config_delete_key, ai_config_save_key};
@@ -59,11 +59,18 @@ fn save_key(value: &str) {
 /// Loopback server answering every POST with one streamed token then `[DONE]`; returns the
 /// endpoint URL. The thread ends when the listener is dropped with the process.
 fn spawn_sse_server(connections: usize) -> String {
+    spawn_counted_sse_server(connections).0
+}
+
+fn spawn_counted_sse_server(connections: usize) -> (String, Arc<AtomicUsize>) {
+    let accepted = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&accepted);
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind cong tam");
     let port = listener.local_addr().expect("local_addr").port();
     std::thread::spawn(move || {
         for _ in 0..connections {
             let Ok((mut stream, _)) = listener.accept() else { return };
+            counter.fetch_add(1, Ordering::SeqCst);
             let mut received = Vec::new();
             let mut chunk = [0u8; 4096];
             let (header_end, content_length) = loop {
@@ -97,12 +104,13 @@ fn spawn_sse_server(connections: usize) -> String {
             let _ = stream.flush();
         }
     });
-    format!("http://127.0.0.1:{port}/v1/chat/completions")
+    (format!("http://127.0.0.1:{port}/v1/chat/completions"), accepted)
 }
 
 struct Harness {
     app: tauri::App<MockRuntime>,
     dirs: Vec<PathBuf>,
+    accepted: Arc<AtomicUsize>,
 }
 
 impl Harness {
@@ -114,7 +122,7 @@ impl Harness {
         let global_dir = temp_dir(&format!("{tag}-global"));
         let work_dir = temp_dir(&format!("{tag}-work"));
         let global = Store::open(StoreSpec::global(global_dir.join("global.db"))).expect("mo global.db");
-        let endpoint = spawn_sse_server(connections);
+        let (endpoint, accepted) = spawn_counted_sse_server(connections);
         write_field(&global, AiConfigField::Endpoint, &endpoint).expect("ghi endpoint");
         write_field(&global, AiConfigField::Model, "gpt-wire").expect("ghi model");
 
@@ -129,7 +137,7 @@ impl Harness {
         if manage_generation {
             app.manage(AiTranslateGeneration::default());
         }
-        Self { app, dirs: vec![global_dir, work_dir] }
+        Self { app, dirs: vec![global_dir, work_dir], accepted }
     }
 
     fn segment_ids(&self) -> Vec<i64> {
@@ -314,4 +322,92 @@ fn batch_without_generation_state_fails_with_generation_state_missing() {
     ))
     .expect_err("thieu state the he phai la Err");
     assert_state_missing(&err, "ai_translate.generation_state_missing");
+}
+
+fn cancel_while_prepare_is_pinned<T: Send>(h: &Harness, run: impl FnOnce() -> T + Send) -> T {
+    let state = h.app.state::<OpenWorkState>();
+    let pin = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    std::thread::scope(|scope| {
+        let call = scope.spawn(run);
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        wire::ai_translate_cancel(h.app.handle().clone());
+        drop(pin);
+        call.join().expect("luong goi lenh khong duoc panic")
+    })
+}
+
+#[test]
+fn a_cancel_arriving_during_single_prepare_is_not_overwritten() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-cancel-single");
+    let h = Harness::new("cancel-single", "A dragon roared.", 1);
+    let segment_id = h.segment_ids()[0];
+    let handle = h.app.handle().clone();
+    let outcome = cancel_while_prepare_is_pinned(&h, move || {
+        let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
+        tauri::async_runtime::block_on(wire::ai_translate_segment(
+            handle,
+            segment_id,
+            Some("Plain".to_owned()),
+            channel,
+        ))
+    })
+    .expect("ai_translate_segment phai tra Ok");
+    assert!(matches!(outcome, AiTranslateOutcomeWire::Cancelled), "ket qua: {outcome:?}");
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 0, "huy giua prepare khong duoc gui yeu cau nao");
+}
+
+#[test]
+fn a_cancel_arriving_during_batch_prepare_is_not_overwritten() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-cancel-batch");
+    let h = Harness::new("cancel-batch", "A dragon roared. The knight fled.", 2);
+    let ids = h.segment_ids();
+    let handle = h.app.handle().clone();
+    let outcome = cancel_while_prepare_is_pinned(&h, move || {
+        let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
+        tauri::async_runtime::block_on(wire::ai_translate_batch(handle, ids, Some("Plain".to_owned()), channel))
+    })
+    .expect("ai_translate_batch phai tra Ok");
+    assert!(matches!(outcome, AiTranslateOutcomeWire::Cancelled), "ket qua: {outcome:?}");
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 0, "huy giua prepare khong duoc gui yeu cau nao");
+}
+
+fn clear_key() {
+    install_mock_keychain_store_once();
+    ai_config_delete_key(AiConfigTier::Global).expect("dat lai trang thai khoa that bai");
+}
+
+#[test]
+fn single_run_without_a_saved_key_returns_not_configured() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    clear_key();
+    let h = Harness::new("nokey-single", "A dragon roared.", 0);
+    let segment_id = h.segment_ids()[0];
+    let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        segment_id,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect("ai_translate_segment phai tra Ok");
+    assert!(matches!(outcome, AiTranslateOutcomeWire::NotConfigured), "ket qua: {outcome:?}");
+}
+
+#[test]
+fn batch_without_a_saved_key_returns_not_configured() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    clear_key();
+    let h = Harness::new("nokey-batch", "A dragon roared. The knight fled.", 0);
+    let ids = h.segment_ids();
+    let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect("ai_translate_batch phai tra Ok");
+    assert!(matches!(outcome, AiTranslateOutcomeWire::NotConfigured), "ket qua: {outcome:?}");
 }

@@ -2189,7 +2189,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     let cancel_params = fn_param_list(&aitranslate_src, "ai_translate_cancel");
     assert_eq!(
         normalize_param_list(&cancel_params),
-        normalize_param_list("app: tauri::AppHandle"),
+        normalize_param_list("app: tauri::AppHandle<R>"),
         "vo `ai_translate_cancel` trong `pub mod wire` cua commands/aitranslate.rs khong con \
          dung danh sach tham so mong doi"
     );
