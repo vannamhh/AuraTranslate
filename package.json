@@ -27,6 +27,8 @@
     "test": "vitest run",
     "test:story": "node scripts/test-story.mjs",
     "check:lint": "eslint src e2e tests",
+    "check:clippy": "cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings && cargo clippy --locked --manifest-path tools/dict-build/Cargo.toml --all-targets -- -D warnings",
+    "check:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo fmt --manifest-path tools/dict-build/Cargo.toml --check",
     "test:e2e": "cargo build --locked --features wdio --manifest-path src-tauri/Cargo.toml && wdio run e2e/wdio.conf.mjs"
   },
   "dependencies": {

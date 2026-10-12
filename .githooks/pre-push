@@ -48,9 +48,9 @@ done
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — mười hai cổng, test frontend, build, cargo test.'
+echo 'pre-push — mười bốn cổng, test frontend, build, cargo test.'
 
-for gate in deps tokens i18n commands layout panel-refs doc-refs dict dict-manifest lint gates debt-owner; do
+for gate in deps tokens i18n commands layout panel-refs doc-refs dict dict-manifest lint clippy fmt gates debt-owner; do
   printf '  %-14s' "$gate"
   if npm run --silent "check:$gate" >/dev/null 2>&1; then
     green 'OK'

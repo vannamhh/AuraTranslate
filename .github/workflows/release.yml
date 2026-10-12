@@ -3,7 +3,7 @@
 # It publishes nothing: no GitHub Release (10.2), no checksums (10.3). Dictionary tags
 # (`dict-v*`) never match `v*`, so they start no run.
 #
-# Actions are pinned to commit SHAs resolved with `gh api` on 2026-10-12:
+# Actions are pinned to commit SHAs resolved with `gh api`:
 #   checkout v7.0.1 · setup-node v7.0.0 · rust-cache v2.9.1 · upload-artifact v7.0.2
 #   dtolnay/rust-toolchain branch 1.97.1
 name: Release

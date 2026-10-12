@@ -12,8 +12,8 @@
 #  thứ hai. Từ đây tới Epic 10 (chín epic, ~127 story), MỌI luật cưỡng chế bằng test
 #  đều gắn vào chính tệp này — xem khối "CHỖ MÓC CHO EPIC SAU" ở cuối job `check`.
 #
-#  Phiên bản action kiểm chứng qua GitHub API ngày 2026-08-03:
-#    actions/checkout v7.0.1 · actions/setup-node v7.0.0 · Swatinem/rust-cache v2.9.1
+#  Mỗi `uses:` ghim theo SHA commit (lấy nguyên văn từ `gh api`), phiên bản ở comment cuối
+#  dòng: actions/checkout v7.0.1 · actions/setup-node v7.0.0 · Swatinem/rust-cache v2.9.1.
 #  Toolchain ghim `1.97.1` — đúng số máy Ice đang chạy, để hai nền tảng CI và máy dev
 #  cùng một toolchain. `@stable` sẽ trôi (hôm nay là 1.100.0) và làm số đo AC6 hết so
 #  sánh được.
@@ -44,6 +44,7 @@ on:
   # ⚠️ MỌI nhánh. Nhánh mặc định của repo này là `master`, KHÔNG phải `main` — viết cứng
   # `branches: [main]` thì CI không bao giờ chạy và KHÔNG lỗi nào được ném.
   push:
+    branches: ['**']
   pull_request:
   # Giữ lại đường bấm tay: nó là cách đo một lượt runner mà không cần sinh một commit.
   workflow_dispatch:
@@ -73,7 +74,7 @@ on:
 
 concurrency:
   # Đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI: push liên tiếp thì huỷ lượt cũ.
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -109,20 +110,23 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # Máy Ice v22.22.2; Vite 8 đòi `^20.19.0 || >=22.12.0`.
           node-version: '22'
           cache: 'npm'
 
-      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: dtolnay/rust-toolchain@cf201f30d2291af293e25b32e435b13c42d51aaf # 1.97.1
+        with:
+          toolchain: 1.97.1
+          components: clippy, rustfmt
 
       # ⚠️ BẮT BUỘC, không phải tối ưu (AC7). Cache lạnh phải biên dịch `aws-lc-sys`,
       # `libsqlite3-sys` (SQLite từ nguồn C) và `zstd-sys`. Không có bước này thì AC7
       # chết ngay lượt thứ hai.
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: src-tauri
 
@@ -266,6 +270,15 @@ jobs:
       # `check:gates` để cổng đó canh được chính bước này có mặt ở cả ba danh sách.
       - name: check sổ nợ không mục mở nào mồ côi (cổng thứ mười ba — Story 2.13)
         run: npm run check:debt-owner
+
+      # `cargo clippy --all-targets -D warnings` và `cargo fmt --check` trên `src-tauri` và
+      # `tools/dict-build`. Lint thiết kế mang `#[expect(…, reason)]` tại chỗ; không allow
+      # cấp crate. Cần `clippy`/`rustfmt` của bước toolchain ở đầu job.
+      - name: check clippy (src-tauri, tools/dict-build)
+        run: npm run check:clippy
+
+      - name: check cargo fmt (src-tauri, tools/dict-build)
+        run: npm run check:fmt
 
       # Cổng thứ MƯỜI MỘT — hai danh sách cổng phải khai cùng một bộ. Nó tồn tại vì cổng
       # thứ mười ở ngay trên đã sống ba mươi tiếng trong `package.json` mà `ci.yml` không
@@ -773,16 +786,18 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: 'npm'
 
-      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: dtolnay/rust-toolchain@cf201f30d2291af293e25b32e435b13c42d51aaf # 1.97.1
+        with:
+          toolchain: 1.97.1
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: src-tauri
           # ⚠️ Khoá cache RIÊNG. Job `check` dựng KHÔNG có feature `wdio`; dùng chung khoá
@@ -790,7 +805,7 @@ jobs:
           key: e2e-wdio
 
       # `tools/dict-build` is its own Cargo workspace — cached separately from `src-tauri`.
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: tools/dict-build
           key: e2e-dict-fixture
