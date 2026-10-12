@@ -3,8 +3,8 @@
  * Kiểm 3 NGOÀI chế độ dev — Story 1.3, AC8.
  *
  * `npm run check:scope` chạy qua `tauri dev`, nơi Tauri **không** áp CSP (webview nạp
- * HTML từ Vite qua `devUrl`). Tổ hợp **CSP + asset protocol** vì thế chưa phép kiểm nào
- * chạm tới — đó là mục `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*` mà story này nhận về. Script này đóng nó.
+ * HTML từ Vite qua `devUrl`). Script này phủ tổ hợp **CSP + asset protocol** mà `tauri dev`
+ * không chạm tới.
  *
  * ⚠️ **Vì sao `tauri build --debug` chứ không phải bản release.** Móc self-check phía
  * Rust là `#[cfg(debug_assertions)]` (`src-tauri/src/lib.rs`) nên **không tồn

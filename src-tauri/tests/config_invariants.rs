@@ -685,6 +685,36 @@ fn base_config_never_carries_the_dictionary() {
 }
 
 #[test]
+fn only_release_workflow_listens_to_tags_and_only_to_v_tags() {
+    let mut tag_filters: Vec<(String, String)> = Vec::new();
+    for path in workflow_files() {
+        let raw =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        for line in code_lines(&raw) {
+            let trimmed = line.trim();
+            if trimmed.starts_with("tags:") || trimmed.starts_with("tags-ignore:") {
+                tag_filters.push((name.clone(), trimmed.to_string()));
+            }
+        }
+        let lines = code_lines(&raw);
+        if let Some(at) = lines.iter().position(|l| l.trim() == "push:") {
+            let next = lines.get(at + 1).map(|l| l.trim()).unwrap_or("");
+            assert!(
+                next.starts_with("branches:") || next.starts_with("tags:"),
+                "`push:` trong {name} phải mang bộ lọc `branches:` hoặc `tags:` ngay dưới; push trần \
+                 chạy cả trên tag `dict-*` — thấy `{next}`"
+            );
+        }
+    }
+    assert_eq!(
+        tag_filters,
+        vec![("release.yml".to_string(), "tags: ['v*']".to_string())],
+        "chỉ release.yml được nghe tag, và chỉ `v*` (không khớp `dict-v*`, `dict-raw-v*`)"
+    );
+}
+
+#[test]
 fn release_workflow_passes_the_release_overlay_to_every_tauri_build() {
     let path = repo_root()
         .join(".github")
