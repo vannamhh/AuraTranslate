@@ -32,7 +32,7 @@ function unescape(s, lineNo, rawLine) {
     if (!SUPPORTED_ESCAPES.has(c)) {
       // Không đoán — trước đây `\t`/`A`/bất kỳ escape lạ nào bị nuốt âm thầm
       // thành chỉ ký tự cuối (mất luôn dấu `\`), mâu thuẫn với lời hứa "ngoài tập con
-      // ⇒ FAIL" ở đầu tệp (Review Findings Group C).
+      // ⇒ FAIL" ở đầu tệp.
       throw new TomlSyntaxError(lineNo, rawLine, `escape '\\${c}' ngoài tập con hỗ trợ (chỉ \\\\ · \\" · \\n)`)
     }
     return c === 'n' ? '\n' : c
@@ -46,7 +46,7 @@ function unescape(s, lineNo, rawLine) {
  * (`forms.get('detachable') === 'array'`), khoá `'detachable'` với N phần tử theo thứ
  * tự xuất hiện. `forms` tồn tại vì `[base]` và `[[base]]` xuất hiện ĐÚNG MỘT LẦN không
  * thể phân biệt chỉ bằng độ dài mảng — dạng ngoặc SAI (mảng bảng cho một bảng đơn, hay
- * ngược lại) phải bị bắt riêng (Review Findings Group C).
+ * ngược lại) phải bị bắt riêng.
  * @param {string} text
  */
 export function parseStrictToml(text) {
@@ -107,7 +107,7 @@ export function parseStrictToml(text) {
         throw new TomlSyntaxError(lineNo, rawLine, 'gán khoá/giá trị trước khi có bất kỳ [section] nào')
       }
       // Khoá trùng TRONG một bảng — trước đây ghi đè âm thầm (giá trị sau thắng),
-      // không lỗi; giờ FAIL rõ để bắt lỗi copy-paste (Review Findings Group C).
+      // không lỗi; giờ FAIL rõ để bắt lỗi copy-paste.
       if (Object.prototype.hasOwnProperty.call(current, kv[1])) {
         throw new TomlSyntaxError(lineNo, rawLine, `khoá '${kv[1]}' đã khai trong bảng này rồi (khai lại)`)
       }

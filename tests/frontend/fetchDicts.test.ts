@@ -117,6 +117,14 @@ describe('fetchDicts', () => {
     expect(calls).toEqual(['https://example.test/dict-v2/dict-thieu-chuu.db'])
   })
 
+  it('leaves no file under the final name when a wrong-hash file is present and the replacement download fails', async () => {
+    writeFileSync(join(dest, 'dict-core.db'), 'stale')
+    const { impl } = fakeFetch(BODIES, ['dict-core.db'])
+    const results = await fetchDicts({ manifestText: manifest(), dest, fetchImpl: impl })
+    expect(results[0].status).toBe('download-failed')
+    expect(existsSync(join(dest, 'dict-core.db'))).toBe(false)
+  })
+
   it('replaces a present file whose hash does not match the manifest', async () => {
     writeFileSync(join(dest, 'dict-core.db'), 'stale')
     const { impl } = fakeFetch(BODIES)

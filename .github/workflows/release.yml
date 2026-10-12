@@ -1,6 +1,6 @@
 # Public release build (FR107, AD-25): a `v*` tag builds the .dmg and .msi with the four
 # dictionary files from dict-manifest.toml inside, and uploads them as workflow artifacts.
-# It publishes nothing: no GitHub Release (10.2), no checksums (10.3). Dictionary tags
+# It publishes nothing: no GitHub Release, no checksums. Dictionary tags
 # (`dict-v*`) never match `v*`, so they start no run.
 #
 # Actions are pinned to commit SHAs resolved with `gh api`:

@@ -59,6 +59,7 @@ pnpm-debug.log*
 # Dòng `*.db` là CỐ Ý và ĐÚNG: nó giữ file từ điển ra ngoài git theo AD-25.
 # Chúng tải theo `dict-manifest.toml`. Đừng gỡ dòng này.
 *.db
+src-tauri/resources/dict/.*.part
 *.tmp
 
 # tools/dict-build — nguồn thô tải về + artifact trung gian (Story 1.9). Cargo.lock

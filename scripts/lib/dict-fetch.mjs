@@ -79,6 +79,7 @@ export async function fetchDicts({ manifestText, dest, fetchImpl = fetch, log = 
         continue
       }
       log(`replacing  ${entry.fileName} (sha256 ${present} does not match the manifest)`)
+      await rm(target, { force: true })
     }
 
     try {

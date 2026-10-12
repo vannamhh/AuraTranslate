@@ -547,8 +547,6 @@ fn nofonts_overlay_drops_resources_with_an_explicit_null() {
     );
 }
 
-// ── Story 10.1 — lớp phủ release mang từ điển vào bản cài ─────────────────────────
-
 /// Mọi `--config` mà một workflow được phép truyền. `$bootstrapCfg` là tệp tạm do chính
 /// `ci.yml` ghi ra lúc đo `.msi`.
 const ALLOWED_CONFIG_OVERLAYS: [&str; 3] = [
