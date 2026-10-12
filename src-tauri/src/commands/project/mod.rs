@@ -2909,7 +2909,10 @@ pub fn confirm_append_import_with_encoding_indexed(
 /// Same shape as [`confirm_append_import_with_encoding_indexed`] plus real image
 /// progress/cancel wiring; production callers that need it use this one, tests keep
 /// calling the no-op wrapper.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_append_import_with_encoding_indexed_with_progress(
     open: &mut OpenWork,
     state: &PendingImportSourceState,

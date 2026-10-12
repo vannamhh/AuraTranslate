@@ -632,7 +632,10 @@ pub fn create_work_with_progress(
 }
 
 /// Thin wrapper over [`create_work_with_progress`] with a no-op progress/cancel pair.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn create_work(
     documents_root: &Path,
     name: &str,
@@ -961,7 +964,10 @@ pub fn append_chapters_to_work_with_progress(
 
 /// Thin wrapper over [`append_chapters_to_work_with_progress`] with a no-op progress/cancel
 /// pair.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn append_chapters_to_work(
     open: &mut OpenWork,
     source_lang: &str,

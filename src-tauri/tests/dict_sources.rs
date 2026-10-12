@@ -3918,7 +3918,10 @@ fn off(codes: &[&str]) -> BTreeSet<String> {
 ///
 /// ⚠️ `UPDATE` sau `build_layer` chứ không một cột mới trong `LayerSeed` — cùng khuôn
 /// [`set_han_viet`], và nó giữ được mệnh đề *"DDL chép nguyên văn"* mà cổng parity đứng lên.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "fixture shape local to this test file"
+)]
 fn set_license(
     dir: &Path,
     file: &str,

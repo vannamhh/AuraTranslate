@@ -528,7 +528,10 @@ struct DetachableLayer {
     meta: &'static sources_meta::SourceMeta,
     raw_relative_path: &'static [&'static str],
     source_version: &'static str,
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "one parser signature per source; a type alias would hide the per-source contract"
+    )]
     parse: fn(
         BufReader<File>,
     )

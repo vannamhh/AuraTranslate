@@ -2175,7 +2175,10 @@ fn a_row_with_unknown_status_never_matches_any_filter_even_all_four_values_at_on
 /// Dựng một `<folder>.atproj/` với `genre`/`source_lang`/`updated_at` TƯỜNG MINH — biến thể
 /// của [`write_atproj_with_status`] cho các ca lọc/sắp của Story 5.6, vốn cần kiểm soát ba
 /// trường đó chứ không phải trạng thái vòng đời.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "fixture shape local to this test file"
+)]
 fn write_atproj_full(
     root: &Path,
     folder: &str,
