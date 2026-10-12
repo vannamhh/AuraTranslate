@@ -3,7 +3,7 @@ title: 'Bỏ qua có ghi nhớ'
 type: 'feature'
 ticket: '6'
 created: '2026-10-12'
-status: 'built'
+status: done
 baseline_revision: '3e5a728e4e1d6bb17baaae8480cadd2f7b823d9b'
 route: 'full'
 route_source: 'auto'

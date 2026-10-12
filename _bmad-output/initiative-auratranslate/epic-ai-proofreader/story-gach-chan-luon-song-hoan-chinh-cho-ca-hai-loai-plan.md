@@ -3,7 +3,7 @@ title: 'Gạch chân lượn sóng hoàn chỉnh cho cả hai loại'
 type: 'feature'
 ticket: '5'
 created: '2026-10-11'
-status: 'built'
+status: done
 baseline_revision: '4cd183f83d09c6542f6d5d91e0522210422a4b59'
 route: 'full'
 route_source: 'auto'
