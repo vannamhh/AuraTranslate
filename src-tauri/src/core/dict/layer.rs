@@ -478,6 +478,18 @@ impl DictLayer {
         })
     }
 
+    /// Full `license_text` of one source, read at call time; `None` when the file has no such `code`.
+    pub(super) fn license_text(&self, code: &str) -> Result<Option<String>, StoreError> {
+        self.db.read(|conn| {
+            let mut stmt = conn.prepare("SELECT license_text FROM dict_source WHERE code = ?1")?;
+            let mut rows = stmt.query([code])?;
+            match rows.next()? {
+                Some(row) => Ok(Some(row.get(0)?)),
+                None => Ok(None),
+            }
+        })
+    }
+
     /// Đóng pool kết nối của lớp. Idempotent.
     pub fn close(&self) {
         self.db.close();

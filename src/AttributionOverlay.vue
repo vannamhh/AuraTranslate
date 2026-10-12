@@ -9,23 +9,21 @@
 // `App.vue` — cùng tầng với dải báo lỗi cấu hình, không trong một panel: nó nói về **cả ứng
 // dụng**, không về một panel.
 //
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 BỀ MẶT NÀY GIAO **NỬA TRÁI** CỦA BẢNG CHIA ĐÔI, KHÔNG HƠN
-// ─────────────────────────────────────────────────────────────────────────────
-// Story 10.4 giữ: nút *"Mở văn bản giấy phép"* · nút *"Sao chép bản ghi công"* · hai cột
-// biên tập **Vai trò**/**Ghi chú xuất xứ** (nội dung KHÔNG có trong `.db`) · hai thẻ pháp lý
-// · rà bàn phím đầy đủ. Đừng dựng chúng ở đây, và 10.4 đừng dựng lại cái này.
 import { nextTick, useTemplateRef, watch } from 'vue'
-import { t } from './i18n'
+import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import {
+  aimAttributionSource,
+  attributionCopyFailedCode,
   attributionIsOpen,
-  closeAttribution,
+  attributionLicenseView,
+  conversionNoticeApplies,
   dictSources,
   dictSourcesError,
   layerKeyFor,
   licenseKeyFor,
+  roleLangsFor,
   someDictSourceUnreadable,
   sourceIsDisabled,
 } from './panels/dictSourcesState'
@@ -43,6 +41,7 @@ import { useSelectionSurface } from './panels/selectionContract'
 // Lookup: bôi đen một dòng ghi công để đọc kỹ mà phát ra một lượt tra cứu là thay chính đoạn
 // đang đọc dưới tay người đọc. `SELECTION_SURFACE_FLOOR` nâng lên số thật cùng lượt.
 const panel = useTemplateRef<HTMLElement>('panel')
+const licenseViewEl = useTemplateRef<HTMLElement>('licenseViewEl')
 useSelectionSurface(panel, 'display')
 
 /**
@@ -97,6 +96,31 @@ watch(attributionIsOpen, (open) => {
   // luật mà `eprintln!` của `src-tauri/src/**` đã theo. Chuỗi HIỂN THỊ đi qua `t()`; đây là
   // một dòng cho console, không một bề mặt người dùng.
   console.warn('[attribution] focus-return target is gone; focus falls back to body.')
+})
+
+function aimRow(code: string): void {
+  aimAttributionSource(code)
+}
+
+// The licence text viewer closes first; the next Escape closes the overlay.
+function onEscape(): void {
+  if (attributionLicenseView.value === null) dispatch('attribution.close')
+  else dispatch('attribution.close_license')
+}
+
+// Whichever path closes the viewer, focus goes back to the row button that opened it.
+watch(attributionLicenseView, (view, previous) => {
+  if (view !== null) {
+    void nextTick(() => licenseViewEl.value?.focus())
+    return
+  }
+  if (previous === null) return
+  const code = previous.code
+  void nextTick(() => {
+    panel.value
+      ?.querySelector<HTMLElement>(`button[data-license-open="${CSS.escape(code)}"]`)
+      ?.focus()
+  })
 })
 
 /**
@@ -170,7 +194,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="attributionIsOpen"
     class="attr-scrim"
-    @keydown.esc="closeAttribution()"
+    @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >
     <section ref="panel" class="attr-panel" tabindex="-1" role="dialog" aria-modal="true">
@@ -215,7 +239,7 @@ function trapTab(event: KeyboardEvent): void {
           <tr>
             <th>{{ t('attribution.col_source') }}</th>
             <th>{{ t('attribution.col_license') }}</th>
-            <th>{{ t('attribution.col_layer') }}</th>
+            <th>{{ t('attribution.col_role') }}</th>
             <th>{{ t('attribution.col_credit') }}</th>
           </tr>
         </thead>
@@ -225,7 +249,12 @@ function trapTab(event: KeyboardEvent): void {
             danh sách đầy đủ từ `list_dict_sources` — không một phép lọc nào ở đây, và đó là
             mệnh đề, không một thiếu sót.
           -->
-          <tr v-for="src in dictSources" :key="src.code">
+          <tr
+            v-for="src in dictSources"
+            :key="src.code"
+            @mousedown="aimRow(src.code)"
+            @focusin="aimRow(src.code)"
+          >
             <td class="attr-name">
               <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp). -->
               {{ src.display_name }}
@@ -251,8 +280,14 @@ function trapTab(event: KeyboardEvent): void {
               <span v-if="src.license_id !== null" class="attr-license-id">{{
                 src.license_id
               }}</span>
+              <p v-if="conversionNoticeApplies(src.license_id)" class="attr-conversion">
+                {{ t('attribution.conversion_notice') }}
+              </p>
             </td>
             <td>
+              <span v-for="role in roleLangsFor(src.lang)" :key="role.lang" class="attr-role">{{
+                t(role.key, { lang: role.lang })
+              }}</span>
               <span class="attr-layer">{{ t(layerKeyFor(src.is_base)) }}</span>
             </td>
             <!--
@@ -261,11 +296,73 @@ function trapTab(event: KeyboardEvent): void {
               PHÁP LÝ trong trường này, và cắt nó là cắt nửa sau của một câu pháp lý (AC7).
               Đây cũng là chỗ DUY NHẤT danh tính tác giả được đọc ra (AC9).
             -->
-            <td class="attr-credit">{{ src.attribution }}</td>
+            <td class="attr-credit">
+              {{ src.attribution }}
+              <p v-if="src.source_version !== ''" class="attr-provenance">
+                {{ t('attribution.source_version', { version: src.source_version }) }}
+              </p>
+              <!-- aura-allow-text: source_url — DATA read from the file. -->
+              <p v-if="src.source_url !== ''" class="attr-provenance">{{ src.source_url }}</p>
+              <div class="attr-actions">
+                <button
+                  v-if="src.license_text_len > 0"
+                  type="button"
+                  class="attr-action"
+                  :data-license-open="src.code"
+                  @click="dispatch('attribution.open_license')"
+                >
+                  {{ t('command.attribution.open_license') }}
+                </button>
+                <button
+                  type="button"
+                  class="attr-action"
+                  @click="dispatch('attribution.copy_credit')"
+                >
+                  {{ t('command.attribution.copy_credit') }}
+                </button>
+              </div>
+              <p v-if="attributionCopyFailedCode === src.code" class="attr-error" role="alert">
+                {{ t('attribution.copy_failed') }}
+              </p>
+            </td>
           </tr>
         </tbody>
         </table>
+
+        <section
+          v-if="attributionLicenseView !== null"
+          ref="licenseViewEl"
+          class="attr-license-view"
+          tabindex="-1"
+        >
+          <h3 class="attr-license-heading">{{ t('attribution.license_text_heading') }}</h3>
+          <p v-if="attributionLicenseView.error !== null" class="attr-error" role="alert">
+            {{ tError(attributionLicenseView.error) }}
+          </p>
+          <p v-else-if="attributionLicenseView.text === ''" class="attr-partial">
+            {{ t('attribution.license_text_empty') }}
+          </p>
+          <!-- aura-allow-text: licence text — DATA read from the file at click time. -->
+          <pre v-else class="attr-license-text" tabindex="0">{{ attributionLicenseView.text }}</pre>
+          <button type="button" class="attr-action" @click="dispatch('attribution.close_license')">
+            {{ t('command.attribution.close_license') }}
+          </button>
+        </section>
       </template>
+
+      <div class="attr-legal">
+        <div class="attr-card">
+          <h3 class="attr-card-title">{{ t('attribution.legal_software_title') }}</h3>
+          <p>{{ t('attribution.legal_software_body') }}</p>
+        </div>
+        <div class="attr-card">
+          <h3 class="attr-card-title">{{ t('attribution.legal_owner_title') }}</h3>
+          <p>
+            {{ t('attribution.legal_owner_body') }}
+            <span class="attr-contact">{{ t('attribution.legal_owner_contact') }}</span>
+          </p>
+        </div>
+      </div>
 
       <!-- 🔴 AC10 / FR112 — màn hình phải NÓI RA rằng tắt không phải gỡ. -->
       <p class="attr-note">{{ t('attribution.off_is_not_removed') }}</p>
@@ -406,7 +503,89 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
-.attr-layer {
+.attr-layer,
+.attr-role {
   margin-left: 0;
+  margin-right: 8px;
+}
+
+.attr-conversion,
+.attr-provenance,
+.attr-card p {
+  margin: 4px 0 0 0;
+}
+
+.attr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.attr-action {
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
+}
+
+.attr-error {
+  margin: 4px 0 0 0;
+  color: var(--color-on-surface);
+}
+
+.attr-license-view {
+  margin-bottom: var(--space-panel-block);
+}
+
+.attr-license-heading,
+.attr-card-title {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  line-height: var(--leading-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+.attr-license-text {
+  max-height: 50vh;
+  margin: 0 0 var(--space-panel-block) 0;
+  overflow: auto;
+  padding: var(--space-panel-block);
+  border: 1px solid var(--color-outline);
+  white-space: pre-wrap;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface);
+}
+
+.attr-legal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+}
+
+.attr-card {
+  padding: var(--space-panel-block) var(--space-panel-inline);
+  border: 1px solid var(--color-outline);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+.attr-contact {
+  user-select: text;
+  color: var(--color-on-surface);
 }
 </style>

@@ -390,3 +390,19 @@ export async function listDictSources(): Promise<ListDictSourcesResult> {
     return { sources: null, skipped: null, error: null }
   }
 }
+
+const CMD_READ_DICT_LICENSE_TEXT = 'read_dict_license_text'
+
+export type ReadLicenseTextResult = { text: string | null; error: IpcError | null }
+
+/** Đọc văn bản giấy phép của MỘT nguồn, lúc người dùng bấm. Không ném. */
+export async function readDictLicenseText(code: string): Promise<ReadLicenseTextResult> {
+  try {
+    const text = await invoke<string>(CMD_READ_DICT_LICENSE_TEXT, { code })
+    return { text, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { text: null, error: err }
+    console.error(`[dict] \`${CMD_READ_DICT_LICENSE_TEXT}\` failed with a non-IpcError: ${String(err)}`)
+    return { text: null, error: UNKNOWN_IPC_ERROR }
+  }
+}

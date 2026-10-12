@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::core::dict::{
     DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, SourceAttributions,
-    list_source_attributions, lookup_grouped, lookup_han_viet,
+    list_source_attributions, lookup_grouped, lookup_han_viet, read_license_text,
 };
 use crate::core::store::Store;
 use crate::ports::DictionarySource;
@@ -91,6 +91,25 @@ pub fn read_han_viet(
 pub fn list_sources(layers: Option<&DictLayers>) -> SourceAttributions {
     let empty = DictLayers::empty();
     list_source_attributions(layers.unwrap_or(&empty))
+}
+
+/// Pure core of `wire::read_dict_license_text`: maps `LicenseTextError` to `IpcError`.
+pub fn license_text_for_ipc(
+    layers: Option<&DictLayers>,
+    code: &str,
+) -> Result<String, crate::core::i18n::IpcError> {
+    use crate::core::dict::LicenseTextError;
+    use crate::core::i18n::{IpcError, MessageKey};
+
+    read_license_text(layers, code).map_err(|err| match err {
+        LicenseTextError::UnknownSourceCode { code } => IpcError::new(
+            "dict.unknown_source_code",
+            MessageKey::DictUnknownSourceCode,
+            BTreeMap::from([("code".to_owned(), code)]),
+            false,
+        ),
+        LicenseTextError::Unreadable(err) => err.into(),
+    })
 }
 
 /// 🔴 **Quyết định #4 (Story 1.17)** — cỡ trang pha một, **quyết ở ĐÂY** (Panel Lookup),
@@ -319,5 +338,17 @@ pub mod wire {
 
         let managed = app.try_state::<DictLayers>();
         super::list_sources(managed.as_deref())
+    }
+
+    /// IPC shell of [`super::license_text_for_ipc`]; read on click, one source at a time.
+    #[tauri::command]
+    pub fn read_dict_license_text(
+        app: tauri::AppHandle,
+        code: String,
+    ) -> Result<String, crate::core::i18n::IpcError> {
+        use tauri::Manager as _;
+
+        let managed = app.try_state::<DictLayers>();
+        super::license_text_for_ipc(managed.as_deref(), &code)
     }
 }

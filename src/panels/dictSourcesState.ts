@@ -25,7 +25,7 @@
  */
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { listDictSources } from '../config/dict'
+import { listDictSources, readDictLicenseText } from '../config/dict'
 import type { QueryRoute, SourceAttribution } from '../config/dict'
 import { KEY_DICT_DISABLED, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
 import type { IpcError } from '../i18n'
@@ -388,6 +388,10 @@ export function resetDictSources(): void {
   disabled.value = new Set()
   attributionOpen.value = false
   aimedCode = null
+  aimedAttributionCode.value = null
+  licenseViewRef.value = null
+  copyFailedCodeRef.value = null
+  licenseSequence += 1
   // Hàng đợi ghi về lại trạng thái "không có gì đang bay". Xem [`writeQueue`]: một lượt ghi
   // của phiên CŨ còn treo ở đuôi hàng đợi sẽ nối tiếp vào lượt ghi đầu của phiên MỚI.
   writeQueue = Promise.resolve()
@@ -402,4 +406,86 @@ export function resetDictSources(): void {
  */
 export function closeAttribution(): void {
   attributionOpen.value = false
+  aimedAttributionCode.value = null
+  licenseSequence += 1
+  licenseViewRef.value = null
+  copyFailedCodeRef.value = null
+}
+
+const CC_BY_SA_PREFIX = 'CC-BY-SA'
+
+/** The "converted, redistributed under the same licence" notice is keyed on the licence id, never on a source. */
+export function conversionNoticeApplies(licenseId: string | null): boolean {
+  return licenseId !== null && licenseId.startsWith(CC_BY_SA_PREFIX)
+}
+
+const LANG_ROLE_KEYS: Readonly<Record<string, string>> = {
+  zh: 'attribution.role_lang_zh',
+  en: 'attribution.role_lang_en',
+}
+
+export const ROLE_LANG_FALLBACK_KEY = 'attribution.role_lang_other'
+
+/** One entry per language the source serves; an unknown language gets the fallback key with its raw value. */
+export function roleLangsFor(lang: string): { key: string; lang: string }[] {
+  return lang
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .map((part) => ({ key: LANG_ROLE_KEYS[part] ?? ROLE_LANG_FALLBACK_KEY, lang: part }))
+}
+
+/** Text copied by "copy credit": name, credit line, licence id and source URL; absent parts are dropped. */
+export function creditTextFor(src: SourceAttribution): string {
+  return [src.display_name, src.attribution, src.license_id ?? '', src.source_url]
+    .filter((line) => line.trim() !== '')
+    .join('\n')
+}
+
+export type LicenseView = {
+  code: string
+  text: string | null
+  error: IpcError | null
+}
+
+const aimedAttributionCode = shallowRef<string | null>(null)
+const licenseViewRef = shallowRef<LicenseView | null>(null)
+const copyFailedCodeRef = shallowRef<string | null>(null)
+let licenseSequence = 0
+
+export const attributionLicenseView: DeepReadonly<Ref<LicenseView | null>> = readonly(licenseViewRef)
+export const attributionCopyFailedCode: DeepReadonly<Ref<string | null>> = readonly(copyFailedCodeRef)
+
+export function aimAttributionSource(code: string | null): void {
+  aimedAttributionCode.value = code
+}
+
+/** Handler of `attribution.open_license`: reads the aimed source's licence text now. */
+export async function openAimedLicenseText(): Promise<void> {
+  const code = aimedAttributionCode.value
+  if (code === null) return
+  licenseSequence += 1
+  const mine = licenseSequence
+  const { text, error } = await readDictLicenseText(code)
+  if (mine !== licenseSequence) return
+  licenseViewRef.value = { code, text, error }
+}
+
+export function closeLicenseText(): void {
+  licenseSequence += 1
+  licenseViewRef.value = null
+}
+
+/** Handler of `attribution.copy_credit`: puts the aimed source's credit on the clipboard. */
+export async function copyAimedCredit(): Promise<void> {
+  const code = aimedAttributionCode.value
+  if (code === null) return
+  const src = sources.value.find((s) => s.code === code)
+  if (src === undefined) return
+  copyFailedCodeRef.value = null
+  try {
+    await navigator.clipboard.writeText(creditTextFor(src))
+  } catch {
+    copyFailedCodeRef.value = code
+  }
 }

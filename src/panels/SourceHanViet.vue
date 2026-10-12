@@ -64,7 +64,7 @@ import {
   sourceHanVietPending,
   sourcesUsed,
 } from './sourcePanelState'
-import { everySourceOffForRoute } from './dictSourcesState'
+import { dictSources, everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 // 🔵 2026-08-17 (code review) — `originalOffsets` sống ở `editorSegments.ts`, không ở đây. Nó là
 // một mệnh đề **thuần** về phép ánh xạ chỉ số, và trong một `<script setup>` nó không có đường
@@ -470,7 +470,11 @@ const surfaceNoticeKey = computed<string | null>(() => {
   return null
 })
 
-const sourcesLine = computed(() => sourcesUsed.value.join(', '))
+const sourcesLine = computed(() =>
+  sourcesUsed.value
+    .map((code) => dictSources.value.find((s) => s.code === code)?.display_name ?? code)
+    .join(', '),
+)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 1.18 · AC2 · AC12 — BỀ MẶT HÁN VIỆT LÀ MỘT NGUỒN VÙNG CHỌN
@@ -835,8 +839,8 @@ onBeforeUnmount(() => {
     <!-- 🔴 MỘT dòng cho trạng thái của CẢ bề mặt (đang tra / lượt tra trượt / chưa lớp
          nào gắn) — không nhân câu đó ra theo số ký tự. Xem `surfaceNoticeKey`. -->
     <p v-if="surfaceNoticeKey !== null" class="hv-notice">{{ t(surfaceNoticeKey) }}</p>
-    <!-- aura-allow-text: `sourcesLine` là danh sách `dict_source.code` đã đóng góp cho
-         lượt hiện tại (Quyết định #1, mệnh đề 3) — DỮ LIỆU, không chuỗi giao diện. -->
+    <!-- aura-allow-text: `sourcesLine` lists the `display_name` of each contributing source
+         (falls back to `code`) — DATA, not a UI string. -->
     <p v-if="sourcesLine !== ''" class="hv-sources">
       {{ t('panel.source.han_viet_sources_prefix') }} {{ sourcesLine }}
     </p>

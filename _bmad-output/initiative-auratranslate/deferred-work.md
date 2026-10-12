@@ -380,6 +380,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — core/dict/query.rs:466,475,493 GROUP BY s.code (không phải s.id); core/dict/mod.rs:856,911 khoá gom theo group.source.code -- đường đọc gom kết quả từ nhiều tệp đã khoá đúng theo code chứ không theo id.
 - 🟡 **Nghĩa vụ thông báo tác giả HVTĐTD khi công cụ hoàn thành (PRD §8.5) — chủ sở hữu: Story 10.4.** Tác giả Đặng Thế Kiệt đề nghị được thông báo khi AuraTranslate hoàn thành/phát hành. Nghĩa vụ này không mang số FR nên rất dễ rơi mất khỏi dòng chảy story — ghi rõ ở đây để nó còn xuất hiện ở ĐÂU ĐÓ. Màn hình Attribution (Story 10.4) là nơi tự nhiên nhất để không quên: khi HVTĐTD được đóng gói thật (story nối tiếp của 1.10), nhắc Ice gửi thông báo cho tác giả.
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: sprint-status.yaml: 10-4-màn-hình-attribution vẫn backlog, và HVTĐTD (mục 72048ac960) vẫn chưa được đóng gói -- nghĩa vụ thông báo tác giả chưa tới hạn. **Chủ: Story 10.4.**
+  → 2026-10-12 (Story 10.4, Quyết định 3) — thông báo tác giả chưa tới hạn, giữ mở; màn Attribution đã giao, việc còn lại là gửi thông báo khi HVTĐTD được đóng gói. **Chủ: Ice.**
 
 ## Deferred from: code review of 1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap (2026-08-05)
 
@@ -870,6 +871,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Trần render kiểu song song (50.000 ký tự Hán) đo trên headless Chromium, không phải WKWebView/WebView2, và không đi qua bộ máy reactivity của Vue** (DOM dựng thẳng `document.createElement`, rẻ hơn Vue một chút vì bỏ VDOM diff). Bảng số ở Completion Notes của story là **cận dưới hợp lý**, không phải con số cuối cùng đã đóng dấu trên hai nền tảng thật — nếu đo lại cho ra số khác đáng kể, hằng `PARALLEL_VIEW_RENDER_CEILING` (`sourcePanelState.ts`) là chỗ sửa. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
 - 📝 **`HanVietLookup.sources_used` mang `dict_source.code` thô** (`fx-hv`, `thieu-chuu`, …), không `display_name` đẹp ("Thiều Chửu"). FR31 (nhãn nguồn bắt buộc) thoả bằng `code`; ánh xạ sang tên hiển thị là việc của màn hình Attribution — **Story 10.4** (đã ghi rõ trong Ranh giới phạm vi của chính story 1.16). Nếu 10.4 cần `display_name` ở đây sớm hơn dự tính, cách rẻ nhất là thêm nó vào `HanVietReading`/`sources_used` qua `layer.source(code)` — hạ tầng đã sẵn (`DictLayer::source`), chỉ chưa nối. **(Chủ: story kế tiếp chạm nhãn nguồn hiển thị (FR31).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: core/dict/mod.rs dòng 1193,1217: sources_used vẫn insert hit.source_code thô, không có ánh xạ display_name. **Chủ: Story 10.4.**
+  → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 10.4) — `SourceHanViet.vue::sourcesLine` nay dùng `display_name`, rơi về `code` khi không có.
 - 📝 **§Câu hỏi cho Ice #2 (báo hay không báo ký tự nhiều âm) và #3 (hình dạng placeholder ký tự không âm) — dùng MẶC ĐỊNH ĐỀ XUẤT của story, CHƯA được Ice xác nhận lại trong phiên dev-story này.** #2: không đánh dấu gì cho ca nhiều âm (danh sách đầy đủ vẫn đi qua IPC qua `HanVietReading.all`, sẵn cho Story 1.17/3.7). #3: hai chuỗi `vi.json` riêng theo `layersLoaded` (`panel.source.han_viet_unknown`/`han_viet_unavailable`), không dùng `ornament`/`opacity`. Nếu Ice muốn một hướng khác, cả hai đổi được mà không đụng tầng dữ liệu. **(Chủ: Ice — câu hỏi mở #2/#3 ghi ngay trong mục này, chưa được xác nhận.)**
   → ✅ **ĐÃ ĐÓNG 2026-09-24 (phiếu quyết #87)** — Ice xác nhận hai mặc định: không đánh dấu ký tự Hán Việt nhiều âm, và ký tự không âm dùng hai chuỗi vi.json riêng theo layersLoaded.
 
@@ -1134,6 +1136,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   tự dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel. Đo mới chạy trên Chromium.
   **Chủ: chưa gán — nợ chung với món "hai nền tảng" (NFR14) của 1.6/1.14/1.16/1.17/1.18/1.18b.** **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 10.4.**
+  → 2026-10-12 (Story 10.4) — lớp phủ đã mở rộng (văn bản giấy phép cuộn được, sao chép); còn lại là rà tay trên WKWebView thật: cuộn văn bản, clipboard thật, Tab. **Chủ: Epic 10.**
 
 - ⚠️ **§Quyết định #2b *(lọc thẳng trong câu SQL)* nay là một MÓN NỢ CÓ SỐ.** Đo 2026-08-10,
   `--release`, bốn tệp `.db` thật, 130 truy vấn khác nhau, hai lượt mỗi cấu hình — **tỉ lệ lượt
@@ -1175,6 +1178,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   Attribution)*. `deferred-work.md §*Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)*` đã treo việc đồng bộ đó cho *"lượt quy hoạch kế tiếp
   hoặc Story 10.4"*; story này **không sửa file quy hoạch** *(tiền lệ 1.10c)*.
   **Chủ: Story 10.4, hoặc một lượt quy hoạch của Ice.**
+  → 2026-10-12 (Story 10.4, Quyết định 3) — story không sửa PRD; Ice chạy correct-course cho §8.2. **Chủ: Ice.**
 
 - ⚠️ **Chỗ giữ `author-grant` chưa từng chạy trên dữ liệu thật, và sẽ không.** Ice chốt
   2026-08-08: **HVTĐTD không tìm được nguồn dữ liệu**. AC9 đã được neo lại vào **cơ chế** và
@@ -1187,6 +1191,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   hoạt** — không đóng gói dữ liệu ⇒ không có phép sử dụng nào để thực hiện. Đóng hay giữ là
   quyết định của **Story 10.4**, không của story này.
   **Chủ: Story 10.4.**
+  → 2026-10-12 (Story 10.4, Quyết định 3) — giữ mở; 10.4 giữ cơ chế `author-grant` theo `license_kind` + `attribution`, không thêm dữ liệu thật. **Chủ: Ice.**
 
 ## Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)
 
@@ -1200,6 +1205,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   biến này — nên là **độ bền**, không một lỗi đang chạy. Chỗ vá rẻ nhất: một `assert` ở đường
   đọc, hoặc một test canh `code` duy nhất trên bốn tệp thật. **(Chủ: story dựng thêm lớp từ điển tiếp theo — `tools/dict-build`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/core/dict/mod.rs:940-955 `list_source_attributions` vẫn nối `rows` từ mọi lớp không dedupe theo `code`; bất biến vẫn chỉ ghi bằng doc-comment. **Chủ: Story 10.4.**
+  → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 10.4) — dedupe `code` đã có ở `DictLayers::open → conflict_with` (`SkipReason::DuplicateSourceCode`), nên hai hàng trùng `code` không tới được màn Attribution.
 
 - 🔴 **Vế DOM của chính lượt code review 2026-08-10 chưa chạy trên app thật.** Lượt vá thêm
   **mã DOM mới** mà không một phép thử tự động nào chạm tới, nên nó **mở rộng** đúng lỗ hổng
@@ -1217,6 +1223,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   chưa ai nhìn thấy hiện ra: câu đầu cần ép `list_dict_sources` trượt, câu sau cần tắt hết
   nguồn `zh` rồi mở tab Hán Việt. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`. **Chủ: Story 10.4.**
+  → 2026-10-12 (Story 10.4) — thêm mã DOM mới (nút mở/đóng văn bản, `onEscape` cục bộ); vế rà tay trên WKWebView vẫn chưa chạy, và Escape trả tiêu điểm chỉ chạy dưới happy-dom. **Chủ: Epic 10.**
 
 - 🔴 **Bờ đọc từ điển KHÔNG có sàn phiên bản — một tệp `.db` QUÁ CŨ hỏng NỬA VỜI thay vì bị
   từ chối có tên.** Phát hiện khi soạn bàn đo chạy tay ngay sau lượt vá, 2026-08-10.
@@ -1498,6 +1505,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   `check-commands.mjs` cấm `unbound()` xuất hiện trong `src/**/*.vue`. ~~**Chủ: chưa gán**~~ —
   nhặt lại khi bề mặt thứ hai đọc bảng phím xuất hiện (ứng viên: Story 10.4). **(Chủ: story kế tiếp chạm `spec.keys`/`registry.unbound()`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: check-commands.mjs không có luật cấm unbound() xuất hiện trong src/**/*.vue; cưỡng chế hôm nay vẫn là văn xuôi (doc-comment) chứ không một cơ chế nào. **Chủ: Story 10.4.**
+  → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 10.4) — `scripts/check-commands.mjs` Kiểm L cấm `unbound()` trong `src/**/*.vue` (chỉ đọc dòng mã), có tự kiểm bốn ca và đối chứng đỏ bằng `.vue` thật.
 
 - ⚠️ **`bindingsEpoch` là một chốt phản ứng THỦ CÔNG, và nó đúng chỉ nhờ kỷ luật.**
   `keymap` là một biến module **thường** ở `src/commands/index.ts` và phải như vậy — tệp đó

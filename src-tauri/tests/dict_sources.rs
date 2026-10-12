@@ -4144,6 +4144,86 @@ fn a_disabled_source_still_appears_in_full_in_the_attribution_table() {
     cleanup(&dir);
 }
 
+fn command_license_text(
+    layers: Option<&DictLayers>,
+    code: &str,
+) -> Result<String, auratranslate_lib::core::i18n::IpcError> {
+    auratranslate_lib::commands::dict::license_text_for_ipc(layers, code)
+}
+
+#[test]
+fn the_license_text_command_returns_the_full_text_of_exactly_the_asked_source() {
+    let dir = temp_dir("lic-text");
+    build_all_layers(&dir);
+    let full = "Full licence text.\nSecond line - Sao chep.\n".repeat(500);
+    set_license(
+        &dir,
+        "aaa.db",
+        "fx-vp",
+        "open",
+        Some("CC-BY-SA-3.0"),
+        &full,
+        "tac gia",
+        "2026-01",
+        "https://example.invalid/vp",
+    );
+    let layers = DictLayers::open(&dir);
+
+    let text = command_license_text(Some(&layers), "fx-vp").expect("fx-vp co van ban");
+
+    assert_eq!(text, full);
+    assert_ne!(
+        command_license_text(Some(&layers), "fx-hv").expect("fx-hv doc duoc"),
+        full,
+        "moi code tra ve van ban cua chinh no"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn an_unknown_source_code_is_a_named_error_not_an_empty_string() {
+    let dir = temp_dir("lic-unknown");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let err =
+        command_license_text(Some(&layers), "khong-co-nguon-nay").expect_err("code la phai la loi");
+    assert_eq!(err.code(), "dict.unknown_source_code");
+    assert_eq!(
+        err.params().get("code").map(String::as_str),
+        Some("khong-co-nguon-nay")
+    );
+
+    let none = command_license_text(None, "fx-vp").expect_err("khong co lop nao");
+    assert_eq!(none.code(), "dict.unknown_source_code");
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn a_layer_closed_after_attach_gives_a_named_read_error() {
+    let dir = temp_dir("lic-closed");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+    assert!(
+        command_license_text(Some(&layers), "fx-hv").is_ok(),
+        "doi chung duong: truoc khi dong, doc duoc"
+    );
+    layers.close();
+
+    let err = command_license_text(Some(&layers), "fx-hv").expect_err("lop da dong phai la loi");
+
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::StoreReadFailed,
+        "{err:?}"
+    );
+    cleanup(&dir);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────────
 // AC9 — `license_kind` KHÔNG BỊ ÉP VÀO ENUM, VÀ CHỖ GIỮ CHO GIẤY PHÉP RIÊNG
 // ─────────────────────────────────────────────────────────────────────────────────

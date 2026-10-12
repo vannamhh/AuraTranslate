@@ -699,6 +699,9 @@ export type CommandDeps = {
   openAttribution?: () => void
   /** Đóng bề mặt ghi công. Handler của `attribution.close` (AC11). */
   closeAttribution?: () => void
+  openLicenseText?: () => void
+  copyCredit?: () => void
+  closeLicenseText?: () => void
 
   // ── Story 1.20 — lịch sử tra cứu và mục đã ghim ────────────────────────────────
   //
@@ -2538,6 +2541,9 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     ['lookup.toggle_source', 'toggleDictSource'],
     ['attribution.open', 'openAttribution'],
     ['attribution.close', 'closeAttribution'],
+    ['attribution.open_license', 'openLicenseText'],
+    ['attribution.copy_credit', 'copyCredit'],
+    ['attribution.close_license', 'closeLicenseText'],
   ] as const) {
     target.register({
       id,

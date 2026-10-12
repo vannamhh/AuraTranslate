@@ -2103,10 +2103,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ),
     (
         "src/commands/dict.rs",
-        3,
+        4,
         0,
         0,
-        "CHUA DO -- chu: Dev. Ba vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
+        "CHUA DO -- chu: Dev. Bon vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
     ("src/commands/export.rs", 7, 7, 7, ""),
@@ -2302,9 +2302,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (87, 56),
+        (88, 56),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         87/56.\n\n\
+         88/56.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

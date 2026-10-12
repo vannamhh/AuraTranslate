@@ -243,7 +243,7 @@ const COMMAND_FLOOR = 200
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 151
+const CLICK_FLOOR = 162
 const DISPATCH_FLOOR = 220
 
 {
@@ -2232,6 +2232,57 @@ if (iBad === 0) {
 // story 2.3 không phải "mở khoá" nó.
 
 // ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm L — `unbound()` không được gọi trong `src/**/*.vue`')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// `unbound()` lists commands lacking a shortcut; a view reading it bypasses the settings
+// state module (`unboundShortcutIds`). Reads the code-only view (comments and string
+// literals blanked), so prose naming the call does not trip it.
+
+const UNBOUND_CALL_RE = /\bunbound\s*\(/g
+
+/**
+ * @param {ParsedFile[]} files
+ * @returns {{ file: string, index: number }[]}
+ */
+function unboundCallsInVue(files) {
+  /** @type {{ file: string, index: number }[]} */
+  const hits = []
+  for (const p of files) {
+    if (!p.isVue) continue
+    const code = p.code ?? ''
+    UNBOUND_CALL_RE.lastIndex = 0
+    let m
+    while ((m = UNBOUND_CALL_RE.exec(code))) hits.push({ file: p.file, index: m.index })
+  }
+  return hits
+}
+
+{
+  const probe = (/** @type {string} */ src) => unboundCallsInVue([buildParsedEntry('src/Probe.vue', src)]).length
+  const selfProblems = []
+  if (probe('<script setup lang="ts">\nconst x = registry.unbound()\n</script>\n') !== 1)
+    selfProblems.push('một lời gọi `unbound()` trong <script> PHẢI bị bắt')
+  if (probe('<template>\n<p>{{ commandRegistry.unbound().length }}</p>\n</template>\n') !== 1)
+    selfProblems.push('một lời gọi `unbound()` trong <template> PHẢI bị bắt')
+  if (probe('<script setup lang="ts">\n// registry.unbound() is banned here\nconst s = "unbound()"\n</script>\n') !== 0)
+    selfProblems.push('chú thích và chuỗi ký tự KHÔNG được bị bắt')
+  if (probe('<script setup lang="ts">\nconst unboundShortcutIds = []\n</script>\n') !== 0)
+    selfProblems.push('định danh chỉ chứa chữ `unbound` KHÔNG được bị bắt')
+  for (const problem of selfProblems) fail(`TỰ KIỂM Kiểm L: ${problem}`)
+
+  const hits = unboundCallsInVue(parsed)
+  for (const h of hits) {
+    const p = /** @type {ParsedFile} */ (parsed.find((q) => q.file === h.file))
+    fail(`${at(p, h.index)} — \`unbound()\` bị cấm trong \`.vue\`: ${excerpt(p.text, h.index)}`)
+    detail('Đọc qua state module (`unboundShortcutIds`), không gọi registry từ view.')
+  }
+  if (selfProblems.length === 0 && hits.length === 0) {
+    pass(`không \`.vue\` nào gọi \`unbound()\` (${parsed.filter((p) => p.isVue).length} tệp quét) — tự kiểm bốn ca đúng`)
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log(
   '\nKiểm K — `@keydown`/`@keyup`/`@mouseup`/`@mousedown`/`@submit`: bảng đông cứng ' +
     'HAI CHIỀU (Story 11.1 lot A, Quyết định 1)',
@@ -2329,7 +2380,8 @@ const HANDLER_TABLE = {
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
-  'src/AttributionOverlay.vue::closeAttribution': { nonCommand: R_CLOSE_IMPORTED },
+  'src/AttributionOverlay.vue::onEscape': { ids: ['attribution.close', 'attribution.close_license'] },
+  'src/AttributionOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },
   'src/BilingualImportPreviewOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },

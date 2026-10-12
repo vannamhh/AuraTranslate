@@ -142,6 +142,8 @@ message_keys! {
     ///
     /// [`TRANSLATION_ORIGINS`]: crate::commands::segment::TRANSLATION_ORIGINS
     StoreUnknownTranslationOrigin => "err.store.unknown_translation_origin" ["store", "value"],
+    /// Asked for the licence text of a `dict_source.code` that no attached dictionary file carries.
+    DictUnknownSourceCode => "err.dict.unknown_source_code" ["code"],
 
     // ─────────────────────────────────────────────────────────────────────────
     // TẦNG TÁC PHẨM + ĐƯỜNG NHẬP — Story 1.15 (AD-9 · AD-33 · AD-39)

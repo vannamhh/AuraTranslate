@@ -201,7 +201,10 @@ import { installTimingProbe, markDispatch } from './panels/lookupTiming'
 import {
   attributionIsOpen,
   closeAttribution,
+  closeLicenseText,
+  copyAimedCredit,
   loadDictSources,
+  openAimedLicenseText,
   openAttribution,
   toggleFocusedDictSource,
 } from './panels/dictSourcesState'
@@ -828,6 +831,9 @@ async function boot(): Promise<void> {
       toggleDictSource: toggleFocusedDictSource,
       openAttribution,
       closeAttribution,
+      openLicenseText: () => void openAimedLicenseText(),
+      copyCredit: () => void copyAimedCredit(),
+      closeLicenseText,
       // Story 1.20 · AC5 · AC6 — bốn command tĩnh cho dải tab, ghim và xoá lịch sử.
       selectLookupTab,
       toggleLookupPin,

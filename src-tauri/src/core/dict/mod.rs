@@ -996,6 +996,41 @@ pub fn list_source_attributions(layers: &DictLayers) -> SourceAttributions {
     SourceAttributions { sources, skipped }
 }
 
+/// Why [`read_license_text`] produced no text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LicenseTextError {
+    /// No attached dictionary file carries this `dict_source.code`.
+    UnknownSourceCode { code: String },
+    /// The file that carries the code could not be read now.
+    Unreadable(crate::core::store::StoreError),
+}
+
+/// Full licence text of ONE source, read when asked, never held in RAM.
+///
+/// `layers = None` behaves like an empty set. A missing code is an error, not an empty string.
+pub fn read_license_text(
+    layers: Option<&DictLayers>,
+    code: &str,
+) -> Result<String, LicenseTextError> {
+    let unknown = || LicenseTextError::UnknownSourceCode {
+        code: code.to_owned(),
+    };
+    let Some(layers) = layers else {
+        return Err(unknown());
+    };
+    for layer in layers.layers() {
+        if layer.source(code).is_none() {
+            continue;
+        }
+        return match layer.license_text(code) {
+            Ok(Some(text)) => Ok(text),
+            Ok(None) => Err(unknown()),
+            Err(err) => Err(LicenseTextError::Unreadable(err)),
+        };
+    }
+    Err(unknown())
+}
+
 /// Result of [`list_source_attributions`] — full attribution plus the layers that could
 /// not be read.
 ///

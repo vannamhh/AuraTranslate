@@ -381,11 +381,12 @@ onBeforeUnmount(() => {
         có `@mousedown` chứ không chỉ `document.activeElement`.
       -->
       <div
-        v-if="dictSources.length > 0"
         class="lookup-sources"
         @mousedown="aimDictSourceFrom($event)"
       >
-        <span class="lookup-sources-label">{{ t('panel.lookup.sources_label') }}</span>
+        <span v-if="dictSources.length > 0" class="lookup-sources-label">{{
+          t('panel.lookup.sources_label')
+        }}</span>
         <!--
           🔴 **VÙNG CUỘN RIÊNG CHO CHIP — Ice chốt 2026-08-10 sau khi CHẠY THẬT.**
 
@@ -404,7 +405,7 @@ onBeforeUnmount(() => {
           *(đưa bật tắt sang trang Settings, thu gọn dòng nhịp)* — nó đảo AC1/AC2/AC11 của
           Story 1.19 và cần một bề mặt Settings chưa tồn tại, nên đi qua `correct-course`.
         -->
-        <div class="lookup-sources-chips">
+        <div v-if="dictSources.length > 0" class="lookup-sources-chips">
           <button
             v-for="src in dictSources"
             :key="src.code"
