@@ -3,14 +3,14 @@ title: 'Story 10.2 — Phát hành cho macOS và Windows'
 type: 'feature'
 ticket: "2"
 created: '2026-10-12'
-status: 'ready-for-dev'
-baseline_revision: ''
+status: 'built'
+baseline_revision: 'bc43b3bec1ba3b308c283c5a989cfcf931cb2e02'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/AGENTS.md'
@@ -67,14 +67,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `.github/release-notes.md` -- tạo, tiếng Việt: không ký số, không notarize, lý do (PRD §9.1); Gatekeeper/SmartScreen sẽ cảnh báo, hướng dẫn ở 10.6; macOS universal (Apple Silicon và Intel); Windows nhúng WebView2 cài được không mạng; từ điển nhúng sẵn, không tải thêm.
-- [ ] `scripts/check-release-version.mjs` + vitest -- nhận tag, đọc ba tệp phiên bản; lệch ⇒ exit ≠ 0 với tên tệp và hai giá trị; tag không dạng `v<semver>` ⇒ exit ≠ 0.
-- [ ] `scripts/inspect-release.mjs` + vitest -- kiểm bốn tệp font như trên.
-- [ ] `.github/workflows/release.yml` -- sửa header; bước kiểm phiên bản trước `tauri build` (chỉ khi tag); job `publish` (`ubuntu-24.04`, `needs: build`, `if` tag `v*`, `permissions: contents: write`): xác nhận `ci.yml` trên `github.sha` `success` → `download-artifact` → `gh release create "$GITHUB_REF_NAME" --verify-tag --latest --notes-file .github/release-notes.md <tệp>` không `--draft`. macOS: `dtolnay/rust-toolchain` thêm `targets: aarch64-apple-darwin,x86_64-apple-darwin`; `tauri build --target universal-apple-darwin`; đường dẫn bundle macOS ở bước kiểm và `upload-artifact` đổi sang `src-tauri/target/universal-apple-darwin/release/bundle/`; bước kiểm macOS chạy `lipo -archs` trên binary trong `.app`, thiếu `x86_64` hoặc `arm64` ⇒ đỏ.
-- [ ] `src-tauri/tests/config_invariants.rs` -- ca mới: chỉ job `publish` có `contents: write`, mọi job khác và cấp workflow `read`; `publish` `needs: build` và bị chặn trên tag `v*`; lệnh tạo release truyền `--notes-file .github/release-notes.md`, `--verify-tag`, `--latest`, không `--clobber`; tệp ghi chú chứa câu không ký số / không notarize; bước kiểm phiên bản đứng trước mọi `npx tauri build`; dòng `tauri build` macOS mang `--target universal-apple-darwin`.
-- [ ] `scripts/check-deps.mjs` -- cấm `tauri-plugin-updater` và `@tauri-apps/plugin-updater`.
-- [ ] `src-tauri/tests/dict_boundary.rs` -- mã `core/dict/` không nhắc `reqwest`/`http`/`ureq`, theo mẫu `matching_boundary.rs`; dòng code, không dòng comment.
-- [ ] `deferred-work.md` -- hai mục `Chủ: Story 10.2` đóng / chuyển chủ bằng chữ như Code Map.
+- [x] `.github/release-notes.md` -- tạo, tiếng Việt: không ký số, không notarize, lý do (PRD §9.1); Gatekeeper/SmartScreen sẽ cảnh báo, hướng dẫn ở 10.6; macOS universal (Apple Silicon và Intel); Windows nhúng WebView2 cài được không mạng; từ điển nhúng sẵn, không tải thêm.
+- [x] `scripts/check-release-version.mjs` + vitest -- nhận tag, đọc ba tệp phiên bản; lệch ⇒ exit ≠ 0 với tên tệp và hai giá trị; tag không dạng `v<semver>` ⇒ exit ≠ 0.
+- [x] `scripts/inspect-release.mjs` + vitest -- kiểm bốn tệp font như trên.
+- [x] `.github/workflows/release.yml` -- sửa header; bước kiểm phiên bản trước `tauri build` (chỉ khi tag); job `publish` (`ubuntu-24.04`, `needs: build`, `if` tag `v*`, `permissions: contents: write`): xác nhận `ci.yml` trên `github.sha` `success` → `download-artifact` → `gh release create "$GITHUB_REF_NAME" --verify-tag --latest --notes-file .github/release-notes.md <tệp>` không `--draft`. macOS: `dtolnay/rust-toolchain` thêm `targets: aarch64-apple-darwin,x86_64-apple-darwin`; `tauri build --target universal-apple-darwin`; đường dẫn bundle macOS ở bước kiểm và `upload-artifact` đổi sang `src-tauri/target/universal-apple-darwin/release/bundle/`; bước kiểm macOS chạy `lipo -archs` trên binary trong `.app`, thiếu `x86_64` hoặc `arm64` ⇒ đỏ.
+- [x] `src-tauri/tests/config_invariants.rs` -- ca mới: chỉ job `publish` có `contents: write`, mọi job khác và cấp workflow `read`; `publish` `needs: build` và bị chặn trên tag `v*`; lệnh tạo release truyền `--notes-file .github/release-notes.md`, `--verify-tag`, `--latest`, không `--clobber`; tệp ghi chú chứa câu không ký số / không notarize; bước kiểm phiên bản đứng trước mọi `npx tauri build`; dòng `tauri build` macOS mang `--target universal-apple-darwin`.
+- [x] `scripts/check-deps.mjs` -- cấm `tauri-plugin-updater` và `@tauri-apps/plugin-updater`.
+- [x] `src-tauri/tests/dict_boundary.rs` -- mã `core/dict/` không nhắc `reqwest`/`http`/`ureq`, theo mẫu `matching_boundary.rs`; dòng code, không dòng comment.
+- [x] `deferred-work.md` -- hai mục `Chủ: Story 10.2` đóng / chuyển chủ bằng chữ như Code Map.
 
 **Acceptance Criteria:**
 - Given push tag `v*` trên commit CI xanh, when `release.yml` xong, then GitHub Releases có release tag đó là Latest, đính `.dmg` universal và `.msi`, thân là ghi chú phát hành; `dict-v2` không Latest.
@@ -84,9 +84,27 @@ context:
 
 ## Implementation Notes
 
+- Hai pha: `feat(release)` (ghi chú phát hành, kiểm phiên bản, kiểm font, `release.yml`) rồi `test(release)` (guard Rust, `check-deps`, sổ nợ). Ghi chú bàn giao nằm ngoài repo.
+- Job `publish` cần thêm `actions: read` để `gh run list` đọc được lượt `ci.yml`; guard cho phép đúng cặp `contents: write` + `actions: read`.
+- `download-artifact` ghim v8.0.1 (`3e5f45b2…`), không lấy v8.0.2 vì mới 5 ngày.
+- Upload tách một bước mỗi OS vì đường bundle macOS nay nằm dưới `target/universal-apple-darwin/`.
+- Test vitest của script nằm ở `tests/frontend/`, không ở `scripts/`.
+- `TAG_RE` chỉ nhận `v<major>.<minor>.<patch>`: tag tiền phát hành sẽ thành Latest qua `--latest`.
+- Đối chứng cổng `check:deps` cho `tauri-plugin-updater` chỉ bằng phép thay tên (crate không có trong registry ngoại tuyến, `cargo tree --locked` đỏ vì lockfile); đường phát hiện đỏ đúng, tên thật chưa từng được thấy đỏ.
+- Nếu tag được đẩy khi `ci.yml` trên commit đó còn chạy, `publish` đỏ; chạy lại lượt `release.yml` sau khi CI xanh.
+- ⚠️ Script mới dưới `scripts/` phải qua `vue-tsc -p tsconfig.node.json` strict trong `npm run build`; vitest xanh không phủ điều đó.
+- Còn do người làm: lượt `release.yml` thật (universal, `lipo`, font trong `.msi`, `gh release create`, cổng CI xanh) chỉ chạy được sau push và tag.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Lượt 1 (quick): high 0 · medium 1 · low 3 · false 0 · maybe-false 0; một low và một phát hiện sửa plan bị bác.
+- medium · patch — `TAG_RE` nhận hậu tố prerelease/build nên `v0.2.0-rc1` qua kiểm phiên bản rồi thành Latest qua `--latest`; thu hẹp về `v<major>.<minor>.<patch>`, thêm ca vitest.
+- low · bác — bộ lọc CI không xét `event`: job `check` không có `if:` cấp job nên mọi lượt `ci.yml` thành công đã chạy đủ hai OS; riêng lượt `pull_request` kiểm merge ref, nhưng tag cắt từ `master` vốn có lượt push; sửa là thêm điều kiện, không phải sửa thẳng.
+- low · patch — doc comment tiếng Việt trích AD/FR, nhắc lại thân test ở `dict_boundary.rs`; xoá.
+- low · patch — dòng header quá dài ở `inspect-release.mjs:4`; ngắt dòng.
+- bác — ô Tasks và Implementation Notes chưa điền: cách sửa là sửa plan của chính build này.
 
 ## Design Notes
 
@@ -95,7 +113,7 @@ context:
 ## Verification
 
 **Commands:**
-- `npx vitest run scripts/` (các tệp test của hai script) -- xanh.
+- `npx vitest run tests/frontend/checkReleaseVersion.test.ts tests/frontend/fetchDicts.test.ts` -- xanh.
 - `cargo test --test config_invariants` · `cargo test --test dict_boundary` -- xanh; đối chứng đỏ bằng phép gỡ thật cho từng ca mới.
 - `npm run check:deps` -- xanh; thêm tạm `tauri-plugin-updater` ⇒ đỏ.
 - `gh workflow run release.yml --ref master` -- hai job dựng xanh, `publish` bị bỏ qua (cần push, do người làm).
