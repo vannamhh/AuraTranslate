@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { fetchDicts, inspectInstalledTree, manifestEntries } from '../../scripts/lib/dict-fetch.mjs'
+import { fetchDicts, inspectInstalledFonts, inspectInstalledTree, manifestEntries } from '../../scripts/lib/dict-fetch.mjs'
 
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 
@@ -163,5 +163,53 @@ describe('inspectInstalledTree', () => {
     const report = await inspectInstalledTree({ manifestText: manifest(), root: dest })
     expect(report.webview2Bytes).toBe(1000)
     expect(report.installedBytes).toBe('core bytes'.length)
+  })
+})
+
+describe('inspectInstalledFonts', () => {
+  const FONTS: Record<string, string> = { 'A.otf': 'a', 'B[wght].ttf': 'b', 'C.ttf': 'c', 'D.ttf': 'd' }
+  let sourceDir: string
+
+  function put(base: string, files: Record<string, string>) {
+    for (const [rel, body] of Object.entries(files)) {
+      const full = join(base, rel)
+      mkdirSync(dirname(full), { recursive: true })
+      writeFileSync(full, body)
+    }
+  }
+  const installed = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([n, b]) => [`App/Resources/fonts/${n}`, b]))
+
+  beforeEach(() => {
+    sourceDir = mkdtempSync(join(tmpdir(), 'font-src-'))
+    put(sourceDir, { ...FONTS, 'OFL.txt': 'licence' })
+  })
+  afterEach(() => {
+    rmSync(sourceDir, { recursive: true, force: true })
+  })
+
+  it('accepts a tree carrying every font with the source hash', async () => {
+    put(dest, installed(FONTS))
+    expect(await inspectInstalledFonts({ sourceDir, root: dest })).toEqual({ problems: [], fontCount: 4 })
+  })
+
+  it('names a missing font and a font with different bytes', async () => {
+    const { 'C.ttf': _gone, 'D.ttf': _changed, ...rest } = FONTS
+    put(dest, installed({ ...rest, 'D.ttf': 'tampered' }))
+    const { problems } = await inspectInstalledFonts({ sourceDir, root: dest })
+    expect(problems).toHaveLength(2)
+    expect(problems.find((p) => p.startsWith('C.ttf'))).toContain('found 0 copies')
+    expect(problems.find((p) => p.startsWith('D.ttf'))).toContain('does not match the source')
+  })
+
+  it('does not count a font outside a fonts directory', async () => {
+    const { 'A.otf': _moved, ...rest } = FONTS
+    put(dest, { ...installed(rest), 'App/Resources/other/A.otf': 'a' })
+    const { problems } = await inspectInstalledFonts({ sourceDir, root: dest })
+    expect(problems).toEqual([expect.stringContaining('A.otf: found 0 copies')])
+  })
+
+  it('aborts instead of passing when the source holds fewer than four fonts', async () => {
+    rmSync(join(sourceDir, 'D.ttf'))
+    await expect(inspectInstalledFonts({ sourceDir, root: dest })).rejects.toThrow(/infrastructure failure/)
   })
 })

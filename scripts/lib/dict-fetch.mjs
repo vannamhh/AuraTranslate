@@ -155,3 +155,31 @@ export async function inspectInstalledTree({ manifestText, root }) {
   const installedBytes = files.reduce((sum, f) => sum + f.size, 0) - webview2Bytes
   return { problems, installedBytes, webview2Bytes }
 }
+
+const MIN_BUNDLED_FONTS = 4
+
+/**
+ * Requires every `.otf`/`.ttf` in `sourceDir` to appear exactly once under a `fonts` directory
+ * of `root` with the same SHA-256.
+ *
+ * @param {{ sourceDir: string, root: string }} options
+ * @returns {Promise<{ problems: string[], fontCount: number }>}
+ */
+export async function inspectInstalledFonts({ sourceDir, root }) {
+  const sources = (await readdir(sourceDir)).filter((name) => /\.(otf|ttf)$/.test(name)).sort()
+  if (sources.length < MIN_BUNDLED_FONTS) {
+    throw new Error(`found ${sources.length} font files in ${sourceDir}, need at least ${MIN_BUNDLED_FONTS}; this is an infrastructure failure, not a pass`)
+  }
+  const files = await walkFiles(root)
+  const problems = []
+  for (const name of sources) {
+    const hits = files.filter((f) => f.path.replaceAll('\\', '/').endsWith(`/fonts/${name}`))
+    if (hits.length !== 1) {
+      problems.push(`${name}: found ${hits.length} copies under a 'fonts' directory, need exactly 1`)
+      continue
+    }
+    const [expected, actual] = await Promise.all([sha256OfFile(join(sourceDir, name)), sha256OfFile(hits[0].path)])
+    if (actual !== expected) problems.push(`${name}: sha256 ${actual} does not match the source ${expected}`)
+  }
+  return { problems, fontCount: sources.length }
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Checks an unpacked release build (the `.app`, or the target of `msiexec /a`) against
- * `dict-manifest.toml` and prints a Markdown size report for the CI step summary (NFR6).
- * Exit 1 when any dictionary file is missing, duplicated or has the wrong SHA-256. The sizes
+ * `dict-manifest.toml` and the bundled fonts under `src-tauri/resources/fonts`, and prints a Markdown size report for the CI step summary (NFR6).
+ * Exit 1 when any dictionary or font file is missing, duplicated or has the wrong SHA-256. The sizes
  * are reported, never judged.
  *
  * Usage: node scripts/inspect-release.mjs --root <dir> --installer <file> [--manifest <path>]
@@ -10,9 +10,10 @@
 import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { inspectInstalledTree } from './lib/dict-fetch.mjs'
+import { inspectInstalledFonts, inspectInstalledTree } from './lib/dict-fetch.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const FONT_SOURCE_DIR = join(REPO_ROOT, 'src-tauri', 'resources', 'fonts')
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
@@ -39,6 +40,8 @@ try {
     manifestText: readFileSync(manifest, 'utf8'),
     root,
   })
+  const fonts = await inspectInstalledFonts({ sourceDir: FONT_SOURCE_DIR, root })
+  problems.push(...fonts.problems)
   const installerBytes = statSync(installer).size
   console.log(`### NFR6 size report (${installer.split(/[\\/]/).pop()})`)
   console.log('')
@@ -50,11 +53,11 @@ try {
   console.log('')
   console.log('Reference ceiling 400,000,000 bytes. Measured only; the verdict is the PRD tier (Ice).')
   if (problems.length > 0) {
-    console.error(`\n${problems.length} dictionary problem(s) in ${root}:`)
+    console.error(`\n${problems.length} problem(s) in ${root}:`)
     for (const p of problems) console.error(`  ${p}`)
     process.exit(1)
   }
-  console.error(`all dictionary files in ${root} match ${manifest}`)
+  console.error(`all dictionary files in ${root} match ${manifest} and all ${fonts.fontCount} font files match ${FONT_SOURCE_DIR}`)
 } catch (err) {
   console.error(`inspect-release: ${err instanceof Error ? err.message : err}`)
   process.exit(1)
