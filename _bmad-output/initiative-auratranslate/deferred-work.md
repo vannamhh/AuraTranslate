@@ -13041,6 +13041,7 @@ chính nó.
   summary: Chữ ký ghi nhớ của AD-53 mục 7 chứa loại do model gán, nên một cụm bị gọi chính tả rồi ngữ pháp ở hai lượt quét thì đổi khoá và báo lại (FR84); chữ ký loại 9.2 chỉ mang văn bản đích, không mang cụm nguồn.
   evidence: AD-53 mục 1 ⚠️; reviews/review-ad-53-recheck-2026-10-10.md mục 5; không có dữ liệu dùng thật để đo tần suất.
   Chủ: Story 9.8.
+  → 🟡 2026-10-12: một lượt quét không làm xảy ra đổi loại; công cụ đo báo động giả chỉ cho cận dưới (`crossKindPairs`). Chủ: Epic 9.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
   summary: Dải proofreader chưa hiện ước tính chi phí trước khi bấm quét Chương hoặc vùng chọn (mockup có, AC của 9.3 không có; dịch theo lô cũng chưa có).
   evidence: `proofreader.html:300-302`; bộ chọn ba ô chỉ hiện số câu.
@@ -13068,4 +13069,8 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-bo-qua-co-ghi-nho-plan.md`
   summary: Chưa ai thử trong ứng dụng thật trên một Chương: "Không phải lỗi", quét lại (phát hiện không hiện, dải ghi số bị lọc), gộp hai câu rồi quét lại, mở "Chỗ đã bỏ qua", bỏ một mục, "Xoá toàn bộ" (lần bấm đầu không xoá), và hàng `proof_scan` sau mỗi lượt quét xong.
   evidence: e2e không giả được provider AI; vitest giả `invoke`, cargo test không qua webview. Id Tác phẩm cho `scan_record` đến từ `openWorkIdentity.ts` (đặt ở hai điểm tạo/mở Tác phẩm), chưa thử trên đường tạo từ nhập ghép Chương.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-o-ty-le-bao-ong-gia-plan.md`
+  summary: Chưa có số đo tỷ lệ báo động giả thật (FR81): Ice quét một Chương, xử lý hết, chạy `scripts/measure-proofread-false-alarm.mjs`, ghi khối vào `measurements-bao-dong-gia.md`.
+  evidence: công cụ và test đã dựng; số chỉ có từ lượt dùng thật, agent không tạo được.
   Chủ: Epic 9.
